@@ -1970,7 +1970,6 @@
   "attachmentUnreadable": "無法讀取此檔案。",
   "documentTooLarge": "PDF 不得超過 32 MB。",
   "documentsOverBudget": "每則訊息中的圖片和 PDF 頁面總數不得超過 50。",
-  "mediaTotalTooLarge": "附加圖片和 PDF 的總大小超過媒體限制。",
   "olderMediaOmitted": "為符合媒體限制，本次請求省略了較早的圖片或 PDF。它們仍保留在本機歷史紀錄中。",
   "pdfNeedsModelApi": "附加 PDF 需要使用 Model API 後端。",
   "invalidPdf": "此檔案名稱為 PDF，但不是有效的 PDF 檔案。",

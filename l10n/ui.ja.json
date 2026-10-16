@@ -1970,7 +1970,6 @@
   "attachmentUnreadable": "ファイルを読み取れませんでした。",
   "documentTooLarge": "PDF は 32 MB 以下である必要があります。",
   "documentsOverBudget": "1 つのメッセージに含められる画像と PDF ページは合計 50 件までです。",
-  "mediaTotalTooLarge": "添付された画像と PDF の合計サイズがメディアの上限を超えています。",
   "olderMediaOmitted": "メディアの上限を守るため、古い画像または PDF をこのリクエストから除外しました。ローカルの履歴には残っています。",
   "pdfNeedsModelApi": "PDF の添付には Model API バックエンドが必要です。",
   "invalidPdf": "このファイルは PDF という名前ですが、有効な PDF ではありません。",

@@ -2057,7 +2057,6 @@
   "attachmentUnreadable": "Nie można odczytać pliku.",
   "documentTooLarge": "Pliki PDF mogą mieć najwyżej 32 MB.",
   "documentsOverBudget": "Pliki mogą łącznie zawierać najwyżej 50 obrazów i stron PDF na wiadomość.",
-  "mediaTotalTooLarge": "Załączone obrazy i pliki PDF przekraczają łączny limit rozmiaru multimediów.",
   "olderMediaOmitted": "Starsze obrazy lub pliki PDF pominięto w tym żądaniu z powodu limitów multimediów. Pozostają w lokalnej historii.",
   "pdfNeedsModelApi": "Załączniki PDF wymagają backendu Model API.",
   "invalidPdf": "Ten plik ma nazwę PDF, ale nie jest prawidłowym plikiem PDF.",

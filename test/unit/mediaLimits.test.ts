@@ -138,7 +138,7 @@ describe('M105 lazy AttachmentStore media port', () => {
   })
   it('dispatches renamed video by bytes before PDF/text/image names and gates before storing', () => {
     const media = port()
-    const attachments = new AttachmentStore(() => 'media-1', undefined, media)
+    const attachments = new AttachmentStore(() => 'media-1', media)
     expect(attachments.add('renamed.mp4', ebmlFixture(), true, true)).toMatchObject({
       ok: false,
       reason: expect.stringContaining('video/webm'),
@@ -159,7 +159,7 @@ describe('M105 lazy AttachmentStore media port', () => {
   it('keeps host-file metadata only, applies the injected model gate, and preserves mixed budgets', () => {
     const media = port()
     let id = 0
-    const attachments = new AttachmentStore(() => String(++id), undefined, media)
+    const attachments = new AttachmentStore(() => String(++id), media)
     expect(attachments.add('pages.pdf', pdfFixture(50), true).ok).toBe(true)
     expect(attachments.addMedia('clip.mp4', video())).toEqual({
       ok: false,
@@ -186,7 +186,7 @@ describe('M105 lazy AttachmentStore media port', () => {
       ...port(),
       check: vi.fn(() => ({ ok: false, reason: 'captured model gate' }) as const),
     }
-    const attachments = new AttachmentStore(() => '1', undefined, media)
+    const attachments = new AttachmentStore(() => '1', media)
     expect(attachments.addMedia('clip.mp4', video())).toEqual({
       ok: false,
       reason: 'captured model gate',
@@ -198,7 +198,7 @@ describe('M105 lazy AttachmentStore media port', () => {
   it('enforces the composer count for streamed and embedded media and names malformed input', () => {
     let id = 0
     const media = port()
-    const attachments = new AttachmentStore(() => String(++id), undefined, media)
+    const attachments = new AttachmentStore(() => String(++id), media)
     for (let index = 0; index < MAX_ATTACHMENTS_PER_MESSAGE; index += 1)
       expect(attachments.addMedia('clip.mp4', video()).ok).toBe(true)
     expect(attachments.addMedia('clip.mp4', video())).toEqual({

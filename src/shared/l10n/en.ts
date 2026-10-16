@@ -2368,7 +2368,6 @@ export const EN = {
   attachmentUnreadable: 'The file could not be read.',
   documentTooLarge: 'PDFs must be 32 MB or smaller.',
   documentsOverBudget: 'Files must total at most 50 images and PDF pages per message.',
-  mediaTotalTooLarge: 'Attached images and PDFs exceed the combined media size limit.',
   olderMediaOmitted:
     'Older images or PDFs were left out of this request to stay within media limits. They remain in local history.',
   pdfNeedsModelApi: 'PDF attachments require the Model API backend.',

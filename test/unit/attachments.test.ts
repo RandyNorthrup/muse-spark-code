@@ -30,12 +30,12 @@ function png(width: number, height: number, padding = 0): Uint8Array {
   ])
 }
 
-function store(maxEncodedMediaChars?: number) {
+function store() {
   let next = 0
   return new AttachmentStore(() => {
     next += 1
     return `att-${String(next)}`
-  }, maxEncodedMediaChars)
+  })
 }
 
 describe('AttachmentStore', () => {
@@ -191,19 +191,15 @@ describe('AttachmentStore', () => {
     })
   })
 
-  it('refuses combined encoded media above the message cap before retaining it', () => {
-    const bytes = pdfFixture(1)
-    const encodedLength = `data:application/pdf;base64,${Buffer.from(bytes).toString('base64')}`
-      .length
-    const attachments = store(encodedLength + 1)
-    expect(attachments.add('first.pdf', bytes, true).ok).toBe(true)
-    expect(attachments.add('second.pdf', bytes, true)).toEqual({
-      ok: false,
-      reason: UI_TEXT.mediaTotalTooLarge,
-    })
-    expect(attachments.list()).toHaveLength(1)
-    attachments.clear()
-    expect(attachments.add('second.pdf', bytes, true).ok).toBe(true)
+  it('keeps combined encoded media past the old message cap, every attachment retained', () => {
+    // Two 25 MB one-page PDFs: 66 MB of encoded characters together, two slots.
+    const one = Buffer.from(pdfFixture(1))
+    const padding = Buffer.from(`%${'0'.repeat(25_000_000)}\n`)
+    const big = Uint8Array.from(Buffer.concat([one.subarray(0, 9), padding, one.subarray(9)]))
+    const attachments = store()
+    expect(attachments.add('first.pdf', big, true).ok).toBe(true)
+    expect(attachments.add('second.pdf', big, true).ok).toBe(true)
+    expect(attachments.list()).toHaveLength(2)
   })
 
   it('accepts bounded UTF-8 text as a named part, not as a guessed binary file', () => {

@@ -2057,7 +2057,6 @@
   "attachmentUnreadable": "Soubor se nepodařilo přečíst.",
   "documentTooLarge": "Soubory PDF mohou mít nejvýše 32 MB.",
   "documentsOverBudget": "Soubory mohou mít dohromady nejvýše 50 obrázků a stránek PDF na zprávu.",
-  "mediaTotalTooLarge": "Přiložené obrázky a PDF překračují společný limit velikosti médií.",
   "olderMediaOmitted": "Starší obrázky nebo PDF byly z tohoto požadavku vynechány kvůli limitům médií. V místní historii zůstávají.",
   "pdfNeedsModelApi": "Přílohy PDF vyžadují backend Model API.",
   "invalidPdf": "Tento soubor má příponu PDF, ale není platným souborem PDF.",

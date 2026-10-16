@@ -1999,7 +1999,6 @@
   "attachmentUnreadable": "Die Datei konnte nicht gelesen werden.",
   "documentTooLarge": "PDFs dürfen höchstens 32 MB groß sein.",
   "documentsOverBudget": "Dateien dürfen zusammen höchstens 50 Bilder und PDF-Seiten pro Nachricht enthalten.",
-  "mediaTotalTooLarge": "Angehängte Bilder und PDFs überschreiten die gemeinsame Größenbeschränkung für Medien.",
   "olderMediaOmitted": "Ältere Bilder oder PDFs wurden wegen der Medienlimits aus dieser Anfrage ausgelassen. Sie bleiben im lokalen Verlauf erhalten.",
   "pdfNeedsModelApi": "PDF-Anhänge erfordern das Model-API-Backend.",
   "invalidPdf": "Diese Datei heißt PDF, ist aber keine gültige PDF-Datei.",

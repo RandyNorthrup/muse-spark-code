@@ -1999,7 +1999,6 @@
   "attachmentUnreadable": "Dosya okunamadı.",
   "documentTooLarge": "PDF dosyaları en fazla 32 MB olmalıdır.",
   "documentsOverBudget": "Dosyalar, mesaj başına toplam en fazla 50 görüntü ve PDF sayfası içerebilir.",
-  "mediaTotalTooLarge": "Ekli resim ve PDF dosyalarının toplamı medya boyutu sınırını aşıyor.",
   "olderMediaOmitted": "Medya sınırlarına uymak için eski resimler veya PDF dosyaları bu istekten çıkarıldı. Yerel geçmişte kalırlar.",
   "pdfNeedsModelApi": "PDF ekleri için Model API arka ucu gerekir.",
   "invalidPdf": "Bu dosyanın adı PDF olarak görünüyor ancak geçerli bir PDF değil.",
