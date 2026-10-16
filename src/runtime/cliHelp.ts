@@ -20,6 +20,7 @@ import {
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MODES,
   EXEC_OUTPUTS,
+  isAutoCompactionEvaluated,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
 } from '../shared/constants'
@@ -424,9 +425,21 @@ export function topicOptionNames(topic: CliHelpTopic): string[] {
   return topic.routes.flatMap((route) => Object.keys(CLI_OPTION_REGISTRY[route].options))
 }
 
+/**
+ * Accepted by the parser but not offered yet: automatic compaction until its
+ * evaluation passes, and the dormant schedule-v2 admission flag. Help and
+ * refusals never name them, as the compact usage never has.
+ */
+function isDormantOption(name: string): boolean {
+  return (
+    name === 'scheduled-prompts' ||
+    ((name === 'auto-compaction' || name === 'no-auto-compaction') && !isAutoCompactionEvaluated())
+  )
+}
+
 /** The option names one topic's help shows: what error messages may name. */
 export function topicShownOptionNames(topic: CliHelpTopic): string[] {
-  return topic.options.map((option) => option.name)
+  return topic.options.map((option) => option.name).filter((name) => !isDormantOption(name))
 }
 
 /** Option descriptions come from the installed language's table. */
@@ -488,9 +501,10 @@ export function renderTopicHelp(table: UiText, command: string, topic: CliHelpTo
   for (const usage of topic.usage) lines.push(`  ${usage(command)}`)
   lines.push(`  ${topic.purpose(table)}`)
   if (topic.note !== undefined) lines.push(`  ${topic.note(table)}`)
-  if (topic.options.length > 0) {
+  const shown = topic.options.filter((option) => !isDormantOption(option.name))
+  if (shown.length > 0) {
     lines.push(table.cliHelp.options)
-    for (const option of topic.options) {
+    for (const option of shown) {
       const route = topic.routes.find((candidate) =>
         Object.keys(CLI_OPTION_REGISTRY[candidate].options).includes(option.name),
       )
@@ -511,13 +525,11 @@ export function renderTopHelp(table: UiText, command: string): string {
   const lines: string[] = [formatAcpUsage(table, command), table.cliHelp.commands]
   for (const topic of CLI_HELP_TOPICS) lines.push(`  ${topic.name}  ${topic.purpose(table)}`)
   // Serve-only options the global list does not name (D117: --max-budget-usd).
-  // The dormant schedule-v2 admission flag stays out of the compact help
-  // (the schedules process boundary): the serve topic's own help still
-  // documents it, because the parser accepts it on serve.
+  // Dormant flags (the schedule-v2 admission flag, automatic compaction until
+  // its evaluation passes) stay out of every help and refusal.
   const serveOnly = Object.keys(CLI_OPTION_REGISTRY.serve.options).filter(
     (name) =>
-      name !== 'scheduled-prompts' &&
-      !Object.keys(CLI_OPTION_REGISTRY.login.options).includes(name),
+      !isDormantOption(name) && !Object.keys(CLI_OPTION_REGISTRY.login.options).includes(name),
   )
   for (const name of serveOnly) {
     const option = CLI_HELP_TOPICS.find((topic) => topic.name === 'serve')?.options.find(
