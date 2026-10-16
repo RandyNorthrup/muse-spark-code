@@ -261,7 +261,14 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
     )
     expect(shown).not.toContain('Capacity estimates (preview)')
     expect(shown).not.toContain('modelApiAutoCompaction')
-    expect(shown).toContain('Correction (2026-10-10)')
+    // What's New ships the two newest releases in full. Since 0.17.2 those are
+    // 0.17.2 and 0.17.1, so no corrected release ships there any more; whenever
+    // one is encoded, its dated correction comes with it.
+    for (const version of ['0.15.0', '0.16.0', '0.17.0']) {
+      const corrected = releases.filter((entry) => entry.version === version)
+      expect(corrected).toHaveLength(1)
+      expect(currentWhatsNewText(corrected)).toContain('Correction (2026-10-10)')
+    }
   })
 
   it('still rejects invalid Try it directives in archived history', () => {
