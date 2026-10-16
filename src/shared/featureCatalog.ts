@@ -1296,7 +1296,8 @@ export function sharingFeatures(table: UiText = UI_TEXT) {
     {
       id: 'prompts-use-cli',
       surface: 'cli',
-      syntax: 'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER] [--json]',
+      syntax:
+        'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER] [--json] [--var name=value ...] [--confirm]',
       label: table.promptUseSaved,
       detail: table.promptVariables,
     },

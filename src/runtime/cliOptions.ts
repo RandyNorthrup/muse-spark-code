@@ -24,6 +24,11 @@ export function formatReportHelp(table: UiText, command: string): string {
   return [fill(table.reportUsage, { command }), table.reportExits].join('\n')
 }
 
+/** One screen for `share --help` / `prompts --help`: the sharing commands' own syntax lines. */
+export function formatSharingHelp(table: UiText): string {
+  return sharingHelp(table)
+}
+
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
   const options = {
