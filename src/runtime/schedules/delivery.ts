@@ -15,8 +15,16 @@ import { CONTRIBUTOR_MODEL_SUFFIX, UI_TEXT } from '../../shared/constants'
 import { createScheduleBilling, type ScheduleBillingPorts } from '../../host/schedules/paidBinding'
 import type { ScheduleCallerContext } from './args'
 import type { ScheduleV2 } from '../../shared/scheduleV2'
+import type { UiText } from '../../shared/l10n/en'
 import { workspaceKey } from '../dataFolder'
 import type { createWorkspaceRegistry } from './registry'
+
+/** The ACP-side engine module a caller installs; the schedules bundle never
+ * loads it from VS Code, so the VSIX need not carry the runtime engine. */
+export interface RuntimeScheduleEngineModule {
+  readonly createRuntimeScheduleDelivery: typeof createRuntimeScheduleDelivery
+  setUiText(table: UiText, locale: string): void
+}
 
 export interface RuntimeScheduleDeliveryPorts {
   billing?(

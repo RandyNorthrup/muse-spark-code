@@ -4305,7 +4305,6 @@ export const SCHEDULE_RUN_ID_MAX_CHARS =
 export const SCHEDULE_RULE_MAX_CHARS = 1000
 export const SCHEDULE_MAX_GRANT_RULES = 100
 export const SCHEDULE_MAX_DESTINATIONS = 20
-export const SCHEDULE_STORE_SUBFOLDER = 'schedules'
 // Lane T's recovery-window bound, owned here since W wiring.
 export const SCHEDULE_MISSED_COUNT_MAX = 100
 // W's engine keeps only recent failures for its onError log.
