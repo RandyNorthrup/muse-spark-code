@@ -44,6 +44,7 @@ import { OPENROUTER_ORIGIN } from '../providers/openRouter'
 import { Usd } from '../../shared/usd'
 import { redactSecrets } from '../../shared/redact'
 import { type SessionBudgetConfig } from './sessionBudget'
+import { ChatGptSignInError, chatGptFailureText } from '../backend/subscriptionsEntry'
 
 export interface ModelsPanelDeps {
   readonly connectChatGpt?: (() => Promise<void>) | undefined
@@ -202,7 +203,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     // Exception text can contain a bare key even before it is retained.
     log.warn('Models panel operation failed')
     if (draft === undefined) {
-      state.notice = UI_TEXT.actionFailed
+      // Only our validated error code/reason may leave sign-in. Never show
+      // arbitrary exception text here: it can contain a credential or path.
+      state.notice =
+        error instanceof ChatGptSignInError
+          ? chatGptFailureText(error.code, error.reason)
+          : UI_TEXT.actionFailed
     } else {
       // Save failures name their cause with every retained key redacted.
       state.notice = undefined
