@@ -17,6 +17,7 @@ import { KEYRING_PART_CHARS, KEYRING_SERVICE } from '../../src/shared/constants'
 const isWindows = process.platform === 'win32'
 const scratch = { folder: '', bundle: '' }
 const accounts: string[] = []
+const scopes = new Set<string>()
 // How long a paused process is left paused while another waits for its account.
 const WAIT_FOR_OWNER_MS = 1500
 
@@ -37,10 +38,13 @@ beforeAll(async () => {
 
 afterAll(async () => {
   const { AsyncEntry, findCredentialsAsync } = await import('@napi-rs/keyring')
-  const found = await findCredentialsAsync(KEYRING_SERVICE)
-  for (const entry of found) {
-    if (accounts.some((account) => entry.account.startsWith(account))) {
-      await new AsyncEntry(KEYRING_SERVICE, entry.account).deletePassword()
+  for (const scope of scopes) {
+    const service = `${KEYRING_SERVICE}.test.${scope}`
+    const found = await findCredentialsAsync(service)
+    for (const entry of found) {
+      if (accounts.some((account) => entry.account.startsWith(account))) {
+        await new AsyncEntry(service, entry.account).deletePassword()
+      }
     }
   }
   if (scratch.folder !== '') await rm(scratch.folder, { recursive: true, force: true })
@@ -87,6 +91,7 @@ class Worker {
   private readonly ended: Promise<Ended>
 
   public constructor(scope: string, schedule: Schedule = {}) {
+    scopes.add(scope)
     this.child = spawn(
       process.execPath,
       [
@@ -141,9 +146,9 @@ async function succeeded(pending: Promise<Reply>, where = 'the call'): Promise<R
 }
 
 /** Every entry of the test's service that belongs to an account (the header, a record, a part). */
-async function entriesOf(name: string): Promise<string[]> {
+async function entriesOf(scope: string, name: string): Promise<string[]> {
   const { findCredentialsAsync } = await import('@napi-rs/keyring')
-  const found = await findCredentialsAsync(KEYRING_SERVICE)
+  const found = await findCredentialsAsync(`${KEYRING_SERVICE}.test.${scope}`)
   const mine = found
     .map((entry) => entry.account)
     .filter((entry) => entry === name || entry.startsWith(`${name}#`))
@@ -213,9 +218,9 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
       // No part outlives its generation: the header, and the parts it names.
       const header = await succeeded(readFresh(scope, name))
       const parts = Math.ceil((header.value ?? '').length / KEYRING_PART_CHARS)
-      expect(await entriesOf(name)).toHaveLength(1 + parts)
+      expect(await entriesOf(scope, name)).toHaveLength(1 + parts)
       await succeeded(first.ask({ op: 'delete', account: name }), 'delete')
-      expect(await entriesOf(name)).toEqual([])
+      expect(await entriesOf(scope, name)).toEqual([])
     } finally {
       first.close()
       second.close()
@@ -253,7 +258,7 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
         expect(values).toContain(reply.value)
       }
       await succeeded(writer.ask({ op: 'delete', account: name }), 'delete')
-      expect(await entriesOf(name)).toEqual([])
+      expect(await entriesOf(scope, name)).toEqual([])
     } finally {
       writer.close()
       reader.close()
@@ -281,7 +286,7 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
       const read = await succeeded(readFresh(scope, name), 'read after both writers')
       expect(read.value).toBe(y)
       await succeeded(quick.ask({ op: 'delete', account: name }), 'delete')
-      expect(await entriesOf(name)).toEqual([])
+      expect(await entriesOf(scope, name)).toEqual([])
     } finally {
       await writeFile(resumeFile, '')
       slow.close()
@@ -308,7 +313,7 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
       await succeeded(replacing, 'the replacement')
       expect([x, y]).toContain(read.value)
       await succeeded(writer.ask({ op: 'delete', account: name }), 'delete')
-      expect(await entriesOf(name)).toEqual([])
+      expect(await entriesOf(scope, name)).toEqual([])
     } finally {
       await writeFile(resumeFile, '')
       writer.close()
@@ -363,7 +368,7 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
       // The next owner finds and removes what the killed one left; a delete then
       // leaves no secret part of any generation.
       await nextOwnerDeletes(scope, name, fresh)
-      expect(await entriesOf(name), `killed at call ${String(at)}`).toEqual([])
+      expect(await entriesOf(scope, name), `killed at call ${String(at)}`).toEqual([])
     }
   }, 600_000)
 
@@ -383,7 +388,7 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
       // A delete is the next owner: it removes the orphaned parts the first
       // write left, which no header ever named.
       await nextOwnerDeletes(scope, name)
-      expect(await entriesOf(name), `killed at call ${String(at)}`).toEqual([])
+      expect(await entriesOf(scope, name), `killed at call ${String(at)}`).toEqual([])
     }
   }, 300_000)
 })

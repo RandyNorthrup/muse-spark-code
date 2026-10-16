@@ -474,6 +474,16 @@ Proof:
 
 # PLANFIX R1 + R5: one owner per credential account (2026-10-14, Windows)
 
+**RVPLANFIX correction (2026-10-16).** The original worker used the production
+service, and `findCredentialsAsync(KEYRING_SERVICE)` returns passwords, not
+names alone (`@napi-rs/keyring`'s `Credential` contains `account` and `password`).
+Therefore the original run cannot support the claims below that other entries
+were never read. The worker and enumeration now use only
+`Muse Spark Code (Unofficial).test.<random scope>`, including cleanup. No original
+unsafe enumeration is rerun as a red drill. Fresh isolated-service results are
+recorded in `.lane/RVPLANFIX.report.md`; the historical counts below remain
+historical, not fresh verification.
+
 ## Design (written before the code)
 
 **The defects (RVHOSTID R1, R5).** `keyringSecretStore` (`src/runtime/keyStore.ts`)
@@ -599,9 +609,9 @@ to be 'Y:…'`, writers refused). Its first attempt printed 6/6 failed in
   3. The lock bypassed (`return await work()`): 3 fail, the concurrency cases
      (`expected [ …(7) ] to have a length of 4`, `expected [ …(3) ] to include
 null`, a refused write).
-- After the run the real store holds no `test.keystoreOwner` entry (counted by
-  name only; no value read). The service's other 6 entries are the owner's and
-  were never opened.
+- The original run reported no `test.keystoreOwner` entry left. Its enumeration
+  also loaded the service's other entries' passwords; the earlier claim that
+  these were counted by name only was false (see the RVPLANFIX correction).
 - Dependents run: `runtimeChatGptLock.test.ts` 7 pass / 3 skipped (the POSIX
   socket cases skip on Windows), `runtimeAccountStore.test.ts` +
   `execProvider.test.ts` 20/20.

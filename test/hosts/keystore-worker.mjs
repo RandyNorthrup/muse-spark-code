@@ -40,8 +40,10 @@ async function step(run) {
   return await run()
 }
 
+// Native enumeration returns passwords as well as names. Keep every OS call
+// in a test-only service so even cleanup cannot read the owner's credentials.
 const open = (service, account) => {
-  const entry = new AsyncEntry(service, account)
+  const entry = new AsyncEntry(`${service}.test.${scope}`, account)
   const isHeaderAccount = !account.includes('#')
   return {
     getPassword: async () => {
