@@ -2763,11 +2763,13 @@ export const GOAL_ID_PREFIX = 'goal-'
 // Meta's hosted search (M33): a Responses tool the server runs, shown in
 // the transcript as a tool row of this name, marked paid.
 export const MODEL_API_WEB_SEARCH_TOOL = 'web_search'
-// Image generation (M34, dev.meta.ai/docs/image-generation, read 2026-09-25):
-// `POST /images/generations` with Meta's image model, one PNG per call,
-// returned inline. `size` sets only the aspect ratio; the generator picks the
-// pixels. Meta states no prompt limit: this one keeps a runaway prompt from
-// being sent and billed. An image can take a while (the model may search and
+// Image generation (M34, dev.meta.ai/docs/image-generation, read 2026-09-25;
+// error catalog read 2026-10-16: an over-long prompt is rejected with 400,
+// no length stated): `POST /images/generations` with Meta's image model, one
+// PNG per call, returned inline. `size` sets only the aspect ratio; the
+// generator picks the pixels. A prompt of any length is sent (D121: the
+// removed 4000-character ceiling was invented); Meta's own refusal reaches
+// the person in words. An image can take a while (the model may search and
 // reason first), so its request has a deadline of its own.
 export const MODEL_API_IMAGE_MODEL = 'muse-image-1.0'
 export const IMAGE_ASPECT_SIZES = {
@@ -2778,14 +2780,15 @@ export const IMAGE_ASPECT_SIZES = {
 export type ImageAspect = keyof typeof IMAGE_ASPECT_SIZES
 export const IMAGE_OUTPUT_FORMAT = 'png'
 export const IMAGE_FILE_EXTENSION = '.png'
-export const IMAGE_PROMPT_MAX_CHARS = 4000
 export const IMAGE_REQUEST_TIMEOUT_MS = 180_000
 // Image edits (M44, dev.meta.ai/docs/api-reference/images/edit-image, read
-// 2026-09-25): `POST /images/edits` with the source images inline as data
-// URLs, one PNG back, the same price as a generated image. Meta requires at
-// least one source and states no maximum: this one keeps a call's upload
-// (each source up to MAX_IMAGE_BYTES) bounded.
-export const IMAGE_EDIT_MAX_SOURCES = 4
+// 2026-09-25; error catalog dev.meta.ai/docs/image-generation, read
+// 2026-10-16: "an edit needs 1–10 items"): `POST /images/edits` with the
+// source images inline as data URLs, one PNG back, the same price as a
+// generated image. Meta requires at least one source; the capability record
+// carries no source maximum, so nothing is enforced locally (D121) and
+// Meta's own refusal reaches the person in words. Each source stays bounded
+// by MAX_IMAGE_BYTES.
 // The source images an edit can send, by the media type their name gives.
 export const IMAGE_EDIT_SOURCE_TYPES: ReadonlySet<string> = new Set([
   'image/png',

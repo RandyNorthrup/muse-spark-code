@@ -14407,6 +14407,11 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
 - A23 (NOLIMITS1): `PROMPT_LIMITS` per-scope 200, title 80 and body 10000
   removed — not about a model; only a blank title refuses and the prompt
   file bound stays (untouched by this lane).
+- A24 (NOLIMITS1): `IMAGE_PROMPT_MAX_CHARS` = 4000 and
+  `IMAGE_EDIT_MAX_SOURCES` = 4 removed — invented; Meta documents no prompt
+  length and 1–10 edit items (dev.meta.ai/docs/image-generation, read
+  2026-10-16), the capability record carries neither, so nothing is enforced
+  locally and Meta's own refusal reaches the person in words.
 
 ## 3. Open questions (need the owner)
 
