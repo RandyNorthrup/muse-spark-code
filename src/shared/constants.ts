@@ -4009,6 +4009,9 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
   '.gitmodules',
 ])
 export const LIST_FILES_DEFAULT_LIMIT = 500
+// Backstop waits owned by other rows (checks, the verify loop, the judge
+// harness, media conversion, the vault service default): the shell tool
+// itself no longer defaults or clamps (owner 2026-10-16).
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
 // D107 §9.4: internal B1 boundary; F1b installs it only after certification.
 export const JUDGE_FAST_B1_WALK_MAX_ENTRIES = 20_000
@@ -4020,6 +4023,9 @@ export const JUDGE_FAST_B1_REFUSED_EXIT = 125
 export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
 export const JUDGE_FAST_B1_ELF_MAX_BYTES = 32 * 1024 * 1024
 export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
+// The longest a backstop wait may run (check commands derive their own
+// ceiling from it): the shell tool itself no longer clamps (owner
+// 2026-10-16).
 export const SHELL_MAX_TIMEOUT_MS = 600_000
 // Per stream: past it the middle of the output is dropped with a count.
 export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024
@@ -4360,9 +4366,9 @@ export const HIDDEN_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'r
 export const USER_SHELL_ITEM_KIND = 'userShell'
 export const USER_SHELL_PREFIX = '!'
 // The Model API backend runs the user's command through the shell tool's own
-// runner (job objects on Windows, M27) with this limit, the shell tool's
-// longest; the row's Stop ends it sooner.
-export const USER_SHELL_TIMEOUT_MS = 10 * 60 * 1000
+// runner (job objects on Windows, M27) with no deadline of its own: the
+// command runs until it ends or the row's Stop ends it (owner 2026-10-16),
+// saying so out loud while it runs.
 // Who moved a task to the background (MSP `BackgroundInitiator`).
 export const BACKGROUND_INITIATOR_USER = 'user'
 // What a row's button asked of a task: `task/background` or `task/stop`.
