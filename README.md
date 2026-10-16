@@ -4757,28 +4757,29 @@ stopped and the next message resumes the same session.
   stops Muse Code, and your next message starts it again and continues the
   conversation. **New Conversation** starts afresh. The panel now rejects
   the waiting step before a Stop, which keeps the conversation usable.
-- **"Could not load the output: Muse Code did not answer item/readOutput
-  within 180 s"** — a busy Muse Code answers stored-output reads one after
-  another. The panel says it once per conversation; the row keeps the diff it
+- **A stored-output read that takes a while** — a busy Muse Code answers
+  stored-output reads one after another, and the panel waits for each one
+  instead of giving up, saying so while it waits. The row keeps the diff it
   already has, and collapsing and expanding the row asks again. An open row
   without a page also retries once when the turn ends. Automatic edit-row
-  reads wait until then. At most four reads per panel go to Muse Code at a time, using
-  the longer 180 s deadline so late replies can still supply the patch.
+  reads wait until then. At most four reads per panel go to Muse Code at a time,
+  so late replies can still supply the patch.
 - **Muse Code is stuck, or slow and you want a fresh one** — run **Muse
   Spark: Restart Muse Code**. It stops `muse serve` and starts it again
   without reloading the window; a running turn is stopped, and each
   conversation continues with your next message.
 - **"Muse Code is not answering. Restart it with "Muse Spark: Restart Muse
-  Code"."** — three commands in a row went unanswered and nothing at all
-  came from Muse Code for 90 s, so the panel stopped waiting 60 s for each
-  one. When no turn was running, Muse Code was restarted already ("Muse Code
-  stopped answering and was restarted."); while a turn runs, its notice
-  offers **Restart Now**, which stops the turn. If Muse Code answers again
-  on its own, commands go through again.
+  Code"."** — three waits in a row went unanswered and nothing at all
+  came from Muse Code for 90 s. The waiting commands keep waiting, with a
+  still-waiting notice each minute, but new commands fail at once until
+  Muse Code answers or restarts. When no turn was running, Muse Code was
+  restarted already ("Muse Code stopped answering and was restarted.");
+  while a turn runs, its notice offers **Restart Now**, which stops the
+  turn. If Muse Code answers again on its own, commands go through again.
 - **"Muse Code did not confirm your message reached the running turn"** —
-  the message was for the running turn, and Muse Code did not answer in
-  time. It may still reach the turn, so it is not sent again; the composer
-  keeps it. Look at the conversation before you send it again.
+  the message was for the running turn, and Muse Code stayed silent while
+  the panel waited. It may still reach the turn, so it is not sent again;
+  the composer keeps it. Look at the conversation before you send it again.
 - **"This conversation's Muse Code log is damaged"** — Muse Code 1.4.2
   failed the session's event log ("event log failed: …"), after which it
   fails every message of that session. The panel refuses new messages to it
