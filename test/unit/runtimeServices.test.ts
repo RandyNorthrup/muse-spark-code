@@ -433,6 +433,29 @@ describe('createRuntimeAccountServices', () => {
     },
   )
 
+  it("names a plan model's own sign-in when no Meta key or grant is stored", async () => {
+    const folder = mkdtempSync(path.join(realpathSync.native(tmpdir()), 'm108-plan-'))
+    dirs.push(folder)
+    const runtime = createRuntimeBackend(inertDeps(folder))
+    try {
+      // F80: a plan-model refusal names the plan sign-in, never the Meta key.
+      await expect(runtime.backend.readiness(false, 'chatgpt/gpt-6.1-sol')).resolves.toEqual({
+        state: 'signedOut',
+        message: UI_TEXT.acpChatGpt.states['signed-out'],
+      })
+      await expect(runtime.backend.readiness(false, 'copilot/gpt-6.1')).resolves.toEqual({
+        state: 'signedOut',
+        message: UI_TEXT.planUi.copilotUnavailable,
+      })
+      await expect(runtime.backend.readiness(false, 'muse-spark-1.1')).resolves.toEqual({
+        state: 'signedOut',
+        message: UI_TEXT.acpNoStoredKey,
+      })
+    } finally {
+      await runtime.close()
+    }
+  })
+
   it('reads a refused providers file as its own refusal through the ACP session port', async () => {
     const services = rig()
     const folder = dirs[0]
