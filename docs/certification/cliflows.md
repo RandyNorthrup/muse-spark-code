@@ -1,5 +1,79 @@
 # Lane CLIFLOWS certification — terminal commands confirm, explain and exit as helped
 
+## RVCLIFLOWSFIX review — terminal fixes after the CLIFLOWSFIX lane (2026-10-16, linuxlt rig)
+
+Review branch `rv/cli-flows-final` from lane head `5f70929b9`; `main`
+(`898a26c5e`, 0.18.2) was already an ancestor (`git merge --no-ff main`:
+"Already up to date", no conflicts). Every proof below ran on the packed
+`dist/acp.js` from `npm run build` (exit 0) under a scratch HOME with
+`DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent/no-bus`, or through the
+real modules in the named unit files. No model call was made.
+
+Fixed, one commit each:
+
+- `exec --help` / `report --help` printed the whole 158,854-byte reference
+  (measured); each now prints its own screen with real exit codes (exec's
+  list matches `EXEC_EXIT`; report 0/1/2) — `499473d8a`. Packed after:
+  exec 894 bytes, report 549 bytes, both exit 0.
+- A `copilot/…` plan model with no Meta key was refused with "No Meta
+  Model API key is stored" (`backends.ts` refusal only special-cased
+  `chatgpt/`); it now names Copilot — `57c4db615`, branch form in
+  `c453b0fa5`. Proof: real `createRuntimeBackend` readiness cases in
+  `runtimeServices.test.ts` (chatgpt signed-out, copilot unavailable,
+  Meta model needs the key); 18 passed.
+- F46: with `openai` in the runner's providers file, `providers accounts
+list` said "unavailable until this runtime is connected" while the same
+  process listed `meta` accounts (both measured). It now fills the new
+  `accounts.providerUnavailable` key in all 15 tables — `822512bc0`.
+  Packed after: `Accounts for openai are not available in this terminal
+yet.`, exit 1. The same commit corrects the stale
+  `runtimeAccountsService` expectation (failing on the merge base too, as
+  the section below records) and pins the configured branch; 43 passed
+  with `accountsCommand`.
+- `share --help` / `prompts --help` answered "Unknown argument" (exit 2)
+  and the catalog's `prompts use` syntax omitted the lane's own
+  `--var`/`--confirm`; both now print the sharing screen and the
+  regenerated reference lists the flags — `cf759136c`. Packed after: both
+  exit 0 with the sharing syntax lines, including
+  `[--var name=value ...] [--confirm]`.
+- README/CHANGELOG claimed "sessions still open" without a store and
+  called grant-backed dispatch "owner-verified"; neither is measured
+  (fully-keyless `session/new` still refuses at account identity, per the
+  section below). The words now say the agent starts and the host opens,
+  a session starts only with a run key or file-configured provider, and
+  the owner run is still needed — `bf03e82fe`.
+
+Re-run drills on the final build (all exit codes observed): F80 exec
+`chatgpt/gpt-6.1-sol` and `copilot/gpt-6.1` on the dead store both exit 3,
+requests 0, naming the store, never a Meta key; `auth status`,
+`auth status --provider openai` and `providers status chatgpt` each print
+the one store sentence, exit 1; `auth set` with a valid-shaped fake key
+exits 1 with the scratch HOME still empty; `scan-secrets` clean → `0`
+exit 0, dirty → `1` exit 10, no file → usage exit 2; `prompts use` with
+`--var name=Tester` previews `Hello Tester` and stops exit 7, with
+`--confirm` prints it exit 0, with the variable missing stops exit 7.
+
+Gates on the final tree (direct runs, repo-default timeouts): typecheck
+0; ESLint `--max-warnings=0` and Prettier on every changed file 0;
+`check-l10n` 0 (0 problems); `check:reference` 0; `deadcode` 0; `cycles`
+0; `duplication` 0 (0 clones); `npm run build` 0. Touched/dependent unit
+files: `runtimeServices` 18, `runtimeAccountsService` + `accountsCommand`
+43, `referenceEntry` 15, `sharingTerminal` + `execArgs` + `scanSecrets`
+74 — all passed.
+
+Owner limits rule (2026-10-16): the lane adds and keeps no limit of its
+own. Plan attempts count against the person's own `--max-requests` flag;
+the exec output cap and scanner lifetime predate the lane and are
+unchanged by it.
+
+Not fixed (named in the review report): a fully-keyless Model API
+session still cannot start (account identity owns spend — needs a design
+decision, not a patch); terminal Copilot models have no dispatch adapter
+in the runtime, so they refuse as unavailable; most other commands'
+`--help` still prints the compact root usage rather than a screen of
+their own; `developer --help` prints a stack trace (pre-existing, outside
+this lane's diff).
+
 ## Lane CLIFLOWSFIX — finish the terminal fixes (2026-10-15, linuxlt rig)
 
 Worktree `/home/randy/lanes/CLIFLOWSFIX`, branch `fix/cli-flows-final`.
