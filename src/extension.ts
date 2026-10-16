@@ -101,6 +101,7 @@ import {
 } from './shared/constants'
 import { PaidAuthority } from './core/paid/paidAuthority'
 import { Usd } from './shared/usd'
+import { readTurnLimit } from './shared/turnLimit'
 import {
   createUsageRecording,
   isUsageWriterBundle,
@@ -2800,6 +2801,10 @@ async function activateWindow(
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     strictTools: () => currentSettings().modelApiStrictTools,
     parallelReads: () => currentSettings().modelApiParallelReads,
+    maxTurnRequests: () => {
+      const configured = currentSettings().modelApiMaxTurnRequests
+      return configured === 0 ? undefined : configured
+    },
     webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
     isShellKeepsDirectoryOn: () => currentSettings().modelApiShellKeepsDirectory,
     allowsPaidUse: async (request, requiresAsking) =>
@@ -3095,6 +3100,27 @@ async function activateWindow(
       }
       case 'toggleCtrlEnterToSend': {
         await updateSetting('useCtrlEnterToSend', !currentSettings().useCtrlEnterToSend)
+        break
+      }
+      case 'toggleTurnLimit': {
+        // The person's own per-turn tool-round limit (lane LIMITSFIX, F8): the
+        // switch turns it off with 0, and on by asking for the number of rounds.
+        if (currentSettings().modelApiMaxTurnRequests > 0) {
+          await updateSetting('modelApiMaxTurnRequests', 0)
+          break
+        }
+        const entered = await vscode.window.showInputBox({
+          title: UI_TEXT.turnLimitItem,
+          prompt: UI_TEXT.turnLimitPrompt,
+          placeHolder: UI_TEXT.turnLimitPlaceholder,
+          validateInput: (value) =>
+            value !== 'off' && readTurnLimit(value).isValid ? undefined : UI_TEXT.turnLimitInvalid,
+        })
+        if (entered !== undefined) {
+          const reading = readTurnLimit(entered)
+          if (reading.isValid && reading.rounds !== undefined)
+            await updateSetting('modelApiMaxTurnRequests', reading.rounds)
+        }
         break
       }
       case 'hideOnboarding': {

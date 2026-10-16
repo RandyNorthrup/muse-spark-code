@@ -1499,6 +1499,13 @@
           "scope": "machine",
           "description": "%config.modelApiParallelReads.description%"
         },
+        "museSpark.modelApiMaxTurnRequests": {
+          "type": "integer",
+          "default": 0,
+          "scope": "machine",
+          "description": "%config.modelApiMaxTurnRequests.description%",
+          "minimum": 0
+        },
         "museSpark.webSearchMaxPerRequest": {
           "type": "number",
           "default": 5,

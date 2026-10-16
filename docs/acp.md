@@ -335,6 +335,7 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                  |
 | `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                          |
 | `--questions-defer-after <seconds>`    | M112: 60 by default; 0 waits indefinitely; 1–9 become 10; maximum 3600. Clients without forms defer immediately.        |
+| `--max-turn-requests <rounds>`         | Per-turn tool-round limit for new sessions (off, 25, 50, 100, 200 or 500; unset is no limit). Model API backend only.   |
 | `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                       |
 | `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                |
 | `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
@@ -354,6 +355,11 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   resumed runs on the model and effort the editor is shown; one last run
   on a model the agent does not list moves to the default. A session the
   agent cannot set up this way is let go, and the editor's request fails.
+  On the Model API backend there is also the Tool-round limit session
+  option (off, or a round count): a turn runs with no fixed cap otherwise,
+  and when the limit is reached one last request with no tools asks for a
+  summary and the turn ends with stop reason `max_turn_requests`; the next
+  prompt in the same session continues.
 - **Commands**: the session's skills, run as `/name arguments`, plus M112's
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
   M116's `/playbook <status|record|settings ...>`, answered locally with no

@@ -31,6 +31,7 @@ import {
   type WebSearchToolDefinition,
 } from '../schemas'
 import { parseSse } from '../sse'
+import { ModelApiError } from '../transport'
 import { cleanWireText, isBlankWireText } from './shared'
 
 export type ResponsesCodecQuirks =
@@ -86,6 +87,21 @@ export class ChatgptPlanLimitError extends Error {
     super(message)
     this.name = 'ChatgptPlanLimitError'
   }
+}
+
+/**
+ * Map a non-2xx Responses answer to `ModelApiError` (lane TURNLIMIT, F88):
+ * the envelope's message with its `error.type` and `error.code`, as the
+ * sibling codecs do for their formats. Anything unenveloped falls back to
+ * the status. The transport redacts the returned fields before they travel.
+ */
+export function parseResponsesError(status: number, body: unknown): ModelApiError {
+  const parsed = errorBodySchema.safeParse(body)
+  if (!parsed.success) {
+    return new ModelApiError(`HTTP ${String(status)}`, status, undefined, undefined)
+  }
+  const { message, type, code } = parsed.data.error
+  return new ModelApiError(message, status, type ?? undefined, code ?? undefined)
 }
 
 /** Cancellation is local; no output-cap parameter is sent to the plan endpoint. */

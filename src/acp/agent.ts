@@ -77,11 +77,15 @@ import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   type PermissionMode,
   QUESTION_DEFER_DEFAULT_SECONDS,
+  TURN_LIMIT_ERROR_KIND,
+  TURN_LIMIT_OPTION_VALUES,
+  type TurnLimitOption,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
-import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
+import { fill, formatBytes, formatUnit, plural, uiLocale } from '../shared/l10n/text'
+import { readTurnLimit } from '../shared/turnLimit'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
@@ -154,6 +158,8 @@ export interface AcpAgentOptions {
   /** Contributor-tier models are listed (`--allow-contributor-models`). */
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
+  /** The sessions' per-turn tool-round limit (`--max-turn-requests`); undefined is no limit. */
+  readonly maxTurnRequests?: number
   readonly questionsDeferAfterSeconds?: number
   readonly scheduleAuthorization?: {
     readonly scheduledPrompts: boolean
@@ -320,6 +326,31 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
   return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
 }
 
+/** The select's display for a value: off, or the round count. */
+function turnLimitOptionName(value: string): string {
+  const reading = readTurnLimit(value)
+  return reading.isValid && reading.rounds !== undefined
+    ? plural(UI_TEXT.turnLimitRounds, reading.rounds)
+    : UI_TEXT.turnLimitOff
+}
+
+/** The select's value for a limit: off for no limit, else the round count. */
+function turnLimitOptionValue(maxTurnRequests: number | undefined): string {
+  return maxTurnRequests === undefined ? 'off' : String(maxTurnRequests)
+}
+
+/**
+ * The select's choices (lane LIMITSFIX, F8): the common presets plus the
+ * limit in force, so any whole number the person set (the flag, the setting,
+ * a saved session) is shown and valid. Setting accepts any whole number from
+ * 1 up, or off.
+ */
+function turnLimitChoices(current: string): readonly string[] {
+  return TURN_LIMIT_OPTION_VALUES.includes(current as TurnLimitOption)
+    ? TURN_LIMIT_OPTION_VALUES
+    : [...TURN_LIMIT_OPTION_VALUES, current]
+}
+
 /** One ACP session over one AgentSession. */
 class AcpSession {
   private readonly questionRegistry: AcpQuestionRegistry | undefined
@@ -349,6 +380,8 @@ class AcpSession {
   private effort: EffortLevel = DEFAULT_EFFORT
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
+  /** The session's per-turn tool-round limit; undefined is no limit. */
+  private maxTurnRequests: number | undefined
   private vaultGeneration = 0
   private readonly vaultRequests = new Set<AbortController>()
   /** A turn being started (`sendTurn` not yet answered): a release waits for it, then stops it. */
@@ -913,6 +946,13 @@ class AcpSession {
       )
       return
     }
+    // The person's own per-turn limit stopped the turn (lane TURNLIMIT): the
+    // summary already arrived as message chunks, and the next prompt in the
+    // same session continues. Never an internal error for a planned stop.
+    if (event.errorKind === TURN_LIMIT_ERROR_KIND) {
+      pending.resolve('max_turn_requests')
+      return
+    }
     pending.resolve('end_turn')
   }
 
@@ -1450,6 +1490,26 @@ class AcpSession {
   }
 
   public configOptions(): SessionConfigOption[] {
+    // The Model API loop's own bound (lane TURNLIMIT): other backends have
+    // no per-turn loop, so they offer no option for one.
+    const turnLimit: SessionConfigOption[] =
+      this.deps.backend.kind === 'modelApi'
+        ? [
+            {
+              id: ACP_CONFIG_IDS.turnLimit,
+              name: UI_TEXT.turnLimitItem,
+              category: 'model_config',
+              type: 'select',
+              currentValue: turnLimitOptionValue(this.maxTurnRequests),
+              options: turnLimitChoices(turnLimitOptionValue(this.maxTurnRequests)).map(
+                (value) => ({
+                  value,
+                  name: turnLimitOptionName(value),
+                }),
+              ),
+            },
+          ]
+        : []
     return [
       ...(this.accounts?.option() ?? []),
       {
@@ -1471,6 +1531,7 @@ class AcpSession {
           name: effortLabel(level),
         })),
       },
+      ...turnLimit,
     ]
   }
 
@@ -1485,6 +1546,7 @@ class AcpSession {
    */
   public async matchAdvertised(): Promise<void> {
     this.ensureHeld()
+    await this.applyTurnLimit(this.deps.options.maxTurnRequests)
     await this.session.setApprovalMode(approvalModeFor(this.mode, true))
     const reported = await this.host.listModels(this.sessionId)
     const active = reported.find((model) => model.isActive)
@@ -1497,6 +1559,13 @@ class AcpSession {
       this.modelId = listed
     }
     await this.applyEffort(this.effort)
+  }
+
+  /** The session's per-turn tool-round limit; undefined is no limit. */
+  public async applyTurnLimit(maxTurnRequests: number | undefined): Promise<void> {
+    this.ensureHeld()
+    await this.session.setMaxTurnRequests?.(maxTurnRequests)
+    this.maxTurnRequests = maxTurnRequests
   }
 
   /** The session's standing effort, as the panel sets it on a new session. */
@@ -1546,6 +1615,14 @@ class AcpSession {
       await this.session.setModel(value)
       this.modelId = value
       await this.applyEffort(this.effort)
+      return
+    }
+    if (configId === ACP_CONFIG_IDS.turnLimit) {
+      const reading = readTurnLimit(value)
+      if (!reading.isValid) {
+        throw RequestError.invalidParams(undefined, value)
+      }
+      await this.applyTurnLimit(reading.rounds)
       return
     }
     if (configId !== ACP_CONFIG_IDS.effort) {
@@ -2401,9 +2478,10 @@ class AgentState {
     })
     // The mode and model went with the start; the effort is set here.
     const claim = this.claimSession(session.sessionId)
-    const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-      started.applyEffort(DEFAULT_EFFORT),
-    )
+    const acp = await this.adopt(host, session, cwd, client, models, claim, async (started) => {
+      await started.applyEffort(DEFAULT_EFFORT)
+      await started.applyTurnLimit(this.deps.options.maxTurnRequests)
+    })
     return { sessionId: session.sessionId, modes: acp.modes(), configOptions: acp.configOptions() }
   }
 

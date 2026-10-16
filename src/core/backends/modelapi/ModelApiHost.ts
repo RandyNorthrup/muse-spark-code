@@ -10,6 +10,7 @@ import {
   negateUsd,
   isPositiveUsd,
 } from '../../../shared/usd'
+import { isBelowCap } from '../../../shared/spendCap'
 import {
   freezePaidQuote,
   isSamePaidQuote,
@@ -30,7 +31,9 @@ import {
 } from './structuredOutput'
 import { notify } from '../../events/notify'
 import { isParallelRead, scheduleTools } from './toolScheduler'
-import { RepeatGuard, toolRepeatKey } from './repeatGuard'
+import { RepeatGuard, toolRepeatKey, type RepeatVerdict } from './repeatGuard'
+import { repairAfterFailedSummary } from './turnLimitStop'
+import { isTurnLimitRounds } from '../../../shared/turnLimit'
 import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
 import type { UsageBudgetRead } from '../../usage/usageService'
@@ -131,7 +134,7 @@ import {
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
-  MODEL_API_MAX_TOOL_ROUNDS,
+  TURN_LIMIT_ERROR_KIND,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
   MODEL_API_MODEL_TEXT,
@@ -168,7 +171,6 @@ import {
   SUBAGENT_RESULT_READY,
   SUBAGENT_RESULT_TEXT_MAX_CHARS,
   SUBAGENT_SUMMARY_MAX_CHARS,
-  SUBAGENT_TASK_MAX_REQUESTS,
   SUBAGENT_WAIT_DEFAULT_MS,
   type SubagentAction,
   THEN_RUN_ARGUMENT,
@@ -186,7 +188,7 @@ import {
   CODEC_IMAGE_WITHOUT_VISION,
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
-import { fill, formatNumber, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
+import { fill, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken } from '../../schedules/sessionOwner'
 import {
@@ -766,6 +768,13 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
   readonly strictTools?: () => boolean
   readonly parallelReads?: () => boolean
+  /**
+   * The person's per-turn tool-round limit (lane TURNLIMIT):
+   * `museSpark.modelApiMaxTurnRequests`, read every round so a change lands
+   * mid-turn; undefined (or 0) is no limit. A session value set through
+   * `setMaxTurnRequests` wins over this host default.
+   */
+  readonly maxTurnRequests?: (() => number | undefined) | undefined
   /** Lane W binds the selected M95 record's output.maxTokens; absent keeps the legacy cap. */
   readonly modelOutputMaxTokens?: (modelId: string, resolved: ResolvedModel) => number | undefined
   /** Fixed for the session, with an explicit off arm for byte-identical requests. */
@@ -1061,7 +1070,6 @@ interface ChildTaskGrant {
   readonly parentModelId: string
   readonly keyDigest: string
   readonly goalId: string | undefined
-  remainingAttempts: number
   /**
    * Whether the task may search the web (M58): the parent turn's answer to
    * the web search popup, or for a task the user starts, the feature allowed
@@ -1877,7 +1885,6 @@ function subagentFailure(reason: string, visibleReason?: string): ToolOutcome {
 const CHILD_TASK_REFUSALS = [
   'paidOff',
   'consentDeclined',
-  'requestLimit',
   'keyChanged',
   'modelChanged',
   'goalEnded',
@@ -1900,13 +1907,6 @@ function childTaskMessages(kind: ChildTaskRefusal): {
       return {
         model: MODEL_API_MODEL_TEXT.subagentConsentDeclined,
         visible: UI_TEXT.subagentConsentDeclined,
-      }
-    }
-    case 'requestLimit': {
-      const limit = SUBAGENT_TASK_MAX_REQUESTS
-      return {
-        model: fill(MODEL_API_MODEL_TEXT.subagentRequestLimit, { limit }),
-        visible: fill(UI_TEXT.subagentRequestLimit, { limit }),
       }
     }
     case 'keyChanged': {
@@ -2645,9 +2645,22 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly strictTools: boolean
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
+  /** This session's own per-turn tool-round limit (lane TURNLIMIT), set through `setMaxTurnRequests`. */
+  private sessionMaxTurnRequests: number | undefined
+  /** The person chose a limit (or none) for this session: it wins over the host default (F8). */
+  private hasSessionTurnLimit = false
+  /**
+   * One model call with no tools offered (lane TURNLIMIT): the limit summary.
+   * The flag rides the request build, so hooks and the schedule replay check
+   * see the tools the request really offers; cleared before anything else
+   * can send.
+   */
+  private noToolsOffered = false
   private outputFormat: CreateResponseBody['text']
   private readonly outputCaps = new WeakMap<ResolvedModel, number>()
   private readonly repeatGuard = new RepeatGuard()
+  /** The repeat warning the model reads after the tool batch that earned it (F4). */
+  private isRepeatWarned = false
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
    * it even where this session does not pack; a packing session's store
@@ -3078,6 +3091,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         requester_id: `schedule:${this.active.scheduleRun.context.scheduleId}`,
       }),
     }
+  }
+
+  /** A user message between a call and its output is invalid replay, so warnings follow the whole batch. */
+  private flushRepeatWarning(turnId: string): void {
+    if (!this.isRepeatWarned) return
+    this.isRepeatWarned = false
+    this.replay.push({ turnId, item: noteItem(MODEL_API_MODEL_TEXT.toolRepeatWarned) })
   }
 
   private appendHookContexts(turnId: string, contexts: readonly string[]): void {
@@ -3834,14 +3854,18 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-   * The body as the session budget lets it be sent (M82): with a cap, its
-   * input estimated high from the last reported request and
-   * `max_output_tokens` lowered so input plus output at list price fits
-   * what is left, the reservation held open until the response reports.
-   * Throws `SessionBudgetExceededError` when it cannot fit: it is not sent,
-   * and the turn stops with the reason. Child tokens are counted when
-   * reported, but their separately consented requests are not reserved
-   * against the parent's cap (M82 owner decision).
+   * The body as the session budget lets it be sent (M82; real-spend
+   * accounting lane LIMITSFIX, F3, D113): with a cap, the request is sent
+   * while the real spend already settled is below it (`isBelowCap`); no
+   * input estimate and no output worst case is compared with the cap, the
+   * request keeps its own `max_output_tokens`, and the response's real cost
+   * settles when its usage arrives. Throws `SessionBudgetExceededError`
+   * once real spend has reached the cap: it is not sent, and the turn stops
+   * with the reason. A sub-agent shares its owner's ledger and cap: it is
+   * admitted by the same comparison, and its real cost settles into the
+   * same ledger, so the cap can be passed by at most the responses in
+   * flight when they were admitted (the conversation's own and up to
+   * SUBAGENT_CAPACITY sub-agents').
    */
   private budgeted(body: CreateResponseBody, selected: ResolvedModel): CreateResponseBody {
     const searchBound = this.webSearchBound()
@@ -3852,7 +3876,22 @@ export class ModelApiSession implements ScheduledAgentSession {
       body = { ...body, max_tool_calls: searchBound }
     }
     this.openReservation = undefined
-    if (this.isSubagent || this.deps.client.isPlanModel?.(body.model) === true) return body
+    if (this.deps.client.isPlanModel?.(body.model) === true) return body
+    if (this.isSubagent) {
+      // Same rule, the owner's cap and the shared ledger the child's real
+      // cost already settles into. The child holds no claim of its own.
+      const owner = this.budgetOwner()
+      const ownerCapUsd = this.admissionCap()
+      if (isPositiveUsd(ownerCapUsd) && !isBelowCap(ownerCapUsd, owner.budgetSpentUsd)) {
+        throw new SessionBudgetExceededError(
+          fill(UI_TEXT.sessionBudgetStopped, {
+            spent: formatUsd(owner.budgetSpentUsd),
+            cap: formatUsd(ownerCapUsd),
+          }),
+        )
+      }
+      return body
+    }
     const capUsd = this.currentBudgetCap()
     if (Usd.from(capUsd).compare(Usd.from(0)) <= 0 && this.budgetJournal() === undefined) {
       return body
@@ -3861,41 +3900,23 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.media?.budgetParts(body) ?? requestParts(body),
       body.model === this.modelId ? this.budgetBase : undefined,
     )
-    const maxOutputTokens = body.max_output_tokens
-    const reservation =
-      Usd.from(capUsd).compare(Usd.from(0)) > 0
-        ? reserveRequest({
-            capUsd,
-            spentUsd: this.budgetSpentUsd,
-            estimatedInputTokens: estimate.inputTokens,
-            modelId: body.model,
-            ...(body.max_tool_calls !== undefined && {
-              maxToolCalls: body.max_tool_calls,
-              searchPriceUsd: this.approvedSearchQuote?.tariffUsd,
-            }),
-            maxOutputTokens,
-            minOutputTokens: minOutputTokensForPolicy(selected.policy),
-            images: requestImageCount(body),
-            ...(body.model.includes('/') && { price: selected.price }),
-          })
-        : {
-            estimatedInputTokens: estimate.inputTokens,
-            maxOutputTokens,
-            costUsd: sumUsd(
-              Usd.from(
-                selected.price.reserve({
-                  inputTokens: estimate.inputTokens,
-                  outputTokens: maxOutputTokens,
-                  cachedTokens: 0,
-                  images: requestImageCount(body),
-                }) ?? 0,
-              ).toAmount(),
-              multiplyUsd(
-                this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
-                body.max_tool_calls ?? 0,
-              ),
-            ),
-          }
+    // Nothing is held for the response, capped or not: its real cost
+    // settles when its usage arrives (F3). The claim is the durable record
+    // that a request went out, so one lost before its usage stays unknown.
+    const reservation: BudgetReservation = isPositiveUsd(capUsd)
+      ? reserveRequest({
+          capUsd,
+          spentUsd: this.budgetSpentUsd,
+          modelId: body.model,
+          ...(body.max_tool_calls !== undefined && {
+            maxToolCalls: body.max_tool_calls,
+            searchPriceUsd: this.approvedSearchQuote?.tariffUsd,
+          }),
+          maxOutputTokens: body.max_output_tokens,
+          minOutputTokens: minOutputTokensForPolicy(selected.policy),
+          ...(body.model.includes('/') && { price: selected.price }),
+        })
+      : { maxOutputTokens: body.max_output_tokens, costUsd: Usd.from(0).toAmount() }
     this.openReservation = {
       ...reservation,
       searchSpentUsd: Usd.from(0).toAmount(),
@@ -3921,9 +3942,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       isSent: false,
       isRefused: false,
     }
-    return Usd.from(capUsd).compare(Usd.from(0)) > 0
-      ? { ...body, max_output_tokens: reservation.maxOutputTokens }
-      : body
+    // The budget never lowers `max_output_tokens` and holds no estimate
+    // (see sessionBudget.ts and src/shared/spendCap.ts).
+    return body
   }
 
   /**
@@ -3965,13 +3986,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           : this.sendingModel.policy.pricing,
       outcome: 'failed',
     }
-    const reservation = this.openReservation
-    if (reservation?.hasCap === true) {
-      this.deps.log.info(
-        `Session budget: request reserved for ${String(reservation.estimatedInputTokens)} input and ${String(reservation.maxOutputTokens)} output tokens`,
-      )
-    }
-    return reservation
+    return this.openReservation
   }
 
   /** A capped request never reaches fetch before its possible charge is durable. */
@@ -4017,6 +4032,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
   }
 
+  /**
+   * The cap that decides whether a request may be sent (F3). A sub-agent
+   * shares its owner's cap and ledger, so one contract covers the whole
+   * conversation; the display paths keep `currentBudgetCap`.
+   */
+  private admissionCap(): UsdAmount {
+    return this.isSubagent ? this.budgetOwner().currentBudgetCap() : this.currentBudgetCap()
+  }
+
   private budgetJournal(): SessionStore['budget'] {
     return this.deps.client.isPlanModel?.(this.modelId) === true
       ? undefined
@@ -4040,23 +4064,24 @@ export class ModelApiSession implements ScheduledAgentSession {
     owner.budgetAccountId = accountId
     const journal = this.budgetJournal()
     if (journal === undefined) {
-      if (Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0) {
+      if (isPositiveUsd(this.admissionCap())) {
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       }
       return
     }
+    // A sub-agent reads the shared ledger into its owner's figure, which its
+    // own admission compares with the cap (F3: one ledger, one contract).
+    const spentSink = this.isSubagent ? owner : this
     if (scope === undefined) {
       await this.onPersisted('budget')
     }
     const total = await journal.read(scope?.sessionId ?? owner.sessionId, accountId)
     owner.budgetIsFreshFork = false
-    if (
-      Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0 &&
-      total.hasUnknownHistoricalFees
-    ) {
+    // An unknown cost in a capped conversation is said, not guessed (F3).
+    if (isPositiveUsd(this.admissionCap()) && total.hasUnknownHistoricalFees) {
       throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
     }
-    this.budgetSpentUsd = total.spentUsd
+    spentSink.budgetSpentUsd = total.spentUsd
     owner.hasUnknownBudgetCost = total.hasUnknownHistoricalFees
   }
 
@@ -4090,6 +4115,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             )
           : await claim.settle(costUsd, hasUnknownCost, isFinal)
       this.budgetSpentUsd = total.spentUsd
+      owner.budgetSpentUsd = total.spentUsd
       owner.hasUnknownBudgetCost = total.hasUnknownHistoricalFees
       this.touch()
     })()
@@ -4154,6 +4180,8 @@ export class ModelApiSession implements ScheduledAgentSession {
               : Usd.from(0).toAmount(),
           )
         : Usd.from(0).toAmount()
+    const isUnknown =
+      reservation.hasAmbiguousAttempt || (reservation.isSent && !reservation.isRefused)
     if (isPositiveUsd(costUsd)) {
       this.budgetSpentUsd = sumUsd(
         this.budgetSpentUsd,
@@ -4161,15 +4189,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         negateUsd(reservation.searchSpentUsd),
       )
       this.warnUnknownCharge(costUsd)
-      this.deps.log.warn(
-        `Session budget: a response ended without its usage; its remaining reservation of ${costUsd} USD counts as spent`,
-      )
     }
-    this.recordBudgetCost(
-      costUsd,
-      reservation.claim,
-      isPositiveUsd(costUsd) && (!reservation.hasCap || reservation.hasMediaAccounting === true),
-    )
+    if (isUnknown) {
+      // A response lost before its usage is recorded as unknown, never as a
+      // guessed amount (F3); a capped conversation says so at its next request.
+      this.deps.log.warn('Session budget: a response ended without its usage; its cost is unknown')
+    }
+    this.recordBudgetCost(costUsd, reservation.claim, isUnknown)
     await this.budgetWrites
     // The on-disk liability is now settled or released, even if this request failed before a frame.
     if (this.deps.budgetScope === undefined) {
@@ -4425,11 +4451,15 @@ export class ModelApiSession implements ScheduledAgentSession {
         // A custom agent's own prompt runs as the child's role (M76).
         ...(role !== undefined && { agent: role }),
       }),
-      tools: withStrictTools(
-        this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent, resolved),
-        this.strictTools &&
-          this.deps.modelFacts?.(resolved.ref)?.capabilities.supportsStrictTools === true,
-      ),
+      // The limit summary offers no tools (lane TURNLIMIT): the request the
+      // model sees carries none, so it can only answer, never act.
+      tools: this.noToolsOffered
+        ? []
+        : withStrictTools(
+            this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent, resolved),
+            this.strictTools &&
+              this.deps.modelFacts?.(resolved.ref)?.capabilities.supportsStrictTools === true,
+          ),
     }
   }
 
@@ -4755,7 +4785,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.webSearchBound() !== undefined ||
       (this.deps.modelCapabilities === undefined &&
         !this.deps.client.hasPaidDailyBudget &&
-        Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) <= 0)
+        !isPositiveUsd(this.admissionCap()))
     )
   }
 
@@ -4971,7 +5001,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (directBudget.scope?.isStillAllowed(keyDigest) === false) {
           throw new AbortedError()
         }
-        const capUsd = directBudget.scope?.capUsd() ?? this.currentBudgetCap()
+        const capUsd = directBudget.scope?.capUsd() ?? this.admissionCap()
         if (directBudget.claim === undefined && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
         }
@@ -4981,6 +5011,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         directBudget.claim?.check(capUsd)
       } else if (
         reservation === undefined &&
+        !this.isSubagent &&
         this.deps.client.isPlanModel?.(body.model) !== true &&
         Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
       ) {
@@ -5084,9 +5115,6 @@ export class ModelApiSession implements ScheduledAgentSession {
           this.autoCompact.noteRequest()
         }
         if (directBudget === undefined) this.wasCallSent = true
-        if (this.isSubagent && this.childTaskGrant !== undefined) {
-          this.childTaskGrant.remainingAttempts -= 1
-        }
         if (reservation !== undefined) {
           reservation.isSent = true
         }
@@ -5457,8 +5485,9 @@ export class ModelApiSession implements ScheduledAgentSession {
    * The request in flight reported its usage (M82): its reservation closes,
    * and it becomes the base the next estimate starts from. A request sent
    * without a reservation (no cap) leaves no base, so a cap set later
-   * estimates the whole of its first request. An output that used every
-   * token the budget allowed may be cut short, and the transcript says so.
+   * estimates the whole of its first request. Lane LIMITSA (D113): the
+   * request always keeps its own `max_output_tokens`, so the budget never
+   * cuts an answer short and the budget-lowered notice below is gone.
    */
   private settleReservation(usage: Usage): void {
     const reservation = this.openReservation
@@ -5470,19 +5499,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       reservation.modelRevision === this.modelRevision
         ? { inputTokens: usage.input_tokens, parts: reservation.parts }
         : undefined
-    if (
-      reservation?.hasCap === true &&
-      reservation.maxOutputTokens < MODEL_API_MAX_OUTPUT_TOKENS &&
-      usage.output_tokens >= reservation.maxOutputTokens
-    ) {
-      this.emit({
-        type: 'backendNotice',
-        level: 'warning',
-        text: fill(UI_TEXT.sessionBudgetOutputLimited, {
-          tokens: formatNumber(reservation.maxOutputTokens),
-        }),
-      })
-    }
   }
 
   /**
@@ -7986,13 +8002,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (run === undefined) await this.refreshBudgetSpend()
     const price = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
     const capUsd = run === undefined ? this.currentBudgetCap() : Usd.from(0).toAmount()
-    if (
-      Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
-      Usd.from(price).compare(Usd.from(capUsd).subtract(Usd.from(this.budgetSpentUsd))) > 0
-    ) {
+    // The same admission rule as every request (F3): settled real spend
+    // below the cap. The image's flat price is its real cost, settled below.
+    if (isPositiveUsd(capUsd) && !isBelowCap(capUsd, this.budgetSpentUsd)) {
       throw new SessionBudgetExceededError(
         fill(UI_TEXT.sessionBudgetStopped, {
-          estimate: formatUsd(price),
           cap: formatUsd(capUsd),
           spent: formatUsd(this.budgetSpentUsd),
         }),
@@ -9084,7 +9098,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.emit(event)
   }
 
-  /** A hidden continuation uses the original consent and its remaining request bound. */
+  /** A hidden continuation uses the original, still-current task consent. */
   private canContinueChild(child: ChildRecord, grant: ChildTaskGrant): boolean {
     return (
       !this.isDisposed &&
@@ -9108,7 +9122,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       siblings === 0 ||
       grant === undefined ||
       keeps >= HOOK_MAX_STOP_CONTINUATIONS ||
-      grant.remainingAttempts <= 0 ||
       !this.canContinueChild(child, grant)
     )
       return false
@@ -9294,7 +9307,6 @@ export class ModelApiSession implements ScheduledAgentSession {
             role: parsed.data.role,
             objective: parsed.data.objective,
             modelId: resolveAgentModel(this.modelId, agent?.model),
-            attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
           }
         : undefined
     }
@@ -9316,7 +9328,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       objective: parsed.success ? parsed.data.message : child.objective,
       // A follow-up continues the child's own run: a custom agent's model, not the session's.
       modelId: child.session.modelId,
-      attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
     }
   }
 
@@ -9359,7 +9370,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       return 'goalEnded'
     }
-    return grant.remainingAttempts <= 0 ? 'requestLimit' : undefined
+    // Lane LIMITSA (D113): no per-task request cap. A child runs like its
+    // parent: the loop guard watches it, its spend shows in the session,
+    // and stopping the turn stops the task.
+    return undefined
   }
 
   /** All child admission routes read the originating task, then its live caller. */
@@ -9431,7 +9445,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         },
       }),
       goalId,
-      remainingAttempts: SUBAGENT_TASK_MAX_REQUESTS,
       isWebSearchAllowed,
       ...(this.approvedSearchQuote !== undefined && { searchQuote: this.approvedSearchQuote }),
     }
@@ -9574,7 +9587,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       role: child.role,
       objective,
       modelId: child.session.modelId,
-      attemptLimit: SUBAGENT_TASK_MAX_REQUESTS,
     }
     const gate = this.childTaskGate(task.modelId)
     const admitted =
@@ -9919,6 +9931,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }),
       visibleOutput: child.result?.summary ?? childStateLabel(child.state),
       touched: childResultsTouched([child]),
+      ...(state === 'timeout' && { unfinished: true }),
     }
   }
 
@@ -13009,16 +13022,23 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       this.replaceOutput(attemptReplay, outcome, post.replacement.value)
     }
-    if (!executed.value.isRepeatSuppressed) {
-      this.repeatGuard.observe(
+    // One policy for every tool class (lane LIMITSFIX, F4): a finished call
+    // whose arguments and result match the last call's counts as a repeat.
+    // The 3rd and 4th tell the model to change approach, the 5th stops the
+    // turn. A call whose result differs is never a repeat.
+    let verdict: RepeatVerdict = 'ok'
+    if (running !== undefined || outcome.unfinished === true) this.repeatGuard.reset()
+    else if (!executed.value.isRepeatSuppressed)
+      verdict = this.repeatGuard.observe(
         effectiveCall,
         post.replacement?.target === 'toolResult'
           ? post.replacement.value
           : (outcome.outputParts ?? outcome.output),
         post.replacement === undefined ? repeatWitness : undefined,
       )
-    }
-    if (executed.value.isRepeatStopped) {
+    const isRepeatStopped = executed.value.isRepeatStopped || verdict === 'stuck'
+    if (verdict === 'warn') this.isRepeatWarned = true
+    if (isRepeatStopped) {
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.modelApiToolStuck })
     }
     const blocked = [
@@ -13083,7 +13103,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
       // A PreToolUse stop (Amp's tool.call `error`, M91b) refused the call
       // and ends the turn too.
-      stopReason: executed.value.isRepeatStopped
+      stopReason: isRepeatStopped
         ? MODEL_API_MODEL_TEXT.toolRepeatStopped
         : (post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason),
     }
@@ -13543,20 +13563,31 @@ export class ModelApiSession implements ScheduledAgentSession {
       : this.team.appendTeamEvents(name, outcome, () => this.deps.takeTeamChanges?.(this.sessionId))
   }
 
-  private async loop(turn: ActiveTurn): Promise<void> {
+  /**
+   * A turn's model rounds (lane TURNLIMIT): no fixed cap. The turn runs until
+   * the model stops calling tools, the person cancels, the loop guard fires,
+   * a spend cap is reached, or an error happens. Returns the notice naming
+   * the stop when the person's own per-turn limit ended the turn.
+   */
+  private async loop(turn: ActiveTurn): Promise<string | undefined> {
     this.repeatGuard.reset()
+    this.isRepeatWarned = false
     const { signal } = turn.abort
     if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     let isStopHookActive = false
     let stopContinuations = 0
     let outputContinuations = 0
-    for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
+    for (let round = 0; ; round += 1) {
       if (isAbortRequested(signal)) {
         throw new AbortedError()
       }
       const requiredBeforeRound = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
       if (requiredBeforeRound !== undefined) {
         throw requiredBeforeRound
+      }
+      const maxTurnRequests = this.maxTurnRequests()
+      if (maxTurnRequests !== undefined && round >= maxTurnRequests) {
+        return await this.stopAtTurnLimit(turn, maxTurnRequests, round)
       }
       await this.drainSteered(turn)
       this.drainGoalWake(turn)
@@ -13623,8 +13654,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (
           streamed.incompleteReason === 'max_output_tokens' &&
           this.outputContinuation &&
-          outputContinuations < MODEL_API_CONTINUATIONS_MAX &&
-          round < MODEL_API_MAX_TOOL_ROUNDS - 1
+          outputContinuations < MODEL_API_CONTINUATIONS_MAX
         ) {
           outputContinuations += 1
           this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
@@ -13799,6 +13829,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         // A user message between a function call and its output is invalid
         // replay. Post-model context follows the whole tool batch instead.
         this.appendHookContexts(turn.turnId, postContexts)
+        this.flushRepeatWarning(turn.turnId)
         // A stopped or failed round names its read files without replaying
         // bytes that no model request saw (M54).
         await this.appendReadFiles(turn.turnId, isRoundComplete && !isAbortRequested(signal))
@@ -13831,7 +13862,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.dropUndeliveredMedia(turn.turnId)
         return
       }
-      const verifyStop = await this.verifyRound(turn, round === MODEL_API_MAX_TOOL_ROUNDS - 1)
+      // No round is the last: with no fixed cap every batch is followed by
+      // another request (or the turn ends because the model stopped calling
+      // tools), so the checks always run and their results are read.
+      const verifyStop = await this.verifyRound(turn, false)
       if (verifyStop !== undefined) {
         // A check's hook stopped the turn after the round, as PostToolBatch can.
         this.dropUndeliveredMedia(turn.turnId)
@@ -13839,17 +13873,81 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       this.autoCompact.noteToolWork()
       const compacted = await this.maybeAutoCompact(turn)
-      if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return
+      if (this.stopAfterAutoCompaction(turn, compacted, wasBudgetLimited)) return undefined
     }
-    // Input accepted during the last permitted round still needs a request
-    // that sees it. Steered messages belonged to this turn, so run them
-    // before separately queued messages; a goal cue follows them.
+  }
+
+  /**
+   * The person's own per-turn limit stopped the turn (lane TURNLIMIT): one
+   * last request with no tools asks the model to summarise what it did and
+   * what is left, and the turn ends on that summary. Steered input and a goal
+   * wake keep the old cap-stop behavior: they become their own turns, so the
+   * next message in the same conversation still works. Returns the notice
+   * naming the stop.
+   *
+   * Lane LIMITSFIX (F5): the limit is the person's own planned stop, so it
+   * ends cleanly even when the summary cannot be written (a cap reached, the
+   * connection lost, a hook or the provider refusing it). The notice then says
+   * so and why, the summary instruction leaves the replay, and the next
+   * message works with its input and replay intact. Only the person's own
+   * Stop is not a clean limit.
+   */
+  private async stopAtTurnLimit(
+    turn: ActiveTurn,
+    maxTurnRequests: number,
+    round: number,
+  ): Promise<string> {
+    const instruction: ReplayItem = {
+      turnId: turn.turnId,
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.turnLimitSummary }],
+      },
+    }
+    this.replay.push(instruction)
+    let notice: string
+    try {
+      const streamed = await this.streamWithoutTools(turn, round)
+      // No tools were offered, so nothing may run: answer every stray call for
+      // valid replay, never execute it.
+      this.skipCalls(turn.turnId, streamed.calls)
+      notice = plural(UI_TEXT.modelApiTurnLimitReached, maxTurnRequests)
+    } catch (error: unknown) {
+      if (isAbortRequested(turn.abort.signal) || error instanceof AbortedError) throw error
+      if (error instanceof SessionBudgetExceededError) this.outcomeStopReason = 'budget'
+      // Fixed words only: the reason can name a path or an account.
+      this.deps.log.warn(
+        'Model API turn limit: the summary request failed; ending the turn cleanly',
+      )
+      const repaired = repairAfterFailedSummary(this.replay, instruction, (callId) => ({
+        turnId: turn.turnId,
+        item: {
+          type: 'function_call_output',
+          call_id: callId,
+          output: `Error: ${MODEL_API_MODEL_TEXT.toolCancelledByStop}`,
+        },
+      }))
+      this.replay.splice(0, this.replay.length, ...repaired)
+      notice = plural(UI_TEXT.modelApiTurnLimitNoSummary, maxTurnRequests, {
+        reason: describe(error),
+      })
+    }
     if (turn.goalWakePending && isGoalActive(this.goal)) {
       this.queuedTurns.unshift(this.queuedGoalWake())
     }
     this.promoteSteered(turn)
-    this.outcomeStopReason = 'budget'
-    throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
+    this.emit({ type: 'backendNotice', level: 'warning', text: notice })
+    return notice
+  }
+
+  private async streamWithoutTools(turn: ActiveTurn, round: number): Promise<StreamedCall> {
+    this.noToolsOffered = true
+    try {
+      return await this.streamOnce(turn.turnId, turn.abort.signal, round, turn.confirmedRequest)
+    } finally {
+      this.noToolsOffered = false
+    }
   }
 
   /** Child turns share checkpoint ownership with their top parent, even after it finishes. */
@@ -14170,7 +14268,14 @@ export class ModelApiSession implements ScheduledAgentSession {
           text: UI_TEXT.autoCompactionAwaitingEvaluation,
         })
       }
-      await this.loop(turn)
+      const turnLimitNotice = await this.loop(turn)
+      if (turnLimitNotice !== undefined) {
+        // The person's own per-turn limit stopped the turn: it completed on
+        // the summary, with the notice as its reason. The editor protocol
+        // answers `max_turn_requests` for this error kind (lane TURNLIMIT).
+        reason = turnLimitNotice
+        errorKind = TURN_LIMIT_ERROR_KIND
+      }
     } catch (error: unknown) {
       const pendingRun = turn.scheduleRun === undefined ? this.owner.run(turn.turnId) : undefined
       const released = pendingRun === undefined ? undefined : this.owner.withdraw(pendingRun)
@@ -14187,8 +14292,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         terminal = FAILED
         if (
           error instanceof SessionBudgetExceededError ||
-          (error instanceof ChildTaskRefusedError &&
-            (error.kind === 'requestLimit' || error.kind === 'goalEnded'))
+          (error instanceof ChildTaskRefusedError && error.kind === 'goalEnded')
         ) {
           this.outcomeStopReason = 'budget'
         }
@@ -15598,6 +15702,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
   }
 
+  /** The limit in force this round: the session's own, else the host default. */
+  private maxTurnRequests(): number | undefined {
+    // A child runs like its parent (F8): the owner's own choice, else the host default.
+    if (this.parentSession !== undefined) return this.parentSession.maxTurnRequests()
+    if (this.hasSessionTurnLimit) return this.sessionMaxTurnRequests
+    const configured = this.deps.maxTurnRequests?.()
+    return configured === undefined || configured < 1 ? undefined : configured
+  }
+
   /** Recording adapters use the nominal session, never an arbitrary callback. */
   public async runRecordedTool(
     ...args: Parameters<ModelApiSession['decideAndRun']>
@@ -15941,7 +16054,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    * Stop: the running turn or compaction is aborted, and each queued message
    * is ended with a reason instead of vanishing (D26).
    */
-  public cancel(): Promise<void> {
+  public async cancel(): Promise<void> {
     this.resourceAdmissionStop.abort()
     this.resourceAdmissionStop = new AbortController()
     this.deps.judge?.discardSession(this.sessionId)
@@ -15968,13 +16081,34 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.compacting !== undefined) {
       this.compacting.abort()
     }
+    // Child consent is now unbounded (LIMITSA): Stop must revoke it and
+    // interrupt both running and queued tasks, even if the parent is idle.
+    const stoppingChildren: Promise<void>[] = []
+    for (const child of this.children.values()) {
+      if (
+        child.state !== 'running' &&
+        child.state !== 'queued' &&
+        child.session.activeTurnId === undefined &&
+        child.followupAfterStop === undefined
+      )
+        continue
+      child.revision += 1
+      child.pendingMessages.length = 0
+      child.followupAfterStop = undefined
+      child.nextTaskGrant = undefined
+      child.session.childTaskGrant = undefined
+      child.state = 'interrupted'
+      child.resourceStop?.abort()
+      stoppingChildren.push(child.session.cancel())
+      this.updateChild(child)
+    }
     // Muse Code's Interrupt fires on a cancelled running turn or compaction,
     // never on an idle close (M91, docs/certification/m91.md). Disposal and
     // host close reach it through here.
     if (hasRunning) {
       this.fireInterrupt()
     }
-    return Promise.resolve()
+    await Promise.all(stoppingChildren)
   }
 
   /**
@@ -16030,6 +16164,22 @@ export class ModelApiSession implements ScheduledAgentSession {
       return Promise.reject(new Error('reasoning effort must not be empty'))
     }
     this.effort = reasoningEffort
+    this.touch()
+    return Promise.resolve()
+  }
+
+  /**
+   * This session's per-turn tool-round limit (lane TURNLIMIT): undefined is
+   * no limit. Read every round, so a change lands mid-turn; it wins over the
+   * host default. The editor protocol offers it as a session option.
+   */
+  public setMaxTurnRequests(maxTurnRequests: number | undefined): Promise<void> {
+    // Any whole number from 1 up, or none (lane LIMITSFIX, F8): the person's own.
+    if (maxTurnRequests !== undefined && !isTurnLimitRounds(maxTurnRequests)) {
+      return Promise.reject(new Error('invalid per-turn tool-round limit'))
+    }
+    this.sessionMaxTurnRequests = maxTurnRequests
+    this.hasSessionTurnLimit = true
     this.touch()
     return Promise.resolve()
   }
@@ -16675,6 +16825,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...freshFork,
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
+      ...(this.hasSessionTurnLimit && { maxTurnRequests: this.sessionMaxTurnRequests ?? 0 }),
       ...(packedCallIds !== undefined && { packedCallIds }),
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
       // M96 lane T: the declared delegation family, so a resumed
@@ -16780,6 +16931,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     // session saved before it was kept carries none, so it starts at zero.
     this.restoredPackedTokens = stored.packedTokensAvoided
     this.hookTokensAdded = stored.hookTokensAdded ?? 0
+    // The person's own limit for this session comes back with it (F8).
+    if (stored.maxTurnRequests !== undefined) {
+      this.hasSessionTurnLimit = true
+      this.sessionMaxTurnRequests =
+        stored.maxTurnRequests === 0 ? undefined : stored.maxTurnRequests
+    }
     this.packing?.restoreSavings(stored.packedTokensAvoided ?? 0)
     this.restoredPackedCallIds = stored.packedCallIds
     this.packing?.restorePackedCallIds(

@@ -109,10 +109,9 @@ export interface HookModelTurn {
 /** Shared daily-budget owner supplied by the defaults lane; absent in this tree. */
 export interface HookModelDailyBudget {
   readonly capUsd: () => UsdAmount
+  /** Admits one request by the one cap rule (F3): nothing of its response is held. */
   readonly reserve: (
     modelId: string,
-    inputTokens: number,
-    outputTokens: number,
     signal: AbortSignal,
   ) => Promise<{
     readonly check: () => void

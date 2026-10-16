@@ -26,6 +26,7 @@ const { isProviderId } = modelRef
 import type { OpenRouterPrivacy } from '../core/providers/presets'
 import { accountIdSchema } from '../shared/accounts'
 import { fill } from '../shared/l10n/text'
+import { readTurnLimit } from '../shared/turnLimit'
 import { parseExec } from './exec/execArgs'
 import { resourceFlagOverrides } from './resources/args'
 import type { ResourceSettings } from '../shared/resources'
@@ -85,6 +86,8 @@ export interface ServeOptions {
   readonly autoCompaction?: boolean | undefined
   readonly scheduledPrompts?: boolean
   readonly maxBudgetUsd?: UsdAmount
+  /** The sessions' per-turn tool-round limit (lane TURNLIMIT); undefined is no limit. Model API only. */
+  readonly maxTurnRequests?: number
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -364,6 +367,16 @@ export function parseCommandLine<T>(
     values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
   if (budget === undefined && values['max-budget-usd'] !== undefined)
     return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
+  // Any whole number from 1 up, or off (lane LIMITSFIX, F8): the person's own limit.
+  const rawTurnLimit = values['max-turn-requests']
+  const turnLimit = rawTurnLimit === undefined ? undefined : readTurnLimit(rawTurnLimit)
+  if (turnLimit?.isValid === false) return invalid('--max-turn-requests')
+  const maxTurnRequests = turnLimit?.isValid === true ? turnLimit.rounds : undefined
+  if (maxTurnRequests !== undefined && backend !== 'modelApi')
+    return {
+      command: 'invalid',
+      reason: fill(UI_TEXT.acpModelApiOnlyFlag, { argument: '--max-turn-requests' }),
+    }
   const options: ServeOptions = {
     ...(values['usage-history'] !== undefined && {
       usageHistory: values['usage-history'] === 'on',
@@ -382,6 +395,7 @@ export function parseCommandLine<T>(
       scheduledPrompts: values['scheduled-prompts'],
     }),
     ...(budget !== undefined && { maxBudgetUsd: budget }),
+    ...(maxTurnRequests !== undefined && { maxTurnRequests }),
   }
   const [first, second, ...rest] = positionals
   if (values.account !== undefined && (first !== 'auth' || second !== 'set' || rest.length > 0))

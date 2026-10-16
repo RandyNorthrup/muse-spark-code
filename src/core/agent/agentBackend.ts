@@ -503,6 +503,11 @@ export interface AgentSession {
   setModel(modelId: string): Promise<void>
   /** The session's standing reasoning-effort default (wire vocabulary). */
   setReasoningEffort(reasoningEffort: string): Promise<void>
+  /**
+   * The session's per-turn tool-round limit (lane TURNLIMIT): undefined is
+   * no limit. Absent where the backend has no per-turn loop to bound.
+   */
+  setMaxTurnRequests?(maxTurnRequests: number | undefined): Promise<void>
   /** One of the four MSP approval modes (shared/permissionModes.ts). */
   setApprovalMode(mode: string): Promise<void>
   compact(): Promise<CompactOutcome>

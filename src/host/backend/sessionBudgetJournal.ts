@@ -16,6 +16,7 @@ import type {
 } from '../../core/backends/modelapi/sessionBudget'
 import type { StoredSession } from '../../core/backends/modelapi/sessionStore'
 import { formatUsd } from '../../core/usage/insights'
+import { isBelowCap } from '../../shared/spendCap'
 import {
   DAILY_BUDGET_LOCK_ATTEMPTS,
   DAILY_BUDGET_LOCK_WAIT_MS,
@@ -518,15 +519,20 @@ export function createSessionBudgetJournal(
         if (Usd.from(capUsd).compare(Usd.from(0)) > 0 && total.hasUnknownHistoricalFees) {
           throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
         }
+        // The one admission rule (F3, src/shared/spendCap.ts): this request is
+        // admitted while the real spend of everything else is below the cap.
+        // Its own hold is not spend yet; it is never compared with the cap.
+        const settledSpent = total.spent.subtract(
+          Usd.from(claim.retainedUsd ?? created.reservedUsd),
+        )
         if (
           Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
-          total.spent.compare(Usd.from(capUsd)) > 0
+          !isBelowCap(capUsd, settledSpent.toAmount())
         ) {
           throw new Error(
             fill(UI_TEXT.sessionBudgetStopped, {
-              estimate: formatUsd(Usd.from(created.reservedUsd).toAmount()),
               cap: formatUsd(capUsd),
-              spent: formatUsd(total.spent.subtract(Usd.from(created.reservedUsd)).toAmount()),
+              spent: formatUsd(settledSpent.toAmount()),
             }),
           )
         }

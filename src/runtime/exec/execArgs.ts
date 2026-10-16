@@ -26,6 +26,7 @@ import {
   type ShellSandboxMode,
   UI_TEXT,
 } from '../../shared/constants'
+import { readTurnLimit } from '../../shared/turnLimit'
 import { fill, plural } from '../../shared/l10n/text'
 import { modelRef } from '../../host/backend/providerPolicyEntry'
 const { isProviderId, parseModelRef } = modelRef
@@ -63,6 +64,8 @@ export interface ExecOptions {
   /** Exact canonical budget; admission uses integer micro-units internally (F1). */
   readonly budgetUsd: UsdAmount | undefined
   readonly maxRequests: number | undefined
+  /** The run's per-turn tool-round limit (lane TURNLIMIT); undefined is no limit. Model API only. */
+  readonly maxTurnRequests: number | undefined
   readonly timeoutMs: number
   readonly paidFeatures: readonly ExecPaidFeature[]
   readonly failOnDenial: boolean
@@ -102,6 +105,7 @@ const STRING_OPTIONS = new Set([
   'output-schema',
   'max-budget-usd',
   'max-requests',
+  'max-turn-requests',
   'timeout',
   'muse-binary',
   'shell-sandbox',
@@ -231,11 +235,20 @@ export function parseExec(
     1,
     EXEC_MAX_REQUESTS,
   )
+  // Any whole number from 1 up, or off (lane LIMITSFIX, F8): the person's own limit.
+  const rawTurnLimit = values['max-turn-requests']
+  // A value that is not text (a repeated or bare flag) is no limit at all: refused, never coerced.
+  const turnLimit =
+    rawTurnLimit === undefined
+      ? undefined
+      : readTurnLimit(typeof rawTurnLimit === 'string' ? rawTurnLimit : '')
+  const maxTurnRequests = turnLimit?.isValid === true ? turnLimit.rounds : undefined
   const budgetUsd = budgetUnits(values['max-budget-usd'])
   if (
     timeout === undefined ||
     maxRequests === undefined ||
-    (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
+    (budgetUsd === undefined && values['max-budget-usd'] !== undefined) ||
+    turnLimit?.isValid === false
   )
     return invalid(UI_TEXT.execNumberInvalid)
   if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)
@@ -249,6 +262,7 @@ export function parseExec(
     [
       'max-budget-usd',
       'max-requests',
+      'max-turn-requests',
       'ephemeral',
       'key-stdin',
       'image-generation',
@@ -317,6 +331,7 @@ export function parseExec(
       ...(values['output-schema-outside'] === true && { outputSchemaOutside: true }),
       budgetUsd,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
+      maxTurnRequests,
       timeoutMs: timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: values['image-generation'] === true ? ['imageGeneration'] : [],
       failOnDenial: values['fail-on-denial'] === true,

@@ -1,4 +1,4 @@
-import { Usd, isPositiveUsd } from '../../../shared/usd'
+import { Usd } from '../../../shared/usd'
 // A prompt/agent hook's own model call (M91, PLAN.md D70, lane H): loaded
 // only after the paid-use popup allows it. No transport retry, hooks off,
 // billed to the Model API key on the hookModels tally line, apart from the
@@ -14,14 +14,11 @@ import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 import { isFunctionCallItem } from './schemas'
 import type { FunctionCallItem, InputItem, StreamEvent, ToolDefinition, Usage } from './schemas'
 import {
+  admitScopedRequest,
   helperRequestSettlement,
-  estimateInput,
-  requestParts,
-  reserveRequest,
   type OwnedSessionBudgetScope,
   type SessionBudgetClaim,
 } from './sessionBudget'
-import { estimateCostUsd } from '../../usage/insights'
 import type { SubagentUsage } from '../../../shared/paid'
 import type { ItemSnapshot } from '../../../shared/agentEvents'
 import {
@@ -267,7 +264,7 @@ async function requestHookStep(
   onPart: (text: string, usage: Usage | null | undefined) => void,
 ): Promise<readonly FunctionCallItem[]> {
   const modelId = confirmed.modelId
-  let body = context.keyed(
+  const body = context.keyed(
     sideCallBody(
       context.keyed({
         model: modelId,
@@ -287,7 +284,9 @@ async function requestHookStep(
   )
   let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
-  let reservedUsd = Usd.from(0).toAmount()
+  // Nothing is held for the response (F3): a request that goes out and never
+  // reports usage settles as unknown, not as a guess.
+  const reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
   let usage: Usage | null | undefined
   let dailyClaim:
@@ -296,47 +295,16 @@ async function requestHookStep(
   const calls: FunctionCallItem[] = []
   let hasCompleted = false
   try {
+    // The one admission rule (F3): sent while settled real spend is below the
+    // cap; nothing of this response is estimated or held. It settles at its
+    // real cost, or stays unknown if it never reports usage.
     if (budgetScope !== undefined) {
-      const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
-      const capUsd = budgetScope.capUsd()
-      const estimated = estimateInput(requestParts(body), undefined).inputTokens
-      if (isPositiveUsd(capUsd)) {
-        const reservation = reserveRequest({
-          capUsd,
-          spentUsd: total.spentUsd,
-          estimatedInputTokens: estimated,
-          modelId,
-          minOutputTokens: minOutputTokensForPolicy(modelPolicyFor(modelId)),
-        })
-        body = {
-          ...body,
-          max_output_tokens: Math.min(body.max_output_tokens, reservation.maxOutputTokens),
-        }
-      }
-      reservedUsd = estimateCostUsd(
-        { inputTokens: estimated, outputTokens: body.max_output_tokens, cachedTokens: 0 },
+      claim = await admitScopedRequest(budgetScope, {
         modelId,
-      )
-      claim = await budgetScope.journal.reserve(
-        budgetScope.sessionId,
-        budgetScope.accountId,
-        reservedUsd,
-        { isUnbounded: !isPositiveUsd(capUsd) },
-      )
+        minOutputTokens: minOutputTokensForPolicy(modelPolicyFor(modelId)),
+      })
     }
-    const estimatedInputTokens = estimateInput(requestParts(body), undefined).inputTokens
-    const reservationUsd = estimateCostUsd(
-      { inputTokens: estimatedInputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
-      modelId,
-    )
-    reservedUsd =
-      Usd.from(reservedUsd).compare(Usd.from(reservationUsd)) > 0 ? reservedUsd : reservationUsd
-    dailyClaim = await context.deps.hookModelDailyBudget?.reserve(
-      modelId,
-      estimatedInputTokens,
-      body.max_output_tokens,
-      signal,
-    )
+    dailyClaim = await context.deps.hookModelDailyBudget?.reserve(modelId, signal)
     directBudget = { scope: budgetScope, claim, isSent: false }
     const required = context.guard(body, directBudget)
     const admission: ResponseAttemptGuard = Object.assign(

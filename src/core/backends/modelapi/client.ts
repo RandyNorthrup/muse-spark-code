@@ -46,7 +46,7 @@ import {
   MODEL_API_REQUEST_TIMEOUT_MS,
   UI_TEXT,
 } from '../../../shared/constants'
-import { estimateInput, requestParts, searchAllowanceUsd } from './sessionBudget'
+import { searchAllowanceUsd } from './sessionBudget'
 
 import type { CoreLogger } from '../../logging'
 import type { NetworkAdvice } from '../../networkFailure'
@@ -529,15 +529,11 @@ export class ModelApiClient implements TransportProviderClient {
       if (hasSearch && (this.hasPaidDailyBudget || this.scheduledRun !== undefined)) {
         if (body.max_tool_calls === undefined)
           throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
-        const inputTokens =
-          admitAttempt?.paidEstimatedInputTokens ??
-          estimateInput(requestParts(body), undefined).inputTokens
+        // F3: the hosted-search request holds only its exact fee ceiling (the
+        // request's own bound at the tariff the person approved). Its tokens
+        // are never held: they settle at their real cost with the response.
         reservationUsd = sumUsd(
-          media?.reservedUsd ??
-            this.searchTokenCostUsd(
-              { inputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
-              body.model,
-            ),
+          media?.reservedUsd ?? Usd.from(0).toAmount(),
           searchAllowanceUsd(body.max_tool_calls, searchPrice),
         )
       }
@@ -746,13 +742,18 @@ export class ModelApiClient implements TransportProviderClient {
           await paid.claim.settle(Usd.from(0).toAmount())
         else if (
           paid !== undefined &&
-          hasSearch &&
           !hasTerminal &&
           admitAttempt?.mediaAccounting === undefined
         ) {
+          // A request that went out and ended without its usage is recorded
+          // as UNKNOWN, never as a guessed amount (F3); with hosted search
+          // the returned fees keep their own accounting.
+          const isUnknown = !hasSearch || !hasTerminalSearchCount
           await paid.claim.settle(
-            returnedLiability(paid.claim.reservedUsd, !hasTerminalSearchCount),
-            !hasTerminalSearchCount,
+            hasSearch
+              ? returnedLiability(paid.claim.reservedUsd, !hasTerminalSearchCount)
+              : paid.claim.reservedUsd,
+            isUnknown,
           )
         }
       } finally {

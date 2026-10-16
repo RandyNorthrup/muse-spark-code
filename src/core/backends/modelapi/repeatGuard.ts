@@ -1,5 +1,5 @@
 import { fingerprint } from '../../verify/fingerprint'
-import { TOOL_REPEAT_LIMIT } from '../../../shared/constants'
+import { TOOL_REPEAT_LIMIT, TOOL_REPEAT_STOP_LIMIT } from '../../../shared/constants'
 
 interface ToolIdentity {
   readonly name: string
@@ -33,7 +33,19 @@ export function toolRepeatKey(call: ToolIdentity): string {
   return JSON.stringify([call.name, args])
 }
 
-/** Turn-local, consecutive results only; stores digests, never tool output text. */
+/** What the guard says about a finished call: nothing, warn the model, or stop the turn. */
+export type RepeatVerdict = 'ok' | 'warn' | 'stuck'
+
+/**
+ * Turn-local, consecutive results only; stores digests, never tool output text.
+ * One policy for every tool class (lane LIMITSFIX, F4, D113): the same call
+ * with the same arguments and the same result is a repeat. The 3rd tells the
+ * model to change approach and the 5th stops the turn. A call whose result
+ * changed (a poll of a running command, a wait on output) is never a repeat.
+ * A tool with a trusted witness of its unchanged result (a text read) is
+ * additionally skipped instead of run again; every other tool runs, and its
+ * result decides.
+ */
 export class RepeatGuard {
   private previous:
     | {
@@ -54,24 +66,34 @@ export class RepeatGuard {
     )
   }
 
-  /** A witness must freshly prove the complete observable result is unchanged. */
+  /**
+   * A witness must freshly prove the complete observable result is
+   * unchanged. The 3rd identical call is skipped (the model is told to change
+   * approach) and the call is not run again; the 5th stops the turn. Without
+   * a witness the call simply runs: only its own result, seen by `observe`,
+   * can make it a repeat. A witness that differs from the last one proves the
+   * result changed, so the count starts over.
+   */
   public before(call: ToolIdentity, witness: string | undefined): 'run' | 'skip' | 'stuck' {
     const previous = this.previous
-    if (previous?.key !== toolRepeatKey(call)) return 'run'
-    if (witness === undefined || witness !== previous.witness) {
+    if (witness === undefined || previous?.key !== toolRepeatKey(call)) return 'run'
+    if (witness !== previous.witness) {
       this.reset()
       return 'run'
     }
     if (previous.count < TOOL_REPEAT_LIMIT - 1) return 'run'
     previous.count += 1
-    return previous.count === TOOL_REPEAT_LIMIT ? 'skip' : 'stuck'
+    return previous.count >= TOOL_REPEAT_STOP_LIMIT ? 'stuck' : 'skip'
   }
 
-  public observe(call: ToolIdentity, output: unknown, witness: string | undefined): void {
+  /** Records a finished call's result and says whether it makes a repeat the model or the person must hear about. */
+  public observe(call: ToolIdentity, output: unknown, witness: string | undefined): RepeatVerdict {
     const key = toolRepeatKey(call)
     const result = fingerprint(JSON.stringify(canonical(output)))
     const count =
       this.previous?.key === key && this.previous.result === result ? this.previous.count + 1 : 1
     this.previous = { key, result, witness, count }
+    if (count >= TOOL_REPEAT_STOP_LIMIT) return 'stuck'
+    return count >= TOOL_REPEAT_LIMIT ? 'warn' : 'ok'
   }
 }

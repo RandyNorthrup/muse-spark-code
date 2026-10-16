@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { configuredStreamError } from '../../src/core/providers/configured'
+import { UI_TEXT } from '../../src/shared/constants'
 
 // RVCM1062H: the shared confirmed-dispatch helper (assertConfirmedAllowed in
 // src/core/backends/modelapi/transport.ts) is the only code allowed to accept
@@ -121,8 +123,8 @@ const ALLOWLIST: readonly AllowEntry[] = [
   },
   {
     file: 'src/core/providers/configured.ts',
-    match: /isStaleConfirmedError\(error\)\) throw error/,
-    why: 'the rethrow guard: a lapsed confirmation keeps the helper sentence',
+    match: /throw configuredStreamError\(error\)/,
+    why: 'the send keeps its own failure words (F88); an Error, a lapsed confirmation included, passes through unchanged, which the behaviour check below pins',
   },
   {
     file: 'src/core/providers/configured.ts',
@@ -321,6 +323,11 @@ describe('confirmed-dispatch inventory (RVCM1062H)', () => {
     ).toBe(false)
     const configured = readLines(path.join(SRC_ROOT, 'core/providers/configured.ts'))
     expect(configured.some((line) => line.includes('assertConfirmedAllowed'))).toBe(true)
-    expect(configured.some((line) => line.includes('isStaleConfirmedError'))).toBe(true)
+  })
+  it('lets a lapsed confirmation through the configured provider unchanged', () => {
+    for (const sentence of [UI_TEXT.requestStaleHookModel, UI_TEXT.scheduleConfirmationExpired]) {
+      const lapsed = new Error(sentence)
+      expect(configuredStreamError(lapsed)).toBe(lapsed)
+    }
   })
 })

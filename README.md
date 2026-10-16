@@ -3589,30 +3589,34 @@ rate instead of a "warm for N minutes" countdown.
   so its replies never carry one.
 - **A session budget** (Model API): `museSpark.modelApiSessionBudgetUsd`
   caps what each conversation may spend, in dollars at Meta's list prices
-  (`0`, the default, is no cap). Before each request the input is estimated
-  high: the last request's input as Meta counted it, plus everything added
-  since at one token per byte (so an attached image or file counts at its
-  encoded size, far above its real cost). `max_output_tokens` is then
-  lowered so input plus output fits what is left. A request that cannot fit
-  is not sent, and the turn stops and says so; a reply that used all the
-  output the budget left is marked as possibly cut short, and the
-  transcript shows what each turn cost against the cap. Each request is
+  (`0`, the default, is no cap). The cap is compared with the real spend
+  already settled, never with an estimate or a worst case: a request is sent
+  while that spend is below the cap, and once it has reached the cap the next
+  request stops with the spend, the cap and how to raise it. Nothing of a
+  response is held up front, and a request keeps its own
+  `max_output_tokens`. Each response settles at its real cost when its usage
+  arrives, so the spend can pass the cap by at most the responses in flight
+  when their requests were admitted: one for the conversation itself, plus up
+  to 8 running subagents (they share the conversation's cap and ledger), plus
+  any hook or review helper request in flight. It is not "one response" while
+  children run. The same rule governs compaction, the hook and review
+  helpers, hosted search, the shared daily extras and Tab. The transcript
+  shows what each turn cost against the cap. Each request is
   priced at the model it was sent to, and what the conversation spent is
   saved as it is spent, even while a call waits for your approval, so a
   reload cannot forget it. A shared spend journal covers hosts opening the
   same account-owned conversation from the same storage directory. Each
-  request publishes its own durable liability before HTTP; stale session
-  saves cannot erase another host's charge. A capped request needs working
-  session storage. If a stop, model, goal,
-  key, budget, workspace trust or paid permission changes while the reservation
-  is saved, final admission refuses the request and releases its nonsent
-  reservation. A sent request whose usage is unknown keeps its whole
-  reservation, including after a crash or a response timeout. This is
-  reserved possible spending, not a claim that Meta billed that amount.
-  Explicit 400 or 429 refusals before any response began release it.
+  request records itself durably before HTTP; stale session saves cannot
+  erase another host's charge. A capped request needs working session
+  storage. If a stop, model, goal, key, budget, workspace trust or paid
+  permission changes while the request is recorded, final admission refuses it
+  and records it as not sent. A sent request whose usage never arrives (a
+  crash, a response timeout) is recorded as unknown, never as a guessed
+  amount, and the next capped request says the conversation's spending is not
+  fully verified: start a new conversation to continue under a cap. Explicit
+  400 or 429 refusals before any response began are not charged.
   Capped responses do not automatically retry an ambiguous transport or
-  server failure under the same allowance; send a new prompt for a fresh
-  admission. Explicit rate-limit refusals may retry. With the cap off,
+  server failure; send a new prompt for a fresh admission. Explicit rate-limit refusals may retry. With the cap off,
   the normal response retry policy still applies.
   A request begun with no cap still marks its possible spending before
   sending when shared session storage is available. Another window with a
@@ -3623,12 +3627,16 @@ rate instead of a "warm for N minutes" countdown.
   session storage keep their normal behavior and cannot share persisted
   spending. A provided spend journal that cannot be read or saved blocks
   new requests; repair the storage and reopen the conversation.
-  Paid subagent requests have their own consent and request ceiling. Their
-  reported cost counts toward the conversation, but they are not reserved
-  against the parent's cap and can take it past that cap. Each task keeps its
-  own paid confirmation, unless subagents are allowed always in this
-  workspace. Image generation reserves its published flat
-  fee before buying the image and settles it even if saving the image fails.
+  Paid subagent requests have their own consent and no request ceiling: a
+  child runs like its parent, watched by the loop guard with its spend
+  visible, until the model stops, the person stops it, or a spend cap is
+  reached. A child shares the conversation's cap and ledger: it is admitted by
+  the same rule and its real cost settles into the same ledger, so running
+  children can carry the spend past the cap by their responses in flight
+  (up to 8). Each task keeps its own paid confirmation, unless subagents are
+  allowed always in this workspace. Image generation is admitted by the same
+  rule, and its published flat fee is its real cost, settled even if saving
+  the image fails.
   Web search is unavailable while a cap is active: no hard bound on its
   billed query count has been captured. With the cap off, its normal paid
   consent applies and reported search fees count in saved spending.
@@ -3646,10 +3654,10 @@ rate instead of a "warm for N minutes" countdown.
   the consent's account and context; replacing them or enabling a cap
   stops further sends. This path has no shared conversation spend ledger
   and makes no verified audio-billing claim.
-  The cap depends on conservative input estimates and the published prices;
-  actual token billing can differ from the estimate. Unknown historical
-  token spending or paid fees cannot be invented as zero: start a new conversation to use a
-  cap on such history. A model without a published price here cannot be
+  The cap follows the cost each response reports, priced at the published
+  prices; the provider's invoice is authoritative. Unknown historical token
+  spending or paid fees cannot be invented as zero: start a new conversation to
+  use a cap on such history. A model without a published price here cannot be
   capped, so its requests are refused while a cap is set. The budget is
   machine-scoped, so a repository cannot set it.
 - **Cache Savings** (Model API): Account & usage shows what the prompt
@@ -5715,7 +5723,26 @@ off preserves the previous declarations. Safe reads run at most four at a
 time; writes and other tools retain their order. An output-limit continuation
 is bounded to one request for text-only replies. A cut-short reply containing
 tool calls runs none of them and fails the turn; replay retains their error
-results. Repeated unchanged tool results stop the turn.
+results. The same call with the same arguments returning the same result warns the
+model at the 3rd and 4th time and stops the turn at the 5th, for every tool
+(shell, search, list, MCP and goal calls, failed calls and reads alike); a
+call whose result changes, such as a poll of a running command, is not a
+repeat. A turn has no fixed tool-round cap: it runs until the model stops,
+the person cancels, the loop guard fires, a spend cap is reached, or an error
+happens. `museSpark.modelApiMaxTurnRequests` (any whole number from 1 up; 0 is
+no limit) sets the person's own per-turn limit. It is also a Tool-round limit
+switch in the panel's Customize list (on asks for the number, off writes 0),
+the editor session option Tool-round limit (any whole number; the select
+suggests 25, 50, 100, 200 and 500) and the terminal flag
+`--max-turn-requests` (exec and serve, any whole number or `off`). It is
+saved with the conversation, so a resume or a fork keeps it, and a subagent
+uses its parent's limit. At the limit, one request without tools asks the model
+to summarise what it did and what is left, and ACP returns
+`max_turn_requests`. If that summary cannot be written (a spend cap reached,
+the connection lost, a hook or the provider refusing it) the turn still ends
+as `max_turn_requests`, the notice says the summary could not be written and
+why, and the next message continues with your input intact. Live continuation
+needs a real provider run and is not claimed here.
 
 `museSpark.webSearchMaxPerRequest` bounds hosted searches to 1–20 (default 5)
 where the selected model supports that bound. The first paid use presents the

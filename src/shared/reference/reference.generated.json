@@ -455,6 +455,29 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "turn-request-limit",
+      "name": { "setting": "modelApiMaxTurnRequests" },
+      "summary": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxTurnRequests" } }
+        ]
+      },
+      "description": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxTurnRequests" } }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiMaxTurnRequests"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "argument-preview",
       "name": { "ui": "toolArgumentPreviewLabel" },
       "summary": { "ui": "toolArgumentPreviewDescription" },
@@ -703,7 +726,12 @@
           "session/cancel"
         ],
         "clientRequests": ["session/request_permission", "elicitation/create"],
-        "configOptions": { "model": "model", "effort": "effort", "account": "account" },
+        "configOptions": {
+          "model": "model",
+          "effort": "effort",
+          "account": "account",
+          "turnLimit": "turn-limit"
+        },
         "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
         "bypassFlag": "--allow-dangerously-skip-permissions",
         "projectContext": {
@@ -3093,7 +3121,7 @@
       },
       "id": "museSpark.modelApiSessionBudgetUsd",
       "name": "museSpark.modelApiSessionBudgetUsd",
-      "description": "Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.",
+      "description": "Spend cap in US dollars for each Model API conversation; 0 means no cap. The cap is compared with the real spend already settled, never with an estimate: a request is sent while that spend is below the cap, and once it has reached the cap the next request is not sent, in words that name the spend, the cap and how to raise it. Each response settles at its real cost when its usage arrives, so the spend can pass the cap by at most the responses in flight when their requests were admitted: one for the conversation itself, plus any running sub-agents (they share this cap and ledger, up to 8). A response lost before its usage is recorded as unknown, never as a guessed amount, and the next capped request says so. Web search is unavailable while capped because its billed query count has no verified limit. Automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation.",
       "descriptionKey": "config.modelApiSessionBudgetUsd.description",
       "type": "number",
       "default": 0,
@@ -3400,7 +3428,7 @@
     {
       "id": "museSpark.modelApiTab",
       "name": "museSpark.modelApiTab",
-      "description": "Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.\nHard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.\nAllow once / Allow always in this workspace.",
+      "description": "Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.\nDaily budget in US dollars for Tab completion requests across every window on this machine: a request is sent while the real spend settled so far today is below the budget. From $0.05 to $50.\nAllow once / Allow always in this workspace.",
       "descriptionKey": "config.modelApiTab.description",
       "type": "boolean",
       "default": true,
@@ -3436,7 +3464,7 @@
     {
       "id": "museSpark.tabDailyBudgetUsd",
       "name": "museSpark.tabDailyBudgetUsd",
-      "description": "Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.",
+      "description": "Daily budget in US dollars for Tab completion requests across every window on this machine. A request is sent while the real spend settled so far today is below the budget; at the budget, completions pause until tomorrow and a notice names the spend and the budget. From $0.05 to $50.",
       "descriptionKey": "config.tabDailyBudgetUsd.description",
       "type": "number",
       "default": 1,
@@ -3852,6 +3880,22 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiMaxTurnRequests" } }
+        ]
+      },
+      "id": "museSpark.modelApiMaxTurnRequests",
+      "name": "museSpark.modelApiMaxTurnRequests",
+      "description": "Your own limit on tool rounds in one turn: any whole number from 1 up; 0 is no limit, and the turn then runs until the model stops. When the limit is reached the model is asked once, with no tools, to summarise what it did and what is left, and the turn ends; if that summary cannot be written the turn still ends and says why. Sending a message continues. Also set from the panel (Tool-round limit switch), the terminal (--max-turn-requests) and the editor protocol; saved with the conversation and used by its sub-agents.",
+      "descriptionKey": "config.modelApiMaxTurnRequests.description",
+      "type": "integer",
+      "default": 0,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 0, "minimum": 0 }
     },
     {
       "text": {
@@ -4983,6 +5027,13 @@
         "required": "modelApi",
         "unit": "USD"
       }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --max-turn-requests <value>",
+      "description": "Set the maximum number of tool rounds in one turn; unset means no limit.",
+      "text": { "cli": "max-turn-requests" },
+      "contract": { "type": "string", "repeatable": false }
     },
     {
       "route": "login",
@@ -6339,6 +6390,13 @@
         "maximum": 500,
         "purpose": "maxRequests"
       }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --max-turn-requests <value>",
+      "description": "Set the maximum number of tool rounds in one turn; unset means no limit.",
+      "text": { "cli": "max-turn-requests" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "max-turn-requests" }
     },
     {
       "route": "exec",

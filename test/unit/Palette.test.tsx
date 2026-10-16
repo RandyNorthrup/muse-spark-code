@@ -23,6 +23,7 @@ const context: PaletteContext = {
   permissionMode: 'manual',
   isFocusView: false,
   useCtrlEnterToSend: false,
+  isTurnLimitOn: false,
   usage: undefined,
   skills: [{ selector: 'fix-bug', displayName: 'Fix bug', description: 'Fixes a bug' }],
   backend: 'museCode',

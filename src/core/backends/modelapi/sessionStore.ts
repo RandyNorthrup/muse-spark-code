@@ -155,6 +155,11 @@ export interface StoredSession {
   readonly hookTokensAdded?: number
   /** Sticky packing swaps (M101), with originals retained in replay; absent on old files. */
   readonly packedCallIds?: readonly string[]
+  /**
+   * The person's own per-turn tool-round limit for this session (lane
+   * LIMITSFIX, F8). 0 is their choice of no limit; absent is no choice made.
+   */
+  readonly maxTurnRequests?: number
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
@@ -359,6 +364,10 @@ const storedSessionFields = {
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
   hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
   packedCallIds: z.optional(z.array(z.string())),
+  // Lane LIMITSFIX (F8): the person's own per-turn tool-round limit for this
+  // session, kept with it so a resume or a fork keeps their choice. 0 is the
+  // person's choice of no limit; absent is no choice made (the host default).
+  maxTurnRequests: z.optional(z.int().check(z.nonnegative())),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -466,6 +475,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     packedTokensAvoided,
     hookTokensAdded,
     packedCallIds,
+    maxTurnRequests,
     promptDate,
     ...rest
   } = result.data
@@ -511,6 +521,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(goal !== undefined && { goal }),
       ...(budgetSpentUsd !== undefined && { budgetSpentUsd }),
       ...(budgetIsFreshFork === true && { budgetIsFreshFork }),
+      ...(maxTurnRequests !== undefined && { maxTurnRequests }),
       ...(sideChat === true && { sideChat: true }),
       ...(imported === true && { imported: true }),
       ...(children !== undefined && { children: restoredChildren }),

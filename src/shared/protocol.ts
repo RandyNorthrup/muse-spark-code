@@ -126,6 +126,8 @@ export const settingsSnapshotShape = {
   archiveInactiveSessions: numberSchema,
   /** Tokens and the dollar estimate under each Model API reply (M82); off by default. */
   modelApiReplyUsage: booleanSchema,
+  /** The person's own per-turn tool-round limit (F8): 0 is off, else the whole number of rounds. */
+  modelApiMaxTurnRequests: z.int().check(z.gte(0)),
   /** The v2 schedules surface (M115); bound while its setting is on. */
   schedules: booleanSchema,
   /** The Auto reviewer on Muse Code (M90): the Modes menu words Auto with it. */
@@ -230,6 +232,8 @@ export const HOST_ACTIONS = [
   'openLog',
   'toggleFocusView',
   'toggleCtrlEnterToSend',
+  /** The palette's tool-round limit switch (lane LIMITSFIX, F8): turns the person's own limit on or off. */
+  'toggleTurnLimit',
   /** "Hide These Tips" on the empty state: sets museSpark.hideOnboarding (M8). */
   'hideOnboarding',
   /** The error boundary asks for a fresh webview document (M11). */

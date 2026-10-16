@@ -23,6 +23,122 @@ happened, not what was planned; superseded entries are kept.
   behaviour change; a missing bundle refuses the run and the next run tries
   again.
 
+- Lane LIMITSFIX (F7, D113): the words of every spending stop are true under
+  the one cap rule, in English and all 14 translated tables. Tab's notice
+  says its spend "has reached" the daily budget only once it has. The
+  shared daily extras' dialog used to say "this request and existing
+  reservations need $X", although nothing is reserved any more, and accepted
+  a raised limit equal to the spend, which would stop the next request
+  again. It now says what the paid extras have spent of today's limit and
+  that the next paid request was not sent, and it accepts a raised limit
+  only above that spend. The suggested limit is double today's limit, or
+  double the spend when the spend is already past that, never above $500.
+
+- Lane LIMITSFIX (F9, D113): every claim about money and the turn limit now
+  matches the final behavior, in English and in all 14 translated manifest
+  tables, README and the generated Help reference: no estimate or
+  reservation against a cap, the overshoot bound named honestly (the
+  responses in flight, children included), a lost response unknown rather
+  than guessed, the limit any whole number, and a failed summary still a
+  clean stop.
+
+- Lane LIMITSFIX (F8, D113): the per-turn tool-round limit is one thing on
+  every surface: off, or any whole number from 1 up. The terminal's exec and
+  serve flags and the editor protocol's session option used to accept only
+  off, 25, 50, 100, 200 and 500; they take any whole number now (the
+  protocol's select lists those as suggestions, plus the value in force),
+  and the VS Code setting lost its upper bound of 1000. The panel's Customize
+  list has a Tool-round limit switch on the Model API backend (off writes
+  0; on asks for the number). The limit is saved with the conversation, so
+  a resume or fork keeps it, and a sub-agent uses its parent's limit.
+
+- Lane LIMITSFIX (F5, D113): a turn limit the person set ends cleanly even
+  when its summary cannot be written (a spend cap reached, the connection
+  lost, a hook or the provider refusing the request). The turn ends as
+  the editor protocol's `max_turn_requests`, never "Internal error"; the
+  notice says the summary could not be written and why; the summary
+  instruction leaves the stored conversation and any call left without an
+  output is answered, so the next message works with its input intact.
+  Only the person's own Stop is not a clean limit.
+
+- Lane LIMITSFIX (F3, D113): one admission and settlement contract for
+  every spending cap the person sets. A request is sent while the real
+  spend already settled is below the cap; at or over it the next request
+  stops in words naming the spend, the cap and how to raise it. Nothing is
+  estimated or reserved against a cap: not an input estimate, not an
+  output worst case, not a provider's cache-write worst case. The
+  conversation, its sub-agents (which now share the conversation's cap and
+  ledger instead of bypassing it), compaction, the hook and review
+  helpers, hosted search, the shared daily extras and Tab all follow it.
+  A response lost before its usage is recorded as unknown, never as a
+  guessed amount, and the next capped request says so. The spend can pass
+  a cap by at most the responses in flight when their requests were
+  admitted: one for the conversation plus up to 8 running sub-agents plus
+  any helper request. Tab's notice says the spend "has reached" the budget
+  only once it has. The terminal's `--max-budget-usd` and the ask-first
+  consent of paid extras are unchanged.
+
+- Lane LIMITSFIX (F4, D113): one repeat policy for every tool class. The
+  same call with the same arguments returning the same result warns the
+  model at the 3rd and 4th time and stops the turn at the 5th with the
+  translated sentence, for shell, search, list, MCP, goal and failed calls
+  as well as reads. A call whose result changes (a poll of a running
+  command) is not a repeat, and a wait that timed out or a command moved to
+  the background never counts. A text read with no hooks is still skipped
+  instead of run again.
+
+- RVLIMITS: a sent or ambiguous request with no verified usage remains
+  explicitly uncertain under a session cap, even with a zero input hold.
+  An input-only retained amount is not a confirmed bill for the reply.
+
+- RVLIMITS: Stop interrupts running and queued paid child tasks and revokes
+  their uncapped grants, including while the parent is idle or a child
+  interruption has a pending follow-up. Previously only the parent's own
+  turn was cancelled.
+
+- RVLIMITS: removed thirteen lane test cases that used product stand-ins,
+  substituted pricing or a disconnected Tab formatter. Their old green counts are not product
+  certification; the real-life turn, continuation and budget checks remain
+  required.
+
+- RVLIMITS: configured-provider configuration, credential, stream-size and
+  replay-binding and fallback-registry failures no longer blame the
+  Models & Agents panel. They
+  name fixed diagnostic codes through the translated request-failure
+  sentence, and provider HTTP failures include their status in the visible
+  message, including across separately loaded bundles.
+
+- RVLIMITS: Tab's budget warning puts the spend, cap and Settings remedy
+  in the visible notification text; VS Code does not display `detail` on
+  a non-modal notification.
+
+- Lane LIMITSA (D113, incomplete; RVLIMITS review): the main session
+  reservation no longer lowers `max_output_tokens`, but still refuses
+  conservative input estimates before real spend reaches the cap. Helper,
+  hosted-search and Tab paths still reserve worst cases; the one-response
+  overshoot guarantee is not established. The 4-request child-task cap is
+  removed and its consent names per-request rates. The 3-warning/5-stop
+  repeat guard is effective for unchanged `read_file` calls without hooks,
+  not general tool calls. Tab retains its separate budget and now shows
+  the warning's explanation. These remaining accounting/guard gaps block
+  completion; see `docs/certification/limits-stops.md`.
+
+- Lane TURNLIMIT (F88): a Model API turn has no fixed tool-round cap. It
+  runs until the model stops, the person cancels, the loop guard fires, a
+  spend cap is reached, or an error happens. One optional per-turn limit
+  replaces the removed 50-round default, off by default: the
+  machine-scoped `museSpark.modelApiMaxTurnRequests` setting (0 is no
+  limit, 1–1000), the editor protocol's Tool-round limit session option,
+  and `--max-turn-requests` for exec and serve (terminal/ACP presets are
+  25, 50, 100, 200 and 500, not arbitrary positive integers). At the limit,
+  a tool-free summary is attempted; a successful summary ends with ACP's
+  `max_turn_requests`. A failed summary still fails the turn, and resumed
+  conversations reset the session option. Limit-3 ACP/CLI, failed-summary
+  recovery and continued live conversation are not certified. A failed send to a configured provider now
+  says its real cause (the HTTP status with the provider's own error
+  message, or the network error's code) without echoing secrets or
+  headers, and is still never retried automatically.
+
 - The chat no longer takes the keyboard from a file you just opened: a chat
   panel that finishes loading never pulls the focus in, a focus request for
   a panel that is no longer active is dropped instead of landing on a much

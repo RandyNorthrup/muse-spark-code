@@ -63,6 +63,7 @@ describe('M80 args (A1–A10, F1)', () => {
       timeoutMs: 1_800_000,
       prompt: { kind: 'text', text: 'hi' },
       maxRequests: undefined,
+      maxTurnRequests: undefined,
       paidFeatures: [],
     })
     expect(serveOptionsFor(parsed.options)).toMatchObject({
@@ -76,6 +77,13 @@ describe('M80 args (A1–A10, F1)', () => {
       ok: false,
       reason: UI_TEXT.execBudgetRequired,
     })
+  })
+  it('takes an explicit off per-turn limit as no limit (lane TURNLIMIT)', () => {
+    const parsed = parseExec(
+      { backend: 'modelApi', 'max-budget-usd': '1', 'max-turn-requests': 'off' },
+      ['hi'],
+    )
+    expect(parsed.ok && parsed.options).toMatchObject({ maxTurnRequests: undefined })
   })
   it.each([
     '0',
@@ -129,6 +137,10 @@ describe('M80 args (A1–A10, F1)', () => {
     { backend: 'modelApi', 'max-budget-usd': '1', 'muse-binary': '/muse' },
     { backend: 'modelApi', 'max-budget-usd': '1', 'shell-sandbox': 'off' },
     { 'max-requests': '1' },
+    // Any whole number from 1 up is a limit now (F8); only a non-number is refused.
+    { backend: 'modelApi', 'max-budget-usd': '1', 'max-turn-requests': '0' },
+    { backend: 'modelApi', 'max-budget-usd': '1', 'max-turn-requests': 'abc' },
+    { backend: 'museCode', 'max-turn-requests': '50' },
     { ephemeral: true },
     { 'key-stdin': true },
     { backend: 'auto' },
@@ -161,6 +173,7 @@ describe('M80 args (A1–A10, F1)', () => {
       'fail-on-denial': true,
       timeout: '10',
       'max-requests': '1',
+      'max-turn-requests': '50',
       'prompt-file': '/prompt',
       'untrusted-file': ['a', 'b'],
     }
@@ -170,6 +183,7 @@ describe('M80 args (A1–A10, F1)', () => {
       paidFeatures: ['imageGeneration'],
       timeoutMs: 10_000,
       maxRequests: 1,
+      maxTurnRequests: 50,
       budgetUsd: Usd.from('2').toAmount(),
     })
     expect(parseExec({}, ['-'])).toMatchObject({ ok: true, options: { prompt: { kind: 'stdin' } } })

@@ -240,14 +240,36 @@ describe('admission over the real journal', () => {
     const first = await firstPending
     releaseSecond.resolve(undefined)
     const second = await secondPending
-    expect(second).toEqual({ admitted: false, refusal: 'ledger-unavailable' })
-    expect(nonsentRefunds).toEqual([Usd.from(0).toAmount()])
-    if (!first.admitted) throw new Error('expected the first window admitted')
+    // Lane LIMITSFIX, F3 (D113): the one cap rule admits a request while the
+    // real spend settled so far is below the cap. Neither window has settled
+    // anything, so both are admitted and nothing is refunded; the cap can be
+    // passed by at most the responses in flight (here two).
+    expect(second.admitted).toBe(true)
+    expect(nonsentRefunds).toEqual([])
+    if (!first.admitted || !second.admitted) throw new Error('expected both windows admitted')
     const total = await journalAt(directory).read(SESSION, ACCOUNT)
-    expect(Number(total.spentUsd)).toBeCloseTo(Number(first.claim.reservedUsd), 12)
+    expect(Number(total.spentUsd)).toBeCloseTo(
+      Number(first.claim.reservedUsd) + Number(second.claim.reservedUsd),
+      12,
+    )
     expect(await verifyJudgeDispatch(first.claim, binding(), firstLedger)).toEqual({
       proceed: true,
     })
+  })
+
+  it('stops a window once the settled real spend has reached the cap', async () => {
+    const directory = freshDirectory()
+    const journal = journalAt(directory)
+    const ledger = ledgerFor(journal, Usd.from(0.002).toAmount())
+    const spent = await journal.reserve(SESSION, ACCOUNT, Usd.from(0.002).toAmount())
+    await spent.settle(Usd.from(0.002).toAmount())
+    const refused = await admitJudgeCall({
+      binding: binding(),
+      billing: { kind: 'metered', ledger },
+      estimatedInputTokens: 1000,
+      maxOutputTokens: 100,
+    })
+    expect(refused.admitted).toBe(false)
   })
 
   it('refuses a lowered daily cap through the real claim guard', async () => {

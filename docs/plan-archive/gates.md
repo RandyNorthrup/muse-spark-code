@@ -2767,6 +2767,56 @@ raised. Main's M57 took the Model API backend out of both: the extension is
 
 <!-- plan-archive:end id="gates-715277eb2-36672" -->
 
+## REL0171B final 0.17.1 branch
+
+<!-- plan-archive:begin id="gates-8a88010c6-33916" lines="33916-33925" at="8a88010c6" bytes="672" sha256="ffa2850090730026b850c48655c94562a31005304a8790124a05a367eb4fec10" -->
+
+**REL0171B final 0.17.1 branch (2026-10-10, linuxlt + Kubuntu).** Merge
+MENUFAN and VIS0171 onto `release/0.17.1` by meaning, regenerate every
+generated file with its script, and repair what the merged gates found:
+the pressed menu pill's inset ring (M114 P2), the menu browser cases' setup
+cost, the open-menu capture race and the 21 inherited jscpd clones. One
+reviewed full visual update explains every changed scene (the two menu
+scenes and What's New's 0.17.1 notes); the full unsharded `check:visual`
+on the final head is the receipt that closes VIS0171's stopped replay. No
+deadline, threshold, assertion or cap changes. Evidence:
+`docs/certification/rel0171b.md`.
+
+<!-- plan-archive:end id="gates-8a88010c6-33916" -->
+
+## VIS0171 0.17.1 visual refresh
+
+<!-- plan-archive:begin id="gates-8a88010c6-33927" lines="33927-33952" at="8a88010c6" bytes="1947" sha256="f6161e9d669d1f104dc0cac776abe37bb7b4072099ca2967244a433ed41fc808" -->
+
+**VIS0171 0.17.1 visual refresh (2026-10-10, linuxlt).** Compare the full
+9,792-frame matrix on `4acb7015f`; classify every changed scene as Title Case,
+question-field spacing, provider-picker repair, or an unrelated hold. Inspect
+every changed frame before the repository's reviewed update; stop on unrelated
+changes. Regenerate all curated README shots, refresh their existing input
+fingerprint and current audit hashes, and certify a full zero-changed-scene
+replay, complete owning suites at repository deadlines, and an old-baseline
+failure with SHA-256 byte-exact restoration in `docs/certification/cifix017.md`.
+Aggregate quality remains lead-owned under the shared rig brief. No merge,
+push, subagents, paid calls, timeout changes or gate weakening.
+The initial reconstruction fails at `paid-always/light/320`: the current
+driver waits for Title Case `Auth Method` in the historical sentence-case
+source. Make the exact account-label and vault-action selectors accept both
+capitalizations, with browser regressions; preserve their readiness checks.
+The compatibility repair is committed as `7c8338ac5`; the new regressions
+first fail on both historical labels and then all seven readiness tests pass
+at repository deadlines. Five typechecks, changed-file lint/format, plain
+knip, localization, host API, reference, tokens, plan and roadmap pass.
+The unchanged duplication gate reports 21 inherited provider-wizard/test
+clones, none in lane-edited files; leave their repair with the lead rather
+than weakening the zero-clone threshold or expanding this visual lane.
+The complete historical capture succeeds, but two candidate attempts reject
+the fake Models state at `models-configure`: its required `sessionBudget`
+is absent. PROVWIZ9 already documents this stale harness contract. Add the
+canonical `modelsPanelFixtures.makeState().sessionBudget` to the fake host
+and a strict production-schema regression; never relax the message schema.
+
+<!-- plan-archive:end id="gates-8a88010c6-33927" -->
+
 ## 0.16.0 release repair and 0.17.0 integration lanes (2026-10-07 – 2026-10-08)
 
 <!-- plan-archive:begin id="gates-c54550e6d-34023" lines="34023-34062" at="c54550e6d" bytes="3511" sha256="a880a6e94c142343edead2557013e841fe1a99db5a33c702c4d98febcd2233d9" -->

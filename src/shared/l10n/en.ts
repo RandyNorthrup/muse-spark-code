@@ -117,6 +117,18 @@ export const EN = {
   modelApiContinuationLimit: 'The output limit was reached again. Send a message to continue.',
   modelApiToolStuck:
     'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
+  modelApiTurnLimitReached: forms({
+    one: 'The turn reached your limit of {count} tool round. The summary above covers what was done and what is left. Send a message to continue.',
+    other:
+      'The turn reached your limit of {count} tool rounds. The summary above covers what was done and what is left. Send a message to continue.',
+  }),
+  // Lane LIMITSFIX (F5): the limit ends the turn cleanly even when the
+  // summary request fails; this says the summary was not written, and why.
+  modelApiTurnLimitNoSummary: forms({
+    one: 'The turn reached your limit of {count} tool round, but the summary could not be written: {reason} Your conversation is unchanged. Send a message to continue.',
+    other:
+      'The turn reached your limit of {count} tool rounds, but the summary could not be written: {reason} Your conversation is unchanged. Send a message to continue.',
+  }),
   structuredOutputRepair: 'The structured answer was invalid. Retrying once…',
   structuredOutputFallback:
     'The structured answer could not be validated. Using the text fallback.',
@@ -140,6 +152,8 @@ export const EN = {
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open Service Status',
   modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
+  modelApiSendFailed:
+    'The model request failed before a response arrived ({detail}). It was not sent again: a request over a pinned connection may already have reached the provider.',
   feedbackFailed: 'Could not submit feedback.',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & Cost',
@@ -408,6 +422,7 @@ export const EN = {
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the hard spending limit in USD for this run.',
     'max-requests': 'Set the maximum number of model requests.',
+    'max-turn-requests': 'Set the maximum number of tool rounds in one turn; unset means no limit.',
     timeout: 'Set the run deadline in seconds.',
     'fail-on-denial': 'Stop the run when a permission request is denied.',
     ephemeral: 'Keep the session in memory without saving it.',
@@ -1072,11 +1087,10 @@ export const EN = {
   paidDailyStopped: 'Paid extras are stopped until tomorrow.',
   paidDailyReached: 'Daily paid budget reached',
   paidDailyReachedDetail:
-    'Today’s limit is {budget}. This request and existing reservations need {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
+    'Paid extras have spent {spent} of today’s {budget} limit, so the next paid request was not sent. Raise the limit for today, or stop paid extras until tomorrow.',
   paidDailyRaise: 'Raise for Today',
   paidDailyStop: 'Stop Until Tomorrow',
-  paidDailyRaisePrompt:
-    'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
+  paidDailyRaisePrompt: 'Enter today’s limit in USD (0.50–500), above what is already spent.',
   planUi: {
     copilotConnect: 'Use My Copilot Models',
     copilotUnavailable: 'Copilot models are unavailable. Enable Copilot and try again.',
@@ -1276,6 +1290,8 @@ export const EN = {
     permissionMode: 'Choose how Muse asks before it acts.',
     focusView: 'Hide the steps outside your focus.',
     ctrlEnter: 'Send messages with Ctrl+Enter instead of Enter.',
+    turnLimit:
+      'Stop a turn after a number of tool rounds you choose, with a summary of what is left.',
     importFromAgents:
       'Copy MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor.',
     memory: 'The notes Muse keeps for later sessions.',
@@ -1347,6 +1363,14 @@ export const EN = {
   clearConversation: 'Clear Conversation',
   switchModel: 'Switch Model…',
   effortItem: 'Effort',
+  turnLimitItem: 'Tool-round limit',
+  turnLimitOff: 'Off',
+  turnLimitRounds: forms({ one: '{count} round', other: '{count} rounds' }),
+  // The panel's switch asks for the number when it is turned on (lane LIMITSFIX, F8).
+  turnLimitPrompt:
+    'Stop a turn after this many tool rounds, with a summary of what is left. Any whole number from 1 up.',
+  turnLimitPlaceholder: 'For example 50',
+  turnLimitInvalid: 'Enter a whole number of rounds, 1 or more.',
   thinkingItem: 'Thinking',
   permissionModeItem: 'Permission Mode',
   focusViewItem: 'Focus View',
@@ -3083,10 +3107,13 @@ export const EN = {
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
-  // The Model API session budget (M82): a request that cannot fit is not
-  // sent, and the turn's cost is shown against the cap afterwards.
+  // The Model API session budget (M82; lane LIMITSFIX F3, D113): the cap is
+  // compared with real settled spend after each response, never with an
+  // estimate, so a request runs while the spend is below the cap and stops
+  // once it has reached it. The stop names the spend, the cap and how to
+  // raise it.
   sessionBudgetStopped:
-    'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
+    'Stopped: {spent} is spent of the {cap} session budget, so the next request was not sent. To continue, raise the session budget in Settings (museSpark.modelApiSessionBudgetUsd) or start a new conversation.',
   sessionBudgetStoreUnavailable:
     'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
   sessionBudgetLegacyFeesUnknown:
@@ -3094,9 +3121,9 @@ export const EN = {
   sessionBudgetSearchUnavailable:
     'Web search is unavailable under a finite spend cap: its billed query count has no verified limit. Ordinary chat and free web fetch remain available.',
   sessionBudgetRetryUnavailable:
-    'The previous request may have been billed. Its full reservation was kept; send a new prompt to retry with a fresh allowance.',
+    'The previous request may have been billed and its cost is unknown. It was not sent again; send a new prompt to retry.',
   sessionBudgetUnknownCharge:
-    'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
+    'Usage was not verified. {amount} is counted as a possible charge; this is not a confirmed bill.',
   sessionBudgetVoiceUnavailable:
     'Muse Voice is unavailable under a finite spend cap: its billed audio duration has no verified bound. Use free system dictation.',
   sessionBudgetVoiceContextChanged:
@@ -4131,6 +4158,8 @@ export const EN = {
   acpUnknownArgument: 'Unknown argument: {argument}',
   // {argument}: the paid feature's flag as typed.
   acpPaidNeedsModelApi: '{argument} needs --backend modelApi: paid features bill a Model API key.',
+  // {argument}: the flag as typed. A per-turn limit binds the Model API loop only.
+  acpModelApiOnlyFlag: '{argument} needs --backend modelApi.',
   // {command}: the executable's name. The options and values stay as typed.
   acpFontUi: 'UI Font',
   acpFontCode: 'Code Font',
@@ -4425,8 +4454,11 @@ export const EN = {
   paidVoiceName: 'Muse Voice',
   paidScheduledName: 'Scheduled Prompts',
   paidSubagentsName: 'Subagents',
+  // Lane LIMITSA, D113: a child task has no request cap; the consent names
+  // the per-request rates, and the task detail already says the actual cost
+  // depends on tokens used.
   paidSubagentRates:
-    '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {limit} requests per task, including retries.',
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens, billed per request with no request cap.',
   paidSubagentTaskTitle: 'Approve paid task for {role}?',
   paidSubagentTaskDetail:
     '{objective}\n\n{price}\n\nBilled to your Model API key. Actual cost depends on tokens used. Other enabled paid tools are charged separately. Allow once covers this task only.',
@@ -4515,6 +4547,12 @@ export const EN = {
   // Each state D73 names; {left} is the snooze's remaining time.
   tabStatusSnoozed: 'Tab snoozed ({left} left)',
   tabStatusBudget: 'Tab daily budget reached',
+  // Lane LIMITSFIX F3, D113 (A4): Tab keeps its daily budget, but hitting it
+  // is never silent. It stops only once the real spend {spent} has reached
+  // the budget (no estimate is compared), and the notice names both and how
+  // to raise it.
+  tabBudgetReachedDetail:
+    'Today’s Tab spend of {spent} has reached the daily budget of {budget}, so completions pause until tomorrow. To continue today, raise museSpark.tabDailyBudgetUsd in Settings.',
   tabStatusNoKey: 'Tab: no key',
   tabStatusUntrusted: 'Tab off in an untrusted workspace',
   tabStatusLanguageOff: 'Tab off for {language}',
@@ -4687,8 +4725,6 @@ export const EN = {
   subagentConsentDeclined: 'The paid child task was not approved.',
   subagentContributorBlocked:
     'The custom agent names a contributor-tier model, which cannot run while this workspace is confidential (museSpark.confidentialWorkspace).',
-  subagentRequestLimit:
-    'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:
     'The Model API key changed after approval. Approve a new child task to continue.',
   subagentModelChanged: 'The model changed after approval. Approve a new child task to continue.',

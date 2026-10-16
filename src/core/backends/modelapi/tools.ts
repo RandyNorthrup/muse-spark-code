@@ -511,6 +511,12 @@ export interface ToolOutcome {
   /** What the transcript row shows. */
   readonly visibleOutput: string
   readonly failureReason?: string
+  /**
+   * The call returned while its work was still running (a wait that timed
+   * out): an identical result later proves nothing, so it is never a repeat
+   * (lane LIMITSFIX, F4).
+   */
+  readonly unfinished?: boolean
   /** Edit-family tools: the stored patch document and its summary. */
   readonly patch?: { readonly document: string; readonly summary: PatchSummary }
   /** `read_file` of a PDF or an image: the file itself, sent after the round's outputs. */

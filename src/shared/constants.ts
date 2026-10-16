@@ -670,6 +670,10 @@ export const SETTING_DEFAULTS = {
   modelApiAutoCompaction: true,
   modelApiStrictTools: true,
   modelApiParallelReads: true,
+  // The person's per-turn tool-round limit (lane TURNLIMIT): 0 is no limit
+  // (a turn runs until the model stops), machine scoped, since a repository
+  // must not bound what the person's own turn may do.
+  modelApiMaxTurnRequests: 0,
   webSearchMaxPerRequest: 5,
   // Restore by the tools' own writes (M86, PLAN.md D63): each Model API turn
   // records what its file tools write, with nothing of the workspace
@@ -817,6 +821,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiAutoCompaction',
   'modelApiStrictTools',
   'modelApiParallelReads',
+  'modelApiMaxTurnRequests',
   'webSearchMaxPerRequest',
   // What runs on every turn (git) and what is copied out of the workspace (M72).
   'turnCheckpoints',
@@ -1284,6 +1289,13 @@ export const COMPOSER_MAX_ROWS = 10
 // so it would be a second dot for the same tier.
 export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]
+// --- Per-turn tool-round limit (lane TURNLIMIT) ---
+//
+// The ACP select's suggested choices: off, then round counts bracketing the
+// removed 50-round default. They are suggestions only (lane LIMITSFIX, F8):
+// every surface accepts any whole number from 1 up, or off (src/shared/turnLimit.ts).
+export const TURN_LIMIT_OPTION_VALUES = ['off', '25', '50', '100', '200', '500'] as const
+export type TurnLimitOption = (typeof TURN_LIMIT_OPTION_VALUES)[number]
 // The tiers each model family actually serves, keyed by model-id prefix
 // (verified live 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max`
 // with "Supported values: [minimal, low, medium, high, xhigh]"). Families not
@@ -2179,8 +2191,10 @@ export const MODEL_API_PRICED_MODELS = {
   standard: ['muse-spark-1.1', 'muse-spark-1.2', 'muse-spark-1.3'],
   contributor: ['muse-spark-1.2-contributor', 'muse-spark-1.3-contributor'],
 } as const
-/** A consent grant covers actual child HTTP attempts, including all retries. */
-export const SUBAGENT_TASK_MAX_REQUESTS = 4
+// Lane LIMITSA (D113): a child task has no per-task request cap. A consent
+// grant covers actual child HTTP attempts, including all retries, with no
+// limit; the loop guard watches the child, its spend shows in the session,
+// and stopping the turn stops the task.
 // Best-of-N parallel attempts (M77, PLAN.md D49): the same prompt runs in
 // this many worktrees, each attempt stopping after this many model requests.
 export const BEST_OF_N_MIN_ATTEMPTS = 2
@@ -2196,7 +2210,7 @@ export const BEST_OF_N_BRANCH_PREFIX = 'best-of-n'
 export const BEST_OF_N_DIFF_MAX_CHARS = 32_000
 export const BEST_OF_N_MIN_GIT_MINOR = 36
 /** Bump when the accepted rates or child-task limit changes. */
-export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-09-26:requests-4:v1'
+export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-10-15:requests-uncapped:v1'
 export const TOKENS_PER_MILLION = 1_000_000
 // dev.meta.ai/docs/models: every Muse Spark model has this window; the
 // output cap is well under the documented 131,072 maximum.
@@ -2244,7 +2258,11 @@ export const READ_FILE_CONTEXT_CHAR_FRACTION = 1 / 2
 export const MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS = 131_072
 export const MODEL_API_PARALLEL_READS = 4
 export const MODEL_API_CONTINUATIONS_MAX = 1
+// Lane LIMITSA (D113, A6): the 3rd identical call warns the model and is
+// not run again; the 5th stops the turn with the person's own sentence
+// (Cline warns at 3 and escalates at 5; Gemini's threshold is 5).
 export const TOOL_REPEAT_LIMIT = 3
+export const TOOL_REPEAT_STOP_LIMIT = 5
 export const TOOL_ARGUMENT_PREVIEW_MAX_CHARS = 16_000
 /** Incremental preview grammar stops before deeply nested untrusted arguments. */
 export const TOOL_ARGUMENT_PREVIEW_MAX_DEPTH = 32
@@ -2388,8 +2406,14 @@ export const MODEL_API_EFFORT_OFF = 'minimal'
 // Context pressure thresholds (fraction of the window) for the indicator.
 export const CONTEXT_PRESSURE_MEDIUM = 0.7
 export const CONTEXT_PRESSURE_HIGH = 0.9
-// A turn stops after this many model calls (tool rounds) to bound a loop.
-export const MODEL_API_MAX_TOOL_ROUNDS = 50
+// A turn runs until the model stops, the person cancels, the loop guard
+// fires, a spend cap is reached, or an error happens (lane TURNLIMIT): no
+// fixed cap. The person may still set their own per-turn tool-round limit,
+// any whole number from 1 up (`museSpark.modelApiMaxTurnRequests`; 0 is no
+// limit; lane LIMITSFIX, F8): no bound of ours.
+// The `turnCompleted` error kind when the person's own per-turn limit stopped
+// the turn (lane TURNLIMIT): the editor protocol answers `max_turn_requests`.
+export const TURN_LIMIT_ERROR_KIND = 'turnLimit'
 // Tool parameter schemas convert to a constrained-decoding grammar on
 // servers that take one (llama.cpp, SoL-Pi #59/#65; M101 item 24): nested
 // past this, a schema trips the check. Past the current toolset's nesting
@@ -4163,7 +4187,12 @@ export const ACP_AUTH_METHODS = {
   museCodeLogin: { id: 'muse-code-login', args: ['login'] },
   modelApiKey: { id: 'model-api-key', args: ['auth', 'set'] },
 } as const
-export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'account' } as const
+export const ACP_CONFIG_IDS = {
+  model: 'model',
+  effort: 'effort',
+  account: 'account',
+  turnLimit: 'turn-limit',
+} as const
 // The paid Model API features the agent can use (M63c, PLAN.md D30): each
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice needs the panel's microphone, so the agent has none.
@@ -6511,8 +6540,15 @@ export const MODEL_API_MODEL_TEXT = {
   // block rather than carrying new keys in activation's MODEL_TEXT (D6).
   toolRepeatStopped:
     'This tool call repeats the same arguments and unchanged result. It was not run again. Use a different approach or explain what is blocking the task.',
+  // The 3rd and 4th identical call and result, for any tool (lane LIMITSFIX, F4).
+  toolRepeatWarned:
+    'The last tool calls had the same arguments and returned the same result. Change the approach, or explain what is blocking the task, before calling it again: the turn stops if it repeats.',
   continuationPrompt:
     'Continue the answer from where the output limit cut it off. Do not repeat the text already returned.',
+  // Asked once with no tools when the person's own per-turn limit stops the
+  // turn (lane TURNLIMIT): the turn ends on the summary it returns.
+  turnLimitSummary:
+    'You have reached the per-turn tool-round limit. Summarise what you did in this turn and what is still left, briefly. No tools are offered with this request, so do not ask for any.',
   // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.
   hookToolsUnavailable: 'Tools unavailable for this turn:',
   hookTeammateContinue: 'Continue the current task; a TeammateIdle hook requested another check.',
@@ -6669,8 +6705,6 @@ export const MODEL_API_MODEL_TEXT = {
   subagentNoReply: 'The subagent ended without a final reply.',
   subagentPaidOff: 'Paid subagents are off. The user must enable them and accept the price first.',
   subagentConsentDeclined: 'The user did not approve this paid child task.',
-  subagentRequestLimit:
-    'The child task reached its approved limit of {limit} requests, including retries.',
   subagentKeyChanged:
     'The Model API key changed after approval. New child-task consent is required.',
   subagentModelChanged: 'The model changed after approval. New child-task consent is required.',

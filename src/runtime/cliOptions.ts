@@ -82,6 +82,7 @@ const SERVE_OPTIONS = {
   ...COMMON_OPTIONS,
   'scheduled-prompts': { type: 'boolean' },
   'max-budget-usd': { type: 'string' },
+  'max-turn-requests': { type: 'string' },
 } as const satisfies CliParserOptions
 
 const EXEC_OPTIONS = {
@@ -104,6 +105,7 @@ const EXEC_OPTIONS = {
   output: { type: 'string' },
   'max-budget-usd': { type: 'string' },
   'max-requests': { type: 'string' },
+  'max-turn-requests': { type: 'string' },
   timeout: { type: 'string' },
   'muse-binary': { type: 'string' },
   'shell-sandbox': { type: 'string' },
@@ -229,6 +231,7 @@ export const CLI_OPTION_TEXT = {
   output: 'output',
   'max-budget-usd': 'max-budget-usd',
   'max-requests': 'max-requests',
+  'max-turn-requests': 'max-turn-requests',
   timeout: 'timeout',
   'fail-on-denial': 'fail-on-denial',
   ephemeral: 'ephemeral',

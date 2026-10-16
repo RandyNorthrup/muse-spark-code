@@ -316,6 +316,14 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: `museSpark.modelApiParallelReads`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
+### museSpark.modelApiMaxTurnRequests
+
+conversationStart: Your own limit on tool rounds in one turn: any whole number from 1 up; 0 is no limit, and the turn then runs until the model stops. When the limit is reached the model is asked once, with no tools, to summarise what it did and what is left, and the turn ends; if that summary cannot be written the turn still ends and says why. Sending a message continues. Also set from the panel (Tool-round limit switch), the terminal (--max-turn-requests) and the editor protocol; saved with the conversation and used by its sub-agents.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: `museSpark.modelApiMaxTurnRequests`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
+
 ### Argument Preview
 
 Show validated, scrubbed tool arguments as they arrive, before the tool runs.
@@ -520,7 +528,8 @@ Installed skills add dynamic slash commands. This static reference does not list
   "configOptions": {
     "model": "model",
     "effort": "effort",
-    "account": "account"
+    "account": "account",
+    "turnLimit": "turn-limit"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
   "bypassFlag": "--allow-dangerously-skip-permissions",
@@ -2415,7 +2424,7 @@ Type: `"boolean"`. Default: `true`. Scope: `window`.
 
 ### museSpark.modelApiSessionBudgetUsd
 
-sessionBudget: Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.
+sessionBudget: Spend cap in US dollars for each Model API conversation; 0 means no cap. The cap is compared with the real spend already settled, never with an estimate: a request is sent while that spend is below the cap, and once it has reached the cap the next request is not sent, in words that name the spend, the cap and how to raise it. Each response settles at its real cost when its usage arrives, so the spend can pass the cap by at most the responses in flight when their requests were admitted: one for the conversation itself, plus any running sub-agents (they share this cap and ledger, up to 8). A response lost before its usage is recorded as unknown, never as a guessed amount, and the next capped request says so. Web search is unavailable while capped because its billed query count has no verified limit. Automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation.
 
 Type: `"number"`. Default: `0`. Scope: `machine`.
 
@@ -2775,7 +2784,7 @@ Type: `"string"`. Default: `"system"`. Scope: `machine`.
 ### museSpark.modelApiTab
 
 Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.
-Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.
+Daily budget in US dollars for Tab completion requests across every window on this machine: a request is sent while the real spend settled so far today is below the budget. From $0.05 to $50.
 Allow once / Allow always in this workspace.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
@@ -2806,7 +2815,7 @@ Type: `"string"`. Default: `"muse-spark-1.3"`. Scope: `machine`.
 
 ### museSpark.tabDailyBudgetUsd
 
-Hard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.
+Daily budget in US dollars for Tab completion requests across every window on this machine. A request is sent while the real spend settled so far today is below the budget; at the budget, completions pause until tomorrow and a notice names the spend and the budget. From $0.05 to $50.
 
 Type: `"number"`. Default: `1`. Scope: `machine`.
 
@@ -3110,6 +3119,20 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 {
   "type": "boolean",
   "default": true
+}
+```
+
+### museSpark.modelApiMaxTurnRequests
+
+conversationStart: Your own limit on tool rounds in one turn: any whole number from 1 up; 0 is no limit, and the turn then runs until the model stops. When the limit is reached the model is asked once, with no tools, to summarise what it did and what is left, and the turn ends; if that summary cannot be written the turn still ends and says why. Sending a message continues. Also set from the panel (Tool-round limit switch), the terminal (--max-turn-requests) and the editor protocol; saved with the conversation and used by its sub-agents.
+
+Type: `"integer"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "default": 0,
+  "minimum": 0
 }
 ```
 
@@ -3480,6 +3503,7 @@ These are defaults; editor customizations take precedence.
 - `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `serve: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD"}`
+- `serve: --max-turn-requests <value>`: Set the maximum number of tool rounds in one turn; unset means no limit. `{"type":"string","repeatable":false}`
 - `login: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --as <value>`: --as: Provider `{"type":"string","repeatable":false,"refused":true}`
 - `login: --address <value>`: --address: Address `{"type":"string","repeatable":false,"refused":true}`
@@ -3615,6 +3639,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
 - `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
 - `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"default":30,"minimum":1,"maximum":500,"purpose":"maxRequests"}`
+- `exec: --max-turn-requests <value>`: Set the maximum number of tool rounds in one turn; unset means no limit. `{"type":"string","repeatable":false,"purpose":"max-turn-requests"}`
 - `exec: --timeout <value>`: Set the run deadline in seconds. `{"type":"string","repeatable":false,"default":1800,"minimum":10,"maximum":21600,"unit":"seconds","purpose":"timeoutMs"}`
 - `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`
 - `exec: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"shell-sandbox"}`

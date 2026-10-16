@@ -13,12 +13,12 @@ import type {
   SessionBudgetClaim,
 } from '../../core/backends/modelapi/sessionBudget'
 import { fingerprint } from '../../core/verify/fingerprint'
-import { estimateCostUsd } from '../../core/usage/insights'
 import { unlessAborted } from '../../core/timeouts'
 import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { modelApiPaidTier } from '../../shared/paid'
+import { isBelowCap } from '../../shared/spendCap'
 import { createSessionBudgetJournal } from '../backend/sessionBudgetJournal'
 import { storeErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
@@ -83,7 +83,11 @@ export function createPaidDailyBudget(deps: {
     return limit.limitUsd
   }
   const capUsd = () => readLimit(day())
-  const raise = async (scope: string, neededUsd: UsdAmount, signal: AbortSignal): Promise<void> => {
+  // The one cap rule (F3) admits only while the spend is BELOW the limit, so a
+  // raised limit must be strictly above what is spent: an equal one would stop
+  // the very next request again.
+  const raise = async (scope: string, spentUsd: UsdAmount, signal: AbortSignal): Promise<void> => {
+    const isAboveSpend = (limitUsd: UsdAmount) => Usd.from(limitUsd).compare(Usd.from(spentUsd)) > 0
     const assertActive = () => {
       signal.throwIfAborted()
       if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
@@ -107,7 +111,7 @@ export function createPaidDailyBudget(deps: {
             modal: true,
             detail: fill(UI_TEXT.paidDailyReachedDetail, {
               budget: formatUsd(readLimit(scope), 2),
-              needed: formatUsd(neededUsd, 2),
+              spent: formatUsd(spentUsd, 2),
             }),
           },
           { title: raiseTitle },
@@ -119,12 +123,12 @@ export function createPaidDailyBudget(deps: {
     assertActive()
     if (answer?.title !== raiseTitle) stop()
     const doubledLimit = Usd.from(readLimit(scope)).times(2)
-    let suggestedLimit = neededUsd
-    if (Usd.from(neededUsd).compare(doubledLimit) <= 0)
-      suggestedLimit =
-        doubledLimit.compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) > 0
-          ? Usd.from(PAID_DAILY_BUDGET.maximumUsd).toAmount()
-          : doubledLimit.toAmount()
+    const suggestedBase =
+      doubledLimit.compare(Usd.from(spentUsd)) > 0 ? doubledLimit : Usd.from(spentUsd).times(2)
+    const suggestedLimit =
+      suggestedBase.compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) > 0
+        ? Usd.from(PAID_DAILY_BUDGET.maximumUsd).toAmount()
+        : suggestedBase.toAmount()
     const entered = await unlessAborted(
       Promise.resolve(
         vscode.window.showInputBox({
@@ -136,7 +140,7 @@ export function createPaidDailyBudget(deps: {
               limitUsd: usdInputSchema.safeParse(value).data,
               stopped: false,
             })
-            if (!parsed.success || Usd.from(parsed.data.limitUsd).compare(Usd.from(neededUsd)) < 0)
+            if (!parsed.success || !isAboveSpend(parsed.data.limitUsd))
               return UI_TEXT.paidDailyRaisePrompt
             return
           },
@@ -149,11 +153,7 @@ export function createPaidDailyBudget(deps: {
       limitUsd: usdInputSchema.safeParse(entered).data,
       stopped: false,
     })
-    if (
-      entered === undefined ||
-      !parsed.success ||
-      Usd.from(parsed.data.limitUsd).compare(Usd.from(neededUsd)) < 0
-    ) {
+    if (entered === undefined || !parsed.success || !isAboveSpend(parsed.data.limitUsd)) {
       stop()
     }
     await writeFileAtomically(limitPath(scope), JSON.stringify(parsed.data), {
@@ -230,7 +230,7 @@ export function createPaidDailyBudget(deps: {
   const reserve: NonNullable<ModelApiClientDeps['reservePaidRequest']> = async (
     body,
     feature,
-    estimatedInputTokens,
+    _estimatedInputTokens,
     signal = new AbortController().signal,
   ) => {
     signal.throwIfAborted()
@@ -248,22 +248,15 @@ export function createPaidDailyBudget(deps: {
       if ('input' in body) {
         if (modelApiPaidTier(body.model) === undefined)
           throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-        if (estimatedInputTokens === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-        if (
-          !Number.isSafeInteger(estimatedInputTokens) ||
-          estimatedInputTokens < 0 ||
-          !Number.isSafeInteger(body.max_output_tokens) ||
-          body.max_output_tokens < 0
-        )
+        if (!Number.isSafeInteger(body.max_output_tokens) || body.max_output_tokens < 0)
           throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
-        costUsd = estimateCostUsd(
-          {
-            inputTokens: estimatedInputTokens,
-            outputTokens: body.max_output_tokens,
-            cachedTokens: 0,
-          },
-          body.model,
-        )
+        // Lane LIMITSFIX (F3, D113): the shared daily extras budget follows
+        // the one cap rule (src/shared/spendCap.ts). Nothing of the response
+        // is held, neither an input estimate nor an output worst case: the
+        // request is admitted below while settled real spend is under the
+        // cap, and its real cost settles when its usage arrives. A flat-fee
+        // image keeps its exact price as its real cost.
+        costUsd = Usd.from(0).toAmount()
       }
       claim = await reserveClaim(scope, costUsd)
     } catch (error: unknown) {
@@ -290,7 +283,8 @@ export function createPaidDailyBudget(deps: {
       }
       const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
       signal.throwIfAborted()
-      if (Usd.from(total.spentUsd).compare(Usd.from(readLimit(scope))) > 0)
+      // The one admission rule (F3): below the cap is admitted; at or over it stops.
+      if (!isBelowCap(readLimit(scope), total.spentUsd))
         await unlessAborted(raise(scope, total.spentUsd, signal), signal)
       signal.throwIfAborted()
       return admittedClaim
