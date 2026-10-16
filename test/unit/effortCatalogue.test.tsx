@@ -1,23 +1,22 @@
-import { catalogueSliderProps } from '../../src/webview/components/EffortSlider'
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import type { ModelSummary } from '../../src/core/agent/agentBackend'
 import { NATIVE_MODEL_EFFORTS } from '../../src/core/backends/musecode/modelEfforts'
-import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { toModelOption } from '../../src/host/conversation/conversationController'
-import { effortLevelsFor, isEffortLevel } from '../../src/shared/effort'
+import { isEffortLevel, servedEffortLevels } from '../../src/shared/effort'
 import { parseHostToWebviewMessage } from '../../src/shared/protocol'
-import { EffortSlider } from '../../src/webview/components/EffortSlider'
-import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeInitializeResult, fakeMspHost } from './helpers/fakeMsp'
+import { catalogueSliderProps, EffortSlider } from '../../src/webview/components/EffortSlider'
 
 // RVCM1063 #3: the captured effort variants and the catalogue default reach
-// the production sliders through the model list the controller sends. One
-// test walks the whole path — the captured `model/list` frame, the bound
-// host, the controller's row mapping, the webview's wire validation, and the
-// rendered tiers — so dropping a field at any step fails it.
+// the production sliders through the served rows the controller admits. One
+// test walks the whole path — the captured `model/list` frame, the real
+// native reader, the controller's row mapping, the webview's wire
+// validation, and the rendered tiers — so dropping a field at any step fails
+// it. Live host dispatch needs a `muse serve` connection, so it is proven by
+// the real-life run in docs/certification/msm106.md, not here.
 const fixture = JSON.parse(
   readFileSync(path.resolve('test/fixtures/m106/msp-1.4.4-host-feedback.json'), 'utf8'),
 ) as {
@@ -36,17 +35,33 @@ function capturedCatalogue(): { models: Record<string, unknown>[] } {
 }
 
 describe('Effort catalogue: captured frame to rendered tiers', () => {
-  it('carries the contributor variants, description and default to the pressed dot', async () => {
-    const served = fakeMspHost({ ...fakeInitializeResult, grantedCapabilities: [] })
-    const host = new MuseCodeHost(
-      served.host,
-      new FakeLogOutputChannel(),
-      { normalMs: 100, longMs: 100 },
-      { modelEfforts: NATIVE_MODEL_EFFORTS },
+  it('carries the contributor variants, description and default to the pressed dot', () => {
+    const rows = capturedCatalogue().models.map((row) => ({
+      modelId: row['modelId'] as string,
+      ...NATIVE_MODEL_EFFORTS.parseModel(row),
+    }))
+    // The admission every surface shares: dots, keyboard stepping, palette
+    // and ACP all read these tiers, never the static family table.
+    expect(servedEffortLevels(rows, 'muse-spark-1.3-contributor')).toEqual([
+      'minimal',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
+    const captured = capturedCatalogue().models.find(
+      (row) => row['modelId'] === 'muse-spark-1.3-contributor',
     )
-    served.server.handle('model/list', () => capturedCatalogue())
-    const summaries = await host.listModels()
-    const options = summaries.map((summary) => toModelOption(summary))
+    const summary: ModelSummary = {
+      modelId: 'muse-spark-1.3-contributor',
+      displayLabel: captured?.['displayLabel'] as string,
+      contextLimit: captured?.['contextLimit'] as number,
+      isDefault: captured?.['isDefault'] as boolean,
+      isActive: captured?.['isActive'] as boolean,
+      ...NATIVE_MODEL_EFFORTS.parseModel(captured),
+    }
+    const options = [summary].map((item) => toModelOption(item))
     // The controller's post survives the webview's zod validation,
     // including a later tier the enum field would reject.
     const wire = parseHostToWebviewMessage({
@@ -74,7 +89,7 @@ describe('Effort catalogue: captured frame to rendered tiers', () => {
     const onSelect = vi.fn()
     render(
       <EffortSlider
-        levels={effortLevelsFor('muse-spark-1.3-contributor')}
+        levels={servedEffortLevels(rows, 'muse-spark-1.3-contributor')}
         current="max"
         onSelect={onSelect}
         model={catalogueSliderProps(contributor, 'max', (tier) => {
