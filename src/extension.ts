@@ -180,7 +180,10 @@ import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
 import { runDeviceSignIn } from './host/auth/deviceSignIn'
 import { isValidModelApiKey } from './host/auth/credentialStore'
 import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
-import { createFileScheduleStore } from './host/backend/fileScheduleStore'
+import {
+  createFileScheduleMigrationSource,
+  createFileScheduleStore,
+} from './host/backend/fileScheduleStore'
 import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
 import { chooseAuthorizedHost } from './host/backend/selectedHost'
 import { SandboxSetup } from './host/backend/sandboxSetup'
@@ -3641,6 +3644,18 @@ async function activateWindow(
               dailyPaid.reserveSchedule(schedule, amount, signal),
           },
         }
+  // M52's v1 jobs migrate into v2 once delivery is certified: before that
+  // the v1 list (with its manual Run) stays untouched, and after it each
+  // v1 job is verified in v2 before its v1 file is removed.
+  const scheduleMigration =
+    context.storageUri === undefined || !SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
+      ? undefined
+      : {
+          source: createFileScheduleMigrationSource(
+            path.join(context.storageUri.fsPath, MODEL_API_SCHEDULES_DIR),
+          ),
+          zone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }
   const schedulesBridge = createSchedulesBridge({
     distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
     log,
@@ -3648,6 +3663,7 @@ async function activateWindow(
     isDeliveryReady: () => SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady,
     defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
     ...(scheduleDelivery !== undefined && { delivery: scheduleDelivery }),
+    ...(scheduleMigration !== undefined && { migration: scheduleMigration }),
   })
   scheduleWorkspace.value = scheduleWindowWorkspace(
     schedulesBridge,

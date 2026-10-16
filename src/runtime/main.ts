@@ -722,12 +722,18 @@ async function serve(
       log,
       allowsContributorModels: options.allowsContributorModels,
     })
+    // The ACP-side engine module; the schedules bundle never loads it from
+    // VS Code, so the VSIX need not carry the runtime engine for schedules.
+    const scheduleEngine = await import('./runtimeEngineEntry')
+    scheduleEngine.setUiText(UI_TEXT, uiLocale())
     const loadSchedules = runtimeSchedulesBinding(
       path.join(distDir, 'schedules.js'),
       log,
       undefined,
       undefined,
       scheduleSessions.ports,
+      undefined,
+      scheduleEngine,
     )
     let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
     const usage = usageFor(log, recording, runtime, isUsageHistoryOn)
@@ -1295,12 +1301,16 @@ async function main(): Promise<number> {
         log,
         allowsContributorModels: false,
       })
+      const scheduleEngine = await import('./runtimeEngineEntry')
+      scheduleEngine.setUiText(UI_TEXT, uiLocale())
       const load = runtimeSchedulesBinding(
         path.join(distDir, 'schedules.js'),
         log,
         undefined,
         undefined,
         scheduleSessions.ports,
+        undefined,
+        scheduleEngine,
       )
       let afterWake: (() => Promise<void>) | undefined
       try {

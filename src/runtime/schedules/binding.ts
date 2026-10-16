@@ -5,10 +5,11 @@ import { lazyBundleLoader } from '../../host/lazyBundle'
 import { SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import type { ScheduleCommandOptions } from './args'
+import type { ScheduleMigrationSource } from '../../core/schedules/migrate'
 import type { ScheduleCommandResult } from './settle'
 import type { AcpSchedulePort } from '../../acp/schedules'
 import type { ScheduleEditorDeliveryPorts } from '../../host/schedules/deliveryBinding'
-import type { RuntimeScheduleDeliveryPorts } from './delivery'
+import type { RuntimeScheduleDeliveryPorts, RuntimeScheduleEngineModule } from './delivery'
 import type { AcpScheduleSession } from '../../acp/schedules'
 
 export interface RuntimeSchedulesBinding extends AcpSchedulePort {
@@ -30,6 +31,8 @@ interface RuntimeSchedulesModule {
     locale: string,
     delivery?: ScheduleEditorDeliveryPorts,
     runtimeDelivery?: RuntimeScheduleDeliveryPorts,
+    migration?: { source: ScheduleMigrationSource; zone: string },
+    scheduleEngine?: RuntimeScheduleEngineModule,
   ): Promise<RuntimeSchedulesBinding>
 }
 
@@ -48,6 +51,8 @@ export function runtimeSchedulesBinding(
   loadBundle?: (file: string) => unknown,
   delivery?: ScheduleEditorDeliveryPorts,
   runtimeDelivery?: RuntimeScheduleDeliveryPorts,
+  migration?: { source: ScheduleMigrationSource; zone: string },
+  scheduleEngine?: RuntimeScheduleEngineModule,
 ): () => Promise<RuntimeSchedulesBinding> {
   const load = lazyBundleLoader({
     bundlePath,
@@ -66,10 +71,25 @@ export function runtimeSchedulesBinding(
       }
       if (runtimeDelivery === undefined) {
         binding =
-          delivery === undefined
+          delivery === undefined && migration === undefined
             ? load().createRuntimeSchedules(UI_TEXT, uiLocale())
-            : load().createRuntimeSchedules(UI_TEXT, uiLocale(), delivery)
-      } else binding = load().createRuntimeSchedules(UI_TEXT, uiLocale(), delivery, runtimeDelivery)
+            : load().createRuntimeSchedules(
+                UI_TEXT,
+                uiLocale(),
+                delivery,
+                undefined,
+                migration,
+                scheduleEngine,
+              )
+      } else
+        binding = load().createRuntimeSchedules(
+          UI_TEXT,
+          uiLocale(),
+          delivery,
+          runtimeDelivery,
+          migration,
+          scheduleEngine,
+        )
     }
     try {
       return await binding

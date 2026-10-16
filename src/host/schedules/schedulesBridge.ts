@@ -15,6 +15,7 @@ import {
   type SCHEDULE_DELIVERIES,
   UI_TEXT,
 } from '../../shared/constants'
+import type { ScheduleMigrationSource } from '../../core/schedules/migrate'
 import type { ScheduleDraft, ScheduleTarget } from '../../shared/scheduleV2'
 import type { ScheduleTargetChoice } from '../../webview/schedules/ports'
 import type { ScheduleEditorDeliveryPorts } from './deliveryBinding'
@@ -29,6 +30,8 @@ export interface SchedulesPanelSession {
 export interface SchedulesBridgeDeps {
   /** Installed only after every delivery/safety path is certified. */
   readonly delivery?: ScheduleEditorDeliveryPorts
+  /** M52's v1 jobs migrate once per workspace; installed with delivery. */
+  readonly migration?: { source: ScheduleMigrationSource; zone: string }
   readonly distDir: string
   readonly log: Logger
   readonly isEnabled: () => boolean
@@ -96,6 +99,8 @@ export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
     deps.log,
     undefined,
     deps.isDeliveryReady?.() === false ? undefined : deps.delivery,
+    undefined,
+    deps.isDeliveryReady?.() === false ? undefined : deps.migration,
   )
   let loaded: RuntimeSchedulesBinding | undefined
   let isClosed = false

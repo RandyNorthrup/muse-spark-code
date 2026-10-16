@@ -40,6 +40,7 @@ import { agentDataFolder, workspaceKey } from '../dataFolder'
 import { createAuthorityStore } from './authorityStore'
 import { createBackgroundConsentStore } from './consent'
 import { createScheduleControl, type ScheduleControlDeps } from './control'
+import { migrateSchedules, type ScheduleMigrationSource } from '../../core/schedules/migrate'
 import { createWorkspaceRegistry } from './registry'
 import { scheduleTimePlan } from './timePlan'
 import type { ScheduleControlPort } from './command'
@@ -58,6 +59,11 @@ export interface ScheduleEngineOptions {
   ) => Pick<ScheduleDeliveryDeps, 'targets' | 'runs' | 'prompt'>
   readonly fs: ScheduleFsPort
   readonly queue: ScheduleQueuePort
+  /** M52's v1 jobs migrate into v2 once per workspace, verified then removed. */
+  readonly migration?: {
+    readonly source: ScheduleMigrationSource
+    readonly zone: string
+  }
   readonly now?: () => number
   readonly verifyWake?: (registrationId?: string) => Promise<ScheduleWakeAuthorization>
   readonly onError?: (error: unknown) => void
@@ -345,10 +351,15 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
     if (isChanged)
       await options.fs.replace('runtime/deferred-events.json', JSON.stringify(remaining))
   }
-  const controlFor = (cwd: string): Promise<ScheduleControlPort> => {
+  const controlFor = async (cwd: string): Promise<ScheduleControlPort> => {
     const key = workspaceKey(path.resolve(cwd))
     const existing = controls.get(key)
-    if (existing !== undefined) return Promise.resolve(existing)
+    if (existing !== undefined) return existing
+    // A failed migration leaves nothing cached, so the next control request
+    // retries it; receipts keep every retry idempotent. The v1 jobs stay
+    // until one retry verifies and removes each of them.
+    if (options.migration !== undefined)
+      await migrateSchedules(options.migration.source, store, key, options.migration.zone)
     let consent: ScheduleControlDeps['consent'] = options.consent
     if (
       consent === undefined &&
@@ -370,7 +381,7 @@ export function createScheduleEngine(options: ScheduleEngineOptions) {
       scanDeferred,
     })
     controls.set(key, control)
-    return Promise.resolve(control)
+    return control
   }
   const surface = new ScheduleSurface({
     ...(options.caller !== undefined && { caller: options.caller }),
