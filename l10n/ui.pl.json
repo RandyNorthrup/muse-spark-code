@@ -351,6 +351,7 @@
   "referenceVaultLock": "W toku.",
   "referenceAuthClear": "Usuń zapisany klucz Model API.",
   "referenceAuthStatus": "Sprawdź, czy zapisano klucz Model API.",
+  "referenceAuthGitHub": "Zaloguj się do GitHub na potrzeby pull requestów przepływem urządzenia GitHub: wpisz wyświetlony kod na github.com/login/device; token pozostaje w magazynie poświadczeń tego komputera. logout go usuwa, status informuje, czy jest zapisany.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Zarządza kontami jednego dostawcy: lista, dodawanie, usuwanie, kolejność i progi. Poświadczenia pochodzą wyłącznie ze standardowego wejścia. Płatna zgoda na razie pozostaje przypisana do obszaru roboczego.",
   "referenceDeveloper": "Pokazuje lub odblokowuje opcje programisty na tym komputerze. Operacje na profilach wymagają podłączonego zarządcy zasobów.",
@@ -4510,6 +4511,28 @@
     "callback": "Logowanie do ChatGPT zostało zakończone. Wróć do edytora lub terminala.",
     "failure": "Nie udało się zakończyć logowania do ChatGPT. Spróbuj ponownie lub usuń je i zaloguj się jeszcze raz.",
     "storeUnavailable": "Magazyn poświadczeń tego komputera jest niedostępny. Zaloguj się z interaktywnej sesji pulpitu z odblokowanym magazynem; w systemie Linux najpierw uruchom Secret Service."
+  },
+  "githubSignIn": {
+    "usage": "Użycie: muse-spark-code-acp auth github login|logout|status",
+    "code": "Aby zalogować się do GitHub, otwórz {url} i wpisz kod {code}. Oczekiwanie na GitHub; naciśnij Ctrl+C, aby anulować.",
+    "signedIn": "Zalogowano do GitHub. Token jest przechowywany w {store}.",
+    "notSignedIn": "Nie zalogowano do GitHub. Uruchom muse-spark-code-acp auth github login, aby zalogować się przepływem urządzenia GitHub.",
+    "signedOut": "Wylogowano z GitHub: token usunięto z tego komputera. Aby cofnąć także dostęp aplikacji, otwórz {url} i wybierz „Revoke”.",
+    "cancelled": "Logowanie do GitHub zostało anulowane.",
+    "failures": {
+      "clientIdUnset": "Ta kompilacja nie ma identyfikatora klienta aplikacji GitHub, więc logowanie do GitHub jest niedostępne.",
+      "verificationAddress": "Odpowiedź GitHub wskazywała adres logowania inny niż github.com/login/device, więc została odrzucona.",
+      "userCode": "Odpowiedź GitHub zawierała kod, którego nie można bezpiecznie wyświetlić, więc została odrzucona.",
+      "expired": "Kod wygasł przed wpisaniem. Zaloguj się ponownie.",
+      "denied": "Logowanie zostało odrzucone w GitHub.",
+      "disabled": "GitHub ma wyłączony przepływ urządzenia dla tej aplikacji.",
+      "incorrectClient": "GitHub nie rozpoznał identyfikatora klienta tej aplikacji.",
+      "incorrectDeviceCode": "GitHub nie rozpoznał kodu logowania. Zaloguj się ponownie.",
+      "unsupportedGrant": "GitHub odrzucił żądanie logowania.",
+      "refreshRefused": "GitHub odmówił odnowienia logowania. Zaloguj się ponownie.",
+      "network": "Nie można połączyć się z GitHub. Sprawdź połączenie i spróbuj ponownie.",
+      "reply": "Nie można odczytać odpowiedzi GitHub."
+    }
   },
   "execProviderNotConfigured": "Dostawca {id} nie jest skonfigurowany.",
   "providerText": {

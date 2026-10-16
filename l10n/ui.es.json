@@ -351,6 +351,7 @@
   "referenceVaultLock": "En curso.",
   "referenceAuthClear": "Eliminar la clave Model API guardada.",
   "referenceAuthStatus": "Comprobar si hay una clave Model API guardada.",
+  "referenceAuthGitHub": "Inicia sesión en GitHub para las pull requests con el flujo de dispositivo de GitHub: introduce el código mostrado en github.com/login/device; el token se queda en el almacén de credenciales de este equipo. logout lo elimina y status indica si hay uno guardado.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Gestiona las cuentas de un proveedor: listar, añadir, eliminar, ordenar y umbrales. Las credenciales solo provienen de la entrada estándar. El consentimiento de pago sigue siendo por espacio de trabajo por ahora.",
   "referenceDeveloper": "Muestra o desbloquea las opciones de desarrollador de esta máquina. Las operaciones de perfiles requieren un gestor de recursos conectado.",
@@ -4397,6 +4398,28 @@
     "callback": "El inicio de sesión de ChatGPT se ha completado. Vuelva al editor o al terminal.",
     "failure": "No se pudo completar el inicio de sesión de ChatGPT. Inténtelo de nuevo o elimínelo y vuelva a iniciar sesión.",
     "storeUnavailable": "El almacén de credenciales de este equipo no está disponible. Inicie sesión desde una sesión de escritorio interactiva con el almacén desbloqueado; en Linux, inicie primero Secret Service."
+  },
+  "githubSignIn": {
+    "usage": "Uso: muse-spark-code-acp auth github login|logout|status",
+    "code": "Para iniciar sesión en GitHub, abre {url} e introduce el código {code}. Esperando a GitHub; pulsa Ctrl+C para cancelar.",
+    "signedIn": "Sesión iniciada en GitHub. El token se guarda en {store}.",
+    "notSignedIn": "No has iniciado sesión en GitHub. Ejecuta muse-spark-code-acp auth github login para iniciar sesión con el flujo de dispositivo de GitHub.",
+    "signedOut": "Sesión de GitHub cerrada: el token se eliminó de este equipo. Para revocar también el acceso de la aplicación, abre {url} y elige «Revoke».",
+    "cancelled": "Se canceló el inicio de sesión en GitHub.",
+    "failures": {
+      "clientIdUnset": "Esta compilación no tiene ID de cliente de la aplicación de GitHub, así que el inicio de sesión en GitHub no está disponible.",
+      "verificationAddress": "La respuesta de GitHub indicaba una dirección de inicio de sesión distinta de github.com/login/device, así que se rechazó.",
+      "userCode": "La respuesta de GitHub contenía un código que no se puede mostrar de forma segura, así que se rechazó.",
+      "expired": "El código caducó antes de introducirse. Vuelve a iniciar sesión.",
+      "denied": "Se denegó el inicio de sesión en GitHub.",
+      "disabled": "GitHub tiene desactivado el flujo de dispositivo para esta aplicación.",
+      "incorrectClient": "GitHub no reconoció el ID de cliente de esta aplicación.",
+      "incorrectDeviceCode": "GitHub no reconoció el código de inicio de sesión. Vuelve a iniciar sesión.",
+      "unsupportedGrant": "GitHub rechazó la solicitud de inicio de sesión.",
+      "refreshRefused": "GitHub se negó a renovar la sesión. Vuelve a iniciar sesión.",
+      "network": "No se pudo contactar con GitHub. Comprueba la conexión e inténtalo de nuevo.",
+      "reply": "No se pudo leer la respuesta de GitHub."
+    }
   },
   "execProviderNotConfigured": "El proveedor {id} no está configurado.",
   "providerText": {

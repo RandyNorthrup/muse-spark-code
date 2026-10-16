@@ -4469,6 +4469,12 @@
       "text": { "ui": "referenceAuthClear" }
     },
     {
+      "route": "authGitHub",
+      "name": "auth github login|logout|status",
+      "description": "Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.",
+      "text": { "ui": "referenceAuthGitHub" }
+    },
+    {
       "route": "setup",
       "name": "setup",
       "description": "Run Setup hooks for init from spark-hooks.json in a trusted workspace.",

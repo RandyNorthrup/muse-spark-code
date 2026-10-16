@@ -14453,7 +14453,11 @@ qualify).
   `docs/certification/cifixm-macos-ci.md`. The lead's next hosted replay and
   exact error text close this evidence gap; no assertion or gate is waived.
 
-- **Q-M123 — The GitHub OAuth App (2026-10-08, owner item).** D104's
+- **Q-M123 — The GitHub OAuth App (2026-10-08, owner item).**
+  **Resolved 2026-10-08 (owner): registered.** Client id
+  `Ov23liXlNSPBbFyJ0A1z` (public, in `GITHUB_OAUTH_CLIENT_ID` since M123
+  lane A); device flow on; expiring user tokens on; no client secret is
+  stored or needed. The record below is the request as it was. D104's
   device-flow sign-in (source b) needs an OAuth App registered under the
   owner's GitHub account, and only he can create it. It is Chrome-assisted:
   the lead opens `github.com/settings/applications/new` and fills the form,
@@ -15907,6 +15911,222 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
     the scope precheck ships with lane A; the panel wiring follows in
     lane U. No new command, setting, UI string or bundle.
 
+- **Lane A landed on `m123/a` (2026-10-09, Kubuntu).** Record:
+  `docs/certification/m123.md` § Lane A.
+  - **Q-M123 resolved.** The owner registered the OAuth App: client id
+    `Ov23liXlNSPBbFyJ0A1z` (public) in `GITHUB_OAUTH_CLIENT_ID`; device
+    flow on; expiring user tokens on; no client secret, and no code path
+    needs one. An empty id is still refused (`clientIdUnset`). gitleaks'
+    `generic-api-key` rule matches the id, so that line carries
+    `gitleaks:allow` (§8).
+  - **Source (b).** `src/core/git/deviceFlow.ts` (request, poll at
+    `interval`, `slow_down` +5 s or GitHub's longer interval, stop before
+    `expires_in`, Cancel, only `https://github.com/login/device`, a user
+    code of letters, digits and hyphens only, refresh with rotation) and
+    `src/runtime/github/deviceFlowSource.ts` (the store port, refresh a
+    minute before expiry, a refused refresh drops the pair and a lost
+    network keeps it, one sign-in at a time, 401 deletes the stored token,
+    Sign out deletes it and opens the app's GitHub page, redactor
+    registration).
+  - **Storage.** The OS keychain through `keyStore.ts` under
+    `museSpark.github.deviceFlow`. The M109 vault's `oauth` item is not
+    used yet: the runtime vault's broker binding (`createRuntimeVault`) is
+    not built on this base, and its commands refuse closed. The source takes
+    any `SecretStore`, so the vault item replaces the keychain in the
+    binding when the broker lands, with the M109 owner.
+  - **Source (c).** `src/runtime/github/ghLoginSource.ts`: only with the
+    user's or machine's own `museSpark.github.useGhLogin`; `gh auth token
+--hostname github.com` through the governed runner, no shell, 4 KiB
+    output cap, credential variables stripped; held for one call,
+    registered with the redactor; `gh`'s login never changed. The runtime
+    has no user-settings store on this base, so the setting is an injected
+    port, bound by the panel's settings (M104 lane B) and lanes G/P.
+  - **CLI.** `auth github login|logout|status` (exact grammar), the code
+    and address printed, never a token.
+  - **Per editor.** The code and address are one template
+    (`UI_TEXT.githubSignIn.code`) passed through the source's `present`
+    port: the CLI prints it now (every editor's terminal, the companion
+    and Neovim/Emacs/Sublime/Zed/Xcode/Qt Creator users); the ACP notice
+    and the panel card bind the same port when lanes G/P (the runtime
+    client) and U (the card) land; `exec` never asks (headless). Source
+    (a) is lane L's.
+  - **Revocation (not re-read).** GitHub's `DELETE
+/applications/{client_id}/token` authenticates with the client id and
+    secret (Basic), which a public client cannot send; Sign out deletes
+    the local token and points at
+    `github.com/settings/connections/applications/<client id>`. From the
+    lane's knowledge of GitHub's docs, not re-read: the docs fetch was
+    refused in this lane's session (2026-10-09). The lead re-reads and
+    dates it.
+  - **Not captured.** The device-flow shapes stay GitHub's documented
+    examples; the fetch to re-read them was refused (2026-10-09), and no
+    live sign-in is allowed without the lead. The parser keeps unknown
+    fields.
+- **Lane A review RVM123A fixed on `m123/a2` (2026-10-09, Kubuntu).**
+  Record: `docs/certification/m123.md` § Lane A fixes. One P1 and four
+  P2, each with a test red on the reviewed source:
+  - **Sign out vs. a late sign-in or refresh (P1).** Sign out writes a
+    random mark (`museSpark.github.deviceFlow.signedOut`, no secret)
+    before it deletes the item; a sign-in or refresh reads the mark when
+    it starts and again after storing, and takes its pair back when the
+    mark changed. Holds across windows and processes sharing the store.
+  - **Concurrent refreshes (P2).** One refresh per source for all its
+    callers; a refused refresh deletes the item only while it still holds
+    the spent pair, so another window's rotated pair survives.
+  - **Joined callers' Cancel (P2).** The shared sign-in and refresh own
+    their signal; each caller's Cancel ends its own wait, and the run is
+    aborted when the last caller leaves.
+  - **HTTP failures with JSON (P2).** 5xx and 429 are `network` whatever
+    the body; only `bad_refresh_token` drops the pair; any other refresh
+    failure keeps it and serves the access token while it is valid.
+  - **Oversleep (P2).** The signal and the code's deadline are checked
+    after every wait, just before the poll is sent.
+  - **Residual.** A keychain has no compare-and-swap: a 401 or a refused
+    refresh reads the item and then deletes it, and a pair stored by
+    another process between those two calls is lost (the user signs in
+    again). The mark did not close the publication interval (RVM123A2);
+    replaced by the sign-in generation below.
+- **Lane A review RVM123A2: the sign-in generation, on `m123/a3`
+  (2026-10-09, Kubuntu).** Record: `docs/certification/m123.md` § Lane A
+  redesign. The third round on the same code redesigned instead of
+  patching. `src/runtime/github/deviceFlowSource.ts` holds one state
+  machine. The stored pair (`GITHUB_STORED_TOKEN_VERSION` 2) names the
+  generation it was issued under; the generation is a random id beside it
+  under `museSpark.github.deviceFlow.generation` (no secret; none stored
+  is the first generation). In one process every check-and-write runs in
+  the source's queue. Its state table (Read, Publish, Retire, Refuse,
+  Serve) is replaced by the logout barrier's (RVM123A4, below).
+  - **P1, a stale pair readable before rollback.** A pair is read only
+    under its own generation, so a late write after a Sign out is never
+    readable, before or after its rollback.
+  - **P2, a pre-logout completion deletes a post-logout sign-in.**
+    Publish refuses a moved generation before it writes.
+  - **P2, the outage fallback after logout.** Serve rechecks the
+    generation for every bearer handed out.
+  - **Invariant.** Once Sign out has returned, no call started after it
+    receives a bearer issued before it, in any window or process (the
+    store reads back its own completed writes, as the keychain does).
+  - **Residual window (cross-process only, the store has no
+    compare-and-swap).** Each is two store calls in another process, and
+    each loses a pair, never serves a stale one: (1) Publish's check and
+    its write: a Sign out plus a completed new sign-in in another process
+    between them is overwritten, then removed by the read-back (that
+    process signs in again); (2) the read-back and its take-back delete: a
+    new-generation pair stored between them is deleted; (3) Refuse's
+    compare and its new generation: a pair another process publishes
+    between them is retired (signed out on its next call); (4) two
+    processes publishing in one generation: the last write stays, and a
+    process whose read-back saw the other pair uses it. A refusal also
+    discards a sign-in another window started before it. A call that
+    overlaps a Sign out may still return the earlier bearer. Closing the
+    windows needs an atomic store or a cross-process lock; neither the
+    keychain binding nor the M109 vault port offers one.
+
+- **Lane A review RVM123A3 fixed on `m123/a4` (2026-10-09, Mac mini
+  rig).** Record: `docs/certification/m123.md` § Lane A fixes II. Two
+  P2, each with a test red on the reviewed source:
+  - **Refusal-first concurrent refresh (P2).** A losing refresh retired
+    the generation before the winner's rotation published, discarding the
+    valid pair. Sign out now also moves a sign-out count
+    (`museSpark.github.deviceFlow.signOutEpoch`, no secret) that a
+    refusal never moves; a publish that found a moved generation keeps
+    the successful rotation under the current generation when the count
+    is unchanged, and still drops it after a Sign out. A refusal-first
+    loser still returns nothing itself; the account stays signed in and
+    a retry serves the rotated pair.
+  - **Final Serve read outside cancellation (P2).** `credential()` read
+    the generation one last time outside the caller's race, so an abort
+    during that read still served a bearer. The read now races the
+    caller's signal and the signal is checked again before the
+    credential is issued; the CLI's login then reports Cancelled
+    (exit 1) instead of success.
+  - **Residual.** The recovery is one more window of the documented
+    kind: a retire landing between its recheck and its read-back drops
+    the recovery (taking the write back when it won); a same-generation
+    pair stored between them is adopted instead. A refusal still
+    discards a sign-in another window started before it, except the
+    successful rotation it duplicated. (The count and the recovery are
+    gone since RVM123A4, below.)
+
+- **Lane A review RVM123A4: one logout barrier, on `m123/a5`
+  (2026-10-09, Windows host).** Record: `docs/certification/m123.md` §
+  Lane A redesign II. The fifth review round on this source, so its state
+  was redesigned rather than patched. RVM123A4's P1 came from two stored
+  values (the generation and the sign-out count) read at different times
+  and combined to let a rotation through; its P2 from that recovery not
+  knowing what had been refused. Both existed only because a refusal
+  moved the generation. Now the generation is the logout barrier and
+  nothing else, and a refusal touches only the pair it refuses.
+  - **One barrier.** The sign-in generation
+    (`museSpark.github.deviceFlow.generation`, a random id, no secret;
+    none stored is the first) is written by Sign out only: a fresh value,
+    in one store write, read in one read. Nothing else writes it, so no
+    value read before a Sign out can be written back over it.
+  - **Read once.** A Read (with the refresh that follows it) and a sign-in
+    each read the generation once, when they begin. The pair they store
+    (`GITHUB_STORED_TOKEN_VERSION` 3, with a random `id`) names that
+    generation and no other; it is stored only while that generation is
+    still current, and read or served only while it is. Nothing is ever
+    stored under a generation its operation did not read when it began,
+    so nothing is recovered into another flow's generation.
+  - **A refusal touches only the refused pair.** It notes the pair's id
+    (`museSpark.github.deviceFlow.refused`, no secret) and then deletes
+    the pair, while the pair is still that one. The generation stays.
+  - **A rotation replaces only the pair it began from:** that pair, or the
+    empty slot that pair's own refusal left (a duplicate refresh that
+    lost to this one; the note names it). Over another pair it writes
+    nothing and uses that pair; into a slot that another pair's refusal
+    emptied it writes nothing. A sign-in is the user's own approval and
+    is stored in its generation whatever the slot holds.
+
+  | Transition | When                                                     | What it does (in order)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+  | ---------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | Read       | a call begins; `auth github status`                      | read the pair, then the generation: that read is the operation's generation; the pair counts only if it names it                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+  | Sign in    | `ask` with nothing usable                                | read the generation (the sign-in's); run the device flow; Publish                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+  | Refresh    | a Read's pair expires within a minute                    | GitHub rotates both tokens: Publish the rotation. GitHub refuses (`bad_refresh_token`), or the refresh token is past its expiry: Refuse, then use a stored pair only if it names the Read's generation and is fresh (another window's rotation). Any other failure: the Read's pair serves while its access token lasts                                                                                                                                                                                                                                                                                   |
+  | Publish    | a sign-in or rotation completes                          | queued. (1) A rotation reads the pair; then read the generation: not the operation's means nothing, and no write. (2) A rotation only: its own start pair goes on; an empty slot goes on only if the note names that pair, else nothing; another pair means no write, and that pair if it names the generation. (3) Store the new pair (a new id, the operation's generation). (4) Read the pair, then the generation: moved (a Sign out in another process between 1 and 3) means take the write back if it is still there, and nothing; else the stored pair, or the pair another window stored over it |
+  | Refuse     | a 401 for the stored token; a refused or expired refresh | queued: only while the pair is still the refused one, write the note (its id), then delete the pair. The generation is never written                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+  | Sign out   | `auth github logout`; the panel's Sign out (lane U)      | queued: write a fresh generation (one write), then delete the pair; this source's Sign-out count moves once that write has returned or failed. Then open the app's page                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+  | Serve      | `credential()` returns                                   | read the generation under the caller's signal; a bearer only if its pair names it, this source's Sign-out count has not moved since the operation began, and the caller is still waiting. No await follows the check                                                                                                                                                                                                                                                                                                                                                                                      |
+  - **Joining.** In one source, a caller joins a running Read or sign-in
+    only if this source's Sign-out count has not moved since it began;
+    otherwise it starts its own, under the new generation.
+  - **Invariant.** Once Sign out's generation write has landed, a pair
+    stored by an operation that read an earlier generation is readable
+    by no one, in any window or process; no such operation stores its
+    pair (Publish's step 1 refuses it, and one already past that step in
+    another process stores a pair nobody can read and takes it back at
+    step 4); and Serve hands out none of its bearers. A crash at any
+    point of Sign out: before the write lands, nothing changed and Sign
+    out did not happen; after it, all of the above holds, and the earlier
+    pair, still stored but unreadable, is overwritten by the next sign-in
+    or deleted by the next Sign out. In one source the Sign-out count
+    makes it hold for a Serve whose last read was answered before the
+    write too: once its Sign out has returned, nothing begun before it is
+    served.
+  - **Overlap (not closable over this store).** In another process, a
+    Serve whose last generation read the store answered before the Sign
+    out's write may return its bearer after that Sign out has returned:
+    its check came first. A store with no notification or lock cannot
+    close it.
+  - **Residual windows (another process; two store calls; the store has
+    no compare-and-swap).** Each loses a pair (that process signs in
+    again); none serves a pair issued before a Sign out. (1) Publish's
+    checks and its write: a pair another process stores between them is
+    overwritten (after a Sign out, by a pair nobody can read, which step 4
+    takes back). (2) A take-back's compare and its delete, (3) Refuse's
+    compare and its delete, and (4) Sign out's write and its delete: a
+    pair another process stores between them is deleted. (5) A crash
+    between a write and its take-back leaves an unreadable pair until the
+    next sign-in or Sign out. (6) A refresh whose last caller cancels
+    after GitHub rotated the pair loses the rotation.
+  - **Changed from the rounds before.** The sign-out count
+    (`museSpark.github.deviceFlow.signOutEpoch`) and the recovery are
+    gone. A sign-in that completes after another window's refusal is now
+    stored in its own generation (before, it was discarded): a refusal
+    says nothing about a grant the user approved separately, and only
+    Sign out is the user's word to stop.
+
 - **Goal.** F36 (M71's Git and pull request features) works in every editor
   in M104's matrix. That means the same forms, drafts, confirmations, links,
   checks and held checkout as in VS Code, with Git run natively by the
@@ -16174,8 +16394,9 @@ Lane G third round (RVM123G2, 6 P1 + 6 P2, 2026-10-09, branch `m123/g3`, Windows
     With five lanes in parallel, the critical path is lane 0, then P, U
     and Q.
 - **Certification checklist** (§6.0, plus):
-  - [ ] Q-M123 is answered and the client id is in the constants, or the
+  - [x] Q-M123 is answered and the client id is in the constants, or the
         fake id is recorded as the only blocker, at the top of the report.
+        (Lane A, 2026-10-09.)
   - [ ] Lane 0's contract is frozen, with the schema snapshot.
   - [ ] A receipt per editor in `docs/certification/m123-<host>.md`; the
         matrix is generated; F36 is W in every row.
@@ -35174,6 +35395,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | ------------------------------------------------------------------ | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/runtime/panel/pullRequests/records.ts`, `claim`               | `error.results as readonly Claimed[]`       | This catch surrounds only its own `mutate<Claimed>`; `make` errors are captured in `outcome`, and `mutate` constructs the error with its own `T[]` of attempted results. `instanceof` cannot retain that generic correlation. The unknown-claim regression verifies every potentially owned fence and cleanup. |
 | `src/runtime/panel/pullRequests/checkout.ts`, `reserveAndCheckout` | `error.results as readonly ReserveResult[]` | Only `reserve` and `supersede` mutations run in this try; the record store constructs this error from those methods' `ReserveResult` attempts. `instanceof` erases the generic payload type. The uncertain-write interleavings verify cleanup after either reservation operation lands and fails.              |
+
+| M123 lane A location                                 | Escape hatch                         | Reason                                                                                                                                                                                                                                                                                                                                                                  | Removal                                                |
+| ---------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `src/shared/constants.ts` (`GITHUB_OAUTH_CLIENT_ID`) | `// gitleaks:allow` on that one line | gitleaks' `generic-api-key` rule matches the OAuth App's client id. The id is public by design (D104, Q-M123: a device-flow client id is sent in the clear and has no secret). `.gitleaksignore` takes only a commit fingerprint, which a pre-commit scan of a new commit cannot name. The marker covers that line only; every other line of the file is still scanned. | None while the id is a constant; reviewed with Q-M123. |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

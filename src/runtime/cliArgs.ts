@@ -13,6 +13,7 @@ import {
   ACP_DEFAULT_BACKEND,
   ACP_PAID_FEATURES,
   ACP_PAID_FLAGS,
+  GITHUB_AUTH_ACTIONS,
   type AcpBackendKind,
   type AcpPaidFeature,
   SETTING_DEFAULTS,
@@ -44,6 +45,7 @@ export type UsageCommand =
       readonly out?: string
     }
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
+import type { GitHubAuthAction } from './authCommands'
 import { questionDeferSeconds } from '../shared/questionDeadline'
 import { parsePlaybookCommand } from './playbook/command'
 
@@ -147,6 +149,7 @@ export type RuntimeCommand =
       readonly command: 'authStatus' | 'authClear'
       readonly provider?: string | undefined
     }
+  | { readonly command: 'authGitHub'; readonly action: GitHubAuthAction }
   | { readonly command: 'providersList' }
   | { readonly command: 'providersAdd'; readonly options: ProvidersAddOptions }
   | { readonly command: 'providersTest'; readonly provider: string }
@@ -309,6 +312,7 @@ export function parseCommandLine<T>(
       : { command: 'vault', options }
   }
   if (argv[0] === 'estimate') return { command: 'estimate', argv: argv.slice(1) }
+  if (argv[0] === 'auth' && argv[1] === 'github') return parseAuthGitHub(argv.slice(2))
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report')
     return parseReport(argv.slice(argv[1] === 'problem' ? 2 : 1), argv[1] !== 'problem')
@@ -430,6 +434,14 @@ export function parseCommandLine<T>(
   }
 
   return provider === undefined ? { command: auth } : { command: auth, provider }
+}
+
+/** `auth github login|logout|status` (M123): exactly one word, no flag, no value. */
+function parseAuthGitHub(rest: readonly string[]): RuntimeCommand {
+  const [action, ...extra] = rest
+  return extra.length === 0 && isOneOf(GITHUB_AUTH_ACTIONS, action)
+    ? { command: 'authGitHub', action }
+    : { command: 'invalid', reason: UI_TEXT.githubSignIn.usage, exitCode: 2 }
 }
 
 /** `providers list|add|test|remove` (M95, PLAN.md D74). */

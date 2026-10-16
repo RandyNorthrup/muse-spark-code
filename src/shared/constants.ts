@@ -1720,16 +1720,45 @@ export const GITHUB_TOKEN_SOURCE_ORDER = ['editorLease', 'deviceFlow', 'ghLogin'
 export const GITHUB_PERMITTED_SCOPES: readonly string[] = ['repo', 'read:org']
 // GitHub names a token's scopes in this response header (comma-separated).
 export const GITHUB_SCOPES_HEADER = 'x-oauth-scopes'
-// The project's OAuth App (Q-M123): public, no secret. Empty until the owner
-// registers the app; the device flow refuses to start while it is.
-export const GITHUB_OAUTH_CLIENT_ID = ''
+// The project's OAuth App (Q-M123, registered by the owner 2026-10-08):
+// public, device flow on, expiring user tokens on, no client secret. The
+// device flow still refuses to start if this is ever emptied.
+// gitleaks reads the id as a generic key; it is public by design (PLAN.md §8).
+export const GITHUB_OAUTH_CLIENT_ID = 'Ov23liXlNSPBbFyJ0A1z' // gitleaks:allow
 // GitHub's device flow (docs.github.com, "Authorizing OAuth apps", device
-// flow; lane A re-reads and dates it). Only this verification address is
-// ever opened.
+// flow; not re-read in lane A, see docs/certification/m123.md). Only this
+// verification address is ever opened.
 export const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code'
 export const GITHUB_DEVICE_TOKEN_URL = 'https://github.com/login/oauth/access_token'
 export const GITHUB_DEVICE_VERIFICATION_URL = 'https://github.com/login/device'
 export const GITHUB_DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
+export const GITHUB_REFRESH_GRANT_TYPE = 'refresh_token'
+// A user code as shown to the user: letters, digits and hyphens only, so a
+// reply cannot put terminal escapes or markup on screen.
+export const GITHUB_USER_CODE_PATTERN = /^[A-Z0-9-]{1,32}$/u
+// An expiring token is refreshed this long before GitHub would refuse it.
+export const GITHUB_TOKEN_REFRESH_MARGIN_MS = 60_000
+// Where the device-flow token is kept: the OS credential store's account
+// (the M109 vault's `oauth` item once its broker binds, PLAN.md M123).
+export const GITHUB_DEVICE_FLOW_SECRET_KEY = 'museSpark.github.deviceFlow'
+// Beside it, the sign-in generation (a random id, no secret): the logout
+// barrier. Only Sign out writes it, a fresh value in one write; a stored
+// pair is read only under the generation it was issued in (PLAN.md M123).
+export const GITHUB_DEVICE_FLOW_GENERATION_KEY = 'museSpark.github.deviceFlow.generation'
+// Beside that, the id of the last pair refused (a random id, no secret): a
+// rotation may fill the slot that its own start pair's refusal emptied, and
+// no other (PLAN.md M123).
+export const GITHUB_DEVICE_FLOW_REFUSED_KEY = 'museSpark.github.deviceFlow.refused'
+export const GITHUB_STORED_TOKEN_VERSION = 3
+// Revoking a token through the API needs the app's client secret, which a
+// public client has none of; Sign out opens the app's page on GitHub, where
+// the user revokes the grant.
+export const GITHUB_AUTHORIZED_APP_URL = `https://github.com/settings/connections/applications/${GITHUB_OAUTH_CLIENT_ID}`
+// The CLI's `auth github <action>` words (M123 lane A).
+export const GITHUB_AUTH_ACTIONS = ['login', 'logout', 'status'] as const
+// `gh auth token` prints one token; anything longer is refused.
+export const GH_AUTH_TOKEN_MAX_BYTES = 4096
+export const GH_AUTH_TOKEN_TIMEOUT_MS = 10_000
 // GitHub's defaults when its reply omits them, and the step `slow_down` adds.
 export const GITHUB_DEVICE_CODE_EXPIRES_S = 900
 export const GITHUB_DEVICE_POLL_INTERVAL_S = 5
