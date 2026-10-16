@@ -14398,6 +14398,9 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   model loop, no provider documents one; the agent loops until the model
   stops calling tools (each step stays admitted/settled on the budgets;
   Stop aborts).
+- A21 (NOLIMITS1): `GOAL_OBJECTIVE_MAX_CHARS` = 4000 removed — invented
+  (Muse Code states no limit), not about a model; only a blank objective
+  refuses.
 
 ## 3. Open questions (need the owner)
 

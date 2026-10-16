@@ -2755,10 +2755,9 @@ export const IDE_PAID_TOOLS: ReadonlySet<string> = new Set([
 // agent to report progress after about ten model calls without any (its
 // step probe, docs/muse-code/interactive); the same note rides in the
 // instructions here, with no extra call. The objective is pinned into every
-// request while the goal is active, so it is capped (Muse Code states no
-// limit; this one is the extension's).
+// request while the goal is active, at any length (D121: the removed
+// 4000-character ceiling was invented; Muse Code states no limit).
 export const GOAL_PROGRESS_REMINDER_STEPS = 10
-export const GOAL_OBJECTIVE_MAX_CHARS = 4000
 export const GOAL_ID_PREFIX = 'goal-'
 
 // Meta's hosted search (M33): a Responses tool the server runs, shown in
@@ -6613,7 +6612,6 @@ export const MODEL_API_MODEL_TEXT = {
   goalBadPercent: 'percent_complete must be between 0 and 100',
   goalEmptyWork: 'current_work and next_work must not be empty',
   goalEmptyObjective: 'objective must not be empty',
-  goalObjectiveTooLong: 'objective is too long; the limit in characters is',
   goalBadBudget: 'token_budget must be a positive whole number',
   // M50: an MCP tool's schema and results on the Model API backend.
   mcpSchemaReplaced:

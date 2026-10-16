@@ -11,11 +11,7 @@ import {
   withTokensUsed,
 } from '../../src/core/backends/modelapi/goals'
 import type { GoalRecord } from '../../src/core/backends/modelapi/goalRecord'
-import {
-  GOAL_OBJECTIVE_MAX_CHARS,
-  GOAL_PROGRESS_REMINDER_STEPS,
-  MODEL_API_MODEL_TEXT,
-} from '../../src/shared/constants'
+import { GOAL_PROGRESS_REMINDER_STEPS, MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { goalDetails } from '../../src/webview/toolDetails'
 
 const NOW = 1_790_358_439_700
@@ -93,10 +89,12 @@ describe('the goal tools on the Model API backend (M45)', () => {
     expect(run('create_goal', {}, undefined).outcome.failureReason).toBe(
       MODEL_API_MODEL_TEXT.goalEmptyObjective,
     )
-    const long = 'x'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1)
-    expect(run('create_goal', { objective: long }, undefined).outcome.failureReason).toBe(
-      `${MODEL_API_MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`,
-    )
+    // D121: an objective past the removed 4000-character ceiling stands.
+    const long = 'x'.repeat(5000)
+    expect(run('create_goal', { objective: long }, undefined).outcome.failureReason).toBeUndefined()
+    expect(run('create_goal', { objective: long }, undefined).goal).toMatchObject({
+      objective: long,
+    })
     for (const budget of [0, -5, 1.5]) {
       expect(
         run('create_goal', { objective: 'x', token_budget: budget }, undefined).outcome
@@ -221,14 +219,11 @@ describe('the user goal verbs on the Model API backend (M45)', () => {
 
   it('checks a set or edit objective before anything changes', () => {
     expect(goalObjectiveProblem({ verb: 'set', objective: ' ' })).toBe('empty')
-    expect(
-      goalObjectiveProblem({ verb: 'edit', objective: 'x'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1) }),
-    ).toBe('tooLong')
+    // D121: objectives of any length stand — only blank refuses.
+    expect(goalObjectiveProblem({ verb: 'edit', objective: 'x'.repeat(5000) })).toBeUndefined()
     expect(goalObjectiveProblem({ verb: 'set', objective: '😀'.repeat(2001) })).toBeUndefined()
     expect(goalObjectiveProblem({ verb: 'set', objective: '👨‍👩‍👧‍👦'.repeat(2001) })).toBeUndefined()
-    expect(
-      goalObjectiveProblem({ verb: 'set', objective: '😀'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1) }),
-    ).toBe('tooLong')
+    expect(goalObjectiveProblem({ verb: 'set', objective: '😀'.repeat(5000) })).toBeUndefined()
     expect(goalObjectiveProblem({ verb: 'edit', objective: 'fine' })).toBeUndefined()
     expect(goalObjectiveProblem({ verb: 'pause' })).toBeUndefined()
   })

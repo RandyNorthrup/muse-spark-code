@@ -15,7 +15,6 @@ import * as z from 'zod/mini'
 import type { SessionGoal } from '../../../shared/agentEvents'
 import {
   GOAL_ID_PREFIX,
-  GOAL_OBJECTIVE_MAX_CHARS,
   GOAL_PERCENT_MAX,
   GOAL_PROGRESS_REMINDER_STEPS,
   GOAL_STATUS,
@@ -125,26 +124,15 @@ function parsedArgs<T>(schema: z.ZodMiniType<T>, args: string): T | undefined {
   return parsed.success ? parsed.data : undefined
 }
 
-/** A validation code shared by user verbs and model tools, with separate text. */
-type ObjectiveProblem = 'empty' | 'tooLong'
+/**
+ * A validation code shared by user verbs and model tools, with separate
+ * text. D121: an objective of any length stands — the removed 4000-character
+ * ceiling was invented (Muse Code states no limit) — so only blank refuses.
+ */
+type ObjectiveProblem = 'empty'
 
 function objectiveProblem(objective: string): ObjectiveProblem | undefined {
-  const trimmed = objective.trim()
-  if (trimmed === '') {
-    return 'empty'
-  }
-  // Count visible characters, including a joined emoji as one. Stop after
-  // the first over-limit cluster so a huge pasted objective stays bounded.
-  const segments = new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(trimmed)
-  const iterator = segments[Symbol.iterator]()
-  let count = 0
-  while (!iterator.next().done) {
-    count += 1
-    if (count > GOAL_OBJECTIVE_MAX_CHARS) {
-      return 'tooLong'
-    }
-  }
-  return undefined
+  return objective.trim() === '' ? 'empty' : undefined
 }
 
 function freshGoal(
@@ -192,11 +180,7 @@ function createGoal(
   }
   const problem = objectiveProblem(parsed.objective)
   if (problem !== undefined) {
-    const text =
-      problem === 'empty'
-        ? MODEL_API_MODEL_TEXT.goalEmptyObjective
-        : `${MODEL_API_MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`
-    return { outcome: failure(text), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalEmptyObjective), goal }
   }
   const budget = parsed.token_budget ?? null
   return budget === null || isBudget(budget)
