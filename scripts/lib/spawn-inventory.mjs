@@ -577,8 +577,10 @@ export function proveTestOnly(program, symbol, root) {
   }
   while (pending.length > 0) {
     const name = pending.pop()
-    // Only a file whose text contains the name can use it.
-    const word = new RegExp(name.replaceAll('$', String.raw`\$`), 'u')
+    // Only a file whose text contains the name can use it. A plain substring
+    // match: identifiers hold no pattern syntax, and semgrep refuses a RegExp
+    // built from data (detect-non-literal-regexp).
+    const word = { test: (text) => text.includes(name) }
     const sources = program.containing(word)
     for (const source of sources) {
       const uses = referenceIndex(source).get(name) ?? []

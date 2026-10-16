@@ -6,11 +6,10 @@ import { uiLocale } from '../../shared/l10n/text'
 import type { ResourceEntryOptions, createResources } from './entry'
 import type { RuntimeResources } from './port'
 import { configureResources } from '../../core/resources/admission'
-import type { runtimeResourceJobs } from './entry'
+import { runtimeResourceJobs } from './jobs'
 
 interface ResourceModule {
   createResources: typeof createResources
-  runtimeResourceJobs: typeof runtimeResourceJobs
 }
 function isResourceModule(value: unknown): value is ResourceModule {
   // Same-build entry/loader contract, validated like the existing lazy bundle ports.
@@ -82,7 +81,7 @@ export function lazyRuntimeResources(
   // (compiles and self-tests) both Windows job helpers once; a failure is retried.
   let jobs: ReturnType<typeof runtimeResourceJobs> | undefined
   const windowsJob = async () => {
-    jobs ??= module().runtimeResourceJobs(options.machineDir, path.dirname(options.distDir))
+    jobs ??= runtimeResourceJobs(options.machineDir, path.dirname(options.distDir))
     const current = jobs
     try {
       const ready = await current
@@ -108,7 +107,10 @@ export function lazyRuntimeResources(
     }
   }
   const disposeAdmission = configureResources({
-    registryFile: path.join(options.machineDir, 'resource-created.json'),
+    // The registry refuses a group- or world-writable parent, and the data folder
+    // takes the user's umask (002 on Ubuntu desktops), so it keeps a folder of
+    // its own that it creates private.
+    registryFile: path.join(options.machineDir, 'resource-created', 'registry.json'),
     inspect: () => ({}),
     onError: () => {
       options.log.warn(UI_TEXT.resourceUnavailable)

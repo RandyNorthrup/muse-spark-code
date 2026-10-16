@@ -15,6 +15,9 @@ export interface SelectOption {
   readonly label: string
   readonly description: string
   readonly category: string
+  /** True where the row is shown but cannot be picked (with its reason). */
+  readonly disabled?: boolean | undefined
+  readonly disabledReason?: string | undefined
 }
 
 export interface SelectChip {
@@ -96,7 +99,7 @@ export function SearchableSelect({
         break
       }
       case 'accept': {
-        if (isOpen && active !== undefined) {
+        if (isOpen && active !== undefined && active.disabled !== true) {
           onSelect(active.value)
         }
         break
@@ -165,14 +168,20 @@ export function SearchableSelect({
               id={`${baseId}-option-${option.value}`}
               role="option"
               aria-selected={index === wrapIndex(activeIndex, 0, matches.length)}
+              aria-disabled={option.disabled === true || undefined}
               onMouseDown={(event) => {
                 // Before the input's blur closes the list.
                 event.preventDefault()
-                onSelect(option.value)
+                if (option.disabled !== true) {
+                  onSelect(option.value)
+                }
               }}
             >
               <span className="models-select-label-row">{option.label}</span>
               <span className="models-select-description">{option.description}</span>
+              {option.disabledReason !== undefined && (
+                <span className="models-select-reason">{option.disabledReason}</span>
+              )}
             </li>
           ))}
           {matches.length === 0 && (

@@ -1,0 +1,324 @@
+[
+  {
+    "drill": "key-literal-scrub",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "? value.replaceAll(key, '<redacted-key>') -> ? value",
+    "test": "test/unit/m106CaptureCollector.test.ts: scrubs literal key echoes",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "scrubs literal key echoes from values and property names, and removes opaque reasoning",
+      "scrubs echoed credentials before persisting a refused capture"
+    ]
+  },
+  {
+    "drill": "opaque-reasoning-omit",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": ".filter(([name]) => !OMIT.has(name)) -> .filter(() => true)",
+    "test": "test/unit/m106CaptureCollector.test.ts: scrubs literal key echoes",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "scrubs literal key echoes from values and property names, and removes opaque reasoning",
+      "scrubs echoed credentials before persisting a refused capture"
+    ]
+  },
+  {
+    "drill": "key-preflight",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "z.string().min(1).max(KEY_MAX_BYTES).regex(/^\\S+$/).parse(options.key) -> void options.key",
+    "test": "test/unit/m106CaptureCollector.test.ts: clears a refused",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "clears a refused empty stdin key before any request or file write",
+      "clears a refused whitespace stdin key before any request or file write",
+      "clears a refused oversized stdin key before any request or file write"
+    ]
+  },
+  {
+    "drill": "sse-complete-block",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "if (!normalized.endsWith('\\n\\n')) -> if (false)",
+    "test": "test/unit/m106CaptureCollector.test.ts: parses CRLF",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "parses CRLF, multiline data and the SSE terminator without losing unknown fields"
+    ]
+  },
+  {
+    "drill": "status-validation",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "is_alive: z.boolean() -> is_alive: z.unknown()",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses status schema errors",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "refuses status schema errors, a missing strict 400, wrong structured answers and unobserved output limits"
+    ]
+  },
+  {
+    "drill": "strict-refusal-status",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "if (status !== 400) -> if (false)",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses status schema errors",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "refuses status schema errors, a missing strict 400, wrong structured answers and unobserved output limits"
+    ]
+  },
+  {
+    "drill": "stream-terminal",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "frames.every((frame) => frame.type !== 'response.completed') -> false",
+    "test": "test/unit/m106CaptureCollector.test.ts: missing completion",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": ["refuses unsupported U9 evidence: missing completion"]
+  },
+  {
+    "drill": "stream-identity",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "frame.item_id !== done.item_id || frame.output_index !== done.output_index -> false",
+    "test": "test/unit/m106CaptureCollector.test.ts: changed identity",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": ["refuses unsupported U9 evidence: changed identity"]
+  },
+  {
+    "drill": "stream-arguments",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "deltas.map((frame) => z.string().parse(frame.delta)).join('') !== argumentsText -> false",
+    "test": "test/unit/m106CaptureCollector.test.ts: different done arguments",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": ["refuses unsupported U9 evidence: different done arguments"]
+  },
+  {
+    "drill": "recommended-cap",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "response.status !== 'completed' || response.max_output_tokens !== 131_072 -> response.status !== 'completed'",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses status schema errors",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "refuses status schema errors, a missing strict 400, wrong structured answers and unobserved output limits"
+    ]
+  },
+  {
+    "drill": "incomplete-status",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "response.status !== 'incomplete' || -> false ||",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses status schema errors",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "refuses status schema errors, a missing strict 400, wrong structured answers and unobserved output limits"
+    ]
+  },
+  {
+    "drill": "body-bound",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "if (length > BODY_MAX_BYTES) -> if (false)",
+    "test": "test/unit/m106CaptureCollector.test.ts: cancels an oversized response",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "cancels an oversized response and preserves an honest failed manifest"
+    ]
+  },
+  {
+    "drill": "no-redirect",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "redirect: 'error' -> redirect: 'follow'",
+    "test": "test/unit/m106CaptureCollector.test.ts: collects six counted receipts",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "collects six counted receipts with exact delta split points, safe headers and hashes"
+    ]
+  },
+  {
+    "drill": "safe-headers",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": ".filter(([name]) => HEADERS.has(name)) -> .filter(() => true)",
+    "test": "test/unit/m106CaptureCollector.test.ts: collects six counted receipts",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "collects six counted receipts with exact delta split points, safe headers and hashes"
+    ]
+  },
+  {
+    "drill": "count-before-dispatch",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "else manifest.nonInferenceAttempts++ -> else manifest.nonInferenceAttempts += 0",
+    "test": "test/unit/m106CaptureCollector.test.ts: counts a transport failure",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "collects six counted receipts with exact delta split points, safe headers and hashes",
+      "counts a transport failure before dispatch and never retries or reports completion"
+    ]
+  },
+  {
+    "drill": "key-finally",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "    options.key = ''\n    manifest.finishedAt ->     void options.key\n    manifest.finishedAt",
+    "test": "test/unit/m106CaptureCollector.test.ts: counts a transport failure",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "clears a refused whitespace stdin key before any request or file write",
+      "clears a refused oversized stdin key before any request or file write",
+      "collects six counted receipts with exact delta split points, safe headers and hashes",
+      "scrubs echoed credentials before persisting a refused capture",
+      "counts a transport failure before dispatch and never retries or reports completion"
+    ]
+  },
+  {
+    "drill": "new-directory",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "await mkdir(outputDir, { mode: 0o700 }) -> await mkdir(outputDir, { mode: 0o700, recursive: true })",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses to overwrite",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "refuses to overwrite an existing capture directory before any request"
+    ]
+  },
+  {
+    "drill": "feedback-disclosure",
+    "file": "test/fixtures/m106/msp-1.4.4-host-feedback.json",
+    "mutation": "\"withFiles\": false -> \"withFiles\": true",
+    "test": "test/unit/m106CaptureFixtures.test.ts: captures feedback upload",
+    "exitCode": 1,
+    "beforeSha256": "cfffa8691ede4493a4c85f1363a208e9028f769739f639ec841296042206e8dc",
+    "restoredSha256": "cfffa8691ede4493a4c85f1363a208e9028f769739f639ec841296042206e8dc",
+    "observedFailingTests": [
+      "validates scrubbed fixture hashes and counts every launched probe and request once",
+      "captures feedback upload with both disclosures off, and the ephemeral-session refusal separately"
+    ]
+  },
+  {
+    "drill": "provider-coverage",
+    "file": "test/fixtures/m106/completion-manifest.json",
+    "mutation": "\"provider\": \"openai\" -> \"provider\": \"removed-openai\"",
+    "test": "test/unit/m106CaptureFixtures.test.ts: names every provider credential",
+    "exitCode": 1,
+    "beforeSha256": "d9be3f116dc3e93afb584373812906928a499248d9431628a164f495340723d9",
+    "restoredSha256": "d9be3f116dc3e93afb584373812906928a499248d9431628a164f495340723d9",
+    "observedFailingTests": [
+      "names every provider credential or local runtime still waiting without granting capabilities"
+    ]
+  },
+  {
+    "drill": "cli-help-output",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "Model API billing applies. -> Model API cost is documented.",
+    "test": "test/unit/m106CaptureCollector.test.ts: keeps --help offline",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": ["keeps --help offline"]
+  },
+  {
+    "drill": "cli-plan-output",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "name: 'u9-raw-strict-stream' -> name: 'uncaptured-stream'",
+    "test": "test/unit/m106CaptureCollector.test.ts: keeps --plan offline",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "keeps --plan offline",
+      "collects six counted receipts with exact delta split points, safe headers and hashes",
+      "refuses to overwrite an existing capture directory before any request"
+    ]
+  },
+  {
+    "drill": "cli-failure-exit",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "process.exitCode = 1 -> process.exitCode = 0",
+    "test": "test/unit/m106CaptureCollector.test.ts: refuses a live run without explicit opt-in",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": ["refuses a live run without explicit opt-in"]
+  },
+  {
+    "drill": "stream-validation-required",
+    "file": "scripts/capture-m106-meta.mjs",
+    "mutation": "  switch (name) { ->   if (name === 'u9-raw-strict-stream') return\n  switch (name) {",
+    "test": "test/unit/m106CaptureCollector.test.ts: missing deltas",
+    "exitCode": 1,
+    "beforeSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "restoredSha256": "8e8118935cb6bcf25d5ca1d0d231315b9ece233f93560701f47788366dbdd257",
+    "observedFailingTests": [
+      "refuses unsupported U9 evidence: missing deltas",
+      "refuses unsupported U9 evidence: missing done",
+      "refuses unsupported U9 evidence: missing completion",
+      "refuses unsupported U9 evidence: changed identity",
+      "refuses unsupported U9 evidence: missing identity",
+      "refuses unsupported U9 evidence: different done arguments"
+    ]
+  },
+  {
+    "drill": "catalogue-default",
+    "file": "test/fixtures/m106/msp-1.4.4-host-feedback.json",
+    "mutation": "\"defaultReasoningEffort\": \"max\" -> \"defaultReasoningEffort\": \"minimal\"",
+    "test": "test/unit/m106CaptureFixtures.test.ts: captures the pinned fingerprint",
+    "exitCode": 1,
+    "beforeSha256": "cfffa8691ede4493a4c85f1363a208e9028f769739f639ec841296042206e8dc",
+    "restoredSha256": "cfffa8691ede4493a4c85f1363a208e9028f769739f639ec841296042206e8dc",
+    "observedFailingTests": [
+      "validates scrubbed fixture hashes and counts every launched probe and request once",
+      "captures the pinned fingerprint and actual model variants, descriptions and defaults"
+    ]
+  },
+  {
+    "drill": "lifecycle-reason",
+    "file": "test/fixtures/m106/msp-1.4.4-session-lifecycle.json",
+    "mutation": "\"reason\": \"hostShutdown\" -> \"reason\": \"unknown-shutdown\"",
+    "test": "test/unit/m106CaptureFixtures.test.ts: preserves observed effort and shutdown",
+    "exitCode": 1,
+    "beforeSha256": "12bd72b999f81242baa150c52d8c8b1834c2ad2914d2107ffb886fc4ab1fe62b",
+    "restoredSha256": "12bd72b999f81242baa150c52d8c8b1834c2ad2914d2107ffb886fc4ab1fe62b",
+    "observedFailingTests": [
+      "validates scrubbed fixture hashes and counts every launched probe and request once",
+      "preserves observed effort and shutdown lifecycle frames without inventing deletion or list changes"
+    ]
+  },
+  {
+    "drill": "rejected-probe-kind",
+    "file": "test/fixtures/m106/msp-1.4.4-invalid-initialize.json",
+    "mutation": "\"kind\": \"notInitialized\" -> \"kind\": \"unexpected\"",
+    "test": "test/unit/m106CaptureFixtures.test.ts: retains the two rejected input probes",
+    "exitCode": 1,
+    "beforeSha256": "64cd323e5876655de9555c2430bcdb157b904d989f983b205909acb15eeeb9e7",
+    "restoredSha256": "64cd323e5876655de9555c2430bcdb157b904d989f983b205909acb15eeeb9e7",
+    "observedFailingTests": [
+      "validates scrubbed fixture hashes and counts every launched probe and request once",
+      "retains the two rejected input probes as counted zero-model evidence"
+    ]
+  }
+]

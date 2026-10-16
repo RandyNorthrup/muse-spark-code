@@ -18,7 +18,9 @@ import { LeaseBusyError } from '../../src/core/locks/fileLease'
 import { currentProcessOwner } from '../../src/core/locks/processOwner'
 import type { WorktreeRecord } from '../../src/core/worktreeConversations'
 import {
+  createFileRecordRegistry,
   createFileWorktreeRecordStore,
+  createMemoryRecordRegistry,
   createMemoryWorktreeRecordStore,
   holdForRoots,
   recordRevision,
@@ -34,6 +36,13 @@ import {
   nodeRecordStoreFs,
   type RecordStoreFs,
 } from '../../src/runtime/panel/pullRequests/recordStoreFs'
+import {
+  deferred,
+  failingListingsAfterLink,
+  GENERATION_FILE,
+  nextTurn,
+  pausingPort,
+} from './helpers/leaseFs'
 
 const quiet = () => undefined
 const log: CoreLogger = { trace: quiet, info: quiet, warn: quiet, error: quiet }
@@ -46,7 +55,6 @@ const ORIGIN = {
   headSha: 'c'.repeat(40),
   isAuthoredByUser: false,
 } as const
-const GENERATION_FILE = /\d+\.json$/u
 /** The folder check a supersede runs under its hold: nothing there. */
 function isFolderGone(): boolean {
   return true
@@ -54,89 +62,6 @@ function isFolderGone(): boolean {
 
 function slashed(folder: string): string {
   return folder.replaceAll('\\', '/')
-}
-
-interface Pause {
-  /** Settles when the paused call is reached, before it runs. */
-  readonly reached: Promise<void>
-  readonly resume: () => void
-}
-
-type AsyncOp =
-  'mkdir' | 'readdir' | 'readFile' | 'createExclusive' | 'link' | 'rename' | 'unlink' | 'lstat'
-
-/** The node file operations, with one-shot pauses a test arms per call. */
-function pausingFs(base: RecordStoreFs = nodeRecordStoreFs) {
-  const traps: {
-    readonly op: AsyncOp
-    readonly isMatch: (args: readonly string[]) => boolean
-    readonly hit: () => void
-    readonly gate: Promise<void>
-  }[] = []
-  const pass = async (op: AsyncOp, args: readonly string[]): Promise<void> => {
-    const index = traps.findIndex((trap) => trap.op === op && trap.isMatch(args))
-    const trap = traps[index]
-    if (trap === undefined) {
-      return
-    }
-    traps.splice(index, 1)
-    trap.hit()
-    await trap.gate
-  }
-  const fs: RecordStoreFs = {
-    ...base,
-    mkdir: async (folder) => {
-      await pass('mkdir', [folder])
-      await base.mkdir(folder)
-    },
-    readdir: async (folder) => {
-      await pass('readdir', [folder])
-      return await base.readdir(folder)
-    },
-    readFile: async (file) => {
-      await pass('readFile', [file])
-      return await base.readFile(file)
-    },
-    createExclusive: async (file, content, durability) => {
-      await pass('createExclusive', [file, content])
-      await base.createExclusive(file, content, durability)
-    },
-    link: async (existing, target) => {
-      await pass('link', [existing, target])
-      await base.link(existing, target)
-    },
-    rename: async (from, to) => {
-      await pass('rename', [from, to])
-      await base.rename(from, to)
-    },
-    unlink: async (file) => {
-      await pass('unlink', [file])
-      await base.unlink(file)
-    },
-    lstat: async (file) => {
-      await pass('lstat', [file])
-      return await base.lstat(file)
-    },
-  }
-  const pauseAt = (op: AsyncOp, isMatch: (args: readonly string[]) => boolean): Pause => {
-    const reached = Promise.withResolvers<undefined>()
-    const gate = Promise.withResolvers<undefined>()
-    traps.push({
-      op,
-      isMatch,
-      hit: () => {
-        reached.resolve(undefined)
-      },
-      gate: gate.promise,
-    })
-    return {
-      reached: reached.promise,
-      resume: () => {
-        gate.resolve(undefined)
-      },
-    }
-  }
-  return { fs, pauseAt }
 }
 
 /**
@@ -160,24 +85,6 @@ function holdingFirstPublish(base: RecordStoreFs, onHeld: () => void): RecordSto
       await base.link(existing, target)
     },
   }
-}
-
-/** Something to resolve from outside: a window reaching the point a test waits for. */
-function deferred(): { readonly promise: Promise<undefined>; readonly resolve: () => void } {
-  const { promise, resolve } = Promise.withResolvers<undefined>()
-  return {
-    promise,
-    resolve: () => {
-      resolve(undefined)
-    },
-  }
-}
-
-/** One turn of the event loop: other windows' steps run in it. */
-async function nextTurn(): Promise<void> {
-  await new Promise((resolve) => {
-    setImmediate(resolve)
-  })
 }
 
 /**
@@ -294,55 +201,45 @@ async function seeded(dataFolder: string, folder: string, isTrusted: boolean) {
   return reserved.stored
 }
 
+/** A window's file store over a fresh data folder, with checkout 'a' reserved. */
+async function reservedStore(
+  logger: CoreLogger = log,
+  options: { readonly fs?: RecordStoreFs } = {},
+) {
+  const setup = await dataSetup()
+  const store = createFileWorktreeRecordStore(setup.dataFolder, process.platform, logger, options)
+  const reserved = await store.reserve(pendingRecord(setup.folder, 'a'))
+  if (!reserved.ok) {
+    throw new Error('refused')
+  }
+  return { ...setup, store, reserved }
+}
+
 /**
- * The node file operations, failing chosen listings (EACCES), counted from
- * the first generation published after `arm()`: 1 is that publish's own
- * proof, 2 the sweep after it (or, unproven, the reconciliation read).
+ * Window A's store, paused just before it publishes a generation. Its lease
+ * is 2 s: the retry after the takeover must still fit a full save path
+ * (read the head, a flushed stage write, the link) inside one lease. A
+ * 200 ms lease passed here but failed on Windows (PR 161): the first publish
+ * beat it and paused, then the retries each outlasted it, so one test saw
+ * the product's `could not be kept` after its attempts and the other's
+ * `beforePublish.reached` never settled (the loss is reported before the
+ * link the pause watches). The takeover stays fast: window B honors 10 ms.
  */
-function failingListingsAfterLink(failing: readonly number[]) {
-  let isArmed = false
-  let listings: number | undefined
-  let failed = 0
-  const fs: RecordStoreFs = {
-    ...nodeRecordStoreFs,
-    link: async (existing, target) => {
-      await nodeRecordStoreFs.link(existing, target)
-      if (!isArmed || !GENERATION_FILE.test(target)) {
-        return
-      }
-      isArmed = false
-      listings = 0
-    },
-    readdir: async (folder) => {
-      if (listings !== undefined) {
-        listings += 1
-        if (failing.includes(listings)) {
-          failed += 1
-          throw Object.assign(new Error(`EACCES: permission denied, scandir '${folder}'`), {
-            code: 'EACCES',
-          })
-        }
-      }
-      return await nodeRecordStoreFs.readdir(folder)
-    },
-  }
-  return {
-    fs,
-    arm: () => {
-      isArmed = true
-    },
-    failed: () => failed,
-  }
+function pausedPublisher(dataFolder: string) {
+  const windowAFs = pausingPort()
+  const beforePublish = windowAFs.pauseAt('link', ([, target]) =>
+    GENERATION_FILE.test(target ?? ''),
+  )
+  const windowA = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
+    fs: windowAFs.port,
+    leaseMs: 2000,
+  })
+  return { windowA, beforePublish }
 }
 
 describe('worktree record store: fenced reservations (M123 lane P)', () => {
   it('stamps each write with its hold’s fence and refuses a reservation another write moved', async () => {
-    const { dataFolder, folder } = await dataSetup()
-    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
-    const reserved = await store.reserve(pendingRecord(folder, 'a'))
-    if (!reserved.ok) {
-      throw new Error('refused')
-    }
+    const { folder, store, reserved } = await reservedStore()
     expect(reserved.stored.fence).toBe(reserved.reservation.fence)
     expect(store.holdsSync(reserved.reservation)).toBe(true)
     const claimed = await store.claim(reserved.reservation, () => Promise.resolve('made'))
@@ -364,12 +261,7 @@ describe('worktree record store: fenced reservations (M123 lane P)', () => {
   })
 
   it('supersedes only the version read, and only while the folder is absent under its hold', async () => {
-    const { dataFolder, folder } = await dataSetup()
-    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
-    const first = await store.reserve(pendingRecord(folder, 'a'))
-    if (!first.ok) {
-      throw new Error('refused')
-    }
+    const { folder, store, reserved: first } = await reservedStore()
     let asked = 0
     const present = await store.supersede(
       folder,
@@ -403,12 +295,7 @@ describe('worktree record store: fenced reservations (M123 lane P)', () => {
   })
 
   it('claims under one hold, and makes nothing for a reservation that moved', async () => {
-    const { dataFolder, folder } = await dataSetup()
-    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
-    const first = await store.reserve(pendingRecord(folder, 'a'))
-    if (!first.ok) {
-      throw new Error('refused')
-    }
+    const { dataFolder, folder, store, reserved: first } = await reservedStore()
     const replaced = await store.supersede(
       folder,
       versionOf(first.stored),
@@ -455,12 +342,7 @@ describe('worktree record store: fenced reservations (M123 lane P)', () => {
   })
 
   it('reads a reservation synchronously, and refuses one it cannot read', async () => {
-    const { dataFolder, folder, recordsFolder } = await dataSetup()
-    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
-    const reserved = await store.reserve(pendingRecord(folder, 'a'))
-    if (!reserved.ok) {
-      throw new Error('refused')
-    }
+    const { recordsFolder, store, reserved } = await reservedStore()
     expect(store.holdsSync(reserved.reservation)).toBe(true)
     expect(
       store.holdsSync({ ...reserved.reservation, fence: reserved.reservation.fence + 1 }),
@@ -477,44 +359,56 @@ describe('worktree record store: fenced reservations (M123 lane P)', () => {
     expect(store.holdsSync(reserved.reservation)).toBe(false)
   })
 
-  it('keeps a landed claim when the sweep after it cannot list the records', async () => {
-    // RVM123P7 finding 1: the claim's generation landed and was proven;
-    // the best-effort sweep's listing then failed once (EACCES). The claim
-    // stands, with its new fence, and its folder is made.
-    const { dataFolder, folder } = await dataSetup()
-    const failing = failingListingsAfterLink([2])
-    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
-      fs: failing.fs,
-    })
-    const reserved = await store.reserve(pendingRecord(folder, 'a'))
-    if (!reserved.ok) {
-      throw new Error('refused')
-    }
-    failing.arm()
-    let made = 0
-    const claimed = await store.claim(reserved.reservation, () => {
-      made += 1
-      return Promise.resolve('made')
-    })
-    expect(failing.failed()).toBe(1)
-    if (claimed.status !== 'made') {
-      throw new Error(`expected a made claim, not ${claimed.status}`)
-    }
-    expect(claimed.reservation.fence).toBeGreaterThan(reserved.reservation.fence)
-    expect(made).toBe(1)
-    expect(store.holdsSync(claimed.reservation)).toBe(true)
-  })
+  it.each([
+    { code: 'EACCES', loggedCode: 'EACCES' },
+    {
+      code: String.raw`EACCES: C:\Users\private\worktree-records`,
+      loggedCode: 'an unrecognized value',
+    },
+  ])(
+    'keeps a landed claim when the sweep after it cannot list the records ($loggedCode)',
+    async ({ code, loggedCode }) => {
+      // RVM123P7 finding 1: the claim's generation landed and was proven;
+      // the best-effort sweep's listing then failed once (EACCES). The claim
+      // stands, with its new fence, and its folder is made.
+      const { dataFolder, folder } = await dataSetup()
+      const failing = failingListingsAfterLink([2], code)
+      const warnings: string[] = []
+      const logger: CoreLogger = {
+        ...log,
+        warn: (message) => {
+          warnings.push(message)
+        },
+      }
+      const store = createFileWorktreeRecordStore(dataFolder, process.platform, logger, {
+        fs: failing.fs,
+      })
+      const reserved = await store.reserve(pendingRecord(folder, 'a'))
+      if (!reserved.ok) {
+        throw new Error('refused')
+      }
+      failing.arm()
+      let made = 0
+      const claimed = await store.claim(reserved.reservation, () => {
+        made += 1
+        return Promise.resolve('made')
+      })
+      expect(failing.failed()).toBe(1)
+      if (claimed.status !== 'made') {
+        throw new Error(`expected a made claim, not ${claimed.status}`)
+      }
+      expect(claimed.reservation.fence).toBeGreaterThan(reserved.reservation.fence)
+      expect(made).toBe(1)
+      expect(store.holdsSync(claimed.reservation)).toBe(true)
+      expect(warnings).toEqual([
+        `The worktree records sweep listing failed (${loggedCode}); the next write tries again`,
+      ])
+    },
+  )
 
   it('keeps a landed claim whose proof cannot be read, once the head shows it', async () => {
-    const { dataFolder, folder } = await dataSetup()
     const failing = failingListingsAfterLink([1])
-    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
-      fs: failing.fs,
-    })
-    const reserved = await store.reserve(pendingRecord(folder, 'a'))
-    if (!reserved.ok) {
-      throw new Error('refused')
-    }
+    const { store, reserved } = await reservedStore(log, { fs: failing.fs })
     failing.arm()
     const claimed = await store.claim(reserved.reservation, () => Promise.resolve('made'))
     expect(failing.failed()).toBe(1)
@@ -524,15 +418,8 @@ describe('worktree record store: fenced reservations (M123 lane P)', () => {
   it('names every fence a claim may hold when its landing cannot be known', async () => {
     // The proof and the reconciliation both fail: whether the claim landed
     // is not known, so nothing is made and both reservations come back.
-    const { dataFolder, folder } = await dataSetup()
     const failing = failingListingsAfterLink([1, 2])
-    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
-      fs: failing.fs,
-    })
-    const reserved = await store.reserve(pendingRecord(folder, 'a'))
-    if (!reserved.ok) {
-      throw new Error('refused')
-    }
+    const { folder, store, reserved } = await reservedStore(log, { fs: failing.fs })
     failing.arm()
     let made = 0
     const claimed = await store.claim(reserved.reservation, () => {
@@ -602,18 +489,16 @@ describe('worktree records generations (M123 lane P)', () => {
     // over and replaced the checkout with a new, unconfirmed one.
     const { dataFolder, heldRoot, folder, other } = await dataSetup()
     const trusted = await seeded(dataFolder, folder, true)
-    const windowAFs = pausingFs()
-    const beforePublish = windowAFs.pauseAt('link', ([, target]) =>
-      GENERATION_FILE.test(target ?? ''),
-    )
-    const windowA = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
-      fs: windowAFs.fs,
-      leaseMs: 200,
-    })
+    const { windowA, beforePublish } = pausedPublisher(dataFolder)
     const aReserve = windowA.reserve(heldRecord(other, { checkoutId: 'other-checkout' }))
     await beforePublish.reached
     await delay(300)
-    const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    // Takes the lock over within milliseconds of watching it (the race
+    // test's eager window does the same), so the takeover does not wait out
+    // A's two-second lease.
+    const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
+      honoredLeaseMs: 10,
+    })
     const replaced = await windowB.supersede(
       folder,
       versionOf(trusted),
@@ -648,18 +533,16 @@ describe('worktree records generations (M123 lane P)', () => {
       folderIdentity: 'dev:1',
       pullRequest: { ...ORIGIN },
     }
-    const windowAFs = pausingFs()
-    const beforePublish = windowAFs.pauseAt('link', ([, target]) =>
-      GENERATION_FILE.test(target ?? ''),
-    )
-    const windowA = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
-      fs: windowAFs.fs,
-      leaseMs: 200,
-    })
+    const { windowA, beforePublish } = pausedPublisher(dataFolder)
     const aRelease = windowA.release(ticket, 3000)
     await beforePublish.reached
     await delay(300)
-    const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log)
+    // Takes the lock over within milliseconds of watching it (the race
+    // test's eager window does the same), so the takeover does not wait out
+    // A's two-second lease.
+    const windowB = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
+      honoredLeaseMs: 10,
+    })
     const replaced = await windowB.supersede(
       folder,
       versionOf(ready),
@@ -683,7 +566,7 @@ describe('worktree records generations (M123 lane P)', () => {
     // reservation, not refuse it and strand it pending.
     const { dataFolder, heldRoot, folder } = await dataSetup()
     let hasPublished = false
-    const windowAFs = pausingFs({
+    const windowAFs = pausingPort({
       ...nodeRecordStoreFs,
       link: async (existing, target) => {
         await nodeRecordStoreFs.link(existing, target)
@@ -692,7 +575,7 @@ describe('worktree records generations (M123 lane P)', () => {
     })
     const beforeProof = windowAFs.pauseAt('readdir', () => hasPublished)
     const windowA = createFileWorktreeRecordStore(dataFolder, process.platform, log, {
-      fs: windowAFs.fs,
+      fs: windowAFs.port,
       leaseMs: 200,
     })
     const aReserve = windowA.reserve(heldRecord(folder, { checkoutId: 'a-checkout' }))
@@ -742,10 +625,7 @@ describe('worktree records generations (M123 lane P)', () => {
     // The registry's compare-and-swap on the fence: a writer whose hold is
     // older than the head's publishes nothing, even when its own lease
     // check would let it.
-    const { dataFolder, folder, recordsFolder } = await dataSetup()
-    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
-    const reserved = await store.reserve(pendingRecord(folder, 'a'))
-    expect(reserved.ok).toBe(true)
+    const { recordsFolder } = await reservedStore()
     const head = await readRecordHead(nodeRecordStoreFs, recordsFolder, log)
     const fence = head.fence ?? 0
     for (const stale of [fence, fence - 1]) {
@@ -762,10 +642,7 @@ describe('worktree records generations (M123 lane P)', () => {
   })
 
   it('refuses a publish once its lease is no longer current, checked just before the link', async () => {
-    const { dataFolder, folder, recordsFolder } = await dataSetup()
-    const store = createFileWorktreeRecordStore(dataFolder, process.platform, log)
-    const reserved = await store.reserve(pendingRecord(folder, 'a'))
-    expect(reserved.ok).toBe(true)
+    const { recordsFolder } = await reservedStore()
     const head = await readRecordHead(nodeRecordStoreFs, recordsFolder, log)
     let checks = 0
     expect(
@@ -957,5 +834,23 @@ describe('worktree records generations (M123 lane P)', () => {
       expect(top[index]?.parent).toBe(top[index - 1]?.writeId)
       expect(top[index]?.fence).toBeGreaterThan(top[index - 1]?.fence ?? Infinity)
     }
+  })
+})
+
+describe('worktree records: a publication’s last check (RVINTM123B)', () => {
+  it.each([
+    ['in memory', () => Promise.resolve(createMemoryRecordRegistry())],
+    [
+      'as files',
+      async () =>
+        createFileRecordRegistry(await mkdtemp(path.join(tmpdir(), 'm123p-last-check-')), log),
+    ],
+  ] as const)('publishes nothing whose caller ended, %s', async (_, made) => {
+    const registry = await made()
+    const record = heldRecord('/data/pr-worktrees/51-abcdef12')
+    expect(await registry.hold((hold) => hold.publish([record], () => false))).toBe('lost')
+    expect(await registry.read()).toEqual([])
+    expect(await registry.hold((hold) => hold.publish([record], () => true))).toBe('written')
+    expect(await registry.read()).toEqual([record])
   })
 })

@@ -68,7 +68,9 @@ export interface ConversationSharing {
   ) => Promise<ChatSharePreview>
 }
 
-/** Sharing reads the same history as export, without writing or opening a destination. */
+/** Sharing reads the same history as export, without writing or opening a destination.
+ * @unwired M118 conversation share preview
+ */
 export async function previewConversationShare(
   host: Pick<AgentHost, 'readSession'>,
   session: Pick<AgentSession, 'sessionId'>,

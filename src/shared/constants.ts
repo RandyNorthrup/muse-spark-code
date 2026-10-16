@@ -9,6 +9,8 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 
 // M107 / D87: portable resource contracts. Nothing is sampled at module load.
 export const RESOURCE_SAMPLE_MS = 5000
+// libuv 1.52 adds inactive/purgeable pages to Darwin's available-memory reading.
+export const RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR = 52
 // D87.14: free-space policy and owned-tree retention.
 export const RESOURCE_DISK_SAMPLE_MS = 30_000
 export const RESOURCE_DISK_FAST_SAMPLE_MS = 5000
@@ -170,17 +172,14 @@ export const GOOEY_MENU = {
   /** A pill's height, the old bubble's; its ends are half circles. */
   pillHeight: 40,
   edgePadding: 8,
-  /** Between the fan's pills at rest. */
-  gap: 20,
-  /** The least room from the origin to a pill: clears a 26 px control centred there. */
+  /** Fallback for non-CSS layout callers; the renderer derives this from focus tokens. */
+  gap: 6,
+  /** Clear space beyond a neighbouring focus ring. */
+  outlineClearance: 2,
+  /** The least room from the origin to a pill: clears the 24 px row button centred there. */
   reach: 16,
   /** How much farther the fan's middle reaches than its ends: the arc. */
-  bow: 32,
-  /**
-   * The narrowest panel the whole fan must fit (the owner's narrow-view
-   * rule): every pill's width is this less the padding and the bow.
-   */
-  narrowPanel: 320,
+  bow: 16,
   /** Each pill starts its scale-in this long after the one before it. */
   staggerMs: 30,
 } as const
@@ -282,8 +281,15 @@ export const COMMAND_IDS = {
 // the command registrations and the loader.
 export const MODELS_PANEL_VIEW_TYPE = 'museSpark.modelsPanel'
 export const MODELS_PANEL_BUNDLE_FILE = 'modelsPanel.js'
+export const MODELS_SUBSCRIPTIONS_BUNDLE_FILE = 'modelsSubscriptions.js'
 export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
 export const MODELS_WEBVIEW_STYLE_FILE = 'models.css'
+
+// MODELSPLIT4: first-ever section estimates; later loads use measured boxes.
+export const MODELS_SECTION_PENDING_MS = 150
+export const MODELS_SECTION_HEADER_PX = 96
+export const MODELS_PROVIDER_ROW_PX = 150
+export const MODELS_TABLE_ROW_PX = 48
 export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 /** SecretStorage account names are `museSpark.provider.<id>` (D74). */
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
@@ -310,7 +316,7 @@ export const PAID_APPROVAL_ORDER_DIRECTORY = 'paid-approval-order'
 
 // Extension-private `globalState` keys (never machine-wide configuration).
 export const GLOBAL_STATE_KEYS = {
-  /** "Don't ask again" on the Windows sandbox setup prompt. */
+  /** "Don't Ask Again" on the Windows sandbox setup prompt. */
   sandboxPromptSuppressed: 'museSpark.sandboxPromptSuppressed',
   /** Credential-free sign-out hold, so activation cannot restore an old CLI credential. */
   cliLogoutHold: 'museSpark.cliLogoutHold',
@@ -325,7 +331,7 @@ export const GLOBAL_STATE_KEYS = {
   subagentPriceAcceptance: 'museSpark.subagentPriceAcceptance',
   /**
    * Each paid feature's grant generation (M58): every change to its price
-   * acceptance counts it up, so an "Allow always in this workspace" given
+   * acceptance counts it up, so an "Allow Always in This Workspace" given
    * before the change is void in every workspace.
    */
   paidGrantGenerations: 'museSpark.paidGrantGenerations',
@@ -553,6 +559,11 @@ export const BACKEND_SETTING = 'museSpark.backend'
 export const IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT = true
 // The panel reads the M115 schedules default the same way.
 export const ARE_SCHEDULES_ON_BY_DEFAULT = true
+// Management surfaces exist, but installed execution/snapshot owners are unbound (C-X-1).
+export const OPTIONAL_RUNTIME_AVAILABILITY: Readonly<{ schedules: boolean; estimator: boolean }> = {
+  schedules: false,
+  estimator: false,
+}
 
 export const SETTING_DEFAULTS = {
   preferredLocation: 'panel' as PreferredLocation,
@@ -570,7 +581,7 @@ export const SETTING_DEFAULTS = {
   // Claude Code's `archiveInactiveSessions`: hide sessions idle this many
   // days from the History dialog (1 / 2 / 7 / 14; 0 never). Hidden, not
   // deleted: the extension does not call session/delete (available since
-  // Muse Code 1.4.0-R4302.1), and "Show archived" brings them back.
+  // Muse Code 1.4.0-R4302.1), and "Show Archived" brings them back.
   archiveInactiveSessions: 14,
   // Claude Code's `cleanupPeriodDays` (PLAN.md D26): Model API conversations
   // idle longer than this are deleted when a window reads them; 0 keeps them.
@@ -586,9 +597,6 @@ export const SETTING_DEFAULTS = {
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
   'reports.agentSources': [],
-  // M123 (PLAN.md D104 source c): read the user's own `gh` login, off by
-  // default; machine-scoped so a repository cannot turn it on.
-  'github.useGhLogin': false,
   // M108 (PLAN.md D88.5): swap at the next request boundary and spread
   // background work across accounts, both on by default; machine-scoped so a
   // repository cannot pool the user's accounts.
@@ -832,8 +840,6 @@ export const MACHINE_SCOPED_SETTINGS = [
   'accountSwap',
   'accountParallel',
   'accounts.severalOnThisDevice',
-  // Reading the user's `gh` token is the user's choice (M123, D104 source c).
-  'github.useGhLogin',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -1048,6 +1054,9 @@ export const EXTENSION_HOOK_EVENTS = [
   'BeforeToolSelection',
   'AfterAgentThought',
   'Manual',
+  // Cursor's own Tab names and contract (M94 lane K, D73).
+  'beforeTabFileRead',
+  'afterTabFileEdit',
 ] as const
 // A save storm or a build's output changes a path many times in a burst, so FileChanged fires once per path in this quiet window.
 export const HOOK_FILE_CHANGED_DEBOUNCE_MS = 500
@@ -1073,6 +1082,7 @@ export const HOOK_EXPANSION_MAX_CHARS = 2048
 // once, Allow always in this workspace, or Deny), shown per use and tallied
 // (the owner's rule: "opt in and loud").
 export const PAID_FEATURES = [
+  'autoCompaction',
   'webSearch',
   'imageGeneration',
   'voice',
@@ -1099,6 +1109,7 @@ export const MUSE_CODE_PAID_FEATURES = [
 export type PaidFeature = (typeof PAID_FEATURES)[number]
 /** Each feature's setting, relative to the `museSpark` section. */
 export const PAID_FEATURE_SETTINGS = {
+  autoCompaction: 'modelApiAutoCompaction',
   webSearch: 'modelApiWebSearch',
   imageGeneration: 'modelApiImageGeneration',
   voice: 'modelApiVoice',
@@ -1394,11 +1405,12 @@ export const MAX_DOCUMENT_BYTES = 32_000_000
 // replayed Model API request. Meta's 50 MB inline limit is per file; this
 // separate bound keeps a long session from serializing gigabytes of PDFs.
 export const MAX_ENCODED_MEDIA_CHARS = 48_000_000
-// ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise, and a
-// valid prompt can carry the whole aggregate media budget above as base64
-// (three near-10 MiB images already exceed 32 MiB). The ACP transport takes
-// that budget plus room for prompt text, embedded resources and the JSON-RPC
-// envelope; the per-image and aggregate checks then answer with a message.
+// ACP SDK 1.5.1 refuses an NDJSON line over 32 MiB unless told otherwise (1.7.0
+// unchanged, SDK144), and a valid prompt can carry the whole aggregate media
+// budget above as base64 (three near-10 MiB images already exceed 32 MiB).
+// The ACP transport takes that budget plus room for prompt text, embedded
+// resources and the JSON-RPC envelope; the per-image and aggregate checks then
+// answer with a message.
 export const ACP_MESSAGE_HEADROOM_BYTES = 16 * 1024 * 1024
 export const ACP_MAX_MESSAGE_BYTES = MAX_ENCODED_MEDIA_CHARS + ACP_MESSAGE_HEADROOM_BYTES
 export const BASE64_DATA_URL_OVERHEAD_CHARS = 'data:;base64,'.length
@@ -1475,8 +1487,8 @@ export const UNSUPPORTED_BINARY_ATTACHMENT_EXTENSIONS: ReadonlySet<string> = new
   '.db',
 ])
 // A base64 attachment crossing webview postMessage (M54): cap before decode.
-export const MAX_ATTACHMENT_BASE64_CHARS =
-  BASE64_OUTPUT_BLOCK_CHARS * Math.ceil(MAX_DOCUMENT_BYTES / BASE64_INPUT_BLOCK_BYTES)
+// A literal so bundles that never attach media drop the whole line: 4 * ceil(32_000_000 / 3).
+export const MAX_ATTACHMENT_BASE64_CHARS = 42_666_668
 // Meta reads at most 50 images in one request, and a PDF's page images
 // (its first 50 pages) count toward them (file-handling, image-understanding).
 export const MODEL_API_MEDIA_PER_REQUEST = 50
@@ -1534,7 +1546,9 @@ export const GIT_FILTER_NAMES_ARGS = [
   '--null',
   '--name-only',
   '--get-regexp',
-  String.raw`^filter\..*\.(clean|process|required)$`,
+  // A plain string so the args stay droppable (String.raw is a call).
+  // eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+  '^filter\\..*\\.(clean|process|required)$',
 ] as const
 export const GIT_FILTER_NAMES_MAX = 200
 export const GIT_FILTER_NAME_MAX_CHARS = 1024
@@ -1688,6 +1702,15 @@ export const GITHUB_REQUEST_TIMEOUT_MS = 20_000
 export const GITHUB_CHECKS_PAGE_SIZE = 100
 
 // --- GitHub outside VS Code (M123, PLAN.md D104) ---
+
+// M123 ships whole or not at all (the owner, 2026-10-10): until its sign-in,
+// editor leases, panel and per-editor qualification land (PLAN.md M123,
+// "Not yet shipped"), a VS Code-family host without `vscode.git` keeps its
+// earlier behaviour and the native Git route stays off. Lane Q turns it on
+// with F36's receipts, together with `museSpark.github.useGhLogin`.
+export const M123_RELEASE: { readonly isNativeGitRouteOn: boolean } = {
+  isNativeGitRouteOn: false,
+}
 
 // The token sources, first available wins: (a) the editor's own sign-in by
 // lease, (b) the runtime's device-flow sign-in, (c) the user's `gh` login.
@@ -2188,6 +2211,11 @@ export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
 ]
 // U8/U10 captured selected model; other models retain unknown capability states.
 export const M106_CAPTURED_META_MODEL = 'muse-spark-1.3-contributor'
+// Live capture 2026-10-10 (muse-spark-1.3-contributor): POST /v1/responses
+// with max_output_tokens 1 is a 400 naming max_output_tokens, "The number
+// must be `>= 16`". Never send a smaller output cap to Meta; a budget that
+// cannot fit this refuses instead (sessionBudget.ts).
+export const MODEL_API_MIN_OUTPUT_TOKENS = 16
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
 // M101 C1: keep whole recent turns; summaries and the tail scale down for small windows.
 export const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
@@ -2197,6 +2225,10 @@ export const COMPACTION_SUMMARY_MAX_TOKENS = 8192
 export const COMPACTION_SUMMARY_WINDOW_FRACTION = 0.05
 // Lane E flips this only with a current passing M75 pair and D78 wiring.
 export const IS_AUTO_COMPACTION_EVALUATED = false
+/** The single runtime reader for the latch, so every gate flips together. */
+export function isAutoCompactionEvaluated(): boolean {
+  return IS_AUTO_COMPACTION_EVALUATED
+}
 export const AUTO_COMPACTION_COOLDOWN_REQUESTS = 2
 export const AUTO_COMPACTION_MIN_OCCUPANCY = 1 / 2
 export const AUTO_COMPACTION_NEAR_WINDOW = 9 / 10
@@ -2535,10 +2567,10 @@ export const HOOK_MODEL_READ_TOOLS: ReadonlySet<string> = /* @__PURE__ */ (() =>
 // `web_fetch` is switched off: `mcp__ide__webFetch` in its items.
 export const IDE_WEB_FETCH_TOOL = 'webFetch'
 // The tool names whose rows read a fetched page (the URL, then its size).
-export const WEB_FETCH_TOOLS: ReadonlySet<string> = new Set([
-  'web_fetch',
-  `mcp__ide__${IDE_WEB_FETCH_TOOL}`,
-])
+// Literal members so bundles that never fetch drop the set: a template over
+// IDE_WEB_FETCH_TOOL pins it in every importer (test/unit/bundleDiet pins
+// the sync with that constant).
+export const WEB_FETCH_TOOLS: ReadonlySet<string> = new Set(['web_fetch', 'mcp__ide__webFetch'])
 // The approval card's subject for a web fetch on the Model API backend: its
 // `target` is the URL, and the card reads "Muse wants to fetch <url>".
 export const WEB_FETCH_SUBJECT_KIND = 'webFetch'
@@ -2713,9 +2745,12 @@ export const IDE_IMAGE_TOOLS = {
 } as const
 // How Muse Code names those tools in its items (`mcp__<server>__<tool>`):
 // their rows are marked paid like the Model API backend's (M44).
+// Literal members so bundles without paid image rows drop the set: a
+// template over IDE_IMAGE_TOOLS pins it in every importer
+// (test/unit/bundleDiet pins the sync with those constants).
 export const IDE_PAID_TOOLS: ReadonlySet<string> = new Set([
-  `mcp__ide__${IDE_IMAGE_TOOLS.generateImage}`,
-  `mcp__ide__${IDE_IMAGE_TOOLS.editImage}`,
+  'mcp__ide__generateImage',
+  'mcp__ide__editImage',
 ])
 // The goal loop on the Model API backend (M45, D38). Muse Code reminds the
 // agent to report progress after about ten model calls without any (its
@@ -3506,6 +3541,8 @@ export const AGENT_IMPORT_GEMINI_TOOLS: Readonly<Record<string, readonly string[
 }
 /** Cursor's hook events (cursor.com/docs/hooks) by our names. */
 export const AGENT_IMPORT_CURSOR_EVENTS: Readonly<Record<string, string>> = {
+  beforeTabFileRead: 'beforeTabFileRead',
+  afterTabFileEdit: 'afterTabFileEdit',
   sessionStart: 'SessionStart',
   sessionEnd: 'SessionEnd',
   preToolUse: 'PreToolUse',
@@ -3789,7 +3826,8 @@ export const MEMORY_LIST_MAX_NOTES = 500
 export const MEMORY_LIST_MAX_DEPTH = 8
 // An index line's hook, cut to this many characters.
 export const MEMORY_HOOK_MAX_CHARS = 120
-export const MEMORY_MARKDOWN_ESCAPE = String.fromCodePoint(92)
+// One backslash; a literal so the escape stays droppable (fromCodePoint is a call).
+export const MEMORY_MARKDOWN_ESCAPE = '\\'
 export const MEMORY_INDEX_MAX_LINES = 200
 export const MEMORY_INDEX_MAX_BYTES = 32 * 1024
 export const MEMORY_TRUNCATED_MARKER = '[MEMORY.md truncated]'
@@ -3866,6 +3904,11 @@ export const SEARCH_WORKER_FILE = 'searchWorker.js'
 // loaded when that backend first starts, not at activation.
 export const CONVERSATION_BUNDLE_FILE = 'conversation.js'
 export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
+// Its session store (D14), required when that backend's host is first built.
+export const MODEL_API_SESSIONS_BUNDLE_FILE = 'modelApiSessions.js'
+// The Create AGENTS.md command (D15), required when that command runs, not at
+// activation.
+export const RULES_FILE_BUNDLE_FILE = 'rulesFile.js'
 // The plan reader's bundle (M79, PLAN.md D6), beside dist/extension.js:
 // the panel's Markdown parser, loaded on the first plan action.
 export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
@@ -3967,6 +4010,16 @@ export const PROTECTED_FILE_NAMES: ReadonlySet<string> = new Set([
 ])
 export const LIST_FILES_DEFAULT_LIMIT = 500
 export const SHELL_DEFAULT_TIMEOUT_MS = 120_000
+// D107 §9.4: internal B1 boundary; F1b installs it only after certification.
+export const JUDGE_FAST_B1_WALK_MAX_ENTRIES = 20_000
+export const JUDGE_FAST_B1_WALK_MAX_MS = 100
+export const JUDGE_FAST_B1_WALK_MAX_DEPTH = 128
+export const JUDGE_FAST_B1_MAX_ABI = 8
+export const JUDGE_FAST_B1_MIN_ABI = 3
+export const JUDGE_FAST_B1_REFUSED_EXIT = 125
+export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
+export const JUDGE_FAST_B1_ELF_MAX_BYTES = 32 * 1024 * 1024
+export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
 export const SHELL_MAX_TIMEOUT_MS = 600_000
 // Per stream: past it the middle of the output is dropped with a count.
 export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024
@@ -3989,8 +4042,12 @@ export const SHELL_JOB_TYPE_NAME = 'MuseSparkJob'
 export const SHELL_JOB_FOLDER = 'shell-job'
 // .NET Framework ships with Windows PowerShell 5.1; its x86 compiler is
 // available on every supported Windows architecture and emits AnyCPU IL.
-export const WINDOWS_FRAMEWORK_RELATIVE_PATH = String.raw`Microsoft.NET\Framework\v4.0.30319`
-export const SHELL_JOB_NAME_PREFIX = String.raw`Local\MuseSparkShell-`
+// Plain strings: same characters String.raw would give, without the call,
+// so bundles that never spawn a shell job drop them.
+// eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+export const WINDOWS_FRAMEWORK_RELATIVE_PATH = 'Microsoft.NET\\Framework\\v4.0.30319'
+// eslint-disable-next-line unicorn/prefer-string-raw -- as above.
+export const SHELL_JOB_NAME_PREFIX = 'Local\\MuseSparkShell-'
 export const TREE_EXIT_WAIT_MS = 10_000
 export const ORPHAN_SWEEP_ROUNDS = 5
 export const PROCESS_TABLE_TIMEOUT_MS = 20_000
@@ -4061,7 +4118,8 @@ export const EXEC_OBSERVER_HIGH_WATER_BYTES = 16_777_216
 export const EXEC_SCAN_MAX_BYTES = 16_777_216
 export const EXEC_SCAN_TIMEOUT_MS = 30_000
 export const EXEC_SCAN_EXIT_FOUND = 10
-export const EXEC_MIN_OUTPUT_TOKENS = 16
+// Headless runs refuse smaller caps at the same floor Meta enforces.
+export const EXEC_MIN_OUTPUT_TOKENS: number = MODEL_API_MIN_OUTPUT_TOKENS
 export const EXEC_IMAGE_N = 1
 export const EXEC_STREAM_IDLE_MS = 300_000
 export const EXEC_USD_UNITS = 1_000_000
@@ -4110,11 +4168,13 @@ export const ACP_CONFIG_IDS = { model: 'model', effort: 'effort', account: 'acco
 // only with its flag, and each use asked in the editor (M58, D48). Muse
 // Voice needs the panel's microphone, so the agent has none.
 export const ACP_PAID_FEATURES = [
+  'autoCompaction',
   'webSearch',
   'imageGeneration',
 ] as const satisfies readonly PaidFeature[]
 export type AcpPaidFeature = (typeof ACP_PAID_FEATURES)[number]
 export const ACP_PAID_FLAGS = {
+  autoCompaction: 'auto-compaction',
   webSearch: 'web-search',
   imageGeneration: 'image-generation',
 } as const satisfies Readonly<Record<AcpPaidFeature, string>>
@@ -4159,7 +4219,7 @@ export const ACP_DATA_FOLDER = {
 } as const
 export const ACP_SESSIONS_SUBFOLDER = 'acp'
 export const ACP_WORKSPACE_HASH_CHARS = 16
-// "Allow always in this workspace" for paid uses (M58), every folder's in one
+// "Allow Always in This Workspace" for paid uses (M58), every folder's in one
 // file beside the folders' own, keyed by the same hash.
 export const ACP_PAID_GRANTS_FILE = 'paid-uses.json'
 // M108 (PLAN.md D88.1): the runtime's own providers file beside the session
@@ -4450,7 +4510,7 @@ export const CHOICE_STEERING_NOTE =
   '<harness_note>When you offer the user a choice between options, ask through the request_user_input tool instead of listing the options in prose, so the panel can show a picker.</harness_note>'
 // The verify loop's guidance to Muse Code (M68) rides in a note of its own.
 export const HARNESS_NOTE_TAG = 'harness_note'
-// Collapsed tool bodies show this many lines before "Show more".
+// Collapsed tool bodies show this many lines before "Show More".
 export const OUTPUT_PREVIEW_LINES = 12
 /** Shell IN/OUT previews share a compact five-line limit (M87). */
 export const IO_PREVIEW_LINES = 5
@@ -4464,9 +4524,10 @@ export const OUTPUT_PAGE_BYTES = 256 * 1024
 export const STATUS_VERB_INTERVAL_MS = 4000
 // The working line's heart-monitor beam (M87, D66): a canvas port of Vahid's
 // HTML5 Canvas Heart Monitor (CodePen MWvmvd, MIT; written fresh). The beam
-// advances this far every tick, so the 100-unit box sweeps in about 1.2 s —
-// slower than the reference's 0.6 s, which reads as frantic at this size.
-export const HEARTBEAT_BEAM_TICK_MS = 6
+// advances this far every tick, so the 100-unit box sweeps in about 1.4 s —
+// slower than the reference's 0.6 s, which reads as frantic at this size
+// (1.2 s still read as a little fast: owner, 2026-10-09).
+export const HEARTBEAT_BEAM_TICK_MS = 7
 export const HEARTBEAT_BEAM_STEP_PX = 0.5
 // The beam's trail: the last this-many ticks of its path are drawn, fading
 // from opaque at the beam to nothing (100 ticks = half a sweep, 0.6 s). Nothing
@@ -4482,7 +4543,10 @@ export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 
 // M102 / D82: machine-local usage history, independent of spend ledgers.
-export const USAGE_JOURNAL_VERSION = 1
+// Version 2 (M121) stores dollars as exact decimal text. Both versions share
+// the `v1` folder: a 0.17 reader counts version 2 lines as newer, never loses
+// them, and this reader converts version 1 lines exactly.
+export const USAGE_JOURNAL_VERSION = 2
 export const USAGE_FOLDER = 'usage'
 export const USAGE_SETTINGS_FILE = 'usage-settings.json'
 export const USAGE_VERSION_FOLDER = 'v1'
@@ -4636,6 +4700,9 @@ export const MSP_LONG_COMMANDS: ReadonlySet<string> = new Set([
 // Windows now and then since 1.3.0, meta-models/muse-code-sdk#29).
 export const MUSE_APPROVAL_REPLAY_FAULT = 'approval replay failed'
 export const MUSE_APPROVAL_LEDGER_FAULT = 'approval ledger durability fence'
+// Upstream's #29 fix floor; the owner-authorized live probe accepted a
+// decision without the ledger fault (docs/certification/muse143.md).
+export const MUSE_APPROVAL_LEDGER_FIXED_VERSION = '1.4.3'
 // A Stop under a part-decided approval rejects its waiting stage first
 // (MuseSession.cancel); a stage that moved on is rejected once more there.
 // Each try waits this long at most, then the Stop goes on: a decision takes
@@ -4686,12 +4753,13 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
   MSP_FRAME_LIMIT_BYTES - MSP_ATTACHMENT_FRAME_HEADROOM_BYTES
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
-// The captured 1.4.2 build now matches the SDK's own pin (M106 S).
-// Keep its identity here; older fingerprints are no longer additive
-// successors of this SDK and must retain the mismatch warning. Future
-// successors need a served capture before they enter this map.
+// The captured 1.4.4 build matches the SDK's own pin (SDK144, served
+// 2026-10-09 by 1.4.4-R5419.1). Keep its identity here; older fingerprints
+// (1.4.2-R4684.1 included) are no longer additive successors of this SDK
+// and must retain the mismatch warning. Future successors need a served
+// capture before they enter this map.
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
-  'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2': '1.4.2-R4684.1',
+  'sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a': '1.4.4-R5419.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.
@@ -4829,7 +4897,11 @@ export const VERIFY_TOOLS = {
   /** The extension's automatic step after a round of edits (a row, never a model call). */
   verifyEdits: 'verify_edits',
 } as const
-export const VERIFY_ROW_TOOLS: ReadonlySet<string> = new Set(Object.values(VERIFY_TOOLS))
+// Pure on both levels (reading a frozen literal's values, then building the
+// Set), so bundles without verify rows drop the set and the read together.
+export const VERIFY_ROW_TOOLS: ReadonlySet<string> = /* @__PURE__ */ new Set(
+  /* @__PURE__ */ Object.values(VERIFY_TOOLS),
+)
 // The session-rule key of the verify loop's commands (checks, run_checks,
 // then_run): their "Always allow in this session" is theirs alone and never
 // answers for the model's own shell calls, nor the shell's for them (PR #54,
@@ -5231,7 +5303,8 @@ export const SLASH_COMMAND_NAMES = {
 export const REPORT_FORMAT_VERSION = 'report-v1'
 export const REPORT_SECTION_ROWS = 10
 export const REPORT_NEXT_STEP_LIMIT = 3
-export const REPORT_EMPTY_HASH = '0'.repeat(64)
+// Sixty-four zeroes; a literal so the hash stays droppable ('0'.repeat is a call).
+export const REPORT_EMPTY_HASH = '0000000000000000000000000000000000000000000000000000000000000000'
 export const REPORT_GIT_MAX_COMMITS = 5000
 export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
 export const REPORT_NETWORK_MAX_PAGES = 3
@@ -5244,7 +5317,11 @@ export const REPORT_HISTORY_MAX_PER_KIND = 50
 export const REPORT_WRITER_LOCK_WAIT_MS = 2000
 export const REPORT_WRITER_LOCK_BACKOFF_MS = 25
 export const REPORT_WRITER_LOCK_BACKOFF_MAX_MS = 100
-export const REPORT_WRITER_LOCK_PROBE_MS = 2000
+// Bounded process-identity probe (own start time, a lock owner's liveness).
+// Windows spawns PowerShell for it: in hosted CI run 37897298018 a cold
+// PowerShell start on windows-latest was killed inside the former 2 s, so a
+// report save failed. 5 s covers that start and stays a hard bound.
+export const REPORT_WRITER_LOCK_PROBE_MS = 5000
 // Linux /proc/<pid>/stat fields after the closing command-name parenthesis start at 3.
 export const REPORT_PROCESS_START_FIELD_INDEX = 19
 export const REPORT_LOCAL_BUDGET_MS = 2000
@@ -5300,6 +5377,16 @@ export const REPORT_KINDS = [
   'issues',
   'schedules',
   'keybindings',
+] as const
+// CX1R4 F3: the kinds with production sources on every installed surface.
+// Current command Help and the editor picker list only these; the parsers and
+// history keep accepting every REPORT_KINDS value.
+export const REPORT_WORKING_KINDS = [
+  'project',
+  'milestone',
+  'release',
+  'changes',
+  'quality',
 ] as const
 export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
 export const REPORT_FAIL_ON = [
@@ -5559,7 +5646,9 @@ export const MUSE_VERSION_FILE = '.muse-version'
 export const MUSE_BIN_PREFIX = 'muse-bin-'
 export const MUSE_WINDOWS_EXE_SUFFIX = '.exe'
 export const MUSE_CREDENTIAL_FILE_SEGMENTS = ['muse', 'auth.json'] as const
-export const WINDOWS_POWERSHELL_RELATIVE_PATH = String.raw`System32\WindowsPowerShell\v1.0\powershell.exe`
+// A plain string: the same characters String.raw would give, without the call.
+// eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+export const WINDOWS_POWERSHELL_RELATIVE_PATH = 'System32\\WindowsPowerShell\\v1.0\\powershell.exe'
 // Windows PowerShell 5.1 writes a redirected stdout in the OEM code page
 // ("héllo ✓" came back "h�llo ?", probed 2026-09-23 under Node's
 // windowsHide); this runs first and makes its output, and what it pipes to
@@ -5821,13 +5910,17 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/prompts.js',
   'dist/uiText.js',
   'dist/modelApi.js',
+  'dist/modelApiSessions.js',
+  'dist/rulesFile.js',
   'dist/mcpPool.js',
+  'dist/mcpVault.js',
   'dist/modelApiCodeIntel.js',
   'dist/structuredSchema.js',
   'dist/providers.js',
   'dist/subscriptions.js',
   'dist/configuredProviders.js',
   'dist/modelsPanel.js',
+  'dist/modelsSubscriptions.js',
   'dist/usageService.js',
   'dist/usageCompanion.js',
   'dist/usagePanel.js',
@@ -5886,6 +5979,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiTextHooks.js',
   'dist/uiTextSurfaces.js',
   'dist/wire.js',
+  'dist/resourceProcess.js',
   'dist/resourceGovernor.js',
   'dist/resourceJournal.js',
   'dist/resourceAdmission.js',
@@ -5897,6 +5991,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/providerCatalog.js',
   'dist/modelApiHooks.js',
   'dist/modelApiMcp.js',
+  'dist/modelApiTools.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
 // (M93): a render or reconnect loop cannot turn every frame into a disk
@@ -5927,6 +6022,13 @@ export const TOOL_STATUS_IN_PROGRESS = 'inProgress'
 // The approval dock (D26) moves focus to an arriving card unless the user is
 // typing: a field holding text, or a key pressed this recently.
 export const DOCK_TYPING_GRACE_MS = 1500
+// How long after it was asked a composer focus request may still land
+// (panel-focus F3): a request lands only at its delivery, or while the
+// delivery's own focus still arrives. The lead's probe measured the panel
+// becoming active 415–766 ms after the file took over; 1000 ms covers the
+// slowest measured arrival with margin. Afterwards the request is gone, so
+// an hour-old ask never yanks the caret on a much later click.
+export const FOCUS_REQUEST_WINDOW_MS = 1000
 // The team tree (M96 lane U2): keystrokes this far apart start a new
 // type-ahead search rather than extending it.
 export const TEAM_TREE_TYPEAHEAD_MS = 500
@@ -7199,7 +7301,10 @@ export const WEBVIEW_L10N_ELEMENT_ID = 'muse-l10n'
 
 // Windows PowerShell as an absolute-path suffix under %SystemRoot%, for
 // `createTerminal({ shellPath })` when running `muse login` / `muse logout`.
-export const WINDOWS_POWERSHELL_TERMINAL_PATH = String.raw`\System32\WindowsPowerShell\v1.0\powershell.exe`
+// A plain string: the same characters String.raw would give, without the call.
+export const WINDOWS_POWERSHELL_TERMINAL_PATH =
+  // eslint-disable-next-line unicorn/prefer-string-raw -- droppability beats readability here; test/unit/bundleDiet pins it.
+  '\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
 // The login / TUI terminal's shell off Windows (PLAN.md D25): POSIX syntax, always there.
 export const POSIX_TERMINAL_SHELL = '/bin/sh'
 
@@ -7276,41 +7381,41 @@ export const TEAM_ROLE_BASE_EFFORT = {
 
 // One control from Minimal to Max (D75): each level sets the running caps,
 // the effort shift from the role's base, the tokens per task and the team's
-// daily budgets. `ceiling` means the computed ceiling, never hard-coded.
+// daily budgets (dollars as exact decimal text, M121). `ceiling` means the computed ceiling, never hard-coded.
 export const TEAM_INTENSITY_LEVELS = {
   minimal: {
     runningPerRole: 1,
     effortShift: -2,
     tokensPerTask: 100_000,
-    dailyUsd: 2,
+    dailyUsd: '2',
     dailyTokens: 1_000_000,
   },
   light: {
     runningPerRole: 2,
     effortShift: -1,
     tokensPerTask: 200_000,
-    dailyUsd: 5,
+    dailyUsd: '5',
     dailyTokens: 2_500_000,
   },
   balanced: {
     runningPerRole: 4,
     effortShift: 0,
     tokensPerTask: 400_000,
-    dailyUsd: 10,
+    dailyUsd: '10',
     dailyTokens: 5_000_000,
   },
   heavy: {
     runningPerRole: 8,
     effortShift: 1,
     tokensPerTask: 800_000,
-    dailyUsd: 25,
+    dailyUsd: '25',
     dailyTokens: 12_000_000,
   },
   max: {
     runningPerRole: 'ceiling',
     effortShift: 2,
     tokensPerTask: 1_500_000,
-    dailyUsd: 50,
+    dailyUsd: '50',
     dailyTokens: 25_000_000,
   },
 } as const
@@ -7320,7 +7425,8 @@ export const TEAM_INTENSITY_ORDER = ['minimal', 'light', 'balanced', 'heavy', 'm
 export const TEAM_LEARNED_MIN_TASKS = 5
 export const TEAM_MINUTES_PER_HOUR = 60
 export const TEAM_TOKENS_PER_MTOK = 1_000_000
-export const TEAM_PREVIEW_OUTPUT_SHARE = 0.3
+// The output share of a preview step's tokens, in whole percent (exact money, M121).
+export const TEAM_PREVIEW_OUTPUT_PERCENT = 30
 export const TEAM_PREVIEW_USD_FRACTION_DIGITS = 4
 export const TEAM_EXPORT_FORMAT = 'muse-spark-team'
 export const TEAM_EXPORT_VERSION = 1

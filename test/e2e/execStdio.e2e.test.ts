@@ -3,12 +3,7 @@
 // skips only the POSIX signal rows). Fake fetch/keyring injection lives only in
 // a test-owned Node preload, never in a production loader flag. No request can
 // reach the network in this suite.
-import {
-  execFileSync,
-  spawn,
-  spawnSync,
-  type ChildProcessWithoutNullStreams,
-} from 'node:child_process'
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
   chmodSync,
@@ -18,6 +13,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -26,19 +22,26 @@ import { brotliDecompressSync } from 'node:zlib'
 import { pathToFileURL } from 'node:url'
 import * as z from 'zod/mini'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
-import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import {
   execEventV2Schema,
   validateResult,
   type ExecResult,
 } from '../../src/runtime/exec/execProtocol'
 
+import { PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
+import { layOutAcpNativeSources } from '../unit/helpers/acpPackageSources'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
-import { buildProductionPackage, packageImagePreload } from '../unit/helpers/productionPackage'
+import { buildCreatedHelper } from './createdHelperFixture'
+import {
+  PRODUCTION_BUILD_KEY,
+  buildProductionPackage,
+  packageImagePreload,
+} from '../unit/helpers/productionPackage'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
@@ -182,7 +185,6 @@ function packagingFixture() {
     'dist',
     'dist/webview',
     'dist/meta',
-    'native/windows',
     'dist/native/darwin',
     'l10n',
     'docs/schemas',
@@ -308,25 +310,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
     path.join(dir, 'dist/providerCatalog.js'),
   )
-  for (const file of [
-    'MuseSparkJob.cs',
-    'MuseSparkMcpJob.cs',
-    'MuseSparkScreenRecord.cs',
-    'MuseSparkVault.cs',
-    'MuseSparkVaultCng.cs',
-    'MuseSparkVaultHello.cs',
-    'MuseSparkVaultLock.cs',
-  ]) {
-    writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
-  }
-  mkdirSync(path.join(dir, 'native', 'darwin'), { recursive: true })
-  writeFileSync(path.join(dir, 'native', 'darwin', 'muse-dictate'), 'test-owned inert helper')
-  for (const arch of ['x64', 'arm64']) {
-    const native = path.join(dir, 'native', 'linux', arch)
-    mkdirSync(native, { recursive: true })
-    // This fixture checks packaging only; it never executes these native bytes.
-    writeFileSync(path.join(native, 'muse-created'), 'test-owned inert Linux helper\n')
-  }
+  layOutAcpNativeSources(dir, ROOT)
   cpSync(path.join(ROOT, 'media'), path.join(dir, 'media'), { recursive: true })
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
   mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
@@ -351,7 +335,6 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/meta/usageWebview.json'),
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
-  cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
   // M114 F: the packager stages the committed font manifest beside the
   // runtime-only installer bundle; the fixture carries the real file, as
   // it does the schemas, so a missing manifest still fails packaging.
@@ -377,7 +360,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
 
 // Build immutable inputs once during file setup. The cold archive hook's
 // unchanged 60-second budget belongs to packaging, rather than build + pack.
-buildProductionPackage(ROOT, BUILD_ROOT)
+buildProductionPackage(ROOT, BUILD_ROOT, inject(PRODUCTION_BUILD_KEY))
 
 describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   let preparedPackage: { dir: string; run: ReturnType<typeof command> } | undefined
@@ -778,22 +761,75 @@ function result(stdout: string): ExecResult {
   return validateResult(final.result)
 }
 
+// One plan-mode turn on a provider the user added (Mistral, its captured
+// models list and one captured answer), through whatever PACKAGE holds.
+async function providerTurn() {
+  const providers = path.join(WORK, '.config', PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME)
+  mkdirSync(path.dirname(providers), { recursive: true })
+  writeFileSync(
+    providers,
+    JSON.stringify({
+      v: 1,
+      defaultModel: 'mistral/ministral-3b-latest',
+      providers: [
+        {
+          id: 'mistral',
+          preset: 'mistral',
+          address: 'https://api.mistral.ai',
+          auth: 'apiKey',
+          models: ['ministral-3b-latest'],
+        },
+      ],
+    }),
+  )
+  try {
+    const output = await start(
+      [
+        'exec',
+        '--backend',
+        'modelApi',
+        '--provider',
+        'mistral',
+        '--model',
+        'ministral-3b-latest',
+        '--permission-mode',
+        'plan',
+        '--max-requests',
+        '1',
+        '--max-budget-usd',
+        '1.00',
+        '--ephemeral',
+        '--output',
+        'jsonl',
+        'Reply ok.',
+      ],
+      'provider',
+    ).closed
+    const report = z
+      .object({ provider: z.array(z.string()) })
+      .parse(JSON.parse(readFileSync(path.join(WORK, 'report.json'), 'utf8')))
+    const context = `${output.stderr}\n${output.stdout}\nprovider requests: ${report.provider.join(', ')}`
+    const sent = report.provider.filter((call) => call.endsWith('/chat/completions'))
+    return { output, context, sent }
+  } finally {
+    rmSync(providers, { force: true })
+  }
+}
+
 // E1-E7 and H2 use the actual production package and engine.
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
       const darwinHelper = path.join(BUILD_ROOT, 'native/darwin/muse-dictate')
-      if (process.platform === 'darwin') {
-        if (!existsSync(darwinHelper))
-          execFileSync(BASH, ['native/darwin/build.sh'], {
-            cwd: BUILD_ROOT,
-            env: withoutCredentials(process.env),
-            stdio: 'pipe',
-            timeout: BUILD_TIMEOUT,
-          })
-      } else {
-        // Package admission needs every platform. Foreign helpers are inert
-        // fixture bytes; only the current platform's real helper can execute.
+      if (process.platform === 'darwin' || process.platform === 'linux') {
+        const currentHelper =
+          process.platform === 'darwin'
+            ? darwinHelper
+            : path.join(BUILD_ROOT, 'native/linux', process.arch, 'muse-created')
+        if (!existsSync(currentHelper)) buildCreatedHelper(ROOT, BUILD_ROOT)
+      }
+      if (process.platform !== 'darwin') {
+        // Foreign helpers are inert fixture bytes; the current helper is real.
         writeFileSync(darwinHelper, 'test-owned inert Darwin helper\n')
       }
       for (const arch of ['x64', 'arm64']) {
@@ -833,11 +869,12 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
     }
     await build({
       stdin: {
-        contents: `
+        contents: String.raw`
           import Module from 'node:module';
           import { createHash } from 'node:crypto';
           import { writeFileSync } from 'node:fs';
           import fs from 'node:fs';
+          import dnsPromises from 'node:dns/promises';
           import { fakeModelApi, FAKE_MODEL_API_KEY } from ${JSON.stringify(path.join(ROOT, 'test/unit/helpers/fakeModelApi.ts'))};
           const key = ${JSON.stringify(KEY)};
           const mode = process.env.M80D_CASE;
@@ -860,11 +897,14 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
             },
             load(url, context, nextLoad) {
               if (url !== FAKE_KEYRING) return nextLoad(url, context);
-              if (mode !== 'store') throw new Error('keyring must not load on stdin path');
+              if (mode !== 'store' && mode !== 'provider') throw new Error('keyring must not load on stdin path');
               return {
                 format: 'module',
                 shortCircuit: true,
-                source: 'export class AsyncEntry { getPassword() { return Promise.resolve(' + JSON.stringify(key) + ') } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }',
+                // The configured-provider row stores one provider key and no Meta key.
+                source: mode === 'provider'
+                  ? 'export class AsyncEntry { constructor(service, account) { this.account = account } getPassword() { return Promise.resolve(this.account === "museSpark.provider.mistral" ? ' + JSON.stringify(JSON.stringify({ v: 1, auth: 'apiKey', origin: 'https://api.mistral.ai', secret: 'test-owned-key' })) + ' : null) } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }'
+                  : 'export class AsyncEntry { getPassword() { return Promise.resolve(' + JSON.stringify(key) + ') } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }',
               };
             },
           });
@@ -874,8 +914,21 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
           // the signal test's deadline manufacturing 104,858 tiny SSE frames.
           // The same 512 KiB write stays inside exec's 32 MiB response cap.
           api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', isSingleTextDelta:mode === 'blocked', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
+          // The configured-provider row replays Mistral's captured models list
+          // and one captured answer; its name resolves to a public address
+          // without a DNS query, as the endpoint policy requires.
+          const providerCalls = [];
+          const captured = name => JSON.parse(fs.readFileSync(${JSON.stringify(path.join(ROOT, 'docs/certification/m95-captures/mistral'))} + '/' + name, 'utf8'));
+          if (mode === 'provider') dnsPromises.lookup = () => Promise.resolve([{ address: '93.184.216.34', family: 4 }]);
           globalThis.fetch = (url, init) => {
             if (mode === 'crash') throw new Error('startup ' + key);
+            if (mode === 'provider') {
+              const href = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+              providerCalls.push((init?.method ?? 'GET') + ' ' + new URL(href).pathname);
+              if (href.endsWith('/models')) return Promise.resolve(new Response(JSON.stringify({ data: captured('01-models-list.json').response.bodySummary.sample })));
+              if (href.endsWith('/chat/completions')) return Promise.resolve(new Response(captured('03-tool-result-stream.json').response.events.map(event => 'data: ' + JSON.stringify(event.data) + '\n\n').join('') + 'data: [DONE]\n\n'));
+              return Promise.resolve(Response.json({ error: 'unexpected provider path' }, { status: 404 }));
+            }
             if (String(url).endsWith('/responses')) writeFileSync(process.env.M80D_REQUEST_MARKER, 'dispatched');
             // The run's own key must arrive; the shared fake then sees its fixed key.
             const headers = new Headers(init?.headers);
@@ -888,7 +941,8 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
           const hash = value => createHash('sha256').update(value).digest('hex');
           process.on('exit', () => writeFileSync(process.env.M80D_REPORT, JSON.stringify({
             env: Object.fromEntries(Object.entries(process.env).map(([k,v]) => [k,hash(v ?? '')])),
-            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method}))
+            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method})),
+            provider: providerCalls
           })));
         `,
         resolveDir: ROOT,
@@ -949,6 +1003,45 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
       expect(report).not.toContain(createHash('sha256').update(KEY).digest('hex'))
     },
   )
+
+  // HOTFIX0181: the one row that sends a turn to a provider the user added,
+  // through the built bundles of the packed production package. 0.18.0 passed
+  // every row above and failed this path in every host before sending:
+  // dist/configuredProviders.js called two names dist/modelApi.js did not
+  // export. The provider is Mistral, with its captured models list and one
+  // captured answer (docs/certification/m95-captures/mistral), as in the unit
+  // suite's production BYO run; the preload answers them, so nothing leaves.
+  it('E8 completes one plan-mode turn on a configured provider through the built bundles', async () => {
+    const { output, context, sent } = await providerTurn()
+    expect(output.code, context).toBe(0)
+    expect(result(output.stdout), context).toMatchObject({
+      status: 'completed',
+      model: 'mistral/ministral-3b-latest',
+      usage: { requests: 1 },
+    })
+    expect(sent, context).toHaveLength(1)
+  })
+
+  // Review RVAPP-DIET0181 P3-3: the per-call helpers removed from the PACKED
+  // agent under their production name. The unit suite deletes the test
+  // build's name (modelApiToolsEntry.js); this is the file a damaged install
+  // is missing. The turn is refused in the agent's own words, nothing is
+  // sent to the provider, and the log names what was absent.
+  it('E9 refuses the turn in the agent’s words when the packed helpers bundle is gone', async () => {
+    const helpers = path.join(PACKAGE, 'dist', 'modelApiTools.js')
+    const kept = `${helpers}.kept`
+    renameSync(helpers, kept)
+    try {
+      const { output, context, sent } = await providerTurn()
+      expect(sent, context).toEqual([])
+      expect(output.code, context).not.toBe(0)
+      expect(output.stdout, context).toContain(EN.acpModelApiBundleUnavailable)
+      expect(output.stdout + output.stderr, context).not.toContain('reinstall the extension')
+      expect(output.stderr, context).toContain('modelApiTools.js failed (absent)')
+    } finally {
+      renameSync(kept, helpers)
+    }
+  })
 
   it.skipIf(process.platform === 'win32').each(['SIGINT', 'SIGTERM'] as const)(
     'E5 %s while streaming is bounded',

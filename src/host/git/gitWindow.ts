@@ -13,6 +13,7 @@ import * as vscode from 'vscode'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   GIT_PUSH_CREDENTIAL_VARIABLES,
+  M123_RELEASE,
   UI_TEXT,
 } from '../../shared/constants'
 import { withoutCredentials } from '../../core/credentialEnvironment'
@@ -366,7 +367,8 @@ export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
       }),
     now: () => Date.now(),
     log: deps.log,
-    nativeGit: () => nativeGitDeps(deps, window),
+    // Off until M123 is complete (constants.ts, M123_RELEASE).
+    nativeGit: M123_RELEASE.isNativeGitRouteOn ? () => nativeGitDeps(deps, window) : undefined,
   }
   const checkoutDeps = (): PullRequestCheckoutDeps => ({
     workspaceRoot: deps.workspaceRoot,

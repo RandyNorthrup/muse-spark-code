@@ -6,15 +6,55 @@
 // (M57, PLAN.md D6); this module gives it this window's parts.
 
 import type { McpPoolDeps } from '../../core/backends/modelapi/mcp/pool'
-import type { McpVaultPoolPort } from '../../core/vault/mcpSecrets'
+import {
+  mcpVaultRoutes,
+  type McpVaultPoolPort,
+  type McpVaultRoutePorts,
+} from '../../core/vault/mcpSecrets'
 import { environmentValue } from '../../core/backends/musecode/launch'
 import { readMcpServerEntries } from '../../core/backends/musecode/museConfigView'
 import { UI_TEXT } from '../../shared/constants'
 import { readTextIfPresent } from '../cliFeatures'
 import type { Logger } from '../logger'
-import { isExistingDirectory, isExistingFile, mcpServerSpawner } from './mcpProcess'
+import {
+  isExistingDirectory,
+  isExistingFile,
+  mcpServerSpawner,
+  resolveMcpVaultCommand,
+} from './mcpProcess'
 import { admitResource } from '../../core/resources/admission'
-import { governedMcpVaultRoutes, type McpVaultBroker } from './mcpVault'
+import type { McpVaultBroker, McpVaultStartDeps } from './mcpVault'
+
+/**
+ * POSTSPAWN: the route checks stay here (the pool's fetchFor is synchronous);
+ * the vault launch itself (scrubber, leases, governed start) loads as
+ * dist/mcpVault.js on the first vault-backed server, never at activation.
+ */
+function deferredMcpVaultRoutes(deps: McpVaultStartDeps, broker: McpVaultBroker): McpVaultPoolPort {
+  let loading: Promise<McpVaultRoutePorts['start']> | undefined
+  const load = async () => {
+    const bundle = await import('./mcpVaultEntry')
+    return bundle.governedMcpVaultStart(deps, broker)
+  }
+  return mcpVaultRoutes({
+    resolveCommand: (launch, cwd) => Promise.resolve(deps.resolveCommand(launch, cwd)),
+    remote: broker.remote,
+    ...(broker.oauth !== undefined && { oauth: broker.oauth }),
+    async start(input) {
+      loading ??= load()
+      const current = loading
+      let start: McpVaultRoutePorts['start']
+      try {
+        start = await current
+      } catch (error: unknown) {
+        // A bundle that failed to load is tried again on the next start.
+        if (loading === current) loading = undefined
+        throw error
+      }
+      return await start(input)
+    },
+  })
+}
 
 export interface ModelApiMcpDeps {
   readonly vault?: McpVaultPoolPort
@@ -55,18 +95,20 @@ export function modelApiMcpPoolDeps(deps: ModelApiMcpDeps): McpPoolDeps {
       deps.log.warn(message)
     },
   }
+  const spawn = mcpServerSpawner(spawnDeps)
   const vault =
     deps.vaultBroker === undefined
       ? deps.vault
-      : governedMcpVaultRoutes(
+      : deferredMcpVaultRoutes(
           {
-            ...spawnDeps,
             beforeStart,
             assembly: () => deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
+            resolveCommand: (launch, cwd) => resolveMcpVaultCommand(launch, cwd, spawnDeps),
+            spawner: spawn,
+            log: spawnDeps.log,
           },
           deps.vaultBroker,
         )
-  const spawn = mcpServerSpawner(spawnDeps)
   return {
     ...(vault !== undefined && {
       vault: {

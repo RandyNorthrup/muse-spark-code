@@ -1,5 +1,5 @@
 import { type ExecFileOptionsWithStringEncoding } from 'node:child_process'
-import { execResourceFile } from '../../resources/admission'
+import { execResourceFile } from '../../resources/launcher'
 import * as z from 'zod/mini'
 import {
   GITHUB_API_BASE_URL,
@@ -433,6 +433,7 @@ function isPostingAllowed(deps: ReportPostingDeps, context: SourceReadContext): 
   return isReportNetworkAllowed(deps.policy, context) && deps.policy.githubSignedIn
 }
 
+/** @unwired M113 report posting to GitHub */
 export async function postReport(
   deps: ReportPostingDeps,
   context: SourceReadContext,

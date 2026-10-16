@@ -7,6 +7,7 @@ import {
   SCHEDULE_JOURNAL_MAX_OPS,
   SCHEDULE_JOURNAL_SEAL_MAX_BYTES,
 } from '../../shared/constants'
+import { parseJsonWithExactNumbers } from '../../shared/exactJson'
 
 export interface ScheduleFsPort {
   read(file: string): Promise<string | undefined>
@@ -28,10 +29,32 @@ export function newestScheduleSlots(names: readonly string[], pattern: RegExp): 
     .toSorted((a, b) => Number.parseInt(b) - Number.parseInt(a))
 }
 
-/** Stored corruption must not quote private prompts or event contents. */
+/** Dollar fields a version 1 schedule wrote as JSON numbers (caps, consent budgets, fire costs). */
+export const SCHEDULE_LEGACY_MONEY_KEYS: ReadonlySet<string> = new Set([
+  'paidCapUsd',
+  'dailyCapUsd',
+  'sharedDailyBudgetUsd',
+  'maxBudgetUsd',
+  'usd',
+  'retainedLiabilityUsd',
+])
+
+/**
+ * Stored corruption must not quote private prompts or event contents. A
+ * version 1 dollar whose written digits a double cannot carry is refused
+ * here, never rounded: the written digits come from `parseJsonWithExactNumbers`,
+ * never the reviver's source text, so the refusal holds on Node 20 as well
+ * as newer runtimes (M121 P2-1). Version 2 writes decimal text, so the check
+ * is a no-op there.
+ */
 export function parseScheduleStoredJson(content: string | undefined): unknown {
   try {
-    return JSON.parse(content ?? 'null')
+    const { value, isExact } = parseJsonWithExactNumbers(
+      content ?? 'null',
+      SCHEDULE_LEGACY_MONEY_KEYS,
+    )
+    if (!isExact) throw new Error('scheduleStoredJsonInvalid')
+    return value
   } catch {
     throw new Error('scheduleStoredJsonInvalid')
   }
@@ -151,7 +174,11 @@ export function createScheduleJournal<T extends Collections>(
     }
     const snapshot = snapshotCache
     if (snapshot.revision !== active.revision) throw new Error('scheduleIndexRevisionMismatch')
-    const next: Collections = structuredClone(snapshot.value)
+    // Fold over shallow collection copies, so the cached snapshot and deltas
+    // stay untouched, then clone the folded state once for the caller's parser.
+    const next: Collections = Object.fromEntries(
+      Object.entries(snapshot.value).map(([collection, values]) => [collection, { ...values }]),
+    )
     let revision = snapshot.revision
     let bytes = 0
     let ops = 0
@@ -165,14 +192,12 @@ export function createScheduleJournal<T extends Collections>(
       const deltaContent = await fs.read(`${folder}/${name}`)
       if (deltaContent === undefined) throw new Error('scheduleIndexMissing')
       const cached = cachedDeltas.get(name)
-      const validated =
+      const delta =
         cached?.content === deltaContent
           ? cached.delta
           : deltaSchema.parse(parseScheduleStoredJson(deltaContent))
       if (cached !== undefined || cachedDeltas.size < SCHEDULE_JOURNAL_MAX_OPS)
-        cachedDeltas.set(name, { content: deltaContent, delta: validated })
-      // Application and caller parsers never receive the cached envelope itself.
-      const delta = structuredClone(validated)
+        cachedDeltas.set(name, { content: deltaContent, delta })
       if (isSealed || delta.revision !== revision + 1 || name !== `${String(delta.revision)}.json`)
         throw new Error('scheduleIndexRevisionMismatch')
       for (const change of delta.changes) {
@@ -199,7 +224,8 @@ export function createScheduleJournal<T extends Collections>(
       throw new Error('scheduleJournalLimitExceeded')
     return {
       revision,
-      value: parse(next),
+      // Caller parsers never receive the cached snapshot or delta values.
+      value: parse(structuredClone(next)),
       ops,
       bytes,
       generation: active.generation,

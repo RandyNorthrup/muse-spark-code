@@ -105,12 +105,20 @@ describe('ApprovalDock (D26)', () => {
   })
 
   it('moves focus to an arriving card, onto the card and not a choice', () => {
+    // The panel holds the keyboard (D108: a card takes it only then; the
+    // unowned case is questionAttentionOwnership.test.tsx), on a control
+    // that is not a text field, so the person is not typing.
+    const control = document.createElement('button')
+    document.body.append(control)
+    control.focus()
+    expect(document.hasFocus()).toBe(true)
     const { rerender } = render(<ApprovalDock waiting={[]} onDecide={vi.fn()} />)
     rerender(<ApprovalDock waiting={[pending('a1')]} onDecide={vi.fn()} />)
     expect(card()).toHaveFocus()
     // Its next step is a new card, which takes focus in turn.
     rerender(<ApprovalDock waiting={[pending('a1', 1)]} onDecide={vi.fn()} />)
     expect(card()).toHaveFocus()
+    control.remove()
   })
 
   it('leaves focus where the user types; the live region announces the card instead', () => {

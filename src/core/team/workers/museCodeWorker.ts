@@ -25,6 +25,7 @@ import {
   type WorkerRootGrant,
   type WorkerFenceIo,
 } from './workerFence'
+/** @unwired M96 workerFence re-exports for Muse worker host consumers */
 export {
   userServerExclusion,
   MuseWorkerCapturePendingError,
@@ -49,6 +50,7 @@ export function hostKindFor(role: WorkerRolePolicy): MuseWorkerHostKind {
  * its lifetime with `--disable-write` and `--disable-shell` (the 1.4.2
  * capture, research §4.7), so Muse Code itself refuses that worker's file
  * writes and shell. A trusted workspace loads its rules and skills.
+ * @unwired M96 worker serve arguments
  */
 export function workerServeArgs(kind: MuseWorkerHostKind, isTrusted: boolean): readonly string[] {
   return [
@@ -179,6 +181,7 @@ export interface MuseCodeWorkerDeps {
  * host (the read-only host for a `read-only` role, never the
  * conversation's), in the task's folder, with the bridge's servers. The
  * worker ends its last message with the `muse-team-report` block.
+ * @unwired M96 Muse worker runner
  */
 export async function runMuseCodeWorker(deps: MuseCodeWorkerDeps): Promise<{
   readonly sessionId: string

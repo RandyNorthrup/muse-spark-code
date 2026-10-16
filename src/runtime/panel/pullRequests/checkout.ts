@@ -54,10 +54,15 @@ import {
   WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
 import { fill, formatBytes } from '../../../shared/l10n/text'
-import { GitHubClient, GitHubError, isCommitSha, type PullRequest } from '../../../core/git/github'
+import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
 import { repositoryLabel } from '../../../core/git/githubRemote'
-import { BlobAnswers, pullRequestCheckoutConfirmation } from '../../../core/git/heldCheckoutCore'
-import { foldName, heldTree, type HeldEntry, unsafePathReason } from '../../../core/git/heldTree'
+import {
+  BlobAnswers,
+  heldDestination,
+  namedHookOverrides,
+  pullRequestCheckoutConfirmation,
+} from '../../../core/git/heldCheckoutCore'
+import { heldTree, type HeldEntry, unsafePathReason } from '../../../core/git/heldTree'
 import {
   pullRequestRefFrom,
   remoteForPullRequest,
@@ -82,12 +87,16 @@ import {
   worktreeFolder,
   worktreeRemoveArgs,
 } from '../../../core/worktrees'
-import { confineWorkspacePath } from '../../../core/workspacePath'
 import { canonicalPath } from '../../../host/canonicalPath'
+import { hasGitProgramControls } from '../../../host/git'
 import { createFileExclusively } from '../../../host/fsAtomic'
 import type { CoreLogger } from '../../../core/logging'
 import { redactSecrets } from '../../../core/redact'
-import { resolveGitHubCredential, type GitHubCredential } from '../../../core/git/tokenSource'
+import {
+  didDropRejectedCredential,
+  resolveGitHubCredential,
+  type GitHubCredential,
+} from '../../../core/git/tokenSource'
 import { PullRequestServiceError, type RuntimePullRequestDeps } from './pullRequests'
 import {
   holdForRoots,
@@ -136,24 +145,8 @@ function untrustedCheckoutArgs(platform: NodeJS.Platform): readonly string[] {
   ]
 }
 
-/** A hook configuration name the overrides below cannot spell. */
-const HOOK_KEY = /^hook\.(.+)\.(?:command|event|enabled)$/iu
-const NUL = '\0'
-
 function checkoutRefusal(): Error {
   return new PullRequestServiceError(UI_TEXT.openPullRequestFiltersUnavailable)
-}
-
-/** Whether `output` of `git --version` takes per-command program controls. */
-function hasProgramControls(output: string): boolean {
-  const version = /^git version (\d+)\.(\d+)/u.exec(output)
-  const major = Number(version?.[1])
-  const minor = Number(version?.[2])
-  return (
-    Number.isSafeInteger(major) &&
-    Number.isSafeInteger(minor) &&
-    (major > 2 || (major === 2 && minor >= UNTRUSTED_CHECKOUT_MIN_GIT_MINOR))
-  )
 }
 
 /**
@@ -314,6 +307,7 @@ export interface NodePullRequestCheckoutGitOptions {
  * a terminal, with no prompt; nothing of ours is added (no `http.extra
  * Header`, no credential helper, no token variable). The runtime strips
  * its own credential variables at start, so `env` already holds none.
+ * @unwired M123 PR fetch environment
  */
 export function pullRequestFetchEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...env, GIT_TERMINAL_PROMPT: '0' }
@@ -323,6 +317,7 @@ export function pullRequestFetchEnvironment(env: NodeJS.ProcessEnv): NodeJS.Proc
  * Every other Git call's environment: no credentials, no prompt, no
  * optional locks. The same rule as `quietGitEnvironment` (src/host/git.ts),
  * which lane G owns; converge on its move to core at integration.
+ * @unwired M123 quiet PR git environment
  */
 export function quietPullRequestEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
@@ -502,7 +497,7 @@ async function hookOverrides(
     } catch {
       throw checkoutRefusal()
     }
-    if (!hasProgramControls(output)) {
+    if (!hasGitProgramControls(output, UNTRUSTED_CHECKOUT_MIN_GIT_MINOR)) {
       throw checkoutRefusal()
     }
     git.versionChecked = true
@@ -519,38 +514,19 @@ async function hookOverrides(
   } catch {
     throw checkoutRefusal()
   }
-  // New Git can configure named hooks independently of core.hooksPath.
-  const hooks = new Set(
-    configuration.split(NUL).flatMap((name) => {
-      const hook = HOOK_KEY.exec(name)?.[1]
-      return hook === undefined ? [] : [hook]
-    }),
-  )
-  // -c splits at its first '='; such subsection names cannot be represented
-  // by these per-command overrides. Never guess an escape.
-  if ([...hooks].some((name) => name.includes('=') || /\p{Cc}/u.test(name))) {
+  const overrides = namedHookOverrides(configuration, untrustedCheckoutArgs(git.platform))
+  if (overrides === undefined) {
     throw checkoutRefusal()
   }
-  return [
-    ...untrustedCheckoutArgs(git.platform),
-    ...[...hooks].flatMap((hook) => [
-      '-c',
-      `hook.${hook}.enabled=false`,
-      '-c',
-      `hook.${hook}.event=`,
-    ]),
-  ]
+  return overrides
 }
 
-/** Where a path of the commit lands: inside the worktree, spelled as stored. */
+/** Where a path of the commit lands (`heldDestination`), or the refusal. */
 async function heldDestinationOf(platform: NodeJS.Platform, folder: string, entryPath: string) {
-  const resolution = await confineWorkspacePath(folder, entryPath, platform, {
+  const resolution = await heldDestination(platform, folder, entryPath, {
     realPath: canonicalPath,
   })
-  if (
-    !resolution.ok ||
-    foldName(resolution.canonical, platform) !== foldName(resolution.relative, platform)
-  ) {
+  if (resolution === undefined) {
     throw new PullRequestServiceError(unsafePathReason(entryPath))
   }
   return resolution
@@ -772,6 +748,7 @@ async function addWorktree(
 /**
  * The runtime's git for pull request checkouts over its own processes:
  * explicit argument arrays, output caps and deadlines, no shell.
+ * @unwired M123 PR checkout git runner
  */
 export function createNodePullRequestCheckoutGit(
   options: NodePullRequestCheckoutGitOptions,
@@ -1492,6 +1469,9 @@ export class PullRequestCheckoutProtocol {
         if (error instanceof UnknownWriteError) {
           // The reservation may have landed: it goes, so it never blocks the
           // folder (nothing was made for it).
+          // Only reserve/supersede mutate in this try; the store retains
+          // their ReserveResult attempts in this error. instanceof erases
+          // that generic (M123P9, PLAN.md §8).
           const results = error.results as readonly ReserveResult[]
           await this.discardOwn(
             results.flatMap((result) => (result.ok ? [result.reservation] : [])),
@@ -1522,6 +1502,7 @@ export class PullRequestCheckoutProtocol {
  * worktree of its own that opens through `workspace/openFolder`. Only an
  * explicit confirmation checks anything out; an existing checkout is
  * offered again as it is, never taken over.
+ * @unwired M123 runtime PR checkout
  */
 export class RuntimePullRequestCheckout {
   /** One opening per destination folder: overlapping opens queue behind it. */
@@ -1565,18 +1546,6 @@ export class RuntimePullRequestCheckout {
     })()
   }
 
-  /** A 401 drops the stored credential, so the user signs in again. */
-  private async rejected(credential: GitHubCredential, error: unknown): Promise<boolean> {
-    if (error instanceof GitHubError && error.kind === 'signIn') {
-      const source = this.deps.tokenSources.find(
-        (candidate) => candidate.kind === credential.source,
-      )
-      await source?.rejected(credential)
-      return true
-    }
-    return false
-  }
-
   private async checkOutWith(
     credential: GitHubCredential,
     remote: GitHubRemote,
@@ -1599,7 +1568,7 @@ export class RuntimePullRequestCheckout {
       pullRequest = found
       isOwn = found.author.id === user.id
     } catch (error: unknown) {
-      const isSignIn = await this.rejected(credential, error)
+      const isSignIn = await didDropRejectedCredential(this.deps.tokenSources, credential, error)
       return {
         ok: false,
         reason: `${UI_TEXT.gitHubFailed}: ${failureText(error)}`,
@@ -1767,19 +1736,34 @@ export class RuntimePullRequestCheckout {
     if ((await folderIdentityOf(ticket.folder)) !== ticket.folderIdentity) {
       return { ok: false, reason: UI_TEXT.gitOperationChanged }
     }
+    // Trust or the window may have ended during that read (RVINTM123):
+    // asked again now, under the store's hold, and just before the
+    // release lands. One that landed stays a success.
+    const isLive = (): boolean => this.deps.isTrusted() && !this.deps.signal.aborted
+    const ended = (): { readonly ok: false; readonly reason: string } | undefined => {
+      try {
+        this.checkTrust()
+        return undefined
+      } catch (error: unknown) {
+        return { ok: false, reason: failureText(error) }
+      }
+    }
+    const endedBefore = ended()
+    if (endedBefore !== undefined) {
+      return endedBefore
+    }
     // A release the store cannot persist, or one that no longer matches
     // the record, reads as changed: the card shows the checkout again.
     let released: WorktreeRecord | undefined
     try {
-      released = await this.deps.records.release(ticket, this.deps.now())
+      released = await this.deps.records.release(ticket, this.deps.now(), isLive)
     } catch {
-      return { ok: false, reason: UI_TEXT.gitOperationChanged }
+      return ended() ?? { ok: false, reason: UI_TEXT.gitOperationChanged }
     }
-    if (released !== undefined) {
-      this.deps.log.info('The held worktree was trusted in the card')
+    if (released === undefined) {
+      return ended() ?? { ok: false, reason: UI_TEXT.gitOperationChanged }
     }
-    return released === undefined
-      ? { ok: false, reason: UI_TEXT.gitOperationChanged }
-      : { ok: true }
+    this.deps.log.info('The held worktree was trusted in the card')
+    return { ok: true }
   }
 }

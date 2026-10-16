@@ -10,6 +10,7 @@ import {
   type ResourceProcessOptions,
   type ResourcePipedProcess,
   type ResourceHandoffProcess,
+  type ResourceHandoffUntil,
   type ResourceInteractiveProcess,
   type ResourceLease,
   type ResourceTreeOutcome,
@@ -228,28 +229,88 @@ function spawnInteractive(
   return { child, stop, pid: () => Promise.resolve(child.pid) }
 }
 
+/**
+ * A hand-off is launched when its adapter exits 0, or when it is still
+ * running at the named deadline: an opener may stay in the foreground with
+ * what it opened (xdg-open with the browser), so it is then detached and
+ * counted as launched, never killed. Exiting non-zero or failing to start
+ * before the deadline is a failure. Only the caller's own cancel stops the
+ * root. `until: 'spawn'` (a foreground handler) leads its own session with
+ * no pipes and is launched once it has started.
+ */
 function spawnHandoff(
   file: string,
   args: readonly string[],
   options: ResourceProcessOptions,
   resource: ResourceLease,
-  signal: AbortSignal,
+  cancel: AbortSignal | undefined,
+  deadline: AbortSignal,
+  until: ResourceHandoffUntil,
 ): ResourceHandoffProcess {
+  const isLaunchedAtSpawn = until === 'spawn'
   // The caller's own environment, never the lease's temporary root: a browser the
   // OS starts outlives this lease and must not keep TMPDIR under governed cleanup.
-  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted fixed OS hand-off adapter: argument array, no shell, output to the null device, named deadline, root-only stop (PLAN SPAWN017C, section 8).
+  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted fixed OS hand-off adapter: argument array, no shell, output to the null device, named deadline, root-only stop on cancel (PLAN SPAWN017C, section 8).
   const child = spawn(file, [...args], {
     ...options,
     signal: undefined,
-    detached: false,
-    stdio: ['pipe', 'ignore', 'ignore'],
+    detached: isLaunchedAtSpawn,
+    stdio: isLaunchedAtSpawn ? 'ignore' : ['pipe', 'ignore', 'ignore'],
     windowsHide: true,
     shell: false,
   })
   const stop = () => stopRoot(child)
   resource.register({ pid: child.pid, profile: 'handoff', stop })
-  observe(child, resource, signal, stop, true)
-  return { child, stop, pid: () => Promise.resolve(child.pid) }
+  const state = { isComplete: false }
+  // A hand-off never owns what the OS started, so its lease completes at the
+  // adapter's exit or at the hand-off, whichever is first.
+  const complete = (isFailed: boolean) => {
+    if (state.isComplete) return
+    state.isComplete = true
+    if (isFailed) resource.failed?.()
+    resource.complete(true)
+  }
+  const handedOff = new Promise<void>((resolve, reject) => {
+    const failed = (reason?: unknown) => {
+      complete(true)
+      reject(reason instanceof Error ? reason : new Error('Governed handoff failed'))
+    }
+    const detach = () => {
+      if (state.isComplete) return
+      cancel?.removeEventListener('abort', onCancel)
+      deadline.removeEventListener('abort', detach)
+      child.stdin?.destroy()
+      child.unref()
+      complete(false)
+      resolve()
+    }
+    const onCancel = () => {
+      deadline.removeEventListener('abort', detach)
+      if (!state.isComplete) void stop()
+      failed(cancel?.reason)
+    }
+    child.once('exit', (code) => {
+      cancel?.removeEventListener('abort', onCancel)
+      deadline.removeEventListener('abort', detach)
+      if (state.isComplete) return
+      if (code === 0) {
+        complete(false)
+        resolve()
+      } else failed()
+    })
+    child.once('error', (error) => {
+      failed(error)
+    })
+    if (isLaunchedAtSpawn) child.once('spawn', detach)
+    cancel?.addEventListener('abort', onCancel, { once: true })
+    deadline.addEventListener('abort', detach, { once: true })
+    if (cancel?.aborted === true) onCancel()
+    else if (deadline.aborted) detach()
+  })
+  void handedOff.catch(() => {
+    // The caller awaits handedOff; a rejection nobody awaited must not crash the host.
+  })
+  return { child, stop, pid: () => Promise.resolve(child.pid), handedOff }
 }
 
 async function spawnPiped(
@@ -432,15 +493,17 @@ export async function spawnResourceProcess(
   extraDescriptors: readonly number[] = [],
 ): Promise<ResourceInteractiveProcess | ResourceHandoffProcess | ResourcePipedProcess> {
   // The memory cap is the attested job's, never a spawn option.
-  const { jobMemoryBytes, ...options } = launchOptions
+  const { jobMemoryBytes, handoffUntil = 'exit', ...options } = launchOptions
   if (profile === 'handoff') {
     // The named deadline covers the handoff's admission and the adapter's run.
     const deadline = AbortSignal.timeout(RESOURCE_HANDOFF_TIMEOUT_MS)
-    const signal =
-      options.signal === undefined ? deadline : AbortSignal.any([options.signal, deadline])
+    const cancel = options.signal
+    const signal = cancel === undefined ? deadline : AbortSignal.any([cancel, deadline])
     return await withLease(profile, signal, (resource, spawned) => {
       spawned.value = true
-      return Promise.resolve(spawnHandoff(file, args, options, resource, signal))
+      return Promise.resolve(
+        spawnHandoff(file, args, options, resource, cancel, deadline, handoffUntil),
+      )
     })
   }
   const { signal } = options

@@ -1,6 +1,6 @@
 import * as z from 'zod/mini'
 import { createHash } from 'node:crypto'
-import { execResourceFile } from '../../resources/admission'
+import { execResourceFile } from '../../resources/launcher'
 import { stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'

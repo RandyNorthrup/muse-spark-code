@@ -1,4 +1,4 @@
-import { usdInputSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, usdInputSchema, type UsdAmount } from '../../shared/usd'
 // The quick-pick fast path (M95 lane K, PLAN.md D74, M95 step 8): **Muse
 // Spark: Add Model Provider…** runs the same flow as the panel wizard
 // without the panel: pick a provider, enter or connect the credential,
@@ -7,10 +7,12 @@ import { usdInputSchema, type UsdAmount } from '../../shared/usd'
 
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { PickItem } from '../commands/pickItem'
 import type { PresetInfo, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
 import type { WizardDraft } from '../providers/wizardSave'
+import { type SessionBudgetConfig } from './sessionBudget'
 
 export interface ProviderQuickPickUi {
   /** One choice from a list; undefined when dismissed. */
@@ -42,11 +44,20 @@ export interface ProviderQuickPickDeps {
   readonly providers: ProvidersHost
   readonly isRemote: boolean
   readonly ui: ProviderQuickPickUi
+  /**
+   * The conversation spending limit setting: the budget answer below is
+   * prefilled with its effective value and, when changed, written back at
+   * its scope through the shared wizard function. Backed by VS Code's
+   * configuration in production, by memory in tests.
+   */
+  readonly sessionBudget: SessionBudgetConfig
 }
 
 export interface ProviderQuickPickOutcome {
   readonly providerId: string
   readonly modelRef: string
+  /** The wizard's budget answer, as saved to the spending-limit setting. */
+  readonly sessionBudgetUsd: UsdAmount | undefined
 }
 
 function providerItem(preset: PresetInfo): PickItem {
@@ -61,6 +72,49 @@ function providerItem(preset: PresetInfo): PickItem {
 function parseBudgetUsd(value: string): UsdAmount | undefined {
   const parsed = usdInputSchema.safeParse(value.trim().replace(',', '.'))
   return parsed.success ? parsed.data : undefined
+}
+
+/** A positive whole token count, or undefined for anything else. */
+function parseTokenCount(value: string): number | undefined {
+  const trimmed = value.trim()
+  if (!/^\d+$/.test(trimmed)) {
+    return undefined
+  }
+  const count = Number(trimmed)
+  return Number.isSafeInteger(count) && count > 0 ? count : undefined
+}
+
+/**
+ * Asks one token count, re-asking after an invalid answer until the user
+ * answers validly or dismisses. `max` caps the longest reply at the window.
+ */
+async function askTokenCount(
+  ui: ProviderQuickPickUi,
+  title: string,
+  value: string | undefined,
+  max: number | undefined,
+): Promise<number | undefined> {
+  for (;;) {
+    const answer = await ui.inputText({
+      title,
+      placeholder: UI_TEXT.customLimitsTokensPlaceholder,
+      ...(value !== undefined && { value }),
+      validate: (candidate) =>
+        parseTokenCount(candidate) === undefined ? UI_TEXT.customLimitsInvalid : undefined,
+    })
+    if (answer === undefined) {
+      return undefined
+    }
+    const count = parseTokenCount(answer)
+    if (count === undefined) {
+      continue
+    }
+    if (max !== undefined && count > max) {
+      ui.showError(UI_TEXT.customLimitsOutputCap)
+      continue
+    }
+    return count
+  }
 }
 
 /**
@@ -201,6 +255,37 @@ export async function runAddProviderQuickPick(
   if (ticked === undefined || ticked.length === 0) {
     return undefined
   }
+  // A custom server saves every chosen model's limits (the production file
+  // rejects the entry without them): the scan fills what it reports, the
+  // user answers the rest. Dismissing writes nothing.
+  let modelLimits: ProviderEntry['modelLimits']
+  if (preset.id === 'custom') {
+    const limits: Record<string, { contextTokens: number; outputTokens: number }> = {}
+    for (const id of ticked) {
+      const row = scanned.rows.find((candidate) => candidate.id === id)
+      const known = row?.context === undefined ? undefined : String(row.context)
+      const contextTokens = await askTokenCount(
+        ui,
+        `${UI_TEXT.customLimitsContext} (${id})`,
+        known,
+        undefined,
+      )
+      if (contextTokens === undefined) {
+        return undefined
+      }
+      const outputTokens = await askTokenCount(
+        ui,
+        `${UI_TEXT.customLimitsOutput} (${id})`,
+        undefined,
+        contextTokens,
+      )
+      if (outputTokens === undefined) {
+        return undefined
+      }
+      limits[id] = { contextTokens, outputTokens }
+    }
+    modelLimits = limits
+  }
   // OpenRouter's privacy routing (D74: private by default) is the panel's
   // choice (lane M renders it from `privacyChoices`); the quick pick keeps
   // the default until lane P's file holds the routing. Noted in m95-k.md.
@@ -234,38 +319,37 @@ export async function runAddProviderQuickPick(
       defaultModel = changed
     }
   }
-  const budgetSuggestion = providers.suggestSessionBudget(ticked)
+  // The spending limit IS the conversation spending limit setting: the
+  // field is prefilled with its effective value, and the typed number
+  // counts. Dismissing writes nothing, as at every earlier step.
+  const budgetState = deps.sessionBudget.read()
+  const budgetScope =
+    budgetState.scope === 'workspace'
+      ? UI_TEXT.sessionBudgetScopeWorkspace
+      : UI_TEXT.sessionBudgetScopeGlobal
   let sessionBudgetUsd: UsdAmount | undefined
-  if (budgetSuggestion !== undefined) {
-    const choice = await ui.pickOne(
-      [
-        {
-          id: 'accept',
-          label: `${UI_TEXT.suggestionAccept}: ${budgetSuggestion.value}`,
-          description: budgetSuggestion.reason,
-        },
-        { id: 'change', label: UI_TEXT.suggestionChange },
-      ],
-      UI_TEXT.suggestSessionBudget,
-      budgetSuggestion.reason,
-    )
-    if (choice === undefined) {
+  for (;;) {
+    const entered = await ui.inputText({
+      title: UI_TEXT.wizardSessionBudget,
+      placeholder: fill(UI_TEXT.wizardSessionBudgetNow, {
+        amount: formatUsd(budgetState.effectiveUsd),
+        scope: budgetScope,
+      }),
+      value: budgetState.effectiveUsd,
+      validate: (candidate) =>
+        parseBudgetUsd(candidate) === undefined ? UI_TEXT.wizardSessionBudgetInvalid : undefined,
+    })
+    if (entered === undefined) {
       return undefined
     }
-    if (choice === 'accept') {
-      sessionBudgetUsd = parseBudgetUsd(budgetSuggestion.value)
-    } else {
-      const changed = await ui.inputText({
-        title: UI_TEXT.suggestSessionBudget,
-        placeholder: budgetSuggestion.value,
-        value: budgetSuggestion.value,
-      })
-      if (changed === undefined) {
-        return undefined
-      }
-      // Advisory metadata for M82's seam: garbage never blocks the save.
-      sessionBudgetUsd = parseBudgetUsd(changed)
+    const parsed = parseBudgetUsd(entered)
+    if (parsed === undefined) {
+      ui.showError(UI_TEXT.wizardSessionBudgetInvalid)
+      continue
     }
+    sessionBudgetUsd =
+      Usd.from(parsed).compare(Usd.from(budgetState.effectiveUsd)) === 0 ? undefined : parsed
+    break
   }
   const modelRef = `${providerId}/${defaultModel}`
   let origin: string
@@ -281,16 +365,52 @@ export async function runAddProviderQuickPick(
   if (!isConfirmed) {
     return undefined
   }
-  const outcome = await providers.saveDraft({
-    provider: { ...entry, models: [...ticked] },
-    credential,
-    credentialAuth,
-    defaultModel: modelRef,
-    sessionBudgetUsd,
-    useNow: true,
-  })
+  let outcome = await providers.saveDraft(
+    {
+      provider: {
+        ...entry,
+        models: [...ticked],
+        ...(modelLimits !== undefined && { modelLimits }),
+      },
+      credential,
+      credentialAuth,
+      defaultModel: modelRef,
+      sessionBudgetUsd,
+      useNow: true,
+    },
+    { config: deps.sessionBudget, expectedUsd: budgetState.effectiveUsd },
+  )
+  while (outcome.budget?.status === 'conflict') {
+    const isConfirmed = await ui.confirmSave(UI_TEXT.wizardSessionBudget, outcome.budget.error)
+    if (!isConfirmed) break
+    const currentProviders = await providers.providers()
+    const current = currentProviders.find((provider) => provider.id === providerId)
+    if (current === undefined) throw new Error(UI_TEXT.providerEditConflict)
+    outcome = await providers.saveDraft(
+      {
+        provider: current,
+        ...(outcome.receipts !== undefined && { receipts: outcome.receipts }),
+        credentialAuth,
+        editSnapshot: { provider: current, credential: undefined, defaultModel: undefined },
+        defaultModel: modelRef,
+        setDefault: false,
+        sessionBudgetUsd,
+        useNow: true,
+        editing: true,
+      },
+      { config: deps.sessionBudget, expectedUsd: outcome.budget.effectiveUsd },
+    )
+  }
+  if (outcome.notice !== undefined) {
+    ui.showError(outcome.notice)
+    return undefined
+  }
   if (outcome.composerSet) {
     ui.showNotice(fill(UI_TEXT.setupComplete, { provider: preset.name, model: outcome.modelRef }))
   }
-  return { providerId: outcome.providerId, modelRef: outcome.modelRef }
+  return {
+    providerId: outcome.providerId,
+    modelRef: outcome.modelRef,
+    sessionBudgetUsd: outcome.sessionBudgetUsd,
+  }
 }

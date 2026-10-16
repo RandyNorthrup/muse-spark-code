@@ -1,4 +1,4 @@
-import { spawnResourceProcess } from '../../resources/admission'
+import { spawnResourceProcess } from '../../resources/launcher'
 import { type Socket } from 'node:net'
 import * as z from 'zod/mini'
 import { VAULT_APPROVAL_TTL_MS, VAULT_LIMITS, UI_TEXT } from '../../../shared/constants'
@@ -31,6 +31,7 @@ export interface VaultSocketDescriptorPort {
   /** Native listener adapter's descriptor of this exact connected socket. Never a frame field. */
   descriptor(socket: Socket): number
 }
+/** @unwired M109 Unix vault peer verifier */
 export class UnixVaultPeerVerifier implements VaultPeerVerifier {
   constructor(
     private readonly executable: string,
@@ -104,6 +105,7 @@ export interface WindowsVaultPipePort {
     socket: Socket,
   ): Promise<VaultProcessIdentity & { remote: boolean; ownerOnlyDacl: boolean }>
 }
+/** @unwired M109 Windows vault peer verifier */
 export class WindowsVaultPeerVerifier implements VaultPeerVerifier {
   constructor(
     private readonly port: WindowsVaultPipePort,

@@ -7,7 +7,10 @@
   <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace installs" src="https://badgen.net/vs-marketplace/i/RandyNorthrup.muse-spark-code?color=3b6cf6"></a>
   <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX version" src="https://badgen.net/open-vsx/version/RandyNorthrup/muse-spark-code?label=Open%20VSX&color=3b6cf6"></a>
   <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX downloads" src="https://badgen.net/open-vsx/d/RandyNorthrup/muse-spark-code?label=Open%20VSX%20downloads&color=3b6cf6"></a>
+  <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="ACP agent: npm version" src="https://badgen.net/npm/v/muse-spark-code-acp?label=ACP%20agent%20(npm)&color=3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/releases/latest"><img alt="ACP agent: GitHub Release" src="https://badgen.net/github/release/RandyNorthrup/muse-spark-code?label=ACP%20agent%20(GitHub)&color=3b6cf6"></a>
+  <a href="#install-in-your-editor"><img alt="Total downloads (all channels)" src="https://badgen.net/https/muse-marketplace-hook.objectipy.workers.dev/badgen/downloads"></a>
+  <a href="#git-and-pull-requests"><img alt="GitHub app installs" src="https://badgen.net/https/muse-marketplace-hook.objectipy.workers.dev/badgen/app-installs"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
   <a href="#install-in-your-editor"><img alt="Editors: VS Code-based (engine 1.99 or newer) and ACP" src="https://img.shields.io/badge/editors-VS%20Code--based%20%C2%B7%20ACP-2b7de9"></a>
   <img alt="WCAG 2.2 AA checked" src="https://img.shields.io/badge/WCAG%202.2-AA%20checked-2b7de9">
@@ -34,11 +37,12 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
-**Contents:** [What's new](#whats-new-in-0170) · [Roadmap](ROADMAP.md) ·
+**Contents:** [What's new](#whats-new-in-0182) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
 [Several accounts](#several-accounts-per-provider) ·
+[Developer options](#developer-options) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
 [Browser check](#browser-check) · [Design](#design) · [The panel](#the-panel) ·
@@ -50,37 +54,96 @@ built, what is planned and what each release shipped.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-Schedule budgets, consent and rental cost evidence use exact decimal USD. Saved
-reports write money version 2; historical numeric reports retain their original
+Saved reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
-## What's new in 0.17.0
+## What's new in 0.18.2
+
+- **The landing screen shows the extension's own mark.** The empty chat panel
+  showed the Meta logo beside the product name; it now shows the product's
+  own squiggled "m", blue in dark and light themes and in the theme's text
+  colour in high-contrast themes.
+
+### Earlier in 0.18.1
+
+- **Your own providers, a ChatGPT plan and Copilot work again.** In 0.18.0
+  a turn on any of them stopped before it was sent, with an internal error.
+  Sorry for the broken release; Meta's own models were not affected.
+- **Usage from earlier versions is counted again.** 0.18.0 left those records
+  out as not exact; nothing was deleted.
+- **Report a Problem opens again** if you had changed a setting with a second
+  dot in its name; it used to answer "That did not work".
+
+### Earlier in 0.18.0
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
+  provider's accounts and sets their thresholds; `auth set --provider <id>
+--account <id>` stores a key for one account; `exec --account <id>` runs on
+  the account you name. In an ACP editor on a Model API key, `/accounts`
+  shows the list and the current account. Changing account inside a session,
+  pooled runs and an Accounts page in the editor are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete; content and edits stay hidden and nothing runs until the call
+  is complete. Other models keep the finished-call row for now.
+- **Reviewing Git changes works without a Git filter.** Without Git LFS or
+  another filter configured, every native review was refused since 0.15.0.
+- **The activity-bar icon is the extension's own mark**, the squiggled "m".
+
+### Earlier in 0.17.2
+
+- **Long replies from your own providers and a ChatGPT plan finish.**
+  Since 0.15.0 a reply from a provider you added in Models & Agents, or
+  from a ChatGPT plan sign-in, was cut off 30 seconds after the request
+  started. A reply now has no limit on its total time; one that goes
+  silent ends after 5 minutes, and the message says so.
+
+### Earlier in 0.17.1
+
+- **The provider picker works again.** Models & Agents lists every provider
+  again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
+  "That did not work" and an empty list.
+- **Saving a provider keeps what worked.** Save checks everything first, then
+  saves in order; if a later step fails, the saved parts stay saved and the
+  panel says what was not. Edit and Change Key keep the saved connection.
+- **The wizard's spending limit is your real conversation limit.** It shows
+  the current limit, writes only when you change it, and asks before
+  replacing a limit someone changed meanwhile.
+- **Title Case labels.** English buttons, menus, tabs and titles capitalize
+  every major word; sentences and messages keep sentence case.
+- **Smaller fixes.** Chat action menus fan close around the row's **…**
+  button, highlighted-text actions included; a question's own-answer field no
+  longer overlaps the options and buttons around it, sharing a chat from an
+  ACP editor or the terminal shows its preview, an ACP session on a Model API
+  key starts without account details, DeepSeek's Thinking off sends
+  DeepSeek's own switch, a nearly spent budget stops with the budget message
+  instead of a Meta error, a Muse Code older than 1.4.3 that hits its
+  approval-record fault now gets the update command, and Help and these notes
+  describe only what works today and name the features still being built.
+
+### Earlier in 0.17.0
 
 - **Deterministic reports.** `/report` builds project, quality, milestone,
   release and change reports from local facts, in Markdown, HTML, JSON or text,
   with saved history and comparisons; nothing is sent to a model.
-- **Capacity estimates.** `/estimate <goal>` forecasts when a milestone or
-  release can land with the current, minimum or optimum fleet, without a model
-  call.
-- **Several accounts per provider.** List provider accounts, see the current
-  one and its thresholds; a vendor limit blocks only the affected account.
-- **Orchestrator playbook.** The nine orchestration rules ship as a first-party
-  skill, and `/playbook status`, `record` and `settings` answer locally.
+- **Orchestrator playbook CLI/ACP.** Read journal records and change settings
+  locally with the CLI or ACP agent.
 - **Refreshed design.** Shared design tokens and generated palettes style every
   panel surface; an optional pinned OFL font pack serves standalone installs.
 
 ### Earlier in 0.16.0
 
-- **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
-  argument previews help you follow Model API tool calls. Independent reads can
+- **Loop guarantees.** Strict tool contracts and bounded hosted search
+  govern Model API tool calls. Independent reads can
   run concurrently while their results keep call order. The loop bounds
   continuations, refuses cut-short tool execution and stops repeated unchanged
   calls. Structured side calls validate answers; headless runs can require a
   bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
   for capability gates and remaining native-reader qualifications.
 - **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
-  pause, new background work. Relocation needs a paired device or runner route
-  and is not available yet, so work stays on this machine.
+  pause, new background work.
 - **Disk floors.** Disk-heavy launches wait below the free-space floor and
   critical-volume writes refuse with a reason. Temporary cleanup requires
   recorded ownership and proved tree exit. See
@@ -99,16 +162,10 @@ hash verification and migrate when read.
   models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
   preview for eligible Plus/Pro accounts; Copilot uses a compatible VS Code
   host's models. Features follow each selected model's capabilities.
-- **Agent roles and teams.** Configure role pools, task limits and worker
-  review. Paid workers require consent and share the daily budget.
 - **/legal.** Scan licensing, copyright and source evidence without a model
   call, export the report, and confirm supported header repairs. The report
   states its coverage limits; it is not a legal certificate.
-- **Automatic compaction and Pi/SoL-Pi sync.** The shared engine preserves
-  packed output, literal recall and cache-stable prompts. Automatic compaction
-  is implemented and its setting defaults on, but production remains inactive
-  pending the paired evaluation.
-- **Usage & Cost.** Open the local page for provider and team totals, token
+- **Usage & Cost.** Open the local page for provider totals, token
   counts, budgets and exports. Reported, estimated and unknown costs stay distinct.
 
 ### Earlier in 0.14.5
@@ -141,12 +198,12 @@ hash verification and migrate when read.
   attention dock above the composer and kept in the transcript. After a minute
   (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
   does not need the answer.
-- **Answer later.** An unanswered question becomes an **Open question** you can
+- **Answer later.** An unanswered question becomes an **Open Question** you can
   answer any time using **Answer** on its transcript marker or the open-question chip; **Dismiss** closes it
   without an answer. A late answer reaches Muse once, as your own message, and
   approves nothing.
 - **Find open questions.** The view badge, tab title and History show how many
-  are open; **Next open question** and **Previous open question**
+  are open; **Next Open Question** and **Previous Open Question**
   (Ctrl+Alt+J and Ctrl+Alt+Shift+J) cycle through them.
 - **ACP editors.** Editors with forms get each question as a form, withdrawn at
   the deadline (`--questions-defer-after`); other editors get the text.
@@ -182,16 +239,16 @@ hash verification and migrate when read.
 
 **0.14.0**
 
-- **Tab completions** (see [Tab completions](#tab-completions)). Alt+\ invokes
+- **Tab Completions** (see [Tab completions](#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate
   $1.00/day default hard budget; your stored Model API key pays on either backend.
-- **Git and pull requests** (see [Git and pull requests](#git-and-pull-requests)).
+- **Git and Pull Requests** (see [Git and pull requests](#git-and-pull-requests)).
   Draft a commit or PR in the conversation, commit and push with confirmation,
   and open a foreign PR in a held worktree until you confirm its trust card.
 - **Hooks and plugins** (see [Hooks](#hooks)). Import popular agent hook formats,
   run Setup and Manual hooks on both backends, and use bounded Amp and OpenCode
   plugins on the Model API backend. Hooks keep their permission and paid-use limits.
-- **Report a problem** (see [Reporting a problem](#reporting-a-problem)). Preview
+- **Report a Problem** (see [Reporting a problem](#reporting-a-problem)). Preview
   the exact scrubbed report, remove items, then copy, save or open an issue.
   The draft stays local. On the Model API backend, Account & usage and report
   preparation also read Meta’s public service status without sending the draft
@@ -206,35 +263,26 @@ Earlier releases are in the
 ## /report
 
 Open the local kind picker with `/report`, **Muse Spark: Show report…**, or
-Account & usage's **Usage report**. A report reads named sources without a
-model call or a charge. **Needs you** comes first; every source names its
+Account & usage's **Usage Report**. A report reads named sources without a
+model call or a charge. **Needs You** comes first; every source names its
 availability, freshness and observation time. Missing integrations remain
 visible as unavailable.
 
-| Kind                        | Input                                                                                       |
-| --------------------------- | ------------------------------------------------------------------------------------------- |
-| Project                     | `/report project`                                                                           |
-| Milestone                   | `/report milestone M113`                                                                    |
-| Release                     | `/report release latest`                                                                    |
-| Changes                     | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry                |
-| Quality                     | `/report quality`                                                                           |
-| Usage                       | `/report usage today`; also `7d`, `30d`, `90d`, `week`, `month` or a date range             |
-| Session                     | `/report session`                                                                           |
-| Playbook                    | `/report playbook`                                                                          |
-| Issues                      | `/report issues`                                                                            |
-| Estimate                    | `/report estimate M113`                                                                     |
-| Fleet / security / accounts | `/report fleet`, `/report security`, `/report accounts`; future source bindings unavailable |
-| Schedules / keybindings     | `/report schedules`, `/report keybindings`; owning host bindings unavailable                |
+| Kind      | Input                                                                        |
+| --------- | ---------------------------------------------------------------------------- |
+| Project   | `/report project`                                                            |
+| Milestone | `/report milestone M113`                                                     |
+| Release   | `/report release latest`                                                     |
+| Changes   | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry |
+| Quality   | `/report quality`                                                            |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
 all available rows. Next steps follow the plan's declared delivery order and
 only become ready when their required milestones are complete. At most three
-next steps are shown. Session turn
-and approval totals require retained activity facts; transcript row counts
-never substitute for them.
+next steps are shown.
 
-The tab provides **Save as…**, **Copy as Markdown**, **Attach to message**,
-**History**, **Diff with previous** and **Refresh**. Save as exports Markdown,
+The tab provides **Save As…**, **Copy as Markdown**, **Attach to Message**,
+**History**, **Diff With Previous** and **Refresh**. Save as exports Markdown,
 HTML, JSON or text through the editor's save dialog. A saved report retains
 its original observation time; Refresh collects again. History is scoped to
 this workspace and kind. Identical comparisons say **No change since** the
@@ -252,9 +300,7 @@ The terminal requires `--network` on every collection, and uses `gh`'s own
 identity. CI egress remains denied. Cache reads and writes use confined,
 owner-only storage, validated decoded data and ETags; interrupted requests
 retain honest unavailable or partial status. Store, workflow and release
-adapters await approved live captures. Posting, scheduled destinations,
-mail/vault and node-browser integration await their owning milestones;
-the tab does not offer them yet.
+adapters await approved live captures.
 
 `museSpark.reports.agentSources` defaults to an empty array. Only agents you
 explicitly enable (`claudeCode`, `codex`) have their confined local usage files
@@ -271,40 +317,11 @@ command. See the [ACP guide](docs/acp.md#deterministic-reports-m113).
 
 ## Orchestrator playbook policy (M116)
 
-Nine rules govern orchestrated work: eight the team can configure (never to
-off for safety, never above their ceiling) plus the safety rule that always
-applies. A strike policy stops patches after repeated review failures; review
-coverage, finding classes and dispositions are explicit; generation leases
-fence stale reviews; and review history follows edited moves and merges.
-
-Outcomes verify before harness-managed push or completion: each newly
-reachable commit needs a passing receipt from the repository's own hooks,
-run only through native `git hook run` with the source repository's absolute
-hooksPath and a scrubbed environment. Verification discovers new branches,
-tags, notes, every worktree HEAD and private refs in every worktree; POSIX
-timeout cleanup tracks descendants by parent chain and start-time identity.
-Windows verification uses the trusted harness job runner; the M107 governor
-binding stays open.
-
-The panel, Agent map, ACP and CLI read the same journal: `/playbook
-<status|record|settings ...>` and `playbook <status|record|settings ...>`
-show status, journal evidence and settings without starting a backend or a
-model turn. Settings changes need a reason and record the owner; turning
-rules off and naming the fallback reviewer for classifier-blocked reviews
-need a real user decision. Residuals stay open per milestone until a
-lead or owner accepts them, and release refuses while any are open. Record
-views label legacy acceptances with no matching earlier answer as unbound
-and explain why they cover nothing. Local playbook commands leave queued
-late answers untouched; only a turn that starts with the model removes them.
-Queued turns retain them through withdrawal, Stop and process exit; Model API
-waits past submit hooks for request dispatch before announcing delivery.
-Dispatch briefs render structurally and their hashes record before dispatch.
-See the [help reference](docs/reference.md) (`Orchestrator playbook` row
-and the `playbook` CLI command), regenerated with
-`npm run reference:generate` and verified with `npm run check:reference`.
-The reviewer charter ships as the `orchestrator-playbook` skill; turning on
-panel enforcement waits for M96's planner (see
-`docs/certification/m116.md`).
+The CLI `playbook <status|record|settings ...>` and ACP
+`/playbook <status|record|settings ...>` read journal records and settings
+locally without starting a backend or a model turn. Settings changes need a
+reason and record the owner. The reviewer charter ships as the
+`orchestrator-playbook` skill.
 
 ## Highlights
 
@@ -335,9 +352,9 @@ panel enforcement waits for M96's planner (see
   the run is a card that keeps updating after the reply: its agents with
   their state, time and tokens, and the result it returned. Owner controls
   wait for a live accepted-command capture.
-- **Reply and quote with context.** A reply's ⋯ menu has **Reply to this
-  output**; highlight anything in the chat and right-click for **Ask about
-  this** or **Comment on this**. The passage, its author and your intent
+- **Reply and quote with context.** A reply's ⋯ menu has **Reply to This
+  Output**; highlight anything in the chat and right-click for **Ask About
+  This** or **Comment on This**. The passage, its author and your intent
   travel with the message.
 - **Voice dictation at no cost.** Tap or hold the microphone (`Ctrl+D`) and
   speak; the words land at the caret. Windows and macOS use the recogniser
@@ -349,9 +366,8 @@ panel enforcement waits for M96's planner (see
   paid wherever it is used, and tallied in Account & usage.
 - **Scheduled prompts under your control.** On the Model API backend,
   `/loop` saves a recurring prompt in this conversation. By default a due
-  prompt waits for you to run and confirm it; unattended runs are opt-in
-  per schedule with a hard spending cap, and your key is never spent
-  without your consent. Scheduled turns currently cannot read video or audio:
+  prompt waits for you to run and confirm it; your key is spent only
+  after your consent. Scheduled turns currently cannot read video or audio:
   verified upload storage, the captured media codec and production calibration bindings are
   unavailable (PLAN D85.6, M105). The shared paid accounting refuses bills
   above an admitted reserve and retains that reserve as uncertain liability.
@@ -411,8 +427,8 @@ so they match the build.
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/question.png" alt="A compact Open question marker with Answer in the transcript and one question card pinned above the composer, with Colour and Toppings tabs, choices, Other, Submit and Explain instead"><br><sub>One question card, pinned above the message box; Answer on its transcript marker brings it into focus</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with three blue pills: Fork conversation from here, Fork conversation and rewind code, and Rewind"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask About This and Comment on This, fanned close around the row’s ⋯ button"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask About This</b> or <b>Comment on This</b></sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/rewind.png" alt="A sent message's menu with five blue pills close to its ⋯: Fork Conversation, Fork and Rewind, Rewind, Save Prompt and Share Prompt…"><br><sub>Every sent message's ⋯: fork, fork and rewind code, or open <b>Rewind</b></sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/modes.png" alt="The Modes menu: Manual, Edit automatically, Plan and Auto, with descriptions and the effort row"><br><sub>Permission modes and effort; <code>Shift+Tab</code> cycles modes</sub></td>
@@ -447,7 +463,7 @@ across windows, workspaces and keys in this extension profile. The local
 calendar day owns each durable reservation. Known usage settles its estimate;
 unknown sent usage keeps its full reservation. Corrupt or incomplete storage
 counts as budget reached and refuses paid requests. At the limit choose
-**Raise for today** or **Stop until tomorrow**; both choices are shared on disk.
+**Raise for Today** or **Stop Until Tomorrow**; both choices are shared on disk.
 Stop remains in force even if another window's pending raise finishes later.
 Cancelling admission refunds an unsent request; late budget-dialog answers
 cannot change today's policy. Switching backends preserves accepted prices
@@ -482,33 +498,39 @@ Muse Code's subscription and its existing explicit key-paid opt-ins are unchange
    code --install-extension muse-spark-code-0.14.0.vsix
    ```
 
+   Other editors install it from
+   [Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)
+   or run the ACP agent from
+   [npm](https://www.npmjs.com/package/muse-spark-code-acp); see
+   [Install in your editor](#install-in-your-editor).
+
 2. Open the **Muse Spark** view from the activity bar (or press
    `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS,
    `Ctrl+Shift+Esc` on Linux for a conversation in an editor tab).
 3. If Muse Code is missing, **Install Muse Code** opens a confirmation dialog
    showing Meta's exact command for this operating system. The same action is
-   in **Account & usage** while you work with a Model API key. **Run installer**
+   in **Account & Usage** while you work with a Model API key. **Run Installer**
    opens a visible VS Code terminal;
    the panel checks for the CLI and offers sign-in when it appears. You can also
    open [Meta's installation instructions](https://dev.meta.ai/products/muse-code/).
    If VS Code cannot open the installer terminal, the panel reports that
    directly and keeps the manual instructions available.
    Sign in, one of two ways:
-   - **Sign in with your Meta account** shows an approval code in the panel.
+   - **Sign In With Your Meta Account** shows an approval code in the panel.
      Open its sign-in page in your browser and approve the code within ten
-     minutes, before it expires. **Cancel sign-in** stops the temporary CLI
+     minutes, before it expires. **Cancel Sign-In** stops the temporary CLI
      sign-in process; if the browser approved just before, the panel
      follows what Muse Code saved. If you deny the code, it expires, or Muse
      Code cannot save the sign-in, the panel says so; an ending Muse Code
      has not been seen to send is shown in its own word. Work is billed to
      your Muse subscription.
-   - **Use a Model API key** takes a key from dev.meta.ai (Meta's current
+   - **Use a Model API Key** takes a key from dev.meta.ai (Meta's current
      keys start with `LLM_`; older ones look like `LLM|<id>|<secret>`),
      stores it in VS Code's secret storage and runs the Model API backend
-     with the extension's own tools, pay as you go. **Account & usage** lets
+     with the extension's own tools, pay as you go. **Account & Usage** lets
      you add or replace that key while Muse Code is signed in; there the key
      pays only for paid features you turn on. After a CLI install, **Account
-     & usage** also offers **Sign in with your Meta account**.
+     & usage** also offers **Sign In With Your Meta Account**.
 
    Signing out ends the old account's conversations and clears them from the
    panel; your unsent draft stays. If sign-out cannot finish, see
@@ -524,7 +546,7 @@ Spark: Open Walkthrough** brings it back.
 
 When the extension updates, **What's New in Muse Spark Code** opens in an
 editor tab (it works the same in VS Code's forks and remote windows): each
-new release's Highlights, with a **Try it** button where there is a command
+new release's Highlights, with a **Try It** button where there is a command
 or setting to try, then its notes from the CHANGELOG. Full notes ship for
 the newest two releases; when neither has Highlights, the page also carries
 the newest earlier Highlights. Older upgrades can follow the page's full
@@ -550,12 +572,23 @@ snooze, Copilot choices and Account & usage. The Command Palette also has
 **Muse Spark: Turn Tab On**, **Turn Tab Off**, **Snooze Tab**, **Tab Menu** and
 **Tab Languages**.
 
-Tab uses your stored **Model API key**, on either chat backend; your Muse
+Tab uses your stored **Model API Key**, on either chat backend; your Muse
 Code subscription never pays for it. With no key the status says **no key**
 and sends nothing. Before the first charge in a window, it asks with the
-model's rates and your budget: **Allow once** covers that window until it
-closes, **Allow always in this workspace** remembers revocable consent, and
+model's rates and your budget: **Allow Once** covers that window until it
+closes, **Allow Always in This Workspace** remembers revocable consent, and
 **Deny** snoozes Tab in that window. Closing the question denies it too.
+The question names the model the request will use, and your answer covers
+that model at its price only: a request for another model asks again, even
+under **Allow always**, and **Allow once** never reaches another window. An
+**Allow always** kept by an earlier version asks a migration question. Only
+answering **Allow always in this workspace** saves the model and price;
+answering **Allow once** saves nothing and the next window asks again.
+Accepting another paid feature's price or turning voice off preserves Tab's
+**Allow once**. **Ask again** and Tab's own price acceptance changes end its
+consent; a changed model or price asks again for its own key. A request whose
+model, consent or hook configuration changes before it goes out sends
+nothing; the last check runs immediately before the request is sent.
 
 The hard daily budget defaults to **$1.00 across every window on this
 machine**, reserved before each request. The status shows today's spend;
@@ -583,7 +616,7 @@ All Tab settings are machine-scoped:
 | `museSpark.tabLanguages`      | All except plaintext, Markdown and SCM input | Per-language switches over a `"*"` default, like Copilot's enable setting.                                                                                         |
 | `museSpark.tabMultiline`      | `auto`                                       | Automatic requests add context on a blank line or block opener; `onInvoke` and `never` keep automatic requests in fast mode. Explicit Invoke uses multi-line mode. |
 | `museSpark.tabTrigger`        | `onInvoke`                                   | Alt+\ or **Inline Suggest: Trigger**; `automatic` enables typing triggers.                                                                                         |
-| `museSpark.tabWithCopilot`    | `yield`                                      | Yield automatic requests in languages Copilot serves; Invoke works. **Run both** opts in; turning off Copilot's suggestions asks before changing its setting.      |
+| `museSpark.tabWithCopilot`    | `yield`                                      | Yield automatic requests in languages Copilot serves; Invoke works. **Run Both** opts in; turning off Copilot's suggestions asks before changing its setting.      |
 
 Fast mode uses the current file. Multi-line mode adds bounded excerpts of
 recent edits and definitions on the cursor's line, ordered by path. Every
@@ -601,10 +634,40 @@ request. Snooze offers 15 minutes, an hour or until this window restarts.
 Copilot's sign-in state cannot be detected, so an installed active Copilot
 can cause yielding even when signed out.
 
-Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks remain planned for
-lane K after M91; this build has their host bridge but does not run those
-hook configurations yet. The probe receipts and current limits are in
-[the M94 record](docs/certification/m94.md).
+Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks run from the project
+`.muse/spark-hooks.json` or your `spark-hooks.json` beside Muse Code's settings,
+when hooks are enabled and the workspace is trusted, on either chat backend.
+Imported Cursor groups keep their format and source event; their matchers are
+`TabRead` and `TabWrite`. Before a file enters a request, each matching guard
+must exit 0 with `permission: allow`; denial, invalid output, a crash, a
+1,500 ms timeout or an oversized payload refuses that read. Verdicts are
+cached by path and content and cleared when the configuration changes.
+Accepted full and inferred partial edits carry real line text and a 1-based
+range; typing alone fires nothing. Edit hooks observe asynchronously and
+cannot veto an accepted edit. With no configured hook, completion text and
+command arguments remain unchanged.
+
+These hooks are local processes you configure, and they see your code as it
+is: a `beforeTabFileRead` hook receives the file's absolute path and its
+**full, unredacted text**, the workspace folders, the Tab model and the
+request id, for the current file and for every context file. An
+`afterTabFileEdit` hook receives the path, the accepted text and the line
+before and after it (512 characters each at most) and the range. The
+extension sends neither payload anywhere else; the command decides what it
+does with it. Hook processes get a scrubbed environment and never the Model
+API key.
+
+A `spark-hooks.json` that exists but does not load in full (invalid JSON,
+an unreadable or oversized file, or any reported problem, such as an unknown
+event name or a `beforeTabFileRead` matcher that never names `TabRead`)
+stops Tab reading any file, and the status bar says **Tab paused: hook file
+has errors** until you fix it; the Muse Spark log names the problem. Only a
+scope with no hook file reads without a guard. Each request is bound to the
+trust, Tab settings, `files.exclude`, ignore files and hook configuration in
+force when it starts: if any of them change before it is sent or before its
+answer shows, it is dropped. The fake-hook receipts and current release
+blockers are in [the M94 record](docs/certification/m94.md) and
+[the hook wiring record](docs/certification/m94-k.md).
 
 ## Backends
 
@@ -656,7 +719,8 @@ from Open VSX or a `.vsix`.
 
 Get it from the
 [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
-[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code) or
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code),
+[npm](https://www.npmjs.com/package/muse-spark-code-acp) (the ACP agent) or
 [GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
 (both the `.vsix` and the agent's `.tgz`).
 
@@ -669,11 +733,18 @@ Get it from the
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
 
-**The ACP agent** needs Node.js 22 or later. Install it from the release:
+**The ACP agent** needs Node.js 22 or later. Install it from npm:
 
 ```bash
-npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v0.14.0/muse-spark-code-acp-0.14.0.tgz
+npm install -g muse-spark-code-acp
 muse-spark-code-acp --version
+```
+
+Or install the `.tgz` attached to a GitHub Release, replacing `<version>`
+with the release's version:
+
+```bash
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v<version>/muse-spark-code-acp-<version>.tgz
 ```
 
 **Zed** (tested with Zed 1.20.2): add this to `settings.json`, then pick
@@ -757,8 +828,14 @@ JupyterLab (Jupyter AI) with the agent.
 
 Subscription sign-in is being integrated under M95b; installed-editor and live
 success certification is still pending ([record](docs/certification/m95b.md)).
-In **Models & Agents → Providers**, choose **Continue with ChatGPT** or
-**Use my Copilot models**. The same actions are available in the command palette.
+
+The Models & Agents panel keeps the current section visible while another
+section loads. A pending tab indicates loading after 150 ms. Reloads reserve
+the section's last measured height; the first visit estimates from the host's
+rows and can adjust once when the section arrives.
+
+In **Models & Agents → Providers**, choose **Continue With ChatGPT** or
+**Use My Copilot Models**. The same actions are available in the command palette.
 Connecting selects the shared in-process harness and the account's first
 eligible model; the model picker can select another catalogue model.
 
@@ -812,13 +889,44 @@ installed-editor and live provider certification are still open. MiniMax
 and Alibaba plan presets await captures, and Hugging Face OAuth awaits
 application registration.
 
-OpenRouter models accept pasted keys. Account connection and key-usage reads
-are not available yet; Models & Agents hides those actions and says why.
+OpenRouter models accept pasted keys.
 Scan this computer probes each local preset's loopback port and model-list path.
 Provider exports include subscription configuration without credentials. A
 confirmed import requires credentials to be entered again, clears credentials
 for imported and removed ids, and replaces providers and the validated default
 model together. Cancelled or invalid imports leave configuration and keys intact.
+
+The provider wizard's spending limit is the setting for every conversation.
+Leaving the prefilled value alone keeps the current setting. If you edit it
+and the setting changes meanwhile, the wizard shows the new current limit and
+asks you to confirm yours. The provider is saved first; a later limit failure
+explicitly says the provider was saved and why the limit was not changed.
+Saved custom providers keep their editable per-model limits, and Back keeps
+incomplete limits so you can return to Models and finish them. **Edit** and
+**Change Key** preserve the saved connection, routing and default model;
+changing a limit leaves the default alone. Save writes only changed fields,
+keeping newer stored values for untouched fields and keys, including changes
+made while a private-network question is open. A key is replaced only if you
+enter one in this draft. Save validates everything before writing, then saves
+the provider, entered key, explicitly chosen default, edited spending limit and
+requested conversation model in that order. If a later step fails, completed
+writes stay saved; the panel names what was saved, what failed and what was
+not applied. Reopen the provider to finish a key/default/model failure. An
+address change whose key write fails shows the key as missing: the old key
+remains bound to its old origin and cannot serve the new address. When a provider
+retains that refused key, reopen **Edit**, enter and test a replacement,
+then save it. Confirmed spending-limit retries keep receipts for the provider,
+key and default already saved, even if the retry fails. If a field
+you edited also changed elsewhere, Save
+keeps the form open and offers **Reload** before you save again. Save disables
+its buttons while working and ignores repeated submissions. A refused
+private-network question keeps the form open and asks you to confirm access.
+If Save finishes but the panel cannot refresh, it says the provider was saved
+and asks you to reopen the panel. A refresh failure keeps every earlier partial
+outcome visible. A budget-only partial save with a fresh snapshot can retry;
+a failed refresh retires that form to prevent retries against stale values.
+Two editor windows saving the same provider at the same moment can overwrite
+fields both changed. Cross-window serialization is a planned follow-up.
 
 ## Questions
 
@@ -829,14 +937,14 @@ remain with the release lead.
 The integrated panel pins agent questions in the attention dock above the
 composer, after approvals, and keeps only a compact marker in the transcript. After
 one minute Muse continues work that does not depend on the answer. The card
-becomes an **Open question**. Its compact transcript marker keeps the icon,
+becomes an **Open Question**. Its compact transcript marker keeps the icon,
 title and **Answer** button. Answer reopens the pinned card and focuses its first
 control, even after deferral; the open-question chip also opens it. A card with
 focus or a draft stays expanded. **Dismiss** closes an open
 question without guessing an answer. Approvals still wait for your decision;
 MCP forms keep their five-minute expiry and cannot be answered after expiry.
 
-**Next open question** and **Previous open question** cycle through the open
+**Next Open Question** and **Previous Open Question** cycle through the open
 cards. In a focused VS Code chat their keys are Ctrl+Alt+J and
 Ctrl+Alt+Shift+J (Cmd+Option+J and Cmd+Option+Shift+J on macOS). The view badge,
 tab title and History marker show the count. Native editors use their own
@@ -869,16 +977,18 @@ question open, even when interactive deferral is disabled.
 ## Several accounts per provider
 
 Accounts keep separate credentials, labels, order, limit groups and thresholds.
-The terminal can manage their metadata and choose a fixed account for a
-headless run. Automatic swapping, parallel admission, device placement and
-the editor panel/usage mounts await the provider, journal and shared-owner
-integration listed in [M108's certification](docs/certification/m108.md).
-`museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
-and default on; they do not enable those missing integrations by themselves.
+The terminal manages their metadata and pins a headless run to one account,
+and an ACP session on the Model API backend lists them. Automatic swapping,
+pooled runs, placement on other devices and the editor's Accounts and usage
+pages are not part of this yet; the [roadmap](ROADMAP.md#in-progress) tracks
+them.
 
-These commands require an existing provider metadata record; this base
-refuses absent or malformed configuration until its provider owner supplies
-it. Display order never selects a backend credential.
+The installed CLI, ACP agent and headless runs share one account service
+over the runtime's providers file and the OS credential store. Meta's Model
+API entry is built in, so listing, adding, ordering, thresholds and
+per-account credentials work with no pre-existing file; a corrupt file is
+reported, never clobbered. Any other provider needs its stored metadata row.
+Display order never selects a backend credential.
 
 Manage metadata through the agent (credentials only from standard input,
 never an argument or a file):
@@ -889,52 +999,35 @@ never an argument or a file):
 - `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
 - `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
 
-`exec --account-pool` and in-session credential swaps report unavailable
-until the pooled owner is connected. ACP's `/accounts` and `account` picker
-read live metadata; choosing another account also reports unavailable.
-Second Muse Code accounts and cross-account native replay/cache evidence
-wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
-it must keep outstanding reservations and uncertain charges across resets.
-The shared paid gate, daily budget and conversation cap never reset on a
-swap, and a different account needs its own first-charge consent.
+ACP's `/accounts` (list, current, thresholds) and the `account` picker read
+the same live metadata on the Model API backend; the Muse Code backend runs
+on its subscription with no account picker. Choosing another account stays
+refused: moving a session credential needs the pooled owner, so the session
+keeps its current account and says so. A pooled headless run stays refused
+until that owner lands too. A vendor limit stops only its own account, and
+the stop names the blocked account and its reset even with no usage page
+bundled.
 
-Placement defaults to one account per provider per device. Another account
-needs another paired device, or the machine-scoped, default-off
-`museSpark.accounts.severalOnThisDevice` option. That option requires the
-provider's terms confirmation and isolated local profiles, labelled “on this
-PC”. The installed profile/placement owner is still pending, so the setting
-does not currently start another account process.
+## Developer options
 
 `muse-spark-code-acp developer` opens the terminal's machine-local Developer
-options after typed confirmation; `developer status` shows its state. The
-shared editor unlocks use seven clicks on the version within ten seconds or
-**Muse Spark: Developer options**, once their palette/About mounts land.
-Testing mode is badged and audited, expires, and Reset stops and removes only
-its recorded profiles. The visible several-account option has no developer
-badge or expiry. Profile start and cleanup report unavailable until their
+options after typed confirmation; `developer status` shows its state. Testing mode is badged and audited, expires, and Reset stops and removes only
+its recorded profiles. Profile start and cleanup report unavailable until their
 resource owner is bound; no successful cleanup is claimed in its absence.
 Revoking testing authority closes admission immediately and attempts to stop
 recorded profiles before saving. Persistence failures are reported; a durable
 revocation audit prevents restoring the previous enabled grant. Removing an
 unknown profile reports an error without changing the current grant.
 
-The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
-lists every provider's pooling decision with its clause, source and date.
-“Confirmation required” quotes the restriction and offers Confirm, Only at
-my own caps, or Cancel; one-account-per-person rules also apply at user caps.
-Accounts sharing a vendor limit group add no capacity against that limit.
-These rules hold on every device and in developer mode. Nothing creates
-accounts, changes request identity or moves a credential to another device.
-
 ## Permission modes
 
-| Mode                   | Model API backend                                                                                                                                                                                       | Muse Code backend                                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Manual**             | Asks before every edit and every command that no allow rule, session allowance or hook settles                                                                                                          | The CLI decides: it applies file edits without asking (only `.git`, `.muse` and `.agents` ask) and asks before commands its own allow rules do not cover                   |
-| **Edit automatically** | Approves plain file edits, asks before commands that no allow rule, session allowance or hook settles                                                                                                   | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                                                                      |
-| **Plan**               | Refuses edits and commands                                                                                                                                                                              | The CLI refuses protected writes and the commands its own allow rules do not cover, but its file tools still edit without asking ([Plan on Muse Code](#plan-on-muse-code)) |
-| **Auto**               | Runs edits (protected writes ask), asks before commands; the paid, off-by-default [Auto reviewer](#auto-rules-and-permission-profiles-model-api) may allow plain commands and MCP calls no rule settles | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks                                                      |
-| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses and a hook that demands a card                                                                                               | The same, except paid uses and [web fetch](#web-fetch), which the extension asks about before every call                                                                   |
+| Mode                   | Model API backend                                                                                                                                                                                      | Muse Code backend                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Manual**             | Asks before every edit and every command that no allow rule, session allowance or hook settles                                                                                                         | The CLI decides: it applies file edits without asking (only `.git`, `.muse` and `.agents` ask) and asks before commands its own allow rules do not cover                   |
+| **Edit Automatically** | Approves plain file edits, asks before commands that no allow rule, session allowance or hook settles                                                                                                  | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                                                                      |
+| **Plan**               | Refuses edits and commands                                                                                                                                                                             | The CLI refuses protected writes and the commands its own allow rules do not cover, but its file tools still edit without asking ([Plan on Muse Code](#plan-on-muse-code)) |
+| **Auto**               | Runs edits (protected writes ask), asks before commands; the paid, on-by-default [Auto reviewer](#auto-rules-and-permission-profiles-model-api) may allow plain commands and MCP calls no rule settles | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks                                                      |
+| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses and a hook that demands a card                                                                                              | The same, except paid uses and [web fetch](#web-fetch), which the extension asks about before every call                                                                   |
 
 A paid use asks in the paid-use popup in every mode, Bypass included, unless
 you allowed it always in this workspace; on the Model API backend, Plan
@@ -1072,7 +1165,7 @@ approval any other way. The extension reads the reply back from the backend
 on every press, so after a restart it resumes the conversation first, and it
 says why when it cannot.
 
-- **Save plan** writes the plan to `.agents/plans/YYYY-MM-DD-<slug>.md`.
+- **Save Plan** writes the plan to `.agents/plans/YYYY-MM-DD-<slug>.md`.
   This is where Muse Code's own `plan` skill keeps plans. The slug comes
   from the plan's top-level heading, or else from your request. When the
   name is taken, the file gets `-2`, `-3` and so on; an existing file is
@@ -1098,7 +1191,7 @@ says why when it cannot.
     nor started. That includes emoji joined with U+200D (👨‍👩‍👧) and the
     left-to-right and right-to-left marks some right-to-left text uses.
   - Restricted Mode saves nothing.
-- **Implement in a fresh conversation** saves the plan (unless it is
+- **Implement in a Fresh Conversation** saves the plan (unless it is
   already saved), then starts a new conversation on the same backend:
   - the plan is attached as named text, the same way a picked text file
     is (both backends), written from what the panel showed of it, so
@@ -1136,7 +1229,7 @@ model is asked to mark anything drawn from tool output, fetched pages or
 imported files `[untrusted]` in the brief (nothing checks that it did), and
 the new conversation is told what that mark means. The brief opens in a dialog before anything starts, with the open
 items the new todo list will hold under **Tasks**: review it, edit it if
-you need to, then **Start new conversation**, or **Cancel** and nothing
+you need to, then **Start New Conversation**, or **Cancel** and nothing
 starts. Starting leaves the old conversation in History and seeds the new
 one with the brief alone — the goal and the open items travel in its note,
 and on the Model API backend the open items become the todo list before
@@ -1159,30 +1252,6 @@ character the dialog does not show (a direction override, a zero-width
 character) starts in a mode that asks, Manual (Plan when that is your
 starting mode), and the panel names the mode. A handoff from a
 conversation in Plan mode stays in Plan.
-
-Automatic compaction, its exact todo continuation and the memory flush are
-implemented in the shared Model API engine, but **awaiting evaluation and
-inactive**. `museSpark.modelApiAutoCompaction` defaults to `true`; set it to
-`false` to turn the mechanism off. ACP and headless use the same core and
-accept `--no-auto-compaction`. Muse Code continues to compact itself.
-
-Once a current M75 pair passes and the shared paid gate/ledger is connected,
-compaction is considered inside your turn after a settled tool batch. A
-registered todo completion can trigger it when the expected token saving
-repays the summary call, cache-write premium and carried debt. Cost decisions
-require at least 50% context occupancy and two ordinary requests since the
-last compaction. At 90% occupancy, protection bypasses those economic guards;
-a classified overflow gets at most one automatic compact-and-retry per turn.
-The first paid charge requires the shared price/daily-budget consent, and
-every attempt is tallied. Stop and final account/key/budget checks still apply.
-
-The memory flush writes a labelled, untrusted host snapshot through the
-ordinary memory permission path: Manual asks; Plan and Restricted Mode refuse
-the write while compaction can continue. The next request restores the exact
-host todo list and goal as data, including completed items. It adds no separate
-model call to guess the list. An unsuccessful summary keeps the existing
-conversation; failed or refused automatic work clears economic debt. Production remains inactive until lane E records
-both 0.75 capability floors and actual compaction evidence in its M75 pair.
 
 When a Model API turn fills its context window, it reports **Context window
 full: /compact or /handoff**. Ordinary requests are refused locally only when
@@ -1303,7 +1372,7 @@ conversation's permission mode, like any other command.
   Windows, a directory symlink on macOS and Linux. A skill of yours with the
   same name is left alone and named in the result. The first Muse Code
   conversation in each window offers the install, in the panel, with
-  **Install** and **Not now** (Not now is remembered); when the extension's
+  **Install** and **Not Now** (Not now is remembered); when the extension's
   packaged release differs from the installed one, it offers **Update** the
   same way.
   **Muse Spark: Remove Bundled Skills from Muse Code** removes the links that
@@ -1324,9 +1393,9 @@ same notes, so a fact saved in one is known in the other:
 
 | Scope                                          | Where the notes are                                                              | Who sees them          |
 | ---------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------- |
-| **Your memory for this project** (the default) | `~/.local/share/muse/memory/projects/<path-slug>-<hash>`, outside the repository | You, in this workspace |
+| **Your Memory for This Project** (the default) | `~/.local/share/muse/memory/projects/<path-slug>-<hash>`, outside the repository | You, in this workspace |
 | **Project memory**                             | `.agents/memory` in the repository                                               | Everyone who clones it |
-| **Your memory for every project**              | `~/.local/share/muse/memory/personal`                                            | You, everywhere        |
+| **Your Memory for Every Project**              | `~/.local/share/muse/memory/personal`                                            | You, everywhere        |
 
 `$XDG_DATA_HOME` replaces `~/.local/share` when it is set (on Windows too, as
 Muse Code does). Each scope may keep a `MEMORY.md` index, one line per note:
@@ -1342,7 +1411,7 @@ the note can still be found and its line removed when the note is deleted.
   Command Palette) lists up to 500 Markdown notes per scope, nested up to
   eight folders, with each note's scope and what it is about.
   Pick one to open it in an editor, where you read and change it like any
-  file, or to delete it (to the trash, after a confirmation). **New note…**
+  file, or to delete it (to the trash, after a confirmation). **New Note…**
   asks for the scope, a name and a one-line description, creates the note
   and opens it. A note the view creates gets its line in the scope's
   `MEMORY.md`, and a note it deletes loses its lines, so the index the next
@@ -1374,7 +1443,7 @@ or stored PID alone does not show that a write is in progress.
 
 The Agent map separates **Active**, **Waiting** (approval, input, queued or
 interrupted) and **Inactive** from an ended agent's outcome: **Complete**,
-**Incomplete**, **Failed**, **Cancelled**, or **Ended, unverified**. Completion
+**Incomplete**, **Failed**, **Cancelled**, or **Ended, Unverified**. Completion
 needs structured evidence. Budget limits, unfinished task lists and missing
 required checks are incomplete; failed final checks are failed. Final-message
 prose never certifies success. An ordinary native end without proof remains
@@ -1442,7 +1511,7 @@ it and start a new conversation.
   A tool outside its `tools` list is not offered and, if the model names it
   anyway, refused, memory tools included. A refused call's row, and the line
   under an edit whose `then_run` it refused, use the installed display
-  language; the model is told in English, as is the body of a **Check edits**
+  language; the model is told in English, as is the body of a **Check Edits**
   row, which shows the note the model read. Automatic check commands need
   `run_checks` or the platform shell in the list, and `then_run` (which
   runs any command line) needs the shell. A
@@ -1533,13 +1602,13 @@ the ones that answer in JSON are shown as what they mean:
 - **Goals** (Set goal, Check goal, Update goal, Goal progress): the
   objective, its status, a progress bar, what the agent is doing now and
   next, and the tokens spent against any budget.
-- **Scheduled prompts** (`/loop` and cron): each prompt with its schedule,
+- **Scheduled Prompts** (`/loop` and cron): each prompt with its schedule,
   whether it repeats, its next run and how often it has run.
   These rows report Muse Code's native cron tools, not the extension's Model
   API schedules described below.
-- **Web search**: the results as links that open in your browser, with
+- **Web Search**: the results as links that open in your browser, with
   their snippets. Search rows on the Model API backend look the same.
-- **Fetch page**: Muse Code's own `web_fetch` is switched off, so the
+- **Fetch Page**: Muse Code's own `web_fetch` is switched off, so the
   extension offers it one of its own, `mcp__ide__webFetch`; see
   [Web fetch](#web-fetch).
 - **Background work**: a command Muse Code moved to the background shows
@@ -1556,20 +1625,20 @@ the ones that answer in JSON are shown as what they mean:
 
 **Skills.** The palette's Skills group has two more rows on the CLI backend:
 
-- **Manage skills…** is a checklist of every skill Muse Code knows
+- **Manage Skills…** is a checklist of every skill Muse Code knows
   (built-in, yours, this project's, plugins); unchecking one turns it off
   (`muse skills disable`).
-- **Import skills…** shows what `muse skills import` would copy from Claude
+- **Import Skills…** shows what `muse skills import` would copy from Claude
   Code or Codex into your Muse skills folder, imports it once you confirm,
   and reports what was imported, skipped, failed or quarantined.
 
 Muse Code reads skill changes when it starts, so both end by offering to
 restart it; the conversation continues on your next message. Where the
 session offers Muse Code's `resume-claude` and `resume-codex` skills, the
-palette's Context group has **Continue a Claude Code session** and
-**Continue a Codex session**.
+palette's Context group has **Continue a Claude Code Session** and
+**Continue a Codex Session**.
 
-**Import from other agents…** (Customize group, both backends) moves you
+**Import From Other Agents…** (Customize group, both backends) moves you
 off Claude Code, Codex or Cursor: their MCP servers, Claude Code hooks,
 custom agents, slash commands and rules files, found where each tool keeps
 them and converted to the formats their destination loads.
@@ -1632,7 +1701,7 @@ edits actually offered count as imported.
 (`~/.config/muse/settings.json`, or under `XDG_CONFIG_HOME`), and project
 hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuration without editing it:
 
-- **MCP servers…** lists each server:
+- **MCP Servers…** lists each server:
   - Its transport, where it points (a URL is cut to its scheme and host),
     and whether Muse Code stops when it fails ("required") or skips it.
   - The _names_ of its environment variables and headers. The values stay in
@@ -1640,7 +1709,7 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
   - A remote server can be signed in to or out of. That runs
     `muse mcp login` or `muse mcp logout` in a terminal, with the server's
     name quoted.
-  - **Restart Muse Code to load changes**, since Muse Code reads the file
+  - **Restart Muse Code to Load Changes**, since Muse Code reads the file
     when it starts.
 - **Loud warnings** for the two settings mistakes that make Muse Code load no
   server at all: both `mcpServers` and the older `mcp_servers` in one file,
@@ -1781,7 +1850,7 @@ URLs and credential-named fields omitted. MCP tools and the model still use
 the original arguments and results. A required MCP server failure ends the
 turn even if a post-tool hook asks to stop it.
 
-**Hooks from other agents.** **Import from other agents…** copies hooks
+**Hooks from other agents.** **Import From Other Agents…** copies hooks
 written for Gemini CLI, Cursor, Copilot and VS Code, Windsurf, Kiro and Cline
 into `spark-hooks.json`, each tagged with its format. On the Model API
 backend each one runs in its own agent's shape:
@@ -1843,7 +1912,7 @@ imported.
   again once after a few seconds. After a second failure, run **Muse Spark:
   Retry Plugin Hooks** to try again.
 
-**Worktrees.** **New worktree…** asks for a new branch and its base (the
+**Worktrees.** **New Worktree…** asks for a new branch and its base (the
 current commit or any local branch), creates it in a folder of its own, and
 offers to open it in a new window, so a conversation there leaves your
 checkout alone:
@@ -1854,7 +1923,7 @@ checkout alone:
 - **Refused:** a name git rejects, a branch that already exists, and a folder
   that is already there.
 
-**Remove a worktree…** lists the others (never the main checkout or the one
+**Remove a Worktree…** lists the others (never the main checkout or the one
 this window is in) and deletes the chosen folder. Its branch stays. A
 worktree with uncommitted changes is removed only after a second
 confirmation that says the changes will be lost. Both commands need a
@@ -1863,7 +1932,7 @@ trusted workspace, since git does not run in Restricted Mode.
 ## Git and pull requests
 
 From finished work to an open pull request without leaving the panel, on
-both backends. The **Git and pull requests** group of the `/` palette
+both backends. The **Git and Pull Requests** group of the `/` palette
 (`/commit`, `/push`, `/pr`, `/checkout-pr`) opens each step above the
 composer.
 
@@ -1872,13 +1941,13 @@ repository returned for a workspace subfolder is refused. Git actions are
 also unavailable while a pull request worktree is held.
 
 - **Commit.** The form lists the staged and unstaged files and commits
-  through VS Code's own Git, with **Include unstaged changes and new files**
+  through VS Code's own Git, with **Include Unstaged Changes and New Files**
   when you want everything. A final dialog shows the message, branch, file
   scope and Git execution consequences before committing. The form and
   consent are checked against the current branch, staged/unstaged diffs and
   new-file bytes; changed input requires reopening the form. No post-commit
   command runs.
-- **A message written for you, only when you ask.** **Write with Muse** in
+- **A message written for you, only when you ask.** **Write With Muse** in
   the commit or pull request form sends your own message ("Write a commit
   message for my changes.") in the conversation, with the staged diff, or
   the branch's commits against its base, marked as data for the model. It
@@ -1934,12 +2003,12 @@ also unavailable while a pull request worktree is held.
   with its state and checks (passed, failed by name, running), refreshed
   when the conversation opens and when you press **Refresh**, and again
   whenever you resume that conversation.
-- **A conversation in a worktree.** A worktree made with **New worktree…**
-  or **Open a pull request in a conversation…** opens in its own window,
+- **A conversation in a worktree.** A worktree made with **New Worktree…**
+  or **Open a Pull Request in a Conversation…** opens in its own window,
   where both backends run with the worktree as their root, so the
   conversation there cannot reach the main checkout. The panel says which
   branch or pull request the window is on.
-- **Open a pull request in a conversation…** (a number, like `51`, or the
+- **Open a Pull Request in a Conversation…** (a number, like `51`, or the
   pull request's address) fetches its head through VS Code's Git and checks
   it out, detached, in a worktree of its own, in a new window:
   - The fetched `FETCH_HEAD` must match the head GitHub showed; an old commit
@@ -1951,7 +2020,7 @@ also unavailable while a pull request worktree is held.
     window keeps the conversation in Plan mode with the worktree's project
     rules, skills, hooks and MCP servers off (Muse Code starts without
     `--trust-workspace`, the Model API backend reads none of them), and
-    runs no `!` command, until you press **Trust this worktree…** in the
+    runs no `!` command, until you press **Trust This Worktree…** in the
     card above the composer, whatever VS Code's own workspace trust says.
     Other extensions follow VS Code's trust, which this extension cannot
     lower, and the card says so.
@@ -1991,20 +2060,31 @@ also unavailable while a pull request worktree is held.
 - **Restricted Mode.** None of this runs there, and the panel says why:
   git can run programs a repository's configuration names.
 
+**The project's GitHub app (arriving with M123).** Editors without their own
+GitHub sign-in will sign in through the GitHub OAuth app "Muse Spark Code
+(Unofficial)", using GitHub's device flow (no client secret). Like the
+extension, the app is unofficial and not affiliated with or endorsed by Meta
+or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
+
+<!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
+     Turn this into a link in the release that follows approval. -->
+
 <!-- reference: streamed-argument-previews -->
 
 ## Streamed argument previews
 
 On the Model API backend, a selected model with verified streamed-argument
-support can show an **Argument preview** in its tool row. The implementation
-is available in the shared panel and ACP; enabling it in production still
-requires the capability binding described in the M106 certification record.
-The preview shows only declared top-level string fields after their closing
-quote validates: file paths, shell commands, search patterns and fetch URLs.
-These values pass through the existing credential scrubber before display.
-File content, edits, nested values and other fields stay hidden. Tools with
-no preview declaration, including MCP and foreign tools, show a received
-byte count only.
+support shows an **Argument preview** in its tool row, in the shared panel
+and in ACP. The preview shows only declared top-level string fields after
+their closing quote validates: file paths, shell commands, search patterns
+and fetch URLs. These values pass through the existing credential scrubber
+before display. File content, edits, nested values and other fields stay
+hidden. An offered IDE or MCP tool declares its own string fields the same
+way; a tool the request never offered shows a received byte count only.
+
+One model has that verified record today: `muse-spark-1.3-contributor`.
+Every other model keeps the completed-call row until its own stream is
+captured.
 
 An unfinished string never appears. Malformed JSON, duplicate keys,
 non-string values for declared fields or excessive nesting freeze the last
@@ -2021,6 +2101,13 @@ a turn ID cannot prove a tool is still pending. A fresh update restores an
 active preview to its original call row. Recognized credential patterns
 and registered literals are scrubbed; arbitrary unregistered secrets in a
 declared field remain outside that scrubber's contract.
+
+VS Code and interactive ACP use the selected record’s documented output
+maximum (131,072 tokens for Muse Spark), clamped by their budget. Headless
+`exec` requests at most 32,768 output tokens, or the record’s smaller maximum:
+its run ledger reserves the worst case before dispatch, so raising that cap
+would change what existing headless money budgets can run. Headless exec
+records completed tools and does not display live argument previews.
 
 <!-- /reference: streamed-argument-previews -->
 
@@ -2100,13 +2187,13 @@ work out of the box.
 
 The task list above the prompt can collapse to two lines: its title with
 "3 of 7 done", and the task in progress. Its chevron expands the list again;
-reloading starts expanded. **Open in a tab** on the list, or **Muse Spark:
+reloading starts expanded. **Open in a Tab** on the list, or **Muse Spark:
 Open Tasks in a Tab**, opens a read-only editor tab for the conversation in
 view. It follows that conversation's task list and title live, rebuilds the
 list whenever its webview reloads, and says when the conversation closes.
 It has no prompt box, and nothing in it can send a message.
 
-When the editor provides it, **Move into new window** focuses the tasks tab
+When the editor provides it, **Move Into New Window** focuses the tasks tab
 and runs the editor's own window-move action. Its limits:
 
 - The floating window is a VS Code window: it follows the editor's theme
@@ -2151,34 +2238,6 @@ both backends, as Muse Code's `/goal` does.
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
 
-## Estimates
-
-The estimator routes are wired, but real forecasts are **not available yet**.
-The composer `/estimate <goal> [--by <date>] [--fleet
-current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
-`muse-spark-code-acp estimate` use one lazy engine. Production snapshots refuse
-with `M117-W-M113-plan-reader` until the plan reader lands; fleet/catalog
-integration also waits for M113. `muse-spark-code-acp estimate --help` shows the
-standalone syntax without starting a model or asking for credentials.
-
-- **Verified with fakes.** The engine returns P50/P90 dates, critical-path
-  schedules, limiting resources and current/minimum/optimum setups. Figures
-  carry parameter-specific evidence and sample sizes; unknown capacity and
-  approximate placement stay qualified. Below 20 samples, fitted parameters
-  remain priors. Bases older than seven days carry a schedule-risk flag.
-- **Existing fleet.** The panel sends an audited, contract-first first-wave
-  request independently of rental readiness. Production dispatch still
-  refuses with `M117-W-M96-board`. Finished-lane history updates and automatic
-  production refresh wait for M115.
-- **Rentals remain advice-only.** M109/M110 provider/install/pair bindings
-  and P's internal Slice 2 provisioning lifecycle are still absent. Liability
-  reservation, separate spend confirmation, funded-deadline/idle teardown,
-  Keep and wipe-before-delete are planned, not shipped behavior. No rental
-  creation is enabled.
-- **Settings** (this machine): `museSpark.estimator.optimize` (`cost` or
-  `speed`) and `museSpark.estimator.priceLookup`, which follows the Reports
-  network policy; catalog quotes retain their dates.
-
 ## Review
 
 Review what the agent did before it lands, on both backends.
@@ -2191,7 +2250,7 @@ Review what the agent did before it lands, on both backends.
   repository's default branch first. A word after `branch` or `commit`
   that cannot be a revision (it starts with `-` or is longer than 256
   characters) makes the whole line text to review. Put `security` first
-  (`/review security`, or **Security review** in the `/` menu) to look for
+  (`/review security`, or **Security Review** in the `/` menu) to look for
   injection, secrets, authentication and unsafe APIs.
 - **What goes with it.** The extension reads the changes with git and sends
   them marked as untrusted data: text in a diff, a file name or a commit
@@ -2266,19 +2325,6 @@ Review what the agent did before it lands, on both backends.
 
 ## Scheduled prompts (Model API)
 
-The machine-scoped `museSpark.schedules` switch controls the v2 surface.
-Its host defaults are `museSpark.scheduleDefaultDelivery` (`whenIdle`) and
-`museSpark.scheduleAgentCreation` (`ask`), also machine-scoped. These flat keys
-avoid VS Code's scalar-parent conflict; the reader still validates previous
-`schedules.defaultDelivery` and `schedules.agentCreation` values when a new key
-is absent. Paid consent and the shared daily budget still apply.
-
-The Command Palette's **Schedule this prompt…**, **Show schedules** and
-**Show schedule timeline** open the v2 editor, list and timeline in the
-active chat, opening a chat when needed. The schedule surface loads on
-first use. Starting unattended jobs through this editor still requires the
-pending editor delivery binding; the `/loop` flow below remains available.
-
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the
 current conversation to become due every ten minutes. Use `m`, `h`, or `d`
 for minutes, hours, or days; `/loop "0 9 * * 1-5" Summarize new bugs` uses
@@ -2286,8 +2332,8 @@ a five-field cron expression in your machine's local time. `/loop <prompt>`
 defaults to ten minutes. `/loop list` refreshes the panel's schedule list,
 and `/loop cancel <id>` removes one. The list above the composer shows each
 prompt, cadence, next run or due state, run count, and ID, with **Run now
-(paid)** once a prompt is due (**Enable paid runs** while paid runs are
-off) and **Cancel schedule** controls.
+(paid)** once a prompt is due (**Enable Paid Runs** while paid runs are
+off) and **Cancel Schedule** controls.
 
 Each job belongs to this workspace, conversation, and stored Model API key.
 Signing out or switching backends hides its prompts immediately; a temporary
@@ -2298,13 +2344,13 @@ Only a loaded conversation checks for due work;
 closing VS Code stops checks. A missed recurring interval leaves one due
 occurrence, without a backlog. By default a due prompt **never runs by
 itself**: turn
-on **Scheduled prompts (paid)** and accept both published standard and
-contributor token rates, then choose **Run now** and allow that
+on **Scheduled Prompts (Paid)** and accept both published standard and
+contributor token rates, then choose **Run Now** and allow that
 occurrence's prompt, model and exact tier rates in the paid-use popup
 (Allow once, Allow always in this workspace, or Deny). An
 unpriced model cannot be approved. Declining leaves it due until expiry and
 makes no API call. Bypass
-permissions does not skip either one; only **Allow always in this workspace**
+permissions does not skip either one; only **Allow Always in This Workspace**
 skips the per-run popup, and Run now is still yours to press. A changed model, prompt,
 conversation or paid setting refuses an old confirmation; the client checks
 the key it actually reads before HTTP. A receipt claimed just before such a
@@ -2315,37 +2361,11 @@ in that conversation's token estimate. A run admitted just before a crash
 is not replayed, even if its result was never seen. Cancel does not stop a
 turn that already began.
 
-Unattended runs are opt-in per schedule. The `schedule` command manages
-jobs beyond `/loop`: `schedule add --draft <JSON>` (with
-`--scheduled-prompts --max-budget-usd <USD>` to allow unattended runs under
-that hard cap), `list`, `remove`, `run-now`, `pause`, `resume`, `fire`,
-`timeline`, `run-due` and `background`. Without a positive budget, paid
-authorization for an unattended run is refused; with one, every run still
-passes the paid rule above, naming its price and the shared daily budget.
-Crash accounting holds across restarts: a lost acknowledgement is recovered
-from the delivery ledger without a second run, and even when both the
-acknowledgement and the ledger are lost there is at most one re-run and
-exactly one recorded settlement for the run. The ACP `/schedule` command
-offers the same list, except `run-due` and background maintenance, and only
-while the agent runs with `--scheduled-prompts` (again with
-`--max-budget-usd`).
-
 Muse Code has its own subscription-backed `cron_create`, `cron_list` and
 `cron_delete` tools. Ask it in chat to schedule, list or cancel its jobs;
 those are not the Model API jobs shown by this panel. Muse Code 1.3.0 does
 not expose scheduler controls over MSP or a `muse cron` CLI command, so the
 panel cannot present an authoritative native job list or direct cancel.
-
-The cross-editor native background scheduler under development (M115) is
-not enabled by these shipped controls. Its launcher verifies installed paths
-and the effective OS definition on every wake. Linux also checks every
-systemd search and applicable drop-in directory, including absent paths;
-a refused registration disables its timer. Windows checks both the task
-folder and the task object's security descriptor. On macOS, switching it off
-first disables the native job, then its record; removing the job waits for a
-full calendar wake interval and an idle instance. POSIX shared-verifier binding
-and native Linux/macOS/ordinary-user Windows certification remain integration
-prerequisites.
 
 ## Observation packing (Model API)
 
@@ -2354,7 +2374,7 @@ ACP and headless Model API conversations enable the same packing and literal
 recall by default for tool-capable models. Every request of a Model API conversation carries the tool outputs before
 it. With packing on, a tool output over 8,000 characters is sent whole for
 its first two requests, then as a short placeholder: its id, its size, and
-its first and last lines. The placeholder is the same text on every later
+its first and last lines. The placeholder is the same cache-stable text on every later
 request, so the prompt cache breaks once per output. When the model needs
 more, it calls `recall_output` with the id and a character offset and reads
 the original back 4,000 characters at a time. It can also pass `search` to
@@ -2374,7 +2394,7 @@ miss diagnostics appear only in the log; they trigger no extra model call.
   tokens for about the same cost, since the outputs it leaves out were
   mostly read from the cache at the lower rate
   (`docs/certification/m73.md`).
-- **Account & usage** shows "Packing saved (estimate)" while a conversation
+- **Account & Usage** shows "Packing saved (estimate)" while a conversation
   packs: the tokens the placeholders left out, at about four characters a
   token, net of what each placeholder costs. It is an estimate, never a
   bill, and it stays with the conversation when you reopen it.
@@ -2470,7 +2490,7 @@ status; a later unstarted check is marked refused. An explicitly moved
 background shell keeps its own controller after the parent turn ends, while
 captured mode/trust and its own Stop, session disposal and Host close still hold.
 
-A **Check edits** row shows what ran: the files, their errors and warnings,
+A **Check Edits** row shows what ran: the files, their errors and warnings,
 how many were not checked, and how each check ended; open it for what the
 model read. The model can also call **run_checks** itself (files it names,
 which must exist in the workspace, or those edited since your message), with
@@ -2530,7 +2550,7 @@ When successful attempts finish, the
 dialog compares two at a time (**Left** and **Right**): their changed files
 and the diff, clipped past the cap with a note. The comparison captures an
 immutable Git tree of tracked edits and unignored new files, including
-uncommitted edits. Ignored files are excluded. **Apply and stage** applies
+uncommitted edits. Ignored files are excluded. **Apply and Stage** applies
 the exact selected snapshot to your checkout and stages it; it creates no
 commit. Later edits in an attempt never silently replace the captured
 preview. The base HEAD, clean index and working files, unsaved editors and
@@ -2541,7 +2561,7 @@ before retrying. **Open in New Window** opens an attempt's owned worktree,
 its uncommitted work included. Account & usage lists reported attempt tokens and their
 estimated cost separately; requests without usage reports remain unknown,
 even if they failed. They are not claimed as included in the parent estimate.
-**Cancel run** stops unfinished attempts, including
+**Cancel Run** stops unfinished attempts, including
 setup waiting on consent, without deleting their work.
 
 ## Auto rules and permission profiles (Model API)
@@ -2593,7 +2613,7 @@ write, and an image edit's sources right before the request leaves the
 machine. These controls apply to the Model API; Muse Code uses its own
 captured native policy contract.
 
-`museSpark.modelApiAutoReviewer` is an off-by-default paid opt-in. Reviews
+`museSpark.modelApiAutoReviewer` is on by default as a paid opt-in: nothing is spent before the paid-use popup. Reviews
 run only in Auto. Every eligible review uses the paid-use popup at the
 current model's token rates, with only the popup's workspace permission able
 to remember consent. The reviewer has no tools and returns ALLOW or ASK with a nonempty
@@ -2947,13 +2967,13 @@ integration owners; editor font settings continue to decide inside editors.
   unbound transcription adapter. Muse Spark 1.3 ignores a video's soundtrack;
   1.2 hears it, according to the recorded captures. Standalone Meta audio is
   refused because the capture found it silently ignored.
-  **Attach screen recording…** and ACP `/record` require an installed recorder
+  **Attach Screen Recording…** and ACP `/record` require an installed recorder
   binding and otherwise explain that recording is unavailable. **Attach latest
   screen recording** can inspect an existing Linux recording, but admission
   still requires the media bindings. Remote windows need the companion route,
   whose server is pending M104. The Windows VM has no working direct-capture
   receipt. Configured future uploads have a `mediaMaxUploadMiB` cap and
-  `mediaUploadExpiryDays` expiry; **Delete uploaded files…** requires the real
+  `mediaUploadExpiryDays` expiry; **Delete Uploaded Files…** requires the real
   account ledger. These commands do not establish provider/editor certification.
 
   | Backend/model                                | Images and PDFs                                 | Video                                                | Standalone audio                                     |
@@ -3013,9 +3033,9 @@ palette with a filter box of its own. Its groups:
 - **Model:** switch model, effort (Left and Right step it), thinking.
 - **Customize:** permission mode, Focus view, Send with Ctrl+Enter, MCP
   servers, hooks, memory, settings, keybindings.
-- **Account & usage** (with the paid features' toggles where the backend can
+- **Account & Usage** (with the paid features' toggles where the backend can
   use them), **Skills** (the session's own, plus Manage and Import on the CLI
-  backend), **Slash commands**, **Review** (the review presets and the review
+  backend), **Slash Commands**, **Review** (the review presets and the review
   pane) and **Support**.
 
 Type a letter after the `/` and the palette gives way to a flat list of slash
@@ -3031,17 +3051,17 @@ is completed so you can add what follows it), `Tab` completes the name and
 **Transcript.**
 
 - Replies render as GitHub-flavoured markdown with highlighted code and
-  **Copy**, **Insert at cursor** and **Apply** on every block (an imported
+  **Copy**, **Insert at Cursor** and **Apply** on every block (an imported
   conversation's blocks carry **Copy** only); a finished
-  reply's ⋯ menu has **Copy response** (the ⋯ shows a check for a moment
-  after) and **Reply to this output**. A relative link in a reply
+  reply's ⋯ menu has **Copy Response** (the ⋯ shows a check for a moment
+  after) and **Reply to This Output**. A relative link in a reply
   (`src/parser.ts#L12`) opens that workspace file at those lines.
 - Tool rows show the diff or the command and its output from the start;
   read rows open on click, and a chevron marks the rows that open. A shell
   row's IN and OUT are one bordered block split by a rule, each part showing
-  five lines (and at most 2,000 characters) with its own **Show more**; your
+  five lines (and at most 2,000 characters) with its own **Show More**; your
   own `!` commands look the same. Other outputs show 12 lines or 2,000
-  characters, with **Show more**. A backgrounded call carries a
+  characters, with **Show More**. A backgrounded call carries a
   "background" badge.
 - **Steps fold under what they did.** A run of two or more finished steps
   (tool and reasoning rows with nothing between them) folds into one
@@ -3049,7 +3069,7 @@ is completed so you can add what follows it), `Tab` completes the name and
   which opens in place. Files count once however often they were touched.
   A failure is named in the summary, with its red dot; a step waiting on
   you never folds, and a running one stays below the summary until it
-  finishes. **Focus view** (`Ctrl+Alt+F`) folds every step that is not
+  finishes. **Focus View** (`Ctrl+Alt+F`) folds every step that is not
   waiting, under the same summary.
 - While Muse works, the status line shows a small looping circle-pattern
   mark, the verb, and a heartbeat trace centred in the chat (hidden below
@@ -3076,24 +3096,32 @@ is completed so you can add what follows it), `Tab` completes the name and
 - Thinking rows stream their summary while the model thinks and end as
   "Thought for Ns" (a resumed conversation's read "Thought").
 - Each actionable message, reply, tool output or restore notice has one **More
-  actions** (⋯) button, revealed on hover or keyboard focus and always visible
+  Actions** (⋯) button, revealed on hover or keyboard focus and always visible
   on touch screens. Right-click its row, or press Shift+F10 / the Menu key,
   to open the same radial menu: each action is one crisp blue pill, its icon
   then its name, every pill the same size, in a fan beside the pointer or
   the ⋯ and inside the panel. Arrow keys move, Home/End go to the first and last,
-  Enter or Space picks. A message's menu has **Fork conversation from here**
+  Enter or Space picks. A message's menu has **Fork Conversation**
   and a **Rewind** pill that opens a second burst of the rewind and restore
   choices; Escape returns from that burst first, then closes the menu and
-  returns focus to ⋯. An edit row's menu has **Open output**, **Review** (the
+  returns focus to ⋯. An edit row's menu has **Open Output**, **Review** (the
   diff editor) and **Revert**: it asks first, then puts back that one edit's
   lines, leaving (and naming) a file whose lines changed since; it is not
   offered while a turn runs. A reply has no Retry (a resent prompt would run
-  its tools a second time): **Rewind conversation to here** on the prompt's
+  its tools a second time): **Rewind Conversation to Here** on the prompt's
   card puts the prompt back to send again. With text selected in a row,
-  right-clicking that row opens the highlighted-text menu instead.
-- A reply's ⋯ menu has **Reply to this output**: the next message carries
+  right-clicking that row opens the highlighted-text menu at its ⋯ button.
+  A row without an opener uses the pointer. Both bursts keep 6 px between
+  pills and a shallow arc close to the opener, centred on it when there is
+  room and shifted whole at a panel edge. Pill width is limited by the room
+  beside the opener, keeping it clear even in a narrow panel; long labels
+  end in an ellipsis with their full tooltip. Every element-anchored menu follows its ⋯ button during scrolling,
+  panel resizing and content reflow, and closes if the button leaves the
+  visible panel or is removed. Hover and pressed decoration stays inside
+  each pill; neighbouring keyboard focus rings retain at least 2 px clearance.
+- A reply's ⋯ menu has **Reply to This Output**: the next message carries
   that output (up to 8,000 characters) to the agent as context. Highlight any text in the chat and
-  right-click it for **Copy**, **Ask about this** or **Comment on this**; the
+  right-click it for **Copy**, **Ask About This** or **Comment on This**; the
   passage, its author and your intent travel with the message. The composer
   shows a chip for either; × drops it.
   The highlighted-text menu fans into the same labelled pills, fitting panels
@@ -3121,18 +3149,18 @@ is completed so you can add what follows it), `Tab` completes the name and
 - If Stop follows a choice immediately, it waits for that decision and
   rejects the next waiting step before stopping the turn. Panels showing
   the same session share the decision's result.
-- A Muse Code replay fault offers **Restart now**, which restarts Muse
+- A Muse Code replay fault offers **Restart Now**, which restarts Muse
   Code and preserves running Model API conversations. A fault notice's
   recovery buttons can be used once, including after the panel is restored;
-  **New conversation** in the header remains available.
+  **New Conversation** in the header remains available.
 - Question cards stack radio buttons for one answer and checkboxes for
   several, put multiple questions on tabs, offer **Other** beside the options
   (a question without options is a text box), and keep
   **Submit** greyed until every question has an answer; **Cancel** declines
-  the prompt, and **Explain instead** answers in your own words (up to 500
+  the prompt, and **Explain Instead** answers in your own words (up to 500
   characters) rather than choosing, so the agent reads it and decides again.
 - The transcript follows new entries while you are at the end; scrolled up,
-  it holds still and **New messages** jumps to the newest. The agent's task
+  it holds still and **New Messages** jumps to the newest. The agent's task
   list pins above the composer, and the composer shows how much of the
   context window is used.
 - **The diff tally.** Once the conversation has edited a file, a row above
@@ -3142,7 +3170,7 @@ is completed so you can add what follows it), `Tab` completes the name and
   made by shell commands or by you are not counted, as its tooltip says.
   The added and removed numbers use the editor's git-decoration colours.
   Its **Review** button opens the review pane on the same edits, as
-  **Review this conversation’s changes** (`/changes`) does.
+  **Review This Conversation’s Changes** (`/changes`) does.
 
 **Edits and rewind.** Muse applies in-workspace edits as it goes, so review
 comes after: the edit row shows the diff, its path opens the file at the
@@ -3150,20 +3178,20 @@ change, and **Click to expand** opens the diff editor. One edit can be
 undone from its row's ⋯ menu (**Revert**). To undo more, use the ⋯ menu on
 any sent message (or right-click it):
 
-- **Fork conversation from here**.
-- **Restore files to here** (a message whose turn has a checkpoint, in a
+- **Fork Conversation**.
+- **Restore Files to Here** (a message whose turn has a checkpoint, in a
   connected Model API session) undoes the model's own file-tool edits from
   that turn on, while each file still holds exactly what the model left;
   commands, hooks, MCP tools, your edits and other windows' writes are never
   undone. It asks first, then says what it
   restored and names every file it left as it is. See **Turn checkpoints**
   below.
-- **Rewind conversation and restore files** does both, after one
+- **Rewind Conversation and Restore Files** does both, after one
   confirmation that names both: it checks the conversation can be rewound,
   restores the files, then rewinds the conversation below. When a file was
   left short (unsaved, changed since, could not be changed) the conversation
   stays as it is, and the panel says so.
-- **Rewind conversation to here** starts a branch before that message and
+- **Rewind Conversation to Here** starts a branch before that message and
   puts its prompt back in the composer. The original conversation stays in
   History. Images return when the backend still has their bytes; the panel
   warns if it cannot restore one. A Model API conversation cannot be rewound
@@ -3177,15 +3205,15 @@ any sent message (or right-click it):
   an earlier text-only card in the same turn keeps its rewind choice. A
   request made outside the menu is checked against the served card and cut
   before the conversation changes.
-- **Rewind code to here** reverts every edit made after that message, the
+- **Rewind Code to Here** reverts every edit made after that message, the
   conversation's and its subagents', in the reverse of the order they
   landed. A file the edit created goes to the trash, unless you have added
   to it since, in which case your lines stay.
-- **Fork conversation and rewind code** (offered where the turn has no
+- **Fork and Rewind** (offered where the turn has no
   checkpoint) is one action: the confirmation, the reverts, then the fork.
   Declining the confirmation does neither.
 
-Both **Rewind code to here** and **Restore files to here** ask first, each in
+Both **Rewind Code to Here** and **Restore Files to Here** ask first, each in
 its own confirmation.
 
 **Turn checkpoints.** On by default (`museSpark.turnCheckpoints`). **Restore
@@ -3222,7 +3250,7 @@ Code has no stored file restore; its native rewind is separate.
   changes files outside the recorded tool writes and makes those files
   not restorable. **Format on edit** (`museSpark.formatOnEdit`) writes
   through the recorded file-tool path and is restorable.
-- **Conversation rewind.** **Rewind conversation and restore files**
+- **Conversation rewind.** **Rewind Conversation and Restore Files**
   restores first, then branches before the message and returns its prompt
   to the composer. A refused file blocks the conversation rewind; a
   commands note by itself does not. Files already in the earlier state
@@ -3276,7 +3304,7 @@ Code has no stored file restore; its native rewind is separate.
   no conditional rename. See SPEC v3.1, sections 3, 4 and 12, in
   [the M86 design](docs/design/m86-restore-by-tool-writes.md).
 
-**Side chat.** Use **Side chat** in the header to open a separate Plan-mode
+**Side chat.** Use **Side Chat** in the header to open a separate Plan-mode
 conversation with the completed turns as reference. Its inherited goal is
 cleared; the original tab keeps its session, goal and running turn. A delayed
 side-chat request is ignored if the original tab has since changed sessions.
@@ -3312,7 +3340,7 @@ Claude Code does). A linked path checks both its requested and canonical
 editor locations for unsaved changes.
 
 **History.** The clock icon lists the workspace's conversations by day with
-search, resume (full transcript), archive and **Show archived**. Archive with
+search, resume (full transcript), archive and **Show Archived**. Archive with
 the row's × or, while the search box is empty, `Delete` on the highlighted
 row, which also restores an archived one. Sessions idle for
 `archiveInactiveSessions` days are hidden, not deleted. Click the header's
@@ -3331,7 +3359,7 @@ log needs a folder on this machine. An export asked for while a reply runs is re
 finishes, and a conversation too long for Muse Code to replay is pointed to
 the session log.
 
-**Export, import and share a session.** **Export session as JSON…** (on
+**Export, import and share a session.** **Export Session as JSON…** (on
 either backend) writes the conversation as a portable file: the same history
 the Markdown export holds, without stored outputs, patches or anything that
 belongs to the running session. Credentials of a known shape and the key
@@ -3347,14 +3375,14 @@ appear, spaces and all, and any other absolute path or `file://` link, in
 any script, to its first space) and account ids
 (e-mail addresses) are redacted by default. The redacted file opens read-only in the editor first,
 with how much was redacted; nothing is written until you choose **Save
-redacted…** or **Save without redaction…**. **Muse Spark: Import Session**
+redacted…** or **Save Without Redaction…**. **Muse Spark: Import Session**
 resumes such a file as a new conversation on the Model API backend, on your
 own model: the file never picks one. It starts in a mode that asks: the
 panel's current mode when that is Manual or Plan, otherwise Manual (or Plan
 when that is your initial mode, `museSpark.initialPermissionMode`), and
 does so every time the conversation is opened again, forked or restored;
 only your own mode change relaxes it. A plan written in such a conversation
-is untrusted as a plan file is: **Implement in a fresh conversation** starts
+is untrusted as a plan file is: **Implement in a Fresh Conversation** starts
 it in Manual (or Plan) too. It drops session rules, goals,
 schedules, todos and patches, and the model reads each imported turn as
 untrusted data in a message of yours, never as its own replies or tool calls.
@@ -3368,14 +3396,14 @@ The ACP agent also applies this safe start to stored sessions marked imported
 before advertising their mode or replaying history.
 **Muse Spark: Open Share File** reads such a file read-only in the panel:
 links and Copy work, code blocks have no Insert or Apply, and nothing in it
-reaches a session. It shows 200 items at a time, with **Show more** for the
+reaches a session. It shows 200 items at a time, with **Show More** for the
 next, and an item that cannot be rendered says so in its place while the
 rest of the file still shows. A file is refused whole if it is over 16 MiB, is another
 format or a newer version, or holds any field this version does not know.
 At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
 with the theme's focus border; Escape closes the view and focuses the composer.
-For a local visual check, `node scripts/harness-shots.mjs share share-narrow`
-captures both widths; `share-narrow` also runs in all four accessibility themes.
+For a local visual check, `npm run ui:look -- share` renders the scene
+from the built webview into `temp/ui-look/`.
 The picker reads a local `file:` URI on the extension host through one
 checked descriptor, stopping at the size cap even if the file grows.
 Other file providers are explicitly refused because this reader cannot
@@ -3388,7 +3416,7 @@ Nothing is ever uploaded: sharing is a file on your disk.
 command in the workspace instead of sending it to the agent, as Muse Code's
 `!` does: `!git status`. The prompt switches to the editor's font and says
 **Shell**; the command runs at once, outside any turn (also while a reply
-runs), and gets its own row: **You ran** with the command, its exit code
+runs), and gets its own row: **You Ran** with the command, its exit code
 and run time, and what it printed, which opens whole in an editor tab. The
 agent sees the command and its output with your next message. No approval
 card asks first, since you typed it, whatever the permission mode; nothing
@@ -3406,14 +3434,14 @@ window shows the saved row as interrupted, since that window cannot
 control the original runner.
 
 **Background work.** A shell command the agent is waiting on can go on in the
-background while the agent carries on: **Move to background** on its row, or
+background while the agent carries on: **Move to Background** on its row, or
 `Ctrl+B` (also on a Mac) while the Muse panel has focus and its conversation
 runs one; VS Code's
 own `Ctrl+B` (the sidebar) works as usual otherwise, including while a shell
 permission card waits for your answer. A background command
 keeps running after its turn ends, marked "background", with **Stop** on its
 row; the header pill counts the ones still running, and the Agent map lists
-every background task with its own **Stop** and a **Stop all** (also
+every background task with its own **Stop** and a **Stop All** (also
 **Muse Spark: Stop Background Tasks**). On Muse Code these are the CLI's own
 `task/background`, `task/stop` and `task/stopAll`, and Muse Code tells the
 agent what the command printed when it ends. On the Model API backend the
@@ -3431,26 +3459,9 @@ A fork has no running commands from its source; it carries the ending or
 lost-output context into the agent's next request for any inherited task.
 
 **Subagents.** When either backend spawns subagents they appear as rows and
-an **N agents** pill in the header opens the **Agent map** (also `/agents`):
+an **N agents** pill in the header opens the **Agent Map** (also `/agents`):
 this conversation, its agents with role, objective, status, duration and
 tokens, the background tasks, and each agent's own transcript.
-
-When a team is active, its tree has one Tab stop. Use arrows, Home, End,
-or type ahead to move between items; F2 focuses an item's actions, Left
-and Right choose an action, and Escape returns to the item. Finished
-workers produce one polite summary. Merge cards list affected files,
-protected paths, conflicts and the supplied review details, with an
-overflow count for long lists. A card without file details cannot approve
-a merge. Tree and card code loads on its first use.
-
-The unreleased scheduler and runner adapters ship in separate bundles for
-team use. Their tool schemas come from the same validators used by the
-board. Maintainers regenerate them with `node scripts/team-tool-schemas.mjs
---write`; the production build checks them for drift. The Traffic and
-Runners views remain internal while the Models & Agents panel and the
-window-owned team runtime are integrated. They are not available as
-commands in this release. ACP and other editors need those same runtime
-bindings; packaging these adapters does not enable team dispatch.
 
 - Muse Code hides its subagent tools unless `run.subagent_delegation_mode` is
   `"auto"` in its settings file (`~/.config/muse/settings.json`, or under
@@ -3526,7 +3537,7 @@ and resuming a run are Muse Code's terminal UI's alone (`/workflows`), and a
 workflow agent keeps no transcript of its own to open. The Model API
 backend runs no workflows.
 
-**Account & usage** (`/usage`, `/cost`) is a modal over the transcript:
+**Account & Usage** (`/usage`, `/cost`) is a modal over the transcript:
 
 - **Account:** auth method, plan, backend, Muse Code version and model.
 - **Usage (Muse Code):** the subscription's current window and week. Muse
@@ -3562,7 +3573,7 @@ rate instead of a "warm for N minutes" countdown.
 
 - **Notifications.** While the VS Code window is unfocused, a VS Code
   notification tells you when a turn of a minute or more ends, or when a
-  turn waits for your approval or answer; **Show conversation** brings it
+  turn waits for your approval or answer; **Show Conversation** brings it
   into view. Nothing shows while the window is focused, and a notice two
   panels on one conversation both see shows once. Turn them off with
   `museSpark.notifyOnBackgroundTurn`. VS Code gives extensions no
@@ -3641,7 +3652,7 @@ rate instead of a "warm for N minutes" countdown.
   cap on such history. A model without a published price here cannot be
   capped, so its requests are refused while a cap is set. The budget is
   machine-scoped, so a repository cannot set it.
-- **Cache savings** (Model API): Account & usage shows what the prompt
+- **Cache Savings** (Model API): Account & usage shows what the prompt
   cache saved in dollars, and its share of the uncached price.
 
 **Diagnostics.** The agent can read the Problems panel through a
@@ -3751,7 +3762,7 @@ the subscription):
 | Muse Voice        | $0.18 per hour of audio                                                       | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser                                                               |
 | Subagents         | Selected model's published input, cached input and output token rates         | Child tasks on the Model API backend; every new task asks (unless allowed always) and admits at most four response requests                              |
 | Best-of-N         | Selected model's published input, cached input and output token rates         | The same prompt runs in 2 to 5 worktrees at once on the Model API backend; you take one                                                                  |
-| Scheduled prompts | Selected model's published input, cached input and output token rates         | A due `/loop` prompt runs only after you choose **Run now** and allow that run's model and rates                                                         |
+| Scheduled prompts | Selected model's published input, cached input and output token rates         | A due `/loop` prompt runs only after you choose **Run Now** and allow that run's model and rates                                                         |
 | Auto reviewer     | The conversation model's published input, cached input and output token rates | In Auto on the Model API backend, a separate model call judges a plain command or MCP call that would ask and that no rule or permission profile settles |
 
 Scheduled prompts use ordinary Model API tokens, rather than an extra
@@ -3762,39 +3773,29 @@ exact tier before any model call; an unpriced model cannot be approved.
 Other paid tools you have enabled may
 add their own charges during that confirmed turn.
 
-Manage availability in the palette (**Account & usage** group, where the backend
+Manage availability in the palette (**Account & Usage** group, where the backend
 can use it) or with its setting (`museSpark.modelApiWebSearch`,
 `modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`,
-`modelApiBestOfN`, `modelApiTeamWorkers`, `modelApiScheduledPrompts`, `modelApiAutoReviewer`). Default-on
+`modelApiBestOfN`, `modelApiScheduledPrompts`, `modelApiAutoReviewer`). Default-on
 availability causes no startup price dialog. Explicitly turning a feature OFF
 and ON again confirms its price; the first paid use still asks separately. The settings are
 machine-scoped, so a repository cannot turn one on.
-
-Team workers default on for a runnable team of distinct models. They ask in
-this paid-use popup before the first charge, with the models, task ceilings
-and daily budget. Each task identifies its provider and tariff. Meta rates
-are quoted only for a matching verified Meta tariff; other providers or
-unverified tariffs state that the price is unknown and name the task and
-daily token ceilings. Billing uses each task provider's API key.
-Always is scoped to the provider, model and price tier that was approved;
-a different model asks again. Single-model activation asks no team question.
-The M96 team feature remains unavailable until its integration is complete.
 
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed, its price and the shared daily budget,
 and offers three answers:
 
-- **Allow once**: this use only.
-- **Allow always in this workspace**: this use, and every later use of the
+- **Allow Once**: this use only.
+- **Allow Always in This Workspace**: this use, and every later use of the
   same feature in this workspace, without asking. Offered only in a trusted
   workspace with a folder open. It lapses in every workspace when you turn
-  the feature off (or accept a new price), and **Ask again every time** in
+  the feature off (or accept a new price), and **Ask Again Every Time** in
   Account & usage takes it back.
 - **Deny** (or closing the popup): nothing is billed.
 
 What asks, and when:
 
-- **Web search**: once per prompt, before its first request, because Meta
+- **Web Search**: once per prompt, before its first request, because Meta
   runs the searches inside the response and the model decides whether to
   search at all. Deny sends that prompt without web search. A child task
   searches only if its parent's prompt was allowed to.
@@ -3815,8 +3816,8 @@ What asks, and when:
   a run is refused before anything is asked while the feature is off, the
   backend is not the Model API, the workspace is untrusted or closed, or a
   run is already going.
-- **Scheduled prompts**: before each run, with its prompt, model and rates.
-- **Auto reviewer**: before each review, with the tool, its command line or
+- **Scheduled Prompts**: before each run, with its prompt, model and rates.
+- **Auto Reviewer**: before each review, with the tool, its command line or
   arguments, the model and its rates; Deny shows you the approval card
   instead.
 
@@ -3870,7 +3871,7 @@ only while it records, and only to Meta.
 ## Usage and cost
 
 Open **Muse Spark: Open usage page** from the command palette, the graph item in
-VS Code's status bar, the panel menu, or **Open usage page** in Account & usage.
+VS Code's status bar, the panel menu, or **Open Usage Page** in Account & usage.
 The same page is available through ACP's `/usage page` companion link; ACP
 `/usage` and the terminal summary use the same formatter and journal.
 ACP loads the summary renderer and journal aggregation on the first usage
@@ -4004,6 +4005,15 @@ individual model limits separately from limits consumed by newer media.
 Final provider dispatch remains an integration milestone; this core change is
 not a claim that every listed vendor is supported in the installed extension.
 
+An output cap below a provider's known minimum is refused when saved and
+before sending, including an older stored value. The message names the minimum;
+the cap is never silently increased. Meta's captured minimum is 16 tokens.
+Custom provider entries can declare `modelCapabilities.<model>.output.minTokens`;
+both `output.maxTokens` and `modelLimits.<model>.outputTokens` must meet it.
+Providers without a known minimum retain a one-token minimum. Editor settings,
+ACP configuration and CLI/exec flags currently expose no separate output-token
+cap; they share the provider entry and request validation.
+
 Custom models can declare `modelCapabilities` in their user-level
 `providers.json` entry, keyed by native model id. For example:
 
@@ -4075,7 +4085,7 @@ dynamic metadata, binary files, links, stale artifacts and bounded-out input
 remain incomplete. Identifier matching is pinned; license-text recognition is
 heuristic. **Not legal advice; for distribution decisions consult a lawyer.**
 
-Select findings or choose **Fix all safe ones** to review exact patches before
+Select findings or choose **Fix All Safe Ones** to review exact patches before
 applying them. Supported fixes add missing SPDX/copyright headers from the
 project's existing license and copyright evidence. They preserve old years,
 existing headers, BOMs, shebangs, Python encoding cookies and line endings.
@@ -4095,7 +4105,7 @@ the hosts and disclosing package names and versions. The
 `museSpark.legalRegistryLookups` setting disables enrichment. Requests use HTTPS
 and refuse redirects; private registry configuration is never contacted.
 
-**Explain with model (paid)** is available by default on interactive Model API
+**Explain Findings (Paid)** is available by default on interactive Model API
 under the machine setting `museSpark.legalExplanation`; Muse Code requires an
 explicit opt-in, and existing explicit false settings remain off. It requires a stored Model API key,
 asks permission with the price and shared daily budget, and reserves/settles
@@ -4169,92 +4179,92 @@ remain planned; this reference does not claim those hosts implement the page.
 
 ## Commands and keybindings
 
-| Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                                                  |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Muse Spark: Open in Sidebar                         | —                                                                                                | Focus the chat view in the activity bar                                                                                                                                                                                       |
-| Muse Spark: New Conversation                        | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused                      | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                                                                                      |
-| Muse Spark: Sign Out                                | —                                                                                                | Forget the stored Model API key and sign the CLI out when it is signed in (its `account/logout`, else `muse logout`)                                                                                                          |
-| Muse Spark: Open in Terminal                        | —                                                                                                | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                                                                                                 |
-| Muse Spark: Create AGENTS.md                        | —                                                                                                | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                                                                                          |
-| Muse Spark: Open Walkthrough                        | —                                                                                                | Open the four-step Get Started walkthrough                                                                                                                                                                                    |
-| Muse Spark: Open in New Tab                         | `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS, `Ctrl+Shift+Esc` on Linux             | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place                                                                          |
-| Muse Spark: Toggle Focus                            | `Ctrl+Alt+Esc` on Windows, `Cmd+Esc` on macOS, `Ctrl+Esc` on Linux                               | Move keyboard focus between the editor and the composer                                                                                                                                                                       |
-| Muse Spark: Insert @-Mention for Selection          | `Alt+K`, editor focused                                                                          | Insert `@path#start-end` for the active editor selection into the composer                                                                                                                                                    |
-| Muse Spark: Toggle Focus View                       | `Ctrl+Alt+F`, Muse focused                                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                                                                                       |
-| Muse Spark: Toggle Thinking                         | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only                               | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal                                                                     |
-| Muse Spark: Set Up Shell Sandbox                    | —                                                                                                | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed                                                                          |
-| Muse Spark: Show Logs                               | —                                                                                                | Open the "Muse Spark" log channel (keys redacted)                                                                                                                                                                             |
-| Muse Spark: Diagnostics                             | —                                                                                                | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs                             |
-| Muse Spark: Manage Skills                           | —                                                                                                | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                                                       |
-| Muse Spark: Import Skills from Claude Code or Codex | —                                                                                                | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                                                         |
-| Muse Spark: Import from Other Agents                | —                                                                                                | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                                             |
-| Muse Spark: Install Bundled Skills for Muse Code    | —                                                                                                | Copy the [bundled skills](#bundled-skills)' package into Muse Code's config folder and link each skill into its skills folder (or update that copy); a skill of yours with the same name is kept                              |
-| Muse Spark: Remove Bundled Skills from Muse Code    | —                                                                                                | Remove the links into the extension's marked copy, then the copy; nothing else is touched                                                                                                                                     |
-| Muse Spark: Export Conversation                     | —                                                                                                | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                                               |
-| Muse Spark: Import Session                          | —                                                                                                | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                                                         |
-| Muse Spark: Open Share File                         | —                                                                                                | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                                                   |
-| Muse Spark: MCP Servers                             | —                                                                                                | Show the MCP servers Muse Code will load (on the Model API backend, how each is running), sign in to or out of a remote one, open the settings file                                                                           |
-| Muse Spark: Hooks                                   | —                                                                                                | Show where Muse Code's hooks come from (project, yours, managed) and open each file; on the Model API backend also whether `modelApiHooks` is on, with a link to it                                                           |
-| Muse Spark: Memory                                  | —                                                                                                | List Muse Code's memory notes for this workspace, open one to edit, create one, or delete one to the trash, keeping each `MEMORY.md` index in step                                                                            |
-| Muse Spark: New Worktree…                           | —                                                                                                | Ask for a new branch and its base, create it in its own folder beside the repository, then offer to open it in a new window                                                                                                   |
-| Muse Spark: Remove Worktree…                        | —                                                                                                | Delete another worktree's folder (its branch stays), asking again before discarding uncommitted changes                                                                                                                       |
-| Muse Spark: Move Running Command to Background      | `Ctrl+B` (also on macOS), while the conversation in view runs a shell command                    | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                                                           |
-| Muse Spark: Stop Background Tasks                   | —                                                                                                | Stop every background task of the conversation in view                                                                                                                                                                        |
-| Muse Spark: Restart Muse Code                       | —                                                                                                | Stop `muse serve` and start a fresh one without reloading the window; a running turn is stopped, and each conversation continues with its next message                                                                        |
-| (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                                | Tap to start or stop voice dictation, hold to record while held                                                                                                                                                               |
-| (composer) Run a shell command                      | Start the message with `!`                                                                       | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                                                    |
-| Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, failures restore prior provider/default/secret state, and setup confirmation requires the composer's model receipt. Cancel writes nothing |
-| Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                        |
-| Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                       |
-| Muse Spark: Show Resources                          | —                                                                                                | Open the resource chip's popover in the chat in view: this machine's readings against its limits, what is waiting, Resume now and Settings; see [Keeping your machine responsive](#keeping-your-machine-responsive)           |
-| Muse Spark: Resume Work Now                         | —                                                                                                | Hold this window's resource governor at normal for fifteen minutes; a governor you switched off stays off                                                                                                                     |
-| Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                                                  |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                    |
-| Muse Spark: Continue with ChatGPT                   | —                                                                                                | Connect an eligible Plus/Pro plan in the system browser and select its catalogue model                                                                                                                                        |
-| Muse Spark: Use my Copilot models                   | —                                                                                                | Select VS Code’s Copilot models using host consent and the user’s plan or AI credits                                                                                                                                          |
-| Muse Spark: Open in Sidebar                         | —                                                                                                | Focus the chat view in the activity bar                                                                                                                                                                                       |
-| Muse Spark: New Conversation                        | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused                      | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                                                                                      |
-| Muse Spark: Sign Out                                | —                                                                                                | Forget the stored Model API key and sign the CLI out when it is signed in (its `account/logout`, else `muse logout`)                                                                                                          |
-| Muse Spark: Open in Terminal                        | —                                                                                                | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                                                                                                 |
-| Muse Spark: Create AGENTS.md                        | —                                                                                                | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                                                                                          |
-| Muse Spark: Open Walkthrough                        | —                                                                                                | Open the four-step Get Started walkthrough                                                                                                                                                                                    |
-| Muse Spark: Open in New Tab                         | `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS, `Ctrl+Shift+Esc` on Linux             | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place                                                                          |
-| Muse Spark: Toggle Focus                            | `Ctrl+Alt+Esc` on Windows, `Cmd+Esc` on macOS, `Ctrl+Esc` on Linux                               | Move keyboard focus between the editor and the composer                                                                                                                                                                       |
-| Muse Spark: Insert @-Mention for Selection          | `Alt+K`, editor focused                                                                          | Insert `@path#start-end` for the active editor selection into the composer                                                                                                                                                    |
-| Muse Spark: Toggle Focus View                       | `Ctrl+Alt+F`, Muse focused                                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                                                                                       |
-| Muse Spark: Toggle Thinking                         | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only                               | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal                                                                     |
-| Muse Spark: Set Up Shell Sandbox                    | —                                                                                                | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed                                                                          |
-| Muse Spark: Show Logs                               | —                                                                                                | Open the "Muse Spark" log channel (keys redacted)                                                                                                                                                                             |
-| Muse Spark: Diagnostics                             | —                                                                                                | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs                             |
-| Muse Spark: Report a Problem                        | —                                                                                                | Open the report dialog, in a new conversation if none is open: preview the scrubbed draft, then copy it, open a GitHub issue page or save it ([more](#reporting-a-problem))                                                   |
-| Muse Spark: Manage Skills                           | —                                                                                                | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                                                       |
-| Muse Spark: Import Skills from Claude Code or Codex | —                                                                                                | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                                                         |
-| Muse Spark: Import from Other Agents                | —                                                                                                | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                                             |
-| Muse Spark: Install Bundled Skills for Muse Code    | —                                                                                                | Copy the [bundled skills](#bundled-skills)' package into Muse Code's config folder and link each skill into its skills folder (or update that copy); a skill of yours with the same name is kept                              |
-| Muse Spark: Remove Bundled Skills from Muse Code    | —                                                                                                | Remove the links into the extension's marked copy, then the copy; nothing else is touched                                                                                                                                     |
-| Muse Spark: Export Conversation                     | —                                                                                                | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                                               |
-| Muse Spark: Import Session                          | —                                                                                                | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                                                         |
-| Muse Spark: Open Share File                         | —                                                                                                | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                                                   |
-| Muse Spark: MCP Servers                             | —                                                                                                | Show the MCP servers Muse Code will load (on the Model API backend, how each is running), sign in to or out of a remote one, open the settings file                                                                           |
-| Muse Spark: Hooks                                   | —                                                                                                | Show where Muse Code's hooks come from (project, yours, managed) and open each file; on the Model API backend also whether `modelApiHooks` is on, with a link to it                                                           |
-| Muse Spark: Memory                                  | —                                                                                                | List Muse Code's memory notes for this workspace, open one to edit, create one, or delete one to the trash, keeping each `MEMORY.md` index in step                                                                            |
-| Muse Spark: New Worktree…                           | —                                                                                                | Ask for a new branch and its base, create it in its own folder beside the repository, then offer to open it in a new window                                                                                                   |
-| Muse Spark: Remove Worktree…                        | —                                                                                                | Delete another worktree's folder (its branch stays), asking again before discarding uncommitted changes                                                                                                                       |
-| Muse Spark: Move Running Commands to Background     | `Ctrl+B` (also on macOS), while a Muse panel has focus and its conversation runs a shell command | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                                                           |
-| Muse Spark: Stop Background Tasks                   | —                                                                                                | Stop every background task of the conversation in view                                                                                                                                                                        |
-| Muse Spark: Restart Muse Code                       | —                                                                                                | Stop `muse serve` and start a fresh one without reloading the window; a running turn is stopped, and each conversation continues with its next message                                                                        |
-| (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                                | Tap to start or stop voice dictation, hold to record while held                                                                                                                                                               |
-| (composer) Run a shell command                      | Start the message with `!`                                                                       | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                                                    |
-| Muse Spark: Download Browser Check Runtime          | —                                                                                                | Get the [browser check](#browser-check)'s pinned browser ready ahead of a check: the same consent, download and verification a check would do, with cancellable progress; says when it is ready or why not                    |
-| Muse Spark: What's New                              | —                                                                                                | Open the release notes of this version (back to the newest release with Highlights) in an editor tab; see [What's New after an update](#whats-new-after-an-update)                                                            |
-| Muse Spark: Open a Pull Request in a Conversation…  | —                                                                                                | Check a GitHub pull request out in a worktree of its own and open it in a new window; someone else's is held in Plan mode, its project configuration off, until you trust it there                                            |
-| Muse Spark: Move Running Command to Background      | `Ctrl+B` (also on macOS), while the conversation in view runs a shell command                    | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                                                           |
-| Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, failures restore prior provider/default/secret state, and setup confirmation requires the composer's model receipt. Cancel writes nothing |
-| Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                        |
-| Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                       |
-| Muse Spark: Attach screen recording…                | —                                                                                                | Direct recording is unavailable in this build; choose an existing recording file instead                                                                                                                                      |
-| Muse Spark: Attach latest screen recording          | —                                                                                                | Attach the newest recording the OS already saved to the conversation in view                                                                                                                                                  |
-| Muse Spark: Delete uploaded files…                  | —                                                                                                | Delete this conversation's uploaded media before its expiry                                                                                                                                                                   |
+| Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                                                                                            |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Muse Spark: Open in Sidebar                         | —                                                                                                | Focus the chat view in the activity bar                                                                                                                                                                                                                                 |
+| Muse Spark: New Conversation                        | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused                      | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                                                                                                                                |
+| Muse Spark: Sign Out                                | —                                                                                                | Forget the stored Model API key and sign the CLI out when it is signed in (its `account/logout`, else `muse logout`)                                                                                                                                                    |
+| Muse Spark: Open in Terminal                        | —                                                                                                | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                                                                                                                                           |
+| Muse Spark: Create AGENTS.md                        | —                                                                                                | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                                                                                                                                    |
+| Muse Spark: Open Walkthrough                        | —                                                                                                | Open the four-step Get Started walkthrough                                                                                                                                                                                                                              |
+| Muse Spark: Open in New Tab                         | `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS, `Ctrl+Shift+Esc` on Linux             | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place                                                                                                                    |
+| Muse Spark: Toggle Focus                            | `Ctrl+Alt+Esc` on Windows, `Cmd+Esc` on macOS, `Ctrl+Esc` on Linux                               | Move keyboard focus between the editor and the composer                                                                                                                                                                                                                 |
+| Muse Spark: Insert @-Mention for Selection          | `Alt+K`, editor focused                                                                          | Insert `@path#start-end` for the active editor selection into the composer                                                                                                                                                                                              |
+| Muse Spark: Toggle Focus View                       | `Ctrl+Alt+F`, Muse focused                                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                                                                                                                                 |
+| Muse Spark: Toggle Thinking                         | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only                               | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal                                                                                                               |
+| Muse Spark: Set Up Shell Sandbox                    | —                                                                                                | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed                                                                                                                    |
+| Muse Spark: Show Logs                               | —                                                                                                | Open the "Muse Spark" log channel (keys redacted)                                                                                                                                                                                                                       |
+| Muse Spark: Diagnostics                             | —                                                                                                | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs                                                                       |
+| Muse Spark: Manage Skills                           | —                                                                                                | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                                                                                                 |
+| Muse Spark: Import Skills from Claude Code or Codex | —                                                                                                | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                                                                                                   |
+| Muse Spark: Import from Other Agents                | —                                                                                                | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                                                                                       |
+| Muse Spark: Install Bundled Skills for Muse Code    | —                                                                                                | Copy the [bundled skills](#bundled-skills)' package into Muse Code's config folder and link each skill into its skills folder (or update that copy); a skill of yours with the same name is kept                                                                        |
+| Muse Spark: Remove Bundled Skills from Muse Code    | —                                                                                                | Remove the links into the extension's marked copy, then the copy; nothing else is touched                                                                                                                                                                               |
+| Muse Spark: Export Conversation                     | —                                                                                                | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                                                                                         |
+| Muse Spark: Import Session                          | —                                                                                                | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                                                                                                   |
+| Muse Spark: Open Share File                         | —                                                                                                | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                                                                                             |
+| Muse Spark: MCP Servers                             | —                                                                                                | Show the MCP servers Muse Code will load (on the Model API backend, how each is running), sign in to or out of a remote one, open the settings file                                                                                                                     |
+| Muse Spark: Hooks                                   | —                                                                                                | Show where Muse Code's hooks come from (project, yours, managed) and open each file; on the Model API backend also whether `modelApiHooks` is on, with a link to it                                                                                                     |
+| Muse Spark: Memory                                  | —                                                                                                | List Muse Code's memory notes for this workspace, open one to edit, create one, or delete one to the trash, keeping each `MEMORY.md` index in step                                                                                                                      |
+| Muse Spark: New Worktree…                           | —                                                                                                | Ask for a new branch and its base, create it in its own folder beside the repository, then offer to open it in a new window                                                                                                                                             |
+| Muse Spark: Remove Worktree…                        | —                                                                                                | Delete another worktree's folder (its branch stays), asking again before discarding uncommitted changes                                                                                                                                                                 |
+| Muse Spark: Move Running Command to Background      | `Ctrl+B` (also on macOS), while the conversation in view runs a shell command                    | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                                                                                                     |
+| Muse Spark: Stop Background Tasks                   | —                                                                                                | Stop every background task of the conversation in view                                                                                                                                                                                                                  |
+| Muse Spark: Restart Muse Code                       | —                                                                                                | Stop `muse serve` and start a fresh one without reloading the window; a running turn is stopped, and each conversation continues with its next message                                                                                                                  |
+| (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                                | Tap to start or stop voice dictation, hold to record while held                                                                                                                                                                                                         |
+| (composer) Run a shell command                      | Start the message with `!`                                                                       | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                                                                                              |
+| Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, Save validates first and keeps completed writes on a later failure, naming saved and unsaved steps; setup confirmation requires the composer's model receipt. Cancel writes nothing |
+| Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                                                                  |
+| Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                                                                 |
+| Muse Spark: Show Resources                          | —                                                                                                | Open the resource chip's popover in the chat in view: this machine's readings against its limits, what is waiting, Resume now and Settings; see [Keeping your machine responsive](#keeping-your-machine-responsive)                                                     |
+| Muse Spark: Resume Work Now                         | —                                                                                                | Hold this window's resource governor at normal for fifteen minutes; a governor you switched off stays off                                                                                                                                                               |
+| Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                                                                                            |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                              |
+| Muse Spark: Continue with ChatGPT                   | —                                                                                                | Connect an eligible Plus/Pro plan in the system browser and select its catalogue model                                                                                                                                                                                  |
+| Muse Spark: Use my Copilot models                   | —                                                                                                | Select VS Code’s Copilot models using host consent and the user’s plan or AI credits                                                                                                                                                                                    |
+| Muse Spark: Open in Sidebar                         | —                                                                                                | Focus the chat view in the activity bar                                                                                                                                                                                                                                 |
+| Muse Spark: New Conversation                        | `Ctrl+N` (`Cmd+N`) when `enableNewConversationShortcut` is on, Muse focused                      | Clear the active panel to a new conversation, or open one where `preferredLocation` says                                                                                                                                                                                |
+| Muse Spark: Sign Out                                | —                                                                                                | Forget the stored Model API key and sign the CLI out when it is signed in (its `account/logout`, else `muse logout`)                                                                                                                                                    |
+| Muse Spark: Open in Terminal                        | —                                                                                                | Run the Muse Code CLI's own interactive interface in a VS Code terminal at the workspace root                                                                                                                                                                           |
+| Muse Spark: Create AGENTS.md                        | —                                                                                                | Write the rules file with `muse init` (or the same template without the CLI) and open it; an existing file is opened                                                                                                                                                    |
+| Muse Spark: Open Walkthrough                        | —                                                                                                | Open the four-step Get Started walkthrough                                                                                                                                                                                                                              |
+| Muse Spark: Open in New Tab                         | `Ctrl+Shift+Alt+Esc` on Windows, `Cmd+Shift+Esc` on macOS, `Ctrl+Shift+Esc` on Linux             | Open an independent conversation as an editor tab (also the `+` in the view title); the panel header's own button starts a new conversation in place                                                                                                                    |
+| Muse Spark: Toggle Focus                            | `Ctrl+Alt+Esc` on Windows, `Cmd+Esc` on macOS, `Ctrl+Esc` on Linux                               | Move keyboard focus between the editor and the composer                                                                                                                                                                                                                 |
+| Muse Spark: Insert @-Mention for Selection          | `Alt+K`, editor focused                                                                          | Insert `@path#start-end` for the active editor selection into the composer                                                                                                                                                                                              |
+| Muse Spark: Toggle Focus View                       | `Ctrl+Alt+F`, Muse focused                                                                       | Flip the `museSpark.focusView` setting (hides tool calls and reasoning)                                                                                                                                                                                                 |
+| Muse Spark: Toggle Thinking                         | `Ctrl+Alt+T` (macOS `Option+T`, Linux `Ctrl+Alt+O`), composer only                               | Turn reasoning on or off for this conversation. Claude Code uses `Alt+T`; on Windows that opens the Terminal menu, on GNOME `Ctrl+Alt+T` opens a terminal                                                                                                               |
+| Muse Spark: Set Up Shell Sandbox                    | —                                                                                                | Windows: run Muse Code's one-time `muse sandbox windows setup` through a UAC prompt and report the result; elsewhere reports that no setup is needed                                                                                                                    |
+| Muse Spark: Show Logs                               | —                                                                                                | Open the "Muse Spark" log channel (keys redacted)                                                                                                                                                                                                                       |
+| Muse Spark: Diagnostics                             | —                                                                                                | Write the versions, the backend and CLI facts, credential facts, never a value, the dictation state, the network posture and `muse config status` to the log and open it: what a bug report needs                                                                       |
+| Muse Spark: Report a Problem                        | —                                                                                                | Open the report dialog, in a new conversation if none is open: preview the scrubbed draft, then copy it, open a GitHub issue page or save it ([more](#reporting-a-problem))                                                                                             |
+| Muse Spark: Manage Skills                           | —                                                                                                | Turn Muse Code's skills on or off (`muse skills enable`/`disable`), then offer to restart it so the change takes effect                                                                                                                                                 |
+| Muse Spark: Import Skills from Claude Code or Codex | —                                                                                                | Preview what `muse skills import` would copy, import it once you confirm, report what was imported, skipped or failed                                                                                                                                                   |
+| Muse Spark: Import from Other Agents                | —                                                                                                | Preview MCP servers, hooks, agents, commands and rules from Claude Code, Codex or Cursor, import the files once you confirm, offer unsaved target edits, preserve source exposure                                                                                       |
+| Muse Spark: Install Bundled Skills for Muse Code    | —                                                                                                | Copy the [bundled skills](#bundled-skills)' package into Muse Code's config folder and link each skill into its skills folder (or update that copy); a skill of yours with the same name is kept                                                                        |
+| Muse Spark: Remove Bundled Skills from Muse Code    | —                                                                                                | Remove the links into the extension's marked copy, then the copy; nothing else is touched                                                                                                                                                                               |
+| Muse Spark: Export Conversation                     | —                                                                                                | Save the conversation in front of you as Markdown where you choose, and open it                                                                                                                                                                                         |
+| Muse Spark: Import Session                          | —                                                                                                | Resume a session-export JSON file as a new conversation on the Model API backend, on your model, starting in Manual (or Plan) every time it is opened                                                                                                                   |
+| Muse Spark: Open Share File                         | —                                                                                                | Read a session-export JSON file read-only in the panel: Copy and links only                                                                                                                                                                                             |
+| Muse Spark: MCP Servers                             | —                                                                                                | Show the MCP servers Muse Code will load (on the Model API backend, how each is running), sign in to or out of a remote one, open the settings file                                                                                                                     |
+| Muse Spark: Hooks                                   | —                                                                                                | Show where Muse Code's hooks come from (project, yours, managed) and open each file; on the Model API backend also whether `modelApiHooks` is on, with a link to it                                                                                                     |
+| Muse Spark: Memory                                  | —                                                                                                | List Muse Code's memory notes for this workspace, open one to edit, create one, or delete one to the trash, keeping each `MEMORY.md` index in step                                                                                                                      |
+| Muse Spark: New Worktree…                           | —                                                                                                | Ask for a new branch and its base, create it in its own folder beside the repository, then offer to open it in a new window                                                                                                                                             |
+| Muse Spark: Remove Worktree…                        | —                                                                                                | Delete another worktree's folder (its branch stays), asking again before discarding uncommitted changes                                                                                                                                                                 |
+| Muse Spark: Move Running Commands to Background     | `Ctrl+B` (also on macOS), while a Muse panel has focus and its conversation runs a shell command | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                                                                                                     |
+| Muse Spark: Stop Background Tasks                   | —                                                                                                | Stop every background task of the conversation in view                                                                                                                                                                                                                  |
+| Muse Spark: Restart Muse Code                       | —                                                                                                | Stop `muse serve` and start a fresh one without reloading the window; a running turn is stopped, and each conversation continues with its next message                                                                                                                  |
+| (composer) Record voice                             | `Ctrl+D` (`Cmd+D`), composer only                                                                | Tap to start or stop voice dictation, hold to record while held                                                                                                                                                                                                         |
+| (composer) Run a shell command                      | Start the message with `!`                                                                       | Run it in the workspace as you, outside any turn; the agent sees it with your next message                                                                                                                                                                              |
+| Muse Spark: Download Browser Check Runtime          | —                                                                                                | Get the [browser check](#browser-check)'s pinned browser ready ahead of a check: the same consent, download and verification a check would do, with cancellable progress; says when it is ready or why not                                                              |
+| Muse Spark: What's New                              | —                                                                                                | Open the release notes of this version (back to the newest release with Highlights) in an editor tab; see [What's New after an update](#whats-new-after-an-update)                                                                                                      |
+| Muse Spark: Open a Pull Request in a Conversation…  | —                                                                                                | Check a GitHub pull request out in a worktree of its own and open it in a new window; someone else's is held in Plan mode, its project configuration off, until you trust it there                                                                                      |
+| Muse Spark: Move Running Command to Background      | `Ctrl+B` (also on macOS), while the conversation in view runs a shell command                    | Let the running shell commands go on in the background while the agent carries on; VS Code keeps `Ctrl+B` otherwise                                                                                                                                                     |
+| Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, Save validates first and keeps completed writes on a later failure, naming saved and unsaved steps; setup confirmation requires the composer's model receipt. Cancel writes nothing |
+| Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                                                                  |
+| Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                                                                 |
+| Muse Spark: Attach screen recording…                | —                                                                                                | Direct recording is unavailable in this build; choose an existing recording file instead                                                                                                                                                                                |
+| Muse Spark: Attach latest screen recording          | —                                                                                                | Attach the newest recording the OS already saved to the conversation in view                                                                                                                                                                                            |
+| Muse Spark: Delete uploaded files…                  | —                                                                                                | Delete this conversation's uploaded media before its expiry                                                                                                                                                                                                             |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
 which is why its two shortcuts add `Alt`. Fifteen commands appear in the
@@ -4273,7 +4283,7 @@ immediately, and the table names the exceptions (a host restart, or read
 when a conversation starts). The settings that choose what runs and what is billed
 (`initialPermissionMode`, `backend`, `shellSandbox`, `sandboxNetwork`,
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
-`modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`, `modelApiAutoCompaction`,
+`modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`,
 `modelApiPromptCacheRetention`, `turnCheckpoints`, `bundledSkills`, `browserCheckExtraHosts`,
 `browserCheckRuntime`, `showWhatsNewOnUpdate`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
@@ -4281,7 +4291,7 @@ the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
 `modelApiPermissionProfiles`, `modelApiPermissionProfile`,
 `museCodeAutoReviewer` and the eight paid features, `modelApiWebSearch`,
 `modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`,
-`modelApiBestOfN`, `modelApiTeamWorkers`, `modelApiScheduledPrompts` and `modelApiAutoReviewer`) are machine-scoped: they
+`modelApiBestOfN`, `modelApiScheduledPrompts` and `modelApiAutoReviewer`) are machine-scoped: they
 take effect from your user settings only, never from a repository's
 `.vscode/settings.json`. In a remote window (SSH, WSL, a dev
 container) machine settings live on the remote side, where a dev container
@@ -4303,7 +4313,7 @@ Bypass at once.
 | `respectGitIgnore`                | `true`      | Exclude `.gitignore` patterns from file searches and `@`-mentions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `confidentialWorkspace`           | `false`     | Block contributor-tier models (Meta may train on their traffic) in this workspace                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `allowDangerouslySkipPermissions` | `false`     | List Bypass permissions in the Modes menu and the Shift+Tab cycle (sandboxes only)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `archiveInactiveSessions`         | `14`        | Hide sessions idle for this many days from the History dialog (`1`, `2`, `7`, `14`, or `0` for never); they stay on disk and **Show archived** lists them                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `archiveInactiveSessions`         | `14`        | Hide sessions idle for this many days from the History dialog (`1`, `2`, `7`, `14`, or `0` for never); they stay on disk and **Show Archived** lists them                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `cleanupPeriodDays`               | `30`        | Delete Model API conversations idle for more than this many days when a window lists them (`0` keeps them); Muse Code's own sessions are the CLI's to keep                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `backend`                         | `auto`      | `auto`: Muse Code when the CLI is signed in, else the Model API when a key is stored; `museCode` / `modelApi` force one. The pasted key never reaches the CLI. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `shellSandbox`                    | `auto`      | `auto`: Muse Code's OS sandbox, except for Windows workspaces under your profile, where it cannot reliably run commands; `muse`: always the sandbox; `off`: commands run directly as you, gated by approvals (Claude Code style). Without the sandbox Muse Code's file tools can also write anywhere outside the workspace without asking, in every mode, and the panel warns once per window. Changing it restarts the host                                                                                                                                                                                                                                                                                   |
@@ -4320,8 +4330,8 @@ Bypass at once.
 | `environmentVariables`            | `[]`        | `{ name, value }` pairs for the Muse Code process and the terminals that run the CLI (Open in Terminal, MCP sign-in, `muse logout`); an `XDG_CONFIG_HOME` here is where the extension looks for the CLI's sign-in and settings too. Never put API keys here; use Sign in. Changing it restarts the host                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `modelApiRepoMap`                 | `false`     | Put a [repo map](#code-intelligence) in the Model API backend's instructions in a trusted workspace: the workspace's most used files and definitions, made once per conversation in about 1,000 tokens, which every request then carries (billed to your key). Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `modelApiObservationPacking`      | `true`      | On by default. Packs old long tool outputs after two requests; recall_output reads the originals. The M75 evaluation passed. Read when a conversation starts or resumes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore files to here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                                                                                                                                                                                 |
-| `bundledSkills`                   | `true`      | The [bundled skills](#bundled-skills) (`project_setup`, `feature_delivery`, `quality_retrofit`): a skill source on the Model API backend, after the project's and your own, and the install offer for Muse Code (once per window until you choose Install or Not now). Off removes them from the Model API catalogue at once; an install for Muse Code stays until **Remove Bundled Skills from Muse Code**. Machine-scoped                                                                                                                                                                                                                                                                                    |
+| `turnCheckpoints`                 | `true`      | Records the model’s own file-tool writes for **Restore Files to Here** and Redo while each file still holds exactly what the model left. Commands, hooks, MCP tools, your edits and other windows’ writes are never undone. Requires a connected Model API session, git and confirmed process safety; copies stay in extension storage, outside the workspace’s `.git`. Off in Restricted Mode. Machine-scoped                                                                                                                                                                                                                                                                                                 |
+| `bundledSkills`                   | `true`      | The [bundled skills](#bundled-skills) (`project_setup`, `feature_delivery`, `quality_retrofit`): a skill source on the Model API backend, after the project's and your own, and the install offer for Muse Code (once per window until you choose Install or Not now). Off removes them from the Model API catalogue at once; an install for Muse Code stays until **Remove Bundled Skills From Muse Code**. Machine-scoped                                                                                                                                                                                                                                                                                    |
 | `diagnosticsAfterEdits`           | `true`      | [Checking edits](#checking-edits): after each round of edits the Model API model gets the errors and warnings of up to 8 edited files from VS Code's language servers; Muse Code is told to read them itself. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `checkCommands`                   | `[]`        | [Checking edits](#checking-edits): `{ name, command, changedFiles?, timeoutSeconds? }` lint, test or type-check commands the Model API backend runs after each round of edits, each asking wherever a shell command asks; Muse Code is told to run them. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `formatOnEdit`                    | `false`     | [Checking edits](#checking-edits): run the file's formatter on each file `write_file` or `edit_file` writes on the Model API backend, in a trusted workspace; never on a file the editor runs as code. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -4340,11 +4350,9 @@ Bypass at once.
 | `showWhatsNewOnUpdate`            | `true`      | Open What's New after the extension updates: the page after a release with Highlights, a quiet notification after a fixes-only patch; off shows nothing on updates ([What's New after an update](#whats-new-after-an-update))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `paidDailyBudgetUsd`              | `5`         | Shared interactive extras budget in USD, $0.50–$500; machine-scoped. Daily reservations persist across windows; Tab uses its own separate ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `dictationEngine`                 | `"system"`  | Model API dictation engine: `system` (free default) or `museVoice` (paid, currently refused under the finite cap). Muse Code retains its explicit voice opt-in.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `modelApiAutoCompaction`          | `true`      | Automatic Model API compaction; awaiting evaluation and inactive until the M75 pair and shared paid admission are certified. Set false to opt out. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
-| `modelApiTeamWorkers` | `true` | [Paid](#paid-features): team tasks billed to your Model API key (M96 agent roles, lane A): on with one price question before the first charge; the first delegate call that starts key tasks asks once with each model's prices, each task's ceiling and the shared daily budget. Machine-scoped |
 | `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |
-| `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete uploaded files…** removes them early |
+| `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete Uploaded Files…** removes them early |
 | `screenRecordingMaxSeconds` | `120` | Screen recording length cap in seconds, 10–600; machine-scoped. Shorter bounds are clamped, not refused |
 | `mediaAudioAction` | `"transcribe"` | What pasted or dropped audio becomes: `transcribe` (free text the model reads) or `sendAudio` (a playable clip); machine-scoped |
 
@@ -4408,14 +4416,10 @@ stopped and the next message resumes the same session.
 - The [Muse Code CLI](https://dev.meta.ai/products/muse-code/) signed in with
   a Meta account (subscription), or a Meta Model API key (pay as you go).
 - `git` on `PATH` for `.gitignore`-aware `@` mentions, worktrees, turn
-  checkpoints (**Restore files to here**), best-of-N (git 2.36 or newer) and
+  checkpoints (**Restore Files to Here**), best-of-N (git 2.36 or newer) and
   the Model API prompt's git facts (optional; VS Code's file search is used
   without it). Commit and push use VS Code’s built-in Git extension, and pull
-  requests use VS Code’s GitHub sign-in. In an editor built on VS Code that
-  does not ship the Git extension (Arduino IDE 2, some forks), the commit
-  form, commit, push (after the same confirmation, with the remote pick)
-  and commit-message drafts run through that `git` directly instead; pull
-  requests there are not available yet. The extension runs git only in a trusted workspace and only
+  requests use VS Code’s GitHub sign-in. The extension runs git only in a trusted workspace and only
   from an absolute `PATH` entry, never a copy inside the workspace.
 - Python 3.12 or newer on `PATH`, only for the
   [bundled skills](#bundled-skills)' delivery helpers.
@@ -4643,12 +4647,12 @@ stopped and the next message resumes the same session.
   - **Waiting for the terminal:** the panel stays gated, with **Check
     again**, until `muse logout` has run. That command leaves
     `~/.config/muse/auth.json` behind with no sign-in in it, and the
-    extension reads that as signed out. Choose **Check again** once the
+    extension reads that as signed out. Choose **Check Again** once the
     terminal is done. If the terminal could not open, run `muse logout`
     yourself.
   - **An inherited `META_API_KEY`:** it stays outside the extension. Remove
     it from your environment or VS Code's configured environment variables,
-    then choose **Check again**. Browser approval cannot override that key's
+    then choose **Check Again**. Browser approval cannot override that key's
     billing priority.
   - **Sign-out protection could not be saved:** finish `muse logout` and
     remove `META_API_KEY` before reopening VS Code.
@@ -4665,11 +4669,11 @@ stopped and the next message resumes the same session.
 - **The panel shows signed in on macOS, but the first message asks you to
   sign in** — on a Mac the token is in the login Keychain, and the
   extension asks Muse Code about it only when you act: a click in the
-  panel (sign-in, sign-out, **Check again**), or the **Sign Out** or
+  panel (sign-in, sign-out, **Check Again**), or the **Sign Out** or
   **Diagnostics** command. That goes for any `auth.json` on a Mac but the
   empty one a sign-out leaves, since what Muse Code 1.4.0 does there with
   another file has not been seen. A Keychain prompt never appears just
-  because VS Code opened. Choose **Check again** to have Muse Code asked
+  because VS Code opened. Choose **Check Again** to have Muse Code asked
   afresh now. **Muse Spark: Diagnostics** says whether the Keychain item exists,
   looked up without reading the secret; it also asks Muse Code for its
   sign-in, and Muse Code may read the Keychain to answer, which can show
@@ -4706,36 +4710,48 @@ stopped and the next message resumes the same session.
   1.3.0 and 1.4.0 started them in PowerShell's folder. 1.4.2 ran them in
   the project on one machine, but on a freshly set-up machine a sandboxed
   command there never finished, even after the worker above had run
-  (2026-10-04). With `museSpark.shellSandbox` at `auto` the extension
+  (2026-10-04). On 1.4.3-R5018.1 the owner's prepared machine again printed
+  the project directory, but its approved shell file write was denied
+  (2026-10-05); a fresh setup has not been retested. With
+  `museSpark.shellSandbox` at `auto` the extension
   starts Muse Code without the sandbox for such workspaces: commands run
   directly as you, in the project, still gated by the approval cards, but
   Muse Code's file tools can then write anywhere without asking, and the
   panel warns once per window. A workspace outside your user profile (such
   as `C:\code`) keeps the sandbox. `muse` keeps the sandbox regardless
-  (worth trying on 1.4.2 if commands run for you); `off` never sandboxes.
+  (worth trying if commands run for you); `off` never sandboxes.
 - **No Rename, conversation rewind or Side chat with Muse Code on Windows** —
   Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0,
-  1.4.0 and 1.4.2-R4684.1, retested October 2;
+  1.4.0, 1.4.2-R4684.1 and 1.4.3-R5018.1, retested October 5;
   [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
-  a release is verified to fix them; **Rewind code to here** still works
-  (**Restore files to here** needs a Model API session on every platform),
+  a release is verified to fix them; **Rewind Code to Here** still works
+  (**Restore Files to Here** needs a Model API session on every platform),
   and the Model API backend offers all of them.
 - **"Muse Code applies your approvals in this conversation but reports an
   error for each one"** — Muse Code on Windows can fail its own approval
   ledger after applying a decision ("approval ledger durability fence",
-  [#29](https://github.com/meta-models/muse-code-sdk/issues/29)). Since
-  1.4.2 it does this for every decision of a conversation that went through
+  [#29](https://github.com/meta-models/muse-code-sdk/issues/29)). On
+  1.4.2 this affected every decision of a conversation that went through
   the fault below. The panel says so once. The card follows what Muse Code
-  does next and is never offered again, because the decision applied. **New
-  conversation** avoids the fault.
+  does next and is never offered again, because the decision applied.
+  Upstream reports #29 fixed in **1.4.3 or later**; a 1.4.3-R5018.1 shell
+  approval returned `accepted`, `terminal: true` without the fault on
+  October 5. On older versions the notice includes the update command:
+  Windows PowerShell `irm https://dev.meta.ai/install.ps1 | iex`
+  (macOS/Linux: `curl -fsSL https://dev.meta.ai/install.sh | sh`). Restart
+  Muse Code after updating. The extension still detects and reports an
+  actual ledger fault on newer or unknown versions. **New Conversation**
+  also avoids the older fault. This check did not certify recovery of an
+  already damaged session; [the live receipt](docs/certification/muse143.md)
+  records its scope.
 - **"Muse Code refuses every message in this conversation"** — Muse Code 1.4
   ("approval replay failed: decision stage evidence contains an unrecorded
   human resolution") fails every message of a conversation whose turn
-  stopped while a multi-step command was partly approved. **Restart now**
+  stopped while a multi-step command was partly approved. **Restart Now**
   stops Muse Code, and your next message starts it again and continues the
-  conversation. **New conversation** starts afresh. The panel now rejects
+  conversation. **New Conversation** starts afresh. The panel now rejects
   the waiting step before a Stop, which keeps the conversation usable.
 - **"Could not load the output: Muse Code did not answer item/readOutput
   within 180 s"** — a busy Muse Code answers stored-output reads one after
@@ -4753,7 +4769,7 @@ stopped and the next message resumes the same session.
   came from Muse Code for 90 s, so the panel stopped waiting 60 s for each
   one. When no turn was running, Muse Code was restarted already ("Muse Code
   stopped answering and was restarted."); while a turn runs, its notice
-  offers **Restart now**, which stops the turn. If Muse Code answers again
+  offers **Restart Now**, which stops the turn. If Muse Code answers again
   on its own, commands go through again.
 - **"Muse Code did not confirm your message reached the running turn"** —
   the message was for the running turn, and Muse Code did not answer in
@@ -4762,7 +4778,7 @@ stopped and the next message resumes the same session.
 - **"This conversation's Muse Code log is damaged"** — Muse Code 1.4.2
   failed the session's event log ("event log failed: …"), after which it
   fails every message of that session. The panel refuses new messages to it
-  instead and offers **New conversation**; the conversation stays in History
+  instead and offers **New Conversation**; the conversation stays in History
   to read, and is not resumed by itself after a restart.
 - **Model API charges while using the CLI** — the extension never hands your
   pasted key to the CLI (the "muse serve credentials" line in the Muse Spark
@@ -4797,8 +4813,8 @@ stopped and the next message resumes the same session.
 
 **Muse Spark: Report a Problem** builds a bug report for this repository
 without recording your conversation. The panel opens the same dialog from
-the palette's **Support** item **Report an issue…**, from **Report this** on
-a recorded error notice or failed turn, and from **Report a problem** on the
+the palette's **Support** item **Report an Issue…**, from **Report This** on
+a recorded error notice or failed turn, and from **Report a Problem** on the
 panel's crash screen. With no conversation open, the command opens one and
 shows the dialog there.
 
@@ -4808,9 +4824,9 @@ shows the dialog there.
   settings you changed) and up to the last 50 recorded failures with their
   ages. Each item has **Remove**. The preview shows the exact, scrubbed text
   every export uses.
-- **Where it goes:** **Copy report**, **Open issue page** (this repository's
-  new-issue form in your browser, filled in), **Save to a file**, or, where
-  VS Code has it, **Use the VS Code issue reporter**. The extension posts
+- **Where it goes:** **Copy Report**, **Open Issue Page** (this repository's
+  new-issue form in your browser, filled in), **Save to a File**, or, where
+  VS Code has it, **Use the VS Code Issue Reporter**. The extension posts
   nothing itself, makes no network or model call and has no GitHub access.
 - **After a crash:** at its next start the extension offers once, "Muse
   Spark Code stopped unexpectedly last time — report it?". It cannot tell a
@@ -4936,26 +4952,30 @@ controls your own terminals, editor or other applications. Model requests,
 Tab, approvals, paid consent and Stop do not wait for it. It does not change
 provider capabilities, permissions, paid consent or budgets.
 
+On macOS, memory headroom is unknown when the runtime's libuv is older than
+1.52 (including Node 22), or its available-memory API is absent. Those older
+readings count only free pages and can falsely pause new ACP sessions despite
+reclaimable memory. Newer runtimes include inactive and purgeable pages.
+
 These settings are machine-scoped; workspace values are ignored. Settings
 names below start with `museSpark.`.
 
-| Setting                      | Default  | Range or meaning                                                                                       |
-| ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| `resourceGovernor`           | `true`   | Enable this machine's governor                                                                         |
-| `resourceCpuMaxPercent`      | `85`     | 30–100%; sustained for 30 seconds                                                                      |
-| `resourceMemoryMaxPercent`   | `90`     | 40–98% in use                                                                                          |
-| `resourceMemoryMinFreeGiB`   | `2`      | 0.5–64 GiB; effective floor at most 15% of RAM                                                         |
-| `resourceGpuMaxPercent`      | `null`   | 1–100%; no GPU probe until configured                                                                  |
-| `resourceDiskBusyMaxPercent` | `null`   | 1–100%; no disk-busy probe until configured                                                            |
-| `resourceDiskMinFreeGiB`     | `null`   | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
-| `resourceRelocate`           | `paired` | `paired`, `ask` or `off`; needs a paired device or runner route, not available yet                     |
+| Setting                      | Default | Range or meaning                                                                                       |
+| ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `resourceGovernor`           | `true`  | Enable this machine's governor                                                                         |
+| `resourceCpuMaxPercent`      | `85`    | 30–100%; sustained for 30 seconds                                                                      |
+| `resourceMemoryMaxPercent`   | `90`    | 40–98% in use                                                                                          |
+| `resourceMemoryMinFreeGiB`   | `2`     | 0.5–64 GiB; effective floor at most 15% of RAM                                                         |
+| `resourceGpuMaxPercent`      | `null`  | 1–100%; no GPU probe until configured                                                                  |
+| `resourceDiskBusyMaxPercent` | `null`  | 1–100%; no disk-busy probe until configured                                                            |
+| `resourceDiskMinFreeGiB`     | `null`  | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
 
 Levels are **normal**, **throttle**, **relocate** and **pause**. At throttle,
 background capacity narrows to one per kind; at pause, new background work
 waits. This release binds no paired-device or runner route, so sustained
 pressure goes from throttle to pause and never to relocate; resource status
-and the pause notice say relocation is not available yet. Foreground work has a twenty-second maximum wait at pause. **Run now**
-releases that wait; **Resume now** overrides pressure for fifteen minutes,
+and the pause notice show that work stays on this machine. Foreground work has a twenty-second maximum wait at pause. **Run Now**
+releases that wait; **Resume Now** overrides pressure for fifteen minutes,
 without turning on an explicitly disabled governor. Unknown readings are shown
 as unknown: they neither trip nor clear a level. Recovery has hysteresis and a
 minimum dwell, so near-threshold readings do not flicker between levels.
@@ -4980,7 +5000,7 @@ usage-history setting as consent, checked when each reading is collected. It
 keeps seven recorded days of detail (at most 10,080 minute readings and 1,000
 events), shows the open minute as "This minute so far", and keeps one row per
 completed day ("Earlier days") for the usage-history days. The usage page's
-**Delete history** names how many resource entries it also deletes, and no
+**Delete History** names how many resource entries it also deletes, and no
 running window or agent writes anything from before the delete. One-shot commands and headless runs only read it. An unreadable
 journal is reported as such, never shown as empty history. ACP's shared
 command adapter provides `/resources`, `/resources resume` and
@@ -4991,16 +5011,16 @@ See the [ACP guide](docs/acp.md#resource-status-and-resume) and
 In VS Code, after the window's first governed launch, a **Resources** chip
 sits beside the heartbeat (or above the composer when no turn is running).
 Its popover shows CPU, memory in use and available memory against your limits
-(GPU and disk busy when you set them), what is waiting, any **Resume now**
+(GPU and disk busy when you set them), what is waiting, any **Resume Now**
 override and that relocation is not available on this build. Its buttons are
-**Resume now**, **Open settings** (the machine's `museSpark.resource*`
-settings) and **Show resources**, which opens the Usage & cost page where
+**Resume Now**, **Open settings** (the machine's `museSpark.resource*`
+settings) and **Show Resources**, which opens the Usage & cost page where
 resource history lives. A status bar item appears while the governor is
 throttling or paused; at pause, one notice per conversation names
 the reading, its limit and what is waiting, with the same three actions.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/resources.png" alt="A running turn with the Resources: Throttling chip beside its heartbeat and the chip's popover open: CPU use 93% of 85%, memory in use 71% of 90%, available memory 4,939.2 MB against a 2,147.5 MB floor, relocation not available yet, two background checks and one worker waiting, and Resume now, Open settings and Show resources on one row, with Close focused" width="60%"><br>
+  <img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/resources.png" alt="A running turn with the Resources: Throttling chip beside its heartbeat and the chip's popover open: CPU use 93% of 85%, memory in use 71% of 90%, available memory 4,939.2 MB against a 2,147.5 MB floor, relocation unavailable, two background checks and one worker waiting, and Resume now, Open settings and Show resources on one row, with Close focused" width="60%"><br>
   <sub>The <b>Resources</b> chip while throttling, opened by <b>Show resources</b></sub>
 </p>
 
@@ -5029,15 +5049,49 @@ integration handoffs. Once those routes join, relocation will move only eligible
 tasks/checks, or a running check after explicit **Move to** and proven
 retirement. Pairing, offers,
 repository mapping, receiver permissions and paid consent remain required;
-headless relocation is refused. **Keep here** cancels before receiver admission.
+headless relocation is refused. **Keep Here** cancels before receiver admission.
 The [M107 integration record](docs/certification/m107.md) and
 [editor resource matrix](docs/ide-compatibility/resources.md) distinguish
 component receipts from installed-editor acceptance.
 
+## In progress
+
+Integration work is tracked in the [roadmap](ROADMAP.md#in-progress).
+Dormant schedule-v2 and estimator commands stay out of command discovery and
+refuse when typed. Legacy `/loop` and manual `/compact` keep working.
+Compatibility-only Settings values are retained without runtime reads. The
+schedule switch controls the legacy `/loop` shortcut in Muse Code chat;
+draft delivery selects the delivery carried in new drafts. `resourceRelocate`
+controls the missing-route note on resource pauses,
+and `modelApiAutoCompaction` controls the first-turn awaiting-evaluation notice,
+with automatic compaction inactive. `vault.agentFence` still controls the
+credential fence for interactive Model API shell commands; verification,
+schedules, workers and hooks always remain fenced.
+
+The unbound features include:
+
+- <a id="estimates"></a>Capacity estimates
+- <a id="the-vault"></a>Credential vault
+
 ## Development
 
-Resource admission is shared through `dist/resourceAdmission.js`; sampler,
-queue, tree accounting and disk policy stay in lazy `dist/resourceGovernor.js`.
+The internal B1 confinement build is `npm run build:confine` on Linux.
+It writes the native helper, generated privacy policy and portable inspect
+API to `temp/confine/`; these artifacts are excluded from product packages.
+The internal runner checks protected/private paths on canonical operands,
+rejects noncanonical helper input, and lets a cancelled caller detach from
+the shared self-test while session disposal still waits for its cleanup.
+The runner is unbound from editor approvals. Its certification record is
+[`docs/certification/m125-f1a.md`](docs/certification/m125-f1a.md), including
+the Windows exception and the macOS capture requirement. F1b owns approval
+integration; the shared runner adds no editor-specific behavior.
+
+Resource admission and the lazy launch shims are shared through
+`dist/resourceAdmission.js`; sampler, queue, tree accounting and disk policy
+stay in lazy `dist/resourceGovernor.js`, and the governed process launcher
+(profiles, the attested Windows job, bounded commands, hand-offs) loads beside
+it as `dist/resourceProcess.js`. Windows helper preparation launches through
+that launcher, so it ships with its callers (activation, `dist/acp.js`).
 The controls and history have their own closure budgets, including history CSS,
 without raising the 900 KiB startup or original 50 KiB deferred caps. The split
 and packaging gates cover both VSIX and ACP delivery. See
@@ -5048,13 +5102,13 @@ and packaging gates cover both VSIX and ACP delivery. See
 ### Saved prompts
 
 Right-click your own message, a history entry, the composer, or an editor's
-selected text and choose **Save prompt**. History lets you choose the exact
-user message first. **Prompt library** offers search, tags, edit, delete,
+selected text and choose **Save Prompt**. History lets you choose the exact
+user message first. **Prompt Library** offers search, tags, edit, delete,
 duplicate, import, share, and insertion. Scope labels distinguish **My prompts**
-from workspace prompts; **Copy to my prompts** makes a personal copy.
+from workspace prompts; **Copy to My Prompts** makes a personal copy.
 
-The composer's compact **Prompt library** toolbar menu offers **Save prompt**,
-**Share prompt** and **Use saved prompt…**. Right-click the input for the same
+The composer's compact **Prompt Library** toolbar menu offers **Save Prompt**,
+**Share Prompt…** and **Use Saved Prompt…**. Right-click the input for the same
 actions: VS Code uses its native menu; other shared-panel hosts open the compact
 menu at the pointer. Save and Share appear only with nonblank text. Escape closes
 the compact menu and returns focus to the input. Outside VS Code,
@@ -5064,7 +5118,7 @@ shortcuts also remain available. Native/companion panel mounting still awaits M1
 Personal prompts live in the agent data folder, shared across workspaces and
 editors on this machine. Workspace prompts live in `.muse/prompts/` and may
 be committed to git. A saved personal prompt can be loaded in a fresh empty
-workspace. **Use saved prompt…**, **Insert** and **Run with variables** review
+workspace. **Use Saved Prompt…**, **Insert** and **Run with variables** review
 variables and imported content, then fill the composer; they never send a
 message. Save no secrets. Settings Sync mirrors personal prompts only when
 `museSpark.syncPromptsAndBookmarks` is explicitly enabled globally. Turning it
@@ -5084,7 +5138,7 @@ gists is phase 2; node links, team libraries and email are phase 3.
 ### Sharing a chat
 
 Use **Share** in the header or **Muse Spark: Share chat…**. Choose the whole
-chat or inclusive message endpoints, then **Conversation only** or **Full
+chat or inclusive message endpoints, then **Conversation Only** or **Full
 transcript**. Conversation only keeps user and assistant text; full includes
 portable activity, commands, outcomes, shown decisions and reasoning. Code
 blocks and attachment names start on; diffs and attachment contents start
@@ -5093,7 +5147,7 @@ unavailable selected content refuses instead of silently including it.
 
 Choose Markdown, static self-contained HTML or versioned share JSON, then
 copy, save or open locally in a browser. Review the exact scrubbed bytes and
-highlighted redactions before **Confirm sharing**. Preview creates no file,
+highlighted redactions before **Confirm Sharing**. Preview creates no file,
 clipboard write or browser window. Files stay within the workspace or the
 host's private sharing folder. This share JSON is distinct from a resumable
 session export.
@@ -5114,102 +5168,23 @@ page wait for M104's bridge. The TUI waits for M110a0 lane T. The
 [certification](docs/certification/m118.md) names each pending binding; shared
 logic and fake adapter tests do not establish installed-editor parity.
 
-## The vault
-
-One encrypted vault per user holds API keys, OAuth tokens, SSH keys, sudo and
-other passwords, website logins with their TOTP seeds, session cookies and any
-named secret. Agents get handles and approved, scoped, logged uses, never
-values. Every approval names the exact use and binds to it. One click locks
-everything. It works the same in every editor; see
-[the M109 record](docs/certification/m109.md) for the lanes, the captures and
-what is still open.
-
-The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
-now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
-use in every window. The panel host and the native editor ship in
-`dist/vault.js`, loaded on the first vault command; activation reads no vault
-and starts no broker. Until the broker-backed service lands
-([the M109 record](docs/certification/m109.md)), both commands report that the
-broker installation is missing and refuse access instead of opening an empty
-vault. No value is ever logged, and no handle is substituted into a command,
-a file or the model's text.
-
-Settings (all machine-scoped, so no workspace can change them):
-`museSpark.vault.enabled` (on; an explicitly stored legacy `museSpark.vault`
-boolean remains effective until the new flag is explicitly configured), `museSpark.vault.protection` (`auto` is available
-hardware plus the OS store, with the recovery code offered at setup),
-`museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
-(240) and `museSpark.vault.lockOnScreenLock` (on). The Secure Enclave
-hardware and presence slots are offered where `SecureEnclave.isAvailable`,
-after the owner's Touch ID capture; the Keychain-biometry path stays off
-until an Apple Developer entitlement exists.
-
-The terminal/ACP/headless handlers are implemented against the shared vault
-contracts. This branch still needs the installed broker factory and panel
-bindings from M109 W/U/M104. It does not claim a working packaged vault:
-missing bindings report the broker installation failure and refuse access.
-No activation read or broker start is added.
-
-The terminal grammar is `muse-spark-code-acp vault` followed by `status`,
-`unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,
-`grant <grant-json>`, `revoke <grant-id>`, `audit`, `import <path>`,
-`public-key <item-id>` or `watch`. Every handler was run successfully against
-an injected fake-only local port in the H certification; installed-command
-success remains the integration check. `audit` accepts `--item`, `--requester`,
-`--kind` and `--outcome`. IDs, metadata and grant JSON use the shared schemas.
-Keep secrets out of names, labels and command arguments.
-
-`add` reads private material as one bounded JSON line from standard input,
-with byte fields encoded as base64. Terminal echo stays off while reading;
-base64 is only an input encoding, not encryption. Values never come from an
-argument, environment variable or file. An explicit `import <path>` delegates
-only the chosen credential file to the import owner. `grant` displays every
-scope field and requires explicit terminal confirmation. `watch` displays
-exact requester/use details, asks through the terminal, and answers only the
-same unexpired request id and digest. Pipes cannot approve grants or uses.
-
-ACP `/vault` supports `status` (the default), `list`, `lock` and `audit` locally,
-without sending the command to a model. Vault permissions offer Allow once,
-Allow for this session where permitted, and Deny; ACP's `allow_always` means
-that session choice only. Bypass does not grant a secret. Lock can interrupt
-an active turn or permission question.
-
-Lock, cancel and expiry withdraw a pending vault permission and settle its
-card. Command-bound TOTP consent says that the process sees the code. Agent
-audit replies include only currently visible items. Headless refusals retain
-their reason; only a missing unattended grant recommends creating one.
-
-Turning `museSpark.vault.agentFence` off applies only to an interactive shell.
-Workers, schedules, checks and hooks retain the credential and Git-helper
-fence. Approved environment injection cannot restore loader or startup
-variables.
-
-Local headless `exec --vault` requires existing unattended grants and never
-prompts. Missing grants, presence, taint, unavailable bindings or a failed
-vault use end the run with `denied` (exit 7), independently of
-`--fail-on-denial`. `--key-stdin` and CI cannot enable the vault. Ordinary
-headless behavior without the flag is unchanged. Companion and native panel
-routes carry only public state and bound answers; add/edit opens the host's
-local terminal and never sends a value through the bridge.
-
 ## Development
 
 `npm run schema:exec -- --check` checks the exec and sharing JSON schemas
 against their production zod boundaries. `npm run schema:exec` regenerates
 them. `npm run check:reference` checks the sharing command reference;
 `node scripts/gen-reference.mjs` regenerates it from the same catalog `/help`
-reads.
+reads. Coverage checks retain the full registry; published Help omits dormant
+features and their instructions. Changelog items marked
+`<!-- whats-new: historical -->` retain their release history and are omitted
+from the current What’s New page; their original Try it directives are still
+validated.
 
 `node scripts/build.mjs --production --webview-only` builds the chat, Help and
 What's New browser pages and their metafiles with production options and
 stale-chunk cleanup; it omits the Node
 bundles so browser tests stay within their default setup deadline.
 
-After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI
-surfaces in Chrome against a fake host: no startup requests, first-use loading
-under the shared CSP, and recovery from actual failed entry/static-dependency
-fetches. Retry reloads the panel with its saved conversation and draft. Cold
-menus remain dismissible and cannot take focus after dismissal.
 The generated [feature reference](docs/reference.md) takes its entries from
 `src/shared/featureCatalog.ts` and the marked README sections. Run
 `node scripts/gen-reference.mjs` after updating an entry, and
@@ -5224,6 +5199,12 @@ After every complete four-channel release, the workflow runs
 image-proxy copies. It needs no secret; stale caches or network failures warn
 without failing publication. See [release CI](docs/ci.md#release-publication-and-readme-badges)
 for propagation bounds and verification limits.
+
+The **downloads** and **GitHub app installs** badges read counters from the
+project's own Cloudflare Worker ([`infra/marketplace-hook`](infra/marketplace-hook/README.md)):
+total downloads across the VS Code Marketplace, Open VSX, npm, GitHub Release
+assets and GitHub app installs, refreshed at most hourly, and current app
+installs from the GitHub Marketplace webhook. It stores counters only.
 
 Marketplace/Open VSX and npm package READMEs receive static version badges from
 `package.json` during packaging; this GitHub README keeps dynamic versions.
@@ -5285,7 +5266,7 @@ The delivery helpers require Python 3.12 or newer. See the
   `npm run security:secrets`.
 - semgrep for `npm run security:sast`, at CI's version:
   `pip install -r .github/semgrep/requirements.txt`.
-- Google Chrome (or `CHROME_PATH`) for `test:a11y`, `harness:shots` and
+- Google Chrome (or `CHROME_PATH`) for `test:a11y`, `ui:look` and
   `images`.
 - On Windows, PSScriptAnalyzer 1.25.0 for `npm run lint`
   (`Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser`).
@@ -5313,21 +5294,6 @@ group and exited state before authorizing process actions; this mode runs
 before any audio or privacy setup. Native tests build and sign the production
 helper in private fixtures, so they work in a clean checkout.
 
-M109's Windows vault helper is prepared for integration with the shared broker.
-It wraps the vault key with current-user DPAPI or a non-exportable TPM RSA key;
-presence uses a forced-protection key plus a fresh Windows Hello signature in
-the helper's own window. Missing TPM or Hello support refuses those slots.
-Each launch checks the EXE's compiled SHA-256, its file and directory ACLs,
-and every ancestor for unsafe permissions or reparse points. The system
-PowerShell process holds a handle denying writes and deletion while running
-the verified managed entry point; private input follows its readiness signal.
-A refused cache is left intact and rebuilt in a fresh private directory.
-Only this process's completed builds are reused; native DLL imports and the
-helper's startup search are restricted to System32.
-Existing credential storage is unchanged until the broker and migration lanes
-are integrated. The [Windows certification](docs/certification/m109-pw.md)
-records the generated-material captures and the remaining hardware checks.
-
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary
@@ -5351,12 +5317,10 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run build:dev`                       | Dev bundles for the extension, the Model API backend, the review, the search worker, web fetch's page converter worker, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `npm run watch`                           | Rebuild the extension, the Model API backend, the search worker, the page converter worker and the webview on change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev`. `--theme=dark`, `light`, `hc-dark`, `hc-light`, `one-dark-pro` or `dracula` uses a captured theme; `chat-menu-narrow` uses a true 320 px viewport. The README's screenshots refresh with `npm run readme:shots` (the mapping in `scripts/readme-shots.json`), captured at the mapped viewport size after the harness readiness scan into `media/readme/`: `tools-open` (as `turn.png`), `agents`, `slash-palette` (as `palette.png`), `slash-commands`, `approval`, `question`, `quote-menu` (as `quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation` (as `voice.png`), `paid` and `paid-always`, the Languages section's is `usage --lang=de` (as `languages.png`), `readme-open-question` (as `open-question.png`), `readme-help` (as `help.png`) and `resources-throttle` (as `resources.png`); the walkthrough's are `empty`, `tools`, `slash-palette` and `signin` (as `open.png`, `welcome.png`, `chat.png` and `sign-in.png` in `resources/walkthrough/`); `--lang=<id>` renders them in a table from `l10n/` (`--lang=pseudo` in the pseudo-locale)           |
+| `npm run ui:look -- <scene>`              | Renders one webview scene from the built webview into `temp/ui-look/` for a person to look at after a UI change; no baseline, no comparison, no CI. `--theme=light` or `dark` renders one theme (both by default); needs `build:dev`.row`uses a true 320 px viewport. The README's screenshots refresh with`npm run readme:shots`(the mapping in`scripts/readme-shots.json`), captured at the mapped viewport size after the harness readiness scan into `media/readme/`: `tools-open`(as`turn.png`), `agents`, `slash-palette`(as`palette.png`), `slash-commands`, `approval`, `question`, `quote-menu`(as`quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation`(as`voice.png`), `paid`and`paid-always`, the Languages section's is `usage --lang=de`(as`languages.png`), `readme-open-question`(as`open-question.png`), `readme-help`(as`help.png`) and `resources-throttle`(as`resources.png`); the walkthrough's are `empty`, `tools`, `slash-palette`and`signin`(as`open.png`, `welcome.png`, `chat.png`and`sign-in.png`in`resources/walkthrough/`); `--lang=<id>`renders them in a table from`l10n/` (`--lang=pseudo` in the pseudo-locale)                                                                    |
 | `npm run build:tokens`                    | Regenerate shared CSS and native/desktop/TUI token inputs from `design/tokens/muse.tokens.json`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run check:tokens`                    | Reject stale generated outputs, missing contrast coverage and pairs below AA in all four Muse palettes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run check:visual`                    | Compare every audited component scene, six control states, six captured themes and 320/690 px widths with pixelmatch (colour threshold 0.1, AA detection, per-image allowance at most 0.01% or 12 pixels). Full PNG baselines stay outside git under a 512 MiB budget. An absent archive reconstructs the manifest's Git revision with the current browser/fonts. Both CI tiers require six deterministic shards and their complete receipt merge. Use `-- --shard=1/6` to rerun one batch and `-- --merge-shards=<receipt-directory>` to require all batches and the combined budget. Each shard reconstructs the reviewed source on the runner; see [S's certification](docs/certification/m114-s-screenshots,-visual-regression-and-docs.md). A reviewed update uses `-- --update --review=<reference> --archive=<new-external-directory>`; commit the changed manifest only after reviewing the images. See [the visual contract](test/harness/goldens/README.md).                                                                                                                                                                                                                                                         |
-| `npm run check:visual:a11y`               | Record scoped axe findings for every audited component in six themes at true 320/690 px; retain incomplete findings and fail on violations. The full `test:a11y` gate remains separate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `harness:shots --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `ui:look -- <scene> --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `npm run test:a11y`                       | The accessibility gate: axe-core checks every harness scenario in VS Code's four default themes against WCAG 2.2 AA and fails on any violation, on anything axe leaves undecided (except the contrast of text it could not see and of glyph-only content, which it counts), and on a page without a result or whose scenario threw; needs a build. `node scripts/capture-themes.mjs` refreshes the theme colours from a real VS Code; `--lang=<id>` checks the scenarios in a table from `l10n/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `npm run build`                           | Minified production bundles with chat, Models and What’s New sharing one browser splitting build, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if the Model API backend's files, the review's, or web fetch's page converter (parse5 and its parts), are in the activation bundle, or an English fallback is in any Node bundle except its shared `dist/uiText.js` (`scripts/check-bundle-split.mjs`), or a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages. The provider catalogue keeps its exact JSON values in a CommonJS data module, staged through the existing verified Brotli runtime loader                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -5366,9 +5330,9 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run typecheck`                       | `tsc --noEmit` for the host, webview, unit-test (checked in sequential memory-bounded projects), e2e-test and integration-test projects                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `npm run typecheck:unit`                  | Check every configured unit-project file with the same strict options in sequential compiler processes; generated configs are removed after checking.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `npm run deadcode`                        | `knip`: unused files, exports (including namespace values and types), dependencies (no `--strict`; see `knip.jsonc`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `npm run cycles`                          | `dpdm` circular-import check covering every build entry, runtime lazy import target, entry-named module and knip entry; `cyclesRoots.test.ts` guards coverage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `npm run cycles`                          | `dpdm` circular-import check (`scripts/cycles.mjs` over the roots in `scripts/cycles.json`) covering every build entry, runtime lazy import target, entry-named module and knip entry; `cyclesRoots.test.ts` guards coverage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `npm run test:unit`                       | vitest with no coverage gate (the number measured tests of fake code; removed with the 2026-10-14 test overhaul); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `npm run test:e2e:live`                   | Two real turns on the installed Muse Code CLI (a reply-only turn and M70's review turn held in Plan mode), opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (25 to 45 model attempts measured for a reply-only turn: one for the answer, the rest for Muse Code's bundled reminder agents, which loop a varying number of times; budget 60 per turn, counted from the CLI's trace log); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `npm run test:e2e:live:modelapi`          | The Model API sweep: the production backend against Meta's real API in empty temporary workspaces, one case per feature (`-- -t case07` runs one); opt-in with `MUSE_LIVE_MODEL_API=1` and a key already stored by `muse-spark-code-acp auth set` in the OS credential store; key environment variables are rejected, contributor tier only; bills the key (about $0.03 a full run, $0.02 of it two images; it stops sending past $0.50); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `npm run test:e2e:live:eval`              | The M75 paired efficiency evaluation: the twelve fixture tasks (seven accept, five held-out; two with a tool output long enough to pack) on the baseline and the observation packing arm (M73), on the extension's own Model API harness against Meta's real API, each in an empty temporary workspace, judged by a verifier that runs the fixed code; attempts counted from the requests sent, tokens, cost and pass rate per task, and the capability floors (0.75 per split); a packing run also fails unless it packed on every long-output task, and its report says so. Opt-in with `MUSE_LIVE_MODEL_API=1` and a key already stored by `muse-spark-code-acp auth set` in the OS credential store; key environment variables are rejected, the model's shell commands get no credential variable, the arms take turns going first, contributor model only; `MUSE_EVAL_TASKS` picks tasks, `MUSE_EVAL_REPORT=<path>` writes `<path>.json` and `.md`; run `npm run build:dev` first. Bills the key (the ten-task baseline measured 39 model calls and $0.0041; both arms on all twelve tasks measured 111 model calls and $0.0156 for M73; it stops sending past $0.50 or when a sent call has unknown usage); never in CI |
@@ -5471,6 +5435,18 @@ bundle declarations and callable split guard in
 rejected, then restored byte-exact and accepted. See the
 [timing and gate-fire record](docs/certification/deflake4.md).
 
+**Lazy-bundle registry.** `src/shared/lazyBundles.generated.ts` names every
+dist bundle loaded by file name, the function or constant that names it,
+which process loads it and which package carries it.
+`npm run lazy-registry:generate` writes it from the production build;
+`node scripts/gen-lazy-registry.mjs --check` runs in `npm run build` and
+fails when the file is stale, when a source loads a file the build does not
+emit, when a package lacks a bundle its side can load, when a load's file
+name is worked out at run time and is not listed with its reason
+(`scripts/lib/lazyRegistry.mjs`), and when the build's metafiles are
+missing. The command is tested as a child process over a real production
+build (`test/unit/packagedBundles.test.mjs`).
+
 **Project structure.**
 
 ```
@@ -5485,13 +5461,13 @@ src/webview/                React app (own tsconfig, browser libs)
 native/windows/             dictate.ps1 (dictation, System.Speech) and capture.ps1 (Muse Voice's recorder); MuseSparkJob.cs, MuseSparkMcpLauncher.cs, MuseSparkMcpJob.cs: the Windows job helpers' C#, compiled on first use
 native/darwin/              Dictation.swift, Info.plist, build.sh, check-disclaim.sh: the macOS helper (built and checked in CI)
 resources/walkthrough/      the Get Started walkthrough
-test/unit/                  vitest tests, vscode mock, fakes
-test/e2e/                   the fake Muse Code CLI and the tests that drive the real backend through it; the opt-in live suites
+test/unit/                  vitest tests over real code only: no mocks, fakes, stand-ins or screenshot comparisons
+test/e2e/                   the live drills, kept listed for the real-life run
 test/integration/           @vscode/test-cli suites
 test/fixtures/workspace/    the workspace the integration tests open
-test/harness/               the webview behind a fake host, for screenshots and the accessibility gate; themes/ holds four VS Code themes and captured One Dark Pro/Dracula colours; goldens/ holds the visual manifest, with PNGs outside git
+test/harness/               the webview behind a scripted host, for the local look, the README pictures and the accessibility gate; themes/ holds four captured VS Code themes
 test/hosts/                 the extension and the ACP agent in other editors (VSCodium, code-server, Theia, JupyterLab, Emacs, Neovim), one script per host
-scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, harness screenshots, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
+scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, the local UI look, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
 docs/                       PRIVACY.md, and certification/: per-milestone gate-fire records
 media/                      icons, banner, social preview, README screenshots
 .github/                    workflows (ci, build, release, hosts, forks, action-check), issue and pull-request templates, audit exceptions, pinned semgrep, CODEOWNERS, Dependabot, FUNDING
@@ -5573,14 +5549,23 @@ without rebuilding.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
 
-#### M101 integration validation
+#### M106 wire captures
 
-`node scripts/m101-e.mjs --plan` prints lane E's live capture plan and call
-estimate. `node scripts/m101-e.mjs --fake` runs request goldens, the fake
-M75 pair and automatic-compaction/overflow checks in bounded batches. Lane E
-owns the live receipt; production automatic compaction stays inactive until
-its evaluated latch and paid admission are certified. The launcher's live
-M75 mode uses the existing OS-stored key and bills that key.
+`node scripts/capture-m106-meta.mjs --help` explains the developer capture
+tool; `node scripts/capture-m106-meta.mjs --plan` prints its six requests
+without network access. Live collection requires an explicit paid-capture
+opt-in and a key on standard input. It runs two status GETs and four
+contributor-model POST attempts without retries, including a request with
+the recommended 131,072-token output cap. It writes counted, scrubbed
+receipts into a new directory and exits unsuccessfully if a required wire
+contract is refused or missing. The lead supplies the key and reviews the
+receipts before installing fixtures or enabling a capability.
+
+The [C-M106-1 capture record](docs/certification/m106-completion-captures.md)
+contains Muse Code 1.4.4's observed effort, feedback and lifecycle frames,
+the missing credential or local runtime for every provider, and the remaining
+live checks. The collector is a developer tool shared across Windows,
+macOS and Linux; editor bindings belong to the later completion lanes.
 
 PNG/JPEG images are resized before entering Model API replay when the selected
 model record supplies vision support and documented pixel limits. The portable
@@ -5783,4 +5768,4 @@ and versions leave over HTTPS. Disable `museSpark.legalRegistryLookups` for
 local-only scans; missing dependency licences remain unknown. Private registry
 configuration is never contacted. CLI lookup still requires `--registry`.
 
-Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers. The credential vault remains unavailable until its broker is installed.
+Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers.

@@ -1,7 +1,7 @@
 // Optional machine-local conversion. No installation, shell, credentials,
 // provider calls or user content in diagnostics. Callers own confinement/consent.
 import { type ChildProcess } from 'node:child_process'
-import { spawnResourceProcess } from '../resources/admission'
+import { spawnResourceProcess } from '../resources/launcher'
 import { Buffer } from 'node:buffer'
 import { watch, type FSWatcher } from 'node:fs'
 import fs, { chmod, lstat, mkdtemp, open, rm } from 'node:fs/promises'

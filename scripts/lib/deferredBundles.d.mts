@@ -19,6 +19,10 @@ export const BUNDLES: {
 }
 export const DEFERRED: readonly DeferredBundle[]
 export const ON_FIRST_USE: readonly DeferredBundle[]
+export const RESOURCE_PROCESS_ONLY: readonly string[]
+export const RESOURCE_LAUNCH_SHARED: readonly string[]
+export const RESOURCE_PROCESS_SHARED: readonly string[]
+export const RESOURCE_PROCESS_BUNDLE: DeferredBundle
 export function checkDeferredBundles(
   inputsOf: (bundle: Bundle) => ReadonlyMap<string, number>,
 ): string[]
@@ -32,6 +36,7 @@ export const sharedWire: Plugin
 export const sharedValidation: Plugin
 export const deferredCohort: Plugin
 
+export const DEFERRED_OUTFILES: ReadonlyMap<string, string>
 export const MODEL_API_OPTIONAL_ONLY: readonly string[]
 export const sharedStructuredSchema: Plugin
 export const sharedModelApiBoundaries: Plugin
