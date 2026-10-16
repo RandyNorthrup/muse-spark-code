@@ -38,7 +38,6 @@ import {
   SECRET_KEYS,
   EXEC_STOP_GRACE_MS,
   LEGAL_EXIT,
-  LEGAL_SCAN_TIMEOUT_MS,
   LEGAL_SCAN_BUNDLE_FILE,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
@@ -144,10 +143,13 @@ import { chooseVaultDecision, readVaultMaterial } from './vault/vaultInput'
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
 const META_API_KEY_VARIABLE = 'META_API_KEY'
-/** The headless deadlines beside exec's own (M97 lane R: the workspace scan). */
+/**
+ * The headless deadlines beside exec's own (`scan-secrets` only): the
+ * `legal` scan runs until it is done or a signal stops it (owner
+ * 2026-10-16: no arbitrary limits).
+ */
 const HEADLESS_FIXED_TIMEOUT_MS = {
   'scan-secrets': EXEC_SCAN_TIMEOUT_MS,
-  legal: LEGAL_SCAN_TIMEOUT_MS,
 } as const
 /** What a headless command answers when its own wiring fails (D76: 2 for the scan). */
 const HEADLESS_WIRING_EXIT = {
@@ -972,10 +974,14 @@ async function main(): Promise<number> {
     const stdout = createFdWriter(process.stdout.fd, closed)
     const stderr = createFdWriter(process.stderr.fd, closed)
     const now = () => performance.timeOrigin + performance.now()
-    const headlessTimeoutMs =
-      command.command === 'exec'
-        ? command.options.timeoutMs
-        : HEADLESS_FIXED_TIMEOUT_MS[command.command]
+    // Only `exec` (its own option) and `scan-secrets` name a deadline; the
+    // `legal` scan runs until it is done or a signal stops it.
+    let headlessTimeoutMs: number | undefined
+    if (command.command === 'exec') {
+      headlessTimeoutMs = command.options.timeoutMs
+    } else if (command.command === 'scan-secrets') {
+      headlessTimeoutMs = HEADLESS_FIXED_TIMEOUT_MS['scan-secrets']
+    }
     const lifecycle = createLifecycle({
       processStartMs: performance.timeOrigin,
       timeoutMs: headlessTimeoutMs,

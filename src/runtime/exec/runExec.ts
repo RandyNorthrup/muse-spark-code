@@ -1182,7 +1182,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               lastResponse: totals.lastResponse,
             },
       limits,
-      durationMs: Math.max(0, deps.now() - (lifecycle.deadlineMs - options.timeoutMs)),
+      durationMs: Math.max(0, deps.now() - lifecycle.startMs),
       error: status === 'completed' ? null : { kind: status, message: error },
     }
     return result

@@ -15,7 +15,6 @@ import {
   LEGAL_FILE_MAX_BYTES,
   LEGAL_TOTAL_MAX_BYTES,
   LEGAL_FINDINGS_PER_RULE_MAX,
-  LEGAL_SCAN_TIMEOUT_MS,
   LEGAL_FINDINGS_MAX,
   LEGAL_HEADER_POLICIES,
   LEGAL_INCOMPLETE_MAX,
@@ -242,13 +241,16 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   const incomplete: string[] = [...(snapshot.incompleteChecks ?? []), UI_TEXT.legalScanner.m110]
   const cache = new Map<string, string | undefined>()
   let bytesRead = 0
-  const deadline = options.deadline ?? Date.now() + LEGAL_SCAN_TIMEOUT_MS
+  // A deadline only when the caller names one: unnamed, the scan reads
+  // until it is done or the signal aborts (owner 2026-10-16: no arbitrary
+  // limits), never stopping at an invented 120 s.
+  const deadline = options.deadline
   let isTimedOut = false
   const bounded: LegalFileSnapshot = {
     files: [...allowed].toSorted((a, b) => compareLegalText(a, b)),
     readFile: (path: string) => {
       if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
-      if (Date.now() >= deadline) {
+      if (deadline !== undefined && Date.now() >= deadline) {
         if (!isTimedOut) incomplete.push(UI_TEXT.legalScanner.m112)
         isTimedOut = true
         return
@@ -407,7 +409,11 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   incomplete.push(
     ...(snapshot.incompleteChecks ?? []).filter((entry) => !incomplete.includes(entry)),
   )
-  if (Date.now() >= deadline && !incomplete.includes('scan stopped at limit: elapsed time'))
+  if (
+    deadline !== undefined &&
+    Date.now() >= deadline &&
+    !incomplete.includes('scan stopped at limit: elapsed time')
+  )
     incomplete.push(UI_TEXT.legalScanner.m112)
   const truncated = withinRules.length - LEGAL_FINDINGS_MAX
   const kept = truncated > 0 ? withinRules.slice(0, LEGAL_FINDINGS_MAX) : withinRules
