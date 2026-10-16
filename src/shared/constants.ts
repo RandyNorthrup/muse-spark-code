@@ -4124,9 +4124,6 @@ export const KEYRING_GENERATIONS_TAG = 'muse-spark-gens:v1:'
 export const KEYSTORE_LOCK_PIPE = 'muse-spark-keystore'
 export const KEYSTORE_LOCK_DIR = 'muse-spark-keys'
 export const KEYSTORE_LOCK_ACCOUNT_CHARS = 8
-// How long a writer, a reader of a long value or a delete waits for the
-// account's owner before it fails closed; the owner's work is a few OS calls.
-export const KEYSTORE_LOCK_TIMEOUT_MS = 30 * 1000
 // Which account pays is chosen at launch, never guessed (D62).
 export const ACP_BACKENDS = ['museCode', 'modelApi'] as const
 export type AcpBackendKind = (typeof ACP_BACKENDS)[number]

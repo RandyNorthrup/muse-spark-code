@@ -26,7 +26,6 @@ import {
   CHATGPT_REFRESH_LOCK_RETRY_MS,
   NAMED_LOCK_ENTRY_BYTES,
   NAMED_LOCK_FOREIGN_MODE_MASK,
-  OAUTH_CODE_TTL_MS,
 } from '../shared/constants'
 
 /**
@@ -283,9 +282,14 @@ export async function withNamedLock<T>(
   names: NamedLockNames,
   options: NamedLockOptions = {},
 ): Promise<T> {
-  const deadline = AbortSignal.timeout(options.timeoutMs ?? OAUTH_CODE_TTL_MS)
+  const deadline =
+    options.timeoutMs === undefined ? undefined : AbortSignal.timeout(options.timeoutMs)
   const signal =
-    options.signal === undefined ? deadline : AbortSignal.any([deadline, options.signal])
+    deadline === undefined
+      ? (options.signal ?? new AbortController().signal)
+      : options.signal === undefined
+        ? deadline
+        : AbortSignal.any([deadline, options.signal])
   const attempt = await openAttempt(names, options)
   const held = await acquireLock(attempt, signal, options)
   try {

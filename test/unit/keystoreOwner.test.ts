@@ -220,6 +220,8 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
       const parts = Math.ceil((header.value ?? '').length / KEYRING_PART_CHARS)
       expect(await entriesOf(scope, name)).toHaveLength(1 + parts)
       await succeeded(first.ask({ op: 'delete', account: name }), 'delete')
+      const absent = await succeeded(readFresh(scope, name), 'read after delete')
+      expect(absent.value).toBeNull()
       expect(await entriesOf(scope, name)).toEqual([])
     } finally {
       first.close()

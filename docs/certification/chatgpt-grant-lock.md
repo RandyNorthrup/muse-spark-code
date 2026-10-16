@@ -960,7 +960,33 @@ I did not edit them.
 
 ---
 
-# PLANFIX: gates on the final tree (2026-10-15, Windows, head `f8c05f942`)
+# RVPLANFIX: limits rule and unresolved native delete (2026-10-16)
+
+The owner's later no-invented-caps rule supersedes the earlier deadline policy.
+Removed PLANFIX's new `KEYSTORE_LOCK_TIMEOUT_MS` (30 seconds) and the generic
+named lock's implicit OAuth-duration deadline: without an explicit caller deadline
+or cancellation it now waits for ownership, never inventing a cutoff. Explicit
+short deadlines in native qualification remain test inputs, not shipped defaults.
+Other retained branch limits are findings, not silently certified: subscription
+stream idle timeout, aggregate stream-byte cap and approximate byte-count output
+cap, OAuth/callback/file-lock bounds, provider/tool limits inherited by the plan
+path, and exec's default/max request/time/budget bounds. They need platform or
+explicit role-setting provenance under the owner's rule. They are not removed by
+a speculative transport/accounting redesign in this review.
+
+A final 13-file real-module run returned exit 1: 121 passed, six platform skips,
+one `keystoreOwner` failure after an acknowledged delete (header and one part
+still visible in the test-only service). The same suite alone passed 6/6, and
+paired with the rewritten native multipart case passed 7/7. Those later greens do
+not explain or erase the observed failure. A fresh-process post-delete read is
+now asserted before enumeration so a recurrence distinguishes a surviving value
+from enumeration visibility. Root cause remains UNMEASURED; merge is blocked
+pending native resolution. No production-service enumeration or owner's grant
+was involved. Receipts: `.lane/RVPLANFIX-final-tests.log`,
+`.lane/RVPLANFIX-keystore-isolated-failure-check.log`,
+`.lane/RVPLANFIX-native-delete-diagnostic.log`.
+
+# PLANFIX: gates on the final tree (historical 2026-10-15, head `f8c05f942`)
 
 Each command run alone, exit code read from the command itself.
 
