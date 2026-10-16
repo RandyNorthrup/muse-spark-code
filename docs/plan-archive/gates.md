@@ -2734,6 +2734,39 @@ integration. Direct lane checks, build caps and red drills are recorded in
 
 <!-- plan-archive:end id="7-0140" -->
 
+## Closed release gate records (2026-09-27 and 2026-10-04)
+
+<!-- plan-archive:begin id="gates-715277eb2-36361" lines="36361-36374" at="715277eb2" bytes="991" sha256="e792ad52ded3692e20c47c47a461da97bb844303eabed3c9c824b0837acea201" -->
+
+**MRG78 browser size blocker (2026-10-04; resolved by FIX78W).** The merged production
+build emits `dist/webview/main.js` at 935,470 bytes (913.5 KiB), over its
+unchanged 900 KiB cap. A build of `main-sync` `244d5905` using the same
+browser options emits 910,023 bytes (888.7 KiB). Every Node bundle fits;
+the M71 model text block is registered with main's split gate and its
+positive/negative controls pass. The rig brief permits merge repairs only;
+an unrelated browser refactor or a new loading architecture is deferred
+to the lead. No cap, threshold, hook or feature has been weakened. This
+merge is not aggregate-green or ready to release while that gate fails.
+Bounded receipts: `docs/certification/mrg78.md`. FIX78W closes the size
+blocker with the unchanged 900 KiB cap applied to the entry and all static
+imports (898.4 KiB); its production build and bundle checks pass on Kubuntu.
+Full quality and native/hosted certification remain lead-owned. See
+`docs/certification/fix78w.md`.
+
+<!-- plan-archive:end id="gates-715277eb2-36361" -->
+
+<!-- plan-archive:begin id="gates-715277eb2-36672" lines="36672-36678" at="715277eb2" bytes="491" sha256="32a89487fe43044333171946056bae7ce0906aac645d78f13d06786103606e1a" -->
+
+**Resolved 2026-09-27: the bundle budget after M48–M56 joined M60–M63.**
+The joined tree's build failed its size check (`dist/extension.js` 600.5
+KiB against 600, `dist/acp.js` 874.1 KiB against 800) and no budget was
+raised. Main's M57 took the Model API backend out of both: the extension is
+432.5 KiB under its unchanged 600 KiB, and the agent, which loads the same
+`dist/modelApi.js`, 713.2 KiB, whose budget is now 850 KiB (D6 amendments;
+`docs/certification/pr32-integration.md`).
+
+<!-- plan-archive:end id="gates-715277eb2-36672" -->
+
 ## 0.16.0 release repair and 0.17.0 integration lanes (2026-10-07 – 2026-10-08)
 
 <!-- plan-archive:begin id="gates-c54550e6d-34023" lines="34023-34062" at="c54550e6d" bytes="3511" sha256="a880a6e94c142343edead2557013e841fe1a99db5a33c702c4d98febcd2233d9" -->
