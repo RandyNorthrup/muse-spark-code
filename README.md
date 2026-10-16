@@ -4157,8 +4157,8 @@ ACP editors can send `/help` for the current installed-skill list and the
 installed skills; the linked panel slash commands and settings are extension
 workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
 reference in the installed language without a model call. `exec --help`,
-`report --help` and `scan-secrets --help` each print that command's own
-one screen with its usage and exit codes; `--help` prints concise
+`report --help`, `scan-secrets --help`, `share --help` and `prompts --help`
+each print that command's own one screen; `--help` prints concise
 ACP usage. Terminal help states that VS Code current values are unavailable.
 
 Maintainers run `npm run reference:generate` after changes. The reference reads
@@ -4909,10 +4909,12 @@ protocol, with or without a Meta key; its attempts count against
 `--max-requests` at no USD reservation. Without a grant the refusal names
 the ChatGPT sign-in, never a Meta key.
 
-With no unlocked credential store (Linux without Secret Service) sessions
-still open: status commands and every refusal say stored keys cannot be
-checked, a key passed for the run with `--key-stdin` works, and nothing is
-ever written in plain text without an explicit choice.
+With no unlocked credential store (Linux without Secret Service) the agent
+still starts and the host opens: status commands and every refusal say
+stored keys cannot be checked. A session attributes its spend to an
+account, so with no readable store one starts only with a key passed for
+the run (`--key-stdin`) or a file-configured provider; nothing is ever
+written in plain text without an explicit choice.
 
 On Windows a forced stop (an output pipe closed, or output still queued when
 the cleanup grace runs out, or a distinct second signal's 300 ms grace ends)
