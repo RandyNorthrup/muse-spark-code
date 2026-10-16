@@ -33157,6 +33157,28 @@ lane A's first step.
 
 ## 7. Gates
 
+**M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
+job 115017063279: "loads the real lazy menu independently of the secret
+modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
+5,000 ms default; the other 70 cases passed, with no step times logged.
+Probe `b45c7592b` passed 14/14 in 1.2–3.9 s on hosted macOS: the case's
+run time is close to its 5 s budget under load; which step overran in the
+failing run is not measured. Disposition: open; the case's fate belongs to
+`chore/test-overhaul`, in review, not merged. Detail:
+`docs/certification/release-0182.md`.
+
+**0.18.2 released-commit Hosts red (open).** Hosts 38329749606 on
+`898a26c5e`, job 115076562053, "VSCodium latest" (1.135.06055): "creates
+AGENTS.md in the workspace root and opens it (D15)" failed with "no matching
+tab appeared within 5000 ms; open: Untitled, Untitled, AGENTS.md"; the same
+case passed in PR-head Hosts 38311021363. Measured cause: a chat panel whose
+webview finishes loading focuses its composer and takes the active editor
+from a document opened in the meantime, a product defect since `fb1166ec6f`
+(`docs/certification/release-0182.md`, probe runs 38335980951, 38336295689,
+38336506352). Disposition: product fix is open work (panel focus fix,
+`fix/panel-focus-steal`, in review; not merged). Hosts 38340629307,
+workflow_dispatch on the same commit, ended cancelled.
+
 **TRAINACT scoped qualification.** The explicit rig/common brief reserves
 aggregate `npm run quality` for the lead and forbids it in this lane.
 Run production build and all unchanged caps/split checks; complete owning
@@ -34967,20 +34989,7 @@ PowerShell files are unchanged by this merge; no global install, network
 fetch, version downgrade or skip is permitted under the shared rig rules.
 The lead retains the pinned PowerShell check on a provisioned machine.
 
-**MRG78 browser size blocker (2026-10-04; resolved by FIX78W).** The merged production
-build emits `dist/webview/main.js` at 935,470 bytes (913.5 KiB), over its
-unchanged 900 KiB cap. A build of `main-sync` `244d5905` using the same
-browser options emits 910,023 bytes (888.7 KiB). Every Node bundle fits;
-the M71 model text block is registered with main's split gate and its
-positive/negative controls pass. The rig brief permits merge repairs only;
-an unrelated browser refactor or a new loading architecture is deferred
-to the lead. No cap, threshold, hook or feature has been weakened. This
-merge is not aggregate-green or ready to release while that gate fails.
-Bounded receipts: `docs/certification/mrg78.md`. FIX78W closes the size
-blocker with the unchanged 900 KiB cap applied to the entry and all static
-imports (898.4 KiB); its production build and bundle checks pass on Kubuntu.
-Full quality and native/hosted certification remain lead-owned. See
-`docs/certification/fix78w.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 **MRG78 native identity integration.** Main's R1 lint gate rejects M71's
 direct `dev`/`ino` reads in `gitExtension.ts`. Reuse the existing
@@ -35129,14 +35138,6 @@ weakened nor claimed green. This is a documentation gate deferral, not an
 unfixed RVM98J finding.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
-
-**Resolved 2026-09-27: the bundle budget after M48–M56 joined M60–M63.**
-The joined tree's build failed its size check (`dist/extension.js` 600.5
-KiB against 600, `dist/acp.js` 874.1 KiB against 800) and no budget was
-raised. Main's M57 took the Model API backend out of both: the extension is
-432.5 KiB under its unchanged 600 KiB, and the agent, which loads the same
-`dist/modelApi.js`, 713.2 KiB, whose budget is now 850 KiB (D6 amendments;
-`docs/certification/pr32-integration.md`).
 
 **Deferred 2026-10-02, until 2026-11-01: GHSA-vfj7-8cjw-p6xm (`braces`,
 high).** The advisory turned the dependency audit red on every branch.
@@ -38782,21 +38783,30 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
-**0.18.2 preparation (2026-10-12, release branch).** `release/0.18.2` is
-cut from `int/train-0182` at `5bc38fbe0` and merges main at `e763f4938`
-(0.18.1 as released). One change for a person: the chat panel's empty screen
-shows the product's own mark instead of Meta's logo
-(`docs/certification/panelmark.md`; review RVPANELMARKC without a finding).
-Six pictures that showed the old logo were taken again, two of them shipped
-in the extension's walkthrough. By the owner's order of 1:30 PM PT no
+**0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
+Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from
+`int/train-0182` at `5bc38fbe0` and merged with main at `e763f4938`) merged at
+5:56 PM PT as `898a26c5e`; the annotated tag was pushed at 5:57 PM PT. The
+Release run succeeded on its first attempt and ended at 6:06 PM PT, from the
+verified CI artifacts without a second build; `verify-release.sh 0.18.2` ended
+"ALL CHANNELS PUBLISHED 0.18.2". One change for a person: the chat panel's
+empty screen shows the product's own mark instead of Meta's logo
+(`docs/certification/panelmark.md`), and the eight pictures that showed the
+old logo or an older panel were taken again. By the owner's order no
 screenshot comparison runs in CI or in `quality:gates` any more; a change to
-the interface is looked at locally. No test was added. Record:
-`docs/certification/release-0182.md`. Not in 0.18.2: the spend ledger and
-the false error sentences (0.18.3), the contributor-price fix (0.18.4), and
-what the 0.18.1 record below leaves to "the next release" and "the
-follow-up". This is preparation, not publication; the public roadmap (M122)
-lists 0.18.2 as the next release until a `0.18.2 released (…)` record
-follows here.
+the interface is looked at locally. No test was added. Hosted CI on the head
+was not green on a first attempt: one macOS test shard was red (one case
+exceeded its 5 s limit; the step that overran is not measured), was run again on the same commit and
+passed, and the merge went in on that, against `AGENTS.md` rule 2; the Hosts
+run on the merged commit (38329749606) is red in "VSCodium latest", one case:
+a loading chat panel takes the focus from the file just opened (the product's
+defect since 2026-09-21, measured afterwards). Real runs through the packed product, which is the
+published file byte for byte: three routes before the merge (12 requests,
+$0.018245) and after publication (11 requests, $0.018101), keys removed. Not
+in 0.18.2: the spend ledger and the false error sentences (0.18.3), the
+contributor-price fix (0.18.4), and what the 0.18.1 record below leaves to
+"the next release" and "the follow-up". Record:
+`docs/certification/release-0182.md`.
 
 **0.18.1 released (2026-10-12, tag `v0.18.1` on main's release merge `38ef148f1`, PR #151, release run 38298298094).**
 Pull request 151 (`hotfix/0.18.1-nopin`, head `e90f0140c`) merged at 12:29 PM
