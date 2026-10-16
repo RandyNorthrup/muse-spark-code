@@ -48,6 +48,12 @@ describe('plan model effort levels', () => {
     expect(defaultEffortFor([], 'chatgpt/gpt-6.1-sol')).toBe(DEFAULT_EFFORT)
   })
 
+  it('keeps a supported explicit effort and replaces an unsupported one with the catalogue default', () => {
+    expect(defaultEffortFor([planModel], planModel.modelId, 'xhigh')).toBe('xhigh')
+    expect(defaultEffortFor([planModel], planModel.modelId, 'minimal')).toBe('low')
+    expect(defaultEffortFor([planModel], planModel.modelId)).toBe('low')
+  })
+
   it('ignores a default the model does not serve', () => {
     const odd = summary({
       ...planModel,

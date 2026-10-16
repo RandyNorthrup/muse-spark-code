@@ -328,8 +328,14 @@ export function modelEffortLevels(
  * backend knows it and serves it, else the standing default (a chosen
  * level still wins: applyEffort keeps every tier the model serves).
  */
-export function defaultEffortFor(models: readonly ModelSummary[], modelId: string): EffortLevel {
+export function defaultEffortFor(
+  models: readonly ModelSummary[],
+  modelId: string,
+  chosen?: EffortLevel,
+): EffortLevel {
   const summary = models.find((model) => model.modelId === modelId)
+  const levels = effortLevelsFor(modelId, summary?.effortLevels)
+  if (chosen !== undefined && levels.includes(chosen)) return chosen
   const fallback = summary?.defaultEffort
   return fallback !== undefined &&
     effortLevelsFor(modelId, summary?.effortLevels).includes(fallback)
@@ -364,6 +370,7 @@ class AcpSession {
   private releaseSchedules: (() => Promise<void>) | undefined
   private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
+  private isEffortChosen = false
   /** The conversation's Fast switch; off by default, reset on model change. */
   private fast = false
   private modelChangeRevision = 0
@@ -1572,8 +1579,12 @@ class AcpSession {
   }
 
   /** The model and effort the editor chose for this session, for a later load. */
-  public currentChoice(): { readonly modelId: string; readonly effort: EffortLevel } {
-    return { modelId: this.modelId, effort: this.effort }
+  public currentChoice(): {
+    readonly modelId: string
+    readonly effort: EffortLevel
+    readonly isEffortChosen: boolean
+  } {
+    return { modelId: this.modelId, effort: this.effort, isEffortChosen: this.isEffortChosen }
   }
 
   /**
@@ -1584,7 +1595,11 @@ class AcpSession {
    * answer: on a mismatch the load fails instead, so nothing runs on a
    * model the editor was not told.
    */
-  public async restoreChoice(modelId: string, effort: EffortLevel): Promise<void> {
+  public async restoreChoice(
+    modelId: string,
+    effort: EffortLevel,
+    isEffortChosen: boolean,
+  ): Promise<void> {
     this.ensureHeld()
     await this.session.setApprovalMode(approvalModeFor(this.mode, true))
     this.ensureHeld()
@@ -1608,6 +1623,7 @@ class AcpSession {
       )
     }
     this.modelId = outcome.modelId
+    this.isEffortChosen = isEffortChosen
     await this.applyEffort(effort)
   }
 
@@ -1627,11 +1643,11 @@ class AcpSession {
     if (configId === ACP_CONFIG_IDS.fast) {
       if (typeof value !== 'boolean') throw RequestError.invalidParams(undefined, configId)
       const tier = this.models.find((model) => model.modelId === this.modelId)?.fastTier
-      if (tier === undefined) throw RequestError.invalidParams(undefined, configId)
+      if (value && tier === undefined) throw RequestError.invalidParams(undefined, configId)
       if (this.session.setServiceTier === undefined)
         throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
       this.ensureHeld()
-      await this.session.setServiceTier(value ? tier.id : undefined)
+      await this.session.setServiceTier(value ? tier?.id : undefined)
       this.fast = value
       return
     }
@@ -1669,7 +1685,16 @@ class AcpSession {
       // new model may list no priority tier at all.
       this.fast = false
       await this.session.setServiceTier?.(undefined)
-      await this.applyEffort(this.effort)
+      const model = this.models.find((entry) => entry.modelId === this.modelId)
+      await this.applyEffort(
+        model?.defaultEffort === undefined
+          ? this.effort
+          : defaultEffortFor(
+              this.models,
+              this.modelId,
+              this.isEffortChosen ? this.effort : undefined,
+            ),
+      )
       return
     }
     if (configId !== ACP_CONFIG_IDS.effort) {
@@ -1679,6 +1704,7 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, value)
     }
     await this.applyEffort(value)
+    this.isEffortChosen = true
   }
 
   /** A loaded session's history, as the updates a live one would have sent. */
@@ -2262,7 +2288,7 @@ class AgentState {
    * backend restarted re-applies them and reads them back, so the session
    * keeps running on the chosen model instead of the CLI's default.
    */
-  private readonly choices = new Map<string, { modelId: string; effort: EffortLevel }>()
+  private readonly choices = new Map<string, ReturnType<AcpSession['currentChoice']>>()
   /** Sessions being set up (`adopt`), by id: a newer load or a close lets them go too. */
   private readonly adopting = new Map<string, AcpSession>()
   private readonly claims = new Map<string, SessionClaim>()
@@ -2587,7 +2613,11 @@ class AgentState {
           if (remembered === undefined) {
             await resumed.matchAdvertised()
           } else {
-            await resumed.restoreChoice(remembered.modelId, remembered.effort)
+            await resumed.restoreChoice(
+              remembered.modelId,
+              remembered.effort,
+              remembered.isEffortChosen,
+            )
           }
           if (!isReplayed) {
             return

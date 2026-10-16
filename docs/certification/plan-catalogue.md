@@ -291,6 +291,26 @@ Surfaces checked:
   plan facts only), so `unchosenEffort` answers undefined and today's rule
   (`high`, or the highest tier served) is unchanged.
 
+## RVPLANFIX R9: ACP chosen/unchosen model switches (2026-10-16)
+
+The ACP model-switch residual above was real: a fresh initial model's `high`
+was retained on a plan model that serves `high` but defaults to `low`. ACP now
+tracks whether an explicit effort command succeeded, preserves that fact across
+its in-process resume-choice record, and chooses the destination catalogue default
+on an unchosen switch. Supported explicit effort wins. Models without their own
+default keep the prior behavior. Main's model/effort event revision tracking is
+preserved. Clearing Fast is accepted even if the current model lists no Fast tier;
+enabling it still requires the tier. No provider/editor stand-in was added.
+
+Real ACP-helper regression: four passed, exit 0; deliberately returning `high`
+instead of the chosen `xhigh`: one intended failure, three passed, exit 1;
+restored four passed, exit 0. Logs `.lane/RVPLANFIX-acp-effort-{green,red,restored}.log`.
+The exact helper line was restored; the final formatted file SHA-256 is
+`D4F260D03C5E5CBF18B5B561AADB8B95C472BD8A6FC00288ACBB24C9890FAD67`.
+This proves the selection helper, not a real editor transition. The lead still
+must switch an actual ACP session before/after an explicit choice and after
+resume, and observe the option plus the real request effort. No model call here.
+
 ## RVPLANFIX: evidence correction and forbidden stand-ins (2026-10-16)
 
 The six `chatgptFastTier.test.ts` cases did not prove the product through the
