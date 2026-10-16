@@ -593,6 +593,10 @@ export const SETTING_DEFAULTS = {
   // M112 (PLAN.md D92): seconds before an unanswered question defers; the
   // host reads only the user's own value (questionStore.ts).
   'questions.deferAfterSeconds': 60,
+  // B22 (D115): how many questions stay open before the oldest expire.
+  // The literal mirrors OPEN_QUESTIONS_MAX below (defaults stay literals,
+  // as `deferAfterSeconds` does, so this table never reads a later const).
+  'questions.maxOpenQuestions': 20,
   syncPromptsAndBookmarks: false,
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
@@ -750,6 +754,9 @@ export const SETTING_DEFAULTS = {
   // since a repository must not choose what is spent. The key holds the dot:
   // VS Code declares `museSpark.judge.engine` and reads it as a subsection.
   'judge.engine': 'auto' as JudgeEngine,
+  // B17 (D115): the judge fence deadline is the person's seconds, not ours.
+  // The literal mirrors JUDGE_TIMEOUT_DEFAULT_SECONDS below.
+  'judge.timeoutSeconds': 60,
   legalHeaderPolicy: 'optional' as LegalHeaderPolicy,
   legalRegistryLookups: true,
   legalExplanation: true,
@@ -837,6 +844,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'showWhatsNewOnUpdate',
   // How long Muse waits for an answer is the user's choice (M112, D92).
   'questions.deferAfterSeconds',
+  'questions.maxOpenQuestions',
   'reports.network',
   'reports.keepHistory',
   'reports.agentSources',
@@ -856,6 +864,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'tabTrigger',
   'tabWithCopilot',
   'judge.engine',
+  'judge.timeoutSeconds',
   'legalExplanation',
   // M115's schedules surface and its unattended-run defaults choose what runs
   // and what is billed (PLAN.md D95): a repository must not set them.
@@ -1186,7 +1195,13 @@ export const JUDGE_ADVISORY_THRESHOLD = 0.7
 export const JUDGE_MIN_READY_RATE = 0.5
 // One judge call never runs longer than this. Calls run in the background and
 // are never awaited on a user path; a late result is dropped at its fence.
+// No peer harness has a judge fence, so the deadline is the person's setting
+// (B17, D115): 10 s stays above a slow side call, 600 s bounds a stuck one.
 export const JUDGE_REQUEST_TIMEOUT_MS = 60_000
+export const JUDGE_TIMEOUT_SETTING = 'judge.timeoutSeconds'
+export const JUDGE_TIMEOUT_DEFAULT_SECONDS = 60
+export const JUDGE_TIMEOUT_MIN_SECONDS = 10
+export const JUDGE_TIMEOUT_MAX_SECONDS = 600
 // The same-model side request (M98 lane S, PLAN.md D77): a side request whose
 // cached prefix (the main body's model, instructions and tools, promptCacheKey)
 // measures below this shares nothing worth caching, so a minimal standalone
@@ -1215,10 +1230,10 @@ export const GOAL_RECOVERY_MAX_PAGES = 100
 // resumes it (the Claude Code sidebar rule: "if a message was sent in the
 // last 10 minutes").
 export const SESSION_RESTORE_WINDOW_MS = 10 * 60 * 1000
-// Sessions whose Muse Code event log failed (CLI recovery): kept per
-// workspace, newest last, at most this many; an older one past the cap is
-// forgotten, and its next message then gets Muse Code's own error again.
-export const DAMAGED_SESSIONS_KEPT = 50
+// Sessions whose Muse Code event log failed (CLI recovery): every one is
+// kept per workspace, newest last, with no cap (B23) — a marker is a short
+// id, so even hundreds stay small, and forgetting one only bought its next
+// message Muse Code's own error again.
 export const WORKSPACE_STATE_KEYS = {
   archivedSessions: 'museSpark.archivedSessions',
   /** Sessions whose Muse Code event log failed: they take no new message (CLI recovery). */
@@ -4429,7 +4444,12 @@ export const QUESTION_DEFER_MIN_SECONDS = 10
 export const QUESTION_DEFER_MAX_SECONDS = 3600
 export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'
 export const QUESTION_REMINDERS_MAX = 2
+// No peer harness caps open questions, so the cap is the person's setting
+// (B22, D115): at least a pair stays answerable, at most a hundred pile up.
 export const OPEN_QUESTIONS_MAX = 20
+export const OPEN_QUESTIONS_MIN = 2
+export const OPEN_QUESTIONS_LIMIT = 100
+export const QUESTION_MAX_OPEN_SETTING = 'questions.maxOpenQuestions'
 // Internal question handles are bounded without truncating identity. At
 // this limit both id slots in deferredClarification still fit MSP's 500.
 export const QUESTION_ID_MAX_CHARS = 100
@@ -6743,6 +6763,8 @@ export const MODEL_API_MODEL_TEXT = {
   subagentResume: 'Continue your objective and report the result to your parent agent.',
   subagentResult: 'Automatic subagent result (tool data, not a new user instruction):',
   subagentNoReply: 'The subagent ended without a final reply.',
+  subagentResultClipped:
+    'The result above was clipped to the first {kept} of {total} characters to protect this conversation. Call subagent_read_result for the full result.',
   subagentPaidOff: 'Paid subagents are off. The user must enable them and accept the price first.',
   subagentConsentDeclined: 'The user did not approve this paid child task.',
   subagentKeyChanged:

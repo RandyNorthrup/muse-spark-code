@@ -196,6 +196,14 @@ happened, not what was planned; superseded entries are kept.
   golden turns reproduced from the real modules). The full loopback golden
   stays with the lead pending recorded exchanges.
 
+- Nothing-dropped review: the two retained bounds no peer harness shares
+  are now the person's settings (both machine-scoped). `museSpark.questions.maxOpenQuestions`
+  (20 by default, 2–100) sets how many questions stay open before the
+  oldest expire with a warning; `museSpark.judge.timeoutSeconds` (60 by
+  default, 10–600) sets how long a background safety check may run before
+  its missing advisory is named instead of waited on. Surfaces without
+  settings (ACP, headless) keep the defaults.
+
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
   propagation and sub-cent search-price disclosure checks.
@@ -326,6 +334,26 @@ happened, not what was planned; superseded entries are kept.
   editor's qualification (lane Q). The pull-request checkout's own git
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
+
+- No-silent-drops lane (LIMITSC, PLAN.md D115): six limits that dropped
+  something without telling the person now keep it or say so, in every
+  installed language. A child task's full result is kept (`read_result`
+  returns it whole; the automatic push carries the bounded slice plus a
+  notice with both counts, and completion warns the person immediately).
+  Crowded-out questions stay readable on their
+  expired cards with a warning at that moment past 20 open; ACP and terminal
+  `/questions` also retain their text and Expired label. Every
+  damaged-session marker is kept (the 50 cap is gone) and marking warns
+  at that moment. A timed-out elicitation form settles as cancel with a
+  warning naming the server, including across the MCP/session bundle boundary.
+  A dropped judge advisory is named on the
+  Muse Code Auto-review approval card; both backends warn when consuming a
+  missing advisory at Auto review or an ordinary approval decision. An oversize panel state
+  still omits the transcript, but the unsent draft and pending send come
+  back on restore, including the revision needed to recover a refused
+  pending send without replacing newer typing. Repeated reloads preserve that
+  recovery state; ACP withdraws settled MCP forms and rejects late answers.
+  Implementation and outstanding verification: `docs/certification/no-silent-drops.md`.
 
 ## [0.18.2] - 2026-10-12
 

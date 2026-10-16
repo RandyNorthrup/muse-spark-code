@@ -58,6 +58,25 @@ export function checkElicitationOutcome(outcome: unknown): ElicitationOutcome {
     : { action: parsed.data.action }
 }
 
+/**
+ * An elicitation wait the deadline ended (C7): carried as the abort reason
+ * so the host tells the person the form settled as cancel, never as accept.
+ */
+export class McpElicitationTimeoutError extends Error {
+  public constructor() {
+    super('the elicitation was not answered in time')
+    this.name = 'McpElicitationTimeoutError'
+  }
+}
+
+/** Whether this wait ended on the elicitation deadline (C7), not on a stop. */
+export function isElicitationTimeout(signal: AbortSignal): boolean {
+  // The connection and session ship in independent bundles; their copies
+  // of this class have different identities, but the abort reason is shared.
+  const reason: unknown = signal.reason
+  return signal.aborted && reason instanceof Error && reason.name === 'McpElicitationTimeoutError'
+}
+
 export interface ParsedElicitation {
   readonly message: string
   readonly requestedSchema: unknown

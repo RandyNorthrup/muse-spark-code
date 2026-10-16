@@ -20,7 +20,12 @@ import {
   MILLISECONDS_PER_SECOND,
 } from '../../../../shared/constants'
 import { clipForLog, type CoreLogger } from '../../../logging'
-import type { ElicitationOutcome, McpElicitationHandler } from './elicitation'
+import {
+  type ElicitationOutcome,
+  type McpElicitationHandler,
+  McpElicitationTimeoutError,
+  isElicitationTimeout,
+} from './elicitation'
 import {
   type CallToolResult,
   callToolResultSchema,
@@ -210,17 +215,18 @@ export class McpConnection {
    */
   private elicitationSignal(): {
     readonly signal: AbortSignal
-    readonly cancel: () => void
+    readonly timeout: () => void
     readonly release: () => void
   } {
     const controller = new AbortController()
+    const timeout = () => {
+      controller.abort(new McpElicitationTimeoutError())
+    }
     if (this.closedReason !== undefined) {
       controller.abort()
       return {
         signal: controller.signal,
-        cancel: () => {
-          controller.abort()
-        },
+        timeout,
         release: () => {
           controller.abort()
         },
@@ -247,7 +253,7 @@ export class McpConnection {
     }
     return {
       signal: controller.signal,
-      cancel: stop,
+      timeout,
       release: () => {
         controller.abort()
         for (const release of releases) {
@@ -263,7 +269,7 @@ export class McpConnection {
     elicit: McpElicitationHandler,
     params: unknown,
   ): Promise<void> {
-    const { signal, cancel, release } = this.elicitationSignal()
+    const { signal, timeout, release } = this.elicitationSignal()
     const stopped = new Promise<ElicitationOutcome>((resolve) => {
       const onStop = () => {
         resolve({ action: 'cancel' })
@@ -271,7 +277,9 @@ export class McpConnection {
       signal.addEventListener('abort', onStop, { once: true })
       if (signal.aborted) onStop()
     })
-    const timer = setTimeout(cancel, MCP_ELICITATION_TIMEOUT_MS)
+    // The deadline aborts with its own reason (C7): a stop aborts bare, so
+    // the host can tell a form that timed out from one the person stopped.
+    const timer = setTimeout(timeout, MCP_ELICITATION_TIMEOUT_MS)
     let refusal = 'the elicitation handler failed'
     try {
       // The params crossed the wire parsed (rule 7); the answer is checked
@@ -303,6 +311,11 @@ export class McpConnection {
       const outcome = checkElicitationOutcome(
         await Promise.race([elicit({ params, signal }), stopped]),
       )
+      if (outcome.action === 'cancel' && isElicitationTimeout(signal)) {
+        this.options.log.warn(
+          `MCP server ${this.options.name} elicitation was not answered in ${seconds(MCP_ELICITATION_TIMEOUT_MS)} seconds; it settles as cancel`,
+        )
+      }
       if (outcome.action === 'accept') {
         const checked = validateElicitationValues(schema.fields, outcome.content ?? {})
         if (!checked.ok) {

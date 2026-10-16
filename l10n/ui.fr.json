@@ -1499,6 +1499,7 @@
   "elicitationDeclinedByHook": "Un hook a refusé cette demande de {server} : {reason}",
   "elicitationAnsweredByHook": "L’un de vos hooks a répondu à cette demande de {server}.",
   "elicitationExpired": "La demande de {server} n’est plus en attente.",
+  "mcpElicitationTimedOut": "La demande de {server} est restée sans réponse pendant {seconds} secondes et a donc été réglée comme annulée. Aucune réponse n’a été envoyée.",
   "hookHttpHostRefused": "Un hook http a été refusé : {host} n’est pas un hôte autorisé.",
   "hookHttpSchemeRefused": "Un hook http a été refusé : seul HTTPS est autorisé.",
   "hookHttpRedirectRefused": "Un hook http a été refusé : il a redirigé vers {host}.",
@@ -2265,6 +2266,11 @@
   "questionDeclined": "Refusée",
   "questionDismissed": "Fermée sans réponse",
   "questionExpired": "Expirée",
+  "questionsExpiredNotice": {
+    "one": "{count} question plus ancienne a expiré sans réponse : seules les {max} questions les plus récentes restent ouvertes. Son texte est conservé sur sa carte.",
+    "other": "{count} questions plus anciennes ont expiré sans réponse : seules les {max} questions les plus récentes restent ouvertes. Leur texte est conservé sur leurs cartes.",
+    "many": "{count} de questions plus anciennes ont expiré sans réponse : seules les {max} questions les plus récentes restent ouvertes. Leur texte est conservé sur leurs cartes."
+  },
   "questionAnswer": "Répondre",
   "questionDismiss": "Fermer sans répondre",
   "questionExpand": "Développer la question",
@@ -4006,6 +4012,7 @@
   "agentUnloaded": "L’agent « {id} » n’a pas démarré : {path} n’a pas pu être chargé, et une définition à cet endroit aurait la priorité. Corrigez le problème ou supprimez la définition, puis démarrez une nouvelle conversation.",
   "subagentConsentDeclined": "La tâche enfant payante n’a pas été approuvée.",
   "subagentContributorBlocked": "L’agent personnalisé nomme un modèle de niveau contributeur, qui ne peut pas s’exécuter tant que cet espace de travail est confidentiel (museSpark.confidentialWorkspace).",
+  "subagentResultClipped": "Ce résultat a été tronqué aux {kept} premiers caractères sur {total} ; le résultat complet est conservé dans la transcription de la tâche enfant.",
   "subagentKeyChanged": "La clé Model API a changé après l’approbation. Approuvez une nouvelle tâche enfant pour continuer.",
   "subagentModelChanged": "Le modèle a changé après l’approbation. Approuvez une nouvelle tâche enfant pour continuer.",
   "subagentGoalEnded": "L’objectif d’origine n’est plus actif. La tâche enfant ne peut pas effectuer d’autre requête.",
@@ -4172,6 +4179,7 @@
     "many": "{count} jugements"
   },
   "judgeCaution": "Muse Judge recommande la prudence. Vous décidez ; il ne peut pas autoriser cette action.",
+  "judgeAdvisoryMissing": "La vérification de sécurité en arrière-plan ne s’est pas terminée, donc aucun avis n’est joint à cette approbation.",
   "judgeSubscriptionNotice": "Muse Judge utilise votre modèle de discussion via votre abonnement Muse et compte dans ses limites. Chaque lot utilise une nouvelle session isolée en mode Plan. Une protection annule la session lorsqu’un outil est détecté, mais ne peut pas prouver qu’aucun outil n’a été exécuté. Il peut seulement recommander la prudence.",
   "judgeStatusSame": "Même modèle",
   "judgeStatusOff": "Désactivé",

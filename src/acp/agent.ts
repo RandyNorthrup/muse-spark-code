@@ -362,8 +362,11 @@ class AcpSession {
   private accounts: AcpAccounts | undefined
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
+  private unsubscribeLogDamaged: (() => void) | undefined
+  private isLogDamageAnnounced = false
   private readonly unsubscribeResources: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
+  private readonly elicitationForms = new Map<string, AbortController>()
   private readonly earlyFinishes = new Map<string, TurnCompleted>()
   private outbox: Promise<void> = Promise.resolve()
   private pending: PendingPrompt | undefined
@@ -416,6 +419,9 @@ class AcpSession {
             session,
             clock: questionClock,
             deliver: (message) => this.getQuestions().deliver(message),
+            notice: (text) => {
+              this.questionNotice(text)
+            },
           })
     this.translator = new UpdateTranslator(cwd, false)
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
@@ -825,6 +831,11 @@ class AcpSession {
         void this.askElicitation(event)
         return
       }
+      case 'elicitationSettled': {
+        this.elicitationForms.get(event.elicitationId)?.abort()
+        this.elicitationForms.delete(event.elicitationId)
+        return
+      }
       case 'turnCompleted': {
         this.finishTurn(event)
         return
@@ -1021,6 +1032,8 @@ class AcpSession {
     const pending = this.pending
     const settle = this.session.settleElicitation
     const message = `${fill(UI_TEXT.elicitationTitle, { server: event.server })}\n${event.message}`
+    const controller = new AbortController()
+    this.elicitationForms.set(event.elicitationId, controller)
     try {
       const { elicitationSchema, elicitationText, parseElicitationResult } =
         this.questionBundle().acpElicitation(UI_TEXT, uiLocale())
@@ -1036,8 +1049,10 @@ class AcpSession {
           message,
           requestedSchema: elicitationSchema(event.fields),
         }
-        const response = await this.client.request('elicitation/create', request)
-        if (!this.isCurrentPrompt(pending)) {
+        const response = await this.client.request('elicitation/create', request, {
+          cancellationSignal: controller.signal,
+        })
+        if (controller.signal.aborted || !this.isCurrentPrompt(pending)) {
           return
         }
         const parsed = parseElicitationResult(response)
@@ -1071,6 +1086,7 @@ class AcpSession {
         }
       }
     } catch {
+      if (controller.signal.aborted) return
       this.deps.log.warn(`ACP session ${this.sessionId}: elicitation ${event.elicitationId} failed`)
       // A form that failed is cancelled, so the tool call goes on without the answer.
       if (this.isCurrentPrompt(pending)) {
@@ -1079,6 +1095,10 @@ class AcpSession {
         } catch {
           this.deps.log.info('ACP elicitation was already settled')
         }
+      }
+    } finally {
+      if (this.elicitationForms.get(event.elicitationId) === controller) {
+        this.elicitationForms.delete(event.elicitationId)
       }
     }
   }
@@ -1659,6 +1679,11 @@ class AcpSession {
     this.unsubscribe = this.session.onEvent((event) => {
       this.onEvent(event)
     })
+    this.unsubscribeLogDamaged = this.session.onLogDamaged?.(() => {
+      if (this.isDisposed || this.isLogDamageAnnounced) return
+      this.isLogDamageAnnounced = true
+      this.questionNotice(UI_TEXT.sessionLogDamaged)
+    })
   }
 
   public async prompt(blocks: readonly ContentBlock[]): Promise<StopReason> {
@@ -2151,6 +2176,8 @@ class AcpSession {
       return
     }
     this.isDisposed = true
+    for (const form of this.elicitationForms.values()) form.abort()
+    this.elicitationForms.clear()
     this.legalStop?.abort()
     const releasingAnswers = this.releaseAnswers()
     this.questions?.dispose()
@@ -2162,6 +2189,7 @@ class AcpSession {
     this.pending?.resolve('cancelled')
     this.pending = undefined
     this.unsubscribe?.()
+    this.unsubscribeLogDamaged?.()
     this.unsubscribeResources?.()
     const releaseSchedules = this.releaseSchedules
     this.releaseSchedules = undefined

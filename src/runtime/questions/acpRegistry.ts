@@ -9,6 +9,7 @@ import type {
   OpenQuestionsSnapshot,
 } from '../../shared/questions'
 import { OPEN_QUESTIONS_MAX, UI_TEXT } from '../../shared/constants'
+import { plural } from '../../shared/l10n/text'
 import { QuestionRegistry } from '../../core/questions/registry'
 import { questionAnswerText } from '../../core/questions/lateAnswer'
 import { createQuestionQueueStore, createQuestionStore } from './questionStore'
@@ -84,6 +85,9 @@ export function createRuntimeQuestionRegistry(
       published = snapshot
     },
     failed,
+    onExpired: (cards, max) => {
+      input.notice?.(plural(UI_TEXT.questionsExpiredNotice, cards.length, { max }))
+    },
   })
   // Loading begins in the constructor; observe failures before ACP's later replay setup.
   void registry.ready().catch(failed)
@@ -120,7 +124,7 @@ export function createRuntimeQuestionRegistry(
     },
     list: () =>
       (published ?? registry.snapshot()).questions.filter((entry) =>
-        ['waiting', 'open', 'dismissed'].includes(entry.state),
+        ['waiting', 'open', 'dismissed', 'expired'].includes(entry.state),
       ),
     async answer(id, reply) {
       return card(id)?.state === 'open' ? await registry.answer(id, reply) : undefined

@@ -1480,6 +1480,7 @@
   "elicitationDeclinedByHook": "Bir kanca {server} sunucusundan gelen bu isteği reddetti: {reason}",
   "elicitationAnsweredByHook": "Kancalarınızdan biri {server} sunucusundan gelen bu isteği yanıtladı.",
   "elicitationExpired": "{server} sunucusundan gelen istek artık beklemiyor.",
+  "mcpElicitationTimedOut": "{server} isteği {seconds} saniye yanıtsız kaldı ve iptal olarak sonuçlandı. Hiçbir yanıt gönderilmedi.",
   "hookHttpHostRefused": "Bir http kancası reddedildi: {host} izin verilen bir ana bilgisayar değil.",
   "hookHttpSchemeRefused": "Bir http kancası reddedildi: yalnızca HTTPS’ye izin verilir.",
   "hookHttpRedirectRefused": "Bir http kancası reddedildi: {host} adresine yönlendirdi.",
@@ -2225,6 +2226,10 @@
   "questionDeclined": "Yanıt reddedildi",
   "questionDismissed": "Yanıtsız kapatıldı",
   "questionExpired": "Süresi doldu",
+  "questionsExpiredNotice": {
+    "one": "Yanıtlanmamış eski bir sorunun süresi doldu: yalnızca en yeni {max} soru açık kalır. Metni kartında durur.",
+    "other": "{count} eski soru yanıtlanmadan süresi doldu: yalnızca en yeni {max} soru açık kalır. Metinleri kartlarında durur."
+  },
   "questionAnswer": "Yanıtla",
   "questionDismiss": "Yanıtlamadan kapat",
   "questionExpand": "Soruyu genişlet",
@@ -3908,6 +3913,7 @@
   "agentUnloaded": "\"{id}\" aracısı başlatılmadı: {path} yüklenemedi ve oradaki bir tanım öncelikli olurdu. Sorunu düzeltin veya tanımı kaldırın, ardından yeni bir konuşma başlatın.",
   "subagentConsentDeclined": "Ücretli alt görev onaylanmadı.",
   "subagentContributorBlocked": "Özel aracı, bu çalışma alanı gizliyken çalıştırılamayan bir katkıcı katmanı modeli adlandırıyor (museSpark.confidentialWorkspace).",
+  "subagentResultClipped": "Bu sonuç {total} karakterin ilk {kept} karakterine kırpıldı; sonucun tamamı alt görevin transkriptinde saklanır.",
   "subagentKeyChanged": "Onaydan sonra Model API anahtarı değişti. Devam etmek için yeni bir alt görevi onaylayın.",
   "subagentModelChanged": "Onaydan sonra model değişti. Devam etmek için yeni bir alt görevi onaylayın.",
   "subagentGoalEnded": "Başlatan hedef artık etkin değil. Alt görev yeni bir istek yapamaz.",
@@ -4065,6 +4071,7 @@
     "other": "{count} değerlendirme"
   },
   "judgeCaution": "Muse Judge dikkatli olmanızı öneriyor. Kararı siz verirsiniz; bu eylemi onaylayamaz.",
+  "judgeAdvisoryMissing": "Arka plan güvenlik denetimi bitmedi, bu nedenle bu onaya herhangi bir tavsiye eklenmedi.",
   "judgeSubscriptionNotice": "Muse Judge, Muse aboneliğiniz üzerinden sohbet modelinizi kullanır ve abonelik sınırlarını tüketir. Her toplu işlem, Plan modunda yeni ve yalıtılmış bir oturum kullanır. Araç algılama koruması oturumu iptal eder ancak hiçbir aracın çalışmadığını kanıtlayamaz. Yalnızca dikkatli olmanızı önerebilir.",
   "judgeStatusSame": "Aynı model",
   "judgeStatusOff": "Kapalı",

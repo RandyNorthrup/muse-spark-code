@@ -158,21 +158,32 @@ export class ReviewedApprovals {
     }
     this.held.delete(event.approvalId)
     const hasJudgeCaution = held.caution?.read() === 'caution'
+    // A late judge result is dropped at its fence (B17): a card with no
+    // advisory must not look judged, and an auto-allow must not pass
+    // silently. The judge never runs on ACP, so the panel tells the person.
+    const isJudgeDropped = held.caution !== undefined && !hasJudgeCaution && held.caution.dropped()
+    const droppedNote = isJudgeDropped ? UI_TEXT.judgeAdvisoryMissing : undefined
     if (hasJudgeCaution) held.event = { ...held.event, judgeCaution: true }
     if (outcome.hasTripped) {
       this.deps.notice('warning', UI_TEXT.autoReviewerTripped)
     }
     this.deps.log.info(
-      `Approval ${event.approvalId}: the Auto reviewer ${outcome.decision === 'allow' ? 'allows it' : `leaves it to the user (${outcome.cause})`}`,
+      `Approval ${event.approvalId}: the Auto reviewer ${outcome.decision === 'allow' ? 'allows it' : `leaves it to the user (${outcome.cause})`}${isJudgeDropped ? ' without its judge advisory' : ''}`,
     )
     if (outcome.decision === 'ask') {
-      this.deps.showCard(held.event, reviewNote(outcome))
+      this.deps.showCard(
+        held.event,
+        droppedNote === undefined ? reviewNote(outcome) : `${reviewNote(outcome)} ${droppedNote}`,
+      )
     } else if (hasJudgeCaution) {
       this.deps.showCard(held.event, undefined)
     } else if (this.deps.mayAllow(held.event)) {
+      if (isJudgeDropped) {
+        this.deps.notice('warning', UI_TEXT.judgeAdvisoryMissing)
+      }
       await this.allow(hold.session, held.event, outcome.reason)
     } else {
-      this.deps.showCard(held.event, undefined)
+      this.deps.showCard(held.event, droppedNote)
     }
   }
 

@@ -62,6 +62,8 @@ export type AcpQuestionRegistryFactory = (input: {
   readonly session: AgentSession
   readonly clock: QuestionClock
   readonly deliver: (message: QuestionDelivery) => Promise<QuestionDeliveryOutcome>
+  /** Runtime expiry is announced at the transition, including load/settle/turn-end. */
+  readonly notice?: (text: string) => void
 }) => AcpQuestionRegistry
 
 interface Form {
@@ -104,7 +106,7 @@ export class AcpQuestionDeferral {
     const live = new Set(
       this.deps.registry
         .list()
-        .filter((record) => record.state === 'open' || record.state === 'waiting')
+        .filter((record) => ['open', 'waiting', 'expired'].includes(record.state))
         .map((record) => record.userInputId),
     )
     for (const previous of this.numbers.keys()) {
@@ -219,7 +221,9 @@ export class AcpQuestionDeferral {
   }
 
   public list(): string {
-    const open = this.deps.registry.list().filter((question) => question.state === 'open')
+    const open = this.deps.registry
+      .list()
+      .filter((question) => question.state === 'open' || question.state === 'expired')
     if (open.length === 0) return UI_TEXT.questionNoOpen
     return open
       .map((record) =>
@@ -227,7 +231,10 @@ export class AcpQuestionDeferral {
           .map((question) =>
             fill(UI_TEXT.acpQuestionListEntry, {
               number: this.number(record.userInputId),
-              header: question.header,
+              header:
+                record.state === 'expired'
+                  ? `${question.header} (${UI_TEXT.questionExpired})`
+                  : question.header,
               question: question.question,
             }),
           )

@@ -1499,6 +1499,7 @@
   "elicitationDeclinedByHook": "Um gancho recusou esta solicitação de {server}: {reason}",
   "elicitationAnsweredByHook": "Um dos seus ganchos respondeu a esta solicitação de {server}.",
   "elicitationExpired": "A solicitação de {server} não está mais aguardando.",
+  "mcpElicitationTimedOut": "A solicitação de {server} ficou sem resposta por {seconds} segundos e foi encerrada como cancelada. Nenhuma resposta foi enviada.",
   "hookHttpHostRefused": "Um gancho http foi recusado: {host} não é um host permitido.",
   "hookHttpSchemeRefused": "Um gancho http foi recusado: só HTTPS é permitido.",
   "hookHttpRedirectRefused": "Um gancho http foi recusado: ele redirecionou para {host}.",
@@ -2265,6 +2266,11 @@
   "questionDeclined": "Recusada",
   "questionDismissed": "Fechada sem resposta",
   "questionExpired": "Expirada",
+  "questionsExpiredNotice": {
+    "one": "{count} pergunta anterior expirou sem resposta: apenas as {max} perguntas mais recentes permanecem abertas. O texto dela está guardado no cartão.",
+    "many": "{count} de perguntas anteriores expiraram sem resposta: apenas as {max} perguntas mais recentes permanecem abertas. O texto delas está guardado nos cartões.",
+    "other": "{count} perguntas anteriores expiraram sem resposta: apenas as {max} perguntas mais recentes permanecem abertas. O texto delas está guardado nos cartões."
+  },
   "questionAnswer": "Responder",
   "questionDismiss": "Fechar sem responder",
   "questionExpand": "Expandir pergunta",
@@ -4006,6 +4012,7 @@
   "agentUnloaded": "O agente “{id}” não foi iniciado: não foi possível carregar {path}, e uma definição ali teria precedência. Corrija o problema ou remova a definição e, em seguida, inicie uma nova conversa.",
   "subagentConsentDeclined": "A tarefa paga de subagente não foi aprovada.",
   "subagentContributorBlocked": "O agente personalizado nomeia um modelo de nível de colaborador, que não pode ser executado enquanto este espaço de trabalho for confidencial (museSpark.confidentialWorkspace).",
+  "subagentResultClipped": "Este resultado foi cortado para os primeiros {kept} de {total} caracteres; o resultado completo está guardado na transcrição da subtarefa.",
   "subagentKeyChanged": "A chave da Model API mudou após a aprovação. Aprove uma nova tarefa de subagente para continuar.",
   "subagentModelChanged": "O modelo mudou após a aprovação. Aprove uma nova tarefa de subagente para continuar.",
   "subagentGoalEnded": "A meta de origem não está mais ativa. A tarefa de subagente não pode fazer outra solicitação.",
@@ -4172,6 +4179,7 @@
     "many": "{count} julgamentos"
   },
   "judgeCaution": "Muse Judge recomenda cautela. Você decide; ele não pode aprovar esta ação.",
+  "judgeAdvisoryMissing": "A verificação de segurança em segundo plano não terminou, então nenhum aviso acompanha esta aprovação.",
   "judgeSubscriptionNotice": "Muse Judge usa seu modelo de chat pela sua assinatura Muse e conta nos limites dela. Cada lote usa uma nova sessão isolada no modo Plano. Uma proteção cancela a sessão ao detectar uma ferramenta, mas não pode provar que nenhuma ferramenta foi executada. Ele só pode recomendar cautela.",
   "judgeStatusSame": "Mesmo modelo",
   "judgeStatusOff": "Desativado",

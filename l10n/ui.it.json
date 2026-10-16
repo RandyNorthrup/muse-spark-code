@@ -1499,6 +1499,7 @@
   "elicitationDeclinedByHook": "Un hook ha rifiutato questa richiesta di {server}: {reason}",
   "elicitationAnsweredByHook": "Uno dei tuoi hook ha risposto a questa richiesta di {server}.",
   "elicitationExpired": "La richiesta di {server} non è più in attesa.",
+  "mcpElicitationTimedOut": "La richiesta di {server} è rimasta senza risposta per {seconds} secondi, quindi è stata chiusa come annullata. Non è stata inviata alcuna risposta.",
   "hookHttpHostRefused": "Un hook http è stato rifiutato: {host} non è un host consentito.",
   "hookHttpSchemeRefused": "Un hook http è stato rifiutato: è consentito solo HTTPS.",
   "hookHttpRedirectRefused": "Un hook http è stato rifiutato: ha reindirizzato a {host}.",
@@ -2265,6 +2266,11 @@
   "questionDeclined": "Rifiutata",
   "questionDismissed": "Chiusa senza risposta",
   "questionExpired": "Scaduta",
+  "questionsExpiredNotice": {
+    "one": "Una domanda precedente è scaduta senza risposta: solo le {max} domande più recenti restano aperte. Il suo testo è conservato sulla sua scheda.",
+    "many": "{count} di domande precedenti sono scadute senza risposta: solo le {max} domande più recenti restano aperte. Il loro testo è conservato sulle loro schede.",
+    "other": "{count} domande precedenti sono scadute senza risposta: solo le {max} domande più recenti restano aperte. Il loro testo è conservato sulle loro schede."
+  },
   "questionAnswer": "Rispondi",
   "questionDismiss": "Chiudi senza rispondere",
   "questionExpand": "Espandi domanda",
@@ -4006,6 +4012,7 @@
   "agentUnloaded": "L’agente «{id}» non è stato avviato: impossibile caricare {path}, e una definizione lì avrebbe la precedenza. Correggi il problema o rimuovi la definizione, poi avvia una nuova conversazione.",
   "subagentConsentDeclined": "L’attività secondaria a pagamento non è stata approvata.",
   "subagentContributorBlocked": "L’agente personalizzato indica un modello di livello collaboratore, che non può essere eseguito mentre quest’area di lavoro è riservata (museSpark.confidentialWorkspace).",
+  "subagentResultClipped": "Questo risultato è stato ridotto ai primi {kept} di {total} caratteri; il risultato completo è conservato nella trascrizione dell’attività secondaria.",
   "subagentKeyChanged": "La chiave Model API è cambiata dopo l’approvazione. Approva una nuova attività secondaria per continuare.",
   "subagentModelChanged": "Il modello è cambiato dopo l’approvazione. Approva una nuova attività secondaria per continuare.",
   "subagentGoalEnded": "L’obiettivo originario non è più attivo. L’attività secondaria non può effettuare altre richieste.",
@@ -4172,6 +4179,7 @@
     "many": "{count} giudizi"
   },
   "judgeCaution": "Muse Judge suggerisce cautela. Decidi tu; non può approvare questa azione.",
+  "judgeAdvisoryMissing": "Il controllo di sicurezza in background non è terminato, quindi a questa approvazione non è allegato alcun avviso.",
   "judgeSubscriptionNotice": "Muse Judge usa il tuo modello di chat tramite l’abbonamento Muse e ne consuma i limiti. Ogni gruppo usa una nuova sessione isolata in modalità Piano. Una protezione annulla la sessione quando rileva uno strumento, ma non può dimostrare che nessuno strumento sia stato eseguito. Può solo suggerire cautela.",
   "judgeStatusSame": "Stesso modello",
   "judgeStatusOff": "Disattivato",

@@ -14474,6 +14474,22 @@ and thats it." A thousand-test suite kept shipping broken code as
   `docs/certification/invariants.md`); the full loopback golden stays listed
   for the lead until recorded exchanges exist per golden scenario.
 
+### D115 — Nothing is dropped without telling the person (2026-10-15)
+
+Owner, 2026-10-14, on the limits audit's "App problems" item 4: six limits
+dropped something without telling the person. Rule in force: keep what the
+product can keep; where something must still go, the person is told in a
+translated sentence, at the moment it happens — what was dropped, why, and
+where it can still be found. Lane LIMITSC applies it (proof in
+`docs/certification/no-silent-drops.md`): B9 keeps the full child result
+(pushes/listings carry the announced slice); B22 retains expired cards
+with a warning past 20 open; B23 keeps every damaged marker (50 cap
+removed) and warns on marking; C7 settles a timed-out form as cancel with
+a warning; B17 names a dropped judge advisory on the card (warning on
+auto-allow); B10 restores the unsent text past 8 MiB. Shared with LIMITSA:
+an invented limit needs three harness precedents, not a lane's rationale.
+Unproven retained limits and missing live proof remain open in the record.
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2

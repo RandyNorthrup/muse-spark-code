@@ -21,6 +21,8 @@ import {
   type EnvironmentVariable,
   JUDGE_ENGINES,
   type JudgeEngine,
+  JUDGE_TIMEOUT_MAX_SECONDS,
+  JUDGE_TIMEOUT_MIN_SECONDS,
   LEGAL_HEADER_POLICIES,
   type LegalHeaderPolicy,
   MEDIA_AUDIO_ACTION_OPTIONS,
@@ -31,6 +33,8 @@ import {
   type EstimateOptimizeMode,
   PROMPT_CACHE_RETENTIONS,
   QUESTION_DEFER_MAX_SECONDS,
+  OPEN_QUESTIONS_LIMIT,
+  OPEN_QUESTIONS_MIN,
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
@@ -71,6 +75,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** M112 (D92): seconds before an unanswered question defers; 0 never. */
   readonly syncPromptsAndBookmarks: boolean
   readonly 'questions.deferAfterSeconds': number
+  /** B22 (D115): how many questions stay open before the oldest expire. */
+  readonly 'questions.maxOpenQuestions': number
   readonly 'reports.network': 'whenSignedIn' | 'always' | 'off'
   readonly 'reports.keepHistory': boolean
   readonly 'reports.agentSources': readonly ('claudeCode' | 'codex')[]
@@ -136,6 +142,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly tabWithCopilot: TabWithCopilot
   /** The Muse Judge's engine (M98, PLAN.md D77): `auto` is `same` in phase 1. */
   readonly 'judge.engine': JudgeEngine
+  /** B17 (D115): seconds before a judge call is dropped at its fence. */
+  readonly 'judge.timeoutSeconds': number
   /** The capacity estimator's setup search (M117, PLAN.md D97). */
   readonly 'estimator.optimize': EstimateOptimizeMode
   /** Public catalog price lookup for rented servers (M117, PLAN.md D97). */
@@ -225,6 +233,9 @@ const settingSchemas = {
   'shell.passEnvironmentVariables': z.array(z.string().check(z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/))),
   syncPromptsAndBookmarks: z.boolean(),
   'questions.deferAfterSeconds': z.int().check(z.gte(0), z.lte(QUESTION_DEFER_MAX_SECONDS)),
+  'questions.maxOpenQuestions': z
+    .int()
+    .check(z.gte(OPEN_QUESTIONS_MIN), z.lte(OPEN_QUESTIONS_LIMIT)),
   'reports.network': z.enum(['whenSignedIn', 'always', 'off']),
   'reports.keepHistory': z.boolean(),
   'reports.agentSources': z
@@ -270,6 +281,9 @@ const settingSchemas = {
   tabTrigger: z.enum(TAB_TRIGGER_MODES),
   tabWithCopilot: z.enum(TAB_WITH_COPILOT_MODES),
   'judge.engine': z.enum(JUDGE_ENGINES),
+  'judge.timeoutSeconds': z
+    .int()
+    .check(z.gte(JUDGE_TIMEOUT_MIN_SECONDS), z.lte(JUDGE_TIMEOUT_MAX_SECONDS)),
   'estimator.optimize': z.enum(ESTIMATE_OPTIMIZE_MODES),
   'estimator.priceLookup': z.boolean(),
   diagnosticsAfterEdits: z.boolean(),
@@ -394,6 +408,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     'shell.passEnvironmentVariables': readSetting(config, 'shell.passEnvironmentVariables', log),
     syncPromptsAndBookmarks: readSetting(config, 'syncPromptsAndBookmarks', log),
     'questions.deferAfterSeconds': readSetting(config, 'questions.deferAfterSeconds', log),
+    'questions.maxOpenQuestions': readSetting(config, 'questions.maxOpenQuestions', log),
     'reports.network': readSetting(config, 'reports.network', log),
     'reports.keepHistory': readSetting(config, 'reports.keepHistory', log),
     'reports.agentSources': readSetting(config, 'reports.agentSources', log),
@@ -446,6 +461,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
     'judge.engine': readSetting(config, 'judge.engine', log),
+    'judge.timeoutSeconds': readSetting(config, 'judge.timeoutSeconds', log),
     'estimator.optimize': SETTING_DEFAULTS['estimator.optimize'],
     'estimator.priceLookup': SETTING_DEFAULTS['estimator.priceLookup'],
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),

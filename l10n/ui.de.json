@@ -1480,6 +1480,7 @@
   "elicitationDeclinedByHook": "Ein Hook hat diese Anfrage von {server} abgelehnt: {reason}",
   "elicitationAnsweredByHook": "Einer Ihrer Hooks hat diese Anfrage von {server} beantwortet.",
   "elicitationExpired": "Die Anfrage von {server} wartet nicht mehr.",
+  "mcpElicitationTimedOut": "Die Anfrage von {server} blieb {seconds} Sekunden lang unbeantwortet und wurde daher als abgebrochen gewertet. Es wurde keine Antwort gesendet.",
   "hookHttpHostRefused": "Ein http-Hook wurde abgelehnt: {host} ist kein zugelassener Host.",
   "hookHttpSchemeRefused": "Ein http-Hook wurde abgelehnt: Nur HTTPS ist zulässig.",
   "hookHttpRedirectRefused": "Ein http-Hook wurde abgelehnt: Er hat auf {host} umgeleitet.",
@@ -2225,6 +2226,10 @@
   "questionDeclined": "Abgelehnt",
   "questionDismissed": "Ohne Antwort geschlossen",
   "questionExpired": "Abgelaufen",
+  "questionsExpiredNotice": {
+    "one": "Eine ältere Frage ist unbeantwortet abgelaufen: Nur die neuesten {max} Fragen bleiben offen. Ihr Text steht weiter auf ihrer Karte.",
+    "other": "{count} ältere Fragen sind unbeantwortet abgelaufen: Nur die neuesten {max} Fragen bleiben offen. Ihr Text steht weiter auf ihren Karten."
+  },
   "questionAnswer": "Antworten",
   "questionDismiss": "Ohne Antwort schließen",
   "questionExpand": "Frage aufklappen",
@@ -3908,6 +3913,7 @@
   "agentUnloaded": "Der Agent „{id}“ wurde nicht gestartet: {path} konnte nicht geladen werden, und eine Definition dort hätte Vorrang. Beheben Sie das Problem oder entfernen Sie die Definition, und starten Sie dann eine neue Unterhaltung.",
   "subagentConsentDeclined": "Die kostenpflichtige Kindaufgabe wurde nicht genehmigt.",
   "subagentContributorBlocked": "Der benutzerdefinierte Agent nennt ein Modell der Contributor-Stufe, das nicht ausgeführt werden kann, solange dieser Arbeitsbereich vertraulich ist (museSpark.confidentialWorkspace).",
+  "subagentResultClipped": "Dieses Ergebnis wurde auf die ersten {kept} von {total} Zeichen gekürzt; das vollständige Ergebnis steht im Transkript der Kindaufgabe.",
   "subagentKeyChanged": "Der Model-API-Schlüssel wurde nach der Genehmigung geändert. Genehmigen Sie eine neue Kindaufgabe, um fortzufahren.",
   "subagentModelChanged": "Das Modell wurde nach der Genehmigung geändert. Genehmigen Sie eine neue Kindaufgabe, um fortzufahren.",
   "subagentGoalEnded": "Das ursprüngliche Ziel ist nicht mehr aktiv. Die Kindaufgabe kann keine weitere Anfrage senden.",
@@ -4065,6 +4071,7 @@
     "other": "{count} Beurteilungen"
   },
   "judgeCaution": "Muse Judge empfiehlt Vorsicht. Sie entscheiden; er kann diese Aktion nicht genehmigen.",
+  "judgeAdvisoryMissing": "Die Sicherheitsprüfung im Hintergrund wurde nicht abgeschlossen, daher ist dieser Genehmigung kein Hinweis beigefügt.",
   "judgeSubscriptionNotice": "Muse Judge verwendet Ihr Chatmodell über Ihr Muse-Abonnement und zählt gegen dessen Limits. Jeder Stapel nutzt eine neue isolierte Sitzung im Planmodus. Eine Schutzfunktion bricht die Sitzung bei einem Werkzeugelement ab, kann aber nicht beweisen, dass kein Werkzeug ausgeführt wurde. Er kann nur zur Vorsicht raten.",
   "judgeStatusSame": "Gleiches Modell",
   "judgeStatusOff": "Aus",

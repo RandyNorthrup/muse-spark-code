@@ -124,7 +124,6 @@ import {
   AUTH_REQUIRED_ERROR_KIND,
   AUTO_REVIEWER_RECENT_CALLS,
   CONTRIBUTOR_MODEL_SUFFIX,
-  DAMAGED_SESSIONS_KEPT,
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
   DELTA_BATCH_MS,
@@ -275,6 +274,7 @@ import {
   type NoticeLevel,
   type PendingMark,
 } from './conversationCheckpoints'
+import { markedDamagedIds } from './damagedSessions'
 import {
   type ConversationExports,
   exportConversation,
@@ -691,6 +691,8 @@ export interface ConversationDeps {
     readonly store: QuestionStore
     readonly clock: QuestionClock
     readonly deferAfterSeconds: () => number
+    /** B22 (D115): the person's open-question cap; unset keeps the default. */
+    readonly maxOpenQuestions?: (() => number) | undefined
     readonly formatAnswer: QuestionAnswerText
   }
   /**
@@ -1672,9 +1674,10 @@ export class ConversationController {
   /**
    * Muse Code said this session's event log failed (CLI recovery): Muse Code
    * 1.4.2 then failed every message of it (the owner's session of
-   * 2026-10-02/03). It is kept as damaged in this workspace, the newest
-   * `DAMAGED_SESSIONS_KEPT`: never resumed by itself again, and a message to
-   * it is refused before Muse Code hears of it. It stays in History.
+   * 2026-10-02/03). It is kept as damaged in this workspace, newest last
+   * with no cap (B23): never resumed by itself again, and a message to it
+   * is refused before Muse Code hears of it. It stays in History. The
+   * person watching is told at that moment, with the way on.
    */
   private markDamaged(sessionId: string, how: string): void {
     const damaged = this.deps.sessions.damagedIds()
@@ -1684,8 +1687,9 @@ export class ConversationController {
     this.deps.log.warn(
       `Session ${sessionId}'s Muse Code event log failed (${how}); it takes no new message`,
     )
+    this.notice('warning', UI_TEXT.sessionLogDamaged)
     void this.deps.sessions
-      .setDamagedIds([...damaged, sessionId].slice(-DAMAGED_SESSIONS_KEPT))
+      .setDamagedIds(markedDamagedIds(damaged, sessionId))
       .catch((error: unknown) => {
         this.deps.log.warn(`The damaged session list could not be saved: ${errorKind(error)}`)
       })
@@ -2448,6 +2452,9 @@ export class ConversationController {
       }
       case 'approvalResolved': {
         this.questionApprovals.delete(event.approvalId)
+        if (this.judgeCards.get(event.approvalId)?.dropped() === true) {
+          this.notice('warning', UI_TEXT.judgeAdvisoryMissing)
+        }
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
         this.noteShellApprovalResolved(event)
@@ -3044,6 +3051,18 @@ export class ConversationController {
               snapshot.questions.filter((entry) => entry.state === 'open').length,
             )
             surface.post({ type: 'openQuestions', snapshot })
+          }
+        },
+        maxOpenQuestions: binding.maxOpenQuestions,
+        // Crowded out past the open cap (B22): one warning naming the
+        // count; the expired cards keep their text below.
+        onExpired: (expired, max) => {
+          const text = plural(UI_TEXT.questionsExpiredNotice, expired.length, {
+            max,
+          })
+          const surfaces = sessionSurfaces.get(session) ?? []
+          for (const surface of surfaces) {
+            if (!surface.isDisposed) surface.notice('warning', text)
           }
         },
         failed: () => {
@@ -9984,6 +10003,9 @@ export class ConversationController {
         break
       }
       case 'decideApproval': {
+        if (this.judgeCards.get(message.approvalId)?.dropped() === true) {
+          this.notice('warning', UI_TEXT.judgeAdvisoryMissing)
+        }
         this.judgeCards.get(message.approvalId)?.discard()
         this.judgeCards.delete(message.approvalId)
         await this.decideApproval(message)

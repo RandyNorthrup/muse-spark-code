@@ -110,7 +110,7 @@ import {
 import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
 import { agentDataFolder } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
-import { isJudgeEngineOn } from './core/judge/engine'
+import { isJudgeEngineOn, judgeTimeoutMs } from './core/judge/engine'
 import { promptBundleLoader } from './host/prompts/promptBundle'
 import type { createPromptHost } from './host/prompts/promptEntry'
 import { judgeWindowPort } from './host/judge/judgeBundle'
@@ -1198,6 +1198,7 @@ async function activateWindow(
     ledger: dailyPaid.judgeLedger,
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_BUNDLE_FILE).fsPath,
     engine: () => currentSettings()['judge.engine'],
+    timeoutMs: () => judgeTimeoutMs(currentSettings()['judge.timeoutSeconds']),
     context: (action) => {
       if (!isProjectTrusted()) return
       for (const controller of controllers.values()) {

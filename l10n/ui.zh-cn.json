@@ -1461,6 +1461,7 @@
   "elicitationDeclinedByHook": "钩子拒绝了来自 {server} 的此请求：{reason}",
   "elicitationAnsweredByHook": "你的一个钩子回答了来自 {server} 的此请求。",
   "elicitationExpired": "来自 {server} 的请求已不再等待。",
+  "mcpElicitationTimedOut": "来自{server}的请求在{seconds}秒内未得到答复，因此按取消处理。未发送任何答复。",
   "hookHttpHostRefused": "http 钩子被拒绝：{host} 不是允许的主机。",
   "hookHttpSchemeRefused": "http 钩子被拒绝：仅允许 HTTPS。",
   "hookHttpRedirectRefused": "http 钩子被拒绝：它重定向到了 {host}。",
@@ -2185,6 +2186,9 @@
   "questionDeclined": "已拒绝回答",
   "questionDismissed": "已关闭且未回答",
   "questionExpired": "已过期",
+  "questionsExpiredNotice": {
+    "other": "有{count}个旧问题在未答复的情况下过期：仅最新的{max}个问题保持开放。其文本保留在各自的卡片上。"
+  },
   "questionAnswer": "回答",
   "questionDismiss": "关闭且不回答",
   "questionExpand": "展开问题",
@@ -3810,6 +3814,7 @@
   "agentUnloaded": "代理“{id}”未启动：无法加载 {path}，而其中的定义会优先生效。请修复问题或删除该定义，然后开始新对话。",
   "subagentConsentDeclined": "付费子任务未获批准。",
   "subagentContributorBlocked": "自定义代理指定了贡献者层级模型，在此工作区处于机密状态时无法运行 (museSpark.confidentialWorkspace)。",
+  "subagentResultClipped": "此结果已被裁剪为{total}个字符中的前{kept}个；完整结果保留在子任务记录中。",
   "subagentKeyChanged": "批准后 Model API 密钥已更改。请批准新的子任务以继续。",
   "subagentModelChanged": "批准后模型已更改。请批准新的子任务以继续。",
   "subagentGoalEnded": "发起此任务的目标已不再处于活动状态。子任务无法再发起请求。",
@@ -3958,6 +3963,7 @@
     "other": "评判 {count} 次"
   },
   "judgeCaution": "Muse Judge 建议谨慎。由你决定；它不能批准此操作。",
+  "judgeAdvisoryMissing": "后台安全检查未完成，因此此批准未附带任何建议。",
   "judgeSubscriptionNotice": "Muse Judge 通过你的 Muse 订阅使用聊天模型，并计入订阅限额。每个批次都使用全新、隔离的计划模式会话。检测到工具时，保护机制会取消会话，但无法证明没有工具曾运行。它只能建议谨慎。",
   "judgeStatusSame": "同一模型",
   "judgeStatusOff": "关闭",

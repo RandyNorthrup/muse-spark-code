@@ -1,7 +1,7 @@
 import type { Question } from '../../shared/agentEvents'
+import { questionMaxOpen } from '../../shared/questionDeadline'
 import {
   MILLISECONDS_PER_SECOND,
-  OPEN_QUESTIONS_MAX,
   QUESTION_DEFER_DEFAULT_SECONDS,
   QUESTION_DEFER_MAX_SECONDS,
   QUESTION_DEFER_MIN_SECONDS,
@@ -35,6 +35,19 @@ export interface QuestionRegistryDeps extends QuestionRegistryPort {
   readonly reply: (userInputId: string, reply: OpenQuestionAnswer | undefined) => Promise<void>
   readonly changed: (snapshot: OpenQuestionsSnapshot) => void
   readonly failed: () => void
+  /**
+   * How many questions stay open before the oldest expire (B22, D115): no
+   * peer harness caps this, so it is the person's setting where settings
+   * exist; unwired surfaces keep the default.
+   */
+  readonly maxOpenQuestions?: (() => number) | undefined
+  /**
+   * The cards crowded out past the open cap (B22): fired with each newly
+   * expired entry so its surface tells the person at that moment. Expired
+   * entries are retained, so this is a notice, never a farewell. The second
+   * argument is the cap the notice names.
+   */
+  readonly onExpired?: ((expired: readonly OpenQuestion[], max: number) => void) | undefined
 }
 
 export interface QuestionRequest {
@@ -81,7 +94,7 @@ export class QuestionRegistry {
     if (!parsed.success) throw new Error(UI_TEXT.questionAnswerFailed)
     const snapshot = parsed.data
     for (const entry of snapshot.questions) {
-      if (['waiting', 'open', 'dismissed'].includes(entry.state)) {
+      if (['waiting', 'open', 'dismissed', 'expired'].includes(entry.state)) {
         this.entries.set(
           entry.userInputId,
           entry.state === 'waiting'
@@ -94,8 +107,8 @@ export class QuestionRegistry {
         )
       }
     }
-    this.expireOldest()
-    await this.publish()
+    const expired = this.expireOldest()
+    await this.publish(expired)
   }
 
   private run<T>(work: () => Promise<T> | T): Promise<T> {
@@ -162,16 +175,28 @@ export class QuestionRegistry {
     }
   }
 
-  private expireOldest(): void {
-    const open = this.snapshot().questions.filter((entry) => entry.state === 'open')
-    const expired = open.slice(0, Math.max(0, open.length - OPEN_QUESTIONS_MAX))
-    for (const entry of expired) this.entries.set(entry.userInputId, { ...entry, state: 'expired' })
+  /** The person's open-question cap (B22, D115), clamped; the default where unwired. */
+  private openMax(): number {
+    return questionMaxOpen(this.deps.maxOpenQuestions?.())
   }
 
-  private async publish(): Promise<void> {
+  private expireOldest(): readonly OpenQuestion[] {
+    const open = this.snapshot().questions.filter((entry) => entry.state === 'open')
+    const expired = open.slice(0, Math.max(0, open.length - this.openMax()))
+    if (expired.length === 0) {
+      return []
+    }
+    const settled = expired.map((entry) => ({ ...entry, state: 'expired' as const }))
+    for (const entry of settled) this.entries.set(entry.userInputId, entry)
+    return settled
+  }
+
+  private async publish(expired: readonly OpenQuestion[] = []): Promise<void> {
     const snapshot = openQuestionsSnapshotSchema.parse(this.snapshot(false))
+    // Expired cards are undelivered: their text stays readable (B22), unlike
+    // answered ones, which the reply already carried.
     const retained = snapshot.questions.filter((entry) =>
-      ['waiting', 'open', 'dismissed'].includes(entry.state),
+      ['waiting', 'open', 'dismissed', 'expired'].includes(entry.state),
     )
     // One atomic replacement: terminal deletion is itself the durable answer mark.
     await this.deps.store.save(this.sessionId, retained)
@@ -179,6 +204,9 @@ export class QuestionRegistry {
     for (const entry of snapshot.questions) {
       if (retained.every((kept) => kept.userInputId !== entry.userInputId))
         this.entries.delete(entry.userInputId)
+    }
+    if (expired.length > 0) {
+      this.deps.onExpired?.(structuredClone(expired), this.openMax())
     }
     this.deps.changed(
       structuredClone({
@@ -283,8 +311,8 @@ export class QuestionRegistry {
             state: 'open',
             deferredAt: entry.deferredAt ?? Math.max(entry.askedAt, this.deps.now()),
           })
-          this.expireOldest()
-          await this.publish()
+          const expired = this.expireOldest()
+          await this.publish(expired)
           const requests = Array.from(this.requests.values(), (request) => ({ ...request }))
           return requests
             .filter(
@@ -348,8 +376,8 @@ export class QuestionRegistry {
           deferredAt: entry.deferredAt ?? Math.max(entry.askedAt, this.deps.now()),
         }),
       })
-      this.expireOldest()
-      await this.publish()
+      const expired = this.expireOldest()
+      await this.publish(expired)
     })
   }
 
@@ -488,11 +516,11 @@ export class QuestionRegistry {
         }
         this.requests.delete(request.userInputId)
       }
-      this.expireOldest()
+      const expired = this.expireOldest()
       const reminder = nextQuestionReminder(this.snapshot().questions, hasApproval)
       if (reminder !== undefined)
         this.entries.set(reminder.userInputId, { ...reminder, reminders: reminder.reminders + 1 })
-      await this.publish()
+      await this.publish(expired)
       return reminder
     })
   }
