@@ -5,7 +5,7 @@ import {
   type ModelsAccountsSlice,
 } from '../../../../shared/accountsPanel'
 import { accountsReplySchema, type AccountsRequest } from '../../../../shared/hostApi/accounts'
-import { ACCOUNT_MAX_PER_PROVIDER, UI_TEXT } from '../../../../shared/constants'
+import { UI_TEXT } from '../../../../shared/constants'
 import { fill, formatNumber } from '../../../../shared/l10n/text'
 import { AccountEditor } from './AccountEditor'
 import { ThresholdEditor } from './ThresholdEditor'
@@ -293,7 +293,7 @@ export function AccountsSection({
       ) : (
         <button
           type="button"
-          disabled={isPending || isUnavailable || ordered.length >= ACCOUNT_MAX_PER_PROVIDER}
+          disabled={isPending || isUnavailable}
           onClick={() => {
             setEditor('')
           }}
