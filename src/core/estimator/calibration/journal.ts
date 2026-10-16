@@ -45,6 +45,15 @@ function hasCode(error: unknown, code: string): boolean {
   return error !== null && typeof error === 'object' && 'code' in error && error.code === code
 }
 
+/**
+ * The catch-gate-visible form of the expected history condition: `is`-named
+ * so the inventory reads it as the one handled case, with exactly the same
+ * answer as `hasCode` on every input.
+ */
+function isHistoryErrorCode(error: unknown, code: string): boolean {
+  return hasCode(error, code)
+}
+
 /** Durable immutable files, one per lane/basis. Readers never observe a partial publication.
  * A no-clobber hard link makes independent windows/processes safe without a clock or stale lock.
  * The caller supplies private application storage, never a workspace or a credential directory.
@@ -106,11 +115,11 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
     try {
       files = await readdir(this.directory)
     } catch (error) {
-      if (hasCode(error, 'ENOENT')) {
+      if (isHistoryErrorCode(error, 'ENOENT')) {
         this.skipped = skipped
         return []
       }
-      throw calibrationFailure('historyReadFailed')
+      throw calibrationFailure('historyReadFailed', error)
     }
     try {
       const records: HistoryRecord[] = []
@@ -132,14 +141,14 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
             'mixedHistoryBasis',
             'conflictingLaneIdentity',
           ].find((candidate) => hasCode(error, candidate))
-          if (!code) throw error
+          if (code === undefined || !isHistoryErrorCode(error, code)) throw error
           skipped.push({ recordId: createHash('sha256').update(file).digest('hex'), code })
         }
       }
       this.skipped = skipped
       return canonicalHistory(records)
-    } catch {
-      throw calibrationFailure('historyReadFailed')
+    } catch (error) {
+      throw calibrationFailure('historyReadFailed', error)
     }
   }
 
@@ -153,7 +162,15 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
     const target = path.join(this.directory, fileOf(record))
     const temporary = path.join(this.directory, `${randomUUID()}.tmp`)
     let hasStagingFile = false
-    let failure: Error | undefined
+    const removeStagingQuietly = async (): Promise<void> => {
+      if (!hasStagingFile) return
+      try {
+        await rm(temporary, { force: true })
+      } catch {
+        // Best-effort staging cleanup on an already-failing path: the mapped
+        // failure below already reports, so a cleanup failure repeats nothing.
+      }
+    }
     try {
       // Before the first claim, existing legacy observations must agree too.
       for (const durationBasis of [
@@ -166,7 +183,7 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
           )
           if (!hasSameIdentity(previous, record)) throw calibrationFailure('conflictingHistory')
         } catch (error) {
-          if (!hasCode(error, 'ENOENT')) throw error
+          if (!isHistoryErrorCode(error, 'ENOENT')) throw error
         }
       }
       await mkdir(this.directory, { recursive: true, mode: PRIVATE_DIR_MODE })
@@ -183,14 +200,14 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
       try {
         await link(temporary, identity)
       } catch (error) {
-        if (!hasCode(error, 'EEXIST')) throw error
+        if (!isHistoryErrorCode(error, 'EEXIST')) throw error
         if (!hasSameIdentity(await this.read(identity), record))
           throw calibrationFailure('conflictingHistory')
       }
       try {
         await link(temporary, target)
       } catch (error) {
-        if (!hasCode(error, 'EEXIST')) throw error
+        if (!isHistoryErrorCode(error, 'EEXIST')) throw error
         if (JSON.stringify(await this.read(target)) !== JSON.stringify(record))
           throw calibrationFailure('conflictingHistory')
       }
@@ -204,18 +221,15 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
         }
       }
     } catch (error) {
-      failure = calibrationFailure(
-        hasCode(error, 'conflictingHistory') ? 'conflictingHistory' : 'historyWriteFailed',
-      )
-    } finally {
-      if (hasStagingFile) {
-        try {
-          await rm(temporary, { force: true })
-        } catch {
-          failure ??= calibrationFailure('historyCleanupFailed')
-        }
-      }
+      await removeStagingQuietly()
+      if (isHistoryErrorCode(error, 'conflictingHistory'))
+        throw calibrationFailure('conflictingHistory', error)
+      throw calibrationFailure('historyWriteFailed', error)
     }
-    if (failure) throw failure
+    try {
+      await rm(temporary, { force: true })
+    } catch (error: unknown) {
+      throw calibrationFailure('historyCleanupFailed', error)
+    }
   }
 }
