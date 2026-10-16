@@ -2,12 +2,16 @@
 !dist/extension.js
 !dist/resourceAdmission.js
 !dist/resourceGovernor.js
+!dist/resourceProcess.js
 !dist/resourceJournal.js
+!dist/mcpVault.js
 !dist/questionNotes.js
 !dist/conversation.js
 !dist/tab.js
 !dist/prompts.js
 !dist/modelApi.js
+!dist/modelApiSessions.js
+!dist/rulesFile.js
 !dist/modelApiCodeIntel.js
 !dist/mcpPool.js
 !dist/structuredSchema.js
@@ -41,6 +45,7 @@
 !dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/modelsPanel.js
+!dist/modelsSubscriptions.js
 !dist/usageService.js
 !dist/usageCompanion.js
 !dist/usagePanel.js
@@ -112,6 +117,7 @@
 
 !dist/modelApiHooks.js
 !dist/modelApiMcp.js
+!dist/modelApiTools.js
 
 !dist/reporting.js
 !dist/reportingPanel.js

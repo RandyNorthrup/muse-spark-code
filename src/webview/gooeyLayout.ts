@@ -33,29 +33,32 @@ function clamp(value: number, low: number, high: number): number {
 
 /**
  * Every pill's width (the owner, 2026-10-04: "they should be a uniform
- * size"): the widest that keeps the whole fan inside a 320 px panel, so no
- * label grows its pill; a longer label ends in an ellipsis. A panel
- * narrower still gives each pill its width less the edge padding.
+ * size"; 2026-10-09: "only as long as the text in the longest text
+ * button"): `natural`, the widest pill's own max-content width as the
+ * browser laid it out, so no pill is wider than its longest label needs.
+ * Only too little room beside the opener narrows every pill together;
+ * a longer label ends in an ellipsis and keeps its full tooltip.
  */
-export function gooeyPillWidth(viewport: MenuViewport): number {
-  const fixed = GOOEY_MENU.narrowPanel - 2 * GOOEY_MENU.edgePadding - GOOEY_MENU.bow
-  return Math.max(0, Math.min(fixed, viewport.width - 2 * GOOEY_MENU.edgePadding))
+export function gooeyPillWidth(available: number, natural: number): number {
+  return Math.max(0, Math.min(natural, available))
 }
 
 /**
  * The pills beside `anchor`, one row each, centred on its height and moved
- * whole to stay inside the panel. Their near ends sit on half an ellipse
- * around the anchor: the pills level with it reach farthest, the outer ones
+ * whole to stay inside the panel, with 6 px gaps. Their near ends sit on half an ellipse
+ * 16–32 px from the anchor: the pills level with it reach farthest, the outer ones
  * curve back, so the rows read as a fan. When the fan would leave the panel
- * it moves back towards (and over) the origin all at once, keeping its arc;
- * only a panel too narrow for the whole arc gets a shallower one. Rows never
- * overlap.
+ * it moves back whole, keeping its arc and clearance from the opener.
+ * Only too little room beside the opener gives it narrower pills and
+ * a shallower arc. Rows and the opener never overlap.
  */
 function column(
   anchor: MenuPoint,
   side: GooeySide,
   count: number,
   viewport: MenuViewport,
+  natural: number,
+  spacing: number,
 ): readonly GooeyPill[] {
   if (count === 0) {
     return []
@@ -64,7 +67,7 @@ function column(
   const height = GOOEY_MENU.pillHeight
   // A panel too short for the resting gap shares out what room there is.
   const room = viewport.height - 2 * pad
-  const gap = count > 1 ? Math.min(GOOEY_MENU.gap, (room - count * height) / (count - 1)) : 0
+  const gap = count > 1 ? Math.min(spacing, (room - count * height) / (count - 1)) : 0
   const step = height + gap
   const total = count * height + (count - 1) * gap
   const first = clamp(anchor.y - total / 2, pad, viewport.height - pad - total)
@@ -75,9 +78,11 @@ function column(
   const lifts = tops.map((top) => top + height / 2 - anchor.y)
   const span = Math.max(...lifts.map((lift) => Math.abs(lift))) + step / 2
   const curve = lifts.map((lift) => Math.sqrt(1 - (lift / span) ** 2))
-  const width = gooeyPillWidth(viewport)
+  // Only the fan’s side is available: shifting a viewport-wide pill would
+  // cover its opener. The same room bounds the arc’s whole-stack shift.
+  const across = (side === 1 ? viewport.width - pad - anchor.x : anchor.x - pad) - GOOEY_MENU.reach
+  const width = gooeyPillWidth(across, natural)
   const spread = Math.max(...curve) - Math.min(...curve)
-  const across = viewport.width - 2 * pad
   const bow = spread > 0 ? clamp((across - width) / spread, 0, GOOEY_MENU.bow) : GOOEY_MENU.bow
   const lefts = curve.map((bend) => {
     const near = anchor.x + side * (GOOEY_MENU.reach + bow * bend)
@@ -105,6 +110,8 @@ export function gooeyLayout(
   origin: MenuPoint,
   count: number,
   viewport: MenuViewport,
+  natural: number,
+  spacing: number = GOOEY_MENU.gap,
 ): GooeyPillLayout {
   const pad = GOOEY_MENU.edgePadding
   const point = {
@@ -112,7 +119,7 @@ export function gooeyLayout(
     y: clamp(origin.y, pad, viewport.height - pad),
   }
   const side: GooeySide = point.x < viewport.width / 2 ? 1 : -1
-  return { origin: point, side, pills: column(point, side, count, viewport) }
+  return { origin: point, side, pills: column(point, side, count, viewport, natural, spacing) }
 }
 
 /**
@@ -125,6 +132,8 @@ export function gooeySecondBurst(
   index: number,
   count: number,
   viewport: MenuViewport,
+  natural: number,
+  spacing: number = GOOEY_MENU.gap,
 ): GooeyPillLayout | undefined {
   const pill = layout.pills[index]
   if (pill === undefined) {
@@ -134,6 +143,13 @@ export function gooeySecondBurst(
   return {
     origin: centre,
     side: layout.side,
-    pills: column({ x: layout.origin.x, y: centre.y }, layout.side, count, viewport),
+    pills: column(
+      { x: layout.origin.x, y: centre.y },
+      layout.side,
+      count,
+      viewport,
+      natural,
+      spacing,
+    ),
   }
 }

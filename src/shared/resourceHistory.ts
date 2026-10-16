@@ -19,7 +19,7 @@ import {
   type ResourceRecord,
 } from './resources'
 
-const count = z.number().check(z.int(), z.gte(0))
+const count = /* @__PURE__ */ z.number().check(z.int(), z.gte(0))
 
 function isHistoryTime(atMs: number): boolean {
   return Number.isFinite(atMs) && atMs >= 0 && atMs <= RESOURCE_HISTORY_MAX_TIMESTAMP_MS
@@ -30,7 +30,8 @@ function hasHistoryEventTimes(event: ResourceEvent): boolean {
 }
 
 /** Validate every retained record, including events whose detail may be evicted. */
-export const resourceHistoryRecordSchema = resourceRecordSchema.check(
+// Pure derivation (check/refine build a new schema; the predicate runs at parse time).
+export const resourceHistoryRecordSchema = /* @__PURE__ */ resourceRecordSchema.check(
   z.refine(
     (record) =>
       isHistoryTime(record.atMs) && (record.event === null || hasHistoryEventTimes(record.event)),
@@ -43,8 +44,8 @@ export function resourceHistoryDateTime(atMs: number): string {
   return formatDateTime(atMs)
 }
 
-const resourcePercent = z.nullable(z.number().check(z.gte(0), z.lte(100)))
-const workRowSchema = z.strictObject({
+const resourcePercent = /* @__PURE__ */ z.nullable(z.number().check(z.gte(0), z.lte(100)))
+const workRowSchema = /* @__PURE__ */ z.strictObject({
   kind: resourceKindSchema,
   cpuSeconds: z.number().check(z.gte(0)),
   peakMemoryBytes: count,
@@ -55,7 +56,7 @@ const workRowSchema = z.strictObject({
  * usage-history days. Averages are over the minutes that had a reading; a day
  * with none stays null, never 0.
  */
-export const resourceHistoryDaySchema = z.strictObject({
+export const resourceHistoryDaySchema = /* @__PURE__ */ z.strictObject({
   day: z.iso.date(),
   minutes: count,
   cpuPercent: resourcePercent,
@@ -74,7 +75,7 @@ export function isResourceHistoryCurrentMinute(atMs: number, now: number): boole
 }
 
 /** M102 sends this view through its validated usage bridge to every editor. */
-export const resourceHistorySchema = z.strictObject({
+export const resourceHistorySchema = /* @__PURE__ */ z.strictObject({
   minutes: z
     .array(resourceHistoryRecordSchema.check(z.refine((record) => record.minute !== null)))
     .check(z.maxLength(RESOURCE_HISTORY_MAX_MINUTES)),

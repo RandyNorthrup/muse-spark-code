@@ -28,6 +28,7 @@ import {
 } from './sessionBudget'
 import {
   effortForPolicy,
+  minOutputTokensForPolicy,
   modelPricedUsage,
   outputLimitFor,
   type ResolvedModel,
@@ -267,6 +268,7 @@ async function requestReviewer(
           estimatedInputTokens: input,
           modelId,
           maxOutputTokens: body.max_output_tokens,
+          minOutputTokens: minOutputTokensForPolicy(context.resolved.policy),
           ...(modelId.includes('/') && { price: context.resolved.price }),
         })
         body = {

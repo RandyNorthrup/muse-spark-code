@@ -315,6 +315,26 @@ export default tseslint.config(
     },
   },
 
+  {
+    // The badge Worker (infra/marketplace-hook) is plain ESM for the Cloudflare
+    // Workers runtime, outside every TypeScript project; these are its globals.
+    files: ['infra/**/*.js'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: {
+        crypto: 'readonly',
+        fetch: 'readonly',
+        Response: 'readonly',
+        TextDecoder: 'readonly',
+        TextEncoder: 'readonly',
+        URL: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-magic-numbers': 'off',
+    },
+  },
+
   // harness-shots/ holds screenshots and a headless-Chrome profile (which
   // Chrome fills with its own extension scripts); nothing there is ours.
   // `.claude/` holds Claude Code's session settings and the git worktrees its

@@ -682,10 +682,12 @@ function mspInput(parts: readonly TurnPart[]): readonly TurnPart[] {
 }
 
 /**
- * `Connection.command` without its memory (PLAN.md D26). The SDK keeps the
- * canonical payload of every command for the connection's life, an image
- * turn's base64 included, to check replays across reconnects this
- * extension never makes, so a long session's memory only grew. The same
+ * `Connection.command` without its memory (PLAN.md D26). Up to SDK 1.4.2 it
+ * kept the canonical payload of every command for the connection's life,
+ * an image turn's base64 included, to check replays across reconnects this
+ * extension never makes (#35). 1.4.4 keeps a SHA-256 per command instead,
+ * still never evicted; this stays because each attempt here is also fenced
+ * by the host generation and heard by the watchdog (SDK144). The same
  * contract otherwise: the command id rides in the params, the ack must echo
  * it, and a refusal that admitted nothing (`overloaded`, `backpressured`)
  * is retried with the same id after a short, growing, jittered wait.
@@ -2020,7 +2022,8 @@ export class MuseCodeHost implements AgentHost {
       grantedCapabilities: parsed.grantedCapabilities ?? [],
       // Muse Code refuses `session/rename` and `session/fork` on Windows
       // (meta-models/muse-code-sdk#30, #31): verified on 1.3.0 (2026-09-22)
-      // and 1.4.0 (2026-09-27). No release has fixed them, so every version
+      // and 1.4.0 (2026-09-27), still refused on 1.4.3 (2026-10-05,
+      // docs/certification/muse143.md). No release has fixed them, so every version
       // is limited there until one is verified (D26). A 1.3.0 ceiling showed
       // the failing actions again on 1.4.0 (0.9.1, release-0.9.1.md).
       canEditSessions: parsed.platformOs !== WINDOWS_OS,

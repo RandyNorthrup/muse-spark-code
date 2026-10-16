@@ -99,6 +99,18 @@ export const PLUGIN_HOOKS_ONLY = [
   'pluginChild.ts',
   'pluginFormats.ts',
 ]
+// MODELAPIDIET: the Model API backend's deferred per-call helpers (the hook
+// call fields, argument previews, fetch URL checks), loaded on first use.
+// The fetch URL checks live outside the backend's folder, so the DEFERRED
+// entry below adds their full paths beside these backend-relative names.
+export const MODEL_API_TOOLS_ONLY = [
+  'modelApiToolsEntry.ts',
+  'modelCallHooks.ts',
+  'argumentPreview.ts',
+]
+// publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
+// reads addressFamily for every request's SNI.
+export const MODEL_API_TOOLS_WEB = ['src/core/web/pageUrl.ts', 'src/core/web/fetchFailure.ts']
 // INT0170: M107 W2's machine resource journal is shared through its own bundle;
 // the governor (recorder) and usage service (reader) load it instead of copies.
 const RESOURCE_JOURNAL_SOURCE = 'src/runtime/resources/history.ts'
@@ -332,7 +344,52 @@ export const DEFERRED = [
     metafile: 'dist/meta/pluginHooks.json',
     files: PLUGIN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
   },
+  {
+    output: 'dist/modelApiTools.js',
+    metafile: 'dist/meta/modelApiTools.json',
+    files: [
+      ...MODEL_API_TOOLS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      ...MODEL_API_TOOLS_WEB,
+    ],
+  },
 ]
+
+// POSTSPAWN: the governed launcher's own modules, required by the admission
+// facade on the first governed launch; no other shipped bundle carries them.
+export const RESOURCE_PROCESS_ONLY = [
+  'src/core/resources/resourceProcessEntry.ts',
+  'src/core/resources/process.ts',
+  'src/core/resources/commands.ts',
+]
+// The MCP job launch, which the launcher shares with the window's activation.
+export const RESOURCE_PROCESS_SHARED = ['src/host/backend/mcpJobLaunch.ts']
+// POSTSPAWN: launch and helper-preparation code the window's activation also
+// uses for its own helpers and MCP servers; the governor carries none of it,
+// so its 125 KiB cap measures policy alone. The helper preparation launches
+// through the lazy launcher (bootstrap compiles), so it ships with its callers
+// (activation, the runtime's dist/acp.js), never inside the launcher it loads.
+export const RESOURCE_LAUNCH_SHARED = [
+  ...RESOURCE_PROCESS_SHARED,
+  'src/runtime/resources/jobs.ts',
+  'src/host/processTree.ts',
+  'src/host/backend/jobBuild.ts',
+  'src/host/backend/shellJob.ts',
+  'src/host/backend/mcpJobExecutable.ts',
+  'src/host/backend/helperIntegrity.ts',
+  'src/host/backend/jobSource.ts',
+  'src/core/bootstrapCommand.ts',
+]
+const RESOURCE_GOVERNOR_BUNDLE = {
+  output: 'dist/resourceGovernor.js',
+  metafile: 'dist/meta/resourceGovernor.json',
+}
+export const RESOURCE_PROCESS_BUNDLE = {
+  output: 'dist/resourceProcess.js',
+  metafile: 'dist/meta/resourceProcess.json',
+  use: 'the first governed process launch',
+  parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp, RESOURCE_GOVERNOR_BUNDLE],
+  files: RESOURCE_PROCESS_ONLY,
+}
 
 // Split out of activation on 2026-10-03 (D6): each loads on its first use.
 // The Model API backend keeps its own copy of code intelligence.
@@ -356,6 +413,20 @@ export const ON_FIRST_USE = [
       'src/runtime/resources/settings.ts',
       // U–C1: the window's status item and pause notice, never at activation.
       'src/host/resources/resourceStatus.ts',
+    ],
+  },
+  RESOURCE_PROCESS_BUNDLE,
+  // POSTSPAWN: the vault MCP launch (scrubber, leases, governed start); the
+  // route checks (mcpSecrets.ts) stay with the pool, whose fetchFor is synchronous.
+  {
+    output: 'dist/mcpVault.js',
+    metafile: 'dist/meta/mcpVault.json',
+    use: 'the first vault-backed MCP server',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/host/backend/mcpVaultEntry.ts',
+      'src/host/backend/mcpVault.ts',
+      'src/core/vault/scrub.ts',
     ],
   },
   {
@@ -542,6 +613,7 @@ export const ON_FIRST_USE = [
       'src/core/tab/tabCache.ts',
       'src/core/tab/tabContext.ts',
       'src/core/tab/tabEngine.ts',
+      'src/core/tab/tabHooks.ts',
       'src/core/tab/tabReply.ts',
       'src/core/tab/tabRequest.ts',
       'src/core/tab/tabScheduler.ts',
@@ -599,6 +671,24 @@ export const ON_FIRST_USE = [
       'src/host/review/museCodeReviewerEntry.ts',
       'src/host/review/museCodeReviewer.ts',
       'src/core/backends/modelapi/autoReviewer.ts',
+    ],
+  },
+  // PANELBUDGET: the subscriptions half of the Models & Agents panel's host
+  // side (the sign-in flows), split out of dist/modelsPanel.js; activation
+  // requires it on the first subscription action, the panel never does.
+  {
+    output: 'dist/modelsSubscriptions.js',
+    metafile: 'dist/meta/modelsSubscriptions.json',
+    use: 'the first subscription action',
+    parents: [
+      BUNDLES.activation,
+      { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+    ],
+    files: [
+      'src/host/models/modelsSubscriptionsEntry.ts',
+      'src/host/providers/subscriptionFeatures.ts',
+      'src/host/providers/chatgptSignIn.ts',
+      'src/host/providers/copilotClient.ts',
     ],
   },
   // The report dialog (M93, PLAN.md D72), split out from the start.
@@ -707,6 +797,16 @@ export function checkDeferredBundles(inputsOf) {
       if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
     }
   }
+  // POSTSPAWN: the governor never carries the launcher's machinery again.
+  for (const file of RESOURCE_LAUNCH_SHARED) {
+    if (inputsOf(RESOURCE_GOVERNOR_BUNDLE).has(file))
+      problems.push(
+        `${RESOURCE_GOVERNOR_BUNDLE.output} carries ${file}, which loads only with the governed launcher (${RESOURCE_PROCESS_BUNDLE.output})`,
+      )
+  }
+  for (const file of RESOURCE_PROCESS_SHARED)
+    if (!inputsOf(RESOURCE_PROCESS_BUNDLE).has(file))
+      problems.push(`${RESOURCE_PROCESS_BUNDLE.output} no longer carries ${file}`)
   // CAPS017: account services take the engine's backend factory through their
   // port; the backend closure stays in dist/runtimeEngine.js.
   const runtimeAccounts = ON_FIRST_USE.find((bundle) => bundle.output === 'dist/runtimeAccounts.js')
@@ -861,11 +961,18 @@ export function checkResourceBundles(inputsOf, bundles) {
     for (const raw of inputsOf(bundle).keys()) {
       const file = raw.replaceAll('\\', '/')
       if (!file.startsWith('src/core/resources/')) continue
-      if (file === 'src/core/resources/admission.ts') {
+      if (
+        [
+          'src/core/resources/admission.ts',
+          'src/core/resources/launcher.ts',
+          'src/core/resources/admissionEntry.ts',
+        ].includes(file)
+      ) {
         if (output !== 'dist/resourceAdmission.js')
           problems.push(`${output} duplicates resource admission`)
       } else if (
         output !== 'dist/resourceGovernor.js' &&
+        !(output === RESOURCE_PROCESS_BUNDLE.output && RESOURCE_PROCESS_ONLY.includes(file)) &&
         !['src/core/resources/launch.ts', 'src/core/resources/trees/processTable.ts'].includes(file)
       ) {
         problems.push(`${output} carries resource policy ${file} outside the lazy governor`)
@@ -904,9 +1011,13 @@ export const sharedValidation = {
 }
 
 // Keep dynamic imports dynamic: these entries run only on their first action.
+// Exported for the generated lazy registry (scripts/gen-lazy-registry.mjs):
+// the source entry each filename-loaded bundle resolves from.
 /** @type {import('esbuild').Plugin} */
-const DEFERRED_OUTFILES = new Map([
+export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
+  [path.resolve('src/core/resources/resourceProcessEntry.ts'), 'dist/resourceProcess.js'],
+  [path.resolve('src/host/backend/mcpVaultEntry.ts'), 'dist/mcpVault.js'],
   [path.resolve('src/runtime/runtimeEngineEntry.ts'), 'dist/runtimeEngine.js'],
   [path.resolve('src/host/backend/providerPolicyEntry.ts'), 'dist/providerPolicy.js'],
   [path.resolve('src/runtime/runtimeAccountingEntry.ts'), 'dist/runtimeAccounting.js'],
@@ -936,6 +1047,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
   [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -959,7 +1071,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
@@ -1008,13 +1120,25 @@ export const sharedWire = {
 }
 
 // One process-wide admission configuration, shared by every lazy Node bundle.
+// Admission's state and the lazy launch shims (launcher.ts) ship once, in
+// dist/resourceAdmission.js (admissionEntry.ts re-exports both).
+const RESOURCE_ADMISSION_SOURCES = new Set(
+  ['src/core/resources/admission.ts', 'src/core/resources/launcher.ts'].map((file) =>
+    path.resolve(file),
+  ),
+)
 export const sharedResourceAdmission = {
   name: 'shared-resource-admission',
   setup(build) {
-    build.onResolve({ filter: /(?:^|\/)admission(?:\.[jt]s)?$/ }, (args) => {
-      if (args.kind === 'entry-point') return
+    build.onResolve({ filter: /(?:^|\/)(?:admission|launcher)(?:\.[jt]s)?$/ }, (args) => {
+      if (
+        args.kind === 'entry-point' ||
+        path.resolve(build.initialOptions.outfile ?? '') ===
+          path.resolve('dist/resourceAdmission.js')
+      )
+        return
       const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-      return source === path.resolve('src/core/resources/admission.ts')
+      return RESOURCE_ADMISSION_SOURCES.has(source)
         ? { path: './resourceAdmission.js', external: true }
         : undefined
     })

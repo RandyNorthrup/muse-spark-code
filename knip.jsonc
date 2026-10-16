@@ -21,16 +21,17 @@
     "src/runtime/reporting/reportsEntry.ts",
     "src/host/reporting/reportPanelEntry.ts",
     "src/webview/reporting/main.tsx",
-    "test/harness/reporting/verify.mjs",
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
-    "src/core/resources/admission.ts",
+    "src/core/resources/admissionEntry.ts",
     "src/runtime/exec/runExec.ts",
     "src/runtime/runtimeAccountingEntry.ts",
     "src/runtime/runtimeEngineEntry.ts",
     "src/host/backend/providerPolicyEntry.ts",
     "src/core/backends/modelapi/modelApiHooksEntry.ts",
     "src/core/backends/modelapi/modelApiMcpEntry.ts",
+    // The deferred per-call helpers, built as dist/modelApiTools.js (MODELAPIDIET).
+    "src/core/backends/modelapi/modelApiToolsEntry.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
     "src/host/usage/usagePanelEntry.ts",
@@ -64,6 +65,7 @@
     "src/host/backend/subscriptionsEntry.ts",
     "src/host/backend/configuredProvidersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
+    "src/host/models/modelsSubscriptionsEntry.ts",
 
     // The Node-only team schema proxy selected by the production resolver (M96, D6).
     "src/host/teamViewBundle.ts",
@@ -91,6 +93,10 @@
     // The import from other agents' own bundle (M83), required by path on the first import.
     "src/host/agentImportEntry.ts",
     "src/host/git/conversationGitEntry.ts",
+    // The Model API's session store (D14), required by path when its host is first built.
+    "src/host/backend/fileSessionStoreEntry.ts",
+    // The Create AGENTS.md command (D15), required by path when that command runs.
+    "src/host/commands/rulesFileEntry.ts",
     // The bundled skills installer's own bundle (M89), required by path on first use.
     "src/host/skills/bundledSkillsEntry.ts",
     // Code intelligence's `ide` answers and voice's drivers, each required by
@@ -111,6 +117,8 @@
     "src/webview/whatsNew/main.ts",
     // M98's Judge, required only at the first eligible approval.
     "src/host/judge/judgeEntry.ts",
+    // F1a's internal API is built by build:confine, never by the product build.
+    "src/core/judge/fast/inspectExec.ts",
     "src/host/backend/searchWorker.ts",
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",
@@ -154,33 +162,23 @@
     // Native loader regression child, run by both package scripts after build.
     "test/packaging/moduleExports.test.mjs",
     "test/e2e/**/*.test.ts",
-    // DIET1 production browser smoke, invoked directly as documented in README.
-    "test/e2e/webviewDiet.mjs",
-    "test/e2e/startupMoney.mjs",
+    // The Win11 OS-entry hosts script starts this wake fixture by path
+    // (import.meta.resolve, which knip does not trace).
+    "test/unit/helpers/fakeScheduleWake.mjs",
+    // The hosts scripts copy this fake CLI by path (test/hosts/fake-muse.sh,
+    // a shell cp knip does not trace).
     "test/e2e/fake-muse/serve.mjs",
-    // The fake stdio MCP server the M50 tests start as a child process.
-    "test/unit/helpers/fakeMcpServer.mjs",
-    // M123's fake GitHub CLI, started by path as the runtime starts `gh`.
-    "test/fixtures/github/fake-gh.mjs",
-    // The fake stdio ACP agent the M96 lane W tests start as a child process.
-    "test/unit/helpers/fakeTeamAcpAgent.mjs",
-    // A bounded orphan-child process drill, launched by path at runtime.
-    "test/unit/helpers/fakeMcpOrphan.mjs",
-    // The Windows job drills launch these finite binary, owner-exit and
-    // no-GO marker processes by path; they are real test entrypoints.
-    "test/unit/helpers/fakeMcpBinary.mjs",
-    "test/unit/helpers/fakeMcpLauncherParent.mjs",
-    "test/unit/helpers/fakeMcpPrebindParent.mjs",
-    "test/unit/helpers/fakeMcpStartMarker.mjs",
-    // ACP crash regression bundles this child by path; esbuild entries are not traced.
-    "test/unit/helpers/questions/queuedTurnCrash.ts",
-    // The never-ending monitor the M92b bounded-run proof starts by path.
-    "test/fixtures/never-ending-monitor.mjs",
+    // The reports e2e bundles this entry with esbuild by path
+    // (test/e2e/reports.e2e.test.ts), which knip does not trace.
+    "test/e2e/reportsEntry.ts",
+    // The README-shots script starts this reporting verifier by path
+    // (scripts/readme-shots.mjs), which knip does not trace.
+    "test/harness/reporting/verify.mjs",
+    // Tab's configured hook flow starts this real fake-hook process by path.
+    "test/fixtures/tabHooks/completion.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
     // bundles this scene file with esbuild, which knip does not trace.
     "test/harness/playbook.mjs",
-    // LEFT017B's real optional surfaces are bundled by the golden generator.
-    "test/harness/goldens/integrated.tsx",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.
@@ -194,7 +192,234 @@
     // The fake-only test package's bin, bundled by scripts/package-acp-test.mjs (M80 W).
     "test/action/exec-test-launcher.ts",
     "scripts/**/*.mjs",
-    ".vscode-test.mjs"
+    ".vscode-test.mjs",
+
+    // In-progress features: built, not yet wired into the product (TESTCUTFIN,
+    // 2026-10-14; the lead's F6 decision: declared here, not hidden, not
+    // deleted). Nothing else may enter this block. Full table with the wiring
+    // each group still needs: docs/testing/test-overhaul-2026-10-12.md.
+    //
+    // M109 (A credential vault and broker for agents, D89): the vault/broker
+    // service lands later; remote-server MCP OAuth tokens are born in the
+    // vault. Wiring: the vault panel and broker entries require these by path.
+    "src/core/vault/backup.ts",
+    "src/core/vault/broker/audit.ts",
+    "src/core/vault/broker/epoch.ts",
+    "src/core/vault/exec/brokerLease.ts",
+    "src/core/vault/exec/entry.ts",
+    "src/core/vault/exec/helpers.ts",
+    "src/core/vault/exec/tools.ts",
+    "src/core/vault/fleet.ts",
+    "src/core/vault/keyslots.ts",
+    "src/core/vault/migrate/importFile.ts",
+    "src/core/vault/migrate/material.ts",
+    "src/core/vault/migrate/migrate.ts",
+    "src/core/vault/migrate/modelApi.ts",
+    "src/core/vault/remote.ts",
+    "src/core/vault/ssh/brokerAccess.ts",
+    "src/core/vault/ssh/endpoint.ts",
+    "src/core/vault/ssh/externalAgent.ts",
+    "src/core/vault/ssh/hardwareKey.ts",
+    "src/core/vault/store.ts",
+    "src/core/vault/web/cookies.ts",
+    "src/core/vault/web/csvImport.ts",
+    "src/core/vault/web/items.ts",
+    "src/core/vault/web/origin.ts",
+    "src/core/vault/web/pageRead.ts",
+    "src/core/vault/web/ports.ts",
+    "src/core/vault/web/sessions.ts",
+    "src/core/vault/web/ticket.ts",
+    "src/core/vault/web/totp.ts",
+    "src/core/vault/web/webFill.ts",
+    "src/host/vault/brokerProcess.ts",
+    "src/host/vault/migrateSecretStorage.ts",
+    "src/host/vault/slots/windowsVaultBuild.ts",
+    "src/host/vault/vaultExecSpawn.ts",
+    "src/runtime/vault/brokerClient.ts",
+    "src/runtime/vault/migrateKeyStore.ts",
+    "src/runtime/vault/slots/macVaultProtocol.ts",
+    "src/runtime/vault/slots/macVaultSlot.ts",
+    "src/runtime/vault/slots/macVaultTransport.ts",
+    "src/runtime/vault/slots/slotChild.ts",
+    "src/runtime/vault/slots/slotIdentity.ts",
+    "src/runtime/vault/slots/slotWrap.ts",
+    "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "src/runtime/vault/vaultSurface.ts",
+    "src/core/mcp/oauth/client.ts",
+    "src/core/mcp/oauth/discovery.ts",
+    "src/core/mcp/oauth/transport.ts",
+    //
+    // M96 (Agent roles and the team, D75): the team host/worker runtime is
+    // built but no product surface spawns team workers yet. Wiring: the team
+    // host's spawn path.
+    "src/core/team/remotePool.ts",
+    "src/core/team/teamMeter.ts",
+    "src/host/team/acpProcess.ts",
+    "src/host/team/loadGuard.ts",
+    "src/host/team/orphanRecovery.ts",
+    "src/host/team/processLifetime.ts",
+    "src/host/team/processOwnership.ts",
+    "src/host/team/teamJournal.ts",
+    "src/host/team/teamLedger.ts",
+    "src/host/team/windowHints.ts",
+    "src/host/team/windowIdentity.ts",
+    //
+    // M115 (Scheduled prompts v2, D95): the v2 engine, grant, event-source
+    // and editor pieces ahead of their schedule-use wiring. Wiring: the
+    // schedules bundle entry.
+    "src/core/schedules/agentTools.ts",
+    "src/core/schedules/events/engine.ts",
+    "src/core/schedules/events/files.ts",
+    "src/core/schedules/events/git.ts",
+    "src/core/schedules/grant.ts",
+    "src/core/schedules/time/clock.ts",
+    "src/core/schedules/time/loop.ts",
+    "src/core/schedules/time/missed.ts",
+    "src/host/schedules/backgroundTarget.ts",
+    "src/webview/schedules/DeferredReportActionEditor.tsx",
+    "src/webview/schedules/ReportActionEditor.tsx",
+    //
+    // M107 (Resource governor, D87): actuators, relocate core and the task
+    // row ahead of governor wiring. Wiring: the governor entry and the M96c
+    // traffic binding.
+    "src/core/resources/actuators/controls.ts",
+    "src/core/resources/actuators/index.ts",
+    "src/core/resources/actuators/linux.ts",
+    "src/core/resources/actuators/mac.ts",
+    "src/core/resources/actuators/windows.ts",
+    "src/core/resources/relocate.ts",
+    "src/webview/resources/ResourceTaskRow.tsx",
+    //
+    // M108 (Several accounts per provider, D88): the multi-account UI and
+    // policy ports ahead of the panel mount. Wiring: the models panel entry.
+    "src/host/models/accountPolicyPrompt.ts",
+    "src/host/models/accountsHandler.ts",
+    "src/webview/models/sections/accounts/AccountEditor.tsx",
+    "src/webview/models/sections/accounts/AccountNotices.tsx",
+    "src/webview/models/sections/accounts/AccountsConfirmationDialog.tsx",
+    "src/webview/models/sections/accounts/AccountsSection.tsx",
+    "src/webview/models/sections/accounts/PolicyDetails.tsx",
+    "src/webview/models/sections/accounts/ThresholdEditor.tsx",
+    "src/webview/models/sections/accounts/accountsEntry.ts",
+    "src/webview/components/AccountChip.tsx",
+    //
+    // M105 (Multimodal input, D85): the attach/record pipeline, batch
+    // transcription and the converter ahead of their wiring (M104 C binds
+    // the companion route). Wiring: the media entries and ModelApiHost.
+    "src/core/media/convert.ts",
+    "src/core/voice/transcribeBatch.ts",
+    "src/runtime/companion/nativeAttachments.ts",
+    "src/runtime/companion/upload.ts",
+    "src/webview/media/CompanionMedia.tsx",
+    "src/webview/media/entry.tsx",
+    "src/webview/media/recorder/browserCapture.ts",
+    "src/webview/media/recorder/browserRecorder.ts",
+    "src/webview/media/recorder/CompanionRecorder.tsx",
+    "src/webview/media/recordingPort.ts",
+    //
+    // M117 (The capacity estimator, D97): calibration, provision and session
+    // engine ahead of first-estimate load. Wiring: the estimator entry.
+    "src/core/estimator/calibration/builders.ts",
+    "src/core/estimator/calibration/journal.ts",
+    "src/core/estimator/provision/provider.ts",
+    "src/runtime/estimator/session.ts",
+    //
+    // M114 (Design language and polish, D94): the MHP theme bridge ahead of
+    // the lane-C mount (M104 owns the MHP side). Wiring: the theme message
+    // host adapter.
+    "src/webview/bridges/theme/loadThemeBridge.ts",
+    "src/webview/bridges/theme/themeBridge.ts",
+    "src/webview/bridges/theme/themeEntry.ts",
+    //
+    // M113 (Deterministic reports, D93): the local and store sources ahead
+    // of their /report wiring. Wiring: the reporting entries.
+    "src/core/reporting/sources/stores.ts",
+    "src/host/reporting/sources.ts",
+    //
+    // M100 (Paired devices as lane pools, D80, planned): device admission
+    // ahead of the lane pools. Wiring: the device pool.
+    "src/host/devices/deviceReceiver.ts",
+    //
+    // M91 (Hooks from every popular agent, D70): Cline v1 discovery ahead
+    // of the foreign-hooks bundle read. Wiring: the hookFormats contracts.
+    "src/core/backends/modelapi/hookFormats/clineDiscover.ts",
+    //
+    // M98 (Muse Judge, D77): replay measurements and the token file ahead
+    // of phase-1 wiring (M104 uses the token file for its companion).
+    // Wiring: the judge entry and the companion launch.
+    "src/core/eval/judgeReplay.ts",
+    "src/runtime/tokenFile.ts"
+
+    // TESTCUTFIN2 (2026-10-14, the owner's ruling: built features are NEVER
+    // deleted to make this gate pass). The same unfinished features' API
+    // surface inside otherwise wired files: each file below is declared as
+    // unfinished work with its milestone and "not wired yet". Nothing here
+    // is deleted. Any export removed elsewhere is named with its reason in
+    // docs/certification/testcut.md.
+    //
+    // M96/M96c (Agent roles and the team / team scheduler and traffic,
+    // D75): the team host, worker, scheduler and traffic API surface ahead
+    // of the team host's spawn-path wiring — not wired yet.
+    // classifiedToolNames only: the fence-coverage list (M78) the worker
+    // fence must cover — not wired yet.
+    //
+    // M109 (A credential vault and broker for agents, D89): the vault
+    // broker, migration, panel-bundle and exec-session surface ahead of the
+    // vault/broker service landing — not wired yet.
+    //
+    // M115 (Scheduled prompts v2, D95): the migration, report-action, data
+    // folder, schedule-surface and recording-reader surface ahead of the
+    // schedules bundle entry wiring — not wired yet.
+    //
+    // M95 (Bring your own models): the models-panel message schemas and the
+    // exec runtime's account selection ahead of the models panel mount —
+    // not wired yet.
+    //
+    // M105 (Multimodal input, D85): the media-cost consent and the macOS
+    // recording-permissions surface ahead of the media entries' wiring —
+    // not wired yet.
+    //
+    // M107 (Resource governor, D87): the disk and launch refusal surface
+    // ahead of governor wiring — not wired yet.
+    //
+    // M117 (The capacity estimator, D97): the base-risk, calibration-fit
+    // and goal-snapshot surface ahead of first-estimate load — not wired yet.
+    //
+    // M75 (Paired efficiency evaluation, D49): the task-set splitter the
+    // evaluation runner reads — not wired yet.
+    //
+    // M113 (Deterministic reports, D93): the local-cache and GitHub report
+    // sources ahead of their /report wiring — not wired yet.
+    //
+    // M116 (Orchestrator playbook): the panel playbook, playbook modules,
+    // playbook reports and the shared playbook rule ahead of the VS Code
+    // panel integration — not wired yet.
+    //
+    // M71/M123 (Git and pull requests, in every editor): the GitHub
+    // sign-in/token-lease surface and the pull-request checkout and panel
+    // ahead of their editor wiring — not wired yet.
+    //
+    // M58 (Ask before every paid use): the paid-use consent surface
+    // (including the schedule consent and scope) — not wired yet.
+    //
+    // M108 (Several accounts per provider, D88): the account policy, pool,
+    // provider-client and CLI account-homes surface ahead of the panel
+    // mount — not wired yet.
+    //
+    // M91/M91b (Hooks from every popular agent / Amp and OpenCode plugins):
+    // the extension-hook fields and the plugin-hook dispatcher ahead of
+    // the foreign-hooks and plugin-host bundle reads — not wired yet.
+    //
+    // M93 (Report a problem, D72): the webview flight record the problem
+    // dialog attaches — not wired yet.
+    //
+    // M97 (Legal and licence scan, D76): the legal-report envelope the
+    // /legal export writes — not wired yet.
+    //
+    // M84 (Session export and local share file, D49): the conversation
+    // share preview ahead of its panel wiring — not wired yet.
   ],
 
   "project": [
@@ -202,7 +427,9 @@
     "test/**/*.{ts,tsx}",
     "test/**/*.mjs",
     "scripts/**/*.mjs",
-    "action/**/*.mjs"
+    "action/**/*.mjs",
+    // The badge Worker (infra/marketplace-hook); wrangler deploys worker.js by path.
+    "infra/**/*.js"
   ],
 
   "ignore": ["vendor/**"],
@@ -223,6 +450,13 @@
   "ignoreBinaries": ["gitleaks", "mkfifo"],
 
   "ignoreExportsUsedInFile": true,
+
+  // Planned-but-unwired product surface: an export whose JSDoc carries
+  // `@unwired <milestone>` (ROADMAP.md id, e.g. `@unwired M104`) is excused
+  // from the unused-exports gate, so the gate still reports any untagged
+  // unused export. A built feature is never deleted to make this gate pass
+  // (owner's rule, 2026-10-14).
+  "tags": ["-unwired"],
 
   // These add-on issue types extend Knip 6's default set; listing any ordinary
   // issue type here would replace that set and silently narrow the gate.

@@ -121,7 +121,13 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const RESOURCE_ENTRY = 'src/core/resources/resourceGovernorEntry.ts'
 const RESOURCE_OUTFILE = 'dist/resourceGovernor.js'
-const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admission.ts'
+// POSTSPAWN: the governed launcher, beside (never inside) the governor.
+const RESOURCE_PROCESS_ENTRY = 'src/core/resources/resourceProcessEntry.ts'
+const RESOURCE_PROCESS_OUTFILE = 'dist/resourceProcess.js'
+// POSTSPAWN: the vault MCP launch (scrubber, leases), on the first vault-backed server.
+const MCP_VAULT_ENTRY = 'src/host/backend/mcpVaultEntry.ts'
+const MCP_VAULT_OUTFILE = 'dist/mcpVault.js'
+const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admissionEntry.ts'
 const RESOURCE_ADMISSION_OUTFILE = 'dist/resourceAdmission.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
 const PROVIDERS_OUTFILE = 'dist/providers.js'
@@ -165,6 +171,10 @@ const AGENT_IMPORT_ENTRY = 'src/host/agentImportEntry.ts'
 const AGENT_IMPORT_OUTFILE = 'dist/agentImport.js'
 const CONVERSATION_GIT_ENTRY = 'src/host/git/conversationGitEntry.ts'
 const CONVERSATION_GIT_OUTFILE = 'dist/conversationGit.js'
+const MODEL_API_SESSIONS_ENTRY = 'src/host/backend/fileSessionStoreEntry.ts'
+const MODEL_API_SESSIONS_OUTFILE = 'dist/modelApiSessions.js'
+const RULES_FILE_ENTRY = 'src/host/commands/rulesFileEntry.ts'
+const RULES_FILE_OUTFILE = 'dist/rulesFile.js'
 const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
@@ -193,6 +203,8 @@ const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
+const MODELS_SUBSCRIPTIONS_ENTRY = 'src/host/models/modelsSubscriptionsEntry.ts'
+const MODELS_SUBSCRIPTIONS_OUTFILE = 'dist/modelsSubscriptions.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
@@ -373,6 +385,11 @@ const resourceGovernorOptions = {
   entryPoints: [RESOURCE_ENTRY],
   outfile: RESOURCE_OUTFILE,
 }
+const resourceProcessOptions = {
+  ...modelApiOptions,
+  entryPoints: [RESOURCE_PROCESS_ENTRY],
+  outfile: RESOURCE_PROCESS_OUTFILE,
+}
 // INT0170: M107 W2's resource journal, shared by the governor and the usage service.
 const resourceJournalOptions = {
   ...modelApiOptions,
@@ -464,6 +481,18 @@ const pluginHooksOptions = {
   ...modelApiOptions,
   entryPoints: [PLUGIN_HOOKS_ENTRY],
   outfile: PLUGIN_HOOKS_OUTFILE,
+}
+
+// MODELAPIDIET: the Model API backend's deferred per-call helpers (the hook
+// call fields, argument previews, fetch URL checks), loaded on first use.
+const MODEL_API_TOOLS_ENTRY = 'src/core/backends/modelapi/modelApiToolsEntry.ts'
+const MODEL_API_TOOLS_OUTFILE = 'dist/modelApiTools.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiToolsOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_TOOLS_ENTRY],
+  outfile: MODEL_API_TOOLS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -592,6 +621,13 @@ const webFetchOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const mcpVaultOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [MCP_VAULT_ENTRY],
+  outfile: MCP_VAULT_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const museCodeReviewerOptions = {
   ...planMarkdownOptions,
   entryPoints: [MUSE_CODE_REVIEWER_ENTRY],
@@ -655,6 +691,18 @@ const modelsPanelOptions = {
   plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [MODELS_PANEL_ENTRY],
   outfile: MODELS_PANEL_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const modelsSubscriptionsOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  entryPoints: [MODELS_SUBSCRIPTIONS_ENTRY],
+  outfile: MODELS_SUBSCRIPTIONS_OUTFILE,
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
@@ -756,6 +804,24 @@ const conversationGitOptions = {
   external: ['vscode'],
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+// The Model API backend's session store (D14), required when its host is
+// first built: the store, its budget journal and the stored-session schemas.
+/** @type {import('esbuild').BuildOptions} */
+const modelApiSessionsOptions = {
+  ...conversationGitOptions,
+  entryPoints: [MODEL_API_SESSIONS_ENTRY],
+  outfile: MODEL_API_SESSIONS_OUTFILE,
+}
+
+// The Create AGENTS.md command (D15), required when that command runs: the
+// command, the rules template and their redaction.
+/** @type {import('esbuild').BuildOptions} */
+const rulesFileOptions = {
+  ...conversationGitOptions,
+  entryPoints: [RULES_FILE_ENTRY],
+  outfile: RULES_FILE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1154,6 +1220,7 @@ if (isWatch) {
     esbuild.context(sharingRuntimeOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
+    esbuild.context(resourceProcessOptions),
     esbuild.context(resourceJournalOptions),
     esbuild.context(resourceAdmissionOptions),
     esbuild.context(providersOptions),
@@ -1184,6 +1251,7 @@ if (isWatch) {
       outfile: 'dist/runtimeAccounting.js',
     }),
     esbuild.context(hookRuntimeOptions),
+    esbuild.context(modelApiToolsOptions),
     esbuild.context({
       ...modelApiOptions,
       entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
@@ -1201,13 +1269,17 @@ if (isWatch) {
     esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
+    esbuild.context(modelApiSessionsOptions),
+    esbuild.context(rulesFileOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
+    esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
+    esbuild.context(modelsSubscriptionsOptions),
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
@@ -1261,6 +1333,7 @@ if (isWatch) {
     sharingRuntime: esbuild.build(sharingRuntimeOptions),
     modelApi: esbuild.build(modelApiOptions),
     resourceGovernor: esbuild.build(resourceGovernorOptions),
+    resourceProcess: esbuild.build(resourceProcessOptions),
     resourceJournal: esbuild.build(resourceJournalOptions),
     resourceAdmission: esbuild.build(resourceAdmissionOptions),
     providers: esbuild.build(providersOptions),
@@ -1306,19 +1379,24 @@ if (isWatch) {
     }),
     hookRuntime: esbuild.build(hookRuntimeOptions),
     pluginHooks: esbuild.build(pluginHooksOptions),
+    modelApiTools: esbuild.build(modelApiToolsOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     media: esbuild.build(mediaOptions),
     screenRecord: esbuild.build(screenRecordOptions),
     agentImport: esbuild.build(agentImportOptions),
     conversationGit: esbuild.build(conversationGitOptions),
+    modelApiSessions: esbuild.build(modelApiSessionsOptions),
+    rulesFile: esbuild.build(rulesFileOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
     legalScan: esbuild.build(legalScanOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
+    mcpVault: esbuild.build(mcpVaultOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
+    modelsSubscriptions: esbuild.build(modelsSubscriptionsOptions),
     usageService: esbuild.build(usageServiceOptions),
     usageCompanion: esbuild.build(usageCompanionOptions),
     usagePanel: esbuild.build(usagePanelOptions),
@@ -1439,6 +1517,8 @@ if (isWatch) {
   reportSize(SCREEN_RECORD_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
+  reportSize(MODEL_API_SESSIONS_OUTFILE)
+  reportSize(RULES_FILE_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
@@ -1446,6 +1526,7 @@ if (isWatch) {
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
+  reportSize(MODELS_SUBSCRIPTIONS_OUTFILE)
   reportSize('dist/usageService.js')
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')
@@ -1465,6 +1546,7 @@ if (isWatch) {
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
+  reportSize(MODELS_SUBSCRIPTIONS_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(IMAGE_RESIZE_WORKER_OUTFILE)

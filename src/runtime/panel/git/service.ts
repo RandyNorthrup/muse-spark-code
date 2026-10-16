@@ -307,6 +307,21 @@ export function nativeWorktreeAddArgs(wtPath: string, commit: string): readonly 
 }
 
 /** Why a commit did not run; the adapter answers each in the panel's words. */
+/**
+ * The git the host resolved (`RuntimeGitDeps.gitPath`) as createGitProcess's
+ * locator: used only when absolute, so a relative name never runs a
+ * workspace's own `git` (D24); undefined otherwise, so the run fails as git
+ * missing.
+ */
+export function fixedGitLocator(
+  platform: NodeJS.Platform,
+  executable: string,
+): () => string | undefined {
+  const isAbsolute =
+    platform === 'win32' ? path.win32.isAbsolute(executable) : path.posix.isAbsolute(executable)
+  return () => (isAbsolute ? executable : undefined)
+}
+
 export class CommitRefusedError extends Error {
   public constructor(
     public readonly problem: CommitMessageProblem | 'nothingStaged' | 'nothingToCommit',
@@ -511,7 +526,7 @@ export class NativeGitService {
         fileExists: existsSync,
         spawn,
         // The git the host resolved, never another one on PATH.
-        executable: deps.gitPath,
+        locate: fixedGitLocator(process.platform, deps.gitPath),
       })
     // The directory approved now is the one every later operation must
     // find: its identity is taken in this same tick.
@@ -567,7 +582,7 @@ export class NativeGitService {
     }
   }
 
-  private async spawn(
+  private async runGit(
     args: readonly string[],
     root: ConfinedRoot,
     guard: Guard,
@@ -585,7 +600,7 @@ export class NativeGitService {
         timeoutMs: GIT_TIMEOUT_MS,
         signal: guard.signal,
         beforeRun: this.atSpawn(args, root, guard, held),
-        ...(isUserEnvironment && { isUserEnvironment: true }),
+        ...(isUserEnvironment && { credentialRoutes: GIT_PUSH_CREDENTIAL_VARIABLES }),
       })
     } catch (error: unknown) {
       if (error instanceof NativeGitRefusalError) {
@@ -605,7 +620,7 @@ export class NativeGitService {
 
   /** The quiet runner over the bound root, for the core readers. */
   private reader(root: ConfinedRoot, guard: Guard): GitProcess {
-    return (args) => this.spawn(args, root, guard, false)
+    return (args) => this.runGit(args, root, guard, false)
   }
 
   private context(root: ConfinedRoot, guard: Guard): NativeGitContext {
@@ -631,7 +646,7 @@ export class NativeGitService {
     guard.check()
     expectSame(slashed(current) === slashed(root.path) && sameFile(identity, root.identity))
     // git's own toplevel is that same directory, by identity.
-    const directories = await this.spawn(REV_PARSE_ARGS, root, guard, false)
+    const directories = await this.runGit(REV_PARSE_ARGS, root, guard, false)
     const [toplevel = '', gitDir = '', commonDir = ''] = directories
       .toString('utf8')
       .split(/\r?\n/, REV_PARSE_LINES)
@@ -984,10 +999,10 @@ export class NativeGitService {
       }
       let commitSeal = seal
       if (isUnstagedIncluded) {
-        await this.spawn(nativeStageAllArgs(), repo, guard, false, this.stillSealed(held, seal))
+        await this.runGit(nativeStageAllArgs(), repo, guard, false, this.stillSealed(held, seal))
         commitSeal = await this.stagedAsConfirmed(held, snapshot, worktree)
       }
-      await this.spawn(
+      await this.runGit(
         nativeCommitArgs(trimmed),
         repo,
         guard,
@@ -1038,7 +1053,7 @@ export class NativeGitService {
         ...plan.configFiles,
       ])
       await this.replanned(repo, guard, plan)
-      await this.spawn(nativePushArgs(plan), repo, guard, true, this.stillSealed(held, seal))
+      await this.runGit(nativePushArgs(plan), repo, guard, true, this.stillSealed(held, seal))
     })
     // The push went out: a Cancel after it never turns it into a failure.
     this.deps.log.info('Pushed through the native service')
@@ -1066,7 +1081,7 @@ export class NativeGitService {
     const repo = await this.rootFor(guard)
     await this.transaction(repo, guard, async (held) => {
       const seal = this.sealNow(repo)
-      await this.spawn(
+      await this.runGit(
         nativeFetchArgs(remote, ref),
         repo,
         guard,
@@ -1110,7 +1125,7 @@ export class NativeGitService {
     await this.transaction(repo, guard, async (held) => {
       const seal = this.sealNow(repo)
       const stillSealed = this.stillSealed(held, seal)
-      await this.spawn(args, repo, guard, false, () => {
+      await this.runGit(args, repo, guard, false, () => {
         this.parentHeld(parent)
         stillSealed()
       })

@@ -1,7 +1,7 @@
 {
   "en": {
-    "command.nextOpenQuestion.title": "Next open question",
-    "command.previousOpenQuestion.title": "Previous open question",
+    "command.nextOpenQuestion.title": "Next Open Question",
+    "command.previousOpenQuestion.title": "Previous Open Question",
     "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used."
   },
   "cs": {

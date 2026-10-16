@@ -1,6 +1,6 @@
 import { nonnegativeUsdSchema } from '../../shared/usdSchema'
 import { type ChildProcess, type SpawnOptions } from 'node:child_process'
-import { spawnResourceProcess, execResourceFile } from '../../core/resources/admission'
+import { spawnResourceProcess, execResourceFile } from '../../core/resources/launcher'
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import path from 'node:path'

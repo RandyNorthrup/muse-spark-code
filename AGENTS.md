@@ -11,20 +11,40 @@ model. Two backends sit behind the `AgentHost` and `AgentSession` interfaces
 Protocol (`@muse-code/sdk`, primary) and the Meta Model API over HTTPS
 (bring-your-own key, secondary). Read `PLAN.md`
 before changing anything: it holds the decisions, the research that justifies
-them, the milestone plan, and the certification checklist.
+them, the milestone plan, and the certification checklist. Closed history
+lives in `docs/plan-archive/`, byte for byte: §2 keeps each decision's rule in
+force and links its full design record (`decisions.md`); closed milestone
+sections are in `milestones.md` and older gate records in `gates.md`. Read the
+archive when a summary is not enough, and never edit inside its blocks.
+`PLAN.md` carries the rule in force; the record lives in the archive from the
+day it lands: a change that adds a design record moves it there in the same
+change, with `npm run plan:archive` (CONTRIBUTING.md, "Archiving closed
+history from PLAN.md").
 
 ## Working rules
 
 1. **Plan first.** Work milestone by milestone as laid out in `PLAN.md` §6.
    New scope goes into `PLAN.md` before code. Open questions go in §3, not in
    code comments.
-2. **Gates are not optional.** `npm run quality` must exit 0 before a commit is
-   proposed. Never weaken a gate (thresholds, rule levels, ignores) to get
-   green; fix the code or record a justified deferral in `PLAN.md` §7.
+2. **Gates are not optional.** Hosted CI is the gate for a release: every job
+   green on the commit that merges, and a red job is read and its cause
+   measured, never rerun into green. Local runs are for fast feedback: format,
+   lint, typecheck, the suites you touched and the packed product itself
+   (its commands, its help, its errors, its files on disk). Before a release,
+   real conversations go through the packed product in the real-life run
+   (CONTRIBUTING.md, "Before you open a pull request"). Never weaken a gate
+   (rule levels, ignores) to get green; fix the code or record a justified
+   deferral in `PLAN.md` §7. An exact-size assertion may move with the
+   measured number and a one-line reason in the same change; a cap moves only
+   on the owner's word.
 3. **Prove new gates and tests fire.** A test or lint rule that has never been
    seen to fail is a decoration. Break the thing on purpose, watch it fail,
    revert, and note it in the milestone's certification record under
-   `docs/certification/`.
+   `docs/certification/`. Tests run real code only, no exceptions: no
+   `vi.mock`, fake timers, stand-in for our modules, a provider, the CLI,
+   GitHub, an MCP server, the editor API or a store, no hand-answering local
+   server, no screenshot or frame comparison. A UI change gets one small
+   local look (`npm run ui:look -- <scene>`).
 4. **Escape hatches are logged.** Any `eslint-disable`, `@ts-expect-error`,
    `as` cast that is not a narrowing the compiler can verify, or `any` needs an
    inline reason **and** a row in `PLAN.md` §8.
@@ -68,10 +88,10 @@ them, the milestone plan, and the certification checklist.
      and pass `npm run check:tokens`. Raw CSS/TypeScript paint is guarded;
      generated token files alone contain it. Meaningful motion uses the
      120/180/240 ms scale under the no-preference reduced-motion guard.
-     Every visual change passes `npm run check:visual`; reviewed baseline
-     updates name their review. Full PNG sets stay outside git (512 MiB);
-     track only their source revision, hashes, dimensions and coverage.
-     README screenshots use `scripts/readme-shots.mjs` (2 MiB curated set).
+     Every visual change gets one small local look (`npm run ui:look --
+<scene>`, pictures to `temp/ui-look/`, no baseline, no comparison, no
+     CI), in one light and one dark theme, and the two pictures go into
+     the change's certification record. README screenshots use `scripts/readme-shots.mjs` (2 MiB curated set).
 6. **No dead code, no placeholders.** No commented-out code, unused exports,
    unused dependencies, TODO stubs, fake implementations, or mock data outside
    `test/**`. A function that cannot do its job throws or returns an explicit
@@ -149,10 +169,17 @@ them, the milestone plan, and the certification checklist.
   default. The first paid request asks D48's question with the model's rates
   and daily budget ($1.00 by default). Allow once covers this window until
   it closes; Always is workspace-scoped and revocable; Deny snoozes this
-  window. No charge precedes consent. Tab uses only the stored Model API
-  key on either backend, with a hard cross-window local-day ledger. Its
-  small status item shows at activation; `dist/tab.js` loads the provider,
-  completion engine, ledger and menu on first use.
+  window. No charge precedes consent. Consent is keyed by (`tab`, model,
+  price): the question names the request's own model, which is the model
+  sent; a grant for one key never answers another, Allow always is recorded
+  with its key, and a legacy grant without one asks once (RVM94KR2). A
+  request re-checks its key, hook policy epoch and cancellation after every
+  wait and last at the HTTP send. Configured Cursor Tab hooks receive the
+  full, unredacted file text (`beforeTabFileRead`) and the accepted text
+  (`afterTabFileEdit`, 512 characters a field). Tab uses only the stored
+  Model API key on either backend, with a hard cross-window local-day
+  ledger. Its small status item shows at activation; `dist/tab.js` loads the
+  provider, completion engine, ledger and menu on first use.
 
 - **Headless exception (M80, D65):** interactive popup policy above stays.
   Headless images require the explicit `--image-generation` flag,
@@ -300,6 +327,7 @@ src/core/**           backend-agnostic logic; must not import `vscode`
 src/core/resources/** portable machine sampler, governor, queue, registered-tree
                       accounting/actions, disk and created-root policy;
                       dist/resourceGovernor.js loads on first governed use,
+                      dist/resourceProcess.js is the governed launcher,
                       dist/resourceAdmission.js is the shared process shim
 src/webview/resources/** shared chip/popover via injected source and lazy loader;
                       dist/webview/resourceSurface.js shares React/text chunks
@@ -371,32 +399,41 @@ native/darwin/**      Dictation.swift, Info.plist, build.sh, check-disclaim.sh:
                       the macOS helper (built and checked in CI), with
                       Muse Voice's `--capture` mode
 resources/            the walkthrough
-test/unit/**          vitest (node + jsdom via docblock); `vscode` is mocked
-test/e2e/**           the fake Muse Code CLI driven through the real backend;
-                      the opt-in live drills (the Muse Code CLI; the Model
-                      API sweep and the M75 evaluation, which bill the
-                      owner's key)
+test/unit/**          vitest (node + jsdom via docblock) over real code only:
+                      no mocks, fakes, stand-ins or screenshot comparisons;
+                      the `vscode` alias and its hand-written module stay for
+                      the listed integration and host suites only
+test/e2e/**           the live drills, kept listed for the real-life run
+                      (the Muse Code CLI; the Model API sweep and the M75
+                      evaluation, which bill the owner's key)
 test/integration/**   @vscode/test-cli, runs inside VS Code, over the workspace
                       test/fixtures/workspace (code-intel/ is a TypeScript
                       project its language service reads)
-test/harness/         the webview behind a fake host, for screenshots and the
-                      accessibility gate; themes/ holds VS Code's four themes
-                      plus One Dark Pro and Dracula; goldens/ holds the
-                      visual-regression manifest and shot lists (M114;
-                      full PNG sets stay outside git)
+test/harness/         the webview behind a scripted host, for the local look
+                      (`npm run ui:look -- <scene>`), the README pictures and
+                      the accessibility gate; themes/ holds VS Code's four
+                      captured themes
                       playbook.mjs scenes run standalone as
                       `npm run harness:playbook` until the panel port is bound
 test/hosts/           the extension and the ACP agent in other editors
                       against the fake CLI, one script per host (hosts.yml)
 scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       notices, audit, PSScriptAnalyzer, semgrep, accessibility,
-                      localization, tokens, visual regression, reference
+                      localization, tokens, reference
                       and host API gates; theme capture, the
-                      pseudo-locale, harness screenshots, image rendering,
+                      pseudo-locale, the local UI look, image rendering,
                       changelog notes, What's New's content (lib/), VS Code
                       versions for CI, the ACP
                       agent's package
 docs/certification/   per-milestone gate-fire records and screenshots
+docs/plan-archive/    closed history moved out of PLAN.md, byte for byte
+                      (decisions.md, milestones.md, gates.md); each passage
+                      stands between hashed markers that
+                      test/unit/planArchive.test.ts checks. `check:plan`
+                      fails when PLAN.md passes 85% of the plan reader's
+                      bound; CONTRIBUTING.md has the archive procedure and
+                      `npm run plan:archive` (scripts/plan-archive.mjs)
+                      moves a passage with its proofs
 docs/ide-compatibility.md, docs/ide-compatibility/
                       the plan for editors beyond VS Code (D60), the
                       generated record of what the extension asks of its host,
@@ -422,17 +459,17 @@ media/                icons, banner, social preview, README screenshots
 
 | Task                           | Command                                              |
 | ------------------------------ | ---------------------------------------------------- |
-| All gates (local)              | `npm run quality`                                    |
+| Every local gate in one run    | `npm run quality`                                    |
 | The gates CI runs everywhere   | `npm run quality:gates`                              |
-| Accessibility gate             | `npm run test:a11y`                                  |
+| Accessibility gate             | `npm run test:a11y` (merge and release, not PRs)     |
 | Token generation / gate        | `npm run build:tokens` / `npm run check:tokens`      |
-| Visual regression              | `npm run check:visual`                               |
+| Local UI look                  | `npm run ui:look -- <scene>`                         |
 | Reference gate                 | `npm run check:reference`                            |
 | Roadmap generation / gate      | `npm run roadmap:generate` / `npm run check:roadmap` |
 | Localization gate              | `npm run check:l10n`                                 |
 | Host API record (D60)          | `npm run check:host-api` (`-- --write`)              |
-| Panel in the pseudo-locale     | `npm run harness:shots -- --lang=pseudo`             |
-| Unit tests with coverage       | `npm run test:unit`                                  |
+| Panel in the pseudo-locale     | `npm run ui:look -- <scene> --lang=pseudo`           |
+| Unit tests (no coverage gate)  | `npm run test:unit`                                  |
 | Integration tests              | `npm run test:integration`                           |
 | Dev build / watch              | `npm run build:dev` / `npm run watch`                |
 | Production build + size budget | `npm run build`                                      |

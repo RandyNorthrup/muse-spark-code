@@ -5,7 +5,11 @@ import { resolveExecutable } from '../executables'
 import { environmentValue } from '../backends/musecode/launch'
 import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
 import { spawnResourceProcess } from './process'
-import { ResourceCapRefusedError, ResourceMemoryLimitError } from './launch'
+import {
+  ResourceCapRefusedError,
+  ResourceMemoryLimitError,
+  type ResourceHandoffUntil,
+} from './launch'
 
 function resolveCommand(command: string, env: NodeJS.ProcessEnv): string {
   const file = path.isAbsolute(command)
@@ -21,30 +25,45 @@ function resolveCommand(command: string, env: NodeJS.ProcessEnv): string {
 
 /**
  * Hand a URL, file or text to a fixed OS adapter (opener, clipboard). Waits for
- * the adapter's own exit inside RESOURCE_HANDOFF_TIMEOUT_MS; never waits for, or
- * stops, what the OS started for the user.
+ * the adapter's own exit inside RESOURCE_HANDOFF_TIMEOUT_MS; one still running
+ * then is detached and counts as launched. Never waits for, or stops, what the
+ * OS started for the user. `until: 'spawn'` is for a foreground handler
+ * (xdg-open), launched once started; it takes no input.
  */
 export async function handoffResourceFile(
   command: string,
   args: readonly string[],
-  options: { readonly env: NodeJS.ProcessEnv; readonly input?: string; signal?: AbortSignal },
+  options: {
+    readonly env: NodeJS.ProcessEnv
+    readonly input?: string
+    signal?: AbortSignal
+    readonly until?: ResourceHandoffUntil
+  },
 ): Promise<void> {
   const file = resolveCommand(command, options.env)
-  const { child } = await spawnResourceProcess('handoff', file, args, {
+  const { child, handedOff } = await spawnResourceProcess('handoff', file, args, {
     env: options.env,
     ...(options.signal !== undefined && { signal: options.signal }),
+    ...(options.until !== undefined && { handoffUntil: options.until }),
   })
+  const { stdin } = child
+  if (stdin === null) {
+    await handedOff
+    return
+  }
   await new Promise<void>((resolve, reject) => {
-    const failed = () => {
+    stdin.once('error', () => {
       reject(new Error('Governed handoff failed'))
-    }
-    child.once('error', failed)
-    child.once('exit', (code) => {
-      if (code === 0) resolve()
-      else failed()
     })
-    child.stdin.on('error', failed)
-    child.stdin.end(options.input ?? '')
+    void (async () => {
+      try {
+        await handedOff
+        resolve()
+      } catch (error: unknown) {
+        reject(error instanceof Error ? error : new Error('Governed handoff failed'))
+      }
+    })()
+    stdin.end(options.input ?? '')
   })
 }
 

@@ -69,7 +69,7 @@
 
 .account-policy a,
 .account-notices a {
-  color: var(--vscode-textLink-foreground);
+  color: var(--ms-info);
   overflow-wrap: anywhere;
 }
 

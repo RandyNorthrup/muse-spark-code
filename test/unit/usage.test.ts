@@ -68,8 +68,8 @@ describe('formatDuration', () => {
 describe('planLabel', () => {
   it('shows a named tier verbatim and hides an opaque numeric id behind a generic label', () => {
     expect(planLabel('muse-pro')).toBe('muse-pro')
-    expect(planLabel('27681393394859588')).toBe('Muse Code subscription')
-    expect(planLabel('')).toBe('Muse Code subscription')
+    expect(planLabel('27681393394859588')).toBe('Muse Code Subscription')
+    expect(planLabel('')).toBe('Muse Code Subscription')
   })
 })
 

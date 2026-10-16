@@ -1,3 +1,4 @@
+import { outputTokenMinimumMessage } from '../../shared/providerRouting'
 import { Usd } from '../../shared/usd'
 import * as z from 'zod/mini'
 import { imagesResponseSchema, streamEventSchema } from '../../core/backends/modelapi/schemas'
@@ -12,7 +13,6 @@ import {
   EXEC_SSE_FRAME_MAX_BYTES,
   MODEL_API_BASE_URL,
   MODEL_API_IMAGE_MODEL,
-  MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   UI_TEXT,
 } from '../../shared/constants'
@@ -26,14 +26,22 @@ export interface ExecTransport {
   close(): void
 }
 
-const requestSchema = z.looseObject({
-  model: z.string(),
-  stream: z.literal(true),
-  max_output_tokens: z
-    .number()
-    .check(z.int(), z.gte(EXEC_MIN_OUTPUT_TOKENS), z.lte(MODEL_API_MAX_OUTPUT_TOKENS)),
-  tools: z.optional(z.array(z.looseObject({ type: z.literal('function') }))),
-})
+// The run's one resolved output cap bounds the body from above (RVCM1062 round
+// 10); the minimum keeps its own sentence (MINOUT).
+const requestSchema = (outputCap: number) =>
+  z.looseObject({
+    model: z.string(),
+    stream: z.literal(true),
+    max_output_tokens: z.number().check(
+      z.int(),
+      z.gte(EXEC_MIN_OUTPUT_TOKENS, {
+        error: () => outputTokenMinimumMessage(EXEC_MIN_OUTPUT_TOKENS),
+      }),
+      z.lte(outputCap),
+    ),
+    tools: z.optional(z.array(z.looseObject({ type: z.literal('function') }))),
+  })
+
 // This projects only fields already captured by the existing stream boundary;
 // unknown usage stays unknown so malformed accounting cannot become "missing".
 const terminalSchema = z.looseObject({
@@ -65,7 +73,7 @@ export function execFetch(input: {
   let barrier = Promise.resolve()
   let stopActive: (() => void) | undefined
   let isClosed = false
-  const refuse = (reason: Refusal, isImage = false): never => {
+  const refuse = (reason: Refusal, isImage = false, message = UI_TEXT.execRequestShape): never => {
     if (isImage)
       input.emit({
         type: 'paid_use',
@@ -77,7 +85,7 @@ export function execFetch(input: {
         reason,
       })
     if (reason !== 'closed') input.onLatch({ kind: reason })
-    throw new Error(UI_TEXT.execRequestShape)
+    throw new Error(message)
   }
   const transport: typeof fetch = async (url, init) => {
     if (typeof url !== 'string') return refuse('request_shape')
@@ -126,7 +134,7 @@ export function execFetch(input: {
     } catch {
       return refuse('request_shape')
     }
-    const responseShape = requestSchema.safeParse(data)
+    const responseShape = requestSchema(input.ledger.outputCap).safeParse(data)
     if (
       isResponse &&
       (!responseShape.success ||
@@ -134,7 +142,13 @@ export function execFetch(input: {
         'background' in responseShape.data ||
         'previous_response_id' in responseShape.data)
     )
-      return refuse('request_shape')
+      return refuse(
+        'request_shape',
+        false,
+        responseShape.error?.issues.find(
+          (issue) => issue.path[0] === 'max_output_tokens' && issue.code === 'too_small',
+        )?.message,
+      )
     if (isImage && (!input.imageGeneration || !imageRequestSchema.safeParse(data).success))
       return refuse('request_shape', true)
     const tier = modelApiPaidTier(input.selectedModel)

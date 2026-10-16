@@ -1,2 +1,9 @@
+set -e
+# Only the stubs from scripts/install-git-hooks.mjs keep a failure from
+# landing a commit when git's output reader has gone (Windows).
+if [ "${MUSE_GIT_HOOK_STUB-}" != fail-closed ]; then
+  echo 'pre-commit: this worktree runs husky without the fail-closed stubs; run `npm run prepare` here, then commit again.' >&2
+  exit 1
+fi
 npx lint-staged --concurrent 1 --max-arg-length 6000
 gitleaks git --pre-commit --staged --redact --no-banner

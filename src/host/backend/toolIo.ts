@@ -1068,19 +1068,36 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
             )
           : ['-c', command]
       resource = await prepareResourceJob(resource, job)
-      return await runCommand({
-        file,
-        args,
-        cwd,
-        env: hookEnvironment(deps.env(), deps.platform, extraEnvNames),
-        timeoutMs,
-        signal,
-        tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
-        job,
-        resource,
-        stdin: payload,
-        maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
-      })
+      // Lane K: one production process cap shared by every session and the
+      // lazy window/Tab bundles, held in the lazily loaded hook runtime so
+      // the hook implementation stays out of activation.
+      let release: () => void
+      try {
+        const runtime = await import('../../core/backends/modelapi/hookRuntimeEntry.js')
+        release = await runtime.acquireHookProcessSlot(signal)
+      } catch (error: unknown) {
+        // No process started: a load failure or a cancelled slot wait gives
+        // the admitted lease back, as runCommand does on every exit (RVM94KR 4).
+        resource?.complete(true)
+        throw error
+      }
+      try {
+        return await runCommand({
+          file,
+          args,
+          cwd,
+          env: hookEnvironment(deps.env(), deps.platform, extraEnvNames),
+          timeoutMs,
+          signal,
+          tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
+          job,
+          resource,
+          stdin: payload,
+          maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
+        })
+      } finally {
+        release()
+      }
     },
     async runHookHttp(url, payload, signal) {
       // dispatchHooks and hookHandlers enforce this too. Keep the adapter

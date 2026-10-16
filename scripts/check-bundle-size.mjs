@@ -5,6 +5,7 @@
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import {
+  modelsDeferredBudgetGroups,
   webviewDeferredBudgetGroups,
   webviewPacingOutputs,
   webviewStartupOutputs,
@@ -38,6 +39,12 @@ const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
   // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
   { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
+  // POSTSPAWN: the governed launcher, split from the governor; 35.6 KiB
+  // measured, +15%, rounded up to 25 KiB. The governor's cap is unchanged.
+  { path: 'dist/resourceProcess.js', budgetKiB: 50 },
+  // POSTSPAWN: the vault MCP launch, off activation; 13.4 KiB measured,
+  // +15%, rounded up to 25 KiB.
+  { path: 'dist/mcpVault.js', budgetKiB: 25 },
   { path: 'dist/resourceAdmission.js', budgetKiB: 25 },
   // INT0170: M107 W2's journal, shared by the governor and the usage service;
   // 41.1 KiB measured, +15%, rounded up to 25 KiB.
@@ -83,6 +90,10 @@ const BUDGETS = [
   { path: 'dist/subscriptions.js', budgetKiB: 50 },
   { path: 'dist/configuredProviders.js', budgetKiB: 50 },
   { path: 'dist/modelsPanel.js', budgetKiB: 125 },
+  // PANELBUDGET: the subscriptions half (sign-in flows), split out of the
+  // panel bundle; 22,917 B measured +15%, rounded up to the next 25 KiB
+  // multiple (PLAN.md D6).
+  { path: 'dist/modelsSubscriptions.js', budgetKiB: 50 },
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },
@@ -127,6 +138,11 @@ const BUDGETS = [
   // out (2026-10-05), 33.8 KiB on 0.13.0's shared dist/validation.js; plus
   // 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/pluginHooks.js', budgetKiB: 50 },
+  // MODELAPIDIET: the Model API backend's deferred per-call helpers (hook
+  // call fields, argument previews, fetch URL checks), loaded on first use:
+  // 23,433 B measured (2026-10-11); D6: 23,433 × 1.15 = 26,947.95 B,
+  // rounded up to the next 25 KiB multiple = 51,200 B (50 KiB).
+  { path: 'dist/modelApiTools.js', budgetKiB: 50 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },
@@ -165,6 +181,15 @@ const BUDGETS = [
   // git and pull request features moved out of activation: 127.4 KiB
   // measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/conversationGit.js', budgetKiB: 150 },
+  // ACTBUD017: the Model API backend's session store (its budget journal,
+  // atomic writes and stored-session schemas) moved out of activation,
+  // required when that backend's host is first built: 37.1 KiB measured;
+  // plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/modelApiSessions.js', budgetKiB: 50 },
+  // ACTROOM: the Create AGENTS.md command (the command, the rules template
+  // and their redaction) moved out of activation, required when that command
+  // runs: 6.6 KiB measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/rulesFile.js', budgetKiB: 25 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.
@@ -340,6 +365,31 @@ for (const { name, source, budgetKiB } of [
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(
     `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name} body: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
+}
+// MODELSPLIT: the Models panel's deferred sections have their own measured
+// caps from the page's own metafile (see MODELS_DEFERRED_BUDGETS in
+// scripts/lib/webviewBundles.mjs for the measurements). New rows, first set
+// on the release train on 2026-10-11 at the merge of b92fab054 onto
+// acf388a14: providers section 37 KiB (32,197 bytes measured, plus 15
+// percent, rounded up), models section 13 KiB (12,074 bytes measured).
+const modelsMeta = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
+const modelsSectionGroups = modelsDeferredBudgetGroups(modelsMeta)
+for (const { name, budgetKiB, outputs } of modelsSectionGroups) {
+  // An empty group is a MISS, never an `ok` 0 KiB line: it means the
+  // section chunk is gone, or its bytes moved back into the panel body
+  // (where the body's own cap has room to hide them).
+  if (outputs.length === 0) {
+    hasFailure = true
+    console.log(
+      `MISS dist/webview ${name}: deferred section chunk missing (budget ${budgetKiB} KiB)`,
+    )
+    continue
+  }
+  const sizeKiB = outputs.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+  if (sizeKiB > budgetKiB) hasFailure = true
+  console.log(
+    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
   )
 }
 for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {

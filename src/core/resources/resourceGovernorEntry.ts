@@ -27,9 +27,8 @@ import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
 import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
-export { createResources, runtimeResourceJobs } from '../../runtime/resources/entry'
-export { spawnResourceProcess } from './process'
-export { execResourceFile, handoffResourceFile } from './commands'
+// POSTSPAWN: the launcher and helper preparation live in dist/resourceProcess.js.
+export { createResources } from '../../runtime/resources/entry'
 // U–C1: the window's status item and pause notices load with the governor, never at activation.
 export {
   createResourceStatus,
@@ -278,13 +277,17 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     created,
     onCleanup: options.onCleanup,
     onError: options.onError,
+    // POSTSPAWN: attested Windows launches are never tree-sampled; their final
+    // job accounting is history's only record of them, kept while it is read.
+    isSettledRead: options.history !== undefined,
   })
   if (options.history !== undefined) {
     // The governor's own sample and event streams; recording never gates admission.
     const host = state.host
     const recorder = (state.recorder = resourceHistoryRecorder(
       options.history,
-      { read: () => Promise.resolve(host.treeUsage()) },
+      // Each read drains the settled rows, so an attested tree is recorded once.
+      { read: () => Promise.resolve([...host.settled().rows, ...host.treeUsage()]) },
       options.onError,
     ))
     governor.onSample(() => {

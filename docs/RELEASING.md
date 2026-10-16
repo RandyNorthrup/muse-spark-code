@@ -9,12 +9,24 @@ lanes do not push, tag, release, or call paid services.
 ## Writing the Highlights block
 
 Users see each release in What's New (PLAN.md D79, M99): after an update the
-extension opens a page with every new release's Highlights and full notes,
-built from `CHANGELOG.md` at build time. Before the release PR bumps
+extension opens a page built from `CHANGELOG.md` at build time. The newest
+release stays full; older notes ship in full, as Highlights with a full-notes
+link, or are omitted, according to the final decoded and encoded budgets.
+Only a typed size overflow permits a smaller plan. Any other encoder or
+schema failure stops the build, naming the candidate releases and the cause;
+fix that failure rather than trimming notes. HTTP/HTTPS link schemes are
+normalized to lowercase for the artifact; the rest of each URL is preserved.
+Generated full-notes links use the same URL rule, including in packaged
+notes. A repository URL outside HTTP/HTTPS stops selection with a named
+repository error before any plan is tried; fix the repository URL first.
+Before the release PR bumps
 `package.json`:
 
 1. Rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` (and start a new,
-   empty `## [Unreleased]` above it).
+   empty `## [Unreleased]` above it). Release headings must be ATX in that
+   exact form, terminated by LF or CRLF. One to three leading spaces are
+   accepted by Markdown; fenced and four-space indented examples stay code.
+   CR-only files and Setext release headings are refused with named errors.
 2. Give the section a `### Highlights` list first, before `### Added`: 3 to
    5 bullets (at most 5), each one sentence or two a user can act on, in the
    form `- **What it is.** What it does for you.`
@@ -30,6 +42,23 @@ built from `CHANGELOG.md` at build time. Before the release PR bumps
    as does a release with more than 5.
 
 The notes stay English; the page's own words are translated.
+
+## Release notes and the screenshots
+
+A release does not need new screenshots for its notes. The What's New scenes
+of the visual gate render a fixed fixture,
+`test/harness/whats-new/CHANGELOG.fixture.md`, never `CHANGELOG.md`, and a
+fixed version, so a new section, a changed entry or a version bump moves no
+frame, and `CHANGELOG.md` is not a capture input
+(`scripts/lib/captureInputs.mjs`). What the real notes say is checked as text
+(the changelog, version and truth tests).
+
+One thing can still ask for a render: notes that use a kind of Markdown the
+fixture does not show (a first table, a first quote).
+`test/unit/whatsNewFixture.test.mjs` then fails and names the kind. Add an
+example of it to the fixture, re-render with a reviewed update
+(CONTRIBUTING.md), look at the What's New frames in the light, dark and both
+high-contrast themes at 320 px, and commit the manifest with the fixture.
 
 ## Keeping the roadmap's release sections right
 
@@ -154,6 +183,12 @@ An already-published version is successful only when it matches this run:
 - npm: compare `npm view muse-spark-code-acp@X.Y.Z dist.integrity` to the
   tarball's locally computed SHA-512 SRI.
 
+After a fresh publish the job polls the same endpoints until the exact
+version is visible with matching integrity (up to 30 minutes, backing off;
+npm took 19 minutes for 0.16.0), then reports `published and visible`. A
+poll timeout reports `published, not yet visible` as a warning in the job
+summary without failing the release; re-check the registry before announcing.
+
 Unavailable metadata or mismatched bytes fail closed. Do not remove a version
 or overwrite an asset to make that check pass.
 
@@ -256,20 +291,28 @@ same verify-before-upload behavior, listed in `SHA256SUMS` and attested like the
 packages. If `action/action.yml` exists, the final summary job
 moves the unsigned `v0` major tag only after all four channels published. It
 does not move after a missing-secret skip or a failure, and an older rerun
-cannot move it backwards to an ancestor. Divergent history requires review.
-The `release tags` ruleset (`refs/tags/v*`: deletion, non-fast-forward and
-update blocked, only the Admin role may bypass) also covers `v0`, so the
-job's update of `v0` with `GITHUB_TOKEN` is refused until `v0` is left out of
-the ruleset or the job may bypass it; 0.12.0 only created the tag.
+cannot move it backwards: a tag already at the release commit or a newer
+descendant is left alone. Divergent history stops for owner review; the move
+is fast-forward only, never forced.
 
-The owner's 0.12.1 observation (Release run `37225339230`) found HTTP 422 on
-updating `v0`: the `release tags` ruleset (`23893754`) covers `refs/tags/v*`,
-with deletion, non-fast-forward and update rules and administrator bypass only.
-The workflow token can create the tag but cannot update it. Keep the ruleset;
-an administrator must make the move. After confirming all four channels
-published, inspect the current target and confirm it is an ancestor of the
-release commit (or already at that commit/a newer descendant). If a move is
-needed, run this with the administrator's GitHub CLI account:
+Tag rules (current 2026-10-08): the `release tags` ruleset (`23893754`)
+excludes `refs/tags/v0`. A separate ruleset (`24701357`, "action major tag
+v0") blocks only deletion and non-fast-forward updates of `v0` (only the
+Admin role may bypass), so the release job's fast-forward update of `v0`
+with `GITHUB_TOKEN` is allowed. History: `v0` sat stuck at 0.12.1 from
+0.14.4 through 0.16.0 because the old ruleset refused the workflow's update
+(the owner's 0.12.1 observation, Release run `37225339230`, found HTTP 422);
+it has since been fast-forwarded to the 0.16.0 commit `4da4ef666`, and the
+normal path is the workflow moving it on each fully published release.
+
+A failed `v0` move is loud, never silent: the summary job keeps its channel
+results, adds a `**admin move required**` row naming the failed update, and
+emits a warning pointing here. The release itself stays published; no
+rebuild or republish is needed solely to repair this major tag. To make the
+admin move after a failed update, confirm all four channels published,
+inspect the current target and confirm it is an ancestor of the release
+commit (or already at that commit/a newer descendant). If a move is needed,
+run this with the administrator's GitHub CLI account:
 
 ```console
 gh api --method PATCH repos/RandyNorthrup/muse-spark-code/git/refs/tags/v0 -f sha=<release commit> -F force=false
@@ -277,8 +320,7 @@ gh api --method PATCH repos/RandyNorthrup/muse-spark-code/git/refs/tags/v0 -f sh
 
 Replace `<release commit>` with the full commit SHA. Verify the resulting
 `v0` target independently afterward. If history is divergent, stop for owner
-review; do not force the move or change the ruleset. No rebuild or republish is
-needed solely to repair this major tag.
+review; do not force the move or change the ruleset.
 
 The Action will be consumed as
 `RandyNorthrup/muse-spark-code/action@v0`. There is no Actions Marketplace

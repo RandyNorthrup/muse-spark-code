@@ -16,9 +16,13 @@ coding agent in any editor that speaks the
 IDEs through AI Assistant, Neovim, Emacs, JupyterLab and others — plus
 one-turn headless `exec` runs and a GitHub Action for CI. It runs on your
 Muse subscription through the Muse Code CLI, or pay as you go on a Meta
-Model API key, and never mixes the two. The same project ships the
-[VS Code extension](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
-(also on [Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)).
+Model API key, and never mixes the two. The project ships from four places:
+the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
+and [Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)
+(the VS Code extension), [npm](https://www.npmjs.com/package/muse-spark-code-acp)
+(this ACP agent) and
+[GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
+(both the `.vsix` and the agent's `.tgz`).
 
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and
 > "Muse Code" are Meta trademarks. You bring your own credentials.
@@ -32,6 +36,14 @@ Node.js 22 or later is required.
 ```sh
 npm install -g muse-spark-code-acp
 muse-spark-code-acp --version
+```
+
+Or install the `.tgz` attached to a
+[GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases),
+replacing `<version>` with the release's version:
+
+```sh
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v<version>/muse-spark-code-acp-<version>.tgz
 ```
 
 On Windows, npm installs the command as a `.cmd` launcher, which some
@@ -223,6 +235,7 @@ about to be billed and its price.
 - [Changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md)
 - [VS Code extension on the Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
 - [VS Code extension on Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)
+- [GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases) (the `.vsix` and the agent's `.tgz`)
 - [MIT license](https://github.com/RandyNorthrup/muse-spark-code/blob/main/LICENSE)
 
 ## Local usage history

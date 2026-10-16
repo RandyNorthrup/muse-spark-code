@@ -13,11 +13,7 @@
 // passed in, and checkout's git runs through the injected port in
 // checkout.ts.
 
-import {
-  PULL_REQUEST_BODY_MAX_CHARS,
-  PULL_REQUEST_TITLE_MAX_CHARS,
-  UI_TEXT,
-} from '../../../shared/constants'
+import { UI_TEXT } from '../../../shared/constants'
 import type { PullRequestView } from '../../../shared/git'
 import { fill } from '../../../shared/l10n/text'
 import {
@@ -33,9 +29,14 @@ import {
   repositoryLabel,
 } from '../../../core/git/githubRemote'
 import { hasCredentialShapes } from '../../../core/git/gitText'
+import { pullRequestFormProblem } from '../../../core/git/pullRequestRef'
 import { isPlainRefName } from '../../../core/git/pushPlan'
 import { redactSecrets } from '../../../core/redact'
-import { resolveGitHubCredential, type GitHubCredential } from '../../../core/git/tokenSource'
+import {
+  didDropRejectedCredential,
+  resolveGitHubCredential,
+  type GitHubCredential,
+} from '../../../core/git/tokenSource'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 
 /** A refusal in words for the user; the log gets the kind, never a secret. */
@@ -85,14 +86,21 @@ export interface PreparePullRequestInput {
   readonly sessionId?: string
 }
 
+/** A refusal; a 401 also asks the user to sign in again. */
+interface PullRequestFailure {
+  readonly ok: false
+  readonly reason: string
+  readonly needsSignIn?: true
+}
+
 export type PreparePullRequestResult =
+  | PullRequestFailure
   | {
       readonly ok: true
       readonly destination: PullRequestDestination
       /** An open pull request for the branch is linked instead of a second one. */
       readonly existing?: PullRequest
     }
-  | { readonly ok: false; readonly reason: string; readonly needsSignIn?: true }
 
 export interface CreatePullRequestInput {
   readonly destination: PullRequestDestination
@@ -119,13 +127,13 @@ export type CreatePullRequestResult =
     }
 
 export type PullRequestStatusResult =
-  | { readonly ok: true; readonly view: PullRequestView }
-  | { readonly ok: false; readonly reason: string; readonly needsSignIn?: true }
+  PullRequestFailure | { readonly ok: true; readonly view: PullRequestView }
 
 function refused(reason: string): PullRequestServiceError {
   return new PullRequestServiceError(reason)
 }
 
+/** @unwired M123 runtime pull requests */
 export class RuntimePullRequests {
   public constructor(private readonly deps: RuntimePullRequestDeps) {}
 
@@ -161,16 +169,10 @@ export class RuntimePullRequests {
     return redactSecrets(error instanceof GitHubError ? error.message : String(error))
   }
 
-  /** A 401 drops the stored credential, so the user signs in again. */
-  private async rejected(credential: GitHubCredential, error: unknown): Promise<boolean> {
-    if (error instanceof GitHubError && error.kind === 'signIn') {
-      const source = this.deps.tokenSources.find(
-        (candidate) => candidate.kind === credential.source,
-      )
-      await source?.rejected(credential)
-      return true
-    }
-    return false
+  /** GitHub's refusal; a 401 drops the stored credential, so the user signs in again. */
+  private async failure(credential: GitHubCredential, error: unknown): Promise<PullRequestFailure> {
+    const isSignIn = await didDropRejectedCredential(this.deps.tokenSources, credential, error)
+    return { ok: false, reason: this.failureText(error), ...(isSignIn && { needsSignIn: true }) }
   }
 
   /**
@@ -235,17 +237,6 @@ export class RuntimePullRequests {
     }
   }
 
-  /** What stops a pull request before anything is asked, or undefined. */
-  private creationProblem(title: string, body: string, base: string): string | undefined {
-    if (title === '') {
-      return UI_TEXT.gitTitleEmpty
-    }
-    if (title.length > PULL_REQUEST_TITLE_MAX_CHARS || body.length > PULL_REQUEST_BODY_MAX_CHARS) {
-      return UI_TEXT.gitTextTooLong
-    }
-    return isPlainRefName(base) ? undefined : UI_TEXT.gitBaseInvalid
-  }
-
   /**
    * The pull request form's facts: where it would open, and the open pull
    * request for the branch when one already exists (linked instead of a
@@ -305,12 +296,7 @@ export class RuntimePullRequests {
         },
       }
     } catch (error: unknown) {
-      const isSignIn = await this.rejected(credential, error)
-      return {
-        ok: false,
-        reason: this.failureText(error),
-        ...(isSignIn && { needsSignIn: true }),
-      }
+      return await this.failure(credential, error)
     }
   }
 
@@ -327,7 +313,7 @@ export class RuntimePullRequests {
     }
     const title = input.title.trim()
     const base = input.base.trim()
-    const problem = this.creationProblem(title, input.body, base)
+    const problem = pullRequestFormProblem(title, input.body, base)
     if (problem !== undefined) {
       return { ok: false, reason: problem }
     }
@@ -360,17 +346,14 @@ export class RuntimePullRequests {
         return { ok: false, reason: UI_TEXT.gitOperationChanged }
       }
     } catch (error: unknown) {
-      const isSignIn = await this.rejected(credential, error)
-      return {
-        ok: false,
-        reason: this.failureText(error),
-        ...(isSignIn && { needsSignIn: true }),
-      }
+      return await this.failure(credential, error)
     }
     const detail = [
       title,
       input.body,
-      `Repository: ${repositoryLabel(destination.repository)}`,
+      fill(UI_TEXT.openPullRequestRepository, {
+        repository: repositoryLabel(destination.repository),
+      }),
       fill(UI_TEXT.openPullRequestBranches, { head: destination.apiHead, base }),
       input.isDraft ? UI_TEXT.gitStateDraft : UI_TEXT.gitPullRequestFormLabel,
     ].join('\n')
@@ -397,12 +380,7 @@ export class RuntimePullRequests {
       )
       return { ok: true, number: created.number, url: created.url, title: created.title }
     } catch (error: unknown) {
-      const isSignIn = await this.rejected(credential, error)
-      return {
-        ok: false,
-        reason: this.failureText(error),
-        ...(isSignIn && { needsSignIn: true }),
-      }
+      return await this.failure(credential, error)
     }
   }
 
@@ -456,14 +434,10 @@ export class RuntimePullRequests {
         },
       }
     } catch (error: unknown) {
-      const isSignIn = await this.rejected(credential, error)
+      const { reason, needsSignIn } = await this.failure(credential, error)
       return {
         ok: true,
-        view: {
-          ...link,
-          problem: this.failureText(error),
-          ...(isSignIn && { needsSignIn: true }),
-        },
+        view: { ...link, problem: reason, ...(needsSignIn && { needsSignIn }) },
       }
     }
   }
