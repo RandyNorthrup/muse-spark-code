@@ -997,6 +997,7 @@
   "sessionResumesOnSend": "A következő üzenet folytatja.",
   "sessionContinued": "A beszélgetés folytatódott az újraindítás után.",
   "sessionNotContinued": "A beszélgetést nem sikerült folytatni az újraindítás után, ezért ez az üzenet újat kezd",
+  "modelNotKeptAfterRestart": "A Muse Code jelentése szerint ez a beszélgetés {wanted} helyett {active} modellt használ, ezért az üzenet nem lett elküldve. Válassza ki újra a modellt, és küldje el újra az üzenetet a folytatáshoz.",
   "surfaceClosed": "A panel bezárult",
   "hostStartFailed": "A háttérrendszert nem sikerült elindítani",
   "decisionErrorNotice": "A Muse Code hibát jelzett a döntéssel kapcsolatban (az eszköz ettől még lefuthatott)",

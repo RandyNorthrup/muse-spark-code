@@ -92,6 +92,7 @@ import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNErr
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog, isMspFailure, stderrForLog } from '../../core/backends/musecode/logText'
+import { resolveResumedModel } from '../../core/backends/musecode/resumedModel'
 import { chatReferenceText } from '../../core/chatReference'
 import type {
   PlanModeHold,
@@ -1154,8 +1155,6 @@ function errorKind(error: unknown): string {
   }
   return error instanceof Error ? error.name : typeof error
 }
-
-export { restartConversationBackends } from './conversationBackends'
 
 export class ConversationController {
   // Revert owns turn admission until file I/O settles; pending sends own it
@@ -4113,11 +4112,58 @@ export class ConversationController {
   }
 
   /**
+   * A resumed Muse Code session runs on the person's choice (restart
+   * recovery): `session/resume` takes no model and a turn carries none, so
+   * the choice is applied with `session/setModel` and read back with
+   * `model/list` before the next turn is sent. The panel and the log then
+   * show the model the CLI reports. When it differs, nothing is sent: the
+   * conversation stays resumable, so choosing the reported model and
+   * resending continues it. Returns the CLI's listing for the session.
+   */
+  private async enforceResumedModel(
+    host: AgentHost,
+    loaded: LoadedSession,
+    wantedModelId: string,
+  ): Promise<Awaited<ReturnType<AgentHost['listModels']>>> {
+    try {
+      // Model API restores its durable model itself. Setting the same id
+      // there is still a switch (hooks, judge and budget state included).
+      if (host.info.kind === 'museCode' || loaded.session.modelId !== wantedModelId) {
+        await loaded.session.setModel(wantedModelId)
+      }
+      const models = await host.listModels(loaded.session.sessionId)
+      const outcome = resolveResumedModel({
+        wantedModelId,
+        activeModelId: models.find((model) => model.isActive)?.modelId,
+      })
+      if (outcome.ok) {
+        return models
+      }
+      this.deps.log.warn(
+        `Session ${loaded.session.sessionId} resumed on ${outcome.activeModelId} instead of ${outcome.wantedModelId}: the message is not sent`,
+      )
+      throw new Error(
+        fill(UI_TEXT.modelNotKeptAfterRestart, {
+          active: outcome.activeModelId,
+          wanted: outcome.wantedModelId,
+        }),
+      )
+    } catch (error: unknown) {
+      // Ownership has not passed to attach: timeouts and read-back errors
+      // must release the retained handle just as a reported mismatch does.
+      this.ideSessions.delete(loaded.session)
+      loaded.session.dispose()
+      throw error
+    }
+  }
+
+  /**
    * After a restart, a crash or the host closing the session, the next
    * message continues the same conversation (D25) rather than starting one
    * with no context. The webview kept its transcript, so nothing is
    * replayed. If the session cannot be resumed the user is told and a new
-   * one starts.
+   * one starts. If the CLI reports another model than the chosen one, the
+   * message is refused instead and the conversation stays resumable.
    */
   private async resumeAfterRestart(
     host: AgentHost,
@@ -4137,7 +4183,6 @@ export class ConversationController {
     }
     let loaded: LoadedSession
     const mcpServers = await this.mcpServersFor(host, target.sessionId)
-    this.resumeTarget = undefined
     try {
       this.requireNonConfidentialModel(this.modelId)
       loaded = await host.resumeSession(
@@ -4150,10 +4195,12 @@ export class ConversationController {
         this.ideSessions.add(loaded.session)
       }
     } catch (error: unknown) {
+      this.resumeTarget = undefined
       this.notice('warning', `${UI_TEXT.sessionNotContinued}: ${describe(error)}`, undefined, error)
       return undefined
     }
     if (!this.canLoadIntoSurface(host, loaded)) {
+      this.resumeTarget = undefined
       loaded.session.dispose()
       this.notice('warning', UI_TEXT.sideChatSessionOnly)
       return undefined
@@ -4164,9 +4211,21 @@ export class ConversationController {
       this.postComposerState()
     }
     if (this.isDisposed || this.attachmentGeneration !== generation) {
+      this.resumeTarget = undefined
       loaded.session.dispose()
       this.requireCurrentOpening(generation)
     }
+    // The choice is applied and read back before the next turn is sent. A
+    // mismatch refuses the message (the card says why) while the
+    // conversation stays the resume target, so choosing the reported model
+    // and resending continues it on the model it really runs on.
+    await this.enforceResumedModel(host, loaded, this.modelId)
+    if (this.isDisposed || this.attachmentGeneration !== generation) {
+      this.ideSessions.delete(loaded.session)
+      loaded.session.dispose()
+      this.requireCurrentOpening(generation)
+    }
+    this.resumeTarget = undefined
     // The same conversation continues, imported history and all (M84): its
     // mark comes back from the record, while the panel keeps the mode its
     // user chose.
@@ -4711,7 +4770,9 @@ export class ConversationController {
    * Make a resumed or forked session this surface's: the transcript is
    * rebuilt from its history, the model comes from the catalogue's active
    * row (never the record's `modelId`, PLAN.md M6), and this surface's
-   * composer settings are applied to it.
+   * composer settings are applied to it. A resumed conversation then has
+   * that standing model applied and read back, and a mismatch refuses
+   * instead of sending on the wrong model.
    */
   private async adopt(
     host: AgentHost,
@@ -4771,6 +4832,17 @@ export class ConversationController {
       }
       this.modelId = fallbackId
       this.notice('info', fill(UI_TEXT.contributorResumeFallbackTo, { model: fallbackId }))
+    }
+    if (origin === 'resumed') {
+      // The resumed standing model (learned above, consent-gated) is
+      // applied and read back before anything runs on it: a restart may
+      // have reset it on the CLI, and a mismatch refuses instead of
+      // sending on the wrong model.
+      await this.enforceResumedModel(host, loaded, this.modelId)
+      if (generation !== this.sendInvalidationEpoch) {
+        loaded.session.dispose()
+        return false
+      }
     }
     // A side chat runs in Plan (M53). Like the imported mode below, applied
     // only now that this opening is still current: one overtaken by another

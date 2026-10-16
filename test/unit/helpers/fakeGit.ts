@@ -108,22 +108,6 @@ export function memoryMemento(initial: Record<string, unknown> = {}) {
   }
 }
 
-/** Native checkout fixtures retain every shown failure for their assertions. */
-export function checkoutNotices(errors: string[]) {
-  return {
-    showInformation: () => undefined,
-    showWarning: (message: string) => {
-      errors.push(message)
-    },
-    showError: (message: string) => {
-      errors.push(message)
-    },
-    showFailure: (message: string, detail: string) => {
-      errors.push(`${message}: ${detail}`)
-    },
-  }
-}
-
 export interface FakeGitWindowOptions {
   readonly repository?: FakeRepository
   readonly isTrusted?: boolean

@@ -1,7 +1,9 @@
 // The Models & Agents bundles as the activation bundle sees them (M95
 // lane K, PLAN.md D6): dist/modelsPanel.js, built from modelsPanelEntry.ts
 // and required on the first Models & Agents action; and the lane-P/T seam
-// from dist/providers.js, which the panel's factory is composed with. Only
+// from dist/providers.js, which the panel's factory is composed with. The
+// subscriptions half lives in dist/modelsSubscriptions.js beside them (its
+// own loader, modelsSubscriptionsBundle.ts). Only
 // types come from the entries here: a value imported from there would carry
 // the panel back into dist/extension.js, which the bundle-split gate
 // refuses.
@@ -54,7 +56,6 @@ export async function recoverProviderRemovals(
 
 /** The panel bundle's one export. */
 export interface ModelsPanelBundle {
-  readonly createSubscriptionFeatures: typeof ModelsPanelEntry.createSubscriptionFeatures
   readonly createModelsPanelFeatures: typeof ModelsPanelEntry.createModelsPanelFeatures
   readonly setComposerModelConfirmed?: typeof ModelsPanelEntry.setComposerModelConfirmed
   readonly publishProviderSetup?: typeof ModelsPanelEntry.publishProviderSetup
@@ -65,8 +66,6 @@ export function isModelsPanelBundle(value: unknown): value is ModelsPanelBundle 
   return (
     typeof value === 'object' &&
     value !== null &&
-    'createSubscriptionFeatures' in value &&
-    typeof value.createSubscriptionFeatures === 'function' &&
     'createModelsPanelFeatures' in value &&
     typeof value.createModelsPanelFeatures === 'function'
   )
