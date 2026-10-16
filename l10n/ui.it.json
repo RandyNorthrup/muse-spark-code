@@ -2473,7 +2473,6 @@
   "restoreRefusedOrderUnknown": "Lasciati come sono, modificati da più finestre in un ordine impossibile da determinare: {files}",
   "restoreRefusedLinked": "Lasciati come sono, raggiunti tramite un collegamento o una giunzione: {files}",
   "restoreRefusedNotKept": "Non ripristinabili, la versione precedente non è stata conservata: {files}",
-  "restoreRefusedTooLarge": "Non ripristinabili, troppo grandi per conservarne una copia: {files}",
   "restoreRefusedFailed": "Impossibile modificare: {files}",
   "restoreUnchanged": {
     "one": "Già come prima: {count} file.",

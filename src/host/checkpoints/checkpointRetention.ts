@@ -1,17 +1,11 @@
-// How long checkpoint records are kept (M72, M86; PLAN.md D51, D63). Within
-// a conversation by number only, never by the clock: the newest
-// CHECKPOINTS_PER_SESSION_MAX units (turns, restores and Redos alike) stay,
-// so a restore from a turn still offered has every unit it needs (they are
-// all newer than anything dropped). Whole conversations go: beyond the
-// CHECKPOINT_SESSIONS_MAX used most recently, or idle longer than
-// `museSpark.cleanupPeriodDays`. A conversation with a unit still running is
-// kept whole. Pure: the store drops the refs and prunes.
+// How long checkpoint records are kept (M72, M86; PLAN.md D51, D63). By the
+// clock only, never by number: every unit of a conversation stays (turns,
+// restores and Redos alike), so a restore from a turn still offered has
+// every unit it needs. Whole conversations go when idle longer than
+// `museSpark.cleanupPeriodDays` (0: no age limit). A conversation with a
+// unit still running is kept whole. Pure: the store drops the refs and prunes.
 
-import {
-  CHECKPOINT_SESSIONS_MAX,
-  CHECKPOINTS_PER_SESSION_MAX,
-  MILLISECONDS_PER_DAY,
-} from '../../shared/constants'
+import { MILLISECONDS_PER_DAY } from '../../shared/constants'
 
 /** What retention reads of a record. */
 export interface RetainedRecord {
@@ -23,7 +17,7 @@ export interface RetainedRecord {
   readonly isOpen: boolean
 }
 
-/** The records the retention bounds drop: whole conversations, and each one's oldest by number. */
+/** The records the retention bounds drop: idle whole conversations only, never units by number. */
 export function droppedRecords<T extends RetainedRecord>(
   records: readonly T[],
   now: number,
@@ -35,24 +29,14 @@ export function droppedRecords<T extends RetainedRecord>(
     conversations.set(record.sessionId, [...(conversations.get(record.sessionId) ?? []), record])
   }
   const lastUsed = (members: readonly T[]) => Math.max(...members.map((record) => record.createdAt))
-  const recent = new Set(
-    [...conversations]
-      .filter(([, members]) => lastUsed(members) >= cutoff)
-      .toSorted(([, left], [, right]) => lastUsed(right) - lastUsed(left))
-      .slice(0, CHECKPOINT_SESSIONS_MAX)
-      .map(([sessionId]) => sessionId),
-  )
   const dropped: T[] = []
-  for (const [sessionId, members] of conversations) {
+  for (const [, members] of conversations) {
     if (members.some((record) => record.isOpen)) {
       continue
     }
-    if (!recent.has(sessionId)) {
+    if (lastUsed(members) < cutoff) {
       dropped.push(...members)
-      continue
     }
-    const newestFirst = members.toSorted((left, right) => right.sequence - left.sequence)
-    dropped.push(...newestFirst.slice(CHECKPOINTS_PER_SESSION_MAX))
   }
   return dropped
 }

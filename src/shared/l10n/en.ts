@@ -2888,7 +2888,6 @@ export const EN = {
     'Left as they are, edited from more than one window in an order that cannot be told: {files}',
   restoreRefusedLinked: 'Left as they are, reached through a link or junction: {files}',
   restoreRefusedNotKept: 'Not restorable, the earlier version was not kept: {files}',
-  restoreRefusedTooLarge: 'Not restorable, too large to keep a copy of: {files}',
   restoreRefusedFailed: 'Could not be changed: {files}',
   restoreUnchanged: forms({
     one: 'Already as before: {count} file.',

@@ -2526,7 +2526,6 @@
   "restoreRefusedOrderUnknown": "Pozostawione bez zmian, edytowane z więcej niż jednego okna w kolejności, której nie można ustalić: {files}",
   "restoreRefusedLinked": "Pozostawione bez zmian, dostępne przez dowiązanie lub punkt połączenia: {files}",
   "restoreRefusedNotKept": "Nie można przywrócić, wcześniejsza wersja nie została zachowana: {files}",
-  "restoreRefusedTooLarge": "Nie można przywrócić, zbyt duże, aby zachować kopię: {files}",
   "restoreRefusedFailed": "Nie udało się zmienić: {files}",
   "restoreUnchanged": {
     "one": "Już w poprzednim stanie: {count} plik.",

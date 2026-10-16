@@ -2420,7 +2420,6 @@
   "restoreRefusedOrderUnknown": "Olduğu gibi bırakıldı, birden çok pencereden sırası belirlenemeyen düzenlemeler yapıldı: {files}",
   "restoreRefusedLinked": "Olduğu gibi bırakıldı, bağlantı veya birleşim noktası üzerinden erişiliyor: {files}",
   "restoreRefusedNotKept": "Geri yüklenemez, önceki sürüm saklanmadı: {files}",
-  "restoreRefusedTooLarge": "Geri yüklenemez, bir kopyasını saklamak için çok büyük: {files}",
   "restoreRefusedFailed": "Değiştirilemedi: {files}",
   "restoreUnchanged": {
     "one": "Zaten önceki durumda: {count} dosya.",

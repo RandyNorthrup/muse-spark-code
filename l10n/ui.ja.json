@@ -2367,7 +2367,6 @@
   "restoreRefusedOrderUnknown": "複数のウィンドウから編集され、順序を特定できないため、そのまま残しました: {files}",
   "restoreRefusedLinked": "リンクまたはジャンクション経由のため、そのまま残しました: {files}",
   "restoreRefusedNotKept": "以前のバージョンが保存されていないため、復元できません: {files}",
-  "restoreRefusedTooLarge": "コピーを保存するには大きすぎるため、復元できません: {files}",
   "restoreRefusedFailed": "変更できませんでした: {files}",
   "restoreUnchanged": {
     "other": "すでに以前の状態です: {count} 個のファイル。"

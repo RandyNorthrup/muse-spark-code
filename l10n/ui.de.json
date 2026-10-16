@@ -2420,7 +2420,6 @@
   "restoreRefusedOrderUnknown": "Unverändert gelassen, in mehreren Fenstern in einer nicht bestimmbaren Reihenfolge bearbeitet: {files}",
   "restoreRefusedLinked": "Unverändert gelassen, über einen Link oder eine Junction erreicht: {files}",
   "restoreRefusedNotKept": "Nicht wiederherstellbar, die frühere Version wurde nicht gespeichert: {files}",
-  "restoreRefusedTooLarge": "Nicht wiederherstellbar, zu groß zum Speichern einer Kopie: {files}",
   "restoreRefusedFailed": "Konnte nicht geändert werden: {files}",
   "restoreUnchanged": {
     "one": "Bereits wie zuvor: {count} Datei.",
