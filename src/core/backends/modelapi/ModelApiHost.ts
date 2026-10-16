@@ -106,7 +106,6 @@ import {
   DEFAULT_EFFORT,
   DEFAULT_MODEL_ID,
   FILE_REFUSAL_MODEL_TEXT,
-  GOAL_OBJECTIVE_MAX_CHARS,
   GOAL_STATUS,
   type GoalCommandVerb,
   HOOK_MAX_STOP_CONTINUATIONS,
@@ -16367,11 +16366,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   public controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
     const problem = goalObjectiveProblem(command)
     if (problem !== undefined) {
-      const detail =
-        problem === 'empty'
-          ? UI_TEXT.goalObjectiveMissing
-          : fill(UI_TEXT.goalObjectiveTooLong, { limit: GOAL_OBJECTIVE_MAX_CHARS })
-      return Promise.reject(new Error(`goal/${command.verb}: ${detail}`))
+      return Promise.reject(new Error(`goal/${command.verb}: ${UI_TEXT.goalObjectiveMissing}`))
     }
     const applied = applyGoalCommand(this.goal, command, this.goalContext())
     if (typeof applied === 'string') {

@@ -3393,7 +3393,6 @@
   "goalCannotResume": "Pokračovat lze jen v pozastaveném cíli.",
   "goalCannotEdit": "Změnit lze jen aktivní nebo pozastavený cíl; nový nastavte pomocí /goal <cíl>.",
   "goalObjectiveMissing": "Za /goal napište zadání cíle.",
-  "goalObjectiveTooLong": "Cíl může mít nejvýše {limit} znaků.",
   "goalCommandFailed": "Příkaz pro cíl selhal",
   "goalOutcomeUnknown": "Během příkazu pro cíl se změnilo přihlášení nebo se back-end restartoval: příkaz se možná projevil, možná ne. Zkontrolujte cíl relace.",
   "announceGoalStatus": "Cíl: {status}",
