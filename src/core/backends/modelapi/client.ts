@@ -42,7 +42,6 @@ import {
   type PaidFeature,
   MODEL_API_BASE_URL,
   MODEL_API_MIN_OUTPUT_TOKENS,
-  IMAGE_REQUEST_TIMEOUT_MS,
   MODEL_API_REQUEST_TIMEOUT_MS,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -78,6 +77,7 @@ interface PaidRequestClaim {
 
 import { redactSecrets } from '../../redact'
 import { fill } from '../../../shared/l10n/text'
+import { startStillWaiting, stillWaitingText } from '../../timeouts'
 import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
 
 import type { PacingProvider, RequestPacer } from './pacing'
@@ -223,15 +223,19 @@ export class ModelApiClient implements TransportProviderClient {
     return claim === undefined ? undefined : { claim, isSent: false, run }
   }
 
-  /** A billed image request: only a 429 is retried, with a deadline of its own. */
+  /** A billed image request: only a 429 is retried, with no deadline of its own. */
   private async imageRequest(
     path: string,
     body: CreateImageBody,
     signal: AbortSignal,
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
-    const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
-    const paid = await this.paidReservation(body, 'imageGeneration', active, admitAttempt)
+    // Waited on until Meta answers or the turn stops it (owner 2026-10-16:
+    // no arbitrary limits), saying so out loud while it waits.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      this.deps.log.info(stillWaitingText('the image request', elapsedMs))
+    })
+    const paid = await this.paidReservation(body, 'imageGeneration', signal, admitAttempt)
     const claim = paid?.claim
     try {
       const result = await this.transport.request(
@@ -244,7 +248,7 @@ export class ModelApiClient implements TransportProviderClient {
           retries: 'rateLimitOnly',
           ...(paid !== undefined && { paid }),
         },
-        active,
+        signal,
         undefined,
         undefined,
         admitAttempt,
@@ -256,6 +260,7 @@ export class ModelApiClient implements TransportProviderClient {
       }
       return parsed
     } finally {
+      stopNoticing()
       if (paid?.isSent === false) {
         await paid.claim.settle(Usd.from(0).toAmount())
       }
