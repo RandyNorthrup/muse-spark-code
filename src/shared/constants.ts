@@ -1578,15 +1578,11 @@ export const CHECKPOINT_RESTORE_BLOCKERS = ['modelApiOnly', 'nativeUnsafe'] as c
 export type CheckpointRestoreBlocker = (typeof CHECKPOINT_RESTORE_BLOCKERS)[number]
 // One git call of a unit record or a restore: importing large copies takes time.
 export const CHECKPOINT_GIT_TIMEOUT_MS = 2 * 60 * 1000
-// A file larger than this has no copy kept; a restore leaves it as it is
-// (`tooLarge`) and never deletes a file that existed.
-export const CHECKPOINT_FILE_MAX_BYTES = 16 * 1024 * 1024
-// Retention (M86): the newest units (turns, restores and Redos) of each
-// conversation, by their number, never their clock; and the conversations
-// used most recently, whole. A conversation idle longer than
-// `museSpark.cleanupPeriodDays` goes whole (0: no age limit).
-export const CHECKPOINTS_PER_SESSION_MAX = 100
-export const CHECKPOINT_SESSIONS_MAX = 50
+// Every file's copy is kept, whatever its size; a restore never deletes a
+// file that existed.
+// Retention (M86) is by the clock only, never by number: every unit stays,
+// and a conversation idle longer than `museSpark.cleanupPeriodDays` goes
+// whole (0: no age limit).
 // A unit's number is a ref created only if absent: when another window took
 // a number first, the next is tried, at most this many times.
 export const CHECKPOINT_SEQUENCE_ATTEMPTS = 64
@@ -1674,12 +1670,8 @@ export const CHECKPOINT_JOURNAL_FILE = 'journal.jsonl'
 export const CHECKPOINT_BLOBS_DIR = 'blobs'
 // The journal and the kept bytes are the user's alone, as the folder is.
 export const CHECKPOINT_JOURNAL_FILE_MODE = 0o600
-// What one unit (a turn, a restore) may record: past the intents, its writes
-// go on unrecorded and the unit can never be restored; past the kept bytes,
-// its writes are recorded without their bytes, and their files are not
-// restorable. Fixed: a turn that reaches either is far from a usual one.
-export const CHECKPOINT_UNIT_INTENTS_MAX = 1000
-export const CHECKPOINT_UNIT_BLOB_BYTES_MAX = 256 * 1024 * 1024
+// Every unit's writes are recorded with their bytes, whatever their number:
+// a unit is always restorable.
 export const FIND_FILES_GLOB = '**/*'
 
 // --- Git and pull requests (M71, PLAN.md D49) ---

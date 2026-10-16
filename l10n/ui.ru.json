@@ -2526,7 +2526,6 @@
   "restoreRefusedOrderUnknown": "Оставлены как есть: редактировались из нескольких окон в порядке, который нельзя установить: {files}",
   "restoreRefusedLinked": "Оставлены как есть: доступны через ссылку или точку соединения: {files}",
   "restoreRefusedNotKept": "Нельзя восстановить: предыдущая версия не была сохранена: {files}",
-  "restoreRefusedTooLarge": "Нельзя восстановить: слишком велики для сохранения копии: {files}",
   "restoreRefusedFailed": "Не удалось изменить: {files}",
   "restoreUnchanged": {
     "one": "Уже как раньше: {count} файл.",

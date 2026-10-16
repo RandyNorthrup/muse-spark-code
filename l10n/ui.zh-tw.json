@@ -2367,7 +2367,6 @@
   "restoreRefusedOrderUnknown": "保持原樣，從多個視窗編輯，無法確定先後順序：{files}",
   "restoreRefusedLinked": "保持原樣，透過連結或目錄接合點存取：{files}",
   "restoreRefusedNotKept": "無法還原，未保留先前的版本：{files}",
-  "restoreRefusedTooLarge": "無法還原，檔案太大，無法保留副本：{files}",
   "restoreRefusedFailed": "無法變更：{files}",
   "restoreUnchanged": {
     "other": "已與先前一致：{count} 個檔案。"

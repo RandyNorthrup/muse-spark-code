@@ -2526,7 +2526,6 @@
   "restoreRefusedOrderUnknown": "Ponecháno beze změny, upraveno z více oken v pořadí, které nelze určit: {files}",
   "restoreRefusedLinked": "Ponecháno beze změny, cesta vede přes odkaz nebo spojení junction: {files}",
   "restoreRefusedNotKept": "Nelze obnovit, předchozí verze nebyla uchována: {files}",
-  "restoreRefusedTooLarge": "Nelze obnovit, soubory jsou příliš velké na uchování kopie: {files}",
   "restoreRefusedFailed": "Nepodařilo se změnit: {files}",
   "restoreUnchanged": {
     "one": "Již v původním stavu: {count} soubor.",

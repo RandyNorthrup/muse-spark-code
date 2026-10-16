@@ -2420,7 +2420,6 @@
   "restoreRefusedOrderUnknown": "Változatlanul maradtak, több ablakból módosították őket, meghatározhatatlan sorrendben: {files}",
   "restoreRefusedLinked": "Változatlanul maradtak, hivatkozáson vagy könyvtár-csatolási ponton keresztül érhetők el: {files}",
   "restoreRefusedNotKept": "Nem állíthatók vissza, a korábbi verzió nem lett megőrizve: {files}",
-  "restoreRefusedTooLarge": "Nem állíthatók vissza, túl nagyok egy másolat megőrzéséhez: {files}",
   "restoreRefusedFailed": "Nem sikerült módosítani: {files}",
   "restoreUnchanged": {
     "one": "Már a korábbi állapotban: {count} fájl.",
