@@ -4978,7 +4978,6 @@
         "type": "string",
         "repeatable": false,
         "exclusiveMinimum": 0,
-        "maximum": 20,
         "decimals": 6,
         "required": "modelApi",
         "unit": "USD"
@@ -6319,7 +6318,6 @@
         "type": "string",
         "repeatable": false,
         "exclusiveMinimum": 0,
-        "maximum": 20,
         "decimals": 6,
         "required": "modelApi",
         "unit": "USD",
@@ -6336,7 +6334,6 @@
         "repeatable": false,
         "default": 30,
         "minimum": 1,
-        "maximum": 500,
         "purpose": "maxRequests"
       }
     },
