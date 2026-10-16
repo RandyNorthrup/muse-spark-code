@@ -90,6 +90,10 @@ const BUDGETS = [
   { path: 'dist/subscriptions.js', budgetKiB: 50 },
   { path: 'dist/configuredProviders.js', budgetKiB: 50 },
   { path: 'dist/modelsPanel.js', budgetKiB: 125 },
+  // PANELBUDGET: the subscriptions half (sign-in flows), split out of the
+  // panel bundle; 22,917 B measured +15%, rounded up to the next 25 KiB
+  // multiple (PLAN.md D6).
+  { path: 'dist/modelsSubscriptions.js', budgetKiB: 50 },
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },
@@ -134,6 +138,11 @@ const BUDGETS = [
   // out (2026-10-05), 33.8 KiB on 0.13.0's shared dist/validation.js; plus
   // 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/pluginHooks.js', budgetKiB: 50 },
+  // MODELAPIDIET: the Model API backend's deferred per-call helpers (hook
+  // call fields, argument previews, fetch URL checks), loaded on first use:
+  // 23,433 B measured (2026-10-11); D6: 23,433 × 1.15 = 26,947.95 B,
+  // rounded up to the next 25 KiB multiple = 51,200 B (50 KiB).
+  { path: 'dist/modelApiTools.js', budgetKiB: 50 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },
@@ -177,6 +186,10 @@ const BUDGETS = [
   // required when that backend's host is first built: 37.1 KiB measured;
   // plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/modelApiSessions.js', budgetKiB: 50 },
+  // ACTROOM: the Create AGENTS.md command (the command, the rules template
+  // and their redaction) moved out of activation, required when that command
+  // runs: 6.6 KiB measured; plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/rulesFile.js', budgetKiB: 25 },
   // M89: the bundled skills installer for Muse Code (the copy, the links and
   // zod's parser for the vendor record and the mark), loaded on first use:
   // 22.6 KiB when split out. Measured size plus 15%, rounded up to 25 KiB.

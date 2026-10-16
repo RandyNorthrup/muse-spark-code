@@ -35,4 +35,6 @@ export function layOutAcpNativeSources(root: string, repository: string): void {
   })
   mkdirSync(path.join(root, path.dirname(SOURCES_MODULE)), { recursive: true })
   cpSync(path.join(repository, SOURCES_MODULE), path.join(root, SOURCES_MODULE))
+  const bundlesModule = path.join('scripts', 'lib', 'acpBundles.mjs')
+  cpSync(path.join(repository, bundlesModule), path.join(root, bundlesModule))
 }

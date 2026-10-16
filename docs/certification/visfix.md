@@ -86,3 +86,7 @@ frames show the fixture, the manifest still records 0.17.1's notes), and the
 manifest's revision, which predates the fixture, cannot be rendered by this
 tree's capture code. One full reviewed update follows on the release branch,
 and is the last one release notes cost.
+
+That update, its review and the one check the fixture's last screen no
+longer exercises (the footer links' hover, focus and pressed states) are
+recorded in `docs/certification/rel0172.md`.

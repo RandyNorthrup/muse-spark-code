@@ -38,11 +38,14 @@ export interface AccountsSessionPort extends AccountUsagePort {
 }
 
 /** U's panel dispatcher, also used by the authenticated companion bridge.
- * M104 owns origin/permission/envelope checks; this is the inner payload port. */
+ * M104 owns origin/permission/envelope checks; this is the inner payload port.
+ * @unwired M104 companion bridge for accounts */
 export interface AccountsPanelPort {
   dispatch(request: AccountsRequest): Promise<AccountsReply>
   subscribe(listener: (reply: AccountsReply) => void): () => void
 }
+/** The companion's validated panel skin over the inner payload port.
+ * @unwired M104 companion bridge for accounts */
 export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPort {
   return {
     async dispatch(request) {

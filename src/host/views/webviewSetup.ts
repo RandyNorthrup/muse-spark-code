@@ -19,6 +19,7 @@ import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from './chatSurface'
+import { mintFocusRequest, shouldDeliverFocusInput } from './focusGate'
 import { webviewErrorLog } from './webviewErrors'
 
 export interface WebviewHostContext {
@@ -39,6 +40,12 @@ export interface SurfaceOptions {
   /** The session id a deserialized panel stored; undefined for a new surface. */
   readonly restoredSessionId: string | undefined
   readonly reveal: () => void
+  /**
+   * Whether this surface is the active one for a focus decision (panel-focus
+   * F3): the panel's `active`, the sidebar's `visible`. Absent in tests,
+   * where every surface counts as active.
+   */
+  readonly isActive?: () => boolean
   readonly markUnread: () => void
   readonly setTitle: (title: string) => void
   /** The document gained focus (M25): the surface the keybindings act on. */
@@ -104,6 +111,9 @@ export function configureWebview(
   let restoredSessionId = options.restoredSessionId
   let isActive = true
   let estimatorGeneration = 0
+  // When the person last revealed this surface: a `focusInput` posted just
+  // after still delivers while the reveal's own focus propagates.
+  let revealedAt: number | undefined
   const surface: ChatSurface = {
     id: options.id,
     isSideChat: options.isSideChat === true,
@@ -116,9 +126,25 @@ export function configureWebview(
       if (isRestoreEnding(message)) {
         restoredSessionId = undefined
       }
-      void webview.postMessage(message)
+      // The single host gate every sender's `focusInput` passes through
+      // (panel-focus F3): Focus Input, the deferred mention flush, and any
+      // later asker. The ask is owned (it carries the minted token) only
+      // while its panel is the active one; otherwise it is dropped here,
+      // never held.
+      let outbound = message
+      if (message.type === 'focusInput') {
+        const now = Date.now()
+        if (!shouldDeliverFocusInput(options.isActive?.() ?? true, revealedAt, now)) {
+          return
+        }
+        outbound = { ...message, ...mintFocusRequest(now, () => globalThis.crypto.randomUUID()) }
+      }
+      void webview.postMessage(outbound)
     },
-    reveal: options.reveal,
+    reveal: () => {
+      revealedAt = Date.now()
+      options.reveal()
+    },
     markUnread: options.markUnread,
     setTitle: options.setTitle,
     reload: () => {
