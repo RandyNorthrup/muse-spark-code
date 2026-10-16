@@ -372,6 +372,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'modelsSubscriptions.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'MODELS_SUBSCRIPTIONS_BUNDLE_FILE',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
     file: 'museCodeReviewer.js',
     side: 'vscode',
     requestedBy: [
@@ -570,6 +581,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'LEGAL_EXPLANATION_BUNDLE_FILE',
         side: ['vscode'],
       },
+    ],
+  },
+  {
+    file: 'rulesFile.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'RULES_FILE_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
   {

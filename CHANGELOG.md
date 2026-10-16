@@ -7,7 +7,44 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- On Windows, two requests that reserve session spend at the same moment
+  could end one of them with "The session spend ledger could not be read or
+  saved", although nothing was wrong with the ledger. Windows answers a lock
+  that is just being released differently from one that is held; the product
+  now waits for both the same way, within the same one-second bound.
+
 ### Pending
+
+- After Muse Code restarted, a conversation could continue on a different
+  model than the one shown (and at that model's price). It now keeps the
+  model you chose: the choice is applied and read back from Muse Code before
+  the next message is sent, the panel shows the model each request really
+  used, and a message that would run on another model is not sent.
+  A restart that finishes verification after you clear or replace the
+  conversation no longer reattaches the conversation you left. Failed model
+  verification releases its resumed handle, including command timeouts.
+  Opening Model API history on its already-selected model no longer runs
+  model-switch hooks or resets switch-related session state. ACP remembers
+  backend-reported model and effort changes too, including changes received
+  before a configuration command finishes.
+
+- Activation budget: the Create AGENTS.md command, its rules template and
+  their redaction load on the command's first run instead of at activation,
+  leaving 830 bytes of room below the 3,072-byte growth allowance. No
+  behaviour change; a missing bundle refuses the run and the next run tries
+  again.
+
+- The chat no longer takes the keyboard from a file you just opened: a chat
+  panel that finishes loading never pulls the focus in, a focus request for
+  a panel that is no longer active is dropped instead of landing on a much
+  later click, and a question that arrives while you are elsewhere waits
+  with its badge instead of taking the keyboard. Acting on the chat
+  yourself — clicking into the panel, Focus Input, sending — focuses the
+  input as before, and Focus Input while the composer is focused hands
+  the keyboard back to the file you were in (it used to focus the editor
+  group, which keeps a chat tab active).
 
 - Linux shell sandbox that cannot start (F91): while sandboxed on Linux,
   each host start probes whether Muse Code's bubblewrap sandbox can create
