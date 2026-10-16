@@ -14,7 +14,9 @@ happened, not what was planned; superseded entries are kept.
   own per-run choice (defaults 3 × 20 stay); headless exec no longer caps
   `--max-requests` at 500 or `--max-budget-usd` at $20 — your flags stay
   with no ceiling of ours; `rename_symbol` no longer refuses a rename that
-  touches more than 200 files.
+  touches more than 200 files; a hook agent handler loops over its
+  read-only tools until the model stops calling them instead of stopping
+  after 5 steps.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

@@ -932,9 +932,9 @@ export const HOOK_HTTP_REDIRECT_MIN_STATUS = 300
 // the hook's answer parsed like a command's.
 export const HOOK_MODEL_TIMEOUT_MS = 60_000
 export const HOOK_MODEL_MAX_OUTPUT_TOKENS = 1024
-// An agent handler's read-only tool loop: this many model requests at most,
-// then its partial answer is parsed as-is.
-export const HOOK_AGENT_MAX_STEPS = 5
+// An agent handler's read-only tool loop runs until the model stops calling
+// tools (D121: the removed 5-step ceiling was invented); a verdict resting
+// on a partial answer is parsed as-is when the run ends.
 // A prompt/agent hook's transcript row: the paid run is loud, like a review's.
 export const HOOK_MODEL_ROW_TOOL = 'hook_model'
 // RVM91X P2 12: a plugin child's whole memory, as a Windows job limit and,
