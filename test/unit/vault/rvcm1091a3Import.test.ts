@@ -50,7 +50,10 @@ describe('RVCM1091A3 import boundaries', () => {
       }
       return await read(...args)
     })
-    await expect(f.management.importFile(file, () => true)).rejects.toThrow()
+    // RVCM1091D P2: the swapped parent is a collision, never the setup sentence.
+    await expect(f.management.importFile(file, () => true)).rejects.toMatchObject({
+      reason: 'conflict',
+    })
     expect(isReplaced).toBe(true)
     expect(await f.repository.current().list()).toEqual([])
     const remaining = await stat(path.join(outside, 'credentials'))

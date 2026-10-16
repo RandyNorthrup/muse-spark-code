@@ -71,6 +71,7 @@ const BUNDLES = [
   'vaultStore.js',
   'vaultPosix.js',
   'vaultRuntime.js',
+  'vaultActions.js',
   'vaultBoundaries.js',
   'estimateContracts.js',
   'legalScan.js',

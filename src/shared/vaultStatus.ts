@@ -45,6 +45,16 @@ export const vaultStatusSchema = z.strictObject({
       // The anchored vault can no longer be opened by any slot or code; only
       // then is Reset Vault offered (lead decision, 2026-10-10).
       'vaultLost',
+      // RVCM1091F: host-synthesized transient reasons. A snapshot that fails
+      // `busy`, times out, or loses its watch keeps its own name instead of
+      // borrowing the repair sentence; `unreachable` is a failure with no
+      // known cause; `storeUnavailable` is the slot's own repair. Only the
+      // broker's own `brokerBlocked` verdict shows the repair message.
+      'busy',
+      'timeout',
+      'watchLost',
+      'unreachable',
+      'storeUnavailable',
     ]),
   ),
 })

@@ -86,6 +86,13 @@ happened, not what was planned; superseded entries are kept.
   - Setup shows a one-time recovery code and writes nothing until you confirm
     you saved it, in the agent's terminal (`vault setup`, `vault recover`)
     and as **Set Up Vault** in the vault section.
+  - The Models & Agents panel mounts the vault section (Set Up Vault, lock
+    state, items, grants, recovery) behind the broker gate (C-M109-1 P1):
+    it stays hidden until the broker process and per-OS connections land,
+    so nothing new appears on screen yet. Its navigation gap clears the
+    focus ring, its actions keep button chrome in dark and high-contrast
+    themes, its protection summary names the tier and provider in plain
+    words, and every action label is Title Case.
   - `dist/vaultRuntime.js` carries the vault for the ACP agent, the CLI and
     headless runs, without `vscode`.
   - The SecretStorage slot is dropped for the OS-store slot every editor
@@ -140,6 +147,25 @@ happened, not what was planned; superseded entries are kept.
     Reset detects lost documents and damaged pending transactions, refuses
     unlocked stores, checks every destructive boundary and retires the exact
     anchor while holding the writer lock.
+  - Vault part D (CM1091DADOPT): the Models & Agents panel's vault section
+    adopts the reviewed core. The section offers Set Up Vault (the one-time
+    recovery code stays in the native dialog), Unlock, Lock, Import with the
+    native Keep-or-Delete question, and Reset Vault with the typed word, the
+    last only for a lost vault. A failed source deletion reloads so the
+    section shows the imported items. Typed refusals keep their own
+    sentences (an unavailable OS store names its repair); anything else
+    stays the generic failure, never native text. The lock toggle is
+    disabled while the vault is unavailable or first-party-only, so nothing
+    is offered that the broker would refuse. The section stays hidden until
+    the broker binds, as before; no new user-visible string.
+  - Review repairs (RVCM1091D, CM1091DR2): every vault state gets its own
+    heading and sentence, so nothing asks for an unlock of a vault that
+    does not exist or is lost and no cached slot claims protection for one
+    that cannot be opened; item and path collisions refuse as conflict with
+    their own sentence instead of the setup sentence; a failed Lock restores
+    the vault's real snapshot instead of staying Locked; the grant-form
+    hints are table keys; the mounted harness paints every added state with
+    a true locked frame across all six themes.
 - `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
   (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
   without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
@@ -181,6 +207,64 @@ happened, not what was planned; superseded entries are kept.
   activation bundle; sessions are kept and read as before (ACTBUD017).
 
 ### Fixed
+
+- The vault section never keeps a stale view after a failed operation: every
+  failure reloads a fresh snapshot (a change that arrived meanwhile is
+  applied), or shows Unavailable with no item labels when no snapshot can be
+  had, and the message never tells the user to unlock a vault shown unlocked.
+  A Delete refused because the source changed after a successful import says
+  so instead of claiming nothing was added; a duplicate that wins the race
+  past add's pre-check reports a collision; unopenable vaults name no
+  protection; and setup confirmation broadcasts once, so its unlock no
+  longer loses the writer to a mid-flight snapshot.
+
+- Review repairs (RVCM1091F, CM1091DR4): the vault section's host is one
+  explicit view state machine instead of a flag, so a lock from anywhere
+  (idle auto-lock, screen lock, another window, the CLI) locks this window
+  at once with no item names listed, and later changes, approval cards and
+  re-shown tabs always recover it. A failure while the broker is busy keeps
+  the last view, says it is retrying, retries twice, then offers **Retry**;
+  only a broker that cannot start names the repair. Guard refusals on the
+  current view (Reset on a vault that is not lost, edit/grant/answer/import
+  guards) still toast; only a retired older generation stays silent.
+  A Delete whose source
+  is already gone but whose import record stuck says the file is gone, with
+  nothing to retry, and the record is cleared at the next Delete.
+
+- Review repairs (RVAPP-CM1091D5, CM1091DR6): a Lock or Revoke during an
+  Import or Delete aborts the in-flight call silently (the panel shows the
+  locked state, never a failure toast beside it). Every unlocked snapshot
+  sweeps kept and orphaned import receipts whose source or secret still
+  exists: the panel lists them with Keep and Delete, and `vault receipts`
+  offers the same two actions on the terminal; a receipt whose source and
+  secret are both gone is forgotten by the sweep itself. The terminal prints
+  each refused Delete's true reason instead of No access for all. Probe
+  errors name their cause (permissions, an unavailable drive with its own
+  sentence, other); an unavailable drive is never reported gone. Oversized,
+  missequenced and trailed channel replies close with their typed reasons.
+  Focus returns only to a control that unmounted, and the retry announcement
+  lives in a persistent live region. The vault host bundle is back under its
+  50 KiB cap: explicit-action code (the native Add/Edit editor, write-only
+  crypto, Reset/Setup/Import dialogs) loads on first use from
+  `dist/vaultActions.js` with its own 25 KiB cap.
+
+- Review repairs (RVCM1091G, CM1091DR5): every approval reload carries its
+  own sequence inside the view state machine, so two overlapping approval
+  reloads settle newest-wins in both landing orders instead of an older
+  reply overwriting a newer one. A Delete whose source cannot be read says
+  so and keeps the import record; pre-unlink store refusals keep the source
+  and the record with the broker's own reason. A dead or corrupted broker
+  channel names itself and says the operation failed, never Locked beside
+  an unlocked section. The source-gone sentence no longer claims the record
+  could not be cleared. A Delete rejected as source-gone finishes by
+  clearing the leftover record in the panel and the CLI when it can; a
+  record it cannot clear stays for the next finish. A kept view with
+  a retry scheduled or in flight says it is retrying with aria-busy, and a
+  focused control that disappears hands focus to the first control that can
+  act (else the section heading). The mounted harness scenes cover the
+  redesigned unreachable/Retry path and the transient busy, timeout and
+  watch-lost cases. The host bundle still exceeds its 50 KiB cap (lead
+  decision pending); the vault stays off for users.
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

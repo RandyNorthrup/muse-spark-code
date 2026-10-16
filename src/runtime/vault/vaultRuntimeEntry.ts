@@ -25,6 +25,7 @@ import {
   type VaultBrokerEvent,
   type VaultBrokerPort,
 } from '../../shared/vaultProtocol'
+import { encodeVaultMaterial } from '../../core/vault/crypto'
 import {
   isCancelled,
   VaultManageSession,
@@ -105,6 +106,14 @@ export function vaultCommandPort(session: VaultManageSession): VaultCommandPort 
     },
     deleteImport: async (receipt) => {
       await session.deleteImport(receipt)
+    },
+    pendingReceipts: async () => {
+      const snapshot = await session.snapshot()
+      return snapshot.pendingReceipts.map((entry) => ({
+        receipt: entry.receipt,
+        path: entry.path,
+        items: [...entry.items],
+      }))
     },
     resetBegin: async () => await session.resetBegin(),
     resetConfirm: async (resetId, word) => {
@@ -207,7 +216,7 @@ export async function createRuntimeVault(
   const broker = new VaultBrokerProcess(platform.discovery, platform.process)
   const connect: VaultConnect = async () =>
     await broker.connect(hostId, hostSession, platform.peers)
-  const session = new VaultManageSession(connect)
+  const session = new VaultManageSession(connect, encodeVaultMaterial)
   return {
     commands: () => Promise.resolve(vaultCommandPort(session)),
     exec: {

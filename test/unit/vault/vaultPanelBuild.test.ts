@@ -2,17 +2,23 @@ import { beforeAll, afterAll, expect, it } from 'vitest'
 import { mkdtemp, mkdir, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { type Metafile } from 'esbuild'
-import { VAULT_PANEL_BUDGET_KIB, VAULT_HOST_BUDGET_KIB } from '../../../src/shared/constants'
+import {
+  VAULT_ACTIONS_BUDGET_KIB,
+  VAULT_PANEL_BUDGET_KIB,
+  VAULT_HOST_BUDGET_KIB,
+} from '../../../src/shared/constants'
 import { buildVaultSurfaces } from '../../harness/vault/build.mjs'
 
-const built: { dir?: string; browser?: Metafile; host?: Metafile } = {}
+const built: { dir?: string; browser?: Metafile; host?: Metafile; actions?: Metafile } = {}
 beforeAll(async () => {
   await mkdir(path.join(process.cwd(), 'temp'), { recursive: true })
   built.dir = await mkdtemp(path.join(process.cwd(), 'temp', 'vault-build-'))
   const result = await buildVaultSurfaces(built.dir)
-  if (result.browser === undefined || result.host === undefined) throw new Error('missing metafile')
+  if (result.browser === undefined || result.host === undefined || result.actions === undefined)
+    throw new Error('missing metafile')
   built.browser = result.browser
   built.host = result.host
+  built.actions = result.actions
 })
 afterAll(async () => {
   if (built.dir !== undefined) await rm(built.dir, { recursive: true, force: true })
@@ -90,4 +96,29 @@ it('U host has an independent hard 50 KiB cap and does not carry the broker engi
     expect(input.replaceAll('\\', '/')).not.toMatch(
       /core\/vault\/(?:store|broker\/(?:broker|state|policy|audit|channel|epoch|management|repository|firstParty))\.ts|vault\/slots/,
     )
+})
+it('RVAPP-CM1091D5 BYTES the explicit-action code ships only in vaultActions.js under its own cap', async () => {
+  const actions = built.actions!
+  const file = Object.keys(actions.outputs)[0]!
+  const stats = await stat(file)
+  expect(stats.size / 1024).toBeLessThanOrEqual(VAULT_ACTIONS_BUDGET_KIB)
+  // Cross-bundle members exist on the exporting side: the editor, the
+  // dialogs and the write crypto are here...
+  for (const member of [
+    'src/host/vault/vaultActionsEntry.ts',
+    'src/host/vault/vaultActionDialogs.ts',
+    'src/host/vault/vaultNativeEditor.ts',
+    'src/core/vault/crypto.ts',
+  ])
+    expect(Object.keys(actions.inputs)).toContain(member)
+  // ...and not in the opening bundle, which names only the fault class (not
+  // the migration record schema) from the migrate side.
+  const host = built.host!
+  for (const member of [
+    'src/host/vault/vaultActionDialogs.ts',
+    'src/host/vault/vaultNativeEditor.ts',
+    'src/core/vault/crypto.ts',
+    'src/core/vault/migrate/ports.ts',
+  ])
+    expect(Object.keys(host.inputs)).not.toContain(member)
 })

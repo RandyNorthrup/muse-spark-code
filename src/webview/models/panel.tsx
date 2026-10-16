@@ -4,7 +4,8 @@
 // table reflows to cards under 340 px (models.css).
 
 import { UI_TEXT } from '../../shared/constants'
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react'
+import type { VaultClientMessage } from '../../shared/hostApi/vaultMessages'
 import {
   parseHostToPanelMessage,
   type ModelsPanelState,
@@ -22,6 +23,22 @@ function reloadPanel(): void {
   window.location.reload()
 }
 
+/**
+ * The vault host message's envelope, routed without reading its contents:
+ * the full zod validation happens where the state is used, in the lazily
+ * loaded vault surface, so the panel body keeps its size budget. Anything
+ * else unknown is still reported as a host-message error below.
+ */
+function vaultEnvelopeOf(raw: unknown): unknown {
+  return typeof raw === 'object' &&
+    raw !== null &&
+    'type' in raw &&
+    raw.type === 'vaultState' &&
+    'state' in raw
+    ? raw
+    : undefined
+}
+
 /** The live app uses the same strict contract as the panel host. */
 export function ModelsApp({
   host,
@@ -32,20 +49,26 @@ export function ModelsApp({
 }) {
   const [ui, dispatch] = useReducer(panelUiReducer, INITIAL_PANEL_UI)
   const [panelState, setPanelState] = useState<ModelsPanelState | undefined>(undefined)
+  const [vaultRaw, setVaultRaw] = useState<unknown>(undefined)
   useEffect(() => {
     const onMessage = (event: MessageEvent): void => {
       const parsed = parseHostToPanelMessage(event.data)
-      if (!parsed.ok) {
-        report('hostMessage', new Error(parsed.error))
+      if (parsed.ok) {
+        const message = parsed.message
+        if (message.type === 'modelsPanel/state') {
+          setPanelState(message.state)
+          dispatch({ type: 'host-state', state: message.state })
+        } else {
+          dispatch({ type: 'host-navigate', section: message.section, itemId: message.itemId })
+        }
         return
       }
-      const message = parsed.message
-      if (message.type === 'modelsPanel/state') {
-        setPanelState(message.state)
-        dispatch({ type: 'host-state', state: message.state })
-      } else {
-        dispatch({ type: 'host-navigate', section: message.section, itemId: message.itemId })
+      const vault = vaultEnvelopeOf(event.data)
+      if (vault !== undefined) {
+        setVaultRaw(vault)
+        return
       }
+      report('hostMessage', new Error(parsed.error))
     }
     host.messages.addEventListener('message', onMessage)
     // Subscribe before ready: the host may reply in the same task.
@@ -57,7 +80,23 @@ export function ModelsApp({
   const post = (message: PanelToHostMessage): void => {
     host.post(message)
   }
-  return <ModelsPanel panelState={panelState} ui={ui} post={post} dispatch={dispatch} />
+  // Stable per panel, so the vault mount asks for its snapshot exactly once.
+  const vaultPost = useCallback(
+    (message: VaultClientMessage): void => {
+      host.post(message)
+    },
+    [host],
+  )
+  return (
+    <ModelsPanel
+      panelState={panelState}
+      ui={ui}
+      post={post}
+      dispatch={dispatch}
+      vaultRaw={vaultRaw}
+      vaultPost={vaultPost}
+    />
+  )
 }
 
 export interface ModelsPanelProps {
@@ -66,6 +105,13 @@ export interface ModelsPanelProps {
   readonly ui: PanelUiState
   readonly post: (message: PanelToHostMessage) => void
   readonly dispatch: (action: PanelUiAction) => void
+  /**
+   * The vault host message's raw envelope (C-M109-1 P1); undefined before
+   * the host's first vault answer. The vault mount validates it before use.
+   */
+  readonly vaultRaw?: unknown
+  /** The vault section's post port into the host's vault binding. */
+  readonly vaultPost?: ((message: VaultClientMessage) => void) | undefined
 }
 
 /**
@@ -84,9 +130,20 @@ function useWizardLife(ui: PanelUiState): WizardLife {
   }
 }
 
-export function ModelsPanel({ panelState, ui, post, dispatch }: ModelsPanelProps) {
+export function ModelsPanel({
+  panelState,
+  ui,
+  post,
+  dispatch,
+  vaultRaw,
+  vaultPost,
+}: ModelsPanelProps) {
   const wizardLife = useWizardLife(ui)
-  const active = MODEL_SECTIONS.find((section) => section.id === ui.section) ?? MODEL_SECTIONS[0]
+  // The vault's navigation stays hidden until the host offers it
+  // (C-M109-1 P1): a hidden section is never rendered and never navigable,
+  // so the panel reads exactly as before while the gate is off.
+  const visible = MODEL_SECTIONS.filter((section) => section.isOffered?.(panelState) ?? true)
+  const active = visible.find((section) => section.id === ui.section) ?? visible[0]
   if (active === undefined) {
     return null
   }
@@ -94,7 +151,7 @@ export function ModelsPanel({ panelState, ui, post, dispatch }: ModelsPanelProps
   return (
     <div className="models-panel">
       <nav className="models-nav" aria-label={UI_TEXT.modelsPanelTitle}>
-        {MODEL_SECTIONS.map((section) => {
+        {visible.map((section) => {
           const Icon = section.icon
           const isActive = section.id === active.id
           return (
@@ -132,6 +189,8 @@ export function ModelsPanel({ panelState, ui, post, dispatch }: ModelsPanelProps
           wizardLife={wizardLife}
           importOpen={ui.importOpen}
           highlightedItem={ui.highlighted?.itemId}
+          vaultRaw={vaultRaw}
+          vaultPost={vaultPost}
         />
       )}
     </div>

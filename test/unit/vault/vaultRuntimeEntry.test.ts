@@ -5,7 +5,7 @@ import {
   VaultManageSession,
   type VaultBrokerConnection,
 } from '../../../src/core/vault/broker/manageClient'
-import { decodeVaultMaterial } from '../../../src/core/vault/crypto'
+import { decodeVaultMaterial, encodeVaultMaterial } from '../../../src/core/vault/crypto'
 import {
   createRuntimeVault,
   openHeadlessVault,
@@ -48,7 +48,7 @@ function context(onDenied = vi.fn()): ExecVaultContext {
 describe('C-M109-1 manage session', () => {
   it('sends values only in a private add frame and closes each connection', async () => {
     const { client, sent } = connection(() => ({ kind: 'ok' }))
-    const session = new VaultManageSession(() => Promise.resolve(client))
+    const session = new VaultManageSession(() => Promise.resolve(client), encodeVaultMaterial)
     const value = randomBytes(24)
     await session.write({ metadata: metadata(), material: { kind: 'secret', value } }, false)
     const [frame] = sent
@@ -121,6 +121,7 @@ describe('C-M109-1 dist/vaultRuntime.js', () => {
         items: [metadata()],
         grants: [],
         pending: [],
+        pendingReceipts: [],
       },
     }))
     const port = vaultCommandPort(new VaultManageSession(() => Promise.resolve(client)))

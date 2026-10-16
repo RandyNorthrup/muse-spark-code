@@ -102,6 +102,10 @@ function importPort(store: VaultStore): VaultFileImportPort {
       const raw = await store.readReceipt(id)
       return raw === null ? null : decodeReceipt(raw)
     },
+    listReceipts: async () => {
+      const entries = await store.receiptEntries()
+      return entries.map((entry) => ({ id: entry.id, record: decodeReceipt(entry.record) }))
+    },
     forgetReceipt: async (id, authorize) => {
       await store.forgetReceipt(id, authorize)
     },
@@ -117,13 +121,22 @@ function importRefusal(error: unknown): unknown {
   if (!(error instanceof VaultMigrationFault)) return error
   switch (error.code) {
     case 'conflict': {
-      return new VaultManagementError('exists')
+      return new VaultManagementError('conflict')
     }
     case 'window': {
       return new VaultManagementError('locked')
     }
     case 'storage': {
       return new VaultManagementError('io')
+    }
+    case 'orphaned': {
+      return new VaultManagementError('sourceGone')
+    }
+    case 'unreadable': {
+      return new VaultManagementError('sourceUnreadable')
+    }
+    case 'unavailable': {
+      return new VaultManagementError('sourceUnavailable')
     }
     case 'invalid':
     case 'verification': {
@@ -283,6 +296,24 @@ export class VaultManagement implements VaultManagementPort {
     this.importer = { store, importer }
     return importer
   }
+  /**
+   * The finish sweep at every unlocked snapshot: kept or orphaned receipts
+   * whose source or secret still exists are listed with their two real
+   * actions (RVAPP-CM1091D5 P2-2). A sweep a Lock overtook lists nothing
+   * this time; the receipts stay for the next snapshot.
+   */
+  private async sweepReceipts(): Promise<VaultBrokerSnapshot['pendingReceipts']> {
+    try {
+      const swept = await this.fileImporter().pending()
+      return swept.map((entry) => ({
+        receipt: entry.receipt,
+        path: entry.path,
+        items: [...entry.items],
+      }))
+    } catch {
+      return []
+    }
+  }
   noteApproval(request: VaultApprovalRequest): void {
     this.approvals.set(request.id, structuredClone(request))
     this.emit({ kind: 'approval', v: 2, request })
@@ -317,19 +348,41 @@ export class VaultManagement implements VaultManagementPort {
         (await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor))
       )
         return {
-          status: { ...broker, state: 'unavailable', reason: 'vaultLost' },
+          // A lost vault names no protection either (RVCM1091E P3).
+          status: {
+            ...broker,
+            state: 'unavailable',
+            reason: 'vaultLost',
+            tier: null,
+            provider: null,
+            silentUnlock: false,
+          },
           setupId: null,
           items: [],
           grants: [],
           pending: [],
+          pendingReceipts: [],
         }
     }
     const hasVault = await VaultStore.exists(this.deps.files)
     let state: VaultStatus['state'] = hasVault ? broker.state : 'uncreated'
     if (pending !== null) state = 'setupPending'
     const status = { ...broker, state }
-    if (state !== 'unlocked')
-      return { status, setupId: pending?.setupId ?? null, items: [], grants: [], pending: [] }
+    if (state !== 'unlocked') {
+      // A vault that cannot be opened names no protection: a carried slot
+      // beside "Set up" or "can no longer be opened" is stale (RVCM1091E P3).
+      const observed = ['uncreated', 'setupPending', 'unavailable'].includes(state)
+        ? { tier: null, provider: null, silentUnlock: false }
+        : {}
+      return {
+        status: { ...status, ...observed },
+        setupId: pending?.setupId ?? null,
+        items: [],
+        grants: [],
+        pending: [],
+        pendingReceipts: [],
+      }
+    }
     const now = this.deps.clock.now()
     for (const [id, request] of this.approvals)
       if (request.expiresAt <= now || request.lockEpoch !== status.lockEpoch)
@@ -345,6 +398,7 @@ export class VaultManagement implements VaultManagementPort {
       items: [...items],
       grants: [...grants],
       pending: approvals,
+      pendingReceipts: await this.sweepReceipts(),
     }
   }
 
@@ -353,9 +407,24 @@ export class VaultManagement implements VaultManagementPort {
       const store = this.store()
       const items = await store.list()
       if (items.some((entry) => entry.id === item.metadata.id || entry.name === item.metadata.name))
-        throw new VaultManagementError('exists')
-      // Checked again inside the writer transaction (RVCM1091A F6).
-      await refusingInvalid(store.write(item, 'absent'))
+        throw new VaultManagementError('conflict')
+      if (items.length >= VAULT_LIMITS.items) throw new VaultManagementError('invalid')
+      try {
+        // Checked again inside the writer transaction (RVCM1091A F6).
+        await store.write(item, 'absent')
+      } catch (error: unknown) {
+        if (!(error instanceof VaultError) || error.code !== 'invalid') throw error
+        // Lost the race past the pre-check: re-read to name a taken id or
+        // name as a collision, never as a generic failure (RVCM1091E P3).
+        const current = await store.list()
+        if (
+          current.some(
+            (entry) => entry.id === item.metadata.id || entry.name === item.metadata.name,
+          )
+        )
+          throw new VaultManagementError('conflict')
+        throw new VaultManagementError('invalid')
+      }
     } finally {
       eraseVaultMaterial(item.material)
     }
@@ -442,6 +511,14 @@ export class VaultManagement implements VaultManagementPort {
           throw new VaultMigrationFault('window')
       })
     } catch (error: unknown) {
+      // A source that changed after a successful import is not an add/import
+      // collision: Delete names what stayed behind (RVCM1091E P2). A source
+      // already gone (a previous Delete removed it but could not forget its
+      // receipt) names that truth instead of a retryable failure (RVCM1091F).
+      if (error instanceof VaultMigrationFault && error.code === 'conflict')
+        throw new VaultManagementError('deleteConflict')
+      if (error instanceof VaultMigrationFault && error.code === 'orphaned')
+        throw new VaultManagementError('sourceGone')
       throw importRefusal(error)
     }
   }
@@ -613,7 +690,11 @@ export class VaultManagement implements VaultManagementPort {
         else this.pending = pending
         this.isConfirmationCancelled = false
       }
-      this.changed()
+      // No broadcast yet: watchers reload on `changed`, and their snapshot
+      // would race broker.unlock below for the writer (RVCM1091E: the
+      // unlock lost with `busy` and the setup failed silently). The single
+      // broadcast in the finally below carries the end state, like every
+      // other operation.
     })
     // A Lock during the confirmation never ends unlocked: the vault exists,
     // locked, and the person unlocks it again (RVCM1091A2 P2).

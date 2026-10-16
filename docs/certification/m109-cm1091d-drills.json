@@ -1,0 +1,54 @@
+{
+  "drills": [
+    {
+      "after": "ecc7628cc369506c894a97099f8fea6d3ecc7c70ea75710453d4d5d2ea81aaab",
+      "before": "ecc7628cc369506c894a97099f8fea6d3ecc7c70ea75710453d4d5d2ea81aaab",
+      "id": "D1",
+      "mutation": "Removed `state.vaultOffered = vault !== undefined` from publish() in src/host/models/modelsPanel.ts (the host half of the mount gate).",
+      "red": "npx vitest run test/unit/modelsPanelVault.test.ts: 4 failed / 2 passed. Failed exactly the gate-on tests (offers+routes, publisher validation, deep-links, dispose); the two gate-off tests (hidden, throwing factory) still pass.",
+      "rig": "macmini"
+    },
+    {
+      "after": "4e6e82b18d9eecb57a8fdc1647ed6079f8adade9356f12db7ec95241916dadd5",
+      "before": "4e6e82b18d9eecb57a8fdc1647ed6079f8adade9356f12db7ec95241916dadd5",
+      "id": "D2",
+      "mutation": "Replaced the vault isOffered gate with `() => true` in src/webview/models/sections.ts (the webview half of the mount gate).",
+      "red": "npx vitest run test/unit/modelsSections.test.ts test/unit/modelsPanelVaultSection.test.tsx: 3 failed / 7 passed. Failed the registry gate test and both hidden-webview tests (nav hidden, vault fallback); gate-on tests still pass.",
+      "rig": "macmini"
+    },
+    {
+      "after": "c41a44abec940a53bf5ca4ef8983c72ba6d84a2b124d6c04e6a79eafefc87af0",
+      "before": "c41a44abec940a53bf5ca4ef8983c72ba6d84a2b124d6c04e6a79eafefc87af0",
+      "id": "D3",
+      "mutation": "Reverted .models-nav gap to 4px in src/webview/models/models.css (the RVCM1091D P3 focus-ring fix).",
+      "red": "npx vitest run test/unit/modelsNavGap.test.mjs: 1 failed / 0 passed (gap must clear the 4px focus reach).",
+      "rig": "macmini"
+    },
+    {
+      "after": "aea15156c600e1865de7e2d89e343d04de7713633d602cf0a985bddfb9c8f1c9",
+      "before": "aea15156c600e1865de7e2d89e343d04de7713633d602cf0a985bddfb9c8f1c9",
+      "id": "D4",
+      "mutation": "Reverted the vault button border to var(--vscode-contrastBorder, transparent) in src/webview/models/sections/vault/vault.css (the RVCM1091D P3 button-chrome fix).",
+      "red": "npx vitest run test/unit/vaultButtonChrome.test.mjs: 6 failed / 6 passed (border resolves transparent in dark and both high-contrast themes).",
+      "rig": "macmini"
+    },
+    {
+      "after": "f03a8e16e9b12669731803ef6e41ce4efd3b37cae9d9e2819cd73067aa8812a1",
+      "before": "f03a8e16e9b12669731803ef6e41ce4efd3b37cae9d9e2819cd73067aa8812a1",
+      "id": "D5",
+      "mutation": "Made display() pass tier/provider values through unchanged in src/webview/models/sections/vault/vaultPresentation.tsx (the RVCM1091D P3 status-card fix).",
+      "red": "npx vitest run test/unit/vault/vaultStatusCard.test.tsx: 3 failed / 2 passed (labelled rows, no-raw-token, tier/provider sweep).",
+      "rig": "macmini"
+    },
+    {
+      "after": "cea27ef12f915d31a6f057ab93429d0bae6bdab418eaa5ccaab0f82bde0cb07d",
+      "before": "cea27ef12f915d31a6f057ab93429d0bae6bdab418eaa5ccaab0f82bde0cb07d",
+      "id": "D6",
+      "mutation": "Reverted vault.add to 'Add to vault' in src/shared/l10n/en.ts (the RVCM1091D P3 Title Case fix).",
+      "red": "npx vitest run test/unit/vault/vaultStatusCard.test.tsx: 2 failed / 3 passed (mounted-action rendering, English-table Title Case).",
+      "rig": "macmini"
+    }
+  ],
+  "lane": "CM1091D",
+  "restored": "byte-exact (SHA-256 before == after for every drilled file; the owning suites pass after each restore)"
+}

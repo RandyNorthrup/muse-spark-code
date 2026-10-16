@@ -3,7 +3,7 @@
 // broker, OS store or network is used.
 
 import { vi } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { type VaultStatus } from '../../../src/shared/vaultProtocol'
@@ -145,4 +145,17 @@ export async function heldSetupConfirmation(f: ReturnType<typeof managementFixtu
   const shown = await f.management.setup()
   const { confirming } = await heldConfirmation(f, shown.setupId)
   return { shown, confirming }
+}
+
+/** A .netrc written into a temp home and imported through an unlocked vault. */
+export async function importedNetrc() {
+  const home = await tempHome()
+  const file = path.join(home, '.netrc')
+  await writeFile(file, 'machine example.test login generated-user password generated-password\n')
+  const f = managementFixture(undefined, home)
+  const setup = await lockedVault(f)
+  setup.fill(0)
+  await f.broker.unlock(null)
+  const report = await f.management.importFile(file, () => true)
+  return { f, home, file, report, store: f.repository.current() }
 }

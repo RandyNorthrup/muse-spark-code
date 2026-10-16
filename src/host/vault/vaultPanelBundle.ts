@@ -7,7 +7,11 @@ import type { UiText } from '../../shared/l10n/en'
 import { uiLocale } from '../../shared/l10n/text'
 import { fixedMessageLog, lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type { VaultPanelEntryDeps } from './vaultPanelEntry'
+import type {
+  ModelsVaultBinding,
+  ModelsVaultBindingDeps,
+  VaultPanelEntryDeps,
+} from './vaultPanelEntry'
 import type { VaultPanelHost } from './vaultPanelHost'
 
 export const VAULT_COMMANDS = { open: 'museSpark.vault', lock: 'museSpark.lockVault' } as const
@@ -59,15 +63,23 @@ export interface VaultBundle {
     table: UiText,
     locale: string,
   ) => { host: VaultPanelHost } & VaultWindowControls
+  /** The Models & Agents panel's vault section binding (C-M109-1 P1). */
+  readonly createModelsVaultBinding: (
+    deps: ModelsVaultBindingDeps,
+    table: UiText,
+    locale: string,
+  ) => ModelsVaultBinding
 }
 
-/** Whether a required module exports the panel factory. */
+/** Whether a required module exports the panel factories. */
 export function isVaultBundle(value: unknown): value is VaultBundle {
   return (
     typeof value === 'object' &&
     value !== null &&
     'createVaultPanelHost' in value &&
-    typeof value.createVaultPanelHost === 'function'
+    typeof value.createVaultPanelHost === 'function' &&
+    'createModelsVaultBinding' in value &&
+    typeof value.createModelsVaultBinding === 'function'
   )
 }
 
