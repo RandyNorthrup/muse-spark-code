@@ -3727,6 +3727,8 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "scanSecretsExits": "Завершается с 0 если чисто, 10 если найден секрет, 2 при неверном использовании.",
+  "execExits": "Коды завершения: 0 — завершено, 1 — внутренняя ошибка, 2 — неверное использование, 3 — нет входа или бэкенд недоступен, 4 — сбой, 5 — предел бюджета или запросов, 6 — истекло время, 7 — отказано, 8 — неполно, 9 — учёт не подтверждён, 10 — выход не соответствует схеме, 130 при SIGINT, 143 при SIGTERM.",
+  "reportExits": "Коды завершения: 0 — отчёт записан, 1 — сбой, 2 — неверное использование.",
   "execSummary": "{status}; запросы {requests}; начислено {settled}; неопределённо {uncertain}; попытки изображений {imageAttempts}; возвращено {imagesReturned}; неопределённые изображения {imagesUncertain}",
   "execSummaryUpperBound": "{status}; запросы {requests}; начислено {settled}; неопределённо {uncertain}; попытки изображений {imageAttempts}; возвращено {imagesReturned}; неопределённые изображения {imagesUncertain}; Стоимость является верхней границей.",
   "exportSessionLine": "Сеанс: `{id}`",

@@ -4309,6 +4309,9 @@ export const EN = {
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
   execScanUsage: 'scan-secrets <file> [--key-stdin]',
   scanSecretsExits: 'Exits 0 when clean, 10 when a secret is found, 2 for misuse.',
+  execExits:
+    'Exits 0 completed, 1 internal, 2 usage, 3 sign-in or backend unavailable, 4 failed, 5 budget or request limit, 6 timeout, 7 denied, 8 incomplete, 9 accounting unverified, 10 output schema mismatch, 130 on SIGINT, 143 on SIGTERM.',
+  reportExits: 'Exits 0 when the report is written, 1 on failure, 2 for misuse.',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
   execSummaryUpperBound:

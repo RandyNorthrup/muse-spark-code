@@ -74,7 +74,12 @@ import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './shar
 import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
-import { formatAcpUsage, formatScanSecretsHelp } from './cliOptions'
+import {
+  formatAcpUsage,
+  formatExecHelp,
+  formatReportHelp,
+  formatScanSecretsHelp,
+} from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
 import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -1564,18 +1569,35 @@ async function main(): Promise<number> {
       return 0
     }
     case 'help': {
-      if (command.topic === 'scan-secrets') {
-        writeLine(process.stdout, formatScanSecretsHelp(UI_TEXT, ACP_AGENT_NAME))
-      } else if (command.all === true) {
-        const reference = referenceLoader({
-          bundlePath: path.join(distDir, REFERENCE_BUNDLE_FILE),
-          log,
-        })().createReference(referenceTable, uiLocale())
-        const file = uiLocale() === 'en' ? 'package.nls.json' : `package.nls.${uiLocale()}.json`
-        const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
-        writeLine(process.stdout, reference.all(nls))
-      } else {
-        writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+      switch (command.topic) {
+        case 'scan-secrets': {
+          writeLine(process.stdout, formatScanSecretsHelp(UI_TEXT, ACP_AGENT_NAME))
+
+          break
+        }
+        case 'exec': {
+          writeLine(process.stdout, formatExecHelp(UI_TEXT, ACP_AGENT_NAME))
+
+          break
+        }
+        case 'report': {
+          writeLine(process.stdout, formatReportHelp(UI_TEXT, ACP_AGENT_NAME))
+
+          break
+        }
+        default: {
+          if (command.all === true) {
+            const reference = referenceLoader({
+              bundlePath: path.join(distDir, REFERENCE_BUNDLE_FILE),
+              log,
+            })().createReference(referenceTable, uiLocale())
+            const file = uiLocale() === 'en' ? 'package.nls.json' : `package.nls.${uiLocale()}.json`
+            const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
+            writeLine(process.stdout, reference.all(nls))
+          } else {
+            writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+          }
+        }
       }
       return 0
     }

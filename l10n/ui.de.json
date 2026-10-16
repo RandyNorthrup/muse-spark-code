@@ -3575,6 +3575,8 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "scanSecretsExits": "Exitcodes: 0 wenn sauber, 10 bei Fund, 2 bei Fehlgebrauch.",
+  "execExits": "Exitcodes: 0 abgeschlossen, 1 interner Fehler, 2 Fehlgebrauch, 3 Anmeldung oder Backend nicht verfügbar, 4 fehlgeschlagen, 5 Budget- oder Anfragenlimit, 6 Zeitüberschreitung, 7 abgelehnt, 8 unvollständig, 9 Abrechnung ungeprüft, 10 Ausgabe-Schema passt nicht, 130 bei SIGINT, 143 bei SIGTERM.",
+  "reportExits": "Exitcodes: 0 wenn der Bericht geschrieben ist, 1 bei Fehler, 2 bei Fehlgebrauch.",
   "execSummary": "{status}; Anfragen {requests}; abgerechnet {settled}; ungewiss {uncertain}; Bildversuche {imageAttempts}; zurückgegeben {imagesReturned}; ungewisse Bilder {imagesUncertain}",
   "execSummaryUpperBound": "{status}; Anfragen {requests}; abgerechnet {settled}; ungewiss {uncertain}; Bildversuche {imageAttempts}; zurückgegeben {imagesReturned}; ungewisse Bilder {imagesUncertain}; Kosten sind eine Obergrenze.",
   "exportSessionLine": "Sitzung: `{id}`",

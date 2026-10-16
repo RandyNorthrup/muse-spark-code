@@ -3575,6 +3575,8 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "scanSecretsExits": "Kilépés: 0 ha tiszta, 10 ha titkot talál, 2 hibás használat esetén.",
+  "execExits": "Kilépési kódok: 0 kész, 1 belső hiba, 2 hibás használat, 3 nincs bejelentkezés vagy a backend nem elérhető, 4 sikertelen, 5 költség- vagy kéréskorlát, 6 időtúllépés, 7 megtagadva, 8 hiányos, 9 az elszámolás ellenőrizetlen, 10 a kimeneti séma nem egyezik, 130 SIGINT esetén, 143 SIGTERM esetén.",
+  "reportExits": "Kilépési kódok: 0 ha a jelentés elkészült, 1 hiba esetén, 2 hibás használatnál.",
   "execSummary": "{status}; kérések {requests}; elszámolt {settled}; bizonytalan {uncertain}; képkérések {imageAttempts}; visszaadott {imagesReturned}; bizonytalan képek {imagesUncertain}",
   "execSummaryUpperBound": "{status}; kérések {requests}; elszámolt {settled}; bizonytalan {uncertain}; képkérések {imageAttempts}; visszaadott {imagesReturned}; bizonytalan képek {imagesUncertain}; A költség felső korlát.",
   "exportSessionLine": "Munkamenet: `{id}`",

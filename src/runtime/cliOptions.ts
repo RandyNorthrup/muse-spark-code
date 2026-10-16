@@ -14,6 +14,16 @@ export function formatScanSecretsHelp(table: UiText, command: string): string {
   ].join('\n')
 }
 
+/** One screen for `exec --help`: its own usage, contract and exit codes. */
+export function formatExecHelp(table: UiText, command: string): string {
+  return [`${command} ${table.execUsage}`, table.referenceExecContract, table.execExits].join('\n')
+}
+
+/** One screen for `report --help`: its own usage, options and exit codes. */
+export function formatReportHelp(table: UiText, command: string): string {
+  return [fill(table.reportUsage, { command }), table.reportExits].join('\n')
+}
+
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
   const options = {

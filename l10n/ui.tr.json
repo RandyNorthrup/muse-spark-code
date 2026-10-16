@@ -3575,6 +3575,8 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "scanSecretsExits": "Temizse 0, gizli dizi bulunursa 10, yanlış kullanımda 2 ile çıkar.",
+  "execExits": "Çıkış kodları: 0 tamamlandı, 1 iç hata, 2 yanlış kullanım, 3 oturum yok veya arka uç kullanılamıyor, 4 başarısız, 5 bütçe veya istek sınırı, 6 zaman aşımı, 7 reddedildi, 8 eksik, 9 hesap doğrulanmadı, 10 çıktı şeması uymuyor, SIGINT'te 130, SIGTERM'de 143.",
+  "reportExits": "Çıkış kodları: rapor yazıldığında 0, başarısızlıkta 1, yanlış kullanımda 2.",
   "execSummary": "{status}; istekler {requests}; kesinleşen {settled}; belirsiz {uncertain}; görsel denemeleri {imageAttempts}; döndürülen {imagesReturned}; belirsiz görseller {imagesUncertain}",
   "execSummaryUpperBound": "{status}; istekler {requests}; kesinleşen {settled}; belirsiz {uncertain}; görsel denemeleri {imageAttempts}; döndürülen {imagesReturned}; belirsiz görseller {imagesUncertain}; Maliyet bir üst sınırdır.",
   "exportSessionLine": "Oturum: `{id}`",

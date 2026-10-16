@@ -4156,8 +4156,8 @@ ACP editors can send `/help` for the current installed-skill list and the
 [generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage`, `/questions`, `/answer` and
 installed skills; the linked panel slash commands and settings are extension
 workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
-reference in the installed language without a model call. `exec --help` and
-`report --help` also print it; `scan-secrets --help` prints the scanner's own
+reference in the installed language without a model call. `exec --help`,
+`report --help` and `scan-secrets --help` each print that command's own
 one screen with its usage and exit codes; `--help` prints concise
 ACP usage. Terminal help states that VS Code current values are unavailable.
 

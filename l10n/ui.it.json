@@ -3651,6 +3651,8 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "scanSecretsExits": "Esce con 0 se pulito, 10 se trova un segreto, 2 per uso errato.",
+  "execExits": "Termina con 0 completato, 1 errore interno, 2 uso scorretto, 3 accesso o backend non disponibile, 4 non riuscito, 5 limite di budget o di richieste, 6 timeout, 7 negato, 8 incompleto, 9 contabilità non verificata, 10 schema di output non corrispondente, 130 con SIGINT, 143 con SIGTERM.",
+  "reportExits": "Termina con 0 quando il rapporto è scritto, 1 se fallisce, 2 per uso scorretto.",
   "execSummary": "{status}; richieste {requests}; liquidato {settled}; incerto {uncertain}; tentativi di immagine {imageAttempts}; restituite {imagesReturned}; immagini incerte {imagesUncertain}",
   "execSummaryUpperBound": "{status}; richieste {requests}; liquidato {settled}; incerto {uncertain}; tentativi di immagine {imageAttempts}; restituite {imagesReturned}; immagini incerte {imagesUncertain}; Il costo è un limite superiore.",
   "exportSessionLine": "Sessione: `{id}`",

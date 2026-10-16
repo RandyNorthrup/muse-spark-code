@@ -3727,6 +3727,8 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "scanSecretsExits": "Kończy z 0 gdy czysto, 10 przy znalezisku, 2 przy błędnym użyciu.",
+  "execExits": "Kończy się: 0 zakończono, 1 błąd wewnętrzny, 2 błędne użycie, 3 brak logowania lub niedostępny backend, 4 niepowodzenie, 5 limit budżetu lub żądań, 6 przekroczenie czasu, 7 odmowa, 8 niekompletne, 9 niezweryfikowane rozliczenie, 10 niezgodność schematu wyjściowego, 130 przy SIGINT, 143 przy SIGTERM.",
+  "reportExits": "Kończy się: 0 po zapisaniu raportu, 1 przy niepowodzeniu, 2 przy błędnym użyciu.",
   "execSummary": "{status}; żądania {requests}; rozliczone {settled}; niepewne {uncertain}; próby obrazów {imageAttempts}; zwrócone {imagesReturned}; niepewne obrazy {imagesUncertain}",
   "execSummaryUpperBound": "{status}; żądania {requests}; rozliczone {settled}; niepewne {uncertain}; próby obrazów {imageAttempts}; zwrócone {imagesReturned}; niepewne obrazy {imagesUncertain}; Koszt jest górną granicą.",
   "exportSessionLine": "Sesja: `{id}`",
