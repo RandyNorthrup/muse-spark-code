@@ -1,5 +1,16 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PRTH166 review repairs (2026-10-15).** Reuse the controller's opening
+and resumed-handle ownership checks and ACP's existing choice state. After
+merging main `d842cad5d`, address T1 stale attachment, T2 verification cleanup,
+T3 Model API no-switch loads, T4 backend-event choice updates, and T5 honest
+restart proof. No new abstraction, wire shape, dependency or UI. The owner's
+2026-10-12 rule forbids a replay CLI or any stand-in: pure resolver checks
+are not product-wiring proof. Real-provider restart, mismatch, concurrent
+clear and hook/event checks remain explicit lead-run scenarios in
+`docs/certification/muse-restart-model.md`; lane gates and provider-free
+packed-product commands are measured separately.
+
 **VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
 mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
 that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and
