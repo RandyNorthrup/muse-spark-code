@@ -5547,10 +5547,10 @@ export const EXPORT_FILE_EXTENSIONS: Readonly<Record<ExportFormat, string>> = {
 export const SESSION_EXPORT_FORMAT = 'muse-spark-session-export'
 export const SESSION_EXPORT_VERSION = 1
 // M118 lane 0: our portable prompt/share formats, never provider wire shapes.
+// D121: a scope holds any number of prompts of any title/body length (the
+// removed 200/80/10000 ceilings were invented). The prompt file bound below
+// is untouched by this lane.
 export const PROMPT_LIMITS = {
-  perScope: 200,
-  title: 80,
-  body: 10_000,
   fileBytes: 128 * 1024,
 } as const
 export const PROMPT_SYNC_KEY = 'museSpark.savedPrompts.v1'

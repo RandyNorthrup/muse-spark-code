@@ -111,10 +111,9 @@ function nativeUi(
       const title = await vscode.window.showInputBox({
         title: UI_TEXT.promptTitle,
         value: draft.title,
-        validateInput: (value) =>
-          value.trim() === '' || value.length > PROMPT_LIMITS.title
-            ? UI_TEXT.promptLimits
-            : undefined,
+        // D121: any title length stands — the removed 80-character ceiling
+        // was invented — so only a blank title refuses.
+        validateInput: (value) => (value.trim() === '' ? UI_TEXT.promptLimits : undefined),
       })
       if (title === undefined) return undefined
       const tags = await vscode.window.showInputBox({

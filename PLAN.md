@@ -14404,6 +14404,9 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
 - A22 (NOLIMITS1): `PLAN_STEPS_MAX` = 50 and `PLAN_FILE_MAX_BYTES` = 256 KiB
   removed — not about a model; every step is kept, plans and handoff briefs
   save and read at any size (the shared constant's handoff checks go with it).
+- A23 (NOLIMITS1): `PROMPT_LIMITS` per-scope 200, title 80 and body 10000
+  removed — not about a model; only a blank title refuses and the prompt
+  file bound stays (untouched by this lane).
 
 ## 3. Open questions (need the owner)
 
