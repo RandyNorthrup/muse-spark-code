@@ -9,24 +9,23 @@
 // recovers a shared name. Each contender binds a socket of its own, under a
 // random name that nobody else binds or removes, then looks at every other
 // entry: a live one means another holder, and it gives its own up and waits.
-// Of two contenders that both pass, one's look would have preceded the other's
-// listener, which is a contradiction, so at most one holds. A dead entry (it
-// refuses a connection) never blocks; it is removed only once it is older than
-// the time a bind needs to become a listener, so a file being born is never
-// taken. The grant lock (chatGptRefreshLock.ts) and the credential store's
+// Dead entries are removed only after the PID in their name is proven gone.
+// Age cannot prove death: a process can be suspended between bind and listen.
+// A live process's not-yet-listening entry must never be unlinked. The grant lock (chatGptRefreshLock.ts) and the credential store's
 // per-account owner (keyStore.ts) are two names on this mechanism.
 import { createHash, randomBytes, randomInt } from 'node:crypto'
 import { lstat, mkdir, readdir, unlink } from 'node:fs/promises'
 import { createConnection, createServer, type Server } from 'node:net'
-import { tmpdir, userInfo } from 'node:os'
+import { userInfo } from 'node:os'
 import path from 'node:path'
+import process from 'node:process'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
   CHATGPT_GRANT_LOCK_DIR_MODE,
   CHATGPT_GRANT_LOCK_SCOPE_CHARS,
   CHATGPT_REFRESH_LOCK_RETRY_MS,
   NAMED_LOCK_ENTRY_BYTES,
-  NAMED_LOCK_GARBAGE_MIN_AGE_MS,
+  NAMED_LOCK_FOREIGN_MODE_MASK,
   OAUTH_CODE_TTL_MS,
 } from '../shared/constants'
 
@@ -90,7 +89,7 @@ export function personScope(): string {
 
 /** One contender's own socket file: the lock's file name, a dot, and a random suffix nobody else uses. */
 function socketEntryPath(directory: string, file: string, suffix: string): string {
-  return path.join(directory, `${file}.${suffix}`)
+  return path.join(directory, `${file}.${String(process.pid)}.${suffix}`)
 }
 
 async function closeServer(server: Server): Promise<void> {
@@ -155,15 +154,20 @@ async function isLive(file: string): Promise<boolean> {
   throw new NamedLockError('unavailable', code)
 }
 
-/**
- * Removes a dead entry once it is older than a bind needs to become a
- * listener. Its name is random and was bound once, so nobody binds it again;
- * a younger one may be a file in the middle of being born, and stays.
- */
-async function removeIfGarbage(file: string): Promise<void> {
+/** A stopped owner can resume; only ESRCH proves its entry cannot become live. */
+async function removeIfGarbage(file: string, suffix: string): Promise<void> {
+  const match = /^([1-9][0-9]*)\.[0-9a-f]+$/u.exec(suffix)
+  if (match === null) return // Legacy entries carry no owner proof: leave them alone.
+  const pid = Number(match[1])
+  if (!Number.isSafeInteger(pid)) return
   try {
-    const found = await lstat(file)
-    if (Date.now() - found.mtimeMs >= NAMED_LOCK_GARBAGE_MIN_AGE_MS) await unlink(file)
+    process.kill(pid, 0)
+    return
+  } catch (error) {
+    if (errorCode(error) !== 'ESRCH') return
+  }
+  try {
+    await unlink(file)
   } catch (error) {
     if (errorCode(error) !== 'ENOENT') throw new NamedLockError('unavailable', osReason(error))
   }
@@ -187,7 +191,7 @@ async function hasLiveContender(
     if (other === own || !name.startsWith(`${file}.`)) continue
     signal.throwIfAborted()
     if (await isLive(other)) return true
-    await removeIfGarbage(other)
+    await removeIfGarbage(other, name.slice(file.length + 1))
   }
   return false
 }
@@ -202,14 +206,9 @@ async function acquireSocket(
   // Another contender drew the same random name: nothing was bound, try again under a new one.
   if (server === 'in-use') return undefined
   const held: Held = {
-    release: async () => {
-      await closeServer(server)
-      try {
-        await unlink(own)
-      } catch {
-        // A file left behind is a dead entry: the next contender removes it once it is old.
-      }
-    },
+    // Node owns the bound pathname and removes it on close. A second unlink
+    // after close could remove a replacement that bound that name meanwhile.
+    release: () => closeServer(server),
   }
   try {
     if (!(await hasLiveContender(directory, file, own, signal))) return held
@@ -228,9 +227,20 @@ async function openAttempt(names: NamedLockNames, options: NamedLockOptions): Pr
   }
   let folder: string
   try {
-    folder = options.directory ?? path.join(tmpdir(), names.folder)
+    // TMPDIR can be long or differ across processes. Use the platform's
+    // short shared root so an account keeps one name within sockaddr_un.
+    folder = options.directory ?? path.join('/tmp', names.folder)
     await mkdir(folder, { recursive: true, mode: CHATGPT_GRANT_LOCK_DIR_MODE })
+    const found = await lstat(folder)
+    if (
+      !found.isDirectory() ||
+      found.uid !== process.getuid?.() ||
+      (found.mode & NAMED_LOCK_FOREIGN_MODE_MASK) !== 0
+    ) {
+      throw new NamedLockError('unavailable', 'unsafe-directory')
+    }
   } catch (error) {
+    if (error instanceof NamedLockError) throw error
     throw new NamedLockError('unavailable', osReason(error))
   }
   return (signal) => acquireSocket(folder, names.file, signal)

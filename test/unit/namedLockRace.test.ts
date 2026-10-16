@@ -10,7 +10,9 @@
 // lead's run (docs/certification/chatgpt-grant-lock.md, "PLANFIX R2").
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { chmod, lstat, mkdir, mkdtemp, rm, symlink, utimes, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { withNamedLock } from '../../src/runtime/namedLock'
 import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -26,9 +28,8 @@ import {
 const scratch = { folder: '', bundle: '' }
 const PROCESSES = 6
 const ROUNDS = 8
-// A Unix socket path holds 103 characters on macOS; its usual temp folder takes 48 (measured: /var/folders/xx/<30>/T).
+// Darwin sockaddr_un has 103 usable bytes; /tmp is independent of TMPDIR.
 const MACOS_SOCKET_PATH_CHARS = 103
-const MACOS_TMPDIR_CHARS = 48
 
 beforeAll(async () => {
   scratch.folder = await mkdtemp(path.join(path.resolve('temp'), 'named-lock-race-'))
@@ -83,14 +84,91 @@ describe('the named lock under a race (R2)', () => {
     expect(code).toBe(0)
   }, 180_000)
 
+  it.runIf(process.platform !== 'win32')(
+    'never removes an unlistening entry of a live process, regardless of age',
+    async () => {
+      const directory = await mkdtemp('/tmp/muse-live-entry-')
+      const names = { pipe: 'unused', folder: 'unused', file: 'entry' }
+      const other = path.join(directory, `entry.${String(process.pid)}.abcdef`)
+      try {
+        await writeFile(other, 'a not-yet-listening entry')
+        await utimes(other, new Date(0), new Date(0))
+        await withNamedLock(
+          async () => {
+            const found = await lstat(other)
+            expect(found.isFile()).toBe(true)
+          },
+          names,
+          { directory },
+        )
+        const kept = await lstat(other)
+        expect(kept.isFile()).toBe(true)
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')(
+    'refuses permissive and symlinked lock directories',
+    async () => {
+      const directory = await mkdtemp('/tmp/muse-unsafe-entry-')
+      const names = { pipe: 'unused', folder: 'unused', file: 'entry' }
+      let isEntered = false
+      const work = () => {
+        isEntered = true
+        return Promise.resolve()
+      }
+      try {
+        const permissive = path.join(directory, 'public')
+        await mkdir(permissive)
+        await chmod(permissive, 0o777)
+        await expect(withNamedLock(work, names, { directory: permissive })).rejects.toMatchObject({
+          reason: 'unsafe-directory',
+        })
+        const linked = path.join(directory, 'linked')
+        await symlink(permissive, linked)
+        await expect(withNamedLock(work, names, { directory: linked })).rejects.toMatchObject({
+          reason: 'unsafe-directory',
+        })
+        expect(isEntered).toBe(false)
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')(
+    'uses one short default root even with an overlong TMPDIR',
+    async () => {
+      const prior = process.env['TMPDIR']
+      const folder = `muse-path-${randomUUID()}`
+      const directory = path.join('/tmp', folder)
+      try {
+        process.env['TMPDIR'] = `/tmp/${'long'.repeat(60)}`
+        await withNamedLock(
+          async () => {
+            const found = await lstat(directory)
+            expect(found.isDirectory()).toBe(true)
+          },
+          { pipe: 'unused', folder, file: 'entry' },
+        )
+      } finally {
+        if (prior === undefined) delete process.env['TMPDIR']
+        else process.env['TMPDIR'] = prior
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+  )
+
   it("keeps every lock's socket path inside macOS's limit, with the longest file name a lock makes", () => {
     const scope = 'a'.repeat(CHATGPT_GRANT_LOCK_SCOPE_CHARS)
     const entry = 'f'.repeat(NAMED_LOCK_ENTRY_BYTES * 2)
-    const grant = `${CHATGPT_GRANT_LOCK_DIR}-${scope}/${CHATGPT_GRANT_LOCK_FILE}.${entry}`
-    const keystore = `${KEYSTORE_LOCK_DIR}-${scope}/${'b'.repeat(KEYSTORE_LOCK_ACCOUNT_CHARS)}.lock.${entry}`
-    for (const relative of [grant, keystore]) {
-      const full = MACOS_TMPDIR_CHARS + 1 + relative.length
-      expect(full, relative).toBeLessThan(MACOS_SOCKET_PATH_CHARS)
+    const pid = '2147483647'
+    const grant = `/tmp/${CHATGPT_GRANT_LOCK_DIR}-${scope}/${CHATGPT_GRANT_LOCK_FILE}.${pid}.${entry}`
+    const keystore = `/tmp/${KEYSTORE_LOCK_DIR}-${scope}/${'b'.repeat(KEYSTORE_LOCK_ACCOUNT_CHARS)}.lock.${pid}.${entry}`
+    for (const full of [grant, keystore]) {
+      expect(Buffer.byteLength(full), full).toBeLessThan(MACOS_SOCKET_PATH_CHARS)
     }
   })
 })
