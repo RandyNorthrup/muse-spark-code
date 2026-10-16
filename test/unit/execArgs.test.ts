@@ -77,11 +77,20 @@ describe('M80 args (A1–A10, F1)', () => {
       reason: UI_TEXT.execBudgetRequired,
     })
   })
+  it('D121 accepts the person’s requests and budget with no ceiling of ours', () => {
+    const parsed = parseExec(
+      { backend: 'modelApi', 'max-budget-usd': '25', 'max-requests': '501' },
+      ['hi'],
+    )
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(parsed.reason)
+    expect(parsed.options.maxRequests).toBe(501)
+    expect(parsed.options.budgetUsd).toBe(Usd.from('25').toAmount())
+  })
   it.each([
     '0',
     '-1',
     'abc',
-    '20.01',
     'Infinity',
     '+1',
     '1e0',
@@ -136,7 +145,7 @@ describe('M80 args (A1–A10, F1)', () => {
     { effort: 'unknown' },
     { timeout: '9' },
     { timeout: '21601' },
-    { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': '501' },
+    { backend: 'modelApi', 'max-budget-usd': '1', 'max-requests': '0' },
     { timeout: '10.1' },
     { backend: ['modelApi'] },
     { unknown: true },

@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- D121 (owner 2026-10-16: limits only on models): best-of-N no longer caps
+  attempts or requests per attempt at 2–5 and 5–50 — both numbers are your
+  own per-run choice (defaults 3 × 20 stay); headless exec no longer caps
+  `--max-requests` at 500 or `--max-budget-usd` at $20 — your flags stay
+  with no ceiling of ours.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

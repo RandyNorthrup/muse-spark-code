@@ -261,10 +261,8 @@ describe('M80 schemas (A15/A16/F1)', () => {
       ).toBe(false)
     }
     for (const change of [
-      { budgetUsd: Usd.from(21).toAmount() },
       { budgetUsd: Usd.from(0).toAmount() },
       { maxRequests: 0 },
-      { maxRequests: 501 },
       { timeoutSeconds: 9 },
       { timeoutSeconds: 21_601 },
     ]) {
@@ -272,6 +270,37 @@ describe('M80 schemas (A15/A16/F1)', () => {
         execResultSchema.safeParse({ ...result, limits: { ...result.limits, ...change } }).success,
       ).toBe(false)
     }
+    // D121: a request count past the removed 500 ceiling parses (no
+    // cross-check ties it to anything else).
+    expect(
+      execResultSchema.safeParse({
+        ...result,
+        limits: { ...result.limits, maxRequests: 501 },
+      }).success,
+    ).toBe(true)
+    // D121: a start event carrying limits past the removed $20 / 500
+    // ceilings parses (the result's budget must still match its ledger).
+    expect(
+      execEventSchema.safeParse({
+        v: 2,
+        seq: 1,
+        time: '2026-10-02T00:00:00.000Z',
+        type: 'start',
+        agent: { name: 'a', version: '1' },
+        backend: 'modelApi',
+        mode: 'plan',
+        model: null,
+        effort: null,
+        sessionId: 's',
+        ephemeral: true,
+        paidFeatures: [],
+        limits: {
+          budgetUsd: Usd.from(21).toAmount(),
+          maxRequests: 501,
+          timeoutSeconds: 1800,
+        },
+      }).success,
+    ).toBe(true)
   })
   it('keeps accounting fields consistent with the backend and cap', () => {
     const result = resultRecord()
@@ -482,10 +511,11 @@ describe('M80 schemas (A15/A16/F1)', () => {
       EXEC_RAW_TOOL_FIELDS: ['rawInput', 'rawOutput', 'toolCallId'],
       EXEC_WRITE_RETRY_MS: 10,
     })
-    // 44 constants and EXEC_MODEL_TEXT, the run's model text, which only
-    // the ACP agent reads (PLAN.md D6, 2026-10-04).
+    // 42 constants and EXEC_MODEL_TEXT, the run's model text, which only
+    // the ACP agent reads (PLAN.md D6, 2026-10-04). D121 removes two:
+    // EXEC_MAX_REQUESTS and EXEC_MAX_BUDGET_USD.
     const source = await readFile(new URL('../../src/shared/constants.ts', import.meta.url), 'utf8')
-    expect(source.match(/^export const EXEC_\w+/gmu)).toHaveLength(45)
+    expect(source.match(/^export const EXEC_\w+/gmu)).toHaveLength(43)
     expect(EXEC_OUTPUT_SCHEMA_LIMITS).toEqual({ expandedNodes: 50_000, validationSteps: 10_000 })
     expect(EXEC_MODEL_TEXT.execOutputSchema).toContain('{schema}')
     expect(EXEC_MODEL_TEXT).toMatchObject({

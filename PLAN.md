@@ -14367,6 +14367,32 @@ and thats it." A thousand-test suite kept shipping broken code as
 - Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
   1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
 
+### D121 — Limits only on models: set by the model platform or by the person in the model role settings (owner 2026-10-16)
+
+The owner (2026-10-16, said twice): remove all of the arbitrary limits from
+the app — "we hit a time limit that kicked the model mid job we hit a tool
+call limit mid job these types of things cannot keep happening!" Every limit
+ends in exactly one of: (1) not about a model (counts, sizes, our own
+timeouts) → REMOVED: the constant, its checks, its refusal text and its docs
+go, never moved to general Settings; removing a stop must not leave a silent
+hang — the person is told in words and the work keeps waiting until they stop
+it; (2) about a model, set by the model platform → the provider's capability
+record with its documentation URL, never a number in our code (nothing local
+is enforced when the record lacks it); (3) about a model, set by the person
+→ a field in the model role settings, DEFAULT = no limit, never a general
+Setting or a terminal-only flag of ours; (4) anything believed to need
+staying that fits none of these stays unchanged and is listed for the lead.
+Records: `docs/certification/nolimits-<n>.md` (lane NOLIMITS1 writes this
+heading; the other NOLIMITS lanes add no PLAN.md lines).
+
+- A7 (NOLIMITS1): best-of-N 2–5 attempts and 5–50 requests/attempt removed —
+  not about a model; both numbers are the person's own per-run choice
+  (dialog defaults 3 × 20 stay) and only a whole number below 1 refuses.
+- A8 (NOLIMITS1): headless exec `EXEC_MAX_REQUESTS` = 500 and
+  `EXEC_MAX_BUDGET_USD` = 20 removed — no provider documents them; the
+  person's `--max-requests` (default 30 stays) and `--max-budget-usd` stay
+  with no ceiling of ours.
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2

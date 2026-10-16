@@ -2,8 +2,6 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
 import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import {
-  EXEC_MAX_BUDGET_USD,
-  EXEC_MAX_REQUESTS,
   EXEC_MIN_OUTPUT_TOKENS,
   EXEC_USD_DECIMALS,
   EXEC_USD_UNITS,
@@ -98,7 +96,7 @@ export function previewResponseReservation(
   price: TierPrice,
 ): ResponseTicket {
   const preview = createRunLedger({
-    capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
+    capUsd: ledger.totals().capUsd,
     maxRequests: 1,
     outputCap: () => ledger.outputCap,
   }).admitResponse({ model, maxOutputTokens: ledger.outputCap, price })
@@ -147,13 +145,7 @@ export function createRunLedger(input: {
 }): RunLedger {
   const outputCap = input.outputCap ?? (() => resolveExecOutputCap())
   const cap = units(input.capUsd)
-  if (
-    cap <= ZERO ||
-    cap > units(Usd.from(EXEC_MAX_BUDGET_USD).toAmount()) ||
-    !Number.isSafeInteger(input.maxRequests) ||
-    input.maxRequests < 1 ||
-    input.maxRequests > EXEC_MAX_REQUESTS
-  )
+  if (cap <= ZERO || !Number.isSafeInteger(input.maxRequests) || input.maxRequests < 1)
     throw new Error(UI_TEXT.execNumberInvalid)
   let requests = 0
   let settled = ZERO
