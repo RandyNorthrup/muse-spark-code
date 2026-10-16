@@ -3499,6 +3499,8 @@
   "execUsage": "exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -",
   "execScanUsage": "scan-secrets <file> [--key-stdin]",
   "scanSecretsExits": "干净时退出 0，发现机密时退出 10，误用时退出 2。",
+  "execExits": "退出码:0 已完成,1 内部错误,2 用法错误,3 未登录或后端不可用,4 失败,5 预算或请求上限,6 超时,7 已拒绝,8 未完成,9 账目未核实,10 输出架构不匹配,SIGINT 为 130,SIGTERM 为 143。",
+  "reportExits": "退出码:报告写入为 0,失败为 1,用法错误为 2。",
   "execSummary": "{status}；请求 {requests}；已结算 {settled}；不确定 {uncertain}；图像尝试 {imageAttempts}；已返回 {imagesReturned}；不确定图像 {imagesUncertain}",
   "execSummaryUpperBound": "{status}；请求 {requests}；已结算 {settled}；不确定 {uncertain}；图像尝试 {imageAttempts}；已返回 {imagesReturned}；不确定图像 {imagesUncertain}; 费用为上限值。",
   "exportSessionLine": "会话：`{id}`",

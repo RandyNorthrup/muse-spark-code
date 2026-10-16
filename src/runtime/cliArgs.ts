@@ -158,7 +158,11 @@ export type RuntimeCommand =
     }
   | { readonly command: 'accounts'; readonly options: AccountsCommand }
   | { readonly command: 'developer'; readonly args: readonly string[] }
-  | { readonly command: 'help'; readonly all?: boolean; readonly topic?: 'scan-secrets' }
+  | {
+      readonly command: 'help'
+      readonly all?: boolean
+      readonly topic?: 'scan-secrets' | 'exec' | 'report'
+    }
   | { readonly command: 'version' }
   | { readonly command: 'vaultHelp' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
@@ -655,7 +659,8 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
       strict: true,
       options: CLI_OPTION_REGISTRY.exec.options,
     })
-    if (values.help === true) return { command: 'help', all: true }
+    // The exec help is its own one screen, never the whole reference.
+    if (values.help === true) return { command: 'help', topic: 'exec' }
     const { help: _help, attach, record, ...execValues } = values
     if (record === true)
       return { command: 'invalid', reason: UI_TEXT.media.recordingUserOnly, exitCode: 2 }
@@ -773,7 +778,8 @@ function parseReport(argv: readonly string[], canUseNamed = true): RuntimeComman
       strict: true,
       options: CLI_OPTION_REGISTRY.report.options,
     })
-    if (values.help === true) return { command: 'help', all: true }
+    // The report help is its own one screen, never the whole reference.
+    if (values.help === true) return { command: 'help', topic: 'report' }
     if (positionals.length > 0 || values.out === '') {
       return { command: 'invalid', reason: reportUsage(), exitCode: 2 }
     }
