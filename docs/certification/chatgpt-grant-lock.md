@@ -484,6 +484,26 @@ unsafe enumeration is rerun as a red drill. Fresh isolated-service results are
 recorded in `.lane/RVPLANFIX.report.md`; the historical counts below remain
 historical, not fresh verification.
 
+## RVPLANFIX: reads must reclaim too (2026-10-16, Windows)
+
+The original `get` returned a short or absent primary without becoming an
+owner, and a long read took ownership without reclaiming. A read could therefore
+be the next operation after a crash yet leave the generation journal and orphaned
+parts indefinitely. All reads now take the existing account lock and reclaim
+before returning, including absent-value reads. This supersedes the lock-free
+short-read description below; no new lock mechanism was introduced.
+
+The isolated-service native suite was extended to inspect entries immediately
+after recovery reads, before any write/delete could hide the defect. With the
+old read path deliberately restored: 4 passed, 2 failed, exit 1 (orphan journal
+at first-write call 3; five entries instead of four at replacement call 12).
+The fixed source SHA-256 is
+`0F6591990C07D8DD64AD990247C209554803C7AC5889AFA7A8A5DABC6FF17BB5`.
+Fresh restored run: `npx vitest run test/unit/keystoreOwner.test.ts --maxWorkers=2`,
+6 passed, exit 0. Receipts: `.lane/RVPLANFIX-read-reclaim-red.log` and
+`.lane/RVPLANFIX-read-reclaim-final.log`. These runs use only the separate random
+test service, never production-service enumeration.
+
 ## Design (written before the code)
 
 **The defects (RVHOSTID R1, R5).** `keyringSecretStore` (`src/runtime/keyStore.ts`)

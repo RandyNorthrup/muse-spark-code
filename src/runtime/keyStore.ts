@@ -135,13 +135,13 @@ interface KeyringStoreOptions {
  *
  * One owner per account, across processes (docs/certification/
  * chatgpt-grant-lock.md, "PLANFIX R1 + R5"): every write and delete, and the
- * read of a header, runs under that account's named lock. A long write first
+ * read, runs under that account's named lock. A long write first
  * records every generation of parts that may exist, writes the new parts,
  * then publishes the header (the one point a reader can see), then removes
  * the generation the header stopped naming, then deletes the record. Each
  * owner, before its own work, removes what a crashed or failed owner left:
  * the parts of every recorded generation the header does not name. A read of
- * a short value stays lock-free: it is one atomic entry.
+ * any value also reclaims before returning, even when the primary is absent.
  */
 export function keyringSecretStore(
   openEntry: KeyringEntryFactory,
@@ -200,9 +200,10 @@ export function keyringSecretStore(
   }
   return {
     get: async (key) => {
-      const stored = await read(key)
-      if (partsHeader(stored) === undefined) return stored
       return await owned(key, async () => {
+        // Reads can be the only next operation after a crash, including a
+        // first write that died before publishing any primary entry.
+        await reclaim(key)
         const current = await read(key)
         const header = partsHeader(current)
         if (header === undefined) return current
