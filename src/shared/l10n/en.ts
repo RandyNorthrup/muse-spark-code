@@ -3134,8 +3134,6 @@ export const EN = {
     'Muse Code does not let the extension set its todo list, so the brief asks Muse to list the plan’s steps there.',
   planNamesTaken: 'Every file name for this plan is taken in .agents/plans.',
   planFileMissing: 'That plan file no longer exists.',
-  // {size}: the limit in KB.
-  planTooLarge: 'This plan is larger than {size} KB, the most a plan may be.',
   planSessionGone:
     'That conversation is no longer open in this panel, so this reply can no longer be saved or implemented as a plan.',
   planNotFromPlanTurn:
@@ -3184,7 +3182,6 @@ export const EN = {
   handoffFailed: 'Could not prepare the handoff',
   // After handoffFailed: the distillation turn ended with no reply text.
   handoffNoBrief: 'The model returned no brief.',
-  handoffTooLarge: 'The brief is larger than {size} KB; start the new conversation by hand.',
   handoffChangedNotStarted:
     'The handoff was not started: the conversation changed in the meantime.',
   // {mode}: the permission mode's name. The model wrote the brief, so it

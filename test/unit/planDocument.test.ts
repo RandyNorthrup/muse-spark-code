@@ -12,11 +12,7 @@ import {
   planTitle as planTitleWith,
 } from '../../src/core/plans/planDocument'
 import { briefText, hasRawHtml, PLAN_MARKDOWN } from '../../src/core/plans/planMarkdown'
-import {
-  PLAN_SLUG_MAX_CHARS,
-  PLAN_STEP_MAX_CHARS,
-  PLAN_STEPS_MAX,
-} from '../../src/shared/constants'
+import { PLAN_SLUG_MAX_CHARS, PLAN_STEP_MAX_CHARS } from '../../src/shared/constants'
 import { CAPTURED_PLAN_BODY, CAPTURED_PLAN_PROMPT, CAPTURED_PLAN_REPLY } from './helpers/m79Capture'
 
 const planTitle = (text: string, prompt: string | undefined, fallback: string) =>
@@ -139,7 +135,7 @@ describe('planSteps (M79)', () => {
     expect(planSteps(body)).toEqual(['Read the config', 'Write it', 'Test it'])
   })
 
-  it('ignores items inside code and nested items, and caps count and length', () => {
+  it('ignores items inside code and nested items, keeps every step, and caps length', () => {
     const body = '1. Real\n   1. Nested under Real\n```\n2. In code\n```\n 4. Still top level'
     expect(planSteps(body)).toEqual(['Real', 'Still top level'])
     // What CommonMark takes for a fence, not what a line starts with: a
@@ -162,11 +158,9 @@ describe('planSteps (M79)', () => {
       'Do it',
       'Read the guide <https://a.example/g>',
     ])
-    const many = Array.from(
-      { length: PLAN_STEPS_MAX + 5 },
-      (_, index) => `${String(index + 1)}. Step`,
-    )
-    expect(planSteps(many.join('\n'))).toHaveLength(PLAN_STEPS_MAX)
+    // D121: every step is kept — the removed 50-step ceiling refused these.
+    const many = Array.from({ length: 55 }, (_, index) => `${String(index + 1)}. Step`)
+    expect(planSteps(many.join('\n'))).toHaveLength(55)
     const [long] = planSteps(`1. ${'x'.repeat(PLAN_STEP_MAX_CHARS * 2)}`)
     expect(long?.length).toBe(PLAN_STEP_MAX_CHARS)
     expect(planSteps('No list here.')).toEqual([])
