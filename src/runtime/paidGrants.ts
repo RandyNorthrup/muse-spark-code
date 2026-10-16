@@ -20,7 +20,7 @@ import { paidStoreFailureKind, type PaidQuoteNotice } from '../shared/paid'
 import type { PaidGrantStore } from '../acp/paid'
 import { type CoreLogger, wireWordForLog } from '../core/logging'
 import { DamageNoter, fileDamageMarkers } from './damageNotice'
-import { describeStoreError, storeErrorCode } from '../host/backend/storeErrors'
+import { describeStoreError, isStoreErrorCode, storeErrorCode } from '../host/backend/storeErrors'
 import { writeFileAtomically } from '../host/fsAtomic'
 import {
   ATOMIC_TEMPORARY_SUFFIX,
@@ -72,7 +72,7 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       }
       return parsed.data
     } catch (error: unknown) {
-      if (storeErrorCode(error) === ENOENT) {
+      if (isStoreErrorCode(error, ENOENT)) {
         return undefined
       }
       // read-state: cert TBL-09. Any other read failure warns with its kind
@@ -111,7 +111,7 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
         await link(temporary, file)
         return created
       } catch (error: unknown) {
-        if (storeErrorCode(error) !== EEXIST) {
+        if (!isStoreErrorCode(error, EEXIST)) {
           throw error
         }
         const winner = read(file, generationSchema, true)
@@ -152,6 +152,17 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       deps.log.warn(`Paid-use quotes could not be read (${identity}), so no quote grant applies`)
     },
   )
+  // An unreadable quote folder reads as no quotes, never silently: the
+  // failure passes into the durable damage record (warned once per distinct
+  // damage) and rides the next consent question as its kind, so the use
+  // asks again instead of treating saved choices as absent.
+  const noteUnreadableQuotes = (error: unknown): never[] => {
+    // The errno names the distinct damage for the noter and the log;
+    // the person is told the closed kind's word, never the errno.
+    quoteListNoter.noteDamaged(wireWordForLog(storeErrorCode(error) ?? 'unknown'))
+    quoteNotice = { kind: paidStoreFailureKind(error) }
+    return []
+  }
   const readQuotes = (workspaceRoot: string, generation: string) => {
     let names: string[]
     try {
@@ -162,18 +173,14 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       // Fail-closed stays: asking again is the safe direction for money.
       // read-state: cert TBL-10. `[]` here is "cannot list, ask again" with
       // the kind warned and carried in the next question, never "no quotes".
-      if (error instanceof Error && storeErrorCode(error) === ENOENT) {
+      if (error instanceof Error && isStoreErrorCode(error, ENOENT)) {
         quoteListNoter.noteHealthy()
         // A missing folder is healthy: an older listing failure must not
         // survive as a notice claiming saved choices are unreadable (P3-3).
         quoteNotice = undefined
         return []
       }
-      // The errno names the distinct damage for the noter and the log;
-      // the person is told the closed kind's word, never the errno.
-      quoteListNoter.noteDamaged(wireWordForLog(storeErrorCode(error) ?? 'unknown'))
-      quoteNotice = { kind: paidStoreFailureKind(error) }
-      return []
+      return noteUnreadableQuotes(error)
     }
     quoteListNoter.noteHealthy()
     quoteNotice = undefined

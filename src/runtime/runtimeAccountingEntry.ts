@@ -27,7 +27,7 @@ import {
   TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../shared/constants'
-import { storeErrorCode } from '../host/backend/storeErrors'
+import { isStoreErrorCode } from '../host/backend/storeErrors'
 import type { RunLedger, ResponseTicket } from './exec/runLedger'
 import type { LastResponse, Refusal } from './exec/execProtocol'
 
@@ -64,7 +64,7 @@ export function createRuntimeDailyBudget(deps: {
         ).paidDailyBudgetUsd ?? SETTING_DEFAULTS.paidDailyBudgetUsd
       )
     } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return SETTING_DEFAULTS.paidDailyBudgetUsd
+      if (isStoreErrorCode(error, 'ENOENT')) return SETTING_DEFAULTS.paidDailyBudgetUsd
       throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
     }
   }
@@ -74,7 +74,7 @@ export function createRuntimeDailyBudget(deps: {
     try {
       statSync(path.join(directory, PAID_DAILY_BUDGET.stopDirectory))
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT')
+      if (!isStoreErrorCode(error, 'ENOENT'))
         throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
       isStopped = false
     }
@@ -85,7 +85,7 @@ export function createRuntimeDailyBudget(deps: {
         JSON.parse(readFileSync(path.join(directory, PAID_DAILY_BUDGET.overrideFile), 'utf8')),
       )
     } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return Usd.from(capUsd()).toAmount()
+      if (isStoreErrorCode(error, 'ENOENT')) return Usd.from(capUsd()).toAmount()
       throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
     }
     if (limit.stopped) throw new Error(UI_TEXT.paidDailyStopped)
