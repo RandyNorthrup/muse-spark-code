@@ -20,7 +20,7 @@ import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import { createSessionBudgetJournal } from '../backend/sessionBudgetJournal'
-import { storeErrorCode } from '../backend/storeErrors'
+import { isStoreErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
 import { scheduleV2Schema, type ScheduleV2 } from '../../shared/scheduleV2'
@@ -35,6 +35,11 @@ const limitSchema = z.object({
   ),
   stopped: z.boolean(),
 })
+
+/** The deliberate stop signal: paid extras stay stopped until tomorrow. */
+function isPaidStopped(error: unknown): boolean {
+  return error instanceof Error && error.message === UI_TEXT.paidDailyStopped
+}
 
 export function createPaidDailyBudget(deps: {
   readonly authority?: PaidAuthority
@@ -67,7 +72,7 @@ export function createPaidDailyBudget(deps: {
       statSync(stopPath(scope))
       isStopped = true
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT')
+      if (!isStoreErrorCode(error, 'ENOENT'))
         throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
     }
     if (isStopped && !isDisplay) throw new Error(UI_TEXT.paidDailyStopped)
@@ -75,7 +80,7 @@ export function createPaidDailyBudget(deps: {
     try {
       limit = limitSchema.parse(JSON.parse(readFileSync(limitPath(scope), 'utf8')))
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT')
+      if (!isStoreErrorCode(error, 'ENOENT'))
         throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
       limit = { limitUsd: deps.capUsd(), stopped: false }
     }
@@ -307,7 +312,7 @@ export function createPaidDailyBudget(deps: {
     try {
       cap = readLimit(scope)
     } catch (error: unknown) {
-      if (!(error instanceof Error) || error.message !== UI_TEXT.paidDailyStopped) throw error
+      if (!isPaidStopped(error)) throw error
       isStopped = true
       cap = readLimit(scope, true)
     }
