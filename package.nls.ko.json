@@ -228,6 +228,7 @@
   "config.accountSwap.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",
   "config.accountParallel.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",
   "config.accounts.severalOnThisDevice.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",
+  "config.github.useGhLogin.description": "끌어오기 요청에서 기존 GitHub CLI 로그인(`gh auth token`)을 사용할 수 있게 합니다. 편집기의 GitHub 로그인과 Muse Spark 로그인 다음에 마지막으로 시도됩니다. 토큰은 요청 하나마다 읽히며 저장되지 않습니다. 기본값은 꺼짐이며, 사용자 설정에서만 켤 수 있으므로 저장소가 켤 수 없습니다.",
   "command.vault.title": "보관함",
   "command.lockVault.title": "지금 보관함 잠그기",
   "config.vault.description": "호환성을 위해 저장됩니다. 이 설정은 이 빌드에서 효과가 없습니다.",

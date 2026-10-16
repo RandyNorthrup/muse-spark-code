@@ -228,6 +228,7 @@
   "config.accountSwap.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",
   "config.accountParallel.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",
   "config.accounts.severalOnThisDevice.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",
+  "config.github.useGhLogin.description": "Erlaubt Pull Requests, Ihre bestehende GitHub-CLI-Anmeldung (`gh auth token`) zu verwenden, als letzte versucht, nach der GitHub-Anmeldung des Editors und der von Muse Spark. Das Token wird jeweils nur für eine Anfrage gelesen und nie gespeichert. Standardmäßig aus; nur in den Benutzereinstellungen, sodass ein Repository es nicht einschalten kann.",
   "command.vault.title": "Tresor",
   "command.lockVault.title": "Tresor jetzt sperren",
   "config.vault.description": "Zur Kompatibilität gespeichert; diese Einstellung hat in diesem Build keine Wirkung.",

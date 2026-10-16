@@ -41,6 +41,8 @@ import type {
 } from '../../shared/git'
 import { fill } from '../../shared/l10n/text'
 import { GitHubError, type GitHubClient, repositoryFromFullName } from '../../core/git/github'
+import { githubStateOf, type GitHubSignIn } from '../../core/git/githubSignIn'
+import type { GitHubTokenSourceKind } from '../../core/git/tokenSource'
 import {
   type GitHubRepository,
   githubRepositoryOf,
@@ -126,6 +128,12 @@ export interface GitWindow {
   readonly admit: <T>(start: () => Promise<T>) => Promise<T>
   /** VS Code's GitHub sign-in: `ask` may prompt, `silent` only reads one there is. */
   readonly githubToken: (mode: 'ask' | 'silent') => Promise<string | undefined>
+  /**
+   * The window's GitHub sign-in over D104's sources (M123): the token for
+   * each call, the panel card (a device-flow code, the source and the
+   * account), Cancel and Sign out. `createGitWindow` always sets it.
+   */
+  readonly githubSignIn?: GitHubSignIn | undefined
   readonly github: GitHubClient
   readonly links: PullRequestLinks
   /** The push modal; true only for an explicit yes. */
@@ -149,9 +157,11 @@ export interface GitWindow {
   /**
    * M123's native route (PLAN.md D104) for a VS Code-family host without
    * the `vscode.git` extension: the runtime adapter's deps over this
-   * window, or undefined when there is no folder or no git on PATH.
+   * window and the bundle it is in, or undefined when there is no folder or
+   * no git on PATH.
    */
-  readonly nativeGit?: (() => RuntimeGitDeps | undefined) | undefined
+  readonly nativeGit?:
+    (() => { readonly deps: RuntimeGitDeps; readonly bundlePath: string } | undefined) | undefined
 }
 
 /** A new file: where it is, and its path as the prompt names it. */
@@ -307,12 +317,20 @@ export class ConversationGit implements ConversationGitPort {
   private isDisposed = false
   private operationEpoch = 0
   private checkOperation: (() => void) | undefined
+  /** Ends a sign-in this conversation waits on when it closes. */
+  private readonly lifetime = new AbortController()
+  private readonly stopWatchingSignIn: (() => void) | undefined
 
   public constructor(
     private readonly window: GitWindow,
     private readonly surface: GitSurface,
     private readonly errorTypes: ConversationGitErrorTypes = { GitHubError, GitUnavailableError },
-  ) {}
+  ) {
+    // The sign-in card (a code to enter, the account) shows in every conversation of the window.
+    this.stopWatchingSignIn = window.githubSignIn?.onDidChange(() => {
+      this.postState()
+    })
+  }
 
   private currentState(): GitState {
     const hold = this.window.hold()
@@ -343,6 +361,7 @@ export class ConversationGit implements ConversationGitPort {
         },
       }),
       ...(this.view !== undefined && { pullRequest: this.view }),
+      ...githubStateOf(this.window.githubSignIn),
     }
   }
 
@@ -591,17 +610,74 @@ export class ConversationGit implements ConversationGitPort {
     }
   }
 
-  /** A GitHub token after VS Code's sign-in, or undefined after saying it was not given. */
+  /**
+   * A token for one GitHub call, from the window's sign-in in D104's order
+   * (`askWith`: the source the user picked). A sign-in that failed or was
+   * cancelled is said here, in fixed words; `isSaid` tells the caller.
+   */
+  private async gitHubToken(
+    mode: 'ask' | 'silent',
+    askWith?: GitHubTokenSourceKind,
+  ): Promise<{ readonly token: string | undefined; readonly isSaid: boolean }> {
+    const signIn = this.window.githubSignIn
+    if (signIn === undefined) {
+      return { token: await this.window.githubToken(mode), isSaid: false }
+    }
+    const { credential, isSaid } = await signIn.credentialOrSaid(
+      { mode, signal: this.lifetime.signal, askWith },
+      (text) => {
+        this.surface.notice('warning', text)
+      },
+    )
+    return { token: credential?.bearer, isSaid }
+  }
+
+  /** A GitHub token after the sign-in, or undefined after saying it was not given. */
   private async askedToken(): Promise<string | undefined> {
-    const token = await this.window.githubToken('ask')
+    const { token, isSaid } = await this.gitHubToken('ask')
     this.checkCurrent()
-    if (token === undefined) {
+    if (token === undefined && !isSaid) {
       this.surface.notice('info', UI_TEXT.gitHubSignInDeclined)
     }
     return token
   }
 
-  private githubFailure(error: unknown): void {
+  /** GitHub refused `token` (401): the source that issued it drops it, so the user signs in again. */
+  private dropRejected(error: unknown, token: string): void {
+    if (!(error instanceof this.errorTypes.GitHubError && error.kind === 'signIn')) {
+      return
+    }
+    void this.window.githubSignIn?.rejectedBearer(token).catch(() => {
+      this.window.log.warn('A refused GitHub sign-in could not be dropped')
+    })
+  }
+
+  /** Sign in with the source the user picked (the card's "Sign In With a Code"). */
+  private async signInWith(kind: GitHubTokenSourceKind): Promise<void> {
+    const { token, isSaid } = await this.gitHubToken('ask', kind)
+    if (token === undefined) {
+      if (!isSaid && this.canPost()) {
+        this.surface.notice('info', UI_TEXT.gitHubSignInDeclined)
+      }
+      return
+    }
+    if (this.link !== undefined) {
+      await this.refreshStatus('silent')
+    }
+  }
+
+  /** Sign out of Muse Spark's own sign-in: the token is deleted and GitHub's page for the app opens. */
+  private async signOutOfGitHub(): Promise<void> {
+    const signIn = this.window.githubSignIn
+    if (signIn !== undefined) {
+      await signIn.signOutAndSay((level, text) => {
+        this.surface.notice(level, text)
+      })
+    }
+  }
+
+  private githubFailure(error: unknown, token: string): void {
+    this.dropRejected(error, token)
     if (!this.canPost()) {
       return
     }
@@ -677,7 +753,7 @@ export class ConversationGit implements ConversationGitPort {
         return
       }
     } catch (error: unknown) {
-      this.githubFailure(error)
+      this.githubFailure(error, token)
       return
     }
     let pushState: PullRequestFormFacts['push'] = 'pushed'
@@ -749,7 +825,7 @@ export class ConversationGit implements ConversationGitPort {
       this.view = view
       this.postState()
     }
-    const token = await this.window.githubToken(mode)
+    const { token } = await this.gitHubToken(mode)
     if (!this.isStatusCurrent(epoch)) {
       return
     }
@@ -773,6 +849,7 @@ export class ConversationGit implements ConversationGitPort {
         checkedAt: this.window.now(),
       })
     } catch (error: unknown) {
+      this.dropRejected(error, token)
       settle({
         ...base,
         problem: redactSecrets(
@@ -1196,7 +1273,7 @@ export class ConversationGit implements ConversationGitPort {
       destination = await this.destinationOf(token, target)
       this.checkCurrent(repository, stamp)
     } catch (error: unknown) {
-      this.githubFailure(error)
+      this.githubFailure(error, token)
       done(false)
       return
     }
@@ -1239,7 +1316,7 @@ export class ConversationGit implements ConversationGitPort {
         isDraft: request.isDraft,
       })
     } catch (error: unknown) {
-      this.githubFailure(error)
+      this.githubFailure(error, token)
       done(false)
       return
     }
@@ -1363,6 +1440,18 @@ export class ConversationGit implements ConversationGitPort {
       }
       case 'signInGitHub': {
         await this.refreshStatus('ask')
+        break
+      }
+      case 'signInGitHubWithCode': {
+        await this.signInWith('deviceFlow')
+        break
+      }
+      case 'cancelGitHubSignIn': {
+        this.window.githubSignIn?.cancel()
+        break
+      }
+      case 'signOutGitHub': {
+        await this.signOutOfGitHub()
         break
       }
       case 'trustWorktree': {
@@ -1516,6 +1605,8 @@ export class ConversationGit implements ConversationGitPort {
 
   public dispose(): void {
     this.isDisposed = true
+    this.stopWatchingSignIn?.()
+    this.lifetime.abort()
     this.operationEpoch += 1
     this.statusEpoch += 1
     this.advanceFormEpoch()

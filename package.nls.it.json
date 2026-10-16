@@ -228,6 +228,7 @@
   "config.accountSwap.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",
   "config.accountParallel.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",
   "config.accounts.severalOnThisDevice.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",
+  "config.github.useGhLogin.description": "Consente alle pull request di usare l'accesso esistente a GitHub CLI (`gh auth token`), provato per ultimo, dopo l'accesso a GitHub dell'editor e quello di Muse Spark. Il token viene letto per una sola richiesta alla volta e non viene mai salvato. Disattivato per impostazione predefinita; solo impostazioni utente, quindi un repository non può attivarlo.",
   "command.vault.title": "Cassaforte",
   "command.lockVault.title": "Blocca la cassaforte ora",
   "config.vault.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",

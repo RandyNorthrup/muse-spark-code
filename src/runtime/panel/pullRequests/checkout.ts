@@ -54,7 +54,12 @@ import {
   WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
 import { fill, formatBytes } from '../../../shared/l10n/text'
-import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
+import {
+  didDropRejectedCredential,
+  GitHubClient,
+  isCommitSha,
+  type PullRequest,
+} from '../../../core/git/github'
 import { repositoryLabel } from '../../../core/git/githubRemote'
 import {
   BlobAnswers,
@@ -92,11 +97,7 @@ import { hasGitProgramControls } from '../../../host/git'
 import { createFileExclusively } from '../../../host/fsAtomic'
 import type { CoreLogger } from '../../../core/logging'
 import { redactSecrets } from '../../../core/redact'
-import {
-  didDropRejectedCredential,
-  resolveGitHubCredential,
-  type GitHubCredential,
-} from '../../../core/git/tokenSource'
+import type { GitHubCredential } from '../../../core/git/tokenSource'
 import { PullRequestServiceError, type RuntimePullRequestDeps } from './pullRequests'
 import {
   holdForRoots,
@@ -1568,7 +1569,7 @@ export class RuntimePullRequestCheckout {
       pullRequest = found
       isOwn = found.author.id === user.id
     } catch (error: unknown) {
-      const isSignIn = await didDropRejectedCredential(this.deps.tokenSources, credential, error)
+      const isSignIn = await didDropRejectedCredential(this.deps.github, credential, error)
       return {
         ok: false,
         reason: `${UI_TEXT.gitHubFailed}: ${failureText(error)}`,
@@ -1667,11 +1668,7 @@ export class RuntimePullRequestCheckout {
               }),
       }
     }
-    const credential = await resolveGitHubCredential(this.deps.tokenSources, {
-      mode: 'ask',
-      signal: this.deps.signal,
-      now: this.deps.now,
-    })
+    const credential = await this.deps.github.credential('ask', this.deps.signal)
     try {
       this.checkTrust()
     } catch (error: unknown) {

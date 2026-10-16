@@ -616,6 +616,8 @@ describe('slashCommandsOf', () => {
       'push',
       'pr',
       'checkout-pr',
+      'github-login',
+      'github-logout',
       'model',
       'permissions',
       'mcp',

@@ -597,6 +597,9 @@ export const SETTING_DEFAULTS = {
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
   'reports.agentSources': [],
+  // M123 (PLAN.md D104 source c): read the user's own `gh` login, off by
+  // default; machine-scoped so a repository cannot turn it on.
+  'github.useGhLogin': false,
   // M108 (PLAN.md D88.5): swap at the next request boundary and spread
   // background work across accounts, both on by default; machine-scoped so a
   // repository cannot pool the user's accounts.
@@ -840,6 +843,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'accountSwap',
   'accountParallel',
   'accounts.severalOnThisDevice',
+  // Reading the user's `gh` token is the user's choice (M123, D104 source c).
+  'github.useGhLogin',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -1691,6 +1696,10 @@ export const GIT_API_VERSION = 1
 // VS Code's built-in GitHub sign-in; `repo` lets a pull request be opened,
 // and its checks read, in a private repository too.
 export const GITHUB_AUTH_PROVIDER = 'github'
+// The built-in extension that registers it: a VS Code-family host without it
+// (Arduino IDE 2, some forks) has no editor sign-in, so D104's source (a) is
+// absent there and the device flow comes first (M123).
+export const GITHUB_AUTH_EXTENSION_ID = 'vscode.github-authentication'
 export const GITHUB_AUTH_SCOPES: readonly string[] = ['repo']
 export const GITHUB_API_BASE_URL = 'https://api.github.com'
 // The REST API version the capture ran against (docs/certification/m71.md).
@@ -1702,15 +1711,6 @@ export const GITHUB_REQUEST_TIMEOUT_MS = 20_000
 export const GITHUB_CHECKS_PAGE_SIZE = 100
 
 // --- GitHub outside VS Code (M123, PLAN.md D104) ---
-
-// M123 ships whole or not at all (the owner, 2026-10-10): until its sign-in,
-// editor leases, panel and per-editor qualification land (PLAN.md M123,
-// "Not yet shipped"), a VS Code-family host without `vscode.git` keeps its
-// earlier behaviour and the native Git route stays off. Lane Q turns it on
-// with F36's receipts, together with `museSpark.github.useGhLogin`.
-export const M123_RELEASE: { readonly isNativeGitRouteOn: boolean } = {
-  isNativeGitRouteOn: false,
-}
 
 // The token sources, first available wins: (a) the editor's own sign-in by
 // lease, (b) the runtime's device-flow sign-in, (c) the user's `gh` login.
@@ -3938,6 +3938,9 @@ export const MODEL_API_SESSIONS_BUNDLE_FILE = 'modelApiSessions.js'
 // The Create AGENTS.md command (D15), required when that command runs, not at
 // activation.
 export const RULES_FILE_BUNDLE_FILE = 'rulesFile.js'
+// M123's native Git route (PLAN.md D104 §1), required only in a VS Code-family
+// host without `vscode.git`.
+export const NATIVE_GIT_BUNDLE_FILE = 'nativeGit.js'
 // The plan reader's bundle (M79, PLAN.md D6), beside dist/extension.js:
 // the panel's Markdown parser, loaded on the first plan action.
 export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
@@ -5322,6 +5325,9 @@ export const SLASH_COMMAND_NAMES = {
   push: 'push',
   pullRequest: 'pr',
   checkoutPullRequest: 'checkout-pr',
+  // M123: Muse Spark's own GitHub sign-in (the device flow) and its sign-out.
+  githubLogin: 'github-login',
+  githubLogout: 'github-logout',
   // M70: Claude Code's name for its security review, and the review pane.
   securityReview: 'security-review',
   changes: 'changes',
@@ -5941,6 +5947,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/modelApi.js',
   'dist/modelApiSessions.js',
   'dist/rulesFile.js',
+  'dist/nativeGit.js',
   'dist/mcpPool.js',
   'dist/mcpVault.js',
   'dist/modelApiCodeIntel.js',

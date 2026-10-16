@@ -394,6 +394,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'nativeGit.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'NATIVE_GIT_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
     file: 'pageWorker.js',
     side: 'both',
     requestedBy: [

@@ -23,7 +23,6 @@ import {
   GITHUB_PERMITTED_SCOPES,
   GITHUB_TOKEN_SOURCE_ORDER,
 } from '../../shared/constants'
-import { GitHubError } from './github'
 
 export type GitHubTokenSourceKind = (typeof GITHUB_TOKEN_SOURCE_ORDER)[number]
 
@@ -39,6 +38,8 @@ export interface GitHubCredential {
   readonly fetch: typeof fetch
   /** Epoch ms from which the credential is not used; undefined when it does not expire. */
   readonly expiresAt: number | undefined
+  /** The account's login, when the source knows it (an editor's session names its account). */
+  readonly login?: string | undefined
 }
 
 export interface GitHubTokenSource {
@@ -119,22 +120,6 @@ export async function resolveGitHubCredential(
   return credential !== undefined && isCredentialLive(credential, request.now())
     ? credential
     : undefined
-}
-
-/**
- * A 401 drops the credential at its source, so the user signs in again.
- * True when `error` was GitHub's sign-in refusal.
- */
-export async function didDropRejectedCredential(
-  sources: readonly GitHubTokenSource[],
-  credential: GitHubCredential,
-  error: unknown,
-): Promise<boolean> {
-  if (!(error instanceof GitHubError && error.kind === 'signIn')) {
-    return false
-  }
-  await sources.find((source) => source.kind === credential.source)?.rejected(credential)
-  return true
 }
 
 /**

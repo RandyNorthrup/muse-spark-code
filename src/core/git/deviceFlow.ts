@@ -32,8 +32,9 @@ import {
   GITHUB_USER_CODE_PATTERN,
   HTTP_TOO_MANY_REQUESTS,
   MILLISECONDS_PER_SECOND,
+  UI_TEXT,
 } from '../../shared/constants'
-import { assertPermittedScopes, requireOAuthClientId } from './tokenSource'
+import { assertPermittedScopes, GitHubTokenSourceError, requireOAuthClientId } from './tokenSource'
 
 export interface DeviceFlowDeps {
   readonly fetch: typeof fetch
@@ -255,4 +256,16 @@ export async function refreshDeviceFlowToken(
   const tokens = tokenReplySchema.safeParse(reply)
   if (!tokens.success) throw new DeviceFlowFailure('reply')
   return tokensOf(tokens.data, deps.now())
+}
+
+/**
+ * A sign-in that did not finish, in the user's words: the fixed sentence
+ * for its reason, never GitHub's text or a token. Undefined for anything
+ * that is not a sign-in failure (the caller says that its own way).
+ */
+export function signInFailureText(error: unknown): string | undefined {
+  if (error instanceof DeviceFlowFailure) return UI_TEXT.githubSignIn.failures[error.reason]
+  return error instanceof GitHubTokenSourceError && error.reason === 'clientIdUnset'
+    ? UI_TEXT.githubSignIn.failures.clientIdUnset
+    : undefined
 }

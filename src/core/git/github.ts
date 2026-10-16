@@ -24,6 +24,7 @@ import { fill } from '../../shared/l10n/text'
 import type { CoreLogger } from '../logging'
 import { networkFailureMessage } from '../networkFailure'
 import type { GitHubRepository } from './githubRemote'
+import type { GitHubCredential } from './tokenSource'
 
 const userSchema = z.object({ login: z.string(), id: z.number() })
 
@@ -150,6 +151,24 @@ export class GitHubError extends Error {
     super(message)
     this.name = 'GitHubError'
   }
+}
+
+/**
+ * A 401 drops the credential at its source (M123, PLAN.md D104), so the
+ * user signs in again. True when `error` was GitHub's sign-in refusal.
+ * Here, beside the error it reads, so the token sources (which the
+ * terminal's sign-in loads) never carry the REST client.
+ */
+export async function didDropRejectedCredential(
+  signIn: { rejected(credential: GitHubCredential): Promise<void> },
+  credential: GitHubCredential,
+  error: unknown,
+): Promise<boolean> {
+  if (!(error instanceof GitHubError && error.kind === 'signIn')) {
+    return false
+  }
+  await signIn.rejected(credential)
+  return true
 }
 
 export interface GitHubClientDeps {

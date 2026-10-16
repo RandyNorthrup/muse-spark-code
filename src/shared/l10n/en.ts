@@ -1917,6 +1917,12 @@ export const EN = {
   gitPullRequestItemDetail: 'On GitHub, as a draft or ready, linked to this conversation',
   gitCheckoutItem: 'Open a Pull Request in a Conversation…',
   gitCheckoutItemDetail: 'Check a pull request out in its own worktree and window',
+  gitHubSignInWithCodeItem: 'Sign In to GitHub With a Code',
+  gitHubSignInWithCodeDetail:
+    'Sign in to GitHub with a code you enter on github.com/login/device; the token stays in this computer’s credential store',
+  gitHubSignOutItem: 'Sign Out of GitHub',
+  gitHubSignOutItemDetail:
+    'Delete Muse Spark’s GitHub sign-in from this computer and open GitHub’s page where you revoke it',
   gitRestricted:
     'Git and pull requests are unavailable in Restricted Mode: git can run programs a repository’s configuration names. Trust the workspace to use them.',
   gitHeld: 'Git and pull requests wait until you trust this worktree in the card above.',
@@ -2026,6 +2032,24 @@ export const EN = {
   gitStatusNeedsSignIn: 'Sign in to GitHub to see its status.',
   gitCheckedAt: 'as of {time}',
   gitSignInGitHub: 'Sign In to GitHub',
+  // M123 (PLAN.md D104 §2): the panel's GitHub card.
+  gitHubCardLabel: 'GitHub sign-in',
+  // {url}: GitHub's https://github.com/login/device.
+  gitHubCardCode: 'Open {url} and enter this code:',
+  // {time}: when the code expires, in the user's locale.
+  gitHubCardExpires: 'The code expires at {time}.',
+  gitHubCopyCode: 'Copy Code',
+  gitHubOpenPage: 'Open GitHub',
+  // {login}: the GitHub account; {source}: one of gitHubSources.
+  gitHubAccount: 'GitHub: {login}, through {source}',
+  gitHubAccountNoLogin: 'GitHub: signed in through {source}',
+  gitHubSources: {
+    editorLease: 'the editor’s GitHub sign-in',
+    deviceFlow: 'Muse Spark’s GitHub sign-in',
+    ghLogin: 'the GitHub CLI (gh)',
+  },
+  gitHubSignOut: 'Sign Out',
+  gitHubSignOutFailed: 'GitHub sign-out could not finish. Try again.',
   gitRefresh: 'Refresh',
   gitOpenOnGitHub: 'Open on GitHub',
   gitWorktreeBranch: 'Worktree on {branch}, of {repository}',

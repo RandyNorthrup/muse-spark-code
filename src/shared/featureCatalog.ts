@@ -823,7 +823,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'groupGit' },
       { tip: 'newWorktree' },
       ['newWorktree', 'removeWorktree', 'openPullRequestInConversation'],
-      [],
+      ['github.useGhLogin'],
       'git-and-pull-requests',
     ),
     feature(

@@ -14,8 +14,7 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
-import { DeviceFlowFailure } from '../core/git/deviceFlow'
-import { GitHubTokenSourceError } from '../core/git/tokenSource'
+import { signInFailureText } from '../core/git/deviceFlow'
 import type { DeviceFlowSource } from './github/deviceFlowSource'
 import {
   formatStoredProviderSecret,
@@ -265,14 +264,6 @@ export interface GitHubAuthDeps {
   readonly printError: (line: string) => void
 }
 
-/** The fixed words of a sign-in that did not finish; never GitHub's text or a token. */
-function gitHubFailure(error: unknown): string | undefined {
-  if (error instanceof DeviceFlowFailure) return UI_TEXT.githubSignIn.failures[error.reason]
-  return error instanceof GitHubTokenSourceError && error.reason === 'clientIdUnset'
-    ? UI_TEXT.githubSignIn.failures.clientIdUnset
-    : undefined
-}
-
 /**
  * `auth github login|logout|status` (M123, PLAN.md D104 source b): the
  * device flow in this terminal, its code printed here; the token goes only
@@ -306,7 +297,7 @@ export async function authGitHub(action: GitHubAuthAction, deps: GitHubAuthDeps)
       deps.printError(text.cancelled)
       return EXIT_FAILED
     }
-    const failure = gitHubFailure(error)
+    const failure = signInFailureText(error)
     if (failure === undefined) return unavailable(deps, error)
     deps.printError(failure)
     return EXIT_FAILED

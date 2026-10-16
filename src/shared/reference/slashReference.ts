@@ -55,6 +55,20 @@ export const SLASH_REFERENCE = {
       modelApi: { ui: 'gitCheckoutItemDetail' },
     },
   },
+  'github-login': {
+    syntax: ['/github-login'],
+    descriptions: {
+      museCode: { ui: 'gitHubSignInWithCodeDetail' },
+      modelApi: { ui: 'gitHubSignInWithCodeDetail' },
+    },
+  },
+  'github-logout': {
+    syntax: ['/github-logout'],
+    descriptions: {
+      museCode: { ui: 'gitHubSignOutItemDetail' },
+      modelApi: { ui: 'gitHubSignOutItemDetail' },
+    },
+  },
   model: {
     syntax: ['/model'],
     descriptions: { museCode: { ui: 'switchModel' }, modelApi: { ui: 'switchModel' } },
