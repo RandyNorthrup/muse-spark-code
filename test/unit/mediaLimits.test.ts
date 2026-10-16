@@ -42,9 +42,11 @@ describe('M105 media admission', () => {
     ).toMatchObject({ ok: false, reason: expect.stringContaining('exceeds') })
     expect(checkMediaLimits(video(), { maxUploadBytes: 199 })).toMatchObject({ ok: false })
     expect(checkMediaLimits(video(), { maxUploadBytes: 200 })).toEqual({ ok: true })
-    expect(() =>
-      checkMediaLimits(video(), { maxUploadBytes: MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB + 1 }),
-    ).toThrow(RangeError)
+    // No ceiling of ours: the person's own large maximum is accepted, and the
+    // provider refuses what it cannot take.
+    expect(
+      checkMediaLimits(video(), { maxUploadBytes: (MEDIA_MAX_UPLOAD_MIB + 1) * BYTES_PER_MIB }),
+    ).toEqual({ ok: true })
     for (const maximum of [0, -1, 1.5, NaN, Infinity])
       expect(() => checkMediaLimits(video(), { maxUploadBytes: maximum })).toThrow(RangeError)
   })

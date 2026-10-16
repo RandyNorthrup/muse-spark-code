@@ -24,7 +24,6 @@ import {
   LEGAL_HEADER_POLICIES,
   type LegalHeaderPolicy,
   MEDIA_AUDIO_ACTION_OPTIONS,
-  MEDIA_MAX_UPLOAD_MIB,
   MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
   MEDIA_UPLOAD_EXPIRY_MIN_DAYS,
   ESTIMATE_OPTIMIZE_MODES,
@@ -310,7 +309,8 @@ const settingSchemas = {
   usageHistoryDays: z
     .int()
     .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
-  mediaMaxUploadMiB: z.int().check(z.gte(1), z.lte(MEDIA_MAX_UPLOAD_MIB)),
+  // No ceiling of ours: the person sets any MiB, the provider refuses what it cannot take.
+  mediaMaxUploadMiB: z.int().check(z.gte(1)),
   mediaUploadExpiryDays: z
     .int()
     .check(z.gte(MEDIA_UPLOAD_EXPIRY_MIN_DAYS), z.lte(MEDIA_UPLOAD_EXPIRY_MAX_DAYS)),

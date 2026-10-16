@@ -3264,7 +3264,7 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
 
 ### museSpark.mediaMaxUploadMiB
 
-Largest media file the extension opens for attach or recording, in MiB. 200 by default; maximum 1,024. Larger files are refused before any read. Only this machine’s setting is used.
+Largest media file the extension opens for attach or recording, in MiB. 200 by default; no maximum. Larger files are refused before any read. Only this machine’s setting is used.
 
 Type: `"integer"`. Default: `200`. Scope: `machine`.
 
@@ -3272,8 +3272,7 @@ Type: `"integer"`. Default: `200`. Scope: `machine`.
 {
   "type": "integer",
   "default": 200,
-  "minimum": 1,
-  "maximum": 1024
+  "minimum": 1
 }
 ```
 
