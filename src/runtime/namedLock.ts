@@ -284,12 +284,8 @@ export async function withNamedLock<T>(
 ): Promise<T> {
   const deadline =
     options.timeoutMs === undefined ? undefined : AbortSignal.timeout(options.timeoutMs)
-  const signal =
-    deadline === undefined
-      ? (options.signal ?? new AbortController().signal)
-      : options.signal === undefined
-        ? deadline
-        : AbortSignal.any([deadline, options.signal])
+  const signals = [deadline, options.signal].filter((signal) => signal !== undefined)
+  const signal = AbortSignal.any(signals)
   const attempt = await openAttempt(names, options)
   const held = await acquireLock(attempt, signal, options)
   try {
