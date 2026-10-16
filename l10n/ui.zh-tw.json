@@ -989,6 +989,7 @@
   "sessionResumesOnSend": "下一則訊息會恢復此工作階段。",
   "sessionContinued": "重新啟動後已繼續對話。",
   "sessionNotContinued": "重新啟動後無法繼續對話，因此這則訊息會開始新的對話",
+  "modelNotKeptAfterRestart": "Muse Code 回報此對話實際執行於 {active} 而非 {wanted}，因此訊息未傳送。請重新選擇模型並重新傳送以繼續。",
   "surfaceClosed": "面板已關閉",
   "hostStartFailed": "後端無法啟動",
   "decisionErrorNotice": "Muse Code 回報此決定發生錯誤（工具可能仍已執行）",

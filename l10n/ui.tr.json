@@ -993,6 +993,7 @@
   "sessionResumesOnSend": "Sonraki mesaj oturumu sürdürür.",
   "sessionContinued": "Konuşma yeniden başlatmanın ardından sürdürüldü.",
   "sessionNotContinued": "Konuşma yeniden başlatmanın ardından sürdürülemedi, bu nedenle bu mesaj yeni bir konuşma başlatıyor",
+  "modelNotKeptAfterRestart": "Muse Code, bu konuşmanın {wanted} yerine {active} üzerinde çalıştığını bildiriyor, bu yüzden ileti gönderilmedi. Devam etmek için modeli yeniden seçip iletiyi tekrar gönderin.",
   "surfaceClosed": "Panel kapatıldı",
   "hostStartFailed": "Arka uç başlatılamadı",
   "decisionErrorNotice": "Muse Code karar için bir hata bildirdi (araç yine de çalışmış olabilir)",
