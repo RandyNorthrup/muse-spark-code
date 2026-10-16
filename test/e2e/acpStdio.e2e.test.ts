@@ -618,13 +618,16 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         approvalMode: 'promptUnmatched',
       })
       const events: AgentEvent[] = []
-      session.onEvent((event) => {
-        events.push(event)
+      // Wait for the event itself, under this test's own deadline: a poll
+      // with its default one-second window gave up on a slow Windows runner.
+      const completed = new Promise<void>((resolve) => {
+        session.onEvent((event) => {
+          events.push(event)
+          if (event.type === 'turnCompleted') resolve()
+        })
       })
       await session.sendTurn([{ type: 'text', text: 'hello' }], 'hello')
-      await vi.waitFor(() => {
-        expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
-      })
+      await completed
       expect(JSON.stringify(events)).toContain('From the bundle.')
       expect(log.error).not.toHaveBeenCalled()
     } finally {

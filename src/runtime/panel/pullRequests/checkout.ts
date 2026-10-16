@@ -307,6 +307,7 @@ export interface NodePullRequestCheckoutGitOptions {
  * a terminal, with no prompt; nothing of ours is added (no `http.extra
  * Header`, no credential helper, no token variable). The runtime strips
  * its own credential variables at start, so `env` already holds none.
+ * @unwired M123 PR fetch environment
  */
 export function pullRequestFetchEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...env, GIT_TERMINAL_PROMPT: '0' }
@@ -316,6 +317,7 @@ export function pullRequestFetchEnvironment(env: NodeJS.ProcessEnv): NodeJS.Proc
  * Every other Git call's environment: no credentials, no prompt, no
  * optional locks. The same rule as `quietGitEnvironment` (src/host/git.ts),
  * which lane G owns; converge on its move to core at integration.
+ * @unwired M123 quiet PR git environment
  */
 export function quietPullRequestEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
@@ -746,6 +748,7 @@ async function addWorktree(
 /**
  * The runtime's git for pull request checkouts over its own processes:
  * explicit argument arrays, output caps and deadlines, no shell.
+ * @unwired M123 PR checkout git runner
  */
 export function createNodePullRequestCheckoutGit(
   options: NodePullRequestCheckoutGitOptions,
@@ -1499,6 +1502,7 @@ export class PullRequestCheckoutProtocol {
  * worktree of its own that opens through `workspace/openFolder`. Only an
  * explicit confirmation checks anything out; an existing checkout is
  * offered again as it is, never taken over.
+ * @unwired M123 runtime PR checkout
  */
 export class RuntimePullRequestCheckout {
   /** One opening per destination folder: overlapping opens queue behind it. */

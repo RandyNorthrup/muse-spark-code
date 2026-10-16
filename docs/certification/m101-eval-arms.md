@@ -333,13 +333,13 @@ change does not qualify real D78 admission, the counted model evaluation,
 or the production latch. The same portable runner serves every editor.
 No dependency, wire shape, UI, price, consent, bundle cap or gate changes.
 
-| Finding                      | Fix                                                                                              | Regression                                                                                                                                                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| F1 P2 undeclared file reads  | Exact child filesystem grants, explicit immutable fixture snapshots                              | `blocks module-relative reads through computed paths, renamed reads and URL constructors`; `snapshots declared fixtures by bytes and grants only each exact file`                                                    |
-| F2 P2 indirect runtime loads | Child permissions replace name/alias recognition                                                 | `blocks dynamic require and computed import at runtime`; 16-spelling `blocks the whole indirect-loader class, including every review-F escape`; `denies new Workers and child processes even when code is in memory` |
-| F3 P2 resolver disagreement  | Hash and execute esbuild's output; no second resolver                                            | `uses the real resolver for directory, .jsx and absolute .js mappings`                                                                                                                                               |
-| F4 P2 macOS symlink identity | realpath source and execution roots; no absolute-path hash keys                                  | `keeps emitted bytes and digests identical across roots and symlink aliases`; `canonicalizes the execution directory under a symlinked temp root`                                                                    |
-| F5 P3 undocumented cast      | Delete scanner and its cast; remove both older test casts through compiler-verifiable operations | `removes the scanner and its unverified TypeScript cast`; held-dependency exact-key regression                                                                                                                       |
+| Finding                      | Fix                                                                                              | Regression                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| F1 P2 undeclared file reads  | Exact child filesystem grants, explicit immutable fixture snapshots                              | `blocks module-relative reads through computed paths, renamed reads and URL constructors`; `snapshots declared fixtures by bytes and grants only each exact file`                                                                                                                                                                                                                                                  |
+| F2 P2 indirect runtime loads | Child permissions replace name/alias recognition                                                 | ~~`blocks dynamic require and computed import at runtime`~~ (renamed in R9: `blocks dynamic require and computed import of undeclared files at runtime`); 16-spelling `blocks the whole indirect-loader class, including every review-F escape`; ~~`denies new Workers and child processes even when code is in memory`~~ (replaced in R8, narrowed in R9 to `refuses workers and child processes at freeze time`) |
+| F3 P2 resolver disagreement  | Hash and execute esbuild's output; no second resolver                                            | `uses the real resolver for directory, .jsx and absolute .js mappings`                                                                                                                                                                                                                                                                                                                                             |
+| F4 P2 macOS symlink identity | realpath source and execution roots; no absolute-path hash keys                                  | `keeps emitted bytes and digests identical across roots and symlink aliases`; `canonicalizes the execution directory under a symlinked temp root`                                                                                                                                                                                                                                                                  |
+| F5 P3 undocumented cast      | Delete scanner and its cast; remove both older test casts through compiler-verifiable operations | `removes the scanner and its unverified TypeScript cast`; held-dependency exact-key regression                                                                                                                                                                                                                                                                                                                     |
 
 Node permits `require.resolve` to return a path without reading module
 bytes; the resolution-alias probes therefore resolve and then load the
@@ -375,65 +375,75 @@ actual TypeScript escape hatch. R7-D4 recreates the review's non-canonical
 fixture identity under an explicit temporary-directory symlink on Linux.
 The restored suite also tests canonical executable-directory identity.
 
-### R8 repairs (2026-10-11, linuxlt; review RVCM1012H findings 1–2)
+### R8 repairs (2026-10-11, linuxlt; review RVCM1012H findings 1–2) — SUPERSEDED BY R9, historical record only
 
-**Decision kept: HASH WHAT RUNS.** One bundle per arm; the digest covers the
-guard prefix plus bundle bytes plus declared fixtures. Each finding is fixed
-for its whole class, with no residual.
+**R9 note: this section describes the R8 design as built. R9 deleted the
+run-time `vm` guard, the bundle marker and the denied-bare list (see the R9
+section below), so the present-tense claims in this section are R8 history,
+not current behavior.** The R8 decision was: HASH WHAT RUNS. One bundle per
+arm; the digest covered the guard prefix plus bundle bytes plus declared
+fixtures. Each finding was fixed for its whole class, with no residual.
 
-Finding 1 (P2, `node:sqlite` outside permission grants) gets an allowlist
+Finding 1 (P2, `node:sqlite` outside permission grants) got an allowlist
 of Node built-in modules (`EVAL_ARM_ALLOWED_BUILTINS` in
-`src/shared/constants.ts`: `fs`, `path`, `url`, `util`), enforced twice:
+`src/shared/constants.ts`: `fs`, `path`, `url`, `util`), enforced twice in R8
+(both layers superseded in R9 — the freeze now reads the metafile, the guard
+is gone):
 
-- At build time, `buildArmBundle` scans the emitted CJS bundle text for
+- At build time, `buildArmBundle` scanned the emitted CJS bundle text for
   literal external loads (`require("…")`, `import("…")`, `from "…"`) and
-  fails the freeze when one names a built-in outside the allowlist —
+  failed the freeze when one named a built-in outside the allowlist —
   `node:`-prefixed always, bare when on the explicit denied-bare list
   (`EVAL_ARM_DENIED_BARE_BUILTINS`: sqlite, child processes, workers,
-  network, inspector, loader escapes). Two probed facts shaped this: the
+  network, inspector, loader escapes; list deleted in R9). One of the two
+  probed facts shaping this was wrong (struck in R9): ~~the
   CJS metafile records no external load (inputs carry only files,
-  `outputs[].imports` is empty), and `buildSync` cannot take plugins, so
-  the freeze reads the same build's own emitted bytes instead of the
+  `outputs[].imports` is empty)~~ — a literal built-in load actually
+  appears in both metafile lists (see the R9 correction below). The other
+  stands: `buildSync` cannot take plugins, so
+  the freeze read the same build's own emitted bytes instead of the
   metafile — same build, same resolution, never a second resolver.
-  A static `node:sqlite` (the review's database scenario) now fails before
-  any child runs. Computed names stay for the guard, which sees the value.
-- At run time, every `arm.cjs` starts with the guard prefix (itself frozen
-  and hashed): it reads its own file, slices the bundle below the marker,
-  and runs it in a `vm` context whose `require` loads only allowlisted
+  A static `node:sqlite` (the review's database scenario) failed before
+  any child ran. Computed names stayed for the guard, which saw the value.
+- At run time (whole layer removed in R9), every `arm.cjs` started with the
+  guard prefix (itself frozen
+  and hashed): it read its own file, sliced the bundle below the marker,
+  and ran it in a `vm` context whose `require` loaded only allowlisted
   built-ins (every other bare load, however computed, and every
-  relative/absolute load is refused, as are `require.resolve` and
-  `process.getBuiltinModule`), whose dynamic `import()` has no loader
-  callback and fails closed (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`,
-  probed), and whose `process` is a sanitized copy (empty env, piped
-  stdio, no credentials). The entry stub is a library publish now
-  (`globalThis.__frozenArmRun = run`); the guard calls it with the arm
-  name from `argv` and writes exactly one JSON value to `stdout`. A
-  refusal exits nonzero with the refusal on `stderr`, so the runner maps
+  relative/absolute load was refused, as were `require.resolve` and
+  `process.getBuiltinModule`), whose dynamic `import()` had no loader
+  callback and failed closed (`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`,
+  probed), and whose `process` was a sanitized copy (empty env, piped
+  stdio, no credentials). The entry stub was a library publish then
+  (`globalThis.__frozenArmRun = run`); the guard called it with the arm
+  name from `argv` and wrote exactly one JSON value to `stdout`. A
+  refusal exited nonzero with the refusal on `stderr`, so the runner mapped
   it to a failed task before any model request — never a pass
-  (`frozenBundleChange` throws; pinned by test).
+  (`frozenBundleChange` threw; pinned by test then).
 
 Finding 2 (P3, `--permission` missing before Node 22.13.0): `executeArmBundle`
-opens with `requireEvalArmRuntime()`, which refuses on anything below
+opened with `requireEvalArmRuntime()`, which refused on anything below
 `EVAL_ARM_MIN_NODE_VERSION` (`22.13.0`) with a plain message naming the
-minimum. The product `engines` range is unchanged (`>=22`). The CI `unit`
-job (the job that runs the evaluation suites) pins `node-version: 22.13.0`
-with a comment; every other job keeps tracking 22. The README live-eval
-row now names Node 22.13.0 or newer. `runner.ts` and `driver.ts` are
-untouched (zero hunks): the guard starts inside the bundle, so lane CM1013A
-needs no merge accommodation; it re-freezes the digest once after both
+minimum (floors refined in R9 to 22.13.0 and 23.5.0 — see R9 finding 3). The product `engines` range was unchanged (`>=22`). The CI `unit`
+job (the job that runs the evaluation suites) pinned `node-version: 22.13.0`
+with a comment; every other job kept tracking 22. The README live-eval
+row then named Node 22.13.0 or newer (R9 names both minimums). `runner.ts` and `driver.ts` were
+untouched (zero hunks): the guard started inside the bundle, so lane CM1013A
+needed no merge accommodation; it re-freezes the digest once after both
 land.
 
-| Finding                                     | Fix                                                                               | Regression                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| H1 P2 undeclared-database input             | Build-time allowlist refusal + run-time guard refusal, both covered by the digest | `refuses a non-allowlisted built-in at freeze time` (incl. the review's `node:sqlite` database arm); `refuses a non-allowlisted built-in reached through a computed name at run time` (computed `require`, bare computed name, `process.getBuiltinModule`, plus the never-a-pass `frozenBundleChange` pin); `fails a computed dynamic import at run time`; `covers the guard prefix with the frozen digest` |
-| H1 class: workers, child processes, loaders | Same two enforcements                                                             | `refuses workers and child processes at freeze time and through computed names at run time`; rewritten `blocks the whole indirect-loader class` (global-`require` spellings through the guard) and `blocks dynamic require and computed import at runtime` (file-URL import now fails closed in the guard)                                                                                                  |
-| H2 P3 old-Node execution                    | Version gate, CI floor pin, named minimum                                         | `refuses to run on a Node without the permission flags and names the minimum`                                                                                                                                                                                                                                                                                                                               |
+| Finding                                     | Fix                                                                                                          | Regression                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H1 P2 undeclared-database input             | Build-time allowlist refusal + run-time guard refusal, both covered by the digest (guard side removed in R9) | `refuses a non-allowlisted built-in at freeze time` (incl. the review's `node:sqlite` database arm — still current); ~~`refuses a non-allowlisted built-in reached through a computed name at run time`~~ (test removed in R9 with the guard); ~~`fails a computed dynamic import at run time`~~ (test removed in R9 with the guard); ~~`covers the guard prefix with the frozen digest`~~ (renamed in R9: `covers the entry prologue with the frozen digest`)        |
+| H1 class: workers, child processes, loaders | Same two enforcements (guard side removed in R9)                                                             | ~~`refuses workers and child processes at freeze time and through computed names at run time`~~ (narrowed in R9 to `refuses workers and child processes at freeze time`); rewritten `blocks the whole indirect-loader class` (global-`require` spellings, then through the guard — file grants since R9) and ~~`blocks dynamic require and computed import at runtime`~~ (renamed in R9: `blocks dynamic require and computed import of undeclared files at runtime`) |
+| H2 P3 old-Node execution                    | Version gate, CI floor pin, named minimum                                                                    | `refuses to run on a Node without the permission flags and names the minimum`                                                                                                                                                                                                                                                                                                                                                                                         |
 
 R8 re-freeze: review RVCM1012H findings 1–2. The previous digest
-`cede4699…f1489` hashed guard-less bundles; every bundle now carries the
-guard prefix, so all four arm snapshots and the harness receipt move to
+`cede4699…f1489` hashed guard-less bundles; every bundle then carried the
+guard prefix, so all four arm snapshots and the harness receipt moved to
 `dc7726f6…fb01a3` (recorded here, in `test/unit/eval/evalFrozen.test.ts`
-and in PLAN.md's M101 status line). No arm, task, fixture set or
+and in PLAN.md's M101 status line — all superseded by the R9 re-freeze
+below, which moves them to `a9f74f85…5f6f0`). No arm, task, fixture set or
 production byte changed for behavior: the re-run below shows the other
 five frozen-harness tests green unchanged.
 
@@ -451,12 +461,13 @@ is compared against the pre-drill bytes after each restoration
 | R8-D3 | Build scan neutered: early return                          | both freeze-time tests                                                           | 2 failed, 20 passed (22) | armSources `16db0d43…f23251` |
 | R8-D4 | Version gate neutered: early return                        | version-floor test                                                               | 1 failed, 21 passed (22) | armSources `16db0d43…f23251` |
 
-R8-D2 also confirms the layering: with the guard neutered, computed
-built-in loads (`node:sqlite`, workers) succeed and the tests fail, while
-undeclared _file_ loads stay denied by the permission grants — the
-indirect-loader and file-read suites stay green. That is exactly the
-review's threat model: grants never confined `node:sqlite`, so the
-allowlist has to.
+R8-D2 also confirmed the R8 layering: with the guard neutered, computed
+built-in loads (`node:sqlite`, workers) succeeded and the tests failed, while
+undeclared _file_ loads stayed denied by the permission grants — the
+indirect-loader and file-read suites stayed green. That was the R8 review's
+threat model (R9 settles a narrower one — accidental undeclared inputs only,
+hostile arms out of scope): grants never confined `node:sqlite`, so the
+allowlist had to.
 
 ### R9 repairs (2026-10-11, linuxlt; review RVCM1012I findings 1–3)
 
@@ -489,10 +500,17 @@ Finding 2 (P3, bare built-ins freeze and the false metafile reason): the
 build sets `metafile: true` and `refuseNonAllowlistedBuiltinImports`
 reads the same build's own metafile — never a second resolver. Correction
 to the R8 record above: its reason for skipping the metafile was false.
-`outputs[].imports` is indeed empty for the CJS bundle, but the external
-loads live in `inputs[*].imports` with `external: true` (probed on this
-rig: `node:`-prefixed, bare `os`/`crypto`/`process`, `require()` kinds,
-and the `node:fs/../sqlite` dodge). Every external there must base to an
+Probed on this rig (esbuild 0.28.2, `format: 'cjs'`, `platform: 'node'`,
+`minify: true`), a literal built-in load such as
+`import { DatabaseSync } from 'node:sqlite'` appears in BOTH metafile
+lists — `inputs` as an `import-statement` entry and `outputs` as a
+`require-call` entry, each with `external: true`. The freeze reads
+`inputs[*].imports`, which is sufficient: every external load the bundler
+leaves for the child is recorded on its importing input file, so the
+outputs list only repeats those same edges from the bundle side and reading
+inputs loses none (same shape probed for `node:`-prefixed, bare
+`os`/`crypto`/`process`, `require()` kinds, and the `node:fs/../sqlite`
+dodge). Every external there must base to an
 allow-listed name — bare and `node:` spellings alike, so
 `EVAL_ARM_DENIED_BARE_BUILTINS` is deleted and no deny-list can miss one —
 and a `..` segment fails too. Computed loader names never reach the

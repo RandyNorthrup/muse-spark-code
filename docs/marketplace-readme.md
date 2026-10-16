@@ -22,10 +22,53 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0171) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0182) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.17.1
+## What's new in 0.18.2
+
+- **The landing screen shows the extension's own mark.** The empty chat panel
+  showed the Meta logo beside the product name; it now shows the product's
+  own squiggled "m", blue in dark and light themes and in the theme's text
+  colour in high-contrast themes.
+
+### Earlier in 0.18.1
+
+- **Your own providers, a ChatGPT plan and Copilot work again.** In 0.18.0
+  a turn on any of them stopped before it was sent, with an internal error.
+  Sorry for the broken release; Meta's own models were not affected.
+- **Usage from earlier versions is counted again.** 0.18.0 left those records
+  out as not exact; nothing was deleted.
+- **Report a Problem opens again** if you had changed a setting with a second
+  dot in its name; it used to answer "That did not work".
+
+### Earlier in 0.18.0
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
+  provider's accounts and sets their thresholds; `auth set --provider <id>
+--account <id>` stores a key for one account; `exec --account <id>` runs on
+  the account you name. In an ACP editor on a Model API key, `/accounts`
+  shows the list and the current account. Changing account inside a session,
+  pooled runs and an Accounts page in the editor are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete; content and edits stay hidden and nothing runs until the call
+  is complete. Other models keep the finished-call row for now.
+- **Reviewing Git changes works without a Git filter.** Without Git LFS or
+  another filter configured, every native review was refused since 0.15.0.
+- **The activity-bar icon is the extension's own mark**, the squiggled "m".
+
+### Earlier in 0.17.2
+
+- **Long replies from your own providers and a ChatGPT plan finish.**
+  Since 0.15.0 a reply from a provider you added in Models & Agents, or
+  from a ChatGPT plan sign-in, was cut off 30 seconds after the request
+  started. A reply now has no limit on its total time; one that goes
+  silent ends after 5 minutes, and the message says so.
+
+### Earlier in 0.17.1
 
 - **The provider picker works again.** Models & Agents lists every provider
   again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only

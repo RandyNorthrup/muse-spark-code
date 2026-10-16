@@ -145,6 +145,11 @@ const ALLOWLIST: readonly AllowEntry[] = [
     why: 'abort rethrow after the helper re-check; not a confirmation decision',
   },
   {
+    file: 'src/core/providers/subscriptions/registry.ts',
+    match: /^throw error$/,
+    why: 'the ChatGPT idle limit (0.17.2): the awaited fetch or read is rethrown after a silent stream is aborted; it decides no confirmation',
+  },
+  {
     file: 'src/host/providers/copilotClient.ts',
     match: /failureText\(code\)/,
     why: 'failure-text factory; no dispatch decision',
