@@ -343,9 +343,6 @@ export class ExtensionHookRunner {
     }
     const verdict = this.fileChangedThrottle.check(relativePath, this.deps.now())
     if (verdict !== 'fire') {
-      if (verdict === 'capped') {
-        this.deps.warn(`FileChanged capped for ${relativePath}; resume in a minute`)
-      }
       return
     }
     await this.fire('FileChanged', fileChangedFields(relativePath, 'watcher'), relativePath)

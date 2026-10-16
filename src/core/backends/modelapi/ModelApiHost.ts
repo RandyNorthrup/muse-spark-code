@@ -15498,11 +15498,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!listedFiles.includes(relativePath)) return
     const verdict = this.fileChangedThrottle.check(relativePath, this.deps.now())
     if (verdict !== 'fire') {
-      if (verdict === 'capped') {
-        this.deps.log.warn(
-          `Model API extension hooks: FileChanged capped for ${relativePath}; resume in a minute`,
-        )
-      }
       return
     }
     await this.fireExtensionHooks(
