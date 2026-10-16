@@ -872,7 +872,20 @@ Results on this PC (Windows), final bytes: the R7, lock, race, keystore,
 keyring, host-id and sign-in core suites, 7 files, 156 passed and 3 skipped,
 exit 0.
 
-## Existing suites this changes (named, left alone)
+## RVPLANFIX: no store/browser/provider stand-ins (2026-10-16)
+
+Four `chatGptLocalFailures` cases used hand-written stores/browser behavior;
+those are removed while the eleven real sentence/codec cases remain.
+`keyringParts` is rewritten as one native Windows case on a random test service:
+short/long/tag values round-trip, long replacements retire parts, a changed or
+missing native part refuses, and delete leaves no entry. The previous map-backed
+store cases are not product proof. Restored real replacements: 12 passed, exit 0
+(`.lane/RVPLANFIX-real-replacements.log`). The 6-case native cross-process owner
+suite is retained. Main's removal of `chatGptVsCode`, `runtimeChatGpt` and
+`subscriptionIntegration` is retained; these are stand-ins, not old-code failures
+to patch. `plan-catalogue.md` names their real capture/reproduction requirements.
+
+## Existing suites this changes (historical: now deleted by main's TESTCUT)
 
 These use stand-ins and are in the test-overhaul lane's deletion set; they
 assert the old catch-all code for causes that now have their own. Measured on

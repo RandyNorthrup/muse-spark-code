@@ -17,6 +17,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Review-only tests that fabricated ChatGPT/provider/editor/store behavior were removed or replaced with real native-store and pure-module checks; historical harness passes are no longer claimed as product proof.
+
 - Credential reads now reclaim a crashed writer's orphaned secret parts and generation record, even when the primary value is absent; recovery no longer waits for a later write or delete.
 
 - Credential-store verification now uses a separate random test service for every run. Its cleanup no longer enumerates the production service, whose native API returns passwords as well as account names.

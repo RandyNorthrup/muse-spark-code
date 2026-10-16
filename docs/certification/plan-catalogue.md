@@ -291,6 +291,28 @@ Surfaces checked:
   plan facts only), so `unchosenEffort` answers undefined and today's rule
   (`high`, or the highest tier served) is unchanged.
 
+## RVPLANFIX: evidence correction and forbidden stand-ins (2026-10-16)
+
+The six `chatgptFastTier.test.ts` cases did not prove the product through the
+real editor/provider: they used a hand-written editor/auth/session-store harness,
+a fabricated second model and successful response frames. The two
+`execModelOptions.test.ts` cases likewise supplied a hand-written model-list
+provider and Git/file results. Both suites are removed, not fixed to green.
+Their earlier green/red counts above are historical harness results, not
+acceptable product proof. Pure ACP effort/catalogue/registry/codec tests remain.
+
+The three suites explicitly named by the review are forbidden stand-ins, not
+real proof that must be updated: `chatGptVsCode.test.ts` replaces the editor and
+sign-in transport; `runtimeChatGpt.test.ts` replaces the runtime process, native
+keyring and OAuth provider; `subscriptionIntegration.test.ts` serves fabricated
+provider answers. Main's TESTCUT deletion is retained for all three. Their real
+replacement needs a dated, scrubbed capture of actual discovery/authorize/token
+and model-list/turn exchanges, replayed through real modules, plus installed
+editor/packed-agent use in a disposable profile. No synthetic answer is relabelled
+a capture here. The lead must run A(Fast on) → B → A, resume/new conversation,
+fresh catalogue default and explicit effort retention, and exec selected-model
+validation against the actual plan catalogue before claiming those proven.
+
 ## RVHOSTID: output-index boundary review (2026-10-14, Windows)
 
 The F87 accumulator accepted duplicate, negative, fractional and unsafe indices;
