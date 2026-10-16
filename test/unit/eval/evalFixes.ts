@@ -1,10 +1,8 @@
 // Fixes for the M75 task set: what a correct run writes. The unit tests use
 // them to prove every verifier accepts a fix (the canonical one and one
-// spelled differently) and to script the fake Model API's correct runs.
+// spelled differently).
 
 import type { EvalTask } from '../../../src/core/eval/tasks'
-import { MODEL_API_TOOLS } from '../../../src/shared/constants'
-import type { ScriptedReply } from '../helpers/fakeModelApi'
 
 export interface EvalFix {
   readonly path: string
@@ -84,24 +82,6 @@ export const EVAL_CANONICAL_FIXES: Readonly<Record<string, readonly EvalFix[]>> 
   'accept-long-middle-value': [{ path: 'answer.js', content: 'export const answer = 314159\n' }],
   'heldout-long-middle-rule': [
     { path: 'transform.js', content: 'export const transform = (value) => value * 7 + 11\n' },
-  ],
-  'accept-long-compaction': [{ path: 'answer.js', content: 'export const answer = 781924\n' }],
-  'heldout-long-compaction': [
-    { path: 'transform.js', content: 'export const transform = (value) => (value + 4) * 6\n' },
-  ],
-  'accept-multi-edit': [
-    {
-      path: 'voice.js',
-      content:
-        "export function shout(text) {\n  return text.toUpperCase() + '!!!'\n}\n\nexport function whisper(text) {\n  return text.toLowerCase() + '...'\n}\n",
-    },
-  ],
-  'heldout-multi-edit': [
-    {
-      path: 'clamp.js',
-      content:
-        'export function clampLow(value, min) {\n  return value < min ? min : value\n}\n\nexport function clampHigh(value, max) {\n  return value > max ? max : value\n}\n',
-    },
   ],
 }
 
@@ -189,29 +169,6 @@ export const EVAL_OTHER_FIXES: Readonly<Record<string, readonly EvalFix[]>> = {
       content: 'export function transform(value) {\n  return 11 + 7 * value\n}\n',
     },
   ],
-  'accept-long-compaction': [
-    { path: 'answer.js', content: 'const build = 781_924\n\nexport { build as answer }\n' },
-  ],
-  'heldout-long-compaction': [
-    {
-      path: 'transform.js',
-      content: 'export function transform(value) {\n  return 6 * (4 + value)\n}\n',
-    },
-  ],
-  'accept-multi-edit': [
-    {
-      path: 'voice.js',
-      content:
-        'const loud = (text) => text.toUpperCase()\nconst quiet = (text) => text.toLowerCase()\n\nexport function shout(text) {\n  return `${loud(text)}!!!`\n}\n\nexport function whisper(text) {\n  return `${quiet(text)}...`\n}\n',
-    },
-  ],
-  'heldout-multi-edit': [
-    {
-      path: 'clamp.js',
-      content:
-        'export function clampLow(value, min) {\n  if (value < min) return min\n  return value\n}\n\nexport function clampHigh(value, max) {\n  if (value > max) return max\n  return value\n}\n',
-    },
-  ],
 }
 
 /** The task's fixture files with the given fixes applied. */
@@ -232,140 +189,4 @@ export function fixesFor(
     throw new Error(`no fix for eval task ${task.id}`)
   }
   return fixes
-}
-
-/** A reply that reads one file. */
-export function readReply(path: string, callId: string): ScriptedReply {
-  return { calls: [{ name: 'read_file', arguments: JSON.stringify({ path }), callId }] }
-}
-
-const COMPACTION_SUMMARY = 'Summary of the long-log turn [untrusted].'
-
-/**
- * A small task as the classified-overflow flow runs it: read the file,
- * take the 400 overflow, take the summary it compacts into, write the fix
- * and close. Only the closing text varies per test.
- */
-export function overflowFixReplies(fix: EvalFix, closing: string): ScriptedReply[] {
-  return [
-    {
-      calls: [
-        {
-          name: MODEL_API_TOOLS.readFile,
-          arguments: JSON.stringify({ path: fix.path }),
-          callId: 'r1',
-        },
-      ],
-    },
-    {
-      httpError: {
-        status: 400,
-        body: { error: { message: 'maximum context length exceeded' } },
-      },
-    },
-    { text: COMPACTION_SUMMARY },
-    {
-      calls: [
-        {
-          name: MODEL_API_TOOLS.writeFile,
-          arguments: JSON.stringify(fix),
-          callId: 'w1',
-        },
-      ],
-    },
-    { text: closing },
-  ]
-}
-
-export const COMPACTION_TODOS_OPEN = [
-  { text: 'Recover the record from the log', status: 'inProgress' },
-  { text: 'Write the fix file', status: 'pending' },
-  { text: 'Mark the work done', status: 'pending' },
-]
-const COMPACTION_TODOS_MID = [
-  { text: 'Recover the record from the log', status: 'completed' },
-  { text: 'Write the fix file', status: 'inProgress' },
-  { text: 'Mark the work done', status: 'pending' },
-]
-const COMPACTION_TODOS_DONE = [
-  { text: 'Recover the record from the log', status: 'completed' },
-  { text: 'Write the fix file', status: 'completed' },
-  { text: 'Mark the work done', status: 'completed' },
-]
-
-function todoReply(
-  items: readonly { text: string; status: string }[],
-  callId: string,
-): ScriptedReply {
-  return {
-    calls: [
-      {
-        name: MODEL_API_TOOLS.todoWrite,
-        arguments: JSON.stringify({ items }),
-        callId,
-      },
-    ],
-  }
-}
-
-/**
- * A long-context task as the auto-compaction arm runs it: register todos,
- * take the summary the arm's first boundary compacts into, finish the fix
- * and close the todos. Only long-context tasks run this way.
- */
-export function compactionArmReplies(task: EvalTask): ScriptedReply[] {
-  const [fix] = fixesFor(EVAL_CANONICAL_FIXES, task)
-  if (fix === undefined) {
-    throw new Error(`no canonical fix for ${task.id}`)
-  }
-  return [
-    todoReply(COMPACTION_TODOS_OPEN, 't1'),
-    { text: COMPACTION_SUMMARY },
-    todoReply(COMPACTION_TODOS_MID, 't2'),
-    {
-      calls: [
-        {
-          name: MODEL_API_TOOLS.writeFile,
-          arguments: JSON.stringify(fix),
-          callId: 'w1',
-        },
-      ],
-    },
-    todoReply(COMPACTION_TODOS_DONE, 't3'),
-    { text: 'Recovered and fixed.' },
-  ]
-}
-
-/**
- * A long-output task as the phases direct: read the evidence, then each
- * phase file in a request of its own, then recall the middle (or read the
- * evidence again without packing), then write the canonical fix.
- */
-export function longTaskReplies(
-  task: EvalTask,
-  isPacking: boolean,
-  offset: number,
-): ScriptedReply[] {
-  const [fix] = fixesFor(EVAL_CANONICAL_FIXES, task)
-  if (fix === undefined) {
-    throw new Error(`no canonical fix for ${task.id}`)
-  }
-  return [
-    readReply('evidence.txt', 'evidence'),
-    readReply('phase-one.txt', 'phase-one'),
-    readReply('phase-two.txt', 'phase-two'),
-    isPacking
-      ? {
-          calls: [
-            {
-              name: MODEL_API_TOOLS.recallOutput,
-              arguments: JSON.stringify({ id: 'evidence', offset }),
-              callId: 'recall',
-            },
-          ],
-        }
-      : readReply('evidence.txt', 'reread'),
-    { calls: [{ name: 'write_file', arguments: JSON.stringify(fix) }] },
-    { text: 'Recovered and fixed.' },
-  ]
 }
