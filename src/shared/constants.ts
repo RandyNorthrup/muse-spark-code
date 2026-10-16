@@ -2781,7 +2781,9 @@ export type ImageAspect = keyof typeof IMAGE_ASPECT_SIZES
 export const IMAGE_OUTPUT_FORMAT = 'png'
 export const IMAGE_FILE_EXTENSION = '.png'
 export const IMAGE_PROMPT_MAX_CHARS = 4000
-export const IMAGE_REQUEST_TIMEOUT_MS = 180_000
+// Billed image requests carry no deadline of their own: waited on until
+// Meta answers or the caller stops waiting (owner 2026-10-16), saying so
+// out loud while they wait.
 // Image edits (M44, dev.meta.ai/docs/api-reference/images/edit-image, read
 // 2026-09-25): `POST /images/edits` with the source images inline as data
 // URLs, one PNG back, the same price as a generated image. Meta requires at

@@ -8,7 +8,7 @@
 // whatever permission mode Muse Code runs in: its own approval covers using
 // the tool, this one covers buying the image.
 
-import { IMAGE_REQUEST_TIMEOUT_MS, IDE_IMAGE_TOOLS, MODEL_TEXT } from '../../shared/constants'
+import { IDE_IMAGE_TOOLS, MODEL_TEXT } from '../../shared/constants'
 import type { McpTool } from '../../core/mcp'
 import type { ModelApiClient } from '../../core/backends/modelapi/client'
 import {
@@ -72,6 +72,7 @@ async function callImageTool(
   args: Readonly<Record<string, unknown>>,
   workspace: ImageWorkspace,
   deps: IdeImageToolsDeps,
+  signal: AbortSignal,
 ): Promise<string> {
   const keyGeneration = deps.keyGeneration()
   const prepared = await prepareImageCall(shape.kind, args, workspace)
@@ -93,8 +94,10 @@ async function callImageTool(
   const outcome = await runImageCall(prepared.plan, {
     client,
     io: workspace.io,
-    // No turn to stop it from here: the request's own deadline ends the wait.
-    signal: AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS),
+    // The caller's signal ends the wait (its request closed, or
+    // `notifications/cancelled` named it): no invented deadline of our own
+    // (owner 2026-10-16), and the request says so out loud while it waits.
+    signal,
     isStillOn: deps.isOffered,
     admitAttempt: (currentDigest) => {
       if (currentDigest !== keyDigest || deps.keyGeneration() !== keyGeneration) {
@@ -128,6 +131,6 @@ export function ideImageTools(deps: IdeImageToolsDeps): readonly McpTool[] {
       required: shape.required,
       additionalProperties: false,
     },
-    call: async (args) => await callImageTool(shape, args, workspace, deps),
+    call: async (args, signal) => await callImageTool(shape, args, workspace, deps, signal),
   }))
 }
