@@ -53,6 +53,7 @@
     "src/host/backend/providersEntry.ts",
     "src/shared/validationEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
+    "src/host/models/modelsSubscriptionsEntry.ts",
     "src/webview/models/models.tsx",
     "src/host/teamViewBundle.ts",
     "src/core/team/teamEntry.ts",
