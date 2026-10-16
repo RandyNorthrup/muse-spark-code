@@ -315,6 +315,58 @@ Proofs:
   branch-changed lines in conflict 107,426 before and after, clean merges 35
   before and after, heads made worse 0.
 
+## D108 panel-focus design record (2026-10-14, lane PRFIX160)
+
+Renumbered D116 on 2026-10-15: D108 was also the test overhaul's decision, and both merged with pull request 172. The archived body below the hashed markers keeps its original text.
+
+`npm run plan:archive -- move decisions --heading "D108 — A chat surface takes
+the keyboard only while it holds it (panel-focus, 2026-10-12)" --lines
+14637-14673 --summary <lane-private summary file> --allow-fact-change`
+at `6409d5aad`:
+
+| Measure                                | Before      | After     |
+| -------------------------------------- | ----------- | --------- |
+| `PLAN.md` bytes                        | 3,566,098   | 3,564,514 |
+| Share of the reader's bound            | 85.0%       | 85.0%     |
+| Room under the gate's line (3,565,158) | OVER by 940 | 644       |
+| Hashed blocks in `decisions.md`        | 51          | 52        |
+| Bytes moved (1 block: the D108 body)   |             | 2,388     |
+
+`PLAN.md` keeps the `### D108` heading and one rule-in-force paragraph ending
+with the archive link; the full record (the Decision paragraph and the
+2026-10-14 F3 follow-up) stands under its heading in `decisions.md` between
+hashed markers (`decisions-6409d5aad-14637`, SHA-256
+`5e93bad2…7568`). Not renumbered: pull request 159 cites this D108, and other
+unmerged lanes hold separate same-numbered additions elsewhere (provider
+watch, claimsgate, ui-text, testcut, the orchestrator link) for the
+integrator's renumbering.
+
+`--allow-fact-change` was needed for two measured reasons, both unrelated to
+lost information. First, `Q-M95INT2` names two different questions (lines
+14476 and 14481, 361 vs 347 bytes); the script's duplicate-id comparison can
+never match those, so that entry flags on every move of any line. Second,
+`Q-M94d` (line 14599) greedily swallows every line to the next question item
+(14711), including this D108 body, so archiving it shrinks that entry's text.
+No question, status row, field, checklist or lane table was touched.
+
+Proofs:
+
+- Reassembly: the command rebuilt the old `PLAN.md` from the result,
+  SHA-256 `791ddd05…81`, before writing.
+- Parsed facts: only the two entries above differ; format drift 0,
+  218 milestones.
+- `npm run check:plan`: `plan-format-v1; 218 milestones; 0 drift`.
+- `npm run roadmap:generate`: `ROADMAP.md` regenerates byte-identical
+  (`git status` clean for it).
+- `npm run check:reference`: current (73 features, 65 commands, 89 settings).
+- Plan suites, repo default timeouts: `planArchive`, `planReader`,
+  `checkPlan` (84), `planCitation`, `autoCompact`, `geminiCodec` (112),
+  `m113cLaneClosure`, `teamPlanRecord`, `paidMoneyStructure` (50).
+- Branch check: no local branch's `PLAN.md` diff touches the moved body
+  lines (the panel-focus `landFocusRequest` / `FOCUS_REQUEST_WINDOW_MS` text
+  appears in none); the same-numbered additions stand elsewhere.
+- `status`: 52 + 140 + 41 blocks, all intact.
+
 ## Closed §6 sections and older §7 records (2026-10-14, with the command)
 
 The plan stood 1,546 bytes under the gate's line. Two `move --batch` runs
