@@ -14,7 +14,6 @@ import {
   CODE_INTEL_MODEL_TEXT,
   CODE_INTEL_NAME_MAX_CHARS,
   FILE_REFUSAL_MODEL_TEXT,
-  RENAME_MAX_FILES,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { PatchHunk } from '../../shared/patchDocument'
@@ -119,7 +118,17 @@ async function placedFiles(
       fill(CODE_INTEL_MODEL_TEXT.renameOutside, { count: String(outside) }),
     )
   }
-  // One entry per file, however the edit groups its changes.
+  return mergePlacedEdits(placed)
+}
+
+/**
+ * One entry per file, however the edit groups its changes. D121: a rename
+ * touches as many files as the language service names — the removed 200-file
+ * ceiling was invented, so files past it merge like any other.
+ */
+export function mergePlacedEdits(
+  placed: readonly { file: PlacedFile | undefined; edits: readonly TextEdit[] }[],
+): { file: PlacedFile; edits: TextEdit[] }[] {
   const byFile = new Map<string, { file: PlacedFile; edits: TextEdit[] }>()
   const merged: { file: PlacedFile; edits: TextEdit[] }[] = []
   for (const { file, edits } of placed) {
@@ -133,14 +142,6 @@ async function placedFiles(
       merged.push(entry)
     }
     entry.edits.push(...edits)
-  }
-  if (merged.length > RENAME_MAX_FILES) {
-    throw new CodeIntelRefusal(
-      fill(CODE_INTEL_MODEL_TEXT.renameTooMany, {
-        count: String(merged.length),
-        max: String(RENAME_MAX_FILES),
-      }),
-    )
   }
   return merged
 }

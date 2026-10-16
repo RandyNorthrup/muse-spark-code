@@ -14392,6 +14392,8 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   `EXEC_MAX_BUDGET_USD` = 20 removed — no provider documents them; the
   person's `--max-requests` (default 30 stays) and `--max-budget-usd` stay
   with no ceiling of ours.
+- A11 (NOLIMITS1): `RENAME_MAX_FILES` = 200 removed — not about a model; a
+  rename touches as many files as the language service names.
 
 ## 3. Open questions (need the owner)
 
