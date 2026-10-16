@@ -153,7 +153,8 @@ describe('checkCommandLine', () => {
   // 15 s test budget once (PR 165, windows-latest shard 5, 2026-10-16) while
   // it takes about 0.4 s on a warm machine. These cases check how paths reach
   // a program, not how fast PowerShell starts, so the cold start happens here
-  // with its time printed, and the cases keep the repository's own budget.
+  // with its time printed and no time limit (owner 2026-10-16: no limits that
+  // are not about a model), and the cases keep the repository's own budget.
   beforeAll(() => {
     if (!isWindows) return
     const powershell = path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
@@ -162,7 +163,7 @@ describe('checkCommandLine', () => {
       stdio: 'ignore',
     })
     process.stdout.write(`Windows PowerShell cold start: ${String(Date.now() - started)} ms\n`)
-  }, 120_000)
+  }, 0)
 
   it.skipIf(!isWindows)('hands a native program each path as one argument', () => {
     expect(throughPowerShell(`& '${process.execPath}' ${NODE_ARGV}`, SAFE_ON_WINDOWS)).toEqual([
