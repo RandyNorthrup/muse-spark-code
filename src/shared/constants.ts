@@ -2583,12 +2583,12 @@ export const HTTP_SUCCESS_MIN = 200
 export const HTTP_SUCCESS_MAX = 299
 // The whole fetch, redirects and body included, ends by this deadline.
 export const WEB_FETCH_TIMEOUT_MS = 30_000
-// Redirects followed on the same host, each hop resolved, checked and pinned
-// again; a redirect to another host is handed back to the model instead.
-export const WEB_FETCH_MAX_REDIRECTS = 5
-// The body after any decompression; a larger page is refused, never cut.
-export const WEB_FETCH_MAX_MIB = 5
-export const WEB_FETCH_MAX_BYTES = WEB_FETCH_MAX_MIB * BYTES_PER_MIB
+// Redirects on the same host are followed without a count of their own,
+// each hop resolved, checked and pinned again; a redirect to another host
+// is handed back to the model instead. (NOLIMITS A17: the fetch used to
+// stop after 5 redirects and refuse pages past 5 MiB; both caps are gone.
+// The https-only, no-credentials and public-hosts refusals stay: they are
+// safety rules, not size limits.)
 // What the model receives of the converted text, within TOOL_OUTPUT_MAX_CHARS.
 export const WEB_FETCH_MAX_CONTENT_CHARS = 50_000
 // The HTML converter stops past this much Markdown (room for the text it
@@ -6228,7 +6228,6 @@ export const WEB_FETCH_MODEL_TEXT = {
     'web fetch is no longer allowed here (the workspace lost its trust, the permission mode changed, or museSpark.sandboxNetwork became restricted), so the fetch stopped before its next request',
   webFetchNat64Unknown:
     '{host} resolves only to IPv6 addresses here, and whether this network translates IPv6 addresses to IPv4 ones (NAT64) could not be learned ({detail}), so they cannot be checked for a private address; nothing was fetched',
-  webFetchTooManyRedirects: 'more than {max} redirects',
   webFetchRedirectWithoutLocation: 'the server answered HTTP {status} without a Location to go to',
   webFetchRedirectRefused: 'the page redirected to a URL that is refused: {reason}',
   webFetchHttpStatus: 'the server answered HTTP {status}',

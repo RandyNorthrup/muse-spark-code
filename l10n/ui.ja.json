@@ -2006,7 +2006,6 @@
   "webFetchUnresolved": "このコンピューターから {host} が見つかりませんでした。",
   "webFetchWithdrawn": "ここではページの取得が許可されなくなったため (ワークスペースの信頼が失われた、権限モードが変わった、またはサンドボックスのネットワーク設定が制限に変わった)、次の要求の前に取得を停止しました。",
   "webFetchNat64Unknown": "ここでは {host} に IPv6 アドレスしかなく、このネットワークがそれを IPv4 アドレスに変換するか (NAT64) を確認できなかったため、プライベート アドレスかどうかを確認できませんでした。何も取得していません。({detail})",
-  "webFetchTooManyRedirects": "ページのリダイレクトが {max} 回を超えました。",
   "webFetchRedirectWithoutLocation": "サーバーは {status} を返しましたが、移動先を示しませんでした。",
   "webFetchRedirectRefused": "ページが拒否されるアドレスにリダイレクトしました: {reason}",
   "webFetchHttpStatus": "サーバーの応答は {status} でした。",

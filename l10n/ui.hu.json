@@ -2036,7 +2036,6 @@
   "webFetchUnresolved": "{host} nem található erről a számítógépről.",
   "webFetchWithdrawn": "Az oldalak lekérése itt már nem engedélyezett (a munkaterület elvesztette a megbízhatóságát, megváltozott az engedélyezési mód, vagy a sandbox hálózati beállítása korlátozottra váltott), ezért a lekérés a következő kérése előtt leállt.",
   "webFetchNat64Unknown": "{host} itt csak IPv6-címekkel rendelkezik, és nem sikerült megállapítani, hogy ez a hálózat IPv4-címekre fordítja-e őket (NAT64) ({detail}), így nem lehetett ellenőrizni, hogy nem privát címre mutatnak-e. Semmi sem lett letöltve.",
-  "webFetchTooManyRedirects": "Az oldal több mint {max} alkalommal irányított át.",
   "webFetchRedirectWithoutLocation": "A kiszolgáló {status} választ adott, de nem jelezte, hová kell menni.",
   "webFetchRedirectRefused": "Az oldal elutasított címre irányított át: {reason}",
   "webFetchHttpStatus": "A kiszolgáló válasza: {status}.",

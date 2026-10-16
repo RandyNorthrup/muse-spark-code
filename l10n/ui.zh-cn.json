@@ -2006,7 +2006,6 @@
   "webFetchUnresolved": "无法从这台计算机找到 {host}。",
   "webFetchWithdrawn": "此处不再允许网页获取（工作区失去了信任、权限模式已更改，或沙盒网络设置已变为受限），因此获取在下一个请求之前停止。",
   "webFetchNat64Unknown": "{host} 在此只有 IPv6 地址，且无法得知此网络是否将其转换为 IPv4 地址 (NAT64)，因此无法检查它们是否为专用地址。未获取任何内容。（{detail}）",
-  "webFetchTooManyRedirects": "网页重定向超过 {max} 次。",
   "webFetchRedirectWithoutLocation": "服务器返回了 {status}，但没有说明要转到哪里。",
   "webFetchRedirectRefused": "网页重定向到了被拒绝的地址：{reason}",
   "webFetchHttpStatus": "服务器返回了 {status}。",

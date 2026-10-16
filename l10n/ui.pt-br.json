@@ -2066,7 +2066,6 @@
   "webFetchUnresolved": "Não foi possível encontrar {host} a partir deste computador.",
   "webFetchWithdrawn": "A busca de páginas não é mais permitida aqui (o workspace perdeu a confiança, o modo de permissão mudou ou a configuração de rede do sandbox passou a restrita), então a busca parou antes da próxima solicitação.",
   "webFetchNat64Unknown": "{host} tem apenas endereços IPv6 aqui, e não foi possível saber se esta rede os traduz para endereços IPv4 (NAT64) ({detail}); por isso, não foi possível verificar se são endereços privados. Nada foi buscado.",
-  "webFetchTooManyRedirects": "A página redirecionou mais de {max} vezes.",
   "webFetchRedirectWithoutLocation": "O servidor respondeu {status} sem dizer para onde ir.",
   "webFetchRedirectRefused": "A página redirecionou para um endereço recusado: {reason}",
   "webFetchHttpStatus": "O servidor respondeu {status}.",

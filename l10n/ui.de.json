@@ -2036,7 +2036,6 @@
   "webFetchUnresolved": "{host} wurde von diesem Computer aus nicht gefunden.",
   "webFetchWithdrawn": "Das Abrufen von Seiten ist hier nicht mehr erlaubt (der Arbeitsbereich hat sein Vertrauen verloren, der Berechtigungsmodus hat sich geändert oder die Netzwerkeinstellung der Sandbox ist jetzt eingeschränkt). Der Abruf wurde vor seiner nächsten Anfrage beendet.",
   "webFetchNat64Unknown": "{host} hat hier nur IPv6-Adressen, und ob dieses Netzwerk sie in IPv4-Adressen übersetzt (NAT64), ließ sich nicht ermitteln ({detail}). Daher konnten sie nicht auf eine private Adresse geprüft werden. Es wurde nichts abgerufen.",
-  "webFetchTooManyRedirects": "Die Seite wurde mehr als {max}-mal weitergeleitet.",
   "webFetchRedirectWithoutLocation": "Der Server antwortete mit {status}, ohne ein Ziel anzugeben.",
   "webFetchRedirectRefused": "Die Seite leitete zu einer abgelehnten Adresse weiter: {reason}",
   "webFetchHttpStatus": "Der Server antwortete mit {status}.",

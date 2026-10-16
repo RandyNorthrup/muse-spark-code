@@ -15,12 +15,13 @@
 //   WEB_FETCH_ATTEMPT_DELAY_MS, the first to connect wins. Through a proxy,
 //   the proxy is asked for that address too (src/host/web/pinnedRequest.ts);
 // - follows a redirect on the same host, checked, resolved and pinned
-//   again, at most WEB_FETCH_MAX_REDIRECTS times; a redirect to another host
-//   is handed back to the model, which asks again (each host is approved on
-//   its own);
-// - reads at most WEB_FETCH_MAX_BYTES of an allowed content type within
-//   WEB_FETCH_TIMEOUT_MS, then turns HTML into Markdown and leaves text as
-//   it is.
+//   again, until the page answers or the fetch's deadline (or Stop) ends
+//   the wait; a redirect to another host is handed back to the model,
+//   which asks again (each host is approved on its own);
+// - reads the whole body of an allowed content type within
+//   WEB_FETCH_TIMEOUT_MS (a caller may still name its own smaller ingress
+//   cap with `rawTextLimit`), then turns HTML into Markdown and leaves
+//   text as it is.
 //
 // What the model receives marks the page as untrusted data between markers
 // the page cannot know; text the server chose (a redirect's URL, the title)
@@ -45,9 +46,7 @@ import {
   WEB_FETCH_CONVERT_MAX_CHARS,
   WEB_FETCH_DETAIL_MAX_CHARS,
   WEB_FETCH_HTML_TYPES,
-  WEB_FETCH_MAX_BYTES,
   WEB_FETCH_MAX_CONTENT_CHARS,
-  WEB_FETCH_MAX_REDIRECTS,
   WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
   WEB_FETCH_TEXT_TYPES,
@@ -537,14 +536,20 @@ function decoded(body: AsyncIterable<Uint8Array>, coding: string): Decoded {
   }
 }
 
-/** Every chunk, refused as soon as the total passes the cap. */
-async function collect(chunks: AsyncIterable<Uint8Array>, maxBytes: number): Promise<Uint8Array> {
+/**
+ * Every chunk, refused as soon as the total passes the caller's cap, when
+ * the caller named one; without a cap the whole body is read.
+ */
+async function collect(
+  chunks: AsyncIterable<Uint8Array>,
+  maxBytes: number | undefined,
+): Promise<Uint8Array> {
   const parts: Uint8Array[] = []
   let total = 0
   for await (const chunk of chunks) {
     total += chunk.byteLength
-    if (total > maxBytes) {
-      refuse('tooLarge')
+    if (maxBytes !== undefined && total > maxBytes) {
+      refuse('tooLarge', { maxBytes })
     }
     parts.push(chunk)
   }
@@ -552,18 +557,19 @@ async function collect(chunks: AsyncIterable<Uint8Array>, maxBytes: number): Pro
 }
 
 /**
- * The whole body within the cap. Damaged compressed data is refused as the
- * coding's, not reported as a network failure.
+ * The whole body within the caller's cap, when the caller named one.
+ * Damaged compressed data is refused as the coding's, not reported as a
+ * network failure.
  */
 async function readCapped(
   response: PinnedResponse,
   headers: ReadHeaders,
   signal: AbortSignal,
-  maxBytes = WEB_FETCH_MAX_BYTES,
+  maxBytes: number | undefined,
 ): Promise<Uint8Array> {
   const declared = Number(headers['content-length'] ?? NaN)
-  if (Number.isFinite(declared) && declared > maxBytes) {
-    refuse('tooLarge')
+  if (maxBytes !== undefined && Number.isFinite(declared) && declared > maxBytes) {
+    refuse('tooLarge', { maxBytes })
   }
   const coding = (headers['content-encoding'] ?? IDENTITY).trim().toLowerCase()
   const body = decoded(response.body, coding)
@@ -775,7 +781,7 @@ function movedResult(location: string, marker: string): WebFetchResult {
   return { kind: 'moved', location, text, visibleText: fill(UI_TEXT.webFetchMoved, { location }) }
 }
 
-/** Every hop of one fetch, within the deadline and the redirect limit. */
+/** Every hop of one fetch, within the deadline; same-host loops end there. */
 async function fetchHops(
   first: CheckedPageUrl,
   deps: WebFetchDeps,
@@ -791,7 +797,7 @@ async function fetchHops(
     }
   }
   let current = first
-  for (let redirects = 0; ; redirects += 1) {
+  for (;;) {
     ensureAllowed()
     const targets = await pin(current, deps, signal)
     ensureAllowed()
@@ -800,9 +806,9 @@ async function fetchHops(
       if (!HTTP_REDIRECT_STATUSES.has(response.status)) {
         return await readPage(response, { requested: first.url, final: current.url }, deps, signal)
       }
-      if (redirects >= WEB_FETCH_MAX_REDIRECTS) {
-        refuse('tooManyRedirects')
-      }
+      // No count of its own: a loop of same-host redirects ends at the
+      // fetch's deadline (or Stop); another host is handed back, never
+      // followed, so no loop can hide behind a new name.
       const hop = nextHop(response, headersOf(response), current)
       if ('moved' in hop) {
         return movedResult(hop.moved, deps.newMarker())

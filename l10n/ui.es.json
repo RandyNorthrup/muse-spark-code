@@ -2066,7 +2066,6 @@
   "webFetchUnresolved": "No se pudo encontrar {host} desde este equipo.",
   "webFetchWithdrawn": "La obtención de páginas ya no está permitida aquí (el área de trabajo perdió su confianza, cambió el modo de permisos o la configuración de red del sandbox pasó a restringida), así que la obtención se detuvo antes de su siguiente solicitud.",
   "webFetchNat64Unknown": "{host} solo tiene direcciones IPv6 aquí y no se pudo averiguar si esta red las traduce a direcciones IPv4 (NAT64) ({detail}), así que no se pudo comprobar que no sean privadas. No se obtuvo nada.",
-  "webFetchTooManyRedirects": "La página redirigió más de {max} veces.",
   "webFetchRedirectWithoutLocation": "El servidor respondió {status} sin indicar adónde ir.",
   "webFetchRedirectRefused": "La página redirigió a una dirección rechazada: {reason}",
   "webFetchHttpStatus": "El servidor respondió {status}.",
