@@ -365,8 +365,12 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
       // the new one, never as damage.
       const read = await succeeded(readFresh(scope, name), `read, killed at call ${String(at)}`)
       expect([old, fresh], `killed at call ${String(at)}`).toContain(read.value)
-      // The next owner finds and removes what the killed one left; a delete then
-      // leaves no secret part of any generation.
+      // A read is an owner too: it must reclaim the killed writer's record
+      // and every unpublished generation, without waiting for another write.
+      const parts = Math.ceil((read.value ?? '').length / KEYRING_PART_CHARS)
+      expect(await entriesOf(scope, name), `read recovery at call ${String(at)}`).toHaveLength(
+        1 + parts,
+      )
       await nextOwnerDeletes(scope, name, fresh)
       expect(await entriesOf(scope, name), `killed at call ${String(at)}`).toEqual([])
     }
@@ -385,8 +389,11 @@ describe.runIf(isWindows)('one owner per credential account (R1, R5), real Windo
       } finally {
         doomed.close()
       }
-      // A delete is the next owner: it removes the orphaned parts the first
-      // write left, which no header ever named.
+      // Even an absent-value read must recover the first writer's orphaned
+      // parts. There may never be another write or delete on this account.
+      const read = await succeeded(readFresh(scope, name), 'read after a failed first write')
+      expect(read.value).toBeNull()
+      expect(await entriesOf(scope, name)).toEqual([])
       await nextOwnerDeletes(scope, name)
       expect(await entriesOf(scope, name), `killed at call ${String(at)}`).toEqual([])
     }

@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Credential reads now reclaim a crashed writer's orphaned secret parts and generation record, even when the primary value is absent; recovery no longer waits for a later write or delete.
+
 - Credential-store verification now uses a separate random test service for every run. Its cleanup no longer enumerates the production service, whose native API returns passwords as well as account names.
 
 - ChatGPT sign-in and plan turns: several local problems were reported as "ChatGPT is temporarily unavailable. Try again.", which retrying cannot fix. Each now says what it is: another window or process holding the sign-in lock past the wait, a sign-in you cancelled, a browser that could not open the sign-in address, a providers file that cannot be read or saved (with the reason), an editor credential store that refuses, a failed local file step (with the operating system's code), a plan reply larger than this app accepts, and a plan request this app could not prepare. A failure that really is the network or OpenAI keeps the retry sentence. The Models panel still shows its general failure sentence for a failed connect; the plan turns say the cause.
