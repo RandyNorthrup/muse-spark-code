@@ -4651,11 +4651,8 @@ export const PATCH_DOCUMENT_MAX_PAGES = 8
 export const OUTPUT_DOCUMENT_MAX_PAGES = 64
 /** The item-id tail that names an output editor tab, as Claude Code names its own. */
 export const OUTPUT_TAB_ID_LENGTH = 6
-/** The URI scheme of those read-only output documents, and how many stay readable. */
+/** The URI scheme of those read-only output documents; every one stays readable. */
 export const OUTPUT_DOCUMENT_SCHEME = 'muse-output'
-// And at most this many characters together (M39): each can be 16 MiB.
-export const OUTPUT_DOCUMENTS_MAX_CHARS = 32 * 1024 * 1024
-export const OUTPUT_DOCUMENTS_KEPT = 20
 // The IDE tool server `muse serve` reaches over loopback (session MCP), the
 // `session/listChanged` stream behind the History dialog (M6), and the
 // TUI's `!` escape, `session/userShell` (M46, PLAN.md D39). The first stays
