@@ -27190,6 +27190,18 @@ in `docs/certification/m106-r.md`; no RVM106R residual remains.
   - [ ] Provider × item table complete; strings in all 14 tables; budgets
         measured; full gate green; the live check counted
 
+**MSM106 finish (2026-10-16, linuxlt).** The 0.18.0 code is connected end to
+end: streamed argument previews render in the panel and ACP on models whose
+record verifies them and never reach headless replay; the 1.4.4 effort
+catalogue drives dots, keyboard, palette and ACP admission; the note-only
+feedback receipt is bound in the VS Code window and the CLI/ACP runtime with
+the dialog reachable from a reply's actions menu; record-attached outcomes
+and session deletion still refuse with the upstream request. No `@unwired
+M106` tag remains. Native-reader tests run through the real modules with the
+captured frames as data; live dispatch is lead real-life steps. Evidence:
+`docs/certification/msm106.md`. Still the lead's: per-model live receipts,
+the provider × item table, and the full gate.
+
 ---
 
 **M107 W delivery (2026-10-06, Kubuntu).** Apply the six merges explicitly
