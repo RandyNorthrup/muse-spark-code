@@ -14412,6 +14412,9 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   length and 1–10 edit items (dev.meta.ai/docs/image-generation, read
   2026-10-16), the capability record carries neither, so nothing is enforced
   locally and Meta's own refusal reaches the person in words.
+- A25 (NOLIMITS1): `ACCOUNT_MAX_PER_PROVIDER` = 64 removed — not about a
+  model; pools, orders and the Add control take any number of accounts
+  (duplicate ids still refuse).
 
 ## 3. Open questions (need the owner)
 

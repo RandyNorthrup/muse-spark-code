@@ -9,7 +9,6 @@ import {
   accountPoolSchema,
   accountEventSchema,
 } from '../accounts'
-import { ACCOUNT_MAX_PER_PROVIDER } from '../constants'
 
 // The policy question lives on the wire module, not the panel projection:
 // the ACP companion validates confirmations against it, and the panel
@@ -74,10 +73,9 @@ export const accountsRequestSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('accounts/order'),
     provider: accountIdSchema,
-    accounts: z.array(accountIdSchema).check(
-      z.maxLength(ACCOUNT_MAX_PER_PROVIDER),
-      z.refine((ids) => new Set(ids).size === ids.length),
-    ),
+    // D121: an order names any number of accounts — the removed
+    // 64-per-provider ceiling was invented — so only duplicate ids refuse.
+    accounts: z.array(accountIdSchema).check(z.refine((ids) => new Set(ids).size === ids.length)),
   }),
   z.strictObject({
     type: z.literal('accounts/thresholds'),

@@ -139,7 +139,8 @@ export const PRODUCT_NAME = 'Muse Spark'
 export const ACCOUNT_DEFAULT_ID = 'default'
 export const ACCOUNT_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/
 export const ACCOUNT_LABEL_MAX_LENGTH = 128
-export const ACCOUNT_MAX_PER_PROVIDER = 64
+// D121: a provider holds any number of accounts — the removed 64-per-provider
+// ceiling was invented.
 export const ACCOUNT_POLICY_RECHECK_DAYS = 90
 export const ACCOUNT_DAY_MS = 86_400_000
 export const ACCOUNT_REMOTE_LIMIT_DEFAULT_MS = 60_000

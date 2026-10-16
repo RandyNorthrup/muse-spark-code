@@ -2,7 +2,7 @@ import { legacyUsdSchema, type UsdAmount } from './usdSchema'
 // M108's local contracts, shared by every editor and the runtime. No vendor
 // response is parsed here; live wire shapes remain with their captured codecs.
 import * as z from 'zod/mini'
-import { ACCOUNT_LABEL_MAX_LENGTH, ACCOUNT_MAX_PER_PROVIDER } from './constants'
+import { ACCOUNT_LABEL_MAX_LENGTH } from './constants'
 import { accountIdSchema } from './accountId'
 export { accountIdSchema } from './accountId'
 const opaqueId = /* @__PURE__ */ z
@@ -55,10 +55,13 @@ export const accountSchema = /* @__PURE__ */ z.strictObject({
 })
 export type Account = z.infer<typeof accountSchema>
 
-export const accountPoolSchema = /* @__PURE__ */ z.array(accountSchema).check(
-  z.maxLength(ACCOUNT_MAX_PER_PROVIDER),
-  z.refine((accounts) => new Set(accounts.map((account) => account.id)).size === accounts.length),
-)
+// D121: a pool holds any number of accounts — the removed 64-per-provider
+// ceiling was invented — so only duplicate ids refuse.
+export const accountPoolSchema = /* @__PURE__ */ z
+  .array(accountSchema)
+  .check(
+    z.refine((accounts) => new Set(accounts.map((account) => account.id)).size === accounts.length),
+  )
 
 const spendCapTrigger = /* @__PURE__ */ z.strictObject({
   kind: z.literal('userCap'),

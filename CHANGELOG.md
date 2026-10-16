@@ -22,7 +22,8 @@ happened, not what was planned; superseded entries are kept.
   a saved prompt keeps any title, body and per-scope count past 200, 80
   and 10000 characters; image generation takes a prompt of any length and
   any number of edit sources past 4000 characters and 4 (Meta documents no
-  prompt length and 1–10 edit items — its own refusal answers oversize calls).
+  prompt length and 1–10 edit items — its own refusal answers oversize calls);
+  a provider holds any number of accounts past 64 per provider.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
