@@ -412,6 +412,10 @@ happened, not what was planned; superseded entries are kept.
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- The Agent-loop-guarantees section again matches the product: the SDK pin
+  is 1.4.4 and the effort catalogue and note-only feedback receipt are
+  bound in the VS Code window and the CLI/ACP runtime, while
+  record-attached feedback and permanent deletion refuse before dispatch.
 
 ### Pending
 
