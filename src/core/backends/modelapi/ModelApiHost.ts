@@ -178,7 +178,6 @@ import {
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
-  USER_SHELL_TIMEOUT_MS,
   VERIFY_COMMAND_RULE_KEY,
   VERIFY_NOTE_MAX_CHARS,
   VERIFY_TOOLS,
@@ -13213,10 +13212,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     const startedAt = this.deps.now()
     let result: ShellResult
     try {
+      // No deadline of its own: the user's command runs until it ends or
+      // the row's Stop ends it (owner 2026-10-16), saying so out loud.
       result = await this.deps.io.runShell(
         command,
         this.deps.workspaceRoot,
-        USER_SHELL_TIMEOUT_MS,
+        undefined,
         stop.signal,
         undefined,
         this.userShellAdmission(stop),
@@ -13236,7 +13237,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     } finally {
       this.userShells.delete(started.itemId)
     }
-    const outcome = shellOutcome(result, USER_SHELL_TIMEOUT_MS)
+    const outcome = shellOutcome(result, undefined)
     // A refused entry ran nothing: its row says so, and the model is told
     // nothing about a command that never started.
     const isRefused = result.isEntryRefused === true && !stop.signal.aborted

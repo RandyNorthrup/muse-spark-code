@@ -1572,10 +1572,11 @@ service. The extension helps you build gadgets; it never becomes one:
   mode, including Bypass. Every approval Muse Code emits has its card redacted
   and offers only one-time approval; Muse Code Bypass can execute without
   emitting an approval, so the extension cannot warn before those commands.
-- **Device commands stay bounded.** A monitor never exits by itself, so the
-  shell tool's `timeout_ms` ends it and returns what it captured: flash, then
-  capture N seconds of serial output, in one call, with no process left
-  behind.
+- **Device commands stay bounded.** A monitor never exits by itself, so name
+  the shell tool's `timeout_ms` to end it and return what it captured:
+  flash, then capture N seconds of serial output, in one call, with no
+  process left behind. A command without one runs until it ends or is
+  stopped, with a still-waiting notice each minute.
 - **The skill knows the drill.** `/muse_gadgets` (a bundled skill, off while
   `museSpark.bundledSkills` is off) covers the SDK layout, the Windows and
   POSIX setup, the bounded-monitor pattern and the token rules. In a clone of
