@@ -1,6 +1,7 @@
 import { StorageRefusalError } from '../../checkpoints/storageRefusal'
 import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
+import type * as ModelApiTools from './modelApiToolsEntry'
 import {
   Usd,
   type UsdAmount,
@@ -57,11 +58,8 @@ import type { VaultTaint } from '../../../shared/vault'
 // Sessions live for the host's lifetime (this VS Code window).
 
 import { Buffer } from 'node:buffer'
-import {
-  ArgumentPreview,
-  declaredPreviewFields,
-  type ArgumentPreviewCapabilities,
-} from './argumentPreview'
+import type { ArgumentPreview, ArgumentPreviewCapabilities } from './argumentPreview'
+import { declaredPreviewFields } from './previewFields'
 import { createHash, randomUUID } from 'node:crypto'
 import { prepareShellSidecar, removeShellSidecar } from '../../shellSidecar'
 import { homedir, tmpdir } from 'node:os'
@@ -188,7 +186,7 @@ import {
   CODEC_IMAGE_WITHOUT_VISION,
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
-import { fill, formatNumber, plural, uiLocale } from '../../../shared/l10n/text'
+import { fill, formatNumber, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken } from '../../schedules/sessionOwner'
 import {
@@ -259,6 +257,7 @@ import {
 } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
 import type { CoreLogger } from '../../logging'
+import { wireWordForLog } from '../../logging'
 import type { ModelRow } from '../../providers/modelFilters'
 import { textFileInput } from '../../textAttachment'
 import { withDeadline } from '../../timeouts'
@@ -285,7 +284,7 @@ import type { WebFetchFailure } from '../../web/fetchFailure'
 import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
 import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
 import { approvalHost } from '../../web/hostName'
-import { checkPageUrl } from '../../web/pageUrl'
+import type { PageUrlCheck } from '../../web/pageUrl'
 import {
   IndexLineStoppedError,
   type MemoryStore,
@@ -348,6 +347,7 @@ import {
   type ReplayProducer,
   effortForPolicy,
   metaResolvedModel,
+  minOutputTokensForPolicy,
   modelPolicyFor,
   modelPricedUsage,
   requestImageCount,
@@ -355,7 +355,6 @@ import {
   type ModelResolver,
   type ResolvedModel,
 } from './modelPolicy'
-import { postModelCallFields, preModelCallFields } from './modelCallHooks'
 import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
 import { ObservationPack, estimatePackTokens } from './observationPack'
 import { admitResource, inResourceClass } from '../../resources/admission'
@@ -417,6 +416,10 @@ import {
   type AutoCompactModel,
   type AutoCompactDecision,
 } from './autoCompact'
+import {
+  AutoCompactionNotAuthorizedError,
+  isAutoCompactionNotAuthorizedError,
+} from '../../paid/paidConsent'
 import type {
   ContextModel,
   ContextOverflowEvent,
@@ -602,6 +605,11 @@ export interface ModelApiPaidHooks {
   readonly hookModelDailyBudget?: HookModelDailyBudget | undefined
 }
 
+type CompactionAttemptGuard = ResponseAttemptGuard & {
+  /** The final body's calibrated input estimate; rebound for every retry/fallback. */
+  readonly prepareRequest?: (body: CreateResponseBody, inputTokens: number) => Promise<void>
+}
+
 export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDeps {
   /** M105-A: M2 binds the attachment choices to the portable sound router in
    * dist/media.js. Absent until that lane is integrated; no eager media load. */
@@ -636,13 +644,15 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
         readonly signal: AbortSignal
       }) => Promise<
         | {
-            readonly guard: ResponseAttemptGuard
+            readonly guard: CompactionAttemptGuard
             /** Once per dispatched attempt, including uncertain/failed attempts. */
             readonly settle: (
               modelId: string,
               usage: Usage | undefined,
               outcome: 'returned' | 'uncertain' | 'rate-limited',
-            ) => void
+            ) => void | Promise<void>
+            /** Refund any admitted nonsend and drain its settlement. */
+            readonly close?: () => Promise<void>
           }
         | undefined
       >)
@@ -688,6 +698,13 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   /** Epoch milliseconds. */
   readonly now: () => number
   readonly log: CoreLogger
+  /**
+   * What a host other than the extension says when the per-call helpers
+   * (dist/modelApiTools.js) cannot load: its own reinstall sentence, since
+   * "reinstall the extension and reload the window" names the wrong product
+   * to someone on the agent's package. Unset in VS Code.
+   */
+  readonly helpersUnavailable?: (() => string) | undefined
   /** Muse Code's personal skill root (PLAN.md D13); undefined without a home. */
   readonly personalSkillsRoot: string | undefined
   /** The skills that ship with the extension (M89, PLAN.md D68); undefined where none ship. */
@@ -1626,6 +1643,62 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/**
+ * The model call helpers' failure for the log, beside the chunk named. One
+ * shared line for every helpers catch so the diet pin holds: the sentences
+ * promise log details, and the log names which bundle and the failure kind
+ * from the fixed vocabulary (a loader or constructor message can carry a
+ * path or the call's own fields, so only the kind and the error class name
+ * are safe details).
+ */
+const ABSENT_BUNDLE_CODES = new Set(['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND', 'ENOENT'])
+const UNREADABLE_BUNDLE_CODES = new Set(['EACCES', 'EPERM', 'EISDIR', 'EBUSY'])
+
+function helpersFailureKind(error: unknown): string {
+  const code: unknown =
+    typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+  if (typeof code === 'string' && ABSENT_BUNDLE_CODES.has(code)) {
+    return 'absent'
+  }
+  if (typeof code === 'string' && UNREADABLE_BUNDLE_CODES.has(code)) {
+    return 'unreadable'
+  }
+  const name = error instanceof Error ? wireWordForLog(error.name) : 'unknown'
+  return `threw while evaluating (${name})`
+}
+
+function helpersFailure(log: CoreLogger, bundleFile: string, error: unknown): void {
+  log.warn(`${bundleFile} failed (${helpersFailureKind(error)})`)
+}
+
+// A Node bundle keeps its own copy of the language table, so a deferred
+// bundle is handed the installed one before it is used: once per table, not
+// once per call. An install rewrites every entry of the table and rebuilds
+// the language's formatters; done before each model call it cost every turn
+// that work again (docs/certification/hotfix-0181-bundle-exports.md).
+// The number format is cached per installed table and dropped by every
+// install (shared/l10n/text.ts), so a new one means a new table. Keyed by
+// the bundle's name: a loaded bundle is one module for the life of the
+// process, and the module itself is never handed on (the cross-bundle check
+// follows every use of a sibling to a member it exports).
+const SHARES_TABLE = 'shared'
+const bundleTables = new Map<string, Intl.NumberFormat | typeof SHARES_TABLE>()
+const installedTable = (): Intl.NumberFormat => numberFormat('number', {})
+
+function installLanguageOnce(
+  bundle: string,
+  install: (table: typeof UI_TEXT, locale: string) => void,
+): void {
+  const received = bundleTables.get(bundle)
+  const table = installedTable()
+  if (received === SHARES_TABLE || received === table) return
+  install(UI_TEXT, uiLocale())
+  // Modules that share this table (source modules, not built bundles) drop
+  // the format by installing: they read the installed table as it is and
+  // never need another install.
+  bundleTables.set(bundle, installedTable() === table ? table : SHARES_TABLE)
+}
+
 function isAuthFailure(error: unknown): boolean {
   return (
     error instanceof MissingApiKeyError ||
@@ -2543,6 +2616,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly hookRenamePlans = new WeakMap<FunctionCallItem, Promise<RenamePlanResult>>()
   /** The imported hooks' adapters, loaded on first use (M91 lane W). */
   private foreignAdapter: Promise<ForeignHookAdapter | undefined> | undefined
+  private assistLoad: Promise<typeof ModelApiTools> | undefined
   /** A SubagentStop hook's documented replacement of this child's reply, by turn (M91). */
   private readonly hookReplies = new Map<string, string>()
   /** FileChanged's per-path quiet window and per-minute cap (M91 lane E). */
@@ -3092,8 +3166,84 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private async codeIntelligence(): Promise<typeof CodeIntelEntry> {
     const entry = await import('./codeIntelEntry.js')
-    entry.installLanguage(UI_TEXT, uiLocale())
+    installLanguageOnce('modelApiCodeIntel', (table, locale) => {
+      entry.installLanguage(table, locale)
+    })
     return entry
+  }
+
+  /**
+   * The deferred per-call helpers (dist/modelApiTools.js, D6): the hook
+   * call fields, the display-only argument previews and the fetch URL
+   * checks, loaded on the first use. Each caller fails its own safe way:
+   * a hook field or preview load failure ends the turn with the chunk
+   * named, a URL-check failure refuses the fetch, never an unchecked
+   * fetch and never a default value.
+   *
+   * Loaded once for the session: every model call, streamed tool call and
+   * URL check asks for it. A load that failed is not kept, so the next
+   * request tries again.
+   */
+  private async toolAssist(): Promise<typeof ModelApiTools> {
+    this.assistLoad ??= import('./modelApiToolsEntry.js')
+    let assist: typeof ModelApiTools
+    try {
+      assist = await this.assistLoad
+    } catch (error) {
+      this.assistLoad = undefined
+      throw error
+    }
+    installLanguageOnce('modelApiTools', (table, locale) => {
+      assist.setUiText(table, locale)
+    })
+    return assist
+  }
+
+  /**
+   * The hook call fields. A bundle that cannot load ends the turn with the
+   * chunk named: a hook never runs on a default payload.
+   */
+  private async hookCallFields(): Promise<typeof ModelApiTools> {
+    try {
+      return await this.toolAssist()
+    } catch (error) {
+      helpersFailure(this.deps.log, 'modelApiTools.js', error)
+      throw new Error(this.deps.helpersUnavailable?.() ?? UI_TEXT.modelApiToolsUnavailable, {
+        cause: error,
+      })
+    }
+  }
+
+  /**
+   * A streaming call's display-only preview. A bundle that cannot load ends
+   * the turn with the chunk named: a call is never shown without its preview.
+   */
+  private async argumentPreviewAssist(
+    previewFields: readonly string[] | undefined,
+  ): Promise<ArgumentPreview> {
+    try {
+      const assist = await this.toolAssist()
+      return new assist.ArgumentPreview(previewFields)
+    } catch (error) {
+      helpersFailure(this.deps.log, 'modelApiTools.js', error)
+      throw new Error(this.deps.helpersUnavailable?.() ?? UI_TEXT.modelApiToolsPreviewUnavailable, {
+        cause: error,
+      })
+    }
+  }
+
+  /**
+   * A URL's first checks through the deferred helpers. A bundle that cannot
+   * load refuses the fetch (fail-closed: an unchecked URL is never fetched).
+   */
+  private async checkedPageUrl(raw: string): Promise<PageUrlCheck | undefined> {
+    try {
+      const assist = await this.toolAssist()
+      return assist.checkPageUrl(raw)
+    } catch (error) {
+      helpersFailure(this.deps.log, 'modelApiTools.js', error)
+      return undefined
+    }
   }
 
   private async preToolInput(
@@ -3429,10 +3579,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
   ): Promise<void> {
     await this.selectToolsForTurn(turnId, body, signal)
+    const fields = await this.hookCallFields()
     const pre = await this.runHooks(
       'PreLLMCall',
       turnId,
-      preModelCallFields(body, requestId, attempt, step),
+      fields.preModelCallFields(body, requestId, attempt, step),
       replayProducer(body.model).provider,
       signal,
       false,
@@ -3723,6 +3874,7 @@ export class ModelApiSession implements ScheduledAgentSession {
               searchPriceUsd: this.approvedSearchQuote?.tariffUsd,
             }),
             maxOutputTokens,
+            minOutputTokens: minOutputTokensForPolicy(selected.policy),
             images: requestImageCount(body),
             ...(body.model.includes('/') && { price: selected.price }),
           })
@@ -4292,14 +4444,19 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private outputCap(resolved: ResolvedModel): number {
+    // Recomputed for every request (RVMINOUT P2): each request resolves its
+    // own record, so this memo spans that one request's projections (replay
+    // check, context fit, hook view, final body) and never a later turn. A
+    // provider-file edit between turns reaches the next request's record.
     const cached = this.outputCaps.get(resolved)
     if (cached !== undefined) return cached
     const requested =
       this.deps.modelOutputMaxTokens?.(resolved.ref, resolved) ??
       (resolved.ref.includes('/') ? resolved.policy.output.maxTokens : undefined) ??
       MODEL_API_MAX_OUTPUT_TOKENS
-    if (!Number.isSafeInteger(requested) || requested < 1)
-      throw new RangeError('invalid output.maxTokens')
+    if (!Number.isSafeInteger(requested)) throw new RangeError('invalid output.maxTokens')
+    // A cap below the provider's minimum refuses here with the minimum's own
+    // sentence (MINOUT), zero and negative caps included.
     const cap = outputLimitFor(resolved.policy, requested)
     if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
     this.outputCaps.set(resolved, cap)
@@ -5614,12 +5771,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** One streamed event applied to the transcript; the response when terminal. */
-  private applyStreamEvent(
+  private async applyStreamEvent(
     event: StreamEvent,
     open: Map<string, OpenItem>,
     turnId: string,
     chargedGoalId: string | undefined,
-  ): ResponseObject | undefined {
+  ): Promise<ResponseObject | undefined> {
     switch (event.type) {
       case 'response.output_item.added': {
         const { item } = event
@@ -5645,7 +5802,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             // declaration). A tool the request never offered — allowlisted
             // out, untrusted away, or never declared — stays textless and
             // shows a byte count only, as the README documents.
-            preview: new ArgumentPreview(this.offeredPreviewFields.get(item.name)),
+            preview: await this.argumentPreviewAssist(this.offeredPreviewFields.get(item.name)),
             text: '',
             summary: [],
             isCompleted: false,
@@ -6080,7 +6237,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (reservation !== undefined) {
           reservation.hasStarted = true
         }
-        final = this.applyStreamEvent(event, open, turnId, chargedGoalId) ?? final
+        final = (await this.applyStreamEvent(event, open, turnId, chargedGoalId)) ?? final
       }
       if (final === undefined) {
         throw new ModelApiError(
@@ -6143,10 +6300,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     // response did (M91 lane E). Their context joins the tail ahead of the
     // post-call context, oldest operation first.
     const thoughtContexts = await this.noteThoughts(turnId, open, signal)
+    const callFields = await this.hookCallFields()
     const post = await this.runHooks(
       'PostLLMCall',
       turnId,
-      postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
+      callFields.postModelCallFields(body, final, requestId, attempt, step, this.sessionId),
       replayProducer(body.model).provider,
       signal,
       false,
@@ -11305,7 +11463,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!parsed.success) {
       return { outcome: toolFailure('invalid arguments: url is required'), isRejected: false }
     }
-    const checked = checkPageUrl(parsed.data.url)
+    const checked = await this.checkedPageUrl(parsed.data.url)
+    if (checked === undefined) {
+      return {
+        outcome: webFetchRefusal({
+          kind: 'unavailable',
+          reason: MODEL_TEXT.webFetchUnavailable,
+          visibleReason: UI_TEXT.webFetchUnavailable,
+        }),
+        isRejected: false,
+      }
+    }
     if (!checked.ok) {
       return { outcome: webFetchRefusal(checked.failure), isRejected: false }
     }
@@ -13304,7 +13472,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     if (!this.ledger.needsRoundVerification()) return undefined
     const entry = await import('./schedulesEntry.js')
-    entry.installLanguage(UI_TEXT, uiLocale())
+    installLanguageOnce('schedules', (table, locale) => {
+      entry.installLanguage(table, locale)
+    })
     return await entry.verifyRound(
       {
         getScheduledRun: () => this.getScheduledRun(),
@@ -14224,12 +14394,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private async collectText(
     makeBody: (resolved: ResolvedModel) => CreateResponseBody,
     signal: AbortSignal,
-    extraAdmission?: ResponseAttemptGuard,
+    extraAdmission?: CompactionAttemptGuard,
     settleExtra?: (
       modelId: string,
       usage: Usage | undefined,
       outcome: 'returned' | 'uncertain' | 'rate-limited',
-    ) => void,
+    ) => void | Promise<void>,
   ): Promise<{
     readonly body: CreateResponseBody
     readonly text: string
@@ -14271,6 +14441,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (this.recordedCall !== undefined)
           this.recordedCall = { ...this.recordedCall, kind: 'compaction' }
         const admitAttempt = this.responseAttemptGuard(body, resolved, undefined, true)
+        let settling: Promise<void> = Promise.resolve()
         const guarded: ResponseAttemptGuard = Object.assign(
           (keyDigest: string | undefined) => {
             if (revision !== this.modelRevision) throw new AbortedError()
@@ -14278,6 +14449,16 @@ export class ModelApiSession implements ScheduledAgentSession {
             extraAdmission?.(keyDigest)
           },
           {
+            prepare: async () => {
+              await settling
+              await admitAttempt.prepare?.()
+              await extraAdmission?.prepareRequest?.(
+                body,
+                estimateInput(this.media?.budgetParts(body) ?? requestParts(body), undefined)
+                  .inputTokens,
+              )
+              await extraAdmission?.prepare?.()
+            },
             onRequestStarted: () => {
               attemptState.didSend = true
               admitAttempt.onRequestStarted?.()
@@ -14302,13 +14483,16 @@ export class ModelApiSession implements ScheduledAgentSession {
             // Consume first: failed accounting must not settle this attempt again in cleanup.
             attemptState.didSend = false
             attemptState.usage = undefined
-            settleExtra?.(
-              body.model,
-              usage,
-              notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
-                ? 'rate-limited'
-                : 'uncertain',
+            settling = Promise.resolve(
+              settleExtra?.(
+                body.model,
+                usage,
+                notice.reason.startsWith(`HTTP ${String(HTTP_TOO_MANY_REQUESTS)}:`)
+                  ? 'rate-limited'
+                  : 'uncertain',
+              ),
             )
+            void settling.catch(NO_UNSUBSCRIBE)
             this.allowRateLimitedRetry(notice)
             this.emit({
               type: 'turnRetry',
@@ -14347,12 +14531,18 @@ export class ModelApiSession implements ScheduledAgentSession {
             if (attemptState.didSend) {
               const outcome = attemptState.usage === undefined ? 'uncertain' : 'returned'
               attemptState.didSend = false
-              settleExtra?.(
-                body.model,
-                attemptState.usage,
-                attemptState.isRateLimited ? 'rate-limited' : outcome,
+              await unlessStopped(
+                Promise.resolve(
+                  settleExtra?.(
+                    body.model,
+                    attemptState.usage,
+                    attemptState.isRateLimited ? 'rate-limited' : outcome,
+                  ),
+                ),
+                signal,
               )
             }
+            await unlessStopped(settling, signal)
           } finally {
             await unlessStopped(this.endRequest(), signal)
           }
@@ -14365,11 +14555,19 @@ export class ModelApiSession implements ScheduledAgentSession {
             undefined,
           )
         }
+        const compactionFields = await this.hookCallFields()
         const post = await unlessStopped(
           this.runHooks(
             'PostLLMCall',
             turnId,
-            postModelCallFields(body, response, requestId, attempt, 0, this.sessionId),
+            compactionFields.postModelCallFields(
+              body,
+              response,
+              requestId,
+              attempt,
+              0,
+              this.sessionId,
+            ),
             MODEL_API_HOOK_PROVIDER,
             signal,
             false,
@@ -14623,8 +14821,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     const goalRevision = this.goalCommandRevision
     const todos = this.todos.map((todo) => ({ ...todo }))
     const ledger = { hasFailed: false }
+    let admission: Awaited<ReturnType<NonNullable<ModelApiHostDeps['admitAutoCompaction']>>>
     try {
-      const admission = await unlessStopped(
+      admission = await unlessStopped(
         this.deps.admitAutoCompaction?.({
           sessionId: this.askingSessionId,
           turnId: turn.turnId,
@@ -14640,23 +14839,33 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (
           this.active !== turn ||
           revision !== this.modelRevision ||
-          goalRevision !== this.goalCommandRevision ||
+          goalRevision !== this.goalCommandRevision
+        )
+          throw new AbortedError()
+        if (
           !(this.deps.autoCompaction?.() ?? SETTING_DEFAULTS.modelApiAutoCompaction) ||
           !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED)
         )
-          throw new AbortedError()
+          throw new AutoCompactionNotAuthorizedError()
       }
       assertCurrent()
       if (admission === undefined) {
         this.autoCompact.failed()
         return false
       }
-      const guard: ResponseAttemptGuard = Object.assign(
+      const guard: CompactionAttemptGuard = Object.assign(
         (keyDigest: string | undefined) => {
           assertCurrent()
-          admission.guard(keyDigest)
+          admission?.guard(keyDigest)
         },
-        { onRequestStarted: () => admission.guard.onRequestStarted?.() },
+        {
+          prepareRequest: async (body: CreateResponseBody, inputTokens: number) => {
+            assertCurrent()
+            await admission?.guard.prepareRequest?.(body, inputTokens)
+            await admission?.guard.prepare?.()
+          },
+          onRequestStarted: () => admission?.guard.onRequestStarted?.(),
+        },
       )
       const memoryStop = await this.flushCompactionMemory(turn)
       assertCurrent()
@@ -14664,9 +14873,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.autoCompact.failed()
         return 'stopped'
       }
-      const settle: typeof admission.settle = (...args) => {
+      const settle: NonNullable<typeof admission>['settle'] = async (...args) => {
         try {
-          admission.settle(...args)
+          await admission?.settle(...args)
         } catch (error: unknown) {
           ledger.hasFailed = true
           throw error
@@ -14697,22 +14906,29 @@ export class ModelApiSession implements ScheduledAgentSession {
       return true
     } catch (error: unknown) {
       this.autoCompact.failed()
-      if (ledger.hasFailed) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+      if (
+        ledger.hasFailed ||
+        (error instanceof Error && error.message === UI_TEXT.sessionBudgetStoreUnavailable)
+      )
+        throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
+      if (isAutoCompactionNotAuthorizedError(error)) return false
       if (isAbortRequested(turn.abort.signal) || error instanceof AbortedError) throw error
       this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.autoCompactionFailed })
       return false
+    } finally {
+      await unlessStopped(admission?.close?.() ?? Promise.resolve(), turn.abort.signal)
     }
   }
 
   private async runCompaction(
     signal: AbortSignal,
-    extraAdmission?: ResponseAttemptGuard,
+    extraAdmission?: CompactionAttemptGuard,
     isSummaryFork = false,
     settleExtra?: (
       modelId: string,
       usage: Usage | undefined,
       outcome: 'returned' | 'uncertain' | 'rate-limited',
-    ) => void,
+    ) => void | Promise<void>,
   ): Promise<CompactOutcome> {
     if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     if (!this.hasCompactableHistory(isSummaryFork)) {
@@ -14765,8 +14981,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         shouldKeepTools &&
         (prefix === undefined ||
           prefix.body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL))
+      // A summary cap below the provider minimum is a rejected request:
+      // floor at what this request's record accepts before budgeting it.
       const summaryBudget = Math.max(
-        1,
+        minOutputTokensForPolicy(resolved.policy),
         Math.min(
           COMPACTION_SUMMARY_MAX_TOKENS,
           Math.floor(windowTokens * COMPACTION_SUMMARY_WINDOW_FRACTION),
@@ -14805,7 +15023,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       formats: this.deps.sideCallFormats?.(this.modelId),
       signal,
       isTerminalError: (error) =>
-        error instanceof HookStoppedError || error instanceof SessionBudgetExceededError,
+        error instanceof HookStoppedError ||
+        isAutoCompactionNotAuthorizedError(error) ||
+        error instanceof SessionBudgetExceededError ||
+        (error instanceof Error && error.message === UI_TEXT.sessionBudgetStoreUnavailable),
       notice: (text) => {
         this.emit({ type: 'backendNotice', level: 'warning', text })
       },
@@ -14900,6 +15121,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       itemId: this.deps.newId(),
       kind: 'compaction',
       status: COMPLETED,
+      ...(extraAdmission !== undefined && !isSummaryFork && { paid: 'autoCompaction' as const }),
       fallbackText: UI_TEXT.compactionDone,
     }
     this.emit({ type: 'itemCompleted', item })
@@ -15013,7 +15235,9 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private async createSchedules(): Promise<ModelApiSchedules> {
     const entry = await import('./schedulesEntry.js')
-    entry.installLanguage(UI_TEXT, uiLocale())
+    installLanguageOnce('schedules', (table, locale) => {
+      entry.installLanguage(table, locale)
+    })
     return new entry.ModelApiSchedules({
       deps: {
         ...this.deps,
@@ -15840,7 +16064,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** C2 calls the core while its active turn holds the replay at a settled boundary. */
   public compactContext(
     signal: AbortSignal,
-    extraAdmission?: ResponseAttemptGuard,
+    extraAdmission?: CompactionAttemptGuard,
   ): Promise<CompactOutcome> {
     return this.runCompaction(signal, extraAdmission)
   }
@@ -16333,10 +16557,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       budget: {
         id: this.sessionId,
         kind: 'conversation',
-        capUsd: Number(capUsd),
-        spentUsd: Number(spentUsd),
+        capUsd: Usd.from(capUsd).toAmount(),
+        spentUsd: Usd.from(spentUsd).toAmount(),
         stopped: isPositiveUsd(capUsd) && Usd.from(spentUsd).compare(Usd.from(capUsd)) >= 0,
-        ...(total?.uncertainUsd !== undefined && { uncertainUsd: Number(total.uncertainUsd) }),
+        ...(total?.uncertainUsd !== undefined && {
+          uncertainUsd: Usd.from(total.uncertainUsd).toAmount(),
+        }),
       },
     }
   }

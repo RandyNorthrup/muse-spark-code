@@ -191,25 +191,29 @@ function exportItems(backend: BackendKind | undefined): readonly PaletteItem[] {
 function scheduleItems(context: PaletteContext): readonly PaletteItem[] {
   if (context.schedules !== undefined) {
     return [
-      {
-        id: 'schedule',
-        label: UI_TEXT.scheduleV2.labels.title,
-        tip: UI_TEXT.scheduleV2.editor.tips.list,
-        slashName: 'schedule',
-        action: context.schedules.list,
-      },
-      {
-        id: 'schedulePrompt',
-        label: UI_TEXT.scheduleV2.labels.schedulePrompt,
-        tip: UI_TEXT.scheduleV2.editor.tips.create,
-        action: context.schedules.create,
-      },
-      {
-        id: 'scheduleTimeline',
-        label: UI_TEXT.scheduleV2.labels.timeline,
-        tip: UI_TEXT.scheduleV2.editor.tips.timeline,
-        action: context.schedules.timeline,
-      },
+      ...(context.schedules.isAvailable === false
+        ? []
+        : [
+            {
+              id: 'schedule',
+              label: UI_TEXT.scheduleV2.labels.title,
+              tip: UI_TEXT.scheduleV2.editor.tips.list,
+              slashName: 'schedule',
+              action: context.schedules.list,
+            },
+            {
+              id: 'schedulePrompt',
+              label: UI_TEXT.scheduleV2.labels.schedulePrompt,
+              tip: UI_TEXT.scheduleV2.editor.tips.create,
+              action: context.schedules.create,
+            },
+            {
+              id: 'scheduleTimeline',
+              label: UI_TEXT.scheduleV2.labels.timeline,
+              tip: UI_TEXT.scheduleV2.editor.tips.timeline,
+              action: context.schedules.timeline,
+            },
+          ]),
       {
         id: 'loop',
         label: UI_TEXT.loopItem,
@@ -301,7 +305,12 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
     ]
   }
   return skills
-    .filter((skill) => skill.selector !== SLASH_COMMAND_NAMES.help)
+    .filter(
+      (skill) =>
+        skill.selector !== SLASH_COMMAND_NAMES.help &&
+        skill.selector !== SLASH_COMMAND_NAMES.estimate &&
+        skill.selector !== 'schedule',
+    )
     .map((skill) => ({
       id: `skill:${skill.selector}`,
       label: `/${skill.selector}`,

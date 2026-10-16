@@ -164,7 +164,7 @@ describe('Traffic accessibility and controls', () => {
         postMessage={postMessage}
       />,
     )
-    expect(status).toHaveTextContent('Candidate sent back: ready-two')
+    expect(status).toHaveTextContent('Candidate Sent Back: ready-two')
     const announce = vi.fn()
     rerender(
       <TrafficView mode="team" state={updated} postMessage={postMessage} announce={announce} />,
@@ -312,16 +312,16 @@ describe('Traffic accessibility and controls', () => {
     expect(screen.getByRole('heading', { name: 'Verkehr' })).toBeVisible()
     select(UI_TEXT.teamTraffic.metrics)
     expect(screen.getAllByText('50 %')).toHaveLength(3)
-    expect(screen.getAllByText(/Cost per merged change · Reported/)).toHaveLength(3)
-    expect(screen.getAllByText(/Cost per merged change · Estimated/)).toHaveLength(3)
+    expect(screen.getAllByText(/Cost per Merged Change · Reported/)).toHaveLength(3)
+    expect(screen.getAllByText(/Cost per Merged Change · Estimated/)).toHaveLength(3)
     expect(
       screen.getAllByText(
-        'Predicted conflicts per writing task: 0,5 · Merge conflicts per landing: 0',
+        'Predicted Conflicts per Writing Task: 0,5 · Merge Conflicts per Landing: 0',
       ),
     ).toHaveLength(3)
     expect(
       screen.getAllByText(
-        'Review rounds after the first: 0,25 · Reassignments: 0,25 · Candidates sent back: 0,25',
+        'Review Rounds After the First: 0,25 · Reassignments: 0,25 · Candidates Sent Back: 0,25',
       ),
     ).toHaveLength(3)
   })

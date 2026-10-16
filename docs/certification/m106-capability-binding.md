@@ -961,3 +961,180 @@ replays use the repository timeout and three workers.
 Aggregate quality remains lead-owned under
 the explicit rig/common brief; no gate, cap, baseline or repository timeout
 was weakened. No paid/live call, credential read, merge, push or rebase.
+
+## R11 — ACP preview promotion expectation (RVCM1062J, kubuntu, 2026-10-11)
+
+### Protocol decision
+
+Promoted previews should carry locations because PLAN M106/D86.5 requires a pending display-only preview to become the same real tool call once complete arguments arrive, and M106's R10 repair explicitly preserves its edit metadata.
+Commit `384fcfe10` (2026-10-06) introduced preview-first announcements with empty locations and then updated only the title and raw input on promotion, effectively losing metadata previously computed from complete arguments at the initial announcement; `ccee4c179` (2026-10-11) restores that missing promotion update.
+The installed ACP SDK 1.7.0's `schema/schema.json` defines absolute tool locations for clients' file-following behavior and locations updates as collection replacements, while `src/runtime/exec/execClient.ts` consumes those replacements to report completed edits, so promotion must send only workspace-confined resolved paths (an empty collection for a pathless or escaping call).
+
+### Repair and sibling sweep
+
+The untouched whole `toolArgumentPreview.test.tsx` reproduced the review:
+**21 passed, 1 failed**, with the extra `/ws/a.ts` location in the exact
+promotion assertion. Keep the correct production translator unchanged and
+assert the complete promotion shape, resolving the test workspace and expected
+path through the native path module rather than assuming a particular drive.
+
+Added twelve cases covering pathless tools at both start and completion,
+direct-to-completion promotion with a normalized relative path and diff,
+Windows relative paths on C, D and Z by resolved identity, and escaping paths
+(parent traversal, normalized mentions, sibling directories and another drive).
+Every outside-path case requires empty client locations; completed outside
+writes also require no diff. The original exact payload assertion is retained.
+The first new-suite run found a fixture label typo (`Bash` for the `shell`
+tool); correcting it to the shipped `Shell` label changes no production behavior.
+
+Sibling sweep: the translator's initial tool announcement, promotion,
+permission mapper and completed diff all use the existing
+`resolveWorkspacePath` confinement. The owning ACP translation suite already
+covers ordinary normalized targets and outside-path refusals; this change
+extends that coverage to preview promotion. No production source, wire schema,
+feature, command, setting, dependency, guard or budget changes.
+
+### Deliberate red drills
+
+Each drill runs the complete 34-case owning file with repository deadlines and
+three workers; every mutated translator is restored byte-exact in `finally`.
+
+| Broken guard                                        | Named regression failure                                                                                                                          | Result                |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| Remove promotion's locations update                 | `sends the same labeled preview through ACP, pending until the real call begins`, plus all twelve added cases                                     | 13 failed / 21 passed |
+| Turn a refused workspace resolution into a location | `keeps an outside path out of promoted client locations and diffs` (3 cases), `refuses promoted locations escaping a Windows workspace` (3 cases) | 6 failed / 28 passed  |
+| Turn a pathless call into a workspace location      | `promotes a pathless tool without a client location` (start and completion)                                                                       | 2 failed / 32 passed  |
+
+Before and after **each** drill, translator SHA-256 is
+`f7bff799ab5fa850dae2fee5902295316e603d899cadf88ee0d1f86e8a95db78`.
+The restored source also matches HEAD byte-for-byte. No guard removal ships.
+
+### Verification
+
+The restored whole owning file passes **34/34**, with zero failures or skips.
+The exact `vitest related --run src/acp/translate.ts --maxWorkers=3` selector,
+parsed by Vitest's public `parseCLI`/`createVitest` API, selects 22 suites.
+All 22 complete files ran through `runTestSpecifications` in eight serial
+batches of at most three: **650 passed, zero failed, zero skipped**, and zero
+unhandled errors. Repository configuration, isolation, setup and deadlines
+remain unchanged; the driver awaits `close()` and its fixture teardown.
+The related replay includes the 34-case owning file again and the 44-case
+`acpTranslate` suite, plus ACP, runtime/headless, media and usage consumers.
+All selected files are under `test/unit/`; the complete per-file receipt is:
+
+| Suite                             | Passed |
+| --------------------------------- | ------ |
+| `acpAccounts.test.ts`             | 28     |
+| `acpAgent.test.ts`                | 142    |
+| `acpEstimate.test.ts`             | 6      |
+| `acpMedia.test.ts`                | 11     |
+| `acpModelApi.test.ts`             | 12     |
+| `acpQuestionDeferral.test.ts`     | 80     |
+| `acpReportObserver.test.ts`       | 3      |
+| `acpReports.test.ts`              | 6      |
+| `acpResources.test.ts`            | 8      |
+| `acpSharing.test.ts`              | 27     |
+| `acpTranslate.test.ts`            | 44     |
+| `acpUsage.test.ts`                | 7      |
+| `acpVault.test.ts`                | 20     |
+| `execProvider.test.ts`            | 17     |
+| `execResources.test.ts`           | 6      |
+| `execRun.test.ts`                 | 94     |
+| `execVault.test.ts`               | 25     |
+| `m106Wiring.test.ts`              | 14     |
+| `modelApiArgumentPreview.test.ts` | 51     |
+| `toolArgumentPreview.test.tsx`    | 34     |
+| `toolIoMedia.test.ts`             | 9      |
+| `usageRecordingAux.test.ts`       | 6      |
+
+All **five** typechecks pass: host, webview, unit, e2e and integration.
+Changed-file ESLint (`--max-warnings=0`) and Prettier pass. Knip passes
+with its two existing configuration hints (`vendor/**`, `axe-core`);
+jscpd reports zero clones. Localization checks 14 UI and 14 usage tables
+with zero problems; reference is current (77 features), host API reports
+zero problems, PLAN has 207 milestones with zero drift, and ROADMAP is
+current (207 entries). No reference or roadmap facts changed.
+The production build passes all token, size, split, host-global and notice
+gates: extension **563,348 bytes**, Model API **529,946 bytes**, headless
+**102,344 bytes** against its unchanged 102,400-byte cap.
+The review reproduced the base/head five-second timeout at
+`test/unit/usageIntegration.test.ts:212`,
+`settles two vendor host turns and one MSP subscription turn into exactly three calls, shared totals and an authenticated page`.
+The brief assigns it to the de-flake lane; it is outside this related selection
+and is not rerun, changed or investigated here.
+Aggregate quality remains lead-owned under the explicit rig/shared brief.
+
+No RVCM1062J finding remains open. No install, new dependency, paid/live call,
+credential read, gate change, merge, push or rebase was performed.
+
+## Publication after 0.17.1's truth pass (release train merge, 2026-10-11)
+
+This lane forks from 0.17.0. The 0.17.1 truth pass (`c/x-1`) had since taken
+argument previews out of every published surface because production bound no
+capability. The merge into the release train (`af67368a22` + `83f8da887`)
+puts back what this lane's code renders, and only that.
+
+Published again:
+
+- Help: the feature row "Argument Preview" on `vscode:modelApi` and
+  `acp:modelApi`, with this lane's summary sentence
+  (`REFERENCE_IN_PROGRESS_FEATURES`, the capability pair in
+  `referenceSource.ts`; reference regenerated).
+- README: the section "Streamed argument previews" without the sentence
+  about a missing binding, with one added paragraph naming the single model
+  whose record verifies streamed arguments today
+  (`muse-spark-1.3-contributor`); the progress-list anchor is gone; the
+  sentence in "Agent loop guarantees" is back. "M106 wire captures" stays;
+  the M101 validation heading the truth pass removed does not come back.
+- Roadmap, M106: previews join the working parts; the milestone stays in
+  progress for Muse Code's native effort and feedback readers.
+- CHANGELOG: a new Added entry under the next release. The 0.16.0 entries
+  stay archived with their correction.
+
+Still held: the packaged README's bullet (WB-146, release preparation).
+Headless `exec` shows completed tools only, as the README says.
+
+Where this lane met the train's code:
+
+- `ModelApiHost.ts` `outputCap`: the request's resolved record (this lane)
+  with MINOUT's rules: a non-integer cap is invalid, and every other cap,
+  zero and negative included, goes to `outputLimitFor`, whose minimum
+  sentence refuses it. The base's `requested < 1` check, which this lane
+  still carried, is gone as MINOUT removed it. The memo is keyed by the
+  record; both production resolvers build a record for every resolve, so
+  the cap is recomputed for every request. The compaction summary floor
+  reads the same record.
+- `responseAttemptGuard` takes the record; M101-1's compaction wrapper keeps
+  its order (revision fence, admission, extra admission; prepare awaits the
+  settlement first).
+- `client.ts`: MINOUT's minimum refusal, then the confirmed-dispatch helper;
+  `transport.ts`: the admission check directly before
+  `noteConfirmedRequestStarted`; `configured.ts`: the helper is the only
+  confirmed decision and the catch rethrows codec, range and
+  stale-confirmation errors in that order.
+- `execFetch.ts`: the run's resolved cap bounds the body from above and the
+  minimum keeps MINOUT's sentence.
+- `en.ts`: the train's "Argument Preview" with the new description key.
+- `confirmedDispatchInventory.test.ts`: three allow-list entries for the
+  train's lines that the inventory flags and that decide no confirmation
+  (the two output-minimum refusals, the rethrow after a rate-limit notice).
+- `modelApiLoopGuarantees.test.ts`: the cap callback's record also carries
+  MINOUT's minimum, and MINOUT's "last called with" takes the record.
+
+Model API bundle: 532,537 B on the merged tree against the 530,883 B pin
+(train alone 530,683 B; this lane's own base 529,946 B). The pin is
+re-measured to 532,537 B by the lead's decision of 2026-10-11 15:45 PT
+(PLAN.md, D6); the 525 KiB cap is unchanged and the pin ratchets down when
+`fix/modelapi-diet` merges. Headless 100,078 B of 102,400 B; extension
+563,929 B; the argument preview chunk 928 B of 25 KiB.
+
+Red drills on the merged tree (macbook, restored byte for byte, blobs
+`12edec90` and `1d1bec6a`), one run, 4 failed and 129 passed:
+
+- `'argument-preview'` back in `REFERENCE_IN_PROGRESS_FEATURES`: `cx1r2Truth`
+  "the production entry binds the preview capability to the captured model
+  only" and `featureCatalogDetails` "certifies argument previews on both the
+  panel and ACP surfaces" fail.
+- `|| requested < 1` back in `outputCap`: `modelApiLoopGuarantees` "refuses
+  invalid model output records before dispatch" and "refuses stored Meta
+  output caps below sixteen before dispatch" fail.

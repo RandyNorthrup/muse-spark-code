@@ -78,6 +78,11 @@
     "many": "{count} di righe incomplete ignorate",
     "other": "{count} righe incomplete ignorate"
   },
+  "inexactRecords": {
+    "one": "{count} record precedente non conteggiato: il suo importo non è leggibile con esattezza",
+    "many": "{count} di record precedenti non conteggiati: i loro importi non sono leggibili con esattezza",
+    "other": "{count} record precedenti non conteggiati: i loro importi non sono leggibili con esattezza"
+  },
   "recordCount": {
     "one": "{count} record",
     "many": "{count} di record",

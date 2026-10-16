@@ -1,6 +1,7 @@
 // M91 lane P public API. Round 3 (contract-first): each vendor's hook contract
 // is a declarative table under hookFormats/contracts/, and hookFormats/engine.ts
 // is its only interpreter. Dispatcher wiring is lane W.
+import * as z from 'zod/mini'
 import {
   type HOOK_FORMATS,
   HOOK_MAX_TIMEOUT_SECONDS,
@@ -13,7 +14,7 @@ import {
 } from './hookFormats/contract'
 import { CLINE_CONTRACT } from './hookFormats/contracts/cline'
 import { COPILOT_CONTRACT } from './hookFormats/contracts/copilot'
-import { CURSOR_CONTRACT } from './hookFormats/contracts/cursor'
+import { CURSOR_CONTRACT as CURSOR_AGENT_CONTRACT } from './hookFormats/contracts/cursor'
 import { GEMINI_CONTRACT } from './hookFormats/contracts/gemini'
 import { KIRO_CONTRACT } from './hookFormats/contracts/kiro'
 import { WINDSURF_CONTRACT } from './hookFormats/contracts/windsurf'
@@ -32,6 +33,101 @@ export { confineHookCwd } from './hookFormats/transforms'
 // name the formats without loading the adapters.
 export { HOOK_FORMATS } from '../../../shared/constants'
 export type HookFormat = (typeof HOOK_FORMATS)[number]
+
+// M94 K: the saved Cursor Tab examples (CH:1192–1236), separate from
+// Agent/Cmd+K hooks. Read failures ALWAYS close here, including a script
+// whose source configuration has failClosed false (D73).
+const CURSOR_CONTRACT: VendorContract = {
+  ...CURSOR_AGENT_CONTRACT,
+  rows: [
+    ...CURSOR_AGENT_CONTRACT.rows,
+    {
+      muse: 'beforeTabFileRead',
+      vendor: 'beforeTabFileRead',
+      selection: 'default',
+      fields: [
+        { to: 'generation_id', transform: 'text' },
+        { to: 'file_path', transform: 'absolutePath', required: true },
+        { to: 'content', transform: 'text', required: true },
+      ],
+      result: {
+        blockCodes: [2],
+        failClosed: true,
+        otherExit: 'block',
+        stdout: 'json',
+        emptyIsInvalid: true,
+        invalid: 'block',
+        schema: z.strictObject({ permission: z.enum(['allow', 'deny']) }),
+        rules: [
+          {
+            kind: 'veto',
+            match: { permission: 'deny' },
+            reason: [],
+            fallback: 'cursor hook denied the operation',
+          },
+        ],
+        label: 'cursor hook',
+      },
+      cite: {
+        input: 'cursor_com_docs_hooks_md.out:1192-1195',
+        output: 'cursor_com_docs_hooks_md.out:1198-1200',
+      },
+    },
+    {
+      muse: 'afterTabFileEdit',
+      vendor: 'afterTabFileEdit',
+      selection: 'default',
+      fields: [
+        { to: 'generation_id', transform: 'text' },
+        { to: 'file_path', transform: 'absolutePath', required: true },
+        { to: 'edits', required: true },
+      ],
+      result: {
+        blockCodes: [],
+        otherExit: 'fail',
+        stdout: 'ignore',
+        invalid: 'ignore',
+        rules: [],
+        label: 'cursor hook',
+      },
+      cite: {
+        input: 'cursor_com_docs_hooks_md.out:1215-1231',
+        output: 'cursor_com_docs_hooks_md.out:1234-1236',
+      },
+    },
+  ],
+}
+
+const cursorTabEditsSchema = z
+  .array(
+    z.object({
+      old_string: z.string(),
+      new_string: z.string(),
+      old_line: z.string(),
+      new_line: z.string(),
+      range: z.strictObject({
+        start_line_number: z.number().check(z.int(), z.minimum(1)),
+        start_column: z.number().check(z.int(), z.minimum(1)),
+        end_line_number: z.number().check(z.int(), z.minimum(1)),
+        end_column: z.number().check(z.int(), z.minimum(1)),
+      }),
+    }),
+  )
+  .check(z.minLength(1))
+
+function cursorTabStdin(
+  event: AdapterEvent,
+  payload: Readonly<Record<string, unknown>>,
+  options: AdapterOptions | undefined,
+): ForeignStdinResult {
+  if (event !== 'afterTabFileEdit') return buildStdin(CURSOR_CONTRACT, event, payload, options)
+  // object strips the extension-only inferred flag; Cursor receives only
+  // the fields in its recorded example, never invented acceptance metadata.
+  const edits = cursorTabEditsSchema.safeParse(payload['edits'])
+  return edits.success
+    ? buildStdin(CURSOR_CONTRACT, event, { ...payload, edits: edits.data }, options)
+    : { outcome: 'refused', reason: 'cursor afterTabFileEdit: invalid edits' }
+}
 
 /** Every vendor table, for the property suite and lane W's admission checks. */
 export const HOOK_FORMAT_CONTRACTS: Readonly<Record<HookFormat, VendorContract>> = {
@@ -53,7 +149,9 @@ export function buildForeignStdin(
   payload: Readonly<Record<string, unknown>>,
   options?: AdapterOptions,
 ): ForeignStdinResult {
-  return buildStdin(HOOK_FORMAT_CONTRACTS[format], event, payload, options)
+  return format === 'cursor'
+    ? cursorTabStdin(event, payload, options)
+    : buildStdin(HOOK_FORMAT_CONTRACTS[format], event, payload, options)
 }
 
 /** The hook's exit code and output as a HookAnswer (never an allow grant). */
@@ -88,7 +186,7 @@ export function buildCursorStdin(
   payload: Readonly<Record<string, unknown>>,
   options?: CursorAdapterOptions,
 ): ForeignStdinResult {
-  return buildStdin(CURSOR_CONTRACT, event, payload, options)
+  return cursorTabStdin(event, payload, options)
 }
 
 export function parseCursorResult(

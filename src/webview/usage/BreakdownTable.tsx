@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import type { UsageTotals } from '../../shared/usagePage'
-import { billedCost, count, costText, duration, type BreakdownRow, type PostUsage } from './display'
+import { Usd } from '../../shared/usd'
+import { count, costText, duration, billedCost, type BreakdownRow, type PostUsage } from './display'
 
 type SortKey = 'name' | 'cost' | 'input' | 'output' | 'requests' | 'time'
 function sortValue(row: BreakdownRow, key: SortKey): string | number | undefined {
@@ -65,10 +66,11 @@ export function BreakdownTable({
     // Unknown remains unknown and sorts last in both directions.
     if (left === undefined) return right === undefined ? a.id.localeCompare(b.id) : 1
     if (right === undefined) return -1
-    const comparison =
-      typeof left === 'string' && typeof right === 'string'
-        ? left.localeCompare(right)
-        : Number(left) - Number(right)
+    let comparison: number
+    if (sort === 'cost') comparison = Usd.from(left).compare(Usd.from(right))
+    else if (typeof left === 'string' && typeof right === 'string')
+      comparison = left.localeCompare(right)
+    else comparison = Number(left) - Number(right)
     return (ascending ? comparison : -comparison) || a.id.localeCompare(b.id)
   })
   function heading(key: SortKey, label: string) {

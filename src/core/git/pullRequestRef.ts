@@ -1,9 +1,15 @@
-// "Open a pull request in a conversation…" (M71): what the user typed, `51`
+// "Open a Pull Request in a Conversation…" (M71): what the user typed, `51`
 // or `#51`, or a pull request's page on github.com, which names its
 // repository too. The host then picks the remote that repository is
 // fetched from. Pure.
 
+import {
+  PULL_REQUEST_BODY_MAX_CHARS,
+  PULL_REQUEST_TITLE_MAX_CHARS,
+  UI_TEXT,
+} from '../../shared/constants'
 import type { GitHubRepository } from './githubRemote'
+import { isPlainRefName } from './pushPlan'
 
 export type PullRequestRef =
   | {
@@ -76,4 +82,19 @@ export function remoteForPullRequest(
   }
   const [only] = remotes
   return remotes.length === 1 ? only : undefined
+}
+
+/** What stops a pull request's form before anything is asked (every host), or undefined. */
+export function pullRequestFormProblem(
+  title: string,
+  body: string,
+  base: string,
+): string | undefined {
+  if (title === '') {
+    return UI_TEXT.gitTitleEmpty
+  }
+  if (title.length > PULL_REQUEST_TITLE_MAX_CHARS || body.length > PULL_REQUEST_BODY_MAX_CHARS) {
+    return UI_TEXT.gitTextTooLong
+  }
+  return isPlainRefName(base) ? undefined : UI_TEXT.gitBaseInvalid
 }
