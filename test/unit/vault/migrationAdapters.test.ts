@@ -68,7 +68,7 @@ describe('installed credential-store migration adapters', () => {
     await migration.store(f.credential.key, rotated)
     expect(password).toBe(rotated.toString())
     expect(openEntry).toHaveBeenCalledWith(KEYRING_SERVICE, f.credential.key)
-    await migration.delete(f.credential.key)
+    await migration.delete(f.credential.key, { destroyLastCopyConfirmed: true })
     expect(password).toBeUndefined()
   })
   it('refuses invalid Meta shapes without copying or removing the old entry', async () => {
