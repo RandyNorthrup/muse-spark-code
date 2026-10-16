@@ -10,6 +10,7 @@ import {
   SECONDS_PER_HOUR,
   USAGE_JOURNAL_VERSION,
 } from '../../shared/constants'
+import { USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
 import {
   usageRecordSchema,
   usageTokensSchema,
@@ -20,8 +21,8 @@ import {
 import type { Usage } from '../backends/modelapi/schemas'
 import {
   isValidUsage,
-  settleUsageUsd,
-  ticksToUsdPerToken,
+  settleUsageAmount,
+  ticksAmount,
   type ModelPricing,
   type PriceCard,
   type PricedUsage,
@@ -101,9 +102,9 @@ function pricedUsage(tokens: UsageTokens, canPricePartial = false): PricedUsage 
   }
 }
 
-function cardCost(card: PriceCard, tokens: UsageTokens): number | undefined {
+function cardCost(card: PriceCard, tokens: UsageTokens): UsdAmount | undefined {
   const billable = pricedUsage(tokens, true)
-  return billable === undefined ? undefined : settleUsageUsd(card, billable)
+  return billable === undefined ? undefined : settleUsageAmount(card, billable)
 }
 
 function hasMetaPrice(context: UsageRecordContext): boolean {
@@ -114,32 +115,43 @@ function hasMetaPrice(context: UsageRecordContext): boolean {
   return models.includes(context.model)
 }
 
-function metaCost(context: UsageRecordContext, tokens: UsageTokens): number | undefined {
+function metaCost(context: UsageRecordContext, tokens: UsageTokens): UsdAmount | undefined {
   const billable = pricedUsage(tokens, true)
   return billable !== undefined && hasMetaPrice(context)
-    ? Number(
-        estimateCostUsd({ ...billable, cachedTokens: billable.cachedTokens ?? 0 }, context.model),
-      )
+    ? estimateCostUsd({ ...billable, cachedTokens: billable.cachedTokens ?? 0 }, context.model)
     : undefined
 }
 
-function paidCost(context: UsageRecordContext): number | undefined {
+function paidCost(context: UsageRecordContext): UsdAmount | undefined {
   const units = context.units
   if (context.kind === 'search' && units?.searches !== undefined) {
-    return (units.searches / SEARCHES_PER_PRICE_UNIT) * Number(PAID_PRICES_USD.webSearchPerThousand)
+    return Usd.from(PAID_PRICES_USD.webSearchPerThousand)
+      .times(units.searches)
+      .divide(SEARCHES_PER_PRICE_UNIT)
+      .toAmount()
   }
   if (context.kind === 'image' && units?.images !== undefined) {
-    return units.images * Number(PAID_PRICES_USD.imageGeneration)
+    return Usd.from(PAID_PRICES_USD.imageGeneration).times(units.images).toAmount()
   }
-  return context.kind === 'voice' && units?.audioSeconds !== undefined
-    ? (units.audioSeconds / SECONDS_PER_HOUR) * Number(PAID_PRICES_USD.voicePerHour)
-    : undefined
+  if (context.kind !== 'voice' || units?.audioSeconds === undefined) return
+  // Seconds may be fractional: the exact product of price and seconds, in
+  // big-integer units; a non-terminating hour share rounds up to the
+  // nano-dollar, a liability never under-recorded (M121).
+  const seconds = Usd.from(units.audioSeconds)
+  const places = seconds.toString().split('.', 2)[1]?.length ?? 0
+  return Usd.fromUnits(
+    Usd.from(PAID_PRICES_USD.voicePerHour).units(USD_LIABILITY_DECIMALS) * seconds.units(places),
+    USD_LIABILITY_DECIMALS + places,
+  )
+    .divideIntegerCeiling(SECONDS_PER_HOUR)
+    .ceiling(USD_LIABILITY_DECIMALS)
+    .toAmount()
 }
 
 function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost {
   const pricing = context.pricing
   if (pricing?.kind === 'local') {
-    return { certainty: 'local', usd: 0 }
+    return { certainty: 'local', usd: Usd.from(0).toAmount() }
   }
   const isPlan = context.backend === 'museCode' || pricing?.kind === 'plan'
   if (isPlan) {
@@ -148,20 +160,17 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
     return { certainty: 'plan', ...(usd !== undefined && { apiEquivalentUsd: usd }) }
   }
   if (context.uncertain === true || context.kind === 'voice') {
-    const usd =
-      (context.retainedLiabilityUsd === undefined
-        ? undefined
-        : Number(context.retainedLiabilityUsd)) ?? paidCost(context)
+    const usd = context.retainedLiabilityUsd ?? paidCost(context)
     if (usd !== undefined || context.kind === 'voice')
       return { certainty: 'uncertain', ...(usd !== undefined && { usd }) }
   }
   const reported = context.providerCostUsd
   let usd =
     reported !== undefined && Usd.from(reported).compare(Usd.from(0)) >= 0
-      ? Number(reported)
+      ? Usd.from(reported).toAmount()
       : undefined
   if (usd === undefined && context.costInUsdTicks !== undefined) {
-    usd = ticksToUsdPerToken(context.costInUsdTicks)
+    usd = ticksAmount(context.costInUsdTicks)
   }
   if (usd !== undefined) {
     return { certainty: context.uncertain === true ? 'uncertain' : 'reported', usd }

@@ -2,6 +2,7 @@
 // range for a sample task, from the fake prices, with no model call.
 
 import { describe, expect, it } from 'vitest'
+import { Usd } from '../../src/shared/usd'
 import {
   dryRunCostLabel,
   previewCostLabel,
@@ -135,12 +136,11 @@ describe('previewDraft', () => {
     // Engineering: 400,000 tokens (280,000 in, 120,000 out);
     // review: 120,000 tokens (84,000 in, 36,000 out).
     // Low prices input at the cached rate, high at the full rate.
-    const low = (280_000 * 0.3 + 120_000 * 15 + 84_000 * 1 + 36_000 * 20) / 1_000_000
-    const high = (280_000 * 3 + 120_000 * 15 + 84_000 * 5 + 36_000 * 20) / 1_000_000
-    expect(preview.usdLow).toBeCloseTo(low, 10)
-    expect(preview.usdHigh).toBeCloseTo(high, 10)
-    expect(low).toBeCloseTo(2.688, 10)
-    expect(high).toBeCloseTo(3.78, 10)
+    // (280,000 × 0.3 + 120,000 × 15 + 84,000 × 1 + 36,000 × 20) / 1,000,000
+    // and (280,000 × 3 + 120,000 × 15 + 84,000 × 5 + 36,000 × 20) / 1,000,000,
+    // exactly (M121: no binary dollars).
+    expect(preview.usdLow).toBe('2.688')
+    expect(preview.usdHigh).toBe('3.78')
     const label = previewCostLabel(preview)
     expect(label).toContain('520,000')
   })
@@ -152,7 +152,7 @@ describe('previewDraft', () => {
       prices: PRICES,
       select: firstWithHeadroom({}),
     })
-    expect(preview.usdLow).toBeLessThan(preview.usdHigh ?? 0)
+    expect(Number(preview.usdLow)).toBeLessThan(Number(preview.usdHigh ?? 0))
   })
 
   it('shows the switch the caps force', () => {
@@ -277,7 +277,7 @@ describe('previewDraft', () => {
       prices: PRICES.map((price) => ({ ...price, billable: price.modelRef === 'muse-spark-1.3' })),
       select: () => 0,
     })
-    expect(mixed.usdHigh).toBeCloseTo((280_000 * 3 + 120_000 * 15) / 1_000_000, 10)
+    expect(mixed.usdHigh).toBe('2.64')
   })
 
   it('uses the known full input rate when a cached rate is absent', () => {
@@ -292,6 +292,6 @@ describe('previewDraft', () => {
   })
 
   it('states the dry-run cost first', () => {
-    expect(dryRunCostLabel(0.42)).toContain('0.42')
+    expect(dryRunCostLabel(Usd.from('0.42').toAmount())).toContain('0.42')
   })
 })

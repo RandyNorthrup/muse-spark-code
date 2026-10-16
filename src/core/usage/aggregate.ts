@@ -1,11 +1,11 @@
 import { Usd, type UsdAmount } from '../../shared/usd'
+export { usdPeriodDelta as usagePeriodDelta } from '../../shared/usd'
 import type { ResourceKind, ResourceRecord } from '../../shared/resources'
 import {
   RESOURCE_HISTORY_MAX_EVENTS,
   RESOURCE_HISTORY_MAX_MINUTES,
   RESOURCE_HISTORY_RETENTION_MS,
   DAYS_PER_WEEK,
-  EXEC_USD_UNITS,
   HOURS_PER_DAY,
   MILLISECONDS_PER_DAY,
   MILLISECONDS_PER_SECOND,
@@ -172,24 +172,14 @@ function accumulator(): Accumulator {
     histogram: Array.from({ length: USAGE_HISTOGRAM_EDGES_MS.length + 1 }, () => 0),
   }
 }
-/** Same micro-dollar settlement precision as headless accounting (D65).
- * Accumulators keep integers; only completed page/export totals use USD.
- * Refuse an unsafe amount rather than silently losing monetary precision.
- */
-export function usdUnits(usd: number): number {
-  const units = Math.round(usd * EXEC_USD_UNITS)
-  if (!Number.isSafeInteger(units) || units < 0) throw new Error('unsafe usage amount')
-  return units
-}
-/** Consumers must also combine settled totals in fixed point, before formatting. */
-export function usageSumUsd(values: Iterable<number | undefined>): number | undefined {
-  let units: number | undefined
+/** Exact sum of settled amounts (M121): never rounded, absent when none is known. */
+export function usageSumUsd(values: Iterable<UsdAmount | undefined>): UsdAmount | undefined {
+  let sum: Usd | undefined
   for (const value of values) {
     if (value === undefined) continue
-    units = (units ?? 0) + usdUnits(value)
-    if (!Number.isSafeInteger(units)) throw new Error('unsafe usage sum')
+    sum = (sum ?? Usd.from(0)).add(Usd.from(value))
   }
-  return units === undefined ? undefined : units / EXEC_USD_UNITS
+  return sum?.toAmount()
 }
 function add(target: Accumulator, row: UsageAggregateRow): void {
   const { totals: value, histogram, measurements } = row
@@ -230,12 +220,13 @@ function add(target: Accumulator, row: UsageAggregateRow): void {
       total.costs.push(existing)
     }
     existing.records += cost.records
-    for (const key of ['usd', 'apiEquivalentUsd'] as const)
-      if (cost[key] !== undefined) {
-        // These accumulator fields are integer micro-dollars until finish.
-        existing[key] = (existing[key] ?? 0) + usdUnits(cost[key])
-        if (!Number.isSafeInteger(existing[key])) throw new Error('unsafe usage sum')
-      }
+    for (const key of ['usd', 'apiEquivalentUsd'] as const) {
+      const amount = cost[key]
+      if (amount !== undefined)
+        existing[key] = Usd.from(existing[key] ?? 0)
+          .add(Usd.from(amount))
+          .toAmount()
+    }
   }
   let index = 0
   for (const count of histogram) {
@@ -276,16 +267,7 @@ function finish(value: Accumulator): UsageTotals {
     )
     if (latency !== undefined) total[key] = latency
   }
-  return {
-    ...total,
-    costs: total.costs.map((cost) => ({
-      ...cost,
-      ...(cost.usd !== undefined && { usd: cost.usd / EXEC_USD_UNITS }),
-      ...(cost.apiEquivalentUsd !== undefined && {
-        apiEquivalentUsd: cost.apiEquivalentUsd / EXEC_USD_UNITS,
-      }),
-    })),
-  }
+  return { ...total, costs: total.costs.map((cost) => ({ ...cost })) }
 }
 function recordRow(record: UsageRecord): UsageAggregateRow {
   const histogram = Array.from({ length: USAGE_HISTOGRAM_EDGES_MS.length + 1 }, () => 0)
@@ -462,21 +444,13 @@ export function usageWindowStatus(
   else if (delta < -USAGE_PACE_BAND_POINTS) pace = 'under'
   return { freshness: 'fresh', pace }
 }
-export function usagePeriodDelta(
-  current: number | undefined,
-  previous: number | undefined,
-): number | undefined {
-  return current === undefined || previous === undefined || previous === 0
-    ? undefined
-    : ((current - previous) / previous) * 100
-}
 /** Budget readers supply their own admission total, including retained liability. */
 export function usageBurnProjection(
   spentUsd: UsdAmount,
   firstSpendAt: number | undefined,
   now: number,
   resetsAt: number,
-): number | undefined {
+): UsdAmount | undefined {
   if (
     firstSpendAt === undefined ||
     now - firstSpendAt < USAGE_BURN_MIN_MS ||
@@ -484,6 +458,10 @@ export function usageBurnProjection(
     Usd.from(spentUsd).compare(Usd.from(0)) <= 0
   )
     return
-  const displayed = Number(spentUsd)
-  return displayed + (displayed / (now - firstSpendAt)) * (resetsAt - now)
+  // spent + spent / elapsed × remaining, as one exact ratio over whole
+  // milliseconds; a forecast rounds up to the nano-dollar, never under.
+  return Usd.from(spentUsd)
+    .times(resetsAt - firstSpendAt)
+    .divideIntegerCeiling(now - firstSpendAt)
+    .toAmount()
 }

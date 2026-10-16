@@ -1,3 +1,4 @@
+import { Usd } from '../../../src/shared/usd'
 import { vi } from 'vitest'
 import { TaskBoard, type BoardSubmission } from '../../../src/core/team/scheduler/board'
 import { type PickContext, type SchedulerEntry } from '../../../src/core/team/scheduler/pick'
@@ -45,7 +46,7 @@ export function attempt(number = 1, kind: TeamAttempt['kind'] = 'engine'): TeamA
       outputTokens: 0,
       reasoningTokens: 0,
       modelCalls: 0,
-      costUsd: 0,
+      costUsd: Usd.from('0').toAmount(),
       accuracy: 'reported',
     },
   }

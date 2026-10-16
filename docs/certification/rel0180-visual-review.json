@@ -1,0 +1,1097 @@
+{
+  "lane": "REL0180",
+  "date": "2026-10-11",
+  "review": "REL0180-baseline-2026-10-11",
+  "revision": "f04ce5286b51d7b6440b832dacc617a10ee718ab",
+  "rendered": {
+    "snapshot": "6f165adc7639479ecb6edbbaa90b4536d9a10fac",
+    "tree": "760527da769ccbbf5f301b48ea3654c0cd577a44",
+    "note": "The render ran on the rig snapshot of the worktree at f04ce5286; both commits have this tree, so the manifest names the release commit.",
+    "started": "6:17 PM PT",
+    "ended": "7:14 PM PT",
+    "seconds": 3426,
+    "rig": "linuxlt"
+  },
+  "browser": "153.0.8010.52",
+  "platform": "linux",
+  "rasterization": "a8de1ddfb6e62687899116825ad89f19166af18efdb086980f1c0e365c739033",
+  "archive": "/var/tmp/l-REL0171C/visual-rel0180-f04ce52",
+  "captures": 9864,
+  "totalBytes": 446395537,
+  "manifestSha256": "48ed5f531fbfa7216a874f89ea3ec33aef86bcc40d36611dea09490ebe0f7157",
+  "previous": {
+    "review": "VISFIX-whats-new-fixture-2026-10-11",
+    "revision": "f6b05a1216dd1992d2d49631b68fa130d96c2387",
+    "archive": "/var/tmp/l-REL0171C/visual-visfix-f6b05a1",
+    "captures": 9792,
+    "sameBrowser": true,
+    "sameRasterization": true,
+    "note": "As committed with 0.17.2; the archive is the render of that revision."
+  },
+  "policy": {
+    "threshold": 0.1,
+    "includeAA": false,
+    "maxChangedPixelRatio": 0.0001,
+    "maxChangedPixels": 12
+  },
+  "comparison": {
+    "counts": {
+      "identical": 9200,
+      "within": 422,
+      "over": 170,
+      "new": 72,
+      "removed": 0
+    },
+    "withinMaxChangedPixels": 2,
+    "movedByScene": {
+      "accounts-swap": {
+        "over": {
+          "default/320": 6,
+          "hover/320": 6,
+          "focus-visible/320": 6,
+          "pressed/320": 6,
+          "disabled/320": 6,
+          "selected/320": 6,
+          "default/690": 6,
+          "hover/690": 6,
+          "focus-visible/690": 6,
+          "pressed/690": 6,
+          "disabled/690": 6,
+          "selected/690": 6
+        }
+      },
+      "models-table-filtered": {
+        "new": {
+          "default/320": 6,
+          "hover/320": 6,
+          "focus-visible/320": 6,
+          "pressed/320": 6,
+          "disabled/320": 6,
+          "selected/320": 6,
+          "default/690": 6,
+          "hover/690": 6,
+          "focus-visible/690": 6,
+          "pressed/690": 6,
+          "disabled/690": 6,
+          "selected/690": 6
+        }
+      },
+      "usage-stacked": {
+        "over": {
+          "default/320": 6,
+          "hover/320": 6,
+          "focus-visible/320": 6,
+          "pressed/320": 6,
+          "disabled/320": 6,
+          "selected/320": 6,
+          "default/690": 6,
+          "hover/690": 6,
+          "focus-visible/690": 6,
+          "pressed/690": 6,
+          "disabled/690": 6,
+          "selected/690": 6
+        }
+      },
+      "whats-new-footer": {
+        "over": {
+          "focus-visible/320": 6,
+          "pressed/320": 6,
+          "focus-visible/690": 6,
+          "pressed/690": 6,
+          "hover/320": 1,
+          "hover/690": 1
+        }
+      }
+    },
+    "recordChangedByScene": {
+      "models-providers": {
+        "frames": 72,
+        "reviewedTarget": "button.models-button",
+        "target": "button.models-button",
+        "componentsAdded": [
+          "src/webview/models/DeferredSections.tsx",
+          "src/webview/models/SectionNavigation.tsx"
+        ],
+        "componentsRemoved": []
+      },
+      "whats-new-footer": {
+        "frames": 24,
+        "reviewedTarget": "pre.",
+        "target": "a.",
+        "componentsAdded": [],
+        "componentsRemoved": []
+      }
+    }
+  },
+  "causes": {
+    "models-table-filtered": "New scene (MODELSPLIT4); its 72 frames are rendered here for the first time in this browser.",
+    "whats-new-footer": "VISFOOT: the scene takes its state target from the footer. Focus and pressed move in six themes at both widths; hover moves in one theme only, because a hovered footer link looks like an unhovered one in the other five.",
+    "accounts-swap": "5cc406a1d6 (RVCM108ACC repair, named stops): \"OpenAI has no account with room.\" became \"OpenAI · Personal has no room.\"",
+    "usage-stacked": "271cccaa80 (M121 exact money): cost values are plotted as whole nano-dollars and the chart still scales with Math.max(1, ...), so the largest bucket fills the plot where a bucket under $1 used to be drawn against $1. Labels unchanged.",
+    "models-providers": "Component record only (two more files); pixels identical or inside the allowance."
+  },
+  "inspected": [
+    "whats-new-footer at 320 px with keyboard focus, all six themes: the ring is on Full Changelog on GitHub and clear of README on GitHub",
+    "whats-new-footer at 320 px pressed, all six themes; at 690 px with focus, light and hc-dark",
+    "models-table-filtered at 320 px (light, dark, hc-light) and 690 px (light, hc-dark), default state",
+    "accounts-swap and usage-stacked, before beside after, light at 320 and 690 px"
+  ],
+  "readmeImages": [
+    {
+      "name": "agents.png",
+      "status": "within",
+      "changed": 7,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [63713, 63742]
+    },
+    {
+      "name": "approval.png",
+      "status": "over",
+      "changed": 40,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [55219, 55370]
+    },
+    {
+      "name": "deterministic-report.png",
+      "status": "identical"
+    },
+    {
+      "name": "help.png",
+      "status": "identical"
+    },
+    {
+      "name": "history.png",
+      "status": "over",
+      "changed": 14,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [69973, 70015]
+    },
+    {
+      "name": "languages.png",
+      "status": "identical"
+    },
+    {
+      "name": "modes.png",
+      "status": "identical"
+    },
+    {
+      "name": "open-question.png",
+      "status": "over",
+      "changed": 31,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [47307, 47664]
+    },
+    {
+      "name": "paid-always.png",
+      "status": "identical"
+    },
+    {
+      "name": "paid.png",
+      "status": "identical"
+    },
+    {
+      "name": "palette.png",
+      "status": "identical"
+    },
+    {
+      "name": "question.png",
+      "status": "over",
+      "changed": 49,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [49612, 49750]
+    },
+    {
+      "name": "quote.png",
+      "status": "identical"
+    },
+    {
+      "name": "resources.png",
+      "status": "over",
+      "changed": 1432,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [36849, 36323]
+    },
+    {
+      "name": "rewind.png",
+      "status": "identical"
+    },
+    {
+      "name": "slash-commands.png",
+      "status": "identical"
+    },
+    {
+      "name": "turn.png",
+      "status": "over",
+      "changed": 45,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [52666, 52976]
+    },
+    {
+      "name": "usage.png",
+      "status": "identical"
+    },
+    {
+      "name": "voice.png",
+      "status": "identical"
+    }
+  ],
+  "overFrames": [
+    {
+      "key": "panel/accounts-swap/default/light/320",
+      "changed": 946,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/light/320",
+      "changed": 946,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/light/320",
+      "changed": 946,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/light/320",
+      "changed": 946,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/light/320",
+      "changed": 946,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/light/320",
+      "changed": 946,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/light/320",
+      "changed": 16560,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/light/320",
+      "changed": 16560,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/light/320",
+      "changed": 16560,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/light/320",
+      "changed": 16560,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/light/320",
+      "changed": 16560,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/light/320",
+      "changed": 16560,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/light/320",
+      "changed": 1957,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/light/320",
+      "changed": 543,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/light/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/light/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/light/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/light/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/light/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/light/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/light/690",
+      "changed": 37320,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/light/690",
+      "changed": 37320,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/light/690",
+      "changed": 37320,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/light/690",
+      "changed": 37320,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/light/690",
+      "changed": 37320,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/light/690",
+      "changed": 37320,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/light/690",
+      "changed": 1490,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/light/690",
+      "changed": 1229,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/dark/320",
+      "changed": 960,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/dark/320",
+      "changed": 960,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/dark/320",
+      "changed": 960,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/dark/320",
+      "changed": 960,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/dark/320",
+      "changed": 960,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/dark/320",
+      "changed": 960,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/dark/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/dark/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/dark/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/dark/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/dark/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/dark/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/dark/320",
+      "changed": 1957,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/dark/320",
+      "changed": 561,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/dark/690",
+      "changed": 1434,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/dark/690",
+      "changed": 1434,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/dark/690",
+      "changed": 1434,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/dark/690",
+      "changed": 1434,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/dark/690",
+      "changed": 1434,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/dark/690",
+      "changed": 1434,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/dark/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/dark/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/dark/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/dark/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/dark/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/dark/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/dark/690",
+      "changed": 1490,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/dark/690",
+      "changed": 1294,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/hc-dark/320",
+      "changed": 1044,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/hc-dark/320",
+      "changed": 1044,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/hc-dark/320",
+      "changed": 1044,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/hc-dark/320",
+      "changed": 1044,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/hc-dark/320",
+      "changed": 1044,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/hc-dark/320",
+      "changed": 1044,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/hc-dark/320",
+      "changed": 21423,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/hc-dark/320",
+      "changed": 21423,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/hc-dark/320",
+      "changed": 21423,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/hc-dark/320",
+      "changed": 21423,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/hc-dark/320",
+      "changed": 21423,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/hc-dark/320",
+      "changed": 21423,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/hc-dark/320",
+      "changed": 1958,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/hc-dark/320",
+      "changed": 598,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/hc-dark/690",
+      "changed": 1552,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/hc-dark/690",
+      "changed": 1552,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/hc-dark/690",
+      "changed": 1552,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/hc-dark/690",
+      "changed": 1552,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/hc-dark/690",
+      "changed": 1552,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/hc-dark/690",
+      "changed": 1552,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/hc-dark/690",
+      "changed": 48610,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/hc-dark/690",
+      "changed": 48610,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/hc-dark/690",
+      "changed": 48610,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/hc-dark/690",
+      "changed": 48610,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/hc-dark/690",
+      "changed": 48610,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/hc-dark/690",
+      "changed": 48610,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/hc-dark/690",
+      "changed": 1492,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/hc-dark/690",
+      "changed": 1368,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/hc-light/320",
+      "changed": 969,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/hc-light/320",
+      "changed": 969,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/hc-light/320",
+      "changed": 969,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/hc-light/320",
+      "changed": 969,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/hc-light/320",
+      "changed": 969,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/hc-light/320",
+      "changed": 969,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/hc-light/320",
+      "changed": 16562,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/hc-light/320",
+      "changed": 16562,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/hc-light/320",
+      "changed": 16562,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/hc-light/320",
+      "changed": 16562,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/hc-light/320",
+      "changed": 16562,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/hc-light/320",
+      "changed": 16562,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/hc-light/320",
+      "changed": 1957,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/hc-light/320",
+      "changed": 517,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/hc-light/690",
+      "changed": 1446,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/hc-light/690",
+      "changed": 1446,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/hc-light/690",
+      "changed": 1446,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/hc-light/690",
+      "changed": 1446,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/hc-light/690",
+      "changed": 1446,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/hc-light/690",
+      "changed": 1446,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/hc-light/690",
+      "changed": 37200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/hc-light/690",
+      "changed": 37200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/hc-light/690",
+      "changed": 37200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/hc-light/690",
+      "changed": 37200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/hc-light/690",
+      "changed": 37200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/hc-light/690",
+      "changed": 37200,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/hc-light/690",
+      "changed": 1492,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/hc-light/690",
+      "changed": 1151,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/one-dark-pro/320",
+      "changed": 944,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/one-dark-pro/320",
+      "changed": 944,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/one-dark-pro/320",
+      "changed": 944,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/one-dark-pro/320",
+      "changed": 944,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/one-dark-pro/320",
+      "changed": 944,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/one-dark-pro/320",
+      "changed": 944,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/one-dark-pro/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/one-dark-pro/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/one-dark-pro/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/one-dark-pro/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/one-dark-pro/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/one-dark-pro/320",
+      "changed": 16548,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/one-dark-pro/320",
+      "changed": 292,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/one-dark-pro/320",
+      "changed": 1957,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/one-dark-pro/320",
+      "changed": 713,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/one-dark-pro/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/one-dark-pro/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/one-dark-pro/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/one-dark-pro/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/one-dark-pro/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/one-dark-pro/690",
+      "changed": 1416,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/one-dark-pro/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/one-dark-pro/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/one-dark-pro/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/one-dark-pro/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/one-dark-pro/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/one-dark-pro/690",
+      "changed": 37324,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/one-dark-pro/690",
+      "changed": 663,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/one-dark-pro/690",
+      "changed": 1500,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/one-dark-pro/690",
+      "changed": 1573,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/dracula/320",
+      "changed": 1016,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/dracula/320",
+      "changed": 1016,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/dracula/320",
+      "changed": 1016,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/dracula/320",
+      "changed": 1016,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/dracula/320",
+      "changed": 1016,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/dracula/320",
+      "changed": 1016,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/dracula/320",
+      "changed": 22636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/dracula/320",
+      "changed": 22636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/dracula/320",
+      "changed": 22636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/dracula/320",
+      "changed": 22636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/dracula/320",
+      "changed": 22636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/dracula/320",
+      "changed": 22636,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/dracula/320",
+      "changed": 1958,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/dracula/320",
+      "changed": 791,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/default/dracula/690",
+      "changed": 1513,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/hover/dracula/690",
+      "changed": 1513,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/focus-visible/dracula/690",
+      "changed": 1513,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/pressed/dracula/690",
+      "changed": 1513,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/disabled/dracula/690",
+      "changed": 1513,
+      "allowed": 12
+    },
+    {
+      "key": "panel/accounts-swap/selected/dracula/690",
+      "changed": 1513,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/default/dracula/690",
+      "changed": 51418,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/hover/dracula/690",
+      "changed": 51418,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/focus-visible/dracula/690",
+      "changed": 51418,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/pressed/dracula/690",
+      "changed": 51418,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/disabled/dracula/690",
+      "changed": 51418,
+      "allowed": 12
+    },
+    {
+      "key": "panel/usage-stacked/selected/dracula/690",
+      "changed": 51418,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/dracula/690",
+      "changed": 1502,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/dracula/690",
+      "changed": 1822,
+      "allowed": 12
+    }
+  ]
+}

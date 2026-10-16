@@ -94,6 +94,12 @@
     "many": "Přeskočeno {count} neúplných řádků",
     "other": "Přeskočeno {count} neúplných řádků"
   },
+  "inexactRecords": {
+    "one": "{count} starší záznam se nezapočítal: jeho částku nelze přesně přečíst",
+    "few": "{count} starší záznamy se nezapočítaly: jejich částky nelze přesně přečíst",
+    "many": "{count} staršího záznamu se nezapočítalo: jejich částky nelze přesně přečíst",
+    "other": "{count} starších záznamů se nezapočítalo: jejich částky nelze přesně přečíst"
+  },
   "recordCount": {
     "one": "{count} záznam",
     "few": "{count} záznamy",

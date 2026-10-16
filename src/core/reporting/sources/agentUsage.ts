@@ -232,7 +232,10 @@ export function agentUsageSource(
     const failures: LocalFailure[] = []
     let observedAt: string | undefined
     const orderedFiles = selectedFiles.toSorted((a, b) =>
-      codeUnitCompare(`${a.agent}/${a.file}`, `${b.agent}/${b.file}`),
+      codeUnitCompare(
+        `${a.agent}/${a.file.replaceAll('\\', '/')}`,
+        `${b.agent}/${b.file.replaceAll('\\', '/')}`,
+      ),
     )
     for (const file of orderedFiles) {
       if (!enabled.includes(file.agent)) continue

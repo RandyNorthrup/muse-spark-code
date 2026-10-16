@@ -94,6 +94,7 @@ import {
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import type { ProvidersDeps } from './providersCommands'
 import { takeCredentials } from './credentialVariables'
+import { keepGitCredentialRoutes } from './gitUserEnvironment'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
 import type { Logger } from '../host/logger'
@@ -101,7 +102,7 @@ import { type LogLevel, stderrLogger } from './stderrLog'
 import { webReadable } from './webStreams'
 import { createLifecycle } from './exec/execLimits'
 import { createFdWriter } from './exec/fdWriter'
-import { createExecLogger, redactWhole } from './exec/execOutput'
+import { crashTextForLog, createExecLogger, redactWhole } from './exec/execOutput'
 import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
@@ -156,8 +157,11 @@ const HEADLESS_WIRING_EXIT = {
 const wasEnvironmentApiKeyPresent = process.env[META_API_KEY_VARIABLE] !== undefined
 // Credential variables leave the agent's own environment before anything
 // starts a process; no child gets them back (FIXM95X). Removed values remain
-// in memory only for D98 sharing redaction, never for authentication or children.
+// in memory for D98 sharing redaction, and their Git routes (no model or
+// provider key) for D104's named exception only: the user's confirmed push
+// and pull request fetch (M123, gitUserEnvironment.ts). No other child.
 const sharingCredentials = takeCredentials(process.env)
+keepGitCredentialRoutes(sharingCredentials)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
@@ -728,6 +732,10 @@ async function serve(
       log,
     })
     const reports = runtimeReports(log)
+    // Model API sessions only: the Muse Code backend runs on its
+    // subscription. Meta's entry is built in, so the metadata reads without
+    // a providers file; a refused file or a loader failure leaves the
+    // session working without accounts instead of refusing `serve`.
     let accounts: Awaited<ReturnType<RuntimeAccountServices['sessionsIfPresent']>>
     if (options.backend === 'modelApi') {
       try {
@@ -768,6 +776,8 @@ async function serve(
           uiLocale(),
         ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
+      // The account picker serves Model API sessions (list, current,
+      // thresholds). Switching stays refused (no adoption transaction).
       ...(accounts !== undefined && { accounts }),
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
@@ -1565,8 +1575,7 @@ async function main(): Promise<number> {
         process.stderr,
         localized.command === 'invalid' ? localized.reason : UI_TEXT.accounts.unavailable,
       )
-      writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
-      writeLine(process.stderr, UI_TEXT.acpChatGpt.usage)
+      writeLine(process.stderr, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
       return command.exitCode ?? EXIT_FAILED
     }
   }
@@ -1582,10 +1591,7 @@ async function run(): Promise<void> {
   try {
     process.exitCode = await main()
   } catch (error: unknown) {
-    writeLine(
-      process.stderr,
-      redactWhole(error instanceof Error ? (error.stack ?? error.message) : String(error), []),
-    )
+    writeLine(process.stderr, redactWhole(crashTextForLog(error), []))
     process.exitCode = EXIT_FAILED
   } finally {
     processResources.dispose()

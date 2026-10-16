@@ -80,6 +80,10 @@
     "one": "Atlanan {count} eksik satır",
     "other": "Atlanan {count} eksik satır"
   },
+  "inexactRecords": {
+    "one": "Tutarı tam olarak okunamayan {count} eski kayıt sayılmadı",
+    "other": "Tutarları tam olarak okunamayan {count} eski kayıt sayılmadı"
+  },
   "recordCount": {
     "one": "{count} kayıt",
     "other": "{count} kayıt"

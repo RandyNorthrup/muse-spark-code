@@ -27,11 +27,12 @@ const embedded = (table) => ({
 it('keeps account, developer and help values out of startup and loads them exactly on demand', async () => {
   expect(built.bundle.UI_TEXT.sendTitle).toBe(EN.sendTitle)
   expect(() => built.bundle.UI_TEXT.referenceIntro).toThrow('English surface is not loaded')
-  // C-X-1: Help no longer lists accounts or the vault and no installed surface
-  // reads either group, so the installed table carries neither. Developer
-  // English still waits for its surface; browserUiText mounts the accounts and
-  // vault surfaces and pins their on-demand loading.
-  expect(Object.hasOwn(built.bundle.EN, 'accounts')).toBe(false)
+  // C-X-1: Help does not list the vault and no installed surface reads its
+  // group, so the installed table does not carry it. CM108ACC: Help lists
+  // accounts again, so that group is installed and waits for its surface, as
+  // developer English does; browserUiText mounts the accounts and vault
+  // surfaces and pins their on-demand loading.
+  expect(() => built.bundle.UI_TEXT.accounts).toThrow('English surface is not loaded')
   expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
   expect(() => built.bundle.UI_TEXT.developer).toThrow('English surface is not loaded')
   // STARTUP017: a restored settlement row's words paint with startup; the
