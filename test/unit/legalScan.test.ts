@@ -5,7 +5,6 @@
 
 import { describe, expect, it } from 'vitest'
 import { LEGAL_FILES_SCANNED_MAX, LEGAL_FINDINGS_MAX } from '../../src/shared/constants'
-import { formatNumber } from '../../src/shared/l10n/text'
 import { scanLegal } from '../../src/core/legal/scan'
 import { legalScanResultSchema } from '../../src/shared/legal'
 import { countingSnapshot, snapshotFrom } from './legal/helpers'
@@ -21,8 +20,8 @@ const project = {
   'src/ok.ts': headed,
 }
 
-// The case scans one file past the scan cap; a hosted runner with coverage
-// took 3.5 s, near the default deadline.
+// The case scans past the old twenty-thousand file stop; a hosted runner
+// with coverage took 3.5 s, near the default deadline.
 // PLAN.md §8 (2026-10-07).
 const LEGAL_CAP_SCAN_TIMEOUT_MS = 15_000
 
@@ -75,7 +74,7 @@ describe('scanLegal', () => {
   })
 
   it(
-    'stops an oversize file list at the cap with an incomplete marker',
+    'reads every file past the old twenty-thousand scan stop, with no incomplete marker',
     () => {
       const files: Record<string, string> = { ...project }
       for (let index = 0; index < LEGAL_FILES_SCANNED_MAX + 5; index += 1) {
@@ -83,30 +82,37 @@ describe('scanLegal', () => {
       }
       const { snapshot, readPaths } = countingSnapshot(files)
       const result = scanLegal(snapshot, { headerPolicy: 'optional' })
-      expect(
-        result.incompleteChecks.some((entry) =>
-          entry.includes(`after reading ${formatNumber(LEGAL_FILES_SCANNED_MAX)} files`),
-        ),
-      ).toBe(true)
-      const allowed = new Set(
-        Object.keys(files)
-          .toSorted((a, b) => a.localeCompare(b, 'en'))
-          .slice(0, LEGAL_FILES_SCANNED_MAX),
-      )
-      expect(readPaths().every((path) => allowed.has(path))).toBe(true)
-      expect(new Set(readPaths()).size).toBeLessThanOrEqual(LEGAL_FILES_SCANNED_MAX)
+      expect(result.incompleteChecks.some((entry) => entry.includes('more not read'))).toBe(false)
+      expect(new Set(readPaths())).toEqual(new Set(Object.keys(files)))
     },
     LEGAL_CAP_SCAN_TIMEOUT_MS,
   )
 
-  it('caps findings with blockers kept first and a truncation marker', () => {
-    const files: Record<string, string> = { ...project }
-    for (let index = 0; index < LEGAL_FINDINGS_MAX + 10; index += 1) {
-      files[`src/bare${String(index)}.ts`] = 'export const value = 1\n'
+  it('keeps every finding past the old five-hundred truncation, blockers first', () => {
+    // Six rules with a hundred findings each: headers, dependencies,
+    // compatibility, notices, distribution and project licenses.
+    const files: Record<string, string> = {
+      LICENSE: 'MIT License\n\nCopyright (c) 2026 Example Corp\n',
+      'package.json': JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' }),
+      'THIRD-PARTY-NOTICES': 'Notices for this distribution.\n',
     }
+    const packages: Record<string, unknown> = {}
+    for (let index = 0; index < 150; index += 1) {
+      files[`src/bare${String(index)}.ts`] = 'export const value = 1\n'
+      files[`src/asset${String(index)}.png`] = 'binary asset'
+      files[`src/ref${String(index)}.ts`] =
+        '// Adapted from https://stackoverflow.com/questions/123/example\nexport const value = 1\n'
+      packages[`node_modules/bad${String(index)}`] = { version: '1', license: 'not a license!!' }
+      packages[`node_modules/gpl${String(index)}`] = { version: '1', license: 'GPL-3.0-only' }
+    }
+    files['package-lock.json'] = JSON.stringify({ lockfileVersion: 3, packages })
     const result = scanLegal(snapshotFrom(files), { headerPolicy: 'required' })
-    expect(result.findings.length).toBeLessThanOrEqual(LEGAL_FINDINGS_MAX)
-    expect(result.incompleteChecks.some((entry) => entry.includes('report truncated'))).toBe(true)
+    expect(result.findings.length).toBeGreaterThan(LEGAL_FINDINGS_MAX)
+    expect(
+      result.incompleteChecks.some(
+        (entry) => entry.includes('past the') && entry.includes('bound'),
+      ),
+    ).toBe(false)
   })
 
   it('refuses traversal paths instead of reading them', () => {

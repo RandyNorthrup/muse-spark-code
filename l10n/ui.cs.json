@@ -5091,12 +5091,6 @@
     "m112": "Kontrola zastavena na limitu: čas",
     "m113": "Neověřeno: {v0} nelze číst jako text.",
     "m114": "Kontrola zastavena na limitu: {v0} překračuje rozpočet čtení.",
-    "m115": {
-      "one": "Neověřeno: zastaveno po {count} souborech; dalších {v1} nepřečteno.",
-      "other": "Neověřeno: zastaveno po {count} souborech; dalších {v1} nepřečteno.",
-      "few": "Neověřeno: zastaveno po {count} souborech; dalších {v1} nepřečteno.",
-      "many": "Neověřeno: zastaveno po {count} souborech; dalších {v1} nepřečteno."
-    },
     "m116": {
       "one": "Neověřeno: dosažen limit důkazů závislostí; {count} položka vynecháno.",
       "other": "Neověřeno: dosažen limit důkazů závislostí; {count} položek vynecháno.",
@@ -5113,12 +5107,6 @@
     },
     "m120": "Dodejte vstupy balíku nebo inventář pro přesné povinnosti.",
     "m121": "Kontrola zastavena na limitu: zpráva pro {v0} zkrácena",
-    "m122": {
-      "one": "Zpráva zkrácena: {count} nález nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
-      "other": "Zpráva zkrácena: {count} nálezů nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
-      "few": "Zpráva zkrácena: {count} nálezy nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně.",
-      "many": "Zpráva zkrácena: {count} nálezů nad limit {v1} vynecháno; blokující a nutné opravy zachovány přednostně."
-    },
     "m123": {
       "one": "Zpráva zkrácena: {count} generovaných výluk nad limit vynecháno.",
       "other": "Zpráva zkrácena: {count} generovaných výluk nad limit vynecháno.",

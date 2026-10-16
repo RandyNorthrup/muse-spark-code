@@ -4967,11 +4967,6 @@
     "m112": "Analisi fermata al limite: tempo",
     "m113": "Non verificato: {v0} non è leggibile come testo.",
     "m114": "Analisi fermata al limite: {v0} supera il budget di lettura.",
-    "m115": {
-      "one": "Non verificato: fermata dopo {count} file; altri {v1} non letti.",
-      "other": "Non verificato: fermata dopo {count} file; altri {v1} non letti.",
-      "many": "Non verificato: fermata dopo {count} file; altri {v1} non letti."
-    },
     "m116": {
       "one": "Non verificato: limite di prove delle dipendenze raggiunto; {count} voce omesse.",
       "other": "Non verificato: limite di prove delle dipendenze raggiunto; {count} voci omesse.",
@@ -4986,11 +4981,6 @@
     },
     "m120": "Fornire input del bundle o inventario per precisare gli obblighi.",
     "m121": "Analisi fermata al limite: rapporto troncato per {v0}",
-    "m122": {
-      "one": "Rapporto troncato: {count} rilievi omessi oltre il limite di {v1}; blocchi e correzioni mantenuti per primi.",
-      "other": "Rapporto troncato: {count} rilievi omessi oltre il limite di {v1}; blocchi e correzioni mantenuti per primi.",
-      "many": "Rapporto troncato: {count} rilievi omessi oltre il limite di {v1}; blocchi e correzioni mantenuti per primi."
-    },
     "m123": {
       "one": "Rapporto troncato: {count} esclusioni generate omesse oltre il limite.",
       "other": "Rapporto troncato: {count} esclusioni generate omesse oltre il limite.",

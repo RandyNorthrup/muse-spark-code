@@ -4967,11 +4967,6 @@
     "m112": "Análise interrompida no limite: tempo",
     "m113": "Não verificado: {v0} não pode ser lido como texto.",
     "m114": "Análise interrompida no limite: {v0} excede o orçamento de leitura.",
-    "m115": {
-      "one": "Não verificado: interrompida após {count} arquivo; outros {v1} não lidos.",
-      "other": "Não verificado: interrompida após {count} arquivos; outros {v1} não lidos.",
-      "many": "Não verificado: interrompida após {count} arquivos; outros {v1} não lidos."
-    },
     "m116": {
       "one": "Não verificado: limite de evidências de dependências atingido; {count} entrada omitidas.",
       "other": "Não verificado: limite de evidências de dependências atingido; {count} entradas omitidas.",
@@ -4986,11 +4981,6 @@
     },
     "m120": "Forneça entradas do bundle ou inventário para precisar as obrigações.",
     "m121": "Análise interrompida no limite: relatório truncado para {v0}",
-    "m122": {
-      "one": "Relatório truncado: {count} achados omitidos além do limite de {v1}; bloqueios e correções mantidos primeiro.",
-      "other": "Relatório truncado: {count} achados omitidos além do limite de {v1}; bloqueios e correções mantidos primeiro.",
-      "many": "Relatório truncado: {count} achados omitidos além do limite de {v1}; bloqueios e correções mantidos primeiro."
-    },
     "m123": {
       "one": "Relatório truncado: {count} exclusões geradas omitidas além do limite.",
       "other": "Relatório truncado: {count} exclusões geradas omitidas além do limite.",

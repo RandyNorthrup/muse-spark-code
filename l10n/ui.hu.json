@@ -4843,10 +4843,6 @@
     "m112": "Vizsgálat korlátnál leállt: idő",
     "m113": "Nem ellenőrzött: {v0} nem olvasható szövegként.",
     "m114": "Vizsgálat korlátnál leállt: {v0} meghaladja az olvasási keretet.",
-    "m115": {
-      "one": "Nem ellenőrzött: leállt {count} fájl után; további {v1} olvasatlan.",
-      "other": "Nem ellenőrzött: leállt {count} fájl után; további {v1} olvasatlan."
-    },
     "m116": {
       "one": "Nem ellenőrzött: függőségi bizonyítékkorlát; {count} bejegyzés kihagyva.",
       "other": "Nem ellenőrzött: függőségi bizonyítékkorlát; {count} bejegyzés kihagyva."
@@ -4859,10 +4855,6 @@
     },
     "m120": "Pontos kötelezettségekhez adjon csomagbemenetet vagy leltárt.",
     "m121": "Vizsgálat korlátnál leállt: {v0} jelentése csonkolva",
-    "m122": {
-      "one": "Jelentés csonkolva: {count} találat kihagyva a(z) {v1} korlát felett; blokkoló és javítandó tételek elsőbbséggel megtartva.",
-      "other": "Jelentés csonkolva: {count} találat kihagyva a(z) {v1} korlát felett; blokkoló és javítandó tételek elsőbbséggel megtartva."
-    },
     "m123": {
       "one": "Jelentés csonkolva: {count} generált kizárás kihagyva a korlát felett.",
       "other": "Jelentés csonkolva: {count} generált kizárás kihagyva a korlát felett."

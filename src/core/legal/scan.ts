@@ -11,7 +11,6 @@ import { compareLegalText } from './files'
 import {
   UI_TEXT,
   LEGAL_EXCLUSIONS_MAX,
-  LEGAL_FILES_SCANNED_MAX,
   LEGAL_FILE_MAX_BYTES,
   LEGAL_TOTAL_MAX_BYTES,
   LEGAL_FINDINGS_PER_RULE_MAX,
@@ -237,8 +236,8 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   }
 
   const sorted = snapshot.files.toSorted((a, b) => compareLegalText(a, b))
-  const overCap = sorted.length - LEGAL_FILES_SCANNED_MAX
-  const allowed = new Set(overCap > 0 ? sorted.slice(0, LEGAL_FILES_SCANNED_MAX) : sorted)
+  // Every file is scanned, however many the workspace holds.
+  const allowed = new Set(sorted)
   const incomplete: string[] = [...(snapshot.incompleteChecks ?? []), UI_TEXT.legalScanner.m110]
   const cache = new Map<string, string | undefined>()
   let bytesRead = 0
@@ -276,15 +275,6 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   }
   if (options.signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   const headerView = subsetSnapshot(bounded, paths.length > 0 ? paths : undefined, allowed)
-
-  if (overCap > 0) {
-    incomplete.push(
-      plural(UI_TEXT.legalScanner.m115, LEGAL_FILES_SCANNED_MAX, {
-        v0: LEGAL_FILES_SCANNED_MAX,
-        v1: overCap,
-      }),
-    )
-  }
 
   const readers = [
     readNpm,
@@ -409,13 +399,8 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   )
   if (Date.now() >= deadline && !incomplete.includes('scan stopped at limit: elapsed time'))
     incomplete.push(UI_TEXT.legalScanner.m112)
-  const truncated = withinRules.length - LEGAL_FINDINGS_MAX
-  const kept = truncated > 0 ? withinRules.slice(0, LEGAL_FINDINGS_MAX) : withinRules
-  if (truncated > 0) {
-    incomplete.push(
-      plural(UI_TEXT.legalScanner.m122, truncated, { v0: truncated, v1: LEGAL_FINDINGS_MAX }),
-    )
-  }
+  // Every finding is kept, whatever the report's size.
+  const kept = withinRules
 
   const counters = new Map<string, number>()
   const results = kept.map(({ rule, finding }) => {
