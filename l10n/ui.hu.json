@@ -3326,6 +3326,7 @@
   "stopAllTasksTitle": "A beszélgetés összes háttérfeladatának leállítása",
   "stopTaskFailed": "A háttérfeladatot nem sikerült leállítani",
   "taskNotRunning": "Ez a feladat már nem fut",
+  "stillWaitingNotice": "Még mindig várakozik: {what} ({duration} eltelt) — a Leállítás véget vet neki.",
   "userShellLabel": "Ön futtatta",
   "userShellExitCode": "Kilépési kód: {code}",
   "userShellExitSignal": "Leállította a(z) {signal} jel",

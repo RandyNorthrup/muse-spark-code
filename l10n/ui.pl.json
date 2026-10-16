@@ -3458,6 +3458,7 @@
   "stopAllTasksTitle": "Zatrzymaj wszystkie zadania w tle tej rozmowy",
   "stopTaskFailed": "Nie udało się zatrzymać zadania w tle",
   "taskNotRunning": "To zadanie już nie działa",
+  "stillWaitingNotice": "Nadal oczekuje na {what} po {duration} — Zatrzymaj kończy oczekiwanie.",
   "userShellLabel": "Twoje polecenie",
   "userShellExitCode": "Kod wyjścia {code}",
   "userShellExitSignal": "Zakończono sygnałem {signal}",

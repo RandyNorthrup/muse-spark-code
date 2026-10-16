@@ -3326,6 +3326,7 @@
   "stopAllTasksTitle": "Alle Hintergrundaufgaben dieser Unterhaltung anhalten",
   "stopTaskFailed": "Die Hintergrundaufgabe konnte nicht angehalten werden",
   "taskNotRunning": "Diese Aufgabe läuft nicht mehr",
+  "stillWaitingNotice": "Wartet weiterhin auf {what} nach {duration} — Anhalten beendet das Warten.",
   "userShellLabel": "Von Ihnen ausgeführt",
   "userShellExitCode": "Exitcode {code}",
   "userShellExitSignal": "Durch Signal {signal} beendet",

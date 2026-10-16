@@ -3392,6 +3392,7 @@
   "stopAllTasksTitle": "Parar todas as tarefas em segundo plano desta conversa",
   "stopTaskFailed": "Não foi possível parar a tarefa em segundo plano",
   "taskNotRunning": "Essa tarefa não está mais em execução",
+  "stillWaitingNotice": "Ainda aguardando {what} após {duration} — Parar encerra.",
   "userShellLabel": "Você executou",
   "userShellExitCode": "Código de saída {code}",
   "userShellExitSignal": "Encerrado pelo sinal {signal}",

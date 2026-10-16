@@ -57,8 +57,9 @@ describe('planMcpServers (M50)', () => {
     })
     expect(spec.isRequired).toBe(false)
     expect(spec.startupTimeoutMs).toBe(5000)
-    // Capped at the hour.
-    expect(spec.toolTimeoutMs).toBe(3_600_000)
+    // A named value past the old hour cap is honoured whole (NOLIMITS2 A18):
+    // only the entry's own number bounds the wait.
+    expect(spec.toolTimeoutMs).toBe(99_999_000)
     expect([...(spec.enabledTools ?? [])]).toEqual(['a', 'b'])
     expect([...spec.disabledTools]).toEqual(['b'])
   })
@@ -79,8 +80,10 @@ describe('planMcpServers (M50)', () => {
     })
     expect(spec.isRequired).toBe(true)
     expect(spec.isEnabled).toBe(true)
-    expect(spec.startupTimeoutMs).toBe(30_000)
-    expect(spec.toolTimeoutMs).toBe(300_000)
+    // No named timeout: the server is waited on until it answers or is
+    // stopped (NOLIMITS2 A18), never killed at an invented default.
+    expect(spec.startupTimeoutMs).toBeUndefined()
+    expect(spec.toolTimeoutMs).toBeUndefined()
     expect(spec.enabledTools).toBeUndefined()
     expect(spec.disabledTools.size).toBe(0)
   })
@@ -121,7 +124,8 @@ describe('planMcpServers (M50)', () => {
     expect(reason({ type: 'streamable-http', url: 'ftp://x.test' })).toBe(
       'its url must start with http:// or https://',
     )
-    expect(only({ command: 'srv' }).startupTimeoutMs).toBe(30_000)
+    expect(only({ command: 'srv' }).startupTimeoutMs).toBeUndefined()
+    expect(only({ command: 'srv' }).toolTimeoutMs).toBeUndefined()
   })
 
   it('leaves the name ide to the extension, and a server turned off stays off', () => {

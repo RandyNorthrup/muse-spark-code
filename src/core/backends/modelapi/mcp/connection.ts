@@ -1,7 +1,9 @@
 // One MCP client session over a transport (M50, PLAN.md D42): the handshake
 // (`initialize`, then `notifications/initialized`), the tool list page by
-// page, and tool calls, each request with a deadline and a Stop that tells
-// the server it was cancelled (`notifications/cancelled`). What the server
+// page, and tool calls, each request with the entry's own deadline when it
+// names one — otherwise waited on until the server answers, the connection
+// closes or a Stop tells the server it was cancelled
+// (`notifications/cancelled`), saying so out loud while it waits. What the server
 // asks of the client is answered: `ping` with an empty result,
 // `elicitation/create` with the form's answer when the host offers one
 // (M91, form mode only), anything else as a method this client does not
@@ -20,6 +22,7 @@ import {
   MILLISECONDS_PER_SECOND,
 } from '../../../../shared/constants'
 import { clipForLog, type CoreLogger } from '../../../logging'
+import { startStillWaiting, stillWaitingText } from '../../../timeouts'
 import type { ElicitationOutcome, McpElicitationHandler } from './elicitation'
 import {
   type CallToolResult,
@@ -75,7 +78,12 @@ export interface McpConnectionOptions {
 }
 
 export interface RequestOptions {
-  readonly timeoutMs: number
+  /**
+   * The entry's own deadline in milliseconds, or undefined: then the answer
+   * is waited on until the server answers, the connection closes or the
+   * signal aborts (a Stop ends it), with a still-waiting notice on the log.
+   */
+  readonly timeoutMs: number | undefined
   readonly signal?: AbortSignal | undefined
 }
 
@@ -129,7 +137,7 @@ export class McpConnection {
   /** What stops a waiting elicitation when the connection closes. */
   private readonly elicitationClosers = new Set<() => void>()
   /** The handshake's parameters, kept for a new session after an expired one. */
-  private handshakeTimeoutMs = 0
+  private handshakeTimeoutMs: number | undefined = undefined
 
   public constructor(
     private readonly transport: McpTransport,
@@ -414,11 +422,27 @@ export class McpConnection {
         { once: true },
       )
     })
-    const timer = setTimeout(() => {
-      controller.abort(
-        new McpTimeoutError(`${method} timed out after ${seconds(options.timeoutMs)} s`),
-      )
-    }, options.timeoutMs)
+    // The entry's own deadline ends the wait; without one the answer is
+    // waited on until the server answers, the connection closes or a Stop
+    // aborts, saying so out loud on the log (owner 2026-10-16: no silent
+    // hangs, no arbitrary limits).
+    const timeoutMs = options.timeoutMs
+    const timer =
+      timeoutMs === undefined
+        ? undefined
+        : setTimeout(() => {
+            controller.abort(
+              new McpTimeoutError(`${method} timed out after ${seconds(timeoutMs)} s`),
+            )
+          }, timeoutMs)
+    const stopNoticing =
+      timeoutMs === undefined
+        ? startStillWaiting((elapsedMs) => {
+            this.options.log.info(
+              stillWaitingText(`MCP server "${this.options.name}" ${method}`, elapsedMs),
+            )
+          })
+        : undefined
     const onStop = () => {
       controller.abort(new RequestAbort(CANCELLED_BY_USER))
     }
@@ -445,6 +469,7 @@ export class McpConnection {
       throw error
     } finally {
       clearTimeout(timer)
+      stopNoticing?.()
       options.signal?.removeEventListener('abort', onStop)
       this.waiting.delete(id)
       this.liveSignals.delete(controller.signal)
@@ -452,7 +477,7 @@ export class McpConnection {
     }
   }
 
-  private async handshake(timeoutMs: number): Promise<void> {
+  private async handshake(timeoutMs: number | undefined): Promise<void> {
     const raw = await this.request(
       METHOD_INITIALIZE,
       {
@@ -484,13 +509,13 @@ export class McpConnection {
   }
 
   /** The handshake; rejects when the server cannot be spoken to. */
-  public async initialize(timeoutMs: number): Promise<void> {
+  public async initialize(timeoutMs: number | undefined): Promise<void> {
     this.handshakeTimeoutMs = timeoutMs
     await this.handshake(timeoutMs)
   }
 
   /** Every tool the server lists, page by page; a malformed tool is skipped and logged. */
-  public async listTools(timeoutMs: number): Promise<readonly McpToolInfo[]> {
+  public async listTools(timeoutMs: number | undefined): Promise<readonly McpToolInfo[]> {
     if (!this.hasTools) {
       return []
     }
@@ -525,7 +550,7 @@ export class McpConnection {
     return tools
   }
 
-  /** Calls one tool; rejects on a JSON-RPC error, the deadline, a Stop or a closed connection. */
+  /** Calls one tool; rejects on a JSON-RPC error, the entry's own deadline when named, a Stop or a closed connection. */
   public async callTool(
     name: string,
     args: Readonly<Record<string, unknown>>,

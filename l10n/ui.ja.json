@@ -3260,6 +3260,7 @@
   "stopAllTasksTitle": "この会話のバックグラウンド タスクをすべて停止",
   "stopTaskFailed": "バックグラウンド タスクを停止できませんでした",
   "taskNotRunning": "そのタスクはもう実行されていません",
+  "stillWaitingNotice": "{duration}経過後も{what}を待機中 — 「停止」で終了します。",
   "userShellLabel": "実行したコマンド",
   "userShellExitCode": "終了コード {code}",
   "userShellExitSignal": "シグナル {signal} で終了",
