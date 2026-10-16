@@ -16,6 +16,7 @@ export {
   chatGptModels,
   chatGptAccountId,
   chatGptPlanAccount,
+  chatGptFailureText,
 } from '../../core/providers/subscriptions/registry'
 export {
   runtimeChatGptCommandDeps,

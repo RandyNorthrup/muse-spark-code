@@ -804,7 +804,27 @@ over its 100 KiB budget by 0.1 KiB when the import was switched to
 `chatgpt.ts`, are gone with this change. `chatGptRefreshLock.ts` maps the
 lock's error to the ChatGPT codes.)
 
-## Not done, and why
+## RVPLANFIX: Models-panel refusal presentation (2026-10-16)
+
+Main's `PANELBUDGET` first-use split is merged, not duplicated: subscription
+setup loads from `dist/modelsSubscriptions.js` only on a subscription action.
+`modelsPanel.ts` now recognizes the real `ChatGptSignInError` exported from the
+shared subscription bundle and reads `chatGptFailureText` there. Only the typed
+code/reason is shown; arbitrary exception messages still become `actionFailed`.
+This closes the presentation residual below without increasing the 125 KiB cap
+or copying the sign-in implementation into the panel.
+
+Production `npm run build`: exit 0, including all size/split/globals/notices
+gates; `modelsPanel.js` 106.9 KiB / 125, `modelsSubscriptions.js` 23.0 / 50.
+Real refusal-parser/host-id suites: 17 passed, exit 0. No replacement editor test
+was written. The exact panel catch path has source proof; the installed-editor
+check remains for the lead: in a disposable profile decline ChatGPT consent,
+observe `access_denied` in the panel, then trigger a local sign-in setup failure
+and observe its local cause instead of the general action-failed notice. Inspect
+once in light and dark themes. No provider request or sign-in was made here.
+Receipts: `.lane/RVPLANFIX-build-panel.log`, `.lane/RVPLANFIX-panel-related.log`.
+
+## Not done, and why (historical PLANFIX run; presentation superseded above)
 
 - **The Models panel still shows `UI_TEXT.actionFailed` for any failed
   connect.** `src/host/models/modelsPanel.ts:201-205` replaces the error with the
