@@ -2181,13 +2181,12 @@ export const MODEL_API_PRICED_MODELS = {
 } as const
 /** A consent grant covers actual child HTTP attempts, including all retries. */
 export const SUBAGENT_TASK_MAX_REQUESTS = 4
-// Best-of-N parallel attempts (M77, PLAN.md D49): the same prompt runs in
-// this many worktrees, each attempt stopping after this many model requests.
-export const BEST_OF_N_MIN_ATTEMPTS = 2
-export const BEST_OF_N_MAX_ATTEMPTS = 5
+// Best-of-N parallel attempts (M77, PLAN.md D49, D121): the same prompt runs
+// in this many worktrees, each attempt stopping after this many model
+// requests. Both numbers are the person's own per-run choice: no provider
+// documents a cap, so ours (2-5 attempts, 5-50 requests) are removed and only
+// the dialog's defaults stay.
 export const BEST_OF_N_DEFAULT_ATTEMPTS = 3
-export const BEST_OF_N_MIN_REQUESTS_PER_ATTEMPT = 5
-export const BEST_OF_N_MAX_REQUESTS_PER_ATTEMPT = 50
 export const BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT = 20
 // The branch each attempt works on: `best-of-n/<runId>/<index>`, beside the
 // repository like every worktree M32 makes.

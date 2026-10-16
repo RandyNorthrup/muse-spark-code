@@ -2520,9 +2520,9 @@ press Enter (or click) to resume a conversation. Ephemeral Best-of-N rows
 open their owned worktree instead: they have no saved conversation to resume.
 **Best of N…** opens the best-of-N dialog.
 
-Best-of-N runs the same prompt in 2 to 5 worktrees at once on the Model API
-backend, then you take one. It needs a trusted workspace with a folder open
-(worktrees run git, which Restricted Mode forbids).
+Best-of-N runs the same prompt in as many worktrees at once as you ask for on
+the Model API backend, then you take one. It needs a trusted workspace with a
+folder open (worktrees run git, which Restricted Mode forbids).
 Best-of-N (Model API, paid, available by default) is controlled by
 `museSpark.modelApiBestOfN` ([Paid](#paid-features)); set it to false to hide
 it. Each run asks once in the
@@ -3761,7 +3761,7 @@ the subscription):
 | Image generation  | $0.01 per image                                                               | The model may create a PNG file in the workspace with `muse-image-1.0`, or edit workspace images into a new one, asking you each time                    |
 | Muse Voice        | $0.18 per hour of audio                                                       | The microphone uses Meta's Muse Voice Transcribe instead of your computer's own recogniser                                                               |
 | Subagents         | Selected model's published input, cached input and output token rates         | Child tasks on the Model API backend; every new task asks (unless allowed always) and admits at most four response requests                              |
-| Best-of-N         | Selected model's published input, cached input and output token rates         | The same prompt runs in 2 to 5 worktrees at once on the Model API backend; you take one                                                                  |
+| Best-of-N         | Selected model's published input, cached input and output token rates         | The same prompt runs in as many worktrees at once as you ask for on the Model API backend; you take one                                                  |
 | Scheduled prompts | Selected model's published input, cached input and output token rates         | A due `/loop` prompt runs only after you choose **Run Now** and allow that run's model and rates                                                         |
 | Auto reviewer     | The conversation model's published input, cached input and output token rates | In Auto on the Model API backend, a separate model call judges a plain command or MCP call that would ask and that no rule or permission profile settles |
 

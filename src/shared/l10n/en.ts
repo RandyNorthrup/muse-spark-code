@@ -4618,9 +4618,9 @@ export const EN = {
   bestOfNTakenMark: 'Took {branch}',
   bestOfNDiffClipped: 'Diff clipped.',
   bestOfNInvalidPrompt: 'Describe what the attempts should do.',
-  bestOfNInvalidRequest: 'That best-of-N run is outside the attempt or ceiling bounds.',
-  bestOfNInvalidAttempts: 'Attempts must be between {min} and {max}.',
-  bestOfNInvalidCeiling: 'Requests per attempt must be between {min} and {max}.',
+  bestOfNInvalidRequest: 'That best-of-N run needs at least 1 attempt and 1 request per attempt.',
+  bestOfNInvalidAttempts: 'Attempts must be 1 or more.',
+  bestOfNInvalidCeiling: 'Requests per attempt must be 1 or more.',
   bestOfNNeedsTrust:
     'Best-of-N needs a trusted workspace: worktrees run git, which Restricted Mode forbids.',
   bestOfNModelApiOnly:
