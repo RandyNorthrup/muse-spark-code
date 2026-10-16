@@ -24,7 +24,7 @@ import {
 import { fill } from '../../shared/l10n/text'
 import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 import { writeFileAtomically } from '../fsAtomic'
-import { storeErrorCode } from './storeErrors'
+import { isStoreErrorCode } from './storeErrors'
 
 const JOURNAL_DIRECTORY = 'budget-journal'
 const INTENT_DIRECTORY = 'budget-intents'
@@ -168,7 +168,7 @@ async function isPresent(file: string): Promise<boolean> {
     await stat(file)
     return true
   } catch (error: unknown) {
-    if (storeErrorCode(error) === MISSING) {
+    if (isStoreErrorCode(error, MISSING)) {
       return false
     }
     throw unavailable(error)
@@ -339,7 +339,7 @@ export function createSessionBudgetJournal(
       await mkdir(path.dirname(scope.intent), { recursive: true })
       await mkdir(scope.intent)
     } catch (error: unknown) {
-      if (storeErrorCode(error) === EXISTS) {
+      if (isStoreErrorCode(error, EXISTS)) {
         return readSeed(scope)
       }
       throw unavailable(error)
@@ -393,6 +393,34 @@ export function createSessionBudgetJournal(
     }
     const directory = path.join(scope.directory, CLAIMS_DIRECTORY, claim.claimId)
     let hasCreatedIntent = false
+    // Only this creator can close its known nonsent row: no claim reached a
+    // caller, so no request could have been sent. A second IO failure leaves
+    // the original intent/liability blocking admission.
+    const closeNonsentRow = async (): Promise<void> => {
+      try {
+        const currentSeed = readSeed(scope)
+        if (currentSeed.scopeId !== seed.scopeId) {
+          throw unavailable()
+        }
+        if (await isPresent(path.join(directory, CLAIM_FILE))) {
+          const current = readClaim(scope, currentSeed, claim.claimId)
+          if (
+            current.ownerId !== ownerId ||
+            current.reservedUsd !== claim.reservedUsd ||
+            (current.settledUsd !== undefined && current.settledUsd !== '0')
+          ) {
+            throw unavailable()
+          }
+        }
+        await writeFileAtomically(
+          path.join(directory, CLAIM_FILE),
+          JSON.stringify({ ...claim, settledUsd: '0', hasUnknownCost: false }),
+          options,
+        )
+      } catch {
+        // Preserve the original failure; nobody treats this as a successful reservation.
+      }
+    }
     try {
       // The owned directory is a permanent intent. An absent or partial
       // payload blocks all admission until its original writer publishes it.
@@ -401,34 +429,7 @@ export function createSessionBudgetJournal(
       await writeFileAtomically(path.join(directory, CLAIM_FILE), JSON.stringify(claim), options)
       return claim
     } catch (error: unknown) {
-      if (hasCreatedIntent && isNonsentReservation) {
-        try {
-          // No claim reached a caller, so no request could have been sent.
-          // Only this creator can close its known nonsent row. A second
-          // IO failure leaves the original intent/liability blocking admission.
-          const currentSeed = readSeed(scope)
-          if (currentSeed.scopeId !== seed.scopeId) {
-            throw unavailable()
-          }
-          if (await isPresent(path.join(directory, CLAIM_FILE))) {
-            const current = readClaim(scope, currentSeed, claim.claimId)
-            if (
-              current.ownerId !== ownerId ||
-              current.reservedUsd !== claim.reservedUsd ||
-              (current.settledUsd !== undefined && current.settledUsd !== '0')
-            ) {
-              throw unavailable()
-            }
-          }
-          await writeFileAtomically(
-            path.join(directory, CLAIM_FILE),
-            JSON.stringify({ ...claim, settledUsd: '0', hasUnknownCost: false }),
-            options,
-          )
-        } catch {
-          // Preserve the original failure; nobody treats this as a successful reservation.
-        }
-      }
+      if (hasCreatedIntent && isNonsentReservation) await closeNonsentRow()
       throw unavailable(error)
     }
   }
@@ -559,7 +560,7 @@ export function createSessionBudgetJournal(
         hasLock = true
         break
       } catch (error: unknown) {
-        if (storeErrorCode(error) !== EXISTS) throw unavailable(error)
+        if (!isStoreErrorCode(error, EXISTS)) throw unavailable(error)
         await deps.sleep(DAILY_BUDGET_LOCK_WAIT_MS)
       }
     }
