@@ -4883,6 +4883,7 @@
     "keyPrompt": "{provider} · {account} API密钥（输入时隐藏）：",
     "execHelp": "非交互账户：{command} exec --account <id> [--account-pool]。使用 --key-stdin 的CI仅使用默认账户，永不切换账户。",
     "unavailable": "此运行时连接到共享账户服务后，账户才可用。",
+    "providerUnavailable": "{provider} 的账户在此终端中尚不可用。",
     "providersInvalid": "提供商文件无效，其条目已被拒绝，文件保持不变。",
     "poolUnavailable": "此运行时不支持账户池：需要绑定的资源所有者。请去掉 --account-pool 后重新运行。",
     "cliUsage": "账户：{command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [按顺序排列的ID]。凭据：{command} auth set --provider <id> --account <id>（仅限标准输入）。",

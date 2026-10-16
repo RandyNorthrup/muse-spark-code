@@ -45,11 +45,15 @@ async function commandError(
     // The terminal is the account service in this process: an unknown
     // provider is not configured, not waiting on a connection. A provider
     // the runner already added still has no account metadata here, so it
-    // says what is missing instead of repeating the add advice.
-    if (error.code === 'unavailable')
-      return (await deps.isProviderConfigured?.(provider)) === true
-        ? UI_TEXT.accounts.unavailable
-        : fill(UI_TEXT.providerNotConfigured, { provider })
+    // says its accounts are not served in this terminal yet instead of
+    // repeating the add advice or claiming the runtime is unconnected.
+    if (error.code === 'unavailable') {
+      const template =
+        (await deps.isProviderConfigured?.(provider)) === true
+          ? UI_TEXT.accounts.providerUnavailable
+          : UI_TEXT.providerNotConfigured
+      return fill(template, { provider })
+    }
   }
   return UI_TEXT.accounts.unavailable
 }

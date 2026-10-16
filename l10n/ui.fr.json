@@ -5181,6 +5181,7 @@
     "keyPrompt": "Clé API pour {provider} · {account} (masquée pendant la saisie) : ",
     "execHelp": "Comptes sans interaction : {command} exec --account <id> [--account-pool]. CI avec --key-stdin utilise uniquement le compte par défaut et ne change jamais de compte.",
     "unavailable": "Les comptes seront disponibles lorsque cet environnement sera connecté au service partagé des comptes.",
+    "providerUnavailable": "Les comptes pour {provider} ne sont pas encore disponibles dans ce terminal.",
     "providersInvalid": "Le fichier des fournisseurs est invalide : ses entrées ont été refusées et le fichier est resté inchangé.",
     "poolUnavailable": "Le regroupement de comptes est indisponible dans ce runtime : il nécessite un propriétaire de ressources lié. Relancez sans --account-pool.",
     "cliUsage": "Comptes : {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [identifiants ordonnés]. Identifiants : {command} auth set --provider <id> --account <id> (entrée standard uniquement).",

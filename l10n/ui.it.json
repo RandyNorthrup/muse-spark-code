@@ -5181,6 +5181,7 @@
     "keyPrompt": "Chiave API per {provider} · {account} (nascosta durante la digitazione): ",
     "execHelp": "Account senza interazione: {command} exec --account <id> [--account-pool]. CI con --key-stdin usa solo l’account predefinito e non cambia mai account.",
     "unavailable": "Gli account saranno disponibili quando questo ambiente sarà collegato al servizio condiviso degli account.",
+    "providerUnavailable": "Gli account per {provider} non sono ancora disponibili in questo terminale.",
     "providersInvalid": "Il file dei provider non è valido, quindi le voci sono state rifiutate e il file è rimasto invariato.",
     "poolUnavailable": "Il raggruppamento degli account non è disponibile in questo runtime: richiede un proprietario di risorse associato. Riesegui senza --account-pool.",
     "cliUsage": "Account: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [id ordinati]. Credenziali: {command} auth set --provider <id> --account <id> (solo input standard).",
