@@ -18,6 +18,10 @@ happened, not what was planned; superseded entries are kept.
   other readers name no deadline of their own, so a slow repository no
   longer falls back to git-absent answers; a timeout a caller names still
   applies, and team runs share the dispatching job's own bound.
+- `muse serve` startup is waited on instead of ended at 30 seconds with one
+  120-second second chance: the handshake runs until the server answers or
+  the wait is stopped, saying so in the log each minute, and a server that
+  never finishes is still closed rather than left behind.
 
 ### Pending
 

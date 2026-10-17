@@ -4678,17 +4678,18 @@ export const OUTPUT_DOCUMENTS_KEPT = 20
 export const MSP_REQUESTED_CAPABILITIES = ['sessionMcp', 'sessionListStream', 'userShell'] as const
 export const MSP_USER_SHELL_CAPABILITY = 'userShell'
 // How the extension waits on `muse serve` (PLAN.md D25; the SDK has no
-// timeouts of its own, INV-006): a command is waited on until Muse Code
-// answers or the wait is stopped, saying so out loud on the log while it
-// waits (owner 2026-10-16: no arbitrary limits, no silent hangs). A test
-// may still name a wait through CommandTimeouts.
+// timeouts of its own, INV-006): a command — and the opening handshake —
+// is waited on until Muse Code answers or the wait is stopped, saying so
+// out loud on the log while it waits (owner 2026-10-16: no arbitrary
+// limits, no silent hangs). A test may still name a command wait through
+// CommandTimeouts. The two handshake bounds below are not the serve
+// handshake's any more (NOLIMITS2 C12): the device sign-in, the account
+// host and the team process lifetime name them for their own waits.
 export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
-// A `muse serve` whose process still runs at the handshake's deadline is
-// starting slowly, not stuck: on a CPU-starved machine (0.10.0, an
-// activation that took 211 s) it missed 30 s and was killed. It gets one
-// longer wait, this long in all. A healthy start connects in a second or
-// two (the log's "Connected ... in N ms"), so a process still silent after
-// four times the first deadline is stuck, and is ended.
+// A slow start on a CPU-starved machine (0.10.0, an activation that took
+// 211 s): the serve handshake outlasts it, saying so each minute, and a
+// healthy start still connects in a second or two (the log's
+// "Connected ... in N ms"). Only these named waits still end one.
 export const MSP_SLOW_HANDSHAKE_TIMEOUT_MS = 120_000
 // A command the host refused without admitting it (the SDK's own rule, D26):
 // sent again with the same id up to this many times in all.
