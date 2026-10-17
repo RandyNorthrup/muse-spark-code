@@ -384,10 +384,13 @@ export function withRuntimeAccounting(
           Usd.from(reserveUsd).compare(Usd.from(0)) < 0
         )
           throw new UserRefusalError(UI_TEXT.execModelUnpriced, 'unpriced')
-        const dailyInputTokens =
-          mediaTokens === undefined
-            ? byteBound
-            : Math.max(0, contextTokens - body.max_output_tokens)
+        // A context no larger than the output limit leaves no input room
+        // under context-minus-output; hold such a model to its context.
+        const mediaInputBound =
+          contextTokens > body.max_output_tokens
+            ? contextTokens - body.max_output_tokens
+            : contextTokens
+        const dailyInputTokens = mediaTokens === undefined ? byteBound : mediaInputBound
         const dailyAmount = model.price.reserve({
           inputTokens: dailyInputTokens,
           outputTokens: body.max_output_tokens,
