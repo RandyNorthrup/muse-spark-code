@@ -920,6 +920,7 @@
     "reportContent": "有害な内容を報告",
     "fastDetail": "{description}。デフォルトではオフです。プランの使用量を多く消費します。",
     "requestFailed": "ChatGPTプランのリクエストに失敗しました: {message}",
+    "notEligible": "OpenAI は、このアカウント、ワークスペース、またはポリシーでの ChatGPTプランの利用を許可していません。APIキーを使うモデルを選択してください。",
     "requestNotBuilt": "このアプリは ChatGPT プランのリクエストを準備できませんでした({reason})。何も送信されていません。"
   },
   "untitledConversation": "無題",

@@ -920,6 +920,7 @@
     "reportContent": "举报有害内容",
     "fastDetail": "{description}。默认关闭：它会消耗更多的套餐额度。",
     "requestFailed": "ChatGPT 套餐请求失败：{message}",
+    "notEligible": "OpenAI 不允许此账户、工作区或策略使用 ChatGPT 套餐。请选择使用 API 密钥的模型。",
     "requestNotBuilt": "此应用无法准备 ChatGPT 套餐请求({reason})。未发送任何内容。"
   },
   "untitledConversation": "未命名",

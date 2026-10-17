@@ -920,6 +920,7 @@
     "reportContent": "檢舉有害內容",
     "fastDetail": "{description}。預設為關閉：會消耗更多的方案額度。",
     "requestFailed": "ChatGPT 方案請求失敗：{message}",
+    "notEligible": "OpenAI 不允許此帳戶、工作區或原則使用 ChatGPT 方案。請選擇使用 API 金鑰的模型。",
     "requestNotBuilt": "此應用程式無法準備 ChatGPT 方案要求({reason})。未傳送任何內容。"
   },
   "untitledConversation": "未命名",

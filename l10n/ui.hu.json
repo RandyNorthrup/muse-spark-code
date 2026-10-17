@@ -924,6 +924,7 @@
     "reportContent": "Káros tartalom jelentése",
     "fastDetail": "{description}. Alapértelmezés szerint kikapcsolva: többet fogyaszt a csomagkeretből.",
     "requestFailed": "A ChatGPT-csomag kérése sikertelen: {message}",
+    "notEligible": "Az OpenAI ennél a fióknál, munkaterületnél vagy szabályzatnál nem engedélyezi a ChatGPT-előfizetés használatát. Válasszon API-kulcsos modellt.",
     "requestNotBuilt": "Az alkalmazás nem tudta előkészíteni a ChatGPT-csomag kérését ({reason}). Semmi nem lett elküldve."
   },
   "untitledConversation": "Névtelen",

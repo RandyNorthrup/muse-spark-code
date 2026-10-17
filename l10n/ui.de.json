@@ -924,6 +924,7 @@
     "reportContent": "Schädliche Inhalte melden",
     "fastDetail": "{description}. Standardmäßig ausgeschaltet: Es verbraucht mehr von Ihrem Plan-Kontingent.",
     "requestFailed": "Die ChatGPT-Plananfrage ist fehlgeschlagen: {message}",
+    "notEligible": "OpenAI erlaubt die Nutzung des ChatGPT-Abos für dieses Konto, diesen Arbeitsbereich oder diese Richtlinie nicht. Wähle ein Modell mit API-Schlüssel.",
     "requestNotBuilt": "Diese App konnte die ChatGPT-Tarifanfrage nicht vorbereiten ({reason}). Es wurde nichts gesendet."
   },
   "untitledConversation": "Unbenannt",

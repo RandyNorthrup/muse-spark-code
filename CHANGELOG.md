@@ -30,6 +30,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ChatGPT plan refusals are handled as OpenAI documents them. A usage limit
+  answered before the reply starts (HTTP 429) now opens the same plan-limit
+  card, with Manage Usage, as one that arrives mid-reply; it was a generic
+  failure. OpenAI's "usage could not be checked" and "user information
+  temporarily unavailable" answers and its direct-route 503, before or during
+  a reply, are retried with the turn's bounded backoff and keep your sign-in;
+  they used to fail at once. "Plan use is not available for this account,
+  workspace or policy" has its own sentence and is never retried, and a
+  refusal OpenAI words as `detail` instead of an error object now shows its
+  words instead of "temporarily unavailable". The rate and retry headers the
+  plan route sends are kept in the usage journal as reported, as for every
+  other provider.
+
 - ChatGPT plan replies are no longer cut short by this app. The app stopped a
   plan reply once its own count passed 32,768 output tokens (Meta's figure,
   counted as bytes) or the stream passed 16 MiB, although OpenAI's plan route
