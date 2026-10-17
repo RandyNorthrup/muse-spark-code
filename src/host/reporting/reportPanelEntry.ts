@@ -1,13 +1,16 @@
 import reportThemes from '../../../design/tokens/generated/report-themes.json'
+import path from 'node:path'
 import type { ReportingContext } from '../../runtime/reporting/engine'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
+import { workspaceKey as scheduleWorkspaceKey } from '../../runtime/dataFolder'
 import {
   GITHUB_AUTH_PROVIDER,
   GITHUB_AUTH_SCOPES,
   GITHUB_API_BASE_URL,
   GITHUB_MEDIA_TYPE,
   GITHUB_API_VERSION,
+  SCHEDULE_STORE_SUBFOLDER,
   UI_TEXT,
 } from '../../shared/constants'
 import { reportWorkspaceKey } from '../../core/reporting/sources/local'
@@ -23,6 +26,7 @@ import * as vscode from 'vscode'
 import { ReportPanel, type ReportPanelDeps } from './reportPanel'
 import { reportEngineLoader } from './reportEngineBundle'
 import { reportInputsLoader } from '../../runtime/reporting/reportInputsLoader'
+import { playbookSchedulesInputsLoader } from '../../runtime/reporting/playbookSchedulesInputsLoader'
 
 export function createReportPanel(
   deps: ReportPanelDeps,
@@ -95,6 +99,14 @@ export function createReportingWindow(
   // first use, so neither activation nor the reporting engine carries them.
   const loadInputs = reportInputsLoader({
     bundlePath: vscode.Uri.joinPath(deps.context.extensionUri, 'dist', 'reportInputs.js').fsPath,
+    log: deps.context.log,
+  })
+  // M113 C-M113-4: the playbook and schedules inputs ride a second bundle
+  // beside it; the journal replay and schedule store would overflow the
+  // session/usage chunk's budget.
+  const loadPlaybookSchedules = playbookSchedulesInputsLoader({
+    bundlePath: vscode.Uri.joinPath(deps.context.extensionUri, 'dist', 'playbookSchedulesInputs.js')
+      .fsPath,
     log: deps.context.log,
   })
   let journalReader:
@@ -190,6 +202,36 @@ export function createReportingWindow(
                     ...(deps.reportVaultSnapshot !== undefined && {
                       readVault: deps.reportVaultSnapshot,
                     }),
+                  },
+                  table,
+                  locale,
+                )
+                .read(context),
+          },
+          // M113 C-M113-4: the playbook journal and the schedules store
+          // live under the same agent data folder as the usage journal.
+          playbook: {
+            read: (context) =>
+              loadPlaybookSchedules()
+                .createPlaybookReportReader(
+                  {
+                    agentDataFolder: deps.reportUsageDataFolder,
+                    workspaceRoot: deps.workspaceRoot ?? process.cwd(),
+                  },
+                  table,
+                  locale,
+                )
+                .read(context),
+          },
+          schedules: {
+            read: (context) =>
+              loadPlaybookSchedules()
+                .createSchedulesReportReader(
+                  {
+                    storeRoot: path.join(deps.reportUsageDataFolder, SCHEDULE_STORE_SUBFOLDER),
+                    workspaceKey: scheduleWorkspaceKey(
+                      path.resolve(deps.workspaceRoot ?? process.cwd()),
+                    ),
                   },
                   table,
                   locale,

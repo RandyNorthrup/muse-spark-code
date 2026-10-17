@@ -1832,6 +1832,7 @@
     "merged": "Birleştirildi",
     "released": "Yayımlandı",
     "complete": "Tamamlandı",
+    "ended": "Sona erdi",
     "superseded": "Yerine yenisi geldi",
     "waiting": "Bekliyor",
     "blocked": "Engellendi",
@@ -1848,7 +1849,21 @@
     "added": "Eklendi",
     "removed": "Kaldırıldı",
     "changed": "Değişti",
-    "unchanged": "Değişmedi"
+    "unchanged": "Değişmedi",
+    "paused": "Duraklatıldı",
+    "active": "Etkin",
+    "all": "Tümü",
+    "total": "Toplam",
+    "once": "Bir kez",
+    "user": "Kullanıcı",
+    "hookVerification": "Kanca doğrulama"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "her {everyMs} ms",
+    "triggerDaily": "her {everyDays} günde günde {times} kez",
+    "triggerWeekdays": "hafta içi {times} kez",
+    "triggerWeekly": "haftada {days} gün",
+    "scheduleGrant": "{rules} kural, {destinations} hedef, üst sınır {cap}"
   },
   "reportKinds": {
     "project": "Proje",
@@ -1942,6 +1957,9 @@
     "history": "Seçili oturumun geçmişi kullanılamıyor."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Kullanım günlüğü hasarlı, eksik veya daha yeni sürümlü kayıtlar içeriyor; toplamlar bunları hariç tutar.",
+    "sessionUsageUnavailable": "Saklanan günlükte kullanım bu oturuma atanamıyor; belirteç ve maliyet toplamları kullanılamıyor.",
+    "budgetsUnavailable": "Seçilen dönem için bütçe anlık görüntüleri kullanılamıyor.",
     "sessionTurnsUnavailable": "Oturum geçmişi tur tanımlayıcısı içermiyor, bu yüzden turlar sayılamıyor.",
     "sessionApprovalsUnavailable": "Oturum geçmişi onay kararı içermiyor.",
     "toolBreakdownUnavailable": "Araç bazında kullanım, kullanım günlüğüne kaydedilmiyor.",

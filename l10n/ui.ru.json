@@ -1888,6 +1888,7 @@
     "merged": "Слито",
     "released": "Выпущено",
     "complete": "Завершено",
+    "ended": "Завершено",
     "superseded": "Заменено",
     "waiting": "Ожидает",
     "blocked": "Заблокировано",
@@ -1904,7 +1905,21 @@
     "added": "Добавлено",
     "removed": "Удалено",
     "changed": "Изменено",
-    "unchanged": "Без изменений"
+    "unchanged": "Без изменений",
+    "paused": "Приостановлено",
+    "active": "Активно",
+    "all": "Все",
+    "total": "Итого",
+    "once": "Один раз",
+    "user": "Пользователь",
+    "hookVerification": "Проверка хуков"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "каждые {everyMs} мс",
+    "triggerDaily": "каждые {everyDays} дн., {times} раз в день",
+    "triggerWeekdays": "{times} раз по будням",
+    "triggerWeekly": "{days} дн. в неделю",
+    "scheduleGrant": "{rules} правил, {destinations} назначений, лимит {cap}"
   },
   "reportKinds": {
     "project": "Проект",
@@ -1998,6 +2013,9 @@
     "history": "История выбранного сеанса недоступна."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Журнал содержит повреждённые, неполные записи или записи более новой версии; итоги их не включают.",
+    "sessionUsageUnavailable": "В сохранённом журнале нельзя определить использование для этого сеанса; итоги токенов и стоимости недоступны.",
+    "budgetsUnavailable": "Снимки бюджета за выбранный период недоступны.",
     "sessionTurnsUnavailable": "В истории сеанса нет идентификаторов ходов, поэтому ходы нельзя подсчитать.",
     "sessionApprovalsUnavailable": "В истории сеанса нет решений об утверждении.",
     "toolBreakdownUnavailable": "Использование по инструментам не записывается в журнал использования.",

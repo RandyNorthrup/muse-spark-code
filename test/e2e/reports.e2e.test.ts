@@ -20,8 +20,16 @@ import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
 import { writeDeveloperAudit } from '../unit/helpers/reporting/tempDir'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { FilePlaybookJournal } from '../../src/core/orchestration/playbook/journal'
+import { createScheduleStore } from '../../src/core/schedules/store'
+import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
+import { SCHEDULE_STORE_SUBFOLDER } from '../../src/shared/constants'
+import { playbookRecordSchema } from '../../src/shared/playbook'
+import { scheduleV2Schema } from '../../src/shared/scheduleV2'
+import { scheduleFixture } from '../unit/helpers/reporting/reportKindFixtures'
 import {
   agentDataFolder,
+  workspaceKey,
   workspaceSessionsFolder,
   type DataFolderInput,
 } from '../../src/runtime/dataFolder'
@@ -123,6 +131,17 @@ beforeAll(async () => {
     entryPoints: [path.join(sourceRoot, 'src/runtime/reporting/reportInputsEntry.ts')],
     outfile: path.join(liveDist, 'reportInputs.js'),
     metafile: true,
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    logLevel: 'silent',
+    plugins: [sharedResourceAdmission],
+  })
+  // C-M113-4: the playbook and schedules inputs ride their own chunk, like
+  // production's dist/playbookSchedulesInputs.js beside reportInputs.js.
+  await build({
+    entryPoints: [path.join(sourceRoot, 'src/runtime/reporting/playbookSchedulesInputsEntry.ts')],
+    outfile: path.join(liveDist, 'playbookSchedulesInputs.js'),
     bundle: true,
     platform: 'node',
     format: 'cjs',
@@ -254,6 +273,72 @@ beforeAll(async () => {
     session: LIVE_SESSION_ID,
   })
   await journal.flush()
+  // C-M113-4: the playbook journal and one schedule the live CLI reports.
+  // Same folders and workspace key the delivery engine uses, so the report
+  // reads exactly what the hosts wrote.
+  const liveInput: DataFolderInput = {
+    platform: process.platform,
+    env: { XDG_DATA_HOME: path.join(state.liveData, 'data') },
+    homeDir: path.join(state.liveData, 'home'),
+  }
+  const liveDataFolder = agentDataFolder(liveInput)
+  const liveModule = {
+    id: 'e2e-module',
+    key: 'src/e2e',
+    files: ['src/e2e/index.ts'],
+    source: 'lane',
+  }
+  const liveAt = Date.parse(LIVE_AS_OF)
+  new FilePlaybookJournal(liveDataFolder, state.live).replace(
+    [
+      { kind: 'module', value: { module: liveModule, at: liveAt } },
+      {
+        kind: 'round',
+        value: {
+          module: liveModule,
+          implementerId: 'e2e-dev',
+          reviewerId: 'e2e-rev',
+          implementerSessionId: 'e2e-s1',
+          reviewerSessionId: 'e2e-s2',
+          round: 1,
+          phase: 'build',
+          findings: [{ id: 'e2e-f1', file: 'src/e2e/index.ts', severity: 'P1' }],
+          answers: [{ findingId: 'e2e-f1', status: 'fixed' }],
+          at: liveAt,
+        },
+      },
+      {
+        kind: 'design',
+        value: {
+          id: 'e2e-d1',
+          module: liveModule,
+          failureClass: 'E2E failure class',
+          whyPatchesFailed: 'E2E patches raced',
+          structuralChange: 'E2E atomic claim',
+          planLocation: 'PLAN.md',
+          redesignLane: 'C-M113-4',
+          outcome: 'remains',
+          at: liveAt,
+        },
+      },
+    ].map((record) => playbookRecordSchema.parse(record)),
+    [],
+  )
+  const liveKey = workspaceKey(path.resolve(state.live))
+  await createScheduleStore(
+    createNodeScheduleFs(path.join(liveDataFolder, SCHEDULE_STORE_SUBFOLDER)),
+  ).create(
+    scheduleV2Schema.parse(
+      scheduleFixture(liveKey, {
+        id: 'e2e-sched',
+        name: 'E2E build',
+        trigger: { kind: 'interval', everyMs: 3_600_000, anchorMs: liveAt },
+        createdAtMs: liveAt,
+        updatedAtMs: liveAt,
+        nextFireAtMs: liveAt + 3_600_000,
+      }),
+    ),
+  )
 }, FIXTURE_HOOK_TIMEOUT_MS)
 
 afterAll(async () => {
@@ -467,6 +552,31 @@ it('R1 reports primary CLI history through the host without a model turn', async
   expect(result.stdout).toContain('primary-model')
   expect(result.stdout).toContain('museCode')
   expect(result.stdout).not.toContain('History for the selected session is unavailable')
+})
+
+describe('playbook and schedules report kinds over the real store', () => {
+  it('reports playbook strikes and design decisions end to end', async () => {
+    const result = await liveCli(['playbook', '--as-of', LIVE_AS_OF])
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('src/e2e')
+    expect(result.stdout).toContain('| 1 |')
+    expect(result.stdout).toContain('E2E failure class')
+    expect(result.stdout).toContain('remains')
+  })
+
+  it('filters playbook rows by module without dropping the report', async () => {
+    const result = await liveCli(['playbook', '--module', 'src/other/**', '--as-of', LIVE_AS_OF])
+    expect(result.code).toBe(0)
+    expect(result.stdout).not.toContain('src/e2e')
+  })
+
+  it('reports schedules with their trigger and upcoming fire end to end', async () => {
+    const result = await liveCli(['schedules', '--as-of', LIVE_AS_OF])
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('E2E build')
+    expect(result.stdout).toContain('every 3600000 ms')
+    expect(result.stdout).toContain('Active')
+  })
 })
 
 it('R8 CLI keeps installed German reasons across the lazy input boundary', async () => {

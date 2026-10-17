@@ -1832,6 +1832,7 @@
     "merged": "Beolvasztott",
     "released": "Kiadott",
     "complete": "Befejezett",
+    "ended": "Befejezve",
     "superseded": "Felváltott",
     "waiting": "Várakozik",
     "blocked": "Blokkolt",
@@ -1848,7 +1849,21 @@
     "added": "Hozzáadott",
     "removed": "Eltávolított",
     "changed": "Módosított",
-    "unchanged": "Változatlan"
+    "unchanged": "Változatlan",
+    "paused": "Szüneteltetve",
+    "active": "Aktív",
+    "all": "Mind",
+    "total": "Összesen",
+    "once": "Egyszer",
+    "user": "Felhasználó",
+    "hookVerification": "Hook-ellenőrzés"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "{everyMs} ms-enként",
+    "triggerDaily": "{everyDays} naponként naponta {times}x",
+    "triggerWeekdays": "{times}x hétköznapokon",
+    "triggerWeekly": "hetente {days} nap",
+    "scheduleGrant": "{rules} szabály, {destinations} cél, korlát {cap}"
   },
   "reportKinds": {
     "project": "Projekt",
@@ -1942,6 +1957,9 @@
     "history": "A kiválasztott munkamenet előzményei nem érhetők el."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "A használati napló sérült, hiányos vagy újabb verziójú bejegyzéseket tartalmaz; az összesítés ezeket kizárja.",
+    "sessionUsageUnavailable": "A megőrzött naplóban a használat nem rendelhető ehhez a munkamenethez; a tokenek és költségek összesítése nem érhető el.",
+    "budgetsUnavailable": "A kiválasztott időszak költségkeret-pillanatképei nem érhetők el.",
     "sessionTurnsUnavailable": "A munkamenet-előzmények nem tartalmaznak körazonosítókat, ezért a körök nem számolhatók meg.",
     "sessionApprovalsUnavailable": "A munkamenet-előzmények nem tartalmaznak jóváhagyási döntéseket.",
     "toolBreakdownUnavailable": "Az eszközönkénti használat nincs rögzítve a használati naplóban.",

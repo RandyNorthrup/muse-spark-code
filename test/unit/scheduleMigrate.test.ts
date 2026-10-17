@@ -16,12 +16,13 @@ import { scheduleV1ToV2 } from '../../src/shared/scheduleV2'
 import { fakeV1Schedule } from './helpers/schedules/fixtures'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
+import { fixtureBudget } from './helpers/fixtureBudget'
 import { MemoryScheduleFs } from './helpers/schedules/storage'
 
 const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-migration-'))
 afterAll(() => removeFolder(root))
 
-async function fixture(name: string) {
+async function prepareFixture(name: string) {
   const directory = path.join(root, name, 'v1')
   const job = {
     ...fakeV1Schedule(),
@@ -37,6 +38,27 @@ async function fixture(name: string) {
   const store = createScheduleStore(createNodeScheduleFs(path.join(root, name, 'shared')))
   return { directory, job, old, store, source: createFileScheduleMigrationSource(directory) }
 }
+
+const fixture = fixtureBudget(
+  [
+    'raced-copy',
+    'later-jobs',
+    'atomic-receipt',
+    'wrong-id',
+    'unsafe-receipt',
+    'copy',
+    'verify',
+    'changed',
+    'crash-0',
+    'crash-1',
+    'crash-2',
+    'authority',
+    'invalid',
+    'seal-race',
+    'sealed-cleanup',
+  ],
+  prepareFixture,
+)
 
 describe('M115 verified M52 migration', () => {
   it('resumes a pending copy whose legacy reservation lacks migration metadata', async () => {
@@ -258,8 +280,20 @@ describe('M115 verified M52 migration', () => {
   it('preserves the source and refuses old admission when destination verification fails', async () => {
     const { job, directory, store, source, old } = await fixture('verify')
     const before = await readFile(path.join(directory, `${job.id}.json`), 'utf8')
-    const invalidReader = { ...store, list: () => Promise.resolve([]) }
-    await expect(migrateSchedules(source, invalidReader, 'workspace-1', 'UTC')).rejects.toThrow(
+    // Verification reads the completion snapshot, not a second journal pass:
+    // a completion whose receipt does not match its schedule must fail the
+    // same check without touching the source.
+    const complete = store.completeMigration.bind(store)
+    const mismatchedReader = {
+      ...store,
+      completeMigration: async (workspaceKey: string, sourceId: string) => {
+        const completed = await complete(workspaceKey, sourceId)
+        return completed === undefined
+          ? undefined
+          : { ...completed, receipt: { ...completed.receipt, targetHash: 'mismatch' } }
+      },
+    }
+    await expect(migrateSchedules(source, mismatchedReader, 'workspace-1', 'UTC')).rejects.toThrow(
       'VerificationFailed',
     )
     expect(await readFile(path.join(directory, `${job.id}.json`), 'utf8')).toBe(before)

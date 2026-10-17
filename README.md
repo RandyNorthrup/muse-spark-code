@@ -237,6 +237,8 @@ visible as unavailable.
 | Keybindings | `/report keybindings`; editor bindings, panel gestures, ACP commands            |
 | Accounts    | `/report accounts`; provider accounts, limits, usage, swaps and confirmations   |
 | Security    | `/report security`; vault counts, grants, audits and developer audit            |
+| Playbook    | `/report playbook`; `--module <glob>` and `--milestone <id>` filter modules     |
+| Schedules   | `/report schedules`                                                             |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
 all available rows. Accounts and security reads retain independently valid
@@ -261,7 +263,28 @@ journal snapshot per generation. Damaged, incomplete, newer-version or
 unattributable evidence is disclosed in partial source rows. Limits respect
 the selected period; live finite daily and conversation budgets use the
 usage page's snapshots when available in that period. Historical or unbound
-budget snapshots are explicitly unavailable.
+budget snapshots are explicitly unavailable. The playbook report reads the
+orchestrator journal through the same replay the policy uses, so its
+three-strikes counts per module and class match enforcement: design
+decisions with their outcomes, hook-verification receipts with their
+pass/fail results, currently disabled rules per team with their latest
+reason, actor and date, and the route-around refusals. `--module
+<glob>` keeps matching modules (`*` stays inside one path segment, `**`
+crosses them); `--milestone <id>` keeps modules, lanes and decisions
+naming it; workspace-wide rows stay in both cases. The schedules report
+reads the workspace's schedules and fire record: the timeline of upcoming
+fires with collisions, each schedule's trigger, target, delivery, grant
+and creator, recent fires with translated outcomes, refused actions and cost.
+Schedule revisions reconcile around the fire-history read; admitted one-shots,
+paused/ended schedules and occurrences at or beyond the end date stay off the
+upcoming timeline. Writer contention retries and is named as busy if it persists.
+A waiting read stops at its deadline; cancellation releases its lease so another
+writer can acquire immediately. A heartbeat that contradicts its immutable
+lease identity reports invalid without retrying.
+Each report keeps the language table captured when its request starts. Until
+delivery is registered no v2 fire exists, so the fire sections stay
+empty instead of invented. Both kinds work in VS Code, ACP and the
+terminal without a model call.
 
 The tab provides **Save As…**, **Copy as Markdown**, **Attach to Message**,
 **History**, **Diff With Previous** and **Refresh**. Save as exports Markdown,

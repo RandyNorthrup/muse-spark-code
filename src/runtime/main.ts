@@ -47,6 +47,7 @@ import {
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
   REFERENCE_BUNDLE_FILE,
+  SCHEDULE_STORE_SUBFOLDER,
   SESSION_EXPORT_MAX_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
 } from '../shared/constants'
@@ -81,7 +82,7 @@ import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/po
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
-import { agentDataFolder, workspaceSessionsFolder } from './dataFolder'
+import { agentDataFolder, workspaceKey, workspaceSessionsFolder } from './dataFolder'
 import { fontsBundle } from './fonts/bundle'
 import { playbookLoader } from './playbook/playbookBundle'
 import { runReportCommand } from './reportCommand'
@@ -126,6 +127,7 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
 import { reportInputsLoader } from './reporting/reportInputsLoader'
+import { playbookSchedulesInputsLoader } from './reporting/playbookSchedulesInputsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding } from './schedules/binding'
 import { settleScheduleCommand } from './schedules/settle'
@@ -492,6 +494,13 @@ function runtimeReports(
     bundlePath: path.join(distDir, 'reportInputs.js'),
     log,
   })
+  // M113 C-M113-4: the playbook and schedules inputs ride a second chunk
+  // beside it; the journal replay and schedule store would overflow the
+  // session/usage chunk's budget.
+  const playbookSchedules = playbookSchedulesInputsLoader({
+    bundlePath: path.join(distDir, 'playbookSchedulesInputs.js'),
+    log,
+  })
   let reports: ReturnType<typeof createRuntimeReports> | undefined
   return () => {
     reports ??= load().createRuntimeReports({
@@ -618,6 +627,33 @@ function runtimeReports(
               read: (context) =>
                 inputs()
                   .createSecurityReportReader({ dataDir: dataFolder }, l10n.table, l10n.locale)
+                  .read(context),
+            },
+            // M113 C-M113-4: the playbook journal and the schedules store
+            // live under the same agent data folder as the usage journal.
+            // The schedules key matches the delivery engine's own workspace
+            // key (schedulesBridge keyFor), not the report storage key.
+            playbook: {
+              read: (context) =>
+                playbookSchedules()
+                  .createPlaybookReportReader(
+                    { agentDataFolder: dataFolder, workspaceRoot: cwd },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
+            schedules: {
+              read: (context) =>
+                playbookSchedules()
+                  .createSchedulesReportReader(
+                    {
+                      storeRoot: path.join(dataFolder, SCHEDULE_STORE_SUBFOLDER),
+                      workspaceKey: workspaceKey(path.resolve(cwd)),
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
                   .read(context),
             },
             network: {

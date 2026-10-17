@@ -110,6 +110,16 @@ export function codeUnitCompare(a: string, b: string): number {
   return a < b ? -1 : 1
 }
 
+/**
+ * Millisecond stamps render as ISO dates. A schema-valid stamp outside the
+ * Date range stays a number at the call site, never a guessed date.
+ */
+export function isoDateMs(value: number): string | undefined {
+  if (!Number.isSafeInteger(value)) return undefined
+  const time = new Date(value).getTime()
+  return Number.isNaN(time) ? undefined : new Date(time).toISOString()
+}
+
 /** A stable storage key; the path itself never enters a report or a filename. */
 export function reportWorkspaceKey(root: string, platform: NodeJS.Platform): string {
   const p = pathModule(platform)

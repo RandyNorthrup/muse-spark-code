@@ -5,28 +5,23 @@ import { tmpdir } from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
 import {
   SCHEDULE_FS_RETRY_ATTEMPTS,
   SCHEDULE_JOURNAL_MAX_OPS,
   SCHEDULE_LEASE_EXPIRES_MS,
-  SCHEDULE_LEASE_HEARTBEAT_MS,
 } from '../../src/shared/constants'
 import { scheduleStateFile } from './helpers/schedules/storage'
+import { accelerateLeaseHeartbeat } from './helpers/schedules/heartbeatAcceleration'
 import { fakeSchedule } from './helpers/schedules/fixtures'
+import { fixtureBudget } from './helpers/fixtureBudget'
 import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
-  const actual = await importOriginal<typeof disk>()
-  return {
-    ...actual,
-    link: vi.fn(actual.link),
-    unlink: vi.fn(actual.unlink),
-    rename: vi.fn(actual.rename),
-    readFile: vi.fn(actual.readFile),
-  }
+  const { mockedDiskModule } = await import('./helpers/schedules/mockDiskWrites')
+  return await mockedDiskModule(() => importOriginal<typeof disk>())
 })
 const root = mkdtempSync(path.join(tmpdir(), 'muse-m115-locks-'))
 const exec = promisify(execFile)
@@ -39,17 +34,7 @@ afterAll(async () => {
   await removeFolder(root)
 })
 beforeEach(() => {
-  const interval = globalThis.setInterval
-  vi.spyOn(globalThis, 'setInterval').mockImplementation((callback, ms, ...args) => {
-    if (ms !== SCHEDULE_LEASE_HEARTBEAT_MS) return interval(callback, ms, ...args)
-    // Produce one real pulse, then simulate the suspended process used by the
-    // takeover/old-pulse regressions without a two-second setup in every case.
-    const timer = interval(() => {
-      clearInterval(timer)
-      callback(...args)
-    }, 20)
-    return timer
-  })
+  accelerateLeaseHeartbeat(20)
 })
 afterEach(() => {
   vi.restoreAllMocks()
@@ -164,6 +149,49 @@ async function releaseHelpers(): Promise<void> {
   }
 }
 
+// Cold publication and journal fill belong to the fixture budget, outside each
+// assertion's unchanged test deadline. The cold Windows PowerShell start is
+// paid here too, in the same hook: the first preparation holds and releases a
+// throwaway handle so the per-test native handles below start warm. Those
+// handles stay in the test itself, since an earlier afterEach would release a
+// suite-wide handle before the owning assertion starts.
+const powerShellWarmup = { done: false }
+const nativeFixture = fixtureBudget(['native-pointer', 'native-retirement'], async (name) => {
+  if (!powerShellWarmup.done && process.platform === 'win32') {
+    powerShellWarmup.done = true
+    const warmFile = path.join(root, 'warmup.txt')
+    await disk.writeFile(warmFile, 'warm')
+    const releaseWarm = await handle(warmFile, 'warmup')
+    await releaseWarm()
+  }
+  const directory = path.join(root, name)
+  const fs = createNodeScheduleFs(directory)
+  const store = createScheduleStore(fs)
+  const job = fakeSchedule()
+  await store.create(job)
+  const old = await scheduleStateFile(fs)
+  const [before] = await store.list(job.workspaceKey)
+  await fillJournal(directory, fs)
+  return { directory, fs, store, job, old, before }
+})
+
+async function nativeHandle(
+  name: 'native-pointer' | 'native-retirement',
+  cold: {
+    directory: string
+    job: ReturnType<typeof fakeSchedule>
+    old: string
+  },
+) {
+  // Preserve the original handle order, including the Windows lock.
+  return name === 'native-retirement'
+    ? await handle(path.join(cold.directory, cold.old), 'retirement')
+    : await handle(
+        path.join(cold.directory, cold.job.workspaceKey, 'index/current.json'),
+        'pointer',
+      )
+}
+
 describe('native schedule publication and leases', () => {
   it.each(['pid', 'start'] as const)(
     'refuses a token-matched heartbeat with a different %s',
@@ -183,7 +211,7 @@ describe('native schedule publication and leases', () => {
         JSON.stringify({ ...owner, [field]: owner[field] + 1 }),
       )
       await expect(fs.lock(key, () => Promise.resolve('invalid pulse acquired'))).rejects.toThrow(
-        'OwnershipLost',
+        'scheduleQueueLeaseInvalid',
       )
     },
   )
@@ -295,11 +323,20 @@ describe('native schedule publication and leases', () => {
       await resumed.promise
       await fs.replace('data/current.json', 'stale', guard)
     })
+    // A timeout abandons this function, so the parked holder is released up
+    // front: nothing keeps polling behind the test.
+    onTestFinished(async () => {
+      resumed.resolve(undefined)
+      await Promise.allSettled([first])
+    })
     await entered.promise
     const initial = z
       .object({ heartbeat: z.number(), token: z.string() })
       .parse(JSON.parse((await fs.read(file)) ?? 'null'))
     const pulseFile = `${file}.${initial.token}.heartbeat`
+    // The accelerated heartbeat pulses within milliseconds; the bound stays
+    // far below the unchanged test deadline so a stall fails fast instead of
+    // abandoning the parked holder at the deadline.
     await vi.waitFor(
       async () => {
         const current = z
@@ -307,7 +344,7 @@ describe('native schedule publication and leases', () => {
           .parse(JSON.parse((await fs.read(pulseFile)) ?? 'null'))
         expect(current.heartbeat).toBeGreaterThan(initial.heartbeat)
       },
-      { timeout: 120_000 },
+      { timeout: 4500 },
     )
     const bytes = await fs.read(pulseFile)
     await fs.replace(
@@ -334,6 +371,23 @@ describe('native schedule publication and leases', () => {
     const resumeTakeover = Promise.withResolvers<undefined>()
     const releaseReplacement = Promise.withResolvers<undefined>()
     const replacementEntered = Promise.withResolvers<undefined>()
+    const takerLinkSettled = Promise.withResolvers<undefined>()
+    const linkedCandidates: string[] = []
+    // Every settlement below is registered before the first wait, so a
+    // timeout leaves no holder or paused publication running behind the test:
+    // vitest abandons the test function on timeout without running finally.
+    const settleAll = () => {
+      releaseOld.resolve(undefined)
+      resumeTakeover.resolve(undefined)
+      releaseReplacement.resolve(undefined)
+    }
+    // The old, taker and replacement locks are declared below; the closure
+    // only reads them when cleanup runs, by which time each one is assigned.
+    const pendingLocks = () => Promise.allSettled([old, taker, replacement ?? Promise.resolve()])
+    onTestFinished(async () => {
+      settleAll()
+      await pendingLocks()
+    })
     const old = fs.lock(key, async () => {
       entered.resolve(undefined)
       await releaseOld.promise
@@ -358,34 +412,111 @@ describe('native schedule publication and leases', () => {
         hasPaused = true
         pauseTakeover.resolve(undefined)
         await resumeTakeover.promise
+        try {
+          await actualDisk.link(...args)
+        } finally {
+          takerLinkSettled.resolve(undefined)
+        }
+        return
       }
+      const match = /\/leaseFences\/.*\/(\d+)\.json$/.exec(name)
+      if (match !== null) linkedCandidates.push(match[1]!)
       await actualDisk.link(...args)
     })
     let hasTakeoverEntered = false
-    const taker = createNodeScheduleFs(directory).lock(key, () => {
+    const takerFs = createNodeScheduleFs(directory)
+    const takerReads = vi.spyOn(takerFs, 'names')
+    const taker = takerFs.lock(key, () => {
       hasTakeoverEntered = true
       return Promise.resolve()
     })
-    await pauseTakeover.promise
-    releaseOld.resolve(undefined)
-    await old
-    const replacement = createNodeScheduleFs(directory).lock(key, async (guard) => {
-      replacementEntered.resolve(undefined)
-      await releaseReplacement.promise
-      await guard()
-    })
-    await replacementEntered.promise
-    resumeTakeover.resolve(undefined)
+    let replacement: Promise<void> | undefined
     try {
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await pauseTakeover.promise
+      releaseOld.resolve(undefined)
+      await old
+      replacement = createNodeScheduleFs(directory).lock(key, async (guard) => {
+        replacementEntered.resolve(undefined)
+        await releaseReplacement.promise
+        await guard()
+      })
+      await replacementEntered.promise
+      resumeTakeover.resolve(undefined)
+      // The taker consumed its paused publication and is deciding against the
+      // replacement's intact fence, which no remaining writer can break: the
+      // old holder settled above and the taker only publishes after seeing a
+      // release. The link-settled signal fires inside the mocked link, before
+      // the identity check and the wait loop, so the assertions below wait
+      // for the taker's decision itself: two fence-folder re-reads after the
+      // link settled prove it looped back to waiting instead of proceeding.
+      await takerLinkSettled.promise
+      const fenceFolder = `leaseFences/${scheduleStorageHash(key)}`
+      const readsAtLink = takerReads.mock.calls.filter(([folder]) =>
+        folder.replaceAll('\\', '/').startsWith(fenceFolder),
+      ).length
+      await vi.waitFor(
+        () => {
+          expect(
+            takerReads.mock.calls.filter(([folder]) =>
+              folder.replaceAll('\\', '/').startsWith(fenceFolder),
+            ).length,
+          ).toBeGreaterThanOrEqual(readsAtLink + 2)
+        },
+        { timeout: 4500 },
+      )
+      const replacementHint = z
+        .object({ token: z.string() })
+        .parse(JSON.parse((await fs.read(file)) ?? 'null'))
+      const replacementFence = JSON.parse(
+        (await fs.read(`leaseFences/${scheduleStorageHash(key)}/0/1.json`)) ?? 'null',
+      ) as unknown
+      expect(replacementHint.token).toBe(
+        z.object({ token: z.string() }).parse(replacementFence).token,
+      )
+      expect(
+        await fs.read(`leaseFences/${scheduleStorageHash(key)}/0/1.json.released`),
+      ).toBeUndefined()
+      expect(linkedCandidates).not.toContain('2')
       expect(hasTakeoverEntered).toBe(false)
     } finally {
-      releaseReplacement.resolve(undefined)
-      resumeTakeover.resolve(undefined)
+      settleAll()
     }
     await replacement
     await taker
     expect(hasTakeoverEntered).toBe(true)
+  })
+  // A timeout abandons the test function without running finally, so only
+  // the up-front onTestFinished registration settles the parked holder. The
+  // 300 ms deadline below forces that path on purpose: the test is expected
+  // to time out, and the follow-up proves nothing was left running.
+  const abandonedPause: { directory?: string; held?: Promise<unknown> } = {}
+  it.fails(
+    'an abandoned pause still settles through the registered cleanup',
+    { timeout: 300 },
+    async () => {
+      const directory = path.join(root, 'abandoned-pause')
+      abandonedPause.directory = directory
+      const fs = createNodeScheduleFs(directory)
+      const releaseHolder = Promise.withResolvers<undefined>()
+      const held = fs.lock('abandoned', async () => {
+        await releaseHolder.promise
+      })
+      abandonedPause.held = held
+      onTestFinished(async () => {
+        releaseHolder.resolve(undefined)
+        await Promise.allSettled([held])
+      })
+      await Promise.withResolvers<undefined>().promise
+    },
+  )
+  it('settled the abandoned pause with no holder left behind', async () => {
+    if (abandonedPause.held === undefined || abandonedPause.directory === undefined)
+      throw new Error('abandoned pause never ran')
+    await abandonedPause.held
+    const fs = createNodeScheduleFs(abandonedPause.directory)
+    await expect(
+      fs.lock('abandoned', () => Promise.resolve('next'), { deadlineMs: Date.now() + 1000 }),
+    ).resolves.toBe('next')
   })
   it('expires an unchanged live-owner heartbeat despite wall-clock rollback', async () => {
     const directory = path.join(root, 'rollback')
@@ -433,6 +564,13 @@ describe('native schedule publication and leases', () => {
       await resumeWork.promise
     })
     const outcome = Promise.allSettled([old])
+    // A timeout abandons this function without running the finally below, so
+    // the paused rename and the parked holder are released up front.
+    onTestFinished(async () => {
+      resumeRename.resolve(undefined)
+      resumeWork.resolve(undefined)
+      await outcome
+    })
     await entered.promise
     const owner = z.object({ token: z.string() }).parse(JSON.parse((await fs.read(file)) ?? 'null'))
     const pulse = `${file}.${owner.token}.heartbeat`
@@ -465,17 +603,9 @@ describe('native schedule publication and leases', () => {
     })
   })
   it('keeps the old generation readable when a native Windows handle prevents pointer activation', async () => {
-    const directory = path.join(root, 'native-pointer')
-    const fs = createNodeScheduleFs(directory)
-    const store = createScheduleStore(fs)
-    const job = fakeSchedule()
-    await store.create(job)
-    const [before] = await store.list(job.workspaceKey)
-    await fillJournal(directory, fs)
-    const release = await handle(
-      path.join(directory, job.workspaceKey, 'index/current.json'),
-      'pointer',
-    )
+    const cold = await nativeFixture('native-pointer')
+    const { directory, store, job, before } = cold
+    const release = await nativeHandle('native-pointer', cold)
     try {
       if (process.platform === 'win32') {
         await expect(store.update({ ...before!, name: 'blocked' })).rejects.toMatchObject({
@@ -492,17 +622,11 @@ describe('native schedule publication and leases', () => {
     expect(await store.update({ ...current!, name: 'activated after release' })).toBe(true)
   })
   it('activates a new generation while an old state handle blocks retirement and retires it on the next mutation', async () => {
-    const directory = path.join(root, 'native-retirement')
-    const fs = createNodeScheduleFs(directory)
-    const store = createScheduleStore(fs)
-    const job = fakeSchedule()
-    await store.create(job)
-    const old = await scheduleStateFile(fs)
-    const release = await handle(path.join(directory, old), 'retirement')
+    const cold = await nativeFixture('native-retirement')
+    const { fs, store, job, old, before } = cold
+    const release = await nativeHandle('native-retirement', cold)
     try {
-      const [current] = await store.list(job.workspaceKey)
-      await fillJournal(directory, fs)
-      expect(await store.update({ ...current!, name: 'changed' })).toBe(true)
+      expect(await store.update({ ...before!, name: 'changed' })).toBe(true)
       expect(await scheduleStateFile(fs)).not.toBe(old)
       if (process.platform === 'win32') expect(await fs.read(old)).toBeDefined()
     } finally {

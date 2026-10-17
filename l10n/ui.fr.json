@@ -1860,6 +1860,7 @@
     "merged": "Fusionné",
     "released": "Publié",
     "complete": "Terminé",
+    "ended": "Terminé",
     "superseded": "Remplacé",
     "waiting": "En attente",
     "blocked": "Bloqué",
@@ -1876,7 +1877,21 @@
     "added": "Ajouté",
     "removed": "Supprimé",
     "changed": "Modifié",
-    "unchanged": "Inchangé"
+    "unchanged": "Inchangé",
+    "paused": "En pause",
+    "active": "Actif",
+    "all": "Tous",
+    "total": "Total",
+    "once": "Une fois",
+    "user": "Utilisateur",
+    "hookVerification": "Vérification des hooks"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "toutes les {everyMs} ms",
+    "triggerDaily": "tous les {everyDays} j, {times}x par jour",
+    "triggerWeekdays": "{times}x en semaine",
+    "triggerWeekly": "{days} j par semaine",
+    "scheduleGrant": "{rules} règles, {destinations} destinations, plafond {cap}"
   },
   "reportKinds": {
     "project": "Projet",
@@ -1970,6 +1985,9 @@
     "history": "L’historique de la session sélectionnée n’est pas disponible."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Le journal contient des entrées endommagées, incomplètes ou de version plus récente ; les totaux les excluent.",
+    "sessionUsageUnavailable": "L’utilisation de cette session ne peut pas être attribuée dans le journal conservé ; les totaux de jetons et de coûts sont indisponibles.",
+    "budgetsUnavailable": "Les instantanés de budget pour la période sélectionnée sont indisponibles.",
     "sessionTurnsUnavailable": "L'historique de la session ne contient aucun identifiant de tour ; les tours ne peuvent pas être comptés.",
     "sessionApprovalsUnavailable": "L'historique de la session ne contient aucune décision d'approbation.",
     "toolBreakdownUnavailable": "L'utilisation par outil n'est pas enregistrée dans le journal d'utilisation.",

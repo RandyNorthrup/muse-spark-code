@@ -81,7 +81,7 @@ const KIND_SECTIONS: Record<ReportKind, readonly ReportLabelKey[]> = {
   security: ['vault', 'grants', 'denials', 'locks', 'developerAudit'],
   accounts: ['accounts', 'limits', 'usage', 'swaps', 'confirmations'],
   estimate: ['criticalPath', 'limitingResource', 'setups', 'inputs', 'calibration'],
-  playbook: ['decisions', 'drills', 'disabledRules', 'refusals'],
+  playbook: ['decisions', 'hookVerification', 'disabledRules', 'refusals'],
   issues: ['issues', 'status', 'pullRequests', 'nextSteps'],
   schedules: ['timeline', 'schedules', 'fires', 'refusals', 'cost'],
   keybindings: ['keybindings', 'conflicts'],

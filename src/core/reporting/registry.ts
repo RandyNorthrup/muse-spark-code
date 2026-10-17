@@ -93,7 +93,7 @@ export const REPORT_KIND_REGISTRY = {
   },
   playbook: {
     sources: ['playbook'],
-    sections: ['totals', 'decisions', 'drills', 'disabledRules', 'refusals'],
+    sections: ['totals', 'decisions', 'hookVerification', 'disabledRules', 'refusals'],
     collector: 'index',
   },
   issues: { sources: ['issues'], sections: ['issues', 'limits'], collector: 'index' },

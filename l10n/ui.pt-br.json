@@ -1860,6 +1860,7 @@
     "merged": "Integrado",
     "released": "Publicado",
     "complete": "Concluído",
+    "ended": "Finalizado",
     "superseded": "Substituído",
     "waiting": "Aguardando",
     "blocked": "Bloqueado",
@@ -1876,7 +1877,21 @@
     "added": "Adicionado",
     "removed": "Removido",
     "changed": "Alterado",
-    "unchanged": "Sem alterações"
+    "unchanged": "Sem alterações",
+    "paused": "Pausado",
+    "active": "Ativo",
+    "all": "Todos",
+    "total": "Total",
+    "once": "Uma vez",
+    "user": "Usuário",
+    "hookVerification": "Verificação de hooks"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "a cada {everyMs} ms",
+    "triggerDaily": "a cada {everyDays} d, {times}x por dia",
+    "triggerWeekdays": "{times}x em dias úteis",
+    "triggerWeekly": "{days}d por semana",
+    "scheduleGrant": "{rules} regras, {destinations} destinos, teto {cap}"
   },
   "reportKinds": {
     "project": "Projeto",
@@ -1970,6 +1985,9 @@
     "history": "O histórico da sessão selecionada está indisponível."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "O registro contém entradas danificadas, incompletas ou de uma versão mais recente; os totais as excluem.",
+    "sessionUsageUnavailable": "O uso desta sessão não pode ser atribuído no registro preservado; os totais de tokens e custos estão indisponíveis.",
+    "budgetsUnavailable": "Os registros de orçamento do período selecionado estão indisponíveis.",
     "sessionTurnsUnavailable": "O histórico da sessão não contém identificadores de turno, por isso os turnos não podem ser contados.",
     "sessionApprovalsUnavailable": "O histórico da sessão não contém decisões de aprovação.",
     "toolBreakdownUnavailable": "O uso por ferramenta não é registrado no diário de uso.",

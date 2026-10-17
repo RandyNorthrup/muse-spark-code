@@ -193,7 +193,8 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
-      "teamUsageTokens"
+      "teamUsageTokens",
+      "reportLabels.total"
     ],
     "pt-br": [
       "agentTokens",
@@ -208,7 +209,8 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
-      "teamUsageTokens"
+      "teamUsageTokens",
+      "reportLabels.total"
     ],
     "fr": [
       "modesTitle",
@@ -236,7 +238,8 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamTemplateSolo",
-      "teamIntensityLevels.minimal"
+      "teamIntensityLevels.minimal",
+      "reportLabels.total"
     ],
     "it": [
       "usageAccount",

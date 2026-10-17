@@ -590,16 +590,20 @@ export function createScheduleStore(
       })
     },
     async completeMigration(workspaceKey, sourceId) {
-      await index(workspaceKey).transact(async (value) => {
-        const receipt = value.migrations[sourceId]
-        if (receipt !== undefined) {
-          await fs.replace(
-            `${workspaceKey}/migrationReceipts/${scheduleStorageHash(sourceId)}.json`,
-            JSON.stringify(receipt),
-          )
+      return await index(workspaceKey).transact(async (value) => {
+        const receiptFile = `${workspaceKey}/migrationReceipts/${scheduleStorageHash(sourceId)}.json`
+        // A completed receipt survives in its file: a retry after a crash
+        // between completion and source removal still verifies and finishes.
+        const receipt =
+          value.migrations[sourceId] ??
+          (await read(receiptFile, (raw) => scheduleMigrationReceiptSchema.parse(raw)))
+        const schedule = receipt === undefined ? undefined : value.schedules[receipt.targetId]
+        if (receipt === undefined || schedule === undefined) return { value, result: undefined }
+        if (value.migrations[sourceId] !== undefined) {
+          await fs.replace(receiptFile, JSON.stringify(receipt))
           Reflect.deleteProperty(value.migrations, sourceId)
         }
-        return { value, result: undefined }
+        return { value, result: { schedule, receipt } }
       })
     },
     async reconcileMigration(workspaceKey, next, receipt, expectedSourceFingerprint) {

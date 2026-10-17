@@ -371,6 +371,15 @@ const reportInputsOptions = {
   entryPoints: ['src/runtime/reporting/reportInputsEntry.ts'],
   outfile: 'dist/reportInputs.js',
 }
+// C-M113-4: the playbook and schedules inputs (journal replay, schedule
+// store) load on the first playbook or schedules report. They ride their
+// own chunk because the replay and store machinery would overflow the
+// session/usage chunk's budget, which stays unchanged.
+const playbookSchedulesInputsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/playbookSchedulesInputsEntry.ts'],
+  outfile: 'dist/playbookSchedulesInputs.js',
+}
 const reportingPanelOptions = {
   ...hostOptions,
   plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
@@ -1192,6 +1201,7 @@ if (isWatch) {
     esbuild.context(reportingNetworkOptions),
     esbuild.context(reportingDestinationsOptions),
     esbuild.context(reportInputsOptions),
+    esbuild.context(playbookSchedulesInputsOptions),
     esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
@@ -1322,6 +1332,7 @@ if (isWatch) {
     reportingNetwork: esbuild.build(reportingNetworkOptions),
     reportingDestinations: esbuild.build(reportingDestinationsOptions),
     reportInputs: esbuild.build(reportInputsOptions),
+    playbookSchedulesInputs: esbuild.build(playbookSchedulesInputsOptions),
     reportingPanel: esbuild.build(reportingPanelOptions),
     reference: esbuild.build(referenceOptions),
     schedules: esbuild.build(schedulesOptions),
