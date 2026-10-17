@@ -77,6 +77,16 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no
 
 Commands: `museSpark.openUsagePage`. Settings: `museSpark.usageHistory`, `museSpark.usageHistoryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#usage-and-cost)
 
+### Roles
+
+teamWorkerBinding=engine|teamConfigurationBinding=captured|teamPreview=paid: Roles and Agents stay hidden until the team worker and configuration bindings are installed.
+
+Alt+Up / Alt+Down move this entry in its pool.
+
+Surfaces: vscode:modelApi, vscode:museCode. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.modelsAndAgents`. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#team-configuration)
+
 ### Legal Scan
 
 Scan the workspace for licensing, attribution and header findings
@@ -3351,6 +3361,7 @@ These are defaults; editor customizations take precedence.
 - `editor.action.inlineSuggest.trigger`: `alt+\`; when `editorTextFocus && museSpark.tabOn`
 - `museSpark.nextOpenQuestion`: `ctrl+alt+j` (macOS: `cmd+alt+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
 - `museSpark.previousOpenQuestion`: `ctrl+alt+shift+j` (macOS: `cmd+alt+shift+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
+- `team.pool`: `ArrowUp / ArrowDown`; when `team.pool`; Alt+Up / Alt+Down move this entry in its pool.
 - `models.table`: `ArrowDown / ArrowUp / Home / End / Enter / Escape`; when `models.table`; Navigate items, choose or complete a selection, or close the list.
 - `models.select`: `ArrowDown / ArrowUp / Enter / Escape`; when `models.select`; Navigate items, choose or complete a selection, or close the list.
 - `traffic.tabs`: `ArrowRight / ArrowDown / ArrowLeft / ArrowUp / Home / End`; when `traffic.tabs`; Navigate items, choose or complete a selection, or close the list.

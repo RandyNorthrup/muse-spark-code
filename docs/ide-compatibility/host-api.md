@@ -519,7 +519,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:timers/promises`   | 25    |
 | `node:tls`               | 1     |
 | `node:url`               | 8     |
-| `node:util`              | 10    |
+| `node:util`              | 9     |
 | `node:vm`                | 1     |
 | `node:worker_threads`    | 6     |
 | `node:zlib`              | 8     |

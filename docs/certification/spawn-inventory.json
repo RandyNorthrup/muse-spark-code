@@ -226,15 +226,19 @@
     "reason": "Injected worker port is the admitted team engine-worker launcher."
   },
   {
-    "site": "src/core/team/workers/workerFence.ts#call:execFile:1",
-    "profile": "test-only",
-    "reason": "macOS lsof path probe inside WORKER_NATIVE_IO, which only tests use (proved by the guard).",
-    "testOnly": "openWorkerFile"
+    "site": "src/core/team/workers/workerOps.ts#call:execResourceFile:1",
+    "profile": "contained",
+    "reason": "Verified worker file helper (Linux muse-created, macOS muse-dictate --created-directory, Windows PowerShell job assembly): one admitted contained launch per file operation, fixed helper path, argument array, caller timeout and output cap; admission refusal is a typed create refusal. The launcher lives in the first-use worker-operations chunk so the create entry keeps its size row."
   },
   {
-    "site": "src/core/team/workers/workerFence.ts#import:1",
-    "profile": "test-only",
-    "reason": "macOS lsof path probe inside WORKER_NATIVE_IO, which only tests use (proved by the guard)."
+    "site": "src/core/resources/commands.ts#call:spawnResourceProcess:3",
+    "profile": "contained",
+    "reason": "execResourceFileBytes forwards the caller-named contained or probe profile with binary-safe output (team worktree git); one deadline covers admission and run; combined output cap."
+  },
+  {
+    "site": "src/core/team/workers/workerFence.ts#call:execResourceFile:1",
+    "profile": "probe",
+    "reason": "macOS lsof fd-name identity probe inside WORKER_NATIVE_IO: fixed absolute path, credential-scrubbed environment, caller timeout and output cap; admitted probe with an owned tree and no temp root."
   },
   {
     "site": "src/core/vault/broker/peer.ts#call:spawnResourceProcess:1",

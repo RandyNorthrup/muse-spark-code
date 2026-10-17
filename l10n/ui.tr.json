@@ -5335,6 +5335,16 @@
       "other": "{count} izin"
     }
   },
+  "teamFileHelperMissing": "Doğrulanmış yerel çalışan dosyası yardımcısı kullanılamıyor.",
+  "teamFileNativeFailed": "Çalışan dosyasının yerel doğrulaması başarısız oldu; dosya içeriği yazılmadı.",
+  "teamFileHelperFailed": "Çalışan dosyasının yerel yardımcısının kendisi başarısız oldu ({kind}); dosya içeriği yazılmadı.",
+  "teamFileOutside": "Dosya izin verilen çalışma kopyasının dışında.",
+  "teamFileRoleDenied": "Rol bu yola yazmaya izin vermiyor.",
+  "teamFileExists": "Yeni dosyanın yolu zaten dolu.",
+  "teamFileChanged": "Ayrılan dosya veya üst klasörü değişti.",
+  "teamFileCannotCreate": "{path} dosyası çalışma kopyası içinde oluşturulamıyor.",
+  "referenceTeamFiles": "Ekipler, bütünleştirme ve sertifikasyon tamamlanana kadar kullanılamaz. Motor ve ACP çalışanları, doğrulanmış yerel yardımcıyla çalışma kopyalarında ve rollerinin izin verdiği yazma yollarında dosya oluşturabilir.",
+  "teamFileLinked": "Dosya yolu bir bağlantı veya farklı yorumlanan bir bileşen içeriyor.",
   "teamEditor": {
     "purpose": "Amaç",
     "done": "Tamamlama Ölçütleri",

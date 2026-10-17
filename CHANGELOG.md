@@ -63,6 +63,14 @@ happened, not what was planned; superseded entries are kept.
 
 - Hidden team setup now checks editor support, trust and the team switch independently of saved worker entries. Required configuration sources still gate the Roles and Agents sections.
 
+- Hidden M96 worker file creation now uses the packaged native helper on
+  POSIX and the Windows job-helper contract. Engine and ACP writers prove
+  root, parent and file identities, enforce role write paths before creation
+  and again before contents are written, and create exclusively. Reservations
+  fill binary bytes or release an unchanged empty file. Missing native support
+  refuses with its actual reason. The implementation loads on first creation;
+  teams remain unavailable pending integration and cross-platform certification.
+
 - Hidden M96 team-host correctness: each response settles its own reserved
   claim with the sent model's known price, including bare Meta and zero-cost
   plan models; transport retries reuse one live claim. Refused worker writes
@@ -144,6 +152,43 @@ happened, not what was planned; superseded entries are kept.
   asynchronous wait. Cancellation or close during durable compaction admission
   releases the late unsent claim exactly once, without attaching it to an ended
   or replacement request. Teams remain unavailable pending integration.
+
+- Hidden M96 engine worker file creation ships its lazy chunks in the
+  installed extension, launches its native helper through resource admission
+  (one launch per file operation), creates missing folders only after the
+  write guard approves, removes empty files and folders a failed create made,
+  sweeps abandoned reservations at the next start, honors the process umask,
+  reports every refusal as the typed copy-relative sentence, and refuses
+  Windows-reserved names in the native helper too. Teams remain unavailable
+  pending integration.
+- Hidden M96 failed worker creates remove at most the folders the operation
+  itself made, so pre-existing and concurrently created folders survive. Every
+  refusal the Windows helper can produce now reaches the caller as its own
+  typed sentence exactly as on POSIX, through one refusal-code table shared
+  by both launchers, including the previously unmapped outside-root refusal.
+  Teams remain unavailable pending integration.
+- Hidden M96 Windows worker launcher now builds the helper arguments inside
+  its script as single-quoted literals and passes the whole script as one
+  encoded command, so worker-chosen file names can never become PowerShell
+  source text and no argument follows the script. An unexpected helper
+  failure surfaces as its own typed sentence naming the exception type
+  instead of the generic proof failure, and the last worker-reachable
+  generic refusals in the Windows helper carry their own reasons. Teams
+  remain unavailable pending integration.
+- Hidden M96 Windows worker file helper now judges every caller-supplied
+  path component with its own name rules before any framework path call
+  sees it, so names holding `<`, `>`, `|`, `"` or control characters refuse
+  with the typed cannot-create sentence instead of the helper-failed one; a
+  parent that is a plain file reports its own cannot-create reason instead
+  of the link sentence; and a helper binary that cannot load
+  (`FileNotFoundException`, `FileLoadException`, `BadImageFormatException`)
+  reports helper-unavailable instead of the generic proof failure. Teams
+  remain unavailable pending integration.
+- Hidden M96 worker file refusals always name the path relative to the
+  working copy as asked: the create proof carries that path and every
+  helper-launcher and preflight mapping prints it, so a refusal below a
+  nested ancestor no longer prints the ancestor-relative suffix. Teams
+  remain unavailable pending integration.
 
 - Hidden M96 engine workers reserve and settle each transport attempt separately.
   Successful retries preserve earlier uncertain liability; refused and unsent

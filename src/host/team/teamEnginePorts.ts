@@ -6,10 +6,8 @@
 // the `agents/` ref; only the orchestrator's `merge` writes the user's tree.
 // Loads with dist/team.js; the host supplies the conversation and the paths.
 
-import { execFile } from 'node:child_process'
 import { mkdir, realpath } from 'node:fs/promises'
 import {
-  BYTES_PER_MIB,
   UI_TEXT,
   PERMISSION_MODES,
   TEAM_MODEL_TEXT,
@@ -36,7 +34,6 @@ import { isSameTeamModel } from '../../core/team/sameModel'
 import { resolveTeamToolset } from '../../core/team/toolsets'
 import { applyTeamMerge } from '../../core/team/teamMerge'
 import {
-  TeamGitError,
   commitTaskBranch,
   publishTaskRef,
   removeTeamWorkspace,
@@ -47,7 +44,6 @@ import {
 } from '../../core/team/teamWorkspaces'
 import { runEngineWorker } from '../../core/team/workers/engineWorker'
 import { WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
-import { workerEnvironment } from '../../core/team/workers/workerEnv'
 import type { WorkerReportOutcome } from '../../core/team/workers/report'
 import type {
   TeamHostServiceDeps,
@@ -111,36 +107,14 @@ export interface TeamHostBundleDeps extends Omit<TeamHostServiceDeps, 'workers' 
   readonly engine: EngineTeamPortsDeps
 }
 
-const GIT_TIMEOUT_MS = 120_000
-const GIT_MAX_BUFFER_MIB = 256
-
-/** Binary-safe git with a credential-free environment unless the caller isolates further. */
-export function processTeamGit(platform: NodeJS.Platform): TeamGit {
-  const fallbackEnv = workerEnvironment(process.env, platform)
-  return async (args, cwd, input, env) =>
-    await new Promise<Uint8Array>((resolve, reject) => {
-      const child = execFile(
-        'git',
-        [...args],
-        {
-          cwd,
-          env: env ?? fallbackEnv,
-          encoding: 'buffer',
-          timeout: GIT_TIMEOUT_MS,
-          maxBuffer: GIT_MAX_BUFFER_MIB * BYTES_PER_MIB,
-          windowsHide: true,
-        },
-        (error, stdout, stderr) => {
-          if (error === null) {
-            resolve(new Uint8Array(stdout))
-            return
-          }
-          const code = typeof error.code === 'number' ? error.code : 1
-          reject(new TeamGitError(code, Buffer.from(stderr).toString('utf8'), args[0] ?? 'git'))
-        },
-      )
-      child.stdin?.end(input)
-    })
+/**
+ * Binary-safe git with a credential-free environment unless the caller isolates further.
+ * The governed runner lives in the first-use worker-operations chunk beside the
+ * file adapter, so this entry keeps its budget; the inventory records that site.
+ */
+async function defaultTeamGit(platform: NodeJS.Platform): Promise<TeamGit> {
+  const { processTeamGit } = await import('../../core/team/workers/workerOpsEntry')
+  return processTeamGit(platform)
 }
 
 function teamReport(outcome: WorkerReportOutcome, isCeilingReached: boolean): TeamReport {
@@ -198,7 +172,13 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   readonly workers: TeamWorkerPort
   readonly merges: TeamMergePort
 } {
-  const runGit = deps.runGit ?? processTeamGit(deps.platform)
+  let defaultGit: Promise<TeamGit> | undefined
+  const runGit: TeamGit =
+    deps.runGit ??
+    (async (args, cwd, input, env) =>
+      await (
+        await (defaultGit ??= defaultTeamGit(deps.platform))
+      )(args, cwd, input, env))
   /**
    * The storage root as the file system resolves it: a linked profile or a
    * temporary folder behind a link (macOS's /var) is admitted by its real path,
@@ -224,7 +204,13 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     return root
   }
 
-  const runTask = async (spec: TeamTaskSpec, signal: AbortSignal): Promise<TeamWorkerOutcome> => {
+  // Named apart from the eval harness's own runTask: the spawn-inventory
+  // test-only proof matches identifiers by name, and these are different
+  // runners (an engine worker task here, a paired eval case there).
+  const runWorkerTask = async (
+    spec: TeamTaskSpec,
+    signal: AbortSignal,
+  ): Promise<TeamWorkerOutcome> => {
     signal.throwIfAborted()
     if (!deps.isTrusted()) throw new Error(TEAM_MODEL_TEXT.hostUntrusted)
     // The complete saved settings are checked against the entry model's
@@ -576,7 +562,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       const listed = await deps.listModels()
       return listed.some((model) => isSameTeamModel(model, agent.model))
     },
-    run: runTask,
+    run: runWorkerTask,
     isLimited: (agent: TeamAgentRef) => (limitedUntil.get(agent.agentId) ?? 0) > deps.now(),
   }
 

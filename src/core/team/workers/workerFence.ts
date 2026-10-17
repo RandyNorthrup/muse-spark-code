@@ -5,8 +5,7 @@ import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId }
 // Names locate objects; only native identities establish containment.
 import { lstat, open, realpath } from 'node:fs/promises'
 import { constants as fsFlags } from 'node:fs'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
+import { execResourceFile } from '../../resources/launcher'
 import { handleIdentity } from '../../fs/fileIdentity'
 import { scrubWorkerEnv } from './workerEnv'
 import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
@@ -20,8 +19,13 @@ import { commandShape, looseWords, type ShellDialect } from '../../backends/mode
 import {
   WORKER_ACP_MAX_PERMISSION_PATHS,
   WORKER_FILE_PATH_TIMEOUT_MS,
+  WORKER_NATIVE_REPLY_MAX_BYTES,
+  UI_TEXT,
 } from '../../../shared/constants'
+import { uiLocale } from '../../../shared/l10n/text'
 import type { WorkerRolePolicy } from './workerTypes'
+import type { FileReservation } from '../../backends/modelapi/tools'
+import type { WorkerCreateProof } from './workerCreateEntry'
 
 /** A handle with another name is an alias outside the grant: only one link admits. */
 const SINGLE_LINK_COUNT = 1
@@ -30,6 +34,12 @@ export interface WorkerFenceIo extends RealPathIo {
   /** Windows volume serial + file index; POSIX device + inode. Never a path string. */
   readonly pathIdentity: (canonicalPath: string) => Promise<string>
   readonly openFile?: (absolute: string, isWrite: boolean) => Promise<WorkerFileHandle>
+  /** Trusted native-helper seam. Production loads the packaged helper lazily. */
+  readonly workerNativeOperation?: (
+    proof: WorkerCreateProof,
+    operation: string,
+    identity?: string,
+  ) => Promise<{ readonly identity: string; readonly createdFolders: number }>
 }
 
 export interface WorkerFileHandle {
@@ -37,7 +47,10 @@ export interface WorkerFileHandle {
   readonly read: (maxBytes: number) => Promise<string | undefined>
   readonly readBytes?: (maxBytes: number) => Promise<Uint8Array>
   readonly write: (content: string) => Promise<void>
+  readonly writeBytes?: (bytes: Uint8Array) => Promise<void>
   readonly close: () => Promise<void>
+  /** Native-created empty file; transfers close ownership to its reservation. */
+  readonly reserve?: () => FileReservation
 }
 
 async function openWorkerFile(absolute: string, isWrite: boolean): Promise<WorkerFileHandle> {
@@ -72,6 +85,13 @@ async function openWorkerFile(absolute: string, isWrite: boolean): Promise<Worke
       throw new MuseWorkerFolderError()
     return buffer
   }
+  const writeBytes = async (content: Uint8Array) => {
+    const current = await handleIdentity(handle)
+    if (!current.isFile() || current.nlink !== BigInt(SINGLE_LINK_COUNT))
+      throw new MuseWorkerFolderError()
+    await handle.truncate(0)
+    await handle.writeFile(content)
+  }
   return {
     identify: async () => {
       const sample = await handleIdentity(handle)
@@ -86,12 +106,16 @@ async function openWorkerFile(absolute: string, isWrite: boolean): Promise<Worke
       // aliases; Node exposes no public GetFinalPathNameByHandle API.
       if (process.platform === 'win32') final = await realpath(absolute)
       else if (process.platform === 'darwin') {
-        // macOS fd paths are not symlinks; lsof reads the kernel's fd name.
-        const result = await promisify(execFile)(
+        // macOS fd paths are not symlinks; lsof reads the kernel's fd name
+        // through the governed probe launcher: admitted, tree-owned, no
+        // temp root, fixed absolute path, bounded output.
+        const result = await execResourceFile(
+          'probe',
           '/usr/sbin/lsof',
           ['-a', '-p', String(process.pid), '-d', String(handle.fd), '-Fn'],
           {
             timeout: WORKER_FILE_PATH_TIMEOUT_MS,
+            maxBuffer: WORKER_NATIVE_REPLY_MAX_BYTES,
             env: {
               ...scrubWorkerEnv({ platform: process.platform, baseEnv: process.env }),
               LC_CTYPE: 'en_US.UTF-8',
@@ -109,13 +133,8 @@ async function openWorkerFile(absolute: string, isWrite: boolean): Promise<Worke
     read: async (maxBytes) =>
       new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(await bytes(maxBytes)),
     readBytes: bytes,
-    write: async (content) => {
-      const current = await handleIdentity(handle)
-      if (!current.isFile() || current.nlink !== BigInt(SINGLE_LINK_COUNT))
-        throw new MuseWorkerFolderError()
-      await handle.truncate(0)
-      await handle.writeFile(content, 'utf8')
-    },
+    write: (content) => writeBytes(Buffer.from(content, 'utf8')),
+    writeBytes,
     close: () => handle.close(),
   }
 }
@@ -245,6 +264,7 @@ export async function assertWorkerRoot(input: {
 }
 
 export interface WorkerPathInput {
+  readonly beforeCreate?: (createdFolders: number) => Promise<void>
   readonly folder: string
   readonly platform: NodeJS.Platform
   readonly io: WorkerFenceIo
@@ -309,6 +329,8 @@ export async function withWorkerFile<T>(
   isWrite: boolean,
   work: (handle: WorkerFileHandle, path: Extract<WorkerPath, { ok: true }>) => Promise<T>,
   role?: WorkerRolePolicy,
+  isExclusive = false,
+  canCreate = true,
 ): Promise<T> {
   const grant = input.grant ?? (await assertWorkerRoot(input))
   const root = await recheckWorkerRoot(input, grant)
@@ -321,12 +343,28 @@ export async function withWorkerFile<T>(
   const absolute = p.resolve(root, expanded)
   if (windowsPathProblem(absolute, input.platform, root) !== undefined)
     throw new MuseWorkerFolderError()
+  let created: WorkerFileHandle | undefined
   if (isWrite) {
     const target = await confineWorkerPath({ ...input, grant }, absolute)
-    if (role === undefined || !target.ok || !isCheckedWorkerWriteAllowed(role, target))
+    if (role === undefined || (target.ok && !isCheckedWorkerWriteAllowed(role, target)))
       throw new MuseWorkerFolderError()
+    if (isExclusive || !target.ok) {
+      if (!canCreate) throw new MuseWorkerFolderError()
+      const admitted = grants.get(grant)
+      if (admitted === undefined) throw new MuseWorkerFolderError()
+      const native = await import('./workerCreateEntry.js')
+      created = await native.createWorkerFile(
+        { ...input, grant },
+        absolute,
+        role,
+        admitted.identity,
+        { confineWorkerPath, isCheckedWorkerWriteAllowed, recheckWorkerRoot, withWorkerFile },
+        UI_TEXT,
+        uiLocale(),
+      )
+    }
   }
-  const handle = await input.io.openFile(absolute, isWrite)
+  const handle = created ?? (await input.io.openFile(absolute, isWrite))
   try {
     const target = await handle.identify()
     if (

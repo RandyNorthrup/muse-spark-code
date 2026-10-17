@@ -99,11 +99,19 @@ export function fenceWorkerToolIo(base: ToolIo, fence: WorkerToolFence): ToolIo 
   const write = async <T>(
     given: string,
     work: (handle: WorkerFileHandle) => Promise<T>,
+    canCreate = true,
+    assertCanWrite?: () => void,
   ): Promise<T> => {
     fence.admit()
-    // Opening r+ never creates or truncates; only this verified handle writes.
     return await withWorkerFile(
-      fence.input,
+      {
+        ...fence.input,
+        beforeCreate: () => {
+          fence.admit()
+          assertCanWrite?.()
+          return Promise.resolve()
+        },
+      },
       given,
       true,
       async (handle) => {
@@ -111,34 +119,46 @@ export function fenceWorkerToolIo(base: ToolIo, fence: WorkerToolFence): ToolIo 
         return await work(handle)
       },
       fence.role,
+      false,
+      canCreate,
     )
   }
   return {
     readFile: (absolute, _expected, signal) => readText(absolute, signal),
     readBytes: (absolute, maxBytes, _expected, signal) => readBytes(absolute, maxBytes, signal),
     writeFile: async (absolute, content, _expected, assertCanWrite) => {
-      await write(absolute, async (handle) => {
-        assertCanWrite?.()
-        await handle.write(content)
-      })
+      await write(
+        absolute,
+        async (handle) => {
+          assertCanWrite?.()
+          await handle.write(content)
+        },
+        true,
+        assertCanWrite,
+      )
     },
-    writeFileIfUnchanged: async (absolute, expected, content, options) =>
-      await write(absolute, async (handle) => {
-        if (typeof expected !== 'string' || options.staged !== undefined) return unavailable()
-        if (handle.readBytes === undefined) return unavailable()
-        const current = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
-          await handle.readBytes(TOOL_FILE_MAX_BYTES),
-        )
-        if (
-          fingerprint(current) !== expected ||
-          options.unsavedAt.some((given) => base.hasUnsavedChanges(given))
-        )
-          return 'changed'
-        fence.admit()
-        options.assertCanWrite?.()
-        await handle.write(content)
-        return 'written'
-      }),
+    writeFileIfUnchanged: async (absolute, expected, content, options) => {
+      if (typeof expected !== 'string' || options.staged !== undefined) return unavailable()
+      return await write(
+        absolute,
+        async (handle) => {
+          if (handle.readBytes === undefined) return unavailable()
+          const current = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+            await handle.readBytes(TOOL_FILE_MAX_BYTES),
+          )
+          if (
+            fingerprint(current) !== expected ||
+            options.unsavedAt.some((given) => base.hasUnsavedChanges(given))
+          )
+            return 'changed'
+          fence.admit()
+          options.assertCanWrite?.()
+          await handle.write(content)
+          return 'written'
+        },
+        false,
+      )
+    },
     pathExists: async (absolute) => {
       fence.admit()
       await confineTarget(fence.input, fence.input.folder)
@@ -146,9 +166,39 @@ export function fenceWorkerToolIo(base: ToolIo, fence: WorkerToolFence): ToolIo 
       const target = await confineWorkerPath(fence.input, absolute)
       return target.ok
     },
-    // Node's portable API has no handle-relative creation or removal. These
-    // operations fail closed until a native port can bind their parent handle.
-    reserveFile: () => unavailable(),
+    reserveFile: async (absolute, _expected, beforeCreate) => {
+      fence.admit()
+      return await withWorkerFile(
+        {
+          ...fence.input,
+          beforeCreate: async (made) => {
+            await beforeCreate?.(made)
+            fence.admit()
+          },
+        },
+        absolute,
+        true,
+        (handle) => {
+          fence.admit()
+          if (handle.reserve === undefined) return unavailable()
+          const reserved = handle.reserve()
+          return Promise.resolve({
+            fill: async (bytes) => {
+              try {
+                fence.admit()
+              } catch (error: unknown) {
+                await reserved.release()
+                throw error
+              }
+              return await reserved.fill(bytes)
+            },
+            release: () => reserved.release(),
+          })
+        },
+        fence.role,
+        true,
+      )
+    },
     hasUnsavedChanges: (absolute) => base.hasUnsavedChanges(absolute),
     unsavedFiles: () => base.unsavedFiles(),
     listFiles: async (signal) => {

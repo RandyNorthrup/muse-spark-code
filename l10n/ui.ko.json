@@ -5181,6 +5181,16 @@
       "other": "{count} 개 권한"
     }
   },
+  "teamFileHelperMissing": "검증된 작업자 파일용 네이티브 도우미를 사용할 수 없습니다.",
+  "teamFileNativeFailed": "작업자 파일의 네이티브 검증에 실패했습니다. 파일 내용은 기록되지 않았습니다.",
+  "teamFileHelperFailed": "작업자 파일의 네이티브 헬퍼 자체가 실패했습니다({kind}). 파일 내용은 기록되지 않았습니다.",
+  "teamFileOutside": "파일이 승인된 작업 복사본 밖에 있습니다.",
+  "teamFileRoleDenied": "이 역할은 이 경로에 쓰기를 허용하지 않습니다.",
+  "teamFileExists": "새 파일 경로가 이미 사용 중입니다.",
+  "teamFileChanged": "예약된 파일 또는 상위 폴더가 변경되었습니다.",
+  "teamFileCannotCreate": "파일 {path}을(를) 작업 복사본 안에 만들 수 없습니다.",
+  "referenceTeamFiles": "통합과 인증이 완료될 때까지 팀을 사용할 수 없습니다. 엔진 및 ACP 작업자는 검증된 네이티브 도우미를 통해 작업 복사본 안에서 역할이 허용한 쓰기 경로에 파일을 만들 수 있습니다.",
+  "teamFileLinked": "파일 경로에 링크 또는 다르게 해석되는 구성 요소가 포함되어 있습니다.",
   "teamEditor": {
     "purpose": "목적",
     "done": "완료 기준",
