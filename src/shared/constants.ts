@@ -1670,8 +1670,9 @@ export const CHECKPOINT_JOURNAL_FILE = 'journal.jsonl'
 export const CHECKPOINT_BLOBS_DIR = 'blobs'
 // The journal and the kept bytes are the user's alone, as the folder is.
 export const CHECKPOINT_JOURNAL_FILE_MODE = 0o600
-// Every unit's writes are recorded with their bytes, whatever their number:
-// a unit is always restorable.
+// Every unit's writes are recorded with their bytes, whatever their number
+// or size: no intent or byte count makes a unit unrestorable (a failed
+// journal write still can, and says so).
 export const FIND_FILES_GLOB = '**/*'
 
 // --- Git and pull requests (M71, PLAN.md D49) ---
@@ -7748,9 +7749,12 @@ export type LegalHeaderPolicy = (typeof LEGAL_HEADER_POLICIES)[number]
 export const LEGAL_RESULT_VERSION = 1
 // Bounds every scan and result stays inside (D76: bound all reads, file
 // counts and result sizes through named constants). Each has its reason.
-// The scan reads every file and keeps every finding, however many the
-// workspace holds. These stay as the shared array bounds the other legal
-// modules and the report schemas reuse (never the scan's own stop).
+// The scan has no file-count stop and its report no finding-count
+// truncation (B18); the per-file, total-bytes, per-rule and time bounds
+// below still apply and report as incomplete. These two stay as shared
+// array bounds other legal modules reuse (never the scan's own stop);
+// LEGAL_FILES_SCANNED_MAX is named by no src module now, only by the
+// scan's deadline comment below and its past-the-stop test.
 export const LEGAL_FILES_SCANNED_MAX = 20_000
 export const LEGAL_FINDINGS_MAX = 500
 // Independent admission budgets: UTF-8 bytes, directory entries and findings per rule.
