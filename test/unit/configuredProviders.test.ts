@@ -19,6 +19,7 @@ import { runtimeSubscriptionClient } from '../../src/runtime/chatGptProviderComm
 import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import {
   providerEntrySchema,
+  readProvidersFile,
   writeProvidersFileAtomic,
   type ProviderEntry,
 } from '../../src/core/providers/providersFile'
@@ -447,6 +448,31 @@ describe('configured provider production transport', () => {
       UI_TEXT.modelsPanelUnavailable,
     )
     expect(send).not.toHaveBeenCalled()
+  })
+
+  it('still loads an Azure entry saved before deployments persisted', async () => {
+    // Entries saved before PROVM95 have no deployment (the wizard collected
+    // it but dropped it), and the terminal add has no deployment option:
+    // requiring the field in the file schema would invalidate the whole
+    // providers file on load. The deployment is required at send instead.
+    const f = await fixture()
+    await writeFile(
+      f.configFile,
+      JSON.stringify({
+        v: 1,
+        providers: [
+          {
+            id: 'az',
+            preset: 'azure',
+            address: 'https://myres.openai.azure.com/openai/v1',
+            auth: 'apiKey',
+            models: ['gpt-5.4-nano'],
+          },
+        ],
+      }),
+    )
+    const read = await readProvidersFile(f.configFile)
+    expect(read.ok).toBe(true)
   })
 
   it('refuses uncaptured local presets even when keyless (rule 13)', async () => {
