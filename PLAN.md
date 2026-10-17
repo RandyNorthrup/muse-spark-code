@@ -31886,15 +31886,22 @@ control's focus (or the saved rule heading), and announce successful saves
 through a polite live region. Add regressions and byte-exact red drills in
 `docs/certification/m116-u.md`. Existing P/I/W integration handoffs remain.
 
-**Status 2026-10-10 (CLI/ACP journal commands work; VS Code panel journal/settings and planner binding remain): building.**
+**Status 2026-10-17 (MSM116: the VS Code panel playbook is connected end to end; cross-milestone bindings remain): building.**
 
 Status detail retained: lane W integrated All five lanes merged (`m116/w`;
 `docs/certification/m116.md`); every P1/P2 finding verified fixed; the D100
 M116 amendments (G3, G17, G20, G24) implemented with tests and red drills;
 ACP `/playbook` and CLI `playbook` bound to the journal-backed surface;
-help/reference catalogued; full gate recorded in `m116.md`. Open: panel
-enforcement install (needs M96's planner/board), M107 governor, M110/M115w
-callers, M113 report rows, headless exec surface, installed-editor checks.
+help/reference catalogued; full gate recorded in `m116.md`. Lane C-M116-6
+added the window's playbook governor, the record in the panel (Agent map
+Playbook Settings, `/playbook` from the same journal), the enforcement
+(review turns, `delegate` follow-ups, best-of-N, Muse Code spawn requests,
+why-note buttons), the person's own child actions as dispatches, and three
+review rounds (RVCM1166A/B/C) each fixed as a class with regressions and red
+drills (`docs/certification/msm116.md`). Open: planner/board binding (needs
+M96), M107 governor, M110/M115w callers, M113 report rows, headless exec
+surface, installed-editor checks, and the ACP/terminal admission follow-up
+(the lead opens it).
 
 **Status 2026-10-06: planned.** Small: about 60 lane-hours in lane 0 and four
 lanes. No model call is needed; every test runs on a fake review loop and a

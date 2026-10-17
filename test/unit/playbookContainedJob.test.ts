@@ -39,12 +39,6 @@ import { EXTENSION_HOST_VARIABLES, hostNames } from './helpers/playbook/hostVari
 import { compiledJobAssembly, SYSTEM_ROOT } from './helpers/playbook/jobAssembly'
 import { removeFolder } from './helpers/temporaryFolders'
 
-// The job type compiles under the bootstrap runner; only its admission is a fixture.
-vi.mock('../../src/core/resources/admission', async (original) => {
-  const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
-  return withFixtureBootstrap(await original())
-})
-
 const IS_WINDOWS = process.platform === 'win32'
 const RUN_AS_NODE = 'ELECTRON_RUN_AS_NODE'
 /** A shell call that prints every `ELECTRON_*` and `VSCODE_*` variable it was given, or `none`. */

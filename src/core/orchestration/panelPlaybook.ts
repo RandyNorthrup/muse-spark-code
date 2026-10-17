@@ -71,7 +71,7 @@ export function reviewBlocks(text: string): readonly ReviewBlock[] {
   )
 }
 
-/** @unwired M116 panel playbook port */
+/** The panel's playbook port (M116): driven by the window's playbook governor. */
 export class PanelPlaybook implements PanelPlaybookPort {
   constructor(
     private readonly integration: PlaybookIntegration,

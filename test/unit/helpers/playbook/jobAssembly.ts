@@ -1,7 +1,5 @@
 // The shipped MuseSparkJob type, compiled as the extension compiles it, for
-// the suites that run the playbook's real Windows containment. The caller
-// mocks the resource admission module (`withFixtureBootstrap`), since the
-// compile runs under the bootstrap runner.
+// the suites that run the playbook's real Windows containment.
 import { expect } from 'vitest'
 import { shellJobAssembly } from '../../../../src/host/backend/shellJob'
 import { readJobSource } from '../jobSource'
