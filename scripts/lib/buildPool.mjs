@@ -18,27 +18,40 @@
  * @returns {Promise<Record<string, T>>}
  */
 export async function runBuildPool(specs, size) {
+  if (!Number.isSafeInteger(size) || size < 1) {
+    throw new Error(`pool size must be a positive integer, got ${String(size)}`)
+  }
+  const seen = new Set()
+  for (const [name] of specs) {
+    if (seen.has(name)) throw new Error(`duplicate bundle name: ${name}`)
+    seen.add(name)
+  }
   const results = /** @type {Record<string, T>} */ ({})
   const queue = [...specs]
-  let hasFailed = false
+  let firstFailure
   async function worker() {
-    while (!hasFailed) {
+    while (firstFailure === undefined) {
       const next = queue.shift()
       if (next === undefined) return
       const [name, start] = next
       try {
         results[name] = await start()
       } catch (error) {
-        hasFailed = true
-        throw new Error(`bundle ${name} failed: ${error.message}`, { cause: error })
+        const message = error instanceof Error ? error.message : String(error)
+        firstFailure ??= new Error(`bundle ${name} failed: ${message}`, { cause: error })
+        return
       }
     }
   }
   const workers = []
-  const count = Math.min(Math.max(1, Math.floor(size)), queue.length)
+  const count = Math.min(size, queue.length)
   for (let i = 0; i < count; i += 1) {
     workers.push(worker())
   }
+  // Workers record the first failure instead of throwing, so this settles
+  // every in-flight build before rejecting: the caller stops the esbuild
+  // service on failure, so no build may still be in flight at that point.
   await Promise.all(workers)
+  if (firstFailure !== undefined) throw firstFailure
   return results
 }
