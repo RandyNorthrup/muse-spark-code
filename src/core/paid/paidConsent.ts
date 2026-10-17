@@ -33,19 +33,27 @@ import {
 import { fill, uiLocale } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
+  paidFeaturePrice,
   freezePaidQuote,
   type PaidQuote,
   type PaidUseDecision,
+  paidFeatureName,
   type PaidUseRequest,
 } from '../../shared/paid'
-import { Usd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
+import { Usd, minUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
+import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
+import type { SessionBudgetClaim } from '../backends/modelapi/sessionBudget'
 
 // zod/mini, which the Node bundles read from dist/validation.js: classic zod
 // carried 444 KiB and its `navigator` sniff into dist/extension.js (INT0170).
 import * as z from 'zod/mini'
 import type { CoreLogger } from '../logging'
 import { PaidAuthority, paidAuthorityKey, type PaidGrant } from './paidAuthority'
-import { type ScheduleV2 } from '../../shared/scheduleV2'
+import {
+  schedulePaidConsentSchema,
+  type ScheduleV2,
+  type ScheduleFireRecord,
+} from '../../shared/scheduleV2'
 import { unlessAborted } from '../timeouts'
 
 async function paidTeamRuntime() {
@@ -72,6 +80,8 @@ export interface SchedulePaidIdentity {
   readonly sharedDailyBudgetUsd: UsdAmount
 }
 
+export type ScheduleConsent = NonNullable<ScheduleV2['paidConsent']>
+
 export function isScheduleConsentCurrent(
   schedule: ScheduleV2,
   identity: SchedulePaidIdentity,
@@ -91,6 +101,163 @@ export function isScheduleConsentCurrent(
     Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.paidCapUsd)) <= 0 &&
     Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.grant.paidCapUsd)) <= 0
   )
+}
+
+/** Creation/renewal only. No workspace-wide grant can silently authorize a schedule.
+ * @unwired M58 schedule-run paid consent
+ */
+export async function askSchedulePaidConsent(deps: {
+  readonly schedule: ScheduleV2
+  readonly identity: SchedulePaidIdentity
+  readonly cadence: string
+  readonly extras: ScheduleConsent['extras']
+  readonly now: () => number
+  readonly isOn: () => boolean
+  readonly isCurrent: () => boolean
+  readonly ask: (question: { title: string; detail: string }) => Promise<PaidUseAnswer>
+  /** S/W binds revisioned CAS; false refuses rather than restoring stale consent. */
+  readonly remember: (consent: ScheduleConsent) => Promise<boolean>
+}): Promise<ScheduleConsent | undefined> {
+  const { schedule, identity } = deps
+  if (
+    schedule.action.kind !== 'prompt' ||
+    !deps.isOn() ||
+    !deps.isCurrent() ||
+    identity.price.trim() === '' ||
+    !nonnegativeUsdSchema.safeParse(identity.sharedDailyBudgetUsd).success ||
+    minUsd(schedule.paidCapUsd, schedule.grant.paidCapUsd, identity.sharedDailyBudgetUsd) === '0'
+  )
+    return undefined
+  if (
+    isScheduleConsentCurrent(schedule, identity) &&
+    deps.extras.length === schedule.paidConsent?.extras.length &&
+    deps.extras.every((feature) => schedule.paidConsent?.extras.includes(feature) === true)
+  )
+    return schedule.paidConsent
+  const consent = schedulePaidConsentSchema.parse({
+    modelId: identity.modelId,
+    accountId: identity.accountId,
+    priceTier: identity.priceTier,
+    sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
+    grantedAtMs: deps.now(),
+    dailyCapUsd: minUsd(schedule.paidCapUsd, schedule.grant.paidCapUsd),
+    extras: deps.extras,
+  })
+  const answer = await deps.ask({
+    title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidScheduledName }),
+    detail:
+      fill(UI_TEXT.scheduleV2.messages.paidConsent, {
+        prompt: schedule.action.prompt,
+        model: identity.modelId,
+        price: identity.price,
+        cadence: deps.cadence,
+        cap: formatUsd(consent.dailyCapUsd, 2),
+        budget: formatUsd(identity.sharedDailyBudgetUsd, 2),
+      }) +
+      (deps.extras.length === 0
+        ? ''
+        : `\n${deps.extras.map((feature) => `${paidFeatureName(feature)}: ${paidFeaturePrice(feature)}`).join(', ')}`),
+  })
+  if (answer === 'deny' || !deps.isOn() || !deps.isCurrent()) return undefined
+  if (answer === 'always' && !(await deps.remember(consent))) return undefined
+  return deps.isOn() && deps.isCurrent() ? consent : undefined
+}
+
+/** The run's paid port: live identity/gates plus a hard, noninteractive reservation.
+ * @unwired M58 schedule paid scope
+ */
+export function createSchedulePaidScope(deps: {
+  readonly backend: 'modelApi' | 'museCode'
+  readonly schedule: ScheduleV2
+  readonly identity: SchedulePaidIdentity
+  readonly currentIdentity: () => SchedulePaidIdentity
+  readonly isCurrent: () => boolean
+  readonly isOn: (feature: PaidFeature) => boolean
+  readonly estimate: (
+    body: CreateResponseBody | CreateImageBody,
+    inputTokens: number | undefined,
+  ) => UsdAmount
+  readonly reserve: (
+    schedule: ScheduleV2,
+    costUsd: UsdAmount,
+    signal: AbortSignal,
+  ) => Promise<SessionBudgetClaim>
+}) {
+  const isValid = () =>
+    deps.isCurrent() && isScheduleConsentCurrent(deps.schedule, deps.currentIdentity())
+  const canUse = (feature: PaidFeature) =>
+    isValid() &&
+    (deps.backend === 'museCode' || deps.isOn('scheduledPrompts')) &&
+    deps.isOn(feature) &&
+    (feature === 'scheduledPrompts'
+      ? deps.backend === 'modelApi'
+      : deps.schedule.paidConsent?.extras.includes(feature) === true)
+  const claims = new Map<string, { usd: UsdAmount; settled: boolean }>()
+  let settledUsd = Usd.from(0)
+  let hasUnknown = false
+  return {
+    modelId: deps.identity.modelId,
+    accountId: deps.identity.accountId,
+    allows: canUse,
+    cost: (): ScheduleFireRecord['cost'] => {
+      let retainedLiabilityUsd = Usd.from(0)
+      for (const claim of claims.values()) {
+        if (!claim.settled) retainedLiabilityUsd = retainedLiabilityUsd.add(Usd.from(claim.usd))
+      }
+      // Fire records persist exact settled and retained amounts.
+      return {
+        usd: settledUsd.toAmount(),
+        certainty:
+          hasUnknown || retainedLiabilityUsd.compare(Usd.from(0)) > 0 ? 'unknown' : 'exact',
+        retainedLiabilityUsd: retainedLiabilityUsd.toAmount(),
+      }
+    },
+    reserve: async (
+      body: CreateResponseBody | CreateImageBody,
+      inputTokens: number | undefined,
+      signal: AbortSignal,
+      reservationUsd?: UsdAmount,
+    ): Promise<SessionBudgetClaim> => {
+      signal.throwIfAborted()
+      if (
+        !canUse('input' in body ? 'scheduledPrompts' : 'imageGeneration') ||
+        ('input' in body && body.model !== deps.identity.modelId)
+      )
+        throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+      const feature = 'input' in body ? 'scheduledPrompts' : 'imageGeneration'
+      const costUsd = reservationUsd ?? deps.estimate(body, inputTokens)
+      if (Usd.from(costUsd).compare(Usd.from(0)) <= 0)
+        throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      const claim = await deps.reserve(deps.schedule, costUsd, signal)
+      claims.set(claim.claimId, { usd: claim.reservedUsd, settled: false })
+      const check = () => {
+        signal.throwIfAborted()
+        if (!canUse(feature)) throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+        return claim.check(Usd.from(0).toAmount())
+      }
+      const settle = async (actualCostUsd: UsdAmount, hasUnknownCost = false) => {
+        // D95.3: a hard cap never accepts spend beyond the admitted claim.
+        if (Usd.from(actualCostUsd).compare(Usd.from(claim.reservedUsd)) > 0)
+          throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+        const total = await claim.settle(actualCostUsd, hasUnknownCost)
+        const own = claims.get(claim.claimId)
+        if (own !== undefined && !own.settled) {
+          own.settled = !hasUnknownCost
+          own.usd = actualCostUsd
+          if (!hasUnknownCost) settledUsd = settledUsd.add(Usd.from(actualCostUsd))
+          hasUnknown ||= hasUnknownCost
+        }
+        return total
+      }
+      try {
+        check()
+      } catch (error: unknown) {
+        await settle(Usd.from(0).toAmount())
+        throw error
+      }
+      return { ...claim, check, settle }
+    },
+  }
 }
 
 /** The popup's question, formatted only when its existing runtime first loads. */
@@ -695,6 +862,7 @@ export interface AccountPaidUseConsentDeps extends Omit<
   readonly revokeQuoteGrants: () => Promise<void>
 }
 
+/** @unwired M58 account paid-use question */
 export function paidAccountQuestion(binding: PaidAccountBinding): string {
   return fill(UI_TEXT.accounts.paidConsent, {
     provider: binding.provider,
@@ -740,6 +908,7 @@ function quoteGrantEpoch(generation: string): number | undefined {
  * decision is fenced against the captured epoch too, so a revocation during
  * the ask refuses even when persistence downgrades to Allow once. The
  * instance-local generation fences in-flight asks inside one instance only.
+ * @unwired M58 account paid-use consent
  */
 export class AccountPaidUseConsent {
   private readonly binding: PaidAccountBinding
