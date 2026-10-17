@@ -220,9 +220,6 @@ export const connectorInputSchemas = {
   }),
 } as const
 export type ConnectorBackedTool = keyof typeof connectorInputSchemas
-export type ConnectorInput<T extends ConnectorBackedTool> = z.infer<
-  (typeof connectorInputSchemas)[T]
->
 
 /**
  * One scrubbed, schema-versioned audit line (design §6); no raw text or
