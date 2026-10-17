@@ -10,8 +10,11 @@ repository. This file adds only Claude-specific notes.
   `docs/plan-archive/` (`decisions.md`, `milestones.md`, `gates.md`).
 - Before proposing a commit, run the fast local checks (format, lint,
   typecheck, the suites you touched, the packed-product tests) and paste
-  their exit codes. Hosted CI is the gate for merges and releases. A failing
-  or skipped check is reported as such, never as passing.
+  their exit codes. A pull request merges only with hosted CI green on its
+  first run, every review thread answered, and a real use of what it changes
+  through the packed product recorded on the pull request; a release adds the
+  real-life run. A failing or skipped check is reported as such, never as
+  passing.
 - When a gate or test is added, break the code on purpose once, confirm the
   non-zero exit, revert, and record it in `docs/certification/<milestone>.md`.
 - Never modify `~/.claude`, global VS Code settings, or any machine-wide
@@ -24,7 +27,8 @@ repository. This file adds only Claude-specific notes.
   run is the product's test. Hosted CI needs no key. Before a release, real
   conversations run through the packed product on the cheapest models (the
   Meta contributor model by its explicit name; never a request whose tier is
-  unknown): state the expected number of calls and a dollar cap first, run
-  in an empty workspace, count the calls afterwards and report them.
-  Buying credits, paid plans and legal terms are the owner's. Never mint
-  credentials or install without asking.
+  unknown): state the expected number of calls first, run in an empty
+  workspace, count the calls afterwards and report them.
+- Buying credits, paid plans, legal terms, the owner's passwords and his
+  two-factor steps are his. Everything else the lead decides and does
+  without asking him (owner, 2026-10-17: "you dont need anything from me").
