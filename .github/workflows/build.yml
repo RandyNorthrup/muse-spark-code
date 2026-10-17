@@ -147,7 +147,15 @@ jobs:
   unit:
     name: tests (${{ matrix.os }}, shard ${{ matrix.shard }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    # The warm limit stays 20 minutes (the shard history is in the matrix
+    # comment below). An `org` run starts cold: a cache restores only from
+    # the current or the default branch (the dependency-caching reference),
+    # and a capacity branch is neither until the seeded default-branch cache
+    # lands (CONTRIBUTING.md, "The capacity repository"). A cold `npm ci` is
+    # about a minute (901 packages in 11-12 s from registry.npmjs.org,
+    # measured 2026-10-17), so `org` shards get 25: the warm bound plus the
+    # cold install and margin, still far under the platform's 6-hour ceiling.
+    timeout-minutes: ${{ inputs.part == 'org' && 25 || 20 }}
     strategy:
       fail-fast: false
       matrix:
@@ -163,8 +171,9 @@ jobs:
         # (vitest.config.ts) and takes eight too: over six it had no margin
         # even green (run 38225260540: shard 4 took 19 of the 20 minutes,
         # shard 1 took 16), and run 38270466443 lost shard 1 to the limit
-        # while it was still running normally. The limit stays 20 minutes;
-        # Ubuntu keeps four.
+        # while it was still running normally. The warm limit stays 20 minutes;
+        # Ubuntu keeps four. Part `org` gets 25 (the job's timeout): a new
+        # capacity branch starts with a cold npm cache.
         exclude: ${{ fromJSON((inputs.fast || inputs.part == 'org') && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -267,10 +276,17 @@ jobs:
     name: tests (windows-latest, macos-latest) in scnetsolutions/muse-spark-code-ci
     if: ${{ inputs.part == 'home' }}
     runs-on: ubuntu-latest
-    # The capacity run is a route job, then sixteen shards of at most 20
-    # minutes, macOS five at a time per account: two waves for one pull
-    # request, so 180 minutes leaves room for four more queued ahead of it.
-    timeout-minutes: 180
+    # The capacity run is a route job, then sixteen shards of at most 25
+    # minutes, macOS five at a time per account. With four pull requests
+    # queued ahead, their 32 macOS shards take eight waves plus two more for
+    # this run's eight: ten waves of full-length shards is 200 minutes before
+    # route and setup overhead. 360 is GitHub's own job ceiling on hosted
+    # runners (actions/reference/limits: "Job execution time ... 6 hours"),
+    # not our figure: the wait outlives any supported backlog, and anything
+    # longer fails at the platform's limit instead of ours. The wait step
+    # polls with this job's own token, which lives as long as the job; only
+    # the push needs the one-hour App token.
+    timeout-minutes: 360
     env:
       CAPACITY: scnetsolutions/muse-spark-code-ci
     steps:
@@ -302,6 +318,11 @@ jobs:
           TOKEN: ${{ steps.token.outputs.token }}
           BRANCH: ci/pr-${{ github.event.pull_request.number }}
         run: |
+          # The single quotes below are deliberate. $TOKEN must not expand
+          # into git's arguments, where it would sit in the process list; the
+          # helper's own shell expands it from the step's environment instead,
+          # and $1 is that helper's argument ("get").
+          # shellcheck disable=SC2016
           git -c credential.helper= \
             -c 'credential.helper=!f() { test "$1" = get && printf "username=x-access-token\npassword=%s\n" "$TOKEN"; }; f' \
             push "https://github.com/$CAPACITY.git" "+$GITHUB_SHA^1:refs/heads/ci/base" "+$GITHUB_SHA:refs/heads/$BRANCH"

@@ -35,6 +35,13 @@ happened, not what was planned; superseded entries are kept.
   runs here, and the same seven required checks wait for that run's result.
   Pull requests, merges and releases stay in this repository; forks and
   Dependabot keep every job here.
+- The capacity wait survives the documented queue (D122 review). The `org`
+  job's bound is GitHub's own 6-hour job ceiling instead of 180 minutes, so
+  a healthy capacity run is never cut off while queued pull requests drain.
+  The capacity shards get 25 minutes instead of 20 because a new capacity
+  branch starts with a cold npm cache, and a weekly seed keeps the capacity
+  repository's default-branch cache warm so later pull requests share it
+  (CONTRIBUTING.md, "The capacity repository (D122)").
 
 ### Pending
 
