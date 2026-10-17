@@ -280,6 +280,7 @@
   "referenceExecImages": "Arayüzsüz görüntüler --image-generation, acceptEdits ve yeterli kesin bütçe gerektirir. Fiyat sorusu gösterilmez; izin gerektiren istekler reddedilir.",
   "referenceProviders": "Model sağlayıcılarını listeleyin, ekleyin, test edin veya kaldırın. Anahtarlar kimlik bilgisi deposunu kullanır. Ücretli token testleri editör gerektirir; CLI bunları reddeder.",
   "referenceCliOptions": {
+    "context-window": "--context-window <tokens>: Yerel sunucuda yüklenen bağlam penceresini girin. Elle girilen değerler taranan sınırların yerine geçer.",
     "resource-governor": "--resource-governor on|off: Ajan ortamının başlattığı işi yavaşlatarak veya erteleyerek makinenin yanıt verebilirliğini korur. Varsayılan olarak açık.",
     "cpu-max": "--cpu-max <percent>: Makinenin CPU kullanımı 30 saniye boyunca bu yüzdenin üzerinde kaldığında yavaşlatır.",
     "memory-max": "--memory-max <percent>: Kullanılan bellek art arda iki örnekte bu yüzdenin üzerinde kaldığında yavaşlatır.",
@@ -342,8 +343,7 @@
     "estimate-by": "--by <date>: Son tarih",
     "fleet": "--fleet current|minimum|optimum: Mevcut makine grubu / Asgari kurulum / En uygun kurulum",
     "estimate-format": "--format md|html|json|text: Çıktı biçimi",
-    "seed": "--seed <seed>: Simülasyon tohumu",
-    "context-window": "--context-window <tokens>: Yerel sunucuda yüklenen bağlam penceresini girin. Elle girilen değerler taranan sınırların yerine geçer."
+    "seed": "--seed <seed>: Simülasyon tohumu"
   },
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Devam ediyor.",
@@ -4143,6 +4143,9 @@
   "providerTestPaid": "Bu denetim bir jeton gönderir ve yaklaşık {cost} tutar.",
   "providerTestFailed": "Denetim başarısız: {detail}",
   "scanFailed": "Tarama başarısız: {detail}",
+  "localContextWindow": "Bağlam penceresi (token)",
+  "localContextWindowHint": "Yerel sunucuda yüklenen bağlam penceresini girin. Elle girilen değerler taranan sınırların yerine geçer.",
+  "localContextWindowInvalid": "Pozitif bir tam sayı olarak token sayısını girin.",
   "llamacppScanMissingWindow": "llama.cpp model listesi etkin bir bağlam penceresi bildirmiyor (yakalanan derleme {build}).",
   "localModelWindowUnknown": "{model} modelinin bağlam penceresi bilinmiyor. Yüklenen pencereyi sağlayıcı sihirbazında, Modeller panelinde veya providers add --context-window ile girin.",
   "providerNeedsKey": "{id} sağlayıcısı bir anahtar gerektiriyor.",
@@ -5311,8 +5314,5 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  },
-  "localContextWindow": "Bağlam penceresi (token)",
-  "localContextWindowHint": "Yerel sunucuda yüklenen bağlam penceresini girin. Elle girilen değerler taranan sınırların yerine geçer.",
-  "localContextWindowInvalid": "Pozitif bir tam sayı olarak token sayısını girin."
+  }
 }

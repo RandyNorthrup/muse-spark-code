@@ -280,6 +280,7 @@
   "referenceExecImages": "Obrazy bez interfejsu wymagają --image-generation, acceptEdits i wystarczającego twardego budżetu. Nie ma pytania o cenę; żądania wymagające uprawnienia są odrzucane.",
   "referenceProviders": "Wyświetlaj, dodawaj, testuj lub usuwaj dostawców modeli. Klucze korzystają z magazynu poświadczeń. Płatne testy tokenów wymagają edytora; CLI je odrzuca.",
   "referenceCliOptions": {
+    "context-window": "--context-window <tokens>: Podaj okno kontekstu załadowane na lokalnym serwerze. Wartości ręczne zastępują wykryte limity.",
     "resource-governor": "--resource-governor on|off: Utrzymuje responsywność komputera przez spowalnianie lub odkładanie pracy uruchomionej przez środowisko agenta. Domyślnie włączone.",
     "cpu-max": "--cpu-max <percent>: Ogranicza pracę, gdy użycie procesora przekracza ten procent przez 30 sekund.",
     "memory-max": "--memory-max <percent>: Ogranicza pracę, gdy pamięć w użyciu przekracza ten procent w dwóch kolejnych próbkach.",
@@ -342,8 +343,7 @@
     "estimate-by": "--by <date>: Termin",
     "fleet": "--fleet current|minimum|optimum: Obecna flota / Minimalna konfiguracja / Optymalna konfiguracja",
     "estimate-format": "--format md|html|json|text: Format wyjściowy",
-    "seed": "--seed <seed>: Ziarno symulacji",
-    "context-window": "--context-window <tokens>: Podaj okno kontekstu załadowane na lokalnym serwerze. Wartości ręczne zastępują wykryte limity."
+    "seed": "--seed <seed>: Ziarno symulacji"
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "referenceVault": "W toku.",
@@ -4363,6 +4363,9 @@
   "providerTestPaid": "To sprawdzenie wysyła jeden token i kosztuje około {cost}.",
   "providerTestFailed": "Sprawdzenie nie powiodło się: {detail}",
   "scanFailed": "Skanowanie nie powiodło się: {detail}",
+  "localContextWindow": "Okno kontekstu (tokeny)",
+  "localContextWindowHint": "Podaj okno kontekstu załadowane na lokalnym serwerze. Wartości ręczne zastępują wykryte limity.",
+  "localContextWindowInvalid": "Podaj dodatnią całkowitą liczbę tokenów.",
   "llamacppScanMissingWindow": "Lista modeli llama.cpp nie zgłasza żadnego aktywnego okna kontekstu (przechwycona kompilacja {build}).",
   "localModelWindowUnknown": "Okno kontekstu modelu {model} jest nieznane. Podaj załadowane okno w kreatorze dostawcy, panelu Modele lub za pomocą providers add --context-window.",
   "providerNeedsKey": "Dostawca {id} wymaga klucza.",
@@ -5619,8 +5622,5 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  },
-  "localContextWindow": "Okno kontekstu (tokeny)",
-  "localContextWindowHint": "Podaj okno kontekstu załadowane na lokalnym serwerze. Wartości ręczne zastępują wykryte limity.",
-  "localContextWindowInvalid": "Podaj dodatnią całkowitą liczbę tokenów."
+  }
 }

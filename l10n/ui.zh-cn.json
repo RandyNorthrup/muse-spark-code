@@ -280,6 +280,7 @@
   "referenceExecImages": "无界面图像需要 --image-generation、acceptEdits 和充足的硬性预算。不显示价格确认问题；需要许可的请求会被拒绝。",
   "referenceProviders": "列出、添加、测试或移除模型提供商。密钥保存在凭据存储中。付费令牌探测需要编辑器；CLI 会拒绝这些探测。",
   "referenceCliOptions": {
+    "context-window": "--context-window <tokens>: 输入本地服务器加载的上下文窗口。手动值优先于扫描得到的限制。ACP 使用 providers.json 中相同的 modelLimits。",
     "resource-governor": "--resource-governor on|off: 通过减慢或延后代理运行环境启动的工作，保持此计算机响应流畅。默认开启。",
     "cpu-max": "--cpu-max <percent>: 当计算机的 CPU 使用率持续30秒超过此百分比时限速。",
     "memory-max": "--memory-max <percent>: 当已用内存连续两次采样超过此百分比时限速。",
@@ -342,8 +343,7 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 当前设备群 / 最小配置 / 最优配置",
     "estimate-format": "--format md|html|json|text: 输出格式",
-    "seed": "--seed <seed>: 模拟种子",
-    "context-window": "--context-window <tokens>: 输入本地服务器加载的上下文窗口。手动值优先于扫描得到的限制。ACP 使用 providers.json 中相同的 modelLimits。"
+    "seed": "--seed <seed>: 模拟种子"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
   "referenceVault": "进行中.",
@@ -4033,6 +4033,9 @@
   "providerTestPaid": "此检查将发送一个 token，大约花费 {cost}。",
   "providerTestFailed": "检查失败：{detail}",
   "scanFailed": "扫描失败：{detail}",
+  "localContextWindow": "上下文窗口（令牌）",
+  "localContextWindowHint": "输入本地服务器加载的上下文窗口。手动值优先于扫描得到的限制。ACP 使用 providers.json 中相同的 modelLimits。",
+  "localContextWindowInvalid": "请输入正整数令牌数。",
   "llamacppScanMissingWindow": "llama.cpp 模型列表未报告实时上下文窗口（捕获的构建 {build}）。",
   "localModelWindowUnknown": "模型 {model} 的上下文窗口未知。请在提供商向导、模型面板或 providers add --context-window 中输入已加载的窗口。",
   "providerNeedsKey": "提供方 {id} 需要密钥。",
@@ -5157,8 +5160,5 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  },
-  "localContextWindow": "上下文窗口（令牌）",
-  "localContextWindowHint": "输入本地服务器加载的上下文窗口。手动值优先于扫描得到的限制。ACP 使用 providers.json 中相同的 modelLimits。",
-  "localContextWindowInvalid": "请输入正整数令牌数。"
+  }
 }
