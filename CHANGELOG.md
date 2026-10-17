@@ -29,7 +29,9 @@ happened, not what was planned; superseded entries are kept.
   subagents past 64 per conversation (paid consent still asks per spawn);
   a team `delegate` starts past 6 tasks and engines run past the 20-worker
   hard ceiling (the provider's documented limits, live 429 adaptation and
-  the machine bound the rest).
+  the machine bound the rest); exports and shares write and read back past
+  16 MiB (the transcript item count still bounds them; the report reader
+  keeps its own 16 MiB bound under a new name).
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

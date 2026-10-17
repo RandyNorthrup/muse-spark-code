@@ -46,7 +46,7 @@ import {
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
   REFERENCE_BUNDLE_FILE,
-  SESSION_EXPORT_MAX_BYTES,
+  REPORT_SOURCE_MAX_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
@@ -511,7 +511,7 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
       readSaved: async (cwd, file) => {
         const bytes = await readBoundedFile(
           path.resolve(cwd, file),
-          SESSION_EXPORT_MAX_BYTES,
+          REPORT_SOURCE_MAX_BYTES,
           AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
         )
         const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))

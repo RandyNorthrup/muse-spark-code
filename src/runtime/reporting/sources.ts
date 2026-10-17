@@ -7,7 +7,7 @@ import {
   REPORT_MAX_ROWS,
   REPORT_STORAGE_LINK_COUNT,
   REPORT_SOURCE_TIMEOUT_MS,
-  SESSION_EXPORT_MAX_BYTES,
+  REPORT_SOURCE_MAX_BYTES,
 } from '../../shared/constants'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { withoutCredentials } from '../../core/credentialEnvironment'
@@ -43,7 +43,7 @@ function isPrivatePath(file: string): boolean {
 export function reportFileIo(
   root: string,
   platform: NodeJS.Platform,
-  maxBytes = SESSION_EXPORT_MAX_BYTES,
+  maxBytes = REPORT_SOURCE_MAX_BYTES,
 ): LocalFileIo {
   const p = pathModule(platform)
   async function target(

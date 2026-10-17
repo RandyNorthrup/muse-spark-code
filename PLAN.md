@@ -14426,6 +14426,11 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   20 removed — ours, not the platform's; a `delegate` starts any number of
   tasks and engines are bounded by the provider's documented limits, live
   429 adaptation and the machine, never a number of ours.
+- A30 (NOLIMITS1): `SESSION_EXPORT_MAX_BYTES` = 16 MiB removed — not about
+  a model; shares render and export files write at any byte size, and the
+  picker reads them back whole (the transcript item count still bounds all
+  three; the report reader keeps its 16 MiB bound as
+  `REPORT_SOURCE_MAX_BYTES`).
 
 ## 3. Open questions (need the owner)
 

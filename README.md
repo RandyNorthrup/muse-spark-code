@@ -3399,16 +3399,16 @@ before advertising their mode or replaying history.
 links and Copy work, code blocks have no Insert or Apply, and nothing in it
 reaches a session. It shows 200 items at a time, with **Show More** for the
 next, and an item that cannot be rendered says so in its place while the
-rest of the file still shows. A file is refused whole if it is over 16 MiB, is another
+rest of the file still shows. A file is refused whole if it is another
 format or a newer version, or holds any field this version does not know.
 At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
 with the theme's focus border; Escape closes the view and focuses the composer.
 For a local visual check, `npm run ui:look -- share` renders the scene
 from the built webview into `temp/ui-look/`.
 The picker reads a local `file:` URI on the extension host through one
-checked descriptor, stopping at the size cap even if the file grows.
-Other file providers are explicitly refused because this reader cannot
-bound their allocations; a PDF header never raises the JSON cap.
+checked descriptor, whole at any size; the transcript schema still bounds
+its item count. Other file providers are explicitly refused because this
+reader cannot bound their allocations.
 Validation notices use localized refusals: JSON parser snippets are never
 shown, and reported field names are scrubbed before their bounded display.
 Nothing is ever uploaded: sharing is a file on your disk.
