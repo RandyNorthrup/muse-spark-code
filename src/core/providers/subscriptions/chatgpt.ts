@@ -9,6 +9,7 @@ import {
   OAUTH_CODE_TTL_MS,
   PKCE_STATE_BYTES,
 } from '../../../shared/constants'
+import { failureCodeNames } from '../../networkFailure'
 import { ChatGptSignInError, createChatGptHostId, isChatGptHostId } from './chatgptHostId'
 export { ChatGptSignInError } from './chatgptHostId'
 import { pkce } from '../../../host/backend/providersEntry'
@@ -97,11 +98,19 @@ export const chatGptRecordSchema = z.object({
 })
 export type ChatGptRecord = z.infer<typeof chatGptRecordSchema>
 
-function parse<T>(schema: z.ZodMiniType<T>, value: unknown, code: ChatGptSignInError['code']): T {
+function parse<T>(
+  schema: z.ZodMiniType<T>,
+  value: unknown,
+  code: ChatGptSignInError['code'],
+  reason?: string,
+): T {
   const result = schema.safeParse(value)
-  if (!result.success) throw new ChatGptSignInError(code)
+  if (!result.success) throw new ChatGptSignInError(code, reason)
   return result.data
 }
+
+/** Where the runtime keeps its host id; hosts name the location they read. */
+export const CHATGPT_HOST_ID_ENTRY = 'museSpark.provider.chatgpt.host-id'
 
 function checkScope(scope: string): void {
   if (!scope.split(/\s+/u).includes(DIRECT_SCOPE)) {
@@ -141,7 +150,9 @@ export function resolveChatGptHostId(stored: string | undefined): {
 } {
   if (stored !== undefined) {
     if (isChatGptHostId(stored)) return { hostId: stored, persist: false }
-    if (!isPkceState(stored)) throw new ChatGptSignInError('invalid-token')
+    if (!isPkceState(stored)) {
+      throw new ChatGptSignInError('host-id-unreadable', CHATGPT_HOST_ID_ENTRY)
+    }
   }
   return { hostId: createChatGptHostId(), persist: true }
 }
@@ -399,7 +410,9 @@ export class ChatGptSignIn {
       return await work()
     } catch (error) {
       if (error instanceof ChatGptSignInError) throw error
-      throw new ChatGptSignInError('request-failed')
+      // Anything untyped is named by its own codes (Node's network codes,
+      // or the error's name), never as an unexplained outage.
+      throw new ChatGptSignInError('request-failed', failureCodeNames(error))
     }
   }
 
@@ -424,38 +437,44 @@ export class ChatGptSignIn {
           try {
             failure = await response.json()
           } catch {
-            throw new ChatGptSignInError('request-failed')
+            throw new ChatGptSignInError('request-failed', `HTTP ${String(response.status)}`)
           }
-          if (unusableGrantSchema.safeParse(failure).success) {
-            throw new ChatGptSignInError('sign-in-required')
+          const unusable = unusableGrantSchema.safeParse(failure)
+          if (unusable.success) {
+            throw new ChatGptSignInError('sign-in-required', unusable.data.error)
           }
           if (invalidClientSchema.safeParse(failure).success) {
             throw new ChatGptSignInError('client-refused')
           }
         }
-        throw new ChatGptSignInError('request-failed')
+        throw new ChatGptSignInError('request-failed', `HTTP ${String(response.status)}`)
       }
       return response
     } catch (error) {
       if (error instanceof ChatGptSignInError) throw error
-      throw new ChatGptSignInError('request-failed')
+      throw new ChatGptSignInError('request-failed', failureCodeNames(error))
     }
   }
 
-  private async json(url: string, form?: URLSearchParams): Promise<unknown> {
+  /** `code` names whose answer it was when the body is not JSON. */
+  private async json(
+    url: string,
+    code: ChatGptSignInError['code'],
+    form?: URLSearchParams,
+  ): Promise<unknown> {
     const response = await this.request(url, form)
     try {
       const value: unknown = await response.json()
       return value
     } catch {
-      throw new ChatGptSignInError('invalid-token')
+      throw new ChatGptSignInError(code)
     }
   }
 
   private async discovery(): Promise<z.infer<typeof discoverySchema>> {
     const discovery = parse(
       discoverySchema,
-      await this.json(`${ISSUER}/.well-known/openid-configuration`),
+      await this.json(`${ISSUER}/.well-known/openid-configuration`, 'invalid-discovery'),
       'invalid-discovery',
     )
     const jwks = new URL(discovery.jwks_uri)
@@ -475,7 +494,7 @@ export class ChatGptSignIn {
     const stored = await this.host.readRegistration()
     return stored === undefined
       ? undefined
-      : parse(chatGptRegistrationSchema, stored, 'invalid-token')
+      : parse(chatGptRegistrationSchema, stored, 'registration-unreadable')
   }
 
   /**
@@ -544,6 +563,7 @@ export class ChatGptSignIn {
             tokenSchema,
             await this.json(
               discovery.token_endpoint,
+              'invalid-token',
               new URLSearchParams({
                 grant_type: 'authorization_code',
                 code: grant.code,
@@ -559,7 +579,7 @@ export class ChatGptSignIn {
           const receivedAt = this.host.now()
           const accountIdHash = verifyChatGptIdToken({
             token: token.id_token,
-            jwks: await this.json(discovery.jwks_uri),
+            jwks: await this.json(discovery.jwks_uri, 'invalid-id-token'),
             clientId: grant.clientId,
             nonce,
             now: this.host.now(),
@@ -625,7 +645,8 @@ export class ChatGptSignIn {
   /** Origin binding is checked before any refresh, even for a still-valid token. */
   public async accessToken(requestUrl: string, minimumValidityMs: number): Promise<string> {
     if (!Number.isFinite(minimumValidityMs) || minimumValidityMs < 0) {
-      throw new ChatGptSignInError('invalid-token')
+      // This app's own caller asked for an impossible validity: a defect here, not ChatGPT.
+      throw new RangeError('minimumValidityMs')
     }
     const request = z.url().safeParse(requestUrl)
     if (
@@ -639,8 +660,8 @@ export class ChatGptSignIn {
     return await this.guard(() =>
       this.host.withRefreshLock(async () => {
         const stored = unpersistedRefresh.get(this.host) ?? (await this.host.readRecord())
-        if (stored === undefined) throw new ChatGptSignInError('sign-in-required')
-        let record = parse(chatGptRecordSchema, stored, 'invalid-token')
+        if (stored === undefined) throw new ChatGptSignInError('not-signed-in')
+        let record = parse(chatGptRecordSchema, stored, 'grant-unreadable')
         let discovery: z.infer<typeof discoverySchema> | undefined
         if (record.pendingRefresh === undefined) {
           checkScope(record.scope)
@@ -650,6 +671,7 @@ export class ChatGptSignIn {
             tokenSchema,
             await this.json(
               discovery.token_endpoint,
+              'invalid-token',
               new URLSearchParams({
                 grant_type: 'refresh_token',
                 client_id: record.clientId,
@@ -677,7 +699,7 @@ export class ChatGptSignIn {
         let jwks: unknown
         if (idToken !== undefined) {
           discovery ??= await this.discovery()
-          jwks = await this.json(discovery.jwks_uri)
+          jwks = await this.json(discovery.jwks_uri, 'invalid-id-token')
         }
         if (record.expiresAt <= this.host.now() + minimumValidityMs) {
           throw new ChatGptSignInError('expired')
@@ -719,7 +741,7 @@ export class ChatGptSignIn {
         try {
           const stored = unpersistedRefresh.get(this.host) ?? (await this.host.readRecord())
           if (stored === undefined) return
-          const record = parse(chatGptRecordSchema, stored, 'invalid-token')
+          const record = parse(chatGptRecordSchema, stored, 'grant-unreadable')
           // A grant from before registrations were kept carries its issued client.
           await this.host.writeRegistration({
             v: CREDENTIAL_RECORD_VERSION,

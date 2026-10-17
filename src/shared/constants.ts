@@ -314,7 +314,9 @@ export const CHATGPT_HOST_ID_URN_PREFIX = 'urn:uuid:'
  * sign-in" (developers.openai.com/siwc/token-sharing-open-source/
  * profiles-and-sessions, read 2026-10-17). No token is stored under it.
  */
-export const CHATGPT_REGISTRATION_SECRET_KEY = `${PROVIDER_SECRET_PREFIX}chatgpt.registration`
+// `PROVIDER_SECRET_PREFIX` + `chatgpt.registration`, written whole so the
+// activation bundle, which never reads it, drops it.
+export const CHATGPT_REGISTRATION_SECRET_KEY = 'museSpark.provider.chatgpt.registration'
 /** `providers add chatgpt --new-account`: "Use a different ChatGPT account" (a new registration). */
 export const CHATGPT_NEW_ACCOUNT_FLAG = '--new-account'
 export const CHATGPT_GRANT_LOCK_PIPE = 'muse-spark-chatgpt-grant'
@@ -2374,14 +2376,16 @@ export const CHATGPT_PLAN_RETRYABLE_CODES: readonly string[] = [
   CHATGPT_DIRECT_UNAVAILABLE_CODE,
 ]
 // A stream that ends with an `error` event of these codes (the instance shut
-// down or was overloaded mid-reply) is retried whole, as the guide says; the
-// ChatGPT plan's documented retry answers ride the same bounded retry.
+// down or was overloaded mid-reply) is retried whole, as the guide says.
 export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
   'server_shutting_down',
   'service_overloaded',
   'backend_unavailable',
-  ...CHATGPT_PLAN_RETRYABLE_CODES,
 ])
+/** Meta's retry codes and the ChatGPT plan's documented retry answers ride one bounded retry. */
+export function isRetryableStreamCode(code: string): boolean {
+  return MODEL_API_RETRYABLE_STREAM_CODES.has(code) || CHATGPT_PLAN_RETRYABLE_CODES.includes(code)
+}
 export const MODEL_API_MAX_RETRIES = 4
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000

@@ -139,7 +139,7 @@ import {
   MODEL_API_OUTPUT_ENCODING,
   MODEL_API_OUTPUT_MEDIA_TYPE,
   MODEL_API_PDF_PAGE_IMAGES,
-  MODEL_API_RETRYABLE_STREAM_CODES,
+  isRetryableStreamCode,
   MODEL_API_SERVER_NAME,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
@@ -5897,13 +5897,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         )
       }
       case 'error': {
-        // The instance shut down or was overloaded mid-reply: the docs say to
-        // send the whole request again.
-        if (
-          event.code !== undefined &&
-          event.code !== null &&
-          MODEL_API_RETRYABLE_STREAM_CODES.has(event.code)
-        ) {
+        // The instance shut down or was overloaded mid-reply, or the ChatGPT
+        // plan could not check usage: the docs say to send the request again.
+        if (event.code !== undefined && event.code !== null && isRetryableStreamCode(event.code)) {
           throw new RetryableStreamError(event.message, event.code)
         }
         throw new ModelApiError(event.message, 0, undefined, event.code ?? undefined)
@@ -14371,7 +14367,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         )
       }
       case 'error': {
-        if (event.code != null && MODEL_API_RETRYABLE_STREAM_CODES.has(event.code)) {
+        if (event.code != null && isRetryableStreamCode(event.code)) {
           throw new RetryableStreamError(event.message, event.code)
         }
         throw new ModelApiError(event.message, 0, undefined, event.code ?? undefined)

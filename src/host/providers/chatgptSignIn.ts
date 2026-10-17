@@ -64,13 +64,19 @@ export async function startChatGptCallback(
     if (typeof value === 'string') completion.resolve?.(value)
     else completion.reject?.(value)
   }
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(0, OAUTH_LOOPBACK_HOST, () => {
-      server.off('error', reject)
-      resolve()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject)
+      server.listen(0, OAUTH_LOOPBACK_HOST, () => {
+        server.off('error', reject)
+        resolve()
+      })
     })
-  })
+  } catch (error) {
+    // The loopback listener could not open: this machine's cause, with its code.
+    const code = fileErrorCode(error)
+    throw new ChatGptSignInError('local-failed', typeof code === 'string' ? code : 'listen')
+  }
   const address = server.address()
   if (address === null || typeof address === 'string') {
     server.close()
@@ -110,17 +116,17 @@ export async function startChatGptCallback(
     } catch (error) {
       isClaimed = true
       response.on('finish', () => {
+        // The parser's own validated code (a refusal, another attempt's
+        // state), never request text.
         finish(
-          error instanceof ChatGptSignInError && error.code === 'authorize-refused'
-            ? error
-            : new ChatGptSignInError('invalid-callback'),
+          error instanceof ChatGptSignInError ? error : new ChatGptSignInError('invalid-callback'),
         )
       })
       answer(HTTP_STATUS.badRequest)
     }
   })
   const timer = setTimeout(() => {
-    finish(new ChatGptSignInError('invalid-callback'))
+    finish(new ChatGptSignInError('callback-timeout'))
   }, timeoutMs)
   timer.unref()
   return {
@@ -299,7 +305,9 @@ export async function createChatGptSignIn(deps: ChatGptVsCodeDeps): Promise<Chat
         const parsed: unknown = JSON.parse(stored)
         return parsed
       } catch {
-        throw new ChatGptSignInError('invalid-token')
+        throw new ChatGptSignInError(
+          account === key ? 'grant-unreadable' : 'registration-unreadable',
+        )
       }
     }
     return new ChatGptSignIn({

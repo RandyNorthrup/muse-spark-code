@@ -51,7 +51,7 @@ export async function startChatGptCallback(
     if (isSettled) return
     isSettled = true
     clearTimeout(timer)
-    signal?.removeEventListener('abort', cancel)
+    signal?.removeEventListener('abort', abort)
     server.close()
     if (!isFlushing) server.closeAllConnections()
     if (typeof value === 'string') resolveWait?.(value)
@@ -59,6 +59,13 @@ export async function startChatGptCallback(
   }
   const cancel = () => {
     finish()
+  }
+  // No answer in time and a caller's cancel are their own causes.
+  const expire = () => {
+    finish(new ChatGptSignInError('callback-timeout'))
+  }
+  const abort = () => {
+    finish(new ChatGptSignInError('cancelled'))
   }
   const answer = (response: ServerResponse, status: number): void => {
     response.writeHead(status, {
@@ -105,13 +112,9 @@ export async function startChatGptCallback(
     } catch (error) {
       answer(response, HTTP_STATUS.badRequest)
       // Let the fixed page flush, then destroy every connection. Preserve
-      // only our validated failure, never arbitrary request/error text.
-      finish(
-        error instanceof ChatGptSignInError && error.code === 'authorize-refused'
-          ? error
-          : undefined,
-        true,
-      )
+      // only our validated failure (a refusal, another attempt's state),
+      // never arbitrary request/error text.
+      finish(error instanceof ChatGptSignInError ? error : undefined, true)
     }
   })
   try {
@@ -125,9 +128,9 @@ export async function startChatGptCallback(
     if (address === null || typeof address === 'string')
       throw new ChatGptSignInError('invalid-callback')
     redirectUri = `http://${OAUTH_LOOPBACK_HOST}:${String(address.port)}/auth/callback`
-    timer = setTimeout(cancel, timeoutMs)
-    signal?.addEventListener('abort', cancel, { once: true })
-    if (signal?.aborted === true) cancel()
+    timer = setTimeout(expire, timeoutMs)
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted === true) abort()
     return {
       redirectUri,
       waitForCallback: () => {
@@ -137,8 +140,11 @@ export async function startChatGptCallback(
       },
       close: cancel,
     }
-  } catch {
+  } catch (error) {
     finish()
-    throw new ChatGptSignInError('invalid-callback')
+    if (error instanceof ChatGptSignInError) throw error
+    // The loopback listener could not open: this machine's cause, with its code.
+    const code = error instanceof Error && 'code' in error ? error.code : undefined
+    throw new ChatGptSignInError('local-failed', typeof code === 'string' ? code : 'listen')
   }
 }

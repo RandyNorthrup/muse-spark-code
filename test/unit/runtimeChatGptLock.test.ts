@@ -154,11 +154,13 @@ describe('ACP ChatGPT process lock', () => {
     } catch (error) {
       failure = error
     }
-    // Nothing can tell a network failure from a local one here: the retry code, and never the detail.
+    // Nothing can tell a network failure from a local one here: the request code,
+    // named by the error's class alone, and never the detail.
     expect(failure).toBeInstanceOf(ChatGptSignInError)
     const message = failure instanceof Error ? failure.message : ''
     expect(message).toBe('chatgpt.request-failed')
     expect(message).not.toContain('synthetic')
+    expect(failure instanceof ChatGptSignInError ? failure.reason : undefined).toBe('Error')
     await expect(
       withChatGptRefreshLock(() => Promise.resolve('next'), { directory, timeoutMs: 2000 }),
     ).resolves.toBe('next')

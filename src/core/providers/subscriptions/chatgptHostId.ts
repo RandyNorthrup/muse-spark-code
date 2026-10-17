@@ -6,20 +6,29 @@
 import { randomUUID } from 'node:crypto'
 import { CHATGPT_HOST_ID_URN_PREFIX } from '../../../shared/constants'
 
-/** Technical failure codes; hosts translate these without exposing wire text. */
+/**
+ * Technical failure codes, one per cause; hosts translate each into its own
+ * sentence without exposing wire text.
+ */
 export class ChatGptSignInError extends Error {
   public constructor(
     public readonly code:
       | 'invalid-discovery'
       | 'invalid-callback'
+      | 'callback-timeout'
       | 'authorize-refused'
       | 'invalid-state'
       | 'invalid-token'
       | 'invalid-id-token'
       | 'missing-plan-scope'
       | 'origin-mismatch'
+      | 'not-signed-in'
+      | 'still-signed-in'
       | 'sign-in-required'
       | 'expired'
+      | 'grant-unreadable'
+      | 'registration-unreadable'
+      | 'host-id-unreadable'
       | 'store-unavailable'
       | 'lock-unavailable'
       | 'lock-busy'
@@ -31,14 +40,22 @@ export class ChatGptSignInError extends Error {
       | 'already-added'
       | 'account-mismatch'
       | 'client-refused'
+      | 'catalogue-refused'
+      | 'catalogue-unreadable'
+      | 'catalogue-empty'
+      | 'added-models-unlisted'
+      | 'model-not-added'
       | 'request-failed',
     /**
-     * The operating system's own code for a `lock-unavailable` or
-     * `local-failed` failure (for example `EACCES`), OpenAI's own error code
-     * for an `authorize-refused` failure (for example `access_denied`), or
-     * this app's own word for why the providers file failed (`unparseable`,
-     * `invalid`, `io-error`); hosts show it beside the sentence. Undefined
-     * for every other code.
+     * A short technical word hosts show beside the sentence, never free
+     * provider text: the operating system's code (`lock-unavailable`,
+     * `local-failed`, `EACCES`); OpenAI's own error code (`authorize-refused`
+     * `access_denied`, `sign-in-required` `invalid_grant`); the HTTP status and
+     * code of a refused answer (`catalogue-refused`, `request-failed`); Node's
+     * network codes (`request-failed`); where an unreadable host id is kept
+     * (`host-id-unreadable`); the model asked for (`model-not-added`); or this
+     * app's own word for why the providers file failed (`unparseable`,
+     * `invalid`, `io-error`).
      */
     public readonly reason?: string,
   ) {
