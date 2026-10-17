@@ -8001,9 +8001,14 @@ export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
 export const VAULT_PROTOCOL_VERSION = 1
-// Transport and peer hygiene only (NOLIMITS2 A33): approvals themselves
-// never expire on this clock any more; unauthenticated sockets, helper
-// calls and native peer handshakes still end at it.
+// Transport and peer hygiene only (NOLIMITS2 A33): unauthenticated
+// sockets, helper calls and native peer handshakes end at it. It never
+// bounds an approval: approvals wait for the person or Stop.
+export const VAULT_TRANSPORT_TIMEOUT_MS = 120_000
+// The old approval clock's name, kept only for the vault harness fixture
+// and the unmerged M109 broker work that still reads it: nothing in src/
+// ends an approval at it any more (NOLIMITS2 A33). Delete it when that
+// work lands on the no-expiry rule.
 export const VAULT_APPROVAL_TTL_MS = 120_000
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000
