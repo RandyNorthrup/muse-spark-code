@@ -106,21 +106,6 @@ export interface RunLedger {
   totals(): LedgerTotals
 }
 
-/** Quote start admission without spending or consuming this run's request count. */
-export function previewResponseReservation(
-  ledger: RunLedger,
-  model: string,
-  price: TierPrice,
-): ResponseTicket {
-  const preview = createRunLedger({
-    capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
-    maxRequests: 1,
-    outputCap: () => ledger.outputCap,
-  }).admitResponse({ model, maxOutputTokens: ledger.outputCap, price })
-  if ('refused' in preview) throw new UserRefusalError(UI_TEXT.execModelUnpriced, 'unpriced')
-  return preview
-}
-
 const ZERO = 0n
 const ONE = 1n
 const UNIT = BigInt(EXEC_USD_UNITS)
