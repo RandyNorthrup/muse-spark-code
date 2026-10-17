@@ -34,16 +34,16 @@ describe('one spend ledger', () => {
     expect(readFileSync(path.join(scope.directory, 'state.json'), 'utf8')).toBe(before)
     expect(readdirSync(path.join(scope.directory, 'audit'))).toHaveLength(1)
   })
-  it('admits every fitting request and no extra request', async () => {
-    for (const k of [1, 2, 3]) {
-      const { scope, ledger } = setup()
-      const results = await Promise.allSettled(
-        Array.from({ length: 12 }, () => ledger.admit(scope, usd(1), usd(k))),
-      )
-      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(k)
-      const readTotal1 = await ledger.read(scope)
-      expect(readTotal1.spentUsd).toBe(usd(k))
-    }
+  it.each([1, 2, 3])('admits every fitting request and no extra request (k=%i)', async (k) => {
+    const { scope, ledger } = setup()
+    const results = await Promise.allSettled(
+      Array.from({ length: 12 }, () => ledger.admit(scope, usd(1), usd(k))),
+    )
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(k)
+    for (const result of results)
+      if (result.status === 'rejected') expect(result.reason).toMatchObject({ kind: 'budget' })
+    const readTotal1 = await ledger.read(scope)
+    expect(readTotal1.spentUsd).toBe(usd(k))
   })
   it('each state counts its sole amount, and settlement cannot erase another attempt', async () => {
     const { scope, ledger } = setup()
