@@ -135,14 +135,18 @@ async function run(job: SearchJob): Promise<SearchOutcome> {
     if (found >= job.maxHits) {
       break
     }
-    const text =
-      file.content === undefined
-        ? await searchableText(realRoot, file.absolute, job.maxFileBytes, isDenied)
-        : isDenied([file.relative]) ||
-            Buffer.byteLength(file.content) > job.maxFileBytes ||
-            isBinary(file.content)
-          ? undefined
-          : file.content
+    let text: string | undefined
+    if (file.content === undefined) {
+      text = await searchableText(realRoot, file.absolute, job.maxFileBytes, isDenied)
+    } else if (
+      isDenied([file.relative]) ||
+      Buffer.byteLength(file.content) > job.maxFileBytes ||
+      isBinary(file.content)
+    ) {
+      text = undefined
+    } else {
+      text = file.content
+    }
     if (text === undefined) {
       continue
     }
