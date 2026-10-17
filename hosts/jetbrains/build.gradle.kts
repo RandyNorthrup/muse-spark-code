@@ -10,7 +10,12 @@ plugins {
 }
 
 group = "io.github.randynorthrup.musespark"
-version = "0.1.0"
+// The plugin ships with the product: one version, the repository's package.json.
+version =
+  Regex("\"version\"\\s*:\\s*\"([^\"]+)\"")
+    .find(providers.fileContents(layout.projectDirectory.file("../../package.json")).asText.get())
+    ?.groupValues
+    ?.get(1) ?: error("package.json has no version")
 
 repositories {
   mavenCentral()
