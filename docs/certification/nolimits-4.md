@@ -133,3 +133,19 @@ The earlier full-lint `lint:js:unit` failure (1152 errors) falls exactly in
 that window and is attributed to files vanishing mid-run; the rerun on the
 whole tree passes. Lead: please check the rig for a rogue cleaner; lane
 commits and uncommitted work were unaffected.
+
+## Review corrections (RVNOLIMITS4, 2026-10-17)
+
+- F1 (`655f3734d`): removing the aggregate character tally had also dropped
+  the already-queued slot count from steered-media admission
+  (`canQueueSteeredMedia`); restored through
+  `ReplayMedia.assertPendingFits`, with a queued-slots test in
+  `mediaBudget.test.ts`.
+- F2 (`4593b20a0`): registry enrichment still sliced combined findings to
+  the old 500 silently (`legalRegistry.ts`); the slice is gone, so B18
+  holds through enrichment.
+- F3 (`22df0ea1a`): MCP `tools/list` paging now stops at a repeated cursor
+  with a log line instead of hanging; no page count is capped.
+- F4 (`97a9ce00e`): README, CHANGELOG and comments now say only what the
+  remaining legal bounds (per-file, total-bytes, per-rule, time) and the
+  FileChanged quiet window still do.
