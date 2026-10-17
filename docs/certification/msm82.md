@@ -47,8 +47,10 @@ test-overhaul deletions deleted, and re-proves M82 on the merged tree.
 - `test/unit/turnNotice.test.ts` (9 tests, new): M82 notice logic
   through the real modules — events parsed by the real
   `agentEventSchema`, real `attentionNotice`/`BackgroundNotifier`/
-  `notifyOpenQuestions`, real constants and English table, plain
-  closure deps, real timers. No `vi` import, no mocks, no casts.
+  `notifyOpenQuestions`, real constants and English table, real
+  timers. The notifier's own ports (show, focus, setting, log) are
+  recording closures supplied to its real constructor. No `vi`
+  import, no module mock, no casts.
 - Red drill: `isReplayed === true` broken to `=== false` in
   `turnNotifications.ts` → 1 failed (`names an approval and a
 question, but not a replayed card`); reverted → 9 passed, no diff
@@ -92,8 +94,9 @@ question, but not a replayed card`); reverted → 9 passed, no diff
   failure a 5 s timeout (or one `ENOTEMPTY` fixture-cleanup race)
   under the 24-minute fully-loaded parallel run on this rig;
   `usageL10nGate` re-run alone passes 8/8. Failing files are
-  byte-identical to main (this lane's tree differs from main in two
-  files only: the prettier fix and the new test). No M82 file fails.
+  byte-identical to main (this lane's tree differs from main in
+  four files: this record, the certification index line, the
+  prettier fix and the new test). No M82 file fails.
 - `security:secrets` (`gitleaks git`) exits 1 on this clone for 2
   `generic-api-key` hits in commit `3e8ea2c25`, which belongs to
   another lane's branch (`rv/cm1134i`) and is in neither main's nor
