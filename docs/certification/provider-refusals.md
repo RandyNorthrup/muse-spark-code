@@ -365,6 +365,52 @@ Gemini's `quota_exceeded` body (the snake_case envelope); Azure's 429 with
 `retry-after-ms`; OpenAI's quota 429 and `server_error`; Anthropic's spend-cap
 429; Mistral's exhaustion error.
 
+### Lane RETRYLIMITS — documented retry limits per provider (2026-10-17)
+
+Every source below was read 2026-10-17 (PR #202 research files, plus the
+PROVERRORS record for the SDK rows). "Not documented" means the provider
+names no maximum retry count / backoff on the pages read; per the owner's
+rule no limit of ours applies and the person's setting decides.
+
+| Provider                                       | Max retries          | Backoff                                | Source                               |
+| ---------------------------------------------- | -------------------- | -------------------------------------- | ------------------------------------ |
+| Anthropic                                      | 2 (SDK default)      | Exponential, honors Retry-After        | API errors page (ERR)                |
+| OpenAI                                         | Not documented       | Retry-After, else exp backoff + jitter | Error codes page (ERR)               |
+| Gemini                                         | 4 (SDK)              | ~1 s start, 60 s max (SDK)             | Troubleshooting + SDK                |
+| Azure                                          | 5-10 (example range) | retry-after-ms, else exp + jitter      | Learn QUOTAHOW                       |
+| Meta                                           | 3-5 attempts         | Not documented                         | PROVERRORS cite; page not in PR #202 |
+| xAI                                            | Up to 5              | 2^attempt s (docs examples)            | Rate limits page (RL)                |
+| OpenRouter                                     | Not documented       | Wait Retry-After                       | Errors / limits docs (ERR)           |
+| Groq                                           | Not documented       | retry-after seconds only               | Rate limits page (RL)                |
+| DeepSeek                                       | Not documented       | Not documented                         | Rate limits page (RL)                |
+| Mistral                                        | Not documented       | Not documented                         | Pages read                           |
+| Together                                       | Not documented       | Exponential, no bounds                 | Rate limits page (RL)                |
+| Fireworks                                      | Not documented       | Not documented                         | Serverless page not read             |
+| HuggingFace                                    | Not documented       | Not documented                         | Router docs                          |
+| Z.ai                                           | Not documented       | Wait until next_flush_time             | Errors page (ERR)                    |
+| ChatGPT-Codex plan                             | Not documented       | Bounded backoff                        | SIWC errors page                     |
+| Copilot                                        | Not documented       | Not documented                         | Pages read                           |
+| Ollama / LM Studio / vLLM / llama.cpp / custom | Not documented       | Not documented                         | Server docs                          |
+
+Notes:
+
+- Anthropic's API docs fix no count ("retry with exponential backoff" for
+  500; 429 retries after `retry-after` seconds); the count 2 is the
+  official SDK default ("retries transient failures ... twice by default").
+- Gemini's API docs ask for "a maximum number of retry attempts to prevent
+  infinite loops" without naming one; the count 4 with ~1 s to 60 s is the
+  official SDK default.
+- OpenAI's docs say only "limit retries" (openai.md §4); no count exists.
+- Azure's docs give 5-10 as an example ("for example, 5–10"), not a fixed
+  ceiling; `retry-after-ms` is read before `Retry-After` (done in PROVERRORS).
+- Meta has no PR #202 research file and no product preset; the 3-5 attempts
+  figure is cited from the PROVERRORS record above and needs a captured
+  provider page before any code could depend on it.
+- xAI's "up to 5 attempts" with 2^attempt-second backoff is from the
+  docs' own worked examples (xai.md §4).
+- OpenRouter, Z.ai and the Codex plan route document _which_ answers wait
+  and retry (Retry-After / next_flush_time / bounded backoff) but no count.
+
 ### Gates
 
 Full set on `fcc07ad8ea` (before the second merge): typecheck 0, lint
