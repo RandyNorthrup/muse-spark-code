@@ -176,3 +176,27 @@ ca-certs: empty trust anchors` (exit shows an OCaml backtrace ending in
 
 - None found in this lane's scope. The merged tree builds, gates and
   tests as listed above.
+
+## Review correction (RVMSM53, 2026-10-17)
+
+Three claims above do not hold as written, and the code had three holes
+the review fixed in `e30eb6352`:
+
+- "The controller paths they covered are proven by the packed-product
+  run below" is wrong: that run is `test/e2e/execStdio.e2e.test.ts`
+  (the ACP exec package), which never reaches the panel's side-chat
+  approval paths, and the file was red on its packaging hook besides.
+  On the final tree the controller wiring has no automated proof; the
+  pure policy is proven by `approvalRules.test.ts` and the wiring
+  rests on the lead's real-life steps 1–4 above, still open.
+- The backstop failed open: a click whose choice id was not on the
+  retained card (or with no retained card) was sent to the host, which
+  forwards choice ids unvalidated. `approvalRules.isSideChatClickRefused`
+  now lets only a known non-approving choice through (test added,
+  red-drilled; `approvalRules.test.ts` is 83/83).
+- A staged approval's later stages (`approvalUpdated`) were shown
+  instead of refused; they are now refused with the stage's own reject
+  choice (`conversationController.ts:2512-2531`), and a refusal that
+  fails after its session ended no longer forwards the dead session's
+  card (`:2109`). Line references above from `approvalUpdated` on
+  moved by these edits; the click backstop is now at `:3034`.
