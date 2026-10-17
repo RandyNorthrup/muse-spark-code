@@ -810,9 +810,9 @@ describe('configured provider production transport', () => {
         } catch (error) {
           failure = error
         }
-        expect(failure).toBeInstanceOf(Error)
-        expect((failure as Error).name).toBe('ChatCodecError')
-        expect((failure as Error).message).toBe(`${reason} (unsupported_reasoning_effort)`)
+        if (!(failure instanceof Error)) throw new Error('expected a codec refusal')
+        expect(failure.name).toBe('ChatCodecError')
+        expect(failure.message).toBe(`${reason} (unsupported_reasoning_effort)`)
       }
       expect(sent).toHaveLength(0)
     })

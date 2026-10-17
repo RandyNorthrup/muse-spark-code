@@ -11,6 +11,9 @@ import {
   type CreateResponseBody,
 } from '../../src/core/backends/modelapi/schemas'
 import { MODEL_API_REQUEST_TIMEOUT_MS } from '../../src/shared/constants'
+import { isChatCodecError } from '../../src/core/backends/modelapi/codecs/shared'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
 
 class Text implements vscode.LanguageModelTextPart {
   public constructor(public value: string) {}
@@ -550,8 +553,12 @@ describe('Copilot VS Code client', () => {
         },
       ],
     }
-    await expect(run(tester, request)).rejects.toThrow('translated.unsupported-content')
+    // M105 lane V R4 (RVCM1054C P2): an image the model cannot take
+    // refuses with the shared typed refusal and the model's own sentence,
+    // never the generic unavailable text.
+    await expect(run(tester, request)).rejects.toThrow('synthetic-model does not take image.')
     expect(tester.model.sendRequest).not.toHaveBeenCalled()
+    expect(tester.model.countTokens).not.toHaveBeenCalled()
     const append = vi.fn((msg: vscode.LanguageModelChatMessage, url: string) => {
       msg.content.push(new Text(`synthetic-image:${url}`))
     })
@@ -561,7 +568,7 @@ describe('Copilot VS Code client', () => {
     })
     await expect(
       unsupported[0]!.streamResponse(request, new AbortController().signal).next(),
-    ).rejects.toThrow('translated.unsupported-content')
+    ).rejects.toThrow('synthetic-model does not take image.')
     expect(append).not.toHaveBeenCalled()
     const supported = await connectCopilotFromClick({
       ...tester.deps,
@@ -662,12 +669,16 @@ describe('Copilot VS Code client', () => {
     controller.abort()
     await expect(run(tester, body(), controller.signal)).rejects.toThrow('translated.cancelled')
     expect(tester.model.sendRequest).not.toHaveBeenCalled()
+    // RVCM1054D P2: the aborted run throws before acquiring anything, so it
+    // creates no cancellation source to dispose; the closed stream below
+    // still cancels and disposes exactly once.
+    expect(tester.dispose).not.toHaveBeenCalled()
     const connected = await client(tester)
     const stream = connected.streamResponse(body(), new AbortController().signal)
     await stream.next()
     await stream.return(undefined)
     expect(tester.cancel).toHaveBeenCalled()
-    expect(tester.dispose).toHaveBeenCalledTimes(2)
+    expect(tester.dispose).toHaveBeenCalledTimes(1)
   })
 
   it('bridges Stop to VS Code while sendRequest is pending', async () => {
@@ -814,4 +825,50 @@ describe('Copilot VS Code client', () => {
     vi.mocked(tester.api.selectChatModels).mockRejectedValueOnce(new Error('private'))
     await expect(connectCopilotFromClick(tester.deps)).rejects.toThrow('translated.request-failed')
   })
+
+  it.each([
+    ['en' as const, 'synthetic-model is not known to take video.'],
+    ['de' as const, 'synthetic-model nimmt kein Video.'],
+  ])(
+    'refuses a held video (%s) with the shared typed refusal before any request',
+    async (language, sentence) => {
+      // M105 lane V R4 (RVCM1054C P2): through the client that
+      // connectCopilotFromClick returns, with a fake VS Code port only.
+      const videoUnknown =
+        language === 'de' ? '{model} nimmt kein Video.' : '{model} is not known to take video.'
+      setUiText({ ...EN, media: { ...EN.media, videoUnknown } }, language)
+      try {
+        const tester = rig()
+        const connected = await client(tester)
+        const request: CreateResponseBody = {
+          ...body(),
+          input: [
+            {
+              type: 'message',
+              role: 'user',
+              content: [
+                { type: 'input_text', text: 'what is in this clip?' },
+                { type: 'input_video', file_id: 'file-abc123' },
+              ],
+            },
+          ],
+        }
+        let error: unknown
+        try {
+          await Array.fromAsync(connected.streamResponse(request, new AbortController().signal))
+        } catch (error_) {
+          error = error_
+        }
+        if (!isChatCodecError(error)) throw new Error('expected a codec refusal')
+        expect(error.message).toBe(sentence)
+        expect(tester.model.sendRequest).not.toHaveBeenCalled()
+        expect(tester.model.countTokens).not.toHaveBeenCalled()
+        await expect(connected.countInputTokens(request)).rejects.toThrow(sentence)
+        expect(tester.model.sendRequest).not.toHaveBeenCalled()
+        expect(tester.model.countTokens).not.toHaveBeenCalled()
+      } finally {
+        setUiText(EN, 'en')
+      }
+    },
+  )
 })

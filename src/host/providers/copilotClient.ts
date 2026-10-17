@@ -5,6 +5,15 @@ import { setTimeout as pause } from 'node:timers/promises'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import { MODEL_API_REQUEST_TIMEOUT_MS } from '../../shared/constants'
+// RVCM1054D P2: the typed refusal is constructed across the provider
+// bundle seam, never here — this client ships in the Models panel bundle,
+// which must not carry src/core/backends/modelapi/codecs/* (they load only
+// in dist/providers.js) and is over its cap with even the leaf copy.
+// providersEntry is externalized to dist/providers.js in this bundle by the
+// deferredCohort plugin, as for subscriptionFeatures. The throwing calls
+// below sit outside the try blocks, so the catches never see the refusal
+// and need no guard for it.
+import { refuse } from '../backend/providersEntry'
 import type {
   ConfirmedModelRequest,
   ModelApiClient,
@@ -155,16 +164,36 @@ class CopilotClient implements ProviderClient {
     message: vscode.LanguageModelChatMessage,
     parts: readonly (InputContentPart | FunctionOutputPart)[],
   ): void {
-    for (const part of parts) {
-      if (part.type === 'input_text' || part.type === 'output_text')
+    for (const part of parts) this.appendPart(message, part)
+  }
+  private appendPart(
+    message: vscode.LanguageModelChatMessage,
+    part: InputContentPart | FunctionOutputPart,
+  ): void {
+    switch (part.type) {
+      case 'input_text':
+      case 'output_text': {
         message.content.push(this.api.text(part.text))
-      else if (
-        part.type === 'input_image' &&
-        'image_url' in part &&
-        this.deps.images?.supports(this.model) === true
-      )
+        return
+      }
+      case 'input_image': {
+        // M105 lane V R4 (RVCM1054C P2): content this client cannot send
+        // refuses with the shared typed refusal and the model's own
+        // sentence, before any request, never the generic unavailable text.
+        // An image the model cannot take (no vision, or another provider's
+        // held file with no URL to send) reads as the gate's own
+        // unsupported-image sentence.
+        if (!('image_url' in part) || this.deps.images?.supports(this.model) !== true)
+          throw refuse(this.model)
         this.deps.images.append(message, part.image_url)
-      else throw this.fail('unsupported-content')
+        return
+      }
+      case 'input_video': {
+        throw refuse(this.model, true)
+      }
+      default: {
+        throw this.fail('unsupported-content')
+      }
     }
   }
   private messages(body: Omit<CreateResponseBody, 'stream'>): vscode.LanguageModelChatMessage[] {
@@ -236,16 +265,18 @@ class CopilotClient implements ProviderClient {
       listener.dispose()
     }
   }
+  // RVCM1054D P2: messages arrive built, so the typed refusal never enters
+  // the try below and the catch needs no guard for it.
   private async countInput(
     body: Omit<CreateResponseBody, 'stream'>,
     cancellation: vscode.CancellationTokenSource,
+    messages: readonly vscode.LanguageModelChatMessage[],
   ): Promise<number> {
     this.check()
     const deadline = Date.now() + MODEL_API_REQUEST_TIMEOUT_MS
     try {
       let count = 0
-      for (const message of this.messages(body))
-        count += await this.tokens(message, cancellation, deadline)
+      for (const message of messages) count += await this.tokens(message, cancellation, deadline)
       count += await this.tokens(JSON.stringify(body.tools), cancellation, deadline)
       return tokenCountSchema.parse(count)
     } catch (error) {
@@ -269,7 +300,8 @@ class CopilotClient implements ProviderClient {
   public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
     const cancellation = this.api.cancellation()
     try {
-      return await this.countInput(body, cancellation)
+      // Built outside the try, so the typed refusal keeps its own sentence.
+      return await this.countInput(body, cancellation, this.messages(body))
     } finally {
       cancellation.cancel()
       cancellation.dispose()
@@ -288,6 +320,15 @@ class CopilotClient implements ProviderClient {
       throw this.fail('unavailable')
     this.checkConsent()
     if (confirmed !== undefined) throw this.fail('confirmation-expired')
+    if (isAborted(signal)) throw this.fail('cancelled')
+    // RVCM1054D P2: built before any resource is acquired, so the typed
+    // refusal keeps its own sentence on the send path too, never the generic
+    // text — and a throw here needs no cleanup. Order matches the old body.
+    const messages = this.messages(body)
+    const tools: vscode.LanguageModelChatTool[] = body.tools.map((tool) => {
+      if (tool.type !== 'function') throw this.fail('unsupported-content')
+      return { name: tool.name, description: tool.description, inputSchema: tool.parameters }
+    })
     const cancellation = this.api.cancellation()
     const abort = (): void => {
       cancellation.cancel()
@@ -303,13 +344,7 @@ class CopilotClient implements ProviderClient {
       this.deps.recordEstimatedUsage(body.model, inputTokens, outputTokens, 'estimated')
     }
     try {
-      if (isAborted(signal)) throw this.fail('cancelled')
-      const messages = this.messages(body)
-      const tools: vscode.LanguageModelChatTool[] = body.tools.map((tool) => {
-        if (tool.type !== 'function') throw this.fail('unsupported-content')
-        return { name: tool.name, description: tool.description, inputSchema: tool.parameters }
-      })
-      inputTokens = await this.countInput(body, cancellation)
+      inputTokens = await this.countInput(body, cancellation, messages)
       if (inputTokens > this.model.maxInputTokens) throw this.fail('unsupported-content')
       this.check()
       this.checkConsent()

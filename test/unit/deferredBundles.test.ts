@@ -1201,6 +1201,39 @@ process.stdout.write(parsed.session.fileRefs[0].fileId);
     expect(inputs('providers')).toContain('src/core/providers/providersFile.ts')
   })
 
+  it('keeps the codec bundle’s shared refusal out of the Models panel and subscriptions', () => {
+    // RVCM1054D P2: the Copilot client imported the codec refusal directly
+    // from codecs/shared.ts, copying codec source into the Models panel
+    // bundle and pushing it over its cap. The panel raises the refusal
+    // through the provider bundle seam (no codec or leaf copy in it); the
+    // subscriptions bundle takes the leaf module both sides may import.
+    for (const source of [
+      'src/core/backends/modelapi/codecs/shared.ts',
+      'src/core/backends/modelapi/codecs/anthropic.ts',
+      'src/core/backends/modelapi/codecs/chat.ts',
+      'src/core/backends/modelapi/codecs/gemini.ts',
+      'src/core/backends/modelapi/codecs/ollama.ts',
+      'src/core/backends/modelapi/codecs/responses.ts',
+      'src/core/media/codecRefusal.ts',
+    ]) {
+      expect(inputs('modelsPanel')).not.toContain(source)
+      expect(inputs('extension')).not.toContain(source)
+      expect(inputs('modelApi')).not.toContain(source)
+    }
+    for (const source of [
+      'src/core/backends/modelapi/codecs/shared.ts',
+      'src/core/backends/modelapi/codecs/anthropic.ts',
+      'src/core/backends/modelapi/codecs/chat.ts',
+      'src/core/backends/modelapi/codecs/gemini.ts',
+      'src/core/backends/modelapi/codecs/ollama.ts',
+      'src/core/backends/modelapi/codecs/responses.ts',
+    ]) {
+      expect(inputs('subscriptions')).not.toContain(source)
+    }
+    expect(inputs('providers')).toContain('src/core/backends/modelapi/codecs/shared.ts')
+    expect(inputs('subscriptions')).toContain('src/core/media/codecRefusal.ts')
+  })
+
   it('shares the captured Model API validators and pure team admission across Node consumers', () => {
     for (const source of [
       'src/core/pathIdentity.ts',

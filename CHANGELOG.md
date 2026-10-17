@@ -300,6 +300,51 @@ happened, not what was planned; superseded entries are kept.
   into the run ledger;
   stopped reads cannot publish a new proof.
 
+- Video reaching any non-Meta request now refuses with the model's own
+  reason ("{model} is not known to take video."), read from the installed
+  language table, before anything is sent (M105 lane V R2). The chat and
+  Gemini codecs already refused at the codec stage, but as a plain Error
+  the production client replaced the reason with the generic unavailable
+  message; the refusal is now the typed error the client passes through.
+  Responses requests forwarded Meta's file id uncaptured while Anthropic
+  and Ollama requests dropped the part and sent the rest; every encoder
+  now refuses instead. No vendor outside Meta has a captured media wire
+  yet.
+
+- The same typed video refusal now reaches the user as its own sentence on
+  every remaining route (M105 lane V R3, RVCM1054B): the ChatGPT
+  subscription route (which had replaced it with the generic retry text),
+  the Copilot subscription leg, the runtime accounting wrapper, and the ACP
+  agent (whose SDK had generalized a raw start failure to "Internal
+  error"). One shared helper decides what counts as a codec refusal, and
+  the route matrix is driven by both the provider registry and the plan-key
+  registry. The lead capture recipes run as written.
+
+- The review round's findings on that refusal are fixed as a class (M105
+  lane V R4, RVCM1054C): the Copilot client itself raises the shared typed
+  refusal with the model's own sentence for a held video (and for an image
+  the model cannot take) before any request, instead of the generic
+  "Copilot models are unavailable" text; the Meta passthrough is pinned to
+  rethrow the refusal unchanged; the plan-key route runs through the real
+  production client; the ACP agent's unreachable start-rejection branch is
+  deleted and the real session path (failed turn carrying the sentence as
+  its reason) is pinned through the real agent; headless exec reports the
+  sentence in both its error and its incomplete reason with exit code 4 and
+  no model request sent; and the lead capture recipes no longer waste or
+  mis-record a paid call. The editor shows an ACP failure as "Internal
+  error: <sentence>", today's shape for every failed turn there.
+
+- The review round's findings on that refusal are fixed as a class (M105
+  lane V R5, RVCM1054D): the Copilot client raises the refusal through the
+  provider bundle seam (one helper re-exported by the providers entry) and
+  the subscriptions bundle takes the shared type from a small leaf module,
+  so the Models panel bundle is back under its unchanged size cap and the
+  split gate passes with no codec source outside the providers bundle; the
+  ACP and exec regressions now run a real Model API session (the former
+  session double and session proxy are gone — a broken session mapping
+  fails them); and the OpenAI audio capture recipes name the audio-input
+  model `gpt-realtime-2.1` from the repository catalog instead of `gpt-5.4`.
+
 ## [0.17.1] - 2026-10-10
 
 ### Highlights
