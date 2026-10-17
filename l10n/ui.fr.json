@@ -451,7 +451,6 @@
   "sessionDeleteConnectionClosed": "La connexion a été fermée avant la confirmation de la suppression. La session reste dans l’historique.",
   "sessionDeleteHostExited": "Muse Code s’est arrêté avant la confirmation de la suppression. La session reste dans l’historique.",
   "sessionDeleteHostClosed": "L’hôte a été fermé avant la confirmation de la suppression. La session reste dans l’historique.",
-  "sessionDeleteTimedOut": "Le délai de confirmation de la suppression a expiré. La session reste dans l’historique.",
   "playbookTitle": "Guide de l’orchestrateur",
   "playbookStatus": "État",
   "playbookRecord": "Journal",

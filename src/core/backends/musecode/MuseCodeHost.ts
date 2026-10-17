@@ -419,8 +419,6 @@ const FRAME_ENVELOPE = { jsonrpc: '2.0', id: Number.MAX_SAFE_INTEGER }
 export interface CommandTimeouts {
   readonly normalMs?: number | undefined
   readonly longMs?: number | undefined
-  /** Deletion's admission and terminal notification; defaults to the long command wait. */
-  readonly deleteTerminalMs?: number | undefined
   /** The watchdog's silence (`MSP_UNRESPONSIVE_SILENCE_MS` unless a test shortens it). */
   readonly unresponsiveSilenceMs?: number
 }
@@ -789,19 +787,16 @@ async function requestWithin<T>(
   const stopNoticing =
     timeoutMs === undefined
       ? startStillWaiting((elapsedMs) => {
-          channel.log.info(stillWaitingText(`Muse Code's answer to ${method}`, elapsedMs))
+          channel.log.info(stillWaitingText(`Muse Code ${method}`, elapsedMs))
           channel.liveness.missed(method)
         })
       : undefined
   try {
+    const raced = Promise.race([request(), cancelled])
     const answer =
       timeoutMs === undefined
-        ? await Promise.race([request(), cancelled])
-        : await withDeadline(
-            Promise.race([request(), cancelled]),
-            timeoutMs,
-            `Muse Code did not answer ${method} within ${String(Math.round(timeoutMs / MILLISECONDS_PER_SECOND))} s`,
-          )
+        ? await raced
+        : await withDeadline(raced, timeoutMs, `Muse Code did not answer ${method} in time`)
     channel.assertCurrent(generation)
     return answer
   } catch (error: unknown) {
@@ -1189,10 +1184,7 @@ export class MuseSession implements ScheduledAgentSession {
         `Stop: approval ${approvalId} stage ${String(approval.requirementId.sourceIndex)} is rejected before the turn stops`,
       )
       // Bounded: a Stop never waits long on a host that does not answer.
-      const deadlineMs = Math.min(
-        APPROVAL_REJECT_DEADLINE_MS,
-        this.timeouts.normalMs ?? APPROVAL_REJECT_DEADLINE_MS,
-      )
+      const deadlineMs = APPROVAL_REJECT_DEADLINE_MS
       try {
         await withDeadline(
           this.decideApproval({
@@ -1810,9 +1802,8 @@ export class MuseSession implements ScheduledAgentSession {
         this.prompts.unmarkQuestionDeferred(userInputId)
       },
       // The deferral's own wait is the questions lane's (B22/C4), not an MSP
-      // command wait: a named ordinary wait still applies, otherwise the
-      // questions' own default, as before.
-      this.timeouts.normalMs ?? QUESTION_DEFER_DEFAULT_SECONDS * MILLISECONDS_PER_SECOND,
+      // command wait: the questions' own default, as before.
+      QUESTION_DEFER_DEFAULT_SECONDS * MILLISECONDS_PER_SECOND,
       UI_TEXT.questionAnswerUncertain,
     )
   }
@@ -2555,25 +2546,20 @@ export class MuseCodeHost implements AgentHost {
       })(),
       stopped,
     ])
-    // No named wait: the deletion is waited on until it is confirmed or the
-    // wait is stopped, saying so out loud (owner 2026-10-16).
-    const terminalMs = this.timeouts.deleteTerminalMs ?? this.timeouts.longMs
-    const stopNoticing =
-      terminalMs === undefined
-        ? startStillWaiting((elapsedMs) => {
-            this.log.info(stillWaitingText('the session deletion', elapsedMs))
-          })
-        : undefined
+    // The deletion is waited on until it is confirmed or the wait is
+    // stopped, saying so out loud (owner 2026-10-16); no test names this
+    // wait, so it names no deadline at all.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      this.log.info(stillWaitingText('session deletion', elapsedMs))
+    })
     try {
-      return terminalMs === undefined
-        ? await raced
-        : await withDeadline(raced, terminalMs, UI_TEXT.sessionDeleteTimedOut)
+      return await raced
     } catch (error: unknown) {
       // Dispatch validated the terminal before shutdown; async admission may still be resuming.
       if (deletion.state.phase === 'terminalValidated') return deletion.state.event
       throw error
     } finally {
-      stopNoticing?.()
+      stopNoticing()
       deletion.state = { phase: 'reported' }
       if (onTerminal !== undefined) this.deletionTerminalListeners.delete(onTerminal)
       if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)

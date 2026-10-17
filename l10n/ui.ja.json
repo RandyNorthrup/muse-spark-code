@@ -451,7 +451,6 @@
   "sessionDeleteConnectionClosed": "削除が確認される前に接続が閉じられました。セッションは履歴に残ります。",
   "sessionDeleteHostExited": "削除が確認される前にMuse Codeが終了しました。セッションは履歴に残ります。",
   "sessionDeleteHostClosed": "削除が確認される前にホストが閉じられました。セッションは履歴に残ります。",
-  "sessionDeleteTimedOut": "削除確認の待機時間を超過しました。セッションは履歴に残ります。",
   "playbookTitle": "オーケストレーターの手引き",
   "playbookStatus": "状態",
   "playbookRecord": "記録",

@@ -451,7 +451,6 @@
   "sessionDeleteConnectionClosed": "刪除確認前連線已關閉。工作階段仍保留在歷程記錄中。",
   "sessionDeleteHostExited": "刪除確認前 Muse Code 已結束。工作階段仍保留在歷程記錄中。",
   "sessionDeleteHostClosed": "刪除確認前主程式已關閉。工作階段仍保留在歷程記錄中。",
-  "sessionDeleteTimedOut": "等待刪除確認逾時。工作階段仍保留在歷程記錄中。",
   "playbookTitle": "協調器工作準則",
   "playbookStatus": "狀態",
   "playbookRecord": "紀錄",

@@ -591,7 +591,6 @@ export const EN = {
     'Muse Code exited before deletion was confirmed. The session remains in History.',
   sessionDeleteHostClosed:
     'The host closed before deletion was confirmed. The session remains in History.',
-  sessionDeleteTimedOut: 'Deletion confirmation timed out. The session remains in History.',
   // M116 / D96: shared panel, Agent map, ACP, CLI and report wording.
   playbookTitle: 'Orchestrator Playbook',
   playbookStatus: 'Status',
@@ -3957,7 +3956,7 @@ export const EN = {
   stopAllTasksTitle: 'Stop every background task of this conversation',
   stopTaskFailed: 'The background task could not be stopped',
   taskNotRunning: 'That task is not running any more',
-  stillWaitingNotice: 'Still waiting on {what} after {duration} — Stop ends it.',
+  stillWaitingNotice: 'Still waiting: {what} ({duration}). Stop ends it.',
   userShellLabel: 'You Ran',
   userShellExitCode: 'Exit code {code}',
   userShellExitSignal: 'Ended by signal {signal}',
