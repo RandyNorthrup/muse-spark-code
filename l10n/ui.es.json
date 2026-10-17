@@ -4800,6 +4800,7 @@
   "legalConfidenceLabel": "Confianza: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Uso: /legal [ruta relativa al espacio de trabajo …]. No se admiten opciones.",
+  "legalScanReceiptHelp": "Análisis local de licencias; las constancias opcionales de licence-review.json vinculan una licencia SPDX revisada con su paquete, versión exacta y SHA-256, con un motivo. Los cambios de bytes o versiones requieren una nueva revisión.",
   "legalScanItemDetail": "Analizar el área de trabajo en busca de hallazgos de licencias, atribuciones y encabezados",
   "legalScanBusy": "El análisis legal empezará cuando termine el turno actual.",
   "legalScanUntrusted": "El análisis legal lee el área de trabajo, lo que el modo restringido no permite. Confíe en el área de trabajo para usarlo.",
@@ -5162,6 +5163,9 @@
       "many": "No se listan más avisos para {v0} ({count}); no se omitió nada más."
     },
     "m210": "Analice un conjunto menor de rutas para listarlos.",
+    "reviewedReceipt": "Revisado mediante constancia: {reason}",
+    "receiptRenew": "Una versión nueva o cambios en los bytes de la licencia requieren otra revisión y constancia.",
+    "invalidReceipt": "sin comprobar: {file} no es un archivo válido de constancias de revisión de licencias",
     "unknown": "desconocido",
     "unresolved": "sin resolver",
     "noLicense": "sin licencia",
@@ -5186,10 +5190,7 @@
     "licenseFile": "un archivo de licencia",
     "bundleLoad": "no se pudo cargar {file}",
     "bundleShape": "{file} tiene estructura inesperada",
-    "invalidResult": "el análisis devolvió un resultado inválido",
-    "reviewedReceipt": "Revisado mediante constancia: {reason}",
-    "receiptRenew": "Una versión nueva o cambios en los bytes de la licencia requieren otra revisión y constancia.",
-    "invalidReceipt": "sin comprobar: {file} no es un archivo válido de constancias de revisión de licencias"
+    "invalidResult": "el análisis devolvió un resultado inválido"
   },
   "legalScanAgain": "Analizar de nuevo",
   "accounts": {
@@ -5469,6 +5470,5 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  },
-  "legalScanReceiptHelp": "Análisis local de licencias; las constancias opcionales de licence-review.json vinculan una licencia SPDX revisada con su paquete, versión exacta y SHA-256, con un motivo. Los cambios de bytes o versiones requieren una nueva revisión."
+  }
 }

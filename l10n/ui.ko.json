@@ -4558,6 +4558,7 @@
   "legalConfidenceLabel": "신뢰도: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "사용법: /legal [작업 영역의 상대 경로 …]. 옵션은 지원되지 않습니다.",
+  "legalScanReceiptHelp": "로컬 라이선스 검사. 선택적 licence-review.json 기록은 검토한 SPDX 라이선스를 사유와 함께 패키지, 정확한 버전, SHA-256에 연결합니다. 바이트나 버전이 변경되면 다시 검토해야 합니다.",
   "legalScanItemDetail": "라이선스, 저작자 표시, 헤더 소견에 대해 작업 영역을 검사합니다",
   "legalScanBusy": "현재 턴이 끝나면 법률 검사가 시작됩니다.",
   "legalScanUntrusted": "법률 검사는 작업 영역을 읽지만, 제한 모드에서는 허용되지 않습니다. 사용하려면 작업 영역을 신뢰하세요.",
@@ -4864,6 +4865,9 @@
       "other": "{v0}에 대한 권고 {count}개가 더 있지만 표시하지 않았습니다. 그 밖에 생략한 것은 없습니다."
     },
     "m210": "표시하려면 더 적은 경로를 대상으로 검사하세요.",
+    "reviewedReceipt": "검토 기록으로 확인됨: {reason}",
+    "receiptRenew": "새 버전이나 라이선스 바이트 변경에는 새 검토와 기록이 필요합니다.",
+    "invalidReceipt": "확인하지 않음: {file}은 유효한 라이선스 검토 기록 파일이 아닙니다",
     "unknown": "알 수 없음",
     "unresolved": "미해결",
     "noLicense": "라이선스 없음",
@@ -4884,10 +4888,7 @@
     "licenseFile": "라이선스 파일",
     "bundleLoad": "{file}를 로드할 수 없습니다",
     "bundleShape": "{file}의 형식이 예상과 다릅니다",
-    "invalidResult": "검사가 잘못된 결과를 반환했습니다",
-    "reviewedReceipt": "검토 기록으로 확인됨: {reason}",
-    "receiptRenew": "새 버전이나 라이선스 바이트 변경에는 새 검토와 기록이 필요합니다.",
-    "invalidReceipt": "확인하지 않음: {file}은 유효한 라이선스 검토 기록 파일이 아닙니다"
+    "invalidResult": "검사가 잘못된 결과를 반환했습니다"
   },
   "legalScanAgain": "다시 검사",
   "accounts": {
@@ -5159,6 +5160,5 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  },
-  "legalScanReceiptHelp": "로컬 라이선스 검사. 선택적 licence-review.json 기록은 검토한 SPDX 라이선스를 사유와 함께 패키지, 정확한 버전, SHA-256에 연결합니다. 바이트나 버전이 변경되면 다시 검토해야 합니다."
+  }
 }

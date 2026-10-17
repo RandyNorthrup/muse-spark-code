@@ -4679,6 +4679,7 @@
   "legalConfidenceLabel": "Verlässlichkeit: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Verwendung: /legal [Pfad relativ zum Arbeitsbereich …]. Optionen werden nicht unterstützt.",
+  "legalScanReceiptHelp": "Lokale Lizenzprüfung; optionale Nachweise in licence-review.json binden eine geprüfte SPDX-Lizenz mit Begründung an das Paket, die genaue Version und SHA-256. Geänderte Bytes oder Versionen erfordern eine erneute Prüfung.",
   "legalScanItemDetail": "Den Arbeitsbereich auf Lizenzen, Zuschreibungen und Header-Funde prüfen",
   "legalScanBusy": "Ein Legal-Scan beginnt, sobald der aktuelle Durchgang beendet ist.",
   "legalScanUntrusted": "Der Legal-Scan liest den Arbeitsbereich, was der eingeschränkte Modus nicht erlaubt. Vertrauen Sie dem Arbeitsbereich, um ihn zu nutzen.",
@@ -5013,6 +5014,9 @@
       "other": "Weitere Hinweise für {v0} ({count}) sind nicht aufgeführt; sonst wurde nichts ausgelassen."
     },
     "m210": "Prüfen Sie eine kleinere Auswahl von Pfaden, um sie aufzulisten.",
+    "reviewedReceipt": "Durch Prüfnachweis geprüft: {reason}",
+    "receiptRenew": "Eine neue Version oder geänderte Lizenzbytes erfordern eine neue Prüfung und einen neuen Nachweis.",
+    "invalidReceipt": "nicht geprüft: {file} ist keine gültige Datei mit Lizenzprüfnachweisen",
     "unknown": "unbekannt",
     "unresolved": "nicht aufgelöst",
     "noLicense": "keine Lizenz",
@@ -5035,10 +5039,7 @@
     "licenseFile": "eine Lizenzdatei",
     "bundleLoad": "{file} konnte nicht geladen werden",
     "bundleShape": "{file} hat eine unerwartete Struktur",
-    "invalidResult": "die Prüfung lieferte ein ungültiges Ergebnis",
-    "reviewedReceipt": "Durch Prüfnachweis geprüft: {reason}",
-    "receiptRenew": "Eine neue Version oder geänderte Lizenzbytes erfordern eine neue Prüfung und einen neuen Nachweis.",
-    "invalidReceipt": "nicht geprüft: {file} ist keine gültige Datei mit Lizenzprüfnachweisen"
+    "invalidResult": "die Prüfung lieferte ein ungültiges Ergebnis"
   },
   "legalScanAgain": "Erneut scannen",
   "accounts": {
@@ -5314,6 +5315,5 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  },
-  "legalScanReceiptHelp": "Lokale Lizenzprüfung; optionale Nachweise in licence-review.json binden eine geprüfte SPDX-Lizenz mit Begründung an das Paket, die genaue Version und SHA-256. Geänderte Bytes oder Versionen erfordern eine erneute Prüfung."
+  }
 }

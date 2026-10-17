@@ -4921,6 +4921,7 @@
   "legalConfidenceLabel": "Pewność: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Użycie: /legal [ścieżka względem obszaru roboczego …]. Opcje nie są obsługiwane.",
+  "legalScanReceiptHelp": "Lokalna analiza licencji; opcjonalne potwierdzenia w licence-review.json wiążą sprawdzoną licencję SPDX z pakietem, dokładną wersją i SHA-256 wraz z uzasadnieniem. Zmiana bajtów lub wersji wymaga ponownego przeglądu.",
   "legalScanItemDetail": "Sprawdź obszar roboczy pod kątem ustaleń licencyjnych, dotyczących autorstwa i nagłówków",
   "legalScanBusy": "Kontrola prawna rozpocznie się po zakończeniu bieżącej tury.",
   "legalScanUntrusted": "Kontrola prawna odczytuje obszar roboczy, na co tryb ograniczony nie zezwala. Aby jej użyć, uznaj obszar roboczy za zaufany.",
@@ -5311,6 +5312,9 @@
       "many": "Kolejne porady dla {v0} ({count}) nie są wymienione; nic innego nie pominięto."
     },
     "m210": "Aby je wymienić, przeskanuj mniejszy zestaw ścieżek.",
+    "reviewedReceipt": "Sprawdzono na podstawie potwierdzenia: {reason}",
+    "receiptRenew": "Nowa wersja lub zmienione bajty licencji wymagają ponownego przeglądu i potwierdzenia.",
+    "invalidReceipt": "nie sprawdzono: {file} nie jest prawidłowym plikiem potwierdzeń przeglądu licencji",
     "unknown": "nieznane",
     "unresolved": "nierozwiązane",
     "noLicense": "brak licencji",
@@ -5337,10 +5341,7 @@
     "licenseFile": "plik licencji",
     "bundleLoad": "nie można załadować {file}",
     "bundleShape": "{file} ma nieoczekiwaną strukturę",
-    "invalidResult": "skan zwrócił nieprawidłowy wynik",
-    "reviewedReceipt": "Sprawdzono na podstawie potwierdzenia: {reason}",
-    "receiptRenew": "Nowa wersja lub zmienione bajty licencji wymagają ponownego przeglądu i potwierdzenia.",
-    "invalidReceipt": "nie sprawdzono: {file} nie jest prawidłowym plikiem potwierdzeń przeglądu licencji"
+    "invalidResult": "skan zwrócił nieprawidłowy wynik"
   },
   "legalScanAgain": "Skanuj ponownie",
   "accounts": {
@@ -5624,6 +5625,5 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  },
-  "legalScanReceiptHelp": "Lokalna analiza licencji; opcjonalne potwierdzenia w licence-review.json wiążą sprawdzoną licencję SPDX z pakietem, dokładną wersją i SHA-256 wraz z uzasadnieniem. Zmiana bajtów lub wersji wymaga ponownego przeglądu."
+  }
 }

@@ -4558,6 +4558,7 @@
   "legalConfidenceLabel": "置信度：{confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "用法：/legal [相对于工作区的路径 …]。不支持选项。",
+  "legalScanReceiptHelp": "本地许可证扫描；可选的 licence-review.json 记录将已审核的 SPDX 许可证及其理由与软件包、确切版本和 SHA-256 绑定。字节或版本变更后需重新审核。",
   "legalScanItemDetail": "扫描工作区中的许可、署名和标头问题",
   "legalScanBusy": "当前回合结束后才会开始法律扫描。",
   "legalScanUntrusted": "法律扫描需要读取工作区，但受限模式不允许。信任此工作区即可使用。",
@@ -4864,6 +4865,9 @@
       "other": "{v0} 还有 {count} 条建议未列出；没有省略其他内容。"
     },
     "m210": "扫描更少的路径以列出它们。",
+    "reviewedReceipt": "依据审核记录确认: {reason}",
+    "receiptRenew": "新版本或许可证字节变更需要重新审核并提供记录。",
+    "invalidReceipt": "未检查: {file} 不是有效的许可证审核记录文件",
     "unknown": "未知",
     "unresolved": "未解析",
     "noLicense": "无许可证",
@@ -4884,10 +4888,7 @@
     "licenseFile": "许可证文件",
     "bundleLoad": "无法加载 {file}",
     "bundleShape": "{file} 结构不符合预期",
-    "invalidResult": "扫描返回无效结果",
-    "reviewedReceipt": "依据审核记录确认: {reason}",
-    "receiptRenew": "新版本或许可证字节变更需要重新审核并提供记录。",
-    "invalidReceipt": "未检查: {file} 不是有效的许可证审核记录文件"
+    "invalidResult": "扫描返回无效结果"
   },
   "legalScanAgain": "重新扫描",
   "accounts": {
@@ -5159,6 +5160,5 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  },
-  "legalScanReceiptHelp": "本地许可证扫描；可选的 licence-review.json 记录将已审核的 SPDX 许可证及其理由与软件包、确切版本和 SHA-256 绑定。字节或版本变更后需重新审核。"
+  }
 }
