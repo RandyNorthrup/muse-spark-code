@@ -39,8 +39,8 @@ export interface McpOAuthNetworkPort {
   allowEndpoint(url: string): Promise<boolean>
 }
 
-export function oauthDenied(): never {
-  throw new Error(UI_TEXT.vault.noAccess)
+export function oauthDenied(options?: { cause?: unknown }): never {
+  throw new Error(UI_TEXT.vault.noAccess, options)
 }
 
 /** Body bounded before JSON/Zod; failures never expose endpoint bodies or exception text. */
@@ -89,7 +89,7 @@ export async function oauthJson(
     // Any failure fetching, bounding or parsing denies: only a non-error
     // keeps its kind past the boundary.
     if (!(error instanceof Error)) throw error
-    return oauthDenied()
+    return oauthDenied({ cause: error })
   } finally {
     try {
       try {
@@ -130,9 +130,9 @@ export async function discoverMcpOAuth(
   try {
     metadata = protectedResource.parse(resourceRaw)
   } catch (error: unknown) {
-    // Only a malformed document denies here: anything else keeps its kind.
+    // Only a malformed document denies here, with its cause: anything else keeps its kind.
     if (!(error instanceof Error)) throw error
-    oauthDenied()
+    return oauthDenied({ cause: error })
   }
   if (metadata.resource !== resource || !metadata.authorization_servers.includes(issuer))
     oauthDenied()
@@ -153,9 +153,9 @@ export async function discoverMcpOAuth(
   try {
     result = authorizationServer.parse(raw)
   } catch (error: unknown) {
-    // Only a malformed document denies here: anything else keeps its kind.
+    // Only a malformed document denies here, with its cause: anything else keeps its kind.
     if (!(error instanceof Error)) throw error
-    oauthDenied()
+    return oauthDenied({ cause: error })
   }
   if (
     result.issuer !== issuer ||

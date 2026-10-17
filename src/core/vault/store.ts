@@ -141,7 +141,7 @@ export class NodeVaultFiles implements VaultFilePort {
       bytes?.fill(0)
       if (error !== null && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
         return null
-      throw new VaultError('io')
+      throw new VaultError('io', { cause: error })
     } finally {
       await handle?.close()
     }
@@ -165,8 +165,8 @@ export class NodeVaultFiles implements VaultFilePort {
       await rename(stage, path.join(this.root, name))
       await this.verify(path.join(this.root, name), 'file')
       await this.syncDirectory()
-    } catch {
-      throw new VaultError('io')
+    } catch (error: unknown) {
+      throw new VaultError('io', { cause: error })
     } finally {
       await handle.close()
       try {
@@ -193,7 +193,7 @@ export class NodeVaultFiles implements VaultFilePort {
     } catch (error) {
       if (error !== null && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
         return
-      throw new VaultError('io')
+      throw new VaultError('io', { cause: error })
     }
     const retained = path.join(
       this.root,

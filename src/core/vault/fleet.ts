@@ -218,6 +218,28 @@ export class VaultFleet {
   private current(access: VaultWorkerAccess, worker: Worker): boolean {
     return this.workers.get(access) === worker && !worker.controller.signal.aborted
   }
+  /**
+   * Rolls a failed access back: the worker stops, its route closes, its
+   * registration goes, and the broker ends the requester. The failure keeps
+   * its kind past the rollback.
+   */
+  private async abortAccess(
+    worker: Worker,
+    route: VaultWorkerRoute,
+    access: VaultWorkerAccess | undefined,
+    requester: { readonly id: string },
+  ): Promise<void> {
+    worker.controller.abort()
+    try {
+      route.close()
+      if (access) {
+        this.workers.delete(access)
+        this.sockets.delete(socketKey(route.socket))
+      }
+    } finally {
+      await this.ports.broker.endRequester(requester.id)
+    }
+  }
   private descendants(access: VaultWorkerAccess): Set<VaultWorkerAccess> {
     const retired = new Set([access])
     for (const [candidate, worker] of this.workers)
@@ -336,16 +358,7 @@ export class VaultFleet {
       if (!this.current(access, worker)) throw new Error(UI_TEXT.vault.noAccess)
       return access
     } catch (error: unknown) {
-      worker.controller.abort()
-      try {
-        route.close()
-        if (access) {
-          this.workers.delete(access)
-          this.sockets.delete(socketKey(route.socket))
-        }
-      } finally {
-        await this.ports.broker.endRequester(requester.id)
-      }
+      await this.abortAccess(worker, route, access, requester)
       throw error
     }
   }
