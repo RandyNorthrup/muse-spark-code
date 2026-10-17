@@ -8,7 +8,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, expect, it } from 'vitest'
+import { expect, it, onTestFinished } from 'vitest'
 import { ScheduleBackgroundCoordinator } from '../../src/runtime/schedules/background'
 import { createBackgroundConsentStore } from '../../src/runtime/schedules/consent'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
@@ -30,17 +30,9 @@ class RecordingEntry implements ScheduleBackgroundPort {
   }
 }
 
-const folders: string[] = []
-afterEach(async () => {
-  while (folders.length > 0) {
-    const folder = folders.pop()!
-    await rm(folder, { recursive: true, force: true })
-  }
-})
-
 async function coordinator(nextWake: number | undefined, entry: RecordingEntry) {
   const folder = await mkdtemp(path.join(tmpdir(), 'schedule-background-reconcile-'))
-  folders.push(folder)
+  onTestFinished(() => rm(folder, { recursive: true, force: true }))
   return new ScheduleBackgroundCoordinator({
     entry,
     consent: createBackgroundConsentStore(
