@@ -1,4 +1,4 @@
-import { SCHEDULE_LIFETIME_MS, SCHEDULE_MIN_INTERVAL_MS, UI_TEXT } from '../../shared/constants'
+import { SCHEDULE_MIN_INTERVAL_MS, UI_TEXT } from '../../shared/constants'
 import type { LoopParseResult } from '../../core/backends/modelapi/schedules'
 import {
   scheduleDraftSchema,
@@ -47,11 +47,12 @@ export function schedulePromptAction(
       command.cadence.kind === 'cron'
         ? command.cadence
         : { ...command.cadence, anchorMs: nowMs + command.cadence.everyMs }
+    // No end is stamped in: how long the schedule lives is the person's
+    // choice in the editor the draft opens.
     return checkedDraft({
       ...defaultDraft,
       action: { kind: 'prompt', prompt: command.prompt },
       trigger,
-      end: { atMs: nowMs + SCHEDULE_LIFETIME_MS },
     })
   }
   const match = /^\/schedule(?:\s+([\s\S]*))?$/i.exec(text.trim())

@@ -280,7 +280,6 @@
     "src/core/schedules/migrate.ts",
     "src/core/schedules/reportAction.ts",
     "src/core/schedules/time/clock.ts",
-    "src/core/schedules/time/loop.ts",
     "src/core/schedules/time/missed.ts",
     "src/core/support/flightRecorder.ts",
     "src/core/team/conflictPredict.ts",
