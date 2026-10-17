@@ -53,6 +53,17 @@ happened, not what was planned; superseded entries are kept.
   `docs/certification/proverr-round2.md`,
   `docs/certification/proverrr2.md`.
 
+- What stopped a provider request is said as it happened (lane PROVERRORS).
+  A session-budget stop on a configured provider now ends the turn with its
+  own sentence ("Stopped: the next request … would pass the session budget
+  … It was not sent.") and is not retried; it had read "Models & Agents is
+  not available in this build". `providers add` and `providers test` name a
+  failed connection's network codes and say whether the request arrived is
+  unknown, instead of "The provider could not be reached". A refusal shows
+  the provider's request id, and a rejected key, missing permission or
+  unknown model says nothing reached a model, no longer that nothing was
+  sent. Record: `docs/certification/provider-refusals.md`.
+
 - All fourteen translated settings tables now say Muse Code asks before a
   command unless a permission rule allows it, matching the English modes.
 

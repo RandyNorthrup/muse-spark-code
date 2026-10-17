@@ -14414,6 +14414,25 @@ with partial tools, an Azure block, the xAI unsupported-parameter 400.
 Records: `docs/certification/proverr-round2.md`,
 `docs/certification/proverrr2.md`, `docs/certification/proverrr2-capture-plan.json`.
 
+**Amended 2026-10-17 (lane PROVERRORS, from the provider research of PR
+#202).** A provider's wait is honoured as given in every form it uses
+(`retry-after-ms`, then `Retry-After` seconds or date): no cap of ours
+refuses it and the backoff never shortens it. Each preset retries by its
+provider's own rule (OpenRouter: 429, 503 and the in-flight-budget 402;
+Gemini adds 408), and a retryable error a stream ends with before any
+content is sent again as its status would be. A provider's own codes decide
+the kind: Z.ai's 1308-1321, OpenRouter's budget limit sources and Gemini's
+`quota_exceeded` are usage limits, never retried, with the provider's words
+(and the reset they name) quoted. Our own refusals (a budget or ledger
+stop, a lapsed confirmation, a codec refusal) pass through the provider
+path unchanged and are never retried; only a failure with a connection
+code in its causes is a send failure, retried as one and reported with
+Node's codes and the send's unknown fate; a connection lost after the 200
+says so. Every refusal sentence carries the provider's request id. The
+retry count, the backoff bounds and the idle timeout stay as they are
+pending the owner's decision (evidence in
+`docs/certification/provider-refusals.md`, "Lane PROVERRORS").
+
 **Cause.** Round 1 classified 11 of 23 recorded real answers wrong (the red
 table): typeless 401s read as "unrecognised", xAI/Mistral/Gemini shapes
 unread, quota-worded limits retried, spend caps retried, cut-off Anthropic
