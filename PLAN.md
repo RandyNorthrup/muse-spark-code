@@ -15482,11 +15482,14 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
-### M126 — Muse Code at its latest release (2026-10-17)
+### M127 — Muse Code at its latest release (2026-10-17)
 
 **Status 2026-10-17: building.** Lane `feat/muse-code-latest`. The owner's
 standing rule: the product tracks each model, provider and CLI at its latest
 release, every SDK drop, bugfix and feature update incorporated and tested.
+Numbered M126 until 2026-10-17, when that number was found already taken on
+the rig branches by simple settings (D110); M127 was the first number free on
+every branch.
 
 - **Goal.** `@muse-code/sdk` at the latest release; every MSP method,
   notification, error kind, hook event, setting and behaviour change from

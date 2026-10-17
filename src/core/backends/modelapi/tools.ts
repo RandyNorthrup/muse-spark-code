@@ -668,7 +668,7 @@ export interface ToolDefinitionOptions {
   readonly hasImageGeneration?: boolean
   /** Child sessions cannot spawn again (M48, PLAN.md D45). */
   readonly hasSubagents?: boolean
-  /** Concurrent subagents for the spawn description (M126 setting). */
+  /** Concurrent subagents for the spawn description (M127 setting). */
   readonly subagentCapacity?: number
   /** A team conversation declares the team's five tools instead (M96, PLAN.md D75). */
   readonly teamTools?: typeof TEAM_TOOL_DEFINITIONS

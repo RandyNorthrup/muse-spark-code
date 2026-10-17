@@ -632,7 +632,7 @@ export const SETTING_DEFAULTS = {
   // D78: inert without a hooks file; Restricted Mode loads and runs none.
   modelApiTeamWorkers: true,
   modelApiHooks: true,
-  // M126: Muse Code's own hook and subagent defaults as settings. Stop
+  // M127: Muse Code's own hook and subagent defaults as settings. Stop
   // continuations 8 (min 1, no max); running hook commands 0 (unlimited,
   // as Muse Code starts all matching handlers at once; min 0);
   // concurrent subagents 8 (Muse Code's execution-capacity range 1–64).
@@ -812,7 +812,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiShellKeepsDirectory',
   'modelApiHookModels',
   'hookHttpAllowedHosts',
-  // M126: what runs hooks and subagents, and how much of each at once, is
+  // M127: what runs hooks and subagents, and how much of each at once, is
   // the user's choice, never a repository's.
   'hooksMaxStopContinuations',
   'hooksMaxRunningCommands',
@@ -908,7 +908,7 @@ export const HOOK_TOOL_NESTING_MAX = 4
 export const HOOK_TOOL_ENTRIES_MAX = 16
 export const MODEL_API_HOOK_PROVIDER = 'meta'
 // The default stop-hook continuation depth (Muse Code's own default 8,
-// M126): `museSpark.hooksMaxStopContinuations` overrides this.
+// M127): `museSpark.hooksMaxStopContinuations` overrides this.
 export const HOOK_MAX_STOP_CONTINUATIONS = 8
 export const HOOK_CONTROL_CODE_LIMIT = 32
 export const HOOK_NEWLINE_CODE = 10
@@ -919,12 +919,12 @@ export const HOOK_MATCHER_TIMEOUT_MS = 25
 export const HOOK_MATCHER_COMPILE_TIMEOUT_MS = 250
 export const HOOK_SOURCE_MAX_HANDLERS = 64
 export const HOOK_TOTAL_MAX_HANDLERS = 64
-// The fallback cap when a dispatch passes no limit (M126): the setting
+// The fallback cap when a dispatch passes no limit (M127): the setting
 // `museSpark.hooksMaxRunningCommands` defaults to 0 (unlimited, as Muse
 // Code starts all matching handlers at once).
 export const HOOK_MAX_RUNNING_COMMANDS = 4
 // The settings that replace the fixed numbers above with Muse Code's own
-// defaults (M126): stop continuations default 8, running commands default
+// defaults (M127): stop continuations default 8, running commands default
 // 0 (unlimited: Muse Code starts all matching handlers at once),
 // subagents default 8 within Muse Code's 1–64 execution-capacity range.
 export const HOOK_STOP_CONTINUATIONS_MIN = 1
@@ -4478,7 +4478,7 @@ export const MODEL_API_SUBAGENT_TOOLS = {
   readResult: 'subagent_read_result',
   cancel: 'subagent_cancel',
 } as const
-// The default concurrent subagents (Muse Code's own default 8, M126):
+// The default concurrent subagents (Muse Code's own default 8, M127):
 // `museSpark.subagentMaxConcurrent` overrides this within 1–64.
 export const SUBAGENT_CAPACITY = 8
 // A `recap/request` settles exactly once on `recap/completed` with a

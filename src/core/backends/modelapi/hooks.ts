@@ -1212,7 +1212,7 @@ function releaseCommand(state: HookCommandState): void {
 }
 
 /**
- * One extension-host-wide cap (M126): 0 runs everything at once, as Muse
+ * One extension-host-wide cap (M127): 0 runs everything at once, as Muse
  * Code starts all matching handlers at once; otherwise at most this many.
  */
 async function acquireCommand(
@@ -1586,7 +1586,7 @@ export async function dispatchHooks(
   adapter?: ForeignHookAdapter,
   context?: ForeignDispatchContext,
   trackAsync?: (execution: Promise<unknown>) => void,
-  // 0 runs every handler's command at once, as Muse Code does (M126
+  // 0 runs every handler's command at once, as Muse Code does (M127
   // setting); absent keeps the extension-host fallback cap.
   options?: { readonly maxRunningCommands?: number },
 ): Promise<HookDispatch> {

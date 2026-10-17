@@ -90,7 +90,7 @@ function providerCeilingSide(source: TeamCeilingSource): number {
 /**
  * Our hard ceiling for the kind: no level and no edit passes it. Muse Code
  * documents its own bound per release, so both sides read the served
- * version (M126): there is no ceiling of ours on a `muse serve`.
+ * version (M127): there is no ceiling of ours on a `muse serve`.
  */
 function hardCeilingSide(kind: TeamAgentKind, source: TeamCeilingSource): number {
   switch (kind) {

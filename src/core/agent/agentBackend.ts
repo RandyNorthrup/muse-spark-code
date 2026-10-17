@@ -254,7 +254,7 @@ export interface ModelSummary {
   readonly modelId: string
   readonly displayLabel: string
   readonly contextLimit: number | undefined
-  /** The row's `outputLimit` (M126): `null` on the wire reads as absent. */
+  /** The row's `outputLimit` (M127): `null` on the wire reads as absent. */
   readonly outputLimit?: number | undefined
   readonly isDefault: boolean
   readonly isActive: boolean
@@ -285,7 +285,7 @@ export interface SkillSummary {
 }
 
 /**
- * One background-task row (M126, MSP `task/list`): `kind` is an open
+ * One background-task row (M127, MSP `task/list`): `kind` is an open
  * vocabulary, `status` the host's lifecycle word.
  */
 export interface BackgroundTaskSummary {
@@ -295,7 +295,7 @@ export interface BackgroundTaskSummary {
   readonly startedAt?: string | undefined
 }
 
-/** One installed hook row (M126, MSP `hook/list`): `event` is open. */
+/** One installed hook row (M127, MSP `hook/list`): `event` is open. */
 export interface SessionHookRow {
   readonly key: string
   readonly event: string
@@ -303,7 +303,7 @@ export interface SessionHookRow {
   readonly enabled: boolean
 }
 
-/** One installed plugin record (M126, MSP `plugin/list`); `source` stays opaque. */
+/** One installed plugin record (M127, MSP `plugin/list`); `source` stays opaque. */
 export interface SessionPluginRow {
   readonly id: string
   readonly version: string
@@ -603,17 +603,17 @@ export interface AgentSession {
   readOutput(request: OutputPageRequest): Promise<OutputPage>
   listSkills(): Promise<readonly SkillSummary[]>
   /**
-   * The session's live background-task inventory, oldest first (M126, MSP
+   * The session's live background-task inventory, oldest first (M127, MSP
    * `task/list`). Absent where the backend keeps none.
    */
   readonly listBackgroundTasks?: () => Promise<readonly BackgroundTaskSummary[]>
   /**
-   * The session's installed hook rows (M126, MSP `hook/list`). Absent
+   * The session's installed hook rows (M127, MSP `hook/list`). Absent
    * where the backend keeps none.
    */
   readonly listSessionHooks?: () => Promise<readonly SessionHookRow[]>
   /**
-   * The installed plugin records (M126, MSP `plugin/list`). Absent where
+   * The installed plugin records (M127, MSP `plugin/list`). Absent where
    * the backend keeps none.
    */
   readonly listSessionPlugins?: () => Promise<readonly SessionPluginRow[]>

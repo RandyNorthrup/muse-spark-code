@@ -1,4 +1,10 @@
-# Certification — Muse Code at its latest release (M126, MUSEUPDATE)
+# Certification — Muse Code at its latest release (M127, MUSEUPDATE)
+
+Numbered M126 until 2026-10-17, when that number was found already taken on
+the rig branches by simple settings (D110). The milestone, its fixtures
+directory (`test/fixtures/m127/`) and every comment moved to M127. The
+recorded frames keep the client name they were captured with
+(`m126_capture`), since a capture is never edited.
 
 Lane MUSEUPDATE, 2026-10-17, worktree branch `feat/muse-code-latest`.
 Rig `wslpc`, worktree `/home/randy/lanes/MUSEUPDATE`. The product pins
@@ -45,7 +51,7 @@ All captured 2026-10-17 on this rig (installed CLI 1.4.9-R6297.1):
   `turn/foregroundCompleted`, `item/completed` with
   `messagePhase: "finalAnswer"`, `computerUseSetup/check` refused
   `computerUseUnavailable`, `skill/import` dry-run receipt. Saved under
-  `test/fixtures/m126/` with `provenance.json`. The release-notes summary
+  `test/fixtures/m127/` with `provenance.json`. The release-notes summary
   for 1.4.5–1.4.10 above is captured here because the changelog page is
   not checked into the repo.
 
@@ -121,7 +127,7 @@ moves` failed; restored (`mapNotification.ts` sha `0cec988b…` before
 - Tests: `test/unit/museCodeLatest.test.ts` (34 tests (33 from the lane, 1 review regression) over the recorded
   fixtures plus schema-faithful params for events the echo host cannot
   emit), ceiling/RPM updates in `teamCeilings.test.ts`,
-  `teamConstants.test.ts`. Fixtures under `test/fixtures/m126/`.
+  `teamConstants.test.ts`. Fixtures under `test/fixtures/m127/`.
 
 ## Proven through the built product
 
@@ -153,7 +159,7 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
   `listSessionHooks` (`hook/list`), `listSessionPlugins` (`plugin/list`),
   on the `AgentSession` contract as optionals (absent where the backend
   keeps none). Recorded empty task/plugin lists and the real hook row
-  (`event: sessionStart` kept verbatim) under `test/fixtures/m126/`;
+  (`event: sessionStart` kept verbatim) under `test/fixtures/m127/`;
   34 tests in `museCodeLatest.test.ts`.
 - `MuseSession.importForeignSkills` (`skill/import`, dry-run preview,
   commandId-idempotent) over the wire; the `importSkills` command keeps
