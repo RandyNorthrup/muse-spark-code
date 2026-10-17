@@ -2335,10 +2335,10 @@ avoid VS Code's scalar-parent conflict; the reader still validates previous
 `schedules.defaultDelivery` and `schedules.agentCreation` values when a new key
 is absent. Paid consent and the shared daily budget still apply.
 
-The Command Palette's **Schedule this prompt…**, **Show schedules** and
-**Show schedule timeline** open the v2 editor, list and timeline in the
-active chat, opening a chat when needed. The schedule surface loads on
-first use and manages durable records. Automatic v2 prompt delivery in VS Code, ACP and the terminal is
+The v2 commands (**Schedule this prompt…**, **Show schedules** and
+**Show schedule timeline**) are not in the Command Palette yet: they stay
+hidden until schedule delivery is certified, and nothing in this section's
+v2 surface can be opened today. Automatic v2 prompt delivery in VS Code, ACP and the terminal is
 disabled: its candidate holds the workspace independently of open chats and
 rechecks authority immediately before sending. Unattended IDE tools enforce
 resolved-file policy and use prompt-free executors, with offline legal scans.
