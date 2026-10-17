@@ -389,19 +389,19 @@ export function withRuntimeAccounting(
                 })
               : undefined
           let cost = actual === undefined ? undefined : ceilUsd(actual)
-          if (
+          const isRefused =
             httpStatus !== undefined &&
             !hasResponseFrame &&
             NON_BILLABLE_HTTP_REJECTIONS.has(httpStatus)
-          )
-            cost = Usd.from(0).toAmount()
+          if (isRefused) cost = Usd.from(0).toAmount()
           // A billed count is a separate completed call: it stays settled
           // even when the response itself was not billed.
           if (cost !== undefined && countCostUsd !== undefined)
             cost = Usd.from(cost).add(Usd.from(countCostUsd)).toAmount()
-          // A ticket that never reached the wire is withdrawn with its request
-          // count instead of settling a full reservation.
-          if (!wasSent && ticket !== undefined) {
+          // A ticket that never reached the wire, or that the provider refused
+          // before generating anything, is withdrawn with its request count:
+          // it cost nothing (D121). A billed count keeps its settlement.
+          if (ticket !== undefined && (!wasSent || (isRefused && countCostUsd === undefined))) {
             accounting?.ledger.releaseResponse(ticket)
             ticket = undefined
           }
@@ -467,6 +467,12 @@ export function withRuntimeAccounting(
             observe: (observation: ResponseObservation) => {
               if (observation.rateLimited === true) httpStatus = HTTP_TOO_MANY_REQUESTS
               guard?.observe?.(observation)
+            },
+            // A refusal before any generation costs nothing, even when the
+            // provider's adapter rethrows its error without the status (D121).
+            onRefused: (status: number) => {
+              httpStatus = status
+              guard?.onRefused?.(status)
             },
             prepare: async () => {
               await settle()

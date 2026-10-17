@@ -4944,11 +4944,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       prepare: () => {
         if (!didAttemptSend || open === undefined) return Promise.resolve()
         didAttemptSend = false
-        if (open.isSent) {
+        if (open.isSent && !open.isRefused) {
           this.warnUnknownCharge()
           this.chargeBudget(undefined)
         }
         open.isSent = false
+        open.isRefused = false
         open.hasAmbiguousAttempt = false
         return Promise.resolve()
       },
@@ -4978,6 +4979,11 @@ export class ModelApiSession implements ScheduledAgentSession {
           ...observation,
           rateLimited: this.recordedCall.rateLimited === true || observation.rateLimited === true,
         }
+      },
+      // Refused before any generation: it cost nothing, even when the
+      // provider's adapter rethrows the error without its status (D121).
+      onRefused: () => {
+        if (open !== undefined && !open.hasStarted) open.isRefused = true
       },
       ...(mediaAccounting !== undefined && { mediaAccounting }),
       ...(paidFeature !== undefined && { paidFeature }),
