@@ -63,9 +63,10 @@ function AccountsQuestion({
       })
     } catch (error: unknown) {
       // A refused choice reads failed: only a non-error keeps its kind past
-      // the dialog.
+      // the dialog. The failure reaches the host's record.
       if (!(error instanceof Error)) throw error
       setFailed(true)
+      throw error
     } finally {
       pending.current = false
       setPending(false)

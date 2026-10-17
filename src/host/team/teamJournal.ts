@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { canonicalPath } from '../canonicalPath'
 import { writeFileAtomically } from '../fsAtomic'
-import { storeErrorCode } from '../backend/storeErrors'
+import { isStoreErrorCode, storeErrorCode } from '../backend/storeErrors'
 import { settleTeamClaim, type TeamSettlementClaims } from '../../core/team/teamMeter'
 export type { TeamSettlementClaims } from '../../core/team/teamMeter'
 import type { WindowAuthority, WindowIdentity } from './windowIdentity'
@@ -185,7 +185,7 @@ export function createTeamJournal(options: {
           .filter((name) => name.endsWith('.json'))
           .map((name) => name.slice(0, -'.json'.length))
       } catch (error: unknown) {
-        if (storeErrorCode(error) === 'ENOENT') return []
+        if (isStoreErrorCode(error, 'ENOENT')) return []
         throw error
       }
     },
@@ -196,7 +196,7 @@ export function createTeamJournal(options: {
       try {
         instances = await readdir(root)
       } catch (error: unknown) {
-        if (storeErrorCode(error) === 'ENOENT') return { journals: [], unreadable: [] }
+        if (isStoreErrorCode(error, 'ENOENT')) return { journals: [], unreadable: [] }
         throw error
       }
       const journals: TeamJournal[] = []
