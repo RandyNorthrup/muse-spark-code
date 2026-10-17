@@ -751,10 +751,15 @@ export function featureCatalog(): readonly Feature[] {
         { ui: 'referenceAccountsTitle' },
         { ui: 'referenceAccounts' },
         [],
-        ['accountSwap', 'accountParallel', 'accounts.severalOnThisDevice', 'paidDailyBudgetUsd'],
+        // Published bare while uncertified: the three controls stay
+        // compatibility-only and the shared daily budget is not an
+        // accounts setting in Help.
+        ['accountSwap', 'accountParallel', 'accounts.severalOnThisDevice'],
         'several-accounts-per-provider',
         ['modelApi'],
         false,
+        // CM108ACC: the terminal and ACP sessions serve accounts; the
+        // editor's Accounts page mounts only once C-M108-2 certifies.
         ACCOUNT_REQUEST_CERTIFICATION.isComplete ? ['vscode', 'acp'] : ['acp'],
       ),
       details: (ACCOUNT_REQUEST_CERTIFICATION.isComplete
@@ -1146,9 +1151,8 @@ export function featureCatalog(): readonly Feature[] {
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
   'orchestrator-playbook': ['acp:museCode', 'acp:modelApi'],
-  // CM108ACC: the terminal and ACP sessions on the Model API backend; the
-  // editor's Accounts page is not mounted.
-  accounts: ['acp:modelApi'],
+  // Accounts ride the certification switch in the catalog entry above, not a
+  // static override here, so the open switch publishes the editor's page.
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],

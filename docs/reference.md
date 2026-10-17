@@ -665,7 +665,7 @@ Show or unlock machine-local developer options. Profile operations require a con
 
 Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.paidDailyBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
 
 ### Permission Mode
 

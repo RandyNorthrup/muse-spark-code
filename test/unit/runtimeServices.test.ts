@@ -58,9 +58,12 @@ function rig() {
 const ROW = { id: 'work', label: 'Work', order: 0, thresholds: {} } as const
 const META_ORIGIN = new URL(MODEL_API_BASE_URL).origin
 
-/** A served Model API runtime's dependencies that reach no key, Git or network. */
-function inertDeps(folder = ''): Parameters<ReturnType<typeof rig>['exec']['create']>[0] {
-  const parsed = parseCommandLine(['--backend', 'modelApi'])
+/** A served runtime's dependencies that reach no key, Git or network. */
+function inertDeps(
+  folder = '',
+  backend: 'modelApi' | 'museCode' = 'modelApi',
+): Parameters<ReturnType<typeof rig>['exec']['create']>[0] {
+  const parsed = parseCommandLine(['--backend', backend])
   if (parsed.command !== 'serve') throw new Error('missing test serve options')
   return {
     options: parsed.options,
@@ -264,7 +267,7 @@ describe('createRuntimeAccountServices', () => {
       // The throw happens before any backend or credential is touched.
       expect(() =>
         services.exec.create(
-          inertDeps(),
+          inertDeps('', 'museCode'),
           { account: 'default', hasPoolFlag: true, isInteractive: false },
           createBackend,
         ),

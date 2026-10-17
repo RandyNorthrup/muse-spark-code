@@ -904,7 +904,7 @@
       "summary": { "ui": "referenceAccounts" },
       "description": { "ui": "referenceAccounts" },
       "commands": [],
-      "settings": ["museSpark.paidDailyBudgetUsd"],
+      "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
       "backends": ["modelApi"],
       "paid": false,
