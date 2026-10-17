@@ -27,6 +27,21 @@ happened, not what was planned; superseded entries are kept.
   (`scripts/package-acp-test.mjs`), and the Model API live sweep built on
   fakes. No product code was deleted. What each deleted test covered is in
   `docs/real-life/unproven.md`, the backlog for proof by real use.
+- Pull requests can borrow the organization `scnetsolutions`'s CI runners
+  (D122). Once the owner has installed the organization's GitHub App and set
+  `ORG_CI` to `on` (CONTRIBUTING.md, "The capacity repository (D122)"), a
+  pull request from a branch of this repository runs its Windows and macOS
+  unit shards in `scnetsolutions/muse-spark-code-ci` while every other job
+  runs here, and the same seven required checks wait for that run's result.
+  Pull requests, merges and releases stay in this repository; forks and
+  Dependabot keep every job here.
+- The capacity wait survives the documented queue (D122 review). The `org`
+  job's bound is GitHub's own 6-hour job ceiling instead of 180 minutes, so
+  a healthy capacity run is never cut off while queued pull requests drain.
+  The capacity shards get 25 minutes instead of 20 because a new capacity
+  branch starts with a cold npm cache, and a weekly seed keeps the capacity
+  repository's default-branch cache warm so later pull requests share it
+  (CONTRIBUTING.md, "The capacity repository (D122)").
 
 ### Pending
 

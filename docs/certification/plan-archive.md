@@ -473,3 +473,35 @@ and the nine plan suites (246 passed at repository timeouts).
 Even moving every remaining §7 record (about 150 KB including current
 and unreleased threads) would land near 3.29 MB; 3.20 MB needs active
 §6 sections as well. The plan now has 129 KB of room instead of 1.5 KB.
+
+## D122 design record (2026-10-17, branch ci/org-capacity)
+
+The branch had added D122 after D116, inside §3, where `Q-M94d`'s entry
+swallowed it (the reason D116's move needed `--allow-fact-change`). Commit
+`a9720961e` moved the D122 block unchanged to the end of §2; then
+`npm run plan:archive -- move decisions --heading "D122 — CI capacity from a
+second account; the project stays here (owner, 2026-10-16; redesigned
+2026-10-17)" --lines 14396-14449 --summary <private summary file>` ran at
+`a9720961e` without `--allow-fact-change`:
+
+| Measure                                | Before    | After     |
+| -------------------------------------- | --------- | --------- |
+| `PLAN.md` bytes                        | 3,446,809 | 3,444,329 |
+| Share of the reader's bound            | 82.2%     | 82.1%     |
+| Room under the gate's line (3,565,158) | 118,349   | 120,829   |
+| Hashed blocks in `decisions.md`        | 52        | 53        |
+| Bytes moved (1 block: the D122 record) |           | 3,534     |
+
+`PLAN.md` keeps the `### D122` heading and the rule in force, ending with the
+archive link; the record (why, the replaced first design, the design in
+force, what was weighed) stands in `decisions.md` between hashed markers
+(`decisions-a9720961e-14396`, SHA-256 `86987020…503f`). D122 exists only on
+this branch, so no other branch's `PLAN.md` touches it.
+
+Proofs: reassembly identical to the old `PLAN.md` (SHA-256
+`de9325f3…bbef`) before writing; parsed facts identical, format drift 0;
+`prettier --check` on both files, `check:plan` (218 milestones, 0 drift),
+`roadmap:generate` (`ROADMAP.md` unchanged), `check:reference` (current),
+`status` (53 + 168 + 87 blocks, all intact), and the plan suites that remain
+after PR #183 (`planReader`, `planCitation`, `autoCompact`,
+`paidMoneyStructure`: 129 passed).
