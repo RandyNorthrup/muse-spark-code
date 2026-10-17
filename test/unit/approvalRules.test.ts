@@ -5,6 +5,7 @@ import {
   editAutomaticallyChoice,
   isApprovingChoice,
   isReviewableApproval,
+  isSideChatClickRefused,
   sideChatRefusalChoice,
 } from '../../src/core/agent/approvalRules'
 import { APPROVAL_CHOICE_IDS, choicesFor } from '../../src/core/backends/modelapi/permissions'
@@ -249,5 +250,21 @@ describe('the side-chat policy on Muse Code: every approval is refused (M53, C-M
     for (const decision of ['abort', 'denied']) {
       expect(isApprovingChoice({ decision })).toBe(false)
     }
+  })
+
+  it('lets only a known non-approving click through, and fails closed otherwise', () => {
+    const { availableChoices } = shellRequest()
+    const reject = availableChoices.find((choice) => choice.decision === 'abort')
+    const approve = availableChoices.find((choice) => isApprovingChoice(choice))
+    if (reject === undefined || approve === undefined) {
+      throw new Error('the captured shell card must offer reject and approve choices')
+    }
+    expect(isSideChatClickRefused(availableChoices, reject.choiceId)).toBe(false)
+    expect(isSideChatClickRefused(availableChoices, approve.choiceId)).toBe(true)
+    // A choice the retained card does not name, or no retained card at all:
+    // the host sends the choice id on without validating it, so the policy
+    // must refuse rather than guess.
+    expect(isSideChatClickRefused(availableChoices, 'not-offered')).toBe(true)
+    expect(isSideChatClickRefused(undefined, reject.choiceId)).toBe(true)
   })
 })

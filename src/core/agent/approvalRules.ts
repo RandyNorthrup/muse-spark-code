@@ -168,6 +168,21 @@ export function isApprovingChoice(choice: Pick<ApprovalChoice, 'decision'>): boo
 }
 
 /**
+ * Whether a click on a shown side-chat card is refused (M53, C-M53-3):
+ * only a choice the retained card itself names, and that does not approve,
+ * passes. The host sends the choice id on without validating it against
+ * the card, so an unknown choice — or no retained card — fails closed
+ * instead of being guessed at.
+ */
+export function isSideChatClickRefused(
+  choices: readonly ApprovalChoice[] | undefined,
+  choiceId: string,
+): boolean {
+  const choice = choices?.find((held) => held.choiceId === choiceId)
+  return choice === undefined || isApprovingChoice(choice)
+}
+
+/**
  * The choice a Muse Code side chat answers every approval with (M53,
  * C-M53-3): Plan mode already selects MSP `denyUnmatched`, but the CLI
  * still applies its own project and session allow rules, so a side fork is
