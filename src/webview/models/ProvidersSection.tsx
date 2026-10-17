@@ -475,31 +475,36 @@ export function ProvidersSection(props: SectionProps) {
       <h2>{UI_TEXT.providersSectionTitle}</h2>
       {panelState.subscriptionsAvailable === true && (
         <div className="models-actions">
-          <button
-            type="button"
-            onClick={() => {
-              post({ type: 'providers/connectSubscription', providerId: 'chatgpt' })
-            }}
-          >
-            {UI_TEXT.acpChatGpt.actions.add}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              post({
-                type: 'providers/connectSubscription',
-                providerId: 'chatgpt',
-                isNewAccount: true,
-              })
-            }}
-          >
-            {UI_TEXT.acpChatGpt.actions['add-new-account']}
-          </button>
+          <div className="models-row-actions">
+            <button
+              type="button"
+              className="models-button"
+              onClick={() => {
+                post({ type: 'providers/connectSubscription', providerId: 'chatgpt' })
+              }}
+            >
+              {UI_TEXT.acpChatGpt.actions.add}
+            </button>
+            <button
+              type="button"
+              className="models-button"
+              onClick={() => {
+                post({
+                  type: 'providers/connectSubscription',
+                  providerId: 'chatgpt',
+                  isNewAccount: true,
+                })
+              }}
+            >
+              {UI_TEXT.acpChatGpt.actions['add-new-account']}
+            </button>
+          </div>
           <p>{UI_TEXT.acpChatGpt.notice}</p>
           {panelState.copilotAvailable === true && (
             <>
               <button
                 type="button"
+                className="models-button"
                 onClick={() => {
                   post({ type: 'providers/connectSubscription', providerId: 'copilot' })
                 }}
