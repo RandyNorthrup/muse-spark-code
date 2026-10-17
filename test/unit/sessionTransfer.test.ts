@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import {
   DEFAULT_EFFORT,
-  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
+  MODEL_API_CONTEXT_WINDOW,
   CONVERSATION_MODEL_TEXT,
   SESSION_EXPORT_SCRUB_SLICE_CHARS,
   UI_TEXT,
@@ -644,18 +644,20 @@ describe('sanitizeImportedSession', () => {
     expect(sanitize(named.doc).name).toBe('Moved over')
   })
 
-  it('refuses turns the model cannot read in one window, naming both sizes (RV84 #10)', async () => {
-    const fits = await exported([userItem('u1', 'x'.repeat(MODEL_API_IMPORT_MAX_REPLAY_BYTES / 2))])
+  it('refuses turns past the provider window, naming both sizes (RV84 #10)', async () => {
+    // NOLIMITS1FIX: our window-minus-reserve formula is gone — the limit is
+    // the provider's own documented window.
+    const fits = await exported([userItem('u1', 'x'.repeat(MODEL_API_CONTEXT_WINDOW / 2))])
     expect(importRefusal(fits)).toBeUndefined()
     expect(sanitize(fits).replay).toHaveLength(1)
     // Counted in UTF-8 bytes, as the model is handed them: a third as many
-    // characters as the limit, three bytes each, do not fit.
-    const wide = '語'.repeat(Math.ceil(MODEL_API_IMPORT_MAX_REPLAY_BYTES / 3))
+    // characters as the window, three bytes each, do not fit.
+    const wide = '語'.repeat(Math.ceil(MODEL_API_CONTEXT_WINDOW / 3))
     const tooLarge = await exported([userItem('u1', 'Hi'), agentItem('a1', wide)])
     const reason = importRefusal(tooLarge) ?? ''
     const [before = '', after = ''] = fill(UI_TEXT.importReplayTooLarge, {
       size: '\u{0}',
-      limit: formatBytes(MODEL_API_IMPORT_MAX_REPLAY_BYTES),
+      limit: formatBytes(MODEL_API_CONTEXT_WINDOW),
     }).split('\u{0}', 2)
     expect(reason.startsWith(before)).toBe(true)
     expect(reason.endsWith(after)).toBe(true)

@@ -27,7 +27,7 @@ import * as z from 'zod/mini'
 import { type ItemSnapshot, itemSnapshotFields } from '../../shared/agentEvents'
 import {
   DEFAULT_EFFORT,
-  MODEL_API_IMPORT_MAX_REPLAY_BYTES,
+  MODEL_API_CONTEXT_WINDOW,
   CONVERSATION_MODEL_TEXT,
   REDACTED_MARK,
   SESSION_EXPORT_FIELD_PATH_MAX,
@@ -661,12 +661,17 @@ function replayBytes(replay: readonly StoredReplayItem[]): number {
   return bytes
 }
 
-/** The refusal for a replay of `bytes`, naming both sizes; undefined when it fits. */
+/**
+ * The refusal for a replay of `bytes`, naming both sizes; undefined when it
+ * fits. NOLIMITS1FIX: the limit is the provider's own documented window
+ * (`MODEL_API_CONTEXT_WINDOW`, dev.meta.ai/docs/models) — our
+ * window-minus-reserve formula was invented.
+ */
 function oversizeReason(bytes: number): string | undefined {
-  return bytes > MODEL_API_IMPORT_MAX_REPLAY_BYTES
+  return bytes > MODEL_API_CONTEXT_WINDOW
     ? fill(UI_TEXT.importReplayTooLarge, {
         size: formatBytes(bytes),
-        limit: formatBytes(MODEL_API_IMPORT_MAX_REPLAY_BYTES),
+        limit: formatBytes(MODEL_API_CONTEXT_WINDOW),
       })
     : undefined
 }
@@ -674,9 +679,9 @@ function oversizeReason(bytes: number): string | undefined {
 /**
  * Why `doc` cannot be resumed on the Model API, or undefined (RV84 #10): the
  * text it hands the model, counted high as one token per UTF-8 byte, must
- * fit `MODEL_API_IMPORT_MAX_REPLAY_BYTES`. Accepted, a larger one would
- * fail every later message past the model's window; it can still be read as
- * a share file.
+ * fit the provider's documented window (`MODEL_API_CONTEXT_WINDOW`).
+ * Accepted, a larger one would fail every later message past the model's
+ * window; it can still be read as a share file.
  */
 export function importRefusal(doc: SessionExport): string | undefined {
   return oversizeReason(

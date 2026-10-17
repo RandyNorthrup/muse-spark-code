@@ -14455,7 +14455,12 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   model's documented 1 MiB window (dev.meta.ai/docs/models), so an import
   that fits can still answer; removing it breaks every later message past
   the window instead of refusing once at import. Rewiring the window to the
-  per-model record is lane L2's.
+  per-model record is lane L2's. NOLIMITS1FIX (this lane's brief): the
+  window-minus-reserve formula is REMOVED — the reserve was ours, not the
+  provider's. An import is refused only past the provider's own documented
+  window (`MODEL_API_CONTEXT_WINDOW`, dev.meta.ai/docs/models), counted
+  high as one token per UTF-8 byte; rewiring that window to the per-model
+  record stays lane L2's.
 - Kept bounds, listed for the lead (RVNOLIMITS1 review, outcome 4 — the lane
   kept them without listing them): the prompt file bound
   `PROMPT_LIMITS.fileBytes` (128 KiB, A23: title/body past 80/10000 stand
