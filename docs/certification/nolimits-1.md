@@ -74,6 +74,45 @@ Proof test: `chainedTimeout.test.ts` fires once after the whole delay
 across 10 ms slices (elapsed ≥ 90 ms for a 100 ms delay), fires a short
 delay, and never fires after `clear()` — real timers throughout.
 
+### §N6 — real use of the built product
+
+`npm run build` green (production bundles plus the size, split,
+host-globals and notices gates). The proof scripts below live in the
+lane's `$TMPDIR` (`proof-report.mjs`, `proof-share.mjs`); no model, no
+keys, no network, no stand-ins — the built `dist/` bundles with real
+files, asserted with exit codes:
+
+- Large prompt file (§N1): piped a 168,016-byte body (marker
+  `BIG-BODY-MARKER` plus padding) on stdin through built
+  `dist/sharingRuntime.js` `prompts save`. Exit 0, `kind: saved`; the
+  stored file holds 168,281 characters whole. The old code refused past
+  128 KiB at the stdin read.
+- Long share (§N2): a 20,001-item source through built
+  `dist/sharingRuntime.js` `share` (two passes: preview, then confirm
+  with the preview's own id). Exit 0; `share.json` is 2,418,186 bytes
+  with all 20,001 items. The old code threw `shareTooLarge`.
+- Large report source (§N3): a 17,835,661-byte codex rollout file
+  (3 valid `token_count` events plus filler lines) as
+  `~/.codex/sessions/2026/10/17/rollout-proof.jsonl` through built
+  `dist/reporting.js` `createReportingServices(...).generate({kind:
+'usage', ...})`. Status `generated`; the `agentUsage` record is
+  `status: ok, reason: null`, and the last event's 7777 input tokens
+  are in the document. The old code refused with `limit` past 16 MiB
+  (red drill: the new `reportSourceSize.test.ts` fails on the pre-N3
+  tree, passes on it).
+- Refusal strings: `promptLimits` (`exceeds the size limit`),
+  `shareTooLarge` (`exceeds the file size`) and `exportTooLarge`
+  (`too long for a session export`) appear in no `dist/*.js` bundle
+  and no shipped `l10n/ui.*.json`; the new `promptTitleRequired`
+  ships in `dist/prompts.js`, `dist/sharingRuntime.js` and all
+  14 tables; the repointed `importReplayTooLarge` ships with the
+  provider's number.
+- Timer (§N5) and A29 (§N4) behavior: covered by the committed unit
+  tests over the real modules (`chainedTimeout.test.ts`,
+  `sessionTransfer.test.ts`) plus the observed platform fact
+  (`setTimeout(..., 2 ** 31)` warns `TimeoutOverflowWarning` and
+  fires after ~14 ms).
+
 ## Correction review (2026-10-16 continuation)
 
 The first nine commits (A7, A8, A11, A13, A21–A25) were re-checked against
