@@ -4099,6 +4099,7 @@
   "museVoiceRateLimited": "Для этого ключа достигнут лимит запросов к Muse Voice; подождите немного и повторите попытку.",
   "museVoiceClosed": "Muse Voice закрыл соединение (код {code})",
   "museVoiceNoWebSocket": "Для Muse Voice нужна поддержка WebSocket в узле расширений VS Code, которой нет в этой версии.",
+  "museVoiceNoProxy": "Muse Voice не может использовать настроенный прокси в этой версии VS Code; за прокси требуется VS Code 1.112 или новее.",
   "museVoiceNoRecorder": "В Linux Muse Voice записывает звук с помощью arecord (ALSA) или parec (PulseAudio); ни одна из этих программ не найдена в PATH.",
   "networkUntrustedCertificate": "Сертификат сервера не является доверенным. Если ваша сеть проверяет HTTPS, установите ее корневой сертификат в хранилище сертификатов операционной системы (VS Code читает его, пока включен http.systemCertificates) или отключите http.systemCertificates и перед запуском VS Code укажите файл корневого сертификата в NODE_EXTRA_CA_CERTS.",
   "networkProxyCredentials": "Прокси-сервер запросил учетные данные и не принял полученные. Проверьте http.proxy и http.proxyAuthorization или учетные данные, которые запрашивал VS Code.",

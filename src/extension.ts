@@ -313,6 +313,7 @@ import {
 } from './host/support/reportFacts'
 import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
 import {
+  hostRouting,
   liveFetch,
   managedConfiguration,
   readNetworkFacts,
@@ -1267,6 +1268,14 @@ async function activateWindow(
       },
       log,
       voice,
+    },
+    // M56 (PLAN.md D43): before VS Code 1.112 the socket bypasses a
+    // configured proxy, so the microphone says so instead of failing after
+    // the press.
+    {
+      webSocketRouting: hostRouting(globalThis, 'webSocket'),
+      isProxySet:
+        readProxySettings(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)).proxy !== '',
     },
   )
   const broadcastPaidState = () => {

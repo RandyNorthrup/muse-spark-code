@@ -4730,6 +4730,10 @@ export const EN = {
   museVoiceClosed: 'Muse Voice closed the connection (code {code})',
   museVoiceNoWebSocket:
     'Muse Voice needs WebSocket support in VS Code’s extension host, which this version does not have.',
+  // M56 (PLAN.md D43): a proxy is set, but this editor does not route the
+  // voice connection through it (before VS Code 1.112).
+  museVoiceNoProxy:
+    'Muse Voice cannot use the configured proxy on this version of VS Code; behind a proxy it needs VS Code 1.112 or later.',
   museVoiceNoRecorder:
     'Muse Voice on Linux records with arecord (ALSA) or parec (PulseAudio); neither was found on PATH.',
   // M56 (PLAN.md D43): why a Model API request never reached Meta; the

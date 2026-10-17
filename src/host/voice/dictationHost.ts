@@ -15,6 +15,8 @@ import {
   locateCaptureHelper,
   locateDictationHelper,
 } from '../../core/voice/helperLocation'
+import type { HostRouting } from '../../core/support/report'
+import { voiceNetworkRefusal } from '../../core/voice/voiceNetwork'
 import { EXTENSION_QUALIFIED_ID, UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { deferredDriver, type VoiceBundle } from './voiceBundle'
@@ -67,6 +69,14 @@ export interface MuseVoiceSetupDeps {
   readonly voice: () => VoiceBundle
 }
 
+/** What the voice socket needs of this editor's network (M56, PLAN.md D43). */
+export interface VoiceNetworkPosture {
+  /** How this editor routes the extension host's `WebSocket`, if it has one. */
+  readonly webSocketRouting: HostRouting
+  /** Whether VS Code's `http.proxy` names a proxy (validated, never raw). */
+  readonly isProxySet: boolean
+}
+
 /**
  * Muse Voice (M35, PLAN.md D30): the paid engine's recorder for this
  * platform and the stream to Meta, or why it cannot run here. Whether it is
@@ -79,9 +89,17 @@ export function createMuseVoiceSetup(
     'fileExists' | 'programFiles' | 'remoteName' | 'appName' | 'pathVariable'
   >,
   deps: MuseVoiceSetupDeps,
+  network: VoiceNetworkPosture,
 ): DictationSetup {
-  if (typeof globalThis.WebSocket !== 'function') {
-    return { isAvailable: false, reason: UI_TEXT.museVoiceNoWebSocket }
+  const refusal = voiceNetworkRefusal(
+    typeof globalThis.WebSocket === 'function',
+    network.webSocketRouting,
+    network.isProxySet,
+  )
+  if (refusal !== undefined) {
+    const reason = refusal === 'proxy' ? UI_TEXT.museVoiceNoProxy : UI_TEXT.museVoiceNoWebSocket
+    deps.log.info(`Muse Voice unavailable: ${reason}`)
+    return { isAvailable: false, reason }
   }
   const location = locateCaptureHelper({
     ...probe,
