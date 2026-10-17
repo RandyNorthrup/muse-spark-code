@@ -12,9 +12,8 @@ import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import type { SubscriptionUsage } from '../../src/shared/usage'
-import { createUsageRecording, type UsageRecording } from '../../src/core/usage/recording'
-import { UsageJournalStore } from '../../src/core/usage/journalStore'
-import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import type { UsageRecording } from '../../src/core/usage/recording'
+import { createTestRecording } from './helpers/testRecording'
 
 interface NotesBundle {
   MuseUsageDeltas: new (
@@ -66,36 +65,22 @@ afterAll(() => {
   if (state.folder !== undefined) rmSync(state.folder, { recursive: true, force: true })
 })
 
+const NOW_MS = 1_791_234_567_890
 function recordingInto(root: string, warnings: string[]): UsageRecording {
-  const nowMs = 1_791_234_567_890
-  const store = new UsageJournalStore(new NodeUsageFs(root), {
-    writerId: 'notes-bundle-writer',
-    now: () => nowMs,
-    isEnabled: () => true,
-    onWriteError: () => {
-      warnings.push('usageWriteFailed')
+  const { recording } = createTestRecording(
+    {
+      root,
+      writerId: 'notes-bundle-writer',
+      client: 'test',
+      now: () => NOW_MS,
+      newId: (() => {
+        let next = 0
+        return () => `note-${String((next += 1))}`
+      })(),
     },
-  })
-  return createUsageRecording({
-    client: 'test',
-    now: () => nowMs,
-    newId: (() => {
-      let next = 0
-      return () => `note-${String((next += 1))}`
-    })(),
-    isEnabled: () => true,
-    writer: () => Promise.resolve(store),
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: (message: string) => {
-        warnings.push(message)
-      },
-      error: (message: string) => {
-        warnings.push(message)
-      },
-    },
-  })
+    warnings,
+  )
+  return recording
 }
 
 describe('usage writers load with the service bundle on first use', () => {
