@@ -55,5 +55,7 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/sharing/ChatShareBridge'),
     import('../../../src/webview/estimator/composer'),
     import('../../../src/webview/estimator/EstimatorPanel'),
+    import('../../../src/webview/models/ModelAccounts'),
+    import('../../../src/webview/models/sections/accounts/AccountsSurface'),
   ])
 }
