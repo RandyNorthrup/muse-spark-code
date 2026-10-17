@@ -122,6 +122,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'runtimeSubscriptionClient',
         side: ['acp', 'vscode'],
       },
+      { importer: 'src/runtime/main.ts', symbol: 'openRouterApi', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeProvider', side: ['acp'] },
     ],
   },
