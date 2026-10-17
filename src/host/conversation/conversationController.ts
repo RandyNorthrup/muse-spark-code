@@ -237,7 +237,6 @@ import { errorDetail, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import type { TeamSurfacePort } from '../teamHostBinding'
 import type { TeamCardItem } from '../../core/team/teamHostService'
-import { validateOrchestratorSettings } from '../../core/team/orchestratorSlot'
 import type { TeamTreeData } from '../../shared/teamView'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
 
@@ -4082,6 +4081,7 @@ export class ConversationController {
     // refuse with their reason instead of starting a session that silently
     // changes or ignores them.
     if (resolved?.modelId === modelId) {
+      const { validateOrchestratorSettings } = await import('../../core/team/teamEntry')
       const unsupported = validateOrchestratorSettings(resolved.settings, modelId)
       if (unsupported !== undefined) throw new Error(unsupported)
     }
