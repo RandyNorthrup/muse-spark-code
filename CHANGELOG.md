@@ -433,6 +433,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- All fourteen translated settings tables now say Muse Code asks before a
+  command unless a permission rule allows it, matching the English modes.
+
+- Closing an ACP session no longer discards its selected permission mode;
+  loading it again on the same connection keeps that mode.
+
+- ACP waits for the selected-mode notice to leave its ordered update queue
+  before acknowledging `session/set_mode`.
+
+- ACP remembers a permission answer before dispatching it, so a stage update
+  arriving before the decision acknowledgement cannot open the same prompt again.
+
+- ACP permission answers retain the selected persistent rule's identity;
+  consent for one command prefix cannot silently install another stage's rule.
 - After Muse Code restarted, a conversation could continue on a different
   model than the one shown (and at that model's price). It now keeps the
   model you chose: the choice is applied and read back from Muse Code before
@@ -592,6 +606,14 @@ happened, not what was planned; superseded entries are kept.
   editor's qualification (lane Q). The pull-request checkout's own git
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
+
+- Muse Code permissions: on the Muse Code backend one command is asked
+  about once — the first answer is reused for later stages instead of
+  asking again, and an answer given while a newer stage arrives is applied
+  to that stage instead of dropped. A permission mode set in the editor is
+  reported back and kept when the session is loaded again. The Manual and
+  Edit Automatically descriptions now say commands are asked about unless
+  a permission rule allows them.
 
 ## [0.18.2] - 2026-10-12
 
