@@ -7,11 +7,8 @@ import {
   type CompanionVoiceOutput,
   type CompanionVoiceEngine,
 } from '../../shared/companionVoice'
-import {
-  COMPANION_VOICE_TICKET_MS,
-  MAX_TEXT_ATTACHMENT_BYTES,
-  UI_TEXT,
-} from '../../shared/constants'
+import { MAX_TEXT_ATTACHMENT_BYTES, UI_TEXT } from '../../shared/constants'
+import { COMPANION_VOICE_TICKET_MS } from '../../shared/companionVoice'
 import { companionWavSeconds } from '../../shared/companionWav'
 import type { PaidUseAnswer } from '../../core/paid/paidConsent'
 import type { CompanionHandler } from './server'

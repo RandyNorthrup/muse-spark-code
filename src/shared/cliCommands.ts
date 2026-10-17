@@ -1,11 +1,6 @@
 // Public runtime command table. The localized usage table owns descriptions.
-import {
-  ACP_AGENT_NAME,
-  REFERENCE_DOCS_URL,
-  UI_TEXT,
-  SLASH_COMMAND_NAMES,
-  COMPANION_VOICE_RELEASE,
-} from './constants'
+import { ACP_AGENT_NAME, REFERENCE_DOCS_URL, UI_TEXT, SLASH_COMMAND_NAMES } from './constants'
+import { COMPANION_VOICE_RELEASE } from './companionVoice'
 
 export function cliCommands(shouldIncludeHeld = false) {
   return [

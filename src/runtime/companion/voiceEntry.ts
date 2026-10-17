@@ -18,17 +18,19 @@ import { transcribeCompanionSystem } from './voiceSystem'
 import { startCompanionServer } from './server'
 import {
   ACP_AGENT_NAME,
-  COMPANION_VOICE_BODY_BYTES,
-  COMPANION_VOICE_REQUEST_MS,
   ACP_SESSIONS_SUBFOLDER,
   ACP_PAID_GRANTS_FILE,
-  COMPANION_VOICE_MAX_SECONDS,
   MAX_TEXT_ATTACHMENT_BYTES,
   USAGE_COMPANION_IDLE_MS,
   USAGE_COMPANION_MAX_WINDOWS,
   USAGE_STALE_MS,
   WEBVIEW_L10N_ELEMENT_ID,
 } from '../../shared/constants'
+import {
+  COMPANION_VOICE_BODY_BYTES,
+  COMPANION_VOICE_MAX_SECONDS,
+  COMPANION_VOICE_REQUEST_MS,
+} from '../../shared/companionVoice'
 
 export interface VoiceCompanionContext {
   readonly cwd: string

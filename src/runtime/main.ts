@@ -20,7 +20,7 @@ import type { SignInMethod } from '../acp/agent'
 import { runtimeQuestionsLoader } from './questions/questionRegistryBundle'
 import { voiceCompanionLoader } from './companion/voiceLoader'
 import type { VoiceCompanionContext } from './companion/voiceEntry'
-import { COMPANION_VOICE_RELEASE } from '../shared/constants'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {

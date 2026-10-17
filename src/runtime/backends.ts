@@ -67,13 +67,13 @@ import {
   SECRET_KEYS,
   PROVIDER_SECRET_PREFIX,
   PAID_PRICES_USD,
-  COMPANION_VOICE_RELEASE,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
   IS_AUTO_COMPACTION_EVALUATED,
   SETTING_DEFAULTS,
   UI_TEXT,
 } from '../shared/constants'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 import { fill, uiLocale } from '../shared/l10n/text'
 import type { ServeOptions } from './cliArgs'
 import {

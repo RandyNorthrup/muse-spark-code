@@ -19,9 +19,9 @@ import {
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
   UI_TEXT,
-  COMPANION_VOICE_RELEASE,
   REPORT_KINDS,
 } from '../shared/constants'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 import { modelRef } from '../host/backend/providerPolicyEntry'
 const { isProviderId } = modelRef
 import type { OpenRouterPrivacy } from '../core/providers/presets'

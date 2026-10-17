@@ -8,13 +8,15 @@ import {
 } from '../../shared/companionVoice'
 import { companionPcm, companionWav } from '../../shared/companionWav'
 import {
-  COMPANION_VOICE_MAX_SECONDS,
-  COMPANION_VOICE_RECORDER_BPS,
-  COMPANION_VOICE_MAX_BYTES,
   MUSE_VOICE_SAMPLE_RATE,
   MILLISECONDS_PER_SECOND,
   MAX_TEXT_ATTACHMENT_BYTES,
 } from '../../shared/constants'
+import {
+  COMPANION_VOICE_MAX_BYTES,
+  COMPANION_VOICE_MAX_SECONDS,
+  COMPANION_VOICE_RECORDER_BPS,
+} from '../../shared/companionVoice'
 import { UI_TEXT, fill, formatUnit } from '../../shared/l10n/text'
 
 function element<T extends HTMLElement>(selector: string, kind: new () => T): T {

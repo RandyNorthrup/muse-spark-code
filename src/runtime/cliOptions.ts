@@ -41,7 +41,8 @@ interface CliParserOption {
   readonly multiple?: boolean
 }
 type CliParserOptions = Readonly<Record<string, CliParserOption>>
-import { ACP_PAID_FLAGS, COMPANION_VOICE_RELEASE } from '../shared/constants'
+import { ACP_PAID_FLAGS } from '../shared/constants'
+import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 
 const PROVIDER_OPTIONS = {
   preset: { type: 'string' },
