@@ -93,6 +93,26 @@ it('names the five lazily loaded engine bundles the old copy missed', () => {
   expect(LAZY_BUNDLES.find((entry) => entry.file === 'headless.js')?.requestedBy).toEqual([])
 })
 
+it('names the report dialog for the agent side that loads it', () => {
+  const row = LAZY_BUNDLES.find((entry) => entry.file === 'report.js')
+  expect(row?.side).toBe('both')
+  expect(row?.requestedBy).toEqual([
+    {
+      importer: 'src/host/conversation/conversationController.ts',
+      symbol: 'ConversationController.reportProblemHandler',
+      side: ['acp', 'vscode'],
+    },
+  ])
+})
+
+it('keeps the manifest-addressed portable graph out of filename rows', () => {
+  // dist/webview/portable/ reaches browsers through the authenticated
+  // manifest loader (a listed computed load), never by file name from a
+  // Node process, so no row may name it: otherwise a bare `main.js`
+  // request would demand the portable twin in the VSIX.
+  expect(LAZY_BUNDLES.filter((entry) => entry.file.includes('webview/portable/'))).toEqual([])
+})
+
 it('names the helpers bundle by the method that loads it', () => {
   expect(LAZY_BUNDLES.find((entry) => entry.file === 'modelApiTools.js')).toEqual({
     file: 'modelApiTools.js',

@@ -115,6 +115,9 @@ export const ACP_BUNDLES = [
   'hookRuntime.js',
   'modelApiTools.js',
   'recorder.js',
+  // The report dialog the agent-side conversation loads on openReport
+  // (portable reports in the runtime presentation, M93/M104).
+  'report.js',
   'reporting.js',
   'reportingNetwork.js',
   'reportingDestinations.js',
