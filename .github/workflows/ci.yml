@@ -1,13 +1,28 @@
 # Pull requests, merge-queue groups and manual branch runs call the shared
 # build (build.yml): the fast tier for a pull request once the merge queue is
 # on, the full tier for everything else. The required checks are the same
-# seven names on every event.
+# eight names on every event.
+#
+# CI capacity (D122): GitHub runs at most five macOS jobs at a time per
+# account, and a full run has twelve. While the repository variable ORG_CI is
+# `on`, a same-repository pull request runs its Ubuntu and shared jobs here
+# (part `home`); the maintainer's relay (scripts/ci-org-relay.mjs) pushes the
+# pull request's merge commit to the capacity repository
+# scnetsolutions/muse-spark-code-ci as ci/head-<head sha>, where this same
+# file runs the Windows and macOS unit shards (part `org`), and posts that
+# run's result onto the head commit as the required status
+# `build / org part`. Forks, Dependabot, merge groups, manual runs and every
+# pull request while ORG_CI is not `on` keep every job here (part `all`),
+# where `build / org part` comes from this run's own aggregate.
 name: CI
 
 on:
   pull_request:
   merge_group:
   workflow_dispatch:
+  # Runs only in the capacity repository (the relay pushes ci/head-<sha>).
+  push:
+    branches: ['ci/head-*']
 
 permissions:
   contents: read
@@ -17,7 +32,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  route:
+    name: route
+    if: ${{ github.event_name != 'push' || github.repository == 'scnetsolutions/muse-spark-code-ci' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      part: ${{ steps.pick.outputs.part }}
+    steps:
+      - id: pick
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          ORG_CI: ${{ vars.ORG_CI }}
+          FAST: ${{ github.event_name == 'pull_request' && vars.CI_MERGE_QUEUE == 'on' }}
+          REF: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            [[ "${REF#ci/head-}" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::branch $REF does not name a head commit"; exit 1; }
+            part=org
+          elif [ "$EVENT" = pull_request ] && [ "$SAME_REPO" = true ] && [ "$ORG_CI" = on ] && [ "$FAST" != true ]; then
+            part=home
+          else
+            part=all
+          fi
+          echo "part=$part" >> "$GITHUB_OUTPUT"
+          echo "This run's part: $part"
+
   build:
+    needs: route
     # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
     # no other secret is passed (least privilege).
     uses: ./.github/workflows/build.yml
@@ -27,3 +71,4 @@ jobs:
       # the main ruleset and set the repository variable CI_MERGE_QUEUE to
       # `on` (CONTRIBUTING.md, "CI tiers"), every PR keeps the full tier.
       fast: ${{ github.event_name == 'pull_request' && vars.CI_MERGE_QUEUE == 'on' }}
+      part: ${{ needs.route.outputs.part }}

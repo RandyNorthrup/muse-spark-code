@@ -20,6 +20,15 @@ on:
         description: Ubuntu PR checks; false runs the full merge/release gate
         type: boolean
         default: false
+      # Where this run's jobs belong (D122). `all` runs every job of the tier
+      # here. `home` leaves the Windows and macOS unit shards to the capacity
+      # repository scnetsolutions/muse-spark-code-ci, which reports them back
+      # as the required status `build / org part`; `org` runs only those
+      # shards. Release builds and every caller that passes nothing get `all`.
+      part:
+        description: all, home or org (D122)
+        type: string
+        default: all
 
 permissions:
   contents: read
@@ -27,6 +36,7 @@ permissions:
 jobs:
   checks:
     name: static gates (${{ matrix.os }}, ${{ matrix.part.name }})
+    if: ${{ inputs.part != 'org' }}
     runs-on: ${{ matrix.os }}
     # One serial job outgrew its 25 minutes on macOS (CIFIX017R3, run
     # 37992331755: 21.8 min in round 2, cancelled at 25 in round 3 during
@@ -130,7 +140,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        # D122: `home` keeps Ubuntu here and `org` takes Windows and macOS to
+        # the capacity repository (macOS jobs queue first: five at a time per
+        # account, twelve per full run).
+        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || inputs.part == 'home' && '["ubuntu-latest"]' || inputs.part == 'org' && '["windows-latest","macos-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
         shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}
         # Windows splits its slower serial run eight ways: with six, shard 1 ran
         # 16-17 min (952 s of tests; modelApiHost alone 207 s) and crossed the
@@ -141,7 +154,7 @@ jobs:
         # shard 1 took 16), and run 38270466443 lost shard 1 to the limit
         # while it was still running normally. The limit stays 20 minutes;
         # Ubuntu keeps four.
-        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}
+        exclude: ${{ fromJSON((inputs.fast || inputs.part == 'org') && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -169,7 +182,7 @@ jobs:
     name: accessibility (WCAG 2.2 AA)
     # Out of the pull-request path: webview changes are looked at locally,
     # and the queue's merge_group run plus releases still gate every merge.
-    if: ${{ !inputs.fast && github.event_name != 'pull_request' }}
+    if: ${{ inputs.part != 'org' && !inputs.fast && github.event_name != 'pull_request' }}
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -193,7 +206,7 @@ jobs:
 
   integration:
     name: integration (${{ matrix.os }})
-    if: ${{ !inputs.fast }}
+    if: ${{ inputs.part != 'org' && !inputs.fast }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -234,7 +247,7 @@ jobs:
   # events. Every name rejects a failed/cancelled/missing selected-tier job.
   required:
     name: ${{ matrix.check }}
-    if: always()
+    if: ${{ always() && inputs.part != 'org' }}
     needs:
       [
         checks,
@@ -252,12 +265,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check:
-          - quality (ubuntu-latest)
-          - quality (windows-latest)
-          - quality (macos-latest)
-          - dictation helper (macos)
-          - package (.vsix)
+        # `org part` (D122): in an `all` run the Windows and macOS shards ran
+        # here, so this aggregate names it; in a `home` run the capacity
+        # repository posts that status itself, and no check here may carry the
+        # name (a check that passed here must never stand in for those shards).
+        check: ${{ fromJSON(inputs.part == 'home' && '["quality (ubuntu-latest)","quality (windows-latest)","quality (macos-latest)","dictation helper (macos)","package (.vsix)"]' || '["quality (ubuntu-latest)","quality (windows-latest)","quality (macos-latest)","dictation helper (macos)","package (.vsix)","org part"]') }}
     steps:
       - name: require every selected-tier job
         shell: bash
@@ -296,7 +308,7 @@ jobs:
   # fails when the finished binary carries another.
   native-build:
     name: compile dictation helper (macos)
-    if: ${{ !inputs.fast }}
+    if: ${{ inputs.part != 'org' && !inputs.fast }}
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
@@ -332,7 +344,7 @@ jobs:
   # The .vsix with both helpers: what release.yml publishes.
   linux-native-build:
     name: compile created-path helper (linux ${{ matrix.arch }})
-    if: ${{ !inputs.fast }}
+    if: ${{ inputs.part != 'org' && !inputs.fast }}
     strategy:
       matrix:
         include:
@@ -359,7 +371,7 @@ jobs:
 
   packages:
     name: universal release artifacts
-    if: ${{ !inputs.fast }}
+    if: ${{ inputs.part != 'org' && !inputs.fast }}
     needs: [checks, native-build, linux-native-build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -524,6 +536,7 @@ jobs:
 
   secrets:
     name: gitleaks
+    if: ${{ inputs.part != 'org' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -556,6 +569,7 @@ jobs:
 
   sast:
     name: semgrep
+    if: ${{ inputs.part != 'org' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

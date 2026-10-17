@@ -666,12 +666,13 @@ describe('tiered CI (CIFLOW)', () => {
     )
     expect(job('checks')).toContain('      - run: npx run-s ${{ matrix.part.gates }}\n')
     expect(job('unit')).toContain('npx vitest run\n')
+    // Full-tier only, and never in the capacity repository's part (D122).
     for (const id of ['integration', 'native-build', 'linux-native-build', 'packages']) {
-      expect(job(id)).toContain('if: ${{ !inputs.fast }}')
+      expect(job(id)).toContain("if: ${{ inputs.part != 'org' && !inputs.fast }}")
     }
     // Accessibility additionally leaves the pull-request path.
     expect(job('accessibility')).toContain(
-      "if: ${{ !inputs.fast && github.event_name != 'pull_request' }}",
+      "if: ${{ inputs.part != 'org' && !inputs.fast && github.event_name != 'pull_request' }}",
     )
     expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
     expect(job('accessibility')).toContain('run: npm run test:a11y\n')
@@ -707,7 +708,7 @@ describe('tiered CI (CIFLOW)', () => {
       "shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}",
     )
     expect(job('unit')).toContain(
-      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}`,
+      `exclude: \${{ fromJSON((inputs.fast || inputs.part == 'org') && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}`,
     )
     expect(job('unit')).toContain("SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 8 }}")
     expect(job('unit')).toContain('--shard="$SHARD/$SHARDS" --reporter=default')
@@ -729,15 +730,25 @@ describe('tiered CI (CIFLOW)', () => {
   it('keeps all required names and wires fail-closed checks for each selected-tier dependency', () => {
     const id = 'required'
     expect(job(id)).toContain('name: ${{ matrix.check }}')
-    for (const name of [
+    // D122: two name lists, chosen by the part. A `home` run never names
+    // `org part` (the capacity repository posts that status); every other
+    // run names it from this aggregate.
+    const lists = [
+      ...(/check: \$\{\{ fromJSON\(inputs\.part == 'home' && '(\[[^']+\])' \|\| '(\[[^']+\])'\) \}\}/.exec(
+        job(id),
+      ) ?? []),
+    ].slice(1)
+    expect(lists).toHaveLength(2)
+    const [home = [], other = []] = lists.map((list) => JSON.parse(list) as string[])
+    const shared = [
       'quality (ubuntu-latest)',
       'quality (windows-latest)',
       'quality (macos-latest)',
       'dictation helper (macos)',
       'package (.vsix)',
-    ]) {
-      expect(job(id)).toContain(`- ${name}\n`)
-    }
+    ]
+    expect(home).toEqual(shared)
+    expect(other).toEqual([...shared, 'org part'])
     expect(
       /needs:\s+\[([^\]]+)\]/
         .exec(job(id))?.[1]
@@ -755,7 +766,7 @@ describe('tiered CI (CIFLOW)', () => {
       'secrets',
       'sast',
     ])
-    expect(job(id)).toContain('if: always()')
+    expect(job(id)).toContain("if: ${{ always() && inputs.part != 'org' }}")
     for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
       expect(job(id)).toContain(`          test "$${key}" = success\n`)
     }
@@ -921,6 +932,59 @@ describe('tiered CI (CIFLOW)', () => {
       const codes = run.stdout.trim().split(/\r?\n/)
       expect(cases.map(([label], index) => verdict(label, codes[index] === '0'))).toEqual(
         cases.map(([label, , isPassing]) => verdict(label, isPassing)),
+      )
+    },
+  )
+})
+
+describe('CI capacity repository (D122)', () => {
+  const root = path.resolve(import.meta.dirname, '..', '..')
+  const ci = readFileSync(path.join(root, '.github/workflows/ci.yml'), 'utf8')
+  const route = ci.split('\n  route:\n', 2)[1]?.split(/\n {2}[\w-]+:\n/, 1)[0] ?? ''
+
+  const bash = findBash()
+  // Runs route's own step from ci.yml, the way GitHub runs a bash step, for
+  // each event GitHub can send it: the inputs are the values GitHub sets.
+  it.runIf(bash !== undefined)(
+    'routes every event to exactly one part',
+    { timeout: 60_000 },
+    () => {
+      const lines = route.split('\n')
+      const afterRun = lines.slice(lines.indexOf('        run: |') + 1)
+      const body: string[] = []
+      for (const line of afterRun) {
+        if (line !== '' && !line.startsWith(' '.repeat(10))) break
+        body.push(line.slice(10))
+      }
+      const head = 'b'.repeat(40)
+      const own = { EVENT: 'pull_request', SAME_REPO: 'true', ORG_CI: 'on', FAST: 'false' }
+      const cases: [string, Record<string, string>, string][] = [
+        ['capacity push', { EVENT: 'push', REF: `ci/head-${head}` }, '0 org'],
+        ['capacity push, bad branch', { EVENT: 'push', REF: 'ci/head-main' }, '1'],
+        ['own pull request, ORG_CI on', own, '0 home'],
+        ['own pull request, ORG_CI unset', { ...own, ORG_CI: '' }, '0 all'],
+        ['fork pull request', { ...own, SAME_REPO: 'false' }, '0 all'],
+        ['fast tier', { ...own, FAST: 'true' }, '0 all'],
+        ['merge group', { EVENT: 'merge_group', ORG_CI: 'on' }, '0 all'],
+        ['manual run', { EVENT: 'workflow_dispatch', ORG_CI: 'on' }, '0 all'],
+      ]
+      const wrapper = cases
+        .map(([, values]) => {
+          const exports = Object.entries(values)
+            .map(([name, value]) => `${name}=${value}`)
+            .join(' ')
+          return `out=$(mktemp); ( export ${exports} GITHUB_OUTPUT="$out"; set -eo pipefail; eval "$STEP" ) >/dev/null 2>&1; code=$?; part=$(sed -n 's/^part=//p' "$out"); rm -f "$out"; if [ "$code" = 0 ]; then echo "$code $part"; else echo "$code"; fi`
+        })
+        .join('\n')
+      const run = spawnSync(bash ?? '', ['--noprofile', '--norc', '-c', wrapper], {
+        env: { STEP: body.join('\n'), PATH: process.env['PATH'] ?? '' },
+        encoding: 'utf8',
+        timeout: 60_000,
+      })
+      expect(run.status).toBe(0)
+      const got = run.stdout.split(/\r?\n/).slice(0, cases.length)
+      expect(cases.map(([label], index) => `${label}: ${got[index] ?? ''}`)).toEqual(
+        cases.map(([label, , want]) => `${label}: ${want}`),
       )
     },
   )
