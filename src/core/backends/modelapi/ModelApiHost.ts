@@ -1668,10 +1668,6 @@ export function releaseSideSlotToken(reservation: SideSlotReservation, token: Si
   reservation.reserved = Math.max(0, reservation.reserved - token.count)
 }
 
-export function canReserveSideSlot(reservation: SideSlotReservation, left: number): boolean {
-  return takeSideSlotToken(reservation, left) !== undefined
-}
-
 export function wrapUpFailedKindFor(error: unknown): WrapUpFailedKind | undefined {
   if (
     error instanceof ModelCallLimitError ||
