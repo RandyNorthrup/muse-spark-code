@@ -3709,6 +3709,7 @@
   "providerRefusalNotFound": "{provider} odrzucił żądanie: nie zna takiego modelu. Wybierz model oferowany przez {provider}; nic nie wysłano i nic nie policzono. {provider} odpowiedział: {detail}",
   "providerRefusalContentFilter": "{provider} odrzucił żądanie: zablokował je jego filtr treści. Przeformułuj bez oznaczonej treści i spróbuj ponownie; nic nie dotarło do modelu i za to żądanie nic nie naliczono. {provider} zgłosił: {detail}",
   "providerRefusalRateLimited": "{provider} na razie odrzucił żądanie: zbyt wiele żądań{wait}. Spróbuj ponownie wkrótce; za tę odmowę nic nie policzono. {provider} odpowiedział: {detail}",
+  "providerRefusalUsageLimit": "{provider} odrzucił żądanie: plan lub limit użycia konta teraz na to nie pozwala, więc go nie ponowiono. Za tę odmowę nic nie policzono. {provider} odpowiedział: {detail}",
   "providerRefusalOverloaded": "{provider} odrzucił żądanie: jest przeciążony{wait}. Spróbuj ponownie wkrótce; za tę odmowę nic nie policzono. {provider} odpowiedział: {detail}",
   "providerRefusalInvalidRequest": "{provider} odrzucił żądanie: żądanie było nieprawidłowe; nic nie policzono. {provider} odpowiedział: {detail}",
   "providerRefusalTooLarge": "{provider} odrzucił żądanie: było zbyt duże. Skróć rozmowę lub załączniki i spróbuj ponownie; nic nie policzono. {provider} odpowiedział: {detail}",

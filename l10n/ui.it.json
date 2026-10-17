@@ -3632,6 +3632,7 @@
   "providerRefusalNotFound": "{provider} ha rifiutato la richiesta: non conosce tale modello. Scegli un modello offerto da {provider}; nulla è stato inviato né addebitato. {provider} ha detto: {detail}",
   "providerRefusalContentFilter": "{provider} ha rifiutato la richiesta: il suo filtro dei contenuti l’ha bloccata. Riformuli senza il contenuto segnalato e riprovi; nulla ha raggiunto un modello e nulla è stato addebitato per questa richiesta. {provider} ha detto: {detail}",
   "providerRefusalRateLimited": "{provider} ha rifiutato la richiesta per ora: troppe richieste{wait}. Riprova tra poco; nulla è stato addebitato per questo rifiuto. {provider} ha detto: {detail}",
+  "providerRefusalUsageLimit": "{provider} ha rifiutato la richiesta: il piano o il limite di utilizzo dell’account non la consente ora, quindi non è stata ripetuta. Nulla è stato addebitato per questo rifiuto. {provider} ha detto: {detail}",
   "providerRefusalOverloaded": "{provider} ha rifiutato la richiesta: è sovraccarico{wait}. Riprova tra poco; nulla è stato addebitato per questo rifiuto. {provider} ha detto: {detail}",
   "providerRefusalInvalidRequest": "{provider} ha rifiutato la richiesta: la richiesta non era valida; nulla è stato addebitato. {provider} ha detto: {detail}",
   "providerRefusalTooLarge": "{provider} ha rifiutato la richiesta: era troppo grande. Accorcia la conversazione o gli allegati e riprova; nulla è stato addebitato. {provider} ha detto: {detail}",

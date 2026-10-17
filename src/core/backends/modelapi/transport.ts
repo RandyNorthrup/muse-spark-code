@@ -76,7 +76,6 @@ export interface TransportDeps {
   /** Required by CodecClient: resolve/recheck against the saved network on every attempt. */
   readonly verifyEndpoint?: (url: string) => Promise<void>
   readonly parseError?: (status: number, body: unknown, headers: Headers) => ModelApiError
-  readonly isTerminalError?: (error: ModelApiError) => boolean
   /** The preset's own retry table (OPENAI-G20); defaults to the Responses table. */
   readonly retryTable?: RetryTables
   readonly sleep: (ms: number) => Promise<void>
@@ -1158,7 +1157,6 @@ export class RequestTransport {
         message: failure.message,
       })
       const isRetryable =
-        !this.deps.isTerminalError?.(failure) &&
         (this.deps.isRetryableFailure?.(failure) ?? decision.retry) &&
         (!isRateLimitOnly || response.status === HTTP_TOO_MANY_REQUESTS)
       if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {

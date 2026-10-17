@@ -4291,6 +4291,10 @@ export const EN = {
     '{provider} refused the request: its content filter blocked it. Rephrase without the flagged content and try again; nothing reached a model and nothing was charged for this request. {provider} said: {detail}',
   providerRefusalRateLimited:
     '{provider} refused the request for now: too many requests{wait}. Try again shortly; nothing was charged for this refusal. {provider} said: {detail}',
+  // Lane PROVERRORS: a usage window, fair-use limit or expired plan (Z.ai's
+  // 1308-1321). The provider's own words carry the reset time it names.
+  providerRefusalUsageLimit:
+    '{provider} refused the request: the account’s plan or usage limit does not allow it now, so it was not retried. Nothing was charged for this refusal. {provider} said: {detail}',
   providerRefusalOverloaded:
     '{provider} refused the request: it is overloaded{wait}. Try again shortly; nothing was charged for this refusal. {provider} said: {detail}',
   providerRefusalInvalidRequest:

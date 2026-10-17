@@ -46,6 +46,7 @@ export type ProviderRefusalKind =
   | 'notFound'
   | 'contentFilter'
   | 'rateLimited'
+  | 'usageLimit'
   | 'overloaded'
   | 'invalidRequest'
   | 'tooLarge'
@@ -79,6 +80,9 @@ export interface RefusalSignals {
 // OpenAI's documented 429 codes (read 2026-10-13,
 // https://developers.openai.com/api/docs/guides/error-codes): billing, spend
 // and quota errors, which "won't restore API access" on retry.
+// Z.ai's '1113' ("Insufficient balance or no resource package. Please
+// recharge.", HTTP 429; https://docs.z.ai/api-reference/api-code, read
+// 2026-10-17) is the same fact in its own code.
 const QUOTA_KINDS = new Set([
   'insufficient_quota',
   'quota_exceeded',
@@ -87,6 +91,28 @@ const QUOTA_KINDS = new Set([
   'project_spend_limit_exceeded',
   'organization_usage_limit_exceeded',
   'enforced_spend_limit_reached',
+  '1113',
+])
+// Z.ai's usage-limit codes, every one HTTP 429 and none a rate limit that
+// resets within the turn (https://docs.z.ai/api-reference/api-code, read
+// 2026-10-17; research zai.md ZB2): 1308 usage limit, 1309 GLM Coding Plan
+// expired, 1310 weekly/monthly limit, 1313 fair-use limit, 1314 enterprise
+// package expired, 1316-1321 the Coding Plan's 5-hour and 7-day limits.
+// Where Z.ai names a reset (`next_flush_time`) it is inside the message,
+// which the sentence quotes; the page documents no format for it, so it is
+// shown as Z.ai wrote it, never parsed.
+const USAGE_LIMIT_CODES = new Set([
+  '1308',
+  '1309',
+  '1310',
+  '1313',
+  '1314',
+  '1316',
+  '1317',
+  '1318',
+  '1319',
+  '1320',
+  '1321',
 ])
 const AUTH_KINDS = new Set([
   'authentication_error',
@@ -97,7 +123,15 @@ const AUTH_KINDS = new Set([
   'unauthorized',
   'unauthenticated',
 ])
-const PERMISSION_KINDS = new Set(['permission_error', 'permission_denied', 'forbidden'])
+// Z.ai (same page): '1311' the plan does not include the model, '1315' the
+// key is limited to enterprise coding scenarios — both HTTP 429.
+const PERMISSION_KINDS = new Set([
+  'permission_error',
+  'permission_denied',
+  'forbidden',
+  '1311',
+  '1315',
+])
 // Provider-recorded not-found codes beside the documented ones. Sources:
 // - 'not-found': recorded xAI unknown-model answer, 2026-10-12.
 // - 'model_not_available': recorded Together unknown-model answer, 2026-10-12.
@@ -116,10 +150,13 @@ const NOT_FOUND_KINDS = new Set([
 // Azure's documented prompt-filter code (read 2026-10-13,
 // https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter);
 // the chat codec already carries it from `finish_reason: "content_filter"`.
-const CONTENT_FILTER_CODES = new Set(['content_filter'])
-const OVERLOAD_KINDS = new Set(['overloaded_error', 'overloaded', 'server_overloaded'])
+// Z.ai's '1301' (unsafe or sensitive content, HTTP 400; same page).
+const CONTENT_FILTER_CODES = new Set(['content_filter', '1301'])
+// Z.ai's '1305' ("The service may be temporarily overloaded", HTTP 429).
+const OVERLOAD_KINDS = new Set(['overloaded_error', 'overloaded', 'server_overloaded', '1305'])
 const RATE_KINDS = new Set(['rate_limit_error', 'rate_limit_exceeded', 'rate_limited'])
-const TOO_LARGE_KINDS = new Set(['request_too_large', 'too_large', 'payload_too_large'])
+// Z.ai's '1261' ("Prompt too long", HTTP 400).
+const TOO_LARGE_KINDS = new Set(['request_too_large', 'too_large', 'payload_too_large', '1261'])
 const INVALID_KINDS = new Set([
   'invalid_request_error',
   'invalid_request',
@@ -184,6 +221,7 @@ export function classifyRefusalKind(signals: RefusalSignals): ProviderRefusalKin
     phraseKind(status, message) === 'credit'
   )
     return 'credit'
+  if (USAGE_LIMIT_CODES.has(code) || USAGE_LIMIT_CODES.has(type)) return 'usageLimit'
   if (
     status === HTTP_STATUS.unauthorized ||
     AUTH_KINDS.has(type) ||
@@ -269,6 +307,7 @@ export function isDefiniteRefusal(status: number): boolean {
 /** Refusals that are never retried: asking again cannot help. */
 const NEVER_RETRY: ReadonlySet<ProviderRefusalKind> = new Set([
   'credit',
+  'usageLimit',
   'authentication',
   'permission',
   'notFound',
@@ -530,6 +569,9 @@ export function refusalSentence(refusal: ProviderRefusal, provider: string): str
     }
     case 'rateLimited': {
       return fill(UI_TEXT.providerRefusalRateLimited, { provider, detail, wait })
+    }
+    case 'usageLimit': {
+      return fill(UI_TEXT.providerRefusalUsageLimit, { provider, detail })
     }
     case 'overloaded': {
       return fill(UI_TEXT.providerRefusalOverloaded, { provider, detail, wait })

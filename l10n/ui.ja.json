@@ -3478,6 +3478,7 @@
   "providerRefusalNotFound": "{provider}はリクエストを拒否しました: そのモデルはありません。{provider}が提供するモデルを選んでください。何も送信されず、課金もありません。{provider}の回答: {detail}",
   "providerRefusalContentFilter": "{provider}はリクエストを拒否しました:コンテンツフィルターがブロックしました。フラグの付いた内容を除いて言い換えて再試行してください。モデルには何も届いておらず、このリクエストに課金はありません。{provider}の回答:{detail}",
   "providerRefusalRateLimited": "{provider}はリクエストを一時的に拒否しました: リクエストが多すぎます{wait}。しばらくして再試行してください。この拒否に課金はありません。{provider}の回答: {detail}",
+  "providerRefusalUsageLimit": "{provider}はリクエストを拒否しました: アカウントのプランまたは使用量の上限により現在は利用できないため、再試行しませんでした。この拒否に課金はありません。{provider}の回答: {detail}",
   "providerRefusalOverloaded": "{provider}はリクエストを拒否しました: 過負荷です{wait}。しばらくして再試行してください。この拒否に課金はありません。{provider}の回答: {detail}",
   "providerRefusalInvalidRequest": "{provider}はリクエストを拒否しました: リクエストが無効です。課金はありません。{provider}の回答: {detail}",
   "providerRefusalTooLarge": "{provider}はリクエストを拒否しました: 大きすぎます。会話や添付を短くして再試行してください。課金はありません。{provider}の回答: {detail}",

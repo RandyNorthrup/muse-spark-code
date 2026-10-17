@@ -3632,6 +3632,7 @@
   "providerRefusalNotFound": "{provider} rechazó la solicitud: no conoce ese modelo. Elija un modelo que {provider} ofrezca; no se envió nada ni se cobró nada. {provider} dijo: {detail}",
   "providerRefusalContentFilter": "{provider} rechazó la solicitud: su filtro de contenido la bloqueó. Reformule sin el contenido marcado e inténtelo de nuevo; nada llegó a un modelo y nada se cobró por esta solicitud. {provider} dijo: {detail}",
   "providerRefusalRateLimited": "{provider} rechazó la solicitud por ahora: demasiadas solicitudes{wait}. Inténtelo de nuevo en breve; no se cobró nada por este rechazo. {provider} dijo: {detail}",
+  "providerRefusalUsageLimit": "{provider} rechazó la solicitud: el plan o el límite de uso de la cuenta no la permite ahora, así que no se reintentó. No se cobró nada por este rechazo. {provider} dijo: {detail}",
   "providerRefusalOverloaded": "{provider} rechazó la solicitud: está sobrecargado{wait}. Inténtelo de nuevo en breve; no se cobró nada por este rechazo. {provider} dijo: {detail}",
   "providerRefusalInvalidRequest": "{provider} rechazó la solicitud: la solicitud no era válida; no se cobró nada. {provider} dijo: {detail}",
   "providerRefusalTooLarge": "{provider} rechazó la solicitud: era demasiado grande. Acorte la conversación o los adjuntos e inténtelo de nuevo; no se cobró nada. {provider} dijo: {detail}",

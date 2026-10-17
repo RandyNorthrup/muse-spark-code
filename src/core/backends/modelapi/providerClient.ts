@@ -3,7 +3,6 @@ import type { ModelCapabilities } from '../../providers/capabilities'
 import * as z from 'zod/mini'
 import type { CredentialAuth } from '../../providers/credentialRecord'
 import type { ProviderFormat } from '../../providers/providersFile'
-import { presets } from '../../../host/backend/providersEntry'
 import type { CreateResponseBody, StreamEvent } from './schemas'
 import {
   RequestTransport,
@@ -109,7 +108,7 @@ export interface CodecClientDeps {
   readonly verifyEndpoint: (url: string) => Promise<void>
   readonly transport: Omit<
     TransportDeps,
-    'baseUrl' | 'auth' | 'apiKey' | 'parseError' | 'verifyEndpoint' | 'isTerminalError'
+    'baseUrl' | 'auth' | 'apiKey' | 'parseError' | 'verifyEndpoint'
   >
   readonly streamIdleMs?: number
 }
@@ -136,19 +135,17 @@ export class CodecClient implements ProviderClient {
       )
     }
     this.capabilities = (modelId) => deps.modelFor(modelId).capabilities
-    const zaiOrigin = presets.presetById('zai')?.origin
-    const isZai = zaiOrigin?.kind === 'fixed' && zaiOrigin.origin === deps.provider.origin
     this.transport = new RequestTransport({
       ...deps.transport,
       baseUrl: deps.baseUrl,
       auth: deps.auth,
       verifyEndpoint: deps.verifyEndpoint,
       parseError: (status, body, headers) => deps.codec.parseError(status, body, headers),
-      isTerminalError: (failure) => isZai && (failure.code === '1113' || failure.code === '1308'),
-      // Lane PROVERR: a credit, authentication, permission, not-found,
-      // content-filter, invalid-request or too-large refusal is never
-      // retried; anything else follows the preset's own retry table
-      // (OPENAI-G20), defaulting to the Responses table.
+      // Lane PROVERR: a credit, usage-limit (Z.ai's 1308-1321, lane
+      // PROVERRORS), authentication, permission, not-found, content-filter,
+      // invalid-request or too-large refusal is never retried; anything
+      // else follows the preset's own retry table (OPENAI-G20), defaulting
+      // to the Responses table.
       isRetryableFailure: (failure) => isRefusalRetryable(failure, deps.transport.retryTable),
     })
     this.currentKeyDigest = this.transport.currentKeyDigest.bind(this.transport)

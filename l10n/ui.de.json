@@ -3555,6 +3555,7 @@
   "providerRefusalNotFound": "{provider} hat die Anfrage abgelehnt: Dieses Modell kennt der Anbieter nicht. Wählen Sie ein Modell, das {provider} anbietet; nichts wurde gesendet und nichts berechnet. {provider} meldete: {detail}",
   "providerRefusalContentFilter": "{provider} hat die Anfrage abgelehnt: Sein Inhaltsfilter hat sie blockiert. Formulieren Sie sie ohne die beanstandeten Inhalte um und versuchen Sie es erneut; nichts erreichte ein Modell und für diese Anfrage wurde nichts berechnet. {provider} meldete: {detail}",
   "providerRefusalRateLimited": "{provider} hat die Anfrage vorerst abgelehnt: zu viele Anfragen{wait}. Versuchen Sie es bald erneut; für diese Ablehnung wurde nichts berechnet. {provider} meldete: {detail}",
+  "providerRefusalUsageLimit": "{provider} hat die Anfrage abgelehnt: Tarif oder Nutzungslimit des Kontos lassen sie derzeit nicht zu, daher wurde sie nicht wiederholt. Für diese Ablehnung wurde nichts berechnet. {provider} meldete: {detail}",
   "providerRefusalOverloaded": "{provider} hat die Anfrage abgelehnt: Der Anbieter ist überlastet{wait}. Versuchen Sie es bald erneut; für diese Ablehnung wurde nichts berechnet. {provider} meldete: {detail}",
   "providerRefusalInvalidRequest": "{provider} hat die Anfrage abgelehnt: Die Anfrage war ungültig; nichts wurde berechnet. {provider} meldete: {detail}",
   "providerRefusalTooLarge": "{provider} hat die Anfrage abgelehnt: Sie war zu groß. Kürzen Sie die Unterhaltung oder Anhänge und versuchen Sie es erneut; nichts wurde berechnet. {provider} meldete: {detail}",

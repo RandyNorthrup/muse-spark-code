@@ -3478,6 +3478,7 @@
   "providerRefusalNotFound": "{provider}拒絕了請求：沒有該模型。請選擇{provider}提供的模型；未傳送任何內容，也未產生任何費用。{provider}回覆：{detail}",
   "providerRefusalContentFilter": "{provider}拒絕了請求:其內容過濾器已攔截。請去掉被標記的內容後改寫並重試;沒有任何內容到達模型,本次請求未計費。{provider}稱:{detail}",
   "providerRefusalRateLimited": "{provider}暫時拒絕了請求：請求過多{wait}。請稍後重試；本次拒絕未產生任何費用。{provider}回覆：{detail}",
+  "providerRefusalUsageLimit": "{provider}拒絕了請求：帳戶的方案或用量上限目前不允許此請求，因此未重試。本次拒絕未產生任何費用。{provider}回覆：{detail}",
   "providerRefusalOverloaded": "{provider}拒絕了請求：其服務過載{wait}。請稍後重試；本次拒絕未產生任何費用。{provider}回覆：{detail}",
   "providerRefusalInvalidRequest": "{provider}拒絕了請求：請求無效；未產生任何費用。{provider}回覆：{detail}",
   "providerRefusalTooLarge": "{provider}拒絕了請求：請求過大。請縮短對話或附件後重試；未產生任何費用。{provider}回覆：{detail}",

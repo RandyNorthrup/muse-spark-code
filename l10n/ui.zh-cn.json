@@ -3478,6 +3478,7 @@
   "providerRefusalNotFound": "{provider}拒绝了请求：没有该模型。请选择{provider}提供的模型；未发送任何内容，也未产生任何费用。{provider}回复：{detail}",
   "providerRefusalContentFilter": "{provider}拒绝了请求:其内容过滤器已拦截。请去掉被标记的内容后改写并重试;没有任何内容到达模型,本次请求未计费。{provider}称:{detail}",
   "providerRefusalRateLimited": "{provider}暂时拒绝了请求：请求过多{wait}。请稍后重试；本次拒绝未产生任何费用。{provider}回复：{detail}",
+  "providerRefusalUsageLimit": "{provider}拒绝了请求：帐户的套餐或用量上限目前不允许此请求，因此未重试。本次拒绝未产生任何费用。{provider}回复：{detail}",
   "providerRefusalOverloaded": "{provider}拒绝了请求：其服务过载{wait}。请稍后重试；本次拒绝未产生任何费用。{provider}回复：{detail}",
   "providerRefusalInvalidRequest": "{provider}拒绝了请求：请求无效；未产生任何费用。{provider}回复：{detail}",
   "providerRefusalTooLarge": "{provider}拒绝了请求：请求过大。请缩短对话或附件后重试；未产生任何费用。{provider}回复：{detail}",

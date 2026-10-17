@@ -3709,6 +3709,7 @@
   "providerRefusalNotFound": "{provider} požadavek odmítl: takový model nezná. Vyberte model, který {provider} nabízí; nic nebylo odesláno a nic nebylo účtováno. {provider} uvedl: {detail}",
   "providerRefusalContentFilter": "{provider} požadavek odmítl: zablokoval jej jeho filtr obsahu. Přeformulujte jej bez označeného obsahu a zkuste to znovu; k modelu se nic nedostalo a za tento požadavek nebylo nic účtováno. {provider} uvedl: {detail}",
   "providerRefusalRateLimited": "{provider} požadavek prozatím odmítl: příliš mnoho požadavků{wait}. Zkuste to brzy znovu; za toto odmítnutí nebylo nic účtováno. {provider} uvedl: {detail}",
+  "providerRefusalUsageLimit": "{provider} požadavek odmítl: tarif nebo limit využití účtu to teď nedovoluje, proto nebyl opakován. Za toto odmítnutí nebylo nic účtováno. {provider} uvedl: {detail}",
   "providerRefusalOverloaded": "{provider} požadavek odmítl: je přetížen{wait}. Zkuste to brzy znovu; za toto odmítnutí nebylo nic účtováno. {provider} uvedl: {detail}",
   "providerRefusalInvalidRequest": "{provider} požadavek odmítl: požadavek je neplatný; nic nebylo účtováno. {provider} uvedl: {detail}",
   "providerRefusalTooLarge": "{provider} požadavek odmítl: je příliš velký. Zkraťte konverzaci nebo přílohy a zkuste to znovu; nic nebylo účtováno. {provider} uvedl: {detail}",
