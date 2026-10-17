@@ -9,6 +9,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Web fetch no longer ships a dead second HTML-to-Markdown entry point:
+  `htmlToMarkdown` had no callers (both backends convert through
+  `convertHtmlJob` on the page worker), so it was removed. No behaviour
+  change.
+- Paid-use consent audit: the four unused consent helpers for scheduled
+  runs and per-account consent stay unwired until their owning milestones
+  land (M115 Lane U's per-schedule consent; M108 lane P's per-account
+  consent). Verified fail-closed meanwhile: paid schedule drafts are
+  refused without caller budget, every reachable paid use still asks the
+  popup, and a new unit suite locks the refusal contract. No behaviour
+  change.
+
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
