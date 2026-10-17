@@ -34,6 +34,14 @@ import type { UiText } from '../shared/l10n/en'
 import { fill } from '../shared/l10n/text'
 import { CLI_OPTION_REGISTRY, formatAcpUsage } from './cliOptions'
 import { nearestOptionName } from './editDistance'
+import {
+  PROMPT_CHATS,
+  PROMPT_SCOPES,
+  SHARE_DESTINATIONS,
+  SHARE_FORMATS,
+  SHARE_MODES,
+  SHARING_DEFAULTS,
+} from './sharing/args'
 
 export type CliHelpRoute = keyof typeof CLI_OPTION_REGISTRY
 
@@ -148,6 +156,22 @@ function factFor(name: string): CliOptionFact | undefined {
     }
     case 'providersAdd:privacy': {
       return { kind: 'enum', values: ['zdr', 'no-training', 'any'] }
+    }
+    case 'share:mode': {
+      return { kind: 'enum', values: SHARE_MODES, default: SHARING_DEFAULTS.mode }
+    }
+    case 'share:format': {
+      return { kind: 'enum', values: SHARE_FORMATS, default: SHARING_DEFAULTS.format }
+    }
+    case 'share:destination': {
+      // No default: without --out it is copy, with --out it is file.
+      return { kind: 'enum', values: SHARE_DESTINATIONS }
+    }
+    case 'prompts:scope': {
+      return { kind: 'enum', values: PROMPT_SCOPES, default: SHARING_DEFAULTS.scope }
+    }
+    case 'prompts:chat': {
+      return { kind: 'enum', values: PROMPT_CHATS, default: SHARING_DEFAULTS.chat }
     }
     default: {
       return undefined
@@ -450,9 +474,9 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     ],
     ...GENERIC_EXITS,
   },
-  // The sharing commands are parsed by the injected sharing parser, not by
-  // the strict table, so they carry no registry routes yet: usage, purpose
-  // and examples only, answered before any local binding is needed.
+  // The sharing commands are parsed by the owner parser in sharing/args.ts;
+  // the registry mirrors its flags (help-only routes: the strict table never
+  // sees them) so the screens render their options from the same table.
   {
     name: 'share',
     purpose: (table) => table.cliHelp.purposeShare,
@@ -460,8 +484,23 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) =>
         `${command} share chat [--mode full|conversation] [--format md|html|json] [--destination copy|file|browser] [--out <file>]`,
     ],
-    routes: [],
-    options: [],
+    routes: ['share'],
+    options: [
+      { name: 'mode', shape: '', fact: factFor('share:mode') },
+      { name: 'format', shape: '', fact: factFor('share:format') },
+      { name: 'destination', shape: '', fact: factFor('share:destination') },
+      { name: 'out', shape: '<file>' },
+      { name: 'from', shape: '<message>' },
+      { name: 'to', shape: '<message>' },
+      { name: 'no-code-blocks', shape: '' },
+      { name: 'no-attachment-names', shape: '' },
+      { name: 'diffs', shape: '' },
+      { name: 'attachment-content', shape: '<kind>' },
+      { name: 'exported-at', shape: '<time>' },
+      { name: 'confirm', shape: '<preview-id>' },
+      { name: 'json', shape: '' },
+      { name: 'cwd', shape: '<directory>' },
+    ],
     examples: [
       (command) => `${command} share chat --mode conversation`,
       (command) => `${command} share chat --destination file --out chat.md`,
@@ -474,10 +513,20 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     usage: [
       (command) => `${command} prompts list [--search <text>] [--tag <tag>]`,
       (command) => `${command} prompts save --title <text> [--scope user|workspace]`,
-      (command) => `${command} prompts use <id> [--var name=value] [--confirm]`,
+      (command) => `${command} prompts use <id> [--var <name=value>] [--confirm]`,
     ],
-    routes: [],
-    options: [],
+    routes: ['prompts'],
+    options: [
+      { name: 'scope', shape: '', fact: factFor('prompts:scope') },
+      { name: 'search', shape: '<text>' },
+      { name: 'tag', shape: '<tag>' },
+      { name: 'title', shape: '<title>' },
+      { name: 'chat', shape: '', fact: factFor('prompts:chat') },
+      { name: 'var', shape: '<name=value>' },
+      { name: 'confirm', shape: '' },
+      { name: 'json', shape: '' },
+      { name: 'cwd', shape: '<directory>' },
+    ],
     examples: [
       (command) => `${command} prompts list --search deploy`,
       (command) => `${command} prompts use standup --var name=Ana --confirm`,
@@ -513,9 +562,22 @@ export function topicShownOptionNames(topic: CliHelpTopic): string[] {
   return topic.options.map((option) => option.name).filter((name) => !isDormantOption(name))
 }
 
-/** Option descriptions come from the installed language's table. */
-function optionMeaning(table: UiText, name: string): string {
+/**
+ * Option descriptions come from the installed language's table. A route's
+ * `text` map picks a route-specific description (share's message range, not
+ * the generic from/to); otherwise the option name is the key.
+ */
+function optionMeaning(table: UiText, route: CliHelpRoute | undefined, name: string): string {
   const meanings: Readonly<Record<string, string>> = table.referenceCliOptions
+  if (route !== undefined) {
+    const entry = CLI_OPTION_REGISTRY[route]
+    // Only share and prompts carry a text map today; the lookup keeps the
+    // map's keys inside referenceCliOptions, so a wrong key fails typecheck.
+    if ('text' in entry) {
+      const hit = Object.entries(entry.text).find(([key]) => key === name)?.[1]
+      if (hit !== undefined) return meanings[hit] ?? name
+    }
+  }
   return meanings[name] ?? name
 }
 
@@ -550,7 +612,7 @@ export function renderOptionRow(table: UiText, route: CliHelpRoute, option: CliH
     definition !== undefined && 'multiple' in definition && definition.multiple === true
   // Descriptions may contain a legacy rendered prefix. Keep its translated
   // prose, but the table alone owns the flag and required value syntax.
-  const meaning = optionMeaning(table, option.name).replace(
+  const meaning = optionMeaning(table, route, option.name).replace(
     /^--[\w-]+(?::\s*|\s+(?:<[^>]+>|[\w-]+(?:\|[\w-]+)+|YYYY-MM-DD)(?::\s*|\s{2,})|\s{2,})/,
     '',
   )
@@ -581,7 +643,7 @@ export function renderTopicHelp(table: UiText, command: string, topic: CliHelpTo
       )
       lines.push(
         route === undefined
-          ? `  --${option.name}  ${optionMeaning(table, option.name)}`
+          ? `  --${option.name}  ${optionMeaning(table, undefined, option.name)}`
           : renderOptionRow(table, route, option),
       )
     }

@@ -867,6 +867,14 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       unit: 'USD',
     },
   }
+  // Share's --from/--to are message markers (the ShareRequest range), not the
+  // usage dates the bare names describe: the date format must not follow them.
+  const factsFor = (route, name) =>
+    route === 'share' && (name === 'from' || name === 'to')
+      ? Object.fromEntries(
+          Object.entries(optionFacts[name] ?? {}).filter(([facet]) => facet !== 'format'),
+        )
+      : optionFacts[name]
   for (const option of parserOptions(runtimeSource, source)) {
     if (source.CLI_OPTION_TEXT[option.name] === undefined)
       errors.push(`CLI option lacks contract: --${option.name}`)
@@ -906,7 +914,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
           type: option.type,
           ...(option.name === 'maintenance' && route !== 'setup' && { refused: true }),
           repeatable: option.multiple === true,
-          ...optionFacts[option.name],
+          ...factsFor(route, option.name),
           ...(['serve', 'login'].includes(route) &&
             [
               'provider',

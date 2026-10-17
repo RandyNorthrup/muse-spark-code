@@ -15,6 +15,15 @@ import {
   topicOptionNames,
 } from '../../src/runtime/cliHelp'
 import { CLI_OPTION_REGISTRY } from '../../src/runtime/cliOptions'
+import {
+  parseSharingArgs,
+  PROMPT_CHATS,
+  PROMPT_SCOPES,
+  SHARE_DESTINATIONS,
+  SHARE_FORMATS,
+  SHARE_MODES,
+  SHARING_DEFAULTS,
+} from '../../src/runtime/sharing/args'
 import { EN } from '../../src/shared/l10n/en'
 
 const COMMAND = 'muse-spark-code-acp'
@@ -269,6 +278,127 @@ describe('one table drives parsing and help', () => {
     const parsed = parseCommandLine(['exec', '--outside-the-table', 'hi'])
     expect(parsed).toMatchObject({ command: 'invalid', exitCode: 2 })
   })
+
+  it('mirrors the owner sharing parser: every registered share/prompts flag parses and lands', () => {
+    // The strict table never sees these routes (parseCommandLine hands them
+    // to the owner before its own parse), so probeArgv skips them; this test
+    // binds the registry to the owner directly instead. A registered flag the
+    // owner rejects, or one it accepts but drops, fails here.
+    for (const mode of SHARE_MODES) {
+      expect(share(['--mode', mode])).toMatchObject({ command: 'share', request: { mode } })
+    }
+    for (const format of SHARE_FORMATS) {
+      expect(share(['--format', format])).toMatchObject({
+        command: 'share',
+        request: { format },
+      })
+    }
+    for (const destination of SHARE_DESTINATIONS) {
+      expect(share(['--destination', destination])).toMatchObject({
+        command: 'share',
+        request: { destination },
+      })
+    }
+    expect(share(['--out', 'chat.md'])).toMatchObject({
+      command: 'share',
+      out: 'chat.md',
+      request: { destination: 'file' },
+    })
+    expect(share(['--from', 'm1', '--to', 'm2'])).toMatchObject({
+      command: 'share',
+      request: { range: { from: 'm1', to: 'm2' } },
+    })
+    expect(share(['--no-code-blocks'])).toMatchObject({
+      command: 'share',
+      request: { options: { codeBlocks: false } },
+    })
+    expect(share(['--no-attachment-names'])).toMatchObject({
+      command: 'share',
+      request: { options: { attachmentNames: false } },
+    })
+    expect(share(['--diffs'])).toMatchObject({
+      command: 'share',
+      request: { options: { diffs: true } },
+    })
+    expect(share(['--attachment-content', 'all'])).toMatchObject({
+      command: 'share',
+      request: { options: { attachmentContents: ['all'] } },
+    })
+    expect(share(['--exported-at', 't'])).toMatchObject({ command: 'share', exportedAt: 't' })
+    expect(share(['--confirm', 'p1'])).toMatchObject({ command: 'share', confirmation: 'p1' })
+    expect(share(['--json'])).toMatchObject({ command: 'share', json: true })
+    expect(share(['--cwd', '/x'])).toMatchObject({ command: 'share', cwd: '/x' })
+    // The parser-effective defaults are the screen's defaults.
+    expect(share([])).toMatchObject({
+      command: 'share',
+      request: {
+        mode: SHARING_DEFAULTS.mode,
+        format: SHARING_DEFAULTS.format,
+        // The documented conditional default: copy without --out, file with it.
+        destination: 'copy',
+      },
+    })
+    expect(list(['--search', 'x'])).toMatchObject({
+      command: 'prompts',
+      action: 'list',
+      search: 'x',
+    })
+    expect(list(['--tag', 't'])).toMatchObject({ command: 'prompts', action: 'list', tag: 't' })
+    expect(list(['--json'])).toMatchObject({ command: 'prompts', action: 'list', json: true })
+    expect(save(['--title', 'T'])).toMatchObject({
+      command: 'prompts',
+      action: 'save',
+      title: 'T',
+      scope: SHARING_DEFAULTS.scope,
+    })
+    for (const scope of PROMPT_SCOPES) {
+      expect(save(['--title', 'T', '--scope', scope])).toMatchObject({
+        command: 'prompts',
+        action: 'save',
+        scope,
+      })
+    }
+    expect(save(['--title', 'T', '--tag', 't'])).toMatchObject({
+      command: 'prompts',
+      action: 'save',
+      tags: ['t'],
+    })
+    for (const chat of PROMPT_CHATS) {
+      expect(use(['--chat', chat])).toMatchObject({ command: 'prompts', action: 'use', chat })
+    }
+    const used = use(['--var', 'a=b', '--confirm'])
+    if (used.command !== 'prompts' || used.action !== 'use') throw new Error('use probe misparsed')
+    expect(used.vars.get('a')).toBe('b')
+    expect(used.confirmed).toBe(true)
+    expect(use([])).toMatchObject({
+      command: 'prompts',
+      action: 'use',
+      scope: SHARING_DEFAULTS.scope,
+      chat: SHARING_DEFAULTS.chat,
+      confirmed: false,
+    })
+    // The owner stays strict: a bogus flag, value or half range throws.
+    expect(() => share(['--bogus'])).toThrow()
+    expect(() => list(['--bogus'])).toThrow()
+    expect(() => share(['--mode', 'nope'])).toThrow()
+    expect(() => share(['--from', 'm1'])).toThrow()
+    // The screens show the same values and defaults the parser uses.
+    const shareTopic = helpTopicNamed('share')
+    const promptsTopic = helpTopicNamed('prompts')
+    if (shareTopic === undefined || promptsTopic === undefined)
+      throw new Error('sharing topics are missing')
+    const shareText = renderTopicHelp(EN, COMMAND, shareTopic)
+    expect(shareText).toContain(`--mode ${SHARE_MODES.join('|')}`)
+    expect(shareText).toContain(`default ${SHARING_DEFAULTS.mode}`)
+    expect(shareText).toContain(`--destination ${SHARE_DESTINATIONS.join('|')}`)
+    expect(shareText).not.toContain('default copy')
+    expect(shareText).toContain('First message to include')
+    expect(shareText).toContain('machine-readable result')
+    const promptsText = renderTopicHelp(EN, COMMAND, promptsTopic)
+    expect(promptsText).toContain(`--chat ${PROMPT_CHATS.join('|')}`)
+    expect(promptsText).toContain(`default ${SHARING_DEFAULTS.chat}`)
+    expect(promptsText).toContain('--confirm  Confirm without asking')
+  })
 })
 
 /** The exit-2 refusal one argv earns: asserts the refusal, returns its reason. */
@@ -277,6 +407,12 @@ function refusalFor(argv: readonly string[]): string {
   expect(parsed, argv.join(' ')).toMatchObject({ command: 'invalid', exitCode: 2 })
   return parsed.command === 'invalid' ? parsed.reason : ''
 }
+
+/** Probes behind the sharing commands' owner grammar (parseSharingArgs). */
+const share = (argv: string[]) => parseSharingArgs(['share', 'chat', ...argv], 's1')
+const list = (argv: string[]) => parseSharingArgs(['prompts', 'list', ...argv])
+const save = (argv: string[]) => parseSharingArgs(['prompts', 'save', ...argv])
+const use = (argv: string[]) => parseSharingArgs(['prompts', 'use', 'pid', ...argv])
 
 /** One probe per shown option: a string option takes a dummy value. */
 function probeArgv(topic: string, name: string): string[] | undefined {
