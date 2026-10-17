@@ -21,10 +21,29 @@ import { memorySecrets, FakeLogOutputChannel } from './fakes'
 import { CURRENT_SHAPE_KEYS } from './modelApiKeys'
 import { fakeModelApi } from './fakeModelApi'
 import { fakeManagerDeps } from './modelApiManager'
-import { watchSessionTurns } from './sessionTurns'
+import type { AgentEvent } from '../../../src/shared/agentEvents'
+import type { AgentSession } from '../../../src/core/agent/agentBackend'
 
 export const ACCOUNT_TEST_MODEL = 'muse-spark-1.3'
 export { CURRENT_SHAPE_KEYS as ACCOUNT_TEST_KEYS } from './modelApiKeys'
+
+/** A session's events, and a wait for its next turn's end. */
+export function watchSessionTurns(session: AgentSession): {
+  events: AgentEvent[]
+  turnDone: () => Promise<void>
+} {
+  const events: AgentEvent[] = []
+  let done = Promise.withResolvers<undefined>()
+  session.onEvent((event) => {
+    events.push(event)
+    if (event.type !== 'turnCompleted') {
+      return
+    }
+    done.resolve(undefined)
+    done = Promise.withResolvers<undefined>()
+  })
+  return { events, turnDone: () => done.promise }
+}
 
 export async function accountComposition(distDir: string, isEditor = false) {
   const folder = realpathSync(mkdtempSync(path.join(tmpdir(), 'cm1082-composition-')))

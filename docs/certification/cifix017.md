@@ -1083,3 +1083,540 @@ and each step first waits for them (a request open 15 s fails the scene
 instead of hanging the job); the 100-step bound now counts frozen-clock time
 only. The routes continue to localhost or abort, so every request finishes.
 Pages that are not tracked (the `visualReadiness` unit case) behave as before.
+
+## Question field spacing (2026-10-10)
+
+Kubuntu, Chrome 150.0.7871.186; capture source
+`fb7a3f005b32756f98280988725e0edf0396b424`, review
+`owner-2026-10-10-question-field-gap`. The old manifest names `6636c84be`.
+The complete old/new archive comparison verifies all **9,792 frames** and
+finds **144 over-allowance frames in exactly two scenes: `question` and
+`question-filled`**, 72 each (six themes, both widths, all six states).
+The remaining frames have seventeen counted pixels total, at most one per
+image, within the unchanged policy. Dimensions, renderer coverage, targets,
+applied states and rasterization are unchanged. Reviewed light, dark and
+high-contrast images show the added spacing and the stretched answer field.
+
+- `npm run check:visual` before refresh exits 1 at
+  `panel/question/default/light/320`: 8,512 changed pixels, allowance 12.
+  A separate 136-scene light/320 default-state comparison confirms only the
+  two question scenes differ before updating.
+- `npm run check:visual -- --update --review=owner-2026-10-10-question-field-gap
+--archive=/var/tmp/l-VQGOLD/vqgold-question-field-gap-2026-10-10` exits 0:
+  9,792 PNGs, **446,957,226 bytes**, below 512 MiB and outside Git.
+- `npm run readme:shots -- --only question,open-question` exits 0. Only
+  `media/readme/question.png` and `media/readme/open-question.png` are
+  regenerated and reviewed; the focused field clears Other and the buttons.
+  The complete README media set is **1,504,458 / 2,097,152 bytes**.
+- Existing freshness guards first fail on the QuestionCard source hash and
+  README pixel-input digest (two failures, 34 passes). After capture, refresh
+  only the two stale current audit hashes (QuestionCard and styles.css) and
+  the README digest; all freshness assertions pass below.
+
+All unit commands use repository timeouts on this rig:
+
+| Command (`npx vitest run … --maxWorkers=3`)                                                              | Result                                                                                                |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `test/unit/visualCapture.test.mjs test/unit/visualStability.test.mjs test/unit/visualReadiness.test.mjs` | 15/15 pass. An initial setup terminated with exit 143 before reporting tests; unchanged retry passes. |
+| `test/unit/m114Panel.test.mjs test/unit/m114Audit.test.mjs test/unit/readmeShots.test.mjs`               | 95/95 pass, including 71 panel cases and the focus-ring regression.                                   |
+| `test/unit/visualGate.test.mjs test/unit/m114PanelEvidence.test.mjs`                                     | 14/14 pass.                                                                                           |
+
+`npm run typecheck` (all five projects), changed-file ESLint, plain knip,
+`npx jscpd` (zero clones), localization, tokens, host API, reference, plan and
+roadmap checks all exit 0. `npm run build` exits 0 with every existing cap:
+extension **550.1 / 600 KiB**, Model API **515.8 / 525 KiB**, checkpoint store
+**87.3 / 225 KiB**. Aggregate quality remains lead-owned under the rig brief.
+No new gate or test is introduced; the initial visual and freshness failures
+prove the existing guards fire. The parent spacing fix's browser regression
+is retained and passes at default timeouts.
+
+**Initial final visual verification was blocked.** The first post-update
+`npm run check:visual` stops because `slash-commands` does not mount
+`src/webview/components/SlashMenu.tsx` (no page errors). After the browser
+suites finish, the serial rerun passes that scene but exits 1 at
+`tasks/tasks-tab/default/dark/320`: **Visual state coverage changed**.
+This is outside the question-card change. Stop under the brief's unrelated
+scene rule; do not change its baseline, parser or capture policy. The reviewed
+manifest, two README images and freshness records were left uncommitted for
+the lead's decision. Logs: `temp/vqgold-visual-after.log` and
+`temp/vqgold-visual-after-serial.log`; complete old/new review:
+`temp/vqgold-full-review.json`. Text-file Prettier and `git diff --check` pass.
+
+**VQGOLD round 2, lead decision (2026-10-10).** The lead accepts the reviewed
+question-card baseline files above and explicitly requests their hooks-on
+commit. Investigate the tasks-tab mismatch separately by repeating visual
+shard 2/6 twice in a clean worktree at unchanged main `82d50d5e4`, in this
+same environment. Do not update any further scene baseline or capture policy.
+Aggregate quality and hosted qualification remain lead-owned.
+Before committing, reran the complete `m114Panel`, `m114Audit` and
+`readmeShots` suites: **95/95 pass** at repository timeouts (45.18 s).
+Changed-file ESLint, four-file Prettier and `git diff --check` also pass.
+
+### Tasks-tab controls — VQGOLD round 2 (2026-10-10)
+
+Baseline files committed with installed hooks as `1df6c04b6`:
+the manifest, both README question images, audit hashes, README fingerprint
+and this certification. lint-staged and gitleaks pass; staged and committed
+diffs were reread after the hook.
+
+Created a detached main worktree at
+`82d50d5e456d17205623064b0a70caf8a6e34471` under
+`$TMPDIR/vqgold-main-82d50d5e4-round2`, without the spacing fix. Both final
+controls start with empty `git status --porcelain`, and the worktree remains
+clean afterwards. Dependencies resolve through a symlink in its private
+parent, outside the worktree; the shared install is unchanged. An initial
+setup replay also passes, but is supplementary because its dependency
+symlink was moved out of the worktree after launch and before capture.
+
+Ran the same supported command in main twice, then in this branch at
+`1df6c04b6`: `npm run check:visual -- --shard=2/6`. This shard contains
+`tasks/tasks-tab/default/dark/320` and all six states of tasks-tab at both
+dark-theme widths. Trimmed final output:
+
+| Worktree / run | Exit | Output                                                                                          |
+| -------------- | ---- | ----------------------------------------------------------------------------------------------- |
+| Main / 2       | 0    | `visual: 1632 captures passed; 3 changed pixels within per-image tolerance; manifest unchanged` |
+| Main / 3       | 0    | `visual: 1632 captures passed; 3 changed pixels within per-image tolerance; manifest unchanged` |
+| Branch / 1     | 0    | `visual: 1632 captures passed; 0 changed pixels within per-image tolerance; manifest unchanged` |
+
+All three receipts use Chrome **150.0.7871.186**, Linux, the same recorded
+rasterization fingerprint, and the unchanged pixel policy. None reconstructs
+the baseline; each verifies and uses its existing reviewed archive. Main's
+maximum changed pixels per image is one. The branch manifest's SHA-256 is
+unchanged across its check.
+
+**Verdict: not reproduced in the requested shard.** Neither a failure on
+unchanged main nor a branch-only failure occurs. The prior whole-matrix
+capture-state error remains unexplained; these controls do not establish an
+environmental root cause or an effect of the question fix on the tasks tab.
+TasksApp, main.tsx, the capture implementation, harness HTML and visual matrix
+are byte-identical between main and this branch. All 72 tasks-tab coverage
+rows retain identical dimensions, component lists, targets and applied states.
+The product diff adds only QuestionCard's body class and CSS under that class.
+No further baseline or capture-policy update is made. Whole-matrix and
+aggregate release qualification remain lead-owned.
+
+The visual commands' production builds pass their existing caps: extension
+**550.1 / 600 KiB**, Model API **515.8 / 525 KiB**, checkpoint store
+**87.3 / 225 KiB**. No new gate or test is added; the earlier red visual and
+freshness checks remain the guard-fire evidence.
+
+Exact logs and receipts are retained in this lane's ignored `temp/`:
+`vqgold-round2-main-visual-{2,3}.log`, matching `.exit` and `.receipt.json`
+files, and `vqgold-round2-branch-visual-1.*`. The source comparison and complete
+receipts are also collected in `vqgold-round2-summary.json`. The temporary
+main worktree and dependency symlink are removed after preserving these files.
+
+## 0.17.1 visual refresh (VIS0171, 2026-10-10)
+
+Round 2 below supersedes the original stop after the lead explicitly approves
+all 120 changed scenes, including the three current release-note scenes. The
+following round-1 record is retained as historical evidence.
+
+### Round 1 historical stopped record
+
+**Stopped under brief step 2's class-(d) rule.** No baseline, README image,
+README input fingerprint or current audit hash is approved or updated. The
+full zero-changed-scene check is not qualified. The remaining five candidate
+themes/shards, frame-by-frame approval review, curated README recapture and
+old-baseline restoration drill wait for Q-VIS0171-RELEASE-NOTES. The lead must
+extend the brief to include the new release-note content before continuing.
+
+Linuxlt, Linux, Node 24.21.0, Chrome **153.0.8010.52**. Starting release head:
+`4acb7015f`; candidate capture inputs after the two necessary harness repairs:
+`575bb25df0bca14e7ec423f3e3dcd1450d770825`. The existing reviewed manifest names
+`fb7a3f005b32756f98280988725e0edf0396b424`, Chrome 150.0.7871.186, and an archive
+absent on this rig. Reconstruction renders that exact recorded Git source in
+this rig's browser. No dependency, theme, threshold, timeout, cap, production
+schema or application UI is changed.
+
+### Commands, counts and prerequisite repairs
+
+- `npm run build` exits 0: extension **550.1 / 600 KiB**, Model API
+  **516.6 / 525 KiB**, checkpoint store **87.3 / 225 KiB**.
+- `npm run check:visual` on the starting head exits 1 during reconstruction
+  after 288 frames: `paid-always/light/320/en` waits for `Auth Method`, while
+  the recorded source renders `Auth method`. Exact case-insensitive account
+  and vault-action selectors retain the painted-label checks for historical
+  and current text. New browser regressions first fail on both old spellings.
+  Hooks-on repair: `7c8338ac5`; log: `temp/vis0171-visual-before.log`.
+- `node temp/vis0171-compare.mjs`, using repository `snapshot`, `captureMatrix`,
+  `saveCapture` and pixel helpers, completes **9,792 historical PNGs**, six
+  themes, both widths and all six states, **447,230,137 bytes / 512 MiB**.
+  Archive: `/var/tmp/l-VIS0171/vis0171-before`; exact metadata:
+  `temp/vis0171-before-captures.json`.
+- That run and the candidate-only retry both fail at
+  `models-configure/light/320/en`: `never rendered: .models-panel section`.
+  A retained failing-page screenshot shows **Connecting to the extension
+  host…**. Parsing its actual fake-host message with the unchanged production
+  schema identifies missing `sessionBudget`. PROVWIZ9 already records this
+  stale harness in this document's companion `provcat.md`; its canonical
+  `modelsPanelFixtures.makeState().sessionBudget` supplies the fixture, and
+  a new strict-schema regression fails before repair. Hooks-on fixture repair:
+  `575bb25df`. Evidence: `temp/vis0171-models-failure.png`,
+  `temp/vis0171-models-schema.log`.
+- `node temp/vis0171-candidate.mjs` after repair completes every scene, width
+  and state in **light: 1,632 frames**. Repository pixel policy finds
+  **1,440 over-allowance frames in 120 scenes**, 12 per scene; 192 frames
+  remain within policy. It then reaches the beginning of dark. On inspecting
+  the release-note frames, stop the foreground capture with SIGTERM as the
+  brief requires. **2,100 candidate PNGs** are retained; the progress record
+  has **1,860 over-allowance comparisons**, no additional changed scene beyond
+  the light list, and **zero observed state-coverage changes**. The deliberate
+  stop closes Chrome; its final `browserContext.close` error is termination
+  evidence, not a new visual failure. Archive:
+  `/var/tmp/l-VIS0171/vis0171-review`; log:
+  `temp/vis0171-candidate-final.log`; raw comparisons:
+  `temp/vis0171-comparison-progress.json`; light summary:
+  `temp/vis0171-stopped-comparison.json`.
+
+Diagnostics use the repository's unmodified `comparePixels` policy and verify
+historical PNG byte hashes. Exact-byte matches require no pixel decoding;
+repeated decoded images are cached within one scene/theme/width only. These
+are comparison receipts, not a substitute green official visual check. No
+candidate manifest is written. The existing manifest remains byte-exact:
+SHA-256 `e314783f2e7bcd2d95ecd83327e9e9142fe3fe66ae71a0418524fb118c4fed50`.
+
+### Class-(d) before/after captures and stop decision
+
+The actual packaged notes change version **0.17.0 → 0.17.1**, release date
+**Oct 8 → Oct 10**, the reporting highlight to the provider-picker highlight,
+and the release body/footer from media/security notes to provider/DeepSeek
+notes. These exceed the permitted label/spacing/picker pixel classes.
+
+| Scene                  | Before capture                                                                           | After capture                                                                            | Decision     |
+| ---------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------ |
+| `whats-new`            | `/var/tmp/l-VIS0171/vis0171-before/whats-new/whats-new/default/light/320.png`            | `/var/tmp/l-VIS0171/vis0171-review/whats-new/whats-new/default/light/320.png`            | (d), stopped |
+| `whats-new-footer`     | `/var/tmp/l-VIS0171/vis0171-before/whats-new/whats-new-footer/default/light/690.png`     | `/var/tmp/l-VIS0171/vis0171-review/whats-new/whats-new-footer/default/light/690.png`     | (d), stopped |
+| `whats-new-highlights` | `/var/tmp/l-VIS0171/vis0171-before/whats-new/whats-new-highlights/default/light/320.png` | `/var/tmp/l-VIS0171/vis0171-review/whats-new/whats-new-highlights/default/light/320.png` | (d), stopped |
+
+The provider/error contact sheets show the intended added error/blocker list
+in `models-errors`, alongside recased labels. Other observed model scenes show
+recased labels. The two question scenes show `Explain Instead`; their answer
+field spacing already exists in the recorded baseline, so no separate (b)
+change is observed. Empty-chat inspection preserves sentence case around the
+Title Case headings and controls. Per-frame approval review remains stopped;
+all classifications below are observations, and all frames remain unapproved.
+Contact sheets: `temp/vis0171-models-review-{0,1,2}.png`.
+
+### Observed changed-scene table
+
+Scope: complete light theme, 320 and 690 px, all six states. Class (a) is
+Title Case; (b) is question spacing (none newly observed); (c) is provider
+repair; (d) is other content. Remaining themes are unqualified.
+
+| Scene                       | Class | Changed light frames | Decision            |
+| --------------------------- | ----- | -------------------: | ------------------- |
+| `account-usage`             | a     |                   12 | Stopped; unapproved |
+| `accounts-dialog`           | a     |                   12 | Stopped; unapproved |
+| `accounts-edit`             | a     |                   12 | Stopped; unapproved |
+| `accounts-section`          | a     |                   12 | Stopped; unapproved |
+| `accounts-swap`             | a     |                   12 | Stopped; unapproved |
+| `accounts-thresholds`       | a     |                   12 | Stopped; unapproved |
+| `agents-details`            | a     |                   12 | Stopped; unapproved |
+| `agents-result`             | a     |                   12 | Stopped; unapproved |
+| `bestofn`                   | a     |                   12 | Stopped; unapproved |
+| `board`                     | a     |                   12 | Stopped; unapproved |
+| `chat-sharing`              | a     |                   12 | Stopped; unapproved |
+| `chat-tool-menu-narrow`     | a     |                   12 | Stopped; unapproved |
+| `context-meter-full`        | a     |                   12 | Stopped; unapproved |
+| `context-meter-warning`     | a     |                   12 | Stopped; unapproved |
+| `crash`                     | a     |                   12 | Stopped; unapproved |
+| `developer-options`         | a     |                   12 | Stopped; unapproved |
+| `diff-tally`                | a     |                   12 | Stopped; unapproved |
+| `elicitation-narrow`        | a     |                   12 | Stopped; unapproved |
+| `empty`                     | a     |                   12 | Stopped; unapproved |
+| `estimator-result`          | a     |                   12 | Stopped; unapproved |
+| `git-pr-narrow`             | a     |                   12 | Stopped; unapproved |
+| `goal`                      | a     |                   12 | Stopped; unapproved |
+| `goal-edit`                 | a     |                   12 | Stopped; unapproved |
+| `handoff`                   | a     |                   12 | Stopped; unapproved |
+| `help-narrow`               | a     |                   12 | Stopped; unapproved |
+| `history-archived`          | a     |                   12 | Stopped; unapproved |
+| `judge-narrow`              | a     |                   12 | Stopped; unapproved |
+| `legal`                     | a     |                   12 | Stopped; unapproved |
+| `long-patch`                | a     |                   12 | Stopped; unapproved |
+| `markdown`                  | a     |                   12 | Stopped; unapproved |
+| `media-controls`            | a     |                   12 | Stopped; unapproved |
+| `mention`                   | a     |                   12 | Stopped; unapproved |
+| `models`                    | a     |                   12 | Stopped; unapproved |
+| `models-configure`          | a     |                   12 | Stopped; unapproved |
+| `models-credential`         | a     |                   12 | Stopped; unapproved |
+| `models-errors`             | a + c |                   12 | Stopped; unapproved |
+| `models-models`             | a     |                   12 | Stopped; unapproved |
+| `models-pick`               | a     |                   12 | Stopped; unapproved |
+| `models-providers`          | a     |                   12 | Stopped; unapproved |
+| `models-scanning`           | a     |                   12 | Stopped; unapproved |
+| `models-suggestions`        | a     |                   12 | Stopped; unapproved |
+| `models-table`              | a     |                   12 | Stopped; unapproved |
+| `models-test-cost`          | a     |                   12 | Stopped; unapproved |
+| `models-undo`               | a     |                   12 | Stopped; unapproved |
+| `modes`                     | a     |                   12 | Stopped; unapproved |
+| `muse-shell`                | a     |                   12 | Stopped; unapproved |
+| `muse-tools`                | a     |                   12 | Stopped; unapproved |
+| `muse-workflow`             | a     |                   12 | Stopped; unapproved |
+| `muse-workflow-map`         | a     |                   12 | Stopped; unapproved |
+| `paid`                      | a     |                   12 | Stopped; unapproved |
+| `paid-always`               | a     |                   12 | Stopped; unapproved |
+| `paid-image`                | a     |                   12 | Stopped; unapproved |
+| `paid-usage`                | a     |                   12 | Stopped; unapproved |
+| `palette`                   | a     |                   12 | Stopped; unapproved |
+| `plan-usage`                | a     |                   12 | Stopped; unapproved |
+| `playbook-map`              | a     |                   12 | Stopped; unapproved |
+| `playbook-notes`            | a     |                   12 | Stopped; unapproved |
+| `playbook-status`           | a     |                   12 | Stopped; unapproved |
+| `prompt-library`            | a     |                   12 | Stopped; unapproved |
+| `question`                  | a     |                   12 | Stopped; unapproved |
+| `question-filled`           | a     |                   12 | Stopped; unapproved |
+| `questions-chip`            | a     |                   12 | Stopped; unapproved |
+| `questions-open`            | a     |                   12 | Stopped; unapproved |
+| `quote-menu`                | a     |                   12 | Stopped; unapproved |
+| `report`                    | a     |                   12 | Stopped; unapproved |
+| `report-destinations`       | a     |                   12 | Stopped; unapproved |
+| `report-narrow`             | a     |                   12 | Stopped; unapproved |
+| `reporting-page`            | a     |                   12 | Stopped; unapproved |
+| `resource-controls`         | a     |                   12 | Stopped; unapproved |
+| `resource-history`          | a     |                   12 | Stopped; unapproved |
+| `resource-task`             | a     |                   12 | Stopped; unapproved |
+| `review-comment`            | a     |                   12 | Stopped; unapproved |
+| `review-findings`           | a     |                   12 | Stopped; unapproved |
+| `review-pane-narrow`        | a     |                   12 | Stopped; unapproved |
+| `schedule-report-action`    | a     |                   12 | Stopped; unapproved |
+| `schedule-settlements`      | a     |                   12 | Stopped; unapproved |
+| `schedules-narrow`          | a     |                   12 | Stopped; unapproved |
+| `schedules-v2-editor`       | a     |                   12 | Stopped; unapproved |
+| `schedules-v2-list`         | a     |                   12 | Stopped; unapproved |
+| `schedules-v2-timeline`     | a     |                   12 | Stopped; unapproved |
+| `secret`                    | a     |                   12 | Stopped; unapproved |
+| `setup-preview`             | a     |                   12 | Stopped; unapproved |
+| `share-narrow`              | a     |                   12 | Stopped; unapproved |
+| `signin-error`              | a     |                   12 | Stopped; unapproved |
+| `signin-install`            | a     |                   12 | Stopped; unapproved |
+| `slash-commands`            | a     |                   12 | Stopped; unapproved |
+| `stop-running`              | a     |                   12 | Stopped; unapproved |
+| `tasks-tab`                 | a     |                   12 | Stopped; unapproved |
+| `team-cards`                | a     |                   12 | Stopped; unapproved |
+| `team-tree`                 | a     |                   12 | Stopped; unapproved |
+| `todo`                      | a     |                   12 | Stopped; unapproved |
+| `tools-open`                | a     |                   12 | Stopped; unapproved |
+| `traffic-conflicts`         | a     |                   12 | Stopped; unapproved |
+| `traffic-lanes`             | a     |                   12 | Stopped; unapproved |
+| `traffic-leases`            | a     |                   12 | Stopped; unapproved |
+| `traffic-mergeQueue`        | a     |                   12 | Stopped; unapproved |
+| `traffic-metrics`           | a     |                   12 | Stopped; unapproved |
+| `usage`                     | a     |                   12 | Stopped; unapproved |
+| `usage-api`                 | a     |                   12 | Stopped; unapproved |
+| `usage-attempts`            | a     |                   12 | Stopped; unapproved |
+| `usage-breakdown`           | a     |                   12 | Stopped; unapproved |
+| `usage-burn`                | a     |                   12 | Stopped; unapproved |
+| `usage-detail`              | a     |                   12 | Stopped; unapproved |
+| `usage-features`            | a     |                   12 | Stopped; unapproved |
+| `usage-limits`              | a     |                   12 | Stopped; unapproved |
+| `usage-page-empty`          | a     |                   12 | Stopped; unapproved |
+| `usage-page-nine-providers` | a     |                   12 | Stopped; unapproved |
+| `usage-providers`           | a     |                   12 | Stopped; unapproved |
+| `usage-savings`             | a     |                   12 | Stopped; unapproved |
+| `usage-share`               | a     |                   12 | Stopped; unapproved |
+| `usage-stacked`             | a     |                   12 | Stopped; unapproved |
+| `usage-steps`               | a     |                   12 | Stopped; unapproved |
+| `usage-tokens`              | a     |                   12 | Stopped; unapproved |
+| `vault-approval`            | a     |                   12 | Stopped; unapproved |
+| `vault-grant`               | a     |                   12 | Stopped; unapproved |
+| `vault-panel`               | a     |                   12 | Stopped; unapproved |
+| `verify`                    | a     |                   12 | Stopped; unapproved |
+| `whats-new`                 | d     |                   12 | Stopped; unapproved |
+| `whats-new-footer`          | d     |                   12 | Stopped; unapproved |
+| `whats-new-highlights`      | d     |                   12 | Stopped; unapproved |
+
+### Default-timeout owning suites and source restoration drill
+
+All commands use `npx vitest run <files> --maxWorkers=3`, at most three files
+per invocation and repository deadlines, with no `--testTimeout` override.
+
+| Files                                                                                | Result                                                                                                                  |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `visualMatrix.test.mjs` before fixture repair                                        | 1 failed, 9 passed; strict production schema rejects missing `sessionBudget`.                                           |
+| `visualReadiness.test.mjs` before selector repair                                    | 2 failed, 5 passed; historical account and vault labels fail.                                                           |
+| `visualMatrix.test.mjs visualReadiness.test.mjs` after repairs and after restoration | 17/17 pass each run.                                                                                                    |
+| `m114Panel.test.mjs m114Audit.test.mjs readmeShots.test.mjs`                         | 93/95 pass: all 71 panel cases pass; stale current audit hashes and README fingerprint remain the two correct failures. |
+| `visualCapture.test.mjs visualStability.test.mjs visualReadiness.test.mjs`           | 19/19 pass after the hooks-on fixture commit.                                                                           |
+| `visualGate.test.mjs m114PanelEvidence.test.mjs visualMatrix.test.mjs`               | 24/24 pass after the hooks-on fixture commit.                                                                           |
+
+The deliberately broken repaired source removes both capitalization fixes and
+the canonical budget field. The two complete suites then report **3 failed,
+14 passed**. Restore both files from saved bytes, verify SHA-256, and rerun:
+**17/17 pass**. Pre-hook repaired-source hashes at the drill:
+
+- `test/harness/goldens/capture.mjs`:
+  `4a020537a27dbef303212d5aef5a8ad384de07e197ed49cb41b69b6841383446`.
+- `test/harness/index.html`:
+  `7212170886731115b5776a7c2847cde100bd93a8b8f68608c98fd70c0fb513bf`.
+
+`temp/vis0171-drill-red.log`, `temp/vis0171-drill-restoration.log` and
+`temp/vis0171-drill-green.log` retain the failures, both exact-byte `OK` lines
+and the restored pass. The commit hook later formats the budget sentence on
+one line; committed code is reread and both schema and real capture owners
+pass afterward. This is the required new-code guard drill. The requested
+old-baseline replacement drill waits for an approved baseline; none exists
+in this stopped lane.
+
+### Scoped gates and remaining holds
+
+Five-project `npm run typecheck`, changed-file ESLint/Prettier, plain
+`npm run deadcode`, localization, host API, reference, tokens, plan and roadmap
+checks pass. `npx jscpd` fails with **21 inherited clones** in `Wizard.tsx`,
+`modelsPanel.test.ts`, `modelsPanelSections.test.tsx`, `modelsQuickPick.test.ts`
+and `wizardSessionBudget.test.ts`; none involve lane-edited files. Preserve
+its zero-clone threshold and leave those source/test repairs with the lead.
+Aggregate `npm run quality` remains lead-owned under the rig/common brief.
+
+Next: lead decision on Q-VIS0171-RELEASE-NOTES, then finish all six candidate
+shards/themes, review every changed frame, run the repository's named update
+into a fresh external archive, regenerate all README shots, update freshness
+records, run the old-baseline SHA-256 drill and obtain the full zero-changed-scene
+pass. Current release qualification remains blocked. Hooks stay installed;
+no merge, rebase, push, paid/live call or external service write occurs. Temporary Git
+sources are cleaned; capture evidence remains. Automatic command review rejects
+removing the stopped browser profile (`rm -f style commands are not permitted`);
+cleanup is stopped and `temp/m114-visual-profile-XYP9zj` remains ignored.
+
+### Round 2 approved refresh review (2026-10-10)
+
+The lead's second rig brief accepts `7c8338ac5` and `575bb25df` and approves
+116 label-only scenes (a), `models-errors` with labels and provider-picker
+repair (a + c), and `whats-new`, `whats-new-footer`, `whats-new-highlights`
+with 0.17.1's actual release notes (b'). Q-VIS0171-RELEASE-NOTES is resolved.
+The complete candidate comparison covers **9,792 frames**. All **8,640
+above-allowance frames in 120 scenes** are reviewed across light, dark,
+hc-dark, hc-light, One Dark Pro and Dracula, both 320/690 px widths and all
+six states. Each approved scene has 72 reviewed frames. There are zero
+observed differences in components, control-state targets or applied states.
+
+Every changed frame is indexed to before/after regions at native width.
+Exact pixel-pair deduplication preserves each distinct changed region; all
+**6,402 unique regions on 282 sheets** are inspected. All **20 full-frame
+layout overview sheets** cover the same 8,640 frames. The remaining **90
+byte-different frames within the unchanged pixel allowance** are separately
+inspected through **53 unique native regions on six sheets**; they account
+for only two significant pixels under the repository's antialiasing policy.
+Labels are Title Case, prose stays sentence case, and no new clipping or
+overlap is observed. Both question-field scenes retain their spacing. The
+What's New page shows 0.17.1, Oct 10, and its five provider-picker, saving,
+spending-limit, Title Case and question-field highlights. Metadata, frame
+indexes, SHA-256 hashes, dimensions, classifications and review coverage are
+recorded in `docs/certification/vis0171-visual-review.json`; full PNGs remain
+outside git under `/var/tmp/l-VIS0171/vis0171-frame-review`.
+
+The diagnostic comparison was interrupted by SIGTERM after part of the full
+matrix; the unchanged repository capture helper finishes the missing groups.
+The resulting complete frame/hash index is review evidence, not the official
+visual qualification. The repository's full reviewed update is running into
+fresh archive `/var/tmp/l-VIS0171/vis0171-reviewed-final`, review reference
+`VIS0171-0.17.1-labels-provider-notes-2026-10-10`, with capture inputs committed
+at `b7370023d981463baf56549801fa35496673334e`. Its actual manifest must
+independently preserve every historical coverage row before qualification.
+The full unsharded replay and old-baseline failure/restoration drill remain
+pending at this review checkpoint.
+
+`npm run readme:shots` regenerates and review approves all **19 configured
+README captures**: `agents`, `approval`, `question`, `history`, `languages`,
+`modes`, `paid`, `paid-always`, `palette`, `quote`, `rewind`, `slash-commands`,
+`turn`, `usage`, `voice`, `open-question`, `help`, `deterministic-report` and
+`resources`. Eighteen PNGs change; `languages.png` is byte-identical. The
+banner is not a configured capture. All 20 README PNGs occupy **1,495,903 /
+2,097,152 bytes**. The existing eight-input fingerprint is updated to
+`834d4631d87235b58ca2bc90b69b2a199c0fe7aeb2b0de37d4dccf48160b3ec7`.
+All **20 stale current audit source hashes** are refreshed; a semantic
+before/after comparison proves historical grades and evidence are unchanged.
+
+Final owning tests use `npx vitest run <files> --maxWorkers=3`, no timeout
+flag and at most three complete files per invocation:
+
+| Complete files                                                             | Result               |
+| -------------------------------------------------------------------------- | -------------------- |
+| `m114Panel.test.mjs m114Audit.test.mjs readmeShots.test.mjs`               | 95/95 pass; 111.88 s |
+| `visualCapture.test.mjs visualStability.test.mjs visualReadiness.test.mjs` | 19/19 pass; 140.12 s |
+| `visualGate.test.mjs m114PanelEvidence.test.mjs visualMatrix.test.mjs`     | 24/24 pass; 21.00 s  |
+
+All **138/138** owning cases pass at repository deadlines after freshness
+repairs. Five-project `npm run typecheck` exits 0; changed-file ESLint and
+Prettier, plain Knip, localization, reference, host API, tokens, plan and
+roadmap pass. The unchanged duplication gate retains **21 inherited clones /
+289 duplicated lines / 1,980 tokens** in provider-wizard sources/tests; none
+involve lane-edited files. The rig brief leaves aggregate quality and that
+repair with the lead. No gate, threshold, timeout, production schema, UI
+implementation, dependency or budget cap is changed by this refresh.
+
+Review and scoped verification are committed as completed pieces. The ignored
+round-1 profile cleanup remains with the lead after automatic command review
+rejects its deletion; no cleanup workaround is attempted. No merge, rebase,
+push, subagent, paid/live call or external service write occurs.
+
+### Round 2 official baseline and exact restoration drill
+
+The first official update is interrupted by SIGTERM after 1,872 captures,
+before any manifest is written; its log has no visual exception. One retry
+uses the tool's normal terminal mode, a fresh external archive and the
+unchanged repository command:
+
+`npm run check:visual -- --update --review=VIS0171-0.17.1-labels-provider-notes-2026-10-10 --archive=/var/tmp/l-VIS0171/vis0171-reviewed-final-tty`.
+
+The retry exits **0** with **9,792 PNGs / 450,604,546 bytes / 512 MiB**,
+Chrome **153.0.8010.52**, Linux, source revision
+`f8db72798c498dff30f70b83375b2098e202f976`. Independent actual-manifest
+verification preserves every historical components/target/applied-state row
+and verifies all 9,792 actual PNG hashes. **8,537** frames are byte-identical
+to the reviewed candidate; all **1,255 further within-policy frames** are
+inspected through **830 unique native regions on 26 sheets**. They account
+for **16 significant pixels in total**, with no over-allowance frame and no
+new defect. The metadata hashes, sheet dimensions and coverage accompany the
+original review in `docs/certification/vis0171-visual-review.json`.
+
+All three manifest-owning files (`visualGate.test.mjs`,
+`m114PanelEvidence.test.mjs`, `visualMatrix.test.mjs`) are rechecked at default
+timeouts: **24/24 pass**, 16.63 s. Prettier formatting preserves every JSON
+value. Hooks-on baseline commit: `f7243df254d74ae2b93c00c3fcee20adf69bec89`.
+Staged and committed changes are reread; the committed manifest matches the
+recorded bytes, SHA-256
+`e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21`.
+No policy, threshold, cap, capture input or production UI is changed.
+
+The red baseline drill replaces `panel/account-usage/default/light/320` in
+the current external archive with the reconstructed historical PNG and updates
+only its manifest hash/size and total size. The actual command
+`npm run check:visual -- --shard=1/6` exits **1**:
+`Visual regression: 2075 changed pixel(s), allowance 12`. This shard is only
+red guard-fire evidence. The driver exits 0 after restoring both files from
+saved bytes, with SHA-256 before = after:
+
+- Manifest: `e28ece7b2e5a6bf234713b405ed9a1bd5469cf9a4658e8e5b39caeedebbdbd21`.
+- Current PNG: `6c8271cdad53f0094b29baf67a2657e132c9a18e33c548dc37d83f59b1c6cf9f`.
+- Injected historical PNG: `02ac868fa768bb8f63c539268e77d6fd4875cd6285c52fe53cd6118562f35fe3`.
+
+The final command, **full and unsharded** `npm run check:visual`, is stopped
+to respect the 90-minute rig-brief time box, after **1,152 reported captures**
+from baseline head `f7243df25`, without an observed visual regression. It is
+**unqualified**; a
+partial capture or diagnostic comparison is not the requested full green
+check. Exact update, parity, owning-test and restoration receipts are retained
+in this lane's ignored `temp/vis0171-round2-*` files; all full PNGs remain
+outside git. Production budgets pass: extension **550.1 / 600 KiB**, Model API
+**516.6 / 525 KiB**, checkpoint store **87.3 / 225 KiB**. Aggregate quality and
+the 21 inherited duplication clones remain lead-owned under the rig brief.
+
+The stop sends SIGINT through the tool terminal. The tool returns exit **1**
+with `browserContext.close: Target page, context or browser has been closed`;
+this is deliberate interruption evidence, not a discovered visual regression.
+No final `temp/m114-visual-result.json` is written. The approved manifest and
+drill PNG remain byte-exact after stopping; no capture or Chrome process from
+this run remains. Explicit termination receipt:
+`temp/vis0171-round2-full-visual-termination.json`, also included in the tracked
+review receipt. **The requested full zero-changed-scene gate is not qualified.**
+
+Next: the lead reruns full, unsharded `npm run check:visual` in terminal mode
+with enough time for all 9,792 comparisons, appends the actual successful
+receipt, then performs aggregate cross-rig release gates and the inherited
+duplication repair. The lane does not weaken or substitute the gate. Retained
+ignored profiles remain for lead cleanup after the earlier automatic command
+review rejected deletion (`rm -f style commands are not permitted`). All
+completed work is locally committed with installed hooks; no merge or push.

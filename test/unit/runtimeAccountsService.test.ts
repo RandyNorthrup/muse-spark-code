@@ -1,4 +1,3 @@
-import { duplicateMetaAccounts } from './helpers/runtimeAccounts'
 // CM108ACC: the installed runtime serves the shared account service, not the
 // "unavailable" stub. Production FileAccountsMetadata + AccountStore +
 // AccountSecrets over a temp data dir and an in-memory keyring: the dogfood
@@ -12,11 +11,17 @@ import { AccountSwitchRefusedError, accountErrorText } from '../../src/acp/accou
 import { runAccountsCommand, runAccountAuthSet } from '../../src/runtime/providers/accountsCommand'
 import { memoryKeyring } from './helpers/keyring'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
+import {
+  duplicateAccountsEntry,
+  mismatchedIdEntry,
+  providersFileOf,
+} from './helpers/refusedProviders'
 import { parseAccountsCommand } from '../../src/runtime/providers/accountArgs'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import type { RuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 
+const META_ORIGIN = 'https://api.meta.ai'
 const homes: string[] = []
 const disposals: (() => void)[] = []
 afterEach(() => {
@@ -151,7 +156,7 @@ describe('installed runtime account service', () => {
     const refusal = port.use('session-1', 'work', () => true)
     await expect(refusal).rejects.toThrow(AccountSwitchRefusedError)
     await expect(refusal).rejects.toThrow(
-      'This session stays on meta · Default account. Account switching is unavailable in this runtime.',
+      'This session stays on meta · Default Account. Account switching is unavailable in this runtime.',
     )
     await expect(port.use('session-1', 'missing', () => true)).rejects.toThrow(
       UI_TEXT.accounts.invalidAccount,
@@ -179,23 +184,14 @@ describe('installed runtime account service', () => {
   })
 
   it.each([
-    ['duplicate account ids', duplicateMetaAccounts('https://api.meta.ai')],
-    [
-      'a provider id that does not match its key',
-      {
-        id: 'other',
-        policyProvider: 'meta',
-        product: 'model-api',
-        auth: 'apiKey',
-        origin: 'https://api.meta.ai',
-      },
-    ],
+    ['duplicate account ids', duplicateAccountsEntry(META_ORIGIN)],
+    ['a provider id that does not match its key', mismatchedIdEntry(META_ORIGIN)],
   ])(
     'refuses a %s with the providers-file sentence instead of the connection one',
     async (_label, entry) => {
       const h = rig()
       const file = path.join(h.dataDir, 'providers.json')
-      writeFileSync(file, JSON.stringify({ providers: { meta: entry } }), 'utf8')
+      writeFileSync(file, providersFileOf(entry), 'utf8')
       const before = readFileSync(file, 'utf8')
       expect(
         await accounts(h.services, h.print, h.printError, ['list', '--provider', 'meta']),
@@ -208,15 +204,7 @@ describe('installed runtime account service', () => {
   it('reads a refused providers file as its own sentence through the shared metadata port', async () => {
     const h = rig()
     const file = path.join(h.dataDir, 'providers.json')
-    writeFileSync(
-      file,
-      JSON.stringify({
-        providers: {
-          meta: duplicateMetaAccounts('https://api.meta.ai'),
-        },
-      }),
-      'utf8',
-    )
+    writeFileSync(file, providersFileOf(duplicateAccountsEntry(META_ORIGIN)), 'utf8')
     const before = readFileSync(file, 'utf8')
     // The one mapping point keeps the brand for typed checks and carries the
     // person-facing sentence as the message.

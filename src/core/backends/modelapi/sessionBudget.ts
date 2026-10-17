@@ -1,4 +1,3 @@
-import { USD_DECIMAL_ONE } from '../../../shared/usdConstants'
 // The Model API session budget (M82, PLAN.md M82): a dollar cap per
 // conversation, kept by reservation, since a request's cost is incurred
 // once it is sent.
@@ -224,7 +223,10 @@ export function estimateInput(
  * The reservation for a request whose input is estimated at
  * `estimatedInputTokens`, at the model's list price with no cache discount
  * assumed. Throws when the model has no verified price (the cap could not
- * be kept) or when not even one output token fits on top of the input.
+ * be kept) or when the provider's minimum output (`minOutputTokens`, 1 when
+ * no minimum was captured) does not fit on top of the input: the request is
+ * not sent, and the turn stops with the budget reason instead of a provider
+ * rejection. The cap is never rounded up past what the budget affords.
  */
 export function reserveRequest(request: {
   readonly capUsd: UsdAmount
@@ -235,6 +237,8 @@ export function reserveRequest(request: {
   readonly searchPriceUsd?: UsdAmount | undefined
   /** Selected model's output allowance. Omitted callers retain their legacy limit. */
   readonly maxOutputTokens?: number
+  /** The selected provider's smallest accepted output cap; unknown keeps 1. */
+  readonly minOutputTokens?: number | undefined
   readonly price?: ModelPricePolicy | undefined
   readonly images?: number | undefined
 }): BudgetReservation {
@@ -259,7 +263,9 @@ export function reserveRequest(request: {
     .subtract(inputCost)
     .subtract(Usd.from(searchCostUsd))
     .floorDivide(outputPrice)
-  if (affordableOutputTokens < USD_DECIMAL_ONE) {
+  const floor = request.minOutputTokens ?? 1
+  if (!Number.isSafeInteger(floor) || floor < 1) throw new RangeError('invalid output.minTokens')
+  if (affordableOutputTokens < BigInt(floor)) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
         estimate: formatUsd(inputCost.add(Usd.from(searchCostUsd)).toAmount()),
@@ -345,6 +351,7 @@ function reserveProviderRequest(request: {
   readonly modelId: string
   readonly price: ModelPricePolicy
   readonly maxOutputTokens?: number | undefined
+  readonly minOutputTokens?: number | undefined
   readonly images?: number | undefined
 }): BudgetReservation {
   const usage = {
@@ -376,7 +383,9 @@ function reserveProviderRequest(request: {
       low = tokens
     else high = tokens - 1
   }
-  if (low < 1) {
+  const floor = request.minOutputTokens ?? 1
+  if (!Number.isSafeInteger(floor) || floor < 1) throw new RangeError('invalid output.minTokens')
+  if (low < floor) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
         estimate: formatUsd(inputCostUsd),

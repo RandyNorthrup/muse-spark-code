@@ -33,7 +33,10 @@ export function questionsSource(reader: ReportQuestionsReader | undefined, scrub
           text: scrub(row.text),
           milestoneIds: row.milestoneIds.map((id) => scrub(id)).toSorted(codeUnitCompare),
         }))
-        .toSorted((a, b) => codeUnitCompare(a.id, b.id)),
+        .toSorted(
+          (a, b) =>
+            codeUnitCompare(a.id, b.id) || codeUnitCompare(JSON.stringify(a), JSON.stringify(b)),
+        ),
       observedAt: result.observedAt,
     }
   })

@@ -352,6 +352,7 @@ function areBytesEqual(left: Uint8Array | undefined, right: Uint8Array | undefin
  * What the merge would do, without writing: the files, which are binary,
  * which need the protected-path approval, and which fall outside
  * `write-paths`. Throws for unsafe paths, link escapes and ref breaches.
+ * @unwired M96 team merge planner
  */
 export async function planTeamMerge(
   io: TeamMergeIo,
@@ -437,6 +438,7 @@ async function prepareTeamMerge(
  * breach refuses it; protected paths refuse it unless `allowProtected`;
  * then derives every file through `git merge-file`. Conflicts go to the
  * task copy under rework; no result lands in the user tree until clean.
+ * @unwired M96 team merge applier
  */
 export async function applyTeamMerge(
   io: TeamMergeIo,

@@ -3,14 +3,10 @@ import { readFileSync } from 'node:fs'
 import { UI_TEXT, GLOBAL_STATE_KEYS } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
-import { memento } from '../unit/helpers/memento'
-import { answerWith } from '../unit/helpers/paidModal'
-import { confirmModal } from '../unit/helpers/vscodeViews'
 import { fakeManagerDeps } from '../unit/helpers/modelApiManager'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import * as modelApiEntry from '../../src/host/backend/modelApiEntry'
 import { Usd } from '../../src/shared/usd'
-import { watchSessionTurns } from '../unit/helpers/sessionTurns'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import * as acp from '@agentclientprotocol/sdk'
 import path from 'node:path'
@@ -22,14 +18,81 @@ import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { modelAccountsMessageSchema } from '../../src/shared/modelAccountsProtocol'
-import { accountComposition, ACCOUNT_TEST_KEYS } from '../unit/helpers/accountComposition'
+import {
+  accountComposition,
+  ACCOUNT_TEST_KEYS,
+  watchSessionTurns,
+} from '../unit/helpers/accountComposition'
 import { buildModelApiBundle } from '../unit/helpers/modelApiBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
-import { FakeWebviewPanel } from '../unit/helpers/fakes'
-import { FakeUri, window } from '../unit/mocks/vscode'
+import { EventEmitter, FakeUri, window } from '../unit/mocks/vscode'
+import type * as vscode from 'vscode'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { vi } from 'vitest'
+
+/** Test-only VS Code state for the paid-features rig. */
+function memento(data: Map<string, unknown>) {
+  return {
+    keys: () => Array.from(data, ([key]) => key),
+    get: (key: string) => data.get(key),
+    update: (key: string, value: unknown) => {
+      data.set(key, value)
+      return Promise.resolve()
+    },
+  }
+}
+
+/** A modal item's label: a plain string, or a `MessageItem`'s title. */
+function titleOf(item: unknown): string {
+  return typeof item === 'string' ? item : (item as vscode.MessageItem).title
+}
+
+/** Answers the next paid popup with the button titled `title`, or closes it. */
+function answerWith(title: string | undefined): void {
+  vi.mocked(window.showWarningMessage).mockImplementationOnce(
+    (_message: string, _options: vscode.MessageOptions, ...items: vscode.MessageItem[]) =>
+      Promise.resolve(items.find((item) => titleOf(item) === title)),
+  )
+}
+
+/** The Models panel's test surface: posts into `messages`, reads `postMessage`. */
+class CompositionWebviewPanel implements vscode.WebviewPanel {
+  private readonly incoming = new EventEmitter<unknown>()
+  private readonly disposed = new EventEmitter<void>()
+  private readonly viewStateChanges =
+    new EventEmitter<vscode.WebviewPanelOnDidChangeViewStateEvent>()
+  public readonly webview: vscode.Webview & {
+    readonly messages: EventEmitter<unknown>
+    readonly postMessage: ReturnType<typeof vi.fn>
+  } = {
+    options: {},
+    html: '',
+    cspSource: 'vscode-webview://fake',
+    messages: this.incoming,
+    onDidReceiveMessage: this.incoming.event,
+    postMessage: vi.fn((_message: unknown): Thenable<boolean> => Promise.resolve(true)),
+    asWebviewUri: (localResource: vscode.Uri) => new FakeUri(`webview${localResource.path}`),
+  }
+  public readonly options: vscode.WebviewPanelOptions = {}
+  public viewColumn: vscode.ViewColumn | undefined = undefined
+  public active = true
+  public visible = true
+  public readonly onDidDispose = this.disposed.event
+  public readonly onDidChangeViewState = this.viewStateChanges.event
+  public readonly reveal = vi.fn((): void => {
+    this.visible = true
+  })
+
+  public constructor(
+    public readonly viewType: string,
+    public title: string,
+  ) {}
+
+  public dispose(): void {
+    this.disposed.fire()
+  }
+}
 
 const rigs: Awaited<ReturnType<typeof accountComposition>>[] = []
 const dist = { folder: '' }
@@ -71,7 +134,7 @@ function claimsStayOnA(t: Awaited<ReturnType<typeof rig>>) {
 describe('production account composition', () => {
   it('VS Code Models panel queues an in-flight switch; original payer settles and next request uses B', async () => {
     const t = await rig(true)
-    const panel = new FakeWebviewPanel('models', 'Models')
+    const panel = new CompositionWebviewPanel('models', 'Models')
     window.createWebviewPanel.mockReturnValue(panel)
     const features = createModelsPanelFeatures(
       {
@@ -178,7 +241,7 @@ describe('production account composition', () => {
 
   it('VS Code paid worker re-asks for B once, never inherits A consent, and dispatches through the real manager', async () => {
     const t = await rig(true)
-    vi.mocked(confirmModal).mockReset()
+    vi.mocked(window.showWarningMessage).mockReset()
     const paid = createPaidFeatures({
       globalState: memento(new Map([[GLOBAL_STATE_KEYS.paidConfirmations, ['bestOfN']]])),
       workspaceState: memento(new Map()),
@@ -199,7 +262,7 @@ describe('production account composition', () => {
     answerWith(UI_TEXT.paidAllowAlways)
     expect(await paid.consent.allows(question)).toBe(true)
     expect(await paid.consent.allows(question)).toBe(true)
-    expect(confirmModal).toHaveBeenCalledOnce()
+    expect(window.showWarningMessage).toHaveBeenCalledOnce()
     await t.command([
       'thresholds',
       '--provider',
@@ -241,7 +304,7 @@ describe('production account composition', () => {
           terminal: 'completed',
         })
       }
-      expect(confirmModal).toHaveBeenCalledTimes(2)
+      expect(window.showWarningMessage).toHaveBeenCalledTimes(2)
       expect(t.headers()).toEqual([
         `Bearer ${ACCOUNT_TEST_KEYS[1]}`,
         `Bearer ${ACCOUNT_TEST_KEYS[1]}`,

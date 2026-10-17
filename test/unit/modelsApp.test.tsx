@@ -14,7 +14,7 @@ describe('ModelsApp shared host contract', () => {
       false,
     )
   })
-  it('subscribes before ready, renders host state, follows navigation and posts top-level requests', () => {
+  it('subscribes before ready, renders host state, follows navigation and posts top-level requests', async () => {
     const state = makeState({ providers: [makeProvider()], models: [makeRow()], totalModels: 1 })
     const post = vi.fn<HostBridge['post']>((message) => {
       expect(parsePanelToHostMessage(message).ok).toBe(true)
@@ -33,10 +33,17 @@ describe('ModelsApp shared host contract', () => {
     const report = vi.fn()
     const { unmount } = render(<ModelsApp host={host} report={report} />)
     expect(post).toHaveBeenCalledWith({ type: 'modelsPanel/ready' })
+    // The sections load behind the shared deferred boundary: loading is
+    // announced with a status until the providers chunk arrives.
+    expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.loadingOutput)
+    expect(document.querySelector('[data-deferred-loading]')).not.toBeNull()
+    expect(await screen.findByText('Ollama')).toBeInTheDocument()
+    expect(document.querySelector('[data-deferred-loading]')).toBeNull()
+    // The host never advertised accounts, so the accounts surface stays
+    // unmounted and posts nothing of its own.
     expect(post.mock.calls.some(([message]) => message.type.startsWith('modelAccounts/'))).toBe(
       false,
     )
-    expect(screen.getByText('Ollama')).toBeInTheDocument()
     expect(screen.queryByText(UI_TEXT.connecting)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/edit', providerId: 'ollama' })
@@ -51,7 +58,7 @@ describe('ModelsApp shared host contract', () => {
         }),
       )
     })
-    expect(screen.getByRole('row', { name: 'ollama/qwen3:8b' })).toBeInTheDocument()
+    expect(await screen.findByRole('row', { name: 'ollama/qwen3:8b' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: /Offer ollama/ }))
     expect(post).toHaveBeenCalledWith({
       type: 'models/tick',

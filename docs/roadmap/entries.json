@@ -254,8 +254,7 @@
       "title": "Muse Voice dictation",
       "summary": "Optional paid dictation with Meta's Muse Voice Transcribe, while your computer's free speech recogniser stays the default; the Model API backend currently refuses it, because its billed audio length has no verified limit.",
       "area": "voice-media",
-      "release": "0.9.0",
-      "labels": ["not available yet"]
+      "release": "0.9.0"
     },
     {
       "id": "M36",
@@ -606,7 +605,7 @@
     {
       "id": "M87",
       "title": "Panel polish",
-      "summary": "The chat panel gains a context ring, steps folded under one summary row, message times on hover, editable queued messages, a diff tally with Review and a collapsible tasks pane.",
+      "summary": "The chat panel gains a context ring, folded steps, message times on hover, editable queued messages, a diff tally with Review, a collapsible tasks pane and action menus that fan close to their opener (0.17.1).",
       "area": "chat",
       "release": "0.13.0"
     },
@@ -666,7 +665,7 @@
     {
       "id": "M94",
       "title": "Tab completions",
-      "summary": "Ghost-text code completions in the languages you enable, billed to your Model API key after a one-time price prompt and stopped by a separate hard daily budget.",
+      "summary": "Ghost-text completions billed to your Model API key with a hard daily budget; other features preserve Tab's window grant, only Allow always in this workspace saves the model and price, and Allow once saves nothing so each new window asks again.",
       "area": "editors",
       "release": "0.14.0"
     },
@@ -679,7 +678,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Add keys for OpenAI, Anthropic, Gemini, OpenRouter and other providers, or local model servers, with each key bound to the address it was entered for and features matched to each model's capabilities.",
+      "summary": "Use cloud or local models with keys bound to their provider's address and features matched to each model's capabilities; the panel keeps its section visible while loading, and an output cap below a provider's known minimum is refused before sending.",
       "area": "models-providers",
       "release": "0.15.0"
     },
@@ -700,26 +699,25 @@
     {
       "id": "M96",
       "title": "Agent roles and teams",
-      "summary": "Agent roles with charters, tools, model pools and task limits, and teams of workers in isolated workspaces whose work is reviewed before it merges.",
-      "area": "agents",
-      "release": "0.15.0"
+      "summary": "Team integration is in progress.",
+      "area": "agents"
     },
     {
       "id": "M96b",
       "title": "Teams in other editors and headless runs",
-      "summary": "The same teams, roles, pools and caps in the ACP agent for other editors and in headless runs, each asking for approval in its own way.",
+      "summary": "Team integration in other editors and headless runs is in progress.",
       "area": "agents"
     },
     {
       "id": "M96c",
       "title": "Team scheduler and traffic",
-      "summary": "A board of dependent tasks and a scheduler that keep every agent lane busy across worktrees and branches while avoiding collisions between them.",
+      "summary": "Team scheduling and traffic integration is in progress.",
       "area": "agents"
     },
     {
       "id": "M96d",
       "title": "Machine-wide agent coordination",
-      "summary": "Several windows, editors and the ACP agent sharing one machine-wide limit on workers and heavy commands.",
+      "summary": "Machine-wide agent coordination is in progress.",
       "area": "agents"
     },
     {
@@ -752,7 +750,7 @@
     {
       "id": "M101",
       "title": "Long-task context upgrades",
-      "summary": "Prompts stay cache-stable, the model can search and recall packed tool output exactly, and manual compaction works in ACP editors, while automatic compaction stays off until its evaluation passes.",
+      "summary": "Prompts stay cache-stable, the model can search and recall packed tool output exactly, and manual compaction works in ACP editors; automatic compaction is in progress.",
       "area": "agents",
       "release": "0.15.0"
     },
@@ -778,15 +776,14 @@
     {
       "id": "M105",
       "title": "Video, audio and screen recordings",
-      "summary": "Attach videos, audio files, documents and screen recordings with the cost shown before sending, although sending video and audio to a model is not available yet.",
+      "summary": "Attach videos, audio files, documents and screen recordings with the cost shown before sending, although sending video and audio to a model is in progress.",
       "area": "voice-media",
-      "release": "0.17.0",
-      "labels": ["not available yet"]
+      "release": "0.17.0"
     },
     {
       "id": "M106",
       "title": "Stronger agent-loop guarantees",
-      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers, live tool-argument previews and concurrent read-only calls wherever the selected model supports them.",
+      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers, concurrent read-only calls and live tool-argument previews wherever the selected model supports them; Muse Code's native effort and feedback readers are in progress.",
       "area": "agents",
       "release": "0.16.0"
     },
@@ -795,22 +792,19 @@
       "title": "Resource limits for your machine",
       "summary": "CPU, memory and disk limits narrow then pause new background work without stopping running work; macOS headroom is unknown before libuv 1.52, and moving work to another device is unavailable.",
       "area": "platform",
-      "release": "0.16.0",
-      "labels": ["not available yet"]
+      "release": "0.16.0"
     },
     {
       "id": "M108",
       "title": "Several accounts per provider",
-      "summary": "Keep labelled provider accounts with thresholds and headless pinning; native Meta review repairs pass scoped tests and size checks, while paid-kind and external identity, visual and editor receipts still hold certification.",
-      "area": "models-providers",
-      "release": "0.17.0"
+      "summary": "Several-account integration is in progress.",
+      "area": "models-providers"
     },
     {
       "id": "M109",
       "title": "Credential vault for agents",
-      "summary": "One encrypted vault for API keys, tokens, SSH keys, passwords and website logins, protected by hardware where available, from which agents get approved, logged uses of a secret but never its value.",
-      "area": "security",
-      "release": "0.17.0"
+      "summary": "Credential vault for agents is in progress.",
+      "area": "security"
     },
     {
       "id": "M110",
@@ -834,38 +828,35 @@
     {
       "id": "M113",
       "title": "Deterministic reports",
-      "summary": "Run /report for project, quality, milestone, release and change reports built from local facts in Markdown, HTML, JSON or text, with saved history and comparisons, and nothing sent to a model.",
+      "summary": "Run /report for project, quality, milestone, release and change reports built from local facts in Markdown, HTML, JSON or text, with saved history and comparisons and nothing sent to a model, while additional report kinds are in progress.",
       "area": "platform",
       "release": "0.17.0"
     },
     {
       "id": "M114",
       "title": "Refreshed design",
-      "summary": "Panel surfaces share theme-aware design tokens, compact activity indicators and menus sized to their labels, with consistent hover, focus and pressed states and motion that stops when reduced motion is on.",
+      "summary": "Panel surfaces share theme-aware tokens, compact indicators and label-sized menus with consistent hover, focus and pressed states and reduced motion; the empty chat shows the extension's own theme-aware mark (0.18.2).",
       "area": "platform",
       "release": "0.17.0"
     },
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Schedule prompts to run once, repeatedly or on a cron expression, each with its own delivery mode, and run them unattended under a hard budget cap, so far from the terminal and ACP editors.",
-      "area": "agents",
-      "release": "0.17.0"
+      "summary": "Scheduled prompts v2 is in progress.",
+      "area": "agents"
     },
     {
       "id": "M116",
       "title": "Orchestrator playbook",
-      "summary": "The orchestration rules ship as a built-in skill that governs the panel's subagent, delegate, best-of-N and review dispatches, and /playbook shows status, records and settings locally.",
+      "summary": "The orchestration rules ship as a built-in skill, and /playbook shows status, records and settings locally in the CLI and ACP editors; the VS Code panel integration is in progress.",
       "area": "agents",
       "release": "0.17.0"
     },
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Run /estimate on a goal to see when it can land with your current, minimum or optimum set of agents and machines without a model call, although real forecasts are not available yet.",
-      "area": "agents",
-      "release": "0.17.0",
-      "labels": ["not available yet"]
+      "summary": "Capacity estimator is in progress.",
+      "area": "agents"
     },
     {
       "id": "M118",
@@ -890,13 +881,25 @@
     {
       "id": "M121",
       "title": "Exact money everywhere",
-      "summary": "Every cost, budget and usage total kept as an exact decimal dollar amount, so the figures you see match what the budget checks enforce.",
+      "summary": "Every cost, budget and usage total kept as an exact decimal dollar amount, with exact period comparisons and historical days or months refused with an explanation when their dollars cannot be preserved.",
       "area": "usage-billing"
     },
     {
       "id": "M122",
       "public": false,
       "note": "this roadmap's generator and gate (project documentation tooling)"
+    },
+    {
+      "id": "M125",
+      "title": "A faster, more accurate agent through a fast judge",
+      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
+      "area": "agents"
+    },
+    {
+      "id": "M123",
+      "title": "Git and pull requests in every editor",
+      "summary": "Commit drafts, confirmed pushes, pull requests and held checkouts of other people's pull requests in every supported editor, signing in to GitHub through your editor, a one-time code or your gh login.",
+      "area": "editors"
     },
     {
       "id": "BADGEFIX",
@@ -1125,6 +1128,11 @@
       "note": "exact-money and scheduled-media integration port after the 0.17.0 merge; goal tracked by M121"
     },
     {
+      "id": "MUSE143",
+      "public": false,
+      "note": "Muse Code 1.4.3 verification; the update hint for older hosts ships in 0.17.1"
+    },
+    {
       "id": "PORTS017",
       "public": false,
       "note": "exact-money type ports; goal tracked by M121"
@@ -1143,6 +1151,46 @@
       "id": "PROMPTMENU2",
       "public": false,
       "note": "groundwork for future native panel hosts; shipped hosts already use their own context menu"
+    },
+    {
+      "id": "PROVWIRE",
+      "public": false,
+      "note": "provider setup review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ10",
+      "public": false,
+      "note": "provider save review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ2R4",
+      "public": false,
+      "note": "provider wizard spending-limit review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ2R5",
+      "public": false,
+      "note": "provider wizard limit review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ6",
+      "public": false,
+      "note": "provider wizard integration inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ7",
+      "public": false,
+      "note": "provider save review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ8",
+      "public": false,
+      "note": "provider save review fixes inside M95, shipped in 0.17.1's provider picker fix"
+    },
+    {
+      "id": "PROVWIZ9",
+      "public": false,
+      "note": "provider ordered save inside M95, shipped in 0.17.1's provider picker fix"
     },
     {
       "id": "QPIN",
@@ -1205,8 +1253,10 @@
     },
     {
       "id": "SHOTS",
-      "public": false,
-      "note": "README screenshot refresh"
+      "title": "Updated product pictures",
+      "summary": "The README pictures show the extension's own mark, and the Get Started walkthrough's four pictures show the current panel, including the sign-in screen's Start with your own model choice.",
+      "area": "platform",
+      "release": "0.18.2"
     },
     {
       "id": "STARTDIET",

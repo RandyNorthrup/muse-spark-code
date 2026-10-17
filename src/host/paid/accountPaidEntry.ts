@@ -129,6 +129,7 @@ export function paidUseTariff(request: PaidUseRequest): {
         autoReviewPrice(request.modelId, request.pricing) ?? paidFeaturePrice('autoReviewer'),
       )
     }
+    case 'autoCompaction':
     case 'judge':
     case 'legalExplanation':
     case 'scheduledPrompts':

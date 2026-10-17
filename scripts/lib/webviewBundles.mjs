@@ -330,6 +330,66 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
   },
 ]
 
+// MODELSPLIT: the Models panel's deferred sections, out of the panel body
+// (2026-10-10). The lane's brief caps each group at its measured closure
+// plus 15% with no 25 KiB rounding: on the lane's base (0.17.0) the providers
+// section (with the wizard) measured 28,146 bytes and the models section
+// 11,685 bytes (11.4 KiB; +15% is 13,437 bytes, cap 13 KiB).
+// Each closure charges the sections' shared InlineError/ScanStatus chunk,
+// following the same shared-imports convention as the chat's deferred
+// groups; chunks the panel body also imports stay charged to the body.
+//
+// Both rows are new with this split. The providers row takes its first value
+// where it first lands (lead ruling, 2026-10-11, the precedent for a new
+// chunk): the production bytes measured on the landing tree plus 15 percent,
+// rounded up to a whole KiB. On the release train (the merge of b92fab054
+// onto acf388a14, macbook rig) the closure is 32,197 bytes, 4,051 more than
+// on 0.17.0 because the train's wizard carries 0.17.1's repairs and exact
+// money (M121); 32,197 x 1.15 = 37,026.6 bytes = 36.16 KiB, so 37 KiB. The
+// models section measured 12,074 bytes there and keeps 13 KiB. The row
+// tightens when the wizard (15,397 bytes, opened on demand) moves out of
+// the section chunk.
+export const MODELS_DEFERRED_BUDGETS = [
+  {
+    name: 'models providers section',
+    entries: ['src/webview/models/ProvidersSection.tsx', 'src/webview/models/Wizard.tsx'],
+    budgetKiB: 37,
+  },
+  {
+    name: 'models models section',
+    entries: ['src/webview/models/ModelsSection.tsx'],
+    budgetKiB: 13,
+  },
+]
+
+/**
+ * The Models page's lazy section closures from its own metafile: every file
+ * statically reachable from the section entries except the page's startup
+ * and the panel body's own files.
+ */
+export function modelsDeferredBudgetGroups(modelsMeta) {
+  const meta = { ...modelsMeta, outputs: normalOutputs(modelsMeta) }
+  const excluded = new Set([
+    ...staticOutputs(meta, ['dist/webview/models.js']),
+    ...webviewPanelOutputs(meta, 'dist/webview/models.js', 'src/webview/models/panel.tsx'),
+  ])
+  const entries = (sources) =>
+    Object.entries(meta.outputs)
+      .filter(
+        ([, output]) =>
+          Object.keys(output.inputs ?? {}).some((source) => sources.includes(normalPath(source))) ||
+          sources.includes(
+            output.entryPoint === undefined ? undefined : normalPath(output.entryPoint),
+          ),
+      )
+      .map(([file]) => normalPath(file))
+  return MODELS_DEFERRED_BUDGETS.map((budget) => {
+    const roots = entries(budget.entries)
+    const outputs = staticOutputs(meta, roots).filter((file) => !excluded.has(file))
+    return { ...budget, outputs }
+  })
+}
+
 /** Both independently delivered resource surfaces stay outside chat startup. */
 export function checkResourceWebview(meta) {
   const problems = []

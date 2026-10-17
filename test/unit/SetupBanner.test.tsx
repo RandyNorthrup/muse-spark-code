@@ -18,7 +18,7 @@ describe('SetupBanner', () => {
     const banner = screen.getByRole('status')
     expect(banner).toHaveTextContent('OpenRouter')
     expect(banner).toHaveTextContent('openrouter/deepseek/deepseek-v3')
-    fireEvent.click(screen.getByRole('button', { name: 'Manage providers' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Providers' }))
     expect(onManageProviders).toHaveBeenCalledOnce()
     expect(onDismiss).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))

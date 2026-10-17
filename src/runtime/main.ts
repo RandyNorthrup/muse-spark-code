@@ -1,4 +1,5 @@
 import { legalScanLoader } from '../host/ide/legalScanBundle'
+import { failureForLog } from '../core/backends/musecode/logText'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
 // sign-ins run (D61). stdout carries the protocol; everything the user or
@@ -69,10 +70,9 @@ import {
 } from './cliArgs'
 import { parseSharingArgs, type SharingCommand } from './sharing/args'
 import { runtimeSharingLoader } from './sharing/sharingBundle'
-import { serveAccountsPort } from '../acp/accounts'
+import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './sharing/sharingPorts'
 import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
-import type { RuntimeSharingPorts } from './sharing/sharingEntry'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
@@ -94,6 +94,7 @@ import {
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import type { ProvidersDeps } from './providersCommands'
 import { takeCredentials } from './credentialVariables'
+import { keepGitCredentialRoutes } from './gitUserEnvironment'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
 import type { Logger } from '../host/logger'
@@ -156,8 +157,11 @@ const HEADLESS_WIRING_EXIT = {
 const wasEnvironmentApiKeyPresent = process.env[META_API_KEY_VARIABLE] !== undefined
 // Credential variables leave the agent's own environment before anything
 // starts a process; no child gets them back (FIXM95X). Removed values remain
-// in memory only for D98 sharing redaction, never for authentication or children.
+// in memory for D98 sharing redaction, and their Git routes (no model or
+// provider key) for D104's named exception only: the user's confirmed push
+// and pull request fetch (M123, gitUserEnvironment.ts). No other child.
 const sharingCredentials = takeCredentials(process.env)
+keepGitCredentialRoutes(sharingCredentials)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
@@ -740,11 +744,20 @@ async function serve(
     })
     const reports = runtimeReports(log)
     // Model API sessions only: the Muse Code backend runs on its
-    // subscription, and a loader failure leaves the session working without
-    // accounts instead of refusing `serve`.
-    const serveAccounts = serveAccountsPort(options.backend, () => loadAccounts().sessions('meta'))
+    // subscription. Meta's entry is built in, so the metadata reads without
+    // a providers file; a refused file or a loader failure leaves the
+    // session working without accounts instead of refusing `serve`.
+    let accounts: Awaited<ReturnType<RuntimeAccountServices['sessionsIfPresent']>>
+    if (options.backend === 'modelApi') {
+      try {
+        accounts = await loadAccounts().sessionsIfPresent('meta')
+      } catch (error: unknown) {
+        log.warn(`ACP accounts unavailable: ${failureForLog(error)}`)
+      }
+    }
     const agent = engine.createAcpAgent({
       schedules: {
+        isAvailable: false,
         async holdWorkspace(cwd) {
           loadedSchedules ??= await loadSchedules()
           return await loadedSchedules.holdWorkspace(cwd)
@@ -774,10 +787,9 @@ async function serve(
           uiLocale(),
         ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
-      vault: acpVault,
       // The account picker serves Model API sessions (list, current,
-      // thresholds and request-boundary selection).
-      ...(serveAccounts !== undefined && { accounts: serveAccounts }),
+      // thresholds). Switching stays refused (no adoption transaction).
+      ...(accounts !== undefined && { accounts }),
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
         const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
@@ -826,7 +838,7 @@ async function serve(
         commands: acpSharingCommands,
         execute: (text, context) =>
           runtimeSharingLoader(path.join(distDir, 'sharingRuntime.js'), log)()
-            .runtimeAcpSharing(sharingPorts(log, runtime), UI_TEXT, uiLocale())
+            .runtimeAcpSharing(sharingPorts(log, runtime, sharingDeps()), UI_TEXT, uiLocale())
             .execute(text, context),
       },
       paid: runtime.paid,
@@ -905,41 +917,12 @@ async function serve(
   }
 }
 
-function sharingPorts(
-  log: Logger,
-  current?: Awaited<ReturnType<typeof runtimeFor>>,
-): RuntimeSharingPorts {
+/** The sharing ports' live dependencies: the engine, taken credentials, the OS store. */
+function sharingDeps(): SharingPortsDeps {
   return {
-    folders: { platform: process.platform, env: process.env, homeDir: homedir() },
-    registeredSecrets: async () => {
-      const values = sharingCredentials.map(({ value }) => value)
-      if (current?.backend.kind !== 'modelApi') return values
-      try {
-        const key = await secrets.get(SECRET_KEYS.modelApiKey)
-        return key === undefined || key === '' ? values : [...values, key]
-      } catch {
-        // A key refresh that cannot complete grants no share and discloses no store failure.
-        throw new Error(UI_TEXT.sharePreviewExpired)
-      }
-    },
-    read: async (cwd, sessionId, exportedAt) => {
-      const parsed = parseCommandLine(['serve'])
-      if (parsed.command !== 'serve') throw new Error(UI_TEXT.exportHistoryUnavailable)
-      const runtime = current ?? (await runtimeFor(parsed.options, log))
-      try {
-        const host = await runtime.backend.hostFor(cwd)
-        const history = await host.readSession(sessionId)
-        if (history.mode === 'none') throw new Error(UI_TEXT.exportHistoryUnavailable)
-        return {
-          sessionId,
-          title: history.name ?? UI_TEXT.exportDefaultTitle,
-          exportedAt,
-          items: history.items,
-        }
-      } finally {
-        if (current === undefined) await runtime.close()
-      }
-    },
+    createRuntime: (options, rtLog) => runtimeFor(options, rtLog),
+    credentialValues: sharingCredentials.map(({ value }) => value),
+    readModelApiKey: () => secrets.get(SECRET_KEYS.modelApiKey),
   }
 }
 
@@ -1250,10 +1233,23 @@ async function main(): Promise<number> {
     }
     case 'share':
     case 'prompts': {
-      return await runtimeSharingLoader(
-        path.join(distDir, 'sharingRuntime.js'),
-        log,
-      )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale())
+      // A chat target reads the real session through the active runtime; other
+      // targets never touch a backend, so they keep today's lazy ports.
+      const requiresSession = command.command === 'share' && command.request.target === 'chat'
+      const runtime = requiresSession ? await runtimeFor(defaultServeOptions(), log) : undefined
+      try {
+        return await runtimeSharingLoader(
+          path.join(distDir, 'sharingRuntime.js'),
+          log,
+        )().runRuntimeSharing(
+          command,
+          sharingPorts(log, runtime, sharingDeps()),
+          UI_TEXT,
+          uiLocale(),
+        )
+      } finally {
+        await runtime?.close()
+      }
     }
     case 'schedule': {
       const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
@@ -1593,8 +1589,7 @@ async function main(): Promise<number> {
         process.stderr,
         localized.command === 'invalid' ? localized.reason : UI_TEXT.accounts.unavailable,
       )
-      writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
-      writeLine(process.stderr, UI_TEXT.acpChatGpt.usage)
+      writeLine(process.stderr, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
       return command.exitCode ?? EXIT_FAILED
     }
   }

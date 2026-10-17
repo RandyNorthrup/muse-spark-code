@@ -100,7 +100,7 @@ function UnknownPaidRequests({ count }: { readonly count: number }) {
  * The Tab row (M94 lane U, PLAN.md D73 acceptance 16): today's spend against
  * the daily budget, the request count, and the on/off state. "Today" is the
  * ledger's total for the local day across every window, shown once Tab has
- * run in this window (the ledger is read by dist/tab.js); "This window" is
+ * run in this window (the ledger is read by dist/tab.js); "This Window" is
  * this window's reported cost; the budget is the configured one (RVM94HU
  * 23–24). While Tab is off and has never run here, the row says off with the
  * budget instead of zeros that read as use. The facts wrap, as the other
@@ -160,7 +160,7 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
   const isEntirelyUnknown = isTokenFeature && requests > 0 && requests === unknown
   const cost = formatUsd(paidCostUsd(feature, paid.tally))
   let costDetail = cost
-  if (feature === 'scheduledPrompts') {
+  if (feature === 'scheduledPrompts' || feature === 'autoCompaction') {
     costDetail = UI_TEXT.usageScheduledIncluded
   } else if (isTokenFeature) {
     costDetail = fill(
@@ -188,6 +188,7 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
 }
 
 function paidUseText(feature: PaidFeature, tally: PaidTally): string {
+  if (feature === 'autoCompaction') return formatNumber(tally.autoCompactionRequests ?? 0)
   if (feature === 'legalExplanation') return formatNumber(tally.legalExplanations ?? 0)
   if (feature === 'voice')
     return fill(UI_TEXT.usagePaidAudio, {

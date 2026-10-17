@@ -123,7 +123,9 @@ function projected(estimate: AccountRequestEstimate) {
   }
 }
 
-/** Conservative full re-read, even within a group until Q-M108 captures cache sharing. */
+/** Conservative full re-read, even within a group until Q-M108 captures cache sharing.
+ * @unwired M108 conservative pool cost estimate
+ */
 export function accountColdCacheEstimate(inputTokens: number, inputUsdPerMillion: string): Usd {
   if (!Number.isSafeInteger(inputTokens) || inputTokens < 0)
     throw new Error(UI_TEXT.accounts.invalidAccount)
@@ -656,7 +658,9 @@ export interface AccountReplayIdentity {
   readonly model: string
 }
 
-/** Captured codecs classify native items and retain their visible text. No group exception yet. */
+/** Captured codecs classify native items and retain their visible text. No group exception yet.
+ * @unwired M108 pool replay of captured items
+ */
 export function accountReplay<Item>(
   entries: readonly {
     readonly item: Item
