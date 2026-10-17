@@ -728,7 +728,9 @@ describe('configured provider production transport', () => {
             modelId: REF,
             pricing: 'plan',
             planLimitsUrl: expect.stringContaining('subscriptions'),
-            contextLimit: 128_000,
+            // Live models.dev 2026-10-17 and Mistral's own captured list
+            // (m95-captures/mistral, max_context_length) both say 131072.
+            contextLimit: 131_072,
           }),
         ])
         const session = await host.startSession({
