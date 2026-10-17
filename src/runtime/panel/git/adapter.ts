@@ -53,13 +53,12 @@ import {
   commitMessageFrom,
   commitMessagePrompt,
   gitDraftContract,
-  hasCredentialShapes,
+  isPullRequestFormRefused,
   pullRequestPrompt,
   pullRequestTextFrom,
   structuredGitDraft,
   type GitDraftOutputPort,
 } from '../../../core/git/gitText'
-import { pullRequestFormProblem } from '../../../core/git/pullRequestRef'
 import { isPlainRefName, type PushPlan } from '../../../core/git/pushPlan'
 import type { PullRequestLinkRecord, RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import { toPushHead, type NativeStatusSnapshot } from '../../../core/git/status'
@@ -856,25 +855,10 @@ export class RuntimeGit implements ConversationGitPort {
     }
     const title = request.title.trim()
     const base = request.base.trim()
-    const problem = pullRequestFormProblem(title, request.body, base)
-    if (problem !== undefined || !this.usable()) {
-      if (problem !== undefined) {
-        this.surface.notice('warning', problem)
-      }
-      this.refuseForm('pullRequest')
-      return
-    }
-    if (hasCredentialShapes(title) || hasCredentialShapes(request.body)) {
-      // The form gets the masked text back: what goes out is what the user saw.
-      this.surface.post({
-        type: 'gitDraft',
-        draft: {
-          kind: 'pullRequest',
-          title: redactSecrets(title),
-          body: redactSecrets(request.body),
-        },
-      })
-      this.surface.notice('warning', UI_TEXT.gitCredentialMasked)
+    if (
+      isPullRequestFormRefused({ title, body: request.body, base }, this.surface) ||
+      !this.usable()
+    ) {
       this.refuseForm('pullRequest')
       return
     }

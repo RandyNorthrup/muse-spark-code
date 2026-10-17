@@ -53,6 +53,7 @@ import {
   commitMessageFrom,
   commitMessagePrompt,
   hasCredentialShapes,
+  isPullRequestFormRefused,
   pullRequestPrompt,
   pullRequestTextFrom,
   gitDraftContract,
@@ -61,7 +62,6 @@ import {
 } from '../../core/git/gitText'
 import type { SideCallFormats } from '../../core/backends/modelapi/structuredOutput'
 import { isPlainRefName, isPlainRefspec, planPush, type PushPlan } from '../../core/git/pushPlan'
-import { pullRequestFormProblem } from '../../core/git/pullRequestRef'
 import { wireWordForLog } from '../../core/logging'
 import { redactSecrets } from '../../core/redact'
 import type { RuntimeGitDeps } from '../../core/git/runtimeGit'
@@ -79,6 +79,7 @@ import {
   type GitChange,
   type GitRepository,
 } from './gitExtension'
+import type { NativeGitBundle } from './nativeGitBundle'
 import type { PullRequestLink, PullRequestLinks } from './pullRequestLinks'
 
 /** Preserve activation's error identities when this adapter is built into its own bundle. */
@@ -161,7 +162,8 @@ export interface GitWindow {
    * no git on PATH.
    */
   readonly nativeGit?:
-    (() => { readonly deps: RuntimeGitDeps; readonly bundlePath: string } | undefined) | undefined
+    | (() => { readonly deps: RuntimeGitDeps; readonly bundle: () => NativeGitBundle } | undefined)
+    | undefined
 }
 
 /** A new file: where it is, and its path as the prompt names it. */
@@ -1235,23 +1237,7 @@ export class ConversationGit implements ConversationGitPort {
     }
     const title = request.title.trim()
     const base = request.base.trim()
-    const problem = pullRequestFormProblem(title, request.body, base)
-    if (problem !== undefined) {
-      this.surface.notice('warning', problem)
-      done(false)
-      return
-    }
-    if (hasCredentialShapes(title) || hasCredentialShapes(request.body)) {
-      // The form gets the masked text back: what goes out is what the user saw.
-      this.surface.post({
-        type: 'gitDraft',
-        draft: {
-          kind: 'pullRequest',
-          title: redactSecrets(title),
-          body: redactSecrets(request.body),
-        },
-      })
-      this.surface.notice('warning', UI_TEXT.gitCredentialMasked)
+    if (isPullRequestFormRefused({ title, body: request.body, base }, this.surface)) {
       done(false)
       return
     }

@@ -13,8 +13,7 @@ import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ConversationGitPort, GitSurface } from '../conversation/conversationController'
 import { ConversationGit, type ConversationGitErrorTypes, type GitWindow } from './conversationGit'
-import { GitUnavailableError, isGitExtensionInstalled } from './gitExtension'
-import { loadNativeGitBundle } from './nativeGitBundle'
+import { isGitExtensionInstalled } from './gitExtension'
 import {
   createGitFeatures as gitFeaturesFrom,
   type GitFeaturesDeps,
@@ -31,19 +30,9 @@ export function createConversationGit(
 ): ConversationGitPort {
   setUiText(table, locale)
   const native = isGitExtensionInstalled() ? undefined : window.nativeGit?.()
-  if (native === undefined) {
-    return new ConversationGit(window, surface, errorTypes)
-  }
-  let bundle: ReturnType<typeof loadNativeGitBundle>
-  try {
-    bundle = loadNativeGitBundle(native.bundlePath)
-  } catch (error: unknown) {
-    window.log.warn(
-      `The native Git bundle could not be loaded: ${error instanceof Error ? error.message : String(error)}`,
-    )
-    throw new GitUnavailableError(table.gitUnavailable)
-  }
-  return bundle.createNativeGit(surface, native.deps, table, locale)
+  return native === undefined
+    ? new ConversationGit(window, surface, errorTypes)
+    : native.bundle().createNativeGit(surface, native.deps, table, locale)
 }
 
 export function createGitFeatures(

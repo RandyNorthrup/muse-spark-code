@@ -8,8 +8,10 @@
 // A missing or damaged bundle refuses the conversation's Git with Git's
 // unavailable error (the log has the cause), as a missing conversation Git
 // bundle does, and the next conversation tries again.
+import { UI_TEXT } from '../../shared/constants'
 import type * as Entry from '../../runtime/panel/git/nativeGitEntry'
-import { requireFile } from '../lazyBundle'
+import { lazyBundleLoader } from '../lazyBundle'
+import type { Logger } from '../logger'
 
 export interface NativeGitBundle {
   readonly createNativeGit: typeof Entry.createNativeGit
@@ -25,20 +27,16 @@ export function isNativeGitBundle(value: unknown): value is NativeGitBundle {
   )
 }
 
-/** The bundle; a load failure or a wrong-shaped module throws with its cause. */
-export function loadNativeGitBundle(
-  bundlePath: string,
-  loadBundle: (file: string) => unknown = requireFile,
-): NativeGitBundle {
-  let loaded: unknown
-  try {
-    loaded = loadBundle(bundlePath)
-  } catch (error: unknown) {
-    const reason = error instanceof Error ? error.message : String(error)
-    throw new Error(`${bundlePath} could not be loaded: ${reason}`, { cause: error })
-  }
-  if (!isNativeGitBundle(loaded)) {
-    throw new Error(`${bundlePath} is not the native Git bundle`)
-  }
-  return loaded
+/** The bundle, loaded once; a load failure or a wrong-shaped module refuses with Git's unavailable error. */
+export function nativeGitLoader(deps: {
+  readonly bundlePath: string
+  readonly log: Logger
+  readonly loadBundle?: ((file: string) => unknown) | undefined
+}): () => NativeGitBundle {
+  return lazyBundleLoader({
+    ...deps,
+    isBundle: isNativeGitBundle,
+    label: 'native Git bundle',
+    unavailable: () => UI_TEXT.gitUnavailable,
+  })
 }

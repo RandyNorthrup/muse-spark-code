@@ -47,6 +47,7 @@ import {
   type CheckoutRepository,
   type GitRepository,
 } from './gitExtension'
+import { nativeGitLoader } from './nativeGitBundle'
 import { nativeCheckoutRepository } from './nativeRepository'
 import {
   confirmWorktreeTrust,
@@ -354,6 +355,8 @@ function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps |
 export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
   let isCheckingOut = false
   const popups = loggedPopups(deps.log)
+  // M123's native route, loaded the first time a conversation needs it.
+  const nativeBundle = nativeGitLoader({ bundlePath: deps.nativeGitBundlePath, log: deps.log })
   // A token per GitHub call, in D104's order. A sign-in that failed is said
   // in its fixed words (the conversation's own adapter says it in the panel).
   const githubToken = async (mode: 'ask' | 'silent'): Promise<string | undefined> => {
@@ -406,9 +409,7 @@ export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
     // A VS Code-family host without `vscode.git` (M123, D104 §1).
     nativeGit: () => {
       const native = nativeGitDeps(deps, window)
-      return native === undefined
-        ? undefined
-        : { deps: native, bundlePath: deps.nativeGitBundlePath }
+      return native === undefined ? undefined : { deps: native, bundle: nativeBundle }
     },
   }
   const checkoutDeps = (): PullRequestCheckoutDeps => ({
