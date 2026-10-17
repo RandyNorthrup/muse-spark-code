@@ -259,8 +259,12 @@ async function finish(input: {
   try {
     const envelope: unknown = options.format === 'json' ? JSON.parse(rendered) : envelopeBody
     legalReportEnvelopeSchema.parse(envelope)
-  } catch {
-    return { exitCode: LEGAL_EXIT.incomplete, out: '', err: UI_TEXT.execFileTooLarge }
+  } catch (error: unknown) {
+    return {
+      exitCode: LEGAL_EXIT.incomplete,
+      out: '',
+      err: fill(UI_TEXT.legalScanFailed, { reason: shortReason(error) }),
+    }
   }
   if (Buffer.byteLength(rendered, 'utf8') > LEGAL_REPORT_MAX_BYTES) {
     return { exitCode: LEGAL_EXIT.incomplete, out: '', err: UI_TEXT.execFileTooLarge }
