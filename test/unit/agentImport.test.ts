@@ -337,6 +337,19 @@ describe('importDisplayPath', () => {
     expect(importDisplayPath(`${HOME}/.claude/x`, context)).toBe('~/.claude/x')
     expect(importDisplayPath('/etc/x', context)).toBe('/etc/x')
   })
+
+  it('keeps a folder named ..foo inside the workspace, on any drive', () => {
+    const context = {
+      platform: 'win32',
+      homeDir: String.raw`D:\Users\me`,
+      workspaceRoot: String.raw`D:\ws`,
+    } as const
+    expect(importDisplayPath(String.raw`D:\ws\..foo\b.md`, context)).toBe('..foo/b.md')
+    expect(importDisplayPath(String.raw`D:\other\b.md`, context)).toBe(String.raw`D:\other\b.md`)
+    expect(importDisplayPath(String.raw`E:\ws\..foo\b.md`, context)).toBe(
+      String.raw`E:\ws\..foo\b.md`,
+    )
+  })
 })
 
 const ROOT_IDENTITY = { canonical: WS, fileId: '' } as const

@@ -130,7 +130,11 @@ export function fileIdentities(
     if (!existsSync(absolute)) return
     const real = realpathSync(absolute)
     const relative = nodePath.relative(root, real)
-    if (relative.startsWith('..') || nodePath.isAbsolute(relative))
+    if (
+      relative === '..' ||
+      relative.startsWith(`..${nodePath.sep}`) ||
+      nodePath.isAbsolute(relative)
+    )
       throw new Error(UI_TEXT.playbookUnavailable)
     const stat = statSync(real)
     if (stat.isDirectory()) {
