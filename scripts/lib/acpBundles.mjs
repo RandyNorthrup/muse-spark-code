@@ -87,6 +87,7 @@ export const ACP_BUNDLES = [
   'providerCatalog.js',
   'media.js',
   'reviewer.js',
+  'modelEfforts.js',
   'team.js',
   'teamRunners.js',
   'teamScheduler.js',

@@ -2,12 +2,8 @@ import * as z from 'zod/mini'
 import { UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 
-export {
-  feedbackClassificationSchema,
-  scrubMuseFeedbackNote,
-  submitMuseFeedback,
-} from './feedbackRequest'
-export type { FeedbackClassification, FeedbackRequest, FeedbackSubmitPort } from './feedbackRequest'
+export { feedbackClassificationSchema, submitMuseFeedback } from './feedbackRequest'
+export type { FeedbackRequest, FeedbackSubmitPort } from './feedbackRequest'
 
 /** A captured-frame zod reader must validate the receipt and return its exact outcome. */
 export interface FeedbackOutcomeReader {
