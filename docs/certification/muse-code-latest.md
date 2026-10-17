@@ -81,10 +81,15 @@ moves` failed; restored (`mapNotification.ts` sha `0cec988b…` before
   `sha256:5d3b43e5…914c`); this rig runs 1.4.9, latest release is 1.4.10.
 - `MuseCodeHost.ts`: `outputLimit` parsed and mapped (`toModelSummary`),
   skill `title` parsed and mapped (`toSkillSummary`), `permissionProfile`
-  on start and resume, `sandboxAvailability`/`sandboxUnavailableReason`
+  forwarded on start and resume when a caller supplies one (no surface
+  supplies one yet; the host's configured default applies, as before),
+  `sandboxAvailability`/`sandboxUnavailableReason`
   parsed into `MuseHostInfo`, `sessionRename` requested at every
   handshake (older hosts ignore it; this host did not grant it, so rename
-  stays behind the platform gate).
+  stays behind the platform gate). Review correction (RVMUSEUPDATE,
+  2026-10-17): `outputLimit`, skill `title` and the sandbox posture are
+  carried on the summary/info types but no picker, palette or panel
+  displays them yet; read "parsed and mapped" as exactly that.
 - `mapNotification.ts`: `turn/modelRetryScheduled` → `turnRetry` (reason
   from the attempt's own words), 1.4.6 facets on `turn/retryScheduled`,
   `approval/reviewing` → notice naming the approval,
@@ -103,11 +108,17 @@ moves` failed; restored (`mapNotification.ts` sha `0cec988b…` before
   description). Manifest, `package.nls.json`, `settings.ts`, extension
   deps, backend manager, headless runtime, `featureCatalog.ts`, reference
   regenerated (89→92 settings, gate green).
-- Team: serve ceiling reads the served version (32 through 1.4.4, 256 from
-  1.4.5, unknown→32); contributor RPM corrected to the documented 150
+- Team: `museCodeLoadedSessionCeiling(version)` returns Muse Code's
+  documented bound (32 through 1.4.4, 256 from 1.4.5, unknown→32) and
+  `computeTeamCeiling` uses it for `museCode` sources. Review correction
+  (RVMUSEUPDATE, 2026-10-17): `computeTeamCeiling` has no production
+  caller yet (true before this lane too) and nothing passes
+  `museCodeVersion`, so no running surface applies the 256 bound today;
+  the fixed 4 is gone from the formula, the wiring is team-integration
+  work. Contributor RPM corrected to the documented 150
   (still ~9 workers). Stale frame-drop comment fixed (the host answers
   `-32002`/`-32700`, the connection stays open).
-- Tests: `test/unit/museCodeLatest.test.ts` (33 tests over the recorded
+- Tests: `test/unit/museCodeLatest.test.ts` (34 tests (33 from the lane, 1 review regression) over the recorded
   fixtures plus schema-faithful params for events the echo host cannot
   emit), ceiling/RPM updates in `teamCeilings.test.ts`,
   `teamConstants.test.ts`. Fixtures under `test/fixtures/m126/`.
@@ -120,7 +131,8 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
 1. `muse serve --provider echo --no-session-log`, initialize with
    `requestedCapabilities` including `sessionRename`, confirm
    `sandboxAvailability: available` and no `sessionRename` grant.
-2. `model/list`: rows carry `outputLimit`; the picker reads it.
+2. `model/list`: rows carry `outputLimit`; `toModelSummary` maps it onto
+   the model summary (no picker displays it yet).
 3. Install a skill with nested `metadata.display-name`; `skill/list`
    carries `title`.
 4. Set `museSpark.hooksMaxRunningCommands: 1` with two slow SessionStart
@@ -142,7 +154,7 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
   on the `AgentSession` contract as optionals (absent where the backend
   keeps none). Recorded empty task/plugin lists and the real hook row
   (`event: sessionStart` kept verbatim) under `test/fixtures/m126/`;
-  33 tests in `museCodeLatest.test.ts`.
+  34 tests in `museCodeLatest.test.ts`.
 - `MuseSession.importForeignSkills` (`skill/import`, dry-run preview,
   commandId-idempotent) over the wire; the `importSkills` command keeps
   its CLI transport (M91 behavior unchanged).
@@ -175,10 +187,15 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
   plugin panels; a History-dialog recap action; a Tasks resume
   affordance) is owner design work; the backend methods, types and
   fixtures are in place and tested.
-- New methods the product does not call beyond the above
-  (`task/cancel`, `task/stopAll`, `task/background`, `goal/*`,
-  `workflow/*` except resume) are parsed by the SDK types and unwrapped
-  until a surface needs them.
+- Methods the product does not call beyond the above stay unwrapped
+  until a surface needs them. Review correction (RVMUSEUPDATE,
+  2026-10-17): the first draft of this record wrongly listed
+  `task/background`, `task/stopAll` and `goal/*` here; all were already
+  wrapped before this lane (M45/M46). The genuinely unwrapped remainder
+  includes `skill/setActivation` (1.4.6), `workflow/*` except resume,
+  `computerUseSettings/*` and the owner-decision mutations above.
+  `messagePhase` on items (1.4.8) is captured in the fixtures but not
+  mapped: commentary and final-answer items render alike today.
 - Host-loop settings (`hooksMaxStopContinuations`,
   `subagentMaxConcurrent`) are proven by the reference gate, the defaults
   test and the real-use steps above, not by a host unit harness: no unit
@@ -186,9 +203,12 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
   lane's test rules), and building the first stub-deps harness would be a
   stand-in.
 - `muse` binary on this rig is 1.4.9 (latest 1.4.10): the stable surface
-  is identical (same fingerprint), and the 1.4.10-only wire deltas
-  (`turn/retracted` outcome, `model_provider` vendor) are incorporated
-  from the SDK and schema. The lead's rigs should move to 1.4.10.
+  is identical (same fingerprint). Of the 1.4.10-only wire deltas, the
+  `turn/retracted` outcome is incorporated from the SDK and schema; the
+  `model_provider` vendor word rides Muse Code's own hook payloads (the
+  product's Model API hook payload already carried the field before this
+  lane), so there was nothing to change for it here. The lead's rigs
+  should move to 1.4.10.
 - The `l10n-pack-diag.mjs` order check named in the lane brief is not on
   this rig; key order was verified programmatically instead (all 14
   tables place the three new keys directly after `turnRetracted`, as
@@ -210,7 +230,7 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
   `noUncheckedIndexedAccess`); fixed with the `!` precedent from
   `importHookSources.test.ts`, re-greened, then committed.
 - Tests on the finished tree, repo default timeout, no overrides:
-  `museCodeLatest.test.ts` 33/33; neighbors `mapNotification`,
+  `museCodeLatest.test.ts` 33/33 at the lane head; 34/34 after the review regression test; neighbors `mapNotification`,
   `teamCeilings`, `manifest` 91/91.
 - `security:sast` still skips on this rig (semgrep not installable:
   read-only FS blocks pip, scratch venv has no wheel support); the gate
