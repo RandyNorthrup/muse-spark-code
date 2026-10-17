@@ -50,6 +50,7 @@ export {
   firstBodyLine,
   isDefiniteRefusal,
   isRefusalRetryable,
+  isRetryableStreamFailure,
   parseRefusalError,
   refusalOf,
   refusalSentence,

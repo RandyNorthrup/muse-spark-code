@@ -273,6 +273,30 @@ const refusalError = (
   out.retryAfterMs = error.retryAfterMs
   return out
 }
+/**
+ * How a configured provider's failure is read, wherever that provider is
+ * asked (lane PROVERRORS): its own format's parser for an answer, the
+ * sentence for a send that produced no answer (the provider, Node's own
+ * failure codes, and that whether the request arrived is unknown), and the
+ * sentence for an answered refusal. The turn, the key check and the
+ * runtime's `providers test` all read failures through this one reader.
+ */
+export function providerFailureReader(
+  entry: ProviderEntry,
+  preset: { readonly label: string; readonly category: string; readonly format: ProviderFormat },
+) {
+  return {
+    parseError: (status: number, value: unknown): ModelApiError =>
+      parseFormatError(entry.format ?? preset.format, status, value),
+    sendFailure: (error: unknown): string =>
+      fill(UI_TEXT.providerUnreachable, {
+        provider: providerDisplayName(entry, preset),
+        detail: boundProviderMessage(networkFailureCodes(error)),
+      }),
+    refusal: (error: ModelApiError): string =>
+      refusalSentence(refusalOf(error), providerDisplayName(entry, preset)),
+  }
+}
 
 function ignoreTransportLog(): void {
   // This adapter reports fixed failures through its caller, without retaining
@@ -455,11 +479,7 @@ export function createConfiguredProviderServices(
         // A send that produced no answer: the provider, Node's own failure
         // codes (never what a server wrote) and that whether the request
         // arrived is unknown (lane PROVERRORS).
-        sendFailure: (error: unknown) =>
-          fill(UI_TEXT.providerUnreachable, {
-            provider: providerDisplayName(entry, preset),
-            detail: boundProviderMessage(networkFailureCodes(error)),
-          }),
+        sendFailure: providerFailureReader(entry, preset).sendFailure,
         fetch: async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
           let requestUrl: string
           if (typeof url === 'string') requestUrl = url
@@ -636,7 +656,7 @@ export function createConfiguredProviderServices(
       // never-retry rule as the turn path; without this the transport's
       // default envelope (a string `code`) rejects e.g. Google's numeric
       // code and the provider's words are lost behind a bare "HTTP 400".
-      parseError: (status, value) => parseFormatError(entry.format ?? preset.format, status, value),
+      parseError: providerFailureReader(entry, preset).parseError,
       isRetryableFailure: (failure) => isRefusalRetryable(failure, presets.quirksOf(preset).retry),
     })
     const headers: Record<string, string> = {}
