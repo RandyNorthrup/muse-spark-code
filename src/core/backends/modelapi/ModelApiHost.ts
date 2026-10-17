@@ -378,9 +378,8 @@ import {
   afterAgentThoughtFields,
   beforeToolSelectionFields,
   createFileChangedThrottle,
-  elicitationFields,
-  elicitationResultFields,
-  elicitationVerdictFromDispatch,
+  dispatchElicitationHooks,
+  dispatchElicitationResultHooks,
   emptyExtensionDispatch,
   extensionHookPayload,
   fileChangedFields,
@@ -393,6 +392,7 @@ import {
   taskFields,
   teammateIdleFields,
   userPromptExpansionFields,
+  type ElicitationHookFire,
   type ExtensionHookContext,
   type ExtensionHookDefinition,
   type ExtensionHookDispatch,
@@ -436,12 +436,9 @@ import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import {
   ALLOW_ELICITATION_SEAM,
   describeElicitationForLog,
-  type ElicitationHookInput,
   type ElicitationHookSeam,
-  type ElicitationHookVerdict,
   elicitationFieldNames,
   type ElicitationOutcome,
-  type ElicitationResultInput,
 } from './mcp/elicitation'
 import type {
   McpElicitationHandler,
@@ -7306,79 +7303,29 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /**
    * The default Elicitation seam (M91 D70): the configured extension hooks
-   * run, since the host injects no seam of its own. Policy hooks (project
-   * and managed) run first and can only decline; the user's own hooks run
-   * next and may also answer. Only an explicitly user-scoped hook answers
-   * or sees values: anything else with an answer is refused by the caller.
-   * A hook refusal declines with the hook's reason (the noticed refusal);
-   * cancel stays the caller's own stop/timeout path, because the hook
-   * protocol carries a single refusal.
+   * run, since the host injects no seam of its own. The scope grouping
+   * (policy hooks decline only, user hooks answer and alone see values)
+   * lives in `dispatchElicitationHooks`/`dispatchElicitationResultHooks`;
+   * this binds them to the session's hook dispatch. There is no turn, so
+   * hook contexts drop and hook messages surface as notices.
    */
   private defaultElicitationSeam(): ElicitationHookSeam {
+    const fire: ElicitationHookFire = async (event, fields, matcherValue, onlySources) =>
+      await this.fireExtensionHooks(
+        event,
+        undefined,
+        fields,
+        matcherValue,
+        undefined,
+        true,
+        onlySources,
+      )
     return {
-      fireElicitation: (input) => this.fireDefaultElicitation(input),
-      fireElicitationResult: (input) => this.fireDefaultElicitationResult(input),
+      fireElicitation: async (input) => await dispatchElicitationHooks(fire, input),
+      fireElicitationResult: async (input) => {
+        await dispatchElicitationResultHooks(fire, input)
+      },
     }
-  }
-
-  private async fireDefaultElicitation(
-    input: ElicitationHookInput,
-  ): Promise<ElicitationHookVerdict> {
-    const fields = elicitationFields(
-      input.server,
-      input.message,
-      input.fieldNames,
-      input.requiredNames,
-    )
-    const policy = await this.fireExtensionHooks(
-      'Elicitation',
-      undefined,
-      fields,
-      input.server,
-      undefined,
-      true,
-      ['project', 'managed'],
-    )
-    const personal = await this.fireExtensionHooks(
-      'Elicitation',
-      undefined,
-      fields,
-      input.server,
-      undefined,
-      true,
-      ['user'],
-    )
-    return elicitationVerdictFromDispatch(policy, personal)
-  }
-
-  private async fireDefaultElicitationResult(input: ElicitationResultInput): Promise<void> {
-    await this.fireExtensionHooks(
-      'ElicitationResult',
-      undefined,
-      elicitationResultFields({
-        server: input.server,
-        action: input.action,
-        fieldNames: input.fieldNames,
-      }),
-      input.server,
-      undefined,
-      true,
-      ['project', 'managed'],
-    )
-    await this.fireExtensionHooks(
-      'ElicitationResult',
-      undefined,
-      elicitationResultFields({
-        server: input.server,
-        action: input.action,
-        fieldNames: input.fieldNames,
-        ...(input.values !== undefined && { values: input.values }),
-      }),
-      input.server,
-      undefined,
-      true,
-      ['user'],
-    )
   }
 
   /**
