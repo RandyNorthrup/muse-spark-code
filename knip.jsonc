@@ -228,16 +228,22 @@
     "src/core/vault/backup.ts",
     "src/core/vault/broker/audit.ts",
     "src/core/vault/broker/epoch.ts",
+    // RVMSM109: restored held work MSM109 deleted as scaffolding. windowsPipe
+    // is lane C-M109-1c's contract (docs/design/vault-windows-pipe-helper.md);
+    // the two migration codecs are the key-store migration's (D89.14, lane M).
+    "src/core/vault/broker/windowsPipe.ts",
     "src/core/vault/exec/brokerLease.ts",
     "src/core/vault/exec/entry.ts",
     "src/core/vault/exec/helpers.ts",
     "src/core/vault/exec/tools.ts",
     "src/core/vault/fleet.ts",
     "src/core/vault/keyslots.ts",
+    "src/core/vault/migrate/accountSecrets.ts",
     "src/core/vault/migrate/importFile.ts",
     "src/core/vault/migrate/material.ts",
     "src/core/vault/migrate/migrate.ts",
     "src/core/vault/migrate/modelApi.ts",
+    "src/core/vault/migrate/providerCredentials.ts",
     "src/core/vault/remote.ts",
     "src/core/vault/ssh/brokerAccess.ts",
     "src/core/vault/ssh/endpoint.ts",
