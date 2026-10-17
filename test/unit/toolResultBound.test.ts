@@ -34,14 +34,21 @@ import {
 
 const LIMITS = { maxTokens: 16_000, maxLineChars: 8000, maxBytes: 64_000, windowTokens: undefined }
 
-/** Every cut's kept and omitted add up to the total. */
+/**
+ * Every cut's kept and omitted add up to the total, and `keptChars` counts
+ * ORIGINAL characters carried in the kept text: the `…` markers the cut
+ * itself added are not original characters. These inputs contain no `…`,
+ * so every one in the kept text is a marker, counted here independently.
+ */
 function expectSums(
   text: string,
   limits: typeof LIMITS,
 ): Exclude<ReturnType<typeof boundToolResultText>['cut'], undefined> {
   const bounded = boundToolResultText(text, limits)
   if (bounded.cut === undefined) throw new Error('expected a cut')
-  expect(bounded.cut.keptChars).toBe(bounded.text.length)
+  expect(text).not.toContain('…')
+  const markers = bounded.text.split('…').length - 1
+  expect(bounded.cut.keptChars).toBe(bounded.text.length - markers)
   expect(bounded.cut.keptChars + bounded.cut.omittedChars).toBe(text.length)
   expect(bounded.cut.keptBytes).toBe(utf8Length(bounded.text))
   return bounded.cut
@@ -63,7 +70,8 @@ describe('boundToolResultText', () => {
     expect(bounded.cut.totalTokens).toBe(Math.ceil(text.length / OBS_PACK_CHARS_PER_TOKEN))
     expect(bounded.cut.totalLines).toBe(2)
     expect(bounded.cut.omittedChars).toBeGreaterThan(0)
-    expect(bounded.cut.keptChars).toBe(bounded.text.length)
+    expect(bounded.cut.keptChars + bounded.cut.omittedChars).toBe(text.length)
+    expect(bounded.cut.keptChars).toBeLessThanOrEqual(bounded.text.length)
     expect(bounded.text.startsWith('h'.repeat(100))).toBe(true)
     expect(bounded.text.endsWith('t'.repeat(100))).toBe(true)
     expect(bounded.text).not.toContain('h'.repeat(40_000))
@@ -154,6 +162,26 @@ describe('boundToolResultText', () => {
     expect(cut.headLines + cut.tailLines).toBeLessThanOrEqual(cut.totalLines)
   })
 
+  it('keptChars counts original characters, not the line-cut marker', () => {
+    // One line cut to the 8,000 cap: 7,999 original characters plus the
+    // one-character marker. The notice must not count the marker as kept.
+    const bounded = boundToolResultText('x'.repeat(200_000), LIMITS)
+    if (bounded.cut === undefined) throw new Error('expected a cut')
+    expect(bounded.text.length).toBe(8000)
+    expect(bounded.cut.keptChars).toBe(7999)
+    expect(bounded.cut.omittedChars).toBe(200_000 - 7999)
+  })
+
+  it('a middle cut marks where the kept head meets the kept tail', () => {
+    // Without a mark, the head's last fragment and the tail's first would
+    // read as one continuous line the tool never printed.
+    const text = Array.from({ length: 2000 }, () => 'm'.repeat(49)).join('\n')
+    const bounded = boundToolResultText(text, { ...LIMITS, maxBytes: 2000 })
+    if (bounded.cut === undefined) throw new Error('expected a cut')
+    expect(bounded.text).toContain('…')
+    expect(utf8Length(bounded.text)).toBeLessThanOrEqual(2000)
+  })
+
   it('a result that cannot fit at all becomes the notice with an empty keep', () => {
     const bounded = boundToolResultText('0123456789'.repeat(100), { ...LIMITS, windowTokens: 0 })
     if (bounded.cut === undefined) throw new Error('expected a cut')
@@ -177,11 +205,21 @@ describe('cutNotice', () => {
     if (bounded.cut === undefined) throw new Error('expected a cut')
     const notice = cutNotice(bounded.cut, '.muse-spark/tool-results/s-c1.txt', 'c1')
     expect(notice).toContain('40001 characters')
-    expect(notice).toContain('characters omitted in the middle')
+    expect(notice).toContain('characters omitted)')
     expect(notice).toContain('longest line 20000 characters, cut to 8000')
     expect(notice).toContain('.muse-spark/tool-results/s-c1.txt')
     expect(notice).toContain('recall_output id "c1"')
     expect(notice).toContain('read_file')
+  })
+
+  it('an unkept spill names no file and says the full result is gone', () => {
+    const text = `${'h'.repeat(20_000)}\n${'t'.repeat(20_000)}`
+    const bounded = boundToolResultText(text, LIMITS)
+    if (bounded.cut === undefined) throw new Error('expected a cut')
+    const notice = cutNotice(bounded.cut, undefined, 'c1')
+    expect(notice).toContain('The full result could not be kept')
+    expect(notice).not.toContain('Full result in')
+    expect(notice).not.toContain('recall_output')
   })
 
   it('names the head and tail the cut actually kept', () => {
@@ -190,7 +228,7 @@ describe('cutNotice', () => {
     if (bounded.cut === undefined) throw new Error('expected a cut')
     const notice = cutNotice(bounded.cut, 'spill.txt', 'c9')
     expect(notice).toContain(
-      `kept ${String(bounded.cut.keptChars)} as the first ${String(bounded.cut.headLines)} and last ${String(bounded.cut.tailLines)} lines`,
+      `kept ${String(bounded.cut.keptChars)} characters from the start and end (${String(bounded.cut.headLines)} whole lines at the start, ${String(bounded.cut.tailLines)} at the end`,
     )
   })
 })
