@@ -7,10 +7,14 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Worker } from 'node:worker_threads'
 import { buildSync } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { GLOB_LIMITS } from '../../src/core/backends/modelapi/globLimits'
 import { searchOnWorker } from '../../src/host/backend/toolIo'
-import { SEARCH_MAX_FILE_BYTES, SEARCH_MAX_HITS } from '../../src/shared/constants'
+import {
+  SEARCH_HIT_MAX_CHARS,
+  SEARCH_MAX_FILE_BYTES,
+  SEARCH_MAX_HITS,
+} from '../../src/shared/constants'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const paths = { root: '', worker: '' }
@@ -40,6 +44,7 @@ function job(pattern: string, names: readonly string[] = ['a.txt', 'b.bin', 'mis
     root: paths.root,
     maxFileBytes: SEARCH_MAX_FILE_BYTES,
     maxHits: SEARCH_MAX_HITS,
+    maxHitChars: SEARCH_HIT_MAX_CHARS,
     denyRead: [] as readonly string[],
     globLimits: GLOB_LIMITS,
     files: names.map((name) => ({ relative: name, absolute: path.join(paths.root, name) })),
@@ -153,4 +158,43 @@ describe('searchOnWorker', () => {
     const outcome = await searchOnWorker(path.join(paths.root, 'nope.js'), job('x'), 10_000)
     expect(outcome).toMatchObject({ ok: false })
   }, 30_000)
+
+  it('cuts one minified hit to about 500 characters, saying so (M101 item 14)', async () => {
+    const long = `hit ${'z'.repeat(2000)} tail`
+    await writeFile(path.join(paths.root, 'min.txt'), `${long}\nshort hit\n`)
+    const outcome = await searchOnWorker(paths.worker, job('hit', ['min.txt']), 10_000)
+    expect(outcome).toEqual({
+      ok: true,
+      hits: [
+        {
+          file: 'min.txt',
+          line: 1,
+          text: expect.stringMatching(/^\S/),
+        },
+        { file: 'min.txt', line: 2, text: 'short hit' },
+      ],
+    })
+    if (!outcome.ok) {
+      throw new Error('expected hits')
+    }
+    const [first] = outcome.hits
+    expect(first?.text.startsWith('hit ')).toBe(true)
+    expect(first?.text).toContain(`[line cut to ${String(SEARCH_HIT_MAX_CHARS)} characters]`)
+    expect(first?.text.length).toBeLessThan(SEARCH_HIT_MAX_CHARS + 100)
+    expect(first?.text).not.toContain('tail')
+  }, 30_000)
+  it('terminates an in-flight worker on Stop without waiting for its search deadline', async () => {
+    const abort = new AbortController()
+    const workerPath = path.join(paths.root, 'heldWorker.cjs')
+    await writeFile(workerPath, "require('node:worker_threads').parentPort.on('message', () => {})")
+    const terminate = vi.spyOn(Worker.prototype, 'terminate')
+    try {
+      const searching = searchOnWorker(workerPath, job('x'), 10_000, abort.signal)
+      abort.abort()
+      await expect(searching).rejects.toMatchObject({ name: 'AbortError' })
+      expect(terminate).toHaveBeenCalledOnce()
+    } finally {
+      terminate.mockRestore()
+    }
+  })
 })

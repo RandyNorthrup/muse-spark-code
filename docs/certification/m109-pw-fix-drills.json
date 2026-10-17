@@ -1,0 +1,631 @@
+{
+  "rig": "win11",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "repositoryDefaultTimeouts": true,
+  "drills": [
+    {
+      "id": "P3-title",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "native/windows/MuseSparkVault.cs",
+          "mutation": {
+            "needle": "Text(request, \"title\"); Text(request, \"use\");",
+            "replacement": "Text(request, \"use\");",
+            "nth": 0
+          },
+          "originalSha256": "a9f94b93043f2a51481b955521447ceaba498852c92f2592ba95009bd40763d7",
+          "mutatedSha256": "3f653e1338281defd0fae80a5e59545f31c727a921aa5a2b71a94b51524e5f2c",
+          "restoredSha256": "a9f94b93043f2a51481b955521447ceaba498852c92f2592ba95009bd40763d7"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only refuses invalid DPAPI wrap title and use before the wrapping branch"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P3-use",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "native/windows/MuseSparkVault.cs",
+          "mutation": {
+            "needle": "Text(request, \"title\"); Text(request, \"use\");",
+            "replacement": "Text(request, \"title\");",
+            "nth": 0
+          },
+          "originalSha256": "a9f94b93043f2a51481b955521447ceaba498852c92f2592ba95009bd40763d7",
+          "mutatedSha256": "618b936194ed42c070faa2e74d9cdf1fbb3e65ed1c1aa833fb69d0f0970af7fc",
+          "restoredSha256": "a9f94b93043f2a51481b955521447ceaba498852c92f2592ba95009bd40763d7"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only refuses invalid DPAPI wrap title and use before the wrapping branch"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-dll-import-MuseSparkVault.cs-0",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "native/windows/MuseSparkVault.cs",
+          "mutation": {
+            "needle": "    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]\n",
+            "replacement": "",
+            "nth": 0
+          },
+          "originalSha256": "a9f94b93043f2a51481b955521447ceaba498852c92f2592ba95009bd40763d7",
+          "mutatedSha256": "514653de3582f291c0069d37412f514b425ffaf4909dcf054209c1252a3950b1",
+          "restoredSha256": "a9f94b93043f2a51481b955521447ceaba498852c92f2592ba95009bd40763d7"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "restricts every native import and startup DLL search to System32",
+        "Windows native vault capture: generated material only rejects malformed native requests and extra private bytes with fixed diagnostics"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-dll-import-MuseSparkVaultCng.cs-0",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "native/windows/MuseSparkVaultCng.cs",
+          "mutation": {
+            "needle": "    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]\n",
+            "replacement": "",
+            "nth": 0
+          },
+          "originalSha256": "dbc1eb873b241d348c1cba386da8c1c553d42bf38cc0fc3c9e9eb399ebd69bef",
+          "mutatedSha256": "7c696e7f3513e275e29b1c86069955f2d4f312dbc05c44e5aee320177e4eae79",
+          "restoredSha256": "dbc1eb873b241d348c1cba386da8c1c553d42bf38cc0fc3c9e9eb399ebd69bef"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "restricts every native import and startup DLL search to System32",
+        "Windows native vault capture: generated material only does not load a planted ncrypt DLL beside the helper or in its working directory"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-dll-import-MuseSparkVaultCng.cs-1",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "native/windows/MuseSparkVaultCng.cs",
+          "mutation": {
+            "needle": "    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]\n",
+            "replacement": "",
+            "nth": 1
+          },
+          "originalSha256": "dbc1eb873b241d348c1cba386da8c1c553d42bf38cc0fc3c9e9eb399ebd69bef",
+          "mutatedSha256": "ade6c13bd76f1fe83025bd3f95f02985eec56b83dee13c0f19e3ecc2f1ecb1e7",
+          "restoredSha256": "dbc1eb873b241d348c1cba386da8c1c553d42bf38cc0fc3c9e9eb399ebd69bef"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": ["restricts every native import and startup DLL search to System32"],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-dll-import-MuseSparkVaultCng.cs-2",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "native/windows/MuseSparkVaultCng.cs",
+          "mutation": {
+            "needle": "    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]\n",
+            "replacement": "",
+            "nth": 2
+          },
+          "originalSha256": "dbc1eb873b241d348c1cba386da8c1c553d42bf38cc0fc3c9e9eb399ebd69bef",
+          "mutatedSha256": "6963cf2d61438b0d059b713b64b61f4d894b7c479dc99ea42e4646fb66df6169",
+          "restoredSha256": "dbc1eb873b241d348c1cba386da8c1c553d42bf38cc0fc3c9e9eb399ebd69bef"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": ["restricts every native import and startup DLL search to System32"],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-dll-import-MuseSparkVaultLock.cs-0",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "native/windows/MuseSparkVaultLock.cs",
+          "mutation": {
+            "needle": "    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]\n",
+            "replacement": "",
+            "nth": 0
+          },
+          "originalSha256": "65e59e0dfe92df1bbd1493b60ae177a91b444fb57163ab39160d20118d235ca4",
+          "mutatedSha256": "9c83cec39650f5a4301dbf3b57f2615a7fd93f0fd918fa1879e6fb276598f6f0",
+          "restoredSha256": "65e59e0dfe92df1bbd1493b60ae177a91b444fb57163ab39160d20118d235ca4"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": ["restricts every native import and startup DLL search to System32"],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-dll-import-MuseSparkVaultLock.cs-1",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "native/windows/MuseSparkVaultLock.cs",
+          "mutation": {
+            "needle": "    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]\n",
+            "replacement": "",
+            "nth": 1
+          },
+          "originalSha256": "65e59e0dfe92df1bbd1493b60ae177a91b444fb57163ab39160d20118d235ca4",
+          "mutatedSha256": "ccb959c61311c9ecd9d9a56aaa118fc76e2337b3eb6f85f2befecc252cab687f",
+          "restoredSha256": "65e59e0dfe92df1bbd1493b60ae177a91b444fb57163ab39160d20118d235ca4"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": ["restricts every native import and startup DLL search to System32"],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-dll-startup",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "native/windows/MuseSparkVault.cs",
+          "mutation": {
+            "needle": "if (!SetDefaultDllDirectories(System32Search)) throw new InvalidOperationException();",
+            "replacement": "if (false) throw new InvalidOperationException();",
+            "nth": 0
+          },
+          "originalSha256": "a9f94b93043f2a51481b955521447ceaba498852c92f2592ba95009bd40763d7",
+          "mutatedSha256": "adf90fc4af6dd636985c36f556cbd0b3871602a25555325db920182271d77362",
+          "restoredSha256": "a9f94b93043f2a51481b955521447ceaba498852c92f2592ba95009bd40763d7"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": ["restricts every native import and startup DLL search to System32"],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-dll-trap",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "native/windows/MuseSparkVault.cs",
+          "mutation": {
+            "needle": "if (!SetDefaultDllDirectories(System32Search)) throw new InvalidOperationException();",
+            "replacement": "",
+            "nth": 0
+          },
+          "originalSha256": "a9f94b93043f2a51481b955521447ceaba498852c92f2592ba95009bd40763d7",
+          "mutatedSha256": "bbc784875991073447c010771d22351c6615c719644d1fb04f48ae5c1b8573e0",
+          "restoredSha256": "a9f94b93043f2a51481b955521447ceaba498852c92f2592ba95009bd40763d7"
+        },
+        {
+          "source": "native/windows/MuseSparkVaultCng.cs",
+          "mutation": {
+            "needle": "    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]\n",
+            "replacement": "",
+            "all": true
+          },
+          "originalSha256": "dbc1eb873b241d348c1cba386da8c1c553d42bf38cc0fc3c9e9eb399ebd69bef",
+          "mutatedSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303",
+          "restoredSha256": "dbc1eb873b241d348c1cba386da8c1c553d42bf38cc0fc3c9e9eb399ebd69bef"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "restricts every native import and startup DLL search to System32",
+        "Windows native vault capture: generated material only does not load a planted ncrypt DLL beside the helper or in its working directory"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-content",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "if ($actual -ne '${digest}') { throw 'refused' }",
+            "replacement": "if ($false) { throw 'refused' }",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "c25f57257cf78579aa471f798d3e842ab38754100ca30838ce15e8bf15e3a080",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only refuses a same-name replacement on every launch and rebuilds without deleting it"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-acl",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "($rule.FileSystemRights -band $rights) -ne 0",
+            "replacement": "$false",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "5011b61c33a0e8509ba3276fda20d764bef03ce826cecf5340bde81cf937d383",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with Modify and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with Modify and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with ChangePermissions and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with ChangePermissions and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with TakeOwnership and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with TakeOwnership and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted parent ACL with DeleteSubdirectoriesAndFiles and leaves it in place"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-write-dac",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": " -bor [Security.AccessControl.FileSystemRights]::ChangePermissions",
+            "replacement": "",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "92834620cbe785f471ef43944c885af926d5ccf65f8f7f0fd167909a764e7b80",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with ChangePermissions and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with ChangePermissions and leaves it in place"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-write-owner",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": " -bor [Security.AccessControl.FileSystemRights]::TakeOwnership",
+            "replacement": "",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "168ff3e907d16116dde33c434d7f7f05e72c186a27b3deb7071ad49301249c4f",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only refuses an untrusted file ACL with TakeOwnership and leaves it in place",
+        "Windows native vault capture: generated material only refuses an untrusted directory ACL with TakeOwnership and leaves it in place"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-reparse",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "([IO.File]::GetAttributes($name) -band [IO.FileAttributes]::ReparsePoint) -ne 0",
+            "replacement": "$false",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "7edc90dadedb215532eb2c3216b1a9627399b7cf7dc228b6e26457ea2bfc4e54",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only refuses a junction in the helper path and rebuilds without touching its target"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-share-write",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "[IO.FileShare]::Read)",
+            "replacement": "[IO.FileShare]::ReadWrite)",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "8dec16851e00c0ae30d4b22d248049f109fbc851c1e0db7c1d23eb1ec50e0a33",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only holds the verified executable against writes and deletion across the launch action"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-share-delete",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "[IO.FileShare]::Read)",
+            "replacement": "([IO.FileShare]::Read -bor [IO.FileShare]::Delete))",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "4fa93e2d2a1d05b0088b730a34e335487a09c94d7d236b430713765175d2ba3e",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only holds the verified executable against writes and deletion across the launch action"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-owner",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "$allowed -notcontains $owner",
+            "replacement": "$false",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "4c66965d9af521c45ac6a79bc3876a169764e92e9d1f05b1e43d35b7595319e8",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only refuses a foreign owner on file without changing any filesystem owner",
+        "Windows native vault capture: generated material only refuses a foreign owner on directory without changing any filesystem owner",
+        "Windows native vault capture: generated material only refuses a foreign owner on parent without changing any filesystem owner"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-readiness",
+      "command": "npx.cmd vitest run test/unit/windowsVaultTransport.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "if (chunk[0] !== 1)",
+            "replacement": "if (false)",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "424189200a01477144d744dabf2aa8951d83959e41bd573046ffdf65c984c32c",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows helper private transport refuses unrecognized readiness without sending input"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-report",
+      "command": "npx.cmd vitest run test/unit/windowsVaultTransport.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "helper.report()",
+            "replacement": "void 0",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "ecc7235e1d311f7a88ffb3553b3b8081c97cd6074b9eb2bda589548158a28530",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows helper private transport reports and rebuilds a refused helper without sending private input"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-system-cwd",
+      "command": "npx.cmd vitest run test/unit/windowsVaultTransport.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "cwd: path.dirname(helper.powershell),",
+            "replacement": "",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "538936d3b781bff895f24b3b94f10121b1b670c6bf694af38e9d9cb5354fd4f9",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows helper private transport verifies before sending binary stdin, with empty environment and hidden console"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-rebuild",
+      "command": "npx.cmd vitest run test/unit/windowsVaultTransport.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "rebuilding = helper.rebuild()",
+            "replacement": "rebuilding = Promise.resolve()",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "7088b40d599f585b68302dda3838fa36bd0941c388727c3103489c9774e4d03b",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows helper private transport reports and rebuilds a refused helper without sending private input"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-private-input",
+      "command": "npx.cmd vitest run test/unit/windowsVaultTransport.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "child.stdout.on('data',",
+            "replacement": "const prematureLength = Buffer.alloc(Uint32Array.BYTES_PER_ELEMENT); prematureLength.writeUInt32BE(header.length); child.stdin.write(prematureLength); child.stdin.write(header); child.stdin.end(key);\n        child.stdout.on('data',",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "025ba9738f3ba1c291d0405ec42915806e847894ce37e9335a8ddc8a26492411",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows helper private transport verifies before sending binary stdin, with empty environment and hidden console",
+        "Windows helper private transport reports and rebuilds a refused helper without sending private input",
+        "Windows helper private transport refuses unrecognized readiness without sending input",
+        "Windows helper private transport sanitizes synchronous stdin failure after verified readiness",
+        "Windows helper private transport sanitizes synchronous spawn errors and an abort during spawning"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-write-error",
+      "command": "npx.cmd vitest run test/unit/windowsVaultTransport.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "child.stdin.end(key)\n            } catch {\n              chunk.fill(0)\n              finish(false)\n              return",
+            "replacement": "child.stdin.end(key)\n            } catch {\n              throw new Error('unhandled write')",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "a8282f5d195d6b414b05373eb34822d507093a652b5b4c002e0e349aef709b27",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows helper private transport sanitizes synchronous stdin failure after verified readiness"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-protected-create",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "[IO.Directory]::CreateDirectory($target, $acl)",
+            "replacement": "[IO.Directory]::CreateDirectory($target)",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "43d4dfb3ae5fd60f13e4087db232a05624734980fdda10fe58b3f00c05212800",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only creates private helper directories with protected ACLs"
+      ],
+      "passed": true,
+      "byteExact": true
+    },
+    {
+      "id": "P1-parent-acl",
+      "command": "npx.cmd vitest run test/unit/windowsVaultNative.test.ts --maxWorkers=3 --reporter=json",
+      "changes": [
+        {
+          "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+          "mutation": {
+            "needle": "Assert-Path $parent $false",
+            "replacement": "if (([IO.File]::GetAttributes($parent) -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'refused' }",
+            "nth": 0
+          },
+          "originalSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc",
+          "mutatedSha256": "25b6b43dd61b93175353e41b0a7e348ab274ca709ef7be8648cf4e2d3d3512fc",
+          "restoredSha256": "85599b4406051061e08f459b7694926ae6ad58f3e638f05f3b440715c41d75fc"
+        }
+      ],
+      "exitCode": 1,
+      "failingTests": [
+        "Windows native vault capture: generated material only refuses a foreign owner on parent without changing any filesystem owner",
+        "Windows native vault capture: generated material only refuses an untrusted parent ACL with DeleteSubdirectoriesAndFiles and leaves it in place"
+      ],
+      "passed": true,
+      "byteExact": true
+    }
+  ],
+  "discarded": [
+    {
+      "id": "P1-private-acl",
+      "reason": "The false/false protection toggle retained a protected DACL on Windows. Not counted; removing the ACL-bearing CreateDirectory overload made the runtime protection regression fail in P1-protected-create."
+    }
+  ]
+}

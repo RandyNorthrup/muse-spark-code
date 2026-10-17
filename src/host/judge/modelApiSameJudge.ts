@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // The same-model judge on the Model API backend (M98 lane S, PLAN.md D77):
 // the host adapter that judges one held action without touching the main
 // request or session. It reads ModelApiHost's own built (keyed) body through
@@ -8,6 +9,7 @@
 // unused; a ready caution settles at the advisory threshold. No model switch:
 // the side body keeps the conversation's model. No `vscode` import.
 
+import * as z from 'zod/mini'
 import type { CreateResponseBody, InputItem } from '../../core/backends/modelapi/schemas'
 import type { JudgeEntryHandle } from '../../core/judge/entries'
 import { type JudgeQuestion } from '../../core/judge/judge'
@@ -16,7 +18,6 @@ import { JUDGE_MIN_CACHED_PREFIX_TOKENS } from '../../shared/constants'
 import type {
   ModelApiJudgeSource,
   ModelApiJudgeTransport,
-  ModelApiSideResponse,
 } from '../../core/judge/same/modelApiSource'
 export type {
   ModelApiJudgeSource,
@@ -31,8 +32,14 @@ import {
 } from '../../core/judge/same/batches'
 import { settleBatch } from '../../core/judge/same/answers'
 import { planSideRequest } from '../../core/judge/same/sideRequest'
+import { judgeDistributionAnswerSchema, judgeNoulAnswerSchema } from '../../shared/sideCallSchemas'
+import {
+  sideCallBody,
+  structuredSideCall,
+  type StructuredOutputDeps,
+} from '../../core/backends/modelapi/structuredOutput'
 
-export interface ModelApiJudgeDeps extends SameJudgeRunnerDeps {
+export interface ModelApiJudgeDeps extends SameJudgeRunnerDeps, StructuredOutputDeps {
   readonly source: ModelApiJudgeSource
   readonly transport: ModelApiJudgeTransport
   /** Secret redaction (redactSecrets): redaction runs before anything remote. */
@@ -52,8 +59,8 @@ export interface ModelApiJudgeJob {
   readonly entryKey: JudgeEntryHandle
   readonly stateText: string
   readonly questions: readonly JudgeQuestion[]
-  readonly reservedCostUsd?: number | undefined
-  readonly settledCostUsd?: number | undefined
+  readonly reservedCostUsd?: UsdAmount | undefined
+  readonly settledCostUsd?: UsdAmount | undefined
 }
 
 const JUDGE_TAIL_ROLE = 'user'
@@ -135,10 +142,52 @@ export class ModelApiSameJudge {
     })
     const canReusePrefix =
       planned.mode === 'shared-prefix' && main.tools.every((tool) => tool.type === 'function')
-    const body = canReusePrefix ? planned.body : this.standaloneBody(main, tail)
-    let response: ModelApiSideResponse
+    const { text: _mainFormat, ...body } = canReusePrefix
+      ? planned.body
+      : this.standaloneBody(main, tail)
+    let reservedCostUsd: UsdAmount | undefined
+    let settledCostUsd: UsdAmount | undefined
+    let replyText: string
     try {
-      response = await this.deps.transport.send(body, signal)
+      const question = batch.questions[0]
+      const schema =
+        question?.kind === 'noul'
+          ? judgeNoulAnswerSchema
+          : judgeDistributionAnswerSchema(question?.options?.length ?? 0)
+      replyText = await structuredSideCall({
+        formats: this.deps.sideCallFormats?.(this.deps.modelId),
+        name: 'judge_answer',
+        schema: z.pipe(
+          schema,
+          z.transform((answer) => JSON.stringify(answer)),
+        ),
+        signal,
+        fallback: (text) => text,
+        request: async (attempt) => {
+          const formatted = sideCallBody(body, attempt, this.deps.forceSideCallTool)
+          const request =
+            attempt.mode === 'forced_tool'
+              ? {
+                  ...formatted,
+                  prompt_cache_key: this.deps.source.keyPrefix({
+                    model: formatted.model,
+                    instructions: formatted.instructions,
+                    tools: formatted.tools,
+                  }),
+                }
+              : formatted
+          const response = await this.deps.transport.send(request, signal)
+          if (response.reservedCostUsd !== undefined)
+            reservedCostUsd = Usd.from(reservedCostUsd ?? 0)
+              .add(Usd.from(response.reservedCostUsd))
+              .toAmount()
+          if (response.settledCostUsd !== undefined)
+            settledCostUsd = Usd.from(settledCostUsd ?? 0)
+              .add(Usd.from(response.settledCostUsd))
+              .toAmount()
+          return response.text
+        },
+      })
     } catch (error: unknown) {
       settleFailed()
       throw error
@@ -156,11 +205,11 @@ export class ModelApiSameJudge {
     const settled = settleBatch({
       questions: batch.questions,
       questionIds: batch.questionIds,
-      replyText: response.text,
+      replyText,
       model: this.deps.modelId,
       advisoryThreshold: tuning.advisoryThreshold,
-      reservedCostUsd: response.reservedCostUsd ?? job.reservedCostUsd,
-      settledCostUsd: response.settledCostUsd ?? job.settledCostUsd,
+      reservedCostUsd: reservedCostUsd ?? job.reservedCostUsd,
+      settledCostUsd: settledCostUsd ?? job.settledCostUsd,
     })
     commitSettledAnswers({
       entries: this.deps.entries,

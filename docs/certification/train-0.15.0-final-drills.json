@@ -1,0 +1,10 @@
+{
+  "name": "PowerShell closed-stdin native start",
+  "file": "native/runner/runner-helper.ps1",
+  "mutant": "DETACHED_PROCESS replaces CREATE_NO_WINDOW",
+  "red": 1,
+  "green": 0,
+  "beforeSha256": "3c03192aa84cd3b8c09409d3586b763b758aae05061ef2331b61c2b9ce47878e",
+  "restoredSha256": "3c03192aa84cd3b8c09409d3586b763b758aae05061ef2331b61c2b9ce47878e",
+  "byteExact": true
+}

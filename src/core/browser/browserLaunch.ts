@@ -14,6 +14,7 @@
 // Pure.
 
 import { isCredentialVariable } from '../credentialEnvironment'
+import { UI_TEXT } from '../../shared/constants'
 import {
   BROWSER_BLANK_PAGE,
   BROWSER_FORBIDDEN_SWITCHES,
@@ -155,6 +156,14 @@ function valueOf(
   return key === undefined ? undefined : env[key]
 }
 
+/** The Windows system directory is unavailable: the check ends before any browser starts. */
+export class SystemRootMissingError extends Error {
+  public constructor() {
+    super(UI_TEXT.windowsSystemRootMissing)
+    this.name = 'SystemRootMissingError'
+  }
+}
+
 /** The browser's environment: a projection of this process's, plus the check's own folders. */
 export function browserEnvironment(
   platform: NodeJS.Platform,
@@ -178,7 +187,11 @@ export function browserEnvironment(
     }
   }
   if (platform === 'win32') {
-    const root = valueOf(env, platform, 'SystemRoot') ?? String.raw`C:\Windows`
+    // Windows sets both to its real directory, on whatever drive; never guess `C:`.
+    const root = valueOf(env, platform, 'SystemRoot') ?? valueOf(env, platform, 'windir')
+    if (root === undefined || !/^[a-z]:\\/iu.test(root)) {
+      throw new SystemRootMissingError()
+    }
     out['PATH'] = String.raw`${root}\System32;${root}`
     out['TEMP'] = folders.temp
     out['TMP'] = folders.temp

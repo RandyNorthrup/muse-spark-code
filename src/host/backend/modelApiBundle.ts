@@ -1,3 +1,5 @@
+import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
+import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 // The Model API backend's bundle as the activation bundle sees it (M57,
 // PLAN.md D6): `dist/modelApi.js`, built from `modelApiEntry.ts` and loaded
 // by `ModelApiBackendManager` the first time that backend starts. Only types
@@ -5,14 +7,20 @@
 // would carry the backend back into dist/extension.js, which the
 // bundle-split gate (scripts/check-bundle-split.mjs) refuses.
 
-import type { ModelApiClient, ModelApiClientDeps } from '../../core/backends/modelapi/client'
+import type {
+  ModelApiClient,
+  ModelApiClientDeps,
+  ProviderClient,
+} from '../../core/backends/modelapi/client'
 import type { McpPoolDeps, McpToolSource } from '../../core/backends/modelapi/mcp/pool'
 import type { ModelApiHost, ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
+import type { ModelResolver } from '../../core/backends/modelapi/modelPolicy'
 import type { UiText } from '../../shared/l10n/en'
 import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
+import type { ModelApiBackendManagerDeps } from './modelApiBackendManager'
 
 /** The bundle's MCP server pool (M50), built from the activation bundle's spawner and settings. */
 export type McpPoolFactory = (deps: McpPoolDeps) => McpToolSource
@@ -29,8 +37,15 @@ export interface ModelApiBundleDeps {
   readonly uiText: UiText
   readonly uiLocale: string
   readonly client: ModelApiClientDeps
+  readonly createProviders?: (() => Promise<ModelResolver>) | undefined
+  readonly createProviderClient?: (meta: ProviderClient) => Promise<ProviderClient>
   /** The host's, but for what the bundle makes itself: the client, the hooks and the MCP pool. */
   readonly host: Omit<ModelApiHostDeps, 'client' | 'loadHooks' | 'mcpServers'>
+  /** Admission is constructed only after this backend loads, in editor and runtime. */
+  readonly autoCompaction?: Pick<
+    ModelApiBackendManagerDeps,
+    'autoCompactionAccounting' | 'reserveAutoCompaction' | 'paidUseFence' | 'paidDailyBudgetUsd'
+  >
   /** Muse Code's settings file, read for hooks while `host.isHooksEnabled` says so (M51). */
   readonly hookSettingsPath: string | undefined
   /** The MCP servers for the host (M50), made with the bundle's pool; undefined runs none. */
@@ -40,6 +55,15 @@ export interface ModelApiBundleDeps {
 
 /** The bundle's one export. */
 export interface ModelApiBundle {
+  readonly streamLegalExplanation?: (
+    deps: ModelApiClientDeps,
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    guard: ResponseAttemptGuard,
+    table: UiText,
+    locale: string,
+  ) => AsyncIterable<StreamEvent>
+
   /** Installs the table, builds the client and the host, and reads the stored sessions. */
   readonly createModelApiHost: (deps: ModelApiBundleDeps) => Promise<ModelApiHost>
 }

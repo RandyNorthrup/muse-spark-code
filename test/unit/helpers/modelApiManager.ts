@@ -1,3 +1,4 @@
+import { Usd } from '../../../src/shared/usd'
 // A Model API backend manager's dependencies on the fake Model API (M7,
 // M57): the key stored, no waits, no tool, hook, store or memory unless the
 // test gives one, and the bundle the test names (the source module, a
@@ -38,7 +39,7 @@ export function fakeManagerDeps(
     describeAttemptEnvironment: () => Promise.resolve({ git: undefined }),
     ...disabledPaidFeatures,
     promptCacheRetention: () => '24h',
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     hookSettingsPath: '/cfg/muse/settings.json',
     isHooksEnabled: () => false,

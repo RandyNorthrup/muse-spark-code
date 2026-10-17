@@ -1,0 +1,268 @@
+{
+  "baseline": "a1d2b73e7",
+  "machine": "macmini",
+  "timeouts": "repository default",
+  "drills": [
+    {
+      "name": "r",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/fleet.test.ts",
+        "test/unit/vault/delegation.test.ts",
+        "--maxWorkers=3"
+      ],
+      "files": {
+        "src/core/vault/fleet.ts": {
+          "before": "a26a8d0c884c78ea30222af5b5512b419d50428b199d19738bf61eb67f1bbd5f",
+          "restored": "a26a8d0c884c78ea30222af5b5512b419d50428b199d19738bf61eb67f1bbd5f"
+        }
+      },
+      "exitCode": 1,
+      "mutations": {
+        "src/core/vault/fleet.ts": [
+          [
+            "if (worker.route) this.sockets.delete(socketKey(worker.route.socket))",
+            "/* W-R1 reservation release intentionally removed */"
+          ],
+          ["const task = this.endRequesters(ids)", "const task = Promise.resolve()"],
+          [
+            "return canSend() ? { kind: 'sent' } : { kind: 'denied', reason: 'peer' }",
+            "return canSend() ? result : { kind: 'denied', reason: 'peer' }"
+          ],
+          [
+            "// Retain the aborted route and its reservation so Dispose can retry cleanup.",
+            "this.workers.delete(candidate)\n        // W-R2 retained ownership intentionally removed."
+          ]
+        ]
+      }
+    },
+    {
+      "name": "m",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/migrate.test.ts",
+        "test/unit/vault/loginCsv.test.ts",
+        "test/unit/vault/importFile.test.ts",
+        "--maxWorkers=3"
+      ],
+      "files": {
+        "src/core/vault/migrate/migrate.ts": {
+          "before": "61b1580702a49f7d7768931bfe6da6f010c99d7494311e4d197b5224c33f2b47",
+          "restored": "61b1580702a49f7d7768931bfe6da6f010c99d7494311e4d197b5224c33f2b47"
+        },
+        "src/core/vault/migrate/ambientCredentials.ts": {
+          "before": "90dd1ebd8567cb23f76c5e08494c091d91859bcca43005fd29bacb26c84c8fb7",
+          "restored": "90dd1ebd8567cb23f76c5e08494c091d91859bcca43005fd29bacb26c84c8fb7"
+        },
+        "src/core/vault/migrate/importFile.ts": {
+          "before": "5f15090902a386ca0cc96b4db6d47e8b597ffd3c2b684b02508682532d4415e5",
+          "restored": "5f15090902a386ca0cc96b4db6d47e8b597ffd3c2b684b02508682532d4415e5"
+        }
+      },
+      "exitCode": 1,
+      "mutations": {
+        "src/core/vault/migrate/migrate.ts": [
+          ["row.previous = { phase: old.phase, digest: old.digest }", "row.previous = undefined"],
+          [
+            "row?.phase === 'retired' && row.retirementNoticePending",
+            "row?.phase === 'retired' && false"
+          ],
+          ["if (row.phase === 'deleted') return", "/* W-M6 already-deleted guard removed */"]
+        ],
+        "src/core/vault/migrate/ambientCredentials.ts": [["        'aws_security_token',\n", ""]],
+        "src/core/vault/migrate/importFile.ts": [
+          ["if (itemDigest(copied) !== expected.digest)", "if (false)"],
+          [
+            "const parsed = receiptSchema.safeParse(await this.vault.readReceipt(receipt))",
+            "const parsed = receiptSchema.safeParse(null)"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "x",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/execFence.test.ts",
+        "test/unit/credentialEnvironment.test.ts",
+        "test/unit/toolIo.test.ts",
+        "--maxWorkers=3"
+      ],
+      "files": {
+        "src/core/vault/exec/fence.ts": {
+          "before": "4da0eaf1c440e7ef10c6ee6eff1fc2a3fdd9171b048d49e48ca00cced3928804",
+          "restored": "4da0eaf1c440e7ef10c6ee6eff1fc2a3fdd9171b048d49e48ca00cced3928804"
+        },
+        "src/core/vault/exec/schema.ts": {
+          "before": "ddecd356b5c5c7939343dcbc93836ba8fca9fc9fa9059f48661b0ab1bed27ec0",
+          "restored": "ddecd356b5c5c7939343dcbc93836ba8fca9fc9fa9059f48661b0ab1bed27ec0"
+        },
+        "src/shared/constants.ts": {
+          "before": "ea5578d12b804109f343c88c6651026ef3f5098cdc7ee52c62a21948f06cd942",
+          "restored": "ea5578d12b804109f343c88c6651026ef3f5098cdc7ee52c62a21948f06cd942"
+        },
+        "src/host/backend/toolIo.ts": {
+          "before": "8c466c7c7c404e23746b41cfe237fa288bb6bcec139e3982e7cb18e5c8f15f2d",
+          "restored": "8c466c7c7c404e23746b41cfe237fa288bb6bcec139e3982e7cb18e5c8f15f2d"
+        }
+      },
+      "exitCode": 1,
+      "mutations": {
+        "src/core/vault/exec/fence.ts": [
+          [
+            "        'GIT_PROXY_COMMAND',\n        'GIT_EXEC_PATH',\n        'GIT_EXTERNAL_DIFF',\n",
+            ""
+          ]
+        ],
+        "src/core/vault/exec/schema.ts": [
+          [
+            "|LD_PRELOAD|LD_LIBRARY_PATH|DYLD_.*|NODE_OPTIONS|NODE_PATH|BASH_ENV|ENV|BASH_FUNC_.*|ELECTRON_.*",
+            ""
+          ]
+        ],
+        "src/shared/constants.ts": [["  'PGPASSWORD',\n  'MYSQL_PWD',\n  'REDISCLI_AUTH',\n", ""]],
+        "src/host/backend/toolIo.ts": [
+          [
+            "const isFenced = !isInteractive || (deps.agentFence?.() ?? true)",
+            "const isFenced = deps.agentFence?.() ?? true"
+          ],
+          ["return vaultFenceEnvironment(clean, { platform })", "return clean"]
+        ]
+      }
+    },
+    {
+      "name": "l",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/webFill.test.ts",
+        "test/unit/vault/webSessions.test.ts",
+        "test/unit/vault/totp.test.ts",
+        "--maxWorkers=3"
+      ],
+      "files": {
+        "src/core/vault/web/totp.ts": {
+          "before": "4d66fce952bab3ce89f8b12c3e68551e075d7ddecbaaac85a2bf27fdd6dbfc65",
+          "restored": "4d66fce952bab3ce89f8b12c3e68551e075d7ddecbaaac85a2bf27fdd6dbfc65"
+        }
+      },
+      "exitCode": 1,
+      "mutations": {
+        "src/core/vault/web/totp.ts": [
+          ["digest?.fill(0)", "/* erasure intentionally removed for W-L3 drill */"]
+        ]
+      }
+    },
+    {
+      "name": "startup",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/uiTextRegions.test.mjs",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/vault/vaultPanelBuild.test.ts",
+        "--maxWorkers=3"
+      ],
+      "files": {
+        "scripts/lib/uiTextRegions.mjs": {
+          "before": "1fab8e458be32d85e8a71a6ec5085b23a5cd65edaf7ce6dbe15ca8f85ffce527",
+          "restored": "1fab8e458be32d85e8a71a6ec5085b23a5cd65edaf7ce6dbe15ca8f85ffce527"
+        },
+        "src/shared/l10n/vaultEnglish.ts": {
+          "before": "d1d5b10d78a5f435b872e09cbf6a7aa7aa3a77ad785ad12b25c197404a6662ce",
+          "restored": "d1d5b10d78a5f435b872e09cbf6a7aa7aa3a77ad785ad12b25c197404a6662ce"
+        },
+        "src/webview/App.tsx": {
+          "before": "a99a8cd8b8c631e02dbd0a37853967430eaabfb0690938f4dffa1596c840342f",
+          "restored": "a99a8cd8b8c631e02dbd0a37853967430eaabfb0690938f4dffa1596c840342f"
+        }
+      },
+      "exitCode": 1,
+      "mutations": {
+        "scripts/lib/uiTextRegions.mjs": [
+          ["Object.entries(EN).filter(([key]) => key !== 'vault')", "Object.entries(EN)"]
+        ],
+        "src/shared/l10n/vaultEnglish.ts": [[").length > 0", ").length < 0"]],
+        "src/webview/App.tsx": [
+          ["  IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT,", "  SETTING_DEFAULTS,"],
+          [
+            "state.settings?.museCodeAutoReviewer ?? IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT",
+            "state.settings?.museCodeAutoReviewer ?? SETTING_DEFAULTS.museCodeAutoReviewer"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "h",
+      "baseline": "a1d2b73e7",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/execVault.test.ts",
+        "test/unit/acpVault.test.ts",
+        "test/unit/vaultCommand.test.ts",
+        "--maxWorkers=3"
+      ],
+      "files": {
+        "src/acp/agent.ts": {
+          "before": "cc808d1f09fe437148a64feb1c1b69c24b5dc64f2dc3db83df80bf362c03f31d",
+          "restored": "cc808d1f09fe437148a64feb1c1b69c24b5dc64f2dc3db83df80bf362c03f31d"
+        },
+        "src/runtime/vault/execVault.ts": {
+          "before": "6b5da36edb1d2bf76e660df8d5482b7ed057c8a4adeec409052660e40f721baf",
+          "restored": "6b5da36edb1d2bf76e660df8d5482b7ed057c8a4adeec409052660e40f721baf"
+        },
+        "src/runtime/vault/vaultApproval.ts": {
+          "before": "0077fef7aabdb7ca4282586933a81aa1e2b976335431a5ac8000b81e611f158c",
+          "restored": "0077fef7aabdb7ca4282586933a81aa1e2b976335431a5ac8000b81e611f158c"
+        },
+        "src/runtime/vault/vaultCommand.ts": {
+          "before": "2d0c34237772d764f40bd27d53802c746929cbcdc1d4482cda1057b55eece5f7",
+          "restored": "2d0c34237772d764f40bd27d53802c746929cbcdc1d4482cda1057b55eece5f7"
+        }
+      },
+      "exitCode": 1
+    },
+    {
+      "name": "o",
+      "baseline": "a1d2b73e7",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/mcpOAuthLifecycle.test.ts",
+        "test/unit/vault/mcpVaultPool.test.ts",
+        "test/unit/vault/mcpOAuth.test.ts",
+        "--maxWorkers=3"
+      ],
+      "files": {
+        "src/core/mcp/oauth/client.ts": {
+          "before": "991cc17205f804a560041b51af1f5c3ba879007d6971ea566034b9eecb9d9a37",
+          "restored": "991cc17205f804a560041b51af1f5c3ba879007d6971ea566034b9eecb9d9a37"
+        },
+        "src/core/mcp/oauth/discovery.ts": {
+          "before": "51c57ac316a268c6a4eaf52f471e74eb1a4b4cb0a3d6a32f11df6588d60d74a5",
+          "restored": "51c57ac316a268c6a4eaf52f471e74eb1a4b4cb0a3d6a32f11df6588d60d74a5"
+        },
+        "src/core/vault/mcpSecrets.ts": {
+          "before": "7a288112b97eb651d06aee9e4e28aadb10a0692e9effaed74dfd8de5b64f26a2",
+          "restored": "7a288112b97eb651d06aee9e4e28aadb10a0692e9effaed74dfd8de5b64f26a2"
+        },
+        "src/host/backend/mcpServers.ts": {
+          "before": "4d784dcc9f853fe697cb4de7a5b581e6c0e268fc3970e5a0365606e67a981580",
+          "restored": "4d784dcc9f853fe697cb4de7a5b581e6c0e268fc3970e5a0365606e67a981580"
+        }
+      },
+      "exitCode": 1
+    }
+  ]
+}

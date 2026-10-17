@@ -34,7 +34,7 @@ function beamColor(canvas: HTMLCanvasElement, isForcedColors: boolean): string {
   if (isForcedColors) {
     return 'CanvasText'
   }
-  const themed = getComputedStyle(canvas).getPropertyValue('--vscode-progressBar-background').trim()
+  const themed = getComputedStyle(canvas).getPropertyValue('--ms-progress').trim()
   return themed === '' ? 'currentColor' : themed
 }
 

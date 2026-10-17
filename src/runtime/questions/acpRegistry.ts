@@ -1,4 +1,8 @@
-import type { AcpQuestionRegistry, AcpQuestionRegistryFactory } from '../../acp/questionDeferral'
+import type {
+  AcpQueuedAnswerLease,
+  AcpQuestionRegistry,
+  AcpQuestionRegistryFactory,
+} from '../../acp/questionDeferral'
 import type {
   QuestionDelivery,
   QuestionDeliveryOutcome,
@@ -21,14 +25,14 @@ export function createRuntimeQuestionRegistry(
   const { session, clock } = input
   const queueStore = createQuestionQueueStore(path.join(directory, 'queued'))
   let queued: QuestionDelivery[] = []
-  let leased: QuestionDelivery[] = []
+  let lease: AcpQueuedAnswerLease | undefined
   let turnId: string | undefined
   const queueLoaded = (async () => {
     queued = await queueStore.load(session.sessionId)
   })()
   let tail = queueLoaded
   void queueLoaded.catch(failed)
-  const write = <T>(work: () => Promise<T>): Promise<T> => {
+  const write = <T>(work: () => T | Promise<T>): Promise<T> => {
     const previous = tail
     const result = (async () => {
       await previous
@@ -129,34 +133,39 @@ export function createRuntimeQuestionRegistry(
     },
     queue: (message) =>
       write(async (): Promise<QuestionDeliveryOutcome> => {
-        if (
-          message.sessionId !== session.sessionId ||
-          queued.length + leased.length >= OPEN_QUESTIONS_MAX
-        )
+        if (message.sessionId !== session.sessionId || queued.length >= OPEN_QUESTIONS_MAX)
           return 'notTaken'
         const next = [...queued, message]
         await queueStore.save(session.sessionId, next)
         queued = next
         return 'taken'
       }),
-    queuedParts: () =>
-      write(async () => {
-        if (leased.length > 0) throw new Error(UI_TEXT.questionAnswerUncertain)
-        // Remove before dispatch: a crash or uncertain admission must never resend this prefix.
-        const prefix = [...queued]
-        await queueStore.save(session.sessionId, [])
-        leased = prefix
-        queued = []
-        return leased.map((message) => ({ type: 'text' as const, text: message.text }))
-      }),
-    acknowledgeQueued: (outcome) =>
-      write(async () => {
-        if (outcome === 'notTaken') {
-          const restored = [...leased, ...queued]
-          await queueStore.save(session.sessionId, restored)
-          queued = restored
+    peekQueued: () =>
+      write(() => {
+        if (lease !== undefined) throw new Error(UI_TEXT.questionQueueLeaseFailed)
+        if (queued.length === 0) return
+        lease = {
+          token: Symbol(),
+          parts: queued.map((message) => ({ type: 'text', text: message.text })),
         }
-        leased = []
+        return lease
+      }),
+    commitQueued: (token) =>
+      write(async () => {
+        if (lease?.token !== token) throw new Error(UI_TEXT.questionQueueLeaseFailed)
+        const remaining = queued.slice(lease.parts.length)
+        try {
+          await queueStore.save(session.sessionId, remaining)
+          queued = remaining
+        } finally {
+          // A failed write retains the durable prefix, but must not strand ownership.
+          lease = undefined
+        }
+      }),
+    releaseQueued: (token) =>
+      write(() => {
+        if (lease?.token !== token) throw new Error(UI_TEXT.questionQueueLeaseFailed)
+        lease = undefined
       }),
     dispose() {
       void write(async () => {

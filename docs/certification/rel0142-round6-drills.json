@@ -1,0 +1,40 @@
+{
+  "agentSha256Before": "ce47ee5af38acfa8550a3455112adec06ae88b678026b8af657a5d6ae30c9536",
+  "agentSha256After": "ce47ee5af38acfa8550a3455112adec06ae88b678026b8af657a5d6ae30c9536",
+  "drills": [
+    {
+      "mutation": "change the printed reference command",
+      "exit": 1,
+      "log": "drill-reference-hint.log",
+      "failure": "AssertionError [ERR_ASSERTION]: en_US.UTF-8"
+    },
+    {
+      "mutation": "force the CLI reference title to English",
+      "exit": 1,
+      "log": "drill-translated-hint.log",
+      "failure": "AssertionError [ERR_ASSERTION]: cs"
+    },
+    {
+      "mutation": "omit installed translation tables",
+      "exit": 1,
+      "log": "drill-missing-tables.log",
+      "failure": "AssertionError [ERR_ASSERTION]: the installed ACP package has no translated tables"
+    }
+  ],
+  "formatterSha256Before": "1f406bafa0de5472b274d86f8e223fd205dc5b81b5243c8731f8f28d703195e3",
+  "formatterSha256After": "1f406bafa0de5472b274d86f8e223fd205dc5b81b5243c8731f8f28d703195e3",
+  "e2eDrills": [
+    {
+      "mutation": "e2e-reference-command",
+      "exit": 1,
+      "log": "drill-e2e-reference-command.log",
+      "failure": "AssertionError: expected 'Usage:\\n  muse-spark-code-acp [option\u2026' to contain 'muse-spark-code-acp help --all\\n'"
+    },
+    {
+      "mutation": "e2e-translated-title",
+      "exit": 1,
+      "log": "drill-e2e-translated-title.log",
+      "failure": "AssertionError: expected 'Verwendung:\\n  muse-spark-code-acp [O\u2026' to contain 'Hilfe und Referenz'"
+    }
+  ]
+}

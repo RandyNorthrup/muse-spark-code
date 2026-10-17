@@ -8,8 +8,3 @@ export function logLines(log: FakeLogOutputChannel): readonly string[] {
     level.mock.calls.map((call) => call.map(String).join(' ')),
   )
 }
-
-/** How many logged lines hold `text`. */
-export function countLogged(log: FakeLogOutputChannel, text: string): number {
-  return logLines(log).filter((line) => line.includes(text)).length
-}

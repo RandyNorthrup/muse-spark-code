@@ -20,6 +20,7 @@ import type { PluginContainment } from '../../core/backends/modelapi/pluginHost'
 import { spawnMcpJob } from './mcpJobLaunch'
 
 export interface PluginContainmentDeps {
+  readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
   readonly platform: NodeJS.Platform
   /** A fresh M50 launcher preparation (`mcpJobExecutable`); undefined when Windows has none. */
   readonly newJobExecutable: () => (() => Promise<string | undefined>) | undefined
@@ -89,6 +90,7 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
       if (executablePath === undefined) {
         return { kind: 'unavailable', notice: UI_TEXT.pluginHooksNoJob }
       }
+      const resourceAssembly = await deps.shellJobAssembly?.()
       return {
         kind: 'job',
         launch: (command, args, options) => {
@@ -105,6 +107,8 @@ export function pluginContainment(deps: PluginContainmentDeps): PluginContainmen
             env: options.env,
             log: deps.log,
             jobMemoryLimit: PLUGIN_CHILD_MAX_MEMORY_BYTES,
+            resource: options.resource,
+            resourceAssembly,
           })
         },
       }

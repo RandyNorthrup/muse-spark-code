@@ -5,6 +5,7 @@ export {
   MAY_HOLD_SECRET,
   redactableSlices,
   redactSecrets,
+  registerSecretValue,
   SECRET_RULES,
   type SecretRule,
 } from '../shared/redact'

@@ -1,0 +1,476 @@
+{
+  "rig": "win11",
+  "date": "2026-10-08",
+  "base": "67099ce1b34c9f5d6bc61cef379508e1e3407817",
+  "testedSource": "2be8b1e2901ed3684ca7fdb6531d69c6512e05e3",
+  "install": {
+    "command": "npm ci",
+    "exit": 0,
+    "CI": "true",
+    "packages": 901,
+    "existingAdvisories": {
+      "low": 2,
+      "high": 9
+    },
+    "independentNodeModules": true
+  },
+  "gates": [
+    {
+      "exit": 0,
+      "seconds": 142.4698694,
+      "name": "typecheck"
+    },
+    {
+      "exit": 0,
+      "seconds": 27.9183159,
+      "name": "eslint"
+    },
+    {
+      "exit": 0,
+      "seconds": 19.7624895,
+      "name": "prettier"
+    },
+    {
+      "exit": 0,
+      "seconds": 9.8936655,
+      "name": "knip"
+    },
+    {
+      "exit": 0,
+      "seconds": 3.0484506,
+      "name": "jscpd"
+    },
+    {
+      "exit": 0,
+      "seconds": 10.266867,
+      "name": "cycles"
+    },
+    {
+      "exit": 0,
+      "seconds": 3.9960711,
+      "name": "l10n"
+    },
+    {
+      "exit": 0,
+      "seconds": 3.2808421,
+      "name": "reference"
+    },
+    {
+      "exit": 0,
+      "seconds": 28.3342871,
+      "name": "host-api"
+    },
+    {
+      "exit": 0,
+      "seconds": 12.3040534,
+      "name": "build"
+    }
+  ],
+  "testRuns": [
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  34 passed (34)",
+        "Duration  6.24s (import 45%, transform 26%, tests 17%, setup 12%)"
+      ],
+      "files": [
+        "test/unit/secWinPathAliases.test.ts",
+        "test/unit/secWinWorkerPaths.test.ts",
+        "test/unit/secWinNativeIdentity.test.ts"
+      ],
+      "exit": 0,
+      "round": 1
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  168 passed (168)",
+        "Duration  4.75s (import 46%, transform 29%, setup 16%, tests 9%)"
+      ],
+      "files": [
+        "test/unit/modelApiTools.test.ts",
+        "test/unit/permissions.test.ts",
+        "test/unit/museCodeProtectedWrites.test.ts"
+      ],
+      "exit": 0,
+      "round": 1
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  173 passed (173)",
+        "Duration  3.30s (import 44%, transform 25%, setup 23%, tests 8%, worker 1%)"
+      ],
+      "files": [
+        "test/unit/approvalRules.test.ts",
+        "test/unit/mapNotification.test.ts",
+        "test/unit/heldTree.test.ts"
+      ],
+      "exit": 0,
+      "round": 1
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  109 passed (109)",
+        "Duration  4.90s (import 40%, transform 23%, tests 22%, setup 15%)"
+      ],
+      "files": [
+        "test/unit/worktreeConversations.test.ts",
+        "test/unit/teamWorkerFence.test.ts",
+        "test/unit/teamAcpWorker.test.ts"
+      ],
+      "exit": 0,
+      "round": 1
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  66 passed (66)",
+        "Duration  99.94s (tests 97%, import 2%, transform 1%, setup 1%)"
+      ],
+      "files": [
+        "test/unit/checkpointStore.test.ts",
+        "test/unit/checkpointHost.test.ts",
+        "test/unit/checkpointStorageGuards.test.ts"
+      ],
+      "exit": 0,
+      "round": 1
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  69 passed | 6 skipped (75)",
+        "Duration  297.75s (tests 99%, import 1%)"
+      ],
+      "files": [
+        "test/unit/checkpointStoreGuards.test.ts",
+        "test/unit/checkpointStoreWindows.test.ts",
+        "test/unit/checkpointLongPaths.test.ts"
+      ],
+      "exit": 0,
+      "round": 1
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  27 passed (27)",
+        "Duration  29.54s (tests 84%, import 9%, transform 5%, setup 2%)"
+      ],
+      "files": [
+        "test/unit/checkpointWorktrees.test.ts",
+        "test/unit/checkpointEnvironment.test.ts",
+        "test/unit/fileIdentity.test.ts"
+      ],
+      "exit": 0,
+      "round": 1
+    },
+    {
+      "summary": [
+        "Test Files  2 passed (2)",
+        "Tests  760 passed (760)",
+        "Duration  58.72s (tests 85%, import 8%, transform 6%, setup 1%)"
+      ],
+      "files": ["test/unit/modelApiHost.test.ts", "test/unit/deferredBundles.test.ts"],
+      "exit": 0,
+      "round": 1
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  34 passed (34)",
+        "Duration  5.52s (import 41%, transform 29%, tests 16%, setup 13%)"
+      ],
+      "files": [
+        "test/unit/secWinPathAliases.test.ts",
+        "test/unit/secWinWorkerPaths.test.ts",
+        "test/unit/secWinNativeIdentity.test.ts"
+      ],
+      "exit": 0,
+      "round": 2
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  168 passed (168)",
+        "Duration  4.58s (import 45%, transform 30%, setup 15%, tests 9%)"
+      ],
+      "files": [
+        "test/unit/modelApiTools.test.ts",
+        "test/unit/permissions.test.ts",
+        "test/unit/museCodeProtectedWrites.test.ts"
+      ],
+      "exit": 0,
+      "round": 2
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  173 passed (173)",
+        "Duration  3.25s (import 44%, transform 25%, setup 23%, tests 7%, worker 1%)"
+      ],
+      "files": [
+        "test/unit/approvalRules.test.ts",
+        "test/unit/mapNotification.test.ts",
+        "test/unit/heldTree.test.ts"
+      ],
+      "exit": 0,
+      "round": 2
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  109 passed (109)",
+        "Duration  6.81s (transform 48%, import 27%, tests 15%, setup 10%)"
+      ],
+      "files": [
+        "test/unit/worktreeConversations.test.ts",
+        "test/unit/teamWorkerFence.test.ts",
+        "test/unit/teamAcpWorker.test.ts"
+      ],
+      "exit": 0,
+      "round": 2
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  66 passed (66)",
+        "Duration  99.86s (tests 97%, import 2%, transform 1%, setup 1%)"
+      ],
+      "files": [
+        "test/unit/checkpointStore.test.ts",
+        "test/unit/checkpointHost.test.ts",
+        "test/unit/checkpointStorageGuards.test.ts"
+      ],
+      "exit": 0,
+      "round": 2
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  69 passed | 6 skipped (75)",
+        "Duration  261.92s (tests 99%, import 1%)"
+      ],
+      "files": [
+        "test/unit/checkpointStoreGuards.test.ts",
+        "test/unit/checkpointStoreWindows.test.ts",
+        "test/unit/checkpointLongPaths.test.ts"
+      ],
+      "exit": 0,
+      "round": 2
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  27 passed (27)",
+        "Duration  29.19s (tests 84%, import 8%, transform 5%, setup 2%)"
+      ],
+      "files": [
+        "test/unit/checkpointWorktrees.test.ts",
+        "test/unit/checkpointEnvironment.test.ts",
+        "test/unit/fileIdentity.test.ts"
+      ],
+      "exit": 0,
+      "round": 2
+    },
+    {
+      "summary": [
+        "Test Files  2 passed (2)",
+        "Tests  760 passed (760)",
+        "Duration  54.99s (tests 85%, import 8%, transform 6%, setup 1%)"
+      ],
+      "files": ["test/unit/modelApiHost.test.ts", "test/unit/deferredBundles.test.ts"],
+      "exit": 0,
+      "round": 2
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  34 passed (34)",
+        "Duration  5.43s (import 41%, transform 30%, tests 17%, setup 12%)"
+      ],
+      "files": [
+        "test/unit/secWinPathAliases.test.ts",
+        "test/unit/secWinWorkerPaths.test.ts",
+        "test/unit/secWinNativeIdentity.test.ts"
+      ],
+      "exit": 0,
+      "round": 3
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  168 passed (168)",
+        "Duration  4.46s (import 45%, transform 30%, setup 15%, tests 9%)"
+      ],
+      "files": [
+        "test/unit/modelApiTools.test.ts",
+        "test/unit/permissions.test.ts",
+        "test/unit/museCodeProtectedWrites.test.ts"
+      ],
+      "exit": 0,
+      "round": 3
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  173 passed (173)",
+        "Duration  3.21s (import 44%, transform 25%, setup 23%, tests 8%, worker 1%)"
+      ],
+      "files": [
+        "test/unit/approvalRules.test.ts",
+        "test/unit/mapNotification.test.ts",
+        "test/unit/heldTree.test.ts"
+      ],
+      "exit": 0,
+      "round": 3
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  109 passed (109)",
+        "Duration  4.71s (import 40%, transform 24%, tests 21%, setup 15%)"
+      ],
+      "files": [
+        "test/unit/worktreeConversations.test.ts",
+        "test/unit/teamWorkerFence.test.ts",
+        "test/unit/teamAcpWorker.test.ts"
+      ],
+      "exit": 0,
+      "round": 3
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  66 passed (66)",
+        "Duration  91.92s (tests 96%, import 2%, transform 1%, setup 1%)"
+      ],
+      "files": [
+        "test/unit/checkpointStore.test.ts",
+        "test/unit/checkpointHost.test.ts",
+        "test/unit/checkpointStorageGuards.test.ts"
+      ],
+      "exit": 0,
+      "round": 3
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  69 passed | 6 skipped (75)",
+        "Duration  267.06s (tests 99%, import 1%)"
+      ],
+      "files": [
+        "test/unit/checkpointStoreGuards.test.ts",
+        "test/unit/checkpointStoreWindows.test.ts",
+        "test/unit/checkpointLongPaths.test.ts"
+      ],
+      "exit": 0,
+      "round": 3
+    },
+    {
+      "summary": [
+        "Test Files  3 passed (3)",
+        "Tests  27 passed (27)",
+        "Duration  34.37s (tests 86%, import 7%, transform 5%, setup 2%)"
+      ],
+      "files": [
+        "test/unit/checkpointWorktrees.test.ts",
+        "test/unit/checkpointEnvironment.test.ts",
+        "test/unit/fileIdentity.test.ts"
+      ],
+      "exit": 0,
+      "round": 3
+    },
+    {
+      "summary": [
+        "Test Files  2 passed (2)",
+        "Tests  760 passed (760)",
+        "Duration  57.86s (tests 82%, transform 9%, import 8%, setup 1%)"
+      ],
+      "files": ["test/unit/modelApiHost.test.ts", "test/unit/deferredBundles.test.ts"],
+      "exit": 0,
+      "round": 3
+    }
+  ],
+  "totalsPerRound": {
+    "files": 23,
+    "passed": 1406,
+    "existingPlatformSkips": 6,
+    "newlySkipped": 0
+  },
+  "baseReplay": {
+    "failed": 31,
+    "passed": 3,
+    "exit": 1,
+    "positiveControls": "POSIX spelling and two native characterizations"
+  },
+  "redDrills": [
+    {
+      "name": "stream",
+      "exit": 1,
+      "summary": ["Tests  3 failed | 29 passed (32)"]
+    },
+    {
+      "name": "trailing",
+      "exit": 1,
+      "summary": ["Tests  7 failed | 25 passed (32)"]
+    },
+    {
+      "name": "storage-spelling",
+      "exit": 1,
+      "summary": ["Tests  4 failed | 28 passed (32)"]
+    },
+    {
+      "name": "superscript",
+      "exit": 1,
+      "summary": ["Tests  7 failed | 25 passed (32)"]
+    },
+    {
+      "name": "junction-ancestry",
+      "exit": 1,
+      "summary": ["Tests  1 failed | 31 passed (32)"]
+    },
+    {
+      "name": "smb-root",
+      "exit": 1,
+      "summary": ["Tests  2 failed | 30 passed (32)"]
+    },
+    {
+      "name": "canonical-binding",
+      "exit": 1,
+      "summary": ["Tests  2 failed | 30 passed (32)"]
+    }
+  ],
+  "routingDrill": {
+    "exit": 1,
+    "summary": ["Tests  64 failed | 27 passed (91)"]
+  },
+  "byteExactRestoration": [
+    {
+      "file": "src/core/windowsPathSpelling.ts",
+      "sha256": "9A2CDC5A72E14B06B746C682BDC879074D792A69A9C5BD121AB6FE32ADFA0FCE"
+    },
+    {
+      "file": "src/core/pathIdentity.ts",
+      "sha256": "AB844BFA846C4B8A9D83394F00D61F18CC35296F267F52582454211194776A89"
+    },
+    {
+      "file": "src/host/checkpoints/checkpointStore.ts",
+      "sha256": "46D5C5D96CF52DD498B1B2145C82ADCED15CDC880B38211F75DF9D36E2287C35"
+    },
+    {
+      "file": "scripts/lib/deferredBundles.mjs",
+      "sha256": "0B5B082715932497E62D89AA7F57E1B49161182B6287328B1A049C449C03FD19"
+    }
+  ],
+  "nativeLoopback": {
+    "hosts": ["localhost", "127.0.0.1"],
+    "share": "C$",
+    "exactDosDevInoMatch": true,
+    "volumeSerial": "4262757232",
+    "realpathRetainsUnc": true,
+    "elevationOrSystemChanges": false
+  },
+  "modelAttempts": 0,
+  "fullQuality": "Delegated to lead by the shared lane rules; no aggregate gate run."
+}

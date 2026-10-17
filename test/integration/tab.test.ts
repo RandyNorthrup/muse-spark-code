@@ -15,6 +15,7 @@ import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
+import { Usd } from '../../src/shared/usd'
 import type { StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import {
   createTabActivation,
@@ -90,7 +91,11 @@ suite('tab completions', () => {
       bundlePath: path.resolve(__dirname, '..', '..', 'tab.js'),
       log,
       isTabSettingOn: () => true,
-      tabSettings: () => ({ ...SETTING_DEFAULTS, tabTrigger: 'automatic' }),
+      tabSettings: () => ({
+        ...SETTING_DEFAULTS,
+        tabDailyBudgetUsd: Usd.from(SETTING_DEFAULTS.tabDailyBudgetUsd).toAmount(),
+        tabTrigger: 'automatic',
+      }),
       isPaidOn: () => true,
       isKeyStored: () => true,
       isTrusted: () => vscode.workspace.isTrusted,
@@ -155,8 +160,10 @@ suite('tab completions', () => {
       services: {
         // The key client's stream, faked: the real body goes to the fake
         // server, and its answer comes back as Responses events.
-        stream: (body) =>
+        stream: (body, _signal, _budget, admit) =>
           (async function* replay(): AsyncGenerator<StreamEvent> {
+            admit(undefined)
+            admit.onRequestStarted?.()
             const response = await fetch(url, {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
@@ -195,12 +202,15 @@ suite('tab completions', () => {
         onSent: () => undefined,
         onUsage: () => undefined,
       },
-      consent: { requestUse: () => Promise.resolve(true) },
+      consent: { requestUse: () => Promise.resolve({ scope: 'window', isCurrent: () => true }) },
       hooks: {
         beforeRead: () => Promise.resolve(true),
         afterEdit: (edit) => {
           edits.push(edit)
         },
+        bindPolicy: () =>
+          Promise.resolve({ key: 'fixture', isConfigurationInvalid: false, isReloading: false }),
+        policyKey: () => 'fixture',
       },
     })
     // Tab is on: register at once; the first request loads the bundle.

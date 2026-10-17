@@ -1,0 +1,96 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamHintsAndLoad.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamHintsAndLoad.test.ts (18 tests | 4 failed) 87ms
+   ❯ M96 K advisory hints (13)
+     × publishes only the strict projection, sums all windows and removes its own hint 17ms
+     × asks once across rewrites and other tasks; new path and drop ask again 12ms
+     × Wait lasts only while fresh collision exists; stale, absent and malformed hints never lock 4ms
+     × rejects a two-link other-uid hint despite a verified owner-only directory 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > publishes only the strict projection, sums all windows and removes its own hint
+AssertionError: expected { windows: +0, workers: +0, …(2) } to deeply equal { windows: 2, workers: 9, …(2) }
+
+- Expected
++ Received
+
+  {
+-   "heavyCommands": 2,
+-   "processWorkers": 4,
+-   "windows": 2,
+-   "workers": 9,
++   "heavyCommands": 0,
++   "processWorkers": 0,
++   "windows": 0,
++   "workers": 0,
+  }
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:168:38
+    166|       at: 100_000,
+    167|     })
+    168|     expect(await b.hints.advisory()).toEqual({
+       |                                      ^
+    169|       windows: 2,
+    170|       workers: 9,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > asks once across rewrites and other tasks; new path and drop ask again
+AssertionError: expected "vi.fn()" to be called 1 times, but got 0 times
+ ❯ test/unit/teamHintsAndLoad.test.ts:193:24
+    191|       expect(await b.hints.check(intent)).toBe('continue')
+    192|     }
+    193|     expect(f.question).toHaveBeenCalledTimes(1)
+       |                        ^
+    194|     await b.hints.check({ ...intent, paths: ['unrelated.ts'] })
+    195|     await b.hints.check(intent)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > Wait lasts only while fresh collision exists; stale, absent and malformed hints never lock
+AssertionError: expected 'continue' to be 'wait' // Object.is equality
+
+Expected: "wait"
+Received: "continue"
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:214:90
+    212|     const b = f.make()
+    213|     await a.hints.publish(hintState)
+    214|     expect(await b.hints.check({ ...intent, paths: [], exclusiveServer…
+       |                                                                                          ^
+    215|       'wait',
+    216|     )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > rejects a two-link other-uid hint despite a verified owner-only directory
+AssertionError: expected 2 to be 1 // Object.is equality
+
+- Expected
++ Received
+
+- 1
++ 2
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:269:31
+    267|     await writer.hints.publish({ ...hintState, workers: 1 })
+    268|     const information = await stat(file)
+    269|     expect(information.nlink).toBe(1)
+       |                               ^
+    270|     expect(JSON.parse(await readFile(retained, 'utf8'))).toMatchObject…
+    271|     await writer.hints.dispose()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 14 passed (18)
+   Start at  12:50:50
+   Duration  849ms (transform 48%, import 20%, setup 18%, tests 12%, worker 1%)

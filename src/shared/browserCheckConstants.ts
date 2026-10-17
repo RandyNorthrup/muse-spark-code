@@ -52,7 +52,9 @@ export const BROWSER_BLANK_PAGE = 'about:blank'
 // reports. No `--use-mock-keychain`: it means something on macOS only, where
 // the pinned shell adds it itself (captured), so passing it too would double
 // it.
-export const BROWSER_LAUNCH_FLAGS: readonly string[] = [
+// Pure: its template substitutions would otherwise keep it in every bundle
+// that imports constants.ts, used or not.
+export const BROWSER_LAUNCH_FLAGS: readonly string[] = /* @__PURE__ */ (() => [
   '--remote-debugging-pipe',
   '--enable-automation',
   `--proxy-bypass-list=${BROWSER_PROXY_BYPASS}`,
@@ -71,7 +73,7 @@ export const BROWSER_LAUNCH_FLAGS: readonly string[] = [
   '--disable-quic',
   '--password-store=basic',
   '--window-size=1280,800',
-]
+])()
 // Switches whose presence refuses a check, whatever their value (spec §6.4):
 // another proxy or resolver, a debugging port, extensions, profiles, web
 // security, certificates, ports, the sandbox, features and field trials,
@@ -235,4 +237,7 @@ export const BROWSER_RUNTIME_MAX_EXTRACTED_BYTES = 400 * MIB
 export const BROWSER_RUNTIME_EOCD_SEARCH_BYTES = 65_557
 // Windows' own tree kill, by its path under SystemRoot: the shell's job
 // fallback (processTree.ts, M27) and the browser check's kill.
-export const WINDOWS_TASKKILL_RELATIVE_PATH = String.raw`System32\taskkill.exe`
+// A plain string: the same characters String.raw would give, without the call,
+// so bundles that never kill a tree drop it.
+// eslint-disable-next-line unicorn/prefer-string-raw -- a plain string drops out of bundles that never kill a tree; String.raw is a call and pins it.
+export const WINDOWS_TASKKILL_RELATIVE_PATH = 'System32\\taskkill.exe'

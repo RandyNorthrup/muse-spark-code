@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Tab completions as the activation bundle sees them (M94, PLAN.md D73):
 // dist/tab.js, built from tabEntry.ts and required on the first Tab request
 // (PLAN.md D6). Only types cross from the lazy side into activation: a value
@@ -7,18 +8,28 @@
 // gate itself (`createTabServices`) from what activation hands it: the key
 // client's stream, the ledger's folder and this window's id. Activation
 // keeps the paid question (lane L's PaidUseConsent) and the tally. Lane K's
-// hooks stay an optional dependency until lane K lands.
+// guard and dispatch bridge are constructed inside the lazy Tab bundle.
 
 import * as vscode from 'vscode'
+import type { TabHookContext, TabHookPolicy, TabHooksDeps } from '../../core/tab/tabHooks'
+import type { ExtensionHookRunner } from '../extensionHooksRunner'
 import type {
   TabEngine,
   TabEngineRequest,
   TabEngineUsage,
   TabStream,
 } from '../../core/tab/tabEngine'
-import { COMMAND_IDS, CONTEXT_KEYS, UI_TEXT } from '../../shared/constants'
+import {
+  COMMAND_IDS,
+  CONTEXT_KEYS,
+  MODEL_API_PRICES_PER_MILLION,
+  MODEL_API_PRICES_VERIFIED_ON,
+  UI_TEXT,
+} from '../../shared/constants'
+import { modelApiPaidTier } from '../../shared/paidBoundary'
 import type { UiText } from '../../shared/l10n/en'
-import { fill, formatUsd } from '../../shared/l10n/text'
+import { fill } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 
@@ -119,7 +130,7 @@ export type TabReportedUsage = TabEngineUsage
  */
 export interface TabReservation {
   readonly model: string
-  readonly worstCaseUsd: number
+  readonly worstCaseUsd: UsdAmount
   /** The admission's local day (`YYYY-MM-DD`), as the ledger named it. */
   readonly date: string
 }
@@ -136,17 +147,197 @@ export interface TabReservation {
 export interface TabSpendGate {
   reserve(facts: TabSpendFacts): Promise<TabReservation | undefined>
   settle(reservation: TabReservation, usage: TabReportedUsage): void
-  todayTotalUsd(): number
+  todayTotalUsd(): UsdAmount
   todayRequests(): number
 }
 
 /**
- * Lane L's once-per-window question (Q-M94a, PLAN.md D48): Allow once covers
- * this window, Allow always persists for the workspace, Deny snoozes the
- * window. True proceeds, false sends nothing.
+ * What an allowing answer covers (RVM94KR2): `once` this request only,
+ * `window` this window (memory only), `always` this workspace (persisted).
+ */
+export type TabConsentScope = 'once' | 'window' | 'always'
+
+/**
+ * A request's consent, bound to its key (feature `tab`, model id, price
+ * fingerprint). `isCurrent` is read after every wait and last at the send:
+ * a revoked grant, a lapsed price acceptance or a moved price sends nothing.
+ */
+export interface TabConsentGrant {
+  readonly scope: TabConsentScope
+  isCurrent(): boolean
+}
+
+/**
+ * Lane L's question (Q-M94a, PLAN.md D48) for the request's own model and
+ * price (RVM94KR 3, RVM94KR2): a grant proceeds, undefined sends nothing
+ * (Deny snoozes the window).
  */
 export interface TabUseConsent {
-  requestUse(): Promise<boolean>
+  requestUse(model: string): Promise<TabConsentGrant | undefined>
+}
+
+/** The model's price fingerprint: its tier's per-million rates; undefined when unpriced. */
+export function tabPriceFingerprint(model: string): string | undefined {
+  const tier = modelApiPaidTier(model)
+  return tier === undefined
+    ? undefined
+    : JSON.stringify([tier, MODEL_API_PRICES_PER_MILLION[tier], MODEL_API_PRICES_VERIFIED_ON])
+}
+
+/** The persisted Always record (extension-private workspace state): one key, its scope. */
+interface TabAlwaysRecord {
+  readonly scope: 'always'
+  readonly model: string
+  readonly price: string
+}
+
+/** The record as stored, if it parses: anything else (a legacy model string) is no record. */
+function alwaysRecordOf(value: unknown): TabAlwaysRecord | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined
+  }
+  const fields: Record<string, unknown> = Object.fromEntries(Object.entries(value))
+  const { scope, model, price } = fields
+  return scope === 'always' && typeof model === 'string' && typeof price === 'string'
+    ? { scope, model, price }
+    : undefined
+}
+
+/** What `createTabConsent` asks the paid gate and where it keeps Always. */
+export interface TabConsentDeps {
+  readonly priceOf: (model: string) => string | undefined
+  /** D48's question for the model, always asked; the scope its answer granted. */
+  readonly ask: (model: string) => Promise<TabConsentScope | undefined>
+  /** The feature on with its price accepted. */
+  readonly isOn: () => boolean
+  /** The feature's workspace grant still stands (revocation and price lapses clear it). */
+  readonly isRemembered: () => boolean
+  /** The feature's window once as a token; it changes whenever that once is revoked. */
+  readonly windowOnceToken: () => string | undefined
+  /** Moves on Tab's price acceptance changes or the shared "Ask again". */
+  readonly revocations: () => number
+  readonly readAlways: () => unknown
+  readonly writeAlways: (record: TabAlwaysRecord | undefined) => Promise<void>
+  readonly log: Logger
+}
+
+/**
+ * Tab's keyed consent (RVM94KR2, PLAN.md D73): one key per (model, price).
+ * The paid gate's grants for the feature alone are necessary, never
+ * sufficient: a kept "always" counts only for the key its record names, and
+ * a window once only for the keys answered in this window. A legacy grant
+ * with no record asks the migration question: only Always records its key,
+ * so Allow once asks again in the next window. An open question is shared
+ * only by requests with its full key.
+ */
+export function createTabConsent(deps: TabConsentDeps): TabUseConsent {
+  const windowKeys = new Map<string, string>()
+  const pending = new Map<string, Promise<TabConsentGrant | undefined>>()
+
+  const grantFor = (
+    scope: TabConsentScope,
+    model: string,
+    price: string,
+    token?: string,
+  ): TabConsentGrant => {
+    const keyText = JSON.stringify([model, price])
+    const revocations = deps.revocations()
+    const isKeyCurrent = (): boolean =>
+      deps.isOn() && deps.priceOf(model) === price && deps.revocations() === revocations
+    const isScopeCurrent = (): boolean => {
+      switch (scope) {
+        case 'always': {
+          const record = alwaysRecordOf(deps.readAlways())
+          return record?.model === model && record.price === price && deps.isRemembered()
+        }
+        case 'window': {
+          const current = deps.windowOnceToken()
+          return current !== undefined && current === token && windowKeys.get(keyText) === token
+        }
+        case 'once': {
+          return true
+        }
+      }
+    }
+    return { scope, isCurrent: () => isKeyCurrent() && isScopeCurrent() }
+  }
+
+  const kept = (model: string, price: string): TabConsentGrant | undefined => {
+    const always = grantFor('always', model, price)
+    if (always.isCurrent()) {
+      return always
+    }
+    const token = windowKeys.get(JSON.stringify([model, price]))
+    const window = token === undefined ? undefined : grantFor('window', model, price, token)
+    return window?.isCurrent() === true ? window : undefined
+  }
+
+  const ask = async (model: string, price: string): Promise<TabConsentGrant | undefined> => {
+    const revocations = deps.revocations()
+    // A record left behind a revoked or lapsed grant goes before the
+    // question, so an answer for another key never revives it.
+    if (deps.readAlways() !== undefined && !deps.isRemembered()) {
+      await deps.writeAlways(undefined)
+    }
+    const scope = await deps.ask(model)
+    if (scope === undefined || !deps.isOn() || deps.priceOf(model) !== price) {
+      return undefined
+    }
+    if (deps.revocations() !== revocations) {
+      // Revoked while the question was open: this request sends nothing, and
+      // the window is not snoozed (the user did not deny).
+      await deps.writeAlways(undefined)
+      return { scope: 'once', isCurrent: () => false }
+    }
+    if (scope === 'window') {
+      const token = deps.windowOnceToken()
+      if (token === undefined) {
+        return grantFor('once', model, price)
+      }
+      windowKeys.set(JSON.stringify([model, price]), token)
+      return grantFor('window', model, price, token)
+    }
+    if (scope === 'always') {
+      try {
+        await deps.writeAlways({ scope: 'always', model, price })
+        if (deps.revocations() !== revocations) {
+          await deps.writeAlways(undefined)
+          return { scope: 'once', isCurrent: () => false }
+        }
+        return grantFor('always', model, price)
+      } catch {
+        deps.log.warn('Tab: "always" could not be kept, so this request is allowed once')
+      }
+    }
+    return deps.revocations() === revocations
+      ? grantFor('once', model, price)
+      : { scope: 'once', isCurrent: () => false }
+  }
+
+  return {
+    requestUse: async (model) => {
+      const price = deps.priceOf(model)
+      if (price === undefined || !deps.isOn()) {
+        return
+      }
+      const found = kept(model, price)
+      if (found !== undefined) {
+        return found
+      }
+      const keyText = JSON.stringify([model, price])
+      const open = pending.get(keyText)
+      if (open !== undefined) {
+        return await open
+      }
+      const question = ask(model, price)
+      pending.set(keyText, question)
+      try {
+        return await question
+      } finally {
+        pending.delete(keyText)
+      }
+    },
+  }
 }
 
 /** What the provider hands the engine: the redacted window, its mode and the filters' lines. */
@@ -171,9 +362,10 @@ export interface TabAcceptedEdit {
   readonly generationId: string
   /** The model the suggestion came from. */
   readonly model: string
-  /** 1-based, as Cursor sends them. */
-  readonly oldLine: number
-  readonly newLine: number
+  /** Actual line text around the accepted insertion. */
+  readonly oldLine: string
+  readonly newLine: string
+  readonly workspaceRoots: readonly string[]
   /** 1-based start/end line and column. */
   readonly range: {
     readonly startLineNumber: number
@@ -191,12 +383,18 @@ export interface TabAcceptedEdit {
  * Lane K's hook bridge (M94 step 7, after M91 merges): `beforeRead` answers
  * whether a file's text may enter a request (every failure refuses, and an
  * oversize payload is refused unrun); `afterEdit` observes an accept and
- * never blocks. Absent until lane K lands: with no hooks configured every
- * read is allowed and every accept unobserved.
+ * never blocks. With no hook configuration at all every read is allowed and
+ * every accept is unobserved; a hook file that did not load whole refuses
+ * every read (RVM94KR 1).
  */
 export interface TabHookBridge {
-  beforeRead(absolutePath: string, content: string): Promise<boolean>
+  beforeRead(absolutePath: string, content: string, context: TabHookContext): Promise<boolean>
   afterEdit(edit: TabAcceptedEdit): void
+  /** Settles the hook configuration in force; a request binds to it at its start (RVM94KR 2). */
+  bindPolicy(): Promise<TabHookPolicy>
+  /** The hook policy's key now: a request whose bound key moved is dropped. */
+  policyKey(): string
+  dispose?(): void
 }
 
 /** The last failure's class, fixed technical words (never code or a path). */
@@ -257,8 +455,21 @@ export interface TabProviderDeps {
   readonly spend: TabSpendGate
   /** Lane L's once-per-window question (the M94 integration branch injects it). */
   readonly consent: TabUseConsent
-  /** Lane K's hooks (absent until lane K lands). */
+  /** An injected bridge; production constructs it in the lazy Tab bundle. */
   readonly hooks?: TabHookBridge | undefined
+  readonly hookDispatch?:
+    | Omit<TabHooksDeps, 'isWorkspaceTrusted' | 'log'>
+    | {
+        readonly isHooksEnabled: () => boolean
+        readonly load: () => Promise<
+          | Pick<
+              ExtensionHookRunner,
+              'configurationVersion' | 'isReloading' | 'tabHookState' | 'runTab'
+            >
+          | undefined
+        >
+      }
+    | undefined
   /** The outcome of each trigger: the status bar follows it. */
   readonly onOutcome: (outcome: TabOutcome) => void
   readonly log: Logger
@@ -331,8 +542,29 @@ export const TAB_QUIET_REASONS = [
   'no-suggestion',
   'cancelled-before-send',
   'secret-at-cursor',
+  // A hook file is present but did not load whole (RVM94KR 1).
+  'hooks-invalid',
+  // Trust, a Tab setting, files.exclude or the hooks changed under the request (RVM94KR 2–3).
+  'policy-changed',
 ] as const
 export type TabQuietReason = (typeof TAB_QUIET_REASONS)[number]
+
+/**
+ * The reasons a trigger stops at before the hook configuration is read: they
+ * say nothing about it, so they leave its status as it was.
+ */
+const TAB_REASONS_BEFORE_HOOKS: ReadonlySet<TabQuietReason> = new Set([
+  'suggest-selection',
+  'trigger-setting',
+  'snoozed',
+  'no-key',
+  'paid-off',
+  'untrusted',
+  'scheme',
+  'outside-workspace',
+  'language-off',
+  'copilot',
+])
 
 /** The provider's handle: the provider the shim registers, plus the accept command's entry. */
 export interface TabProviderHandle {
@@ -385,11 +617,11 @@ export interface TabStatusDeps {
   /** What Tab does where GitHub Copilot also suggests (`yield` or `both`). */
   readonly tabWithCopilot: () => 'yield' | 'both'
   /** Today's ledger total and request count (lane L, via the shim). */
-  readonly todaySpend: () => { readonly totalUsd: number; readonly requests: number }
+  readonly todaySpend: () => { readonly totalUsd: UsdAmount; readonly requests: number }
   /** Whether the day's budget is reached (lane L, via the shim). */
   readonly isBudgetReached: () => boolean
   readonly model: () => string
-  readonly budgetUsd: () => number
+  readonly budgetUsd: () => UsdAmount
   /** The snooze tabStatus.ts keeps (timed across windows, until-restart here). */
   readonly snooze: TabSnooze
   /** Writes a machine-scoped setting (Global target, never the workspace). */
@@ -464,7 +696,7 @@ export interface TabServicesDeps {
   /** This window's ledger file name: letters, digits, `_` and `-` only. */
   readonly windowId: string
   /** `museSpark.tabDailyBudgetUsd`, read at each request. */
-  readonly budgetUsd: () => number
+  readonly budgetUsd: () => UsdAmount
   /** A request is about to be sent (PaidUsage counts it). */
   readonly onSent: (model: string) => void
   /** A request reported its usage (PaidUsage prices it). */
@@ -547,6 +779,8 @@ export function createTabStatusItem(
   )
   item.command = TAB_COMMAND_IDS.menu
   let lastFailure: TabFailureKind | undefined
+  // A hook file did not load whole: shown until a trigger finds it loads (RVM94KR 1).
+  let isHookConfigurationInvalid = false
   let lastContext: boolean | undefined
   // While a timed snooze runs, the bar redraws each minute, so its minutes
   // left count down and its end shows without another event (RVM94HU 9).
@@ -614,7 +848,10 @@ export function createTabStatusItem(
             languageId: language,
           }),
         )
-      if (language !== undefined && !isTabLanguageOn(deps.tabLanguages(), language)) {
+      if (isHookConfigurationInvalid) {
+        item.text = `$(error) ${table.tabStatusHooksInvalid}`
+        item.tooltip = table.tabStatusHooksInvalidDetail
+      } else if (language !== undefined && !isTabLanguageOn(deps.tabLanguages(), language)) {
         item.text = `$(circle-slash) ${fill(table.tabStatusLanguageOff, { language })}`
         item.tooltip = fill(table.tabStatusLanguageOff, { language })
       } else if (isYields) {
@@ -642,6 +879,9 @@ export function createTabStatusItem(
     } else {
       // A later trigger clears the failure: quiet states have their own rows.
       lastFailure = undefined
+    }
+    if (outcome.kind !== 'quiet' || !TAB_REASONS_BEFORE_HOOKS.has(outcome.reason)) {
+      isHookConfigurationInvalid = outcome.kind === 'quiet' && outcome.reason === 'hooks-invalid'
     }
     refresh()
   }
@@ -733,6 +973,11 @@ export function deferredRefresh(refresh: () => Promise<void> | void): () => Prom
 // timed snooze's end, in epoch milliseconds, shared by every window.
 export const TAB_SNOOZE_STATE_KEY = 'museSpark.tabSnoozedUntil'
 
+// Extension-private workspace state: Tab's one Always record, its model and
+// price (RVM94KR2). The earlier model-only key is never read: a grant it sat
+// beside asks once again.
+export const TAB_CONSENT_STATE_KEY = 'museSpark.tabConsent'
+
 // The ledger's folder under the extension's global storage (D73:
 // `tab-spend/<date>/<window>.json`).
 export const TAB_LEDGER_DIR = 'tab-spend'
@@ -750,7 +995,7 @@ export interface TabActivationDeps {
     readonly tabMultiline: 'auto' | 'onInvoke' | 'never'
     readonly tabTrigger: 'automatic' | 'onInvoke'
     readonly tabWithCopilot: 'yield' | 'both'
-    readonly tabDailyBudgetUsd: number
+    readonly tabDailyBudgetUsd: UsdAmount
   }
   /** The paid gate's answer for `tab`: the setting on and the price accepted. */
   readonly isPaidOn: () => boolean
@@ -815,8 +1060,9 @@ export interface TabActivationDeps {
    * with the price and the daily budget; nothing is sent before the answer.
    */
   readonly consent: TabUseConsent
-  /** Lane K's hooks (absent until lane K lands). */
+  /** An injected bridge; production constructs it in the lazy Tab bundle. */
   readonly hooks?: TabHookBridge | undefined
+  readonly hookDispatch?: TabProviderDeps['hookDispatch']
 }
 
 interface ActiveTab {
@@ -841,7 +1087,7 @@ export interface TabActivation {
   /** Whether the one provider registration stands (the setting is on). */
   readonly isRegistered: () => boolean
   /** Today's cross-window ledger total once the bundle runs; undefined before (RVM94HU 23). */
-  readonly todayTotalUsd: () => number | undefined
+  readonly todayTotalUsd: () => UsdAmount | undefined
   dispose(): void
 }
 
@@ -867,11 +1113,13 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     isCopilotExtensionPresent: deps.isCopilotExtensionPresent,
     tabWithCopilot: () => deps.tabSettings().tabWithCopilot,
     todaySpend: () => ({
-      totalUsd: active?.spend.todayTotalUsd() ?? 0,
+      totalUsd: active?.spend.todayTotalUsd() ?? Usd.from(0).toAmount(),
       requests: active?.spend.todayRequests() ?? 0,
     }),
     isBudgetReached: () =>
-      (active?.spend.todayTotalUsd() ?? 0) >= deps.tabSettings().tabDailyBudgetUsd,
+      Usd.from(active?.spend.todayTotalUsd() ?? 0).compare(
+        Usd.from(deps.tabSettings().tabDailyBudgetUsd),
+      ) >= 0,
     model: () => deps.tabSettings().tabModel,
     budgetUsd: () => deps.tabSettings().tabDailyBudgetUsd,
     snooze,
@@ -942,6 +1190,7 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
       spend,
       consent,
       hooks: deps.hooks,
+      hookDispatch: deps.hookDispatch,
       onOutcome: (outcome) => {
         // Deny snoozes the window (Q-M94a): set it before the status redraws.
         if (outcome.kind === 'quiet' && outcome.reason === 'consent-denied') {

@@ -1,0 +1,746 @@
+import { webviewKey } from '../../shared/keybindings'
+// The Agent map (PLAN.md D17), as Claude Code's: this conversation on the
+// left, the subagents it spawned on the right (objective, role, status,
+// duration, tokens), the workflow runs and their agents (M47), the
+// background tasks below, and a click on an agent for its own transcript,
+// read from the child session the CLI keeps for it. What Muse Code's
+// settings file says about delegation and workflows is noted, with the file
+// a click away; the extension never edits it.
+
+import { lazy, Suspense, useState } from 'react'
+import { useAgentClock } from '../useAgentClock'
+import {
+  agentActivity,
+  endedOutcome,
+  agentStateText,
+  toolAgentEvidence,
+} from '../../shared/agentOutcome'
+import { buildAgentReceipt } from '../../shared/agentReceipt'
+import type { ItemSnapshot } from '../../shared/agentEvents'
+import { fill, formatNumber, formatTokenWindow, plural } from '../../shared/l10n/text'
+import {
+  SUBAGENT_CLOSED,
+  SUBAGENT_RESULT_READY,
+  SUBAGENT_RUNNING_STATUSES,
+  type SubagentAction,
+  UI_TEXT,
+  USER_SHELL_PREFIX,
+} from '../../shared/constants'
+import type { TokenUsage } from '../../shared/agentEvents'
+import type { BackendKind } from '../../shared/protocol'
+import type { TeamTreeData } from '../../shared/teamView'
+import {
+  type ChildTranscript,
+  isRunningTask,
+  type TranscriptEntry,
+  type WorkflowEntry,
+} from '../state/uiState'
+import { describeTool } from '../toolPresentation'
+import { agentStatusLabel, formatDurationMs } from '../agentFormat'
+import { workflowName, workflowTriggerText } from '../workflowDetails'
+import { Modal } from './Modal'
+import type { TeamTreeActions } from './TeamTree'
+import { teamTaskCount } from '../state/teamEntries'
+
+const TeamTree = lazy(async () => {
+  const module = await import('./TeamUi')
+  return { default: module.TeamTree }
+})
+import { AgentReceiptBody, AgentReceiptDisclosure, AgentReceiptHistory } from './AgentReceiptBody'
+import { WorkflowRunView } from './WorkflowRun'
+import { PaidBadge } from './PaidBadge'
+import type { PlaybookRecord } from '../../shared/playbook'
+import type { PlaybookSurfacePort } from '../../runtime/playbook/command'
+import {
+  DeferredPlaybookBadge,
+  DeferredPlaybookDetails,
+  DeferredPlaybookMap,
+} from '../playbook/DeferredPlaybook'
+
+export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
+export type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
+
+export interface AgentMapProps {
+  readonly onOpenFile?: ((path: string, range: undefined) => void) | undefined
+  /** I binds the team/workspace journal and its trusted settings adapter. */
+  readonly playbookPort?: PlaybookSurfacePort
+  /** Trusted lane-to-module association; never match a lane's display name. */
+  readonly playbookRecords?: Readonly<Record<string, readonly PlaybookRecord[]>>
+  readonly backend: BackendKind | undefined
+  readonly title: string
+  readonly modelId: string | undefined
+  readonly contextUsedTokens: number | undefined
+  readonly agents: readonly SubagentEntry[]
+  readonly backgroundTasks: readonly ToolEntry[]
+  /** Muse Code's `run.subagent_delegation_mode`; undefined on the Model API backend. */
+  readonly delegationMode: string | undefined
+  readonly isDelegationEnabled: boolean
+  readonly childTranscripts: Readonly<Record<string, ChildTranscript>>
+  readonly selectedAgentId: string | undefined
+  readonly onSelectAgent: (agentId: string | undefined) => void
+  readonly onReadChild: (childSessionId: string) => void
+  /** Owner controls on an agent (M18): interrupt, stop, resume, close. */
+  readonly onControl: (subagentId: string, action: SubagentAction) => void
+  /** A note to a running agent, or a follow-up task for a finished one (M18). */
+  readonly onMessage: (subagentId: string, body: string, isFollowup: boolean) => void
+  /** Stop one background task, or all of them (M46). */
+  readonly onStopTask: (itemId: string) => void
+  readonly onStopAllTasks: () => void
+  readonly onOpenMuseSettings: () => void
+  readonly onClose: () => void
+  /** This conversation's workflow runs (M47). */
+  readonly workflows: readonly WorkflowEntry[]
+  /** Muse Code's `run.workflow_trigger_mode`; undefined on the Model API backend. */
+  readonly workflowTriggerMode: string | undefined
+  /**
+   * The team's live tree (M96 lane U2); undefined where the team cannot run
+   * (off, Solo, single-model mode, no runnable role): the map is today's.
+   */
+  readonly team?: TeamTreeData | undefined
+  /** The tree's actions; absent where the host takes none (history). */
+  readonly teamActions?: TeamTreeActions | undefined
+}
+
+/** Muse keeps captured M18 controls; Model API children also support M48 read/reopen. */
+export function controlsFor(
+  agent: SubagentEntry,
+  backend: BackendKind | undefined,
+): readonly SubagentAction[] {
+  if (agent.subagentId === undefined) {
+    return []
+  }
+  const outcome = endedOutcome({ status: agent.status, evidence: agent.agentEvidence })
+  if (
+    agentActivity(
+      { status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence },
+      0,
+    ).activity === 'inactive' &&
+    (outcome === 'failed' || outcome === 'incomplete')
+  )
+    return ['continue', 'retry', 'close']
+  if (agent.controlStatus === SUBAGENT_CLOSED) {
+    return backend === 'modelApi' ? ['reopen'] : []
+  }
+  if (agent.controlStatus === SUBAGENT_RESULT_READY) {
+    return backend === 'modelApi' ? ['readResult', 'close'] : ['close']
+  }
+  if (agent.controlStatus === 'queued') {
+    return ['stop']
+  }
+  if (agent.controlStatus === 'interrupted') {
+    return ['resume', 'stop']
+  }
+  if (agent.status !== RUNNING) {
+    return ['close']
+  }
+  const isRunning =
+    agent.controlStatus === undefined || SUBAGENT_RUNNING_STATUSES.has(agent.controlStatus)
+  return [isRunning ? 'interrupt' : 'resume', 'stop']
+}
+
+function controlLabel(action: SubagentAction): string {
+  const labels: Readonly<Record<SubagentAction, string>> = {
+    interrupt: UI_TEXT.agentInterrupt,
+    stop: UI_TEXT.agentStop,
+    resume: UI_TEXT.agentResume,
+    close: UI_TEXT.agentClose,
+    reopen: UI_TEXT.agentReopen,
+    readResult: UI_TEXT.agentReadResult,
+    continue: UI_TEXT.agentContinue,
+    retry: UI_TEXT.agentRetry,
+  }
+  return labels[action]
+}
+
+function AgentControls({
+  agent,
+  backend,
+  onControl,
+  onMessage,
+}: {
+  readonly agent: SubagentEntry
+  readonly backend: BackendKind | undefined
+  readonly onControl: AgentMapProps['onControl']
+  readonly onMessage: AgentMapProps['onMessage']
+}) {
+  const [body, setBody] = useState('')
+  const controls = controlsFor(agent, backend)
+  const { subagentId } = agent
+  if (subagentId === undefined || controls.length === 0) {
+    return null
+  }
+  const isFollowup = !controls.includes('interrupt')
+  const canMessage = !controls.includes('reopen')
+  const send = () => {
+    if (body.trim() === '') {
+      return
+    }
+    onMessage(subagentId, body.trim(), isFollowup)
+    setBody('')
+  }
+  return (
+    <div className="agent-controls" role="group" aria-label={UI_TEXT.agentControlsLabel}>
+      <div className="agent-control-row">
+        {controls.map((action) => (
+          <button
+            key={action}
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onControl(subagentId, action)
+            }}
+          >
+            {controlLabel(action)}
+          </button>
+        ))}
+      </div>
+      {canMessage ? (
+        <div className="agent-message-form">
+          <input
+            className="question-input agent-message-input"
+            type="text"
+            aria-label={isFollowup ? UI_TEXT.agentFollowup : UI_TEXT.agentSendMessage}
+            placeholder={UI_TEXT.agentMessagePlaceholder}
+            value={body}
+            onChange={(event) => {
+              setBody(event.target.value)
+            }}
+            onKeyDown={(event) => {
+              if (webviewKey('agent.message', event) !== 'send') {
+                return
+              }
+              event.preventDefault()
+              send()
+            }}
+          />
+          <button type="button" className="tool-more" disabled={body.trim() === ''} onClick={send}>
+            {isFollowup ? UI_TEXT.agentFollowup : UI_TEXT.agentSendMessage}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+const RUNNING = 'inProgress'
+
+/** The figure the map shows for an agent: its input and output tokens together. */
+function totalTokens(usage: TokenUsage): number {
+  return usage.inputTokens + usage.outputTokens
+}
+
+function agentTokens(agent: SubagentEntry): string | undefined {
+  return agent.usage === undefined
+    ? undefined
+    : fill(UI_TEXT.agentTokens, { tokens: formatTokenWindow(totalTokens(agent.usage)) })
+}
+
+function agentMeta(agent: SubagentEntry, now: number): string {
+  return [
+    agent.agentEvidence?.attempt === undefined
+      ? undefined
+      : fill(UI_TEXT.workflowAttempt, { attempt: formatNumber(agent.agentEvidence.attempt) }),
+    agent.durationMs === undefined ? undefined : formatDurationMs(agent.durationMs),
+    agentTokens(agent),
+    agentStatusLabel(
+      agent.status === RUNNING ? agent.status : (agent.controlStatus ?? agent.status),
+    ),
+    agentStateText(
+      { status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence },
+      now,
+    ),
+  ]
+    .filter((part) => part !== undefined)
+    .join(' · ')
+}
+
+function statusClassOf(status: string): string {
+  if (status === RUNNING) {
+    return 'agent-dot agent-dot-running'
+  }
+  return status === 'completed' ? 'agent-dot agent-dot-done' : 'agent-dot agent-dot-failed'
+}
+
+function AgentNode({
+  agent,
+  onSelect,
+  playbookRecords,
+}: {
+  readonly agent: SubagentEntry
+  readonly onSelect: () => void
+  readonly playbookRecords: readonly PlaybookRecord[] | undefined
+}) {
+  const now = useAgentClock()
+  return (
+    <button type="button" className="agent-node agent-node-clickable" onClick={onSelect}>
+      <span className="agent-node-title">
+        <span className={statusClassOf(agent.status)} aria-hidden="true" />
+        {agent.objective ?? agent.role ?? UI_TEXT.agentUntitled}
+        {agent.paid === undefined ? null : <PaidBadge feature={agent.paid} />}
+      </span>
+      <span className="agent-node-meta" aria-live="polite">
+        {agentMeta(agent, now)}
+      </span>
+      {playbookRecords === undefined ? null : <DeferredPlaybookBadge records={playbookRecords} />}
+    </button>
+  )
+}
+
+function entryText(entry: TranscriptEntry): string {
+  switch (entry.kind) {
+    case 'user':
+    case 'assistant':
+    case 'error':
+    case 'notice': {
+      return entry.text
+    }
+    case 'tool': {
+      return `${entry.tool}${entry.args === '' ? '' : ` ${entry.args}`}`
+    }
+    case 'userShell': {
+      return `${USER_SHELL_PREFIX}${entry.command}`
+    }
+    case 'reasoning': {
+      return entry.parts.join('\n')
+    }
+    case 'subagent': {
+      return entry.objective ?? entry.role ?? UI_TEXT.agentUntitled
+    }
+    case 'workflow': {
+      return workflowName(entry)
+    }
+    case 'teamPlan': {
+      return UI_TEXT.teamPlanTitle
+    }
+    case 'teamSwitch': {
+      return `${entry.roleId}: ${entry.fromEntry} → ${entry.toEntry}`
+    }
+    case 'teamWaiting': {
+      return UI_TEXT.teamWaitingTitle
+    }
+    case 'teamMerge': {
+      return `${UI_TEXT.teamMergeTitle}: ${entry.brief}`
+    }
+    case 'teamReport': {
+      return entry.summary
+    }
+    case 'item': {
+      return entry.text ?? entry.status
+    }
+  }
+}
+
+function AgentDetails({
+  agent,
+  backend,
+  transcript,
+  onBack,
+  onControl,
+  onMessage,
+  onOpenFile,
+  playbookRecords,
+}: {
+  readonly agent: SubagentEntry
+  readonly backend: BackendKind | undefined
+  readonly transcript: ChildTranscript | undefined
+  readonly onBack: () => void
+  readonly onControl: AgentMapProps['onControl']
+  readonly onMessage: AgentMapProps['onMessage']
+  readonly onOpenFile: AgentMapProps['onOpenFile']
+  readonly playbookRecords: readonly PlaybookRecord[] | undefined
+}) {
+  let body
+  const now = useAgentClock()
+  const isEnded =
+    agentActivity(
+      { status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence },
+      now,
+    ).activity === 'inactive'
+  if (agent.childSessionId === undefined) {
+    body = <p className="usage-row-meta">{UI_TEXT.agentNoTranscript}</p>
+  } else if (transcript === undefined) {
+    body = <p className="usage-row-meta">{UI_TEXT.agentTranscriptLoading}</p>
+  } else if (transcript.entries.length === 0) {
+    body = <p className="usage-row-meta">{UI_TEXT.agentNoTranscript}</p>
+  } else {
+    body = (
+      <ul className="agent-transcript" aria-label={UI_TEXT.agentTranscriptLabel}>
+        {transcript.entries.map((entry) => (
+          <li key={entry.id} className={`agent-transcript-row agent-transcript-${entry.kind}`}>
+            <span className="agent-transcript-kind">{entry.kind}</span>
+            <span className="agent-transcript-text">{entryText(entry)}</span>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  return (
+    <section className="agent-details" aria-label={agent.objective ?? UI_TEXT.agentUntitled}>
+      <button type="button" className="tool-more" onClick={onBack}>
+        {UI_TEXT.agentBack}
+      </button>
+      <h3 className="agent-details-title">
+        {agent.objective ?? agent.role ?? UI_TEXT.agentUntitled}
+        {agent.paid === undefined ? null : <PaidBadge feature={agent.paid} />}
+      </h3>
+      <p className="usage-row-meta" aria-live="polite">
+        {[
+          agent.role === undefined ? undefined : `${UI_TEXT.agentRole} ${agent.role}`,
+          agentMeta(agent, now),
+        ]
+          .filter((part) => part !== undefined)
+          .join(' · ')}
+      </p>
+      <AgentControls agent={agent} backend={backend} onControl={onControl} onMessage={onMessage} />
+      {isEnded ? (
+        <AgentReceiptView
+          agent={agent}
+          backend={backend}
+          transcript={transcript}
+          onOpenFile={onOpenFile}
+        />
+      ) : null}
+      {playbookRecords === undefined ? null : <DeferredPlaybookDetails records={playbookRecords} />}
+      {isEnded || agent.resultSummary === undefined ? null : (
+        <p className="agent-result">{agent.resultSummary}</p>
+      )}
+      {isEnded ||
+      agent.resultText === undefined ||
+      agent.resultText === agent.resultSummary ? null : (
+        <pre className="agent-result-text" aria-label={UI_TEXT.agentResultText}>
+          {agent.resultText}
+        </pre>
+      )}
+      {body}
+    </section>
+  )
+}
+
+/** Receipts are built only in this lazy surface, after the child is selected. */
+function AgentReceiptView({
+  agent,
+  backend,
+  transcript,
+  onOpenFile,
+}: {
+  readonly agent: SubagentEntry
+  readonly backend: BackendKind | undefined
+  readonly transcript: ChildTranscript | undefined
+  readonly onOpenFile: AgentMapProps['onOpenFile']
+}) {
+  const items = (transcript?.entries ?? []).flatMap<ItemSnapshot>((entry) => {
+    if (entry.kind === 'tool')
+      return [
+        {
+          itemId: entry.id,
+          kind: 'toolCall',
+          status: entry.status,
+          tool: entry.tool,
+          args: entry.args,
+          changedFiles: entry.changedFiles,
+          exitCode: entry.exitCode,
+          durationMs: entry.durationMs,
+          verifySummary: entry.verifySummary,
+          thenRun: entry.thenRun,
+        },
+      ]
+    return entry.kind === 'assistant'
+      ? [{ itemId: entry.id, kind: 'agentMessage', status: 'completed', text: entry.text }]
+      : []
+  })
+  const history = agent.agentEvidence?.attempts ?? []
+  const receipt =
+    backend === 'modelApi'
+      ? (history.at(-1)?.receipt ??
+        buildAgentReceipt(items, agent.agentEvidence, agent.resultText ?? agent.resultSummary))
+      : buildAgentReceipt(items, agent.agentEvidence, agent.resultText ?? agent.resultSummary)
+  const attempts = history.slice(0, -1)
+  return (
+    <section aria-label={UI_TEXT.agentReceipt}>
+      <h4>{UI_TEXT.agentReceipt}</h4>
+      <AgentReceiptBody receipt={receipt} onOpenFile={onOpenFile} />
+      <AgentReceiptHistory attempts={attempts} onOpenFile={onOpenFile} />
+    </section>
+  )
+}
+
+/**
+ * The conversation's background tasks (M14), each with its Stop while it
+ * runs and one Stop all (M46): the row says what the task is, as its
+ * transcript row does, and how it stands.
+ */
+function taskSignals(task: ToolEntry) {
+  const evidence = toolAgentEvidence(task.status, task.exitCode)
+  if (task.approval !== undefined) evidence.waiting = 'approval'
+  else if (task.question !== undefined) evidence.waiting = 'input'
+  return { status: task.status, evidence }
+}
+
+function BackgroundTasks({
+  tasks,
+  onStopTask,
+  onStopAllTasks,
+  onControl,
+  onOpenFile,
+}: {
+  readonly tasks: readonly ToolEntry[]
+  readonly onStopTask: (itemId: string) => void
+  readonly onStopAllTasks: () => void
+  readonly onControl: AgentMapProps['onControl']
+  readonly onOpenFile: AgentMapProps['onOpenFile']
+}) {
+  const now = useAgentClock()
+  const running = tasks.filter((task) => isRunningTask(task))
+  return (
+    <>
+      <div className="agent-tasks-header">
+        <p className="usage-row-meta">{plural(UI_TEXT.backgroundTasksCount, tasks.length)}</p>
+        {running.length === 0 ? null : (
+          <button
+            type="button"
+            className="tool-more"
+            title={UI_TEXT.stopAllTasksTitle}
+            onClick={onStopAllTasks}
+          >
+            {UI_TEXT.stopAllTasks}
+          </button>
+        )}
+      </div>
+      <ul className="agent-tasks" aria-label={UI_TEXT.backgroundTasksLabel}>
+        {tasks.map((task) => {
+          const presentation = describeTool(task.tool, task.args)
+          const signals = taskSignals(task)
+          const outcome = endedOutcome(signals)
+          const isRecoverable =
+            agentActivity(signals, now).activity === 'inactive' &&
+            (outcome === 'failed' || outcome === 'incomplete')
+          return (
+            <li key={task.id} className="agent-node agent-task">
+              <span className="agent-node-title">
+                <span className={statusClassOf(task.status)} aria-hidden="true" />
+                {presentation.label}
+              </span>
+              <span className="agent-node-meta" aria-live="polite">
+                {[
+                  presentation.summary === '' ? undefined : presentation.summary,
+                  agentStatusLabel(task.status),
+                  agentStateText(taskSignals(task), now),
+                ]
+                  .filter((part) => part !== undefined)
+                  .join(' · ')}
+              </span>
+              {isRunningTask(task) ? null : (
+                <AgentReceiptDisclosure
+                  onOpenFile={onOpenFile}
+                  readReceipt={() =>
+                    buildAgentReceipt(
+                      [
+                        {
+                          itemId: task.id,
+                          kind: 'toolCall',
+                          status: task.status,
+                          tool: task.tool,
+                          args: task.args,
+                          changedFiles: task.changedFiles,
+                          exitCode: task.exitCode,
+                          durationMs: task.durationMs,
+                        },
+                      ],
+                      taskSignals(task).evidence,
+                      task.output,
+                    )
+                  }
+                />
+              )}
+              {isRecoverable ? (
+                <div className="agent-control-row">
+                  <button
+                    type="button"
+                    className="tool-more"
+                    onClick={() => {
+                      onControl(task.id, 'continue')
+                    }}
+                  >
+                    {UI_TEXT.agentContinue}
+                  </button>
+                  <button
+                    type="button"
+                    className="tool-more"
+                    onClick={() => {
+                      onControl(task.id, 'retry')
+                    }}
+                  >
+                    {UI_TEXT.agentRetry}
+                  </button>
+                </div>
+              ) : null}
+              {isRunningTask(task) ? (
+                <button
+                  type="button"
+                  className="tool-more agent-task-stop"
+                  aria-label={`${UI_TEXT.stopTask}: ${presentation.label} ${presentation.summary}`}
+                  title={UI_TEXT.stopTaskTitle}
+                  disabled={task.taskRequest === 'stop'}
+                  onClick={() => {
+                    onStopTask(task.id)
+                  }}
+                >
+                  {UI_TEXT.stopTask}
+                </button>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+    </>
+  )
+}
+
+export default function AgentMapContent({
+  playbookPort,
+  playbookRecords,
+  backend,
+  title,
+  modelId,
+  contextUsedTokens,
+  agents,
+  backgroundTasks,
+  delegationMode,
+  isDelegationEnabled,
+  childTranscripts,
+  selectedAgentId,
+  onSelectAgent,
+  onReadChild,
+  onControl,
+  onMessage,
+  onStopTask,
+  onStopAllTasks,
+  onOpenMuseSettings,
+  onClose,
+  workflows,
+  workflowTriggerMode,
+  team,
+  teamActions,
+  onOpenFile,
+}: AgentMapProps) {
+  const selected = agents.find((agent) => agent.id === selectedAgentId)
+  const transcript =
+    selected?.childSessionId === undefined ? undefined : childTranscripts[selected.childSessionId]
+  const select = (agent: SubagentEntry) => {
+    onSelectAgent(agent.id)
+    if (
+      agent.childSessionId !== undefined &&
+      childTranscripts[agent.childSessionId] === undefined
+    ) {
+      onReadChild(agent.childSessionId)
+    }
+  }
+  const count = agents.length
+  // Delegation off explains an empty map; with agents in it there is nothing to explain.
+  const isDelegationNoted = delegationMode !== undefined && !isDelegationEnabled && count === 0
+  // A map with workflow runs is not empty, though it has no subagents (M47).
+  let subtitle: string | undefined =
+    `${plural(UI_TEXT.agentsCount, count)} · ${UI_TEXT.agentMapHint}`
+  if (count === 0) {
+    subtitle =
+      workflows.length === 0 && backgroundTasks.length === 0 ? UI_TEXT.agentMapEmpty : undefined
+  }
+  const mainMeta = [
+    modelId,
+    contextUsedTokens === undefined
+      ? undefined
+      : fill(UI_TEXT.agentContextTokens, { tokens: formatTokenWindow(contextUsedTokens) }),
+  ]
+    .filter((part) => part !== undefined)
+    .join(' · ')
+  const map =
+    selected === undefined ? (
+      <>
+        {subtitle === undefined ? null : <p className="usage-row-meta">{subtitle}</p>}
+        <div className="agent-tree" tabIndex={team === undefined ? undefined : 0}>
+          <div className="agent-node agent-node-main">
+            <span className="agent-node-title">{title}</span>
+            <span className="agent-node-meta">{mainMeta}</span>
+          </div>
+          {count === 0 ? null : (
+            <div className="agent-children">
+              {agents.map((agent) => (
+                <AgentNode
+                  key={agent.id}
+                  agent={agent}
+                  playbookRecords={playbookRecords?.[agent.id]}
+                  onSelect={() => {
+                    select(agent)
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        {team === undefined ? null : (
+          <>
+            <h3 className="team-tree-heading">
+              {UI_TEXT.teamTreeLabel} · {plural(UI_TEXT.teamTasksCount, teamTaskCount(team))}
+            </h3>
+            <Suspense fallback={null}>
+              <TeamTree tree={team} actions={teamActions} />
+            </Suspense>
+          </>
+        )}
+        {workflows.length === 0 ? null : (
+          <>
+            <p className="usage-row-meta">{plural(UI_TEXT.workflowsCount, workflows.length)}</p>
+            <ul className="agent-workflows" aria-label={UI_TEXT.workflowsLabel}>
+              {workflows.map((workflow) => (
+                <li key={workflow.id} className="agent-node workflow" data-status={workflow.status}>
+                  <WorkflowRunView entry={workflow} onControl={onControl} />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {isDelegationNoted || workflowTriggerMode !== undefined ? (
+          <div className="agent-notice" role="note">
+            {isDelegationNoted ? <p>{UI_TEXT.agentDelegationOff}</p> : null}
+            {workflowTriggerMode === undefined ? null : (
+              <p>{workflowTriggerText(workflowTriggerMode)}</p>
+            )}
+            <button type="button" className="tool-more" onClick={onOpenMuseSettings}>
+              {UI_TEXT.agentOpenMuseSettings}
+            </button>
+          </div>
+        ) : null}
+        {backgroundTasks.length === 0 ? null : (
+          <BackgroundTasks
+            tasks={backgroundTasks}
+            onStopTask={onStopTask}
+            onStopAllTasks={onStopAllTasks}
+            onControl={onControl}
+            onOpenFile={onOpenFile}
+          />
+        )}
+      </>
+    ) : (
+      <AgentDetails
+        agent={selected}
+        backend={backend}
+        transcript={transcript}
+        onBack={() => {
+          onSelectAgent(undefined)
+        }}
+        onControl={onControl}
+        onMessage={onMessage}
+        onOpenFile={onOpenFile}
+        playbookRecords={playbookRecords?.[selected.id]}
+      />
+    )
+  return (
+    <Modal title={UI_TEXT.agentMapTitle} titleId="agent-map-title" isWide onClose={onClose}>
+      {playbookPort === undefined ? (
+        map
+      ) : (
+        <DeferredPlaybookMap port={playbookPort}>{map}</DeferredPlaybookMap>
+      )}
+    </Modal>
+  )
+}

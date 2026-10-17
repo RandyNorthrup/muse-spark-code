@@ -1,4 +1,5 @@
 import type { OpenQuestion } from '../../../../src/shared/questions'
+import type { WaitingApproval } from '../../../../src/webview/state/uiState'
 
 /** Internal harness fixture; M46 remains the source for actual MSP frames. */
 export function questionFixture(overrides: Partial<OpenQuestion> = {}): OpenQuestion {
@@ -23,6 +24,26 @@ export function questionFixture(overrides: Partial<OpenQuestion> = {}): OpenQues
     deferredAt: 61_000,
     reminders: 0,
     backend: 'modelApi',
+    ...overrides,
+  }
+}
+
+/** A shell approval waiting on its first step, for dock-arrival scenes. */
+export function approvalFixture(overrides: Partial<WaitingApproval> = {}): WaitingApproval {
+  return {
+    entryId: 'approval-row-2',
+    toolName: 'exec',
+    approval: {
+      approvalId: 'a2',
+      requirementId: { approvalId: 'a2', sourceIndex: 0 },
+      subject: { kind: 'shell', command: 'Get-Date' },
+      rawArgs: '{"command":"Get-Date"}',
+      availableChoices: [
+        { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+      ],
+      isProtectedWrite: false,
+      isJudgeEscalated: false,
+    },
     ...overrides,
   }
 }

@@ -58,6 +58,16 @@ const mappedSubject = {
 }
 
 describe('mapNotification', () => {
+  it('rejects negative and fractional cumulative usage before delta accounting', () => {
+    for (const promptTokens of [-1, 1.5]) {
+      expect(
+        mapNotification({
+          method: 'session/tokenUsage',
+          params: { sessionId, cumulative: { promptTokens, outputTokens: 1, totalTokens: 2 } },
+        }),
+      ).toBe(MALFORMED_PARAMS)
+    }
+  })
   it.each([
     [
       'turn/started',

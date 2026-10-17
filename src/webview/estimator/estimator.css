@@ -1,0 +1,121 @@
+.estimator {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 1rem;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background);
+  font-family: var(--vscode-font-family);
+  overflow-wrap: anywhere;
+}
+
+.estimator-form,
+.estimator-card,
+.estimator-forecast {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.estimator button,
+.estimator input,
+.estimator select,
+.estimator summary {
+  min-height: 2rem;
+  box-sizing: border-box;
+  font: inherit;
+}
+
+.estimator input,
+.estimator select {
+  max-width: 100%;
+  min-width: 0;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+}
+
+.estimator button {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+  border: 1px solid var(--vscode-button-background);
+  padding: 0.5rem;
+  white-space: normal;
+}
+
+.estimator-gantt button {
+  width: 100%;
+  text-align: start;
+}
+
+.estimator button:disabled {
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background);
+  border-color: var(--vscode-panel-border);
+}
+
+.estimator :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.estimator dd {
+  margin: 0;
+}
+
+.estimator-setups {
+  min-width: 0;
+  border: 1px solid var(--vscode-panel-border);
+  padding: 0.5rem;
+}
+
+.estimator-card {
+  border: 1px solid var(--vscode-panel-border);
+  margin-block: 0.5rem;
+  padding: 0.5rem;
+}
+
+.estimator-card input {
+  vertical-align: middle;
+  margin-inline-end: 0.5rem;
+}
+
+.estimator pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: inherit;
+}
+
+.estimator-gantt ul {
+  padding: 0;
+  list-style: none;
+}
+
+.estimator-gantt li {
+  margin-block: 1rem;
+}
+
+.estimator-marks,
+.estimator-track {
+  position: relative;
+  height: 1.5rem;
+  margin-block: 0.5rem;
+}
+
+.estimator-marks span {
+  position: absolute;
+  transform: translateX(-100%);
+}
+
+.estimator-bar {
+  display: block;
+  height: 1rem;
+  background: var(--vscode-foreground);
+}
+
+.estimator-critical {
+  height: 1.5rem;
+  border-block: 2px solid var(--vscode-focusBorder);
+}
+
+.estimator a {
+  color: inherit;
+}

@@ -14,7 +14,7 @@ export function OpenQuestionsChip({
     <div className="open-questions-chip">
       <button
         type="button"
-        className="button-secondary"
+        className="button-secondary chat-control"
         aria-label={plural(UI_TEXT.openQuestionsCount, count)}
         onClick={onAnswer}
       >
@@ -22,7 +22,7 @@ export function OpenQuestionsChip({
       </button>
       <button
         type="button"
-        className="icon-button"
+        className="icon-button chat-control"
         aria-label={UI_TEXT.questionPreviousOpen}
         onClick={() => {
           onJump('previous')
@@ -32,7 +32,7 @@ export function OpenQuestionsChip({
       </button>
       <button
         type="button"
-        className="icon-button"
+        className="icon-button chat-control"
         aria-label={UI_TEXT.questionNextOpen}
         onClick={() => {
           onJump('next')

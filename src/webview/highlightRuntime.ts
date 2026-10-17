@@ -21,7 +21,11 @@ import typescript from 'highlight.js/lib/languages/typescript'
 import xml from 'highlight.js/lib/languages/xml'
 import yaml from 'highlight.js/lib/languages/yaml'
 
+import { escapeHtml } from '../core/htmlText'
+
 import { resolveLanguage } from './highlight'
+
+export { escapeHtml } from '../core/htmlText'
 
 const LANGUAGES = {
   bash,
@@ -54,16 +58,4 @@ export function highlight(code: string, tag: string | undefined): string {
   return language === undefined
     ? escapeHtml(code)
     : hljs.highlight(code, { language, ignoreIllegals: true }).value
-}
-
-const HTML_ESCAPES: Readonly<Record<string, string>> = {
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-}
-
-export function escapeHtml(text: string): string {
-  return text.replaceAll(/["&'<>]/g, (char) => HTML_ESCAPES[char] ?? char)
 }

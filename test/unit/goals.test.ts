@@ -3,6 +3,7 @@ import {
   applyGoalCommand,
   type GoalContext,
   goalInstructions,
+  goalProgress,
   goalObjectiveProblem,
   goalResultText,
   runGoalTool,
@@ -261,18 +262,25 @@ describe('the goal loop on the Model API backend (M45)', () => {
   })
 
   it('pins the goal while it is active, and adds the step probe after ten quiet calls', () => {
-    expect(goalInstructions(undefined, 0)).toBeUndefined()
-    expect(goalInstructions({ ...active, status: 'paused' }, 0)).toBeUndefined()
-    const pinned = goalInstructions(
-      { ...active, current_work: 'Tests', next_work: 'Fix', token_budget: 9, tokens_used: 3 },
-      GOAL_PROGRESS_REMINDER_STEPS - 1,
-    )
+    expect(goalInstructions(undefined)).toBeUndefined()
+    expect(goalInstructions({ ...active, status: 'paused' })).toBeUndefined()
+    const pinned = goalInstructions({
+      ...active,
+      current_work: 'Tests',
+      next_work: 'Fix',
+      token_budget: 9,
+      tokens_used: 3,
+    })
     expect(pinned).toContain('# Session goal')
     expect(pinned).toContain('- Objective: Say hello in one word')
-    expect(pinned).toContain('- Current work: Tests')
-    expect(pinned).toContain('- Tokens used: 3 of a budget of 9')
+    expect(pinned).not.toContain('- Current work: Tests')
+    expect(goalProgress({ ...active, current_work: 'Tests' }, 0)).toContain('- Current work: Tests')
+    expect(pinned).not.toContain('- Tokens used:')
+    expect(goalProgress({ ...active, token_budget: 9, tokens_used: 3 }, 0)).toContain(
+      '- Tokens used: 3 of a budget of 9',
+    )
     expect(pinned).not.toContain('Progress has not been reported')
-    expect(goalInstructions(active, GOAL_PROGRESS_REMINDER_STEPS)).toContain(
+    expect(goalProgress(active, GOAL_PROGRESS_REMINDER_STEPS)).toContain(
       `Progress has not been reported in the last ${String(GOAL_PROGRESS_REMINDER_STEPS)} model calls.`,
     )
   })

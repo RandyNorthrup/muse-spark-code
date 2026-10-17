@@ -1,0 +1,102 @@
+/* Shared by the team traffic surface and the Runners section. Controls draw
+ * from the M114 token contract so buttons keep the secondary-button role and
+ * keyboard focus stays visible on low-contrast host themes. */
+@import url('../../tokens.css');
+@import url('../../../../design/tokens/generated/host-roles.css');
+
+.traffic-view {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 12px;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background);
+  overflow-wrap: anywhere;
+}
+
+.traffic-view button,
+.traffic-view select,
+.traffic-view input,
+.traffic-view textarea {
+  max-width: 100%;
+  min-height: 28px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: 3px;
+  font: inherit;
+}
+
+.traffic-view button {
+  padding: 4px 8px;
+  color: var(--ms-secondary-text);
+  background: var(--ms-secondary-surface);
+  border-color: var(--ms-boundary);
+  cursor: pointer;
+}
+
+.traffic-view button:hover:enabled:not([aria-selected='true']) {
+  background: var(--ms-secondary-hover);
+}
+
+.traffic-view :focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+.traffic-tabs,
+.traffic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 12px;
+}
+
+.traffic-tabs [aria-selected='true'] {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
+.traffic-list {
+  display: grid;
+  gap: 12px;
+  padding-inline-start: 20px;
+}
+
+.traffic-list > li {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.traffic-view label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-block: 8px;
+}
+
+.traffic-view meter {
+  width: 100%;
+}
+
+.traffic-metrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.traffic-metrics dd {
+  margin: 0;
+}
+
+.traffic-announcement {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

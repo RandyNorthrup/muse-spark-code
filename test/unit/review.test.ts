@@ -496,4 +496,57 @@ describe('PlanModeHold', () => {
     expect(session.sendTurn).not.toHaveBeenCalled()
     expect(session.setApprovalMode).toHaveBeenCalledTimes(1)
   })
+
+  // A scan's hold (M97): Plan mode around work, not a turn — no turn is
+  // ever sent, and the restore reports no turn either.
+  it('holds Plan mode around work and puts the mode back after', async () => {
+    const restored: PlanModeRestore[] = []
+    const { session, modes } = holdSession()
+    const held = hold(restored)
+    const scanned = await held.holding(
+      session,
+      () => Promise.resolve('report'),
+      () => true,
+    )
+    expect(scanned).toBe('report')
+    expect(session.sendTurn).not.toHaveBeenCalled()
+    expect(modes).toEqual(['denyUnmatched', 'promptUnmatched'])
+    expect(restored).toEqual([{ ok: true, isAfterTurn: false }])
+  })
+
+  it('puts the mode back when the work throws', async () => {
+    const restored: PlanModeRestore[] = []
+    const { session, modes } = holdSession()
+    await expect(
+      hold(restored).holding(
+        session,
+        () => Promise.reject(new Error('disk went away')),
+        () => true,
+      ),
+    ).rejects.toThrow('disk went away')
+    expect(modes).toEqual(['denyUnmatched', 'promptUnmatched'])
+    expect(restored).toEqual([{ ok: true, isAfterTurn: false }])
+  })
+
+  it('runs nothing once released or stale, restoring what it set', async () => {
+    const work = vi.fn(() => Promise.resolve('report'))
+    const { session, modes } = holdSession()
+    const released = hold([])
+    await expect(
+      released.holding(session, work, () => {
+        released.release()
+        return true
+      }),
+    ).rejects.toThrow(UI_TEXT.turnStoppedByRestart)
+    expect(work).not.toHaveBeenCalled()
+    // Released before the work: Plan mode stays set, nothing is put back
+    // over the user's choice.
+    expect(modes).toEqual(['denyUnmatched'])
+    const stale = holdSession()
+    await expect(hold([]).holding(stale.session, work, () => false)).rejects.toThrow(
+      UI_TEXT.turnStoppedByRestart,
+    )
+    expect(work).not.toHaveBeenCalled()
+    expect(stale.modes).toEqual(['denyUnmatched', 'promptUnmatched'])
+  })
 })

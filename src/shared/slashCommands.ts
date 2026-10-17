@@ -4,7 +4,9 @@
 // The entries are the palette's own rows that have a slash name (their
 // label is `/name`, or they carry `slashName`) and the session's skills.
 // Pure: the composer renders the list and the webview runs the action.
+// Help's syntax and descriptions join them in reference/slashReference.ts.
 
+import type { ReferenceText } from './featureCatalog'
 import type { PaletteAction, PaletteGroup, PaletteItem } from './palette'
 
 export interface SlashCommand {
@@ -13,20 +15,19 @@ export interface SlashCommand {
   readonly detail: string | undefined
   readonly tip?: string | undefined
   readonly action: PaletteAction
+  /** Help's facts, set by the reference generator's join only. */
+  readonly syntax?: readonly string[] | undefined
+  readonly reference?: Readonly<Record<string, ReferenceText>> | undefined
 }
 
 const SLASH = '/'
-// Where a word starts inside a name: `engineering:standup`, `resume-claude`.
-const NAME_SEPARATORS = /[-:_./]/
-// How well a name matches, best first; a command matching none is left out.
-const MATCH_RANK = { namePrefix: 0, wordPrefix: 1, inName: 2, inDetail: 3 } as const
 
 function commandOf(item: PaletteItem): SlashCommand | undefined {
   if (item.isDisabled === true) {
     return undefined
   }
   if (item.slashName !== undefined) {
-    // The label is then the better description ("Switch model…").
+    // The label is then the better description ("Switch Model…").
     return {
       name: item.slashName,
       detail: item.detail ?? item.label,
@@ -61,39 +62,4 @@ export function slashCommandsOf(groups: readonly PaletteGroup[]): readonly Slash
   return commands
 }
 
-function rankOf(command: SlashCommand, needle: string): number | undefined {
-  const name = command.name.toLowerCase()
-  if (name.startsWith(needle)) {
-    return MATCH_RANK.namePrefix
-  }
-  if (name.split(NAME_SEPARATORS).some((word) => word.startsWith(needle))) {
-    return MATCH_RANK.wordPrefix
-  }
-  if (name.includes(needle)) {
-    return MATCH_RANK.inName
-  }
-  return command.detail?.toLowerCase().includes(needle) === true ? MATCH_RANK.inDetail : undefined
-}
-
-/**
- * The commands `query` (what follows the slash) matches, case-insensitively:
- * names that start with it, then names with a word that does, then names
- * holding it anywhere, then descriptions holding it. Alphabetical within
- * each.
- */
-export function rankSlashCommands(
-  commands: readonly SlashCommand[],
-  query: string,
-): readonly SlashCommand[] {
-  const needle = query.toLowerCase()
-  return commands
-    .flatMap((command) => {
-      const rank = rankOf(command, needle)
-      return rank === undefined ? [] : [{ command, rank }]
-    })
-    .toSorted(
-      (left, right) =>
-        left.rank - right.rank || left.command.name.localeCompare(right.command.name),
-    )
-    .map((entry) => entry.command)
-}
+export { rankSlashCommands } from './slashRank'

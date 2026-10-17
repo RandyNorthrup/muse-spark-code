@@ -51,6 +51,19 @@ const body: CreateResponseBody = {
 }
 
 describe('captured Model API hook summaries (M51)', () => {
+  it('identifies the configured BYO provider and qualified model in both call hooks', () => {
+    const byo = { ...body, model: 'custom-team/author/model' }
+    const response = responseSchema.parse({ id: 'response-byo', status: 'completed', output: [] })
+    for (const fields of [
+      preModelCallFields(byo, 'request', 1, 0),
+      postModelCallFields(byo, response, 'request', 1, 0, 'session'),
+    ]) {
+      expect(fields).toMatchObject({ provider: 'custom-team', model: byo.model })
+      expect(fields['options']).toMatchObject({ 'custom-team.reasoning.effort': 'minimal' })
+      expect(JSON.stringify(fields['options'])).not.toContain('meta.')
+    }
+  })
+
   it('uses the captured PreLLMCall keys and never passes media bytes or full tool output', () => {
     const pre = preModelCallFields(body, 'request-1', 1, 0)
     expect(pre).toMatchObject({

@@ -1,0 +1,133 @@
+{
+  "rig": "macmini",
+  "defaultTestTimeout": true,
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "checks": [
+    {
+      "check": "typecheck",
+      "command": "npm run typecheck",
+      "exitCode": 0
+    },
+    {
+      "check": "deadcode",
+      "command": "npm run deadcode",
+      "exitCode": 0
+    },
+    {
+      "check": "localization",
+      "command": "node scripts/check-l10n.mjs",
+      "exitCode": 0
+    },
+    {
+      "check": "host-api",
+      "command": "npm run check:host-api",
+      "exitCode": 1
+    },
+    {
+      "check": "build",
+      "command": "npm run build",
+      "exitCode": 0
+    },
+    {
+      "check": "typecheck-unit",
+      "command": "npm run typecheck:unit",
+      "exitCode": 0
+    },
+    {
+      "check": "eslint",
+      "command": "npx eslint --max-warnings=0 src/core/vault/ssh/brokerAccess.ts src/core/vault/ssh/endpoint.ts src/core/vault/ssh/externalAgent.ts src/core/vault/ssh/hardwareKey.ts src/core/vault/ssh/keys.ts src/core/vault/ssh/knownHosts.ts src/core/vault/ssh/openSshFile.ts src/core/vault/ssh/ports.ts src/core/vault/ssh/session.ts src/core/vault/ssh/wire.ts test/unit/vault/sshAgent.test.ts test/unit/vault/sshBroker.test.ts test/unit/vault/sshConnection.test.ts test/unit/vault/sshFixture.ts test/unit/vault/sshImport.test.ts test/unit/vault/sshKeys.test.ts test/unit/vault/sshTransport.test.ts",
+      "exitCode": 0
+    },
+    {
+      "check": "prettier",
+      "command": "npx prettier --check src/core/vault/ssh/brokerAccess.ts src/core/vault/ssh/endpoint.ts src/core/vault/ssh/externalAgent.ts src/core/vault/ssh/hardwareKey.ts src/core/vault/ssh/keys.ts src/core/vault/ssh/knownHosts.ts src/core/vault/ssh/openSshFile.ts src/core/vault/ssh/ports.ts src/core/vault/ssh/session.ts src/core/vault/ssh/wire.ts test/unit/vault/sshAgent.test.ts test/unit/vault/sshBroker.test.ts test/unit/vault/sshConnection.test.ts test/unit/vault/sshFixture.ts test/unit/vault/sshImport.test.ts test/unit/vault/sshKeys.test.ts test/unit/vault/sshTransport.test.ts docs/certification/m109-s-checks.json docs/certification/m109-s-key-drills.json docs/certification/m109-s-native-capture.json docs/certification/m109-s-runtime-drills.json docs/certification/m109-s-ssh-agent.md",
+      "exitCode": 0
+    },
+    {
+      "check": "duplication",
+      "command": "npx jscpd",
+      "exitCode": 0
+    },
+    {
+      "check": "tests-core",
+      "command": "npx vitest run test/unit/vault/sshKeys.test.ts test/unit/vault/sshImport.test.ts test/unit/vault/sshAgent.test.ts --maxWorkers=3",
+      "exitCode": 0
+    },
+    {
+      "check": "tests-integration",
+      "command": "npx vitest run test/unit/vault/sshBroker.test.ts test/unit/vault/sshTransport.test.ts test/unit/vault/sshConnection.test.ts --maxWorkers=3",
+      "exitCode": 0
+    }
+  ],
+  "sourceSha256": [
+    {
+      "file": "src/core/vault/ssh/brokerAccess.ts",
+      "sha256": "1434e8b6a1db4d21f802a3e9490a2743f9e374adb1641632103bf4c922a9a230"
+    },
+    {
+      "file": "src/core/vault/ssh/endpoint.ts",
+      "sha256": "4f562d55037ce15be8791a3a40f075a58d4e4c23052199f97d57612130ebf007"
+    },
+    {
+      "file": "src/core/vault/ssh/externalAgent.ts",
+      "sha256": "dad41894f72fa638dadc4f8e581dee6c0445e942ede3efed0f7da3278180a2bb"
+    },
+    {
+      "file": "src/core/vault/ssh/hardwareKey.ts",
+      "sha256": "43418ddf0ee5afef98fb6ab4e9e37c148d4b0ad7339ab7cd23cf840158493693"
+    },
+    {
+      "file": "src/core/vault/ssh/keys.ts",
+      "sha256": "eabaa4b7ac829916fabc0a7208611b88b88555b11926bb2b9ec2303a3a560fca"
+    },
+    {
+      "file": "src/core/vault/ssh/knownHosts.ts",
+      "sha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+    },
+    {
+      "file": "src/core/vault/ssh/openSshFile.ts",
+      "sha256": "1404e9df96c3cf6e923fa19c125e0ab45b3771a9dd36a1203057c489562f471e"
+    },
+    {
+      "file": "src/core/vault/ssh/ports.ts",
+      "sha256": "b3b5adb80c579cd1e0dc73b43e2f09d47f28ee2c6144cf4a5dc838e58f960499"
+    },
+    {
+      "file": "src/core/vault/ssh/session.ts",
+      "sha256": "9629b7874f58e913f02e901acba335176e5936c208b488089dc92f346e43d140"
+    },
+    {
+      "file": "src/core/vault/ssh/wire.ts",
+      "sha256": "6f001b973e5084e6c4f7385c5898f05bc8ce85b944da41e02ecf09642fc985e1"
+    },
+    {
+      "file": "test/unit/vault/sshAgent.test.ts",
+      "sha256": "e990c057ba3d8a655937f4c9b136b2c671e7f732496e7df57455006602be93d1"
+    },
+    {
+      "file": "test/unit/vault/sshBroker.test.ts",
+      "sha256": "bfc06052826403386e697b18dc994dd6cba20c7ce92cf3a601de51e0c12a19c0"
+    },
+    {
+      "file": "test/unit/vault/sshConnection.test.ts",
+      "sha256": "6dc76a89fd5929d47e6faa41a20050880eaf5f3136fcfb73137181a9ab5d3f3c"
+    },
+    {
+      "file": "test/unit/vault/sshFixture.ts",
+      "sha256": "2c1b19f81a505803475041a0afa0d4b3e2848755b23b1fc95e8bf2b58b3555f5"
+    },
+    {
+      "file": "test/unit/vault/sshImport.test.ts",
+      "sha256": "b4ddbfc0cd77e4a81bb9d02f6b5646cf6f9a07885fdabed766aefafdc33b494a"
+    },
+    {
+      "file": "test/unit/vault/sshKeys.test.ts",
+      "sha256": "cf49c5eec2774ae78a1c6b308208b404c07d5ec154e199d77ae70f2ef361daa1"
+    },
+    {
+      "file": "test/unit/vault/sshTransport.test.ts",
+      "sha256": "53ab37d80eba0155e58b980184b3fb20696a40952f4617fe1b2b25cd631b5ac3"
+    }
+  ]
+}

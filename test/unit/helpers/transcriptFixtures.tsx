@@ -1,7 +1,8 @@
 // A tool row entry and the transcript's props, for the tests that render the
 // conversation (Transcript, the tool rows of M43).
-import { fireEvent, render } from '@testing-library/react'
+import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
+import { AgentMap, type AgentMapProps } from '../../../src/webview/components/AgentMap'
 import { Transcript, type TranscriptProps } from '../../../src/webview/components/Transcript'
 import type { TranscriptEntry } from '../../../src/webview/state/uiState'
 
@@ -89,6 +90,41 @@ export function renderTranscript(
   return props
 }
 
+/** The Agent map's props with an empty map, for the tests that open it. */
+export function agentMapProps(overrides: Partial<AgentMapProps> = {}): AgentMapProps {
+  return {
+    backend: 'museCode',
+    title: 'Chrome control update',
+    modelId: 'muse-spark-1.3',
+    contextUsedTokens: undefined,
+    agents: [],
+    backgroundTasks: [],
+    delegationMode: undefined,
+    isDelegationEnabled: false,
+    childTranscripts: {},
+    selectedAgentId: undefined,
+    onSelectAgent: vi.fn(),
+    onReadChild: vi.fn(),
+    onControl: vi.fn(),
+    onMessage: vi.fn(),
+    onStopTask: vi.fn(),
+    onStopAllTasks: vi.fn(),
+    onOpenMuseSettings: vi.fn(),
+    onClose: vi.fn(),
+    workflows: [],
+    workflowTriggerMode: undefined,
+    team: undefined,
+    teamActions: undefined,
+    ...overrides,
+  }
+}
+
+export function renderAgentMap(overrides: Partial<AgentMapProps> = {}) {
+  const props = agentMapProps(overrides)
+  render(<AgentMap {...props} />)
+  return props
+}
+
 /**
  * Opens every run of steps folded under its summary (M87, PLAN.md D66): two
  * or more finished steps fold by default, so a test about the rows
@@ -112,21 +148,6 @@ export function renderSteps(
   return props
 }
 
-/** A transcript that can be rendered again with changed props, as the app does. */
-export function mountTranscript(
-  entries: readonly TranscriptEntry[],
-  overrides: Partial<TranscriptProps> = {},
-) {
-  const props = transcriptProps(entries, overrides)
-  const view = render(<Transcript {...props} />)
-  return {
-    props,
-    rerender: (changes: Partial<TranscriptProps>) => {
-      view.rerender(<Transcript {...props} {...changes} />)
-    },
-  }
-}
-
 /** Select a real DOM passage; return cleanup so tests cannot leak a selection. */
 export function selectPassage(element: HTMLElement): () => void {
   const selection = globalThis.getSelection()
@@ -138,4 +159,47 @@ export function selectPassage(element: HTMLElement): () => void {
   return () => {
     selection.removeAllRanges()
   }
+}
+
+/** Share the cold menu import in synchronous row-behaviour suites. */
+export async function warmRowMenus(): Promise<void> {
+  const props = transcriptProps(
+    [{ kind: 'assistant', id: 'warm', text: 'Warm menu', isStreaming: false }],
+    {},
+  )
+  const view = render(<Transcript {...props} />)
+  fireEvent.click(view.getByRole('button', { name: 'More Actions' }))
+  await view.findByRole('menu')
+  await act(async () => {
+    view.rerender(<Transcript {...transcriptProps([tool({})], {})} />)
+    await import('../../../src/webview/components/ToolRow')
+  })
+  await view.findByRole('button', { name: /a.ts/u })
+  view.unmount()
+  // Share each detail renderer's cold import across synchronous row assertions.
+  const entries = [
+    'add_memory',
+    'get_goal',
+    'cron_list',
+    'web_search',
+    'generate_image',
+    'Workflow',
+    'read_file',
+  ].map((name, index) =>
+    tool({
+      id: `warm-${String(index)}`,
+      tool: name,
+      args: '{"path":"warm.png"}',
+      output: 'Warm detail',
+    }),
+  )
+  const details = render(<Transcript {...transcriptProps(entries, {})} />)
+  openStepGroups()
+  for (const control of details.container.querySelectorAll('.tool-toggle[aria-expanded="false"]'))
+    fireEvent.click(control)
+  await waitFor(() => {
+    if (details.container.querySelector('[data-deferred-loading]') !== null)
+      throw new Error('Detail renderer is still loading')
+  })
+  details.unmount()
 }

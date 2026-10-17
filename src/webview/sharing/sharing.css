@@ -1,0 +1,39 @@
+.chat-share-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.chat-share-controls fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.chat-share-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-share-controls select {
+  max-width: 100%;
+  min-width: 0;
+  color: var(--vscode-dropdown-foreground);
+  background: var(--vscode-dropdown-background);
+}
+
+.chat-share-preview {
+  max-height: 50vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-share-preview mark {
+  color: var(--vscode-editor-foreground);
+  background: var(--vscode-editor-findMatchHighlightBackground);
+  outline: 1px solid var(--vscode-focusBorder);
+}

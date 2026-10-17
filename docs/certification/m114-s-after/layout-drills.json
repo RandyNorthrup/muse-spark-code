@@ -1,0 +1,20 @@
+[
+  {
+    "drill": "final-width",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualCapture.test.mjs > M114 real visual capture driver > records actual font rasterization and exact narrow viewport dimensions"
+    ],
+    "source": "test/harness/goldens/capture.mjs",
+    "restoredSha256": "4d756baa9219309d561ab75ddef5f67a54c7386620f946906fd980f2a91917c6"
+  },
+  {
+    "drill": "native-row-fit",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualCapture.test.mjs > M114 real visual capture driver > settles the empty busy composer with its own resize handler at the final width"
+    ],
+    "source": "test/harness/goldens/capture.mjs",
+    "restoredSha256": "4d756baa9219309d561ab75ddef5f67a54c7386620f946906fd980f2a91917c6"
+  }
+]

@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Tab's spend arithmetic (M94, PLAN.md D73): the worst case reserved before
 // every request, the settlement replacing it when usage reports, the budget
 // check, and the local day the ledger totals by. Pure: no `vscode` import.
@@ -18,7 +19,7 @@ export interface TabWorstCase {
  * (M82's estimate, which errs high), plus `max_output_tokens` at the output
  * price, through the same estimate reported usage settles at.
  */
-export function tabWorstCaseUsd(request: TabWorstCase): number {
+export function tabWorstCaseUsd(request: TabWorstCase): UsdAmount {
   const inputTokens = new TextEncoder().encode(request.inputText).length
   return estimateCostUsd(
     { inputTokens, outputTokens: request.maxOutputTokens, cachedTokens: 0 },
@@ -27,19 +28,23 @@ export function tabWorstCaseUsd(request: TabWorstCase): number {
 }
 
 /** Reported usage replaces the reservation (a request that reports none keeps it). */
-export function tabSettleUsd(usage: BillableUsage, model: string): number {
+export function tabSettleUsd(usage: BillableUsage, model: string): UsdAmount {
   return estimateCostUsd(usage, model)
 }
 
 export interface TabBudgetCheck {
-  readonly spentTodayUsd: number
-  readonly worstCaseUsd: number
-  readonly budgetUsd: number
+  readonly spentTodayUsd: UsdAmount
+  readonly worstCaseUsd: UsdAmount
+  readonly budgetUsd: UsdAmount
 }
 
 /** The request is sent only when today's total plus its worst case fits. */
 export function isWithinTabBudget(check: TabBudgetCheck): boolean {
-  return check.spentTodayUsd + check.worstCaseUsd <= check.budgetUsd
+  return (
+    Usd.from(check.spentTodayUsd)
+      .add(Usd.from(check.worstCaseUsd))
+      .compare(Usd.from(check.budgetUsd)) <= 0
+  )
 }
 
 /** The local calendar day as `YYYY-MM-DD`: the ledger's total key. */

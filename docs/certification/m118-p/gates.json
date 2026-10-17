@@ -1,0 +1,171 @@
+[
+  {
+    "name": "typecheck",
+    "command": ["npm", "run", "typecheck"],
+    "exit": 0
+  },
+  {
+    "name": "eslint",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "src/extension.ts",
+      "src/shared/constants.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/palette.ts",
+      "src/webview/components/Composer.tsx",
+      "src/webview/components/Transcript.tsx",
+      "test/unit/Composer.test.tsx",
+      "test/unit/paletteRegistry.test.ts",
+      "test/unit/sharingArtifacts.test.ts",
+      "src/core/prompts/promptImport.ts",
+      "src/core/prompts/promptLibrary.ts",
+      "src/core/prompts/promptPrivacy.ts",
+      "src/core/prompts/promptSearch.ts",
+      "src/core/prompts/promptStore.ts",
+      "src/core/prompts/promptTypes.ts",
+      "src/host/prompts/promptBundle.ts",
+      "src/host/prompts/promptCommands.ts",
+      "src/host/prompts/promptEntry.ts",
+      "src/host/prompts/promptInsertion.ts",
+      "src/webview/prompts/PromptLibrary.tsx",
+      "test/unit/helpers/promptHarness.tsx",
+      "test/unit/promptEntry.test.ts",
+      "test/unit/promptImport.test.ts",
+      "test/unit/promptLibrary.test.tsx",
+      "test/unit/promptMenus.test.ts",
+      "test/unit/promptPrivacy.test.ts",
+      "test/unit/promptStore.test.ts"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "stylelint",
+    "command": ["npx", "stylelint", "--max-warnings=0", "src/webview/prompts/PromptLibrary.css"],
+    "exit": 0
+  },
+  {
+    "name": "prettier",
+    "command": [
+      "npx",
+      "prettier",
+      "--check",
+      "l10n/ui.cs.json",
+      "l10n/ui.de.json",
+      "l10n/ui.es.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.it.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.ko.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.zh-tw.json",
+      "package.json",
+      "package.nls.cs.json",
+      "package.nls.de.json",
+      "package.nls.es.json",
+      "package.nls.fr.json",
+      "package.nls.hu.json",
+      "package.nls.it.json",
+      "package.nls.ja.json",
+      "package.nls.json",
+      "package.nls.ko.json",
+      "package.nls.pl.json",
+      "package.nls.pt-br.json",
+      "package.nls.ru.json",
+      "package.nls.tr.json",
+      "package.nls.zh-cn.json",
+      "package.nls.zh-tw.json",
+      "src/extension.ts",
+      "src/shared/constants.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/palette.ts",
+      "src/webview/components/Composer.tsx",
+      "src/webview/components/Transcript.tsx",
+      "test/unit/Composer.test.tsx",
+      "test/unit/paletteRegistry.test.ts",
+      "test/unit/sharingArtifacts.test.ts",
+      "docs/certification/m118-p.md",
+      "src/core/prompts/promptImport.ts",
+      "src/core/prompts/promptLibrary.ts",
+      "src/core/prompts/promptPrivacy.ts",
+      "src/core/prompts/promptSearch.ts",
+      "src/core/prompts/promptStore.ts",
+      "src/core/prompts/promptTypes.ts",
+      "src/host/prompts/promptBundle.ts",
+      "src/host/prompts/promptCommands.ts",
+      "src/host/prompts/promptEntry.ts",
+      "src/host/prompts/promptInsertion.ts",
+      "src/webview/prompts/PromptLibrary.css",
+      "src/webview/prompts/PromptLibrary.tsx",
+      "test/unit/helpers/promptHarness.tsx",
+      "test/unit/promptEntry.test.ts",
+      "test/unit/promptImport.test.ts",
+      "test/unit/promptLibrary.test.tsx",
+      "test/unit/promptMenus.test.ts",
+      "test/unit/promptPrivacy.test.ts",
+      "test/unit/promptStore.test.ts"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "deadcode",
+    "command": ["npm", "run", "deadcode"],
+    "exit": 0
+  },
+  {
+    "name": "duplication",
+    "command": ["npx", "jscpd"],
+    "exit": 0
+  },
+  {
+    "name": "l10n",
+    "command": ["node", "scripts/check-l10n.mjs"],
+    "exit": 0
+  },
+  {
+    "name": "host-api",
+    "command": ["npm", "run", "check:host-api"],
+    "exit": 1
+  },
+  {
+    "name": "cycles",
+    "command": ["npm", "run", "cycles"],
+    "exit": 0
+  },
+  {
+    "name": "schemas",
+    "command": ["npm", "run", "schema:exec", "--", "--check"],
+    "exit": 0
+  },
+  {
+    "name": "build",
+    "command": ["npm", "run", "build"],
+    "exit": 1
+  },
+  {
+    "name": "split",
+    "command": ["node", "scripts/check-bundle-split.mjs"],
+    "exit": 1
+  },
+  {
+    "name": "host-globals",
+    "command": ["node", "scripts/check-host-globals.mjs"],
+    "exit": 0
+  },
+  {
+    "name": "native-unit-types",
+    "command": ["npm", "run", "typecheck:unit"],
+    "exit": 0
+  },
+  {
+    "name": "native-eslint",
+    "command": ["npx", "eslint", "--max-warnings=0", "test/unit/promptNative.test.ts"],
+    "exit": 0
+  }
+]

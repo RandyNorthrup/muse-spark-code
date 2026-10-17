@@ -59,3 +59,10 @@ export function paidGrantsFile(input: DataFolderInput): string {
     ACP_PAID_GRANTS_FILE,
   )
 }
+
+/** D95.9's shared store root; each validated workspace key names its index.
+ * @unwired M115 shared schedule store root
+ */
+export function schedulesFolder(input: DataFolderInput): string {
+  return pathModuleFor(input).join(agentDataFolder(input), 'schedules', 'v1')
+}

@@ -27,6 +27,56 @@ const BUNDLE_SAFE_ERRORS = {
     'A host error may come from the Model API bundle, whose classes are its own copies: use isSessionNotLoadedError, isPromptSettledError, isGoalRefusedError, isMuseCodeFaultError, isDecisionNotAppliedError or isSteerRefusedError (src/core/agent/agentBackend.ts).',
 }
 
+// D94: all surface colours come from the token source, including SVG paint.
+// Keep this in both syntax-rule blocks: later rule arrays replace earlier ones.
+const COLOUR_PATTERN = String.raw`(?:^|[\s:,('"])(?:#[\da-f]{3,8}(?=[^\da-f]|$)|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark|device-cmyk)\s*\()`
+const COLOUR_LITERALS = [
+  {
+    selector: `Literal[value=/${COLOUR_PATTERN}/i]`,
+    message: 'Raw colours belong in design/tokens/muse.tokens.json; read a --ms-* token.',
+  },
+  {
+    selector: `TemplateElement:matches([value.raw=/${COLOUR_PATTERN}/i], [value.cooked=/${COLOUR_PATTERN}/i])`,
+    message: 'Raw colours belong in design/tokens/muse.tokens.json; read a --ms-* token.',
+  },
+]
+// Dynamic imports and CommonJS must obey the same boundary as static imports.
+const recordingBoundary = {
+  rules: {
+    boundary: {
+      meta: {
+        type: 'problem',
+        schema: [],
+        messages: {
+          port: 'Context builders must read through the recording reader; native I/O, Git and skill stores belong to adapters.',
+        },
+      },
+      create(context) {
+        const check = (node, source) => {
+          const specifier =
+            typeof source?.value === 'string' ? source.value.replaceAll('\\', '/') : undefined
+          if (
+            specifier === undefined ||
+            /^(?:node:)?(?:fs(?:\/|$)|child_process$)|(?:^|\/)(?:host\/(?:backend\/)?(?:git|contextIo|toolIo)(?:\.js)?$|(?:skillStore|skillsStore)(?:\.js)?$|host\/skills\/)/.test(
+              specifier,
+            )
+          )
+            context.report({ node, messageId: 'port' })
+        }
+        return {
+          ImportExpression(node) {
+            check(node, node.source)
+          },
+          CallExpression(node) {
+            if (node.callee.type === 'Identifier' && node.callee.name === 'require')
+              check(node, node.arguments[0])
+          },
+        }
+      },
+    },
+  },
+}
+
 export default tseslint.config(
   js.configs.recommended,
 
@@ -120,6 +170,59 @@ export default tseslint.config(
   },
 
   {
+    // M115: context builders receive the recording workspace/Git/skill ports.
+    // Native adapters own filesystem/process imports; a builder cannot bypass
+    // recording by importing them or the host's raw Git runner.
+    files: [
+      'src/core/context/**/*.ts',
+      'src/core/codeIntel/repoMap.ts',
+      'src/core/memory/memoryStore.ts',
+      'src/core/memory/memoryIndex.ts',
+      'src/core/backends/modelapi/ModelApiHost.ts',
+      'src/core/backends/modelapi/instructions.ts',
+      'src/core/backends/modelapi/mediaBudget.ts',
+      'src/core/backends/modelapi/verifyLoop.ts',
+      'src/core/backends/modelapi/schedulesEntry.ts',
+    ],
+    plugins: { recording: recordingBoundary },
+    rules: {
+      'recording/boundary': 'error',
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                'node:fs',
+                'node:fs/**',
+                'fs',
+                'fs/**',
+                'node:child_process',
+                'child_process',
+                '**/skillStore',
+                '**/skillStore.js',
+                '**/skillsStore',
+                '**/skillsStore.js',
+                '**/host/skills/**',
+                '**/host/git',
+                '**/host/git.js',
+                '**/host/backend/git',
+                '**/host/backend/git.js',
+                '**/host/backend/contextIo',
+                '**/host/backend/contextIo.js',
+                '**/host/backend/toolIo',
+                '**/host/backend/toolIo.js',
+              ],
+              message:
+                'Context builders must use their scoped recording reader; native I/O and Git belong to adapters.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  {
     // Webview: browser-only TypeScript + React.
     // unicorn/prefer-global-this produces a hard type error in browser-only
     // code (TS2345 `typeof globalThis` is not assignable to `Window`), so it is
@@ -134,7 +237,7 @@ export default tseslint.config(
 
   {
     files: ['src/**/*.{ts,tsx}'],
-    rules: { 'no-restricted-syntax': ['error', BUNDLE_SAFE_ERRORS] },
+    rules: { 'no-restricted-syntax': ['error', BUNDLE_SAFE_ERRORS, ...COLOUR_LITERALS] },
   },
 
   {
@@ -153,6 +256,7 @@ export default tseslint.config(
             'Native file identity belongs to src/core/fs/fileIdentity.ts; use its exact BigInt samples and sameFile.',
         },
         BUNDLE_SAFE_ERRORS,
+        ...COLOUR_LITERALS,
       ],
     },
   },
@@ -211,6 +315,26 @@ export default tseslint.config(
     },
   },
 
+  {
+    // The badge Worker (infra/marketplace-hook) is plain ESM for the Cloudflare
+    // Workers runtime, outside every TypeScript project; these are its globals.
+    files: ['infra/**/*.js'],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      globals: {
+        crypto: 'readonly',
+        fetch: 'readonly',
+        Response: 'readonly',
+        TextDecoder: 'readonly',
+        TextEncoder: 'readonly',
+        URL: 'readonly',
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-magic-numbers': 'off',
+    },
+  },
+
   // harness-shots/ holds screenshots and a headless-Chrome profile (which
   // Chrome fills with its own extension scripts); nothing there is ours.
   // `.claude/` holds Claude Code's session settings and the git worktrees its
@@ -225,5 +349,29 @@ export default tseslint.config(
       '.claude/**',
       'vendor/**',
     ],
+  },
+  {
+    // M113 D93: collectors consume only the injected normalized snapshot.
+    files: ['src/core/reporting/collect/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { paths: ['vscode'], patterns: ['**/backends/**', '**/host/**'] },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        BUNDLE_SAFE_ERRORS,
+        {
+          selector:
+            'NewExpression[callee.name=Date], MemberExpression[object.name=Date][property.name=now], MemberExpression[object.name=Math][property.name=random], MemberExpression[object.name=performance][property.name=now], Identifier[name=process], ImportSpecifier[imported.name=UI_TEXT]',
+          message: 'Deterministic collectors read only injected facts and options.',
+        },
+        {
+          selector:
+            'MemberExpression[computed=false][property.name=/^(ino|dev)$/], MemberExpression[computed=true][property.value=/^(ino|dev)$/], ObjectPattern > Property[key.name=/^(ino|dev)$/], ObjectPattern > Property[key.value=/^(ino|dev)$/]',
+          message: 'Native identity belongs to fileIdentity.ts.',
+        },
+      ],
+    },
   },
 )

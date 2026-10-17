@@ -15,6 +15,7 @@ import type { UiText } from '../../shared/l10n/en'
 
 // M91 HTTP hooks reuse this lazy transport bundle and its pinned-request path.
 export { postHookPayload } from './hookHttpRequest'
+import { UI_TEXT } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
 import { createWebFetcher } from './webFetcher'
@@ -43,4 +44,23 @@ export async function fetchWebPageWith(
 ): Promise<WebFetchResult> {
   setUiText(call.table, call.locale)
   return await createWebFetcher(call.log, call.convertHtml)(url, signal, isStillAllowed)
+}
+
+/** Portable prompt bytes use the same DNS, pinning, redirects and decoding as web fetch. */
+export async function readRawPromptWith(
+  url: string,
+  maxBytes: number,
+  isStillAllowed: () => boolean,
+  call: WebFetchCall,
+): Promise<string> {
+  setUiText(call.table, call.locale)
+  const result = await createWebFetcher(
+    call.log,
+    call.convertHtml,
+    undefined,
+    maxBytes,
+  )(url, new AbortController().signal, isStillAllowed)
+  if (result.kind !== 'page') throw new Error(UI_TEXT.promptFileInvalid)
+  if (!isStillAllowed()) throw new Error(UI_TEXT.shareConfidential)
+  return result.text
 }

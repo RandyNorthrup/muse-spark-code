@@ -1,0 +1,171 @@
+{
+  "rig": "macmini",
+  "base": "989bac11db141c9989767907fed708cabb65c32f",
+  "gates": [
+    {
+      "check": "typecheck",
+      "command": "npm run typecheck",
+      "exit": 0,
+      "seconds": 98.04,
+      "log": "final-logs/typecheck.txt",
+      "logSha256": "52aa906754d68960f27bcf9c2ffd03417cc5b7ad7d46f18be7430a11ac07c10e"
+    },
+    {
+      "check": "typecheck-unit-final",
+      "command": "npm run typecheck:unit",
+      "exit": 0,
+      "seconds": 20.52,
+      "log": "final-logs/typecheck-unit-final.txt",
+      "logSha256": "e684b2b5e974c4ee0bb2f56a0c3b32f9243685782cece8a11e8a6892d3feb3bd"
+    },
+    {
+      "check": "eslint",
+      "command": "npx eslint --max-warnings=0 src/host/team/orphanRecovery.ts src/host/team/processLifetime.ts src/host/team/processOwnership.ts src/host/team/teamJournal.ts src/host/team/windowHints.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts test/unit/teamProcessLifetime.test.ts test/unit/teamProcessOwnership.test.ts test/unit/teamWindowsControl.test.ts",
+      "exit": 0,
+      "seconds": 14.14,
+      "log": "final-logs/eslint.txt",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "check": "prettier",
+      "command": "npx prettier --check src/host/team/orphanRecovery.ts src/host/team/processLifetime.ts src/host/team/processOwnership.ts src/host/team/teamJournal.ts src/host/team/windowHints.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts test/unit/teamProcessLifetime.test.ts test/unit/teamProcessOwnership.test.ts test/unit/teamWindowsControl.test.ts PLAN.md CHANGELOG.md docs/certification/m96-k.md docs/certification/m96-k/final-drills.json",
+      "exit": 0,
+      "seconds": 6.91,
+      "log": "final-logs/prettier.txt",
+      "logSha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+    },
+    {
+      "check": "deadcode",
+      "command": "npm run deadcode",
+      "exit": 0,
+      "seconds": 3.23,
+      "log": "final-logs/deadcode.txt",
+      "logSha256": "240196bcc38a6d6b00002163f9d3c57a7e8090e88e823a462b4910df06a19b1d"
+    },
+    {
+      "check": "duplication",
+      "command": "npx jscpd",
+      "exit": 0,
+      "seconds": 1.07,
+      "log": "final-logs/duplication.txt",
+      "logSha256": "d07383dfb4341d82cce1e75296f8b46f92655cb359a9215bd12118a9bd20aee2"
+    },
+    {
+      "check": "localization",
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "seconds": 1.82,
+      "log": "final-logs/localization.txt",
+      "logSha256": "4cf8365a7ee41c8f0a50321767632e43076c918c31a2de2ad7c51bae1e87688d"
+    },
+    {
+      "check": "host-api",
+      "command": "npm run check:host-api",
+      "exit": 0,
+      "seconds": 13.13,
+      "log": "final-logs/host-api.txt",
+      "logSha256": "958f27d233b09c3c5781836a64ffc9b7b61e4cf2b9ca67f7092d2bdfe94a7b1b"
+    },
+    {
+      "check": "build",
+      "command": "npm run build",
+      "exit": 0,
+      "seconds": 1.81,
+      "log": "final-logs/build.txt",
+      "logSha256": "ea7f62e56565a93b374d2f15621fb8ea51b4e5b27b33b55d85014339c9d9f234"
+    }
+  ],
+  "tests": [
+    {
+      "command": "npx vitest run test/unit/teamHintsAndLoad.test.ts test/unit/teamProcessLifetime.test.ts test/unit/teamWindowsControl.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 0,
+      "passed": 48,
+      "log": "final-logs/final-hints-lifetime-control.txt",
+      "logSha256": "ce45773a2277ee1a250d164aa9a47879f0928755f9b2ac08c0e958d25a8e1645"
+    },
+    {
+      "command": "npx vitest run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 0,
+      "passed": 17,
+      "log": "final-logs/final-native.txt",
+      "logSha256": "35fc916fdf5a69747bbbe3a55bd429dbdebc837aa22afed33e046b7d0d294866"
+    },
+    {
+      "command": "npx vitest run test/unit/teamSettlement.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 0,
+      "passed": 6,
+      "log": "final-logs/final-c.txt",
+      "logSha256": "3c5e0f1e52096ce1d9de6f1e11945c349d4c3ab343fd3478030b9874d622c8a9"
+    },
+    {
+      "command": "npx vitest run test/unit/teamWindowsControl.test.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamProcessOwnership.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 0,
+      "passed": 36,
+      "log": "final-logs/final-a.txt",
+      "logSha256": "2062b5527b4e09602f77f5e79c2c764791dff32b32cfad2b7823065a3b201ca9"
+    },
+    {
+      "command": "npx vitest run test/unit/teamNativeLifetime.test.ts test/unit/teamProcessLifetime.test.ts test/unit/jobSource.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exit": 0,
+      "passed": 47,
+      "log": "final-logs/final-b.txt",
+      "logSha256": "f927f9d9ea2a5696569bf45ad7b9a70e4b79cf29097c64d345892cb4ef3b4e3b"
+    }
+  ],
+  "uniqueTests": 89,
+  "nativeMacOS": true,
+  "nativeWindows": false,
+  "csharp": {
+    "languageVersion": "5",
+    "referencePack": "net10.0/10.0.10",
+    "compiler": "10.0.302",
+    "targets": ["TeamJob.dll", "McpLauncher.exe", "HintReader.dll"],
+    "exitCodes": [0, 0, 0]
+  },
+  "sources": [
+    {
+      "path": "native/windows/MuseSparkJob.cs",
+      "sha256": "9a52e102496a02b587da7526be8e8ca7ba6453731c51e3215c9805d0d3ddb523"
+    },
+    {
+      "path": "src/host/team/orphanRecovery.ts",
+      "sha256": "55241637293d4ec7860579de686bc7c43fe690b0c4008fb756dc85f7cbfe14cf"
+    },
+    {
+      "path": "src/host/team/processLifetime.ts",
+      "sha256": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409"
+    },
+    {
+      "path": "src/host/team/processOwnership.ts",
+      "sha256": "aa36c49ed7cbf6b8f2f6e7d441e36354d9333aaf01d958771dccd3d6bcb91754"
+    },
+    {
+      "path": "src/host/team/teamJournal.ts",
+      "sha256": "cc4cbf09940ff70d989be20fd66dfa8e8bfb10abe9063cece188863772afc9a1"
+    },
+    {
+      "path": "src/host/team/windowHints.ts",
+      "sha256": "dadab7e16841d9c53ec501750705d1c2117633deebc05c1e24906ae468458147"
+    },
+    {
+      "path": "test/unit/teamHintsAndLoad.test.ts",
+      "sha256": "a22d634de86889c2f5ae8544fa69ba73b803e846c888f63d99d9be906ee5744c"
+    },
+    {
+      "path": "test/unit/teamNativeLifetime.test.ts",
+      "sha256": "2b4ecd16f226c25b896fad08130cab2b78fb0c1cd3766b0935451cc6e7f3aa55"
+    },
+    {
+      "path": "test/unit/teamProcessLifetime.test.ts",
+      "sha256": "54f902b31b5944b38756c0832a5fe6446e60afa60d97fd39b928124ce9de0964"
+    },
+    {
+      "path": "test/unit/teamProcessOwnership.test.ts",
+      "sha256": "9141ae9435b14dc66b2bec6b5586fb5ac25a06d59f69ecd47e593cba0ab87338"
+    },
+    {
+      "path": "test/unit/teamWindowsControl.test.ts",
+      "sha256": "66c6e2ee237b7c31864251ff28167f41995949c108351b1d1568cd43e2032745"
+    }
+  ]
+}

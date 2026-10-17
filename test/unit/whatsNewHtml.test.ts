@@ -130,6 +130,7 @@ describe('renderWhatsNewPage', () => {
     const scripts = page.querySelectorAll('script')
     expect(scripts).toHaveLength(1)
     expect(scripts[0]?.getAttribute('nonce')).toBe(NONCE)
+    expect(scripts[0]?.getAttribute('type')).toBe('module')
     expect(scripts[0]?.getAttribute('src')).toBe('webview/dist/webview/whatsNew.js')
     expect(page.querySelector('link[rel="stylesheet"]')?.getAttribute('href')).toBe(
       'webview/dist/webview/whatsNew.css',
@@ -280,6 +281,25 @@ describe('renderWhatsNewPage', () => {
     expect(page.body.querySelector(':scope > main > p:not(.lead)')?.textContent).toBe(
       'No release notes ship with version 0.13.0.',
     )
+  })
+
+  it('points at the full changelog only when older notes were shortened or left out', () => {
+    expect(render().html).not.toContain(UI_TEXT.whatsNewEarlierNotes)
+    const html = render({ isShortened: true }).html
+    expect(html).toContain(`<p>${UI_TEXT.whatsNewEarlierNotes}</p>`)
+    // After the releases, before the footer.
+    expect(html.indexOf(UI_TEXT.whatsNewEarlierNotes)).toBeGreaterThan(html.indexOf('0.12.1'))
+    expect(html.indexOf(UI_TEXT.whatsNewEarlierNotes)).toBeLessThan(html.indexOf('<footer>'))
+  })
+
+  it('reads the installed Earlier-notes line at render time', () => {
+    const sentence = 'Frühere Hinweise: siehe das vollständige Änderungsprotokoll'
+    setUiText({ ...EN, whatsNewEarlierNotes: sentence }, 'de')
+    try {
+      expect(render({ isShortened: true, locale: 'de' }).html).toContain(sentence)
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
   })
 
   it('has no accessibility violation axe can see without colours', async () => {

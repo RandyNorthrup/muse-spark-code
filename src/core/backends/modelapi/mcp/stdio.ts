@@ -235,7 +235,9 @@ export class McpStdioTransport implements McpTransport {
       const reason = error instanceof Error ? error.message : String(error)
       this.options.log.error(`MCP server ${this.options.name} is stopped: ${reason}`)
       this.ended(reason)
-      void this.child.kill()
+      void this.child.kill().catch(() => {
+        this.options.log.error(`MCP server ${this.options.name} has an unproved tree stop`)
+      })
       return
     }
     for (const text of messages) {

@@ -1,0 +1,27 @@
+{
+  "type": "function",
+  "name": "recall_output",
+  "description": "Read back a packed tool output by its id, one page at a time. A packed output names its id; pass it with a character offset (0 for the first page), or search for a case-sensitive literal string at or after that offset.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "The packed output id from its placeholder"
+      },
+      "offset": {
+        "type": "integer",
+        "description": "Characters to skip; 0 reads from the start"
+      },
+      "search": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4000,
+        "description": "Case-sensitive literal text to find at or after offset; the page starts at the first match"
+      }
+    },
+    "required": ["id"],
+    "additionalProperties": false
+  },
+  "strict": false
+}

@@ -1,0 +1,28 @@
+{
+  "machine": "win11",
+  "command": "npx.cmd vitest run test/unit/PlaybookPanel.test.tsx test/unit/playbookCommand.test.ts test/unit/playbookBundles.test.mjs --maxWorkers=3",
+  "testTimeout": "repository default; no override",
+  "success": true,
+  "passed": 53,
+  "failed": 0,
+  "files": [
+    {
+      "file": "test/unit/playbookBundles.test.mjs",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/playbookCommand.test.ts",
+      "status": "passed",
+      "passed": 24,
+      "failed": 0
+    },
+    {
+      "file": "test/unit/PlaybookPanel.test.tsx",
+      "status": "passed",
+      "passed": 27,
+      "failed": 0
+    }
+  ]
+}

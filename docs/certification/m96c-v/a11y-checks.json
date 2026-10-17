@@ -1,0 +1,337 @@
+[
+  {
+    "language": "en",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners"
+    ],
+    "exitCode": 0,
+    "seconds": 49.04,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "pseudo",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=pseudo"
+    ],
+    "exitCode": 0,
+    "seconds": 36.99,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in pseudo), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "cs",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=cs"
+    ],
+    "exitCode": 0,
+    "seconds": 47.67,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in cs), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "de",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=de"
+    ],
+    "exitCode": 0,
+    "seconds": 46.55,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in de), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "es",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=es"
+    ],
+    "exitCode": 0,
+    "seconds": 42.89,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in es), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "fr",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=fr"
+    ],
+    "exitCode": 0,
+    "seconds": 43.85,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in fr), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "hu",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=hu"
+    ],
+    "exitCode": 0,
+    "seconds": 48.09,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in hu), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "it",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=it"
+    ],
+    "exitCode": 0,
+    "seconds": 37.19,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in it), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "ja",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=ja"
+    ],
+    "exitCode": 0,
+    "seconds": 40.89,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in ja), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "ko",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=ko"
+    ],
+    "exitCode": 0,
+    "seconds": 47.34,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in ko), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "pl",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=pl"
+    ],
+    "exitCode": 0,
+    "seconds": 41.47,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in pl), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "pt-br",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=pt-br"
+    ],
+    "exitCode": 0,
+    "seconds": 48.87,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in pt-br), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "ru",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=ru"
+    ],
+    "exitCode": 0,
+    "seconds": 48.66,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in ru), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "tr",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=tr"
+    ],
+    "exitCode": 0,
+    "seconds": 52.87,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in tr), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "zh-cn",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=zh-cn"
+    ],
+    "exitCode": 0,
+    "seconds": 38.31,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in zh-cn), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  },
+  {
+    "language": "zh-tw",
+    "command": [
+      "npm",
+      "run",
+      "test:a11y",
+      "--",
+      "team-traffic",
+      "team-traffic-320",
+      "team-traffic-hints",
+      "team-traffic-recovery",
+      "runners",
+      "--lang=zh-tw"
+    ],
+    "exitCode": 0,
+    "seconds": 58.13,
+    "summary": "a11y: 20 pages (5 scenarios × 4 themes, in zh-tw), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result",
+    "unmeasured": [
+      "Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's)."
+    ]
+  }
+]

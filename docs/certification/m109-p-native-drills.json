@@ -1,0 +1,135 @@
+[
+  {
+    "guard": "slot-id",
+    "test": "slot-id",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "vault-id",
+    "test": "vault-id",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "tier",
+    "test": "tier",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "container-version",
+    "test": "version",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "container-identity",
+    "test": "identity-binding",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "sealed-length",
+    "test": "ciphertext-length",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "keychain-fields",
+    "test": "keychain-no-hardware-fields",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "keyblob-empty",
+    "test": "keyblob-empty",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "keyblob-bound",
+    "test": "keyblob-bound",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "ephemeral-length",
+    "test": "ephemeral-length",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "salt-length",
+    "test": "salt-length",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "hardware-availability",
+    "test": "hardware-unavailable",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "certification",
+    "test": "Q-M109-certification",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "header-upper-bound",
+    "test": "test_header_bounds",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "header-positive",
+    "test": "test_probe",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "allowed-fields",
+    "test": "unknown-field",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "request-version",
+    "test": "version",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "nested-identity-fields",
+    "test": "nested-field",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  },
+  {
+    "guard": "trailing-input",
+    "test": "trailing-bytes",
+    "failed": true,
+    "exit": 1,
+    "restoredSha256": "13aa0c15c704256a00bd320d5f9534ad6eb2c8f9612d05ba4a384e7ebe6fa92e"
+  }
+]

@@ -16,6 +16,8 @@ import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
 import { installEmbeddedTable } from './installTable'
+import { windowResourceLoader } from './resources/windowPort'
+import { installSurfaceRetry, retrySurface } from './surfaceRetry'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
 import './styles.css'
@@ -39,7 +41,7 @@ if (rootElement === null) {
  * The report dialog over the crash screen (M93): the store outlives the
  * crashed tree and keeps reducing the host's `reportDraft` answers, so the
  * boundary's crash screen renders the dialog itself while the app's copy is
- * gone with the tree, and a render failure keeps its "Report a problem" way on.
+ * gone with the tree, and a render failure keeps its "Report a Problem" way on.
  */
 function CrashReportDialog({
   store,
@@ -98,6 +100,8 @@ function mountTasks(element: Element): void {
 }
 
 function mountChat(element: Element): void {
+  // Exact prices load outside startup (STARTUP017): the mounted surfaces
+  // fetch the money chunk through its hooks, each retrying on its own.
   const host = vsCodeHostBridge(window)
   // What throws here reaches the host's log (M39): a render the boundary
   // caught, an error or a rejected promise nothing handled, a host message.
@@ -129,6 +133,14 @@ function mountChat(element: Element): void {
   const persister = persistStore(store, (state) => {
     host.saveState(state)
   })
+  installSurfaceRetry(
+    () => {
+      persister.flush(store.hasRendered())
+    },
+    () => {
+      host.post({ type: 'hostAction', action: 'reload' })
+    },
+  )
   // The document goes away (a reload, the panel closing): save what is shown.
   window.addEventListener('pagehide', () => {
     persister.flush(store.hasRendered())
@@ -136,6 +148,8 @@ function mountChat(element: Element): void {
   const postMessage = (message: WebviewToHostMessage) => {
     host.post(message)
   }
+  // M107 U–C1: the window governor's chip, mounted once the host sends a status.
+  const resources = windowResourceLoader(store, postMessage)
 
   createRoot(element).render(
     <>
@@ -150,14 +164,9 @@ function mountChat(element: Element): void {
           // the host builds the report from its journal alone.
           host.post({ type: 'openReport' })
         }}
-        onReload={() => {
-          // A state that crashed the very first render would crash the reloaded
-          // one too: it is saved without its transcript then.
-          persister.flush(store.hasRendered())
-          host.post({ type: 'hostAction', action: 'reload' })
-        }}
+        onReload={retrySurface}
       >
-        <App store={store} postMessage={postMessage} />
+        <App store={store} postMessage={postMessage} resources={resources} />
       </ErrorBoundary>
     </>,
   )

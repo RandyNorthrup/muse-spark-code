@@ -1,0 +1,7 @@
+{
+  "drill": "different scene font rasterization",
+  "exit": 1,
+  "restoredSha256": "ea08d280d66b1558ac3912e1d56eacef02ecd3c6bfc40555dc77810d056aa3ff",
+  "reason": "Cross-scene raster binding assertion fires, without a hook timeout",
+  "modelAttempts": 0
+}

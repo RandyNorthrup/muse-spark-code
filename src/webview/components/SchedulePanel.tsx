@@ -2,12 +2,15 @@
 // A due job remains a reminder until the user chooses Run and accepts the
 // separate host-side price dialog. These controls never auto-submit a turn.
 
+import type { ReactNode } from 'react'
 import type { ScheduleView } from '../../shared/schedule'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, formatDateTime, plural } from '../../shared/l10n/text'
 import { formatDuration } from '../../shared/usage'
 
 export interface SchedulePanelProps {
+  /** W supplies the separate schedule page/list; v1 remains until migration binds. */
+  readonly surface?: ReactNode
   readonly jobs: readonly ScheduleView[]
   readonly nowMs: number
   readonly isPaidOn: boolean
@@ -26,6 +29,7 @@ function cadenceText(job: ScheduleView): string {
 }
 
 export function SchedulePanel({
+  surface,
   jobs,
   nowMs,
   isPaidOn,
@@ -34,6 +38,9 @@ export function SchedulePanel({
   onCancel,
   onEnable,
 }: SchedulePanelProps) {
+  if (surface !== undefined) {
+    return <div inert={isInert}>{surface}</div>
+  }
   if (jobs.length === 0) {
     return null
   }
@@ -67,7 +74,7 @@ export function SchedulePanel({
                 {isDue ? (
                   <button
                     type="button"
-                    className="tool-more"
+                    className="tool-more chat-control"
                     aria-label={fill(
                       isPaidOn ? UI_TEXT.scheduleRunJob : UI_TEXT.scheduleEnableJob,
                       { id: job.id },
@@ -85,7 +92,7 @@ export function SchedulePanel({
                 ) : null}
                 <button
                   type="button"
-                  className="tool-more"
+                  className="tool-more chat-control"
                   aria-label={fill(UI_TEXT.scheduleCancelJob, { id: job.id })}
                   onClick={() => {
                     onCancel(job.id)

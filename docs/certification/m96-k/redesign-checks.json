@@ -1,0 +1,194 @@
+{
+  "date": "2026-10-05T19:57:41.011454+00:00",
+  "rig": "Kubuntu",
+  "sourceCommit": "9541f8abde93c056156622e79928242317498e9e",
+  "sourceHashes": [
+    {
+      "file": "src/host/team/processOwnership.ts",
+      "sha256": "70c547df24eac9c95b57fd1d83eac92995842b0e6ae220cc00fa068eb77c34c4"
+    },
+    {
+      "file": "src/host/team/orphanRecovery.ts",
+      "sha256": "72cbda0e434f56044e9e550c022fe195f1ab25b52082601def41d274f963fcff"
+    },
+    {
+      "file": "src/host/team/processLifetime.ts",
+      "sha256": "f4910d57ac19d62635c4c456545703cb7ad99ce8933f149a04f7cef45f82600b"
+    },
+    {
+      "file": "src/host/team/teamJournal.ts",
+      "sha256": "1559210a8c9dcb5791cdddfc70762763b2531b0b896dbdc0415d6c33299ba6b7"
+    },
+    {
+      "file": "src/host/team/windowHints.ts",
+      "sha256": "5a8758f702a5dfab0f33d45b11ccef590edf5fea8ef7fa0de16839377eba874a"
+    },
+    {
+      "file": "src/host/team/loadGuard.ts",
+      "sha256": "d8940f22b32ad68a8269d68b8d91d645ac3b88c6743794a1a18149baaca10740"
+    },
+    {
+      "file": "native/windows/MuseSparkJob.cs",
+      "sha256": "36c8ab00206f16b4372650bdda3dabf962151473dc67dbe6eba962644462e2e7"
+    },
+    {
+      "file": "native/windows/MuseSparkMcpJob.cs",
+      "sha256": "5a4b0aec1e65eb5bb1af3ad3b319a0ddce8a2ddc1399c0c1a826d8dcca47f00d"
+    },
+    {
+      "file": "native/windows/MuseSparkMcpLauncher.cs",
+      "sha256": "b2cfdfe182c5fc793ef1a9d8a46385b708f9ba1e11084c8e03c6b5a3a7686d1a"
+    },
+    {
+      "file": "test/unit/teamProcessOwnership.test.ts",
+      "sha256": "d8879a45f34db7ea5dc7d47017e60148a0d0acc90549041aae6cfc83a93fc080"
+    },
+    {
+      "file": "test/unit/teamProcessLifetime.test.ts",
+      "sha256": "63e25ec8974e21e408d1d52c4504d389f954439d1c1f32da268a9a143c7e2697"
+    },
+    {
+      "file": "test/unit/teamNativeLifetime.test.ts",
+      "sha256": "576b27fb99e9e6d5fefc7f6ff3d184c9e999c3eb2e0f3cf7605d59b2b972f3b7"
+    },
+    {
+      "file": "test/unit/teamHintsAndLoad.test.ts",
+      "sha256": "5a27f4adea9edba76ff0f7430c307390b2deffb8ff65dfe29c3ed6a5f930abe6"
+    },
+    {
+      "file": "test/unit/teamSettlement.test.ts",
+      "sha256": "0d2e25864c67e10ccacca4fcca737fb953ad0b918b758403e5d8c39795aec06a"
+    },
+    {
+      "file": "test/unit/jobSource.test.ts",
+      "sha256": "3fe43eba8784673918ab92278010d6afb111ddaa355d4d969087df307f441321"
+    }
+  ],
+  "checks": [
+    {
+      "id": "typecheck",
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-typecheck.txt",
+      "sha256": "ed5e7b4482ff64ab7e85a757bc6d4d0d5b013be5169323a818496b921f4efc20"
+    },
+    {
+      "id": "eslint",
+      "command": "npx muse-spark-code@0.12.1 npx",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-eslint.txt",
+      "sha256": "392af38e00a1537d30fd41a2735e5776087aca94f5dc31f494143dad81c5c76d"
+    },
+    {
+      "id": "prettier",
+      "command": "npx muse-spark-code@0.12.1 npx",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-prettier.txt",
+      "sha256": "cb8730fd1151353ffa4eda8686e992dce56af7683cf64bf79dd70b3efca05247"
+    },
+    {
+      "id": "owned-tests",
+      "command": "npx vitest run test/unit/teamProcessLifetime.test.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-owned-tests.txt",
+      "sha256": "24c94b9722bbb93a3ffc58320b5d0f1ad21498c8df05f30dc21dbbd07196a0e0"
+    },
+    {
+      "id": "ownership-and-shared-tests",
+      "command": "npx vitest run test/unit/teamProcessOwnership.test.ts test/unit/teamSettlement.test.ts test/unit/jobSource.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-ownership-and-shared-tests.txt",
+      "sha256": "6672850e6079bd96a4e7b6070d733e4910f60518c7312728da58e58e4e580b79"
+    },
+    {
+      "id": "deadcode",
+      "command": "npm run deadcode (plain knip)",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-deadcode.txt",
+      "sha256": "2c6c28b0213fdf45556386a9d16c1f6996fce4deda901ef7d366cd33b23a92a8"
+    },
+    {
+      "id": "duplication",
+      "command": "npx jscpd",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-duplication.txt",
+      "sha256": "3675cf2dec03d75baeca8b9e116a31aadc6a1e38f91915184e51fb122caa81e2"
+    },
+    {
+      "id": "localization",
+      "command": "node scripts/check-l10n.mjs",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-localization.txt",
+      "sha256": "8a9a2cc244594af67c21e93879876149650914065ec7fd10bf8e858bfb3d644a"
+    },
+    {
+      "id": "host-api",
+      "command": "node scripts/check-host-api.mjs",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-host-api.txt",
+      "sha256": "c5734337528c3d99948877fe6c3b7c1d44d75abb4a1a60f422bf2e08ce7e5ff1"
+    },
+    {
+      "id": "build",
+      "command": "npm run build",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-build.txt",
+      "sha256": "0487b0ca9b5af16256e0028affe3b0de39ea4e4f35f5e078121c235f4466d0bd"
+    },
+    {
+      "id": "windows-job-csharp",
+      "command": "dotnet /usr/lib/dotnet/sdk/10.0.112/Roslyn/bincore/csc.dll @temp/redm96k/csharp.rsp -target:library -out:temp/redm96k/TeamJob.dll temp/redm96k/MuseSparkJob.cs",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-windows-job-csharp.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "id": "windows-launcher-csharp",
+      "command": "dotnet /usr/lib/dotnet/sdk/10.0.112/Roslyn/bincore/csc.dll @temp/redm96k/csharp.rsp -target:exe -out:temp/redm96k/McpLauncher.exe temp/redm96k/MuseSparkMcpLauncher.cs",
+      "exitCode": 0,
+      "log": "docs/certification/m96-k/redesign-logs/check-windows-launcher-csharp.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "tests": {
+    "files": 6,
+    "passed": 78,
+    "fullFiles": true,
+    "maxWorkers": 3,
+    "testTimeoutMs": 120000
+  },
+  "csharp": {
+    "languageVersion": "5",
+    "referencePack": "net10.0/10.0.12",
+    "runtimeExecuted": false
+  },
+  "bundleSizesKiB": [
+    {
+      "bundle": "extension",
+      "used": 590.6,
+      "cap": 600
+    },
+    {
+      "bundle": "modelApi",
+      "used": 430.1,
+      "cap": 475
+    },
+    {
+      "bundle": "checkpointStore",
+      "used": 135.7,
+      "cap": 225
+    },
+    {
+      "bundle": "webview",
+      "used": 860.5,
+      "cap": 900
+    },
+    {
+      "bundle": "acp",
+      "used": 800.9,
+      "cap": 850
+    }
+  ],
+  "fullQualityRun": false,
+  "reason": "Rig/common forbid aggregate quality and full tests; requested individual gates and complete owned suites pass."
+}

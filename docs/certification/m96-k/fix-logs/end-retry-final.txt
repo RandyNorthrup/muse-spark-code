@@ -1,0 +1,47 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/FIXM96K
+
+ ❯ test/unit/teamProcessLifetime.test.ts (16 tests | 2 failed) 501ms
+   ❯ M96 K launcher contract (11)
+     × journals a later proved retirement and never downgrades it to uncertain 73ms
+     × retries a failed end-record write after storage recovers 64ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > journals a later proved retirement and never downgrades it to uncertain
+Error: TEAM_RETIREMENT_PROOF_INVALID
+ ❯ src/host/team/processLifetime.ts:247:23
+    245|                 (!end.childExited || confirmation.container === 'proce…
+    246|               )
+    247|                 throw new Error('TEAM_RETIREMENT_PROOF_INVALID')
+       |                       ^
+    248|               if (previous?.descendants === 'proved') return previous
+    249|               await save({ ...record, confirmation, end })
+ ❯ Object.retire src/host/team/processLifetime.ts:266:33
+ ❯ test/unit/teamProcessLifetime.test.ts:331:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > retries a failed end-record write after storage recovers
+Error: transient-end-write
+ ❯ test/unit/teamProcessLifetime.test.ts:355:56
+    353|     })
+    354|     const child = await lifetime.launch(request)
+    355|     vi.spyOn(f.journal, 'write').mockRejectedValueOnce(new Error('tran…
+       |                                                        ^
+    356|     await expect(child.ended).rejects.toThrow('transient-end-write')
+    357|     expect(await child.retire()).toEqual({ childExited: true, descenda…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 14 passed (16)
+   Start at  10:38:06
+   Duration  1.81s (transform 43%, tests 31%, import 14%, setup 11%)
+
