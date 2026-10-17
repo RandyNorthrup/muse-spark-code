@@ -1281,7 +1281,6 @@
       ],
       "facts": {
         "actions": ["click", "type"],
-        "maxActions": 8,
         "results": ["consoleErrors", "failedRequests"],
         "screenshot": { "modelApi": "PNG", "museCode": false }
       },
