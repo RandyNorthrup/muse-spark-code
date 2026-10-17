@@ -1328,7 +1328,6 @@ async function main(): Promise<number> {
           printError: (text) => {
             writeLine(process.stderr, text)
           },
-          now: Date.now,
           signal: controller.signal,
         })
       } finally {

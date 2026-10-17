@@ -313,10 +313,9 @@ export class VaultRemoteOwner {
       if (
         !this.current(operation) ||
         answer.requestId !== request.id ||
-        answer.digest !== card.digest ||
-        this.ports.broker.clock.now() >= request.expiresAt
+        answer.digest !== card.digest
       )
-        throw new Error(UI_TEXT.vault.approvalExpired)
+        throw new Error(UI_TEXT.vault.useChanged)
       const result = vaultApprovalResultSchema.parse(
         await this.ports.broker.answer(this.ports.peer, {
           requestId: request.id,
@@ -333,7 +332,7 @@ export class VaultRemoteOwner {
         ticket.requestId === request.id &&
         ticket.itemId === request.item.id &&
         ticket.digest === request.digest &&
-        this.ports.broker.clock.now() < ticket.expiresAt
+        (ticket.expiresAt === null || this.ports.broker.clock.now() < ticket.expiresAt)
       if (!canRelease()) throw new Error(UI_TEXT.vault.noAccess)
       bytes = await this.ports.execute(
         structuredClone(ticket),

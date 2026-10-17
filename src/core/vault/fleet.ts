@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
-import { UI_TEXT, VAULT_APPROVAL_TTL_MS, VAULT_LIMITS } from '../../shared/constants'
+import { UI_TEXT, VAULT_LIMITS } from '../../shared/constants'
 import {
   vaultBindingSchema,
   vaultGrantSchema,
@@ -40,7 +40,6 @@ export const vaultDelegationCardSchema = z.strictObject({
   requester: vaultRequesterSchema,
   scopes: scopesSchema,
   digest: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
-  expiresAt: z.number().check(z.int(), z.nonnegative()),
 })
 export type VaultDelegationCard = z.infer<typeof vaultDelegationCardSchema>
 const answerSchema = z.strictObject({
@@ -148,26 +147,23 @@ function delegationDigest(card: Omit<VaultDelegationCard, 'digest'>): string {
   return createHash('sha256').update(JSON.stringify(card)).digest('hex')
 }
 
-/** UI promises own no bytes. Bound their wait even if an adapter ignores cancellation. */
+/** The person's answer ends the wait; only stopping it ends it sooner (owner 2026-10-16). */
 export async function awaitVaultApproval(
   answer: Promise<unknown>,
   signal: AbortSignal,
 ): Promise<unknown> {
-  let timer: ReturnType<typeof setTimeout> | undefined
   let cancel: (() => void) | undefined
-  const denied = new Promise<never>((_resolve, reject) => {
+  const stopped = new Promise<never>((_resolve, reject) => {
     cancel = () => {
-      reject(new Error(UI_TEXT.vault.approvalExpired))
+      const reason: unknown = signal.reason
+      reject(reason instanceof Error ? reason : new Error(String(reason)))
     }
     signal.addEventListener('abort', cancel, { once: true })
-    timer = setTimeout(cancel, VAULT_APPROVAL_TTL_MS)
-    timer.unref()
     if (signal.aborted) cancel()
   })
   try {
-    return await Promise.race([answer, denied])
+    return await Promise.race([answer, stopped])
   } finally {
-    clearTimeout(timer)
     if (cancel) signal.removeEventListener('abort', cancel)
   }
 }
@@ -368,7 +364,6 @@ export class VaultFleet {
       id: randomBytes(VAULT_LIMITS.idBytes).toString('hex'),
       requester: structuredClone(worker.requester),
       scopes,
-      expiresAt: this.ports.broker.clock.now() + VAULT_APPROVAL_TTL_MS,
     }
     const card = vaultDelegationCardSchema.parse({
       ...unsigned,
@@ -382,13 +377,8 @@ export class VaultFleet {
           worker.controller.signal,
         ),
       )
-      if (
-        !this.current(access, worker) ||
-        this.ports.broker.clock.now() >= card.expiresAt ||
-        answer.id !== card.id ||
-        answer.digest !== card.digest
-      )
-        throw new Error(UI_TEXT.vault.approvalExpired)
+      if (!this.current(access, worker) || answer.id !== card.id || answer.digest !== card.digest)
+        throw new Error(UI_TEXT.vault.useChanged)
       if (answer.decision === 'deny') return false
       worker.delegation = { card, scopes: structuredClone(scopes), uses: new Map() }
       return true
@@ -495,7 +485,8 @@ export class VaultFleet {
         (!scope || canUse()) &&
         result.ticket.requesterId === worker.requester.id &&
         result.ticket.digest === vaultUseDigest(proposal.use) &&
-        this.ports.broker.clock.now() < result.ticket.expiresAt
+        (result.ticket.expiresAt === null ||
+          this.ports.broker.clock.now() < result.ticket.expiresAt)
       if (!canSend()) return { kind: 'denied', reason: 'digest' }
       if (!worker.route) throw new Error(UI_TEXT.vault.noAccess)
       await worker.route.handoff(result.ticket, proposal.use, canSend)

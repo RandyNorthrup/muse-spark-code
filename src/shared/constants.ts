@@ -8001,6 +8001,9 @@ export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1
 export const VAULT_PROTOCOL_VERSION = 1
+// Transport and peer hygiene only (NOLIMITS2 A33): approvals themselves
+// never expire on this clock any more; unauthenticated sockets, helper
+// calls and native peer handshakes still end at it.
 export const VAULT_APPROVAL_TTL_MS = 120_000
 // Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
 export const VAULT_LOCK_DRAIN_MS = 1000

@@ -41,7 +41,9 @@ export async function redeemVaultExecLease(
   }
   signal.addEventListener('abort', abort, { once: true })
   lifetime.revoked.addEventListener('abort', erase, { once: true })
-  let expiresAt = ticket.expiresAt
+  // Null until a lifetime names one: the ticket's, the material's or the
+  // item's (owner 2026-10-16).
+  let expiresAt: number | null = ticket.expiresAt
   try {
     signal.throwIfAborted()
     const result = await deps.broker.redeem(deps.requesterId, ticket, use, lifetime)
@@ -74,7 +76,8 @@ export async function redeemVaultExecLease(
           }
           case 'oauth': {
             bytes.value = owned(material.accessToken)
-            expiresAt = Math.min(expiresAt, material.expiresAt)
+            expiresAt =
+              expiresAt === null ? material.expiresAt : Math.min(expiresAt, material.expiresAt)
             break
           }
           case 'password': {
@@ -89,7 +92,10 @@ export async function redeemVaultExecLease(
         }
       } else throw new Error(UI_TEXT.vault.noAccess)
       if (item.metadata.dates.expiresAt !== null)
-        expiresAt = Math.min(expiresAt, item.metadata.dates.expiresAt)
+        expiresAt =
+          expiresAt === null
+            ? item.metadata.dates.expiresAt
+            : Math.min(expiresAt, item.metadata.dates.expiresAt)
       signal.throwIfAborted()
       lifetime.revoked.throwIfAborted()
     })
