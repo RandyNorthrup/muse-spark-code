@@ -118,7 +118,7 @@ export function scheduleConsentFailure(
 }
 
 /** Creation/renewal only. No workspace-wide grant can silently authorize a schedule.
- * @unwired M58 schedule-run paid consent
+ * Called from the host schedule paid binding's consent step.
  */
 export async function askSchedulePaidConsent(deps: {
   readonly schedule: ScheduleV2
