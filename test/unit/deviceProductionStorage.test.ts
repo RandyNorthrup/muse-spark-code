@@ -7,7 +7,7 @@
 // answer the ready handshake and refuse Pair with a typed, correlated
 // `unsupported-host`.
 import { existsSync } from 'node:fs'
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { AttemptJournal } from '../../src/core/devices/attemptJournal'
@@ -143,8 +143,10 @@ describe('RVM100W production storage on a real filesystem', () => {
   it('never claims a Devices folder another creator made: it is checked and refused', async () => {
     const directory = await storageDirectory()
     // Another creator's folder, with data in it: not private (inherited ACL
-    // on Windows, 0755 elsewhere).
+    // on Windows, 0755 elsewhere; chmod, since mkdir's mode passes through
+    // the ambient umask and a restrictive one would make it private).
     await mkdir(directory, { recursive: true, mode: 0o755 })
+    if (process.platform !== 'win32') await chmod(directory, 0o755)
     await writeFile(path.join(directory, 'theirs.txt'), 'not ours', { mode: 0o600 })
     const before = await ownerOnlyEvidence(directory, true)
     expect(before).not.toBe('700')
