@@ -8086,7 +8086,7 @@ export const LINUX_DICTATION = {
   redirects: [301, 302, 303, 307, 308],
   directoryMode: 0o700,
   fileMode: 0o600,
-  helperMode: 0o755,
+  helperMode: 0o700,
   setting: 'linuxDictationModel',
   helperBinary: 'muse-dictate',
   // Approximate first-download bytes shown on the consent card (measured
