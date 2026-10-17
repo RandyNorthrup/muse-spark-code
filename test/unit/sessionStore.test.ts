@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   headerOf,
@@ -5,6 +6,7 @@ import {
   recordOf,
   type StoredSession,
 } from '../../src/core/backends/modelapi/sessionStore'
+import { uploaded, videoMedia } from './helpers/media/replay'
 
 const full: StoredSession = {
   version: 1,
@@ -92,12 +94,138 @@ const full: StoredSession = {
   usage: { inputTokens: 10, outputTokens: 5, cachedTokens: 0, reasoningTokens: 2 },
 }
 
+describe('M105 session upload references', () => {
+  it('keeps uploaded replay parts metadata-only and rejects bytes, invalid indices and non-user placement', () => {
+    const media = { ...videoMedia(), file: uploaded(videoMedia()) }
+    const entry = {
+      turnId: 't1',
+      item: {
+        type: 'message',
+        role: 'user',
+        content: [{ type: 'input_text', text: 'clip.mp4 metadata' }],
+      },
+      media: [{ index: 0, media }],
+    } as const
+    const session = { ...full, replay: [entry], fileRefs: [media.file] }
+    const result = parseStoredSession(session)
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.reason)
+    expect(result.session.replay).toEqual([entry])
+    for (const invalid of [
+      { ...entry, media: [{ index: 0, media: { ...media, base64Data: 'MEDIA_BYTE_CANARY' } }] },
+      { ...entry, media: [{ index: 1, media }] },
+      {
+        ...entry,
+        media: [
+          { index: 0, media },
+          { index: 0, media },
+        ],
+      },
+      { ...entry, item: { ...entry.item, role: 'assistant' } },
+      {
+        ...entry,
+        item: {
+          ...entry.item,
+          content: [
+            {
+              type: 'input_image',
+              image_url: 'data:image/png;base64,MEDIA_BYTE_CANARY',
+              detail: 'auto',
+            },
+          ],
+        },
+      },
+      {
+        ...entry,
+        item: {
+          ...entry.item,
+          content: [
+            {
+              type: 'input_file',
+              filename: 'clip.mp4',
+              file_data: 'data:video/mp4;base64,MEDIA_BYTE_CANARY',
+            },
+          ],
+        },
+      },
+    ])
+      expect(parseStoredSession({ ...session, replay: [invalid] }).ok).toBe(false)
+    expect(JSON.stringify(result.session)).not.toContain('MEDIA_BYTE_CANARY')
+  })
+
+  const ref = {
+    fileId: 'file-one',
+    provider: 'meta',
+    expiresAt: 1_800_000_000,
+    sha256: 'a'.repeat(64),
+    bytes: 3,
+    name: 'clip.mp4',
+    mime: 'video/mp4',
+  }
+  it('round-trips metadata without bytes and keeps legacy sessions readable', () => {
+    const result = parseStoredSession({ ...full, fileRefs: [ref] })
+    expect(result).toMatchObject({ ok: true, session: { fileRefs: [ref] } })
+    const legacy = parseStoredSession(full)
+    expect(legacy.ok).toBe(true)
+    if (legacy.ok) expect(legacy.session).not.toHaveProperty('fileRefs')
+  })
+  it('rejects byte-bearing references, missing expiry and invalid hashes', () => {
+    const { expiresAt: _expiry, ...expired } = ref
+    for (const file of [
+      { ...ref, file_data: 'data:video/mp4;base64,CANARY' },
+      { ...ref, sourcePath: '/private/clip.mp4' },
+      expired,
+      { ...ref, sha256: 'invalid' },
+    ]) {
+      expect(parseStoredSession({ ...full, fileRefs: [file] }).ok).toBe(false)
+    }
+  })
+})
+
 describe('parseStoredSession', () => {
   it('preserves a key digest while refusing a malformed owner', () => {
     const owned = { ...full, accountId: 'a'.repeat(64) }
     expect(parseStoredSession(owned)).toEqual({ ok: true, session: owned })
     expect(headerOf(owned).accountId).toBe(owned.accountId)
     expect(parseStoredSession({ ...full, accountId: 'raw-key' })).toMatchObject({ ok: false })
+  })
+
+  it('keeps a session budget spend, and refuses one below zero (M82)', () => {
+    const spent: StoredSession = { ...full, budgetSpentUsd: Usd.from(0.25).toAmount() }
+    expect(parseStoredSession(structuredClone(spent))).toEqual({
+      ok: true,
+      session: { ...spent, budgetSpentUsd: '0.25' },
+    })
+    expect(parseStoredSession({ ...full, budgetSpentUsd: -1 })).toMatchObject({ ok: false })
+    expect(parseStoredSession({ ...full, budgetSpentUsd: Infinity })).toMatchObject({ ok: false })
+    expect(parseStoredSession({ ...full, budgetSpentUsd: NaN })).toMatchObject({ ok: false })
+  })
+
+  it.each(['inputTokens', 'outputTokens', 'cachedTokens', 'reasoningTokens'])(
+    'refuses a stored negative %s count',
+    (field) => {
+      expect(parseStoredSession({ ...full, usage: { ...full.usage, [field]: -1 } })).toMatchObject({
+        ok: false,
+      })
+    },
+  )
+
+  it('refuses negative reply usage and cost in a stored transcript', () => {
+    const item = { itemId: 'reply', kind: 'agentMessage', status: 'completed', text: 'done' }
+    expect(
+      parseStoredSession({
+        ...full,
+        transcript: [
+          { turnId: 't1', item: { ...item, usage: { ...full.usage, inputTokens: -1 } } },
+        ],
+      }),
+    ).toMatchObject({ ok: false })
+    expect(
+      parseStoredSession({
+        ...full,
+        transcript: [{ turnId: 't1', item: { ...item, costUsd: -1 } }],
+      }),
+    ).toMatchObject({ ok: false })
   })
 
   it('accepts a full record unchanged after a JSON round trip', () => {
@@ -156,6 +284,54 @@ describe('parseStoredSession', () => {
       parseStoredSession({ ...full, replay: [{ turnId: 't', item: { type: 'unknown' } }] }),
     ).toMatchObject({ ok: false })
   })
+
+  it('round-trips a child agent runtime and reads older files without one (M76 review)', () => {
+    const agent = {
+      id: 'reviewer',
+      source: 'project' as const,
+      prompt: 'Prompt of reviewer',
+      toolAllowlist: ['read_file', 'write_file'],
+      effort: 'max' as const,
+      approvalMode: 'denyUnmatched' as const,
+      permissionMode: 'manual' as const,
+    }
+    const narrowed: StoredSession = { ...full, agent }
+    expect(parseStoredSession(structuredClone(narrowed))).toEqual({
+      ok: true,
+      session: narrowed,
+    })
+    const minimal: StoredSession = {
+      ...full,
+      agent: {
+        id: 'explore',
+        source: 'builtin' as const,
+        prompt: 'Prompt',
+        effort: 'high' as const,
+      },
+    }
+    expect(parseStoredSession(structuredClone(minimal))).toEqual({
+      ok: true,
+      session: minimal,
+    })
+    const parsed = parseStoredSession(structuredClone(full))
+    expect(parsed).toEqual({ ok: true, session: full })
+    expect(parsed.ok && 'agent' in parsed.session).toBe(false)
+    expect(parseStoredSession({ ...full, agent: { ...agent, effort: 'ultra' } })).toMatchObject({
+      ok: false,
+    })
+    expect(
+      parseStoredSession({ ...full, agent: { ...agent, permissionMode: 'unattended' } }),
+    ).toMatchObject({
+      ok: false,
+    })
+    // A run whose source is unknown, or missing, is not read back as a trusted one.
+    expect(parseStoredSession({ ...full, agent: { ...agent, source: 'web' } })).toMatchObject({
+      ok: false,
+    })
+    const { source: omitted, ...withoutSource } = agent
+    expect(omitted).toBe('project')
+    expect(parseStoredSession({ ...full, agent: withoutSource })).toMatchObject({ ok: false })
+  })
 })
 
 describe('recordOf', () => {
@@ -189,4 +365,80 @@ describe('recordOf', () => {
     expect(recordOf(headerOf(bare))).not.toHaveProperty('name')
     expect(recordOf(headerOf(bare))).not.toHaveProperty('title')
   })
+})
+
+describe('parseStoredSession: message times (M87, PLAN.md D66)', () => {
+  it('keeps each user message and reply’s recorded time, and reads a file without them unchanged', () => {
+    const timed: StoredSession = {
+      ...full,
+      transcript: [
+        {
+          turnId: 't1',
+          item: {
+            itemId: 'i1',
+            kind: 'userMessage',
+            status: 'completed',
+            turnId: 't1',
+            text: 'fix the parser',
+            recordedAt: '2026-10-04T04:28:22.709Z',
+          },
+        },
+        {
+          turnId: 't1',
+          item: {
+            itemId: 'i3',
+            kind: 'agentMessage',
+            status: 'completed',
+            turnId: 't1',
+            text: 'done',
+            recordedAt: '2026-10-04T04:28:27.922Z',
+          },
+        },
+      ],
+    }
+    expect(parseStoredSession(structuredClone(timed))).toEqual({ ok: true, session: timed })
+    // A file stored before M87 has none, and reads as it was.
+    expect(parseStoredSession(structuredClone(full))).toEqual({ ok: true, session: full })
+    expect(
+      parseStoredSession({
+        ...timed,
+        transcript: [{ turnId: 't1', item: { ...timed.transcript[0]?.item, recordedAt: 5 } }],
+      }),
+    ).toMatchObject({ ok: false })
+  })
+})
+
+it('R3 P3: migrates historical numeric transcript fees only at the disk boundary', () => {
+  const item = full.transcript[0]
+  if (item === undefined) throw new Error('missing transcript fixture')
+  const parsed = parseStoredSession({
+    ...full,
+    transcript: [{ ...item, item: { ...item.item, costUsd: 0.000000002 } }],
+  })
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) throw new Error('historical transcript was refused')
+  expect(parsed.session.transcript[0]?.item.costUsd).toBe('0.000000002')
+})
+
+it('preserves captured message phase values and future words across persistence', () => {
+  for (const phase of ['commentary', 'final_answer', 'future_phase', null]) {
+    const stored = {
+      ...full,
+      replay: [
+        {
+          turnId: 't1',
+          item: {
+            type: 'message',
+            role: 'assistant',
+            phase,
+            content: [{ type: 'output_text', text: 'answer' }],
+          },
+        },
+      ],
+    }
+    const parsed = parseStoredSession(stored)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(parsed.reason)
+    expect(parsed.session.replay[0]?.item).toMatchObject({ phase })
+  }
 })

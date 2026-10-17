@@ -1,0 +1,15 @@
+{
+  // The Action test programs written in TypeScript (M80 W): the fake-only
+  // test package's launcher and its scripted transport. ESLint's project
+  // service reads the nearest tsconfig; `npm run typecheck:e2e` checks the
+  // same files through test/e2e/tsconfig.json, which includes this folder.
+  "extends": "../e2e/tsconfig.json",
+  "include": [
+    "./**/*.ts",
+    "../unit/helpers/**/*.ts",
+    "../unit/mocks/**/*.ts",
+    "../../src/**/*.ts",
+    "../../src/**/*.tsx",
+    "../../package.json"
+  ]
+}

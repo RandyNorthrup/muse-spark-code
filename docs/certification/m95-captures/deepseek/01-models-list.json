@@ -1,0 +1,89 @@
+{
+  "provider": "deepseek",
+  "step": "models-list",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "https://api.deepseek.com/models",
+    "headers": {
+      "authorization": "<redacted>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "connection": "keep-alive",
+      "content-length": "743",
+      "content-type": "application/json",
+      "date": "Sun, 04 Oct 2026 22:39:05 GMT",
+      "server": "elb",
+      "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+      "vary": "origin, access-control-request-method, access-control-request-headers",
+      "via": "1.1 389aa4b0b70bc5506cb9535516428a34.cloudfront.net (CloudFront)",
+      "x-amz-cf-id": "t1Ac6jXYVPONUSnDWfClDAUJ20F5a35r5dSpKnwJS2TbmBtLs7x4Ag==",
+      "x-amz-cf-pop": "LAX53-P1",
+      "x-cache": "Miss from cloudfront",
+      "x-content-type-options": "nosniff",
+      "x-ds-trace-id": "91872ae539dce9223fe412a7c7cc51d5"
+    },
+    "bodySummary": {
+      "note": "trimmed: count, keys and sample entries",
+      "count": 2,
+      "topLevelKeys": ["object", "data"],
+      "entryKeys": [
+        "api_capabilities",
+        "context_window",
+        "effort",
+        "id",
+        "input_modalities",
+        "max_output_tokens",
+        "name",
+        "object",
+        "output_modalities",
+        "owned_by"
+      ],
+      "sample": [
+        {
+          "id": "deepseek-flash",
+          "object": "model",
+          "owned_by": "deepseek",
+          "name": "DeepSeek-V4.1-Flash",
+          "context_window": 1048576,
+          "max_output_tokens": 393216,
+          "input_modalities": ["text", "image"],
+          "output_modalities": ["text"],
+          "effort": {
+            "supported_levels": ["low", "high", "max"],
+            "default_level": "high"
+          },
+          "api_capabilities": {
+            "anthropic_messages": {
+              "system_prompt_update": "in-history"
+            }
+          }
+        },
+        {
+          "id": "deepseek-v4-pro",
+          "object": "model",
+          "owned_by": "deepseek",
+          "name": "DeepSeek-V4-Pro",
+          "context_window": 1048576,
+          "max_output_tokens": 393216,
+          "input_modalities": ["text"],
+          "output_modalities": ["text"],
+          "effort": {
+            "supported_levels": ["low", "high", "max"],
+            "default_level": "high"
+          },
+          "api_capabilities": {
+            "anthropic_messages": {
+              "system_prompt_update": "leading-only"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

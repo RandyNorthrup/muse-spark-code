@@ -1,0 +1,60 @@
+# Strict cargo-deny policy. Copy to the workspace root as deny.toml, then run:
+#
+#     cargo deny check
+#
+# cargo-deny checks security advisories, licenses, banned or duplicate crates,
+# and dependency sources. The policy below is what makes it a gate: with no
+# license allow-list, every license is rejected, and unknown sources only warn.
+# Written for cargo-deny 0.19; field reference:
+# https://embarkstudios.github.io/cargo-deny/checks/cfg.html
+
+[graph]
+# Check every feature's dependencies, like the Clippy gate. Select supported
+# feature sets instead if all features cannot be enabled together.
+all-features = true
+
+[advisories]
+# A yanked release was withdrawn by its author.
+yanked = "deny"
+# Unmaintained and unsound crates anywhere in the graph fail the check.
+unmaintained = "all"
+unsound = "all"
+# Each ignored advisory needs its ID and a written reason, for example
+# { id = "RUSTSEC-0000-0000", reason = "affected API is never called" }.
+ignore = []
+
+[licenses]
+# Which licenses are acceptable is a legal decision for the project owner.
+# These permissive licenses are a starting point, not advice; add others only
+# after that review and record why.
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    "Zlib",
+]
+exceptions = []
+
+[licenses.private]
+# Unpublished crates (publish = false) are not distributed under a license.
+ignore = true
+
+[bans]
+# Duplicate versions compile the same crate twice. Report them without failing:
+# transitive duplicates are rarely the project's to fix.
+multiple-versions = "warn"
+# A `*` requirement accepts any future release, including breaking ones.
+wildcards = "deny"
+# Path dependencies between unpublished workspace crates have no version to pin.
+allow-wildcard-paths = true
+
+[sources]
+# crates.io only, unless the project lists another registry or Git source here.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

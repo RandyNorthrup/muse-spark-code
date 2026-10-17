@@ -1,0 +1,354 @@
+# Muse Spark Code (Unofficial) for GitHub Actions (M80, PLAN.md D65).
+# Reviews, or proposes a fix for, a same-repository pull request with Meta's
+# Muse Spark model through the Model API, under a hard USD budget. Not
+# endorsed by Meta. The design and every bound: docs/ci.md.
+#
+# Every step clears the shell and Node startup hooks in its own env. Inputs
+# reach scripts through env, never through workflow expressions in shell
+# source; each run body execs the trusted Node directly. Node and Git are
+# resolved outside the workspace and the agent is installed before any
+# checkout. Only the run step gets the key; only the gate, checkout and post
+# steps get the GitHub token.
+name: Muse Spark Code (Unofficial)
+description: Review or propose a fix for a pull request with Muse Spark through the Meta Model API, under a hard USD budget. Not endorsed by Meta.
+author: Randy Northrup
+
+inputs:
+  model-api-key:
+    description: The Meta Model API key, from secrets.MUSE_MODEL_API_KEY. Only the run step receives it.
+    required: true
+  max-budget-usd:
+    description: Hard USD cap for this run, text and images together (more than 0, at most 20, up to six decimals).
+    required: true
+  mode:
+    description: review (plan mode, no edits) or fix (accept edits, a patch is proposed).
+    required: false
+    default: review
+  image-generation:
+    description: true allows paid image generation in fix mode, within the budget.
+    required: false
+    default: 'false'
+  max-requests:
+    description: Billable HTTP attempts allowed, retries included (1-500).
+    required: false
+    default: '30'
+  timeout-minutes:
+    description: The run's deadline in minutes (1-360).
+    required: false
+    default: '20'
+  model:
+    description: The Model API model id; empty uses the agent's default.
+    required: false
+    default: ''
+  effort:
+    description: The reasoning effort; empty uses the model's default.
+    required: false
+    default: ''
+  allow-contributor-models:
+    description: true allows a contributor model (its use may be eligible for training).
+    required: false
+    default: 'false'
+  max-diff-bytes:
+    description: The diff given to the model is cut to this many bytes (1-1048576); the cut is reported.
+    required: false
+    default: '262144'
+  trigger-phrase:
+    description: A comment must start with this to start a run.
+    required: false
+    default: '@muse-spark'
+  pr-number:
+    description: The pull request for workflow_dispatch.
+    required: false
+    default: ''
+  extra-instructions:
+    description: Trusted instructions from the workflow author, added to the prompt.
+    required: false
+    default: ''
+  path:
+    description: The checkout directory, relative to the workspace.
+    required: false
+    default: '.'
+  post-comment:
+    description: true posts one sticky review comment for a completed run.
+    required: false
+    default: 'true'
+  upload-artifacts:
+    description: true uploads the published result, events and any patch as an artifact.
+    required: false
+    default: 'true'
+  github-token:
+    description: The token for the gate's API reads, the checkout and the comment.
+    required: false
+    default: ${{ github.token }}
+  https-proxy:
+    description: An https proxy URL for every network child.
+    required: false
+    default: ''
+  no-proxy:
+    description: Hosts that bypass the proxy.
+    required: false
+    default: ''
+  extra-ca-certs:
+    description: A CA certificate file outside the workspace.
+    required: false
+    default: ''
+  agent-package:
+    description: A candidate agent tarball outside the workspace (unsigned; needs agent-package-sha256).
+    required: false
+    default: ''
+  agent-package-sha256:
+    description: The candidate tarball's SHA-256.
+    required: false
+    default: ''
+
+outputs:
+  status:
+    description: exec's status, unknown when no valid result was published, cancelled when the run step was signalled.
+    value: ${{ steps.run.outputs.status }}
+  exit-code:
+    description: The run step's exit code (exec's own when nonzero).
+    value: ${{ steps.run.outputs.exit-code }}
+  out-dir:
+    description: The invocation's output directory.
+    value: ${{ steps.run.outputs.out-dir }}
+  result-path:
+    description: The published result.json, or empty.
+    value: ${{ steps.run.outputs.result-path }}
+  events-path:
+    description: The published events.jsonl, or empty.
+    value: ${{ steps.run.outputs.events-path }}
+  patch-path:
+    description: The published fix.patch, or empty.
+    value: ${{ steps.run.outputs.patch-path }}
+  patch-withheld:
+    description: Empty, or why no patch was published (binary, secret, scan_failed, no_result, cancelled, limit, not_completed).
+    value: ${{ steps.run.outputs.patch-withheld }}
+  artifact-name:
+    description: The uploaded artifact's name, or empty.
+    value: ${{ steps.upload.outcome == 'success' && steps.tools.outputs.artifact-name || '' }}
+  requests:
+    description: Admitted billable attempts.
+    value: ${{ steps.run.outputs.requests }}
+  cost-usd:
+    description: Total retained liability in USD.
+    value: ${{ steps.run.outputs.cost-usd }}
+  cost-is-upper-bound:
+    description: true when the cost includes uncertain or reserved amounts.
+    value: ${{ steps.run.outputs.cost-is-upper-bound }}
+  images:
+    description: Images returned.
+    value: ${{ steps.run.outputs.images }}
+  image-attempts:
+    description: Image attempts admitted.
+    value: ${{ steps.run.outputs.image-attempts }}
+  images-uncertain:
+    description: Image attempts whose outcome is uncertain.
+    value: ${{ steps.run.outputs.images-uncertain }}
+  paid-uncertain-usd:
+    description: Paid image liability that stays uncertain, in USD.
+    value: ${{ steps.run.outputs.paid-uncertain-usd }}
+  diff-truncated:
+    description: true when the diff given to the model was cut.
+    value: ${{ steps.run.outputs.diff-truncated }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+      with:
+        node-version: '22'
+        package-manager-cache: false
+
+    - name: Resolve tools and allocate the invocation
+      id: tools
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_TOOLS_ROLE: run
+        MUSE_INPUT_MAX_BUDGET_USD: ${{ inputs.max-budget-usd }}
+        MUSE_INPUT_MODE: ${{ inputs.mode }}
+        MUSE_INPUT_IMAGE_GENERATION: ${{ inputs.image-generation }}
+        MUSE_INPUT_MAX_REQUESTS: ${{ inputs.max-requests }}
+        MUSE_INPUT_TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
+        MUSE_INPUT_MODEL: ${{ inputs.model }}
+        MUSE_INPUT_EFFORT: ${{ inputs.effort }}
+        MUSE_INPUT_ALLOW_CONTRIBUTOR_MODELS: ${{ inputs.allow-contributor-models }}
+        MUSE_INPUT_MAX_DIFF_BYTES: ${{ inputs.max-diff-bytes }}
+        MUSE_INPUT_TRIGGER_PHRASE: ${{ inputs.trigger-phrase }}
+        MUSE_INPUT_PR_NUMBER: ${{ inputs.pr-number }}
+        MUSE_INPUT_EXTRA_INSTRUCTIONS: ${{ inputs.extra-instructions }}
+        MUSE_INPUT_PATH: ${{ inputs.path }}
+        MUSE_INPUT_POST_COMMENT: ${{ inputs.post-comment }}
+        MUSE_INPUT_UPLOAD_ARTIFACTS: ${{ inputs.upload-artifacts }}
+        MUSE_INPUT_HTTPS_PROXY: ${{ inputs.https-proxy }}
+        MUSE_INPUT_NO_PROXY: ${{ inputs.no-proxy }}
+        MUSE_INPUT_EXTRA_CA_CERTS: ${{ inputs.extra-ca-certs }}
+        MUSE_INPUT_AGENT_PACKAGE: ${{ inputs.agent-package }}
+        MUSE_INPUT_AGENT_PACKAGE_SHA256: ${{ inputs.agent-package-sha256 }}
+      run: exec node "$GITHUB_ACTION_PATH/lib/tools.mjs"
+
+    - name: Gate the event
+      id: gate
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_NODE: ${{ steps.tools.outputs.node }}
+        MUSE_INVOCATION: ${{ steps.tools.outputs.invocation }}
+        MUSE_GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: exec "$MUSE_NODE" "$GITHUB_ACTION_PATH/lib/gate-cli.mjs"
+
+    - name: Install the agent
+      id: install
+      if: steps.gate.outputs.allowed == 'true'
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_NODE: ${{ steps.tools.outputs.node }}
+        MUSE_NPM_CLI: ${{ steps.tools.outputs.npm-cli }}
+        MUSE_NPX_CLI: ${{ steps.tools.outputs.npx-cli }}
+        MUSE_INVOCATION: ${{ steps.tools.outputs.invocation }}
+      run: exec "$MUSE_NODE" "$GITHUB_ACTION_PATH/lib/install.mjs"
+
+    - name: Check out the pull request head
+      id: checkout
+      if: steps.gate.outputs.allowed == 'true'
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_NODE: ${{ steps.tools.outputs.node }}
+        MUSE_GIT: ${{ steps.tools.outputs.git }}
+        MUSE_INVOCATION: ${{ steps.tools.outputs.invocation }}
+        MUSE_CHECKOUT: ${{ steps.tools.outputs.checkout }}
+        MUSE_HEAD_SHA: ${{ steps.gate.outputs.head-sha }}
+        MUSE_BASE_SHA: ${{ steps.gate.outputs.base-sha }}
+        MUSE_GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: exec "$MUSE_NODE" "$GITHUB_ACTION_PATH/lib/checkout.mjs"
+
+    - name: Stage the inputs
+      id: inputs
+      if: steps.gate.outputs.allowed == 'true'
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_NODE: ${{ steps.tools.outputs.node }}
+        MUSE_INVOCATION: ${{ steps.tools.outputs.invocation }}
+        MUSE_CHECKOUT: ${{ steps.tools.outputs.checkout }}
+      run: exec "$MUSE_NODE" "$GITHUB_ACTION_PATH/lib/inputs.mjs"
+
+    - name: Run Muse Spark
+      id: run
+      if: steps.gate.outputs.allowed == 'true'
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_NODE: ${{ steps.tools.outputs.node }}
+        MUSE_GIT: ${{ steps.tools.outputs.git }}
+        MUSE_AGENT_JS: ${{ steps.install.outputs.agent-js }}
+        MUSE_INVOCATION: ${{ steps.tools.outputs.invocation }}
+        MUSE_CHECKOUT: ${{ steps.tools.outputs.checkout }}
+        MUSE_SPARK_MODEL_API_KEY: ${{ inputs.model-api-key }}
+      run: exec "$MUSE_NODE" "$GITHUB_ACTION_PATH/lib/run-exec.mjs"
+
+    - name: Upload the published outputs
+      id: upload
+      # Only a wrapper that finished unstopped reports an exec status; unknown,
+      # cancelled or no status (the step was killed) publishes nothing.
+      if: always() && steps.gate.outputs.allowed == 'true' && inputs.upload-artifacts == 'true' && steps.run.outputs.status != '' && steps.run.outputs.status != 'unknown' && steps.run.outputs.status != 'cancelled'
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+      with:
+        name: ${{ steps.tools.outputs.artifact-name }}
+        path: ${{ steps.tools.outputs.out }}
+        if-no-files-found: ignore
+        include-hidden-files: false
+
+    - name: Post the review comment
+      id: post
+      if: steps.gate.outputs.allowed == 'true' && steps.run.outputs.status == 'completed' && inputs.post-comment == 'true'
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_NODE: ${{ steps.tools.outputs.node }}
+        MUSE_INVOCATION: ${{ steps.tools.outputs.invocation }}
+        MUSE_GITHUB_TOKEN: ${{ inputs.github-token }}
+        MUSE_RUN_STATUS: ${{ steps.run.outputs.status }}
+        MUSE_PR_NUMBER: ${{ steps.gate.outputs.pr-number }}
+        MUSE_ARTIFACT_NAME: ${{ steps.upload.outcome == 'success' && steps.tools.outputs.artifact-name || '' }}
+        MUSE_PATCH_PATH: ${{ steps.run.outputs.patch-path }}
+        MUSE_PATCH_WITHHELD: ${{ steps.run.outputs.patch-withheld }}
+        MUSE_INPUT_MODE: ${{ inputs.mode }}
+      run: exec "$MUSE_NODE" "$GITHUB_ACTION_PATH/lib/post.mjs"
+
+    - name: Tidy the private work folder
+      id: tidy
+      if: always() && steps.tools.outputs.invocation != ''
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_NODE: ${{ steps.tools.outputs.node }}
+        MUSE_INVOCATION: ${{ steps.tools.outputs.invocation }}
+      run: exec "$MUSE_NODE" "$GITHUB_ACTION_PATH/lib/tools.mjs" tidy

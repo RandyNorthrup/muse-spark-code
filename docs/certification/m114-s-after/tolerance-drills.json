@@ -1,0 +1,38 @@
+[
+  {
+    "drill": "border-1px",
+    "source": "src/webview/styles.css",
+    "exit": 1,
+    "capture": "panel/agents-details/default/light/320",
+    "changedPixels": 2252,
+    "allowance": 12,
+    "restoredSha256": "b8b8520e5b7bb9eb32c13e9d0663175fdf0ea06a78cea0d6ea52afb1d030c4ff"
+  },
+  {
+    "drill": "token-colour",
+    "source": "src/webview/tokens.css",
+    "exit": 1,
+    "capture": "panel/agents-details/default/light/320",
+    "changedPixels": 1659,
+    "allowance": 12,
+    "restoredSha256": "c94e4a8578597c0c5328b7d21abb59fff13a2f0a04830c2ea7aef176b7e37ce0"
+  },
+  {
+    "drill": "layout-1px",
+    "source": "src/webview/styles.css",
+    "exit": 1,
+    "capture": "panel/agents-details/default/light/320",
+    "changedPixels": 434,
+    "allowance": 12,
+    "restoredSha256": "b8b8520e5b7bb9eb32c13e9d0663175fdf0ea06a78cea0d6ea52afb1d030c4ff"
+  },
+  {
+    "drill": "missing-icon",
+    "source": "src/webview/styles.css",
+    "exit": 1,
+    "capture": "panel/agents-details/default/light/320",
+    "changedPixels": 54,
+    "allowance": 12,
+    "restoredSha256": "b8b8520e5b7bb9eb32c13e9d0663175fdf0ea06a78cea0d6ea52afb1d030c4ff"
+  }
+]

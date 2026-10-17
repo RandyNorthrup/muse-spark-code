@@ -1,0 +1,172 @@
+{
+  "machine": "Kubuntu via the brief-authorized rig helper",
+  "command": [
+    "C:/Program Files/Git/bin/bash.exe",
+    "C:/Users/Randy/AppData/Local/Temp/claude/c--Users-Randy-Coding-muse-extension/f5e67bec-452c-4384-85e7-efedc257d060/scratchpad/rig-gate/rig-test.sh",
+    "kubuntu",
+    "C:\\Users\\Randy\\Coding\\mx-relfast",
+    "relfast3-drills",
+    "test/unit/releaseMajorTag.test.mjs"
+  ],
+  "source": ".github/workflows/release.yml",
+  "test": "test/unit/releaseMajorTag.test.mjs",
+  "controls": [
+    {
+      "name": "nonblocking-tag-failure",
+      "mutation": "id: major-tag\n        continue-on-error: true -> id: major-tag",
+      "expected_diagnostic": "keeps a tag failure nonblocking",
+      "before_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "mutated_sha256": "aa3bb49ec5e9b7db8f3030c7c89d5a7b01b0a45fb57053eed2b967d0cc3c5762",
+      "baseline": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/baseline.log",
+        "log_sha256": "cc9994bb634e2cd284dd8836345b729d494d9898f9470f5907b72b8034a7f058"
+      },
+      "red": {
+        "exit": 1,
+        "log": "dist/relfast3-drills/nonblocking-tag-failure-red.log",
+        "log_sha256": "a9a5137daf13f2a83b147ffa5ec70370d3e7f1ffc0992a720f46204da3cb0ea8"
+      },
+      "observed_diagnostic": "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/releaseMajorTag.test.mjs\u001b[2m > \u001b[22mM80 major-tag release outcomes (RELFAST3)\u001b[2m > \u001b[22mkeeps a tag failure nonblocking and reports its real outcome after channel reporting",
+      "after_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "restored": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/nonblocking-tag-failure-restored.log",
+        "log_sha256": "fe45adc2815d567d53ea646a24dee0a552a466bff020eb5c0e3c1f451e1285b5"
+      },
+      "status": "pass"
+    },
+    {
+      "name": "fast-forward-only",
+      "mutation": "-F force=false > /dev/null -> -F force=true > /dev/null",
+      "expected_diagnostic": "requests only a fast-forward update",
+      "before_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "mutated_sha256": "8f12f4a1472a8a09e733c7e83a941488440a62453029db8e2be95066f80b0b4d",
+      "baseline": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/baseline.log",
+        "log_sha256": "cc9994bb634e2cd284dd8836345b729d494d9898f9470f5907b72b8034a7f058"
+      },
+      "red": {
+        "exit": 1,
+        "log": "dist/relfast3-drills/fast-forward-only-red.log",
+        "log_sha256": "9a3ac78536ebee14df4e1e9b834ecaa5dc95072847b5b2fecec45d620548968d"
+      },
+      "observed_diagnostic": "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/releaseMajorTag.test.mjs\u001b[2m > \u001b[22mM80 major-tag release outcomes (RELFAST3)\u001b[2m > \u001b[22mrequests only a fast-forward update",
+      "after_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "restored": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/fast-forward-only-restored.log",
+        "log_sha256": "98222f5dc2a4e5cf8d3cdadac8822984e0bd560c9978741054b75a7393986310"
+      },
+      "status": "pass"
+    },
+    {
+      "name": "honest-admin-report",
+      "mutation": "if [ \"$MAJOR_TAG_OUTCOME\" = success ]; then -> if [ \"$MAJOR_TAG_OUTCOME\" != skipped ]; then",
+      "expected_diagnostic": "reports admin recovery after failure",
+      "before_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "mutated_sha256": "36707bb8476738e3e741d26e5506ebb165925eb2608af84cde09ac67b810593a",
+      "baseline": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/baseline.log",
+        "log_sha256": "cc9994bb634e2cd284dd8836345b729d494d9898f9470f5907b72b8034a7f058"
+      },
+      "red": {
+        "exit": 1,
+        "log": "dist/relfast3-drills/honest-admin-report-red.log",
+        "log_sha256": "16fc92ac8921a119e64bfd93af29a2d6fe4cbb630fc5318763a272733a0d4a8b"
+      },
+      "observed_diagnostic": "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/releaseMajorTag.test.mjs\u001b[2m > \u001b[22mM80 major-tag release outcomes (RELFAST3)\u001b[2m > \u001b[22mreports admin recovery after failure and preserves all four published channel rows",
+      "after_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "restored": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/honest-admin-report-restored.log",
+        "log_sha256": "c405c384b6964f6a1bc400b7f79a12adf4ba3f971e35c6226ede33891bff5b44"
+      },
+      "status": "pass"
+    },
+    {
+      "name": "cancelled-report-held",
+      "mutation": "!cancelled() && (steps.major-tag.outcome -> (steps.major-tag.outcome",
+      "expected_diagnostic": "keeps a tag failure nonblocking",
+      "before_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "mutated_sha256": "357d14e0bc953885f54044ff5a380d245aacab4eb85a47d626748949af31bb5d",
+      "baseline": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/baseline.log",
+        "log_sha256": "cc9994bb634e2cd284dd8836345b729d494d9898f9470f5907b72b8034a7f058"
+      },
+      "red": {
+        "exit": 1,
+        "log": "dist/relfast3-drills/cancelled-report-held-red.log",
+        "log_sha256": "df527b47e8983b6e172f2fa2642b379682ec312c78219a94f013fc77069acfc7"
+      },
+      "observed_diagnostic": "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/releaseMajorTag.test.mjs\u001b[2m > \u001b[22mM80 major-tag release outcomes (RELFAST3)\u001b[2m > \u001b[22mkeeps a tag failure nonblocking and reports its real outcome after channel reporting",
+      "after_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "restored": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/cancelled-report-held-restored.log",
+        "log_sha256": "18b5186cfd332595ed7889156c0f188fa3b51f5cd9fe3292e6f9776760900b52"
+      },
+      "status": "pass"
+    },
+    {
+      "name": "no-backward-move",
+      "mutation": "if git merge-base --is-ancestor \"$GITHUB_SHA\" \"$current\"; then -> if false; then",
+      "expected_diagnostic": "keeps a current or newer descendant",
+      "before_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "mutated_sha256": "1df9e91870ae27a2daca19d596a6fca39313c37e55321d860c21a61394f4981d",
+      "baseline": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/baseline.log",
+        "log_sha256": "cc9994bb634e2cd284dd8836345b729d494d9898f9470f5907b72b8034a7f058"
+      },
+      "red": {
+        "exit": 1,
+        "log": "dist/relfast3-drills/no-backward-move-red.log",
+        "log_sha256": "342961fd9baa6af6918f669c49df3d55ec05e64ae1de7f36500dd9a96c8b2d2b"
+      },
+      "observed_diagnostic": "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/releaseMajorTag.test.mjs\u001b[2m > \u001b[22mM80 major-tag release outcomes (RELFAST3)\u001b[2m > \u001b[22mkeeps a current or newer descendant without an API call",
+      "after_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "restored": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/no-backward-move-restored.log",
+        "log_sha256": "33e2f878f0a268fe53763eff37e9c33d14e2bd379dfcce9ff00caed9f9dfe4a6"
+      },
+      "status": "pass"
+    },
+    {
+      "name": "divergent-history-held",
+      "mutation": "if ! git merge-base --is-ancestor \"$current\" \"$GITHUB_SHA\"; then -> if false; then",
+      "expected_diagnostic": "refuses divergent history",
+      "before_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "mutated_sha256": "543b97a5444cc975ee6f95b787c5c9a9b473811bf8117737c4e4d309fc5d4490",
+      "baseline": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/baseline.log",
+        "log_sha256": "cc9994bb634e2cd284dd8836345b729d494d9898f9470f5907b72b8034a7f058"
+      },
+      "red": {
+        "exit": 1,
+        "log": "dist/relfast3-drills/divergent-history-held-red.log",
+        "log_sha256": "1572e0c929a48748bac49c53f7b5e4ea58473133972efc7dc54f348892f3d249"
+      },
+      "observed_diagnostic": "\u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m test/unit/releaseMajorTag.test.mjs\u001b[2m > \u001b[22mM80 major-tag release outcomes (RELFAST3)\u001b[2m > \u001b[22mrefuses divergent history before an API call",
+      "after_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+      "restored": {
+        "exit": 0,
+        "log": "dist/relfast3-drills/divergent-history-held-restored.log",
+        "log_sha256": "daa399c0815cfc9b592f54c2dd537f40c1a74a1809af3d025b9e7b76e9ded27f"
+      },
+      "status": "pass"
+    }
+  ],
+  "baseline": {
+    "exit": 0,
+    "log": "dist/relfast3-drills/baseline.log",
+    "log_sha256": "cc9994bb634e2cd284dd8836345b729d494d9898f9470f5907b72b8034a7f058"
+  },
+  "source_sha256": "58a2e71b0a0648171607ab178546e560d6073c7b5accaaf6bf109056d914ab01",
+  "test_sha256": "9f082633c49f10a47270f247cb082e086d7e639dcc6db9c92e5dbe3c4c6fe5b2"
+}

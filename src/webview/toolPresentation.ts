@@ -6,6 +6,7 @@
 // tools, 2026-09-25 (M43).
 
 import {
+  AUTO_REVIEW_ROW_TOOL,
   FILE_EDIT_TOOLS,
   FILE_READ_TOOLS,
   GOAL_TOOLS,
@@ -14,15 +15,22 @@ import {
   IMAGE_PREVIEW_TOOLS,
   MEMORY_TOOLS,
   MODEL_API_WEB_SEARCH_TOOL,
+  MODEL_API_SCHEDULED_TOOL,
   SCHEDULE_TOOLS,
   SHELL_TOOLS,
   UI_TEXT,
+  VERIFY_ROW_TOOLS,
+  WEB_FETCH_TOOLS,
   WORKFLOW_TOOL,
 } from '../shared/constants'
-import { fill, plural } from '../shared/l10n/text'
+import { fill, formatBytes, plural } from '../shared/l10n/text'
+import { parseWebPageHeader } from '../shared/webPage'
 import type { PatchSummary } from './state/transcriptEntries'
+import type { ScheduleFireRecord } from '../shared/scheduleV2'
+import { parseScheduleSettlement } from './schedules/settlement'
 
 export type ToolBody =
+  | 'preview'
   | 'shell'
   | 'edit'
   | 'read'
@@ -31,11 +39,14 @@ export type ToolBody =
   | 'goal'
   | 'schedule'
   | 'web'
+  | 'fetch'
   | 'image'
   | 'workflow'
+  | 'verify'
   | 'generic'
 
 export interface ToolPresentation {
+  readonly settlementOutcome?: ScheduleFireRecord['outcome']
   readonly label: string
   /** Path, command description, goal, prompt, query or nothing. */
   readonly summary: string
@@ -44,6 +55,8 @@ export interface ToolPresentation {
   readonly command: string | undefined
   /** The picture the call read or made, when its path names one (M43). */
   readonly imagePath: string | undefined
+  /** Video path candidate for E3's lazy preview; the host authorizes the resource. */
+  readonly videoPath?: string
 }
 
 interface ParsedArgs {
@@ -64,6 +77,13 @@ interface ParsedArgs {
   readonly currentWork: string | undefined
   /** `cron_delete`'s job id (M43). */
   readonly id: string | undefined
+  /** The action an Auto review judged (M78). */
+  readonly action: string | undefined
+  /** The files a verify row checked (M68). */
+  readonly paths: readonly string[] | undefined
+
+  /** A code intelligence tool's symbol name (M67). */
+  readonly symbol: string | undefined
 }
 
 const NO_ARGS: ParsedArgs = {
@@ -79,12 +99,25 @@ const NO_ARGS: ParsedArgs = {
   status: undefined,
   currentWork: undefined,
   id: undefined,
+  action: undefined,
+  paths: undefined,
+
+  symbol: undefined,
 }
 
 // `mcp__<server>__<tool>`: the name Muse Code gives an MCP server's tool.
 const MCP_TOOL = /^mcp__(.+?)__(.+)$/
 // A path's extension, for the picture check.
 const EXTENSION = /\.[^./\\]+$/
+
+/** A list of strings, or undefined for anything else. */
+function stringList(value: unknown): readonly string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+  const entries: readonly unknown[] = value
+  return entries.every((entry): entry is string => typeof entry === 'string') ? entries : undefined
+}
 
 function parseArgs(args: string): ParsedArgs {
   try {
@@ -107,6 +140,10 @@ function parseArgs(args: string): ParsedArgs {
       status: pick('status'),
       currentWork: pick('current_work'),
       id: pick('id'),
+      action: pick('action'),
+      paths: stringList(record['paths']),
+
+      symbol: pick('symbol'),
     }
   } catch {
     return NO_ARGS
@@ -179,6 +216,10 @@ function otherPresentation(
   if (tool === MODEL_API_WEB_SEARCH_TOOL) {
     return { summary: parsed.query ?? parsed.url ?? '', body: 'web' }
   }
+  // The page a fetch read (M69): its URL beside the label, its size below.
+  if (WEB_FETCH_TOOLS.has(tool)) {
+    return { summary: parsed.url ?? '', body: 'fetch' }
+  }
   if (IMAGE_MAKING_TOOLS.has(tool)) {
     return { summary: parsed.path ?? '', body: 'image' }
   }
@@ -186,9 +227,18 @@ function otherPresentation(
   if (tool === WORKFLOW_TOOL) {
     return { summary: '', body: 'workflow' }
   }
+  // One Auto review (M78): the action it judged; its verdict is the output.
+  if (tool === AUTO_REVIEW_ROW_TOOL) {
+    return { summary: parsed.action ?? '', body: 'generic' }
+  }
+  // The verify loop's rows (M68) name the files they checked.
+  if (VERIFY_ROW_TOOLS.has(tool)) {
+    return { summary: parsed.paths?.join(', ') ?? '', body: 'verify' }
+  }
   return {
     summary:
       parsed.path ??
+      parsed.symbol ??
       parsed.pattern ??
       parsed.query ??
       parsed.url ??
@@ -200,9 +250,38 @@ function otherPresentation(
   }
 }
 
-export function describeTool(tool: string, args: string): ToolPresentation {
+export function describeTool(
+  tool: string,
+  args: string,
+  isArgumentPreview = false,
+  output?: string,
+): ToolPresentation {
+  if (tool === MODEL_API_SCHEDULED_TOOL && output !== undefined) {
+    const parsed = parseScheduleSettlement(output)
+    if (parsed.ok)
+      return {
+        label:
+          parsed.fire.outcome === 'ran'
+            ? UI_TEXT.scheduleSettlement.sent
+            : UI_TEXT.scheduleSettlement.outcomes[parsed.fire.outcome],
+        summary: parsed.fire.scheduleId,
+        settlementOutcome: parsed.fire.outcome,
+        body: 'schedule',
+        command: undefined,
+        imagePath: undefined,
+      }
+  }
   const parsed = parseArgs(args)
   const label = toolLabel(tool) ?? mcpLabel(tool) ?? tool
+  if (isArgumentPreview) {
+    return { label, summary: '', body: 'preview', command: undefined, imagePath: undefined }
+  }
+  const video =
+    FILE_READ_TOOLS.has(tool) &&
+    parsed.path !== undefined &&
+    /\.(?:mp4|mov)$/iu.test(parsed.path.replaceAll('\\', '/'))
+      ? { videoPath: parsed.path }
+      : {}
   const imagePath =
     IMAGE_PREVIEW_TOOLS.has(tool) && parsed.path !== undefined && isImagePath(parsed.path)
       ? parsed.path
@@ -217,10 +296,11 @@ export function describeTool(tool: string, args: string): ToolPresentation {
     }
   }
   if (FILE_EDIT_TOOLS.has(tool)) {
+    // Only a path: an edit row's summary is the file it opens.
     return { label, summary: parsed.path ?? '', body: 'edit', command: undefined, imagePath }
   }
   return FILE_READ_TOOLS.has(tool)
-    ? { label, summary: parsed.path ?? '', body: 'read', command: undefined, imagePath }
+    ? { label, summary: parsed.path ?? '', body: 'read', command: undefined, imagePath, ...video }
     : { label, ...otherPresentation(tool, parsed), command: undefined, imagePath }
 }
 
@@ -235,6 +315,17 @@ export function changeSummary(summary: PatchSummary | undefined): string | undef
   return summary.removed > 0 && summary.added === 0
     ? plural(UI_TEXT.removedLines, summary.removed)
     : UI_TEXT.modified
+}
+
+/**
+ * "Fetched 48.2 kB (text/html)" for a web fetch's row (M69), read from the
+ * first line of its result; undefined for a result that is not a page.
+ */
+export function fetchedSize(output: string): string | undefined {
+  const facts = parseWebPageHeader(output)
+  return facts === undefined
+    ? undefined
+    : fill(UI_TEXT.webFetchSize, { size: formatBytes(facts.bytes), type: facts.type })
 }
 
 /** The written file's content for a Write row without a fetched patch. */

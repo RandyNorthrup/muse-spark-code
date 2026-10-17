@@ -1,0 +1,5076 @@
+{
+  "rig": "Kubuntu",
+  "fileCount": 557,
+  "batchCount": 186,
+  "maxFilesPerRun": 3,
+  "maxWorkers": 3,
+  "timeout": "repository default; no CLI override",
+  "scope": "every configured Vitest unit and e2e file",
+  "liveModelCalls": 0,
+  "totals": {
+    "total": 11884,
+    "passed": 11812,
+    "failed": 0,
+    "skipped": 72
+  },
+  "initialFailures": [
+    {
+      "file": "test/unit/ReferencePage.test.tsx",
+      "test": "shared Help & Reference page opens panel /help locally without sending a model turn"
+    },
+    {
+      "file": "test/unit/WorkflowRun.test.tsx",
+      "test": "a workflow run\u2019s card (M47) shows the Workflow tool\u2019s script and its launch in the row before the card"
+    },
+    {
+      "file": "test/unit/WorkflowRun.test.tsx",
+      "test": "a workflow run\u2019s card (M47) does not label an unobserved argument as a resume source"
+    },
+    {
+      "file": "test/unit/manifest.test.ts",
+      "test": "package.json manifest machine-scopes the settings that choose what runs and what is billed (D15)"
+    },
+    {
+      "file": "test/unit/promptStore.test.ts",
+      "test": "portable prompt store and library enforces title/body/count limits and preserves untrusted status on edit"
+    },
+    {
+      "file": "test/e2e/execTestLauncher.e2e.test.ts",
+      "test": "M80 W fake-only test package packs the real launcher as a private, separately named, unsigned test variant"
+    }
+  ],
+  "postFixControlFiles": [
+    "test/unit/App.test.tsx",
+    "test/unit/AppLazy.test.tsx",
+    "test/unit/Composer.test.tsx",
+    "test/unit/HistoryDialog.test.tsx",
+    "test/unit/ReferencePage.test.tsx",
+    "test/unit/SessionBoardDialog.test.tsx",
+    "test/unit/WorkflowRun.test.tsx",
+    "test/unit/acpSharing.test.ts",
+    "test/unit/manifest.test.ts",
+    "test/unit/paletteRegistry.test.ts",
+    "test/unit/promptStore.test.ts",
+    "test/unit/referenceGenerator.test.mjs",
+    "test/unit/sharingBridge.test.tsx",
+    "test/unit/uiTextRegions.test.mjs",
+    "test/unit/webviewBundle.test.mjs",
+    "test/e2e/acpStdio.e2e.test.ts",
+    "test/e2e/execTestLauncher.e2e.test.ts"
+  ],
+  "files": [
+    {
+      "file": "test/unit/AgentMap.test.tsx",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 001"
+    },
+    {
+      "file": "test/unit/App.test.tsx",
+      "status": "passed",
+      "total": 161,
+      "passed": 161,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-fix complete-file control"
+    },
+    {
+      "file": "test/unit/AppLazy.test.tsx",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-accessibility complete-file control"
+    },
+    {
+      "file": "test/unit/ApprovalDock.test.tsx",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 002"
+    },
+    {
+      "file": "test/unit/BestOfNDialog.test.tsx",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 002"
+    },
+    {
+      "file": "test/unit/ChatShareDialog.test.tsx",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 002"
+    },
+    {
+      "file": "test/unit/ChatViewProvider.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 003"
+    },
+    {
+      "file": "test/unit/CodeBlockLazy.test.tsx",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 003"
+    },
+    {
+      "file": "test/unit/Composer.test.tsx",
+      "status": "passed",
+      "total": 78,
+      "passed": 78,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-accessibility complete-file control"
+    },
+    {
+      "file": "test/unit/ContextMeter.test.tsx",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 004"
+    },
+    {
+      "file": "test/unit/DeferredSurface.test.tsx",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 004"
+    },
+    {
+      "file": "test/unit/DiffTallyRow.test.tsx",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 004"
+    },
+    {
+      "file": "test/unit/EffortSlider.test.tsx",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 005"
+    },
+    {
+      "file": "test/unit/ErrorBoundary.test.tsx",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 005"
+    },
+    {
+      "file": "test/unit/GoalPanel.test.tsx",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 005"
+    },
+    {
+      "file": "test/unit/GooeyMenu.test.tsx",
+      "status": "passed",
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 006"
+    },
+    {
+      "file": "test/unit/HeartbeatTrace.test.tsx",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 006"
+    },
+    {
+      "file": "test/unit/HistoryDialog.test.tsx",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-accessibility complete-file control"
+    },
+    {
+      "file": "test/unit/MarkdownView.test.tsx",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 007"
+    },
+    {
+      "file": "test/unit/MentionMenu.test.tsx",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 007"
+    },
+    {
+      "file": "test/unit/Modal.test.tsx",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 007"
+    },
+    {
+      "file": "test/unit/MuseCodeHost.test.ts",
+      "status": "passed",
+      "total": 96,
+      "passed": 96,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 008"
+    },
+    {
+      "file": "test/unit/Palette.test.tsx",
+      "status": "passed",
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 008"
+    },
+    {
+      "file": "test/unit/PopoverMenu.test.tsx",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 008"
+    },
+    {
+      "file": "test/unit/QuestionCard.test.tsx",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 009"
+    },
+    {
+      "file": "test/unit/QuoteMenu.test.tsx",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 009"
+    },
+    {
+      "file": "test/unit/ReferencePage.test.tsx",
+      "status": "passed",
+      "total": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-fix complete-file control"
+    },
+    {
+      "file": "test/unit/SchedulePanel.test.tsx",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 010"
+    },
+    {
+      "file": "test/unit/SessionBoardDialog.test.tsx",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-accessibility complete-file control"
+    },
+    {
+      "file": "test/unit/ShareView.test.tsx",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 010"
+    },
+    {
+      "file": "test/unit/SignIn.test.tsx",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 011"
+    },
+    {
+      "file": "test/unit/StatusLine.test.tsx",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 011"
+    },
+    {
+      "file": "test/unit/TasksApp.test.tsx",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 011"
+    },
+    {
+      "file": "test/unit/Transcript.test.tsx",
+      "status": "passed",
+      "total": 63,
+      "passed": 63,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 012"
+    },
+    {
+      "file": "test/unit/UsageDialog.test.tsx",
+      "status": "passed",
+      "total": 40,
+      "passed": 40,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 012"
+    },
+    {
+      "file": "test/unit/WorkflowRun.test.tsx",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-accessibility complete-file control"
+    },
+    {
+      "file": "test/unit/accountHost.test.ts",
+      "status": "passed",
+      "total": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 013"
+    },
+    {
+      "file": "test/unit/acpAgent.test.ts",
+      "status": "passed",
+      "total": 94,
+      "passed": 94,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 013"
+    },
+    {
+      "file": "test/unit/acpElicitation.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 013"
+    },
+    {
+      "file": "test/unit/acpModelApi.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 014"
+    },
+    {
+      "file": "test/unit/acpNpmReadme.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 014"
+    },
+    {
+      "file": "test/unit/acpPaid.test.ts",
+      "status": "passed",
+      "total": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 014"
+    },
+    {
+      "file": "test/unit/acpProxyWarning.test.ts",
+      "status": "passed",
+      "total": 20,
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 015"
+    },
+    {
+      "file": "test/unit/acpQuestionBundle.test.mjs",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 015"
+    },
+    {
+      "file": "test/unit/acpQuestionDeferral.test.ts",
+      "status": "passed",
+      "total": 77,
+      "passed": 77,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 015"
+    },
+    {
+      "file": "test/unit/acpReportObserver.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 016"
+    },
+    {
+      "file": "test/unit/acpRuntime.test.ts",
+      "status": "passed",
+      "total": 38,
+      "passed": 38,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 016"
+    },
+    {
+      "file": "test/unit/acpSharing.test.ts",
+      "status": "passed",
+      "total": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-fix complete-file control"
+    },
+    {
+      "file": "test/unit/acpTranslate.test.ts",
+      "status": "passed",
+      "total": 36,
+      "passed": 36,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 017"
+    },
+    {
+      "file": "test/unit/actionApply.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 017"
+    },
+    {
+      "file": "test/unit/actionGate.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 017"
+    },
+    {
+      "file": "test/unit/actionGit.test.ts",
+      "status": "passed",
+      "total": 51,
+      "passed": 51,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 018"
+    },
+    {
+      "file": "test/unit/actionInputs.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 018"
+    },
+    {
+      "file": "test/unit/actionInstall.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 018"
+    },
+    {
+      "file": "test/unit/actionManifest.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 019"
+    },
+    {
+      "file": "test/unit/actionPost.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 019"
+    },
+    {
+      "file": "test/unit/actionRunExec.test.ts",
+      "status": "passed",
+      "total": 34,
+      "passed": 34,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 019"
+    },
+    {
+      "file": "test/unit/agentErrors.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 020"
+    },
+    {
+      "file": "test/unit/agentImport.test.ts",
+      "status": "passed",
+      "total": 62,
+      "passed": 62,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 020"
+    },
+    {
+      "file": "test/unit/agentImportBundle.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 020"
+    },
+    {
+      "file": "test/unit/agentImportCommands.test.ts",
+      "status": "passed",
+      "total": 81,
+      "passed": 81,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 021"
+    },
+    {
+      "file": "test/unit/agentImportWorkspaceEdits.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 021"
+    },
+    {
+      "file": "test/unit/approvalRules.test.ts",
+      "status": "passed",
+      "total": 79,
+      "passed": 79,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 021"
+    },
+    {
+      "file": "test/unit/approvalSecrets.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 022"
+    },
+    {
+      "file": "test/unit/attachments.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 022"
+    },
+    {
+      "file": "test/unit/attentionDock.test.tsx",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 022"
+    },
+    {
+      "file": "test/unit/authService.test.ts",
+      "status": "passed",
+      "total": 112,
+      "passed": 112,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 023"
+    },
+    {
+      "file": "test/unit/autoReviewer.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 023"
+    },
+    {
+      "file": "test/unit/backendSelection.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 023"
+    },
+    {
+      "file": "test/unit/backgroundRows.test.tsx",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 024"
+    },
+    {
+      "file": "test/unit/base64.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 024"
+    },
+    {
+      "file": "test/unit/bestOfN.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 024"
+    },
+    {
+      "file": "test/unit/bestOfNAttempts.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 025"
+    },
+    {
+      "file": "test/unit/bestOfNExtensionHooks.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 025"
+    },
+    {
+      "file": "test/unit/bestOfNManager.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 025"
+    },
+    {
+      "file": "test/unit/bestOfNRunner.test.ts",
+      "status": "passed",
+      "total": 44,
+      "passed": 44,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 026"
+    },
+    {
+      "file": "test/unit/bestOfNSnapshot.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 026"
+    },
+    {
+      "file": "test/unit/browserCheckConfirm.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 026"
+    },
+    {
+      "file": "test/unit/browserCheckLive.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 6,
+      "report": "full sweep 027"
+    },
+    {
+      "file": "test/unit/browserCheckR51.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 2,
+      "report": "full sweep 027"
+    },
+    {
+      "file": "test/unit/browserChecks.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 027"
+    },
+    {
+      "file": "test/unit/browserLaunch.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 028"
+    },
+    {
+      "file": "test/unit/browserPolicy.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 028"
+    },
+    {
+      "file": "test/unit/browserRun.test.ts",
+      "status": "passed",
+      "total": 45,
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 028"
+    },
+    {
+      "file": "test/unit/browserTool.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 029"
+    },
+    {
+      "file": "test/unit/bundleSize.test.mjs",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 029"
+    },
+    {
+      "file": "test/unit/bundledSkillsInstall.test.ts",
+      "status": "passed",
+      "total": 31,
+      "passed": 31,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 029"
+    },
+    {
+      "file": "test/unit/bundledSkillsVendor.test.ts",
+      "status": "passed",
+      "total": 110,
+      "passed": 110,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 030"
+    },
+    {
+      "file": "test/unit/canaries.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 030"
+    },
+    {
+      "file": "test/unit/canonicalPath.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 030"
+    },
+    {
+      "file": "test/unit/cards.test.tsx",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 031"
+    },
+    {
+      "file": "test/unit/changelogVersion.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 031"
+    },
+    {
+      "file": "test/unit/chatColumn.test.mjs",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 031"
+    },
+    {
+      "file": "test/unit/chatPanel.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 032"
+    },
+    {
+      "file": "test/unit/chatReference.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 032"
+    },
+    {
+      "file": "test/unit/chatShareDestinations.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 032"
+    },
+    {
+      "file": "test/unit/chatShareFilter.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 033"
+    },
+    {
+      "file": "test/unit/chatShareFormats.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 033"
+    },
+    {
+      "file": "test/unit/chatShareRange.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 033"
+    },
+    {
+      "file": "test/unit/chatShareRelease.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 034"
+    },
+    {
+      "file": "test/unit/chatShareScrub.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 034"
+    },
+    {
+      "file": "test/unit/chatSharingHost.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 034"
+    },
+    {
+      "file": "test/unit/checkBadges.test.mjs",
+      "status": "passed",
+      "total": 32,
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 035"
+    },
+    {
+      "file": "test/unit/checkCommands.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 2,
+      "report": "full sweep 035"
+    },
+    {
+      "file": "test/unit/checkProxy.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 035"
+    },
+    {
+      "file": "test/unit/checkpointCopies.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 036"
+    },
+    {
+      "file": "test/unit/checkpointEnvironment.test.ts",
+      "status": "passed",
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 036"
+    },
+    {
+      "file": "test/unit/checkpointExplicitEdits.test.ts",
+      "status": "passed",
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 036"
+    },
+    {
+      "file": "test/unit/checkpointFiles.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 037"
+    },
+    {
+      "file": "test/unit/checkpointFixes.test.ts",
+      "status": "passed",
+      "total": 34,
+      "passed": 33,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 037"
+    },
+    {
+      "file": "test/unit/checkpointHost.test.ts",
+      "status": "passed",
+      "total": 44,
+      "passed": 44,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 037"
+    },
+    {
+      "file": "test/unit/checkpointLocation.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 038"
+    },
+    {
+      "file": "test/unit/checkpointLongPaths.test.ts",
+      "status": "passed",
+      "total": 24,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 8,
+      "report": "full sweep 038"
+    },
+    {
+      "file": "test/unit/checkpointMemory.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 038"
+    },
+    {
+      "file": "test/unit/checkpointModelApiStop.test.ts",
+      "status": "passed",
+      "total": 49,
+      "passed": 49,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 039"
+    },
+    {
+      "file": "test/unit/checkpointNativeCommands.test.ts",
+      "status": "passed",
+      "total": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 039"
+    },
+    {
+      "file": "test/unit/checkpointNativeStart.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 039"
+    },
+    {
+      "file": "test/unit/checkpointPlan.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 040"
+    },
+    {
+      "file": "test/unit/checkpointPublication.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 040"
+    },
+    {
+      "file": "test/unit/checkpointRestore.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 040"
+    },
+    {
+      "file": "test/unit/checkpointRetention.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 041"
+    },
+    {
+      "file": "test/unit/checkpointRulesEdit.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 041"
+    },
+    {
+      "file": "test/unit/checkpointShellProof.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 041"
+    },
+    {
+      "file": "test/unit/checkpointStorageGuards.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 042"
+    },
+    {
+      "file": "test/unit/checkpointStore.test.ts",
+      "status": "passed",
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 042"
+    },
+    {
+      "file": "test/unit/checkpointStoreBundle.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 042"
+    },
+    {
+      "file": "test/unit/checkpointStoreGuards.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 043"
+    },
+    {
+      "file": "test/unit/checkpointStoreWindows.test.ts",
+      "status": "passed",
+      "total": 33,
+      "passed": 33,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 043"
+    },
+    {
+      "file": "test/unit/checkpointUnits.test.ts",
+      "status": "passed",
+      "total": 25,
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 043"
+    },
+    {
+      "file": "test/unit/checkpointWorktrees.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 044"
+    },
+    {
+      "file": "test/unit/cliAccount.test.ts",
+      "status": "passed",
+      "total": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 044"
+    },
+    {
+      "file": "test/unit/cliFeatures.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 044"
+    },
+    {
+      "file": "test/unit/clineDiscover.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 045"
+    },
+    {
+      "file": "test/unit/codeFiles.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 045"
+    },
+    {
+      "file": "test/unit/codeIntelBundle.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 045"
+    },
+    {
+      "file": "test/unit/codeIntelPolicy.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 046"
+    },
+    {
+      "file": "test/unit/codeIntelTools.test.ts",
+      "status": "passed",
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 046"
+    },
+    {
+      "file": "test/unit/codeText.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 046"
+    },
+    {
+      "file": "test/unit/commandRules.test.ts",
+      "status": "passed",
+      "total": 74,
+      "passed": 74,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 047"
+    },
+    {
+      "file": "test/unit/contextFiles.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 047"
+    },
+    {
+      "file": "test/unit/contextIo.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 047"
+    },
+    {
+      "file": "test/unit/conversationBundle.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 048"
+    },
+    {
+      "file": "test/unit/conversationCheckpoints.test.ts",
+      "status": "passed",
+      "total": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 048"
+    },
+    {
+      "file": "test/unit/conversationController.test.ts",
+      "status": "passed",
+      "total": 589,
+      "passed": 589,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 048"
+    },
+    {
+      "file": "test/unit/conversationGit.test.ts",
+      "status": "passed",
+      "total": 72,
+      "passed": 72,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 049"
+    },
+    {
+      "file": "test/unit/conversationGitBundle.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 049"
+    },
+    {
+      "file": "test/unit/createRulesFile.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 049"
+    },
+    {
+      "file": "test/unit/credentialEnvironment.test.ts",
+      "status": "passed",
+      "total": 67,
+      "passed": 67,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 050"
+    },
+    {
+      "file": "test/unit/credentialFile.test.ts",
+      "status": "passed",
+      "total": 25,
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 050"
+    },
+    {
+      "file": "test/unit/credentialStore.test.ts",
+      "status": "passed",
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 050"
+    },
+    {
+      "file": "test/unit/customAgents.test.ts",
+      "status": "passed",
+      "total": 43,
+      "passed": 43,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 051"
+    },
+    {
+      "file": "test/unit/deferredBundles.test.ts",
+      "status": "passed",
+      "total": 29,
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 051"
+    },
+    {
+      "file": "test/unit/deferredQuestionFailure.test.tsx",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 051"
+    },
+    {
+      "file": "test/unit/deferredQuestionUi.test.tsx",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 052"
+    },
+    {
+      "file": "test/unit/deviceSignIn.test.ts",
+      "status": "passed",
+      "total": 52,
+      "passed": 52,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 052"
+    },
+    {
+      "file": "test/unit/diagnostics.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 052"
+    },
+    {
+      "file": "test/unit/diagnosticsReport.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 053"
+    },
+    {
+      "file": "test/unit/dictation.test.ts",
+      "status": "passed",
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 053"
+    },
+    {
+      "file": "test/unit/dictationGesture.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 053"
+    },
+    {
+      "file": "test/unit/dictationHost.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 054"
+    },
+    {
+      "file": "test/unit/diff.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 054"
+    },
+    {
+      "file": "test/unit/diffTally.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 054"
+    },
+    {
+      "file": "test/unit/editReview.test.ts",
+      "status": "passed",
+      "total": 47,
+      "passed": 47,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 055"
+    },
+    {
+      "file": "test/unit/editorContext.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 055"
+    },
+    {
+      "file": "test/unit/editorContextTracker.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 055"
+    },
+    {
+      "file": "test/unit/effort.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 056"
+    },
+    {
+      "file": "test/unit/elicitationCard.test.tsx",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 056"
+    },
+    {
+      "file": "test/unit/environment.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 056"
+    },
+    {
+      "file": "test/unit/eval/evalDriver.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 057"
+    },
+    {
+      "file": "test/unit/eval/evalLiveSupport.test.ts",
+      "status": "passed",
+      "total": 29,
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 057"
+    },
+    {
+      "file": "test/unit/eval/evalPacking.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 057"
+    },
+    {
+      "file": "test/unit/eval/evalReport.test.ts",
+      "status": "passed",
+      "total": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 058"
+    },
+    {
+      "file": "test/unit/eval/evalRunner.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 058"
+    },
+    {
+      "file": "test/unit/eval/evalTasks.test.ts",
+      "status": "passed",
+      "total": 35,
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 058"
+    },
+    {
+      "file": "test/unit/eval/evalWire.test.ts",
+      "status": "passed",
+      "total": 33,
+      "passed": 33,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 059"
+    },
+    {
+      "file": "test/unit/eval/evalWorkspacePrivacy.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 059"
+    },
+    {
+      "file": "test/unit/execArgs.test.ts",
+      "status": "passed",
+      "total": 52,
+      "passed": 52,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 059"
+    },
+    {
+      "file": "test/unit/execFetch.test.ts",
+      "status": "passed",
+      "total": 35,
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 060"
+    },
+    {
+      "file": "test/unit/execKeyInput.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 060"
+    },
+    {
+      "file": "test/unit/execLimits.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 060"
+    },
+    {
+      "file": "test/unit/execOutput.test.ts",
+      "status": "passed",
+      "total": 23,
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 061"
+    },
+    {
+      "file": "test/unit/execRun.test.ts",
+      "status": "passed",
+      "total": 55,
+      "passed": 55,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 061"
+    },
+    {
+      "file": "test/unit/execSchema.test.ts",
+      "status": "passed",
+      "total": 26,
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 061"
+    },
+    {
+      "file": "test/unit/executables.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 062"
+    },
+    {
+      "file": "test/unit/exportConversation.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 062"
+    },
+    {
+      "file": "test/unit/extensionHookRunner.test.ts",
+      "status": "passed",
+      "total": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 062"
+    },
+    {
+      "file": "test/unit/extensionHooks.test.ts",
+      "status": "passed",
+      "total": 47,
+      "passed": 47,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 063"
+    },
+    {
+      "file": "test/unit/fakeToolIo.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 063"
+    },
+    {
+      "file": "test/unit/fdWriter.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 063"
+    },
+    {
+      "file": "test/unit/fileIdentity.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 064"
+    },
+    {
+      "file": "test/unit/fileScheduleStore.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 064"
+    },
+    {
+      "file": "test/unit/fileSessionStore.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 064"
+    },
+    {
+      "file": "test/unit/flightRecorder.test.ts",
+      "status": "passed",
+      "total": 59,
+      "passed": 59,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 065"
+    },
+    {
+      "file": "test/unit/focusInput.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 065"
+    },
+    {
+      "file": "test/unit/foreignHookDeadline.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 065"
+    },
+    {
+      "file": "test/unit/foreignHooks.test.ts",
+      "status": "passed",
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 066"
+    },
+    {
+      "file": "test/unit/fsAtomic.test.ts",
+      "status": "passed",
+      "total": 26,
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 066"
+    },
+    {
+      "file": "test/unit/fuzzy.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 066"
+    },
+    {
+      "file": "test/unit/git.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 067"
+    },
+    {
+      "file": "test/unit/gitActivationWiring.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 067"
+    },
+    {
+      "file": "test/unit/gitPhysicalOwner.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 067"
+    },
+    {
+      "file": "test/unit/gitState.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 068"
+    },
+    {
+      "file": "test/unit/gitText.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 068"
+    },
+    {
+      "file": "test/unit/gitWindowFileSystem.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 068"
+    },
+    {
+      "file": "test/unit/github.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 069"
+    },
+    {
+      "file": "test/unit/githubRemote.test.ts",
+      "status": "passed",
+      "total": 32,
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 069"
+    },
+    {
+      "file": "test/unit/githubSession.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 069"
+    },
+    {
+      "file": "test/unit/glob.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 070"
+    },
+    {
+      "file": "test/unit/goalCommand.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 070"
+    },
+    {
+      "file": "test/unit/goals.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 070"
+    },
+    {
+      "file": "test/unit/gooeyLayout.test.ts",
+      "status": "passed",
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 071"
+    },
+    {
+      "file": "test/unit/handoff.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 071"
+    },
+    {
+      "file": "test/unit/handoffDialog.test.tsx",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 071"
+    },
+    {
+      "file": "test/unit/heartbeatBeam.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 072"
+    },
+    {
+      "file": "test/unit/heldCheckout.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 072"
+    },
+    {
+      "file": "test/unit/heldTree.test.ts",
+      "status": "passed",
+      "total": 55,
+      "passed": 55,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 072"
+    },
+    {
+      "file": "test/unit/helperLocation.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 073"
+    },
+    {
+      "file": "test/unit/highlight.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 073"
+    },
+    {
+      "file": "test/unit/hookFormats.test.ts",
+      "status": "passed",
+      "total": 60,
+      "passed": 60,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 073"
+    },
+    {
+      "file": "test/unit/hookFormatsCline.test.ts",
+      "status": "passed",
+      "total": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 074"
+    },
+    {
+      "file": "test/unit/hookFormatsContracts.test.ts",
+      "status": "passed",
+      "total": 733,
+      "passed": 733,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 074"
+    },
+    {
+      "file": "test/unit/hookFormatsEngine.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 074"
+    },
+    {
+      "file": "test/unit/hookFormatsFixtures.test.ts",
+      "status": "passed",
+      "total": 260,
+      "passed": 260,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 075"
+    },
+    {
+      "file": "test/unit/hookFormatsGemini.test.ts",
+      "status": "passed",
+      "total": 46,
+      "passed": 46,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 075"
+    },
+    {
+      "file": "test/unit/hookHttpHandlers.test.ts",
+      "status": "passed",
+      "total": 21,
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 075"
+    },
+    {
+      "file": "test/unit/hookHttpRequest.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 076"
+    },
+    {
+      "file": "test/unit/hookMcpToolHandlers.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 076"
+    },
+    {
+      "file": "test/unit/hookModelHandlers.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 076"
+    },
+    {
+      "file": "test/unit/hostBridge.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 077"
+    },
+    {
+      "file": "test/unit/hostL10n.test.ts",
+      "status": "passed",
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 077"
+    },
+    {
+      "file": "test/unit/html.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 077"
+    },
+    {
+      "file": "test/unit/htmlCharset.test.ts",
+      "status": "passed",
+      "total": 23,
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 078"
+    },
+    {
+      "file": "test/unit/htmlToMarkdown.test.ts",
+      "status": "passed",
+      "total": 23,
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 078"
+    },
+    {
+      "file": "test/unit/ideBrowserCheck.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 078"
+    },
+    {
+      "file": "test/unit/ideCodeIntelTools.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 079"
+    },
+    {
+      "file": "test/unit/ideImageTools.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 079"
+    },
+    {
+      "file": "test/unit/ideMcpServer.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 079"
+    },
+    {
+      "file": "test/unit/ideWebFetch.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 080"
+    },
+    {
+      "file": "test/unit/imageDimensions.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 080"
+    },
+    {
+      "file": "test/unit/imageGenerationIo.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 080"
+    },
+    {
+      "file": "test/unit/importConvert.test.ts",
+      "status": "passed",
+      "total": 88,
+      "passed": 88,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 081"
+    },
+    {
+      "file": "test/unit/importExposure.test.ts",
+      "status": "passed",
+      "total": 21,
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 081"
+    },
+    {
+      "file": "test/unit/importHookSources.test.ts",
+      "status": "passed",
+      "total": 72,
+      "passed": 72,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 081"
+    },
+    {
+      "file": "test/unit/importIo.test.ts",
+      "status": "passed",
+      "total": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 082"
+    },
+    {
+      "file": "test/unit/insertMention.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 082"
+    },
+    {
+      "file": "test/unit/insights.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 082"
+    },
+    {
+      "file": "test/unit/installTable.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 083"
+    },
+    {
+      "file": "test/unit/instructions.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 083"
+    },
+    {
+      "file": "test/unit/jobBuild.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 083"
+    },
+    {
+      "file": "test/unit/jobSource.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 084"
+    },
+    {
+      "file": "test/unit/judge.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 084"
+    },
+    {
+      "file": "test/unit/judgeActivation.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 084"
+    },
+    {
+      "file": "test/unit/judgeAdmission.test.ts",
+      "status": "passed",
+      "total": 51,
+      "passed": 51,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 085"
+    },
+    {
+      "file": "test/unit/judgeAdmissionLedger.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 085"
+    },
+    {
+      "file": "test/unit/judgeConsent.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 085"
+    },
+    {
+      "file": "test/unit/judgeContract.test.ts",
+      "status": "passed",
+      "total": 21,
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 086"
+    },
+    {
+      "file": "test/unit/judgeEntries.test.ts",
+      "status": "passed",
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 086"
+    },
+    {
+      "file": "test/unit/judgeFences.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 086"
+    },
+    {
+      "file": "test/unit/judgeMath.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 087"
+    },
+    {
+      "file": "test/unit/judgePrompt.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 087"
+    },
+    {
+      "file": "test/unit/judgeResolve.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 087"
+    },
+    {
+      "file": "test/unit/judgeSameAllowRules.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 088"
+    },
+    {
+      "file": "test/unit/judgeSameModelApi.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 088"
+    },
+    {
+      "file": "test/unit/judgeSameMuseCode.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 088"
+    },
+    {
+      "file": "test/unit/judgeSameSession.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 089"
+    },
+    {
+      "file": "test/unit/judgeSameSideRequest.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 089"
+    },
+    {
+      "file": "test/unit/judgeSharedBudget.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 089"
+    },
+    {
+      "file": "test/unit/judgeTechniques.test.ts",
+      "status": "passed",
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 090"
+    },
+    {
+      "file": "test/unit/judgeTransport.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 090"
+    },
+    {
+      "file": "test/unit/judgeUi.test.tsx",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 090"
+    },
+    {
+      "file": "test/unit/judgeUsage.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 091"
+    },
+    {
+      "file": "test/unit/judgeUse.test.ts",
+      "status": "passed",
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 091"
+    },
+    {
+      "file": "test/unit/judgeWindow.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 091"
+    },
+    {
+      "file": "test/unit/l10n.test.ts",
+      "status": "passed",
+      "total": 26,
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 092"
+    },
+    {
+      "file": "test/unit/languageServices.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 092"
+    },
+    {
+      "file": "test/unit/lateAnswer.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 092"
+    },
+    {
+      "file": "test/unit/launch.test.ts",
+      "status": "passed",
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 093"
+    },
+    {
+      "file": "test/unit/links.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 093"
+    },
+    {
+      "file": "test/unit/logText.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 093"
+    },
+    {
+      "file": "test/unit/logger.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 094"
+    },
+    {
+      "file": "test/unit/manifest.test.ts",
+      "status": "passed",
+      "total": 35,
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-fix complete-file control"
+    },
+    {
+      "file": "test/unit/mapNotification.test.ts",
+      "status": "passed",
+      "total": 38,
+      "passed": 38,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 094"
+    },
+    {
+      "file": "test/unit/mcp.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 095"
+    },
+    {
+      "file": "test/unit/mcpCheckpointBoundary.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 095"
+    },
+    {
+      "file": "test/unit/mcpConnection.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 095"
+    },
+    {
+      "file": "test/unit/mcpElicitation.test.ts",
+      "status": "passed",
+      "total": 47,
+      "passed": 47,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 096"
+    },
+    {
+      "file": "test/unit/mcpFunctions.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 096"
+    },
+    {
+      "file": "test/unit/mcpHttp.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 096"
+    },
+    {
+      "file": "test/unit/mcpJobExecutable.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 097"
+    },
+    {
+      "file": "test/unit/mcpPool.test.ts",
+      "status": "passed",
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 097"
+    },
+    {
+      "file": "test/unit/mcpProcess.test.ts",
+      "status": "passed",
+      "total": 23,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 6,
+      "report": "full sweep 097"
+    },
+    {
+      "file": "test/unit/mcpServers.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 098"
+    },
+    {
+      "file": "test/unit/mcpStdio.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 098"
+    },
+    {
+      "file": "test/unit/mediaBudget.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 098"
+    },
+    {
+      "file": "test/unit/memoryCommands.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 099"
+    },
+    {
+      "file": "test/unit/memoryFeatures.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 099"
+    },
+    {
+      "file": "test/unit/memoryIndex.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 099"
+    },
+    {
+      "file": "test/unit/memoryIo.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 100"
+    },
+    {
+      "file": "test/unit/memoryLocation.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 100"
+    },
+    {
+      "file": "test/unit/memoryStore.test.ts",
+      "status": "passed",
+      "total": 38,
+      "passed": 38,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 100"
+    },
+    {
+      "file": "test/unit/memoryTools.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 101"
+    },
+    {
+      "file": "test/unit/mention.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 101"
+    },
+    {
+      "file": "test/unit/mentionIndex.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 101"
+    },
+    {
+      "file": "test/unit/mentionQuickPick.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 102"
+    },
+    {
+      "file": "test/unit/mentions.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 102"
+    },
+    {
+      "file": "test/unit/mimeType.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 102"
+    },
+    {
+      "file": "test/unit/modelApiAttemptBudget.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 103"
+    },
+    {
+      "file": "test/unit/modelApiAttemptFiles.test.ts",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 103"
+    },
+    {
+      "file": "test/unit/modelApiAttemptVerify.test.ts",
+      "status": "passed",
+      "total": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 103"
+    },
+    {
+      "file": "test/unit/modelApiBackendManager.test.ts",
+      "status": "passed",
+      "total": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 104"
+    },
+    {
+      "file": "test/unit/modelApiBundle.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 104"
+    },
+    {
+      "file": "test/unit/modelApiClient.test.ts",
+      "status": "passed",
+      "total": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 104"
+    },
+    {
+      "file": "test/unit/modelApiCodeIntel.test.ts",
+      "status": "passed",
+      "total": 25,
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 105"
+    },
+    {
+      "file": "test/unit/modelApiElicitation.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 105"
+    },
+    {
+      "file": "test/unit/modelApiExtensionHooks.test.ts",
+      "status": "passed",
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 105"
+    },
+    {
+      "file": "test/unit/modelApiForeignHooks.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 106"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 106"
+    },
+    {
+      "file": "test/unit/modelApiHooks.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 106"
+    },
+    {
+      "file": "test/unit/modelApiHost.test.ts",
+      "status": "passed",
+      "total": 615,
+      "passed": 615,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 107"
+    },
+    {
+      "file": "test/unit/modelApiMcpServers.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 107"
+    },
+    {
+      "file": "test/unit/modelApiPacking.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 107"
+    },
+    {
+      "file": "test/unit/modelApiPolicyFence.test.ts",
+      "status": "passed",
+      "total": 88,
+      "passed": 88,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 108"
+    },
+    {
+      "file": "test/unit/modelApiQuestionDeferral.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 108"
+    },
+    {
+      "file": "test/unit/modelApiSchemas.test.ts",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 108"
+    },
+    {
+      "file": "test/unit/modelApiShellDirectory.test.ts",
+      "status": "passed",
+      "total": 31,
+      "passed": 31,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 109"
+    },
+    {
+      "file": "test/unit/modelApiTools.test.ts",
+      "status": "passed",
+      "total": 41,
+      "passed": 41,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 109"
+    },
+    {
+      "file": "test/unit/modelCallHooks.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 109"
+    },
+    {
+      "file": "test/unit/museCodeBackendManager.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 110"
+    },
+    {
+      "file": "test/unit/museCodeHookModels.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 110"
+    },
+    {
+      "file": "test/unit/museCodeProtectedWrites.test.ts",
+      "status": "passed",
+      "total": 25,
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 110"
+    },
+    {
+      "file": "test/unit/museCodeQuestionDeferral.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 111"
+    },
+    {
+      "file": "test/unit/museCodeReviewer.test.ts",
+      "status": "passed",
+      "total": 43,
+      "passed": 43,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 111"
+    },
+    {
+      "file": "test/unit/museCodeReviewerBundle.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 111"
+    },
+    {
+      "file": "test/unit/museConfigCommands.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 112"
+    },
+    {
+      "file": "test/unit/museConfigView.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 112"
+    },
+    {
+      "file": "test/unit/museSettings.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 112"
+    },
+    {
+      "file": "test/unit/museVoice.test.ts",
+      "status": "passed",
+      "total": 23,
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 113"
+    },
+    {
+      "file": "test/unit/networkFailure.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 113"
+    },
+    {
+      "file": "test/unit/networkPosture.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 113"
+    },
+    {
+      "file": "test/unit/observationPack.test.ts",
+      "status": "passed",
+      "total": 32,
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 114"
+    },
+    {
+      "file": "test/unit/openInTerminal.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 114"
+    },
+    {
+      "file": "test/unit/openQuestionNotices.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 114"
+    },
+    {
+      "file": "test/unit/outputDocuments.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 115"
+    },
+    {
+      "file": "test/unit/pageConverter.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 115"
+    },
+    {
+      "file": "test/unit/pageUrl.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 115"
+    },
+    {
+      "file": "test/unit/paidConsent.test.ts",
+      "status": "passed",
+      "total": 21,
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 116"
+    },
+    {
+      "file": "test/unit/paidDailyBudget.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 116"
+    },
+    {
+      "file": "test/unit/paidFeatures.test.ts",
+      "status": "passed",
+      "total": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 116"
+    },
+    {
+      "file": "test/unit/paidHookModels.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 117"
+    },
+    {
+      "file": "test/unit/paidHost.test.ts",
+      "status": "passed",
+      "total": 32,
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 117"
+    },
+    {
+      "file": "test/unit/paletteRegistry.test.ts",
+      "status": "passed",
+      "total": 39,
+      "passed": 39,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-fix complete-file control"
+    },
+    {
+      "file": "test/unit/patchApply.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 118"
+    },
+    {
+      "file": "test/unit/pdf.test.ts",
+      "status": "passed",
+      "total": 31,
+      "passed": 31,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 118"
+    },
+    {
+      "file": "test/unit/permissionModes.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 118"
+    },
+    {
+      "file": "test/unit/permissionPolicy.test.ts",
+      "status": "passed",
+      "total": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 119"
+    },
+    {
+      "file": "test/unit/permissions.test.ts",
+      "status": "passed",
+      "total": 66,
+      "passed": 66,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 119"
+    },
+    {
+      "file": "test/unit/pinnedRequest.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 119"
+    },
+    {
+      "file": "test/unit/planActions.test.tsx",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 120"
+    },
+    {
+      "file": "test/unit/planCommands.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 120"
+    },
+    {
+      "file": "test/unit/planDocument.test.ts",
+      "status": "passed",
+      "total": 19,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 120"
+    },
+    {
+      "file": "test/unit/planMarkdownBundle.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 121"
+    },
+    {
+      "file": "test/unit/planMarkupParity.test.tsx",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 121"
+    },
+    {
+      "file": "test/unit/planStore.test.ts",
+      "status": "passed",
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 121"
+    },
+    {
+      "file": "test/unit/pluginContainment.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 3,
+      "report": "full sweep 122"
+    },
+    {
+      "file": "test/unit/pluginDispatch.test.ts",
+      "status": "passed",
+      "total": 30,
+      "passed": 29,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 122"
+    },
+    {
+      "file": "test/unit/pluginHost.test.ts",
+      "status": "passed",
+      "total": 43,
+      "passed": 43,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 122"
+    },
+    {
+      "file": "test/unit/pluginImport.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 123"
+    },
+    {
+      "file": "test/unit/privateFiles.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 123"
+    },
+    {
+      "file": "test/unit/problemReportBuilder.test.ts",
+      "status": "passed",
+      "total": 68,
+      "passed": 68,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 123"
+    },
+    {
+      "file": "test/unit/processTree.test.ts",
+      "status": "passed",
+      "total": 25,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 3,
+      "report": "full sweep 124"
+    },
+    {
+      "file": "test/unit/promptBridge.test.ts",
+      "status": "passed",
+      "total": 35,
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 124"
+    },
+    {
+      "file": "test/unit/promptEntry.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 124"
+    },
+    {
+      "file": "test/unit/promptHostLifecycle.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 125"
+    },
+    {
+      "file": "test/unit/promptImport.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 125"
+    },
+    {
+      "file": "test/unit/promptLedger.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 125"
+    },
+    {
+      "file": "test/unit/promptLibrary.test.tsx",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 126"
+    },
+    {
+      "file": "test/unit/promptMenus.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 126"
+    },
+    {
+      "file": "test/unit/promptNative.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 126"
+    },
+    {
+      "file": "test/unit/promptPrivacy.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 127"
+    },
+    {
+      "file": "test/unit/promptStore.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-fix complete-file control"
+    },
+    {
+      "file": "test/unit/promptWorkspaceIntegration.test.ts",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 127"
+    },
+    {
+      "file": "test/unit/prompts.test.ts",
+      "status": "passed",
+      "total": 25,
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 128"
+    },
+    {
+      "file": "test/unit/protocol.test.ts",
+      "status": "passed",
+      "total": 141,
+      "passed": 141,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 128"
+    },
+    {
+      "file": "test/unit/publicAddress.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 128"
+    },
+    {
+      "file": "test/unit/pullRequestCheckout.test.ts",
+      "status": "passed",
+      "total": 22,
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 129"
+    },
+    {
+      "file": "test/unit/pullRequestCheckoutGit.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 129"
+    },
+    {
+      "file": "test/unit/pullRequestLinks.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 129"
+    },
+    {
+      "file": "test/unit/pullRequestRef.test.ts",
+      "status": "passed",
+      "total": 20,
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 130"
+    },
+    {
+      "file": "test/unit/pushPlan.test.ts",
+      "status": "passed",
+      "total": 21,
+      "passed": 21,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 130"
+    },
+    {
+      "file": "test/unit/questionApp.test.tsx",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 130"
+    },
+    {
+      "file": "test/unit/questionContracts.test.ts",
+      "status": "passed",
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 131"
+    },
+    {
+      "file": "test/unit/questionFakes.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 131"
+    },
+    {
+      "file": "test/unit/questionKey.test.ts",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 131"
+    },
+    {
+      "file": "test/unit/questionManifest.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 132"
+    },
+    {
+      "file": "test/unit/questionRegistry.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 132"
+    },
+    {
+      "file": "test/unit/questionStore.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 132"
+    },
+    {
+      "file": "test/unit/questionStrings.test.ts",
+      "status": "passed",
+      "total": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 133"
+    },
+    {
+      "file": "test/unit/questionUiState.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 133"
+    },
+    {
+      "file": "test/unit/readmeShots.test.mjs",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 133"
+    },
+    {
+      "file": "test/unit/readmeVersion.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 134"
+    },
+    {
+      "file": "test/unit/recorderHelper.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 134"
+    },
+    {
+      "file": "test/unit/redact.test.ts",
+      "status": "passed",
+      "total": 130,
+      "passed": 130,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 134"
+    },
+    {
+      "file": "test/unit/reducedMotion.test.ts",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 135"
+    },
+    {
+      "file": "test/unit/referenceEntry.test.ts",
+      "status": "passed",
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 135"
+    },
+    {
+      "file": "test/unit/referenceGenerator.test.mjs",
+      "status": "passed",
+      "total": 54,
+      "passed": 54,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-fix complete-file control"
+    },
+    {
+      "file": "test/unit/referenceKeyboardTruth.test.tsx",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 136"
+    },
+    {
+      "file": "test/unit/refreshBadges.test.mjs",
+      "status": "passed",
+      "total": 33,
+      "passed": 33,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 136"
+    },
+    {
+      "file": "test/unit/releaseIntegrity.test.mjs",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 136"
+    },
+    {
+      "file": "test/unit/releaseMajorTag.test.mjs",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 137"
+    },
+    {
+      "file": "test/unit/releasePublish.test.mjs",
+      "status": "passed",
+      "total": 93,
+      "passed": 93,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 137"
+    },
+    {
+      "file": "test/unit/renamePlan.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 137"
+    },
+    {
+      "file": "test/unit/renderCost.test.tsx",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 138"
+    },
+    {
+      "file": "test/unit/repoMap.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 138"
+    },
+    {
+      "file": "test/unit/reportCommand.test.ts",
+      "status": "passed",
+      "total": 20,
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 138"
+    },
+    {
+      "file": "test/unit/reportInvariants.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 139"
+    },
+    {
+      "file": "test/unit/reportProblem.test.ts",
+      "status": "passed",
+      "total": 55,
+      "passed": 55,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 139"
+    },
+    {
+      "file": "test/unit/reportProblemDialog.test.tsx",
+      "status": "passed",
+      "total": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 139"
+    },
+    {
+      "file": "test/unit/reportProblemExport.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 140"
+    },
+    {
+      "file": "test/unit/reportProblemHandler.test.ts",
+      "status": "passed",
+      "total": 23,
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 140"
+    },
+    {
+      "file": "test/unit/reportProblemRows.test.tsx",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 140"
+    },
+    {
+      "file": "test/unit/reportRecorder.test.ts",
+      "status": "passed",
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 141"
+    },
+    {
+      "file": "test/unit/restoreChain.test.ts",
+      "status": "passed",
+      "total": 56,
+      "passed": 56,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 141"
+    },
+    {
+      "file": "test/unit/review.test.ts",
+      "status": "passed",
+      "total": 23,
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 141"
+    },
+    {
+      "file": "test/unit/reviewBundle.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 142"
+    },
+    {
+      "file": "test/unit/reviewMaterial.test.ts",
+      "status": "passed",
+      "total": 40,
+      "passed": 40,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 142"
+    },
+    {
+      "file": "test/unit/reviewUi.test.tsx",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 142"
+    },
+    {
+      "file": "test/unit/rowMenus.test.tsx",
+      "status": "passed",
+      "total": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 143"
+    },
+    {
+      "file": "test/unit/rules.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 143"
+    },
+    {
+      "file": "test/unit/rulesTemplate.test.ts",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 143"
+    },
+    {
+      "file": "test/unit/runLedger.test.ts",
+      "status": "passed",
+      "total": 35,
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 144"
+    },
+    {
+      "file": "test/unit/runtimeConsent.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 144"
+    },
+    {
+      "file": "test/unit/runtimeManifest.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 144"
+    },
+    {
+      "file": "test/unit/runtimeQuestionBundle.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 145"
+    },
+    {
+      "file": "test/unit/runtimeQuestionRegistry.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 145"
+    },
+    {
+      "file": "test/unit/runtimeSharing.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 145"
+    },
+    {
+      "file": "test/unit/runtimeStore.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 146"
+    },
+    {
+      "file": "test/unit/sandbox.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 146"
+    },
+    {
+      "file": "test/unit/sandboxSetup.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 146"
+    },
+    {
+      "file": "test/unit/scanSecrets.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 147"
+    },
+    {
+      "file": "test/unit/scheduledRunConfirmation.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 147"
+    },
+    {
+      "file": "test/unit/schedules.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 147"
+    },
+    {
+      "file": "test/unit/searchWorker.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 148"
+    },
+    {
+      "file": "test/unit/secretPromptDialog.test.tsx",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 148"
+    },
+    {
+      "file": "test/unit/selectedHost.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 148"
+    },
+    {
+      "file": "test/unit/sessionBoard.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 149"
+    },
+    {
+      "file": "test/unit/sessionBoardHost.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 149"
+    },
+    {
+      "file": "test/unit/sessionBudget.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 149"
+    },
+    {
+      "file": "test/unit/sessionBudgetJournal.test.ts",
+      "status": "passed",
+      "total": 48,
+      "passed": 48,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 150"
+    },
+    {
+      "file": "test/unit/sessionImport.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 150"
+    },
+    {
+      "file": "test/unit/sessionRecords.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 150"
+    },
+    {
+      "file": "test/unit/sessionStore.test.ts",
+      "status": "passed",
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 151"
+    },
+    {
+      "file": "test/unit/sessionTap.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 151"
+    },
+    {
+      "file": "test/unit/sessionTransfer.test.ts",
+      "status": "passed",
+      "total": 25,
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 151"
+    },
+    {
+      "file": "test/unit/sessions.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 152"
+    },
+    {
+      "file": "test/unit/settings.test.ts",
+      "status": "passed",
+      "total": 15,
+      "passed": 15,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 152"
+    },
+    {
+      "file": "test/unit/shareCommand.test.ts",
+      "status": "passed",
+      "total": 101,
+      "passed": 101,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 152"
+    },
+    {
+      "file": "test/unit/shareContracts.test.ts",
+      "status": "passed",
+      "total": 42,
+      "passed": 42,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 153"
+    },
+    {
+      "file": "test/unit/sharingArtifacts.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 153"
+    },
+    {
+      "file": "test/unit/sharingBridge.test.tsx",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-accessibility complete-file control"
+    },
+    {
+      "file": "test/unit/shellBoundedMonitor.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 154"
+    },
+    {
+      "file": "test/unit/shellEnvironmentOrigins.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 154"
+    },
+    {
+      "file": "test/unit/shellJob.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 154"
+    },
+    {
+      "file": "test/unit/shellQuote.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 155"
+    },
+    {
+      "file": "test/unit/shellSyntax.test.ts",
+      "status": "passed",
+      "total": 159,
+      "passed": 158,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 155"
+    },
+    {
+      "file": "test/unit/skills.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 155"
+    },
+    {
+      "file": "test/unit/skillsCli.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 156"
+    },
+    {
+      "file": "test/unit/skillsCommands.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 156"
+    },
+    {
+      "file": "test/unit/snapshot.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 156"
+    },
+    {
+      "file": "test/unit/sse.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 157"
+    },
+    {
+      "file": "test/unit/stepSummary.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 157"
+    },
+    {
+      "file": "test/unit/store.test.tsx",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 157"
+    },
+    {
+      "file": "test/unit/streamSplit.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 158"
+    },
+    {
+      "file": "test/unit/supportReport.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 158"
+    },
+    {
+      "file": "test/unit/surfaceRegistry.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 158"
+    },
+    {
+      "file": "test/unit/surfaceRetry.test.ts",
+      "status": "passed",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 159"
+    },
+    {
+      "file": "test/unit/tabBundle.test.ts",
+      "status": "passed",
+      "total": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 159"
+    },
+    {
+      "file": "test/unit/tabCache.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 159"
+    },
+    {
+      "file": "test/unit/tabConstants.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 160"
+    },
+    {
+      "file": "test/unit/tabContext.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 160"
+    },
+    {
+      "file": "test/unit/tabEngine.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 160"
+    },
+    {
+      "file": "test/unit/tabLedger.test.ts",
+      "status": "passed",
+      "total": 20,
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 161"
+    },
+    {
+      "file": "test/unit/tabProvider.test.ts",
+      "status": "passed",
+      "total": 64,
+      "passed": 64,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 161"
+    },
+    {
+      "file": "test/unit/tabReply.test.ts",
+      "status": "passed",
+      "total": 26,
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 161"
+    },
+    {
+      "file": "test/unit/tabRequest.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 162"
+    },
+    {
+      "file": "test/unit/tabScheduler.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 162"
+    },
+    {
+      "file": "test/unit/tabSpend.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 162"
+    },
+    {
+      "file": "test/unit/tabSpendGate.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 163"
+    },
+    {
+      "file": "test/unit/tabStatus.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 163"
+    },
+    {
+      "file": "test/unit/tasksPanel.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 163"
+    },
+    {
+      "file": "test/unit/textDecoding.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 164"
+    },
+    {
+      "file": "test/unit/textDecodingNode20.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 164"
+    },
+    {
+      "file": "test/unit/timeouts.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 164"
+    },
+    {
+      "file": "test/unit/toggleFocusView.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 165"
+    },
+    {
+      "file": "test/unit/toolImages.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 165"
+    },
+    {
+      "file": "test/unit/toolIo.test.ts",
+      "status": "passed",
+      "total": 47,
+      "passed": 45,
+      "failed": 0,
+      "skipped": 2,
+      "report": "full sweep 165"
+    },
+    {
+      "file": "test/unit/toolIoBounded.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 166"
+    },
+    {
+      "file": "test/unit/toolIoCommandAdmission.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 166"
+    },
+    {
+      "file": "test/unit/toolPresentation.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 166"
+    },
+    {
+      "file": "test/unit/toolRows.test.tsx",
+      "status": "passed",
+      "total": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 167"
+    },
+    {
+      "file": "test/unit/traceLogs.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 167"
+    },
+    {
+      "file": "test/unit/transcriptMarkdown.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 167"
+    },
+    {
+      "file": "test/unit/transferDialogs.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 168"
+    },
+    {
+      "file": "test/unit/turnNotifications.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 168"
+    },
+    {
+      "file": "test/unit/uiState.test.ts",
+      "status": "passed",
+      "total": 173,
+      "passed": 173,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 168"
+    },
+    {
+      "file": "test/unit/uiTextRegions.test.mjs",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-accessibility complete-file control"
+    },
+    {
+      "file": "test/unit/untrustedInput.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 169"
+    },
+    {
+      "file": "test/unit/usage.test.ts",
+      "status": "passed",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 169"
+    },
+    {
+      "file": "test/unit/verifyEditor.test.ts",
+      "status": "passed",
+      "total": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 170"
+    },
+    {
+      "file": "test/unit/verifyLedger.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 170"
+    },
+    {
+      "file": "test/unit/verifyLoop.test.ts",
+      "status": "passed",
+      "total": 72,
+      "passed": 72,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 170"
+    },
+    {
+      "file": "test/unit/verifyRows.test.tsx",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 171"
+    },
+    {
+      "file": "test/unit/voiceBundle.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 171"
+    },
+    {
+      "file": "test/unit/vsixPackaging.test.mjs",
+      "status": "passed",
+      "total": 20,
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 171"
+    },
+    {
+      "file": "test/unit/walkthrough.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 172"
+    },
+    {
+      "file": "test/unit/webFetch.test.ts",
+      "status": "passed",
+      "total": 36,
+      "passed": 36,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 172"
+    },
+    {
+      "file": "test/unit/webFetchBundle.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 172"
+    },
+    {
+      "file": "test/unit/webFetchConfirm.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 173"
+    },
+    {
+      "file": "test/unit/webFetcher.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 173"
+    },
+    {
+      "file": "test/unit/webPage.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 173"
+    },
+    {
+      "file": "test/unit/webviewBundle.test.mjs",
+      "status": "passed",
+      "total": 27,
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-accessibility complete-file control"
+    },
+    {
+      "file": "test/unit/webviewBundles.test.mjs",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 174"
+    },
+    {
+      "file": "test/unit/webviewErrors.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 174"
+    },
+    {
+      "file": "test/unit/webviewSetup.test.ts",
+      "status": "passed",
+      "total": 13,
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 175"
+    },
+    {
+      "file": "test/unit/whatsNew.test.ts",
+      "status": "passed",
+      "total": 18,
+      "passed": 18,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 175"
+    },
+    {
+      "file": "test/unit/whatsNewBundle.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 175"
+    },
+    {
+      "file": "test/unit/whatsNewContent.test.ts",
+      "status": "passed",
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 176"
+    },
+    {
+      "file": "test/unit/whatsNewHtml.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 176"
+    },
+    {
+      "file": "test/unit/whatsNewPage.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 176"
+    },
+    {
+      "file": "test/unit/whatsNewPanel.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 177"
+    },
+    {
+      "file": "test/unit/whatsNewVersions.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 177"
+    },
+    {
+      "file": "test/unit/windowPresence.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 177"
+    },
+    {
+      "file": "test/unit/workLifetime.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 178"
+    },
+    {
+      "file": "test/unit/workflowDetails.test.ts",
+      "status": "passed",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 178"
+    },
+    {
+      "file": "test/unit/workspaceContext.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 178"
+    },
+    {
+      "file": "test/unit/workspaceFiles.test.ts",
+      "status": "passed",
+      "total": 7,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 179"
+    },
+    {
+      "file": "test/unit/workspaceIdentity.test.ts",
+      "status": "passed",
+      "total": 5,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 179"
+    },
+    {
+      "file": "test/unit/workspaceRoot.test.ts",
+      "status": "passed",
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 179"
+    },
+    {
+      "file": "test/unit/worktreeCommands.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 180"
+    },
+    {
+      "file": "test/unit/worktreeConversationHost.test.ts",
+      "status": "passed",
+      "total": 9,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 180"
+    },
+    {
+      "file": "test/unit/worktreeConversations.test.ts",
+      "status": "passed",
+      "total": 16,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 180"
+    },
+    {
+      "file": "test/unit/worktreeFeatures.test.ts",
+      "status": "passed",
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 181"
+    },
+    {
+      "file": "test/unit/worktrees.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 181"
+    },
+    {
+      "file": "test/unit/writeJournal.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 181"
+    },
+    {
+      "file": "test/unit/writeRecorder.test.ts",
+      "status": "passed",
+      "total": 27,
+      "passed": 26,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 182"
+    },
+    {
+      "file": "test/unit/writeRecorderCaps.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 182"
+    },
+    {
+      "file": "test/unit/zipExtract.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 182"
+    },
+    {
+      "file": "test/e2e/acpStdio.e2e.test.ts",
+      "status": "passed",
+      "total": 12,
+      "passed": 12,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-accessibility complete-file control"
+    },
+    {
+      "file": "test/e2e/cliAccount.e2e.test.ts",
+      "status": "passed",
+      "total": 14,
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 183"
+    },
+    {
+      "file": "test/e2e/eval.live.e2e.test.ts",
+      "status": "passed",
+      "total": 1,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 183"
+    },
+    {
+      "file": "test/e2e/execStdio.e2e.test.ts",
+      "status": "passed",
+      "total": 38,
+      "passed": 38,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 184"
+    },
+    {
+      "file": "test/e2e/execTestLauncher.e2e.test.ts",
+      "status": "passed",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "report": "post-fix complete-file control"
+    },
+    {
+      "file": "test/e2e/live.e2e.test.ts",
+      "status": "passed",
+      "total": 2,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 2,
+      "report": "full sweep 184"
+    },
+    {
+      "file": "test/e2e/modelApi.live.e2e.test.ts",
+      "status": "passed",
+      "total": 24,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 24,
+      "report": "full sweep 185"
+    },
+    {
+      "file": "test/e2e/museCode.e2e.test.ts",
+      "status": "passed",
+      "total": 17,
+      "passed": 17,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 185"
+    },
+    {
+      "file": "test/e2e/questions.e2e.test.ts",
+      "status": "passed",
+      "total": 4,
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "report": "full sweep 185"
+    },
+    {
+      "file": "test/e2e/reviewer.live.e2e.test.ts",
+      "status": "passed",
+      "total": 1,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 186"
+    },
+    {
+      "file": "test/e2e/tab.live.e2e.test.ts",
+      "status": "passed",
+      "total": 1,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 1,
+      "report": "full sweep 186"
+    }
+  ]
+}

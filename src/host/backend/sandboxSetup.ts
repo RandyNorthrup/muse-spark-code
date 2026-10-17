@@ -2,10 +2,12 @@
 // elevated terminal: checks `muse sandbox windows check` when a chat surface
 // opens (and again when a shell tool reports the sandbox missing), offers the
 // one-time setup in a notification, relaunches the CLI through UAC on
-// "Set up now", and re-checks. Every VS Code and process call is injected so
+// "Set Up Now", and re-checks. Every VS Code and process call is injected so
 // the flow is unit-tested on every platform.
 
 import type { LaunchResolution } from '../../core/backends/musecode/launch'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import { redactSecrets } from '../../core/redact'
 import {
   type CliInvocation,
   elevatedInvocation,
@@ -36,7 +38,7 @@ export interface SandboxSetupDeps {
   /** `%SystemRoot%`; undefined off Windows. */
   readonly systemRoot: string | undefined
   readonly resolveLaunch: () => LaunchResolution
-  /** Runs a process to completion; resolves (never rejects) with its result. */
+  /** Runs a process to completion; startup admission may reject before launch. */
   readonly run: (invocation: CliInvocation, timeoutMs: number) => Promise<ProcessResult>
   /** A warning notification with buttons; resolves to the chosen label. */
   readonly showWarning: (
@@ -44,7 +46,7 @@ export interface SandboxSetupDeps {
     ...choices: readonly string[]
   ) => Promise<string | undefined>
   readonly showInformation: (message: string) => void
-  /** The "Don't ask again" flag in the extension's own global state. */
+  /** The "Don't Ask Again" flag in the extension's own global state. */
   readonly isPromptSuppressed: () => boolean
   readonly suppressPrompt: () => Promise<void>
   readonly log: Logger
@@ -83,7 +85,7 @@ export class SandboxSetup {
     this.deps.log.info(`Sandbox setup: ${invocation.command} ${invocation.args.join(' ')}`)
     const result = await this.deps.run(invocation, SANDBOX_SETUP_TIMEOUT_MS)
     if (result.exitCode !== 0) {
-      const detail = firstLine(result.stderr) || firstLine(result.stdout)
+      const detail = redactSecrets(firstLine(result.stderr) || firstLine(result.stdout))
       const outcome =
         result.exitCode === FAILED_EXIT_CODE ? 'did not run' : `exited ${String(result.exitCode)}`
       this.deps.log.warn(`Sandbox setup ${outcome}: ${detail}`)
@@ -143,10 +145,16 @@ export class SandboxSetup {
       this.deps.log.warn(`Sandbox check skipped: ${resolution.reason}`)
       return undefined
     }
-    const result = await this.deps.run(
-      sandboxCheckInvocation(resolution.launch),
-      SANDBOX_CHECK_TIMEOUT_MS,
-    )
+    let result: ProcessResult
+    try {
+      result = await this.deps.run(
+        sandboxCheckInvocation(resolution.launch),
+        SANDBOX_CHECK_TIMEOUT_MS,
+      )
+    } catch (error: unknown) {
+      this.deps.log.warn(`Sandbox check could not start: ${failureForLog(error)}`)
+      return parseSandboxCheck('')
+    }
     const report = parseSandboxCheck(`${result.stdout}\n${result.stderr}`)
     this.deps.log.info(
       `Sandbox check: status=${report.status} exit=${String(result.exitCode)}${report.reason === undefined ? '' : ` reason=${report.reason}`}`,
@@ -159,8 +167,8 @@ export class SandboxSetup {
 
   /**
    * Offers the setup when it is needed. `startup` asks at most once per
-   * extension host and honours "Don't ask again"; `failure` (a shell tool just
-   * reported the sandbox missing) asks again even after "Not now".
+   * extension host and honours "Don't Ask Again"; `failure` (a shell tool just
+   * reported the sandbox missing) asks again even after "Not Now".
    */
   public offerIfNeeded(trigger: SandboxOfferTrigger): Promise<void> {
     if (!this.isWindows) {

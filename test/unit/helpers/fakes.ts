@@ -5,73 +5,9 @@
 import type * as vscode from 'vscode'
 import { vi } from 'vitest'
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
-import type { SettingsSource } from '../../../src/host/settings'
-import { EN } from '../../../src/shared/l10n/en'
-import { BASE_LOCALE } from '../../../src/shared/l10n/text'
-import type { HostToWebviewMessage, SettingsSnapshot } from '../../../src/shared/protocol'
-import type { ChatSurface, WebviewHostContext } from '../../../src/host/views/webviewSetup'
-import { EventEmitter, FakeUri, Uri } from '../mocks/vscode'
-
-function acceptMessage(_message: unknown): Thenable<boolean> {
-  return Promise.resolve(true)
-}
-
-export class FakeWebview implements vscode.Webview {
-  public options: vscode.WebviewOptions = {}
-  public html = ''
-  public readonly cspSource = 'vscode-webview://fake'
-  public readonly messages = new EventEmitter<unknown>()
-  public readonly onDidReceiveMessage = this.messages.event
-  public readonly postMessage = vi.fn(acceptMessage)
-
-  public asWebviewUri(localResource: vscode.Uri): vscode.Uri {
-    return new FakeUri(`webview${localResource.path}`)
-  }
-}
-
-export class FakeWebviewView implements vscode.WebviewView {
-  public readonly viewType = 'fake.view'
-  public readonly webview = new FakeWebview()
-  public title = 'Fake view'
-  public description = ''
-  public badge: vscode.ViewBadge | undefined = undefined
-  public visible = true
-  public readonly disposed = new EventEmitter<void>()
-  public readonly onDidDispose = this.disposed.event
-  public readonly visibility = new EventEmitter<void>()
-  public readonly onDidChangeVisibility = this.visibility.event
-  public readonly show = vi.fn((_shouldPreserveFocus?: boolean): void => {
-    this.visible = true
-  })
-}
-
-export class FakeWebviewPanel implements vscode.WebviewPanel {
-  public readonly webview = new FakeWebview()
-  public readonly options: vscode.WebviewPanelOptions = {}
-  public iconPath?: vscode.IconPath
-  public viewColumn: vscode.ViewColumn | undefined = undefined
-  public active = true
-  public visible = true
-  public readonly disposed = new EventEmitter<void>()
-  public readonly onDidDispose = this.disposed.event
-  public readonly viewStateChanges =
-    new EventEmitter<vscode.WebviewPanelOnDidChangeViewStateEvent>()
-  public readonly onDidChangeViewState = this.viewStateChanges.event
-  public readonly reveal = vi.fn(
-    (_viewColumn?: vscode.ViewColumn, _shouldPreserveFocus?: boolean) => {
-      this.visible = true
-    },
-  )
-
-  public constructor(
-    public readonly viewType: string,
-    public title: string,
-  ) {}
-
-  public dispose(): void {
-    this.disposed.fire()
-  }
-}
+import type { HostToWebviewMessage } from '../../../src/shared/protocol'
+import type { ChatSurface } from '../../../src/host/views/chatSurface'
+import { EventEmitter } from '../mocks/vscode'
 
 export class FakeLogOutputChannel implements vscode.LogOutputChannel {
   public readonly name = 'fake'
@@ -92,49 +28,6 @@ export class FakeLogOutputChannel implements vscode.LogOutputChannel {
   public readonly dispose = vi.fn()
 }
 
-/** A `SettingsSource` backed by a plain object (absent keys read as undefined). */
-export function fakeSettingsSource(values: Readonly<Record<string, unknown>>): SettingsSource {
-  return {
-    get: (section) => values[section],
-  }
-}
-
-export const testSettings: SettingsSnapshot = {
-  preferredLocation: 'panel',
-  initialPermissionMode: 'manual',
-  autosave: true,
-  attachOpenFile: true,
-  useCtrlEnterToSend: false,
-  hideOnboarding: false,
-  focusView: false,
-  respectGitIgnore: true,
-  confidentialWorkspace: false,
-  allowDangerouslySkipPermissions: false,
-  archiveInactiveSessions: 14,
-  modelApiReplyUsage: false,
-}
-
-export interface FakeHostContext extends WebviewHostContext {
-  readonly log: FakeLogOutputChannel
-  readonly onInputFocusChanged: ReturnType<typeof vi.fn<WebviewHostContext['onInputFocusChanged']>>
-  readonly onSurfaceReady: ReturnType<typeof vi.fn<WebviewHostContext['onSurfaceReady']>>
-  readonly onConversationMessage: ReturnType<
-    typeof vi.fn<WebviewHostContext['onConversationMessage']>
-  >
-}
-
-export function fakeHostContext(settings: SettingsSnapshot = testSettings): FakeHostContext {
-  return {
-    extensionUri: Uri.file('/ext'),
-    l10n: { locale: BASE_LOCALE, table: EN },
-    log: new FakeLogOutputChannel(),
-    getSettings: () => settings,
-    onInputFocusChanged: vi.fn<WebviewHostContext['onInputFocusChanged']>(),
-    onSurfaceReady: vi.fn<WebviewHostContext['onSurfaceReady']>(),
-    onConversationMessage: vi.fn<WebviewHostContext['onConversationMessage']>(),
-  }
-}
-
 export interface FakeSurface extends ChatSurface {
   readonly posted: HostToWebviewMessage[]
   readonly reveal: ReturnType<typeof vi.fn<() => void>>
@@ -149,6 +42,7 @@ export function fakeSurface(id: string, isSideChat = false): FakeSurface {
   return {
     id,
     isSideChat,
+    documentId: `${id}-document`,
     posted,
     post(message) {
       posted.push(message)
@@ -164,12 +58,7 @@ export function fakeSurface(id: string, isSideChat = false): FakeSurface {
   }
 }
 
-/** A `SecretStore` backed by a Map, exposed for assertions. */
-/** A `CredentialStore` warning sink for tests that expect none: one fails the test. */
-export function unexpectedWarning(message: string): never {
-  throw new Error(`unexpected warning: ${message}`)
-}
-
+/** An in-memory `SecretStore` for tests: a stand-in for the OS credential store (the outside world). */
 export function memorySecrets(): SecretStore & { readonly values: Map<string, string> } {
   const values = new Map<string, string>()
   return {

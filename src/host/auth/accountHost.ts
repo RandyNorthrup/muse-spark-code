@@ -6,8 +6,11 @@
 // extension never sends its Model API key to it, and never keeps, logs or
 // shows the account's `label` (an e-mail address) or `avatarUrl`.
 
-import { spawnMspConnection, type Connection } from '@muse-code/sdk'
+import { type Connection } from '@muse-code/sdk'
 import * as z from 'zod/mini'
+import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
+import { environmentValue } from '../../core/backends/musecode/launch'
+import { spawnResourceMuseConnection } from '../resources/museResourceLaunch'
 import { wireWordForLog } from '../../core/logging'
 import { unlessAborted, withDeadline } from '../../core/timeouts'
 import {
@@ -37,8 +40,6 @@ export interface AccountSession {
 
 /** Starts one short-lived host; `signal` cancels the start. */
 export type ConnectAccountHost = (signal: AbortSignal) => Promise<AccountSession>
-
-const CANCELLED_CONNECT = Symbol('cancelled account host connection')
 
 /** The error's name only: a CLI message can carry a path or an account. */
 function errorName(error: unknown): string {
@@ -210,31 +211,39 @@ export async function connectAccountSession(
   if (!resolution.ok) {
     throw new Error(resolution.reason)
   }
-  let isStderrReported = false
-  const handshake = spawnMspConnection({
-    command: resolution.launch.command,
-    args: resolution.launch.args,
-    ...(workspaceRoot !== undefined && { cwd: workspaceRoot }),
-    env: backend.childEnvironment(),
-    onStderr: () => {
-      if (isStderrReported) {
-        return
-      }
-
-      log.warn('The Muse Code account host wrote to stderr')
-      isStderrReported = true
-    },
-  })
-  const cancelledConnect = Promise.withResolvers<typeof CANCELLED_CONNECT>()
-  const onAbort = () => {
-    cancelledConnect.resolve(CANCELLED_CONNECT)
-  }
-  signal.addEventListener('abort', onAbort, { once: true })
+  await backend.admitWorkspaceHost()
   if (isAborted()) {
-    onAbort()
+    throw new Error('The Muse Code account host was cancelled')
   }
+  const resource = await admitResource('museServe', signal)
+  const env = backend.childEnvironment()
+  let isStderrReported = false
+  const handshake = await spawnResourceMuseConnection(
+    {
+      command: resolution.launch.command,
+      args: resolution.launch.args,
+      ...(workspaceRoot !== undefined && { cwd: workspaceRoot }),
+      env,
+      onStderr: () => {
+        if (isStderrReported) return
+        log.warn('The Muse Code account host wrote to stderr')
+        isStderrReported = true
+      },
+    },
+    resource,
+    async () => {
+      const job = await resourceWindowsJob()
+      return job?.assemblyPath
+    },
+    environmentValue(env, process.platform, 'SystemRoot'),
+    async () => {
+      await backend.admitWorkspaceHost()
+      if (isAborted()) throw new Error('The Muse Code account host was cancelled')
+    },
+  )
   try {
-    const spawned = await Promise.race([
+    // Not `Promise.withResolvers`, which Node 20 lacks (PLAN.md M62).
+    const spawned = await unlessAborted(
       withDeadline(
         handshake.initialize({
           clientInfo: { name: MSP_CLIENT_NAME, version: extensionVersion },
@@ -243,9 +252,9 @@ export async function connectAccountSession(
         MSP_HANDSHAKE_TIMEOUT_MS,
         'The Muse Code account host did not start in time',
       ),
-      cancelledConnect.promise,
-    ])
-    if (spawned === CANCELLED_CONNECT || isAborted()) {
+      signal,
+    )
+    if (spawned === undefined || isAborted()) {
       throw new Error('The Muse Code account host was cancelled')
     }
     if (!spawned.initializeResult.experimentalApi) {
@@ -255,7 +264,5 @@ export async function connectAccountSession(
   } catch (error: unknown) {
     await handshake.close()
     throw error
-  } finally {
-    signal.removeEventListener('abort', onAbort)
   }
 }

@@ -1,48 +1,56 @@
 // A fenced code block: language tag, highlighted body, Copy, Insert at
-// cursor and Apply (replace the editor selection). The highlighting is
-// memoised on the code, and a block still streaming (its fence not closed
-// yet) shows plain text until it closes (M25), so a long block is not
-// re-highlighted whole on every delta.
+// cursor and Apply (replace the editor selection); a read-only view (a share
+// file, M84) passes neither of the last two and shows Copy alone. The
+// highlighting is memoised on the code, and a block still streaming (its
+// fence not closed yet) shows plain text until it closes (M25), so a long
+// block is not re-highlighted whole on every delta.
 
-import { useMemo } from 'react'
+import { lazy, Suspense } from 'react'
 import { UI_TEXT } from '../../shared/constants'
-import { highlight, resolveLanguage } from '../highlight'
+import { resolveLanguage } from '../highlight'
 import { useCopiedFlag } from '../useCopiedFlag'
+
+const HighlightedCode = lazy(async () => {
+  const { HighlightedCode } = await import('./HighlightedCode')
+  return { default: HighlightedCode }
+})
+
+// The action buttons share one class string (M114 startup compaction).
+const CODE_BLOCK_BUTTON = 'code-block-button chat-control'
 
 export interface CodeBlockProps {
   readonly code: string
   readonly language: string | undefined
   /** The fence is still open while the reply streams. */
   readonly isOpen?: boolean
+  /** The label as written (a plan's whole info string, M79) in place of the resolved language. */
+  readonly label?: string | undefined
   readonly onCopy: (text: string) => void
-  readonly onInsert: (text: string) => void
-  readonly onApply: (text: string) => void
+  /** Absent in a read-only view: the button is not shown. */
+  readonly onInsert?: ((text: string) => void) | undefined
+  /** Absent in a read-only view: the button is not shown. */
+  readonly onApply?: ((text: string) => void) | undefined
 }
 
 export function CodeBlock({
   code,
   language,
   isOpen = false,
+  label,
   onCopy,
   onInsert,
   onApply,
 }: CodeBlockProps) {
   const [isCopied, markCopied] = useCopiedFlag()
   const resolved = resolveLanguage(language)
-  // highlight.js returns HTML it escaped itself; nothing from the model
-  // reaches the DOM unescaped.
-  const html = useMemo(
-    () => (isOpen ? undefined : { __html: highlight(code, language) }),
-    [code, language, isOpen],
-  )
   return (
     <div className="code-block">
       <div className="code-block-bar">
-        <span className="code-block-lang">{resolved ?? language ?? ''}</span>
+        <span className="code-block-lang">{label ?? resolved ?? language ?? ''}</span>
         <span className="code-block-actions">
           <button
             type="button"
-            className="code-block-button"
+            className={CODE_BLOCK_BUTTON}
             onClick={() => {
               onCopy(code)
               markCopied()
@@ -50,31 +58,38 @@ export function CodeBlock({
           >
             {isCopied ? UI_TEXT.copiedCode : UI_TEXT.copyCode}
           </button>
-          <button
-            type="button"
-            className="code-block-button"
-            onClick={() => {
-              onInsert(code)
-            }}
-          >
-            {UI_TEXT.insertCode}
-          </button>
-          <button
-            type="button"
-            className="code-block-button"
-            onClick={() => {
-              onApply(code)
-            }}
-          >
-            {UI_TEXT.applyCode}
-          </button>
+          {onInsert === undefined ? null : (
+            <button
+              type="button"
+              className={CODE_BLOCK_BUTTON}
+              onClick={() => {
+                onInsert(code)
+              }}
+            >
+              {UI_TEXT.insertCode}
+            </button>
+          )}
+          {onApply === undefined ? null : (
+            <button
+              type="button"
+              className={CODE_BLOCK_BUTTON}
+              onClick={() => {
+                onApply(code)
+              }}
+            >
+              {UI_TEXT.applyCode}
+            </button>
+          )}
         </span>
       </div>
-      <pre className="code-block-body">
-        {html === undefined ? (
+      {/* Keyboard users need to reach and scroll long lines, including in share files. */}
+      <pre className="code-block-body chat-control" tabIndex={0}>
+        {isOpen || resolved === undefined ? (
           <code className="hljs">{code}</code>
         ) : (
-          <code className="hljs" dangerouslySetInnerHTML={html} />
+          <Suspense fallback={<code className="hljs">{code}</code>}>
+            <HighlightedCode code={code} language={resolved} />
+          </Suspense>
         )}
       </pre>
     </div>

@@ -1,0 +1,65 @@
+# Strict clang-tidy. Copy to project root as .clang-tidy.
+#
+# Enables every check family, then subtracts. The subtractions are either
+# (a) aliases that would double-report, or (b) checks that contradict another
+# enabled check. Nothing is removed merely for being noisy.
+
+Checks: >
+  *,
+  -altera-*,
+  -fuchsia-*,
+  -llvmlibc-*,
+  -abseil-*,
+  -zircon-*,
+  -google-readability-todo,
+  -llvm-header-guard,
+  -llvm-include-order,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -readability-magic-numbers,
+  -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+  -bugprone-easily-swappable-parameters
+
+# Why each is off:
+#   altera/fuchsia/llvmlibc/abseil/zircon — vendor-specific check sets for
+#     platforms you are not targeting; they fire constantly on normal C++.
+#   google-readability-todo — demands a username on every TODO.
+#   llvm-header-guard / llvm-include-order — LLVM house style, conflicts with
+#     `#pragma once` and with clang-format's include sorting below.
+#   modernize-use-trailing-return-type — pure style, rewrites every signature.
+#   readability-identifier-length — rejects `i`, `x`, `os`.
+#   *-magic-numbers — too noisy to be a gate; revisit per-project.
+#   pro-bounds-pointer-arithmetic — unavoidable in any code touching C APIs.
+#   easily-swappable-parameters — fires on any two same-typed adjacent params.
+
+WarningsAsErrors: '*'
+# Clang commonly reports absolute paths. Match owned path components on both
+# Windows and POSIX, then adapt these roots to the actual compilation database.
+HeaderFilterRegex: '(^|[/\\])(src|include|lib)[/\\]'
+FormatStyle: file
+
+CheckOptions:
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '25'
+  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: 'true'
+  - key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value: 'true'
+  # Naming: adjust to house style — these are the common C++ conventions.
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: camelBack
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberSuffix
+    value: '_'
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.ConstexprVariableCase
+    value: CamelCase
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: CamelCase

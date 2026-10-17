@@ -1,0 +1,156 @@
+{
+  "version": 1,
+  "rig": "win11",
+  "date": "2026-10-05",
+  "receipts": [
+    {
+      "name": "settled-read",
+      "file": "src/runtime/usage/usageServiceEntry.ts",
+      "test": "usageIntegration.test.ts",
+      "exit": 1,
+      "restored": true,
+      "sha256": "272982aed5ea835b86bd7ef76f5f93d6a391338c9deff45a391304f89b10070c",
+      "summary": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 2 passed (3)",
+        "Duration  7.28s (import 38%, transform 30%, tests 29%, setup 4%)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "FAIL  test/unit/usageIntegration.test.ts > M102 integrated surfaces > refuses to publish a partial read while its recorder cannot settle",
+        "AssertionError: promise resolved \"{ v: 1, …(13) }\" instead of rejecting"
+      ]
+    },
+    {
+      "name": "delete-session-count",
+      "file": "src/runtime/usage/usageCompanionEntry.ts",
+      "test": "usageIntegration.test.ts",
+      "exit": 1,
+      "restored": true,
+      "sha256": "5d9514f116b91e4596af22354b91c4117274baa21b368f3bd19ed8c7360ac864",
+      "summary": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 2 passed (3)",
+        "Duration  6.47s (import 44%, transform 38%, tests 14%, setup 4%)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "FAIL  test/unit/usageIntegration.test.ts > M102 integrated surfaces > settles two vendor host turns and one MSP subscription turn into exactly three calls, shared totals and an authenticated page",
+        "AssertionError: expected { status: 202, …(2) } to have property \"status\" with value 500"
+      ]
+    },
+    {
+      "name": "shared-history",
+      "file": "src/runtime/usage/usageServiceEntry.ts",
+      "test": "usageIntegration.test.ts",
+      "exit": 1,
+      "restored": true,
+      "sha256": "272982aed5ea835b86bd7ef76f5f93d6a391338c9deff45a391304f89b10070c",
+      "summary": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 2 passed (3)",
+        "Duration  6.85s (import 40%, transform 36%, tests 19%, setup 5%)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "FAIL  test/unit/usageIntegration.test.ts > M102 integrated surfaces > honours persisted history-off while preserving stored totals and live windows",
+        "AssertionError: expected true to be false // Object.is equality"
+      ]
+    },
+    {
+      "name": "native-preference",
+      "file": "src/host/usage/usagePanel.ts",
+      "test": "usagePanel.test.ts",
+      "exit": 1,
+      "restored": true,
+      "sha256": "359e568447fbb3ca2268e30d1dcd6ea0f46f7806e09957ad833caad9aa5bb5a9",
+      "summary": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 8 passed (9)",
+        "Duration  2.18s (transform 36%, import 34%, tests 19%, setup 12%)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "FAIL  test/unit/usagePanel.test.ts > UsagePanel > requires the counted delete confirmation and routes settings, folder, models and safe consoles",
+        "AssertionError: expected \"vi.fn()\" to be called once with arguments: [ true ]"
+      ]
+    },
+    {
+      "name": "embedded-table",
+      "file": "src/host/usage/usagePanel.ts",
+      "test": "usagePanel.test.ts",
+      "exit": 1,
+      "restored": true,
+      "sha256": "359e568447fbb3ca2268e30d1dcd6ea0f46f7806e09957ad833caad9aa5bb5a9",
+      "summary": [
+        "Test Files  1 failed (1)",
+        "Tests  3 failed | 6 passed (9)",
+        "Duration  2.23s (transform 35%, import 33%, tests 20%, setup 12%)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯",
+        "FAIL  test/unit/usagePanel.test.ts > UsagePanel > uses only local usage assets under the unchanged security policy and reveals one tab",
+        "AssertionError: expected '<!DOCTYPE html>\\n<html lang=\"en\">\\n<h…' to contain 'id=\"muse-usage-l10n\">{\"type\":\"usage/t…'",
+        "FAIL  test/unit/usagePanel.test.ts > UsagePanel > loads the usage table in the lazy factory and rejects missing/corrupt bundles before retrying",
+        "AssertionError: expected '<!DOCTYPE html>\\n<html lang=\"de\">\\n<h…' to contain 'id=\"muse-usage-l10n\">{\"type\":\"usage/t…'",
+        "FAIL  test/unit/usagePanel.test.ts > UsagePanel > embeds the selected usage table without executable markup or raw line separators",
+        "AssertionError: expected { locale: 'de', table: { …(184) } } to deeply equal { type: 'usage/table', …(2) }"
+      ]
+    },
+    {
+      "name": "event-envelope",
+      "file": "src/webview/usage/companion.ts",
+      "test": "usageCompanionBridge.test.ts",
+      "exit": 1,
+      "restored": true,
+      "sha256": "5f808b452b36a0f66b994c1e1a9a2b7efcd1b623f511747bcf36d2cff09e06a5",
+      "summary": [
+        "Test Files  1 failed (1)",
+        "Tests  2 failed | 1 passed (3)",
+        "Duration  2.47s (environment 55%, transform 17%, import 16%, setup 10%, tests 2%)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+        "FAIL  test/unit/usageCompanionBridge.test.ts > usage fetch-stream bridge > answers only the received counted challenge and leaves denial explicit",
+        "FAIL  test/unit/usageCompanionBridge.test.ts > usage fetch-stream bridge > refuses a malformed outer event rather than accepting its reply fields",
+        "AssertionError: promise resolved \"[]\" instead of rejecting"
+      ]
+    },
+    {
+      "name": "readonly-ledger",
+      "file": "src/host/paid/paidDailyBudget.ts",
+      "test": "paidDailyBudget.test.ts",
+      "exit": 1,
+      "restored": true,
+      "sha256": "309891619b6ff164871eab8f927cc5c3284aa359ce2f9139b640838d03916c38",
+      "summary": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 17 passed (18)",
+        "Duration  5.86s (import 38%, transform 31%, tests 27%, setup 4%)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "FAIL  test/unit/paidDailyBudget.test.ts > D78 interactive paid daily budget > reads usage without seeding a ledger and retains outstanding reservations in the meter",
+        "AssertionError: expected [ 'budget-intents', 'budget-journal' ] to deeply equal []"
+      ]
+    },
+    {
+      "name": "deferred-cap",
+      "file": "scripts/check-bundle-size.mjs",
+      "test": "bundleSize.test.mjs",
+      "exit": 1,
+      "restored": true,
+      "sha256": "d7c953c0f60e72554a30726debe5bad7d312293af57b5676a012047b1dd7043d",
+      "summary": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 4 passed (5)",
+        "Duration  599ms (setup 55%, tests 20%, transform 17%, import 6%, worker 2%)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "FAIL  test/unit/bundleSize.test.mjs > bundled What’s New content budget > bounds reachable deferred chat chunks while allowing the separately budgeted usage page",
+        "AssertionError: promise resolved \"{ [Symbol(Symbol.toStringTag)]: 'Mod…' }\" instead of rejecting"
+      ]
+    },
+    {
+      "name": "english-fallback",
+      "file": "scripts/build.mjs",
+      "test": "deferredBundles.test.ts",
+      "exit": 1,
+      "restored": true,
+      "sha256": "ba99351f1ceb42fa2f95852c788f51ec8b9e2bab61e20a5f75104e28c4476eae",
+      "summary": [
+        "Test Files  1 failed (1)",
+        "Tests  1 failed | 31 passed (32)",
+        "Duration  99.73s (tests 99%)",
+        "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+        "FAIL  test/unit/deferredBundles.test.ts > deferred cohort bundles > preserves every English fallback value when the shared table is compressed",
+        "AssertionError: expected { EN: { usagePageTitle: '', …(1679) } } to deeply equal { EN: { …(1680) } }"
+      ]
+    }
+  ]
+}

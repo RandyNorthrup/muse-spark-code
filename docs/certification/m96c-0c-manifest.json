@@ -1,0 +1,137 @@
+{
+  "en": {
+    "command.showTeamTraffic.title": "Show Team Traffic",
+    "command.pauseTeamQueue.title": "Pause Team Queue",
+    "command.resumeTeamQueue.title": "Resume Team Queue",
+    "command.addRunner.title": "Add Runner…",
+    "command.testRunners.title": "Test Runners",
+    "command.cleanUpAgentBranches.title": "Clean Up Agent Branches",
+    "command.showAllWorkspacesAgents.title": "Show All Workspaces’ Agents"
+  },
+  "zh-cn": {
+    "command.showTeamTraffic.title": "显示团队调度",
+    "command.pauseTeamQueue.title": "暂停团队队列",
+    "command.resumeTeamQueue.title": "恢复团队队列",
+    "command.addRunner.title": "添加运行机器…",
+    "command.testRunners.title": "测试运行机器",
+    "command.cleanUpAgentBranches.title": "清理智能体分支",
+    "command.showAllWorkspacesAgents.title": "显示所有工作区的智能体"
+  },
+  "zh-tw": {
+    "command.showTeamTraffic.title": "顯示團隊調度",
+    "command.pauseTeamQueue.title": "暫停團隊佇列",
+    "command.resumeTeamQueue.title": "繼續團隊佇列",
+    "command.addRunner.title": "新增執行機器…",
+    "command.testRunners.title": "測試執行機器",
+    "command.cleanUpAgentBranches.title": "清理代理分支",
+    "command.showAllWorkspacesAgents.title": "顯示所有工作區的代理"
+  },
+  "ja": {
+    "command.showTeamTraffic.title": "チームの実行状況を表示",
+    "command.pauseTeamQueue.title": "チーム待ち列を一時停止",
+    "command.resumeTeamQueue.title": "チーム待ち列を再開",
+    "command.addRunner.title": "ランナーを追加…",
+    "command.testRunners.title": "ランナーをテスト",
+    "command.cleanUpAgentBranches.title": "エージェントのブランチを整理",
+    "command.showAllWorkspacesAgents.title": "すべてのワークスペースのエージェントを表示"
+  },
+  "ko": {
+    "command.showTeamTraffic.title": "팀 실행 현황 표시",
+    "command.pauseTeamQueue.title": "팀 대기열 일시 중지",
+    "command.resumeTeamQueue.title": "팀 대기열 재개",
+    "command.addRunner.title": "실행 머신 추가…",
+    "command.testRunners.title": "실행 머신 테스트",
+    "command.cleanUpAgentBranches.title": "에이전트 브랜치 정리",
+    "command.showAllWorkspacesAgents.title": "모든 작업 공간의 에이전트 표시"
+  },
+  "de": {
+    "command.showTeamTraffic.title": "Team-Auslastung anzeigen",
+    "command.pauseTeamQueue.title": "Team-Warteschlange pausieren",
+    "command.resumeTeamQueue.title": "Team-Warteschlange fortsetzen",
+    "command.addRunner.title": "Ausführungsrechner hinzufügen…",
+    "command.testRunners.title": "Ausführungsrechner testen",
+    "command.cleanUpAgentBranches.title": "Agenten-Branches aufräumen",
+    "command.showAllWorkspacesAgents.title": "Agenten aller Arbeitsbereiche anzeigen"
+  },
+  "fr": {
+    "command.showTeamTraffic.title": "Afficher l’activité de l’équipe",
+    "command.pauseTeamQueue.title": "Suspendre la file de l’équipe",
+    "command.resumeTeamQueue.title": "Reprendre la file de l’équipe",
+    "command.addRunner.title": "Ajouter une machine…",
+    "command.testRunners.title": "Tester les machines",
+    "command.cleanUpAgentBranches.title": "Nettoyer les branches des agents",
+    "command.showAllWorkspacesAgents.title": "Afficher les agents de tous les espaces de travail"
+  },
+  "es": {
+    "command.showTeamTraffic.title": "Mostrar actividad del equipo",
+    "command.pauseTeamQueue.title": "Pausar cola del equipo",
+    "command.resumeTeamQueue.title": "Reanudar cola del equipo",
+    "command.addRunner.title": "Añadir máquina…",
+    "command.testRunners.title": "Probar máquinas",
+    "command.cleanUpAgentBranches.title": "Limpiar ramas de agentes",
+    "command.showAllWorkspacesAgents.title": "Mostrar agentes de todos los espacios de trabajo"
+  },
+  "pt-br": {
+    "command.showTeamTraffic.title": "Mostrar atividade da equipe",
+    "command.pauseTeamQueue.title": "Pausar fila da equipe",
+    "command.resumeTeamQueue.title": "Retomar fila da equipe",
+    "command.addRunner.title": "Adicionar máquina…",
+    "command.testRunners.title": "Testar máquinas",
+    "command.cleanUpAgentBranches.title": "Limpar branches de agentes",
+    "command.showAllWorkspacesAgents.title": "Mostrar agentes de todos os espaços de trabalho"
+  },
+  "ru": {
+    "command.showTeamTraffic.title": "Показать нагрузку команды",
+    "command.pauseTeamQueue.title": "Приостановить очередь команды",
+    "command.resumeTeamQueue.title": "Возобновить очередь команды",
+    "command.addRunner.title": "Добавить машину…",
+    "command.testRunners.title": "Проверить машины",
+    "command.cleanUpAgentBranches.title": "Очистить ветки агентов",
+    "command.showAllWorkspacesAgents.title": "Показать агентов всех рабочих областей"
+  },
+  "it": {
+    "command.showTeamTraffic.title": "Mostra attività del team",
+    "command.pauseTeamQueue.title": "Sospendi coda del team",
+    "command.resumeTeamQueue.title": "Riprendi coda del team",
+    "command.addRunner.title": "Aggiungi macchina…",
+    "command.testRunners.title": "Verifica le macchine",
+    "command.cleanUpAgentBranches.title": "Pulisci i branch degli agenti",
+    "command.showAllWorkspacesAgents.title": "Mostra gli agenti di tutte le aree di lavoro"
+  },
+  "tr": {
+    "command.showTeamTraffic.title": "Takım etkinliğini göster",
+    "command.pauseTeamQueue.title": "Takım kuyruğunu duraklat",
+    "command.resumeTeamQueue.title": "Takım kuyruğunu sürdür",
+    "command.addRunner.title": "Makine ekle…",
+    "command.testRunners.title": "Makineleri test et",
+    "command.cleanUpAgentBranches.title": "Ajan dallarını temizle",
+    "command.showAllWorkspacesAgents.title": "Tüm çalışma alanlarının ajanlarını göster"
+  },
+  "pl": {
+    "command.showTeamTraffic.title": "Pokaż ruch zadań zespołu",
+    "command.pauseTeamQueue.title": "Wstrzymaj kolejkę zespołu",
+    "command.resumeTeamQueue.title": "Wznów kolejkę zespołu",
+    "command.addRunner.title": "Dodaj maszynę…",
+    "command.testRunners.title": "Testuj maszyny",
+    "command.cleanUpAgentBranches.title": "Posprzątaj gałęzie agentów",
+    "command.showAllWorkspacesAgents.title": "Pokaż agentów wszystkich obszarów roboczych"
+  },
+  "cs": {
+    "command.showTeamTraffic.title": "Zobrazit provoz týmu",
+    "command.pauseTeamQueue.title": "Pozastavit frontu týmu",
+    "command.resumeTeamQueue.title": "Obnovit frontu týmu",
+    "command.addRunner.title": "Přidat stroj…",
+    "command.testRunners.title": "Otestovat stroje",
+    "command.cleanUpAgentBranches.title": "Vyčistit větve agentů",
+    "command.showAllWorkspacesAgents.title": "Zobrazit agenty všech pracovních prostorů"
+  },
+  "hu": {
+    "command.showTeamTraffic.title": "Csapatforgalom megjelenítése",
+    "command.pauseTeamQueue.title": "Csapatsor szüneteltetése",
+    "command.resumeTeamQueue.title": "Csapatsor folytatása",
+    "command.addRunner.title": "Gép hozzáadása…",
+    "command.testRunners.title": "Gépek tesztelése",
+    "command.cleanUpAgentBranches.title": "Ügynökágak tisztítása",
+    "command.showAllWorkspacesAgents.title": "Minden munkaterület ügynökeinek megjelenítése"
+  }
+}

@@ -1,0 +1,139 @@
+[
+  {
+    "name": "diagnostic-redaction",
+    "file": "src/core/redact.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/redact.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": "\n\n Test Files  1 failed (1);       Tests  1 failed | 112 passed (113)",
+    "sha256BeforeAndAfter": "0826020dd1cb8510489a0fc6897ed32684b3cf39d6bf9ed976426f855efb5d1e"
+  },
+  {
+    "name": "confidential-dispatch",
+    "file": "src/host/conversation/conversationController.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/conversationController.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": "\n\n Test Files  1 failed (1);       Tests  8 failed | 540 passed (548)",
+    "sha256BeforeAndAfter": "531dc6183902fb81b3a9ebbcb907a364f65e96e8a956904df8c32d327167ca65"
+  },
+  {
+    "name": "protected-approval",
+    "file": "src/core/agent/approvalRules.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/approvalRules.test.ts",
+      "test/unit/museCodeProtectedWrites.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": "\n\n Test Files  1 failed | 1 passed (2);       Tests  9 failed | 95 passed (104)",
+    "sha256BeforeAndAfter": "5ba679463c8901acfd04fe3f7d2e8c004525d58ed9f9697921186a0b50cb68d7"
+  },
+  {
+    "name": "secret-approval-scrub",
+    "file": "src/core/agent/approvalSecrets.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/approvalSecrets.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": "\n\n Test Files  1 failed (1);       Tests  4 failed | 5 passed (9)",
+    "sha256BeforeAndAfter": "3924eb196b894928ea2de65e738f72107d9638868e2d90ad25bc11ea12eab554"
+  },
+  {
+    "name": "single-highlights",
+    "file": "CHANGELOG.md",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/changelogVersion.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": "\n\n Test Files  1 failed (1);       Tests  1 failed | 1 passed (2)",
+    "sha256BeforeAndAfter": "94521c63b6d629c610db6d03228381bbc7826fd3a2ac941b56bf32a1d9d8ebd1"
+  },
+  {
+    "name": "monitor-live-control",
+    "file": "test/unit/shellBoundedMonitor.test.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/shellBoundedMonitor.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": "\n\n Test Files  1 failed (1);       Tests  1 failed (1)",
+    "sha256BeforeAndAfter": "5f803264b373e605ae62f504402100f978feba73df2589da11605067abc5cff7"
+  },
+  {
+    "name": "writer-session-identity",
+    "file": "test/unit/verifyLoop.test.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/verifyLoop.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": "\n\n Test Files  1 failed (1);       Tests  2 failed | 70 passed (72)",
+    "sha256BeforeAndAfter": "513dca2152b518814db25d0552facd768477a901bc371c02e51aeadacc7c315a"
+  },
+  {
+    "name": "unused-packing-recall",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/eval/evalPacking.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": "\n\n Test Files  1 failed (1);       Tests  1 failed | 7 passed (8)",
+    "sha256BeforeAndAfter": "2681ce1b16db3de162c152d19873be80aba6f269a00911e82dc434bc6e1e8dd4"
+  },
+  {
+    "name": "whats-new-tip",
+    "file": "src/shared/l10n/en.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/paletteRegistry.test.ts",
+      "test/unit/Palette.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "summary": "\n\n Test Files  2 failed (2);       Tests  2 failed | 47 passed (49)",
+    "sha256BeforeAndAfter": "9d1a4e1e83bf0ba0bcddba2a79b89649c6733629c1f7c85acb6fb9d1cf67346f"
+  }
+]

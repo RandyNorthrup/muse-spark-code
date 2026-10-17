@@ -10,6 +10,12 @@ import type { McpPoolSnapshot } from '../../src/core/backends/modelapi/mcp/pool'
 
 const SETTINGS = '/home/u/.config/muse/settings.json'
 const HOOKS = '/ws/.muse/hooks.json'
+const SPARK_PROJECT = '/ws/.muse/spark-hooks.json'
+const SPARK_USER = '/home/u/.config/muse/spark-hooks.json'
+// Who runs each file (M91, PLAN.md D70), under its row.
+const BOTH = 'Run by Muse Code, and by this window on the Model API backend'
+const SPARK =
+  'Run by this window: on the Model API backend, and on both backends for the events the extension itself handles'
 
 interface HarnessOptions {
   /** The settings text; undefined for no file; an Error to throw. */
@@ -23,6 +29,8 @@ interface HarnessOptions {
   /** The window runs the Model API backend (M50): its servers' snapshot, undefined before they start. */
   readonly modelApi?: { readonly snapshot: McpPoolSnapshot | undefined }
   readonly modelApiHooks?: boolean | undefined
+  /** The hook files' texts by path, read for the spark-hooks.json rows (M91). */
+  readonly files?: Readonly<Record<string, string>>
 }
 
 function harness(options: HarnessOptions = {}) {
@@ -47,6 +55,11 @@ function harness(options: HarnessOptions = {}) {
       return value
     },
     projectHooksPath: 'projectHooksPath' in options ? options.projectHooksPath : HOOKS,
+    ...(options.files !== undefined && {
+      sparkProjectPath: SPARK_PROJECT,
+      sparkUserPath: SPARK_USER,
+      readTextFile: (fsPath: string) => options.files?.[fsPath],
+    }),
     fileExists: (fsPath) => existing.has(fsPath),
     isWorkspaceTrusted: () => options.isTrusted ?? true,
     pick: (items, title, placeholder) => {
@@ -113,7 +126,7 @@ describe('showMcpServers', () => {
   it('lists each server with its transport, target, mode and secret names, then the actions', async () => {
     const t = harness({ settings: TWO_SERVERS })
     await showMcpServers(t.deps)
-    expect(t.picks[0]?.title).toBe('Muse Code MCP servers')
+    expect(t.picks[0]?.title).toBe('Muse Code MCP Servers')
     expect(t.picks[0]?.placeholder).toBe(`2 MCP servers in ${SETTINGS}`)
     expect(t.picks[0]?.items).toEqual([
       {
@@ -128,13 +141,13 @@ describe('showMcpServers', () => {
         description: 'stdio · tool',
         detail: 'optional · turned off · environment: K',
       },
-      { id: 'action:openSettings', label: 'Open the settings file', detail: SETTINGS },
+      { id: 'action:openSettings', label: 'Open the Settings File', detail: SETTINGS },
       {
         id: 'action:restart',
-        label: 'Restart Muse Code to load changes',
+        label: 'Restart Muse Code to Load Changes',
         detail: 'A reply that is running stops; the conversation continues on your next message',
       },
-      { id: 'action:docs', label: 'MCP servers in Muse Code (documentation)' },
+      { id: 'action:docs', label: 'MCP Servers in Muse Code (Documentation)' },
     ])
     expect(t.warnings).toEqual([])
   })
@@ -277,7 +290,7 @@ describe('showMcpServers on the Model API backend (M50)', () => {
   it('shows each server as this window runs it, and the built-in diagnostics server', async () => {
     const t = harness({ settings: FIVE_SERVERS, modelApi: { snapshot: LIVE } })
     await showMcpServers(t.deps)
-    expect(t.picks[0]?.title).toBe('MCP servers on the Model API backend')
+    expect(t.picks[0]?.title).toBe('MCP Servers on the Model API Backend')
     expect(t.picks[0]?.items.map((item) => [item.id, item.detail])).toEqual([
       ['server:docs', 'Connected: 1 tool · required (a message stops if it is not running)'],
       ['server:local', 'Connected: 3 tools · 2 more not offered · optional'],
@@ -308,8 +321,28 @@ describe('showMcpServers on the Model API backend (M50)', () => {
     ])
     expect(t.picks[0]?.items.find((item) => item.id === 'builtin:ide')).toMatchObject({
       label: 'ide',
-      description: 'built in',
+      description: 'Built In',
     })
+  })
+
+  it('redacts failed MCP connection detail in the picker', async () => {
+    const secret = `ghp_${'a'.repeat(36)}`
+    const t = harness({
+      settings: FIVE_SERVERS,
+      modelApi: {
+        snapshot: {
+          ...LIVE,
+          servers: LIVE.servers.map((server) => ({
+            ...server,
+            state: { status: 'failed', reason: `connection failed: ${secret}` },
+          })),
+        },
+      },
+    })
+    await showMcpServers(t.deps)
+    const detail = t.picks[0]?.items.find((item) => item.id === 'server:docs')?.detail
+    expect(detail).toContain('connection failed: [redacted]')
+    expect(detail).not.toContain(secret)
   })
 
   it('says a server starts with the next message before any has, and that none load after a fault', async () => {
@@ -374,17 +407,17 @@ describe('showHooks', () => {
   it('shows Model API hook opt-in state before source files', async () => {
     const off = harness({ modelApiHooks: false, existing: [SETTINGS, HOOKS] })
     await showHooks(off.deps)
-    expect(off.picks[0]?.title).toBe('Model API hooks')
+    expect(off.picks[0]?.title).toBe('Model API Hooks')
     expect(off.picks[0]?.items[0]).toMatchObject({
       id: 'hooks:modelApiSetting',
       label: 'museSpark.modelApiHooks',
       detail: 'off',
     })
-    expect(off.picks[0]?.items[1]?.detail).toBe('off')
+    expect(off.picks[0]?.items[1]?.detail).toBe(`off · ${BOTH}`)
     const on = harness({ modelApiHooks: true, existing: [SETTINGS, HOOKS] })
     await showHooks(on.deps)
     expect(on.picks[0]?.items[0]?.detail).toBe('on')
-    expect(on.picks[0]?.items[1]?.detail).toBe('Runs in this workspace')
+    expect(on.picks[0]?.items[1]?.detail).toBe(`Runs in this workspace · ${BOTH}`)
     const chosen = harness({ modelApiHooks: false, answers: ['hooks:modelApiSetting'] })
     await showHooks(chosen.deps)
     expect(chosen.modelApiSettingsOpened()).toBe(1)
@@ -400,12 +433,12 @@ describe('showHooks', () => {
       'Hooks run through your shell, outside Muse Code’s sandbox and approvals',
     )
     expect(t.picks[0]?.items.map((item) => [item.id, item.description, item.detail])).toEqual([
-      ['hooks:project', '.muse/hooks.json', 'Runs in this workspace'],
-      ['hooks:user', 'settings.json › hooks', '1 hook in your settings'],
+      ['hooks:project', '.muse/hooks.json', `Runs in this workspace · ${BOTH}`],
+      ['hooks:user', 'settings.json › hooks', `1 hook in your settings · ${BOTH}`],
       [
         'hooks:managed',
         '/etc/muse/hooks.json',
-        'Set by your settings; whoever controls this file controls what runs',
+        `Set by your settings; whoever controls this file controls what runs · ${BOTH}`,
       ],
       ['action:docs', undefined, undefined],
     ])
@@ -419,7 +452,7 @@ describe('showHooks', () => {
     })
     await showHooks(t.deps)
     expect(t.picks[0]?.items.map((item) => item.detail)).toEqual([
-      'Runs only once you trust this workspace',
+      `Runs only once you trust this workspace · ${BOTH}`,
       'None in your settings',
       'Your settings name this file, but it does not exist.',
       undefined,
@@ -434,15 +467,15 @@ describe('showHooks', () => {
     const modelApi = harness({ ...configured, modelApiHooks: true })
     await showHooks(modelApi.deps)
     expect(modelApi.picks[0]?.items.slice(1, 4).map((item) => item.detail)).toEqual([
-      'Runs only once you trust this workspace',
-      '1 hook in your settings · Runs only once you trust this workspace',
-      'Set by your settings; whoever controls this file controls what runs · Runs only once you trust this workspace',
+      `Runs only once you trust this workspace · ${BOTH}`,
+      `1 hook in your settings · Runs only once you trust this workspace · ${BOTH}`,
+      `Set by your settings; whoever controls this file controls what runs · Runs only once you trust this workspace · ${BOTH}`,
     ])
     const museCode = harness(configured)
     await showHooks(museCode.deps)
     expect(museCode.picks[0]?.items.slice(1, 3).map((item) => item.detail)).toEqual([
-      '1 hook in your settings',
-      'Set by your settings; whoever controls this file controls what runs',
+      `1 hook in your settings · ${BOTH}`,
+      `Set by your settings; whoever controls this file controls what runs · ${BOTH}`,
     ])
     const bare = harness({ settings: undefined, existing: [], projectHooksPath: undefined })
     await showHooks(bare.deps)
@@ -479,6 +512,78 @@ describe('showHooks', () => {
     const dismissed = harness({ answers: [undefined] })
     await showHooks(dismissed.deps)
     expect(dismissed.opened).toEqual([])
+  })
+
+  it('lists both files per scope and which backend runs each (M91 acceptance 8)', async () => {
+    const t = harness({
+      existing: [SETTINGS, HOOKS, SPARK_PROJECT],
+      files: {
+        [HOOKS]: JSON.stringify({
+          hooks: {
+            StopFailure: [{ hooks: [{ type: 'command', command: 'a' }] }],
+            TaskCreated: [{ hooks: [{ type: 'command', command: 'b' }] }],
+          },
+        }),
+        [SPARK_PROJECT]: JSON.stringify({
+          hooks: {
+            TaskCreated: [{ hooks: [{ type: 'command', command: 'c' }] }],
+            PreToolUse: [
+              {
+                format: 'cursor',
+                sourceEvent: 'preToolUse',
+                hooks: [{ type: 'command', command: 'd' }],
+              },
+              {
+                format: 'kiro',
+                sourceEvent: 'PreToolUse',
+                hooks: [{ type: 'command', command: 'e' }],
+              },
+            ],
+            Stop: [{ hooks: [{ type: 'command', command: 'f' }] }],
+          },
+        }),
+      },
+    })
+    await showHooks(t.deps)
+    expect(t.picks[0]?.items.map((item) => [item.id, item.description, item.detail])).toEqual([
+      [
+        'hooks:project',
+        '.muse/hooks.json',
+        [
+          'Runs in this workspace',
+          BOTH,
+          'Muse Code 1.4.2 does not run StopFailure hooks; this window runs them on the Model API backend.',
+          'TaskCreated runs only from spark-hooks.json; Muse Code skips it in this file.',
+        ].join(' · '),
+      ],
+      [
+        'hooks:sparkProject',
+        '.muse/spark-hooks.json',
+        [
+          '4 hooks in .muse/spark-hooks.json',
+          SPARK,
+          'Cursor Format, Kiro Format',
+          'Hooks in another agent’s format run only on the Model API backend.',
+          'Stop is a Muse Code event: configure it in .muse/hooks.json, so it runs once.',
+        ].join(' · '),
+      ],
+      ['hooks:user', 'settings.json › hooks', 'None in your settings'],
+      ['hooks:sparkUser', SPARK_USER, 'You have no spark-hooks.json.'],
+      ['hooks:managed', 'managed_hooks_path', 'Not set: no administrator hooks'],
+      ['action:docs', undefined, undefined],
+    ])
+    const opened = harness({
+      existing: [SETTINGS, SPARK_PROJECT],
+      files: {},
+      answers: ['hooks:sparkProject'],
+    })
+    await showHooks(opened.deps)
+    expect(opened.opened).toEqual([SPARK_PROJECT])
+    const absent = harness({ files: {}, answers: ['hooks:sparkUser'] })
+    await showHooks(absent.deps)
+    expect(absent.information).toEqual([
+      'You have no spark-hooks.json. Muse Code never reads this file. It holds the events only this extension runs, and hooks imported from other agents.',
+    ])
   })
 
   it('warns when the settings file cannot be read and still lists the project file', async () => {

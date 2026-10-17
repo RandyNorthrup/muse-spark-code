@@ -1,0 +1,303 @@
+{
+  "date": "2026-10-04",
+  "machine": "Windows host (vitest 5.0.1, Node 24.20.0)",
+  "method": "each drill replaced one guard in the worktree, ran its owning test files, wrote the saved bytes back and compared SHA-256",
+  "drills": [
+    {
+      "id": "fold-waiting",
+      "what": "a waiting step folded (the default view)",
+      "file": "src/webview/components/Transcript.tsx",
+      "exit": 1,
+      "failing": [
+        "never folds a step waiting on the user, and keeps a running one below the group"
+      ],
+      "restored": true,
+      "sha256": "8a635597b6a7c45cf11d83684ae453586050ae2b42a821e292268852792560bc",
+      "firstRun": {
+        "exit": 0,
+        "failing": [],
+        "note": "survived: the test's waiting row was also running, so the finished-step guard hid it; the test now gives it a non-running wire status"
+      }
+    },
+    {
+      "id": "fold-running",
+      "what": "a running step folded",
+      "file": "src/webview/components/Transcript.tsx",
+      "exit": 1,
+      "failing": [
+        "renders every entry kind",
+        "streams the summary while thinking and leaves a plain \"Thought for\" line after (M16)",
+        "never folds a step waiting on the user, and keeps a running one below the group"
+      ],
+      "restored": true,
+      "sha256": "8a635597b6a7c45cf11d83684ae453586050ae2b42a821e292268852792560bc"
+    },
+    {
+      "id": "fold-single",
+      "what": "one finished step folded alone",
+      "file": "src/webview/components/Transcript.tsx",
+      "exit": 1,
+      "failing": [
+        "renders every entry kind",
+        "streams the summary while thinking and leaves a plain \"Thought for\" line after (M16)",
+        "renders shell rows with IN/OUT boxes and clips long output",
+        "clips a long single line by characters, with Show more for the rest",
+        "renders an edit row from the visible-output diff, then from the fetched patch",
+        "shows the highlighted-text menu on the row that owns it and relays the choice",
+        "marks a row its turn cut off as interrupted, without an alert",
+        "fetches a patch past one page in full, then numbers it; within the page budget",
+        "reads an edit’s patch once the edit has finished, not while it runs (D26)",
+        "asks again for a page that never came when its row is collapsed and expanded (D26)",
+        "reads a collapsed edit row’s patch only once it is expanded, after a resume too (D26)",
+        "stops fetching a document that never ends at the host page budget",
+        "leaves one finished step alone, and a run broken by a message as two"
+      ],
+      "restored": true,
+      "sha256": "8a635597b6a7c45cf11d83684ae453586050ae2b42a821e292268852792560bc"
+    },
+    {
+      "id": "summary-distinct",
+      "what": "a file counted twice in the summary",
+      "file": "src/webview/stepSummary.ts",
+      "exit": 1,
+      "failing": [
+        "counts each kind in first-seen order, files by distinct path",
+        "counts commands, web searches and other tools by call, pages by address",
+        "counts the failures, not an interruption, and names no thought",
+        "folds two or more finished steps under what they did, in first-seen order"
+      ],
+      "restored": true,
+      "sha256": "10961a83024572cefee06687fd2d51ff006e733905a512f3bf2ae7d3cf45f0be"
+    },
+    {
+      "id": "summary-failed",
+      "what": "a failure left out of the summary",
+      "file": "src/webview/stepSummary.ts",
+      "exit": 1,
+      "failing": [
+        "counts the failures, not an interruption, and names no thought",
+        "reads as a sentence in English: plural forms, a list, the first letter raised",
+        "reads as a sentence in the shipped German, Turkish and Japanese tables",
+        "names a failure in the summary and carries the failure dot, never hiding it"
+      ],
+      "restored": true,
+      "sha256": "10961a83024572cefee06687fd2d51ff006e733905a512f3bf2ae7d3cf45f0be"
+    },
+    {
+      "id": "list-unit",
+      "what": "the summary joined as a unit list (D66 as written)",
+      "file": "src/shared/l10n/text.ts",
+      "exit": 1,
+      "failing": [
+        "formats a time, the full date and time, and a list in en",
+        "formats a time, the full date and time, and a list in tr",
+        "formats a time, the full date and time, and a list in ja",
+        "writes the local day and time, and lists with the language’s own joiners",
+        "reads as a sentence in English: plural forms, a list, the first letter raised",
+        "reads as a sentence in the shipped German, Turkish and Japanese tables"
+      ],
+      "restored": true,
+      "sha256": "0a619037644d0cb4ec5511b32a3c2dfc8782007d4345837da541a2e9a0f4f1d1"
+    },
+    {
+      "id": "capitalize-locale",
+      "what": "the first letter raised without the language’s case rules",
+      "file": "src/shared/l10n/text.ts",
+      "exit": 1,
+      "failing": ["raises only the first letter, by the language’s own case rules"],
+      "restored": true,
+      "sha256": "0a619037644d0cb4ec5511b32a3c2dfc8782007d4345837da541a2e9a0f4f1d1"
+    },
+    {
+      "id": "same-day-utc",
+      "what": "the same-day check made in UTC instead of local time",
+      "file": "src/shared/l10n/text.ts",
+      "exit": 1,
+      "failing": [
+        "judges the same day in local time, never in UTC",
+        "shows today’s time alone and an older one with its date, the full date in the title"
+      ],
+      "restored": true,
+      "sha256": "0a619037644d0cb4ec5511b32a3c2dfc8782007d4345837da541a2e9a0f4f1d1"
+    },
+    {
+      "id": "time-unfocusable",
+      "what": "the <time> of a card without action buttons left unfocusable",
+      "file": "src/webview/components/Transcript.tsx",
+      "exit": 1,
+      "failing": ["makes the time a keyboard stop only on a card with no button of its own"],
+      "restored": true,
+      "sha256": "8a635597b6a7c45cf11d83684ae453586050ae2b42a821e292268852792560bc"
+    },
+    {
+      "id": "recorded-at-unchecked",
+      "what": "a recorded time read with Date.parse alone (no RFC 3339 check)",
+      "file": "src/webview/state/transcriptEntries.ts",
+      "exit": 1,
+      "failing": ["shows no time for an item that records none or one that does not parse"],
+      "restored": true,
+      "sha256": "47b174f43c639be5dea3663c7b1687a347d7a0889570d79c83c70e4abfdeafb0"
+    },
+    {
+      "id": "queued-as-sent",
+      "what": "a queued or steered card marked sent on acceptance",
+      "file": "src/webview/state/uiState.ts",
+      "exit": 1,
+      "failing": [
+        "marks a queued message queued on its acceptance, with its disposition and time",
+        "keeps a queued card queued until its turn starts",
+        "keeps a steered card queued until a request reads it, under its user item id",
+        "follows a steer the turn left unread to its own turn, queued, until that one starts",
+        "marks a steer sent when the turn it joined ends (Muse Code names no user item)"
+      ],
+      "restored": true,
+      "sha256": "ddc6c02319cfc5ee197405145428d28bd988200e0b330a09360326c51b630d9e"
+    },
+    {
+      "id": "start-not-admitting",
+      "what": "a queued turn’s start leaves its card queued",
+      "file": "src/webview/state/uiState.ts",
+      "exit": 1,
+      "failing": [
+        "keeps a queued card queued until its turn starts",
+        "follows a steer the turn left unread to its own turn, queued, until that one starts"
+      ],
+      "restored": true,
+      "sha256": "ddc6c02319cfc5ee197405145428d28bd988200e0b330a09360326c51b630d9e"
+    },
+    {
+      "id": "images-notice",
+      "what": "no notice for images that did not come back",
+      "file": "src/webview/state/uiState.ts",
+      "exit": 1,
+      "failing": ["says when a withdrawn message’s images could not come back, and only then"],
+      "restored": true,
+      "sha256": "ddc6c02319cfc5ee197405145428d28bd988200e0b330a09360326c51b630d9e"
+    },
+    {
+      "id": "selection-ignored",
+      "what": "a right-click on selected text taken from the quote menu",
+      "file": "src/webview/components/Transcript.tsx",
+      "exit": 1,
+      "failing": ["leaves a right-click on selected text to the quote menu"],
+      "restored": true,
+      "sha256": "8a635597b6a7c45cf11d83684ae453586050ae2b42a821e292268852792560bc"
+    },
+    {
+      "id": "delivered-always",
+      "what": "a Model API steer shown as delivered, with no Edit",
+      "file": "src/webview/components/Transcript.tsx",
+      "exit": 1,
+      "failing": [
+        "says a Muse Code steer was delivered instead of offering Edit, and lets a Model API one be edited"
+      ],
+      "restored": true,
+      "sha256": "8a635597b6a7c45cf11d83684ae453586050ae2b42a821e292268852792560bc"
+    },
+    {
+      "id": "drained-steer-withdrawn",
+      "what": "a drained steer withdrawn (it stays in the steered input)",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "exit": 1,
+      "failing": [
+        "says too late once drainSteered put the steer in a request, and tells the panel it was admitted"
+      ],
+      "restored": true,
+      "sha256": "ab960698d8c2dc47f4930aed7f5ab2a33e4f7cce878e595e18a36f47eaf9d67d"
+    },
+    {
+      "id": "steer-ends-running-turn",
+      "what": "a withdrawn steer reported as the running turn withdrawn",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "exit": 1,
+      "failing": [
+        "takes a steer back before drainSteered reads it, saying nothing to the running turn"
+      ],
+      "restored": true,
+      "sha256": "ab960698d8c2dc47f4930aed7f5ab2a33e4f7cce878e595e18a36f47eaf9d67d"
+    },
+    {
+      "id": "admitted-silent",
+      "what": "no messageAdmitted when a steer goes into a request",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "exit": 1,
+      "failing": [
+        "says too late once drainSteered put the steer in a request, and tells the panel it was admitted"
+      ],
+      "restored": true,
+      "sha256": "ab960698d8c2dc47f4930aed7f5ab2a33e4f7cce878e595e18a36f47eaf9d67d"
+    },
+    {
+      "id": "images-dropped",
+      "what": "a withdrawn Model API message’s images not given back",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "exit": 1,
+      "failing": [
+        "takes a queued turn out of the queue with its images, and ends it withdrawn",
+        "takes a steer back before drainSteered reads it, saying nothing to the running turn"
+      ],
+      "restored": true,
+      "sha256": "ab960698d8c2dc47f4930aed7f5ab2a33e4f7cce878e595e18a36f47eaf9d67d"
+    },
+    {
+      "id": "user-unstamped",
+      "what": "a Model API user message stored without its time",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "exit": 1,
+      "failing": [
+        "stamps each user message and reply with its time, kept in the session file and read back"
+      ],
+      "restored": true,
+      "sha256": "ab960698d8c2dc47f4930aed7f5ab2a33e4f7cce878e595e18a36f47eaf9d67d"
+    },
+    {
+      "id": "muse-unqueue-steer",
+      "what": "turn/unqueue sent for a steered message",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "exit": 1,
+      "failing": ["answers too late, asking nothing, for a message steered into the running turn"],
+      "restored": true,
+      "sha256": "4138ecd1c3e852563932144ef4bf080978649446dd853565f45fa020cfc834b0"
+    },
+    {
+      "id": "muse-run-active",
+      "what": "the captured run_active refusal not read as too late",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "exit": 1,
+      "failing": [
+        "reads the captured refusals: run_active is too late, already_applied is taken back"
+      ],
+      "restored": true,
+      "sha256": "4138ecd1c3e852563932144ef4bf080978649446dd853565f45fa020cfc834b0"
+    },
+    {
+      "id": "ctl-unsupported",
+      "what": "a session without the verb refused as too late",
+      "file": "src/host/conversation/conversationController.ts",
+      "exit": 1,
+      "failing": [
+        "asks nothing of the backend for a card it did not queue here, other ids, or a session that cannot"
+      ],
+      "restored": true,
+      "sha256": "d34952b2d5962bdff66e9e61b1bd00b33e41f7fb4f61c81e9e40e4e2c01a067c",
+      "firstRun": {
+        "exit": 1,
+        "failing": [
+          "asks nothing of the backend for a card it did not queue here, other ids, or a session that cannot"
+        ],
+        "note": "not counted: the Win11 run showed the test already failing without the break (Muse Code sessions now have withdrawQueued, so the case needed a session with the verb hidden); fixed, the file was green (394), and this rerun is the evidence"
+      }
+    },
+    {
+      "id": "fake-unqueue",
+      "what": "the fake CLI refusing every turn/unqueue",
+      "file": "test/e2e/fake-muse/serve.mjs",
+      "exit": 1,
+      "failing": [
+        "takes a queued message back with turn/unqueue, and answers too late once one launched (M87)"
+      ],
+      "restored": true,
+      "sha256": "602248db9747bd00a86624f7ec0edd00d68b4350d6db5ab4bb8dd91e5f73534a"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "locales": 14,
+  "locale_gate_green": 0,
+  "missing_fr_red": 1,
+  "removed_locale_guard_accepts_bad_tar": 0,
+  "locale_gate_restored": 0,
+  "workflow_sha256": "ea324135fc66c26beb445e2e93044956e7a4bcb79549ee48c69d5237786c8a55",
+  "workflow_restored_byte_exact": true,
+  "checksum_entries": [
+    "4ac6a5b70d9c46bd835730f7f320a509e49bc7accbfaaef94b6b242312af5fb6  ./muse-spark-code-0.10.1.vsix",
+    "2ee05c2017d0367d25019c893a7bb39225ce52c6e816cefddd86a5d286efb4cb  ./muse-spark-code-acp-0.10.1.tgz",
+    "d45dba03a93e2aff76abe2a3a9c3a9f4aab6763390df1de9ce74857f6be54b90  ./muse-spark-code-acp.cdx.json",
+    "1e38e8e77f76bbb928d2f01a52f1709ed7e7347209d7d42ea6148300da0dee3d  ./muse-spark-code.cdx.json"
+  ],
+  "missing_tarball_red": 1,
+  "m80_action_exists": false,
+  "m80_schemas_exist": false
+}

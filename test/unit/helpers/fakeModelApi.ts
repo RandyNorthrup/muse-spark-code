@@ -5,14 +5,18 @@
 // (dev.meta.ai/docs/protocols/responses), so the parser and the client run
 // exactly as they do against the service.
 
-import { ModelApiClient } from '../../../src/core/backends/modelapi/client'
-import { createHash } from 'node:crypto'
-import type { CoreLogger } from '../../../src/core/logging'
-
 export interface ScriptedCall {
   readonly name: string
   readonly arguments: string
   readonly callId?: string
+  /** A call the reply left uncompleted (M101 item 8): never run, answered with an error. */
+  readonly status?: 'completed' | 'incomplete'
+  /**
+   * The streamed argument deltas (M106 R2): they must concatenate to
+   * `arguments` byte-exact. Absent serves one delta with the whole
+   * arguments, as before.
+   */
+  readonly argumentDeltas?: readonly string[]
 }
 
 /** One hosted web search in a reply (M33), streamed before the text. */
@@ -34,9 +38,28 @@ export interface ScriptedSearch {
 
 /** One model reply: streamed as reasoning + searches + text + function calls. */
 export interface ScriptedReply {
+  /** M80 synthetic accounting/stream faults, never claimed provider captures. */
+  readonly omitUsage?: boolean
+  readonly omitTerminal?: boolean
+  readonly usageOverride?: unknown
+  readonly malformedTerminal?: boolean
+  readonly frameDelayMs?: number
+  readonly holdEof?: Promise<unknown>
+  /**
+   * Called once the body has handed out every frame and `holdEof` starts
+   * holding its end: a test acts on the held response, not on a fixed delay.
+   */
+  readonly onEofHeld?: () => void
   /** Hold this response while concurrent sessions run (M48 capacity tests). */
   readonly hold?: Promise<unknown>
+  /**
+   * Called as this reply's request arrives, before any hold: a test waits on
+   * the request itself rather than polling for it under a fixed deadline.
+   */
+  readonly onRequest?: () => void
   readonly text?: string
+  /** A synthetic large write without manufacturing thousands of tiny frames. */
+  readonly isSingleTextDelta?: boolean
   readonly searches?: readonly ScriptedSearch[]
   /** The text's `url_citation` annotations (M33). */
   readonly citations?: readonly { readonly url: string; readonly title: string }[]
@@ -65,6 +88,8 @@ export interface ScriptedReply {
   readonly garbage?: boolean
   /** Fail the fetch itself (network error) instead of answering. */
   readonly networkError?: string
+  /** The socket code under that error, as Node's fetch keeps it in `cause` (M56). */
+  readonly networkErrorCode?: string
   /** A keep-alive with empty data mid-stream and the OpenAI-style `data: [DONE]` at the end. */
   readonly doneSentinel?: boolean
 }
@@ -82,6 +107,9 @@ export const TINY_PNG_BASE64 =
 
 /** One answer of `POST /images/generations` (M34). */
 export interface ScriptedImage {
+  readonly count?: number
+  readonly dataOverride?: unknown
+  readonly hold?: Promise<unknown>
   /** The image, base64; a 1×1 PNG when absent. */
   readonly b64?: string
   readonly revisedPrompt?: string
@@ -122,7 +150,11 @@ function nextId(prefix: string): string {
 }
 
 /** The SSE text for one scripted reply, in the documented event order. */
-export function streamFor(reply: ScriptedReply, responseId: string): string {
+export function streamFor(
+  reply: ScriptedReply,
+  responseId: string,
+  model = 'muse-spark-1.3',
+): string {
   const output: Record<string, unknown>[] = []
   let text = frame({
     type: 'response.created',
@@ -189,7 +221,8 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
       output_index: index,
       item: { type: 'message', id, role: 'assistant', content: [], status: 'in_progress' },
     })
-    const textPieces = reply.text.match(/.{1,5}/g) ?? []
+    const textPieces =
+      reply.isSingleTextDelta === true ? [reply.text] : (reply.text.match(/.{1,5}/g) ?? [])
     for (const piece of textPieces) {
       text += frame({ type: 'response.output_text.delta', item_id: id, delta: piece })
     }
@@ -237,11 +270,14 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
         status: 'in_progress',
       },
     })
-    text += frame({
-      type: 'response.function_call_arguments.delta',
-      item_id: id,
-      delta: call.arguments,
-    })
+    const deltas = call.argumentDeltas ?? [call.arguments]
+    for (const delta of deltas) {
+      text += frame({
+        type: 'response.function_call_arguments.delta',
+        item_id: id,
+        delta,
+      })
+    }
     text += frame({
       type: 'response.function_call_arguments.done',
       item_id: id,
@@ -253,7 +289,7 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
       call_id: callId,
       name: call.name,
       arguments: call.arguments,
-      status: 'completed',
+      status: call.status ?? 'completed',
     }
     text += frame({ type: 'response.output_item.done', output_index: index, item: done })
     output.push(done)
@@ -264,14 +300,20 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
   if (reply.doneSentinel === true) {
     text += 'data:\n\n'
   }
+  if (reply.omitTerminal === true) return text
   const usage = reply.usage ?? { input: 10, output: 5 }
-  const usagePayload = {
-    input_tokens: usage.input,
-    output_tokens: usage.output,
-    total_tokens: usage.input + usage.output,
-    input_tokens_details: { cached_tokens: usage.cached ?? 0 },
-    output_tokens_details: { reasoning_tokens: 1 },
-  }
+  const usagePayload =
+    'usageOverride' in reply
+      ? reply.usageOverride
+      : {
+          input_tokens: usage.input,
+          output_tokens: usage.output,
+          total_tokens: usage.input + usage.output,
+          input_tokens_details: { cached_tokens: usage.cached ?? 0 },
+          output_tokens_details: { reasoning_tokens: 1 },
+        }
+  if (reply.malformedTerminal === true)
+    return `${text}${frame({ type: 'response.completed', response: { status: 'completed', usage: usagePayload } })}`
   if (reply.failed !== undefined) {
     return `${text}${frame({
       type: 'response.failed',
@@ -286,9 +328,9 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
   }
   const response = {
     id: responseId,
-    model: 'muse-spark-1.3',
+    model,
     output,
-    usage: usagePayload,
+    ...(reply.omitUsage !== true && { usage: usagePayload }),
   }
   if (reply.incomplete !== undefined) {
     return `${text}${frame({
@@ -309,7 +351,46 @@ export function streamFor(reply: ScriptedReply, responseId: string): string {
   })}${reply.doneSentinel === true ? 'data: [DONE]\n\n' : ''}`
 }
 
-function bodyStream(text: string): ReadableStream<Uint8Array> {
+function bodyStream(
+  text: string,
+  reply: ScriptedReply,
+  signal: AbortSignal | null | undefined,
+): ReadableStream<Uint8Array> {
+  if (reply.frameDelayMs !== undefined || reply.holdEof !== undefined) {
+    const frames = text.match(/[^]*?\n\n/g) ?? [text]
+    let index = 0
+    let isCancelled = false
+    const isStopped = () => isCancelled
+    return new ReadableStream<Uint8Array>({
+      async pull(controller) {
+        try {
+          if (reply.frameDelayMs !== undefined)
+            await afterGate(
+              new Promise((resolve) => setTimeout(resolve, reply.frameDelayMs)),
+              undefined,
+              signal,
+            )
+          if (isCancelled) return
+          const next = frames[index]
+          if (next !== undefined) {
+            index += 1
+            controller.enqueue(encoder.encode(next))
+            return
+          }
+          if (reply.holdEof !== undefined) {
+            reply.onEofHeld?.()
+            await afterGate(reply.holdEof, undefined, signal)
+          }
+          if (!isStopped()) controller.close()
+        } catch (error: unknown) {
+          if (!isCancelled) controller.error(error)
+        }
+      },
+      cancel() {
+        isCancelled = true
+      },
+    })
+  }
   // Two chunks split mid-frame: the parser must buffer across chunks.
   const bytes = encoder.encode(text)
   const cut = Math.floor(bytes.length / 2)
@@ -322,24 +403,31 @@ function bodyStream(text: string): ReadableStream<Uint8Array> {
   })
 }
 
-async function afterGate(
+async function afterGate<T>(
   gate: Promise<unknown>,
-  response: Response,
+  response: T,
   signal: AbortSignal | null | undefined,
-): Promise<Response> {
+): Promise<T> {
   if (signal?.aborted === true) {
     throw new DOMException('aborted', 'AbortError')
   }
-  const aborted = Promise.withResolvers<never>()
-  const onAbort = () => {
-    aborted.reject(new DOMException('aborted', 'AbortError'))
-  }
-  signal?.addEventListener('abort', onAbort, { once: true })
+  // Not `Promise.withResolvers`: the integration tests load this helper in
+  // VS Code 1.99, whose Node 20.18 lacks it (PLAN.md M62).
+  const listening = new AbortController()
+  const aborted = new Promise<never>((_resolve, reject) => {
+    signal?.addEventListener(
+      'abort',
+      () => {
+        reject(new DOMException('aborted', 'AbortError'))
+      },
+      { once: true, signal: listening.signal },
+    )
+  })
   try {
-    await Promise.race([gate, aborted.promise])
+    await Promise.race([gate, aborted])
     return response
   } finally {
-    signal?.removeEventListener('abort', onAbort)
+    listening.abort()
   }
 }
 
@@ -357,21 +445,8 @@ function urlOf(input: string | URL | Request): URL {
   return input instanceof URL ? input : new URL(input.url)
 }
 
-/** A client on the fake API with no waits and a fixed clock. */
-const FAKE_API_KEY = 'LLM|1|secret'
-export const FAKE_MODEL_API_ACCOUNT_ID = createHash('sha256').update(FAKE_API_KEY).digest('hex')
-
-export function fakeModelApiClient(api: FakeModelApi, log: CoreLogger): ModelApiClient {
-  return new ModelApiClient({
-    fetch: api.fetch,
-    baseUrl: 'https://api.example.test/v1',
-    apiKey: () => Promise.resolve(FAKE_API_KEY),
-    sleep: () => Promise.resolve(),
-    now: () => 0,
-    random: () => 0,
-    log,
-  })
-}
+/** The key the fake API's scripted replies accept. */
+export const FAKE_MODEL_API_KEY = 'LLM|1|secret'
 
 export function fakeModelApi(): FakeModelApi {
   const requests: RecordedRequest[] = []
@@ -397,6 +472,20 @@ export function fakeModelApi(): FakeModelApi {
     imageBodies: () => bodiesAt('/images/generations'),
     editBodies: () => bodiesAt('/images/edits'),
     fetch: (input, init) => {
+      if (input instanceof Request) {
+        // The eval wire sends its validated snapshot; read it as fetch does.
+        // Keep the legacy non-Request path synchronous for held-call tests.
+        const request = new Request(input, init)
+        return (async () => {
+          const text = await request.clone().text()
+          return await api.fetch(request.url, {
+            method: request.method,
+            headers: Object.fromEntries(request.headers),
+            ...(text !== '' && { body: text }),
+            signal: request.signal,
+          })
+        })()
+      }
       const url = urlOf(input)
       const method = init?.method ?? 'GET'
       const headers = Object.fromEntries(
@@ -404,7 +493,7 @@ export function fakeModelApi(): FakeModelApi {
       )
       const body = typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined
       requests.push({ path: url.pathname.replace(/^\/v1/, ''), method, headers, body })
-      if (headers['Authorization'] !== 'Bearer LLM|1|secret') {
+      if ((headers['Authorization'] ?? headers['authorization']) !== 'Bearer LLM|1|secret') {
         return Promise.resolve(
           json(
             {
@@ -432,23 +521,23 @@ export function fakeModelApi(): FakeModelApi {
             ),
           )
         }
-        return Promise.resolve(
-          json({
-            created: 1,
-            data:
-              image.isEmpty === true
-                ? []
-                : [
-                    {
-                      b64_json: image.b64 ?? TINY_PNG_BASE64,
-                      ...(image.revisedPrompt !== undefined && {
-                        revised_prompt: image.revisedPrompt,
-                      }),
-                    },
-                  ],
-            output_format: 'png',
-          }),
-        )
+        let data: unknown = image.dataOverride
+        if (!('dataOverride' in image))
+          data =
+            image.isEmpty === true
+              ? []
+              : Array.from({ length: image.count ?? 1 }, () => ({
+                  b64_json: image.b64 ?? TINY_PNG_BASE64,
+                  ...(image.revisedPrompt !== undefined && { revised_prompt: image.revisedPrompt }),
+                }))
+        const response = json({
+          created: 1,
+          data,
+          output_format: 'png',
+        })
+        return image.hold === undefined
+          ? Promise.resolve(response)
+          : afterGate(image.hold, response, init?.signal)
       }
       if (url.pathname.endsWith('/responses/input_tokens')) {
         return Promise.resolve(
@@ -457,8 +546,16 @@ export function fakeModelApi(): FakeModelApi {
       }
       const reply = replies[Math.min(consumed, replies.length - 1)] ?? { text: 'ok' }
       consumed += 1
+      reply.onRequest?.()
       if (reply.networkError !== undefined) {
-        return Promise.reject(new TypeError(reply.networkError))
+        const code = reply.networkErrorCode
+        return Promise.reject(
+          code === undefined
+            ? new TypeError(reply.networkError)
+            : new TypeError(reply.networkError, {
+                cause: Object.assign(new Error(`connect ${code}`), { code }),
+              }),
+        )
       }
       if (reply.httpError !== undefined) {
         return Promise.resolve(
@@ -473,12 +570,20 @@ export function fakeModelApi(): FakeModelApi {
           ),
         )
       }
-      const text = reply.garbage === true ? 'data: {not json\n\n' : streamFor(reply, nextId('resp'))
+      const selected =
+        typeof body === 'object' &&
+        body !== null &&
+        'model' in body &&
+        typeof body.model === 'string'
+          ? body.model
+          : 'muse-spark-1.3'
+      const text =
+        reply.garbage === true ? 'data: {not json\n\n' : streamFor(reply, nextId('resp'), selected)
       const signal = init?.signal
       if (signal?.aborted === true) {
         return Promise.reject(new DOMException('aborted', 'AbortError'))
       }
-      const response = new Response(bodyStream(text), {
+      const response = new Response(bodyStream(text, reply, signal), {
         status: 200,
         headers: { 'content-type': 'text/event-stream' },
       })

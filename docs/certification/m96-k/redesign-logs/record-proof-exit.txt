@@ -1,0 +1,64 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamProcessLifetime.test.ts (21 tests | 2 failed) 674ms
+   ❯ M96 K launcher contract (16)
+     × warns about a damaged proved-end record and recovers other launches: childRunning 63ms
+     × journals a later proved retirement and never downgrades it to uncertain 54ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > warns about a damaged proved-end record and recovers other launches: childRunning
+AssertionError: expected [] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+- [
+-   "/tmp/m96-k-RCAULz/team/journal/40abeb8d-b8be-4d98-98d7-091efc060a90/launch-damaged.json",
+- ]
++ []
+
+ ❯ test/unit/teamProcessLifetime.test.ts:367:26
+    365|         { id: child.launchId },
+    366|       ])
+    367|       expect(unreadable).toEqual([damaged])
+       |                          ^
+    368|       expect(await readFile(damaged, 'utf8')).toBe(damagedBytes)
+    369|       expect(await readFile(file, 'utf8')).toBe(original)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > journals a later proved retirement and never downgrades it to uncertain
+AssertionError: promise resolved "{ childExited: true, …(1) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "childExited": true,
++   "descendants": "proved",
+  }
+
+ ❯ test/unit/teamProcessLifetime.test.ts:441:33
+    439|     expect(await child.retire()).toEqual({ childExited: true, descenda…
+    440|     hasChildExited = false
+    441|     await expect(child.retire()).rejects.toThrow('RETIREMENT_PROOF_INV…
+       |                                 ^
+    442|     hasChildExited = true
+    443|     shouldProve = false
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 19 passed (21)
+   Start at  12:49:58
+   Duration  1.72s (tests 43%, transform 35%, import 13%, setup 9%)

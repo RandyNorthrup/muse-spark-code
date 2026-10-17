@@ -1,1 +1,8 @@
-[]
+[
+  {
+    "advisory": "GHSA-vfj7-8cjw-p6xm",
+    "package": "braces",
+    "reason": "Stack exhaustion from deeply nested brace patterns (<=3.0.3; no fixed release exists on 2026-10-02). Development tooling only: stylelint's micromatch and fast-glob, and secretlint under @vscode/vsce and ovsx. Nothing in the VSIX or the ACP package imports braces, micromatch, fast-glob or globby, and these tools only expand patterns from this repository's own configuration, never input from a user or a model. Remove when braces publishes a fix (then update or override) or when npm stops reporting it.",
+    "expires": "2026-11-01"
+  }
+]

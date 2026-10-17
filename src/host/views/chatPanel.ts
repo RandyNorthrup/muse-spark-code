@@ -8,8 +8,10 @@
 // on when it turns active or its document takes focus (M25).
 
 import * as vscode from 'vscode'
+import { plural } from '../../shared/l10n/text'
 import { CHAT_PANEL_VIEW_TYPE, UI_TEXT } from '../../shared/constants'
 import { parsePersistedState } from '../../shared/protocol'
+import { observeOpenQuestionCount } from './ChatViewProvider'
 import type { SurfaceRegistry } from './surfaceRegistry'
 import { configureWebview, type WebviewHostContext } from './webviewSetup'
 
@@ -20,22 +22,28 @@ function attachChatPanel(
   restoredSessionId: string | undefined,
   isSideChat = false,
   onDisposed?: () => void,
+  surfaceId = `panel:${globalThis.crypto.randomUUID()}`,
 ): void {
   // A restored panel keeps the title VS Code saved, unread mark included.
   let title = panel.title.startsWith(UI_TEXT.unreadMark)
     ? panel.title.slice(UI_TEXT.unreadMark.length)
     : panel.title
   let isUnread = false
+  let openCount = 0
   const applyTitle = () => {
-    panel.title = isUnread ? `${UI_TEXT.unreadMark}${title}` : title
+    const counted =
+      openCount === 0 ? title : `${title} · ${plural(UI_TEXT.openQuestionsTabCount, openCount)}`
+    panel.title = isUnread ? `${UI_TEXT.unreadMark}${counted}` : counted
   }
   const surface = configureWebview(panel.webview, context, {
-    id: `panel:${globalThis.crypto.randomUUID()}`,
+    id: surfaceId,
     restoredSessionId,
     isSideChat,
     reveal: () => {
       panel.reveal(undefined, false)
     },
+    // A focus ask delivers only while this panel is the active one (F3).
+    isActive: () => panel.active,
     markUnread: () => {
       if (panel.active) {
         return
@@ -50,6 +58,10 @@ function attachChatPanel(
     onFocused: (focused) => {
       registry.setActive(focused)
     },
+  })
+  observeOpenQuestionCount(surface, restoredSessionId, (count) => {
+    openCount = count
+    applyTitle()
   })
   const registration = registry.add(surface)
   registry.setActive(surface)
@@ -72,6 +84,8 @@ function attachChatPanel(
 }
 
 export interface NewChatPanelOptions {
+  /** The new surface's id, when a caller must know it before the panel is ready (M107 Show). */
+  readonly surfaceId?: string
   readonly sessionId?: string
   readonly isSideChat?: boolean
   readonly onDisposed?: () => void
@@ -95,6 +109,7 @@ export function openChatPanel(
     options.sessionId,
     options.isSideChat,
     options.onDisposed,
+    options.surfaceId,
   )
   return panel
 }

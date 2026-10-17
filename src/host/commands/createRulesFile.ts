@@ -7,6 +7,7 @@
 
 import path from 'node:path'
 import { rulesFileTemplate } from '../../core/context/rulesTemplate'
+import { redactSecrets } from '../../core/redact'
 import { RULES_FILE_NAMES, UI_TEXT } from '../../shared/constants'
 import type { ProcessResult } from '../backend/sandboxSetup'
 import type { Logger } from '../logger'
@@ -30,7 +31,7 @@ function firstLine(text: string): string {
   return text.trim().split(/\r?\n/, 1)[0] ?? ''
 }
 
-/** Runs `muse init`; true when it wrote the file. Never throws. */
+/** Absent/exited CLI may select the template; refused startup propagates. */
 async function didCliWriteFile(deps: CreateRulesFileDeps, target: string): Promise<boolean> {
   const running = deps.isWorkspaceTrusted() ? deps.runInit() : undefined
   if (running === undefined) {
@@ -41,7 +42,7 @@ async function didCliWriteFile(deps: CreateRulesFileDeps, target: string): Promi
     deps.log.info(`muse init wrote ${target}`)
     return true
   }
-  const detail = firstLine(result.stderr) || firstLine(result.stdout)
+  const detail = redactSecrets(firstLine(result.stderr) || firstLine(result.stdout))
   deps.log.warn(
     `muse init exited ${String(result.exitCode)} without writing ${RULES_FILE_NAME}${detail === '' ? '' : `: ${detail}`}; writing the template instead`,
   )

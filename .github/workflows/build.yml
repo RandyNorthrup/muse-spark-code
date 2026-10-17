@@ -1,29 +1,51 @@
-# The shared build: every quality gate on three platforms, the integration
-# tests, the macOS dictation helper, and the .vsix with both helpers as the
-# `muse-spark-code-vsix` artifact. Called by ci.yml (pull requests and
-# optional manual branch runs) and release.yml (version tags), so a release
-# is built exactly the way CI builds every commit.
+# The shared build (CIFLOW, PLAN.md §7). `fast: true` (ci.yml, pull requests
+# once the merge queue is on) runs the Ubuntu static gates, the production
+# build and every unit test with no coverage gate; the full tier (merge
+# groups, manual runs, release.yml) runs every gate on three platforms, unit
+# shards (four on Ubuntu, eight on Windows and macOS), the integration runs,
+# the macOS helper and the universal packages. Accessibility left the
+# pull-request path: it runs on merge groups, manual runs and releases, never
+# on a pull_request event. The required check names come from the `required`
+# aggregate below on both tiers.
+# Releases can reuse these exact-tree packages after verifying the CI receipt.
 #
-# Every job has a timeout (about three times its usual run; GitHub's default
-# is six hours) and every checkout leaves no token in the git config
-# (`persist-credentials: false`): no job here pushes (M26, PLAN.md D29).
+# Every job has a timeout and every checkout leaves no token in the git
+# config (`persist-credentials: false`): no job here pushes (M26, PLAN.md D29).
 name: Build
 
 on:
   workflow_call:
+    inputs:
+      fast:
+        description: Ubuntu PR checks; false runs the full merge/release gate
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
-  quality:
-    name: quality (${{ matrix.os }})
+  checks:
+    name: static gates (${{ matrix.os }}, ${{ matrix.part.name }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    # One serial job outgrew its 25 minutes on macOS (CIFIX017R3, run
+    # 37992331755: 21.8 min in round 2, cancelled at 25 in round 3 during
+    # check:host-api, no hang): type-aware ESLint alone took 17.7 min there
+    # (lint:js:main 7.0, lint:js:unit 10.2) against 6.5 on Ubuntu, and 5.1 GB
+    # per ESLint process rules out ESLint's threads on a 7 GB runner. Three
+    # parts run every gate on every OS; macOS' slowest measured is ~11 min.
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        part:
+          - name: lint
+            gates: 'format:check lint:js:main lint:js:tests lint:css lint:ps'
+          - name: unit lint
+            gates: 'lint:js:unit'
+          - name: build
+            gates: 'typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan check:roadmap deadcode cycles duplication build security:audit'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -43,7 +65,7 @@ jobs:
       # Gallery's package endpoint, checked against the SHA-512 lint-ps.mjs
       # pins, and unpacked into the user's module path. Each failure is named.
       - name: PSScriptAnalyzer (windows, pinned)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.part.name == 'lint'
         shell: pwsh
         run: |
           $version = node scripts/lint-ps.mjs --print-version
@@ -82,19 +104,111 @@ jobs:
           Remove-Item -Force -Path (Join-Path $target '*.nuspec') -ErrorAction SilentlyContinue
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
-      # All gates except secrets (separate job) and integration tests (below):
-      # format, lint, typecheck, dead code, cycles, duplication, unit tests with
-      # coverage thresholds, production build with bundle budget, host-global
-      # and third-party-notice checks, the dependency audit.
-      - run: npm run quality:gates
-      # The accessibility gate (M37, PLAN.md D32) checks the production bundle
-      # quality:gates just built. It runs on Linux and Windows only: the
-      # macOS runner's headless Chrome had not finished its 208 pages after
-      # 28 minutes (PR #18's first run), where Linux took 3 minutes 20 and
-      # Windows 4 minutes 33. The page is the same web content everywhere.
-      - name: accessibility (WCAG 2.2 AA)
-        if: runner.os != 'macOS'
-        run: npm run test:a11y
+      # Same static/build/audit gates as quality:gates, across the parts; tests
+      # have their own required job.
+      - run: npx run-s ${{ matrix.part.gates }}
+        env:
+          # check:badges lists public main through the GitHub API; the job token
+          # keeps hosted runners off the shared unauthenticated rate limit.
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: matrix.os == 'ubuntu-latest' && matrix.part.name == 'build' && !inputs.fast
+        with:
+          name: production-webview
+          # The whole production dist, minus the VSIX stage and build metadata:
+          # a hand list drifted once (wire.js gained a lazy chunk the list lacked).
+          path: |
+            dist
+            !dist/vsix-package
+            !dist/meta
+          if-no-files-found: error
+
+  unit:
+    name: tests (${{ matrix.os }}, shard ${{ matrix.shard }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}
+        # Windows splits its slower serial run eight ways: with six, shard 1 ran
+        # 16-17 min (952 s of tests; modelApiHost alone 207 s) and crossed the
+        # 20-minute limit in run 38027675949, as hosted Windows varies ~60%
+        # between runs (PLAN.md §8). macOS also runs files one at a time
+        # (vitest.config.ts) and takes eight too: over six it had no margin
+        # even green (run 38225260540: shard 4 took 19 of the 20 minutes,
+        # shard 1 took 16), and run 38270466443 lost shard 1 to the limit
+        # while it was still running normally. The limit stays 20 minutes;
+        # Ubuntu keeps four.
+        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: unit tests
+        shell: bash
+        env:
+          FAST: ${{ inputs.fast }}
+          SHARD: ${{ matrix.shard }}
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 8 }}
+        run: |
+          if [ "$FAST" = true ]; then
+            npx vitest run
+          else
+            npx vitest run --shard="$SHARD/$SHARDS" --reporter=default
+          fi
+
+  accessibility:
+    name: accessibility (WCAG 2.2 AA)
+    # Out of the pull-request path: webview changes are looked at locally,
+    # and the queue's merge_group run plus releases still gate every merge.
+    if: ${{ !inputs.fast && github.event_name != 'pull_request' }}
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: production-webview
+          path: dist
+      # Every scenario/theme; identical browser bundle. Measured Ubuntu 4m54s,
+      # Windows 8m11s (run 37211362498). Platform behavior stays in native tests.
+      - run: npm run test:a11y
+      - run: npm run test:legal-a11y
+
+  integration:
+    name: integration (${{ matrix.os }})
+    if: ${{ !inputs.fast }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
       # The integration tests run twice (.vscode-test.mjs): on the latest
       # stable VS Code and on the manifest's floor (engines.vscode). The two
       # downloads are cached under a key naming both versions.
@@ -116,12 +230,73 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run test:integration
 
+  # The matrix emits the five existing non-security required names on BOTH
+  # events. Every name rejects a failed/cancelled/missing selected-tier job.
+  required:
+    name: ${{ matrix.check }}
+    if: always()
+    needs:
+      [
+        checks,
+        unit,
+        accessibility,
+        integration,
+        native-build,
+        linux-native-build,
+        packages,
+        secrets,
+        sast,
+      ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        check:
+          - quality (ubuntu-latest)
+          - quality (windows-latest)
+          - quality (macos-latest)
+          - dictation helper (macos)
+          - package (.vsix)
+    steps:
+      - name: require every selected-tier job
+        shell: bash
+        env:
+          FAST: ${{ inputs.fast }}
+          EVENT: ${{ github.event_name }}
+          CHECKS: ${{ needs.checks.result }}
+          UNIT: ${{ needs.unit.result }}
+          ACCESSIBILITY: ${{ needs.accessibility.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+          HELPER: ${{ needs.native-build.result }}
+          LINUX_HELPER: ${{ needs.linux-native-build.result }}
+          PACKAGES: ${{ needs.packages.result }}
+          SECRETS: ${{ needs.secrets.result }}
+          SAST: ${{ needs.sast.result }}
+        run: |
+          test "$CHECKS" = success
+          test "$UNIT" = success
+          test "$SECRETS" = success
+          test "$SAST" = success
+          if [ "$FAST" != true ]; then
+            test "$INTEGRATION" = success
+            test "$HELPER" = success
+            test "$LINUX_HELPER" = success
+            test "$PACKAGES" = success
+          fi
+          # Accessibility runs on merge groups, manual runs and releases, but
+          # never on a pull_request event: there it is skipped, not failed.
+          if [ "$EVENT" != pull_request ]; then
+            test "$ACCESSIBILITY" = success
+          fi
+
   # The macOS dictation helper (M9): Apple's Speech framework behind the
   # microphone button. Compiled here because only a Mac can; the package job
   # below ships it in the .vsix. build.sh embeds package.json's version and
   # fails when the finished binary carries another.
-  native-darwin:
-    name: dictation helper (macos)
+  native-build:
+    name: compile dictation helper (macos)
+    if: ${{ !inputs.fast }}
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
@@ -133,16 +308,59 @@ jobs:
       # disclaims the responsibility of the app that started it, and a
       # SIGTERM to the first process ends the copy (M28).
       - run: bash native/darwin/check-disclaim.sh
+      - name: permission-free screen recorder and signed resource checks
+        run: |
+          bash test/native/darwin/run-screen-record.sh
+          bash test/native/darwin/check-screen-resources.sh
+          bash native/darwin/check-disclaim.sh --screen-only
+      # Archive on macOS: artifact upload otherwise discards executable modes.
+      - run: tar -czf native/darwin/muse-dictate-screen.tgz -C native/darwin muse-dictate-screen.app
+      - run: bash native/darwin/check-vault.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-vault-darwin
+          path: dist/native/darwin/muse-vault
+          if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-dictate-darwin
-          path: native/darwin/muse-dictate
+          path: |
+            native/darwin/muse-dictate
+            native/darwin/muse-dictate-screen.tgz
           if-no-files-found: error
 
   # The .vsix with both helpers: what release.yml publishes.
-  package:
-    name: package (.vsix)
-    needs: [quality, native-darwin]
+  linux-native-build:
+    name: compile created-path helper (linux ${{ matrix.arch }})
+    if: ${{ !inputs.fast }}
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            os: ubuntu-24.04
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev
+      - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; buildLinuxHelper()"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-created-linux-${{ matrix.arch }}
+          path: native/linux/${{ matrix.arch }}/muse-created
+          if-no-files-found: error
+
+  packages:
+    name: universal release artifacts
+    if: ${{ !inputs.fast }}
+    needs: [checks, native-build, linux-native-build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -157,21 +375,65 @@ jobs:
         with:
           name: muse-dictate-darwin
           path: native/darwin
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-created-linux-x64
+          path: native/linux/x64
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-created-linux-arm64
+          path: native/linux/arm64
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-vault-darwin
+          path: dist/native/darwin
+      - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created
+      - run: chmod +x dist/native/darwin/muse-vault
       - run: chmod +x native/darwin/muse-dictate
+      - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
       - run: npm ci
       - run: npm run package
+        env:
+          # The packaged-README badge check lists public main (GitHub API).
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: the universal VSIX stays within its measured budget
+        run: node scripts/check-vsix-size.mjs ./*.vsix
       # What must be inside the package: the licence, the third-party
-      # notices, both dictation helpers and the five bundles (the webview
+      # notices, the native helpers and every runtime bundle (the webview
       # loads main.css beside main.js; the extension requires modelApi.js
-      # when the Model API backend first starts, M57).
+      # when the Model API backend first starts, M57, starts pageWorker.js
+      # as a worker for each web page it converts, M69, and requires
+      # browserCheck.js on the first browser check, M81).
       - name: the .vsix carries the notices, the helpers, the bundles and the manifest's text
         run: |
           listing="$(unzip -Z1 ./*.vsix)"
           for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
-            extension/native/windows/dictate.ps1 extension/native/darwin/muse-dictate \
-            extension/dist/extension.js extension/dist/modelApi.js extension/dist/searchWorker.js \
-            extension/dist/webview/main.js extension/dist/webview/main.css; do
-            if ! grep -qx "$entry" <<< "$listing"; then
+            extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created \
+            extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
+            extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
+            extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
+            extension/native/windows/MuseSparkScreenRecord.cs \
+            extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate \
+            extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources \
+            extension/dist/vault.js extension/dist/vaultBoundaries.js extension/dist/estimator.js extension/dist/estimateContracts.js \
+            extension/dist/native/darwin/muse-vault \
+            extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs \
+            extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs \
+            extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js \
+            extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
+            extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
+            extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
+            extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js \
+            extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \
+            extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json \
+            extension/dist/sessionBoard.js extension/dist/reviewer.js \
+            extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \
+            extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \
+            extension/dist/report.js extension/dist/recorder.js \
+            extension/dist/webFetch.js extension/dist/judge.js extension/docs/judge.md extension/dist/whatsNew.js extension/dist/whatsNew.json \
+            extension/dist/webview/main.js extension/dist/webview/main.css \
+            extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css; do
+            if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the .vsix" >&2
               exit 1
             fi
@@ -182,6 +444,83 @@ jobs:
           name: muse-spark-code-vsix
           path: '*.vsix'
           if-no-files-found: error
+          retention-days: 30
+      # The ACP agent's npm package (M63, PLAN.md D62), from the same
+      # production build `npm run package` just ran.
+      - run: node scripts/package-acp.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: the agent's package carries its bundles, tables, notices and manifest
+        run: |
+          listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
+          for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js package/dist/uiTextMedia.js \
+            package/dist/vault.js package/dist/vaultBoundaries.js package/dist/estimator.js package/dist/estimateContracts.js \
+            package/native/windows/MuseSparkVault.cs package/native/windows/MuseSparkVaultCng.cs \
+            package/native/windows/MuseSparkVaultHello.cs package/native/windows/MuseSparkVaultLock.cs \
+            package/dist/native/darwin/muse-vault \
+            package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/media.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
+            package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \
+            package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
+            package/dist/recorder.js package/dist/resourceGovernor.js package/dist/resourceAdmission.js \
+            package/dist/exec.js package/dist/mcpPool.js package/dist/modelApiCodeIntel.js package/dist/structuredSchema.js \
+            package/dist/searchWorker.js package/dist/pageWorker.js \
+            package/native/darwin/muse-dictate \
+            package/native/linux/x64/muse-created package/native/linux/arm64/muse-created \
+            package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
+            package/native/windows/MuseSparkMcpLauncher.cs \
+            package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
+            package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \
+            package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json \
+            package/dist/runtime.bundles.json.br package/dist/legalScan.js \
+            package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \
+            package/schemas/share-v1.schema.json; do
+            if ! grep -Fxq -- "$entry" <<< "$listing"; then
+              echo "::error::$entry is missing from the agent's package" >&2
+              exit 1
+            fi
+          done
+          if ! grep -Fxq -- "package/l10n/ui.tables.json.br" <<< "$listing"; then
+            echo "::error::runtime table archive is missing from the agent's package" >&2
+            exit 1
+          fi
+          echo "the agent's package holds $(wc -l <<< "$listing") entries, the required ones included"
+      # The bundles load the shared English table at runtime: the extension
+      # and Model API bundles from this build, the agent as npm installs it.
+      - name: the bundles and the installed agent load the shared English table
+        run: |
+          acp="$RUNNER_TEMP/acp-install"
+          mkdir -p "$acp"
+          npm install --prefix "$acp" --ignore-scripts --audit=false --fund=false ./dist/muse-spark-code-acp-*.tgz
+          node scripts/check-ui-text.mjs "$acp/node_modules/muse-spark-code-acp"
+      - name: built headless process and package guards (fake transport only)
+        env:
+          MUSE_ACP_PACKAGE_DIR: ${{ runner.temp }}/acp-install/node_modules/muse-spark-code-acp
+        run: |
+          npx vitest run test/e2e/execStdio.e2e.test.ts
+          npx vitest run test/e2e/acpStdio.e2e.test.ts -t "the ACP registry release gate"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-spark-code-acp
+          path: dist/muse-spark-code-acp-*.tgz
+          if-no-files-found: error
+          retention-days: 30
+      - name: CycloneDX inventories for shipped bundles and native runtime dependencies
+        run: node scripts/release-sbom.mjs
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-spark-code-sboms
+          path: dist/sbom/*.cdx.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: record the actual checkout tree and release asset hashes
+        id: source
+        run: node scripts/release-reuse.mjs record
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: source-tree-${{ steps.source.outputs.tree }}
+          path: dist/release-build.json
+          if-no-files-found: error
+          retention-days: 30
 
   secrets:
     name: gitleaks
@@ -193,8 +532,27 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        if: github.event_name != 'merge_group'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The action exits 1 on any event but push, pull_request,
+      # workflow_dispatch and schedule ("The [merge_group] event is not yet
+      # supported", src/index.js at the pinned commit). A merge group gets the
+      # action's own default CLI (8.24.3, checked against the release's
+      # SHA-256) over every commit the group's commit reaches: the main it
+      # becomes, PR commits included. A PR-style first-parent range from the
+      # group's merge commit would reach none of the PR's commits.
+      - name: gitleaks (merge group, the history that lands)
+        if: github.event_name == 'merge_group'
+        env:
+          GITLEAKS_VERSION: 8.24.3
+          GITLEAKS_SHA256: 9991e0b2903da4c8f6122b5c3186448b927a5da4deef1fe45271c3793f4ee29c
+        run: |
+          archive="$RUNNER_TEMP/gitleaks.tar.gz"
+          curl -fsSL --retry 3 -o "$archive" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "$GITLEAKS_SHA256  $archive" | sha256sum -c -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --redact --no-banner -v --log-opts=HEAD .
 
   sast:
     name: semgrep

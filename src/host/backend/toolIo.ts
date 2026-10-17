@@ -5,12 +5,22 @@
 // with an argument array (never a shell string, PLAN.md D4) in the
 // workspace root, with a timeout and an output cap. The interpreter is found
 // by absolute path only and the environment is the one VS Code's own
-// terminal would give (D24).
+// terminal would give, with credential variables fenced (D89.5) and agent
+// credential routes fenced (D89).
 
-import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { type FileHandle, lstat, mkdir, open, rm, stat } from 'node:fs/promises'
+import { fileReadIdentity } from '../../core/fs/fileIdentity'
+import { spawn, type ChildProcess } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { existsSync, type BigIntStats } from 'node:fs'
+import { type FileHandle, lstat, mkdir, open, rm } from 'node:fs/promises'
 import path from 'node:path'
+import {
+  type FileIdentity,
+  handleIdentity,
+  lstatIdentity,
+  sameFile,
+  statIdentity,
+} from '../../core/fs/fileIdentity'
 import { StringDecoder } from 'node:string_decoder'
 import { Worker } from 'node:worker_threads'
 import {
@@ -20,6 +30,7 @@ import {
   windowsPowerShellModulePath,
 } from '../../core/backends/musecode/launch'
 import type {
+  ReservationStep,
   SearchHit,
   SearchJob,
   SearchOutcome,
@@ -28,20 +39,26 @@ import type {
   ShellTimeLimit,
   ToolIo,
 } from '../../core/backends/modelapi/tools'
+import { contentHash, type ContentSource } from '../../core/schedules/provenance'
+import { refusedShellEntry, unstartedShell } from '../../core/shellResult'
 import { resolveExecutable } from '../../core/executables'
 import { isPdf } from '../../core/pdf'
 import type { ToolImageIo } from '../../core/toolImages'
 import { isSamePath } from '../../core/paths'
+import { isCredentialVariable, withoutCredentials } from '../../core/credentialEnvironment'
 import { powerShellQuoted } from '../../core/shellQuote'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
+  CLI_OUTPUT_MAX_BYTES,
   BYTES_PER_MIB,
-  MODEL_TEXT,
-  MAX_DOCUMENT_BYTES,
-  PDF_HEADER_WINDOW_BYTES,
+  FILE_REFUSAL_MODEL_TEXT,
   HOOK_OUTPUT_MAX_BYTES,
-  HOOK_FORBIDDEN_ENV_NAMES,
   HOOK_STDIN_MAX_BYTES,
+  MAX_DOCUMENT_BYTES,
+  MEDIA_MAX_UPLOAD_MIB,
+  UI_TEXT,
+  MODEL_TEXT,
+  PDF_HEADER_WINDOW_BYTES,
   SEARCH_TIMEOUT_MS,
   SHELL_DRAIN_GRACE_MS,
   SHELL_OUTPUT_MAX_CHARS,
@@ -51,25 +68,103 @@ import {
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../shared/constants'
+import { fill, uiLocale } from '../../shared/l10n/text'
 import { canonicalPath } from '../canonicalPath'
-import { writeFileAtomically } from '../fsAtomic'
+import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
+import { spawnMcpJob } from './mcpJobLaunch'
 import { joinStatement, newShellJob } from './shellJob'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
+import { observeResourceProcess } from '../resources/resourceAdmission'
+import { holdResourceJob } from '../resources/resourceJobHolder'
+import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
+import type { VaultExecService } from '../../core/vault/exec/service'
+
+/** Short window CLI commands share the shell's admission, native tree and bounded teardown. */
+export async function runResourceCommand(
+  invocation: { readonly command: string; readonly args: readonly string[] },
+  timeoutMs: number,
+  cwd?: string,
+  env?: NodeJS.ProcessEnv,
+  signal?: AbortSignal,
+  assertCanRun?: () => void,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  let resource: ResourceLease | undefined
+  let nativeJob: Awaited<ReturnType<typeof resourceWindowsJob>>
+  const childEnv = env ?? process.env
+  const systemRoot = environmentValue(childEnv, process.platform, 'SystemRoot')
+  try {
+    resource = await admitResource('other', signal, 'foreground')
+    nativeJob =
+      resource !== undefined && process.platform === 'win32'
+        ? await resourceWindowsJob()
+        : undefined
+    assertCanRun?.()
+  } catch (error: unknown) {
+    resource?.complete(true)
+    return {
+      exitCode: -1,
+      stdout: '',
+      stderr: error instanceof Error ? error.message : String(error),
+    }
+  }
+  const result = await runCommand({
+    file: invocation.command,
+    args: invocation.args,
+    cwd: cwd ?? process.cwd(),
+    env: childEnv,
+    timeoutMs,
+    signal,
+    tree: {
+      platform: process.platform,
+      systemRoot,
+      log: () => {
+        /* The caller scrubs and reports the command result. */
+      },
+    },
+    nativeJob,
+    resource,
+    maxOutputBytes: CLI_OUTPUT_MAX_BYTES,
+    maxOutputChars: CLI_OUTPUT_MAX_BYTES,
+  })
+  return {
+    exitCode:
+      result.isTimedOut || result.isCancelled || result.isOutputTooLarge === true
+        ? -1
+        : (result.exitCode ?? -1),
+    stdout: result.stdout,
+    stderr: result.stderr,
+  }
+}
 
 export interface ToolIoDeps {
+  /** Lazy, per-session broker route supplied by the registered requester owner. */
+  readonly vault?: (() => Promise<VaultExecService>) | undefined
   readonly platform: NodeJS.Platform
-  readonly listFiles: () => Promise<readonly string[]>
+  readonly listFiles: (signal?: AbortSignal) => Promise<readonly string[]>
   readonly systemRoot: string | undefined
   /** The environment for the next command: read per command, so a changed setting applies. */
   readonly env: () => NodeJS.ProcessEnv
+  /** D89.5: names only; honored solely for an explicitly interactive shell entry. */
+  readonly passEnvironmentVariables?: (() => readonly string[]) | undefined
   /** The bundled `searchWorker.js`. */
   readonly searchWorkerPath: string
   /** Where a failed tree kill is reported. */
   readonly log: (message: string) => void
-  /** Whether an editor holds unsaved changes to the file (VS Code's documents, D27). */
-  readonly hasUnsavedChanges: (absolutePath: string) => boolean
+  /**
+   * The files open in an editor with unsaved changes, by the paths VS
+   * Code's documents give (D27).
+   */
+  readonly unsavedFiles: () => readonly string[]
+  /** Runtime workspace identity, sampled at mutation and command boundaries. */
+  readonly assertWorkspaceCurrent?: (() => void) | undefined
   /** Windows: the job helper's assembly, undefined where jobs are unavailable (M27). */
   readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
+  /** Off is allowed only for the interactive main conversation. Runtime workers omit it. */
+  readonly agentFence?: (() => boolean) | undefined
+  /** Per-requester facts supplied by the trusted launcher. */
+  readonly vaultFence?: (() => VaultFenceOptions) | undefined
 }
 
 /**
@@ -81,9 +176,11 @@ export function searchOnWorker(
   workerPath: string,
   job: SearchJob,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<SearchOutcome> {
-  return new Promise<SearchOutcome>((resolve) => {
-    const worker = new Worker(workerPath, { workerData: job })
+  signal?.throwIfAborted()
+  return new Promise<SearchOutcome>((resolve, reject) => {
+    const worker = new Worker(workerPath, { workerData: job, env: withoutCredentials(process.env) })
     const hits: SearchHit[] = []
     let isSettled = false
     const settle = (outcome: SearchOutcome) => {
@@ -92,12 +189,22 @@ export function searchOnWorker(
       }
       isSettled = true
       clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
       resolve(outcome)
+    }
+    const onAbort = () => {
+      if (isSettled) return
+      isSettled = true
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+      void worker.terminate()
+      reject(new DOMException(undefined, 'AbortError'))
     }
     const timer = setTimeout(() => {
       void worker.terminate()
       settle({ ok: true, hits, isPartial: true })
     }, timeoutMs)
+    signal?.addEventListener('abort', onAbort, { once: true })
     worker.on('message', (message: SearchWorkerMessage) => {
       if (message.type === 'hits') {
         hits.push(...message.hits)
@@ -218,14 +325,18 @@ export function withTerminalOverrides(
   return env
 }
 
-/** The shell tool's environment: the user's, without the extension host's own plumbing. */
+/** The shell tool's environment, without host plumbing or unapproved credentials. */
 export function shellEnvironment(
   env: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
   systemRoot: string | undefined,
+  passNames: readonly string[] = [],
+  isFenced = true,
+  vault: VaultFenceOptions = {},
 ): NodeJS.ProcessEnv {
   const clean: NodeJS.ProcessEnv = {}
-  for (const [key, value] of Object.entries(env)) {
+  const entries = Object.entries(withoutCredentials(env, passNames, platform))
+  for (const [key, value] of entries) {
     if (HOST_ONLY_VARIABLES.every((pattern) => !pattern.test(key))) {
       clean[key] = value
     }
@@ -238,13 +349,7 @@ export function shellEnvironment(
       windowsPowerShellModulePath(systemRoot, environmentValue(env, platform, PROGRAM_FILES)),
     )
   }
-  return clean
-}
-
-/** Hooks get Muse Code's narrow environment; provider credentials never pass. */
-function isForbiddenHookEnv(name: string): boolean {
-  const upper = name.toUpperCase()
-  return upper.endsWith('_API_KEY') || HOOK_FORBIDDEN_ENV_NAMES.has(upper)
+  return isFenced ? vaultFenceEnvironment(clean, { ...vault, passNames, platform }) : clean
 }
 
 export function hookEnvironment(
@@ -258,7 +363,7 @@ export function hookEnvironment(
       ? [...HOOK_ENV_NAMES, ...WINDOWS_HOOK_ENV_NAMES, ...extraNames]
       : [...HOOK_ENV_NAMES, ...extraNames]
   for (const name of names) {
-    if (isForbiddenHookEnv(name)) {
+    if (isCredentialVariable(name)) {
       continue
     }
     const value = environmentValue(env, platform, name)
@@ -282,7 +387,7 @@ export function hookEnvironment(
       setEnvironmentVariable(clean, platform, name, value)
     }
   }
-  return clean
+  return vaultFenceEnvironment(clean, { platform })
 }
 
 /**
@@ -320,17 +425,19 @@ export function shellArguments(
   platform: NodeJS.Platform,
   command: string,
   job?: ShellJob,
+  isGoverned = false,
+  isFenced = false,
 ): readonly string[] {
-  return platform === 'win32'
-    ? [
-        '-NoProfile',
-        '-NonInteractive',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-Command',
-        `${job === undefined ? '' : joinStatement(job)}${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${command}`,
-      ]
-    : ['-lc', command]
+  if (platform === 'win32')
+    return [
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-Command',
+      `${job === undefined ? '' : joinStatement(job, isGoverned)}${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${command}`,
+    ]
+  return isFenced ? ['--noprofile', '--norc', '-c', command] : ['-lc', command]
 }
 
 function hookProgramFor(deps: ToolIoDeps, configuredShell: string | undefined): string | undefined {
@@ -364,7 +471,7 @@ async function assertCheckedCanonicalPath(
   }
   const canonical = await canonicalPath(absolutePath)
   if (!isSamePath(canonical, expectedCanonicalPath, platform)) {
-    throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+    throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
   }
 }
 
@@ -374,21 +481,21 @@ async function checkedOpenedFile(
   file: FileHandle,
   expectedCanonicalPath: string | undefined,
   platform: NodeJS.Platform,
-): Promise<{ readonly dev: number; readonly ino: number }> {
-  const held = await file.stat()
+): Promise<BigIntStats> {
+  const held = await handleIdentity(file)
   // Node exposes inode identity, not a final path by handle. This catches
   // observed swaps; rapid adversarial ABA swaps remain outside the guarantee.
   if (expectedCanonicalPath === undefined) {
-    return { dev: held.dev, ino: held.ino }
+    return held
   }
   for (let sample = 0; sample < 2; sample += 1) {
     await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, platform)
-    const current = await stat(absolutePath)
-    if (held.dev !== current.dev || held.ino !== current.ino) {
-      throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+    const current = await statIdentity(absolutePath)
+    if (!sameFile(held, current)) {
+      throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
     }
   }
-  return { dev: held.dev, ino: held.ino }
+  return held
 }
 
 /** A path's metadata and bytes come from one handle; growth stops after max + 1 bytes. */
@@ -398,36 +505,67 @@ async function readBoundedFile(
   expectedCanonicalPath?: string,
   platform?: NodeJS.Platform,
   pdfMaxBytes?: number,
+  signal?: AbortSignal,
 ): Promise<
-  | { readonly ok: true; readonly bytes: Buffer; readonly isPdf: boolean }
+  | {
+      readonly ok: true
+      readonly bytes: Buffer
+      readonly isPdf: boolean
+      readonly source: Extract<ContentSource, { kind: 'file' }>
+    }
   | { readonly ok: false; readonly size: number; readonly isPdf: boolean }
 > {
+  signal?.throwIfAborted()
+  const canonical = expectedCanonicalPath ?? (await canonicalPath(absolutePath))
   const file = await open(absolutePath, 'r')
   try {
+    signal?.throwIfAborted()
     if (expectedCanonicalPath !== undefined && platform !== undefined) {
       await checkedOpenedFile(absolutePath, file, expectedCanonicalPath, platform)
+      signal?.throwIfAborted()
     }
     // An explicit position leaves this handle's sequential read at byte zero.
     const header = pdfMaxBytes === undefined ? undefined : Buffer.alloc(PDF_HEADER_WINDOW_BYTES)
     const headerRead =
       header === undefined ? undefined : await file.read(header, 0, header.length, 0)
+    signal?.throwIfAborted()
     const isPdfFile =
       header !== undefined &&
       headerRead !== undefined &&
       isPdf(header.subarray(0, headerRead.bytesRead))
     const limit = isPdfFile ? (pdfMaxBytes ?? maxBytes) : maxBytes
-    const { size } = await file.stat()
+    const identity = await handleIdentity(file)
+    const size = Number(identity.size)
+    signal?.throwIfAborted()
     if (size > limit) {
       return { ok: false, size, isPdf: isPdfFile }
     }
     const chunks: Buffer[] = []
     let total = 0
     for (;;) {
+      signal?.throwIfAborted()
       const length = Math.min(BOUNDED_FILE_READ_CHUNK_BYTES, limit + 1 - total)
       const chunk = Buffer.allocUnsafe(length)
       const { bytesRead } = await file.read(chunk, 0, length, null)
+      signal?.throwIfAborted()
       if (bytesRead === 0) {
-        return { ok: true, bytes: Buffer.concat(chunks, total), isPdf: isPdfFile }
+        const after = await handleIdentity(file)
+        if (identity.size !== after.size || identity.mtimeNs !== after.mtimeNs)
+          throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
+        const bytes = Buffer.concat(chunks, total)
+        return {
+          ok: true,
+          bytes,
+          isPdf: isPdfFile,
+          source: {
+            kind: 'file',
+            contentHash: contentHash(bytes),
+            file: {
+              path: canonical.replaceAll('\\', '/'),
+              ...fileReadIdentity(identity),
+            },
+          },
+        }
       }
       total += bytesRead
       if (total > limit) {
@@ -440,24 +578,35 @@ async function readBoundedFile(
   }
 }
 
-/** Picker bytes use the same single-handle cap as tool reads, on the extension host. */
+/**
+ * Picker bytes use the same single-handle cap as tool reads, on the extension
+ * host. A PDF may be as large as `pdfMaxBytes` (a document attachment's
+ * limit unless the caller holds every file to `maxBytes`, M79). `bytes` is
+ * undefined for a file over its limit, or one gone since it was picked
+ * (`isMissing`).
+ */
 export async function readPickedFile(
   absolutePath: string,
   maxBytes: number,
   expectedCanonicalPath?: string,
-): Promise<{ readonly bytes: Uint8Array | undefined; readonly isPdf: boolean }> {
+  pdfMaxBytes: number = MAX_DOCUMENT_BYTES,
+): Promise<{
+  readonly bytes: Uint8Array | undefined
+  readonly isPdf: boolean
+  readonly isMissing: boolean
+}> {
   try {
     const read = await readBoundedFile(
       absolutePath,
       maxBytes,
       expectedCanonicalPath,
       process.platform,
-      MAX_DOCUMENT_BYTES,
+      pdfMaxBytes,
     )
-    return { bytes: read.ok ? read.bytes : undefined, isPdf: read.isPdf }
+    return { bytes: read.ok ? read.bytes : undefined, isPdf: read.isPdf, isMissing: false }
   } catch (error: unknown) {
     if (isMissingFile(error)) {
-      return { bytes: undefined, isPdf: false }
+      return { bytes: undefined, isPdf: false, isMissing: true }
     }
     throw error
   }
@@ -478,10 +627,150 @@ export function toolImagePreviewIo(
 
 export function createToolIo(deps: ToolIoDeps): ToolIo {
   const interpreter = shellInterpreter(deps.platform, deps.systemRoot, deps.env(), existsSync)
+  const hasUnsavedChanges = (absolutePath: string) =>
+    deps.unsavedFiles().some((open) => isSamePath(open, absolutePath, deps.platform))
   const configuredHookShell = deps.env()['SHELL']
   const hookProgram = hookProgramFor(deps, configuredHookShell)
+  const prepareResourceJob = async (
+    resource: ResourceLease | undefined,
+    job: ShellJob | undefined,
+  ) => {
+    if (resource !== undefined && job !== undefined && deps.systemRoot !== undefined)
+      resource = await holdResourceJob(resource, job, deps.systemRoot)
+    try {
+      deps.assertWorkspaceCurrent?.()
+    } catch (error: unknown) {
+      resource?.complete(true)
+      throw error
+    }
+    return resource
+  }
   return {
-    async readFile(absolutePath, expectedCanonicalPath) {
+    async readMedia(absolutePath, maxBytes, expectedCanonicalPath, signal, observeSource) {
+      if (
+        !Number.isSafeInteger(maxBytes) ||
+        maxBytes <= 0 ||
+        maxBytes > MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB
+      )
+        throw new RangeError('Invalid media read limit')
+      signal?.throwIfAborted()
+      const { createMediaInspector } = await import('../../core/media/inspectEntry')
+      const media = createMediaInspector(UI_TEXT, uiLocale())
+      let file: FileHandle
+      try {
+        file = await open(absolutePath, 'r')
+      } catch (error: unknown) {
+        if (isMissingFile(error)) return
+        throw error
+      }
+      try {
+        const identity = await checkedOpenedFile(
+          absolutePath,
+          file,
+          expectedCanonicalPath,
+          deps.platform,
+        )
+        const metadata = await file.stat()
+        const { size } = metadata
+        // An empty file is empty, not over the limit (M105 E2 review).
+        if (!Number.isSafeInteger(size) || size < 0 || size > maxBytes)
+          throw new Error(UI_TEXT.execFileTooLarge)
+        if (size === 0) throw new Error(UI_TEXT.execFileEmpty)
+        let isPdfFile = false
+        const sniffed = await media.sniffMedia({
+          sizeBytes: size,
+          read: async (offset, length) => {
+            signal?.throwIfAborted()
+            const chunk = Buffer.alloc(length)
+            const { bytesRead } = await file.read(chunk, 0, length, offset)
+            if (offset === 0) isPdfFile = isPdf(chunk.subarray(0, bytesRead))
+            return chunk.subarray(0, bytesRead)
+          },
+        })
+        signal?.throwIfAborted()
+        if (!sniffed.ok) return { kind: 'other', reason: sniffed.reason, isPdf: isPdfFile }
+        const admission = media.checkMediaLimits(sniffed.info, {
+          maxUploadBytes: maxBytes,
+          acceptedMediaTypes: [sniffed.info.mediaType],
+        })
+        if (!admission.ok) throw new Error(admission.reason)
+        const name = path.basename(absolutePath)
+        const changed = () => new Error(fill(UI_TEXT.media.sourceChanged, { name }))
+        async function* chunks(handle: FileHandle, active?: AbortSignal) {
+          let offset = 0
+          for (;;) {
+            active?.throwIfAborted()
+            const chunk = Buffer.allocUnsafe(
+              Math.min(BOUNDED_FILE_READ_CHUNK_BYTES, size + 1 - offset),
+            )
+            const { bytesRead } = await handle.read(chunk, 0, chunk.length, offset)
+            if (bytesRead === 0) break
+            offset += bytesRead
+            if (offset > size) throw changed()
+            yield chunk.subarray(0, bytesRead)
+          }
+          if (offset !== size) throw changed()
+          const after = await handle.stat()
+          if (
+            after.size !== size ||
+            after.mtimeMs !== metadata.mtimeMs ||
+            after.ctimeMs !== metadata.ctimeMs
+          )
+            throw changed()
+          const current = await checkedOpenedFile(
+            absolutePath,
+            handle,
+            expectedCanonicalPath,
+            deps.platform,
+          )
+          if (!sameFile(identity, current)) throw changed()
+        }
+        const hash = createHash('sha256')
+        for await (const chunk of chunks(file, signal)) hash.update(chunk)
+        const sha256 = hash.digest('hex')
+        observeSource?.({
+          kind: 'file',
+          contentHash: sha256,
+          file: {
+            path: expectedCanonicalPath.replaceAll('\\', '/'),
+            ...fileReadIdentity(identity),
+          },
+        })
+        return {
+          info: sniffed.info,
+          sha256,
+          source: {
+            name,
+            mime: sniffed.info.mediaType,
+            bytes: size,
+            open: async function* (active) {
+              active.throwIfAborted()
+              const held = await open(absolutePath, 'r')
+              try {
+                const current = await checkedOpenedFile(
+                  absolutePath,
+                  held,
+                  expectedCanonicalPath,
+                  deps.platform,
+                )
+                if (!sameFile(identity, current)) throw changed()
+                const digest = createHash('sha256')
+                for await (const chunk of chunks(held, active)) {
+                  digest.update(chunk)
+                  yield chunk
+                }
+                if (digest.digest('hex') !== sha256) throw changed()
+              } finally {
+                await held.close()
+              }
+            },
+          },
+        }
+      } finally {
+        await file.close()
+      }
+    },
+    async readFile(absolutePath, expectedCanonicalPath, signal, observeSource) {
       let bytes: Uint8Array
       try {
         // Refused before it is loaded (M39), including growth after metadata.
@@ -490,6 +779,8 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           TOOL_FILE_MAX_BYTES,
           expectedCanonicalPath,
           deps.platform,
+          undefined,
+          signal,
         )
         if (!read.ok) {
           const mib = (read.size / BYTES_PER_MIB).toFixed(1)
@@ -497,6 +788,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
             `${MODEL_TEXT.toolFileTooLarge} ${String(TOOL_FILE_MAX_MIB)} MiB, and this one is ${mib} MiB: ${MODEL_TEXT.toolFileTooLargeHint}`,
           )
         }
+        observeSource?.(read.source)
         bytes = read.bytes
       } catch (error: unknown) {
         if (isMissingFile(error)) {
@@ -506,19 +798,22 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       return decodeText(bytes, absolutePath)
     },
-    async readBytes(absolutePath, maxBytes, expectedCanonicalPath) {
+    async readBytes(absolutePath, maxBytes, expectedCanonicalPath, signal, observeSource) {
       try {
         const read = await readBoundedFile(
           absolutePath,
           maxBytes,
           expectedCanonicalPath,
           deps.platform,
+          undefined,
+          signal,
         )
         if (!read.ok) {
           throw new Error(
             `${path.basename(absolutePath)} is ${String(read.size)} bytes, over the ${String(maxBytes)} allowed`,
           )
         }
+        observeSource?.(read.source)
         return read.bytes
       } catch (error: unknown) {
         if (isMissingFile(error)) {
@@ -527,14 +822,31 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         throw error
       }
     },
-    async writeFile(absolutePath, content, expectedCanonicalPath) {
+    async writeFile(absolutePath, content, expectedCanonicalPath, assertCanWrite) {
       // A new file's folders are created (PLAN.md D26: `write_file` into a
       // missing folder failed); the caller confined the whole path first.
       // The write is atomic (D27): an interrupted one leaves the old file.
       await writeFileAtomically(absolutePath, content, {
         sleep: pause,
+        assertCanWrite: () => {
+          deps.assertWorkspaceCurrent?.()
+          assertCanWrite?.()
+        },
         ...(expectedCanonicalPath !== undefined && { expectedCanonicalPath }),
         platform: deps.platform,
+      })
+    },
+    async writeFileIfUnchanged(absolutePath, expectedFingerprint, content, options) {
+      return await writeFileIfUnchanged(absolutePath, expectedFingerprint, content, {
+        sleep: pause,
+        assertCanWrite: () => {
+          deps.assertWorkspaceCurrent?.()
+          options.assertCanWrite?.()
+        },
+        expectedCanonicalPath: options.expectedCanonicalPath,
+        platform: deps.platform,
+        isReplaceable: () => options.unsavedAt.every((path) => !hasUnsavedChanges(path)),
+        ...(options.staged !== undefined && { staged: options.staged }),
       })
     },
     async pathExists(absolutePath) {
@@ -548,15 +860,19 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         throw error
       }
     },
-    async reserveFile(absolutePath, expectedCanonicalPath) {
+    async reserveFile(absolutePath, expectedCanonicalPath, beforeCreate) {
       await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, deps.platform)
-      await mkdir(path.dirname(absolutePath), { recursive: true })
+      deps.assertWorkspaceCurrent?.()
+      const directory = path.dirname(absolutePath)
+      const createdFolders = foldersMade(directory, await mkdir(directory, { recursive: true }))
+      await beforeCreate?.(createdFolders)
       await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, deps.platform)
       // `wx`: created here or refused, never an existing file replaced (M34).
+      deps.assertWorkspaceCurrent?.()
       const handle = await open(absolutePath, 'wx')
-      let identity: { readonly dev: number; readonly ino: number }
+      let identity: FileIdentity
       try {
-        identity = await handle.stat()
+        identity = await handleIdentity(handle)
       } catch (error: unknown) {
         await handle.close()
         throw error
@@ -569,14 +885,29 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         await handle.close()
         isClosed = true
       }
-      const release = async () => {
-        await close()
+      // The path still names the file reserved, with no link on the way, and
+      // it is still empty: only then is it ours to fill or remove (M86). Bytes
+      // the user wrote into it meanwhile are theirs and stay.
+      const isReserved = async (): Promise<boolean> => {
         await assertCheckedCanonicalPath(absolutePath, expectedCanonicalPath, deps.platform)
-        const current = await stat(absolutePath)
-        if (current.dev !== identity.dev || current.ino !== identity.ino) {
-          throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+        let current: BigIntStats
+        try {
+          current = await lstatIdentity(absolutePath)
+        } catch (error: unknown) {
+          if (isMissingFile(error)) {
+            return false
+          }
+          throw error
+        }
+        return current.isFile() && sameFile(current, identity) && Number(current.size) === 0
+      }
+      const release = async (): Promise<ReservationStep> => {
+        await close()
+        if (!(await isReserved())) {
+          return 'changed'
         }
         await rm(absolutePath, { force: true })
+        return 'done'
       }
       try {
         await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
@@ -592,50 +923,126 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         fill: async (bytes) => {
           try {
             await checkedOpenedFile(absolutePath, handle, expectedCanonicalPath, deps.platform)
-            await handle.writeFile(bytes)
-            await close()
-          } catch (error: unknown) {
-            // A write that failed (a full disk) leaves no half file behind.
-            try {
-              await release()
-            } catch {
-              // The write's own failure is the one reported.
+            // Immediately before writing: the held file is still empty and the
+            // path still names it. A failure part way is left as it is, never
+            // cleaned up blindly: a release removes the file only while empty.
+            const held = await handleIdentity(handle)
+            if (Number(held.size) > 0 || !(await isReserved())) {
+              return 'changed'
             }
-            throw error
+            deps.assertWorkspaceCurrent?.()
+            await handle.writeFile(bytes)
+            return 'done'
+          } finally {
+            // The caller can stop after a failed fill; it must not own a leaked descriptor.
+            await close()
           }
         },
         release,
       }
     },
-    hasUnsavedChanges: deps.hasUnsavedChanges,
-    listFiles: deps.listFiles,
-    searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
+    hasUnsavedChanges,
+    unsavedFiles: deps.unsavedFiles,
+    async listFiles(signal) {
+      signal?.throwIfAborted()
+      const files = await deps.listFiles(signal)
+      signal?.throwIfAborted()
+      return files
+    },
+    searchFiles: (job, signal) =>
+      searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS, signal),
     realPath: canonicalPath,
-    async runShell(command, cwd, timeoutMs, signal, limit) {
+    async runShell(
+      command,
+      cwd,
+      timeoutMs,
+      signal,
+      limit,
+      assertCanRun,
+      isInteractive = false,
+      resourceKind,
+    ) {
+      if (command.includes('secret://')) return unstartedShell(UI_TEXT.vault.noAccess)
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
-        return {
-          stdout: '',
-          stderr: `${missing} was not found on the absolute entries of PATH`,
-          exitCode: null,
-          isTimedOut: false,
-          isCancelled: false,
-        }
+        return unstartedShell(`${missing} was not found on the absolute entries of PATH`)
       }
-      const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
+      let resource: ResourceLease | undefined
+      let assembly: string | undefined
+      try {
+        assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
+        resource = await admitResource(resourceKind ?? 'toolShell', signal)
+        deps.assertWorkspaceCurrent?.()
+      } catch (error: unknown) {
+        resource?.complete(true)
+        throw error
+      }
       const job = assembly === undefined ? undefined : newShellJob(assembly)
+      resource = await prepareResourceJob(resource, job)
+      try {
+        assertCanRun?.()
+      } catch {
+        resource?.complete(true)
+        // No workspace process has started; cancellation is proven at this boundary.
+        return refusedShellEntry()
+      }
+      const isFenced = !isInteractive || (deps.agentFence?.() ?? true)
       return await runCommand({
         file: interpreter,
-        args: shellArguments(deps.platform, command, job),
+        args: shellArguments(deps.platform, command, job, resource !== undefined, isFenced),
         cwd,
-        env: shellEnvironment(deps.env(), deps.platform, deps.systemRoot),
+        env: shellEnvironment(
+          deps.env(),
+          deps.platform,
+          deps.systemRoot,
+          isInteractive ? (deps.passEnvironmentVariables?.() ?? []) : [],
+          isFenced,
+          deps.vaultFence?.(),
+        ),
         timeoutMs,
         signal,
         limit,
         tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
         job,
+        resource,
       })
     },
+    ...(deps.vault && {
+      runVaultShell: async (command, cwd, timeoutMs, secrets, signal, limit, assertCanRun) => {
+        if (interpreter === undefined || command.includes('secret://'))
+          return unstartedShell(UI_TEXT.vault.noAccess)
+        if (deps.platform === 'win32' && secrets.sudo)
+          return unstartedShell(UI_TEXT.vault.windowsElevation)
+        const vault = await deps.vault?.()
+        if (!vault) return unstartedShell(UI_TEXT.vault.brokerBlocked)
+        // M107: the feeder owns and ends its own contained tree; the run still
+        // holds a governed admission until it has returned.
+        const resource = await admitResource('toolShell', signal)
+        try {
+          return await vault.run(
+            {
+              command: {
+                executable: interpreter,
+                argv: [...shellArguments(deps.platform, command, undefined, false, true)],
+                cwd,
+              },
+              secrets,
+            },
+            signal ?? new AbortController().signal,
+            () => {
+              deps.assertWorkspaceCurrent?.()
+              assertCanRun?.()
+            },
+            { timeoutMs, limit },
+          )
+        } catch (error: unknown) {
+          resource?.failed?.()
+          throw error
+        } finally {
+          resource?.complete(true)
+        }
+      },
+    }),
     async runHook(command, payload, cwd, timeoutMs, signal, extraEnvNames) {
       // dispatchHooks enforces this too. Keep the adapter bounded when it is
       // called directly, before any hook subprocess starts.
@@ -644,16 +1051,11 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       const file = deps.platform === 'win32' ? interpreter : hookProgram
       if (hookProgram === undefined || file === undefined) {
-        return {
-          stdout: '',
-          stderr: 'Hook shell is unavailable',
-          exitCode: null,
-          isTimedOut: false,
-          isCancelled: false,
-        }
+        return unstartedShell('Hook shell is unavailable')
       }
       const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
       const job = assembly === undefined ? undefined : newShellJob(assembly)
+      let resource = await admitResource('hook', signal)
       // On Windows PowerShell joins the job first, then starts cmd.exe with
       // the configured command. The command itself uses cmd, as Muse Code does.
       const args =
@@ -662,20 +1064,49 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
               deps.platform,
               `& ${powerShellQuoted(hookProgram)} /D /S /C ${powerShellQuoted(command)}`,
               job,
+              resource !== undefined,
             )
           : ['-c', command]
-      return await runCommand({
-        file,
-        args,
-        cwd,
-        env: hookEnvironment(deps.env(), deps.platform, extraEnvNames),
-        timeoutMs,
-        signal,
-        tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
-        job,
-        stdin: payload,
-        maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
-      })
+      resource = await prepareResourceJob(resource, job)
+      // Lane K: one production process cap shared by every session and the
+      // lazy window/Tab bundles, held in the lazily loaded hook runtime so
+      // the hook implementation stays out of activation.
+      let release: () => void
+      try {
+        const runtime = await import('../../core/backends/modelapi/hookRuntimeEntry.js')
+        release = await runtime.acquireHookProcessSlot(signal)
+      } catch (error: unknown) {
+        // No process started: a load failure or a cancelled slot wait gives
+        // the admitted lease back, as runCommand does on every exit (RVM94KR 4).
+        resource?.complete(true)
+        throw error
+      }
+      try {
+        return await runCommand({
+          file,
+          args,
+          cwd,
+          env: hookEnvironment(deps.env(), deps.platform, extraEnvNames),
+          timeoutMs,
+          signal,
+          tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
+          job,
+          resource,
+          stdin: payload,
+          maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
+        })
+      } finally {
+        release()
+      }
+    },
+    async runHookHttp(url, payload, signal) {
+      // dispatchHooks and hookHandlers enforce this too. Keep the adapter
+      // bounded when it is called directly, before any request goes out.
+      if (Buffer.byteLength(payload) > HOOK_STDIN_MAX_BYTES) {
+        throw new RangeError('Hook http payload exceeds the input cap')
+      }
+      const hooks = await import('../web/webFetchEntry.js')
+      return await hooks.postHookPayload(url, payload, signal)
     },
   }
 }
@@ -719,6 +1150,9 @@ export class BoundedText {
 }
 
 export interface CommandRun {
+  readonly nativeJob?: Awaited<ReturnType<typeof resourceWindowsJob>>
+  readonly maxOutputChars?: number | undefined
+  readonly resource?: ResourceLease | undefined
   readonly file: string
   readonly args: readonly string[]
   readonly cwd: string
@@ -731,9 +1165,49 @@ export interface CommandRun {
   /** The job object the command joins (Windows, M27). */
   readonly job?: ShellJob | undefined
   /** One JSON payload for a hook process; ordinary shell tools leave stdin closed. */
-  readonly stdin?: string | undefined
+  readonly stdin?: string | Uint8Array | undefined
+  /** Feeder streams are scrubbed before any text is accumulated. */
+  readonly onStdout?: (bytes: Buffer) => void
+  readonly onStderr?: (bytes: Buffer) => void
+  /** A feeder ends residual descendants before it releases its credential leases. */
+  readonly killOnExit?: boolean
+  /** Feeder containment owns descendants even after their leader exits. */
+  readonly terminateTree?: (child: ChildProcess) => Promise<void>
+  /** The outer feeder launcher owns the command timer; cleanup still has a hard clock. */
+  readonly hasExternalTimeout?: boolean
   /** Per-stream byte ceiling, killing the tree when crossed. */
   readonly maxOutputBytes?: number | undefined
+}
+
+/** The spawned process, or the Error spawn threw before any process existed. */
+function startProcess(run: CommandRun) {
+  try {
+    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
+    const child =
+      run.nativeJob === undefined
+        ? spawn(run.file, [...run.args], {
+            cwd: run.cwd,
+            env: resourceEnvironment(run.env, run.resource),
+            windowsHide: true,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            ...treeSpawnOptions(run.tree.platform),
+          })
+        : spawnMcpJob({
+            executablePath: run.nativeJob.executablePath,
+            resourceAssembly: run.nativeJob.assemblyPath,
+            file: run.file,
+            args: run.args,
+            cwd: run.cwd,
+            env: resourceEnvironment(run.env, run.resource),
+            isVerbatim: false,
+            resource: run.resource,
+            log: run.tree.log,
+          })
+    if (run.nativeJob === undefined) observeResourceProcess(run.resource, child, run.job)
+    return child
+  } catch (error: unknown) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
 }
 
 /**
@@ -746,20 +1220,29 @@ export interface CommandRun {
 export function runCommand(run: CommandRun): Promise<ShellResult> {
   return new Promise<ShellResult>((resolve) => {
     if (run.signal?.aborted === true) {
-      resolve({ stdout: '', stderr: '', exitCode: null, isTimedOut: false, isCancelled: true })
+      run.resource?.complete(true)
+      resolve({
+        stdout: '',
+        stderr: '',
+        exitCode: null,
+        isTimedOut: false,
+        isCancelled: true,
+        isWorkspaceShutdownProven: true,
+      })
       return
     }
     const startedAt = Date.now()
-    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
-    const child = spawn(run.file, [...run.args], {
-      cwd: run.cwd,
-      env: run.env,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      ...treeSpawnOptions(run.tree.platform),
-    })
-    const stdout = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
-    const stderr = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
+    const child = startProcess(run)
+    if (child instanceof Error) {
+      run.resource?.complete(true)
+      // spawn itself threw (a command line past the operating system's limit,
+      // a NUL in the command): no process was ever created, which is the one
+      // local fact that proves none exists to outlive the result.
+      resolve(unstartedShell(child.message))
+      return
+    }
+    const stdout = new BoundedText(run.maxOutputChars ?? SHELL_OUTPUT_MAX_CHARS)
+    const stderr = new BoundedText(run.maxOutputChars ?? SHELL_OUTPUT_MAX_CHARS)
     let isTimedOut = false
     let isCancelled = false
     let isOutputTooLarge = false
@@ -768,21 +1251,35 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     let isSettled = false
     let drain: NodeJS.Timeout | undefined
     let kill: Promise<void> | undefined
+    let hasTerminationFailed = false
     const stop = () => {
-      kill ??= killTree(child, run.tree, startedAt, run.job)
+      kill ??= (async () => {
+        try {
+          if (run.terminateTree) await run.terminateTree(child)
+          else await killTree(child, run.tree, startedAt, run.job, run.resource)
+        } catch (error: unknown) {
+          // A feeder's failed containment returns no output (M109); a refused
+          // registered stop settles as a failure (M107).
+          if (run.terminateTree) hasTerminationFailed = true
+          else settle(null, String(error))
+        }
+      })()
     }
     const onAbort = () => {
       isCancelled = true
       stop()
     }
-    const timer = setTimeout(() => {
-      isTimedOut = true
-      stop()
-    }, run.timeoutMs)
+    const timer = run.hasExternalTimeout
+      ? undefined
+      : setTimeout(() => {
+          isTimedOut = true
+          stop()
+        }, run.timeoutMs)
     run.limit?.bind(() => {
       clearTimeout(timer)
+      run.resource?.background()
     })
-    const settle = (exitCode: number | null, failure = '') => {
+    const settle = (exitCode: number | null, failure = '', isUnstarted = false) => {
       if (isSettled) {
         return
       }
@@ -793,17 +1290,23 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       // Our ends of the pipes; whatever still writes to them is not waited for.
       child.stdout.destroy()
       child.stderr.destroy()
-      const result = {
+      if (!isUnstarted && run.killOnExit) stop()
+      const result: ShellResult = {
         stdout: stdout.text(),
         stderr: `${stderr.text()}${failure}`,
         exitCode,
         isTimedOut,
         isCancelled,
         ...(isOutputTooLarge && { isOutputTooLarge }),
+        ...(isUnstarted && { isWorkspaceShutdownProven: true }),
       }
-      // killTree never rejects: what it cannot do, it logs.
+      // Registered stop refusal settles as a failure and retains unknown tree occupancy.
       void (kill ?? Promise.resolve()).then(() => {
-        resolve(result)
+        resolve(
+          hasTerminationFailed
+            ? { ...result, stdout: '', stderr: UI_TEXT.vault.noAccess, exitCode: null }
+            : result,
+        )
       })
     }
     run.signal?.addEventListener('abort', onAbort, { once: true })
@@ -819,7 +1322,8 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
         isOutputTooLarge = true
         stop()
       }
-      stdout.push(chunk)
+      if (run.onStdout) run.onStdout(chunk)
+      else stdout.push(chunk)
     })
     child.stderr.on('data', (chunk: Buffer) => {
       stderrBytes += chunk.length
@@ -827,10 +1331,14 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
         isOutputTooLarge = true
         stop()
       }
-      stderr.push(chunk)
+      if (run.onStderr) run.onStderr(chunk)
+      else stderr.push(chunk)
     })
     child.on('error', (error) => {
-      settle(null, error.message)
+      // Node leaves the pid undefined only when the spawn itself failed: no
+      // process exists. Any other error (a failed kill, a broken pipe) is a
+      // process that did launch, so it proves nothing.
+      settle(null, error.message, child.pid === undefined)
     })
     child.on('exit', (code) => {
       drain = setTimeout(() => {

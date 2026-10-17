@@ -1,4 +1,4 @@
-// "Mention file from this project…": a QuickPick whose items are refreshed
+// "Mention File From This Project…": a QuickPick whose items are refreshed
 // from the mention index as the user types. The QuickPick factory is injected
 // so the flow is unit-tested with a fake; `vscode.window.createQuickPick`
 // satisfies it directly.
@@ -51,19 +51,21 @@ export async function pickMentionFile(deps: MentionQuickPickDeps): Promise<strin
       picker.items = toItems(results)
     }
   }
-  const settled = Promise.withResolvers<string | undefined>()
+  // Not `Promise.withResolvers`: VS Code 1.99 and 1.100 run Node 20 (PLAN.md M62).
+  const settled = new Promise<string | undefined>((resolve) => {
+    picker.onDidAccept(() => {
+      resolve(picker.selectedItems[0]?.path)
+      picker.hide()
+    })
+    picker.onDidHide(() => {
+      resolve(undefined)
+      picker.dispose()
+    })
+  })
   picker.onDidChangeValue((value) => {
     void refresh(value)
   })
-  picker.onDidAccept(() => {
-    settled.resolve(picker.selectedItems[0]?.path)
-    picker.hide()
-  })
-  picker.onDidHide(() => {
-    settled.resolve(undefined)
-    picker.dispose()
-  })
   picker.show()
   await refresh('')
-  return await settled.promise
+  return await settled
 }

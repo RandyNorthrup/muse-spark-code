@@ -1,0 +1,271 @@
+{
+  "lane": "FIXM109B5",
+  "review": "RVM109B4",
+  "platform": "macmini",
+  "date": "2026-10-06",
+  "testTimeout": "repository default; no override",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "testSources": {
+    "test/unit/vault/reviewRound4.test.ts": "2355f4514dff00d791c1bbd7491cdb5f5ae899bc8d6154d775d444f1aee67f3c",
+    "test/unit/vault/interleavings.test.ts": "3d7ed91ac6de7461829f9a20e818d3e0695e0c3f5b7e324969dd8a33e76f9282"
+  },
+  "receipts": [
+    {
+      "name": "P1-reducer-wipe",
+      "description": "Remove synchronous plaintext wiping from reducer cleanup.",
+      "source": "src/core/vault/broker/state.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/interleavings.test.ts",
+        "--maxWorkers=3"
+      ],
+      "expectedNamedFailure": "exhaustive: RVM109B4 P1 throwing close with pending plaintext",
+      "exitCode": 1,
+      "namedFailures": [
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P1 throwing close with pending plaintext",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-2 Finish(true) during queued release",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-4 cancelled automatic unlock releases serialized work",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: lock during a private read",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: lock during a queued private send",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: audit rotation with pending rows",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: unlock lock unlock with late old completions",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P1 throwing close with pending plaintext",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-2 Finish(true) during queued release",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-4 cancelled automatic unlock releases serialized work",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: lock during a private read",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: lock during a queued private send",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: audit rotation with pending rows",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: unlock lock unlock with late old completions",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > RVM109B3 P1-2 a queued private send has no plaintext authority after Lock"
+      ],
+      "sha256Before": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "sha256Mutated": "c504e4795a9d9e9fb9beaddddb3b31512f8d8ef2eec9502263e61626db7172f1",
+      "sha256Restored": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "byteExactRestore": true
+    },
+    {
+      "name": "P1-effect-isolation",
+      "description": "Run effects without their per-effect exception barrier.",
+      "source": "src/core/vault/broker/broker.ts",
+      "command": ["npx", "vitest", "run", "test/unit/vault/reviewRound4.test.ts", "--maxWorkers=3"],
+      "expectedNamedFailure": "P1 throwing lifetime close cannot strand plaintext or stop later effects",
+      "exitCode": 1,
+      "namedFailures": [
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P1 throwing lifetime close cannot strand plaintext or stop later effects",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P1 throwing lifetime close cannot strand plaintext or stop later effects"
+      ],
+      "sha256Before": "d6444b24c57f4727650b7c65bc6226c07aa5e9fe478fa353f5c2a4103310f467",
+      "sha256Mutated": "d737fee9e1483c4e003156365739232457ac8cfcebddb9f9907a16c831af91f4",
+      "sha256Restored": "d6444b24c57f4727650b7c65bc6226c07aa5e9fe478fa353f5c2a4103310f467",
+      "byteExactRestore": true
+    },
+    {
+      "name": "P2-1-audit-revocation",
+      "description": "Leave the active admission and lifetime after a failed redemption audit.",
+      "source": "src/core/vault/broker/state.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/reviewRound4.test.ts",
+        "test/unit/vault/interleavings.test.ts",
+        "--maxWorkers=3"
+      ],
+      "expectedNamedFailure": "P2-1 failed redemption audit revokes admission and closes its lifetime",
+      "exitCode": 1,
+      "namedFailures": [
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-1 failed redemption audit",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-1 failed redemption audit",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P2-1 failed redemption audit revokes admission and closes its lifetime"
+      ],
+      "sha256Before": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "sha256Mutated": "2563484898bec486530d9a9ff88e2971ec54d8c06cd8a2613726f5a44b7d3b77",
+      "sha256Restored": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "byteExactRestore": true
+    },
+    {
+      "name": "P2-1-audit-readiness",
+      "description": "Accept a material command before redemption audit success.",
+      "source": "src/core/vault/broker/state.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/reviewRound4.test.ts",
+        "test/unit/vault/interleavings.test.ts",
+        "--maxWorkers=3"
+      ],
+      "expectedNamedFailure": "P2-1 material cannot start before the redemption audit succeeds",
+      "exitCode": 1,
+      "namedFailures": [
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-1 material before redemption audit",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-1 material before redemption audit",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P2-1 material cannot start before the redemption audit succeeds"
+      ],
+      "sha256Before": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "sha256Mutated": "5df54b2e75786ca5ef4041e32854463743ef56adcee856842aef7cccb9c5abb9",
+      "sha256Restored": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "byteExactRestore": true
+    },
+    {
+      "name": "P2-2-finish-retirement",
+      "description": "Remove Finish retirement of in-flight material operations.",
+      "source": "src/core/vault/broker/state.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/reviewRound4.test.ts",
+        "test/unit/vault/interleavings.test.ts",
+        "--maxWorkers=3"
+      ],
+      "expectedNamedFailure": "P2-2 Finish(false) invalidates material suspended in store read",
+      "exitCode": 1,
+      "namedFailures": [
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-2 Finish(false) during material read",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-2 Finish(true) during queued release",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-2 Finish(false) during material read",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-2 Finish(true) during queued release",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P2-2 Finish(true) invalidates material suspended in store read",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P2-2 Finish(false) invalidates material suspended in store read"
+      ],
+      "sha256Before": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "sha256Mutated": "313bcc46b054e58fec96a327da32501ea76028c8f0c3963a0f7e52c384f37bb4",
+      "sha256Restored": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "byteExactRestore": true
+    },
+    {
+      "name": "P2-2-release-admission",
+      "description": "Remove the final active-admission check while keeping Finish retirement.",
+      "source": "src/core/vault/broker/state.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/interleavings.test.ts",
+        "--maxWorkers=3"
+      ],
+      "expectedNamedFailure": "RVM109B4 P2-2 final release requires the current active admission",
+      "exitCode": 1,
+      "namedFailures": [
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > RVM109B4 P2-2 final release requires the current active admission"
+      ],
+      "sha256Before": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "sha256Mutated": "c0668a77103bdbe336b6e252c5db2cd34edf6e74ee5face26614ee945ba32117",
+      "sha256Restored": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "byteExactRestore": true
+    },
+    {
+      "name": "P2-3-terminal-expiry",
+      "description": "Allow invalidation of a terminal settlement operation during expiry.",
+      "source": "src/core/vault/broker/state.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/reviewRound4.test.ts",
+        "test/unit/vault/interleavings.test.ts",
+        "--maxWorkers=3"
+      ],
+      "expectedNamedFailure": "P2-3 expiry during requester termination settles one terminal audit without self-waiting",
+      "exitCode": 1,
+      "namedFailures": [
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-3 expiry during requester termination",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-3 expiry during requester termination",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P2-3 expiry during requester termination settles one terminal audit without self-waiting",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P2-3 expiry during requester termination settles one terminal audit without self-waiting"
+      ],
+      "sha256Before": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "sha256Mutated": "7962b2198cf5713b45ba54552f325b5727778fd2f2654fc589adab5746765f14",
+      "sha256Restored": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "byteExactRestore": true
+    },
+    {
+      "name": "P2-3-unrecorded-finish",
+      "description": "Treat a new Finish after disposal as an already recorded terminal liability.",
+      "source": "src/core/vault/broker/state.ts",
+      "command": ["npx", "vitest", "run", "test/unit/vault/reviewRound4.test.ts", "--maxWorkers=3"],
+      "expectedNamedFailure": "P2-3 a new Finish after disposal is refused rather than treated as terminal cleanup",
+      "exitCode": 1,
+      "namedFailures": [
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P2-3 a new Finish after disposal is refused rather than treated as terminal cleanup"
+      ],
+      "sha256Before": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "sha256Mutated": "c32a2d860c5eec58765d27de7ec5eb58db6744d6d7010dd2c6426e37831dfba6",
+      "sha256Restored": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "byteExactRestore": true
+    },
+    {
+      "name": "P2-3-terminal-state",
+      "description": "Omit the terminal outcome captured in reducer state before termination I/O.",
+      "source": "src/core/vault/broker/state.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/interleavings.test.ts",
+        "--maxWorkers=3"
+      ],
+      "expectedNamedFailure": "exhaustive: RVM109B4 P2-3 expiry during requester termination",
+      "exitCode": 1,
+      "namedFailures": [
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P1 throwing close with pending plaintext",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-1 failed redemption audit",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-3 expiry during requester termination",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: grant expiry during material release",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: revoke during a grant redeem",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P1 throwing close with pending plaintext",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-1 failed redemption audit",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-3 expiry during requester termination",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: grant expiry during material release",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: revoke during a grant redeem"
+      ],
+      "sha256Before": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "sha256Mutated": "760383a2bdc31dc8ced69da786b8310994ec7e5ef4d0f2c59d13c5f3d3b33c01",
+      "sha256Restored": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "byteExactRestore": true
+    },
+    {
+      "name": "P2-4-unlock-queue-retirement",
+      "description": "Retain cancelled automatic-unlock operation and queue ownership until unwrap returns.",
+      "source": "src/core/vault/broker/state.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/vault/reviewRound4.test.ts",
+        "test/unit/vault/interleavings.test.ts",
+        "--maxWorkers=3"
+      ],
+      "expectedNamedFailure": "P2-4 cancelled automatic unlock releases the queue before obsolete unwrap returns",
+      "exitCode": 1,
+      "namedFailures": [
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P1 throwing close with pending plaintext",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-2 Finish(false) during material read",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-2 Finish(true) during queued release",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: RVM109B4 P2-4 cancelled automatic unlock releases serialized work",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: lock during a private read",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: lock during a queued private send",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > exhaustive: unlock lock unlock with late old completions",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P1 throwing close with pending plaintext",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-2 Finish(false) during material read",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-2 Finish(true) during queued release",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: RVM109B4 P2-4 cancelled automatic unlock releases serialized work",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: lock during a private read",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: lock during a queued private send",
+        " FAIL  test/unit/vault/interleavings.test.ts > M109 deterministic effect interleavings > seeded: unlock lock unlock with late old completions",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P1 throwing lifetime close cannot strand plaintext or stop later effects",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P2-2 Finish(true) invalidates material suspended in store read",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P2-2 Finish(false) invalidates material suspended in store read",
+        " FAIL  test/unit/vault/reviewRound4.test.ts > RVM109B4 failure and terminal ownership > P2-4 cancelled automatic unlock releases the queue before obsolete unwrap returns"
+      ],
+      "sha256Before": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "sha256Mutated": "e315b7e64b49c90095924d4b1b038ca2722fc16d536214f277369d826b7fae65",
+      "sha256Restored": "ba79c5a6d108cc14cc649e0e9649890a97ac78fbdba28566bae01a8e83d7c89a",
+      "byteExactRestore": true
+    }
+  ]
+}

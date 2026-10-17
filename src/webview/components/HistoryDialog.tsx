@@ -1,12 +1,13 @@
+import { webviewKey } from '../../shared/keybindings'
 // The History dialog (M6): the workspace's stored sessions grouped Today /
 // Yesterday / Previous 7 days / Older, a search box over titles and
-// branches, Archive / Unarchive per row and a "Show archived" switch.
+// branches, Archive / Unarchive per row and a "Show Archived" switch.
 // Keyboard-operable like the palette: the search box keeps focus, Up/Down
 // move, Enter resumes the active row, Esc closes. The search box keeps the
-// focus through a "Show archived" toggle too (M25): the switch used to take
+// focus through a "Show Archived" toggle too (M25): the switch used to take
 // it, and the arrows, Enter and Esc stopped working until the next click.
 
-import { type FocusEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
 import {
@@ -16,25 +17,35 @@ import {
   type SessionListOptions,
   type SessionRow,
 } from '../../shared/sessions'
-import { scrollRowIntoView, wrapIndex } from '../listNavigation'
-import { CloseIcon, HistoryIcon } from './icons'
+import { scrollRowIntoView } from '../listNavigation'
+import { deferred } from './DeferredSurface'
+import { HistoryIcon } from './icons'
 import { ListBody } from './ListBody'
+import {
+  PaletteList,
+  PaletteSearchInput,
+  usePaletteDismiss,
+  usePaletteNavigation,
+} from './paletteDialog'
 
 export interface HistoryDialogProps {
   /** undefined while the host has not answered `listSessions`. */
   readonly sessions: readonly SessionRow[] | undefined
+  readonly openQuestionCounts?: Readonly<Record<string, number>>
   readonly archivedIds: readonly string[]
   readonly currentSessionId: string | undefined
   readonly archiveAfterDays: number
   readonly now: () => number
+  readonly onSavePrompt?: (sessionId: string) => void
   readonly onResume: (sessionId: string) => void
   readonly onSetArchived: (sessionId: string, isArchived: boolean) => void
+  /** Muse Code only. The host confirms deletion and waits for its terminal notification. */
+  readonly onDelete?: (sessionId: string) => void
   readonly onClose: () => void
 }
 
 const ROW_ID_PREFIX = 'history-row-'
 // Archives or restores the highlighted row from the search box (M37).
-const ARCHIVE_KEY = 'Delete'
 
 /** What the list renders: group titles and numbered rows, in order. */
 export type HistoryEntry =
@@ -43,13 +54,14 @@ export type HistoryEntry =
 
 export function layoutHistory(groups: readonly SessionGroup[]): readonly HistoryEntry[] {
   const entries: HistoryEntry[] = []
+  let index = 0
   for (const group of groups) {
     entries.push({ kind: 'title', key: `title:${group.id}`, title: group.title })
     for (const row of group.rows) {
       entries.push({
         kind: 'row',
         key: row.sessionId,
-        index: entries.filter((entry) => entry.kind === 'row').length,
+        index: index++,
         row,
       })
     }
@@ -57,93 +69,29 @@ export function layoutHistory(groups: readonly SessionGroup[]): readonly History
   return entries
 }
 
-function metaOf(row: SessionRow, nowMs: number): string {
-  const parts = [
+function metaOf(row: SessionRow, nowMs: number, openCount = 0): string {
+  return [
     relativeTime(row.lastActivityAt ?? row.updatedAt, nowMs),
     plural(UI_TEXT.historyTurns, row.turnCount),
+    row.branch,
+    row.isFork ? UI_TEXT.historyForkMark : undefined,
+    openCount > 0 ? plural(UI_TEXT.openQuestionsCount, openCount) : undefined,
   ]
-  if (row.branch !== undefined) {
-    parts.push(row.branch)
-  }
-  if (row.isFork) {
-    parts.push(UI_TEXT.historyForkMark)
-  }
-  return parts.join(' · ')
+    .filter((part) => part !== undefined)
+    .join(' · ')
 }
 
-function RowView({
-  row,
-  isActive,
-  isCurrent,
-  isRowArchived,
-  meta,
-  onHover,
-  onResume,
-  onSetArchived,
-}: {
-  readonly row: SessionRow
-  readonly isActive: boolean
-  readonly isCurrent: boolean
-  readonly isRowArchived: boolean
-  readonly meta: string
-  readonly onHover: () => void
-  readonly onResume: () => void
-  readonly onSetArchived: (isArchived: boolean) => void
-}) {
-  const archiveLabel = isRowArchived ? UI_TEXT.historyUnarchive : UI_TEXT.historyArchive
-  return (
-    <li
-      id={`${ROW_ID_PREFIX}${row.sessionId}`}
-      role="option"
-      aria-selected={isActive}
-      // The row is the control: Delete (un)archives it from the search box.
-      aria-keyshortcuts={ARCHIVE_KEY}
-      aria-description={archiveLabel}
-      className={
-        isActive ? 'palette-item history-row palette-item-active' : 'palette-item history-row'
-      }
-      onMouseEnter={onHover}
-      onMouseDown={(event) => {
-        // Keep the search box focused; the click still resumes.
-        event.preventDefault()
-      }}
-      onClick={onResume}
-    >
-      <span className="palette-item-text">
-        <span className="palette-item-label">
-          {row.title}
-          {isCurrent ? (
-            <span className="badge history-current">{UI_TEXT.historyCurrent}</span>
-          ) : null}
-        </span>
-        <span className="palette-item-detail">{meta}</span>
-      </span>
-      {/* For the mouse only: a button inside an option is still reachable by
-          assistive technology (WCAG 4.1.2, M37); the keyboard uses Delete. */}
-      <span
-        className="icon-button history-archive"
-        title={`${archiveLabel} (${ARCHIVE_KEY})`}
-        aria-hidden="true"
-        onMouseDown={(event) => {
-          event.preventDefault()
-        }}
-        onClick={(event) => {
-          event.stopPropagation()
-          onSetArchived(!isRowArchived)
-        }}
-      >
-        <CloseIcon />
-      </span>
-    </li>
-  )
-}
+const RowView = deferred(async () => {
+  const module = await import('./HistoryPromptRow')
+  return { default: module.HistoryPromptRow }
+})
 
 export function HistoryDialog(props: HistoryDialogProps) {
+  const [menuContainer, setMenuContainer] = useState<HTMLDivElement | null>(null)
   const { sessions, archivedIds, currentSessionId, archiveAfterDays, now } = props
-  const { onResume, onSetArchived, onClose } = props
+  const { onResume, onSetArchived, onDelete, onClose } = props
   const [query, setQuery] = useState('')
   const [isShowingArchived, setIsShowingArchived] = useState(false)
-  const [storedIndex, setActiveIndex] = useState(0)
   const search = useRef<HTMLInputElement>(null)
   const nowMs = now()
 
@@ -163,11 +111,21 @@ export function HistoryDialog(props: HistoryDialogProps) {
   )
   // Titles and rows in display order; rows also numbered for the keyboard.
   const entries = useMemo(() => layoutHistory(groups), [groups])
-  const rows = useMemo(
-    () => entries.flatMap((entry) => (entry.kind === 'row' ? [entry.row] : [])),
-    [entries],
+  const rows = groups.flatMap((group) => group.rows)
+  const {
+    activeIndex,
+    setActiveIndex,
+    handleKeyDown: handlePaletteKeyDown,
+  } = usePaletteNavigation(
+    rows.length,
+    (index) => {
+      const row = rows[index]
+      if (row !== undefined) {
+        onResume(row.sessionId)
+      }
+    },
+    onClose,
   )
-  const activeIndex = storedIndex < rows.length ? storedIndex : 0
   const activeRow = rows[activeIndex]
 
   useEffect(() => {
@@ -176,46 +134,20 @@ export function HistoryDialog(props: HistoryDialogProps) {
     }
   }, [activeRow])
 
-  const move = (delta: number) => {
-    setActiveIndex(wrapIndex(activeIndex, delta, rows.length))
-  }
-
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    switch (event.key) {
-      case 'ArrowDown': {
+    if (webviewKey('history.archive', event) === 'archive') {
+      // Only on the highlighted row; with text selected, Delete edits it.
+      if (activeRow !== undefined && event.currentTarget.value === '') {
         event.preventDefault()
-        move(1)
-        break
-      }
-      case 'ArrowUp': {
-        event.preventDefault()
-        move(-1)
-        break
-      }
-      case 'Enter': {
-        event.preventDefault()
-        if (activeRow !== undefined) {
-          onResume(activeRow.sessionId)
-        }
-        break
-      }
-      case ARCHIVE_KEY: {
-        // Only on the highlighted row; with text selected, Delete edits it.
-        if (activeRow !== undefined && event.currentTarget.value === '') {
-          event.preventDefault()
+        if (onDelete !== undefined && event.shiftKey) {
+          onDelete(activeRow.sessionId)
+        } else {
           onSetArchived(activeRow.sessionId, !archivedIds.includes(activeRow.sessionId))
         }
-        break
       }
-      case 'Escape': {
-        event.preventDefault()
-        onClose()
-        break
-      }
-      default: {
-        break
-      }
+      return
     }
+    handlePaletteKeyDown(event)
   }
 
   const hasList = sessions !== undefined && rows.length > 0
@@ -230,12 +162,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
     )
   } else {
     body = (
-      <ul
-        id="history-listbox"
-        role="listbox"
-        aria-label={UI_TEXT.historyLabel}
-        className="palette-list"
-      >
+      <PaletteList listboxId="history-listbox" label={UI_TEXT.historyLabel}>
         {entries.map((entry) =>
           entry.kind === 'title' ? (
             <li key={entry.key} role="presentation" className="palette-group-title">
@@ -244,11 +171,13 @@ export function HistoryDialog(props: HistoryDialogProps) {
           ) : (
             <RowView
               key={entry.key}
+              onSavePrompt={props.onSavePrompt}
+              menuContainer={menuContainer}
               row={entry.row}
               isActive={entry.index === activeIndex}
               isCurrent={entry.row.sessionId === currentSessionId}
               isRowArchived={archivedIds.includes(entry.row.sessionId)}
-              meta={metaOf(entry.row, nowMs)}
+              meta={metaOf(entry.row, nowMs, props.openQuestionCounts?.[entry.row.sessionId])}
               onHover={() => {
                 setActiveIndex(entry.index)
               }}
@@ -258,27 +187,15 @@ export function HistoryDialog(props: HistoryDialogProps) {
               onSetArchived={(isRowArchived) => {
                 onSetArchived(entry.row.sessionId, isRowArchived)
               }}
+              onDelete={onDelete}
             />
           ),
         )}
-      </ul>
+      </PaletteList>
     )
   }
 
-  // Anything taking the focus outside the dialog closes it.
-  const onDialogBlur = (event: FocusEvent<HTMLDivElement>) => {
-    if (!event.currentTarget.contains(event.relatedTarget)) {
-      onClose()
-    }
-  }
-  const onDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    // The search box handles its own Escape.
-    if (event.key !== 'Escape' || event.target === search.current) {
-      return
-    }
-    event.preventDefault()
-    onClose()
-  }
+  const { onDialogBlur, onDialogKeyDown } = usePaletteDismiss(search, onClose)
 
   return (
     <div
@@ -290,28 +207,31 @@ export function HistoryDialog(props: HistoryDialogProps) {
     >
       <div className="palette-header">
         <HistoryIcon />
-        <input
-          ref={search}
-          className="palette-filter"
-          type="text"
-          role="combobox"
-          // Only a list that is there can be controlled (seen in a translated
-          // table, M40: a search matching nothing left the reference dangling).
-          aria-expanded={hasList}
-          aria-controls={hasList ? 'history-listbox' : undefined}
-          aria-autocomplete="list"
-          aria-activedescendant={
+        <PaletteSearchInput
+          search={search}
+          listboxId={hasList ? 'history-listbox' : undefined}
+          activeRowId={
             activeRow === undefined ? undefined : `${ROW_ID_PREFIX}${activeRow.sessionId}`
           }
-          placeholder={UI_TEXT.historySearchPlaceholder}
-          value={query}
-          autoFocus
-          onChange={(event) => {
-            setQuery(event.target.value)
+          query={query}
+          onQuery={(value) => {
+            setQuery(value)
             setActiveIndex(0)
           }}
           onKeyDown={handleKeyDown}
         />
+        {props.onSavePrompt === undefined ? null : (
+          <button
+            type="button"
+            className="button-secondary"
+            disabled={activeRow === undefined}
+            onClick={() => {
+              if (activeRow !== undefined) props.onSavePrompt?.(activeRow.sessionId)
+            }}
+          >
+            {UI_TEXT.promptSave}
+          </button>
+        )}
         <label
           className="history-toggle"
           onMouseDown={(event) => {
@@ -333,6 +253,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
         </label>
       </div>
       <ListBody>{body}</ListBody>
+      <div ref={setMenuContainer} />
     </div>
   )
 }

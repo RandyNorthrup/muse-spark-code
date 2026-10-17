@@ -1,0 +1,217 @@
+{
+  "date": "2026-10-04",
+  "unit_controls": [
+    {
+      "id": "repository",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "run.repository.full_name !== repository || -> false ||",
+      "expected": "refuses an ineligible run",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "844a6eb418fc3c06c1a82491e00185ba6f6d3e3777ad0dd89769161a3d7d1c58",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "fork",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "run.head_repository?.full_name !== repository || -> false ||",
+      "expected": "refuses an ineligible run",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "c52c28d86a70899df24078cb24224cf52a5240038411942f6bd58b66b9224d7a",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "workflow",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "run.path !== '.github/workflows/ci.yml' || -> false ||",
+      "expected": "refuses an ineligible run",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "4b5d3e20a571ec9d825b59772a7ea69e7502168b2c268a02ae0e7479e1d33bac",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "completed",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "run.status !== 'completed' || -> false ||",
+      "expected": "refuses an ineligible run",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "f6b92a593152c07675ac644dd33f841b46554ab5f4daf39758bec85ef16cf012",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "success",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "run.conclusion !== 'success' || -> false ||",
+      "expected": "refuses an ineligible run",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "7e893270e62fe7ffada2f46353fdef5a9c061864bd853d3b525d3053c23bd7fe",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "event",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "run.event === 'pull_request' || (run.event === 'push' && run.head_branch === 'main') -> true",
+      "expected": "refuses an ineligible run",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "0285f65a2ab91a11699a2a327aaa5361b29d711bc45ea7844c88aa6e2aefffed",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "main-push",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "run.head_branch === 'main' -> true",
+      "expected": "refuses an ineligible run",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "acc07cc022b1be202076f15c2f158eeef24d3ee1133ee4a00584189f273c004d",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "expired",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "!artifact.expired -> true",
+      "expected": "falls back when no run exists",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "7153389f12f913bff8ccabbd315568310da97f921b06678293114f322000aff3",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "tree-name",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "`source-tree-${tree}` -> `source-tree-${\"a\".repeat(40)}`",
+      "expected": "falls back when no run exists",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "d07255e4ecbd73ee4e28194402871f534bc7ff2e0218851005b3e208949f4082",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "no-run",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "  return\n} ->   return 42\n}",
+      "expected": "falls back when no run exists",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "028e421e7b96d7e68f123d7a7b36fd675a4f7c059039a343ad5f80bd9179a2a4",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "run-schema",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "RUNS.parse( -> ((value) => value)(",
+      "expected": "continues to the next page",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "3a5f00da3b4bb2aafe861e60645fccded5249c4dcef07c6e614f26745d18afc3",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "artifact-schema",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "ARTIFACTS.parse( -> ((value) => value)(",
+      "expected": "continues to the next page",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "2824adbcbffa299701ff59a43eb2b3e2de2125be6be741e4baf3f550a6afb13e",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "receipt-schema",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "RECEIPT.parse( -> ((value) => value)(",
+      "expected": "refuses extra assets",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "ec9c3fae644706e1b9f022ea450d3200a0a8b00723a251e9d822d8aec6350221",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "receipt-tree",
+      "file": "scripts/release-reuse.mjs",
+      "mutation": "receipt.tree !== tree -> false",
+      "expected": "refuses a different receipt tree",
+      "red_exit": 1,
+      "restored_exit": 0,
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "2cfc19b2ab31ff08d6a80dbe6c721da140320689a76a62d04734461e94204fc9",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    }
+  ],
+  "manual_controls": [
+    {
+      "id": "git-tree",
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "84813a4d2658625f34e8c7dd873485b43ee1444387b1567c49516aa61910a525",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    },
+    {
+      "id": "tag-version",
+      "before_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "mutated_sha256": "3a433977282b84d97ba19eae38cb3100de0708810bad41eda4b6149a31ae8d90",
+      "after_sha256": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+      "pass": true
+    }
+  ],
+  "pending_controls": [
+    "hash-inventory",
+    "directory-inventory",
+    "asset-hash",
+    "vsix-version",
+    "acp-version",
+    "vsix-identity",
+    "acp-identity",
+    "force-rebuild",
+    "verification-fallback",
+    "tag-first",
+    "cross-run",
+    "read-permission",
+    "download-fallback",
+    "verification-step",
+    "staging-guard",
+    "build-fallback",
+    "skipped-build",
+    "ci-receipt",
+    "retention"
+  ],
+  "source_sha256": {
+    "scripts/release-reuse.mjs": "683158fc9d89bf927b85b79b8e2edf83a2662041ae7f5cc4b7be172219bb147f",
+    "test/unit/releasePublish.test.mjs": "39aa956817a2a0f1d2e472d198bd5f5f796f65be9d82e29b58cadbe4803abb21",
+    "test/unit/manifest.test.ts": "1862025581c59bcc456441a7fae734b38c5aee5cba7de46d2d4bbd77299d9b2f",
+    ".github/workflows/build.yml": "6b60d366d0e8fe11681cc9df19b82503123c81978f8cadedc2936ca5e580d8da",
+    ".github/workflows/release.yml": "d414030c7853ab53b1531272fcbbb7bc719015d9a5f2ef980b32faa9a85016f0"
+  }
+}

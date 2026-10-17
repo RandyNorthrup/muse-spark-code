@@ -1,0 +1,143 @@
+{
+  "metadata": {
+    "commit": "1754733bcef2801af209b82c0544f7da93c136d6",
+    "tree": "3d8921909706f02552e409b676ddaf3b6baee49f",
+    "node": "v22.23.3",
+    "clone": "/private/tmp/rel0160b/fresh-clone",
+    "CI": "true",
+    "workflow": ".github/workflows/build.yml",
+    "semgrepPin": "1.178.0",
+    "linuxArtifactInput": "same-source real cross-compiled ELF, native Linux execution unclaimed"
+  },
+  "steps": [
+    {
+      "job": "checks",
+      "step": 1,
+      "title": "npm ci",
+      "command": "npm ci",
+      "exit": 0,
+      "seconds": 9.73,
+      "log": "/tmp/rel0160b/first-fresh-receipts/checks-1.log"
+    },
+    {
+      "job": "checks",
+      "step": 2,
+      "title": "npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit",
+      "command": "npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit",
+      "exit": 0,
+      "seconds": 429.18,
+      "log": "/tmp/rel0160b/first-fresh-receipts/checks-2.log"
+    },
+    {
+      "job": "unit-1",
+      "step": 1,
+      "title": "npm ci",
+      "command": "npm ci",
+      "exit": 0,
+      "seconds": 10.17,
+      "log": "/tmp/rel0160b/first-fresh-receipts/unit-1-1.log"
+    },
+    {
+      "job": "unit-1",
+      "step": 2,
+      "title": "unit and process e2e tests",
+      "command": "if [ \"$FAST\" = true ]; then\n  npx vitest run\nelse\n  npx vitest run --coverage --shard=\"$SHARD/4\" --reporter=default --reporter=blob --outputFile=\"blob-reports/shard-$SHARD.json\"\nfi\n",
+      "exit": 1,
+      "seconds": 146.35,
+      "log": "/tmp/rel0160b/first-fresh-receipts/unit-1-2.log"
+    }
+  ],
+  "failure": {
+    "file": "test/unit/runtimeChatGptPackage.test.ts",
+    "message": "Badge network skip is forbidden in CI",
+    "failed": 1,
+    "passed": 4757,
+    "existingSkipped": 21
+  },
+  "repair": {
+    "file": "test/unit/runtimeChatGptPackage.test.ts",
+    "change": "Remove BADGE_CHECK_SKIP_NETWORK; preserve CI and invoke actual badge/image checks",
+    "restoredCommand": "CI=true npx vitest run test/unit/runtimeChatGptPackage.test.ts test/unit/checkBadges.test.mjs --maxWorkers=3",
+    "exit": 0,
+    "filesPassed": 2,
+    "testsPassed": 41,
+    "defaultTimeouts": true
+  },
+  "coldCheckout": {
+    "originalExit": 1,
+    "originalFailure": "ENOENT: missing dist/acp.js",
+    "attempts": [
+      {
+        "change": "Build production chunks in owned source tree",
+        "exit": 1,
+        "failure": "Missing test/integration inventory"
+      },
+      {
+        "change": "Include real integration inventory in owned tree",
+        "exit": 1,
+        "failure": "Missing owned dist/providerCatalog.json; catalog generation resolves the script module root"
+      }
+    ],
+    "decision": "Stop this repair path after two failed fixes, per common.md; remove the attempted owned-build changes",
+    "fixtureRestoredSha256": "b74b970978178e7481e919d1fdacd5f884e951e2bfc515ff3c78eccecfe76ffb",
+    "remainingBlocker": "ChatGPT package fixture depends on checkout dist produced by another job"
+  },
+  "headlessBadge": {
+    "qualityRun": {
+      "command": "npm run quality",
+      "CI": true,
+      "exit": 1,
+      "seconds": 1098.21
+    },
+    "file": "test/e2e/execStdio.e2e.test.ts",
+    "redFailedTests": 29,
+    "redPassedTests": 18114,
+    "failure": "Badge network skip is forbidden in CI",
+    "repair": "Initialize existing package-only fake HTTP transport before all guards; attach to pack commands and clear offline override while preserving CI and real validator",
+    "completeFileVerification": {
+      "command": "CI=true npx vitest run test/e2e/execStdio.e2e.test.ts test/unit/runtimeChatGptPackage.test.ts test/unit/checkBadges.test.mjs --maxWorkers=3",
+      "exit": 0,
+      "files": 3,
+      "tests": 85,
+      "seconds": 147.98,
+      "repositoryTimeouts": true
+    },
+    "sourceSha256": "6bc0c517ed91e55b120edb3e2132d3be43cd8e4e52a584f6081c4cae89ced41e"
+  },
+  "teamSetup": {
+    "qualityRun": {
+      "command": "npm run quality",
+      "CI": true,
+      "exit": 1,
+      "seconds": 1129.96
+    },
+    "failure": "Team harness beforeAll timed out at its existing 60000 ms bound",
+    "passedTests": 18121,
+    "assertionsPrevented": 22,
+    "idleProfile": [
+      {
+        "step": "build",
+        "exit": 0,
+        "seconds": 5.03
+      },
+      {
+        "step": "pseudo",
+        "exit": 0,
+        "seconds": 0.33
+      },
+      {
+        "step": "inventory",
+        "exit": 0,
+        "seconds": 9.6
+      }
+    ],
+    "repair": "Use unchanged VSCE publication policy in owned copy of real publication roots; exclude concurrent fixture traversal without adding an ignore",
+    "completeFileGreen": {
+      "files": 1,
+      "tests": 22,
+      "CI": true,
+      "existingSetupTimeoutMs": 60000
+    },
+    "failureDrill": "rel0160-rebuild-drills.json#team-inventory"
+  }
+}

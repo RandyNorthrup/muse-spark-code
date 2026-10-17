@@ -1,0 +1,74 @@
+# Rust strict lint setup.
+#
+# Clippy lint LEVELS are not configured in clippy.toml — they go in Cargo.toml
+# or lib.rs. clippy.toml only tunes thresholds. Both halves are below.
+
+# ─────────────────────────────────────────────────────────────────────────
+# PART 1 — put this in the PACKAGE Cargo.toml
+# ─────────────────────────────────────────────────────────────────────────
+#
+# [lints.rust]
+# unsafe_code = "forbid"          # drop to "deny" if you genuinely need unsafe
+# missing_debug_implementations = "warn"
+# missing_docs = "warn"
+# unreachable_pub = "warn"
+# unused_qualifications = "warn"
+# unused_import_braces = "warn"
+# rust_2018_idioms = { level = "warn", priority = -1 }
+# future_incompatible = { level = "warn", priority = -1 }
+#
+# [lints.clippy]
+# # priority = -1 lets specific lints below override the group.
+# all      = { level = "deny",  priority = -1 }
+# pedantic = { level = "warn",  priority = -1 }
+# nursery  = { level = "warn",  priority = -1 }
+# cargo    = { level = "warn",  priority = -1 }
+#
+# # Panic sources — deny in production; narrowly allow intentional test use.
+# unwrap_used         = "deny"
+# expect_used         = "deny"
+# panic               = "deny"
+# indexing_slicing    = "deny"
+# integer_division    = "deny"
+# unwrap_in_result    = "deny"
+#
+# # Correctness
+# float_cmp           = "deny"
+# mem_forget          = "deny"
+# todo                = "deny"
+# unimplemented       = "deny"
+# dbg_macro           = "deny"
+# print_stdout        = "warn"
+#
+# # pedantic members that fight ordinary code
+# module_name_repetitions = "allow"
+# must_use_candidate      = "allow"
+# missing_errors_doc      = "allow"
+# missing_panics_doc      = "allow"
+# multiple_crate_versions = "allow"   # you rarely control transitive dupes
+#
+# In test modules add:  #![cfg_attr(test, allow(clippy::unwrap_used))]
+# Keep allowances local to test modules; do not exempt production binaries.
+# For a virtual workspace, use [workspace.lints.rust] and
+# [workspace.lints.clippy] at the root, then [lints] workspace = true in EVERY
+# member's Cargo.toml. Root workspace settings are not inherited automatically.
+# Verify member inheritance with a deliberate lint violation in that member.
+
+# ─────────────────────────────────────────────────────────────────────────
+# PART 2 — this file (clippy.toml at project root): thresholds only
+# ─────────────────────────────────────────────────────────────────────────
+
+avoid-breaking-exported-api = false
+cognitive-complexity-threshold = 25
+too-many-arguments-threshold = 6
+type-complexity-threshold = 250
+too-many-lines-threshold = 150
+enum-variant-name-threshold = 3
+
+# unwrap_used/expect_used above own the panic policy. Do not duplicate them in
+# disallowed-methods, which would also defeat the scoped test allowance.
+# Handle None and propagate Result with ?; expect is not a production workaround.
+
+# Run it as a gate with:
+#   cargo clippy --workspace --all-targets --all-features -- -D warnings
+# Run supported feature combinations separately if all-features is incompatible.

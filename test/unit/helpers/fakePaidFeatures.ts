@@ -5,4 +5,5 @@ export const disabledPaidFeatures = {
   allowsPaidUse: () => Promise.resolve(false),
   isPaidUseRemembered: () => false,
   noteSubagentUsage: () => undefined,
+  noteReviewerUsage: () => undefined,
 }

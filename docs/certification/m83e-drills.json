@@ -1,0 +1,405 @@
+[
+  {
+    "guard": "class",
+    "source": "src/core/import/agentImport.ts",
+    "test": "test/unit/importExposure.test.ts",
+    "before_sha256": "5025990c67fd0894ad19a03c607babc060580396d22f4aa69ec5a24b96dcd28c",
+    "mutated_sha256": "314200f91d3efa13609d714c844d8cf9b511075e7650f70addd3ab9cd44bb104",
+    "after_sha256": "5025990c67fd0894ad19a03c607babc060580396d22f4aa69ec5a24b96dcd28c",
+    "green": {
+      "exit": 0,
+      "snapshot": "546c0abd",
+      "counts": "18 passed (18)",
+      "log": "temp/m83x/drills/class-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "ec88aff1",
+      "counts": "4 failed | 14 passed (18)",
+      "log": "temp/m83x/drills/class-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "ec2bd010",
+      "counts": "18 passed (18)",
+      "log": "temp/m83x/drills/class-restored.log"
+    },
+    "expected_diagnostic": "personal → project-local",
+    "observed_diagnostics": [
+      "FAIL  test/unit/importExposure.test.ts > exposure-preserving import > personal → project-local: allowed=false",
+      "FAIL  test/unit/importExposure.test.ts > exposure-preserving import > personal → project-tracked: allowed=false",
+      "FAIL  test/unit/importExposure.test.ts > exposure-preserving import > project-local → project-tracked: allowed=false",
+      "FAIL  test/unit/importExposure.test.ts > exposure-preserving import > refuses an ignored source when ignore status changes at the final publication boundary"
+    ]
+  },
+  {
+    "guard": "ignore",
+    "source": "src/host/importIo.ts",
+    "test": "test/unit/importIo.test.ts",
+    "before_sha256": "f07e5590287e333b2fa5c650cadd40da196e20710f4cbd75c009abeea5ec31b1",
+    "mutated_sha256": "65a56cb0780298d5343278c64d45e9fffbc627c2521f5dc909f6c67d5c81409b",
+    "after_sha256": "f07e5590287e333b2fa5c650cadd40da196e20710f4cbd75c009abeea5ec31b1",
+    "green": {
+      "exit": 0,
+      "snapshot": "951499d4",
+      "counts": "28 passed (28)",
+      "log": "temp/m83x/drills/ignore-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "99b2461c",
+      "counts": "2 failed | 26 passed (28)",
+      "log": "temp/m83x/drills/ignore-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "fe25da07",
+      "counts": "28 passed (28)",
+      "log": "temp/m83x/drills/ignore-restored.log"
+    },
+    "expected_diagnostic": "classifies real git ignores",
+    "observed_diagnostics": [
+      "FAIL  test/unit/importIo.test.ts > fileImportIo > uses a nested target repository index rather than the parent workspace ignore rules",
+      "FAIL  test/unit/importIo.test.ts > fileImportIo > classifies real git ignores and refuses an ignored source copied to a tracked target"
+    ]
+  },
+  {
+    "guard": "clipboard",
+    "source": "src/host/agentImportHost.ts",
+    "test": "test/unit/agentImportWorkspaceEdits.test.ts",
+    "before_sha256": "4d543fcda95194b1fa9c945dfe86965a689f45c56d95e3529119df9281ee55a0",
+    "mutated_sha256": "8cb73295675e83e3f5994c39f2e5c4365d161acb130653512bda2a6efc708707",
+    "after_sha256": "4d543fcda95194b1fa9c945dfe86965a689f45c56d95e3529119df9281ee55a0",
+    "green": {
+      "exit": 0,
+      "snapshot": "eb545d66",
+      "counts": "16 passed (16)",
+      "log": "temp/m83x/drills/clipboard-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "97af2444",
+      "counts": "2 failed | 14 passed (16)",
+      "log": "temp/m83x/drills/clipboard-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "d8a81076",
+      "counts": "16 passed (16)",
+      "log": "temp/m83x/drills/clipboard-restored.log"
+    },
+    "expected_diagnostic": "never using the clipboard",
+    "observed_diagnostics": [
+      "FAIL  test/unit/agentImportWorkspaceEdits.test.ts > import workspace write notices > offers new config as a dirty WorkspaceEdit, never using the clipboard",
+      "FAIL  test/unit/agentImportWorkspaceEdits.test.ts > import workspace write notices > offers existing config as a dirty WorkspaceEdit, never using the clipboard"
+    ]
+  },
+  {
+    "guard": "log",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "test": "test/unit/agentImportCommands.test.ts",
+    "before_sha256": "2fffc93420bcf00ea1f0be087eee41b2e1b663e5059a6617612468b9f10d6c65",
+    "mutated_sha256": "7d463f9d9b746c5047ff3026ae4be879e8786000430bb03367a971ca3c8102fd",
+    "after_sha256": "2fffc93420bcf00ea1f0be087eee41b2e1b663e5059a6617612468b9f10d6c65",
+    "green": {
+      "exit": 0,
+      "snapshot": "fb11c6e2",
+      "counts": "74 passed (74)",
+      "log": "temp/m83x/drills/log-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "63d1b24b",
+      "counts": "3 failed | 71 passed (74)",
+      "log": "temp/m83x/drills/log-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "60c90b47",
+      "counts": "74 passed (74)",
+      "log": "temp/m83x/drills/log-restored.log"
+    },
+    "expected_diagnostic": "keeps the leak corpus out of log",
+    "observed_diagnostics": [
+      "FAIL  test/unit/agentImportCommands.test.ts > importFromAgents > keeps the leak corpus out of log, preview and picker while preserving allowed target content",
+      "FAIL  test/unit/agentImportCommands.test.ts > importFromAgents > logs neither names nor paths from unusable source files",
+      "FAIL  test/unit/agentImportCommands.test.ts > importFromAgents: what the preview and the log say > shows source names unchanged but never logs them"
+    ]
+  },
+  {
+    "guard": "folder",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "test": "test/unit/agentImportWorkspaceEdits.test.ts",
+    "before_sha256": "2fffc93420bcf00ea1f0be087eee41b2e1b663e5059a6617612468b9f10d6c65",
+    "mutated_sha256": "6f9da1e328f41501da8843bfa49de2cc795715381c3cc4d3459ee60d7c524aa5",
+    "after_sha256": "2fffc93420bcf00ea1f0be087eee41b2e1b663e5059a6617612468b9f10d6c65",
+    "green": {
+      "exit": 0,
+      "snapshot": "1ed714bf",
+      "counts": "16 passed (16)",
+      "log": "temp/m83x/drills/folder-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "e22db34b",
+      "counts": "2 failed | 14 passed (16)",
+      "log": "temp/m83x/drills/folder-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "eb32aa30",
+      "counts": "16 passed (16)",
+      "log": "temp/m83x/drills/folder-restored.log"
+    },
+    "expected_diagnostic": "refuses a folder change after final awaited check",
+    "observed_diagnostics": [
+      "FAIL  test/unit/agentImportWorkspaceEdits.test.ts > import workspace write notices > refuses a folder change after final awaited check 4 before show/edit",
+      "FAIL  test/unit/agentImportWorkspaceEdits.test.ts > import workspace write notices > refuses a folder change after final awaited check 5 before show/edit"
+    ]
+  },
+  {
+    "guard": "set",
+    "source": "src/core/import/agentImport.ts",
+    "test": "test/unit/importExposure.test.ts",
+    "before_sha256": "5025990c67fd0894ad19a03c607babc060580396d22f4aa69ec5a24b96dcd28c",
+    "mutated_sha256": "cd79a98a09894af1076f2478960b862e6d5048b0458527a19aea5370f0e5fd2c",
+    "after_sha256": "5025990c67fd0894ad19a03c607babc060580396d22f4aa69ec5a24b96dcd28c",
+    "green": {
+      "exit": 0,
+      "snapshot": "a30d5e29",
+      "counts": "18 passed (18)",
+      "log": "temp/m83x/drills/set-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "1df082be",
+      "counts": "4 failed | 14 passed (18)",
+      "log": "temp/m83x/drills/set-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "d78ac39f",
+      "counts": "18 passed (18)",
+      "log": "temp/m83x/drills/set-restored.log"
+    },
+    "expected_diagnostic": "without rebuilding prior candidate IDs",
+    "observed_diagnostics": [
+      "FAIL  test/unit/importExposure.test.ts > candidate registration scaling > registers 1000 servers without rebuilding prior candidate IDs",
+      "FAIL  test/unit/importExposure.test.ts > candidate registration scaling > registers 2000 servers without rebuilding prior candidate IDs",
+      "FAIL  test/unit/importExposure.test.ts > candidate registration scaling > registers 4000 servers without rebuilding prior candidate IDs",
+      "FAIL  test/unit/importExposure.test.ts > candidate registration scaling > registers 8000 servers without rebuilding prior candidate IDs"
+    ]
+  },
+  {
+    "guard": "memo",
+    "source": "src/core/import/agentImport.ts",
+    "test": "test/unit/importExposure.test.ts",
+    "before_sha256": "5025990c67fd0894ad19a03c607babc060580396d22f4aa69ec5a24b96dcd28c",
+    "mutated_sha256": "a274968afa3f15805ab570dcab27126ce895205b68a19f29c7862cc7146a6997",
+    "after_sha256": "5025990c67fd0894ad19a03c607babc060580396d22f4aa69ec5a24b96dcd28c",
+    "green": {
+      "exit": 0,
+      "snapshot": "702929e5",
+      "counts": "18 passed (18)",
+      "log": "temp/m83x/drills/memo-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "79577e39",
+      "counts": "1 failed | 17 passed (18)",
+      "log": "temp/m83x/drills/memo-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "9759fa09",
+      "counts": "18 passed (18)",
+      "log": "temp/m83x/drills/memo-restored.log"
+    },
+    "expected_diagnostic": "queries a failed source classification once",
+    "observed_diagnostics": [
+      "FAIL  test/unit/importExposure.test.ts > candidate registration scaling > queries a failed source classification once for all its servers"
+    ]
+  },
+  {
+    "guard": "binding",
+    "source": "src/core/import/agentImport.ts",
+    "test": "test/unit/importExposure.test.ts",
+    "before_sha256": "5025990c67fd0894ad19a03c607babc060580396d22f4aa69ec5a24b96dcd28c",
+    "mutated_sha256": "ca1788f9b24edc17200896868f30b183aeb22c737e27c966aba70a1e16a7eb08",
+    "after_sha256": "5025990c67fd0894ad19a03c607babc060580396d22f4aa69ec5a24b96dcd28c",
+    "green": {
+      "exit": 0,
+      "snapshot": "bdd45b54",
+      "counts": "18 passed (18)",
+      "log": "temp/m83x/drills/binding-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "4f907e79",
+      "counts": "1 failed | 17 passed (18)",
+      "log": "temp/m83x/drills/binding-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "3d76dd7b",
+      "counts": "18 passed (18)",
+      "log": "temp/m83x/drills/binding-restored.log"
+    },
+    "expected_diagnostic": "keeps a project request bound",
+    "observed_diagnostics": [
+      "FAIL  test/unit/importExposure.test.ts > exposure-preserving import > keeps a project request bound when its folder leaves the workspace before planning"
+    ]
+  },
+  {
+    "guard": "duplicate",
+    "source": "src/host/agentImportHost.ts",
+    "test": "test/unit/agentImportWorkspaceEdits.test.ts",
+    "before_sha256": "4d543fcda95194b1fa9c945dfe86965a689f45c56d95e3529119df9281ee55a0",
+    "mutated_sha256": "dadfdd000a713005d9ed3627c9b421a957fecbff8260502d50efff7868b22567",
+    "after_sha256": "4d543fcda95194b1fa9c945dfe86965a689f45c56d95e3529119df9281ee55a0",
+    "green": {
+      "exit": 0,
+      "snapshot": "38b2c2e9",
+      "counts": "16 passed (16)",
+      "log": "temp/m83x/drills/duplicate-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "8546c8b9",
+      "counts": "1 failed | 15 passed (16)",
+      "log": "temp/m83x/drills/duplicate-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "b3df3970",
+      "counts": "16 passed (16)",
+      "log": "temp/m83x/drills/duplicate-restored.log"
+    },
+    "expected_diagnostic": "refuses an MCP server that appeared after preview",
+    "observed_diagnostics": [
+      "FAIL  test/unit/agentImportWorkspaceEdits.test.ts > import workspace write notices > refuses an MCP server that appeared after preview, preserving the live editor bytes"
+    ]
+  },
+  {
+    "guard": "scope",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "test": "test/unit/agentImportCommands.test.ts",
+    "before_sha256": "2fffc93420bcf00ea1f0be087eee41b2e1b663e5059a6617612468b9f10d6c65",
+    "mutated_sha256": "eb932006a199c4c41caecaa8fff639c4b91be3af337bdd9af8ddd0abc32ce876",
+    "after_sha256": "2fffc93420bcf00ea1f0be087eee41b2e1b663e5059a6617612468b9f10d6c65",
+    "green": {
+      "exit": 0,
+      "snapshot": "afe5f5d9",
+      "counts": "74 passed (74)",
+      "log": "temp/m83x/drills/scope-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "e0dab6ee",
+      "counts": "1 failed | 73 passed (74)",
+      "log": "temp/m83x/drills/scope-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "a9ec253c",
+      "counts": "74 passed (74)",
+      "log": "temp/m83x/drills/scope-restored.log"
+    },
+    "expected_diagnostic": "reports the physical project scope",
+    "observed_diagnostics": [
+      "FAIL  test/unit/agentImportCommands.test.ts > importFromAgents > reports the physical project scope of a user-folder alias without source paths"
+    ]
+  },
+  {
+    "guard": "active",
+    "source": "src/core/import/importConvert.ts",
+    "test": "test/unit/importConvert.test.ts",
+    "before_sha256": "11bbc5c4efb59856fabb71fda4e22e032814496ee7641f49c5b2c6f76fbdfce1",
+    "mutated_sha256": "9e9fa2a4814f908bda30da9161df34689747454aab2175ac7ee107d5129d45c0",
+    "after_sha256": "11bbc5c4efb59856fabb71fda4e22e032814496ee7641f49c5b2c6f76fbdfce1",
+    "green": {
+      "exit": 0,
+      "snapshot": "baa2c0c8",
+      "counts": "38 passed (38)",
+      "log": "temp/m83x/drills/active-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "35893e24",
+      "counts": "2 failed | 36 passed (38)",
+      "log": "temp/m83x/drills/active-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "59a599a2",
+      "counts": "38 passed (38)",
+      "log": "temp/m83x/drills/active-restored.log"
+    },
+    "expected_diagnostic": "drops inactive and unknown fields by name",
+    "observed_diagnostics": [
+      "FAIL  test/unit/importConvert.test.ts > convertJsonServer > drops inactive and unknown fields by name, preserving only active transport values",
+      "FAIL  test/unit/importConvert.test.ts > convertJsonServer > converts a stdio server with its env values unchanged and mode optional"
+    ]
+  },
+  {
+    "guard": "repository",
+    "source": "src/host/importIo.ts",
+    "test": "test/unit/importIo.test.ts",
+    "before_sha256": "f07e5590287e333b2fa5c650cadd40da196e20710f4cbd75c009abeea5ec31b1",
+    "mutated_sha256": "066c348ad38761f1fce6815643eef3615763ce92271503060615efe8b432f7ad",
+    "after_sha256": "f07e5590287e333b2fa5c650cadd40da196e20710f4cbd75c009abeea5ec31b1",
+    "green": {
+      "exit": 0,
+      "snapshot": "27ee5a79",
+      "counts": "28 passed (28)",
+      "log": "temp/m83x/drills/repository-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "a4550f06",
+      "counts": "1 failed | 27 passed (28)",
+      "log": "temp/m83x/drills/repository-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "1b1bd56a",
+      "counts": "28 passed (28)",
+      "log": "temp/m83x/drills/repository-restored.log"
+    },
+    "expected_diagnostic": "uses a nested target repository index",
+    "observed_diagnostics": [
+      "FAIL  test/unit/importIo.test.ts > fileImportIo > uses a nested target repository index rather than the parent workspace ignore rules"
+    ]
+  },
+  {
+    "guard": "declined",
+    "source": "src/host/commands/agentImportCommands.ts",
+    "test": "test/unit/agentImportCommands.test.ts",
+    "before_sha256": "2fffc93420bcf00ea1f0be087eee41b2e1b663e5059a6617612468b9f10d6c65",
+    "mutated_sha256": "a809f1d201ba03447e9c49ba40a4116551458fa56a6deec5c1a0ed8a3df548e8",
+    "after_sha256": "2fffc93420bcf00ea1f0be087eee41b2e1b663e5059a6617612468b9f10d6c65",
+    "green": {
+      "exit": 0,
+      "snapshot": "f75b4fa2",
+      "counts": "74 passed (74)",
+      "log": "temp/m83x/drills/declined-green.log"
+    },
+    "red": {
+      "exit": 1,
+      "snapshot": "a74b4fa9",
+      "counts": "2 failed | 72 passed (74)",
+      "log": "temp/m83x/drills/declined-red.log"
+    },
+    "restored": {
+      "exit": 0,
+      "snapshot": "60ed7db7",
+      "counts": "74 passed (74)",
+      "log": "temp/m83x/drills/declined-restored.log"
+    },
+    "expected_diagnostic": "counts config entries left unapplied",
+    "observed_diagnostics": [
+      "FAIL  test/unit/agentImportCommands.test.ts > importFromAgents > counts config entries left unapplied by open as not imported",
+      "FAIL  test/unit/agentImportCommands.test.ts > importFromAgents > counts config entries left unapplied by undefined as not imported"
+    ]
+  }
+]

@@ -19,8 +19,8 @@ import {
   GOAL_PERCENT_MAX,
   GOAL_PROGRESS_REMINDER_STEPS,
   GOAL_STATUS,
+  MODEL_API_MODEL_TEXT,
   MODEL_API_TOOLS,
-  MODEL_TEXT,
 } from '../../../shared/constants'
 import type { GoalCommand, GoalRefusal } from '../../agent/agentBackend'
 import type { GoalRecord } from './goalRecord'
@@ -182,26 +182,26 @@ function createGoal(
 ): GoalToolResult {
   const parsed = parsedArgs(newGoalArgs, args)
   if (parsed === undefined) {
-    return { outcome: failure(MODEL_TEXT.goalEmptyObjective), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalEmptyObjective), goal }
   }
   if (goal?.status === GOAL_STATUS.active) {
-    return { outcome: failure(MODEL_TEXT.goalUnfinishedExists), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalUnfinishedExists), goal }
   }
   if (goal?.status === GOAL_STATUS.paused) {
-    return { outcome: failure(MODEL_TEXT.goalPausedExists), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalPausedExists), goal }
   }
   const problem = objectiveProblem(parsed.objective)
   if (problem !== undefined) {
     const text =
       problem === 'empty'
-        ? MODEL_TEXT.goalEmptyObjective
-        : `${MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`
+        ? MODEL_API_MODEL_TEXT.goalEmptyObjective
+        : `${MODEL_API_MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`
     return { outcome: failure(text), goal }
   }
   const budget = parsed.token_budget ?? null
   return budget === null || isBudget(budget)
     ? answered(context, freshGoal(parsed.objective, budget, context))
-    : { outcome: failure(MODEL_TEXT.goalBadBudget), goal }
+    : { outcome: failure(MODEL_API_MODEL_TEXT.goalBadBudget), goal }
 }
 
 function updateGoal(
@@ -210,11 +210,11 @@ function updateGoal(
   context: GoalContext,
 ): GoalToolResult {
   if (goal?.status !== GOAL_STATUS.active) {
-    return { outcome: failure(MODEL_TEXT.goalNoActive), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalNoActive), goal }
   }
   const parsed = parsedArgs(updateGoalArgs, args)
   if (parsed === undefined || !TERMINAL_UPDATES.includes(parsed.status)) {
-    return { outcome: failure(MODEL_TEXT.goalBadStatus), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalBadStatus), goal }
   }
   // Complete is exactly 100 percent (Muse Code's goal store rule).
   const isComplete = parsed.status === GOAL_STATUS.complete
@@ -232,14 +232,14 @@ function reportProgress(
   context: GoalContext,
 ): GoalToolResult {
   if (goal?.status !== GOAL_STATUS.active) {
-    return { outcome: failure(MODEL_TEXT.goalNoActive), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalNoActive), goal }
   }
   const parsed = parsedArgs(reportProgressArgs, args)
   if (parsed === undefined || !isWholePercent(parsed.percent_complete)) {
-    return { outcome: failure(MODEL_TEXT.goalBadPercent), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalBadPercent), goal }
   }
   if (parsed.current_work.trim() === '' || parsed.next_work.trim() === '') {
-    return { outcome: failure(MODEL_TEXT.goalEmptyWork), goal }
+    return { outcome: failure(MODEL_API_MODEL_TEXT.goalEmptyWork), goal }
   }
   // 100 percent is the same as update_goal(status="complete").
   const isComplete = parsed.percent_complete === GOAL_PERCENT_MAX
@@ -353,11 +353,23 @@ export function toSessionGoal(goal: GoalRecord): SessionGoal {
 
 /**
  * The section pinned into the instructions while the goal is active (D38):
- * the objective and progress, and the rules of Muse Code's goal reminder;
- * after `GOAL_PROGRESS_REMINDER_STEPS` model calls without progress, its
- * step-probe note too. Undefined while there is no active goal.
+ * only the objective and rules. Mutable progress travels in a request-only
+ * trailing message, outside the cached prefix (M101, D81).
  */
-export function goalInstructions(
+export function goalInstructions(goal: GoalRecord | undefined): string | undefined {
+  if (!isGoalActive(goal)) {
+    return undefined
+  }
+  return [
+    '# Session goal',
+    'The user set a goal for this session. Keep working toward it across turns until it is achieved.',
+    `- Objective: ${goal.objective}`,
+    `Report progress with ${MODEL_API_TOOLS.reportProgress} as you finish steps. Treat the goal as achieved only when current evidence proves every requirement is satisfied (files, command output, test results) and no required work remains; if the evidence is incomplete or indirect, keep working. Then call ${MODEL_API_TOOLS.updateGoal} with status "complete" (or ${MODEL_API_TOOLS.reportProgress} with percent_complete 100). If you cannot proceed, call ${MODEL_API_TOOLS.updateGoal} with status "blocked" and say what blocks you; never fake, bypass or disable a test to satisfy the goal.`,
+  ].join('\n\n')
+}
+
+/** Mutable goal facts, rebuilt at the end of each request and never saved in replay. */
+export function goalProgress(
   goal: GoalRecord | undefined,
   stepsSinceProgress: number,
 ): string | undefined {
@@ -365,7 +377,6 @@ export function goalInstructions(
     return undefined
   }
   const progress = [
-    `- Objective: ${goal.objective}`,
     `- Progress: ${String(goal.percent_complete)}%`,
     ...(goal.current_work === null ? [] : [`- Current work: ${goal.current_work}`]),
     ...(goal.next_work === null ? [] : [`- Next work: ${goal.next_work}`]),
@@ -379,11 +390,5 @@ export function goalInstructions(
           `Progress has not been reported in the last ${String(stepsSinceProgress)} model calls. Call ${MODEL_API_TOOLS.reportProgress} with current_work, next_work, and percent_complete before continuing unless the goal is already achieved.`,
         ]
       : []
-  return [
-    '# Session goal',
-    'The user set a goal for this session. Keep working toward it across turns until it is achieved.',
-    progress.join('\n'),
-    `Report progress with ${MODEL_API_TOOLS.reportProgress} as you finish steps. Treat the goal as achieved only when current evidence proves every requirement is satisfied (files, command output, test results) and no required work remains; if the evidence is incomplete or indirect, keep working. Then call ${MODEL_API_TOOLS.updateGoal} with status "complete" (or ${MODEL_API_TOOLS.reportProgress} with percent_complete 100). If you cannot proceed, call ${MODEL_API_TOOLS.updateGoal} with status "blocked" and say what blocks you; never fake, bypass or disable a test to satisfy the goal.`,
-    ...probe,
-  ].join('\n\n')
+  return [MODEL_API_MODEL_TEXT.goalProgressLead, progress.join('\n'), ...probe].join('\n\n')
 }

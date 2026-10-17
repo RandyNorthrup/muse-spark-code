@@ -1,0 +1,77 @@
+{
+  "provider": "zai",
+  "capturedAt": "2026-10-04",
+  "totalRequests": 7,
+  "billedRequests": 3,
+  "freeRequests": 4,
+  "expected": {
+    "billed": 3,
+    "free": 4
+  },
+  "models": ["glm-5.3-flash"],
+  "calls": [
+    {
+      "seq": 1,
+      "name": "models-list",
+      "method": "GET",
+      "url": "https://api.z.ai/api/paas/v4/models",
+      "status": 200,
+      "billed": false,
+      "ms": 962
+    },
+    {
+      "seq": 2,
+      "name": "tool-call-stream",
+      "method": "POST",
+      "url": "https://api.z.ai/api/paas/v4/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 7275
+    },
+    {
+      "seq": 3,
+      "name": "tool-result-stream",
+      "method": "POST",
+      "url": "https://api.z.ai/api/paas/v4/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 4104
+    },
+    {
+      "seq": 4,
+      "name": "error-invalid-model",
+      "method": "POST",
+      "url": "https://api.z.ai/api/paas/v4/chat/completions",
+      "status": 400,
+      "billed": false,
+      "ms": 363
+    },
+    {
+      "seq": 5,
+      "name": "anthropic-endpoint-models-list",
+      "method": "GET",
+      "url": "https://api.z.ai/api/anthropic/v1/models",
+      "status": 200,
+      "billed": false,
+      "ms": 234
+    },
+    {
+      "seq": 6,
+      "name": "anthropic-endpoint-tool-call-stream",
+      "method": "POST",
+      "url": "https://api.z.ai/api/anthropic/v1/messages",
+      "status": 200,
+      "billed": true,
+      "ms": 3585
+    },
+    {
+      "seq": 7,
+      "name": "anthropic-endpoint-error-invalid-model",
+      "method": "POST",
+      "url": "https://api.z.ai/api/anthropic/v1/messages",
+      "status": 400,
+      "billed": false,
+      "ms": 290
+    }
+  ]
+}

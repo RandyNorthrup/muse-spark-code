@@ -1,0 +1,15 @@
+{
+  "modelAttemptLines": 0,
+  "admissions": 0,
+  "byProviderModelPhaseOutcome": {},
+  "nonEchoAdmissions": 0,
+  "credentialStatus": [],
+  "hookTraceLines": [
+    "event=\"hook.admission\" outcome=\"ready\" handlers=19 runnable=19 inactive=0 diagnostics=0 advisories=0 duration_ms=0",
+    "event=\"hook.execution.terminal\" hook_event=\"pre_tool_use\" display_order=2 status=\"completed\" duration_ms=43 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"post_tool_use\" display_order=4 status=\"completed\" duration_ms=46 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"pre_tool_use\" display_order=2 status=\"completed\" duration_ms=40 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"post_tool_use_failure\" display_order=14 status=\"completed\" duration_ms=47 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=12 status=\"completed\" duration_ms=49 stdout_bytes=0 stderr_bytes=0 error_bytes=0"
+  ]
+}

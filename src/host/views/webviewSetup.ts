@@ -1,6 +1,6 @@
 // Shared wiring for both webview surfaces (sidebar view and editor panel):
-// options, HTML with a fresh CSP nonce, the inbound message handler, and the
-// `ChatSurface` handle the rest of the host uses to talk back.
+// options, HTML with a fresh CSP nonce and document id (M107), the inbound message handler, and the
+// `ChatSurface` handle (chatSurface.ts) the rest of the host uses to talk back.
 
 import * as vscode from 'vscode'
 import {
@@ -12,22 +12,15 @@ import {
 import {
   type HostToWebviewMessage,
   parseWebviewToHostMessage,
+  isEstimatorWebviewMessage,
   type SettingsSnapshot,
-  type WebviewToHostMessage,
 } from '../../shared/protocol'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
+import type { ChatSurface, ConversationMessage } from './chatSurface'
+import { mintFocusRequest, shouldDeliverFocusInput } from './focusGate'
 import { webviewErrorLog } from './webviewErrors'
-
-/** Messages about the conversation itself, routed to the surface's controller. */
-export type ConversationMessage = Exclude<
-  WebviewToHostMessage,
-  | { type: 'ready' }
-  | { type: 'inputFocusChanged' }
-  | { type: 'surfaceFocused' }
-  | { type: 'webviewError' }
->
 
 export interface WebviewHostContext {
   readonly extensionUri: vscode.Uri
@@ -41,34 +34,18 @@ export interface WebviewHostContext {
   readonly onConversationMessage: (surface: ChatSurface, message: ConversationMessage) => void
 }
 
-/** One chat UI instance (the sidebar view or one editor panel). */
-export interface ChatSurface extends vscode.Disposable {
-  readonly id: string
-  readonly isSideChat?: boolean
-  post(message: HostToWebviewMessage): void
-  /** Bring the surface into view and give it keyboard focus. */
-  reveal(): void
-  /** The conversation needs the user (turn done, approval, question): mark it when hidden (M6). */
-  markUnread(): void
-  /** The conversation's name, shown on the tab or beside the view name (M6). */
-  setTitle(title: string): void
-  /** Rebuild the document with a fresh nonce (the error boundary's Reload, M11). */
-  reload(): void
-  /**
-   * The session a panel held before the window reloaded (D15), until it is
-   * live here (its history went to the webview, or another session started)
-   * or the user clears the conversation (M25): every `ready` until then may
-   * try the resume again, so a failed one is not the end of the conversation.
-   */
-  takeRestoredSessionId(): string | undefined
-}
-
 export interface SurfaceOptions {
   readonly id: string
   readonly isSideChat?: boolean
   /** The session id a deserialized panel stored; undefined for a new surface. */
   readonly restoredSessionId: string | undefined
   readonly reveal: () => void
+  /**
+   * Whether this surface is the active one for a focus decision (panel-focus
+   * F3): the panel's `active`, the sidebar's `visible`. Absent in tests,
+   * where every surface counts as active.
+   */
+  readonly isActive?: () => boolean
   readonly markUnread: () => void
   readonly setTitle: (title: string) => void
   /** The document gained focus (M25): the surface the keybindings act on. */
@@ -112,7 +89,9 @@ export function configureWebview(
 ): ChatSurface {
   const bundleRoot = vscode.Uri.joinPath(context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
   webview.options = { enableScripts: true, localResourceRoots: [bundleRoot] }
-  const applyHtml = () => {
+  // M107: each build names its document; the id it returns is the only current one.
+  const buildDocument = (): string => {
+    const documentId = createNonce()
     webview.html = buildWebviewHtml({
       scriptUri: webview
         .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_SCRIPT_FILE))
@@ -123,40 +102,94 @@ export function configureWebview(
       cspSource: webview.cspSource,
       nonce: createNonce(),
       l10n: context.l10n,
+      documentId,
     })
+    return documentId
   }
-  applyHtml()
+  let documentId = buildDocument()
 
   let restoredSessionId = options.restoredSessionId
+  let isActive = true
+  let estimatorGeneration = 0
+  // When the person last revealed this surface: a `focusInput` posted just
+  // after still delivers while the reveal's own focus propagates.
+  let revealedAt: number | undefined
   const surface: ChatSurface = {
     id: options.id,
     isSideChat: options.isSideChat === true,
+    get documentId() {
+      return documentId
+    },
     post(message) {
+      if (message.type === 'conversationCleared' || message.type === 'historyLoaded')
+        estimatorGeneration++
       if (isRestoreEnding(message)) {
         restoredSessionId = undefined
       }
-      void webview.postMessage(message)
+      // The single host gate every sender's `focusInput` passes through
+      // (panel-focus F3): Focus Input, the deferred mention flush, and any
+      // later asker. The ask is owned (it carries the minted token) only
+      // while its panel is the active one; otherwise it is dropped here,
+      // never held.
+      let outbound = message
+      if (message.type === 'focusInput') {
+        const now = Date.now()
+        if (!shouldDeliverFocusInput(options.isActive?.() ?? true, revealedAt, now)) {
+          return
+        }
+        outbound = { ...message, ...mintFocusRequest(now, () => globalThis.crypto.randomUUID()) }
+      }
+      void webview.postMessage(outbound)
     },
-    reveal: options.reveal,
+    reveal: () => {
+      revealedAt = Date.now()
+      options.reveal()
+    },
     markUnread: options.markUnread,
     setTitle: options.setTitle,
-    reload: applyHtml,
+    reload: () => {
+      documentId = buildDocument()
+    },
     takeRestoredSessionId() {
       return restoredSessionId
     },
     dispose() {
+      isActive = false
+      estimatorGeneration++
       subscription.dispose()
     },
   }
 
   const logWebviewError = webviewErrorLog(context.log, Date.now)
   const subscription = webview.onDidReceiveMessage((raw: unknown) => {
+    if (isEstimatorWebviewMessage(raw)) {
+      const generation = estimatorGeneration
+      void import('../../shared/estimatorProtocol')
+        .then((parser) => {
+          if (!isActive || generation !== estimatorGeneration) return
+          const parsed = parser.parseEstimatorToHostMessage(raw)
+          if (!parsed.ok) {
+            context.log.warn(`Dropped malformed webview message: ${parsed.error}`)
+            return
+          }
+          context.onConversationMessage(surface, parsed.message)
+        })
+        .catch((error: unknown) => {
+          if (!isActive || generation !== estimatorGeneration) return
+          context.log.error(`Estimator boundary unavailable: ${String(error)}`)
+          surface.post({ type: 'estimatorFailure', reason: UI_TEXT.estimateUnavailable })
+          surface.post({ type: 'estimatorStarted', error: UI_TEXT.estimateUnavailable })
+          surface.post({ type: 'notice', level: 'warning', text: UI_TEXT.estimateUnavailable })
+        })
+      return
+    }
     const parsed = parseWebviewToHostMessage(raw)
     if (!parsed.ok) {
       context.log.warn(`Dropped malformed webview message: ${parsed.error}`)
       return
     }
     const { message } = parsed
+    if (message.type === 'clearConversation') estimatorGeneration++
     switch (message.type) {
       case 'ready': {
         surface.post(buildInitMessage(context, surface.isSideChat === true))

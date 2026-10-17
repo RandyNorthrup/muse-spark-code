@@ -5,10 +5,16 @@
 
 import type { ReactNode } from 'react'
 
-export function ListBody({ children }: { readonly children: ReactNode }) {
+export function ListBody({
+  children,
+  className = 'palette-body',
+}: {
+  readonly children: ReactNode
+  readonly className?: string
+}) {
   return (
     <div
-      className="palette-body"
+      className={className}
       tabIndex={0}
       onMouseDown={(event) => {
         event.preventDefault()

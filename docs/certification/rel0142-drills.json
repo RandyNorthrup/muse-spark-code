@@ -1,0 +1,25 @@
+[
+  {
+    "rig": "kubuntu",
+    "command": "node scripts/gen-reference.mjs --check",
+    "mutation": "Remove the merged shell credential pass-through relationship and typed condition",
+    "exitCode": 1,
+    "diagnostics": [
+      "Error: Catalogue asserts conditional state: museSpark.shell.passEnvironmentVariables",
+      "No feature covers museSpark.shell.passEnvironmentVariables"
+    ],
+    "sha256Before": "4db474e3c632a535b1cc3f02fd746e8ad16d8a362d91b1a9ac45975e7b83dd79",
+    "sha256Restored": "4db474e3c632a535b1cc3f02fd746e8ad16d8a362d91b1a9ac45975e7b83dd79",
+    "restoredByteExact": true
+  },
+  {
+    "rig": "kubuntu",
+    "command": "npx vitest run test/unit/referenceEntry.test.ts --maxWorkers=3 --testTimeout=120000",
+    "mutation": "Change one encoded numeric schema bound from 0.5 to 0.6",
+    "exitCode": 1,
+    "diagnostic": "round-trips the entire compressed reference without losing any fact failed",
+    "sha256Before": "0d2aa0b547bb81e8bb11d1b09593bbad87fe6475ad190ff358fae5e0ab390e7f",
+    "sha256Restored": "0d2aa0b547bb81e8bb11d1b09593bbad87fe6475ad190ff358fae5e0ab390e7f",
+    "restoredByteExact": true
+  }
+]

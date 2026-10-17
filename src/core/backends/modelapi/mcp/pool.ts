@@ -15,13 +15,17 @@ import {
   MCP_TOOLS_MAX_PER_SERVER,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
-  MODEL_TEXT,
+  MCP_POOL_MODEL_TEXT,
+  UI_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
 import { withDeadline } from '../../../timeouts'
+import type { McpVaultPoolPort } from '../../../vault/mcpSecrets'
+import { mcpSecretReferences } from '../../../vault/mcpReferences'
 import type { McpSettingsEntries } from '../../musecode/museConfigView'
 import type { FunctionToolDefinition } from '../schemas'
 import { McpConnection, McpTimeoutError, type McpTransport } from './connection'
+import type { ElicitationOutcome } from './elicitation'
 import {
   type McpCallOutcome,
   mcpCallOutcome,
@@ -29,7 +33,7 @@ import {
   mcpFunctionName,
 } from './functions'
 import { McpHttpTransport } from './http'
-import { McpError, type McpToolInfo } from './protocol'
+import { type CallToolResult, McpError, type McpToolInfo } from './protocol'
 import {
   type McpLaunch,
   type McpServerPlan,
@@ -73,6 +77,35 @@ export interface McpToolRef {
   readonly isReadOnly: boolean
 }
 
+/** The bridge pins an admission to this server's current offered catalogue. */
+export interface BridgeToolRef extends McpToolRef {
+  readonly catalogueGeneration: number
+}
+
+/**
+ * One offered function with its server's raw MCP tool (M96 lane B): the team
+ * bridge's `tools/list` serves the server's own description, not the Model
+ * API's fitted definition.
+ */
+export interface BridgeOfferedTool {
+  readonly functionName: string
+  readonly server: string
+  readonly tool: McpToolInfo
+  readonly isReadOnly: boolean
+}
+
+/** A server's `elicitation/create`, answered with the form (M91, form mode only). */
+export interface McpElicitationRequest {
+  /** The server that asked, as the settings name it. */
+  readonly server: string
+  /** The request's params, parsed at the connection's boundary. */
+  readonly params: unknown
+  /** Ends when the connection closes or the waiting tool call stops. */
+  readonly signal: AbortSignal
+}
+
+export type McpElicitationHandler = (request: McpElicitationRequest) => Promise<ElicitationOutcome>
+
 /** What a Model API session needs of the MCP servers. */
 export interface McpToolSource {
   /** Starts them, once (again after the workspace was trusted); resolves when each has settled. */
@@ -81,12 +114,29 @@ export interface McpToolSource {
   /** The functions offered now: the connected servers' tools. */
   definitions(): readonly FunctionToolDefinition[]
   find(functionName: string): McpToolRef | undefined
-  /** Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a lost server. */
-  call(functionName: string, argsJson: string, signal: AbortSignal): Promise<McpCallOutcome>
+  /**
+   * Calls the tool; rejects on a Stop, a deadline, a JSON-RPC error or a
+   * lost server. `onElicitation` answers that call's `elicitation/create`
+   * with its session; without it the pool's default handler answers.
+   */
+  call(
+    functionName: string,
+    argsJson: string,
+    signal: AbortSignal,
+    onElicitation?: McpElicitationHandler,
+  ): Promise<McpCallOutcome>
   close(): Promise<void>
+  /**
+   * Answers `elicitation/create` for servers connected afterwards (M91):
+   * the capability is declared at each connection's init, so it stays
+   * stable within the session. Absent, the client offers nothing.
+   */
+  setElicitationHandler?(handler: McpElicitationHandler | undefined): void
 }
 
 export interface McpPoolDeps {
+  /** O routes: missing bindings refuse secret references before any process or request starts. */
+  readonly vault?: McpVaultPoolPort
   /** The settings file read by M31's reader; may throw when the file cannot be read. */
   readonly readSettings: () => McpSettingsEntries
   /** The extension host's environment, for `${VAR}`. */
@@ -95,7 +145,12 @@ export interface McpPoolDeps {
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   /** Starts a stdio server in `cwd`; throws when it cannot be started at all. */
-  readonly spawn: (launch: McpStdioLaunch, cwd: string) => McpChildProcess
+  readonly spawn: (
+    launch: McpStdioLaunch,
+    cwd: string,
+    isCancelled?: () => boolean,
+    signal?: AbortSignal,
+  ) => McpChildProcess | Promise<McpChildProcess>
   readonly fetch: typeof fetch
   readonly clientVersion: string
   readonly log: CoreLogger
@@ -109,7 +164,9 @@ interface OfferedTool {
 }
 
 interface LiveServer {
+  resourceStop?: AbortController | undefined
   readonly spec: McpServerSpec
+  catalogueGeneration: number
   state: McpServerState
   connection: McpConnection | undefined
   tools: readonly OfferedTool[]
@@ -144,6 +201,13 @@ export class McpServerPool implements McpToolSource {
   private starting: Promise<void> | undefined
   private isStartedTrusted = false
   private isClosed = false
+  private elicitationHandler: McpElicitationHandler | undefined
+  /**
+   * Sessions waiting on each server. The negotiated request names no tool
+   * call, so ambiguous overlapping routes are cancelled rather than sent
+   * to a different session.
+   */
+  private readonly elicitationRoutes = new Map<string, McpElicitationHandler[]>()
   /** A server that exited by itself can still have a Windows child to reap. */
   private readonly closing = new Set<Promise<void>>()
   private readonly byFunction = new Map<
@@ -174,6 +238,7 @@ export class McpServerPool implements McpToolSource {
     this.fault = undefined
     this.servers = plan.specs.map((spec) => ({
       spec,
+      catalogueGeneration: 0,
       state: initialState(spec, isTrusted),
       connection: undefined,
       tools: [],
@@ -201,19 +266,41 @@ export class McpServerPool implements McpToolSource {
       : p.resolve(this.deps.workspaceRoot, launch.cwd)
   }
 
-  private transportFor(spec: McpServerSpec, launch: McpLaunch): McpTransport {
+  private async transportFor(
+    spec: McpServerSpec,
+    launch: McpLaunch,
+    isCancelled: () => boolean,
+    signal: AbortSignal,
+  ): Promise<McpTransport> {
+    const references = mcpSecretReferences(launch)
+    if (references.size > 0 && this.deps.vault === undefined) {
+      throw new McpError(UI_TEXT.vault.noAccess)
+    }
     if (launch.transport === MCP_TRANSPORTS.stdio) {
-      return new McpStdioTransport(this.deps.spawn(launch, this.cwdOf(launch)), {
+      // The vault port has no signal of its own: Stop counts as cancellation there.
+      const child =
+        references.size > 0 && this.deps.vault !== undefined
+          ? await this.deps.vault.startStdio(
+              spec.name,
+              launch,
+              this.cwdOf(launch),
+              () => isCancelled() || signal.aborted,
+            )
+          : await this.deps.spawn(launch, this.cwdOf(launch), isCancelled, signal)
+      return new McpStdioTransport(child, {
         name: spec.name,
         framing: launch.framing,
         log: this.deps.log,
       })
     }
+    const guardedFetch = this.deps.vault?.fetchFor(spec.name, launch.url, launch.headers)
+    if (guardedFetch === undefined && references.size > 0)
+      throw new McpError(UI_TEXT.vault.noAccess)
     return new McpHttpTransport({
       name: spec.name,
       url: launch.url,
       headers: launch.headers,
-      fetch: this.deps.fetch,
+      fetch: guardedFetch ?? this.deps.fetch,
       log: this.deps.log,
     })
   }
@@ -246,10 +333,22 @@ export class McpServerPool implements McpToolSource {
   /** Starts the server and lists its tools; the state says connected only if nothing ended it meanwhile. */
   private async open(server: LiveServer, launch: McpLaunch): Promise<void> {
     const { spec } = server
-    const connection = new McpConnection(this.transportFor(spec, launch), {
+    const isCancelled = () => this.isClosed || server.state.status !== 'starting'
+    server.resourceStop = new AbortController()
+    const transport = await this.transportFor(spec, launch, isCancelled, server.resourceStop.signal)
+    if (isCancelled()) {
+      await transport.close()
+      throw new McpError('the servers were closed while it started')
+    }
+    const connection = new McpConnection(transport, {
       name: spec.name,
       clientVersion: this.deps.clientVersion,
       log: this.deps.log,
+      // Declared at init while the default handler stands, so the tool
+      // list stays stable within the session (M91 lane M).
+      ...(this.elicitationHandler !== undefined && {
+        elicitation: (request) => this.answerElicitation(spec.name, request),
+      }),
     })
     server.connection = connection
     connection.onClose((reason) => {
@@ -270,6 +369,7 @@ export class McpServerPool implements McpToolSource {
   }
 
   private fail(server: LiveServer, reason: string): void {
+    server.resourceStop?.abort()
     this.withdraw(server)
     server.state = { status: 'failed', reason }
     this.deps.log.warn(`MCP server ${server.spec.name} could not start: ${reason}`)
@@ -300,6 +400,7 @@ export class McpServerPool implements McpToolSource {
   }
 
   private withdraw(server: LiveServer): void {
+    server.catalogueGeneration += 1
     for (const offered of server.tools) {
       this.byFunction.delete(offered.functionName)
     }
@@ -365,6 +466,40 @@ export class McpServerPool implements McpToolSource {
     }
   }
 
+  private parseCallArgs(argsJson: string): Record<string, unknown> {
+    let args: unknown
+    try {
+      args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
+    } catch {
+      args = undefined
+    }
+    if (typeof args !== 'object' || args === null || Array.isArray(args)) {
+      throw new McpError(MCP_POOL_MODEL_TEXT.mcpArgumentsNotObject)
+    }
+    return Object.fromEntries(Object.entries(args))
+  }
+
+  /** Answers one server's `elicitation/create` only when the call belongs to one session. */
+  private async answerElicitation(
+    server: string,
+    request: { readonly params: unknown; readonly signal: AbortSignal },
+  ): Promise<ElicitationOutcome> {
+    const routes = this.elicitationRoutes.get(server)
+    if (routes !== undefined && routes.length > 1) {
+      this.deps.log.warn(`MCP server ${server} elicitation cancelled: overlapping tool calls`)
+      return { action: 'cancel' }
+    }
+    const route = routes?.at(-1) ?? this.elicitationHandler
+    if (route === undefined) {
+      throw new McpError('elicitation/create is not offered by this client')
+    }
+    return await route({ server, params: request.params, signal: request.signal })
+  }
+
+  public setElicitationHandler(handler: McpElicitationHandler | undefined): void {
+    this.elicitationHandler = handler
+  }
+
   public start(): Promise<void> {
     if (this.isClosed) {
       return Promise.resolve()
@@ -395,12 +530,13 @@ export class McpServerPool implements McpToolSource {
     return this.servers.flatMap((server) => server.tools.map((offered) => offered.definition))
   }
 
-  public find(functionName: string): McpToolRef | undefined {
+  public find(functionName: string): BridgeToolRef | undefined {
     const found = this.byFunction.get(functionName)
     return found === undefined
       ? undefined
       : {
           server: found.server.spec.name,
+          catalogueGeneration: found.server.catalogueGeneration,
           tool: found.offered.tool.name,
           isReadOnly: found.offered.isReadOnly,
         }
@@ -410,32 +546,73 @@ export class McpServerPool implements McpToolSource {
     functionName: string,
     argsJson: string,
     signal: AbortSignal,
+    onElicitation?: McpElicitationHandler,
   ): Promise<McpCallOutcome> {
+    return mcpCallOutcome(await this.callRaw(functionName, argsJson, signal, onElicitation))
+  }
+
+  /**
+   * The raw `tools/call` result (M96 lane B): the team bridge proxies it to
+   * MCP clients, which need the server's own content blocks rather than the
+   * model's outcome. Throws the same `McpError` as `call`.
+   */
+  public async callRaw(
+    functionName: string,
+    argsJson: string,
+    signal: AbortSignal,
+    onElicitation?: McpElicitationHandler,
+  ): Promise<CallToolResult> {
     const found = this.byFunction.get(functionName)
     const connection = found?.server.connection
     if (found === undefined || connection === undefined) {
-      throw new McpError(`${functionName} ${MODEL_TEXT.mcpToolUnavailable}`)
+      throw new McpError(`${functionName} ${MCP_POOL_MODEL_TEXT.mcpToolUnavailable}`)
     }
-    let args: unknown
+    const args = this.parseCallArgs(argsJson)
+    if (onElicitation !== undefined) {
+      const routes = this.elicitationRoutes.get(found.server.spec.name) ?? []
+      routes.push(onElicitation)
+      this.elicitationRoutes.set(found.server.spec.name, routes)
+    }
     try {
-      args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
-    } catch {
-      args = undefined
+      const result = await connection.callTool(
+        found.offered.tool.name,
+        Object.fromEntries(Object.entries(args)),
+        { timeoutMs: found.server.spec.toolTimeoutMs, signal },
+      )
+      return result
+    } finally {
+      if (onElicitation !== undefined) {
+        const routes = this.elicitationRoutes.get(found.server.spec.name)
+        if (routes !== undefined) {
+          const index = routes.lastIndexOf(onElicitation)
+          if (index !== -1) {
+            routes.splice(index, 1)
+          }
+          if (routes.length === 0) {
+            this.elicitationRoutes.delete(found.server.spec.name)
+          }
+        }
+      }
     }
-    if (typeof args !== 'object' || args === null || Array.isArray(args)) {
-      throw new McpError(MODEL_TEXT.mcpArgumentsNotObject)
-    }
-    const result = await connection.callTool(
-      found.offered.tool.name,
-      Object.fromEntries(Object.entries(args)),
-      { timeoutMs: found.server.spec.toolTimeoutMs, signal },
-    )
-    return mcpCallOutcome(result)
+  }
+
+  /**
+   * Every offered function with its raw tool (M96 lane B): the team bridge's
+   * `tools/list`, filtered per caller there.
+   */
+  public bridgeTools(): readonly BridgeOfferedTool[] {
+    return Array.from(this.byFunction, ([functionName, { server, offered }]) => ({
+      functionName,
+      server: server.spec.name,
+      tool: offered.tool,
+      isReadOnly: offered.isReadOnly,
+    }))
   }
 
   /** Every server stopped (a stdio one's process tree killed); nothing is offered afterwards. */
   public async close(): Promise<void> {
     this.isClosed = true
+    for (const server of this.servers) server.resourceStop?.abort()
     const connections = this.servers.flatMap((server) => {
       const { connection } = server
       server.connection = undefined

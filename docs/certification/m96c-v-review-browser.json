@@ -1,0 +1,124 @@
+{
+  "rig": "macmini",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "probe": {
+    "scenario": "runners",
+    "viewport": {
+      "width": 320,
+      "height": 760
+    },
+    "languages": ["en", "pseudo"],
+    "themes": ["light", "dark", "hc-dark", "hc-light"],
+    "documentAndBodyWidth": "320px (overrides the harness’s default 690px before axe runs)",
+    "setupCommand": "  echo first\necho 'second line'  ",
+    "checks": [
+      "axe WCAG result has zero violations",
+      "document and surface scroll widths fit client widths",
+      "textarea exists and saves multiline whitespace unchanged through the actual form/postMessage"
+    ]
+  },
+  "sourcesSha256": {
+    "src/webview/models/sections/runners/RunnerForm.tsx": "4bf33e7c30eeff69bd73a2f70e142e0e004781e333540e42b11d83e7ec0ec40e",
+    "src/webview/components/traffic/traffic.css": "630f736f09e570fdb7e044f9290115a331f93ea7ae4081ff059d491a3566e03d",
+    "test/unit/helpers/trafficFixtures.ts": "589a0a46a72c7f9ad08a980a0799a3af12cbaf3ab514720a2b0c50fd9bdac257"
+  },
+  "checks": [
+    {
+      "rig": "macmini",
+      "lang": "en",
+      "theme": "light",
+      "violations": 0,
+      "viewport": 320,
+      "documentWidth": 320,
+      "documentScroll": 320,
+      "surfaceWidth": 320,
+      "surfaceScroll": 320,
+      "multilineSavePreserved": true
+    },
+    {
+      "rig": "macmini",
+      "lang": "en",
+      "theme": "dark",
+      "violations": 0,
+      "viewport": 320,
+      "documentWidth": 320,
+      "documentScroll": 320,
+      "surfaceWidth": 320,
+      "surfaceScroll": 320,
+      "multilineSavePreserved": true
+    },
+    {
+      "rig": "macmini",
+      "lang": "en",
+      "theme": "hc-dark",
+      "violations": 0,
+      "viewport": 320,
+      "documentWidth": 320,
+      "documentScroll": 320,
+      "surfaceWidth": 320,
+      "surfaceScroll": 320,
+      "multilineSavePreserved": true
+    },
+    {
+      "rig": "macmini",
+      "lang": "en",
+      "theme": "hc-light",
+      "violations": 0,
+      "viewport": 320,
+      "documentWidth": 320,
+      "documentScroll": 320,
+      "surfaceWidth": 320,
+      "surfaceScroll": 320,
+      "multilineSavePreserved": true
+    },
+    {
+      "rig": "macmini",
+      "lang": "pseudo",
+      "theme": "light",
+      "violations": 0,
+      "viewport": 320,
+      "documentWidth": 320,
+      "documentScroll": 320,
+      "surfaceWidth": 320,
+      "surfaceScroll": 320,
+      "multilineSavePreserved": true
+    },
+    {
+      "rig": "macmini",
+      "lang": "pseudo",
+      "theme": "dark",
+      "violations": 0,
+      "viewport": 320,
+      "documentWidth": 320,
+      "documentScroll": 320,
+      "surfaceWidth": 320,
+      "surfaceScroll": 320,
+      "multilineSavePreserved": true
+    },
+    {
+      "rig": "macmini",
+      "lang": "pseudo",
+      "theme": "hc-dark",
+      "violations": 0,
+      "viewport": 320,
+      "documentWidth": 320,
+      "documentScroll": 320,
+      "surfaceWidth": 320,
+      "surfaceScroll": 320,
+      "multilineSavePreserved": true
+    },
+    {
+      "rig": "macmini",
+      "lang": "pseudo",
+      "theme": "hc-light",
+      "violations": 0,
+      "viewport": 320,
+      "documentWidth": 320,
+      "documentScroll": 320,
+      "surfaceWidth": 320,
+      "surfaceScroll": 320,
+      "multilineSavePreserved": true
+    }
+  ]
+}

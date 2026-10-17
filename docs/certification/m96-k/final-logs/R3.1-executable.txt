@@ -1,0 +1,42 @@
+
+ RUN  v5.0.2 /Users/randy/lanes/FIXM96K4
+
+ ❯ test/unit/teamProcessOwnership.test.ts (13 tests | 1 failed) 18ms
+   ❯ M96 K signal-time ownership (13)
+     × refuses a changed executable immediately before a signal 7ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  14:05:52
+   Duration  567ms (transform 43%, setup 28%, import 24%, tests 4%, worker 1%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessOwnership.test.ts > M96 K signal-time ownership > refuses a changed executable immediately before a signal
+AssertionError: expected { signalled: [ 42 ], notOwned: [] } to deeply equal { signalled: [], notOwned: [ 42 ] }
+
+- Expected
++ Received
+
+  {
+-   "notOwned": [
++   "notOwned": [],
++   "signalled": [
+      42,
+    ],
+-   "signalled": [],
+  }
+
+ ❯ test/unit/teamProcessOwnership.test.ts:74:59
+     72|         ...(field === 'uid' && { uid: 502 }),
+     73|       })
+     74|       expect(await f.ownership.signal(leader, 'SIGTERM')).toEqual({
+       |                                                           ^
+     75|         signalled: [],
+     76|         notOwned: [leader.pid],
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯

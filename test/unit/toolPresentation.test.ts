@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { WEB_FETCH_MODEL_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import { setUiText } from '../../src/shared/l10n/text'
+import { fill, setUiText } from '../../src/shared/l10n/text'
 import {
   changeSummary,
   describeTool,
+  fetchedSize,
   toolLabel,
   writtenContent,
 } from '../../src/webview/toolPresentation'
@@ -79,6 +81,14 @@ describe('toolLabel', () => {
     setUiText(EN, 'en')
   })
 
+  it('names an Auto Review’s row, and shows the action it judged (M78)', () => {
+    expect(describeTool('auto_review', '{"tool":"bash","action":"npm test"}')).toMatchObject({
+      label: 'Auto Review',
+      summary: 'npm test',
+      body: 'generic',
+    })
+  })
+
   it("names the table's tools and nothing else, not even Object.prototype's members", () => {
     expect(toolLabel('powershell')).toBe('PowerShell')
     expect(toolLabel('grep_files')).toBeUndefined()
@@ -135,11 +145,11 @@ describe('writtenContent', () => {
 describe('subagent tool labels (M18)', () => {
   it("labels Muse Code's native subagent tools", () => {
     expect(describeTool('subagent_spawn', '{"objective":"Map the tree"}')).toMatchObject({
-      label: 'Spawn agent',
+      label: 'Spawn Agent',
       body: 'generic',
     })
-    expect(describeTool('subagent_wait', '{}').label).toBe('Wait for agents')
-    expect(describeTool('subagent_read_result', '{}').label).toBe('Agent result')
+    expect(describeTool('subagent_wait', '{}').label).toBe('Wait for Agents')
+    expect(describeTool('subagent_read_result', '{}').label).toBe('Agent Result')
   })
 })
 
@@ -203,7 +213,7 @@ describe("Muse Code's own tools (M43)", () => {
   it('picks each family’s body and summary from the captured arguments', () => {
     expect(
       describeTool('add_memory', '{"content":"x","path":"palette.md","scope":"personal_project"}'),
-    ).toMatchObject({ label: 'Save memory', summary: 'palette.md', body: 'memory' })
+    ).toMatchObject({ label: 'Save Memory', summary: 'palette.md', body: 'memory' })
     expect(describeTool('create_goal', '{"objective":"Ship it"}')).toMatchObject({
       summary: 'Ship it',
       body: 'goal',
@@ -252,7 +262,7 @@ describe("Muse Code's own tools (M43)", () => {
 describe('image edits and the ide server’s images (M44)', () => {
   it('labels them, and names the picture each one makes', () => {
     expect(describeTool('edit_image', '{"path":"art/fox-hat.png"}')).toMatchObject({
-      label: 'Edit image',
+      label: 'Edit Image',
       imagePath: 'art/fox-hat.png',
     })
     expect(describeTool('mcp__ide__generateImage', '{"path":"media/l.png"}')).toMatchObject({
@@ -260,8 +270,66 @@ describe('image edits and the ide server’s images (M44)', () => {
       imagePath: 'media/l.png',
     })
     expect(describeTool('mcp__ide__editImage', '{"path":"b.png"}')).toMatchObject({
-      label: 'Edit image',
+      label: 'Edit Image',
       imagePath: 'b.png',
+    })
+  })
+})
+
+describe('web fetch rows (M69)', () => {
+  afterEach(() => {
+    setUiText(EN, 'en')
+  })
+
+  it('shows the URL on both backends, and the size a fetched page reports', () => {
+    for (const tool of ['web_fetch', 'mcp__ide__webFetch']) {
+      expect(describeTool(tool, '{"url":"https://docs.example.com/a"}')).toMatchObject({
+        label: 'Fetch Page',
+        summary: 'https://docs.example.com/a',
+        body: 'fetch',
+      })
+    }
+    const output = [
+      fill(WEB_FETCH_MODEL_TEXT.webFetchHeader, {
+        url: 'https://docs.example.com/a',
+        status: '200',
+        type: 'text/html',
+        bytes: '48213',
+      }),
+      WEB_FETCH_MODEL_TEXT.webFetchUntrusted,
+    ].join(' ')
+    expect(fetchedSize(output)).toBe('Fetched 48.2 kB (text/html)')
+    expect(fetchedSize('Fetched 512 bytes of nothing')).toBeUndefined()
+    expect(fetchedSize('Error: the server answered HTTP 404')).toBeUndefined()
+    setUiText({ ...EN, webFetchSize: '{type}: {size}' }, 'de')
+    expect(fetchedSize(output)).toBe('text/html: 48,2 kB')
+  })
+})
+
+describe('code intelligence rows (M67)', () => {
+  it('label both backends alike, name the symbol, and show a rename as an edit', () => {
+    expect(describeTool('find_references', '{"symbol":"greet"}')).toMatchObject({
+      label: 'References',
+      summary: 'greet',
+      body: 'generic',
+    })
+    expect(describeTool('mcp__ide__findDefinition', '{"path":"src/a.ts","line":2}')).toMatchObject({
+      label: 'Definition',
+      summary: 'src/a.ts',
+    })
+    expect(describeTool('workspace_symbols', '{"query":"Parser"}').summary).toBe('Parser')
+    // An edit row's summary is the file it opens: a rename named by symbol alone has none.
+    expect(describeTool('rename_symbol', '{"symbol":"greet","new_name":"welcome"}')).toMatchObject({
+      label: 'Rename',
+      summary: '',
+      body: 'edit',
+    })
+    expect(describeTool('rename_symbol', '{"path":"src/a.ts","symbol":"greet"}').summary).toBe(
+      'src/a.ts',
+    )
+    expect(describeTool('mcp__ide__renameSymbol', '{}')).toMatchObject({
+      label: 'Rename',
+      body: 'generic',
     })
   })
 })

@@ -1,0 +1,51 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/FIXM96K
+
+ ❯ test/unit/teamNativeLifetime.test.ts (11 tests | 1 failed) 4266ms
+   ❯ M96 K real native lifetime (11)
+     × holds short commands until their OS confirmation is durable 150ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > holds short commands until their OS confirmation is durable
+AssertionError: promise resolved "Buffer[ 115, 116, 97, 114, 116, …(-93) ]" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "data": [
++     115,
++     116,
++     97,
++     114,
++     116,
++     101,
++     100,
++   ],
++   "type": "Buffer",
+  }
+
+ ❯ Object.<anonymous> test/unit/teamNativeLifetime.test.ts:420:41
+    418|           if (record.confirmation === undefined || record.end !== unde…
+    419|           await delay(100)
+    420|           await expect(readFile(output)).rejects.toMatchObject({ code:…
+       |                                         ^
+    421|         })
+    422|       const child = await f.lifetime.launch(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+   Start at  10:36:29
+   Duration  5.28s (tests 83%, transform 10%, import 4%, setup 3%)
+

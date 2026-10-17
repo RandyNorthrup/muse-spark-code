@@ -2,119 +2,28 @@
 // system with a recording shell, and a do-nothing one for tests that never
 // touch a tool.
 
-import type { SearchHit, ShellResult, ToolIo } from '../../../src/core/backends/modelapi/tools'
-
-export interface MemoryToolIo extends ToolIo {
-  readonly files: Map<string, string>
-  /** Files created as bytes (M34's images), by the same keys. */
-  readonly binaries: Map<string, Uint8Array>
-  readonly shellCalls: { command: string; cwd: string; timeoutMs: number }[]
-  /** Absolute paths an "editor" holds unsaved changes to (D27). */
-  readonly unsaved: Set<string>
-}
+import type { ShellResult, ToolIo } from '../../../src/core/backends/modelapi/tools'
+import { refusedShellEntry } from '../../../src/core/shellResult'
 
 /**
- * Files keyed by `${root}/${name}`; paths are compared with forward slashes.
- * `links` maps a workspace-relative directory to the absolute directory it
- * really is (a symbolic link or junction), which `realPath` resolves.
+ * The real adapter's final admission (the sixth `runShell` argument), asked at
+ * the fake's entry: a refusal is the proven no-entry result and the fake
+ * records and runs nothing, so a test sees what the real entry would refuse.
+ * A command already started keeps its own outcome: only the entry is asked.
  */
-/** The map key of a path: forward slashes, as the memory files are keyed. */
-function keyOf(absolutePath: string): string {
-  return absolutePath.replaceAll('\\', '/')
+export function refusedAtEntry(assertCanRun: (() => void) | undefined): ShellResult | undefined {
+  try {
+    assertCanRun?.()
+  } catch {
+    return refusedShellEntry()
+  }
+  return undefined
 }
 
-export function memoryToolIo(
-  initial: Record<string, string>,
-  root: string,
-  shell: (command: string) => ShellResult = (command) => ({
-    stdout: `ran ${command}`,
-    stderr: '',
-    exitCode: 0,
-    isTimedOut: false,
-    isCancelled: false,
-  }),
-  links: Record<string, string> = {},
-): MemoryToolIo {
-  const files = new Map(Object.entries(initial).map(([name, text]) => [`${root}/${name}`, text]))
-  const shellCalls: MemoryToolIo['shellCalls'] = []
-  const unsaved = new Set<string>()
-  const binaries = new Map<string, Uint8Array>()
-  const isTaken = (key: string) =>
-    files.has(key) ||
-    binaries.has(key) ||
-    [...files.keys(), ...binaries.keys()].some((name) => name.startsWith(`${key}/`))
-  return {
-    files,
-    binaries,
-    pathExists: (absolutePath) => Promise.resolve(isTaken(keyOf(absolutePath))),
-    reserveFile: (absolutePath) => {
-      const key = keyOf(absolutePath)
-      if (isTaken(key)) {
-        return Promise.reject(new Error(`EEXIST: file already exists, open '${absolutePath}'`))
-      }
-      binaries.set(key, new Uint8Array())
-      return Promise.resolve({
-        fill: (bytes) => {
-          binaries.set(key, bytes)
-          return Promise.resolve()
-        },
-        release: () => {
-          binaries.delete(key)
-          return Promise.resolve()
-        },
-      })
-    },
-    shellCalls,
-    unsaved,
-    hasUnsavedChanges: (absolutePath) => unsaved.has(absolutePath.replaceAll('\\', '/')),
-    realPath: (absolutePath) => {
-      const forward = absolutePath.replaceAll('\\', '/')
-      for (const [relative, target] of Object.entries(links)) {
-        const link = `${root}/${relative}`
-        if (forward === link || forward.startsWith(`${link}/`)) {
-          return Promise.resolve(`${target}${forward.slice(link.length)}`)
-        }
-      }
-      return Promise.resolve(forward)
-    },
-    readFile: (absolutePath) => Promise.resolve(files.get(absolutePath.replaceAll('\\', '/'))),
-    readBytes: (absolutePath, maxBytes) => {
-      const bytes = binaries.get(keyOf(absolutePath))
-      return bytes !== undefined && bytes.length > maxBytes
-        ? Promise.reject(new Error(`${absolutePath} is over ${String(maxBytes)} bytes`))
-        : Promise.resolve(bytes)
-    },
-    writeFile: (absolutePath, content) => {
-      files.set(absolutePath.replaceAll('\\', '/'), content)
-      return Promise.resolve()
-    },
-    listFiles: () =>
-      Promise.resolve(Array.from(files.keys(), (absolute) => absolute.slice(root.length + 1))),
-    // A literal-substring matcher stands in for the worker; `(` is the one
-    // pattern it calls invalid, as the real one would.
-    searchFiles: (job) => {
-      if (job.pattern === '(') {
-        return Promise.resolve({ ok: false, reason: 'invalid pattern: Unterminated group' })
-      }
-      const hits: SearchHit[] = []
-      for (const file of job.files) {
-        const text = files.get(file.absolute.replaceAll('\\', '/'))
-        if (text === undefined || text.includes('\0')) {
-          continue
-        }
-        for (const [index, line] of text.split('\n').entries()) {
-          if (line.includes(job.pattern)) {
-            hits.push({ file: file.relative, line: index + 1, text: line })
-          }
-        }
-      }
-      return Promise.resolve({ ok: true, hits })
-    },
-    runShell: (command, cwd, timeoutMs) => {
-      shellCalls.push({ command, cwd, timeoutMs })
-      return Promise.resolve(shell(command))
-    },
-  }
+/** A `runShell` that runs `work` once the final admission lets it in. */
+export function enteringShell(work: () => Promise<ShellResult>): ToolIo['runShell'] {
+  return async (_command, _cwd, _timeoutMs, _signal, _limit, assertCanRun) =>
+    refusedAtEntry(assertCanRun) ?? (await work())
 }
 
 export const noopToolIo: ToolIo = {
@@ -122,69 +31,18 @@ export const noopToolIo: ToolIo = {
   readFile: () => Promise.resolve(undefined),
   readBytes: () => Promise.resolve(undefined),
   writeFile: () => Promise.resolve(),
+  writeFileIfUnchanged: () => Promise.resolve('changed'),
   pathExists: () => Promise.resolve(false),
   reserveFile: () =>
-    Promise.resolve({ fill: () => Promise.resolve(), release: () => Promise.resolve() }),
+    Promise.resolve({
+      fill: () => Promise.resolve('done'),
+      release: () => Promise.resolve('done'),
+    }),
   hasUnsavedChanges: () => false,
+  unsavedFiles: () => [],
   listFiles: () => Promise.resolve([]),
   searchFiles: () => Promise.resolve({ ok: true, hits: [] }),
-  runShell: () =>
+  runShell: enteringShell(() =>
     Promise.resolve({ stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }),
-}
-
-/** One command a held shell runs (M46): until the test finishes it or its signal stops it. */
-export interface HeldRun {
-  readonly command: string
-  readonly signal: AbortSignal | undefined
-  /** Its time limit was lifted (the command moved to the background). */
-  isLifted: boolean
-  finish(result: Partial<ShellResult>): void
-}
-
-/**
- * The memory file system with a shell whose commands run until the test
- * ends them, or their signal stops them as the real runner does (M46:
- * commands moved to the background, stopped, and the user's own).
- */
-export function heldShellToolIo(
-  files: Record<string, string>,
-  root: string,
-): MemoryToolIo & { readonly runs: HeldRun[] } {
-  const io = memoryToolIo(files, root)
-  const runs: HeldRun[] = []
-  return {
-    ...io,
-    runs,
-    runShell: (command, cwd, timeoutMs, signal, limit) => {
-      io.shellCalls.push({ command, cwd, timeoutMs })
-      return new Promise((resolve) => {
-        const run: HeldRun = {
-          command,
-          signal,
-          isLifted: false,
-          finish: (result) => {
-            resolve({
-              stdout: '',
-              stderr: '',
-              exitCode: 0,
-              isTimedOut: false,
-              isCancelled: false,
-              ...result,
-            })
-          },
-        }
-        limit?.bind(() => {
-          run.isLifted = true
-        })
-        signal?.addEventListener(
-          'abort',
-          () => {
-            run.finish({ exitCode: null, isCancelled: true })
-          },
-          { once: true },
-        )
-        runs.push(run)
-      })
-    },
-  }
+  ),
 }

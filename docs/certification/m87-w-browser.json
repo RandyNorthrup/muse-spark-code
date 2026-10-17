@@ -1,0 +1,194 @@
+{
+  "labelPlacement": {
+    "summary": {
+      "checks": 16,
+      "problems": []
+    },
+    "results": [
+      {
+        "scenario": "chat-menu",
+        "width": 690,
+        "level": "second burst",
+        "bubble": "Rewind conversation to here",
+        "miss": []
+      },
+      {
+        "scenario": "chat-menu",
+        "width": 690,
+        "level": "second burst",
+        "bubble": "Rewind code to here",
+        "miss": []
+      },
+      {
+        "scenario": "chat-menu",
+        "width": 690,
+        "level": "first burst",
+        "bubble": "Fork conversation from here",
+        "miss": []
+      },
+      {
+        "scenario": "chat-menu",
+        "width": 690,
+        "level": "first burst",
+        "bubble": "Fork conversation and rewind code",
+        "miss": []
+      },
+      {
+        "scenario": "chat-menu",
+        "width": 690,
+        "level": "first burst",
+        "bubble": "Rewind",
+        "miss": []
+      },
+      {
+        "scenario": "chat-menu-narrow",
+        "width": 320,
+        "level": "second burst",
+        "bubble": "Rewind conversation to here",
+        "miss": []
+      },
+      {
+        "scenario": "chat-menu-narrow",
+        "width": 320,
+        "level": "second burst",
+        "bubble": "Rewind code to here",
+        "miss": []
+      },
+      {
+        "scenario": "chat-menu-narrow",
+        "width": 320,
+        "level": "first burst",
+        "bubble": "Fork conversation from here",
+        "miss": []
+      },
+      {
+        "scenario": "chat-menu-narrow",
+        "width": 320,
+        "level": "first burst",
+        "bubble": "Fork conversation and rewind code",
+        "miss": []
+      },
+      {
+        "scenario": "chat-menu-narrow",
+        "width": 320,
+        "level": "first burst",
+        "bubble": "Rewind",
+        "miss": []
+      },
+      {
+        "scenario": "chat-tool-menu",
+        "width": 690,
+        "level": "menu",
+        "bubble": "Open output",
+        "miss": []
+      },
+      {
+        "scenario": "chat-tool-menu",
+        "width": 690,
+        "level": "menu",
+        "bubble": "Review",
+        "miss": []
+      },
+      {
+        "scenario": "chat-tool-menu",
+        "width": 690,
+        "level": "menu",
+        "bubble": "Revert",
+        "miss": []
+      },
+      {
+        "scenario": "chat-tool-menu-narrow",
+        "width": 320,
+        "level": "menu",
+        "bubble": "Open output",
+        "miss": []
+      },
+      {
+        "scenario": "chat-tool-menu-narrow",
+        "width": 320,
+        "level": "menu",
+        "bubble": "Review",
+        "miss": []
+      },
+      {
+        "scenario": "chat-tool-menu-narrow",
+        "width": 320,
+        "level": "menu",
+        "bubble": "Revert",
+        "miss": []
+      }
+    ]
+  },
+  "timeReveal": {
+    "summary": {
+      "checks": 8,
+      "problems": []
+    },
+    "results": [
+      {
+        "theme": "dark",
+        "role": "user",
+        "isFocused": true,
+        "hiddenBefore": "0",
+        "shown": "1",
+        "text": "9:41 AM"
+      },
+      {
+        "theme": "dark",
+        "role": "assistant",
+        "isFocused": true,
+        "hiddenBefore": "0",
+        "shown": "1",
+        "text": "9:41 AM"
+      },
+      {
+        "theme": "light",
+        "role": "user",
+        "isFocused": true,
+        "hiddenBefore": "0",
+        "shown": "1",
+        "text": "9:41 AM"
+      },
+      {
+        "theme": "light",
+        "role": "assistant",
+        "isFocused": true,
+        "hiddenBefore": "0",
+        "shown": "1",
+        "text": "9:41 AM"
+      },
+      {
+        "theme": "hc-dark",
+        "role": "user",
+        "isFocused": true,
+        "hiddenBefore": "0",
+        "shown": "1",
+        "text": "9:41 AM"
+      },
+      {
+        "theme": "hc-dark",
+        "role": "assistant",
+        "isFocused": true,
+        "hiddenBefore": "0",
+        "shown": "1",
+        "text": "9:41 AM"
+      },
+      {
+        "theme": "hc-light",
+        "role": "user",
+        "isFocused": true,
+        "hiddenBefore": "0",
+        "shown": "1",
+        "text": "9:42 AM"
+      },
+      {
+        "theme": "hc-light",
+        "role": "assistant",
+        "isFocused": true,
+        "hiddenBefore": "0",
+        "shown": "1",
+        "text": "9:42 AM"
+      }
+    ]
+  }
+}

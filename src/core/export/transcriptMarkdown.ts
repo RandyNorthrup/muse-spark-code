@@ -15,7 +15,9 @@ import {
   USER_SHELL_ITEM_KIND,
   USER_SHELL_PREFIX,
 } from '../../shared/constants'
-import { fill, plural } from '../../shared/l10n/text'
+import { fill, formatDateTime, plural } from '../../shared/l10n/text'
+import { thenRunOutcomeText, verifySummaryText } from '../../shared/verifyText'
+import type { ChatShareDocument } from '../sharing/chatShare'
 
 export interface TranscriptExport {
   readonly title: string
@@ -43,11 +45,14 @@ const JSON_INDENT = 2
 const COMPLETED = 'completed'
 
 /** A code fence longer than any backtick run inside `text`, so the block cannot end early. */
-function fenced(text: string, language = ''): string {
-  const longest = Math.max(
-    0,
-    ...Array.from(text.matchAll(BACKTICK_RUN), (match) => match[0].length),
-  )
+export function fenced(text: string, language = ''): string {
+  // A loop, not `Math.max(...runs)`: a shared file's tool output can hold
+  // hundreds of thousands of runs, past the engine's argument limit (a
+  // RangeError that took the whole panel down, RV84c C3).
+  let longest = 0
+  for (const match of text.matchAll(BACKTICK_RUN)) {
+    longest = Math.max(longest, match[0].length)
+  }
   const fence = '`'.repeat(Math.max(MIN_FENCE, longest + 1))
   return `${fence}${language}\n${text}\n${fence}`
 }
@@ -98,6 +103,36 @@ function toolSection(item: ItemSnapshot, heading: string): string {
   if (item.patchSummary !== undefined) {
     const { files, added, removed } = item.patchSummary
     lines.push(note(plural(UI_TEXT.exportFilesChanged, files, { added, removed })), '')
+  }
+  // An edit's then_run (M68): what it printed and how it ended, or why it
+  // did not run; a verify row's summary line (the M68 review).
+  const { thenRun } = item
+  if (thenRun?.outcome === 'notRun') {
+    lines.push(
+      note(
+        fill(UI_TEXT.exportThenRunSkipped, {
+          command: thenRun.command,
+          outcome: thenRunOutcomeText(thenRun),
+        }),
+      ),
+      '',
+    )
+  } else if (thenRun !== undefined) {
+    const ran = [`$ ${thenRun.command}`, ...(thenRun.output === '' ? [] : [thenRun.output])].join(
+      '\n',
+    )
+    lines.push(
+      UI_TEXT.exportThenRunLabel,
+      '',
+      fenced(ran),
+      '',
+      note(thenRunOutcomeText(thenRun)),
+      '',
+    )
+  }
+  const verified = verifySummaryText(item.verifySummary)
+  if (verified !== undefined) {
+    lines.push(note(verified), '')
   }
   if (item.failureReason !== undefined) {
     lines.push(note(fill(UI_TEXT.exportFailure, { reason: item.failureReason })), '')
@@ -170,7 +205,11 @@ function agentSection(item: ItemSnapshot): string | undefined {
   return lines.join('\n')
 }
 
-function sectionOf(item: ItemSnapshot): string | undefined {
+/**
+ * One item as its section of the Markdown export; undefined for items the
+ * panel hides. The share view (M84) renders a shared file with it too.
+ */
+export function transcriptItemMarkdown(item: ItemSnapshot): string | undefined {
   switch (item.kind) {
     case USER_MESSAGE: {
       return userSection(item)
@@ -199,7 +238,41 @@ function sectionOf(item: ItemSnapshot): string | undefined {
   }
 }
 
-export function renderTranscriptMarkdown(input: TranscriptExport): string {
+export function renderTranscriptMarkdown(input: TranscriptExport | ChatShareDocument): string {
+  if ('target' in input) {
+    const sections = input.items.map((item) => {
+      let heading = item.kind
+      if (item.kind === USER_MESSAGE) heading = UI_TEXT.exportUserHeading
+      else if (item.kind === AGENT_MESSAGE) heading = UI_TEXT.exportAgentHeading
+      const lines = [`## ${heading}`, '', item.text ?? '']
+      const fields = [
+        [UI_TEXT.exportToolNoName, item.tool],
+        [UI_TEXT.exportArgumentsLabel, item.args],
+        [UI_TEXT.exportOutputLabel, item.output],
+        [UI_TEXT.exportShellHeading, item.command],
+        [UI_TEXT.shareDecision, item.decision],
+        [UI_TEXT.exportThinkingHeading, item.reasoning],
+        [UI_TEXT.diffTallyLabel, item.diff],
+      ]
+      for (const [label, value] of fields) {
+        if (value !== undefined) lines.push('', label ?? '', '', fenced(value))
+      }
+      const attachments = item.attachments ?? []
+      for (const attachment of attachments) {
+        if (attachment.name !== undefined) lines.push('', attachment.name)
+        if (attachment.content !== undefined) lines.push('', fenced(attachment.content))
+      }
+      return lines.join('\n').trimEnd()
+    })
+    return [
+      `# ${input.title}`,
+      '',
+      fill(UI_TEXT.exportTimeLine, { time: formatDateTime(Date.parse(input.createdAt)) }),
+      '',
+      ...sections,
+      '',
+    ].join('\n')
+  }
   const header = [
     `# ${input.title}`,
     '',
@@ -209,7 +282,7 @@ export function renderTranscriptMarkdown(input: TranscriptExport): string {
     `- ${fill(UI_TEXT.exportTimeLine, { time: input.exportedAt })}`,
   ].join('\n')
   const sections = input.items.flatMap((item) => {
-    const section = sectionOf(item)
+    const section = transcriptItemMarkdown(item)
     return section === undefined ? [] : [section]
   })
   return `${[header, '---', ...sections].join('\n\n')}\n`

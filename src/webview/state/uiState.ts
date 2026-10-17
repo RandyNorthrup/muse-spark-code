@@ -1,3 +1,6 @@
+import type { modelApiStatusSchema } from '../../shared/serviceStatus'
+import type { JudgeStatus } from '../../shared/judge'
+import { workflowChildSchema } from '../../shared/workflowChild'
 // Webview UI state: a pure reducer over host messages and local edits. No DOM
 // access here; the components apply focus and caret changes. Timestamps come
 // in with the action (`at`) so reasoning durations stay deterministic in tests.
@@ -5,6 +8,8 @@
 // conversation saved across a reload is validated before it comes back (M25).
 
 import * as z from 'zod/mini'
+import { reportCommandArguments } from '../../shared/reportCommand'
+import { redactSecrets } from '../../shared/redact'
 import {
   type AgentEvent,
   type ItemSnapshot,
@@ -15,13 +20,19 @@ import {
 } from '../../shared/agentEvents'
 import {
   CHAT_REFERENCE_LABEL_CHARS,
+  type CheckpointAvailability,
+  type CheckpointRestoreBlocker,
+  CHECKPOINT_INITIAL_AVAILABILITY,
   DEFAULT_EFFORT,
   type DictationEngine,
   type DictationUiStatus,
   type EffortLevel,
+  FOCUS_REQUEST_WINDOW_MS,
   HIDDEN_ITEM_KINDS,
   MAX_ATTACHMENTS_PER_MESSAGE,
   MILLISECONDS_PER_SECOND,
+  PARTIAL_EDIT_TOOLS,
+  PENDING_APPROVAL_RESOLUTIONS_MAX,
   type PermissionMode,
   type TaskRequest,
   TOOL_STATUS_INTERRUPTED,
@@ -30,7 +41,8 @@ import {
   USER_SHELL_PREFIX,
   WORKFLOW_KIND,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { QUESTION_STATES, type OpenQuestion } from '../../shared/questions'
+import { fill, formatNumber, plural } from '../../shared/l10n/text'
 import type {
   AttachmentSummary,
   AuthStatus,
@@ -41,32 +53,79 @@ import type {
   HostToWebviewMessage,
   MentionItem,
   ModelOption,
+  NoticeAction,
+  ReportDraftItem,
+  ReportEventRef,
+  ReportExportChannel,
+  ReportExportReason,
+  ReviewFile,
   SettingsSnapshot,
   SignInMethod,
   SkillOption,
 } from '../../shared/protocol'
-import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paid'
+import { EMPTY_PAID_TALLY, type PaidState } from '../../shared/paidBoundary'
+import { isLegalPrompt } from '../../shared/legalCommand'
+import type { LegalScanResult } from '../../shared/legal'
+import type { LegalFixPreviewMessage, LegalFixResultMessage } from '../../shared/legalFix'
 import type { ScheduleView } from '../../shared/schedule'
+import type { EstimateSection } from '../../shared/estimate'
+import type { BestOfNRun } from '../../shared/bestOfN'
+import type { BoardRow } from '../../shared/sessionBoard'
 import type { SessionRow } from '../../shared/sessions'
-import type { AccountFacts, SubscriptionUsage, UsageInsights } from '../../shared/usage'
-import { goalStatusLabel, toolLabel } from '../toolPresentation'
-import { backgroundRun } from '../toolDetails'
 import type {
-  ChildTranscript,
-  ContextSummary,
-  NoticeLevel,
-  OutputRef,
-  PendingApproval,
-  PendingQuestion,
-  TranscriptEntry,
-  UsageSummary,
-  WorkflowChild,
+  AccountFacts,
+  ProviderUsageRow,
+  PlanUsageRow,
+  SubscriptionUsage,
+  UsageInsights,
+} from '../../shared/usage'
+import type { TeamTreeData, TeamUsageSummary, TeamWorkerLabel } from '../../shared/teamView'
+import { goalStatusLabel, toolLabel } from '../toolPresentation'
+import {
+  type GitFormEdit,
+  type GitUiState,
+  initialGitUiState,
+  withCommitForm,
+  withDone,
+  withDraft,
+  withFormBusy,
+  withFormEdit,
+  withGeneration,
+  withGitState,
+  withPullRequestForm,
+  withSendFailed,
+} from './gitState'
+import { backgroundRun } from '../toolDetails'
+import {
+  type ChildTranscript,
+  type ContextSummary,
+  hasImageAttachment,
+  type NoticeLevel,
+  type OutputRef,
+  type PendingApproval,
+  type PendingElicitation,
+  type PendingQuestion,
+  QUEUED_DISPOSITION,
+  recordedAtMs,
+  STEERED_DISPOSITION,
+  type TranscriptEntry,
+  type UsageSummary,
+  type WorkflowChild,
 } from './transcriptEntries'
+import {
+  mergeTeamEntry,
+  teamEntryForItem,
+  teamWorkers,
+  isRunningTeamWorker,
+  isFinishedTeamWorker,
+  teamWorkerStatusLabel,
+} from './teamEntries'
 
 export type {
   ChildTranscript,
   ContextSummary,
   PendingApproval,
+  PendingElicitation,
   PendingQuestion,
   TranscriptEntry,
   UsageSummary,
@@ -75,10 +134,16 @@ export type {
 
 /** What the Account & usage dialog shows (M8, M14): the host's last `usageReport`. */
 export interface UsageReport {
+  readonly serviceStatus?: ReturnType<typeof modelApiStatusSchema.parse> | undefined
   readonly backend: BackendKind
   readonly subscription: SubscriptionUsage | undefined
   readonly account: AccountFacts | undefined
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
+  /** This window's tallies per BYO provider (M95); undefined until one is used. */
+  readonly providers: readonly ProviderUsageRow[] | undefined
+  /** The Team section (M96 lane U2); absent where the team cannot run. */
+  readonly team?: TeamUsageSummary | undefined
+  readonly plans?: readonly PlanUsageRow[] | undefined
 }
 
 /**
@@ -103,6 +168,50 @@ export interface MentionResults {
   readonly items: readonly MentionItem[]
 }
 
+/** A local share file open read-only (M84): the modal shows it, nothing acts on it. */
+export interface SharePreview {
+  readonly title: string
+  /** ISO 8601. */
+  readonly exportedAt: string
+  readonly sourceBackend: BackendKind
+  readonly modelId: string
+  readonly redacted: boolean
+  readonly items: readonly ItemSnapshot[]
+}
+
+/** What the last export attempt answered, in the host's fixed words (M93 lane W). */
+export interface ReportExportStatus {
+  readonly via: ReportExportChannel
+  readonly ok: boolean
+  /** The over-long draft, copied with a paste note; rides only on an opened issue page. */
+  readonly issueFallback?: boolean | undefined
+  readonly reason?: ReportExportReason | undefined
+}
+
+/** The report-a-problem preview dialog's state (M93 lane W). */
+export interface ReportDialogState {
+  /** The host's dialog session this draft belongs to (one per open). */
+  readonly session: number
+  /** Which of the dialog's choices the draft answers; 0 is the opening draft. */
+  readonly revision: number
+  /** The description the draft was built with, echoed by the host. */
+  readonly description: string
+  readonly includeFacts: boolean
+  readonly includeEvents: boolean
+  /** Every item the draft contains that the user can remove. */
+  readonly items: readonly ReportDraftItem[]
+  /** Lane P's exact final draft: the preview shows `text` byte-identical. */
+  readonly title: string
+  readonly text: string
+  /** The draft's seal, carried back by the export. */
+  readonly hash: string
+  /** The VS Code reporter action shows only while its command exists. */
+  readonly canUseVscodeReporter: boolean
+  readonly recordingUnavailable: boolean
+  /** The last export attempt's answer; cleared by the next draft. */
+  readonly exportStatus: ReportExportStatus | undefined
+}
+
 export interface OutputPage {
   readonly content: string
   readonly isEof: boolean
@@ -112,6 +221,25 @@ export interface OutputPage {
 /** A picture a tool row asked the host for (M43): loaded, or why it could not be. */
 export type ToolImageState =
   | { readonly kind: 'loaded'; readonly dataUri: string }
+  | { readonly kind: 'failed'; readonly reason: string }
+
+/**
+ * The review pane (M70): the conversation's changes as the host listed them
+ * for the pane's last request; `files` is undefined while it reads them.
+ */
+export interface ReviewPaneState {
+  readonly requestId: string
+  readonly files: readonly ReviewFile[] | undefined
+  readonly omittedEdits: number
+  /** Why there is nothing to list (no live session, not signed in). */
+  readonly reason: string | undefined
+}
+
+/** What the user did with a change in the review pane (M70), by `reviewHunkKey`. */
+export type ReviewHunkState =
+  | { readonly kind: 'accepted' }
+  | { readonly kind: 'reverting' }
+  | { readonly kind: 'reverted' }
   | { readonly kind: 'failed'; readonly reason: string }
 
 /**
@@ -125,7 +253,30 @@ export interface PendingRestore {
   readonly isTranscriptOmitted: boolean
 }
 
+/** Turn checkpoints (M72): whether they run here, and the shown conversation's turns with one. */
+export interface CheckpointView {
+  readonly availability: CheckpointAvailability
+  readonly canRestore: boolean
+  readonly legacyTurnIds: readonly string[]
+  readonly restoreBlocker: CheckpointRestoreBlocker | undefined
+  readonly sessionId: string | undefined
+  readonly turnIds: readonly string[]
+}
+
 export interface UiState {
+  readonly pendingReportCommand:
+    { readonly requestId: string; readonly draftRevision: number } | undefined
+  readonly judge: JudgeStatus | undefined
+  /**
+   * M107 U–C1: this window governor's status as the host sent it (bounded
+   * JSON text; the deferred chip checks its schema); null when the current
+   * status was refused. Machine-wide, never saved.
+   */
+  readonly resourceStatus: string | null | undefined
+  /** The latest Show resources open the host offered, and the document it named. */
+  readonly resourceOffer: { readonly seq: number; readonly nonce: string } | undefined
+  /** Newest resolutions whose tool rows have not arrived yet; never saved. */
+  readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
   readonly phase: 'connecting' | 'ready'
   readonly isSideChat: boolean
   readonly emptyStateHint: string
@@ -137,9 +288,14 @@ export interface UiState {
   readonly sessionId: string | undefined
   /** False where the host refuses rename and fork (D26: Muse Code 1.3.0 on Windows). */
   readonly canEditSessions: boolean
+  readonly checkpoints: CheckpointView
   /** The workspace's stored sessions, once the History dialog asked (M6). */
   readonly sessions: readonly SessionRow[] | undefined
   readonly archivedIds: readonly string[]
+  /** The session board's rows, once the board asked (M77). */
+  readonly board: readonly BoardRow[] | undefined
+  /** The best-of-N run this surface last heard of (M77). */
+  readonly bestOfN: BestOfNRun | undefined
   readonly draft: string
   /** Every local draft edit, including edits that return to the same text. */
   readonly draftRevision: number
@@ -161,8 +317,43 @@ export interface UiState {
       }
     | undefined
   readonly goalEditRevision: number
-  /** Incremented per host `focusInput`; the composer focuses when it changes. */
+  /** A `/handoff …` awaiting host admission (M74): only an accepted one clears its draft. */
+  readonly pendingHandoffCommand:
+    { readonly requestId: string; readonly draftRevision: number } | undefined
+  /** The handoff dialog (M74): the brief to review, edit and confirm. */
+  readonly handoff:
+    | {
+        readonly requestId: string
+        readonly brief: string
+        readonly goal: string | undefined
+        /** The open items the new conversation's todo list starts with, shown read-only. */
+        readonly todos: readonly string[]
+        readonly draft: string
+        readonly isConfirming: boolean
+      }
+    | undefined
+  /**
+   * Recorded focus requests (tokened host `focusInput`, `init`, inserts,
+   * restores and the composer's own actions). Recording is not landing: the
+   * composer focuses only through `landFocusRequest` while this surface
+   * holds the keyboard and only within the delivery window after the ask;
+   * afterwards the request is gone, so a late request is dropped instead of
+   * taking the keyboard from whatever holds it.
+   */
   readonly focusRequests: number
+  /** Incremented per host `openUsage`; Account & usage opens when it changes (M94). */
+  readonly usageRequests: number
+  /** Incremented per host `openEstimator`; the composer takes `/estimate ` when it changes (M117). */
+  readonly estimatorRequests: number
+  readonly helpRequests: number
+  readonly referenceValues:
+    | {
+        readonly model: string
+        readonly error?: boolean | undefined
+        readonly values: Readonly<Record<string, string>>
+        readonly nls: Readonly<Record<string, string>>
+      }
+    | undefined
   /** Text waiting to be inserted at the composer caret, if any. */
   readonly pendingInsert: string | undefined
   readonly auth: {
@@ -178,6 +369,7 @@ export interface UiState {
     readonly hasCli?: boolean | undefined
     readonly hasCliSession?: boolean | undefined
     readonly installState?: 'running' | 'failed' | undefined
+    readonly planAccount?: Extract<HostToWebviewMessage, { type: 'authState' }>['planAccount']
   }
   readonly model:
     { readonly modelId: string; readonly contextLimit: number | undefined } | undefined
@@ -197,12 +389,25 @@ export interface UiState {
   readonly activeTurnId: string | undefined
   /** The last turn the host reported finished (M25): a late `turnAccepted` for it starts nothing. */
   readonly lastCompletedTurnId: string | undefined
+  /** Plan-limit dismissal belongs to the conversation, surviving surface/model changes. */
+  readonly dismissedPlanTurnId: string | undefined
   /** Promoted-steer turn corrections received before their local card is accepted. */
   readonly pendingReplayTurns: Readonly<Record<string, string>>
+  /**
+   * User items a request read before their card was accepted (M87): the late
+   * acceptance marks the card sent, never queued. At most one per pending card.
+   */
+  readonly admittedMessageIds: readonly string[]
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
   readonly usageReport: UsageReport | undefined
+  /**
+   * The Agent map's team tree (M96 lane U2); undefined where the team
+   * cannot run (off, Solo, single-model mode, no runnable role): the map,
+   * the pill and the dialog are today's.
+   */
+  readonly teamTree: TeamTreeData | undefined
   /** What the next message replies to or quotes (M17); the composer chip. */
   readonly reference: ChatReference | undefined
   /** Subagent transcripts by child session id (M14). */
@@ -218,6 +423,43 @@ export interface UiState {
   readonly strayItems: Readonly<Record<string, readonly string[]>>
   /** The chips a pending message took from the composer, by local id (M25). */
   readonly unsentAttachments: Readonly<Record<string, readonly AttachmentSummary[]>>
+  /** The latest pending send's exact draft, restored only on a handoff refusal. */
+  readonly pendingSendDraft:
+    | {
+        readonly localId: string
+        readonly text: string
+        readonly revision: number
+        /** What the send replied to or quoted (M17, M92e): restored with the draft. */
+        readonly reference?: ChatReference | undefined
+      }
+    | undefined
+  /** In-memory drafts by local id: a delayed hold must survive another send. */
+  readonly pendingSendDrafts: Readonly<
+    Record<
+      string,
+      NonNullable<UiState['pendingSendDraft']> & {
+        readonly contextLabel?: string | undefined
+      }
+    >
+  >
+  /**
+   * A held prompt's Send anyway arm (M92e, PLAN.md D71): the refused draft
+   * and its redacted text, attachments and reference. Only the dialog's
+   * explicit resend carries `secretAccepted`; a newer composer draft stays
+   * independent and receives its own scan.
+   */
+  readonly secretPrompt:
+    | {
+        readonly localId: string
+        readonly draft: string
+        readonly redactedText: string
+        readonly attachments: readonly AttachmentSummary[]
+        readonly reference?: ChatReference | undefined
+        readonly contextLabel?: string | undefined
+      }
+    | undefined
+  /** Delayed holds are shown in arrival order, each with its own payload. */
+  readonly secretPromptQueue: readonly NonNullable<UiState['secretPrompt']>[]
   /**
    * Images of a refused message the host may still hold but the composer no
    * longer shows (M25): the app asks the host to drop them, so none linger
@@ -226,6 +468,14 @@ export interface UiState {
   readonly attachmentsToRelease: readonly string[]
   /** The composer banner (M14): an unsupported upload, until dismissed. */
   readonly banner: string | undefined
+  /** Registry records for this session; drafts remain in the surface's React tree. */
+  readonly openQuestions: readonly OpenQuestion[]
+  readonly submittedQuestions: readonly string[]
+  /** Counts observed for History; text never crosses into a history row. */
+  readonly openQuestionCounts: Readonly<Record<string, number>>
+  readonly questionNavigation:
+    | { readonly userInputId: string; readonly sequence: number; readonly isReminder?: true }
+    | undefined
   readonly announcement: Announcement | undefined
   /** The microphone button (M9): `reason` explains an unavailable one. */
   readonly dictation: DictationUiState
@@ -236,10 +486,32 @@ export interface UiState {
   readonly goal: SessionGoal | undefined
   /** Extension-owned Model API schedules for this session (M52). */
   readonly schedules: readonly ScheduleView[]
+  /** The v2 schedules surface (M115); posted when a schedule command opens it. */
+  readonly schedulesSurface:
+    Extract<HostToWebviewMessage, { readonly type: 'schedulesSurface' }> | undefined
+  /** The capacity estimator's latest section (M117, PLAN.md D97); the panel renders it. Never saved. */
+  readonly estimatorRequestId?: string | undefined
+  readonly estimatorFailure?: { requestId?: string | undefined; reason: string } | undefined
+  readonly estimatorStarted?:
+    { requestId?: string | undefined; error?: string | undefined } | undefined
+  readonly estimator: EstimateSection | undefined
+  /** Git and pull requests (M71): the host's cards and the open form. */
+  readonly git: GitUiState
   /** Fetched output pages keyed by `${itemId}:${outputRef}`. */
   readonly outputPages: Readonly<Record<string, OutputPage>>
   /** Pictures loaded for tool rows (M43), keyed by `toolImageKey`; never saved. */
   readonly toolImages: Readonly<Record<string, ToolImageState>>
+  /** The review pane's changes (M70); never saved. */
+  readonly reviewPane: ReviewPaneState | undefined
+  /** What the user did with each change in the pane (M70), by `reviewHunkKey`; never saved. */
+  readonly reviewHunks: Readonly<Record<string, ReviewHunkState>>
+  /** The legal scan's latest report (M97 lane W), with the request it answers; never saved. */
+  readonly legalReport: { readonly requestId: string; readonly result: LegalScanResult } | undefined
+  /** The selected-fix preview the report last asked for (M97 lane W); never saved. */
+  readonly legalFixRequestId?: string | undefined
+  readonly legalFixPreview: LegalFixPreviewMessage | undefined
+  /** What the last confirmed fix batch ended as (M97 lane W); never saved. */
+  readonly legalFixResult: LegalFixResultMessage | undefined
   /** Monotonic counter behind locally generated transcript ids. */
   readonly localSequence: number
   /**
@@ -262,6 +534,30 @@ export interface UiState {
   readonly pendingRestore: PendingRestore | undefined
   /** Clears this panel made whose host echo has not come back yet (M25). */
   readonly pendingClearEchoes: number
+  /** A local share file open read-only (M84); undefined when none is open. */
+  readonly share: SharePreview | undefined
+  /**
+   * The finished provider setup (M95): the wizard saved a provider and set
+   * the composer's model. Shown once above the composer, until dismissed.
+   */
+  readonly setupComplete: { readonly provider: string; readonly model: string } | undefined
+  /**
+   * The report-a-problem preview (M93 lane W): lane P's sealed draft as the
+   * host built it, with the removable items it contains. Undefined while
+   * the dialog is closed; never saved (the journal outlives the panel, and
+   * the command reads it again after a reload).
+   */
+  readonly report: ReportDialogState | undefined
+  /**
+   * The newest report session the user closed (0 for none): a draft still on
+   * its way for it, or for an older one, never reopens the dialog.
+   */
+  readonly closedReportSession: number
+  /**
+   * The conversation in the transcript holds imported history (M84, the
+   * host's `historyLoaded`): its code blocks offer Copy, never Insert or Apply.
+   */
+  readonly isImported: boolean
 }
 
 export type UiAction =
@@ -272,6 +568,15 @@ export type UiAction =
   | { readonly type: 'goalEditChanged'; readonly draft: string }
   | { readonly type: 'goalEditCanceled' }
   | { readonly type: 'goalEditSubmitted'; readonly requestId: string; readonly objective: string }
+  /** `/handoff …` sent from the composer (M74), awaiting the host's admission. */
+  | { readonly type: 'reportSubmitted'; readonly requestId: string }
+  | { readonly type: 'handoffSubmitted'; readonly requestId: string }
+  /** The handoff dialog's edits and Start (M74); Cancel dismisses it. */
+  | { readonly type: 'handoffChanged'; readonly draft: string }
+  | { readonly type: 'handoffConfirming' }
+  | { readonly type: 'handoffDismissed' }
+  /** The v2 schedules surface's Close (M115). */
+  | { readonly type: 'schedulesSurfaceClosed' }
   | { readonly type: 'insertRequested'; readonly text: string }
   | { readonly type: 'insertApplied' }
   | { readonly type: 'focusRequested' }
@@ -281,9 +586,15 @@ export type UiAction =
       readonly text: string
       readonly attachments: readonly AttachmentSummary[]
       readonly contextLabel: string | undefined
+      /** True only for the dialog's explicit resend of its held payload. */
+      readonly isSecretResend?: boolean
       /** What the message replies to or quotes (M17); absent for a plain send. */
       readonly reference?: ChatReference | undefined
+      /** When it was sent (M87): the card's time until the host's arrives. */
+      readonly at?: number | undefined
     }
+  /** The secret dialog closed for editing (M92e): the draft is already back. */
+  | { readonly type: 'secretPromptDismissed' }
   /** The composer now replies to an output or quotes a passage (M17). */
   | { readonly type: 'referenceSet'; readonly reference: ChatReference }
   | { readonly type: 'referenceCleared' }
@@ -294,6 +605,7 @@ export type UiAction =
   | { readonly type: 'conversationCleared' }
   /** The × on the composer banner (M14). */
   | { readonly type: 'bannerDismissed' }
+  | { readonly type: 'planLimitDismissed'; readonly turnId: string }
   /** The × on the open-file chip. */
   | { readonly type: 'editorContextDismissed' }
   /** The user chose on an approval card; lock that stage until the host moves on. */
@@ -304,16 +616,63 @@ export type UiAction =
     }
   /** The user answered or cancelled a question card; lock it until the host settles it (M25). */
   | { readonly type: 'questionSubmitted'; readonly userInputId: string }
+  | { readonly type: 'questionJump'; readonly direction: 'next' | 'previous' }
+  /** The user answered, declined or cancelled an elicitation form; lock it until the host settles it. */
+  | { readonly type: 'elicitationSubmitted'; readonly elicitationId: string }
   /** A row's Move to background or Stop (M46): its button waits for the host. */
   | { readonly type: 'taskRequested'; readonly itemId: string; readonly request: TaskRequest }
   /** A line for the transcript the webview itself has to say (M25). */
   | { readonly type: 'noticeRaised'; readonly level: NoticeLevel; readonly text: string }
+  /** A restore notice's Redo was pressed (M72): it waits for the host's answer. */
+  | { readonly type: 'redoRequested'; readonly entryId: string }
+  /** A fault notice offers one recovery attempt, kept spent in saved state. */
+  | { readonly type: 'noticeActionRequested'; readonly entryId: string }
   /** An image the composer refused before encoding it (M25): the banner, as a host refusal. */
   | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
   /** The app asked the host to drop these images (M25). */
   | { readonly type: 'attachmentsReleased'; readonly ids: readonly string[] }
+  /** The user typed in the git form (M71). */
+  | { readonly type: 'gitFormEdited'; readonly edit: GitFormEdit }
+  | { readonly type: 'gitFormClosed' }
+  /** Commit or Create pressed: the form waits for the host's `gitDone`. */
+  | { readonly type: 'gitFormBusy' }
+  /**
+   * "Write With Muse" pressed: the user's own message asking for the draft
+   * goes in the transcript (the composer's draft stays as it is), and the
+   * form waits for the reply.
+   */
+  | { readonly type: 'gitDraftRequested'; readonly localId: string; readonly text: string }
+  /**
+   * A card that did not come from the composer (M70): a review a palette row
+   * started, or a comment from the review pane. The draft, its chips and its
+   * reference chip stay as they are.
+   */
+  | {
+      readonly type: 'cardSubmitted'
+      readonly localId: string
+      readonly text: string
+      readonly reference?: ChatReference | undefined
+      /** What the live region says, the card being out of sight behind the pane. */
+      readonly announcement?: string | undefined
+    }
+  /** The review pane asked the host for the conversation's changes (M70). */
+  | { readonly type: 'reviewPaneRequested'; readonly requestId: string }
+  /** Accept on a change in the review pane, or taking it back (M70). */
+  | { readonly type: 'reviewHunkAccepted'; readonly key: string; readonly isAccepted: boolean }
+  /** Revert on a change in the review pane: it waits for the host (M70). */
+  | { readonly type: 'reviewHunkReverting'; readonly key: string }
+  /** The × (or Escape, or the backdrop) on the share-file modal (M84). */
+  | { readonly type: 'shareClosed' }
+  /** The × on the post-wizard confirmation (M95). */
+  | { readonly type: 'setupCompleteDismissed' }
+  /** Cancel (or Escape, the × or the backdrop) on the report dialog (M93 lane W). */
+  | { readonly type: 'reportClosed' }
+  /** The × (or Escape, or the backdrop) on the legal report (M97 lane W). */
+  | { readonly type: 'legalReportClosed' }
+  | { readonly type: 'legalFixRequested'; readonly requestId: string }
 
 export const initialUiState: UiState = {
+  pendingApprovalResolutions: [],
   phase: 'connecting',
   isSideChat: false,
   emptyStateHint: '',
@@ -322,15 +681,35 @@ export const initialUiState: UiState = {
   title: undefined,
   sessionId: undefined,
   canEditSessions: true,
+  checkpoints: {
+    availability: CHECKPOINT_INITIAL_AVAILABILITY,
+    canRestore: false,
+    legacyTurnIds: [],
+    restoreBlocker: undefined,
+    sessionId: undefined,
+    turnIds: [],
+  },
   sessions: undefined,
   archivedIds: [],
+  board: undefined,
+  bestOfN: undefined,
   draft: '',
   draftRevision: 0,
   pendingGoalCommand: undefined,
   goalEdit: undefined,
   goalEditRevision: 0,
+  pendingHandoffCommand: undefined,
+  pendingReportCommand: undefined,
+  handoff: undefined,
   focusRequests: 0,
+  usageRequests: 0,
+  estimatorRequests: 0,
+  helpRequests: 0,
+  resourceStatus: undefined,
+  resourceOffer: undefined,
+  referenceValues: undefined,
   pendingInsert: undefined,
+  judge: undefined,
   auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
   model: undefined,
   models: [],
@@ -345,25 +724,44 @@ export const initialUiState: UiState = {
   transcript: [],
   activeTurnId: undefined,
   lastCompletedTurnId: undefined,
+  dismissedPlanTurnId: undefined,
   pendingReplayTurns: {},
+  admittedMessageIds: [],
   usage: undefined,
   context: undefined,
   usageReport: undefined,
+  teamTree: undefined,
   reference: undefined,
   childTranscripts: {},
   childOwners: {},
   strayItems: {},
   unsentAttachments: {},
+  pendingSendDraft: undefined,
+  pendingSendDrafts: {},
+  secretPrompt: undefined,
+  secretPromptQueue: [],
   attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
+  openQuestions: [],
+  submittedQuestions: [],
+  openQuestionCounts: {},
+  questionNavigation: undefined,
   dictation: { status: 'idle', reason: undefined, engine: 'system' },
   paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false, alwaysAllowed: [] },
   todos: [],
   goal: undefined,
   schedules: [],
+  schedulesSurface: undefined,
+  estimator: undefined,
+  git: initialGitUiState,
   outputPages: {},
   toolImages: {},
+  reviewPane: undefined,
+  reviewHunks: {},
+  legalReport: undefined,
+  legalFixPreview: undefined,
+  legalFixResult: undefined,
   localSequence: 0,
   sequence: 0,
   editorContext: undefined,
@@ -371,6 +769,11 @@ export const initialUiState: UiState = {
   restoredSessionId: undefined,
   pendingRestore: undefined,
   pendingClearEchoes: 0,
+  share: undefined,
+  setupComplete: undefined,
+  report: undefined,
+  closedReportSession: 0,
+  isImported: false,
 }
 
 const SUMMARY_FIELD_PREFIX = 'summary.'
@@ -378,6 +781,7 @@ const OUTPUT_FIELD = 'output'
 const TEXT_FIELD = 'text'
 const IN_PROGRESS = 'inProgress'
 const COMPLETED = 'completed'
+const FAILED = 'failed'
 const REJECTED = 'rejected'
 const CANCELLED = 'cancelled'
 const USER_MESSAGE_KIND = 'userMessage'
@@ -490,6 +894,22 @@ function dictationAnnouncement(
   return next === 'idle' && previous === 'listening' ? UI_TEXT.announceStoppedListening : undefined
 }
 
+/**
+ * Whether a tool row's edits are on disk: a completed row with a patch, or
+ * a rename stopped partway (M67), whose failed row carries the patch of the
+ * files it did write. Review, revert and rewind cover both.
+ */
+export function hasLandedEdits(entry: {
+  readonly status: string
+  readonly tool: string
+  readonly patchRef?: OutputRef | undefined
+}): boolean {
+  return (
+    entry.patchRef !== undefined &&
+    (entry.status === COMPLETED || (entry.status === FAILED && PARTIAL_EDIT_TOOLS.has(entry.tool)))
+  )
+}
+
 /** Whether a tool status is an outcome the row shows as a failure (not running, done or cut off). */
 export function isFailedStatus(status: string): boolean {
   return status !== IN_PROGRESS && status !== COMPLETED && status !== TOOL_STATUS_INTERRUPTED
@@ -562,15 +982,6 @@ function reportedImages(item: ItemSnapshot): readonly string[] | undefined {
 // One `children` element of a workflow item (MSP `WorkflowChild`, M47): its
 // identity and status are required; every other field is read on its own,
 // so one of another shape costs that field, never the agent or the run.
-const reportedChildSchema = z.object({
-  childId: z.string(),
-  attempt: z.number(),
-  status: z.string(),
-  label: z.optional(z.unknown()),
-  terminal: z.optional(z.unknown()),
-  durationMs: z.optional(z.unknown()),
-  usage: z.optional(z.unknown()),
-})
 
 function stringOf(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
@@ -579,7 +990,7 @@ function stringOf(value: unknown): string | undefined {
 /** The agents a workflow item reports; undefined when it carries no list. */
 function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefined {
   return item.children?.flatMap((raw) => {
-    const parsed = reportedChildSchema.safeParse(raw)
+    const parsed = workflowChildSchema.safeParse(raw)
     if (!parsed.success) {
       return []
     }
@@ -587,6 +998,7 @@ function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefi
     return [
       {
         childId: child.childId,
+        agentEvidence: item.agentWorkflowEvidence?.[`${item.itemId}/${child.childId}`],
         attempt: child.attempt,
         status: child.status,
         label: stringOf(child.label),
@@ -677,14 +1089,68 @@ function withInsert(state: UiState, text: string): UiState {
   }
 }
 
-function withNotice(state: UiState, level: NoticeLevel, text: string): UiState {
+/** A notice that says the same as one about to be raised: a restore's keeps its own row (its Redo). */
+function isSameNotice(entry: TranscriptEntry, level: NoticeLevel, text: string): boolean {
+  return (
+    entry.kind === 'notice' &&
+    entry.level === level &&
+    entry.text === text &&
+    entry.redoRestoreId === undefined
+  )
+}
+
+/** The index of a same notice among the notices that end the transcript, or -1. */
+function trailingRepeatIndex(
+  transcript: readonly TranscriptEntry[],
+  level: NoticeLevel,
+  text: string,
+): number {
+  for (let index = transcript.length - 1; index >= 0; index -= 1) {
+    const entry = transcript[index]
+    if (entry?.kind !== 'notice') return -1
+    if (isSameNotice(entry, level, text)) return index
+  }
+  return -1
+}
+
+/**
+ * A notice at the end of the transcript. One said again among the notices
+ * that end it (the same level and text, D26: a busy Muse Code fails the same
+ * way many times) replaces the earlier row rather than stacking: that row
+ * goes, and this one, at the end, counts how many times it was said. A new
+ * id, so a spent button comes back for the new failure. A notice before the
+ * last message or tool row stays where it was said.
+ */
+function withNotice(
+  state: UiState,
+  level: NoticeLevel,
+  text: string,
+  redoRestoreId?: string,
+  actions?: readonly NoticeAction[],
+  reportRef?: ReportEventRef,
+): UiState {
   const localSequence = state.localSequence + 1
+  const repeatIndex =
+    redoRestoreId === undefined ? trailingRepeatIndex(state.transcript, level, text) : -1
+  const repeated = state.transcript[repeatIndex]
+  const repeatCount = repeated?.kind === 'notice' ? (repeated.repeatCount ?? 1) + 1 : undefined
+  const transcript =
+    repeated === undefined ? state.transcript : state.transcript.toSpliced(repeatIndex, 1)
   return {
     ...state,
     localSequence,
     transcript: [
-      ...state.transcript,
-      { kind: 'notice', id: `notice:${String(localSequence)}`, level, text },
+      ...transcript,
+      {
+        kind: 'notice',
+        id: `notice:${String(localSequence)}`,
+        level,
+        text,
+        ...(redoRestoreId !== undefined && { redoRestoreId }),
+        ...(actions !== undefined && actions.length > 0 && { actions }),
+        ...(repeatCount !== undefined && { repeatCount }),
+        ...(reportRef !== undefined && { reportRef }),
+      },
     ],
   }
 }
@@ -699,10 +1165,14 @@ function withBanner(state: UiState, name: string, reason: string): UiState {
 
 function toolEntry(item: ItemSnapshot): TranscriptEntry {
   return {
+    exitCode: item.exitCode,
+    durationMs: item.durationMs,
+    changedFiles: item.changedFiles,
     kind: 'tool',
     id: item.itemId,
     tool: item.tool ?? item.kind,
     args: item.args ?? '',
+    argumentPreview: item.argumentPreview,
     status: item.status,
     output: item.visibleOutput ?? '',
     failureReason: item.failureReason,
@@ -713,10 +1183,14 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     isBackground: isBackgrounded(item) === true,
     backgroundInitiator: item.backgroundInitiator,
     paid: item.paid,
+    teamWorker: item.teamWorker,
     images: reportedImages(item),
+    verifySummary: item.verifySummary,
+    thenRun: item.thenRun,
     approval: undefined,
     approvalOutcome: undefined,
     question: undefined,
+    elicitation: undefined,
     questionOutcome: undefined,
     taskRequest: undefined,
   }
@@ -741,6 +1215,7 @@ function userShellEntry(item: ItemSnapshot): UserShellEntry {
 
 function subagentEntry(item: ItemSnapshot, seq: number): SubagentEntry {
   return {
+    agentEvidence: item.agentEvidence,
     kind: 'subagent',
     id: item.itemId,
     seq,
@@ -783,10 +1258,12 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
         kind: 'assistant',
         id: item.itemId,
         text: item.text ?? '',
+        displayText: item.displayText,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations,
         usage: item.usage,
         costUsd: item.costUsd,
+        atMs: recordedAtMs(item.recordedAt),
       }
     }
     case 'reasoning': {
@@ -813,13 +1290,16 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
       return workflowEntry(item)
     }
     default: {
-      return {
-        kind: 'item',
-        id: item.itemId,
-        itemKind: item.kind,
-        status: item.status,
-        text: item.fallbackText ?? item.text,
-      }
+      // The team's cards (M96 lane U2); anything else keeps today's row.
+      return (
+        teamEntryForItem(item) ?? {
+          kind: 'item',
+          id: item.itemId,
+          itemKind: item.kind,
+          status: item.status,
+          text: item.fallbackText ?? item.text,
+        }
+      )
     }
   }
 }
@@ -831,10 +1311,12 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       return {
         ...entry,
         text: item.text ?? entry.text,
+        displayText: item.displayText ?? entry.displayText,
         isStreaming: item.status === IN_PROGRESS,
         citations: item.citations ?? entry.citations,
         usage: item.usage ?? entry.usage,
         costUsd: item.costUsd ?? entry.costUsd,
+        atMs: recordedAtMs(item.recordedAt) ?? entry.atMs,
       }
     }
     case 'reasoning': {
@@ -849,8 +1331,12 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
     case 'tool': {
       return {
         ...entry,
+        exitCode: item.exitCode ?? entry.exitCode,
+        durationMs: item.durationMs ?? entry.durationMs,
+        changedFiles: item.changedFiles ?? entry.changedFiles,
         tool: item.tool ?? entry.tool,
         args: item.args ?? entry.args,
+        argumentPreview: item.argumentPreview,
         status: item.status,
         output: item.visibleOutput ?? entry.output,
         failureReason: item.failureReason ?? entry.failureReason,
@@ -860,7 +1346,10 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         isBackground: isBackgrounded(item) ?? entry.isBackground,
         backgroundInitiator: item.backgroundInitiator ?? entry.backgroundInitiator,
         paid: item.paid ?? entry.paid,
+        teamWorker: item.teamWorker ?? entry.teamWorker,
         images: reportedImages(item) ?? entry.images,
+        verifySummary: item.verifySummary ?? entry.verifySummary,
+        thenRun: item.thenRun ?? entry.thenRun,
         // The host has moved on: a button waiting for it is free again (M46).
         taskRequest: undefined,
       }
@@ -884,6 +1373,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       const fresh = subagentEntry(item, entry.seq)
       return {
         ...entry,
+        agentEvidence: fresh.agentEvidence ?? entry.agentEvidence,
         paid: fresh.paid ?? entry.paid,
         role: fresh.role ?? entry.role,
         objective: fresh.objective ?? entry.objective,
@@ -915,6 +1405,14 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
     case 'item': {
       return { ...entry, status: item.status, text: item.fallbackText ?? item.text ?? entry.text }
     }
+    case 'teamPlan':
+    case 'teamSwitch':
+    case 'teamWaiting':
+    case 'teamMerge':
+    case 'teamReport': {
+      // The team's cards (M96 lane U2): the host's latest status wins.
+      return mergeTeamEntry(entry, item) ?? entry
+    }
     default: {
       return entry
     }
@@ -940,14 +1438,25 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
     }
     case 'tool': {
       const isCutOff = entry.status === IN_PROGRESS && !entry.isBackground
-      if (!isCutOff && entry.approval === undefined && entry.question === undefined) {
+      if (
+        !isCutOff &&
+        entry.approval === undefined &&
+        entry.question === undefined &&
+        entry.elicitation === undefined &&
+        entry.argumentPreview === undefined
+      ) {
         return entry
       }
       return {
         ...entry,
         status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
+        argumentPreview: undefined,
         approval: undefined,
-        question: undefined,
+        question:
+          entry.question?.state !== undefined && entry.question.state !== 'waiting'
+            ? entry.question
+            : undefined,
+        elicitation: undefined,
         // A Move to background the turn's end overtook asks nothing any more (M46).
         taskRequest: isCutOff ? undefined : entry.taskRequest,
       }
@@ -971,30 +1480,55 @@ function withTaskRequest(
   )
 }
 
-/** Question cards locked on a submission the host refused, open again (M25). */
+/** Answer cards locked on a submission the host refused, open again (M25). */
 function unlockQuestions(entries: readonly TranscriptEntry[]): readonly TranscriptEntry[] {
-  return entries.some((entry) => entry.kind === 'tool' && entry.question?.isSubmitted === true)
+  const isLocked = (entry: TranscriptEntry): boolean =>
+    entry.kind === 'tool' &&
+    (entry.question?.isSubmitted === true || entry.elicitation?.isSubmitted === true)
+  return entries.some((entry) => isLocked(entry))
     ? entries.map((entry) =>
-        entry.kind === 'tool' && entry.question?.isSubmitted === true
-          ? { ...entry, question: { ...entry.question, isSubmitted: false } }
+        entry.kind === 'tool'
+          ? {
+              ...entry,
+              ...(entry.question?.isSubmitted === true && {
+                question: { ...entry.question, isSubmitted: false },
+              }),
+              ...(entry.elicitation?.isSubmitted === true && {
+                elicitation: { ...entry.elicitation, isSubmitted: false },
+              }),
+            }
           : entry,
       )
     : entries
 }
 
-function settleAll(entries: readonly TranscriptEntry[], at: number): readonly TranscriptEntry[] {
-  const settled = entries.map((entry) => settleEntry(entry, at))
+function settleAll(
+  entries: readonly TranscriptEntry[],
+  at: number,
+  isPreviewOnly = false,
+): readonly TranscriptEntry[] {
+  const settled = entries.map((entry) =>
+    isPreviewOnly && (entry.kind !== 'tool' || entry.argumentPreview === undefined)
+      ? entry
+      : settleEntry(entry, at),
+  )
   return settled.every((entry, index) => entry === entries[index]) ? entries : settled
 }
 
-/** A user card rebuilt from a stored `userMessage` item (M6 replay). */
-function replayedUserEntry(item: ItemSnapshot, seq: number): TranscriptEntry {
+/**
+ * A user card rebuilt from a stored `userMessage` item (M6 replay); sent
+ * in Plan mode when the host says its turn was (M79), which the item does
+ * not record.
+ */
+function replayedUserEntry(item: ItemSnapshot, seq: number, isPlanTurn = false): TranscriptEntry {
+  const atMs = recordedAtMs(item.recordedAt)
   return {
     kind: 'user',
     id: item.itemId,
     seq,
-    text: item.text ?? '',
+    text: redactSecrets(item.text ?? ''),
     status: 'sent',
+    ...(atMs !== undefined && { atMs }),
     attachments: (item.attachments ?? []).map((attachment, index) => ({
       id: `${item.itemId}:${String(index)}`,
       name: attachment.name ?? attachment.mediaType,
@@ -1003,7 +1537,19 @@ function replayedUserEntry(item: ItemSnapshot, seq: number): TranscriptEntry {
       ...(attachment.height !== undefined && { height: attachment.height }),
     })),
     ...(item.turnId !== undefined && { turnId: item.turnId }),
+    ...(isPlanTurn && { isPlanTurn: true }),
   }
+}
+
+/** Resolutions that arrived before their rows, applied to rows a history read made. */
+function withPendingResolutions(state: UiState, at: number): UiState {
+  let next = state
+  for (const resolution of state.pendingApprovalResolutions) {
+    if (findEntry(next.transcript, resolution.itemId) !== undefined) {
+      next = applyAgentEvent(next, resolution, at)
+    }
+  }
+  return next
 }
 
 /**
@@ -1016,19 +1562,27 @@ function replayHistory(
   at: number,
   sequence: number,
   previous: readonly TranscriptEntry[],
+  planTurnIds: ReadonlySet<string>,
 ): { readonly entries: readonly TranscriptEntry[]; readonly sequence: number } {
   const entries: TranscriptEntry[] = []
   const knownWorkflows = new Map<string, WorkflowEntry>()
+  // History omits surface decisions: replay keeps both approval outcomes and
+  // question cards/outcomes already observed in this session.
+  const knownTools = new Map<string, ToolEntry>()
   for (const entry of previous) {
     if (entry.kind === WORKFLOW_KIND) {
       knownWorkflows.set(entry.id, entry)
+    } else if (entry.kind === 'tool') {
+      knownTools.set(entry.id, entry)
     }
   }
   let next = sequence
   for (const item of items) {
     if (item.kind === USER_MESSAGE_KIND) {
       next += 1
-      entries.push(replayedUserEntry(item, next))
+      entries.push(
+        replayedUserEntry(item, next, item.turnId !== undefined && planTurnIds.has(item.turnId)),
+      )
     } else if (!HIDDEN_ITEM_KINDS.has(item.kind)) {
       next += 1
       const before = item.kind === WORKFLOW_KIND ? knownWorkflows.get(item.itemId) : undefined
@@ -1037,7 +1591,17 @@ function replayHistory(
         (before.workflowRunId === undefined ||
           item.workflowRunId === undefined ||
           before.workflowRunId === item.workflowRunId)
-      const entry = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
+      const built = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
+      const known = knownTools.get(item.itemId)
+      const entry =
+        known !== undefined && built.kind === 'tool'
+          ? {
+              ...built,
+              approvalOutcome: known.approvalOutcome,
+              question: known.question,
+              questionOutcome: known.questionOutcome,
+            }
+          : built
       entries.push(stampCompletion(entry, next))
     }
   }
@@ -1098,7 +1662,9 @@ function replayChild(
  * of the same row keeps it.
  */
 function stampCompletion(entry: TranscriptEntry, seq: number): TranscriptEntry {
-  return entry.kind === 'tool' && entry.status === COMPLETED && entry.completedSeq === undefined
+  return entry.kind === 'tool' &&
+    (entry.status === COMPLETED || hasLandedEdits(entry)) &&
+    entry.completedSeq === undefined
     ? { ...entry, completedSeq: seq }
     : entry
 }
@@ -1120,6 +1686,15 @@ function childOwnerOf(state: UiState, turnId: string | undefined): SubagentEntry
       )
 }
 
+/**
+ * A reply that arrives live shows the moment it began arriving until the
+ * backend's recorded time comes with its completion (M87). A row read back
+ * from history takes only the recorded time: no other time stands in.
+ */
+function withArrivalTime(entry: TranscriptEntry, at: number): TranscriptEntry {
+  return entry.kind === 'assistant' && entry.atMs === undefined ? { ...entry, atMs: at } : entry
+}
+
 function upsertEntry(
   entries: readonly TranscriptEntry[],
   item: ItemSnapshot,
@@ -1129,7 +1704,58 @@ function upsertEntry(
   const isKnown = entries.some((entry) => entry.id === item.itemId)
   return isKnown
     ? updateEntry(entries, item.itemId, (entry) => stampCompletion(mergeItem(entry, item, at), seq))
-    : [...entries, stampCompletion(mergeItem(entryFor(item, at, seq), item, at), seq)]
+    : [
+        ...entries,
+        stampCompletion(withArrivalTime(mergeItem(entryFor(item, at, seq), item, at), at), seq),
+      ]
+}
+
+/**
+ * Muse Code's own record of a message sent from this panel (M87): the live
+ * path shows the card, not the item, so the card takes the item's recorded
+ * time. The card is the one the item names exactly (its replay id, or the
+ * item it took a time from before); failing that, the first card of the
+ * item's turn with its text that no item has named yet, which then keeps
+ * the item's id. One item stamps one card: two equal messages in a turn
+ * keep their own times (the review of lane C). A time that does not parse
+ * changes nothing.
+ */
+function withRecordedUserTime(state: UiState, item: ItemSnapshot): UiState {
+  const atMs = recordedAtMs(item.recordedAt)
+  if (atMs === undefined) {
+    return state
+  }
+  const exact = state.transcript.find(
+    (entry) =>
+      entry.kind === 'user' &&
+      (entry.replayItemId === item.itemId || entry.recordedItemId === item.itemId),
+  )
+  const card =
+    exact ??
+    state.transcript.find(
+      (entry) =>
+        entry.kind === 'user' &&
+        entry.replayItemId === undefined &&
+        entry.recordedItemId === undefined &&
+        item.turnId !== undefined &&
+        entry.turnId === item.turnId &&
+        entry.text === item.text,
+    )
+  if (card?.kind !== 'user') {
+    return state
+  }
+  const recordedItemId = card.replayItemId === undefined ? item.itemId : card.recordedItemId
+  if (card.atMs === atMs && card.recordedItemId === recordedItemId) {
+    return state
+  }
+  return {
+    ...state,
+    transcript: updateEntry(state.transcript, card.id, (entry) =>
+      entry.kind === 'user'
+        ? { ...entry, atMs, ...(recordedItemId !== undefined && { recordedItemId }) }
+        : entry,
+    ),
+  }
 }
 
 function ownersOf(childId: string, entries: readonly TranscriptEntry[]): Record<string, string> {
@@ -1209,6 +1835,9 @@ function claimStrays(state: UiState, childId: string): UiState {
 }
 
 function applyItem(state: UiState, item: ItemSnapshot, at: number): UiState {
+  if (item.kind === USER_MESSAGE_KIND) {
+    return withRecordedUserTime(state, item)
+  }
   if (HIDDEN_ITEM_KINDS.has(item.kind)) {
     return state
   }
@@ -1278,11 +1907,30 @@ function withToolEntry(
   return { ...state, transcript }
 }
 
+type UserEntry = Extract<TranscriptEntry, { kind: 'user' }>
+
+/**
+ * Queued cards the model now has (M87, PLAN.md D66): their turn started, the
+ * message reached a request, or the turn it joined ended. They read as sent,
+ * and Edit is no longer offered.
+ */
+function admitQueued(
+  transcript: readonly TranscriptEntry[],
+  isAdmitted: (entry: UserEntry) => boolean,
+): readonly TranscriptEntry[] {
+  const isQueued = (entry: TranscriptEntry): entry is UserEntry =>
+    entry.kind === 'user' && entry.status === 'queued' && isAdmitted(entry)
+  return transcript.some((entry) => isQueued(entry))
+    ? transcript.map((entry) => (isQueued(entry) ? { ...entry, status: 'sent' } : entry))
+    : transcript
+}
+
 /** A turn of the conversation ended (M25 settles the rows it left behind). */
 function completeTurn(
   state: UiState,
   event: Extract<AgentEvent, { type: 'turnCompleted' }>,
   at: number,
+  reportRef: ReportEventRef | undefined,
 ): UiState {
   const child = childOwnerOf(state, event.turnId)
   if (child?.childSessionId !== undefined) {
@@ -1296,6 +1944,8 @@ function completeTurn(
             kind: 'error',
             id: `error:${event.turnId}`,
             text: event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
+            ...(reportRef !== undefined && { reportRef }),
+            ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
           },
         ]
       : []
@@ -1304,14 +1954,26 @@ function completeTurn(
       ...state,
       activeTurnId: undefined,
       lastCompletedTurnId: event.turnId,
+      dismissedPlanTurnId: event.terminal === 'completed' ? undefined : state.dismissedPlanTurnId,
       strayItems: without(state.strayItems, event.turnId),
-      transcript: [...settleAll(state.transcript, at), ...failure],
+      transcript: [
+        ...settleAll(
+          admitQueued(state.transcript, (entry) => entry.turnId === event.turnId),
+          at,
+        ),
+        ...failure,
+      ],
     },
     turnAnnouncement(event.terminal, event.reason),
   )
 }
 
-function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState {
+function applyAgentEvent(
+  state: UiState,
+  event: AgentEvent,
+  at: number,
+  reportRef?: ReportEventRef,
+): UiState {
   switch (event.type) {
     case 'turnStarted': {
       return childOwnerOf(state, event.turnId) === undefined
@@ -1319,13 +1981,19 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
             ...state,
             activeTurnId: event.turnId,
             strayItems: without(state.strayItems, event.turnId),
+            transcript: admitQueued(state.transcript, (entry) => entry.turnId === event.turnId),
           }
         : state
     }
     case 'itemStarted':
+    case 'toolArgumentPreview':
     case 'itemUpdated':
     case 'itemCompleted': {
-      return applyItem(state, event.item, at)
+      const next = applyItem(state, event.item, at)
+      const resolution = state.pendingApprovalResolutions.find(
+        (pending) => pending.itemId === event.item.itemId,
+      )
+      return resolution === undefined ? next : applyAgentEvent(next, resolution, at)
     }
     case 'textDelta': {
       const childId = own(state.childOwners, event.itemId)
@@ -1338,7 +2006,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       return transcript === state.transcript ? state : { ...state, transcript }
     }
     case 'turnCompleted': {
-      return completeTurn(state, event, at)
+      return completeTurn(state, event, at, reportRef)
     }
     case 'userMessageTurnChanged': {
       const card = state.transcript.findLast(
@@ -1350,11 +2018,18 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         if (card.turnId !== undefined && activeTurnId === card.turnId) {
           activeTurnId = event.turnId === state.lastCompletedTurnId ? undefined : event.turnId
         }
+        // A steer the turn ended without waits as a queued turn of its own (M87).
         return {
           ...state,
           activeTurnId,
           transcript: updateEntry(state.transcript, card.id, (entry) =>
-            entry.kind === 'user' ? { ...entry, turnId: event.turnId } : entry,
+            entry.kind === 'user'
+              ? {
+                  ...entry,
+                  turnId: event.turnId,
+                  ...(entry.status === 'queued' && { disposition: QUEUED_DISPOSITION }),
+                }
+              : entry,
           ),
         }
       }
@@ -1393,6 +2068,10 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
           inputTokens: event.inputTokens,
           outputTokens: event.outputTokens,
           ...(event.cachedTokens !== undefined && { cachedTokens: event.cachedTokens }),
+          ...(event.packedTokensAvoided !== undefined && {
+            packedTokensAvoided: event.packedTokensAvoided,
+          }),
+          ...(event.hookTokensAdded !== undefined && { hookTokensAdded: event.hookTokensAdded }),
         },
       }
     }
@@ -1431,6 +2110,8 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
         availableChoices: event.availableChoices,
         isProtectedWrite: event.isProtectedWrite,
         isJudgeEscalated: event.isJudgeEscalated,
+        judgeCaution: event.judgeCaution,
+        note: event.note,
       }
       return announce(
         withToolEntry(
@@ -1444,10 +2125,42 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
               tool: event.toolName,
               args: event.rawArgs,
             }),
-          (entry) => (entry.kind === 'tool' ? { ...entry, approval } : entry),
+          (entry) => {
+            if (entry.kind !== 'tool') {
+              return entry
+            }
+            // The same stage announced again (a resume, a panel reattached)
+            // keeps its decision's lock: one decision per stage (D26).
+            const shown = entry.approval
+            const isSameStage =
+              shown?.approvalId === approval.approvalId &&
+              shown.requirementId.sourceIndex === approval.requirementId.sourceIndex
+            return {
+              ...entry,
+              approval:
+                isSameStage && shown.decidedSourceIndex !== undefined
+                  ? { ...approval, decidedSourceIndex: shown.decidedSourceIndex }
+                  : approval,
+            }
+          },
         ),
         fill(UI_TEXT.announceApprovalFor, { tool: toolLabel(event.toolName) ?? event.toolName }),
       )
+    }
+    case 'approvalCaution': {
+      const transcript = state.transcript.map((entry) => {
+        return entry.kind !== 'tool' ||
+          entry.approval?.approvalId !== event.approvalId ||
+          entry.approval.requirementId.approvalId !== event.requirementId.approvalId ||
+          entry.approval.requirementId.sourceIndex !== event.requirementId.sourceIndex ||
+          entry.approval.decidedSourceIndex !== undefined ||
+          entry.approval.judgeCaution === true
+          ? entry
+          : { ...entry, approval: { ...entry.approval, judgeCaution: true } }
+      })
+      return transcript.some((entry, index) => entry !== state.transcript[index])
+        ? announce({ ...state, transcript }, UI_TEXT.judgeCaution)
+        : state
     }
     case 'approvalUpdated': {
       return {
@@ -1461,6 +2174,8 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
                   requirementId: event.requirementId,
                   subject: event.subject,
                   availableChoices: event.availableChoices,
+                  note: event.note ?? entry.approval.note,
+                  judgeCaution: undefined,
                 },
               }
             : entry,
@@ -1468,14 +2183,28 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       }
     }
     case 'approvalResolved': {
+      const pending = state.pendingApprovalResolutions.filter(
+        (resolution) => resolution.itemId !== event.itemId,
+      )
+      if (findEntry(state.transcript, event.itemId) === undefined) {
+        return {
+          ...state,
+          pendingApprovalResolutions: [...pending, event].slice(-PENDING_APPROVAL_RESOLUTIONS_MAX),
+        }
+      }
       return {
         ...state,
+        pendingApprovalResolutions: pending,
         transcript: updateEntry(state.transcript, event.itemId, (entry) =>
           entry.kind === 'tool'
             ? {
                 ...entry,
                 approval: undefined,
-                approvalOutcome: { decision: event.decision, resolvedBy: event.resolvedBy },
+                approvalOutcome: {
+                  decision: event.decision,
+                  resolvedBy: event.resolvedBy,
+                  ...(event.reason !== undefined && { reason: event.reason }),
+                },
               }
             : entry,
         ),
@@ -1485,6 +2214,7 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       const question: PendingQuestion = {
         userInputId: event.userInputId,
         questions: event.questions,
+        askedAt: at,
       }
       return announce(
         withToolEntry(
@@ -1503,13 +2233,30 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       )
     }
     case 'questionSettled': {
+      const settledState =
+        event.outcome === 'deferred'
+          ? 'open'
+          : QUESTION_STATES.find((value) => value === event.outcome)
       return {
         ...state,
         transcript: state.transcript.map((entry) =>
           entry.kind === 'tool' && entry.question?.userInputId === event.userInputId
             ? {
                 ...entry,
-                question: undefined,
+                question:
+                  settledState === undefined
+                    ? undefined
+                    : {
+                        ...entry.question,
+                        state: settledState,
+                        isSubmitted: false,
+                        isNoLongerOpen:
+                          settledState === 'open' &&
+                          state.openQuestions.every(
+                            (record) =>
+                              record.userInputId !== event.userInputId || record.state !== 'open',
+                          ),
+                      },
                 questionOutcome: {
                   outcome: event.outcome,
                   answers: event.answers,
@@ -1517,6 +2264,46 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
                     clarification: event.clarification,
                   }),
                 },
+              }
+            : entry,
+        ),
+      }
+    }
+    case 'elicitationRequested': {
+      const form: PendingElicitation = {
+        elicitationId: event.elicitationId,
+        server: event.server,
+        message: event.message,
+        fields: [...event.fields],
+      }
+      const rowId = event.itemId ?? `elicitation:${event.elicitationId}`
+      return announce(
+        withToolEntry(
+          state,
+          rowId,
+          () =>
+            toolEntry({
+              itemId: rowId,
+              kind: 'toolCall',
+              status: IN_PROGRESS,
+              tool: event.server,
+            }),
+          (entry) => (entry.kind === 'tool' ? { ...entry, elicitation: form } : entry),
+        ),
+        fill(UI_TEXT.elicitationTitle, { server: event.server }),
+      )
+    }
+    case 'elicitationSettled': {
+      // The settlement carries the action only: values never reach the
+      // transcript, so settling clears the form with nothing kept.
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.elicitation?.elicitationId === event.elicitationId
+            ? {
+                ...entry,
+                elicitation: undefined,
+                elicitationOutcome: { server: entry.elicitation.server, action: event.action },
               }
             : entry,
         ),
@@ -1541,6 +2328,29 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
       // The host confirms the resulting composer state / skill list itself.
       return state
     }
+    case 'messageAdmitted': {
+      // A steered or queued message reached a request (M87): its card is sent.
+      const transcript = admitQueued(
+        state.transcript,
+        (entry) => entry.replayItemId === event.userMessageId,
+      )
+      if (transcript !== state.transcript) {
+        return { ...state, transcript }
+      }
+      // Before its card's acceptance (the ack can trail the request): kept,
+      // so the acceptance marks the card sent (the review of lane C).
+      const pendingCount = state.transcript.filter(
+        (entry) => entry.kind === 'user' && entry.status === 'pending',
+      ).length
+      return pendingCount === 0 || state.admittedMessageIds.includes(event.userMessageId)
+        ? state
+        : {
+            ...state,
+            admittedMessageIds: [...state.admittedMessageIds, event.userMessageId].slice(
+              -pendingCount,
+            ),
+          }
+    }
     case 'turnWithdrawn': {
       // Only the message that will never run is marked (D26); the running
       // turn keeps its rows and its Stop.
@@ -1561,36 +2371,172 @@ function applyAgentEvent(state: UiState, event: AgentEvent, at: number): UiState
   }
 }
 
+/** The key of one change in the review pane (M70): its edit, file and hunk. */
+export function reviewHunkKey(itemId: string, fileIndex: number, hunkIndex: number): string {
+  return [itemId, String(fileIndex), String(hunkIndex)].join('\n')
+}
+
+/** How the review pane and a screen reader name a change (M70): "change 2 of src/a.ts". */
+export function reviewHunkName(path: string, hunkIndex: number): string {
+  return fill(UI_TEXT.reviewHunkName, { index: hunkIndex + 1, path })
+}
+
+/** The host's word on a change's Revert (M70): reverted, or not with the reason. */
+function reviewHunkSettled(
+  state: UiState,
+  message: Extract<HostToWebviewMessage, { type: 'reviewHunkResult' }>,
+): UiState {
+  const key = reviewHunkKey(message.itemId, message.fileIndex, message.hunkIndex)
+  const reason = message.reason ?? UI_TEXT.reviewNotReverted
+  const hunk: ReviewHunkState = message.isReverted
+    ? { kind: 'reverted' }
+    : { kind: 'failed', reason }
+  const file = state.reviewPane?.files?.find(
+    (candidate) => candidate.itemId === message.itemId && candidate.fileIndex === message.fileIndex,
+  )
+  const name = reviewHunkName(file?.path ?? '', message.hunkIndex)
+  return announce(
+    { ...state, reviewHunks: { ...state.reviewHunks, [key]: hunk } },
+    message.isReverted
+      ? fill(UI_TEXT.reviewAnnounceReverted, { name })
+      : fill(UI_TEXT.reviewAnnounceNotReverted, { name, reason }),
+  )
+}
+
+/**
+ * A pending user card at the end of the transcript, its chips kept until
+ * the host accepts or refuses it: the composer's Send, or a message the host
+ * sent itself (M79).
+ */
+function withPendingCard(
+  state: UiState,
+  card: {
+    readonly localId: string
+    readonly text: string
+    readonly attachments: readonly AttachmentSummary[]
+    readonly contextLabel?: string | undefined
+    readonly reference?: ChatReference | undefined
+    readonly isPlanTurn?: boolean
+    readonly at?: number | undefined
+  },
+): UiState {
+  return {
+    ...state,
+    unsentAttachments:
+      card.attachments.length === 0
+        ? state.unsentAttachments
+        : { ...state.unsentAttachments, [card.localId]: card.attachments },
+    sequence: state.sequence + 1,
+    transcript: [
+      ...state.transcript,
+      {
+        kind: 'user',
+        id: card.localId,
+        seq: state.sequence + 1,
+        text: card.text,
+        status: 'pending',
+        attachments: card.attachments,
+        ...(card.contextLabel !== undefined && { contextLabel: card.contextLabel }),
+        ...(card.reference !== undefined && { referenceLabel: referenceLabel(card.reference) }),
+        ...(card.isPlanTurn === true && { isPlanTurn: true }),
+        ...(card.at !== undefined && { atMs: card.at }),
+      },
+    ],
+  }
+}
+
+/**
+ * The reply that "Save Plan" and "Implement in a Fresh Conversation" sit
+ * under (M79): the conversation's latest reply, in Plan mode, once no turn
+ * runs and nothing was sent after it, answering a message this panel sent
+ * in Plan mode. Neither backend marks a plan or its approval on the wire,
+ * so the panel offers its own action here; the host checks it all again.
+ */
+export function planReplyIdOf(state: UiState): string | undefined {
+  if (
+    state.permissionMode !== 'plan' ||
+    state.sessionId === undefined ||
+    state.activeTurnId !== undefined ||
+    state.auth.status !== 'signedIn'
+  ) {
+    return undefined
+  }
+  const lastIndex = state.transcript.findLastIndex(
+    (entry) => entry.kind === 'assistant' || entry.kind === 'user',
+  )
+  const last = state.transcript[lastIndex]
+  const asked = state.transcript
+    .slice(0, Math.max(lastIndex, 0))
+    .findLast((entry) => entry.kind === 'user')
+  return last?.kind === 'assistant' &&
+    !last.isStreaming &&
+    last.text.trim() !== '' &&
+    asked?.kind === 'user' &&
+    asked.isPlanTurn === true
+    ? last.id
+    : undefined
+}
+
 /** The conversation dropped: New Conversation here, from a keybinding, or a stale restore. */
 function clearedConversation(state: UiState): UiState {
   return {
     ...state,
+    judge: undefined,
+    pendingApprovalResolutions: [],
     attachmentEpoch: state.attachmentEpoch + 1,
     attachmentSettlements: [],
     pendingGoalCommand: undefined,
     goalEdit: undefined,
+    pendingHandoffCommand: undefined,
+    pendingReportCommand: undefined,
+    handoff: undefined,
+    // A handoff dialog that goes with the conversation (its Start took)
+    // hands the focus back to the prompt (M74).
+    focusRequests: state.handoff === undefined ? state.focusRequests : state.focusRequests + 1,
     childTranscripts: {},
     childOwners: {},
     strayItems: {},
     pendingReplayTurns: {},
+    admittedMessageIds: [],
     unsentAttachments: {},
+    pendingSendDraft: undefined,
+    pendingSendDrafts: {},
+    secretPrompt: undefined,
+    secretPromptQueue: [],
     attachmentsToRelease: [],
     banner: undefined,
     title: undefined,
     sessionId: undefined,
+    openQuestions: [],
+    submittedQuestions: [],
+    questionNavigation: undefined,
     restoredSessionId: undefined,
     transcript: [],
     attachments: [],
     reference: undefined,
     activeTurnId: undefined,
     lastCompletedTurnId: undefined,
+    dismissedPlanTurnId: undefined,
     usage: undefined,
     context: undefined,
     todos: [],
     goal: undefined,
     schedules: [],
+    estimator: undefined,
+    estimatorRequestId: undefined,
+    estimatorFailure: undefined,
+    estimatorStarted: undefined,
+    // A new conversation starts without a form; the host says what else stays.
+    git: { ...state.git, form: undefined },
     outputPages: {},
     toolImages: {},
+    reviewPane: undefined,
+    reviewHunks: {},
+    legalReport: undefined,
+    legalFixPreview: undefined,
+    legalFixResult: undefined,
+    share: undefined,
+    isImported: false,
   }
 }
 
@@ -1600,8 +2546,12 @@ function clearedAccountView(state: UiState): UiState {
     ...clearedConversation(state),
     auth: initialUiState.auth,
     canEditSessions: initialUiState.canEditSessions,
+    checkpoints: initialUiState.checkpoints,
     sessions: [],
+    openQuestionCounts: {},
     archivedIds: [],
+    board: undefined,
+    bestOfN: undefined,
     model: undefined,
     models: [],
     skills: undefined,
@@ -1613,6 +2563,7 @@ function clearedAccountView(state: UiState): UiState {
     announcement: undefined,
     pendingRestore: undefined,
     pendingClearEchoes: 0,
+    setupComplete: undefined,
   }
 }
 
@@ -1670,7 +2621,7 @@ function reconcile(
   at: number,
 ): UiState {
   const restore = state.pendingRestore
-  const live: UiState = {
+  let live: UiState = {
     ...state,
     attachmentEpoch: Math.max(state.attachmentEpoch, message.attachmentEpoch ?? 0),
     pendingRestore: undefined,
@@ -1689,13 +2640,156 @@ function reconcile(
   if (restore.isTranscriptOmitted) {
     return withNotice(live, 'info', UI_TEXT.snapshotTooLong)
   }
-  return message.activeTurnId === undefined
-    ? { ...live, transcript: settleAll(live.transcript, at) }
-    : live
+  for (const childId of Object.keys(live.childTranscripts)) {
+    live = mapChildEntries(live, childId, (entries) => settleAll(entries, at, true))
+  }
+  const transcript = settleAll(live.transcript, at, message.activeTurnId !== undefined)
+  return transcript === live.transcript ? live : { ...live, transcript }
+}
+
+/** Transcript order for loaded rows, then missing-history cards in arrival order. */
+export function questionsInOrder(state: UiState): readonly PendingQuestion[] {
+  const records = new Map(state.openQuestions.map((question) => [question.userInputId, question]))
+  const cards: PendingQuestion[] = []
+  const seen = new Set<string>()
+  for (const entry of state.transcript) {
+    if (
+      entry.kind !== 'tool' ||
+      entry.question === undefined ||
+      seen.has(entry.question.userInputId)
+    )
+      continue
+    const record = records.get(entry.question.userInputId)
+    if (
+      record === undefined &&
+      (entry.question.state === 'open' || entry.question.isNoLongerOpen === true)
+    )
+      continue
+    cards.push(
+      record === undefined
+        ? entry.question
+        : { ...record, isSubmitted: state.submittedQuestions.includes(record.userInputId) },
+    )
+    seen.add(entry.question.userInputId)
+  }
+  const ordered = state.openQuestions.toSorted((a, b) => a.askedAt - b.askedAt)
+  for (const record of ordered) {
+    if (seen.has(record.userInputId)) continue
+    cards.push({ ...record, isSubmitted: state.submittedQuestions.includes(record.userInputId) })
+    seen.add(record.userInputId)
+  }
+  return cards
+}
+
+function jumpQuestion(state: UiState, direction: 'next' | 'previous'): UiState {
+  const questions = questionsInOrder(state).filter((question) => question.state === 'open')
+  if (questions.length === 0) return state
+  const current = questions.findIndex(
+    (question) => question.userInputId === state.questionNavigation?.userInputId,
+  )
+  const firstIndex = direction === 'next' ? 0 : questions.length - 1
+  const offset = direction === 'next' ? 1 : -1
+  const index =
+    current === -1 ? firstIndex : (current + offset + questions.length) % questions.length
+  const question = questions[index]
+  return question === undefined
+    ? state
+    : {
+        ...state,
+        questionNavigation: {
+          userInputId: question.userInputId,
+          sequence: (state.questionNavigation?.sequence ?? 0) + 1,
+        },
+      }
+}
+
+function withOpenQuestions(
+  state: UiState,
+  questions: readonly OpenQuestion[],
+  at: number,
+): UiState {
+  const before = new Map(state.openQuestions.map((question) => [question.userInputId, question]))
+  const submittedQuestions = state.submittedQuestions.filter((id) => {
+    const previous = before.get(id)
+    const next = questions.find((question) => question.userInputId === id)
+    return next !== undefined && next.state === previous?.state && next.state !== 'answeredLater'
+  })
+  const next: UiState = {
+    ...state,
+    openQuestions: questions,
+    submittedQuestions,
+    openQuestionCounts: {
+      ...state.openQuestionCounts,
+      [state.sessionId ?? '']: questions.filter((question) => question.state === 'open').length,
+    },
+    transcript: state.transcript.map((entry) => {
+      if (entry.kind !== 'tool') return entry
+      const record = questions.find(
+        (question) =>
+          question.itemId === entry.id || question.userInputId === entry.question?.userInputId,
+      )
+      if (record !== undefined)
+        return {
+          ...entry,
+          question: { ...record, isSubmitted: submittedQuestions.includes(record.userInputId) },
+        }
+      return entry.question !== undefined &&
+        ['waiting', 'open'].includes(entry.question.state ?? 'waiting')
+        ? { ...entry, question: { ...entry.question, isNoLongerOpen: true, isSubmitted: false } }
+        : entry
+    }),
+  }
+  const late = questions.find(
+    (question) =>
+      question.state === 'answeredLater' &&
+      before.get(question.userInputId)?.state !== 'answeredLater',
+  )
+  if (late !== undefined) return announce(next, UI_TEXT.announceLateAnswerSent)
+  const reminder = questions.find(
+    (question) => question.reminders > (before.get(question.userInputId)?.reminders ?? 0),
+  )
+  if (reminder !== undefined)
+    return announce(
+      {
+        ...next,
+        questionNavigation: {
+          userInputId: reminder.userInputId,
+          isReminder: true,
+          sequence: (state.questionNavigation?.sequence ?? 0) + 1,
+        },
+      },
+      fill(UI_TEXT.announceQuestionReminder, { header: reminder.questions[0]?.header ?? '' }),
+    )
+  const isDeferred = questions.some(
+    (question) =>
+      question.state === 'open' && before.get(question.userInputId)?.state === 'waiting',
+  )
+  if (isDeferred) return announce(next, UI_TEXT.announceQuestionDeferred)
+  const arrived = questions.find(
+    (question) => question.state === 'waiting' && !before.has(question.userInputId),
+  )
+  return arrived?.deadlineAt === undefined
+    ? next
+    : announce(
+        next,
+        fill(UI_TEXT.questionCountdown, {
+          seconds: formatNumber(
+            Math.max(0, Math.ceil((arrived.deadlineAt - at) / MILLISECONDS_PER_SECOND)),
+          ),
+        }),
+      )
 }
 
 function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: number): UiState {
   switch (message.type) {
+    case 'sharingResult': {
+      return message.error === undefined
+        ? state
+        : announce(withNotice(state, 'error', message.error), message.error)
+    }
+    case 'openSharing': {
+      return state
+    }
     case 'init': {
       return {
         ...state,
@@ -1705,15 +2799,61 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         composerPlaceholder: message.composerPlaceholder,
         settings: message.settings,
         permissionMode: message.settings.initialPermissionMode,
-        // Opening the panel puts the caret in the composer, like Claude Code.
+        // Opening the panel asks for the caret in the composer, like Claude
+        // Code; the request lands only while this surface holds the keyboard
+        // (`landFocusRequest`), so a load that finishes after the person
+        // opened a file is dropped after the window instead of stealing.
         focusRequests: state.focusRequests + 1,
       }
     }
     case 'settingsChanged': {
       return { ...state, settings: message.settings }
     }
+    case 'openQuestions': {
+      return message.snapshot.sessionId === state.sessionId
+        ? withOpenQuestions(state, message.snapshot.questions, at)
+        : state
+    }
+    case 'jumpToOpenQuestion': {
+      return message.sessionId === state.sessionId ? jumpQuestion(state, message.direction) : state
+    }
     case 'focusInput': {
-      return { ...state, focusRequests: state.focusRequests + 1 }
+      // The host owns every focus request: without its token, or delivered
+      // after the window, the ask is dropped, never recorded and never held.
+      return isHostOwnedFocusInput(message, at)
+        ? { ...state, focusRequests: state.focusRequests + 1 }
+        : state
+    }
+    case 'openUsage': {
+      return { ...state, usageRequests: state.usageRequests + 1 }
+    }
+    case 'openEstimator': {
+      return { ...state, estimatorRequests: state.estimatorRequests + 1 }
+    }
+    case 'estimatorSection': {
+      // The estimator's latest section (M117): a new section reveals the
+      // panel, which renders it byte-identical through its validated port.
+      return { ...state, estimator: message.section, estimatorRequestId: message.requestId }
+    }
+    case 'estimatorFailure': {
+      return { ...state, estimatorFailure: message }
+    }
+    case 'estimatorStarted': {
+      return { ...state, estimatorStarted: message }
+    }
+    case 'openHelp': {
+      return { ...state, helpRequests: state.helpRequests + 1 }
+    }
+    case 'referenceValues': {
+      return {
+        ...state,
+        referenceValues: {
+          model: message.model,
+          values: message.values,
+          nls: message.nls,
+          error: message.error,
+        },
+      }
     }
     case 'conversationCleared': {
       if (message.accountBoundary === true) {
@@ -1774,6 +2914,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         // No account identity accompanies authState: discard prior-account
         // usage even if the backend name stays the same.
         usageReport: undefined,
+        // The tree names the account's models: it goes with the usage.
+        teamTree: undefined,
         auth: {
           status: message.status,
           detail: message.detail,
@@ -1785,6 +2927,30 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           hasCli: message.hasCli,
           hasCliSession: message.hasCliSession,
           installState: message.installState,
+          planAccount: message.planAccount,
+        },
+      }
+    }
+    case 'restoreRedone': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'notice' && entry.redoRestoreId === message.restoreId
+            ? { ...entry, isRedoPending: false, isRedoUsed: message.isSpent }
+            : entry,
+        ),
+      }
+    }
+    case 'checkpointState': {
+      return {
+        ...state,
+        checkpoints: {
+          availability: message.availability,
+          canRestore: message.canRestore,
+          legacyTurnIds: message.legacyTurnIds ?? [],
+          restoreBlocker: message.restoreBlocker,
+          sessionId: message.sessionId,
+          turnIds: message.turnIds,
         },
       }
     }
@@ -1794,6 +2960,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         isSideChat: message.sideChat ?? state.isSideChat,
         model: { modelId: message.modelId, contextLimit: message.contextLimit },
         sessionId: message.sessionId,
+        openQuestions: message.sessionId === state.sessionId ? state.openQuestions : [],
+        submittedQuestions: message.sessionId === state.sessionId ? state.submittedQuestions : [],
+        questionNavigation:
+          message.sessionId === state.sessionId ? state.questionNavigation : undefined,
         canEditSessions: message.canEditSessions ?? true,
         // A live session replaces the one a restored panel was waiting for.
         restoredSessionId: message.sessionId === undefined ? state.restoredSessionId : undefined,
@@ -1808,6 +2978,27 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             : entry,
         ),
       }
+    }
+    case 'approvalMovedOn': {
+      // The card already shows the step Muse Code waits on (its update came
+      // first); it says so on itself, and the live region reads it once.
+      const hasCard = state.transcript.some(
+        (entry) => entry.kind === 'tool' && entry.approval?.approvalId === message.approvalId,
+      )
+      if (!hasCard) {
+        return state
+      }
+      return announce(
+        {
+          ...state,
+          transcript: state.transcript.map((entry) =>
+            entry.kind === 'tool' && entry.approval?.approvalId === message.approvalId
+              ? { ...entry, approval: { ...entry.approval, hasMovedOn: true } }
+              : entry,
+          ),
+        },
+        UI_TEXT.promptMovedOn,
+      )
     }
     case 'promptDropped': {
       return {
@@ -1833,7 +3024,18 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       }
     }
     case 'sessionList': {
-      return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
+      return {
+        ...state,
+        sessions: message.sessions,
+        archivedIds: message.archivedIds,
+        openQuestionCounts: { ...state.openQuestionCounts, ...message.openQuestionCounts },
+      }
+    }
+    case 'sessionBoard': {
+      return { ...state, board: message.rows }
+    }
+    case 'bestOfNUpdate': {
+      return { ...state, bestOfN: message.run }
     }
     case 'childTranscript': {
       const owner = childOwnerOf(state, message.sessionId)
@@ -1854,8 +3056,70 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         usageReport: {
           backend: message.backend,
           subscription: message.subscription,
+          ...(message.serviceStatus !== undefined && { serviceStatus: message.serviceStatus }),
           account: message.account,
           insights: message.insights,
+          team: message.team,
+          providers: message.providers === undefined ? undefined : [...message.providers],
+          plans: message.plans,
+        },
+      }
+    }
+    case 'setupComplete': {
+      return announce(
+        {
+          ...state,
+          setupComplete: { provider: message.provider, model: message.model },
+        },
+        fill(UI_TEXT.setupComplete, { provider: message.provider, model: message.model }),
+      )
+    }
+    case 'teamTree': {
+      // The ledger's live view (M96 lane U2): the tree replaces wholesale.
+      const before = new Map(
+        (state.teamTree === undefined ? [] : teamWorkers(state.teamTree)).map((worker) => [
+          worker.taskId,
+          worker.status,
+        ]),
+      )
+      const finished = teamWorkers(message.tree).filter((worker) => {
+        const previous = before.get(worker.taskId)
+        return (
+          previous !== undefined &&
+          isRunningTeamWorker(previous) &&
+          isFinishedTeamWorker(worker.status)
+        )
+      })
+      const finishedById = new Map(finished.map((worker) => [worker.taskId, worker]))
+      const summaries = Array.from(finishedById.values(), (worker) =>
+        fill(UI_TEXT.teamWorkerFinished, {
+          task: worker.brief,
+          status: teamWorkerStatusLabel(worker.status),
+        }),
+      )
+      return announce(
+        { ...state, teamTree: message.tree },
+        summaries.length === 0 ? undefined : summaries.join(' '),
+      )
+    }
+    case 'clearTeamTree': {
+      return {
+        ...state,
+        teamTree: undefined,
+        usageReport:
+          state.usageReport === undefined ? undefined : { ...state.usageReport, team: undefined },
+      }
+    }
+    case 'sharePreview': {
+      return {
+        ...state,
+        share: {
+          title: message.title,
+          exportedAt: message.exportedAt,
+          sourceBackend: message.sourceBackend,
+          modelId: message.modelId,
+          redacted: message.redacted,
+          items: [...message.items],
         },
       }
     }
@@ -1872,8 +3136,17 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         dictationAnnouncement(state.dictation.status, message.status),
       )
     }
+    case 'judgeState': {
+      return { ...state, judge: message.state }
+    }
     case 'paidState': {
       return { ...state, paid: message.state }
+    }
+    case 'resourceStatus': {
+      return { ...state, resourceStatus: message.status }
+    }
+    case 'resourceOpen': {
+      return { ...state, resourceOffer: message }
     }
     case 'historyLoaded': {
       // The same session read again (a delivery gap, D26) keeps its usage.
@@ -1885,6 +3158,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         at,
         state.sequence,
         isSameSession ? state.transcript : [],
+        new Set(message.planTurnIds),
       )
       const goal = loadedGoal(state, message)
       const editor =
@@ -1895,34 +3169,57 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
               goalEditRevision: state.goalEditRevision,
             }
       return announce(
-        {
-          ...state,
-          attachmentEpoch: isSameSession ? state.attachmentEpoch : state.attachmentEpoch + 1,
-          attachmentSettlements: isSameSession ? state.attachmentSettlements : [],
-          isSideChat: message.sideChat ?? state.isSideChat,
-          sessionId: message.sessionId,
-          restoredSessionId: undefined,
-          title: message.name,
-          transcript: replayed.entries,
-          sequence: replayed.sequence,
-          todos: message.todos,
-          goal,
-          ...editor,
-          pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
-          schedules: isSameSession ? state.schedules : [],
-          activeTurnId: message.activeTurnId,
-          lastCompletedTurnId: undefined,
-          pendingReplayTurns: {},
-          usage: isSameSession ? state.usage : undefined,
-          context: isSameSession ? state.context : undefined,
-          outputPages: {},
-          toolImages: {},
-          childTranscripts: {},
-          childOwners: {},
-          strayItems: {},
-        },
+        withPendingResolutions(
+          {
+            ...state,
+            attachmentEpoch: isSameSession ? state.attachmentEpoch : state.attachmentEpoch + 1,
+            attachmentSettlements: isSameSession ? state.attachmentSettlements : [],
+            isSideChat: message.sideChat ?? state.isSideChat,
+            isImported: message.imported === true,
+            sessionId: message.sessionId,
+            openQuestions: isSameSession ? state.openQuestions : [],
+            submittedQuestions: isSameSession ? state.submittedQuestions : [],
+            questionNavigation: isSameSession ? state.questionNavigation : undefined,
+            restoredSessionId: undefined,
+            title: message.name,
+            transcript: replayed.entries,
+            sequence: replayed.sequence,
+            todos: message.todos,
+            goal,
+            ...editor,
+            pendingGoalCommand: isSameSession ? state.pendingGoalCommand : undefined,
+            pendingHandoffCommand: isSameSession ? state.pendingHandoffCommand : undefined,
+            pendingSendDraft: isSameSession ? state.pendingSendDraft : undefined,
+            pendingSendDrafts: isSameSession ? state.pendingSendDrafts : {},
+            secretPrompt: isSameSession ? state.secretPrompt : undefined,
+            secretPromptQueue: isSameSession ? state.secretPromptQueue : [],
+            schedules: isSameSession ? state.schedules : [],
+            activeTurnId: message.activeTurnId,
+            lastCompletedTurnId: undefined,
+            dismissedPlanTurnId: isSameSession ? state.dismissedPlanTurnId : undefined,
+            pendingReplayTurns: {},
+            admittedMessageIds: [],
+            usage: isSameSession ? state.usage : undefined,
+            context: isSameSession ? state.context : undefined,
+            outputPages: {},
+            toolImages: {},
+            // The pane's changes are another conversation's once it is replaced (M70).
+            reviewPane: isSameSession ? state.reviewPane : undefined,
+            reviewHunks: isSameSession ? state.reviewHunks : {},
+            childTranscripts: {},
+            childOwners: {},
+            strayItems: {},
+            // Another session's early resolutions never meet this one's rows.
+            pendingApprovalResolutions: isSameSession ? state.pendingApprovalResolutions : [],
+          },
+          at,
+        ),
         UI_TEXT.announceResumed,
       )
+    }
+    case 'briefSubmitted': {
+      // The host sent it (M79): the composer's draft and chips stay as they are.
+      return withPendingCard(state, message)
     }
     case 'turnAccepted': {
       // A fast turn can finish before its acceptance arrives (M25); the
@@ -1940,18 +3237,37 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         (entry) =>
           entry.kind === 'user' && entry.status === 'pending' && entry.id !== message.localId,
       ).length
+      // Queued or steered (M87): the model does not have it yet, unless its
+      // turn already started or finished before this acceptance arrived.
+      const { disposition } = message
+      const isAdmitted =
+        message.userMessageId !== undefined &&
+        state.admittedMessageIds.includes(message.userMessageId)
+      const isQueued =
+        !isFinished &&
+        !isAdmitted &&
+        (disposition === STEERED_DISPOSITION ||
+          (disposition === QUEUED_DISPOSITION && turnId !== state.activeTurnId))
       return {
         ...state,
         activeTurnId: isFinished ? state.activeTurnId : turnId,
         strayItems: without(state.strayItems, turnId),
         pendingReplayTurns: boundedReplayTurns(pending, pendingCount),
+        admittedMessageIds: isAdmitted
+          ? state.admittedMessageIds.filter((id) => id !== message.userMessageId)
+          : state.admittedMessageIds,
         unsentAttachments: without(state.unsentAttachments, message.localId),
+        pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
+        pendingSendDraft:
+          state.pendingSendDraft?.localId === message.localId ? undefined : state.pendingSendDraft,
         transcript: updateEntry(state.transcript, message.localId, (entry) =>
           entry.kind === 'user'
             ? {
                 ...entry,
-                status: 'sent',
+                status: isQueued ? 'queued' : 'sent',
                 turnId,
+                atMs: entry.atMs ?? at,
+                ...(disposition !== undefined && { disposition }),
                 ...(message.userMessageId !== undefined && { replayItemId: message.userMessageId }),
               }
             : entry,
@@ -1980,6 +3296,52 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             : { ...edit, pending: undefined },
       }
     }
+    case 'handoffReady': {
+      // The distilled brief, before anything starts (M74): the dialog
+      // shows it for review, and Start sends the edited text back.
+      return {
+        ...state,
+        handoff: {
+          requestId: message.requestId,
+          brief: message.brief,
+          goal: message.goal,
+          todos: message.todos,
+          draft: message.brief,
+          isConfirming: false,
+        },
+      }
+    }
+    case 'reportCommandResult': {
+      const command = state.pendingReportCommand
+      if (command?.requestId !== message.requestId) return state
+      return {
+        ...state,
+        pendingReportCommand: undefined,
+        draft: message.accepted && command.draftRevision === state.draftRevision ? '' : state.draft,
+      }
+    }
+    case 'handoffCommandResult': {
+      // The request's admission (M74): a refused `/handoff …` stays in the
+      // composer, its goal not lost; an accepted one clears it, if unedited.
+      const command = state.pendingHandoffCommand
+      if (command?.requestId === message.requestId) {
+        return {
+          ...state,
+          pendingHandoffCommand: undefined,
+          pendingReportCommand: undefined,
+          draft:
+            message.accepted && state.draftRevision === command.draftRevision ? '' : state.draft,
+        }
+      }
+      const pending = state.handoff
+      if (pending?.requestId !== message.requestId) {
+        return state
+      }
+      // Accepted: the new conversation clears the dialog with the
+      // transcript (`conversationCleared`). Refused: the dialog stays, so
+      // the edited brief is not lost, and Start can be pressed again.
+      return message.accepted ? state : { ...state, handoff: { ...pending, isConfirming: false } }
+    }
     case 'sendFailed': {
       // A refused message's images (M25): back in the composer when the host
       // says it still holds them, so a resend carries them; otherwise the
@@ -1991,9 +3353,21 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         unsent.every((chip) => chip.id !== attachment.id),
       )
       const isKept = message.attachmentsKept === true
+      // A composer send refused during handoff distillation keeps its
+      // text too. Never replace a newer draft the user already typed.
+      const pending = state.pendingSendDraft
+      const shouldRestoreDraft =
+        isKept &&
+        message.reason === UI_TEXT.handoffBusy &&
+        pending?.localId === message.localId &&
+        pending.revision === state.draftRevision
       return announce(
         {
           ...state,
+          git: withSendFailed(state.git, message.localId),
+          draft: shouldRestoreDraft ? pending.text : state.draft,
+          pendingSendDraft: pending?.localId === message.localId ? undefined : pending,
+          pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
           attachments: isKept ? [...unsent, ...others] : state.attachments,
           attachmentsToRelease: isKept
             ? state.attachmentsToRelease
@@ -2006,14 +3380,95 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         message.reason,
       )
     }
+    case 'queuedWithdrawn': {
+      // A queued message taken back (M87, PLAN.md D66): its card goes and its
+      // text returns to the composer, alone in an empty box, else first with
+      // a blank line before the draft, so no draft is lost. Its images came
+      // back before this, as `attachmentAdded`.
+      const card = state.transcript.find((entry) => entry.id === message.localId)
+      if (card?.kind !== 'user') {
+        return state
+      }
+      const withdrawn: UiState = {
+        ...state,
+        transcript: state.transcript.filter((entry) => entry !== card),
+        draft: state.draft === '' ? card.text : `${card.text}\n\n${state.draft}`,
+        draftRevision: state.draftRevision + 1,
+        focusRequests: state.focusRequests + 1,
+      }
+      // Images the backend kept no bytes of (Muse Code) do not come back (M87):
+      // the text does, and a notice says the pictures must be attached again.
+      return message.attachmentsKept === true || !hasImageAttachment(card.attachments)
+        ? withdrawn
+        : announce(
+            withNotice(withdrawn, 'warning', UI_TEXT.queuedImagesNotReturned),
+            UI_TEXT.queuedImagesNotReturned,
+          )
+    }
+    case 'withdrawRefused': {
+      // Not taken back (M87): the card stays, and the reason is said.
+      return announce(withNotice(state, 'warning', message.reason), message.reason)
+    }
+    case 'secretPromptDetected': {
+      const pending =
+        own(state.pendingSendDrafts, message.localId) ??
+        (state.pendingSendDraft?.localId === message.localId ? state.pendingSendDraft : undefined)
+      if (pending === undefined) {
+        return state
+      }
+      const unsent = own(state.unsentAttachments, message.localId) ?? []
+      const others = state.attachments.filter((attachment) =>
+        unsent.every((chip) => chip.id !== attachment.id),
+      )
+      const shouldRestore = pending.revision === state.draftRevision
+      const prompt = {
+        localId: message.localId,
+        draft: pending.text,
+        redactedText: message.redactedText,
+        attachments: unsent,
+        reference: pending.reference,
+        contextLabel: own(state.pendingSendDrafts, message.localId)?.contextLabel,
+      }
+      return announce(
+        {
+          ...state,
+          draft: shouldRestore ? pending.text : state.draft,
+          ...(shouldRestore && pending.reference !== undefined && { reference: pending.reference }),
+          pendingSendDraft:
+            state.pendingSendDraft?.localId === message.localId
+              ? undefined
+              : state.pendingSendDraft,
+          pendingSendDrafts: without(state.pendingSendDrafts, message.localId),
+          secretPrompt: state.secretPrompt ?? prompt,
+          secretPromptQueue:
+            state.secretPrompt === undefined
+              ? state.secretPromptQueue
+              : [...state.secretPromptQueue, prompt],
+          attachments: shouldRestore ? [...unsent, ...others] : state.attachments,
+          unsentAttachments: without(state.unsentAttachments, message.localId),
+          transcript: state.transcript.filter(
+            (entry) => !(entry.kind === 'user' && entry.id === message.localId),
+          ),
+        },
+        UI_TEXT.secretPromptTitle,
+      )
+    }
     case 'agentEvent': {
-      return applyAgentEvent(state, message.event, at)
+      return applyAgentEvent(state, message.event, at, message.reportRef)
     }
     case 'modelList': {
       return { ...state, models: message.models }
     }
     case 'skillList': {
       return { ...state, skills: message.skills }
+    }
+    case 'schedulesMessage': {
+      // The panel's versioned channel owns these; the store only keeps the
+      // surface's props below.
+      return state
+    }
+    case 'schedulesSurface': {
+      return { ...state, schedulesSurface: message }
     }
     case 'composerState': {
       return {
@@ -2061,13 +3516,73 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       // The host reports a refused answer or cancel only with an error notice,
       // so an error unlocks the question cards waiting on the host (M25): the
       // user can try again instead of facing a card locked for good.
-      const noticed = withNotice(state, message.level, message.text)
+      const noticed = withNotice(
+        state,
+        message.level,
+        message.text,
+        message.redoRestoreId,
+        message.actions,
+        message.reportRef,
+      )
       return announce(
         message.level === 'error'
-          ? { ...noticed, transcript: unlockQuestions(noticed.transcript) }
+          ? {
+              ...noticed,
+              transcript:
+                message.text === UI_TEXT.questionAnswerUncertain
+                  ? noticed.transcript
+                  : unlockQuestions(noticed.transcript),
+              submittedQuestions:
+                message.text === UI_TEXT.questionAnswerFailed
+                  ? []
+                  : noticed.submittedQuestions.filter((id) =>
+                      noticed.openQuestions.some((question) => question.userInputId === id),
+                    ),
+            }
           : noticed,
         message.level === 'info' ? undefined : message.text,
       )
+    }
+    case 'reportDraft': {
+      // The preview dialog's draft (M93 lane W): shown byte-identical, so a
+      // fresh draft clears the last export's answer. Opening moves focus
+      // into the dialog (the app watches `report`); an update while typing
+      // must not steal it, so nothing is announced here — the dialog's own
+      // status line reads export outcomes out. A draft for a session the user
+      // closed (or an older one), or for an older choice than the one shown,
+      // arrived late: it is dropped, never reopening or rewinding the dialog.
+      const shown = state.report
+      if (
+        message.session <= state.closedReportSession ||
+        (shown !== undefined &&
+          (message.session < shown.session ||
+            (message.session === shown.session && message.revision < shown.revision)))
+      ) {
+        return state
+      }
+      const { type: _draft, ...draft } = message
+      return { ...state, report: { ...draft, exportStatus: undefined } }
+    }
+    case 'reportExported': {
+      // An export attempt's answer in fixed words (M93 lane W): shown on
+      // the dialog's status line. An answer for a closed dialog, another
+      // session or a draft no longer on screen is dropped: it is not about
+      // what the dialog shows.
+      if (state.report?.session !== message.session || state.report.hash !== message.hash) {
+        return state
+      }
+      return {
+        ...state,
+        report: {
+          ...state.report,
+          exportStatus: {
+            via: message.via,
+            ok: message.ok,
+            issueFallback: message.issueFallback,
+            reason: message.reason,
+          },
+        },
+      }
     }
     case 'outputPage': {
       const key = outputPageKey(message.itemId, message.outputRef)
@@ -2095,11 +3610,64 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       // The host said no (M46): the row's button can be pressed again.
       return { ...state, transcript: withTaskRequest(state.transcript, message.itemId, undefined) }
     }
+    case 'reviewChanges': {
+      // Only the pane's latest request: an older answer is another moment's.
+      return state.reviewPane?.requestId === message.requestId
+        ? {
+            ...state,
+            reviewPane: {
+              requestId: message.requestId,
+              files: message.files,
+              omittedEdits: message.omittedEdits,
+              reason: message.reason,
+            },
+          }
+        : state
+    }
+    case 'reviewHunkResult': {
+      return reviewHunkSettled(state, message)
+    }
+    case 'legalScanReport': {
+      // A new scan invalidates the older selection's preview and outcome:
+      // the report the dialog shows is always the one the handoff guards.
+      const report = { requestId: message.requestId, result: message.result }
+      const text =
+        message.result.findings.length === 0
+          ? UI_TEXT.legalScanEmpty
+          : plural(UI_TEXT.legalFindingsCount, message.result.findings.length)
+      return announce(
+        { ...state, legalReport: report, legalFixPreview: undefined, legalFixResult: undefined },
+        `${UI_TEXT.legalScanTitle}: ${text}`,
+      )
+    }
+    case 'legalFixPreview': {
+      return message.requestId !== undefined && message.requestId !== state.legalFixRequestId
+        ? state
+        : { ...state, legalFixPreview: message }
+    }
+    case 'legalFixResult': {
+      return { ...state, legalFixResult: message }
+    }
     case 'userShellRefused': {
       // The command comes back to an empty prompt, to be fixed and run again (M46).
       const restored =
         state.draft === '' ? { ...state, draft: `${USER_SHELL_PREFIX}${message.command}` } : state
       return announce(withNotice(restored, 'warning', message.reason), message.reason)
+    }
+    case 'gitState': {
+      return { ...state, git: withGitState(state.git, message.state) }
+    }
+    case 'gitCommitForm': {
+      return { ...state, git: withCommitForm(state.git, message.form) }
+    }
+    case 'gitPullRequestForm': {
+      return { ...state, git: withPullRequestForm(state.git, message.form) }
+    }
+    case 'gitDraft': {
+      return { ...state, git: withDraft(state.git, message.draft) }
+    }
+    case 'gitDone': {
+      return { ...state, git: withDone(state.git, message.form, message.ok) }
     }
     case 'toolImage': {
       const image: ToolImageState =
@@ -2112,6 +3680,46 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       }
     }
   }
+}
+
+/**
+ * Whether a host `focusInput` carries its owner's token and arrives within
+ * the delivery window (panel-focus F3): the host's gate mints `token` and
+ * `issuedAt` and drops the ask when its panel is not active, so a tokenless
+ * or stale ask is recorded nowhere and held nowhere.
+ */
+export function isHostOwnedFocusInput(
+  message: Extract<HostToWebviewMessage, { type: 'focusInput' }>,
+  at: number,
+): boolean {
+  return (
+    message.token !== undefined &&
+    message.issuedAt !== undefined &&
+    at - message.issuedAt <= FOCUS_REQUEST_WINDOW_MS
+  )
+}
+
+/**
+ * The panel-focus ownership rule, as the composer's landed count after one
+ * landing check: a recorded request lands (the count advances to `requested`)
+ * only while this surface already holds the keyboard (`document.hasFocus()`
+ * in the composer) and only within the delivery window after it was asked
+ * (`requestedAt`). Afterwards the request is gone — an unowned check spends
+ * nothing and accrues nothing, so a `reveal()` whose focus arrives within
+ * the window still lands, while a load that finishes behind a just-opened
+ * file, or an ask from an hour ago, can never take the keyboard. There is
+ * one landing site (the composer's focus effect), never a check per sender.
+ */
+export function landFocusRequest(
+  requested: number,
+  landed: number,
+  hasSurfaceFocus: boolean,
+  now: number,
+  requestedAt: number,
+): number {
+  return hasSurfaceFocus && requested > landed && now - requestedAt <= FOCUS_REQUEST_WINDOW_MS
+    ? requested
+    : landed
 }
 
 export function uiReducer(state: UiState, action: UiAction): UiState {
@@ -2168,44 +3776,129 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         },
       }
     }
+    case 'reportSubmitted': {
+      return {
+        ...state,
+        pendingReportCommand: { requestId: action.requestId, draftRevision: state.draftRevision },
+      }
+    }
+    case 'handoffSubmitted': {
+      return {
+        ...state,
+        pendingHandoffCommand: { requestId: action.requestId, draftRevision: state.draftRevision },
+      }
+    }
+    case 'handoffChanged': {
+      const pending = state.handoff
+      return pending === undefined
+        ? state
+        : { ...state, handoff: { ...pending, draft: action.draft } }
+    }
+    case 'handoffConfirming': {
+      const pending = state.handoff
+      return pending === undefined || pending.isConfirming
+        ? state
+        : { ...state, handoff: { ...pending, isConfirming: true } }
+    }
+    case 'schedulesSurfaceClosed': {
+      return state.schedulesSurface === undefined
+        ? state
+        : { ...state, schedulesSurface: undefined }
+    }
+    case 'handoffDismissed': {
+      // Closed, the dialog hands the focus back to the prompt, as Usage
+      // and the Agent map do.
+      return state.handoff === undefined
+        ? state
+        : { ...state, handoff: undefined, focusRequests: state.focusRequests + 1 }
+    }
     case 'insertRequested': {
       return withInsert(state, action.text)
     }
     case 'insertApplied': {
       return { ...state, pendingInsert: undefined }
     }
+    case 'noticeActionRequested': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'notice' && entry.id === action.entryId
+            ? { ...entry, actions: [] }
+            : entry,
+        ),
+      }
+    }
+    case 'redoRequested': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'notice' && entry.id === action.entryId
+            ? { ...entry, isRedoPending: true }
+            : entry,
+        ),
+      }
+    }
     case 'focusRequested': {
       return { ...state, focusRequests: state.focusRequests + 1 }
     }
     case 'submitted': {
-      return {
-        ...state,
-        draft: '',
-        draftRevision: state.draftRevision + 1,
-        pendingGoalCommand: undefined,
-        attachments: [],
-        unsentAttachments:
-          action.attachments.length === 0
-            ? state.unsentAttachments
-            : { ...state.unsentAttachments, [action.localId]: action.attachments },
-        reference: undefined,
-        sequence: state.sequence + 1,
-        transcript: [
-          ...state.transcript,
-          {
-            kind: 'user',
-            id: action.localId,
-            seq: state.sequence + 1,
-            text: action.text,
-            status: 'pending',
-            attachments: action.attachments,
-            ...(action.contextLabel !== undefined && { contextLabel: action.contextLabel }),
-            ...(action.reference !== undefined && {
-              referenceLabel: referenceLabel(action.reference),
-            }),
-          },
-        ],
+      const arm =
+        action.isSecretResend === true && state.secretPrompt?.draft.trim() === action.text.trim()
+          ? state.secretPrompt
+          : undefined
+      const shouldClear = arm === undefined || state.draft === arm.draft
+      const revision = state.draftRevision + (shouldClear ? 1 : 0)
+      const pending = {
+        localId: action.localId,
+        text: arm?.draft ?? (state.draft.trim() === action.text.trim() ? state.draft : action.text),
+        revision,
+        ...(action.reference !== undefined && { reference: action.reference }),
+        ...(action.contextLabel !== undefined && { contextLabel: action.contextLabel }),
       }
+      return withPendingCard(
+        {
+          ...state,
+          draft: shouldClear ? '' : state.draft,
+          draftRevision: revision,
+          pendingSendDraft: pending,
+          pendingSendDrafts: { ...state.pendingSendDrafts, [action.localId]: pending },
+          secretPrompt: arm === undefined ? state.secretPrompt : state.secretPromptQueue[0],
+          secretPromptQueue:
+            arm === undefined ? state.secretPromptQueue : state.secretPromptQueue.slice(1),
+          pendingGoalCommand: undefined,
+          pendingHandoffCommand: undefined,
+          pendingReportCommand: undefined,
+          attachments:
+            arm === undefined
+              ? []
+              : state.attachments.filter((chip) =>
+                  arm.attachments.every((held) => held.id !== chip.id),
+                ),
+          reference: shouldClear ? undefined : state.reference,
+        },
+        {
+          ...action,
+          text: redactSecrets(action.text),
+          isPlanTurn: state.permissionMode === 'plan',
+        },
+      )
+    }
+    case 'secretPromptDismissed': {
+      const prompt = state.secretPrompt
+      return prompt === undefined
+        ? state
+        : {
+            ...state,
+            secretPrompt: state.secretPromptQueue[0],
+            secretPromptQueue: state.secretPromptQueue.slice(1),
+            attachments: [
+              ...prompt.attachments,
+              ...state.attachments.filter((chip) =>
+                prompt.attachments.every((held) => held.id !== chip.id),
+              ),
+            ],
+            focusRequests: state.focusRequests + 1,
+          }
     }
     case 'editorContextDismissed': {
       return { ...state, dismissedEditorPath: state.editorContext?.relativePath }
@@ -2229,18 +3922,38 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
                 approval: {
                   ...entry.approval,
                   decidedSourceIndex: action.requirementId.sourceIndex,
+                  hasMovedOn: undefined,
                 },
               }
             : entry,
         ),
       }
     }
+    case 'questionJump': {
+      return jumpQuestion(state, action.direction)
+    }
     case 'questionSubmitted': {
+      if (
+        state.submittedQuestions.includes(action.userInputId) ||
+        questionsInOrder(state).every((question) => question.userInputId !== action.userInputId)
+      )
+        return state
       return {
         ...state,
+        submittedQuestions: [...state.submittedQuestions, action.userInputId],
         transcript: state.transcript.map((entry) =>
           entry.kind === 'tool' && entry.question?.userInputId === action.userInputId
             ? { ...entry, question: { ...entry.question, isSubmitted: true } }
+            : entry,
+        ),
+      }
+    }
+    case 'elicitationSubmitted': {
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'tool' && entry.elicitation?.elicitationId === action.elicitationId
+            ? { ...entry, elicitation: { ...entry.elicitation, isSubmitted: true } }
             : entry,
         ),
       }
@@ -2269,13 +3982,109 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         attachmentsToRelease: state.attachmentsToRelease.filter((id) => !action.ids.includes(id)),
       }
     }
+    case 'planLimitDismissed': {
+      return action.turnId === state.lastCompletedTurnId
+        ? { ...state, dismissedPlanTurnId: action.turnId }
+        : state
+    }
     case 'bannerDismissed': {
       return { ...state, banner: undefined }
+    }
+    case 'gitFormEdited': {
+      return { ...state, git: withFormEdit(state.git, action.edit) }
+    }
+    case 'gitFormClosed': {
+      return { ...state, git: { ...state.git, form: undefined } }
+    }
+    case 'gitFormBusy': {
+      return { ...state, git: withFormBusy(state.git) }
+    }
+    case 'gitDraftRequested': {
+      return {
+        ...state,
+        git: withGeneration(state.git, action.localId),
+        sequence: state.sequence + 1,
+        transcript: [
+          ...state.transcript,
+          {
+            kind: 'user',
+            id: action.localId,
+            seq: state.sequence + 1,
+            text: action.text,
+            status: 'pending',
+            attachments: [],
+          },
+        ],
+      }
+    }
+    case 'shareClosed': {
+      return { ...state, share: undefined }
+    }
+    case 'setupCompleteDismissed': {
+      return { ...state, setupComplete: undefined }
+    }
+    case 'reportClosed': {
+      return {
+        ...state,
+        report: undefined,
+        closedReportSession: Math.max(state.closedReportSession, state.report?.session ?? 0),
+      }
+    }
+    case 'legalFixRequested': {
+      return {
+        ...state,
+        legalFixRequestId: action.requestId,
+        legalFixPreview: undefined,
+        legalFixResult: undefined,
+      }
+    }
+    case 'legalReportClosed': {
+      return {
+        ...state,
+        legalReport: undefined,
+        focusRequests: state.focusRequests + 1,
+        legalFixRequestId: undefined,
+        legalFixPreview: undefined,
+        legalFixResult: undefined,
+      }
     }
     case 'conversationCleared': {
       return {
         ...clearedConversation(state),
         pendingClearEchoes: state.pendingClearEchoes + 1,
+      }
+    }
+    case 'cardSubmitted': {
+      return announce(withPendingCard(state, { ...action, attachments: [] }), action.announcement)
+    }
+    case 'reviewPaneRequested': {
+      return {
+        ...state,
+        reviewPane: {
+          requestId: action.requestId,
+          files: undefined,
+          omittedEdits: 0,
+          reason: undefined,
+        },
+      }
+    }
+    case 'reviewHunkAccepted': {
+      const current = own(state.reviewHunks, action.key)
+      // A change being reverted, or gone, is past accepting.
+      if (current !== undefined && current.kind !== 'accepted' && current.kind !== 'failed') {
+        return state
+      }
+      return {
+        ...state,
+        reviewHunks: action.isAccepted
+          ? { ...state.reviewHunks, [action.key]: { kind: 'accepted' } }
+          : without(state.reviewHunks, action.key),
+      }
+    }
+    case 'reviewHunkReverting': {
+      return {
+        ...state,
+        reviewHunks: { ...state.reviewHunks, [action.key]: { kind: 'reverting' } },
       }
     }
   }
@@ -2294,6 +4103,9 @@ export function userShellCommandOf(draft: string): string | undefined {
 
 /** Whether the composer may submit right now (a running turn is steered; `!` needs a command). */
 export function canSend(state: UiState): boolean {
+  if (isLegalPrompt(state.draft)) return true
+  if (reportCommandArguments(state.draft) !== undefined)
+    return state.pendingReportCommand === undefined
   if (state.auth.status !== 'signedIn') {
     return false
   }
@@ -2355,9 +4167,26 @@ export function forkCutBefore(
  */
 export function editsAfter(state: UiState, entryId: string): readonly EditRef[] {
   const message = state.transcript.find((entry) => entry.id === entryId)
-  if (message?.kind !== 'user') {
-    return []
-  }
+  return message?.kind === 'user'
+    ? landedEdits(state)
+        .filter((entry) => entry.completedSeq > message.seq)
+        .toReversed()
+        .map((entry) => ({ itemId: entry.id, outputRef: entry.patchRef.id }))
+    : []
+}
+
+/**
+ * Every edit of the conversation and its agents with a patch document, in
+ * the order it landed on disk (M20): what the review pane lists (M70).
+ */
+export function conversationEdits(state: UiState): readonly EditRef[] {
+  return landedEdits(state).map((entry) => ({ itemId: entry.id, outputRef: entry.patchRef.id }))
+}
+
+/** The completed edit rows with a patch, oldest first by the arrival number they completed at. */
+function landedEdits(
+  state: UiState,
+): readonly (ToolEntry & { readonly completedSeq: number; readonly patchRef: OutputRef })[] {
   const pools = [
     state.transcript,
     ...Object.values(state.childTranscripts).map((child) => child.entries),
@@ -2372,13 +4201,11 @@ export function editsAfter(state: UiState, entryId: string): readonly EditRef[] 
         readonly patchRef: OutputRef
       } =>
         entry.kind === 'tool' &&
-        entry.status === COMPLETED &&
+        hasLandedEdits(entry) &&
         entry.patchRef !== undefined &&
-        entry.completedSeq !== undefined &&
-        entry.completedSeq > message.seq,
+        entry.completedSeq !== undefined,
     )
-    .toSorted((a, b) => b.completedSeq - a.completedSeq)
-    .map((entry) => ({ itemId: entry.id, outputRef: entry.patchRef.id }))
+    .toSorted((a, b) => a.completedSeq - b.completedSeq)
 }
 
 export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
@@ -2408,10 +4235,40 @@ export function isRunningTask(entry: ToolEntry): boolean {
   return entry.isBackground && entry.status === IN_PROGRESS
 }
 
+/** An approval the dock shows (D26): the card's state, and the tool it gates. */
+export interface WaitingApproval {
+  readonly entryId: string
+  readonly toolName: string
+  readonly approval: PendingApproval
+  /** A worker's own approval: the card's role-agent-task label (M96 lane U2). */
+  readonly teamWorker?: TeamWorkerLabel | undefined
+}
+
+/** The approvals waiting, oldest first: the order their rows stand in. */
+export function waitingApprovals(
+  transcript: readonly TranscriptEntry[],
+): readonly WaitingApproval[] {
+  const waiting: WaitingApproval[] = []
+  for (const entry of transcript) {
+    if (entry.kind === 'tool' && entry.approval !== undefined) {
+      waiting.push({
+        entryId: entry.id,
+        toolName: entry.tool,
+        approval: entry.approval,
+        teamWorker: entry.teamWorker,
+      })
+    }
+  }
+  return waiting
+}
+
 /** Whether any tool row is waiting on the user (approval or question). */
 export function hasPendingRequest(state: UiState): boolean {
   return state.transcript.some(
     (entry) =>
-      entry.kind === 'tool' && (entry.approval !== undefined || entry.question !== undefined),
+      entry.kind === 'tool' &&
+      (entry.approval !== undefined ||
+        (entry.question !== undefined && (entry.question.state ?? 'waiting') === 'waiting') ||
+        entry.elicitation !== undefined),
   )
 }

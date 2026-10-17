@@ -1,0 +1,272 @@
+[
+  {
+    "check": "typecheck",
+    "command": ["npm", "run", "typecheck"],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "npm notice run muse-spark-code@0.14.0 typecheck\nnpm notice run run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration\nnpm notice run muse-spark-code@0.14.0 typecheck:host\nnpm notice run tsc -p tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.0 typecheck:webview\nnpm notice run tsc -p src/webview/tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.0 typecheck:unit\nnpm notice run tsc -p test/unit/tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.0 typecheck:e2e\nnpm notice run tsc -p test/e2e/tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.0 typecheck:integration\nnpm notice run tsc -p test/integration/tsconfig.json --noEmit"
+  },
+  {
+    "check": "eslint",
+    "command": [
+      "npx",
+      "--no-install",
+      "eslint",
+      "--max-warnings=0",
+      "scripts/lib/reference.mjs",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/reference/reference.generated.ts",
+      "src/shared/reference/referenceEntry.ts",
+      "src/shared/reference/text.ts",
+      "src/shared/reference/types.ts",
+      "src/webview/components/ReferencePage.tsx",
+      "test/unit/ReferencePage.test.tsx",
+      "test/unit/referenceEntry.test.ts",
+      "test/unit/referenceGenerator.test.mjs"
+    ],
+    "machine": "Kubuntu",
+    "exitCode": 1,
+    "summary": "\n/home/randy/lanes/FIXHELPREF/test/unit/referenceEntry.test.ts\n  260:16  error  Unsafe return of a value of type `any`  @typescript-eslint/no-unsafe-return\n\n/home/randy/lanes/FIXHELPREF/test/unit/referenceGenerator.test.mjs\n  152:47  error  Do not use useless `undefined`  unicorn/no-useless-undefined\n  156:71  error  Do not use useless `undefined`  unicorn/no-useless-undefined\n  168:15  error  Do not use useless `undefined`  unicorn/no-useless-undefined\n\n✖ 6 problems (6 errors, 0 warnings)\n  4 errors and 0 warnings potentially fixable with the `--fix` option.\n\nnpm notice run muse-spark-code@0.14.0 npx\nnpm notice run 'eslint' --max-warnings=0 scripts/lib/reference.mjs src/shared/featureCatalog.ts src/shared/l10n/en.ts src/shared/reference/reference.generated.ts src/shared/reference/referenceEntry.ts src/shared/reference/text.ts src/shared/reference/types.ts src/webview/components/ReferencePage.tsx test/unit/ReferencePage.test.tsx test/unit/referenceEntry.test.ts test/unit/referenceGenerator.test.mjs"
+  },
+  {
+    "check": "typecheck-unit-after-lint",
+    "command": ["npm", "run", "typecheck:unit"],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "npm notice run muse-spark-code@0.14.0 typecheck:unit\nnpm notice run tsc -p test/unit/tsconfig.json --noEmit"
+  },
+  {
+    "check": "eslint",
+    "command": [
+      "npx",
+      "--no-install",
+      "eslint",
+      "--max-warnings=0",
+      "scripts/lib/reference.mjs",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/reference/reference.generated.ts",
+      "src/shared/reference/referenceEntry.ts",
+      "src/shared/reference/text.ts",
+      "src/shared/reference/types.ts",
+      "src/webview/components/ReferencePage.tsx",
+      "test/unit/ReferencePage.test.tsx",
+      "test/unit/referenceEntry.test.ts",
+      "test/unit/referenceGenerator.test.mjs"
+    ],
+    "machine": "Kubuntu",
+    "exitCode": 1,
+    "summary": "\n/home/randy/lanes/FIXHELPREF/test/unit/referenceGenerator.test.mjs\n  156:71  error  Unexpected empty arrow function  @typescript-eslint/no-empty-function\n  168:15  error  Unexpected empty arrow function  @typescript-eslint/no-empty-function\n\n✖ 2 problems (2 errors, 0 warnings)\n\nnpm notice run muse-spark-code@0.14.0 npx\nnpm notice run 'eslint' --max-warnings=0 scripts/lib/reference.mjs src/shared/featureCatalog.ts src/shared/l10n/en.ts src/shared/reference/reference.generated.ts src/shared/reference/referenceEntry.ts src/shared/reference/text.ts src/shared/reference/types.ts src/webview/components/ReferencePage.tsx test/unit/ReferencePage.test.tsx test/unit/referenceEntry.test.ts test/unit/referenceGenerator.test.mjs"
+  },
+  {
+    "check": "typecheck-unit-after-lint",
+    "command": ["npm", "run", "typecheck:unit"],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "npm notice run muse-spark-code@0.14.0 typecheck:unit\nnpm notice run tsc -p test/unit/tsconfig.json --noEmit"
+  },
+  {
+    "check": "eslint",
+    "command": [
+      "npx",
+      "--no-install",
+      "eslint",
+      "--max-warnings=0",
+      "scripts/lib/reference.mjs",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/reference/reference.generated.ts",
+      "src/shared/reference/referenceEntry.ts",
+      "src/shared/reference/text.ts",
+      "src/shared/reference/types.ts",
+      "src/webview/components/ReferencePage.tsx",
+      "test/unit/ReferencePage.test.tsx",
+      "test/unit/referenceEntry.test.ts",
+      "test/unit/referenceGenerator.test.mjs"
+    ],
+    "machine": "Kubuntu",
+    "exitCode": 1,
+    "summary": "\n/home/randy/lanes/FIXHELPREF/test/unit/referenceGenerator.test.mjs\n  150:22  error  Move arrow function 'admit' to the outer scope  unicorn/consistent-function-scoping\n\n✖ 1 problem (1 error, 0 warnings)\n\nnpm notice run muse-spark-code@0.14.0 npx\nnpm notice run 'eslint' --max-warnings=0 scripts/lib/reference.mjs src/shared/featureCatalog.ts src/shared/l10n/en.ts src/shared/reference/reference.generated.ts src/shared/reference/referenceEntry.ts src/shared/reference/text.ts src/shared/reference/types.ts src/webview/components/ReferencePage.tsx test/unit/ReferencePage.test.tsx test/unit/referenceEntry.test.ts test/unit/referenceGenerator.test.mjs"
+  },
+  {
+    "check": "eslint",
+    "command": [
+      "npx",
+      "--no-install",
+      "eslint",
+      "--max-warnings=0",
+      "scripts/lib/reference.mjs",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/reference/reference.generated.ts",
+      "src/shared/reference/referenceEntry.ts",
+      "src/shared/reference/text.ts",
+      "src/shared/reference/types.ts",
+      "src/webview/components/ReferencePage.tsx",
+      "test/unit/ReferencePage.test.tsx",
+      "test/unit/referenceEntry.test.ts",
+      "test/unit/referenceGenerator.test.mjs"
+    ],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "npm notice run muse-spark-code@0.14.0 npx\nnpm notice run 'eslint' --max-warnings=0 scripts/lib/reference.mjs src/shared/featureCatalog.ts src/shared/l10n/en.ts src/shared/reference/reference.generated.ts src/shared/reference/referenceEntry.ts src/shared/reference/text.ts src/shared/reference/types.ts src/webview/components/ReferencePage.tsx test/unit/ReferencePage.test.tsx test/unit/referenceEntry.test.ts test/unit/referenceGenerator.test.mjs"
+  },
+  {
+    "check": "prettier",
+    "command": [
+      "npx",
+      "--no-install",
+      "prettier",
+      "--check",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "README.md",
+      "docs/certification/help-reference.md",
+      "docs/reference.md",
+      "l10n/ui.cs.json",
+      "l10n/ui.de.json",
+      "l10n/ui.es.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.it.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.ko.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.zh-tw.json",
+      "scripts/lib/reference.mjs",
+      "src/shared/featureCatalog.ts",
+      "src/shared/l10n/en.ts",
+      "src/shared/reference/reference.generated.json",
+      "src/shared/reference/reference.generated.ts",
+      "src/shared/reference/referenceEntry.ts",
+      "src/shared/reference/text.ts",
+      "src/shared/reference/types.ts",
+      "src/webview/components/ReferencePage.tsx",
+      "test/unit/ReferencePage.test.tsx",
+      "test/unit/referenceEntry.test.ts",
+      "test/unit/referenceGenerator.test.mjs",
+      "docs/certification/help-reference/fixhelpref4-drills.json"
+    ],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "Checking formatting...\nAll matched files use Prettier code style!\nnpm notice run muse-spark-code@0.14.0 npx\nnpm notice run 'prettier' --check CHANGELOG.md PLAN.md README.md docs/certification/help-reference.md docs/reference.md l10n/ui.cs.json l10n/ui.de.json l10n/ui.es.json l10n/ui.fr.json l10n/ui.hu.json l10n/ui.it.json l10n/ui.ja.json l10n/ui.ko.json l10n/ui.pl.json l10n/ui.pt-br.json l10n/ui.ru.json l10n/ui.tr.json l10n/ui.zh-cn.json l10n/ui.zh-tw.json scripts/lib/reference.mjs src/shared/featureCatalog.ts src/shared/l10n/en.ts src/shared/reference/reference.generated.json src/shared/reference/reference.generated.ts src/shared/reference/referenceEntry.ts src/shared/reference/text.ts src/shared/reference/types.ts src/webview/components/ReferencePage.tsx test/unit/ReferencePage.test.tsx test/unit/referenceEntry.test.ts test/unit/referenceGenerator.test.mjs docs/certification/help-reference/fixhelpref4-drills.json"
+  },
+  {
+    "check": "deadcode",
+    "command": ["npm", "run", "deadcode"],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "npm notice run muse-spark-code@0.14.0 deadcode\nnpm notice run knip\nConfiguration hints (2)\nvendor/**    knip.jsonc  Remove from ignore            \naxe-core     knip.jsonc  Remove from ignoreDependencies"
+  },
+  {
+    "check": "duplication",
+    "command": ["npx", "--no-install", "jscpd"],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ css        │ 3              │ 4140        │ 36597        │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ tsx        │ 114            │ 30885       │ 196142       │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ typescript │ 1058           │ 361350      │ 2197001      │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ Total:     │ 1175           │ 396375      │ 2429740      │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘\nFound 0 clones.\ntime: 577.300ms\nnpm notice run muse-spark-code@0.14.0 npx\nnpm notice run 'jscpd'\nUsing config from .jscpd.json"
+  },
+  {
+    "check": "localization",
+    "command": ["npm", "run", "check:l10n"],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "l10n: 14 tables, 165 manifest strings, 602 source files; 0 problems\nnpm notice run muse-spark-code@0.14.0 check:l10n\nnpm notice run node scripts/check-l10n.mjs"
+  },
+  {
+    "check": "reference",
+    "command": ["npm", "run", "check:reference"],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "Reference: 53 features, 44 commands, 58 settings, 26 slash, 116 CLI; current\nnpm notice run muse-spark-code@0.14.0 check:reference\nnpm notice run node scripts/gen-reference.mjs --check"
+  },
+  {
+    "check": "host-api",
+    "command": ["npm", "run", "check:host-api"],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "host-api: 332 VS Code APIs, 31 files importing vscode, 25 Node built-ins, 61 theme variables; 0 problem(s)\nnpm notice run muse-spark-code@0.14.0 check:host-api\nnpm notice run node scripts/check-host-api.mjs"
+  },
+  {
+    "check": "build",
+    "command": ["npm", "run", "build"],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "ok   dist/extension.js: 437.8 KiB (budget 600 KiB)\nok   dist/modelApi.js: 446.6 KiB (budget 475 KiB)\nok   dist/webview/main.js + static imports: 895.1 KiB (budget 900 KiB)\nok   dist/webview/referencePage.js: 37.0 KiB (budget 50 KiB)\nok   dist/reference.js: 99.3 KiB (budget 100 KiB)\nok   dist/acp.js: 820.0 KiB (budget 850 KiB)\nok   dist/webview deferred JS: 49.8 KiB (budget 50 KiB)\nok   dist/extension.js: 6 of the backend's 65 files (14.7 KiB), all on the allowed list\nok   dist/acp.js: 4 of the backend's files, all on the allowed list\nok   dist/modelApi.js: carries the 37 files that load only with the backend, and no English table\nok   dist/reference.js: loads only on its first action\nok   dist/extension.js: 0 reference(s) to navigator\nok   dist/modelApi.js: 0 reference(s) to navigator",
+    "referenceBytes": 101667
+  },
+  {
+    "check": "reference-tests",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceGenerator.test.mjs",
+      "test/unit/referenceEntry.test.ts",
+      "test/unit/ReferencePage.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "\n RUN  v5.0.2 /home/randy/lanes/FIXHELPREF\n\n\n Test Files  3 passed (3)\n      Tests  89 passed (89)\n   Start at  03:05:59\n   Duration  81.42s (tests 93%, transform 3%, import 2%, environment 1%)\n\nnpm notice run muse-spark-code@0.14.0 npx\nnpm notice run 'vitest' run test/unit/referenceGenerator.test.mjs test/unit/referenceEntry.test.ts test/unit/ReferencePage.test.tsx --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning."
+  },
+  {
+    "check": "attempt-budget",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/modelApiAttemptBudget.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "machine": "Kubuntu",
+    "exitCode": 0,
+    "summary": "\n RUN  v5.0.2 /home/randy/lanes/FIXHELPREF\n\n\n Test Files  1 passed (1)\n      Tests  6 passed (6)\n   Start at  03:07:22\n   Duration  2.56s (transform 54%, tests 25%, import 15%, setup 5%)\n\nnpm notice run muse-spark-code@0.14.0 npx\nnpm notice run 'vitest' run test/unit/modelApiAttemptBudget.test.ts --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning."
+  },
+  {
+    "check": "help-en",
+    "command": ["node", "dist/acp.js", "help", "--all"],
+    "machine": "Kubuntu",
+    "locale": "en_US.UTF-8",
+    "exitCode": 0,
+    "summary": "Production terminal help contains the corrected Best-of-N prerequisite; no model or auth route."
+  },
+  {
+    "check": "help-fr",
+    "command": ["node", "dist/acp.js", "help", "--all"],
+    "machine": "Kubuntu",
+    "locale": "fr_FR.UTF-8",
+    "exitCode": 0,
+    "summary": "Production terminal help contains the corrected Best-of-N prerequisite; no model or auth route."
+  },
+  {
+    "check": "exec-help",
+    "command": ["node", "dist/acp.js", "exec", "--help"],
+    "machine": "Kubuntu",
+    "locale": "en_US.UTF-8",
+    "exitCode": 0,
+    "summary": "Production terminal help contains the corrected Best-of-N prerequisite; no model or auth route."
+  },
+  {
+    "check": "report-help",
+    "command": ["node", "dist/acp.js", "report", "--help"],
+    "machine": "Kubuntu",
+    "locale": "en_US.UTF-8",
+    "exitCode": 0,
+    "summary": "Production terminal help contains the corrected Best-of-N prerequisite; no model or auth route."
+  },
+  {
+    "check": "scan-help",
+    "command": ["node", "dist/acp.js", "scan-secrets", "--help"],
+    "machine": "Kubuntu",
+    "locale": "en_US.UTF-8",
+    "exitCode": 0,
+    "summary": "Production terminal help contains the corrected Best-of-N prerequisite; no model or auth route."
+  }
+]

@@ -1,0 +1,44 @@
+{
+  "rig": "kubuntu",
+  "receipts": [
+    {
+      "id": "numeric-current-identity",
+      "source": "src/host/fsAtomic.ts",
+      "test": "test/unit/fsAtomic.test.ts",
+      "command": ["npx", "vitest", "run", "test/unit/fsAtomic.test.ts"],
+      "baseline_exit": 0,
+      "red_exit": 1,
+      "restored_exit": 0,
+      "expected_diagnostic": "compares exact inode identities",
+      "before_sha256": "c6c9e9df15a6ac9fde8239242bda1795702693719a2d08b7d3e098e24ee9abd8",
+      "mutated_sha256": "0b5f3909d1e2440c135bbf9f8f823899c82a79b4da4d2996171b9887b1ab47ca",
+      "restored_sha256": "c6c9e9df15a6ac9fde8239242bda1795702693719a2d08b7d3e098e24ee9abd8"
+    },
+    {
+      "id": "stage-admission-bypass",
+      "source": "src/host/fsAtomic.ts",
+      "test": "test/unit/fsAtomic.test.ts",
+      "command": ["npx", "vitest", "run", "test/unit/fsAtomic.test.ts"],
+      "baseline_exit": 0,
+      "red_exit": 1,
+      "restored_exit": 0,
+      "expected_diagnostic": "refuses a replaced stage before publication",
+      "before_sha256": "c6c9e9df15a6ac9fde8239242bda1795702693719a2d08b7d3e098e24ee9abd8",
+      "mutated_sha256": "df5e72d060c5658f4f0a04073e6ce46faadc67d225d6ff0667e255d98593569f",
+      "restored_sha256": "c6c9e9df15a6ac9fde8239242bda1795702693719a2d08b7d3e098e24ee9abd8"
+    },
+    {
+      "id": "metadata-change-ignored",
+      "source": "src/host/fsAtomic.ts",
+      "test": "test/unit/fsAtomic.test.ts",
+      "command": ["npx", "vitest", "run", "test/unit/fsAtomic.test.ts"],
+      "baseline_exit": 0,
+      "red_exit": 1,
+      "restored_exit": 0,
+      "expected_diagnostic": "compares exact inode identities",
+      "before_sha256": "c6c9e9df15a6ac9fde8239242bda1795702693719a2d08b7d3e098e24ee9abd8",
+      "mutated_sha256": "eeeea0e92b9cc1ec54c4695ee826febc89bfc702963b015272a1de20749d463c",
+      "restored_sha256": "c6c9e9df15a6ac9fde8239242bda1795702693719a2d08b7d3e098e24ee9abd8"
+    }
+  ]
+}

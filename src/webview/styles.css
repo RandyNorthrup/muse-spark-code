@@ -6,25 +6,139 @@
    first, then state rules from lowest to highest specificity
    (:disabled and :focus-visible before :hover:enabled). */
 
-:root {
-  --ms-gap: 8px;
-  --ms-radius: 6px;
-  --ms-icon-size: 16px;
-  --ms-control-size: 26px;
-}
+@import url('./page.css');
+@import url('tokens.css');
+@import url('../../design/tokens/generated/host-roles.css');
 
 html,
 body {
   height: 100%;
   margin: 0;
   padding: 0;
-  color: var(--vscode-foreground);
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  background: var(--vscode-sideBar-background);
+  color: var(--ms-text);
+  font-family: var(--ms-font-ui);
+  font-size: var(--ms-font-size);
+  background: var(--ms-surface);
+}
+
+/* M115: shared schedule surface, including a 320 px editor panel. */
+.schedule-v2-surface {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--ms-gap);
+  overflow-wrap: anywhere;
+}
+
+.schedule-v2-list,
+.schedule-v2-editor {
+  display: grid;
+  gap: var(--ms-gap);
+}
+
+.schedule-v2-card,
+.schedule-v2-editor fieldset,
+.schedule-v2-timeline li {
+  min-width: 0;
+  margin: 0;
+  padding: var(--ms-gap);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+}
+
+.schedule-v2-card dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--ms-gap);
+}
+
+.schedule-v2-card dd {
+  margin: 0;
+}
+
+.schedule-v2-surface label {
+  display: grid;
+  gap: var(--ms-gap);
+  margin-block: var(--ms-gap);
+}
+
+.schedule-v2-surface input,
+.schedule-v2-surface textarea,
+.schedule-v2-surface select {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--ms-button-height);
+  padding: 4px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  background: var(--vscode-input-background);
+}
+
+.schedule-v2-surface textarea {
+  min-height: 4em;
+  resize: vertical;
+}
+
+.schedule-v2-surface input[type='checkbox'] {
+  width: var(--ms-button-height);
+  height: var(--ms-button-height);
+}
+
+.schedule-v2-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-gap);
+  margin-block: var(--ms-gap);
+}
+
+.schedule-v2-actions button,
+.schedule-v2-surface button {
+  min-height: var(--ms-button-height);
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-button-foreground);
+  font: inherit;
+  background: var(--vscode-button-background);
+  cursor: pointer;
+}
+
+.schedule-v2-consent {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ms-gap);
+  margin-block: var(--ms-gap);
+}
+
+.schedule-v2-consent button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.schedule-v2-surface summary {
+  min-height: var(--ms-button-height);
+  cursor: pointer;
+}
+
+.schedule-v2-surface :focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.schedule-v2-timeline {
+  display: grid;
+  gap: var(--ms-gap);
+  padding-inline-start: calc(var(--ms-gap) * 3);
+}
+
+.schedule-v2-collision {
+  border-inline-start: 2px solid var(--vscode-foreground);
+  padding-inline-start: var(--ms-gap);
 }
 
 .app {
+  container-type: inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -45,19 +159,19 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
-  border-bottom: 1px solid var(--vscode-panel-border);
+  border-bottom: 1px solid var(--ms-border);
 }
 
 .header-title {
   margin: 0;
-  font-size: var(--vscode-font-size);
-  font-weight: 600;
+  font-size: var(--ms-font-size);
+  font-weight: var(--ms-weight-bold);
   overflow-wrap: anywhere;
 }
 
 .header {
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--ms-space-4);
 }
 
 .header-actions {
@@ -69,11 +183,11 @@ body {
 }
 
 .badge {
-  padding: 1px 6px;
-  border-radius: 999px;
-  color: var(--vscode-badge-foreground);
-  font-size: 0.8em;
-  background: var(--vscode-badge-background);
+  padding: 1px calc(var(--ms-space-12) / 2);
+  border-radius: var(--ms-radius-pill);
+  color: var(--ms-on-badge);
+  font-size: var(--ms-font-small);
+  background: var(--ms-badge);
 }
 
 /* --- body --- */
@@ -87,6 +201,7 @@ body {
   gap: calc(var(--ms-gap) * 2);
   padding: var(--ms-gap);
   overflow: auto;
+  scroll-padding-block: var(--ms-space-8);
 }
 
 .body-transcript {
@@ -99,17 +214,17 @@ body {
   position: sticky;
   bottom: var(--ms-gap);
   align-self: center;
-  padding: 4px 12px;
-  border: 1px solid var(--vscode-button-border, transparent);
-  border-radius: 999px;
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+  padding: var(--ms-space-4) var(--ms-space-12);
+  border: 1px solid var(--ms-control-border);
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-accent);
+  color: var(--ms-on-accent);
+  box-shadow: var(--ms-elevation-raised);
   cursor: pointer;
 }
 
-.jump-latest:hover {
-  background: var(--vscode-button-hoverBackground);
+.jump-latest:hover:enabled {
+  background: var(--ms-pressed);
 }
 
 .empty-state {
@@ -122,9 +237,9 @@ body {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 1.4em;
-  font-weight: 600;
+  gap: calc(var(--ms-space-12) / 2);
+  font-size: var(--ms-font-large);
+  font-weight: var(--ms-weight-bold);
 }
 
 .brand .icon {
@@ -132,14 +247,34 @@ body {
   height: 1.2em;
 }
 
-/* The Meta mark is wider than tall (256×171). */
-.brand .brand-logo {
+.product-mark {
+  color: var(--ms-brand-mark);
+}
+
+/* The product mark keeps the old logo's box (1.8 x 1.2 em) so the brand
+   row does not shift. Brand blue in day-to-day themes; the theme's
+   foreground in high contrast, CanvasText under forced colors. No animation. */
+.brand .product-mark {
   width: 1.8em;
+}
+
+.vscode-light .product-mark {
+  --ms-brand-mark: var(--ms-brand-mark-light);
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light) .product-mark {
+  --ms-brand-mark: var(--ms-text);
+}
+
+@media (forced-colors: active) {
+  .product-mark {
+    color: CanvasText;
+  }
 }
 
 .hint {
   margin: 0;
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   text-align: center;
 }
 
@@ -162,45 +297,42 @@ body {
   max-height: 55vh;
   padding: var(--ms-gap);
   overflow: auto;
-  border-bottom: 1px solid var(--vscode-panel-border);
-  background: var(--vscode-editor-background);
+  border-bottom: 1px solid var(--ms-border);
+  background: var(--ms-editor-surface);
 }
 
 .gate-title {
   margin: 0;
-  font-size: 1.2em;
-  font-weight: 600;
+  font-size: var(--ms-font-large);
+  font-weight: var(--ms-weight-bold);
 }
 
 .gate-detail {
   margin: 0;
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .gate-diagnostic {
   margin: 0;
   padding: var(--ms-gap);
   border-radius: var(--ms-radius);
-  color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
-  font-size: 0.9em;
+  color: var(--ms-warning-text);
+  font-size: var(--ms-font-small);
   text-align: left;
   overflow-wrap: anywhere;
-  background: var(
-    --vscode-inputValidation-warningBackground,
-    var(--vscode-editorWidget-background)
-  );
+  background: var(--ms-warning-surface);
 }
 
 .gate-actions {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
 }
 
 .gate-hint {
   margin: 0 0 var(--ms-gap);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 .gate-install-confirm {
@@ -208,7 +340,7 @@ body {
   gap: var(--ms-gap);
   min-width: 0;
   padding: var(--ms-gap);
-  border: 1px solid var(--vscode-focusBorder);
+  border: 1px solid var(--ms-focus);
 }
 
 .gate-install-confirm p {
@@ -223,7 +355,7 @@ body {
 
 .button-primary,
 .button-secondary {
-  padding: 6px 12px;
+  padding: calc(var(--ms-space-12) / 2) var(--ms-space-12);
   border: 1px solid transparent;
   border-radius: var(--ms-radius);
   font: inherit;
@@ -231,43 +363,47 @@ body {
 }
 
 .button-primary {
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
+  color: var(--ms-on-accent);
+  background: var(--ms-accent);
 }
 
 .button-secondary {
-  color: var(--vscode-button-secondaryForeground);
-  background: var(--vscode-button-secondaryBackground);
+  color: var(--ms-secondary-text);
+  background: var(--ms-secondary-surface);
 }
 
 /* --- transcript --- */
 
+/* In the chat column: the body's padding is the gutter, and the start inset
+   is fixed so that the scrollbar takes its room from the end side's slack. */
 .transcript {
   display: flex;
   flex-direction: column;
   gap: var(--ms-gap);
-  width: 100%;
-  margin: 0;
+  box-sizing: border-box;
+  max-width: calc(var(--ms-column-max-width) - 2 * var(--ms-gap));
+  margin-block: 0;
+  margin-inline: var(--ms-column-inset) 0;
   padding: 0;
   list-style: none;
 }
 
 .message {
   padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
-  border-radius: var(--ms-radius);
-  line-height: 1.45;
+  border-radius: var(--ms-radius-lg);
+  line-height: var(--ms-line-ui);
 }
 
 .message-user {
   position: relative;
   align-self: stretch;
-  color: var(--vscode-input-foreground);
-  background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-panel-border);
+  color: var(--ms-input-text);
+  background: var(--ms-input-surface);
+  border: 1px solid var(--ms-border);
 }
 
 .message-pending {
-  opacity: 70%;
+  border-style: dashed;
 }
 
 .message-assistant {
@@ -276,7 +412,7 @@ body {
   gap: var(--ms-gap);
   align-items: flex-start;
   max-width: none;
-  padding-left: 4px;
+  padding-left: var(--ms-space-4);
 }
 
 .message-text {
@@ -285,66 +421,119 @@ body {
 }
 
 .message-error {
-  margin-top: 4px;
-  color: var(--vscode-errorForeground);
-  font-size: 0.85em;
+  margin-top: var(--ms-space-4);
+  padding-inline-start: var(--ms-space-4);
+  border-inline-start: var(--ms-focus-width) solid var(--vscode-errorForeground);
+  color: var(--ms-text);
+  font-size: var(--ms-font-small);
 }
 
 .message-error-card {
   align-self: stretch;
-  color: var(--vscode-errorForeground);
-  background: var(--vscode-inputValidation-errorBackground, transparent);
-  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+  color: var(--ms-error-text);
+  background: var(--ms-error-surface);
+  border: 1px solid var(--ms-error-border);
+}
+
+/* A queued card (M87, PLAN.md D66): its badge and space for the shared opener. */
+.message-queued {
+  padding-right: var(--ms-space-32);
+}
+
+.message-queued-badge {
+  margin-top: var(--ms-space-4);
+  font-size: var(--ms-font-small);
+}
+
+/* A message's time (M87): at the card's corner beside its buttons, shown on
+   hover and while focus is inside the card. A card with no button of its
+   own makes the time its keyboard stop (`tabindex`), in the corner itself. */
+.message-time {
+  position: absolute;
+  padding: 0 var(--ms-space-4);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--ms-space-20);
+  white-space: nowrap;
+  background: var(--ms-input-surface);
+  opacity: 0%;
+}
+
+.message-assistant > .message-time {
+  right: 54px;
+  bottom: 4px;
+  background: var(--ms-editor-surface);
+}
+
+.message-user > .message-time {
+  top: 6px;
+  right: 30px;
+}
+
+.message-time:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+.message-assistant > .message-time[tabindex],
+.message-user > .message-time[tabindex] {
+  right: 4px;
+}
+
+.message-assistant:hover > .message-time,
+.message-assistant:focus-within > .message-time,
+.message-user:hover > .message-time,
+.message-user:focus-within > .message-time {
+  opacity: 100%;
 }
 
 .cursor {
   display: inline-block;
   width: 0.55em;
   height: 1em;
-  margin-left: 2px;
+  margin-left: calc(var(--ms-space-4) / 2);
   vertical-align: text-bottom;
-  background: var(--vscode-editorCursor-foreground, currentcolor);
-  animation: blink 1s steps(2, start) infinite;
-}
-
-@keyframes blink {
-  to {
-    visibility: hidden;
-  }
+  background: var(--ms-cursor);
 }
 
 .activity {
   display: flex;
   gap: var(--ms-gap);
-  padding: 2px calc(var(--ms-gap) * 1.5);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  padding: calc(var(--ms-space-4) / 2) calc(var(--ms-gap) * 1.5);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 .activity-kind {
-  font-family: var(--vscode-editor-font-family);
+  font-family: var(--ms-font-code);
 }
 
 /* --- composer --- */
 
-/* Positioning context for the palette, which sits above the composer. */
+/* Positioning context for the palette, which sits above the composer. In the
+   chat column, so the box, its banners, chips and menus, and the floating
+   palette and popovers move as one; narrower panels keep the full width. */
 .composer-area {
   position: relative;
+  margin-inline: var(--ms-column-inset);
 }
 
 .composer {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
   margin: var(--ms-gap);
 
   /* The toolbar adapts to the composer's width (a narrow sidebar). */
   container-type: inline-size;
   padding: var(--ms-gap);
-  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
-  border-radius: var(--ms-radius);
-  background: var(--vscode-input-background);
+  border: 1px solid var(--ms-muted);
+  border-radius: var(--ms-radius-lg);
+  background: var(--ms-input-surface);
+  color: var(--ms-input-text);
 }
 
 /* Each line of a message or of the prompt box takes the direction of its
@@ -357,17 +546,21 @@ body {
 .composer-input {
   box-sizing: border-box;
   width: 100%;
+  min-height: 24px;
   padding: 0;
   border: 0;
-  color: var(--vscode-input-foreground);
+  color: var(--ms-input-text);
   font: inherit;
-  line-height: 1.4;
+  line-height: var(--ms-line-ui);
   background: transparent;
   resize: none;
 }
 
+/* Captured themes can give placeholders less than AA contrast. Enabled
+   prompt hints use the host's input text role, with no opacity reduction. */
 .composer-input::placeholder {
-  color: var(--vscode-input-placeholderForeground);
+  color: var(--ms-input-text);
+  opacity: 100%;
 }
 
 .composer-toolbar {
@@ -380,7 +573,7 @@ body {
 .composer-toolbar-group {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: calc(var(--ms-space-4) / 2);
   min-width: 0;
 }
 
@@ -394,8 +587,13 @@ body {
   flex-shrink: 0;
 }
 
+/* A narrow panel (the owner's request of 2026-10-04): every control keeps one
+   row, one height and one centre line. The icon buttons are square, the mode
+   button shows its icon, and the pill takes the room the controls leave. A
+   chip that no longer fits beside the pill moves to a row of its own below
+   it, at the start. Only a panel too narrow for the controls themselves
+   puts the right group on a second row. */
 @container (max-width: 340px) {
-  .context-label,
   .mode-button > span {
     display: none;
   }
@@ -403,19 +601,42 @@ body {
   /* Keep the paid warning visible without covering Commands in a sidebar. */
   .composer .paid-badge {
     max-width: 44px;
-    padding-inline: 4px;
+    padding-inline: var(--ms-space-4);
   }
 
   .composer-toolbar {
     flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: var(--ms-space-4);
   }
 
+  /* Room for Attach, Commands and the shortest pill decides the wrap, not
+     the pill's or a chip's whole label. */
   .composer-toolbar-group:first-child {
-    flex-basis: 100%;
+    flex: 1 1 0;
+    flex-wrap: wrap;
+    row-gap: var(--ms-space-4);
+    min-width: calc(2 * var(--ms-control-size) + var(--ms-pill-min-width) + 4px);
   }
 
   .composer-toolbar-group:last-child {
     margin-inline-start: auto;
+  }
+
+  /* With the prompt menu button: three icon controls before the pill. */
+  .composer-toolbar-group:first-child:has(> .prompt-menu-button) {
+    min-width: calc(3 * var(--ms-control-size) + var(--ms-pill-min-width) + 6px);
+  }
+
+  .composer-toolbar .icon-button,
+  .composer-toolbar .mode-button,
+  .composer-toolbar .send-button {
+    padding-inline: 0;
+  }
+
+  .composer-toolbar .pill {
+    flex: 1 1 0;
+    max-width: max-content;
   }
 }
 
@@ -428,51 +649,55 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: var(--ms-space-4);
   min-width: var(--ms-control-size);
   height: var(--ms-control-size);
-  padding: 0 6px;
+  padding: 0 calc(var(--ms-space-12) / 2);
   border: 1px solid transparent;
-  border-radius: var(--ms-radius);
-  color: var(--vscode-foreground);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-text);
   font: inherit;
   background: transparent;
   cursor: pointer;
 }
 
-/* Block layout lets the model label ellipsize when squeezed. The minimum
-   height preserves its touch target beside a paid badge in narrow panels. */
+/* The model pill (the owner's request of 2026-10-04). Its target is a whole
+   control (--ms-control-size, over WCAG 2.5.8's 24 px); its fill is painted
+   at the chips' height inside it, inside transparent block borders. Block
+   layout lets the model label ellipsize when squeezed. */
 .pill {
   display: inline-block;
   flex: 0 1 auto;
-  min-width: 3em;
-  min-height: var(--ms-control-size);
-  height: auto;
+  min-width: var(--ms-pill-min-width);
   overflow: hidden;
-  padding: 1px 8px;
-  border-radius: 999px;
-  color: var(--vscode-badge-foreground);
-  font-size: 0.85em;
-  line-height: 1.4;
+  padding: 0 var(--ms-space-8);
+  border-block-width: calc((var(--ms-control-size) - var(--ms-chip-height)) / 2);
+  border-radius: var(--ms-radius-pill);
+  color: var(--ms-on-badge);
+  font-size: var(--ms-font-small);
+  line-height: var(--ms-chip-height);
   text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
-  background: var(--vscode-badge-background);
+  background: var(--ms-badge);
+  background-clip: padding-box;
 }
 
 .mode-button {
-  font-size: 0.9em;
+  font-size: var(--ms-font-size);
 }
 
 .send-button {
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
+  color: var(--ms-on-accent);
+  background: var(--ms-accent);
 }
 
 /* --- states: (0,2,0) first --- */
 
 .composer:focus-within {
-  border-color: var(--vscode-focusBorder);
+  border-color: var(--ms-focus);
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 .composer-input:focus-visible {
@@ -482,17 +707,18 @@ body {
 .icon-button:disabled,
 .pill:disabled,
 .mode-button:disabled {
-  color: var(--vscode-disabledForeground);
+  color: var(--ms-disabled);
   cursor: default;
 }
 
 .pill:disabled {
-  color: var(--vscode-badge-foreground);
+  color: var(--ms-on-badge);
 }
 
 .send-button:disabled {
   cursor: default;
-  opacity: 50%;
+  color: var(--ms-disabled);
+  background: var(--ms-hover);
 }
 
 .icon-button:focus-visible,
@@ -507,10 +733,14 @@ body {
 
 /* --- states: (0,3,0) last --- */
 
+/* The colour alone: the pill's fill keeps its painted height. */
 .icon-button:hover:enabled,
-.pill:hover:enabled,
 .mode-button:hover:enabled {
-  background: var(--vscode-toolbar-hoverBackground);
+  background-color: var(--ms-toolbar-hover);
+}
+
+.pill:hover:enabled {
+  text-decoration: underline;
 }
 
 /* The question card's Submit is greyed out until every question has an answer (M16). */
@@ -519,13 +749,39 @@ body {
   cursor: default;
 }
 
-.send-button:hover:enabled,
+.send-button:hover:enabled {
+  background: var(--ms-pressed);
+}
+
 .button-primary:hover:enabled {
   background: var(--vscode-button-hoverBackground);
 }
 
+.send-button-stop:hover:enabled,
+.send-button-stop:focus-visible:enabled {
+  background: var(--ms-chart-danger);
+}
+
+.vscode-high-contrast .send-button-stop:hover:enabled,
+.vscode-high-contrast .send-button-stop:focus-visible:enabled,
+.vscode-high-contrast-light .send-button-stop:hover:enabled,
+.vscode-high-contrast-light .send-button-stop:focus-visible:enabled {
+  border-color: var(--vscode-errorForeground, var(--ms-chart-danger));
+  color: var(--vscode-errorForeground, var(--ms-chart-danger));
+  background: transparent;
+}
+
 .button-secondary:hover:enabled {
   background: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Forced colours paint transparent borders: the pill keeps a 1 px one, as
+   the other controls do, and its label stays centred in the control. */
+@media (forced-colors: active) {
+  .pill {
+    border-block-width: 1px;
+    line-height: calc(var(--ms-control-size) - 2px);
+  }
 }
 
 /* --- attachments --- */
@@ -533,7 +789,7 @@ body {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--ms-space-4);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -542,32 +798,38 @@ body {
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--ms-space-4);
   max-width: 100%;
-  padding: 2px 4px 2px 6px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  font-size: 0.85em;
-  background: var(--vscode-editorWidget-background);
+  padding: calc(var(--ms-space-4) / 2) var(--ms-space-4) calc(var(--ms-space-4) / 2)
+    calc(var(--ms-space-12) / 2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  font-size: var(--ms-font-small);
+  background: var(--ms-raised);
+  color: var(--ms-text);
 }
 
 .chip-name {
   overflow: hidden;
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chip-size {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .chip-remove {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
+  justify-content: center;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
   padding: 0;
   border: 0;
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   background: transparent;
   cursor: pointer;
 }
@@ -582,12 +844,12 @@ body {
   bottom: 100%;
   left: var(--ms-gap);
   z-index: 10;
-  margin-bottom: 4px;
-  border: 1px solid var(--vscode-editorWidget-border, var(--vscode-panel-border));
+  margin-bottom: var(--ms-space-4);
+  border: 1px solid var(--ms-raised-border);
   border-radius: var(--ms-radius);
-  color: var(--vscode-editorWidget-foreground, var(--vscode-foreground));
-  background: var(--vscode-editorWidget-background);
-  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+  color: var(--ms-raised-text);
+  background: var(--ms-raised);
+  box-shadow: var(--ms-elevation-popover);
 }
 
 .mention-menu {
@@ -595,6 +857,8 @@ body {
   left: 0;
   max-height: 240px;
   overflow: auto;
+  scroll-padding: var(--ms-space-4);
+  padding: var(--ms-space-4);
 }
 
 /* Popovers hug the button they belong to and stay narrow. */
@@ -613,39 +877,48 @@ body {
   left: auto;
 }
 
+.popover-pointer {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  max-width: calc(100vw - var(--ms-gap) * 2);
+  max-height: 100vh;
+  overflow-y: auto;
+}
+
 .popover-header {
   display: flex;
   gap: var(--ms-gap);
   align-items: center;
   justify-content: space-between;
-  padding: var(--ms-gap) calc(var(--ms-gap) * 1.5) 4px;
+  padding: var(--ms-gap) calc(var(--ms-gap) * 1.5) var(--ms-space-4);
 }
 
 .popover-title {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .popover-hint {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 .popover-hint kbd {
-  padding: 0 4px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 3px;
+  padding: 0 var(--ms-space-4);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-xs);
   font-family: inherit;
 }
 
 .popover-list {
   margin: 0;
-  padding: 4px 0;
+  padding: var(--ms-space-4);
   list-style: none;
 }
 
 .popover-footer {
   padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
-  border-top: 1px solid var(--vscode-panel-border);
+  border-top: 1px solid var(--ms-border);
 }
 
 .effort-row {
@@ -668,14 +941,14 @@ body {
   display: flex;
   gap: var(--ms-gap);
   align-items: center;
-  padding: 4px calc(var(--ms-gap) * 1.5);
+  padding: var(--ms-space-4) calc(var(--ms-gap) * 1.5);
   cursor: pointer;
 }
 
 .menu-item-icon {
   display: inline-flex;
   flex-shrink: 0;
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .menu-item-text {
@@ -692,21 +965,21 @@ body {
 }
 
 .menu-item-detail {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
-  line-height: 1.3;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+  line-height: var(--ms-line-ui);
 }
 
 .menu-empty {
   margin: 0;
   padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .menu-item-active,
 .palette-item-active {
-  color: var(--vscode-list-activeSelectionForeground, var(--vscode-foreground));
-  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--ms-on-selection);
+  background: var(--ms-selection);
 }
 
 /* --- palette --- */
@@ -722,44 +995,54 @@ body {
 .palette-attached {
   right: 0;
   left: 0;
-  margin-bottom: 4px;
+  margin-bottom: var(--ms-space-4);
 }
 
 .palette-header {
   display: flex;
-  gap: 4px;
+  gap: var(--ms-space-4);
   align-items: center;
   padding: var(--ms-gap);
-  border-bottom: 1px solid var(--vscode-panel-border);
+  border-bottom: 1px solid var(--ms-border);
 }
 
 .palette-filter {
   flex: 1;
   min-width: 0;
-  padding: 4px 6px;
-  border: 1px solid var(--vscode-input-border, transparent);
+}
+
+.palette-filter,
+.bestofn-prompt,
+.bestofn-number,
+.bestofn-selects select,
+.approval-feedback,
+.question-input {
+  padding: var(--ms-space-4) calc(var(--ms-space-12) / 2);
+  border: 1px solid var(--ms-muted);
   border-radius: var(--ms-radius);
-  color: var(--vscode-input-foreground);
+  color: var(--ms-input-text);
   font: inherit;
-  background: var(--vscode-input-background);
+  background: var(--ms-input-surface);
 }
 
 .palette-filter::placeholder {
-  color: var(--vscode-input-placeholderForeground);
+  color: var(--ms-input-text);
 }
 
 .palette-body {
   overflow: auto;
+  scroll-padding: var(--ms-space-4);
+  padding: var(--ms-space-4);
 }
 
 .palette-group-title {
   padding: var(--ms-gap) calc(var(--ms-gap) * 1.5) 2px;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 .palette-group-title:not(:first-child) {
-  border-top: 1px solid var(--vscode-panel-border);
+  border-top: 1px solid var(--ms-border);
 }
 
 .palette-item-text {
@@ -771,8 +1054,8 @@ body {
 
 .palette-item-detail {
   overflow: hidden;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -801,7 +1084,7 @@ body {
 }
 
 .palette-item-disabled {
-  color: var(--vscode-disabledForeground);
+  color: var(--ms-disabled);
   cursor: default;
 }
 
@@ -809,8 +1092,8 @@ body {
   flex-shrink: 0;
   max-width: 50%;
   overflow: hidden;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -819,48 +1102,47 @@ body {
   position: relative;
   flex-shrink: 0;
   width: 30px;
-  height: 16px;
-  border-radius: 999px;
-  background: var(--vscode-checkbox-border, var(--vscode-panel-border));
+  height: var(--ms-space-16);
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-checkbox-border);
 }
 
 .toggle-on {
-  background: var(--vscode-button-background);
+  background: var(--ms-accent);
 }
 
 .toggle-knob {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--vscode-button-foreground);
-  transition: left 120ms;
+  width: var(--ms-space-12);
+  height: var(--ms-space-12);
+  border-radius: var(--ms-radius-circle);
+  background: var(--ms-on-accent);
 }
 
 .toggle-on .toggle-knob {
-  left: 16px;
+  left: var(--ms-space-16);
 }
 
 .palette-slider {
   display: inline-flex;
   flex-shrink: 0;
-  gap: 3px;
+  gap: calc(var(--ms-space-4) - 1px);
 }
 
 .slider-step {
-  width: 12px;
-  height: 12px;
+  width: var(--ms-space-12);
+  height: var(--ms-space-12);
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: var(--vscode-checkbox-border, var(--vscode-panel-border));
+  border-radius: var(--ms-radius-circle);
+  background: var(--ms-checkbox-border);
   cursor: pointer;
 }
 
 .slider-step-on {
-  background: var(--vscode-button-background);
+  background: var(--ms-accent);
 }
 
 /* The Modes menu's dots are buttons: each is a 24 px target around the
@@ -871,9 +1153,9 @@ body {
 }
 
 .effort-row .slider-step {
-  width: 24px;
-  height: 24px;
-  padding: 6px;
+  width: var(--ms-space-24);
+  height: var(--ms-space-24);
+  padding: calc(var(--ms-space-12) / 2);
   background-clip: content-box;
 }
 
@@ -881,39 +1163,61 @@ body {
 
 .notice {
   align-self: stretch;
-  padding: 4px calc(var(--ms-gap) * 1.5);
-  border-radius: var(--ms-radius);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  padding: var(--ms-space-4) calc(var(--ms-gap) * 1.5);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-size);
+}
+
+.notice-action {
+  min-height: var(--ms-space-24);
+  margin-inline-start: var(--ms-gap);
+  padding: 0 var(--ms-space-8);
+  border: 1px solid var(--ms-control-border);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-info);
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Repeated notices retain a non-colour count cue. */
+.notice-repeat {
+  display: inline-block;
+  padding: 0 var(--ms-space-4);
+  border: 1px solid currentcolor;
+  border-radius: var(--ms-radius-pill);
+  font-size: var(--ms-font-small);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--ms-line-ui);
 }
 
 .notice-warning {
-  color: var(--vscode-inputValidation-warningForeground, var(--vscode-foreground));
-  background: var(--vscode-inputValidation-warningBackground, transparent);
+  color: var(--ms-warning-text);
+  background: var(--ms-warning-surface);
 }
 
 .notice-error {
-  color: var(--vscode-errorForeground);
-  background: var(--vscode-inputValidation-errorBackground, transparent);
+  border-inline-start: var(--ms-focus-width) solid var(--ms-error-border);
+  color: var(--ms-error-text);
+  background: var(--ms-error-surface);
 }
 
 /* --- states for the additions: (0,2,0) --- */
 
-.chip-remove:focus-visible,
 .palette-filter:focus-visible,
 .popover-list:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: -1px;
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 .slider-step:disabled {
   cursor: default;
 }
 
-.chip-remove:hover,
 .slider-step:hover:enabled {
-  color: var(--vscode-foreground);
-  opacity: 85%;
+  color: var(--ms-text);
+  opacity: 100%;
 }
 
 /* --- transcript rows (M4) --- */
@@ -922,14 +1226,14 @@ body {
 .tool-dot {
   display: inline-block;
   flex-shrink: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--vscode-descriptionForeground);
+  width: var(--ms-space-8);
+  height: var(--ms-space-8);
+  border-radius: var(--ms-radius-circle);
+  background: var(--ms-muted);
 }
 
 .message-assistant > .tool-dot {
-  margin-top: 0.55em;
+  margin-top: calc(var(--ms-font-size) * 0.55);
 }
 
 .message-body {
@@ -937,14 +1241,28 @@ body {
   min-width: 0;
 }
 
+/* A MessageDisplay hook's rewrite (M91): its marker sits above the reply,
+   outside the Markdown the hook wrote, with the switch to the original. */
+.hook-edited {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ms-space-12) / 2);
+  align-items: center;
+  margin-bottom: var(--ms-space-4);
+  font-size: var(--ms-font-small);
+  color: var(--ms-muted);
+}
+
 .chips-strip {
   flex-wrap: nowrap;
-  margin-bottom: 6px;
+  margin-bottom: calc(var(--ms-space-12) / 2);
   overflow-x: auto;
+  padding-block: var(--ms-space-4);
+  scroll-padding-inline: var(--ms-space-4);
 }
 
 .tool-dot-ok {
-  background: var(--vscode-testing-iconPassed, #3fb950);
+  background: var(--ms-success);
 }
 
 .tool-dot-failed {
@@ -952,21 +1270,14 @@ body {
 }
 
 .tool-dot-running {
-  background: var(--vscode-progressBar-background, var(--vscode-button-background));
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  50% {
-    opacity: 35%;
-  }
+  background: var(--ms-progress);
 }
 
 .tool,
 .reasoning,
 .steps,
 .status-line {
-  padding-left: 4px;
+  padding-left: var(--ms-space-4);
 }
 
 /* A tool row's header (M16): the toggle (dot + label), the path or summary,
@@ -978,8 +1289,8 @@ body {
   align-items: center;
   width: 100%;
   min-width: 0;
-  padding: 2px 0;
-  color: var(--vscode-foreground);
+  padding: calc(var(--ms-space-4) / 2) 0;
+  color: var(--ms-text);
 }
 
 .tool-toggle,
@@ -989,6 +1300,8 @@ body {
   display: flex;
   gap: var(--ms-gap);
   align-items: center;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
   padding: 0;
   border: 0;
   color: inherit;
@@ -996,6 +1309,13 @@ body {
   text-align: left;
   background: transparent;
   cursor: pointer;
+}
+
+/* The toggle gives way before the chevron does: its summary ellipsizes, so
+   a long summary in a narrow panel never pushes the chevron under the row's
+   ⋯ (lane W's full a11y run, where wider fonts did). */
+.tool-toggle {
+  min-width: var(--ms-space-24);
 }
 
 .tool-toggle:disabled {
@@ -1015,8 +1335,7 @@ body {
 .chevron {
   display: inline-flex;
   flex-shrink: 0;
-  color: var(--vscode-descriptionForeground);
-  transition: transform 120ms ease;
+  color: var(--ms-muted);
 }
 
 .chevron-open {
@@ -1031,33 +1350,36 @@ body {
 /* A long diff clipped behind "Click to expand" (M15). */
 .diff-clip {
   position: relative;
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  overflow: clip;
 }
 
 .tool-expand {
   position: absolute;
-  right: 8px;
-  bottom: 8px;
-  padding: 4px 10px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  color: var(--vscode-foreground);
+  right: var(--ms-space-8);
+  bottom: var(--ms-space-8);
+  padding: var(--ms-space-4) calc(var(--ms-space-20) / 2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-text);
   font: inherit;
-  font-size: 0.85em;
-  background: var(--vscode-editor-background);
-  box-shadow: 0 1px 4px var(--vscode-widget-shadow);
+  font-size: var(--ms-font-small);
+  background: var(--ms-editor-surface);
+  box-shadow: var(--ms-elevation-raised);
   cursor: pointer;
 }
 
 .tool-label {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .tool-summary,
 .tool-path {
   overflow: hidden;
-  color: var(--vscode-descriptionForeground);
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
+  color: var(--ms-muted);
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1065,78 +1387,89 @@ body {
 /* The path of an edit or read row opens the file at its change (M16). */
 .tool-path {
   display: block;
-  min-width: 0;
+  min-width: var(--ms-space-24);
 }
 
 .tool-path:hover {
-  color: var(--vscode-textLink-foreground);
+  color: var(--ms-info);
   text-decoration: underline;
 }
 
 .tool-change,
 .tool-outcome {
-  padding-left: calc(8px + var(--ms-gap));
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  padding-left: calc(var(--ms-space-8) + var(--ms-gap));
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 /* The reason in the text colour, the error colour on the bar beside it:
    Light Modern's error colour is 3.15:1 on the sidebar, enough for a mark
    (WCAG 1.4.11) but not for text (1.4.3, M37). */
 .tool-failure {
-  margin: 2px 0 2px calc(8px + var(--ms-gap));
-  padding-left: 6px;
+  margin: calc(var(--ms-space-4) / 2) 0 calc(var(--ms-space-4) / 2)
+    calc(var(--ms-space-8) + var(--ms-gap));
+  padding-left: calc(var(--ms-space-12) / 2);
   border-left: 2px solid var(--vscode-errorForeground);
-  color: var(--vscode-foreground);
-  font-size: 0.85em;
+  color: var(--ms-text);
+  font-size: var(--ms-font-small);
   white-space: pre-wrap;
 }
 
 .tool-body,
-.reasoning-body,
-.approval,
+.reasoning-body {
+  margin: var(--ms-space-4) 0 var(--ms-space-4) calc(var(--ms-space-8) + var(--ms-gap));
+}
+
 .question {
   margin: 4px 0 4px calc(8px + var(--ms-gap));
 }
 
-.tool-pre {
+.tool-pre,
+.code-block-body {
   margin: 0;
-  padding: 6px 8px;
+  padding: calc(var(--ms-space-12) / 2) var(--ms-space-8);
   overflow-x: auto;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
+}
+
+.tool-pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .tool-output,
-.shell-box {
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  background: var(--vscode-editorWidget-background);
+.shell {
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  background: var(--ms-raised);
 }
 
 .tool-output + .tool-output {
-  margin-top: 4px;
+  margin-top: var(--ms-space-4);
 }
 
 .shell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  overflow: hidden;
 }
 
 .shell-box {
   display: flex;
-  gap: 4px;
+  gap: var(--ms-space-4);
   align-items: flex-start;
+}
+
+.shell-box + .shell-box {
+  border-top: 1px solid var(--ms-border);
 }
 
 .shell-label {
   flex-shrink: 0;
-  padding: 6px 6px 0;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.75em;
+  padding: calc(var(--ms-space-12) / 2) calc(var(--ms-space-12) / 2) 0;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
   letter-spacing: 0.05em;
 }
 
@@ -1146,37 +1479,41 @@ body {
 }
 
 .tool-more {
-  padding: 2px 8px;
+  min-height: var(--ms-space-24);
+  padding: calc(var(--ms-space-4) / 2) var(--ms-space-8);
   border: 0;
-  color: var(--vscode-textLink-foreground);
+  color: var(--ms-info);
   font: inherit;
-  font-size: 0.85em;
+  font-size: var(--ms-font-small);
   background: transparent;
   cursor: pointer;
 }
 
+.shell .tool-more {
+  min-height: var(--ms-control-size);
+}
+
 .tool-loading {
   margin: 0;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 /* Diff table: two gutters and the line; whole rows tinted for +/-. */
 .diff {
   width: 100%;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
+  border: 0;
   border-collapse: collapse;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
 }
 
 .diff + .diff {
-  margin-top: 4px;
+  margin-top: var(--ms-space-4);
 }
 
 .diff td {
-  padding: 0 6px;
+  padding: 0 calc(var(--ms-space-12) / 2);
   vertical-align: top;
 }
 
@@ -1185,7 +1522,7 @@ body {
    (WCAG 1.4.3; M37 measured 3.0 to 4.48 in the Modern themes). */
 .diff-gutter {
   width: 2.5em;
-  color: var(--vscode-foreground);
+  color: var(--ms-text);
   text-align: right;
   user-select: none;
 }
@@ -1196,33 +1533,39 @@ body {
 }
 
 .diff-add {
-  background: var(--vscode-diffEditor-insertedLineBackground, rgb(46 160 67 / 20%));
+  background: var(--ms-diff-added);
 }
 
 .diff-remove {
-  background: var(--vscode-diffEditor-removedLineBackground, rgb(248 81 73 / 20%));
+  background: var(--ms-diff-removed);
 }
 
 .diff-hunk {
-  color: var(--vscode-descriptionForeground);
-  background: var(--vscode-editorWidget-background);
+  color: var(--ms-muted);
+  background: var(--ms-raised);
 }
 
 .reasoning-body p {
-  margin: 4px 0;
-  color: var(--vscode-descriptionForeground);
+  margin: var(--ms-space-4) 0;
+  color: var(--ms-muted);
   white-space: pre-wrap;
 }
 
 .reasoning-label {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
-/* Focus view: consecutive steps fold into one row. */
+/* Consecutive steps fold into one summary row (M16, M87): its dot (the
+   failure's when one failed), what the steps did, and the chevron. */
 .steps-toggle {
   width: 100%;
-  padding: 2px 0;
-  color: var(--vscode-descriptionForeground);
+  padding: calc(var(--ms-space-4) / 2) 0;
+  color: var(--ms-muted);
+}
+
+.steps-summary {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .steps-list {
@@ -1232,70 +1575,340 @@ body {
 }
 
 .status-line {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) auto 1fr;
+  gap: var(--ms-gap);
+  align-items: center;
+  container-type: inline-size;
+  color: var(--ms-muted);
+}
+
+.status-verb {
+  min-width: 0;
   display: flex;
   gap: var(--ms-gap);
   align-items: center;
-  color: var(--vscode-descriptionForeground);
+  overflow-wrap: anywhere;
 }
 
-.status-spark {
-  color: var(--vscode-button-background);
-  animation: spin 2s linear infinite;
+/* All verbs share one cell; the hidden ones only give it the longest verb's
+   width, so the trace after it stays put while the verb changes. */
+.status-verb-text {
+  display: grid;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+.status-verb-text > * {
+  grid-area: 1 / 1;
+}
+
+.status-verb-sizer {
+  visibility: hidden;
+}
+
+/* The beam draws in brand blue on the canvas itself; the canvas keeps the
+   trace's box. The working line's grid puts it right after the verb box. */
+.heartbeat-trace {
+  color: var(--ms-progress);
+  width: calc(var(--ms-space-24) * 3);
+  height: var(--ms-space-20);
+}
+
+/* M107 U: shared resources chip, popover and Traffic/task row. */
+.resource-surface {
+  min-width: 0;
+  color: var(--vscode-foreground);
+}
+
+.resource-chip {
+  max-width: 100%;
+  min-height: 24px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  cursor: pointer;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+
+.resource-surface[data-resource-level='pause'] .resource-chip {
+  border-color: var(--vscode-editorWarning-foreground);
+}
+
+.resource-popover {
+  position: fixed;
+  z-index: 10;
+  inset-inline: var(--ms-gap);
+  bottom: var(--ms-gap);
+  max-width: 30em;
+  max-height: 80vh;
+  overflow: auto;
+  padding: var(--ms-gap);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: var(--ms-radius);
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-foreground);
+  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
+}
+
+.resource-popover header,
+.resource-popover footer,
+.resource-task-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-gap);
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+
+.resource-popover header {
+  justify-content: space-between;
+}
+
+/* Equal-weight actions on one row at every width; a long label wraps inside
+   its own button instead of stacking the buttons. */
+.resource-popover footer {
+  flex-wrap: nowrap;
+}
+
+.resource-popover footer > * {
+  flex: 1 1 0;
+  align-self: stretch;
+  min-width: 0;
+  padding-inline: 4px;
+  border-color: var(--vscode-panel-border);
+  text-wrap: balance;
+}
+
+.resource-readings > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--ms-gap);
+}
+
+.resource-readings dd {
+  margin-inline-start: 0;
+}
+
+.resource-queue code {
+  overflow-wrap: anywhere;
+}
+
+.resource-queue li {
+  line-height: 1.5;
+}
+
+/* Six circles expand and gather in a slow loop (owner, 2026-10-04: a looping
+   mark; 2026-10-09: keep it moving). Reduced motion holds the loop's middle
+   pose. */
+/* stylelint-disable custom-property-pattern -- the original pen's polar
+   geometry uses --angle, --offset, --amplitude and --scale, recorded in PLAN
+   section 8. */
+@property --amplitude {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --scale {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+
+.status-mark {
+  --offset: 30deg;
+
+  /* The whole mark at 75 %: 12 px box, 2.25 px circles and spread; 16 px sat a
+     little large beside the status text (owner, 2026-10-09). */
+  --ms-status-mark-unit: calc(var(--ms-radius-xs) * 0.75);
+
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--ms-icon-size) * 0.75);
+  height: calc(var(--ms-icon-size) * 0.75);
+  overflow: visible;
+  isolation: isolate;
+}
+
+.status-mark-circle {
+  position: absolute;
+  inset: 0;
+  width: var(--ms-status-mark-unit);
+  height: var(--ms-status-mark-unit);
+  margin: auto;
+  border-radius: var(--ms-radius-circle);
+  background: radial-gradient(
+    circle at 50% 0%,
+    var(--ms-status-low),
+    var(--ms-status-mid),
+    var(--ms-status-high)
+  );
+  mix-blend-mode: lighten;
+
+  /* The still pose is the loop's middle, so the mark stays visible without motion. */
+  --amplitude: var(--ms-status-mark-unit);
+  --scale: 3;
+
+  transform: translate(
+      calc(cos(var(--angle)) * var(--amplitude)),
+      calc(sin(var(--angle)) * var(--amplitude) * -1)
+    )
+    scale(var(--scale)) rotate(calc(-1 * var(--angle) + 17deg));
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .status-mark-circle {
+    animation: status-mark-expand 4.01s cubic-bezier(0.8, 0, 0.2, 1) infinite alternate;
   }
 }
+
+/* 0.16.0's loop (amplitude 4.5 → 3 px, scale 1 → 3) at the mark's 75 % size. */
+@keyframes status-mark-expand {
+  0% {
+    --amplitude: calc(var(--ms-status-mark-unit) * 1.5);
+    --scale: 1;
+  }
+
+  50% {
+    --amplitude: var(--ms-status-mark-unit);
+    --scale: 3;
+  }
+
+  100% {
+    --amplitude: calc(var(--ms-status-mark-unit) * 1.5);
+    --scale: 3;
+  }
+}
+
+.status-mark-circle:nth-child(1) {
+  --angle: calc(0 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(2) {
+  --angle: calc(1 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(3) {
+  --angle: calc(2 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(4) {
+  --angle: calc(3 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(5) {
+  --angle: calc(4 * 60deg + var(--offset));
+}
+
+.status-mark-circle:nth-child(6) {
+  --angle: calc(5 * 60deg + var(--offset));
+}
+
+@media (forced-colors: active) {
+  .status-mark-circle {
+    background: CanvasText;
+    mix-blend-mode: normal;
+  }
+}
+/* stylelint-enable custom-property-pattern */
 
 /* --- approval and question cards --- */
 
 .approval,
-.question {
+.question,
+.agent-notice {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   padding: var(--ms-gap);
-  border: 1px solid var(--vscode-focusBorder);
+  border: 1px solid var(--ms-focus);
   border-radius: var(--ms-radius);
-  background: var(--vscode-editorWidget-background);
+  background: var(--ms-raised);
 }
 
-.approval-title code,
 .markdown-inline {
-  padding: 0 3px;
-  border-radius: 3px;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.95em;
-  background: var(--vscode-textCodeBlock-background, var(--vscode-badge-background));
+  padding: 0 var(--ms-space-4);
+  border-radius: var(--ms-radius-xs);
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
+  background: var(--ms-code-surface);
+}
+
+.approval-title code {
+  padding: 0 calc(var(--ms-space-4) - 1px);
+  border-radius: var(--ms-radius-xs);
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-font-size);
+  background: var(--ms-code-surface);
 }
 
 .approval-flags {
   display: flex;
   flex-wrap: wrap;
   gap: var(--ms-gap);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+}
+
+/* The approvals waiting, docked above the composer (D26): always in view. A
+   long command scrolls inside the dock, so the composer stays on screen. */
+.approval-dock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-4);
+  max-height: 45vh;
+  margin-block: 0;
+  margin-inline: var(--ms-column-inset);
+  padding: var(--ms-space-4) var(--ms-gap);
+  scroll-padding-block: var(--ms-space-4);
+  overflow-y: auto;
+}
+
+.approval-dock-count {
+  margin: 0;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+}
+
+/* A long command wraps at 320 px instead of widening the panel. */
+.approval-title {
+  overflow-wrap: anywhere;
+}
+
+.approval:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+/* A decision arrived after its step moved on (D26): the card says so on itself. */
+.approval-moved {
+  border-width: 2px;
+}
+
+.approval-moved-note {
+  margin: 0;
+  padding: 2px calc(var(--ms-space-12) / 2);
+  border-radius: var(--ms-radius-xs);
+  color: var(--ms-warning-text);
+  background: var(--ms-warning-surface);
 }
 
 /* What a subagent spawn's card would start (M18). */
 .approval-prompt {
-  margin: 4px 0;
+  margin: var(--ms-space-4) 0;
   padding-left: var(--ms-gap);
-  border-left: 2px solid var(--vscode-panel-border);
+  border-left: 2px solid var(--ms-border);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .approval-feedback,
 .question-input {
-  padding: 4px 6px;
-  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
-  border-radius: var(--ms-radius);
-  color: var(--vscode-input-foreground);
-  font: inherit;
-  background: var(--vscode-input-background);
   resize: vertical;
 }
 
@@ -1304,26 +1917,53 @@ body {
 .question-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
+}
+
+/* Equal decisions keep one row at every width. The visible label ellipsizes;
+   the button's text and title retain its complete accessible name. */
+.approval-choices,
+.modal .question-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+/* The card's body (countdown, tabs, the question, its actions) and each
+   question stack with room between rows. The focused answer field draws a
+   2 px outline 2 px outside its box, so it keeps 8 px from the option above
+   and the buttons below instead of touching or covering them. */
+.question-body,
+.question-body > .question-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-8);
+}
+
+.question-body > .question-block {
+  gap: var(--ms-space-4);
+}
+
+.question-body .question-input {
+  margin-block-start: var(--ms-space-4);
 }
 
 .question-header {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 /* The options stack as native radio buttons or checkboxes (M16). */
 .question-options {
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
 }
 
 /* Each option at least 24 px tall, so its radio or checkbox has a 24 px
    target's room (WCAG 2.5.8, M37). */
 .question-choice {
   display: flex;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   align-items: center;
-  min-height: 24px;
+  min-height: var(--ms-space-24);
   cursor: pointer;
 }
 
@@ -1333,49 +1973,152 @@ body {
 }
 
 .question-choice-detail {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 /* One tab per question when the prompt carries several (M16). */
 .question-tabs {
   display: flex;
   gap: 2px;
-  border-bottom: 1px solid var(--vscode-panel-border);
+  border-bottom: 1px solid var(--ms-border);
 }
 
 .question-tab {
-  padding: 4px 10px;
+  padding: var(--ms-space-4) calc(var(--ms-space-20) / 2);
   border: 0;
   border-bottom: 2px solid transparent;
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   font: inherit;
   background: transparent;
   cursor: pointer;
 }
 
 .question-tab[aria-selected='true'] {
-  border-bottom-color: var(--vscode-focusBorder);
-  color: var(--vscode-foreground);
+  border-bottom-color: var(--ms-focus);
+  color: var(--ms-text);
+}
+
+/* MCP elicitation form (M91 lane M): the question card's own controls, with
+   full-row inputs for narrow panels and errors in the theme's error colour. */
+.elicitation-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.elicitation-field {
+  min-width: 0;
+  margin-inline: 0;
+  padding-inline: 0;
+  border: 0;
+}
+
+.elicitation-field legend,
+.elicitation-field .question-choice-label {
+  overflow-wrap: anywhere;
+}
+
+.elicitation-note {
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+}
+
+.elicitation-error {
+  color: var(--ms-text);
+  font-size: var(--ms-font-small);
+  font-weight: var(--ms-weight-bold);
 }
 
 /* --- todo panel --- */
 
-/* The goal strip (M45) is the same box, above the task list. */
+/* The goal strip (M45) is the same box, above the task list; both in the
+   chat column. */
 .todo,
 .goal {
-  margin: 0 var(--ms-gap);
-  padding: 6px var(--ms-gap);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  font-size: 0.9em;
-  background: var(--vscode-editorWidget-background);
+  margin: 0 var(--ms-column-gutter);
+  padding: calc(var(--ms-space-12) / 2) var(--ms-gap);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  font-size: var(--ms-font-size);
+  background: var(--ms-raised);
 }
 
 .todo-title {
-  margin-bottom: 2px;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: calc(var(--ms-space-12) / 2);
+  min-width: 0;
+  min-height: var(--ms-control-size);
+  padding: 0;
+  border: 0;
+  color: var(--ms-text);
+  font: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+.todo-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-gap);
+}
+
+.todo-progress {
+  overflow: hidden;
+  color: var(--ms-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-open {
+  flex-shrink: 0;
+}
+
+.todo-open,
+.todo-window {
+  min-height: var(--ms-control-size);
+  padding: var(--ms-space-4) var(--ms-space-8);
+  border: 1px solid var(--ms-control-border);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-secondary-text);
+  font: inherit;
+  background: var(--ms-secondary-surface);
+  cursor: pointer;
+}
+
+.todo-window:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.todo-current {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-surface {
+  overflow: auto;
+  padding: var(--ms-space-12);
+  scroll-padding: var(--ms-space-4);
+}
+
+.todo-tab-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ms-gap);
+  margin-bottom: var(--ms-gap);
+}
+
+.todo-tab-header h1 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--ms-font-size);
+  font-weight: var(--ms-weight-bold);
 }
 
 .todo-list {
@@ -1386,11 +2129,11 @@ body {
 
 .todo-item {
   display: flex;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
 }
 
 .todo-completed {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   text-decoration: line-through;
 }
 
@@ -1399,36 +2142,81 @@ body {
   text-align: center;
 }
 
+/* --- conversation diff tally (M87), above the goal and task panes --- */
+
+/* The rule above it spans the panel, as the header's does; its text sits in
+   the chat column. */
+.diff-tally {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ms-gap);
+  padding: var(--ms-gap) calc(var(--ms-column-inset) + var(--ms-gap) * 1.5);
+  border-top: 1px solid var(--ms-border);
+  color: var(--ms-text);
+}
+
+.diff-tally-files {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.diff-tally-lines {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.diff-tally-added {
+  color: var(--ms-git-added);
+}
+
+.diff-tally-removed {
+  color: var(--ms-git-deleted);
+}
+
+/* Dark Modern's deleted-resource colour measures 3.87:1 on the panel (the
+   VS Code 1.140.0 capture), under text's 4.5:1: the foreground stands in, as
+   D66 says; the minus sign still marks the number. */
+.vscode-dark .diff-tally-removed {
+  color: var(--ms-text);
+}
+
+.diff-tally-review {
+  min-height: var(--ms-control-size);
+  margin-inline-start: auto;
+}
+
 /* --- goal strip (M45): the session goal above the task list --- */
 
 .goal {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  margin-bottom: 4px;
+  gap: var(--ms-space-4);
+  margin-bottom: var(--ms-space-4);
 }
 
 .goal-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
 }
 
 .goal-title,
 .goal-percent {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .goal-status {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .goal-controls,
 .goal-edit {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--ms-space-4);
 }
 
 .goal-controls {
@@ -1444,17 +2232,21 @@ body {
 
 .goal-edit-input {
   flex: 1 1 200px;
+  border-color: var(--ms-muted);
+  color: var(--ms-input-text);
+  background: var(--ms-input-surface);
 }
 
-/* Session-scoped Model API schedules (M52): wrap on narrow sidebars. */
+/* Session-scoped Model API schedules (M52): wrap on narrow sidebars; in the
+   chat column. */
 .local-schedules {
-  margin: 0 var(--ms-gap) 4px;
-  padding: 6px var(--ms-gap);
+  margin: 0 var(--ms-column-gutter) var(--ms-space-4);
+  padding: calc(var(--ms-space-12) / 2) var(--ms-gap);
   max-height: 35vh;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  background: var(--vscode-editorWidget-background);
-  font-size: 0.9em;
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  background: var(--ms-raised);
+  font-size: var(--ms-font-size);
   overflow-y: auto;
 }
 
@@ -1464,26 +2256,26 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
+  gap: var(--ms-space-4) var(--ms-space-8);
 }
 
 .local-schedules-head span,
 .local-schedule-facts {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .local-schedules-list {
   display: grid;
-  gap: 6px;
-  margin: 6px 0 0;
+  gap: calc(var(--ms-space-12) / 2);
+  margin: calc(var(--ms-space-12) / 2) 0 0;
   padding: 0;
   list-style: none;
 }
 
 .local-schedule {
   min-width: 0;
-  padding-top: 6px;
-  border-top: 1px solid var(--vscode-panel-border);
+  padding-top: calc(var(--ms-space-12) / 2);
+  border-top: 1px solid var(--ms-border);
 }
 
 .local-schedule-prompt,
@@ -1492,11 +2284,11 @@ body {
 }
 
 .local-schedule-prompt {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .local-schedule-actions {
-  margin-top: 4px;
+  margin-top: var(--ms-space-4);
 }
 
 .local-schedule-actions .tool-more {
@@ -1504,12 +2296,201 @@ body {
   min-height: 24px;
 }
 
+/* --- git and pull requests (M71): the held card, the PR strip, the forms --- */
+
+.git-panel {
+  display: grid;
+  gap: var(--ms-space-4);
+  margin-block: 0 var(--ms-space-4);
+  margin-inline: var(--ms-column-gutter);
+  max-height: 50vh;
+  overflow-y: auto;
+  font-size: var(--ms-font-small);
+}
+
+.git-hold,
+.git-pr,
+.git-form {
+  border-left: calc(var(--ms-space-4) - 1px) solid
+    var(--vscode-editorWarning-foreground, var(--ms-focus));
+}
+
+/* Someone else's code: the card carries the warning colour on its edge. */
+.git-hold {
+  border-left: calc(var(--ms-space-4) - 1px) solid
+    var(--vscode-editorWarning-foreground, var(--ms-focus));
+}
+
+.git-row,
+.git-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ms-space-4) var(--ms-space-8);
+  min-width: 0;
+}
+
+.git-actions-end {
+  margin-left: auto;
+}
+
+.git-muted {
+  color: var(--ms-muted);
+}
+
+.git-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.git-worktree {
+  padding: 0 2px;
+  overflow-wrap: anywhere;
+}
+
+.git-pr-title {
+  padding: 0;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.git-pr-state {
+  font-weight: var(--ms-weight-bold);
+}
+
+.git-field {
+  display: grid;
+  gap: 2px;
+}
+
+.git-field input,
+.git-textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.git-check {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ms-space-12) / 2);
+}
+
+.git-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px var(--ms-space-8);
+  margin: 0;
+}
+
+.git-facts dt {
+  color: var(--ms-muted);
+}
+
+.git-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.git-files summary {
+  cursor: pointer;
+}
+
+.git-file-list {
+  display: grid;
+  gap: 2px;
+  margin: var(--ms-space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.git-file-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ms-space-12) / 2);
+  overflow-wrap: anywhere;
+}
+
+/* Each control is a 24 px target (WCAG 2.5.8). */
+.git-actions .tool-more {
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
+}
+
+.git-check input {
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
+}
+
+.report-check input {
+  margin: 0;
+  cursor: pointer;
+}
+
+.git-files summary:focus-visible,
+.git-check input:focus-visible,
+.git-pr-title:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: -1px;
+}
+
 /* --- context indicator --- */
 
-.context-label {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
-  white-space: nowrap;
+.context-meter {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--ms-control-size);
+  height: var(--ms-control-size);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-progress);
+  background: transparent;
+  cursor: pointer;
+}
+
+.context-meter-ring {
+  width: calc(var(--ms-space-24) - var(--ms-focus-width));
+  height: calc(var(--ms-space-24) - var(--ms-focus-width));
+  overflow: visible;
+  border-radius: var(--ms-radius-circle);
+  background: var(--ms-editor-surface);
+}
+
+.context-meter-ring circle {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.5px;
+}
+
+.context-meter-ring .context-meter-track {
+  stroke: var(--ms-border);
+}
+
+.context-meter-ring text {
+  fill: var(--ms-text);
+  font-size: var(--ms-font-small);
+  font-weight: var(--ms-weight-bold);
+  font-variant-numeric: tabular-nums;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.context-meter-ring .context-meter-number-full {
+  font-size: calc(var(--ms-font-small) - var(--ms-focus-width));
+}
+
+.context-meter-medium {
+  color: var(--ms-list-warning);
+}
+
+.context-meter-high {
+  color: var(--vscode-errorForeground);
+}
+
+.context-meter:hover:enabled {
+  background: var(--ms-toolbar-hover);
 }
 
 /* --- markdown --- */
@@ -1527,25 +2508,30 @@ body {
 .markdown ol,
 .markdown blockquote,
 .markdown table {
-  margin: 0.5em 0;
+  margin: var(--ms-space-8) 0;
 }
 
 .markdown h1,
 .markdown h2,
 .markdown h3,
 .markdown h4 {
-  margin: 0.8em 0 0.3em;
-  font-size: 1.05em;
+  margin: var(--ms-space-12) 0 var(--ms-space-4);
+  font-size: var(--ms-font-large);
+}
+
+:is(.markdown, .citations-list, .web-results) a {
+  text-decoration: underline;
+  text-underline-offset: calc(var(--ms-space-4) / 2);
 }
 
 .markdown a {
-  color: var(--vscode-textLink-foreground);
+  color: var(--ms-info);
 }
 
 .markdown blockquote {
   padding-left: var(--ms-gap);
-  border-left: 3px solid var(--vscode-panel-border);
-  color: var(--vscode-descriptionForeground);
+  border-left: var(--ms-radius-xs) solid var(--ms-quote-border);
+  color: var(--ms-muted);
 }
 
 .markdown table {
@@ -1554,102 +2540,92 @@ body {
 
 .markdown th,
 .markdown td {
-  padding: 2px 8px;
-  border: 1px solid var(--vscode-panel-border);
+  padding: calc(var(--ms-space-4) / 2) var(--ms-space-8);
+  border: 1px solid var(--ms-border);
 }
 
 .markdown-image {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   font-style: italic;
 }
 
 /* --- code blocks --- */
 
 .code-block {
-  margin: 0.5em 0;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+  color: var(--ms-code-text);
+  margin: var(--ms-space-8) 0;
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  background: var(--ms-code-surface);
 }
 
 .code-block-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px 8px;
-  border-bottom: 1px solid var(--vscode-panel-border);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.8em;
+  padding: var(--ms-space-4) var(--ms-space-8);
+  border-bottom: 1px solid var(--ms-border);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 .code-block-actions {
   display: flex;
-  gap: 4px;
+  gap: var(--ms-space-4);
 }
 
 /* 24 px targets (WCAG 2.5.8): with longer labels in other languages the
    buttons sit closer, and spacing alone no longer made up for their height
    (seen in the pseudo-locale, M40). */
 .code-block-button {
-  min-width: 24px;
-  min-height: 24px;
-  padding: 1px 6px;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
+  padding: 1px calc(var(--ms-space-12) / 2);
   border: 0;
-  border-radius: 3px;
-  color: var(--vscode-descriptionForeground);
+  border-radius: var(--ms-radius-xs);
+  color: var(--ms-muted);
   font: inherit;
-  font-size: 1em;
+  font-size: var(--ms-font-size);
   background: transparent;
   cursor: pointer;
 }
 
 .code-block-body {
-  margin: 0;
-  padding: 6px 8px;
-  overflow-x: auto;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
-  line-height: 1.4;
+  line-height: var(--ms-line-code);
 }
 
 /* highlight.js classes themed from VS Code colour tokens. */
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-type {
-  color: var(--vscode-symbolIcon-keywordForeground, var(--vscode-textLink-foreground));
+  color: var(--ms-syntax-keyword);
 }
 
 .hljs-string,
 .hljs-attr,
 .hljs-addition {
-  color: var(--vscode-debugTokenExpression-string, var(--vscode-foreground));
+  color: var(--ms-syntax-string);
 }
 
 .hljs-number,
 .hljs-literal {
-  color: var(--vscode-debugTokenExpression-number, var(--vscode-foreground));
+  color: var(--ms-syntax-number);
 }
 
 .hljs-comment,
 .hljs-meta,
 .hljs-deletion {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .hljs-title,
 .hljs-function,
 .hljs-variable {
-  color: var(--vscode-symbolIcon-functionForeground, var(--vscode-foreground));
+  color: var(--ms-syntax-function);
 }
 
 /* --- states for the additions: (0,2,0) --- */
 
-.tool-toggle:focus-visible,
-.tool-path:focus-visible,
-.tool-chevron:focus-visible,
-.steps-toggle:focus-visible,
-.tool-more:focus-visible,
-.code-block-button:focus-visible,
 .question-option:focus-visible,
 .approval-feedback:focus-visible,
 .question-input:focus-visible {
@@ -1659,7 +2635,18 @@ body {
 
 .code-block-button:hover,
 .tool-more:hover {
-  color: var(--vscode-foreground);
+  color: var(--ms-text);
+}
+
+.tool-more:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+/* A git form button that cannot act yet (M71). */
+.git-actions .tool-more:disabled {
+  color: var(--vscode-disabledForeground);
+  cursor: default;
 }
 
 /* --- editor integration (M5) --- */
@@ -1668,16 +2655,18 @@ body {
 .editor-chip {
   display: inline-flex;
   flex: 0 1 auto;
-  gap: 4px;
+  gap: var(--ms-space-4);
   align-items: center;
+  box-sizing: border-box;
   min-width: 0;
   max-width: 220px;
-  padding: 1px 4px 1px 6px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 999px;
-  color: var(--vscode-foreground);
-  font-size: 0.85em;
-  line-height: 1.4;
+  height: var(--ms-chip-height);
+  padding: 0 var(--ms-space-4) 0 calc(var(--ms-space-12) / 2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-pill);
+  color: var(--ms-text);
+  font-size: var(--ms-font-small);
+  line-height: var(--ms-line-ui);
   white-space: nowrap;
 }
 
@@ -1694,8 +2683,9 @@ body {
 /* --- session history (M6) --- */
 
 .header-title-button {
-  min-width: 0;
-  padding: 0 4px;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
+  padding: 0 var(--ms-space-4);
   border: 1px solid transparent;
   border-radius: var(--ms-radius);
   color: inherit;
@@ -1708,13 +2698,14 @@ body {
 .header-title-input {
   flex: 1;
   min-width: 0;
-  padding: 2px 4px;
-  border: 1px solid var(--vscode-focusBorder);
+  min-height: var(--ms-space-24);
+  padding: 2px var(--ms-space-4);
+  border: 1px solid var(--ms-focus);
   border-radius: var(--ms-radius);
-  color: var(--vscode-input-foreground);
+  color: var(--ms-input-text);
   font: inherit;
-  font-weight: 600;
-  background: var(--vscode-input-background);
+  font-weight: var(--ms-weight-bold);
+  background: var(--ms-input-surface);
 }
 
 .header-area {
@@ -1725,167 +2716,172 @@ body {
 .history {
   top: 100%;
   bottom: auto;
-  margin-top: 4px;
+  margin-top: var(--ms-space-4);
   margin-bottom: 0;
 }
 
 .history .palette-header {
   gap: var(--ms-gap);
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .history-toggle {
   display: inline-flex;
   flex-shrink: 0;
-  gap: 4px;
+  gap: var(--ms-space-4);
   align-items: center;
-  font-size: 0.85em;
+  font-size: var(--ms-font-small);
   white-space: nowrap;
   cursor: pointer;
 }
 
 .history-row .palette-item-label {
   display: flex;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   align-items: center;
 }
 
 .history-current {
-  font-weight: normal;
+  font-weight: var(--ms-weight-normal);
 }
 
 .history-archive {
   flex-shrink: 0;
-  min-width: 22px;
-  height: 22px;
-  visibility: hidden;
+  min-width: var(--ms-space-24);
+  height: var(--ms-space-24);
+  opacity: 0%;
 }
 
-/* The rewind button sits in the user card's top-right corner (the card is
-   positioned, see .message-user) and shows on hover or focus, as Claude Code's
-   user-message menu does; its menu opens beneath. */
-.rewind {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-}
-
-.rewind-button,
-.response-copy {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 50%;
-  color: var(--vscode-descriptionForeground);
-  background: var(--vscode-editor-background);
-  cursor: pointer;
-  visibility: hidden;
-}
-
-.rewind-button[aria-expanded='true'] {
-  visibility: visible;
-}
-
-.rewind-menu {
-  position: absolute;
-  top: 26px;
-  right: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  min-width: 220px;
-  padding: 4px;
-  border: 1px solid var(--vscode-menu-border, var(--vscode-panel-border));
-  border-radius: var(--ms-radius);
-  background: var(--vscode-menu-background, var(--vscode-editor-background));
-  color: var(--vscode-menu-foreground, var(--vscode-foreground));
-  box-shadow: 0 2px 8px var(--vscode-widget-shadow);
-}
-
-.rewind-menu-item {
-  padding: 6px 10px;
-  border: 0;
-  border-radius: var(--ms-radius);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  background: transparent;
-  cursor: pointer;
-}
-
-.rewind-menu-item:hover,
-.rewind-menu-item:focus-visible {
-  color: var(--vscode-menu-selectionForeground, inherit);
-  background: var(--vscode-menu-selectionBackground, var(--vscode-toolbar-hoverBackground));
-  outline: none;
-}
-
-.header-title-button:hover,
-.rewind-button:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+.header-title-button:hover {
+  background: var(--ms-toolbar-hover);
 }
 
 .header-title-button:focus-visible,
 .header-title-input:focus-visible,
-.history-archive:focus-visible,
-.rewind-button:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: -1px;
+.history-archive:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 .history-row:hover .history-archive,
+.history-row:focus-within .history-archive,
 .history-row.palette-item-active .history-archive {
-  visibility: visible;
-}
-
-.message-user:hover .rewind-button,
-.message-user:focus-within .rewind-button,
-.message-assistant:hover .response-copy,
-.message-assistant:focus-within .response-copy,
-.message-assistant:hover .response-menu-button,
-.message-assistant:focus-within .response-menu-button,
-.response-menu-button[aria-expanded='true'] {
-  visibility: visible;
-}
-
-/* Copy and the actions menu sit at the foot of a reply (M15, M17); the
-   menu opens beneath the button like the user card's. */
-.response-actions {
-  position: absolute;
-  right: 4px;
-  bottom: 2px;
-  display: flex;
-  gap: 2px;
-}
-
-.response-actions .rewind-menu {
-  top: 24px;
+  opacity: 100%;
 }
 
 /* A reply's tokens and dollar estimate under it (M82, Model API only). */
 .response-usage {
-  margin-top: 4px;
-  font-size: 0.85em;
-  color: var(--vscode-descriptionForeground);
+  margin-top: var(--ms-space-4);
+  font-size: var(--ms-font-small);
+  color: var(--ms-muted);
+}
+
+/* Save plan and Implement under the latest Plan-mode reply (M79): they wrap
+   on a narrow panel, and stay clear of the reply's copy button. */
+.plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-space-8);
+  margin: var(--ms-space-8) 0 var(--ms-space-4);
+  padding-right: calc(var(--ms-icon-size) * 3 + var(--ms-space-4));
+}
+
+/* The handoff dialog's editable brief (M74) and its Start/Cancel row. */
+.handoff-label {
+  display: block;
+  margin-bottom: calc(var(--ms-space-12) / 2);
+}
+
+.handoff-edit {
+  box-sizing: border-box;
+  resize: vertical;
+  width: 100%;
+}
+
+.handoff-todos {
+  margin: 0;
+  padding-left: 1.5em;
+}
+
+.handoff-actions,
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ms-space-12) / 2);
+  margin: var(--ms-space-8) 0 var(--ms-space-4);
+}
+
+/* The report-a-problem preview dialog (M93 lane W): the description field,
+its section switches, the removable items, the exact final draft and the
+export row. Long lines wrap so the dialog holds a 320 px panel. */
+.report-label {
+  display: block;
+  margin: var(--ms-space-8) 0 calc(var(--ms-space-12) / 2);
+}
+
+.report-description {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.report-warning,
+.report-note {
+  margin: calc(var(--ms-space-12) / 2) 0;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+}
+
+.report-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-4);
+  margin: var(--ms-space-8) 0;
+}
+
+/* Each switch at least 24 px tall, so its checkbox has a 24 px target's
+   room (WCAG 2.5.8), as the question options do. */
+.report-check {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--ms-space-12) / 2);
+  min-height: var(--ms-space-24);
+  cursor: pointer;
+}
+
+.report-items {
+  margin: 0 0 var(--ms-space-8);
+  padding-left: 1.5em;
+}
+
+.report-items li {
+  overflow-wrap: break-word;
+}
+
+.report-preview {
+  box-sizing: border-box;
+  width: 100%;
+  font-family: var(--ms-font-code);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.report-status {
+  margin: var(--ms-space-8) 0 var(--ms-space-4);
 }
 
 /* The Agent map's owner controls and note box (M18). */
 .agent-controls {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin: 6px 0;
+  gap: calc(var(--ms-space-12) / 2);
+  margin: calc(var(--ms-space-12) / 2) 0;
 }
 
 .agent-control-row,
 .agent-message-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
 }
 
 .agent-message-input {
@@ -1893,18 +2889,188 @@ body {
 }
 
 .agent-result-text {
-  margin: 4px 0;
-  padding: 6px 8px;
+  margin: var(--ms-space-4) 0;
+  padding: calc(var(--ms-space-12) / 2) var(--ms-space-8);
   border-radius: var(--ms-radius);
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-font-small);
   white-space: pre-wrap;
-  background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+  background: var(--ms-code-surface);
 }
 
-/* The highlighted-text menu sits at a row's top-right (M17). */
-.quote-menu {
+/* M87 F: the highlighted-text anchor stays at its row's top-right. */
+
+/* One opener per row. Opacity keeps it reachable before focus reveals it. */
+.row-with-actions {
+  position: relative;
+  padding-right: 32px;
+}
+
+.row-actions {
+  position: absolute;
   top: 4px;
+  right: 4px;
+}
+
+.message-assistant > .row-actions {
+  top: auto;
+  bottom: 2px;
+}
+
+/* The header is 100 % wide, so its room for the ⋯ is inside that width:
+   otherwise the chevron runs under the button (lane W's full a11y run). */
+.tool:has(> .row-actions) .tool-header {
+  box-sizing: border-box;
+  padding-right: var(--ms-space-32);
+}
+
+.row-actions-button {
+  display: grid;
+  width: var(--ms-space-24);
+  height: var(--ms-space-24);
+  padding: 0;
+  place-items: center;
+  color: var(--ms-text);
+  background: var(--ms-editor-surface);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-circle);
+  cursor: pointer;
+  opacity: 0%;
+}
+
+.row-actions-button:hover {
+  background: var(--ms-toolbar-hover);
+}
+
+.row-actions-button:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+li:hover > .row-actions .row-actions-button,
+li:focus-within > .row-actions .row-actions-button,
+.row-actions-button[aria-expanded='true'] {
+  opacity: 100%;
+}
+
+@media (hover: none) {
+  .row-actions-button {
+    opacity: 100%;
+  }
+}
+
+.quote-menu {
+  position: absolute;
+  top: var(--ms-space-4);
+  right: var(--ms-space-4);
+  width: 0;
+  height: 0;
+}
+
+.gooey-menu {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  pointer-events: none;
+}
+
+.gooey-menu-pills {
+  position: absolute;
+  inset: 0;
+}
+
+/* Each item is one crisp blue pill, its icon and then its label (the owner,
+   2026-10-04), every pill one size: the layout sets the same width and
+   height inline on each, so a long label ends in an ellipsis and never wraps
+   or grows its pill. Half-circle ends, no filter, no shadow. Each scales in
+   from the menu's origin after the one before it (inline animation-delay),
+   drawn at scale 0 until its turn. */
+.gooey-menu-pill {
+  position: absolute;
+  display: flex;
+  gap: var(--ms-space-8);
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  padding: 0 var(--ms-space-16) 0 var(--ms-space-12);
+  overflow: hidden;
+  font: inherit;
+  color: var(--ms-on-accent);
+  white-space: nowrap;
+  cursor: pointer;
+  background: var(--ms-accent);
+  border: 1px solid var(--ms-control-border);
+  border-radius: var(--ms-radius-pill);
+  pointer-events: auto;
+}
+
+/* A disabled item is a note ("File checkpoints need git on PATH"): the same
+   blue pill (the owner: icon and label in one blue pill), opaque so its text
+   reads and the chat never shows through it. Only its icon is dimmed, and
+   it takes no hover. */
+.gooey-menu-pill[aria-disabled='true'] {
+  cursor: default;
+}
+
+/* Pointer and selected decoration stays inside the pill, leaving only the
+   keyboard focus ring outside. Resting spacing is derived from its tokens. */
+.gooey-menu-pill:not([aria-disabled='true']):hover,
+.gooey-menu-pill:not([aria-disabled='true']):active,
+.gooey-menu-pill[aria-selected='true'],
+.gooey-menu-pill[aria-pressed='true'] {
+  background: var(--ms-pressed);
+  border-color: var(--ms-on-accent);
+}
+
+/* --ms-gooey-focus-offset (set on each pill) pulls the ring inward where the
+   fan is tight; it applies only to focus, never to the pressed ring. */
+.gooey-menu-pill:not([aria-disabled='true']):focus-visible {
+  background: var(--ms-pressed);
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-gooey-focus-offset, var(--ms-focus-offset));
+}
+
+.gooey-menu-pill-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+}
+
+.gooey-menu-pill[aria-disabled='true'] .gooey-menu-pill-icon {
+  color: var(--ms-disabled);
+}
+
+.gooey-menu-pill-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: start;
+  text-overflow: ellipsis;
+}
+
+@keyframes menu-pill-burst {
+  from {
+    transform: scale(0);
+  }
+
+  to {
+    transform: scale(1);
+  }
+}
+
+/* The pills' burst stops in the closing reduced-motion block: they appear
+   where they rest, all at once. */
+@media (forced-colors: active) {
+  .gooey-menu-colors-safe .gooey-menu-pill {
+    color: ButtonText;
+    background: ButtonFace;
+    border-color: ButtonText;
+  }
+
+  .gooey-menu-colors-safe .gooey-menu-pill[aria-disabled='true'] {
+    color: GrayText;
+    border-color: GrayText;
+  }
 }
 
 .tool {
@@ -1918,7 +3084,7 @@ body {
 }
 
 .usage-title {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .usage-body,
@@ -1928,6 +3094,7 @@ body {
   gap: var(--ms-gap);
   padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
   overflow: auto;
+  scroll-padding: var(--ms-space-4);
 }
 
 .usage-facts {
@@ -1958,7 +3125,7 @@ body {
 }
 
 .usage-facts dt {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .usage-facts dd {
@@ -1977,9 +3144,9 @@ body {
 
 .usage-heading {
   margin: var(--ms-gap) 0 0;
-  font-size: 0.85em;
-  font-weight: 600;
-  color: var(--vscode-descriptionForeground);
+  font-size: var(--ms-font-small);
+  font-weight: var(--ms-weight-bold);
+  color: var(--ms-muted);
 }
 
 .usage-row {
@@ -1995,39 +3162,40 @@ body {
 }
 
 .usage-percent {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .usage-row-meta {
   margin: 0;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 .usage-bar {
   width: 100%;
-  height: 6px;
+  height: calc(var(--ms-space-12) / 2);
   border: none;
-  border-radius: 3px;
-  background: var(--vscode-progressBar-background, var(--vscode-panel-border));
-  accent-color: var(--vscode-progressBar-background, var(--vscode-focusBorder));
+  border-radius: var(--ms-radius-xs);
+  background: var(--ms-progress);
+  accent-color: var(--ms-progress);
   overflow: hidden;
 }
 
 .usage-bar::-webkit-progress-bar {
-  background: var(--vscode-input-background);
+  background: var(--ms-input-surface);
 }
 
 .usage-bar::-webkit-progress-value {
-  border-radius: 3px;
-  background: var(--vscode-progressBar-background, var(--vscode-focusBorder));
+  border-radius: var(--ms-radius-xs);
+  background: var(--ms-progress);
 }
 
 .usage-link {
+  min-height: var(--ms-space-24);
   align-self: flex-start;
   padding: 0;
   border: none;
-  color: var(--vscode-textLink-foreground);
+  color: var(--ms-info);
   font: inherit;
   background: transparent;
   cursor: pointer;
@@ -2037,9 +3205,33 @@ body {
   text-decoration: underline;
 }
 
+.plan-mark {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: var(--vscode-font-size);
+  overflow-wrap: anywhere;
+}
+
+.plan-usage-facts {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+
+.plan-usage-facts dd {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.copilot-note {
+  margin: 4px 12px;
+  overflow-wrap: anywhere;
+}
+
 .usage-link:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 1px;
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 /* --- Onboarding tips on the empty state (M8) --- */
@@ -2050,24 +3242,24 @@ body {
   gap: var(--ms-gap);
   max-width: 440px;
   padding: var(--ms-gap) calc(var(--ms-gap) * 1.5);
-  border: 1px solid var(--vscode-panel-border);
+  border: 1px solid var(--ms-border);
   border-radius: var(--ms-radius);
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
   text-align: start;
 }
 
 .onboarding-title {
   margin: 0;
-  color: var(--vscode-foreground);
-  font-size: 1em;
-  font-weight: 600;
+  color: var(--ms-text);
+  font-size: var(--ms-font-size);
+  font-weight: var(--ms-weight-bold);
 }
 
 .onboarding-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2079,8 +3271,11 @@ body {
   align-items: baseline;
 }
 
+/* A shortcut named for every platform wraps within half the row, so its
+   description keeps room for its longest word. */
 .onboarding-list kbd {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  max-width: 50%;
   min-width: 2em;
   text-align: center;
 }
@@ -2105,22 +3300,21 @@ body {
    title (the reason) still shows on hover. */
 .mic-button.mic-starting,
 .mic-button.mic-listening {
-  color: var(--vscode-charts-red, var(--vscode-errorForeground));
-  animation: pulse 1.2s ease-in-out infinite;
+  color: var(--ms-chart-danger);
 }
 
 .mic-button.mic-listening {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--ms-toolbar-hover);
 }
 
 /* The paid engine (M35): the warning colour rings the microphone while
    Muse Voice is its engine, as it borders the paid badge. */
 .mic-button.mic-paid {
-  box-shadow: inset 0 0 0 1px var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
+  border-color: var(--ms-warning);
 }
 
 .mic-button[aria-disabled='true'] {
-  color: var(--vscode-disabledForeground);
+  color: var(--ms-disabled);
   cursor: default;
 }
 
@@ -2134,7 +3328,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: var(--ms-gap);
-  background: color-mix(in srgb, var(--vscode-editor-background) 55%, transparent);
+  background: var(--ms-modal-scrim);
 }
 
 .modal {
@@ -2142,11 +3336,11 @@ body {
   flex-direction: column;
   width: min(100%, 440px);
   max-height: 90vh;
-  border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border));
-  border-radius: var(--ms-radius);
-  color: var(--vscode-foreground);
-  background: var(--vscode-editorWidget-background, var(--vscode-editor-background));
-  box-shadow: 0 4px 16px var(--vscode-widget-shadow);
+  border: 1px solid var(--ms-widget-border);
+  border-radius: var(--ms-radius-lg);
+  color: var(--ms-text);
+  background: var(--ms-overlay);
+  box-shadow: var(--ms-elevation-overlay);
 }
 
 .modal-wide {
@@ -2155,43 +3349,44 @@ body {
 
 .modal-title {
   margin: 0;
-  font-size: 1.05em;
-  font-weight: 600;
+  font-size: var(--ms-font-size);
+  font-weight: var(--ms-weight-bold);
 }
 
 .usage-toggle {
   display: inline-flex;
   width: max-content;
-  border: 1px solid var(--vscode-panel-border);
+  border: 1px solid var(--ms-border);
   border-radius: var(--ms-radius);
-  overflow: hidden;
 }
 
 .usage-toggle button {
-  padding: 2px 10px;
+  min-height: var(--ms-space-24);
+  border-radius: var(--ms-radius-sm);
+  padding: 2px calc(var(--ms-space-20) / 2);
   border: 0;
-  color: var(--vscode-foreground);
+  color: var(--ms-text);
   font: inherit;
   background: transparent;
   cursor: pointer;
 }
 
 .usage-toggle .usage-toggle-on {
-  color: var(--vscode-button-foreground);
-  background: var(--vscode-button-background);
+  color: var(--ms-on-accent);
+  background: var(--ms-accent);
 }
 
 .usage-insights {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .usage-insight-share {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .agent-tree {
@@ -2204,9 +3399,9 @@ body {
 .agent-children {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   padding-left: var(--ms-gap);
-  border-left: 1px solid var(--vscode-panel-border);
+  border-left: 1px solid var(--ms-border);
 }
 
 .agent-node {
@@ -2214,23 +3409,21 @@ body {
   flex-direction: column;
   gap: 2px;
   min-width: 180px;
-  padding: 6px 10px;
-  border: 1px solid var(--vscode-panel-border);
+  padding: calc(var(--ms-space-12) / 2) calc(var(--ms-space-20) / 2);
+  border: 1px solid var(--ms-border);
   border-radius: var(--ms-radius);
   color: inherit;
   font: inherit;
   text-align: left;
-  background: var(--vscode-editor-background);
+  background: var(--ms-editor-surface);
 }
 
 .agent-node-clickable {
   cursor: pointer;
 }
 
-.agent-node-clickable:hover,
-.agent-node-clickable:focus-visible {
-  background: var(--vscode-list-hoverBackground);
-  outline: none;
+.agent-node-clickable:hover {
+  background: var(--ms-hover);
 }
 
 .agent-node-main {
@@ -2239,62 +3432,50 @@ body {
 
 .agent-node-title {
   display: inline-flex;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   align-items: center;
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .agent-node-meta {
-  font-size: 0.85em;
-  color: var(--vscode-descriptionForeground);
+  font-size: var(--ms-font-small);
+  color: var(--ms-muted);
 }
 
 .agent-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--vscode-descriptionForeground);
+  inline-size: var(--ms-space-8);
+  aspect-ratio: 1;
+  border-radius: var(--ms-radius-circle);
+  background: var(--ms-muted);
 }
 
 /* The panel's own blue, as on a running tool's dot; green read as a
    different kind of status (owner, 2026-09-24). */
 .agent-dot-running {
-  background: var(--vscode-progressBar-background, var(--vscode-button-background));
-  animation: agent-pulse 1.2s ease-in-out infinite;
+  background: var(--ms-progress);
 }
 
 .agent-dot-done {
-  background: var(--vscode-progressBar-background, var(--vscode-button-background));
+  background: var(--ms-progress);
 }
 
 .agent-dot-failed {
-  background: var(--vscode-testing-iconFailed, #f14c4c);
-}
-
-@keyframes agent-pulse {
-  50% {
-    opacity: 40%;
-  }
+  background: var(--ms-danger);
 }
 
 .agent-tasks {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .agent-notice {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: var(--ms-gap);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--ms-radius);
-  color: var(--vscode-descriptionForeground);
+  border-color: var(--ms-border);
+  color: var(--ms-muted);
 }
 
 .agent-notice p {
@@ -2304,24 +3485,24 @@ body {
 .agent-details {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
 }
 
 .agent-details-title {
   margin: 0;
-  font-size: 1em;
+  font-size: var(--ms-font-size);
 }
 
 .agent-result {
   margin: 0;
-  padding: 6px 10px;
-  border-left: 2px solid var(--vscode-panel-border);
+  padding: calc(var(--ms-space-12) / 2) calc(var(--ms-space-20) / 2);
+  border-left: 2px solid var(--ms-border);
 }
 
 .agent-transcript {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2331,11 +3512,11 @@ body {
   display: grid;
   grid-template-columns: 6em 1fr;
   gap: var(--ms-gap);
-  font-size: 0.9em;
+  font-size: var(--ms-font-small);
 }
 
 .agent-transcript-kind {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .agent-transcript-text {
@@ -2345,24 +3526,25 @@ body {
 
 .agents-pill {
   display: inline-flex;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   align-items: center;
-  padding: 1px 8px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 999px;
-  color: var(--vscode-foreground);
+  min-height: var(--ms-space-24);
+  padding: 1px var(--ms-space-8);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-pill);
+  color: var(--ms-text);
   font: inherit;
-  font-size: 0.85em;
+  font-size: var(--ms-font-small);
   background: transparent;
   cursor: pointer;
 }
 
 .agents-pill:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--ms-toolbar-hover);
 }
 
 .activity-subagent .activity-status {
-  color: var(--vscode-foreground);
+  color: var(--ms-text);
 }
 
 /* A workflow run (M47): a header line like a tool row's, its agents one per
@@ -2371,12 +3553,12 @@ body {
 .workflow {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 2px 0 2px 4px;
+  gap: var(--ms-space-4);
+  padding: calc(var(--ms-space-4) / 2) 0 calc(var(--ms-space-4) / 2) var(--ms-space-4);
 }
 
 .agent-node.workflow {
-  padding: 6px 10px;
+  padding: calc(var(--ms-space-12) / 2) calc(var(--ms-space-20) / 2);
 }
 
 .workflow-header {
@@ -2387,13 +3569,13 @@ body {
 }
 
 .workflow-label {
-  font-weight: 600;
+  font-weight: var(--ms-weight-bold);
 }
 
 .workflow-name {
   min-width: 0;
   overflow: hidden;
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2401,23 +3583,23 @@ body {
 .workflow-meta,
 .workflow-agents,
 .workflow-result {
-  margin-left: calc(8px + var(--ms-gap));
+  margin-left: calc(var(--ms-space-8) + var(--ms-gap));
 }
 
 .workflow-meta,
 .workflow-agent-meta,
 .workflow-result-label {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
 }
 
 .workflow-agents {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: calc(var(--ms-space-4) / 2);
   margin-block: 0;
   padding: 0 0 0 var(--ms-gap);
-  border-left: 1px solid var(--vscode-panel-border);
+  border-left: 1px solid var(--ms-border);
   list-style: none;
 }
 
@@ -2435,7 +3617,7 @@ body {
 .workflow-result {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: calc(var(--ms-space-4) / 2);
 }
 
 .workflow-path {
@@ -2445,7 +3627,7 @@ body {
 .agent-workflows {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: calc(var(--ms-space-12) / 2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2456,25 +3638,13 @@ body {
   gap: var(--ms-gap);
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 6px;
-  padding: 6px 10px;
-  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
-  border-radius: var(--ms-radius);
-  color: var(--vscode-foreground);
-  font-size: 0.9em;
-  background: var(--vscode-inputValidation-errorBackground, transparent);
-}
-
-.context-label-button {
-  border: 0;
-  color: inherit;
-  font: inherit;
-  background: transparent;
-  cursor: pointer;
-}
-
-.context-label-button:hover {
-  text-decoration: underline;
+  margin-bottom: calc(var(--ms-space-12) / 2);
+  padding: calc(var(--ms-space-12) / 2) calc(var(--ms-space-20) / 2);
+  border: 1px solid var(--ms-error-border);
+  border-radius: var(--ms-radius-md);
+  color: var(--ms-text);
+  font-size: var(--ms-font-size);
+  background: var(--ms-error-surface);
 }
 
 /* --- Paid features (M33–M35, PLAN.md D30): loud, never alarming --- */
@@ -2482,15 +3652,15 @@ body {
 /* The composer's badge while a paid feature is on: the warning colour marks
    the border, the text keeps the panel's own contrast. */
 .paid-badge {
-  min-height: 24px;
-  max-width: 220px;
+  min-height: var(--ms-space-24);
+  max-width: calc(var(--ms-space-20) * 11);
   overflow: hidden;
-  padding: 1px 8px;
-  border: 1px solid var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
-  border-radius: 999px;
-  color: var(--vscode-foreground);
+  padding: 1px var(--ms-space-8);
+  border: 1px solid var(--ms-warning);
+  border-radius: var(--ms-radius-pill);
+  color: var(--ms-text);
   font: inherit;
-  font-size: 0.85em;
+  font-size: var(--ms-font-small);
   white-space: nowrap;
   text-overflow: ellipsis;
   background: transparent;
@@ -2498,29 +3668,29 @@ body {
 }
 
 .paid-badge:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--ms-toolbar-hover);
 }
 
 /* A paid call's row. */
 .badge-paid {
-  border: 1px solid var(--vscode-editorWarning-foreground, var(--vscode-panel-border));
-  color: var(--vscode-foreground);
+  border: 1px solid var(--ms-warning);
+  color: var(--ms-text);
   background: transparent;
 }
 
 /* The web pages a reply cites (M33). */
 .citations {
-  margin-top: 6px;
-  font-size: 0.9em;
+  margin-top: calc(var(--ms-space-12) / 2);
+  font-size: var(--ms-font-size);
 }
 
 .citations-heading {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .citations-list {
-  margin: 2px 0 0;
-  padding-left: 20px;
+  margin: calc(var(--ms-space-4) / 2) 0 0;
+  padding-left: var(--ms-space-20);
 }
 
 /* Muse Code's own tools (M43): a memory note, a goal, scheduled prompts,
@@ -2528,33 +3698,46 @@ body {
 .tool-detail {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
 }
 
 .tool-detail-meta {
   margin: 0;
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-size);
 }
 
-.goal-objective,
-.schedule-prompt {
-  overflow-wrap: anywhere;
+/* M68: an edit's then_run under its diff. A run that did not pass is marked
+   with the error colour on the bar, the text in the text colour, as a failed
+   row is (WCAG 1.4.3, M37). */
+.then-run {
+  margin-top: calc(var(--ms-space-12) / 2);
+}
+
+.then-run-failed {
+  padding-left: calc(var(--ms-space-12) / 2);
+  border-left: 2px solid var(--vscode-errorForeground);
+  color: var(--ms-text);
 }
 
 .goal-objective {
-  font-weight: 600;
+  overflow-wrap: anywhere;
+  font-weight: var(--ms-weight-bold);
+}
+
+.schedule-prompt {
+  overflow-wrap: anywhere;
 }
 
 .tool-facts {
   display: grid;
   grid-template-columns: max-content 1fr;
-  gap: 2px 8px;
+  gap: calc(var(--ms-space-4) / 2) var(--ms-space-8);
   margin: 0;
 }
 
 .tool-facts dt {
-  color: var(--vscode-descriptionForeground);
+  color: var(--ms-muted);
 }
 
 .tool-facts dd {
@@ -2566,23 +3749,23 @@ body {
 .web-results {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ms-space-4);
   margin: 0;
-  padding-left: 20px;
+  padding-left: var(--ms-space-20);
 }
 
 .web-snippet {
-  color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-size);
   overflow-wrap: anywhere;
 }
 
 .tool-image {
   display: block;
   max-width: 100%;
-  margin-top: 4px;
+  margin-top: var(--ms-space-4);
   padding: 0;
-  border: 1px solid var(--vscode-panel-border);
+  border: 1px solid var(--ms-border);
   background: transparent;
   cursor: pointer;
 }
@@ -2590,18 +3773,23 @@ body {
 .tool-image img {
   display: block;
   max-width: 100%;
-  max-height: 240px;
+  max-height: calc(var(--ms-space-24) * 10);
 }
 
 /* A list of links, not links in a sentence: each is a 24 px target (WCAG 2.5.8). */
 .web-results a,
 .citations-list a {
   display: inline-block;
-  min-width: 24px;
-  min-height: 24px;
-  color: var(--vscode-textLink-foreground);
-  line-height: 24px;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
+  color: var(--ms-info);
+  line-height: var(--ms-space-24);
   overflow-wrap: anywhere;
+}
+
+.markdown a:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 /* --- background work, the user's `!` commands, explanations (M46) --- */
@@ -2610,7 +3798,7 @@ body {
    target (WCAG 2.5.8). */
 .tool-task-action {
   flex-shrink: 0;
-  min-height: 24px;
+  min-height: var(--ms-space-24);
   white-space: nowrap;
 }
 
@@ -2625,8 +3813,8 @@ body {
 
 .user-shell-command {
   overflow: hidden;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 0.9em;
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-font-size);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2634,11 +3822,11 @@ body {
 /* A `!` prompt reads as a command, and the chip beside the model says so. */
 .composer-input-shell,
 .shell-chip {
-  font-family: var(--vscode-editor-font-family);
+  font-family: var(--ms-font-code);
 }
 
 .shell-chip {
-  padding-right: 6px;
+  padding-right: calc(var(--ms-space-12) / 2);
 }
 
 /* Explain instead: the box under the question. */
@@ -2665,20 +3853,1183 @@ body {
   align-self: flex-start;
 }
 
+/* --- Review (M70): a review's findings, and the review pane --- */
+
+.review-findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-4);
+  margin: calc(var(--ms-space-12) / 2) 0;
+}
+
+.review-findings-heading {
+  margin: 0;
+  font-weight: var(--ms-weight-bold);
+}
+
+.review-findings-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--ms-space-12) / 2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-hunks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.review-finding {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--ms-space-4) / 2);
+  padding: calc(var(--ms-space-12) / 2) var(--ms-space-8);
+  border: 1px solid var(--ms-border);
+  border-left-width: 3px;
+  border-radius: var(--ms-radius-md);
+}
+
+.review-finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ms-space-12) / 2);
+  align-items: baseline;
+  margin: 0;
+}
+
+.review-finding-title {
+  font-weight: var(--ms-weight-bold);
+  overflow-wrap: anywhere;
+}
+
+.review-finding-location {
+  padding: 0;
+  font-family: var(--ms-font-code);
+  overflow-wrap: anywhere;
+}
+
+.review-finding-detail {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The severity is a word in the text colour; its colour is the row's edge
+   only, never the text's (contrast in every theme, WCAG 1.4.3). */
+.review-severity {
+  padding: 0 calc(var(--ms-space-12) / 2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius-md);
+  font-size: var(--ms-font-small);
+}
+
+.review-finding:has(.review-severity-critical),
+.review-finding:has(.review-severity-high) {
+  border-left-color: var(--vscode-errorForeground);
+}
+
+.review-finding:has(.review-severity-medium) {
+  border-left-color: var(--ms-warning);
+}
+
+.review-finding:has(.review-severity-low),
+.review-finding:has(.review-severity-info) {
+  border-left-color: var(--ms-focus);
+}
+
+.review-file {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-file-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.review-file-path {
+  margin: 0;
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.95em;
+  overflow-wrap: anywhere;
+}
+
+.review-hunk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-space-4);
+}
+
+.review-hunk-heading,
+.review-hunk-status {
+  margin: 0;
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+}
+
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--ms-space-12) / 2);
+  align-items: center;
+}
+
+.review-actions .tool-more[aria-pressed='true'] {
+  border: 1px solid var(--ms-focus);
+  border-radius: var(--ms-radius);
+}
+
+.review-actions .tool-more:disabled {
+  color: var(--ms-disabled);
+  cursor: default;
+}
+
+.review-comment {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--ms-space-12) / 2);
+  padding: calc(var(--ms-space-12) / 2) var(--ms-space-8);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius);
+}
+
+.review-comment-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--ms-font-small);
+}
+
+.review-comment-field select {
+  max-width: 100%;
+}
+
+/* --- Legal report and selected-fix handoff (M97 lane W) --- */
+
+/* The dialog reads in every theme through VS Code's own colours only; rows
+   wrap anywhere, so a 320px panel and 200% zoom never clip a finding. */
+.legal-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding: 12px 14px;
+}
+
+.legal-disclaimer {
+  margin: 0;
+  font-weight: 600;
+}
+
+.legal-summary {
+  margin: 0;
+}
+
+.legal-meta {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  overflow-wrap: anywhere;
+}
+
+.legal-group-heading {
+  margin: 8px 0 4px;
+  font-size: 1em;
+}
+
+.legal-group-heading:focus {
+  outline: none;
+}
+
+.legal-subheading {
+  margin: 6px 0 2px;
+  font-size: 0.9em;
+}
+
+.legal-findings,
+.legal-paths,
+.legal-eligible,
+.legal-excluded {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legal-finding {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+}
+
+.legal-finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  margin: 0;
+}
+
+/* The severity is a word in the text colour with a plain border, never the
+   text's colour (contrast in every theme, WCAG 1.4.3). */
+.legal-severity {
+  padding: 0 6px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+  font-size: 0.85em;
+}
+
+.legal-category {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+}
+
+.legal-id {
+  overflow-wrap: anywhere;
+}
+
+.legal-location {
+  overflow-wrap: anywhere;
+}
+
+.legal-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.legal-excerpt {
+  max-width: 100%;
+  margin: 0;
+  padding: 4px 6px;
+  overflow-x: auto;
+  border-radius: var(--ms-radius);
+  background: var(--vscode-textCodeBlock-background, var(--vscode-editorWidget-background));
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.85em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.legal-select {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.legal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legal-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.legal-eligible,
+.legal-excluded,
+.legal-paths {
+  overflow-wrap: anywhere;
+}
+
+/* --- Session board and best-of-N (M77) --- */
+
+.bestofn-title {
+  margin: 0;
+  font-size: var(--ms-font-size);
+  font-weight: var(--ms-weight-bold);
+}
+
+.bestofn-attempt,
+.bestofn-actions {
+  flex-wrap: wrap;
+}
+
+.bestofn-actions {
+  display: flex;
+  gap: var(--ms-gap);
+}
+
+.bestofn-label {
+  display: block;
+  margin: var(--ms-gap) 0 var(--ms-space-4);
+  color: var(--ms-muted);
+  font-size: var(--ms-font-small);
+}
+
+.bestofn-prompt {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
+}
+
+.bestofn-numbers,
+.bestofn-selects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-space-4) calc(var(--ms-gap) * 1.5);
+}
+
+.bestofn-number {
+  width: 5em;
+}
+
+.bestofn-compare {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ms-gap);
+}
+
+.bestofn-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ms-gap);
+}
+
+.bestofn-pane-title {
+  margin: 0 0 var(--ms-space-4);
+  font-size: var(--ms-font-small);
+  font-weight: var(--ms-weight-bold);
+  overflow-wrap: anywhere;
+}
+
+.bestofn-diff {
+  max-height: 30vh;
+  margin: 0;
+  padding: var(--ms-space-4) calc(var(--ms-space-12) / 2);
+  border: 1px solid var(--ms-border);
+  border-radius: var(--ms-radius);
+  background: var(--ms-editor-surface);
+  font-family: var(--ms-font-code);
+  font-size: var(--ms-code-size);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-y: auto;
+}
+
+/* A local share file open read-only (M84): meta line and one section per item. */
+.share-meta {
+  margin: 0;
+  color: var(--ms-muted);
+}
+
+.share-section {
+  border-top: 1px solid var(--ms-widget-border);
+  padding-top: var(--ms-gap);
+}
+
+/* The next page of a long share file (RV84 #14): how many show, and Show more. */
+.share-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ms-gap);
+  border-top: 1px solid var(--ms-widget-border);
+  padding-top: var(--ms-gap);
+}
+
+/* The team's tree and cards (M96 lane U2): an indented tree at every
+   width, the same items and actions at 320 px, and no animation of its
+   own for reduced motion to stop. */
+.team-tree-heading {
+  margin: var(--ms-gap) 0 4px;
+  font-size: 1em;
+}
+
+.team-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.team-node {
+  border-radius: var(--ms-radius);
+}
+
+.team-node[data-level='2'] {
+  margin-left: 12px;
+}
+
+.team-node[data-level='3'] {
+  margin-left: 24px;
+}
+
+.team-node[data-level='4'] {
+  margin-left: 36px;
+}
+
+.team-node:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.team-node-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.team-node-title {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-weight: 600;
+}
+
+.team-node-meta {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.team-node-actions,
+.team-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.team-node-actions button,
+.team-card-actions button {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 4px 6px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.team-merge-details {
+  margin: 2px 0;
+  overflow-wrap: anywhere;
+}
+
+.team-merge-details ul {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.team-card-note {
+  margin: 2px 0;
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* The merge card's path lists take their own full-width row: as extra flex
+   items in the single-row .activity they shrink to a few characters
+   and paths wrap per character at 320 px (F4). */
+.activity-team-merge {
+  flex-wrap: wrap;
+}
+
+.activity-team-merge > .activity-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.activity-team-merge > .team-merge-details,
+.activity-team-merge > .team-card-note,
+.activity-team-merge > .team-card-actions {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+/* A worker's own card label: the panel's chrome, never worker text. */
+.team-worker-label {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.team-plan-items {
+  margin: 2px 0;
+  padding-left: 16px;
+}
+
+.team-plan-item {
+  margin: 2px 0;
+}
+
+.team-plan-disposition {
+  font-weight: 600;
+}
+
+.team-estimated {
+  font-style: italic;
+  color: var(--vscode-descriptionForeground);
+}
+
+@media (width <= 480px) {
+  .team-node[data-level='2'] {
+    margin-left: 6px;
+  }
+
+  .team-node[data-level='3'] {
+    margin-left: 12px;
+  }
+
+  .team-node[data-level='4'] {
+    margin-left: 18px;
+  }
+}
+
+/* --- panel surface interaction states (M114 P2) --- */
+
+.approval-choices > button,
+.modal .question-actions > button {
+  flex: 1 1 0;
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--ms-button-height);
+  padding: 0 var(--ms-space-4);
+  overflow: hidden;
+  color: var(--ms-on-accent);
+  background: var(--ms-accent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:is(
+  .modal,
+  .palette,
+  .popover,
+  .mention-menu,
+  .approval,
+  .question,
+  .gate,
+  .onboarding,
+  .header,
+  .todo-surface,
+  .share-more,
+  .git-panel,
+  .review-hunk
+) {
+  :is(button, input, textarea, select, a, [tabindex]):focus-visible {
+    outline: var(--ms-focus-width) solid var(--ms-text);
+    outline-offset: var(--ms-focus-offset);
+  }
+
+  :is(button, .menu-item, .palette-item):hover:not(:disabled, [aria-disabled='true']) {
+    color: var(--ms-text);
+    background-color: var(--ms-toolbar-hover);
+  }
+
+  :is(button, .menu-item, .palette-item):active:not(:disabled, [aria-disabled='true']) {
+    color: var(--ms-on-selection);
+    background-color: var(--ms-selection);
+  }
+
+  :is(button, input, textarea, select):disabled {
+    color: var(--ms-disabled);
+    background-color: var(--ms-input-surface);
+    opacity: 100%;
+    cursor: default;
+  }
+}
+
+:is(.row-actions-button, .gooey-menu-pill, .agents-pill):focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-gooey-focus-offset, var(--ms-focus-offset));
+}
+
+:is(.row-actions-button, .agents-pill):active:enabled {
+  color: var(--ms-on-selection);
+  background-color: var(--ms-selection);
+}
+
+:is(.modal, .gate, .approval, .question) .button-primary:hover:enabled,
+.approval .approval-choices > button:hover:enabled,
+.approval .approval-choices > button:active:enabled,
+.modal .question-actions > button:hover:enabled,
+.modal .question-actions > button:active:enabled {
+  color: var(--ms-on-accent);
+  background: var(--ms-pressed);
+}
+
+:is(.modal, .gate, .question) .button-secondary:hover:enabled {
+  color: var(--ms-secondary-text);
+  background: var(--ms-secondary-hover);
+}
+
+:is(.modal, .palette, .popover, .approval, .question, .header) :is(input, textarea)::placeholder {
+  color: var(--ms-input-text);
+  opacity: 100%;
+}
+
+:is(.menu-item-active, .palette-item-active)
+  :is(.menu-item-detail, .menu-item-icon, .palette-item-detail, .palette-value) {
+  color: inherit;
+}
+
+:is(.menu-item, .palette-item):active
+  :is(.menu-item-detail, .menu-item-icon, .palette-item-detail, .palette-value) {
+  color: inherit;
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  :is(.modal, .palette, .popover, .mention-menu, .question, .header, .todo-surface, .agents-pill) {
+  --ms-selection: var(--ms-accent);
+  --ms-on-selection: var(--ms-on-accent);
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  :is(.modal, .palette, .popover, .mention-menu, .approval, .question, .agent-node, .onboarding) {
+  border-color: var(--ms-contrast-border);
+  box-shadow: var(--ms-elevation-flat);
+}
+
+.gooey-menu-pill:not([aria-disabled='true']):active {
+  color: var(--ms-on-accent);
+  background: var(--ms-pressed);
+}
+
+/* Pressed draws its ring inside the pill (offset = -width), so it reaches no
+   neighbour and still differs from hover (M114 P2). */
+.approval .approval-choices > button:active:enabled,
+.gooey-menu-pill:not([aria-disabled='true']):active {
+  outline: var(--ms-focus-width) solid var(--ms-on-accent);
+  outline-offset: calc(-1 * var(--ms-focus-width));
+}
+
+@media (forced-colors: active) {
+  :is(.modal, .palette, .popover, .mention-menu, .approval, .question, .agent-node, .onboarding) {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}
+
+@keyframes panel-open {
+  from {
+    opacity: 0%;
+  }
+
+  to {
+    opacity: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .modal,
+  .palette,
+  .popover,
+  .mention-menu {
+    animation: panel-open var(--ms-motion-base) var(--ms-ease-standard);
+  }
+
+  .gooey-menu-pill {
+    animation: menu-pill-burst var(--ms-motion-base) var(--ms-ease-standard) backwards;
+  }
+
+  .toggle-knob {
+    transition: left var(--ms-motion-fast) var(--ms-ease-standard);
+  }
+}
+
+/* --- conversation interaction states (M114 P1) --- */
+
+/* HC Light's translucent selection lacks a foreground. Only these controls
+   pair the host's opaque primary roles for pressed and selected states. */
+:is(.vscode-high-contrast, .vscode-high-contrast-light) .chat-control {
+  --ms-selection: var(--ms-accent);
+  --ms-on-selection: var(--ms-on-accent);
+}
+
+/* The exterior text ring remains readable when a theme's focus role fails
+   3:1. The host focus border stays inside the composer's ring. */
+.chat-control:disabled,
+.composer-toolbar [aria-disabled='true'] {
+  color: var(--ms-disabled);
+  cursor: default;
+}
+
+.chat-control[aria-disabled='true']:hover {
+  color: var(--ms-disabled);
+  background: transparent;
+}
+
+.chat-control:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light) .chat-control:focus-visible {
+  outline: var(--ms-focus-width) solid var(--vscode-contrastActiveBorder, var(--ms-focus));
+}
+
+.chat-control:not(
+    .pill,
+    .send-button,
+    .jump-latest,
+    .goal-edit-input,
+    .code-block-body,
+    .todo-title,
+    .context-meter
+  ):hover:not(:disabled, [aria-disabled='true']) {
+  background-color: var(--ms-toolbar-hover);
+  color: var(--ms-text);
+}
+
+.chat-control:not(
+    .pill,
+    .send-button,
+    .jump-latest,
+    .goal-edit-input,
+    .code-block-body,
+    .todo-title,
+    .context-meter
+  ):active:not(:disabled, [aria-disabled='true']) {
+  background-color: var(--ms-selection);
+  color: var(--ms-on-selection);
+}
+
+/* These compound controls keep their nested task/SVG roles on their own
+   surfaces. An inset edge supplies feedback without recolouring their content. */
+:is(.todo-title, .context-meter):hover:enabled {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--ms-text);
+}
+
+.chat-control:not(.goal-edit-input, .code-block-body):active:not(
+    :disabled,
+    [aria-disabled='true']
+  ) {
+  box-shadow: inset 0 0 0 var(--ms-focus-width) currentcolor;
+}
+
+/* VS Code uses contrastActiveBorder for interactive edges in HC themes.
+   Keep the focus ring wider than hover, and the pressed edge inside it. */
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  .chat-control:hover:not(:disabled, [aria-disabled='true'], :focus-visible) {
+  outline: 1px solid var(--vscode-contrastActiveBorder, var(--ms-focus));
+  outline-offset: var(--ms-focus-offset);
+}
+
+.pill:active:enabled {
+  text-decoration: underline;
+  border-color: var(--ms-on-badge);
+}
+
+:is(.pill, .icon-button, .mode-button, .tool-more)[aria-pressed='true'],
+:is(.icon-button, .mode-button)[aria-expanded='true'] {
+  color: var(--ms-on-selection);
+  background-color: var(--ms-selection);
+  border-color: var(--ms-text);
+}
+
+:is(.markdown, .citations-list, .web-results) a:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+:is(.markdown, .citations-list, .web-results) a:hover,
+.tool-path:hover:enabled {
+  color: var(--ms-link-hover);
+}
+
+:is(.markdown, .citations-list, .web-results) a:active {
+  color: var(--ms-text);
+  text-decoration-thickness: var(--ms-focus-width);
+}
+
+:is(.goal, .tool-detail) .usage-bar {
+  height: var(--ms-space-8);
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-input-surface);
+  accent-color: var(--ms-progress);
+}
+
+:is(.goal, .tool-detail) .usage-bar::-webkit-progress-bar {
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-input-surface);
+}
+
+:is(.goal, .tool-detail) .usage-bar::-webkit-progress-value {
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-progress);
+}
+
+:is(.goal, .tool-detail) .usage-bar::-moz-progress-bar {
+  border-radius: var(--ms-radius-pill);
+  background: var(--ms-progress);
+}
+
+:is(.tool-output, .shell, .code-block, .local-schedules) {
+  scroll-padding: var(--ms-space-4);
+}
+
+.code-block-body:focus-visible,
+.tool-open:focus-visible {
+  outline-offset: calc(-1 * var(--ms-focus-width));
+}
+
+:is(.tool-toggle, .tool-chevron, .steps-toggle):active:enabled
+  :is(.tool-summary, .steps-summary, .chevron) {
+  color: inherit;
+}
+
+.plan-actions :is(.button-primary, .button-secondary):focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+.plan-actions .button-primary:active:enabled {
+  background: var(--ms-pressed);
+}
+
+.plan-actions .button-secondary:active:enabled {
+  background: var(--ms-secondary-hover);
+}
+
+:is(.vscode-high-contrast, .vscode-high-contrast-light)
+  :is(
+    .jump-latest,
+    .tool-expand,
+    .composer,
+    .chip,
+    .code-block,
+    .todo,
+    .goal,
+    .local-schedules,
+    .diff-clip
+  ) {
+  border-color: var(--ms-contrast-border);
+  box-shadow: var(--ms-elevation-flat);
+}
+
+@media (forced-colors: active) {
+  /* Forced colours remove inset shadows. System-colour outlines keep hover,
+     keyboard focus and pressed feedback visible without moving the content. */
+  .chat-control:not(.goal-edit-input, .code-block-body):hover:not(
+      :disabled,
+      [aria-disabled='true'],
+      :focus-visible
+    ) {
+    outline: 1px solid Highlight;
+    outline-offset: var(--ms-focus-offset);
+  }
+
+  .chat-control:not(.goal-edit-input, .code-block-body):is(:focus-visible, :active):not(
+      :disabled,
+      [aria-disabled='true']
+    ) {
+    outline: var(--ms-focus-width) solid Highlight;
+    outline-offset: var(--ms-focus-offset);
+  }
+
+  .chat-control:not(.goal-edit-input, .code-block-body):active:not(
+      :disabled,
+      [aria-disabled='true']
+    ) {
+    outline-offset: 0;
+  }
+
+  :is(
+    .jump-latest,
+    .tool-expand,
+    .composer,
+    .chip,
+    .code-block,
+    .todo,
+    .goal,
+    .local-schedules,
+    .diff-clip
+  ) {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chevron {
+    transition: transform var(--ms-motion-fast) var(--ms-ease-standard);
+  }
+
+  :is(.jump-latest, .chip-remove, .code-block-button, .todo-open, .todo-window) {
+    transition: background-color var(--ms-motion-fast) var(--ms-ease-standard);
+  }
+}
+
 /* Reduced motion (M25): every animation and transition in the panel stops,
    not only the microphone's pulse. */
 @media (prefers-reduced-motion: reduce) {
+  .modal,
+  .palette,
+  .popover,
+  .mention-menu,
   .cursor,
   .tool-dot-running,
-  .status-spark,
   .mic-button.mic-starting,
   .mic-button.mic-listening,
-  .agent-dot-running {
+  .agent-dot-running,
+  .status-mark-circle,
+  .gooey-menu-pill {
     animation: none;
   }
 
   .toggle-knob,
-  .chevron {
+  .chevron,
+  :is(.jump-latest, .chip-remove, .code-block-button, .todo-open, .todo-window) {
     transition: none;
   }
+}
+
+/* M98: an advisory status line wraps at narrow panel widths. */
+.judge-status {
+  margin: 0 var(--ms-gap) var(--ms-space-8);
+  color: var(--ms-text);
+  font-size: var(--ms-font-size);
+  overflow-wrap: anywhere;
+}
+
+/* M112: one bounded attention dock; waiting/open rows stand out in every theme. */
+.attention-dock {
+  flex-shrink: 0;
+  overscroll-behavior: contain;
+}
+
+.tool-header[hidden],
+.attention-dock [hidden],
+.question[hidden],
+.question [hidden] {
+  display: none;
+}
+
+.attention-questions {
+  min-width: 0;
+}
+
+.attention-question-line,
+.question-countdown {
+  margin: 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+.tool-question-open,
+.question-waiting,
+.question-open {
+  border-inline-start: 3px solid var(--vscode-focusBorder);
+  outline: 1px solid var(--vscode-contrastBorder, transparent);
+}
+
+.question-summary,
+.question-state-label,
+.open-questions-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.question-summary,
+.open-questions-chip {
+  flex-wrap: wrap;
+}
+
+.question-summary-header {
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+
+.question-state-label {
+  font-weight: 600;
+}
+
+.question-state-icon {
+  min-width: 16px;
+  text-align: center;
+}
+
+.question-folded {
+  padding-block: 4px;
+}
+
+.attention-question-selector {
+  max-width: 100%;
+  min-height: 24px;
+  margin-block: 2px;
+  overflow-wrap: anywhere;
+  color: var(--vscode-foreground);
+}
+
+.question .row-actions {
+  opacity: 100%;
+}
+
+.tool-question-open > .question {
+  border-inline-start: 0;
+  outline: none;
+}
+
+.tool-question-open > .row-actions {
+  opacity: 100%;
+}
+
+.question-folded .question-summary {
+  flex-wrap: nowrap;
+}
+
+.question-folded .question-summary-header {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* M116-U: shared playbook surface, notes and strike badges. */
+.playbook-surface {
+  min-width: 0;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family, system-ui, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
+}
+
+.playbook-surface h1,
+.playbook-surface h2 {
+  font-size: 1.25em;
+}
+
+.playbook-views {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ms-gap);
+}
+
+.playbook-button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 0.4em 0.6em;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: 4px;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+  font: inherit;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.playbook-button:disabled,
+.playbook-button[aria-disabled='true'] {
+  opacity: 65%;
+  cursor: default;
+}
+
+.playbook-button[aria-pressed='true'] {
+  border-color: var(--vscode-focusBorder);
+  text-decoration: underline;
+}
+
+.playbook-rule {
+  display: grid;
+  gap: var(--ms-gap);
+  margin-block: 1em;
+  padding-block: 0.75em;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  overflow-wrap: anywhere;
+}
+
+.playbook-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--ms-gap);
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.playbook-rule h3 {
+  margin: 0;
+  font: inherit;
+}
+
+.playbook-rule .playbook-switch input {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  accent-color: var(--vscode-focusBorder);
+}
+
+.playbook-switch > span:last-child {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.playbook-rule textarea,
+.playbook-rule select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 32px;
+  padding: 0.5em;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  font: inherit;
+}
+
+.playbook-rule textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.playbook-detail,
+.playbook-rule p {
+  margin: 0;
+}
+
+.playbook-record {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+
+.playbook-notes {
+  list-style: none;
+  padding: 0;
+  margin-block: 0.5em;
+}
+
+.playbook-note {
+  border-inline-start: 2px solid var(--vscode-panel-border);
+  padding: 0.5em;
+  overflow-wrap: anywhere;
+}
+
+.playbook-note[data-needs-user='true'] {
+  font-weight: 600;
+}
+
+.playbook-badges {
+  display: grid;
+  gap: var(--ms-gap);
+}
+
+.playbook-badge {
+  border: 1px solid var(--vscode-panel-border);
+  padding: 0.2em 0.4em;
+  overflow-wrap: anywhere;
+  font-size: 0.9em;
+}
+
+.playbook-button:focus-visible,
+.playbook-rule textarea:focus-visible,
+.playbook-rule select:focus-visible,
+.playbook-rule input:focus-visible,
+.playbook-record:focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
 }

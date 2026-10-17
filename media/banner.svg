@@ -31,7 +31,7 @@
   <g font-family="'Segoe UI', Inter, 'Helvetica Neue', Arial, sans-serif" fill="#f5f7fb" text-anchor="middle">
     <text x="419.6" y="140" font-size="74" font-weight="700" letter-spacing="-1" text-anchor="start">Muse Spark Code</text>
     <rect x="510" y="162" width="260" height="3" rx="1.5" fill="url(#rule)"/>
-    <text x="640" y="214" font-size="29" fill="#c3cbdc">Meta’s Muse Spark as a coding agent inside VS Code</text>
+    <text x="640" y="214" font-size="29" fill="#c3cbdc">Meta’s Muse Spark as a coding agent in your editor</text>
     <g font-size="19" font-weight="600" fill="#9fb7ff">
       <rect x="269" y="248" width="168" height="40" rx="20" fill="#1c2540" stroke="#33427a"/>
       <text x="353" y="274">Muse Code CLI</text>

@@ -1,0 +1,76 @@
+{
+  "provider": "fireworks",
+  "step": "models-list",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "https://api.fireworks.ai/inference/v1/models",
+    "headers": {
+      "authorization": "<redacted>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "content-type": "application/json",
+      "date": "Sun, 04 Oct 2026 22:38:38 GMT",
+      "transfer-encoding": "chunked",
+      "vary": "Origin",
+      "via": "1.1 google, 1.1 google",
+      "x-request-id": "978ee5a5-5e4a-4139-a388-620612fdcb69"
+    },
+    "bodySummary": {
+      "note": "trimmed: count, keys and sample entries",
+      "count": 20,
+      "topLevelKeys": ["data", "object"],
+      "entryKeys": [
+        "context_length",
+        "created",
+        "id",
+        "kind",
+        "object",
+        "owned_by",
+        "supports_chat",
+        "supports_image_input",
+        "supports_tools"
+      ],
+      "sample": [
+        {
+          "id": "accounts/fireworks/routers/glm-5p2-fast",
+          "object": "model",
+          "owned_by": "fireworks",
+          "created": 1781630293,
+          "kind": "HF_BASE_MODEL",
+          "supports_chat": true,
+          "supports_image_input": false,
+          "supports_tools": true,
+          "context_length": 1048576
+        },
+        {
+          "id": "accounts/fireworks/models/minimax-m3",
+          "object": "model",
+          "owned_by": "fireworks",
+          "created": 1781214748,
+          "kind": "HF_BASE_MODEL",
+          "supports_chat": true,
+          "supports_image_input": false,
+          "supports_tools": true,
+          "context_length": 512000
+        },
+        {
+          "id": "accounts/fireworks/models/gpt-oss-120b",
+          "object": "model",
+          "owned_by": "fireworks",
+          "created": 1754345600,
+          "kind": "HF_BASE_MODEL",
+          "supports_chat": true,
+          "supports_image_input": false,
+          "supports_tools": true,
+          "context_length": 131072
+        }
+      ]
+    }
+  }
+}

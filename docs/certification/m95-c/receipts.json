@@ -1,0 +1,26 @@
+[
+  {
+    "request": 1,
+    "url": "https://raw.githubusercontent.com/anomalyco/models.dev/refs/heads/main/LICENSE",
+    "utc": "2026-10-05T13:37:06.186Z",
+    "status": 404
+  },
+  {
+    "request": 2,
+    "url": "https://raw.githubusercontent.com/anomalyco/models.dev/HEAD/LICENSE",
+    "utc": "2026-10-05T13:37:20.236Z",
+    "status": 200,
+    "bytes": 1067,
+    "sha256": "dc2dc41c9fea2fd3c41c21c6f484844cab367800b88ff24781f980ad3a9d160a",
+    "file": "LICENSE.upstream"
+  },
+  {
+    "request": 3,
+    "url": "https://models.dev/api.json",
+    "utc": "2026-10-05T13:37:35.198Z",
+    "status": 200,
+    "bytes": 5316384,
+    "sha256": "e47bd31afb882a62655a5783b4b37fb47bbd7652ab71b1ab0a85cfecfd33aacd",
+    "file": "api.json.raw"
+  }
+]

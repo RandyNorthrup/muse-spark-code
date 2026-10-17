@@ -1,0 +1,24 @@
+# Strict C# diagnostic severities. Copy to the solution root beside
+# Directory.Build.props, or merge these entries into the existing .editorconfig.
+#
+# EnforceCodeStyleInBuild runs IDE analyzers during `dotnet build`, but IDE
+# rules default to silent or suggestion, which the build does not report. A
+# rule is a gate only when its severity is warning or error here; with
+# TreatWarningsAsErrors either level fails the build.
+
+[*.cs]
+
+# --- dead code ---
+# Private member that nothing references.
+dotnet_diagnostic.IDE0051.severity = error
+# Private member that is written but never read.
+dotnet_diagnostic.IDE0052.severity = error
+# Value assigned and then overwritten or discarded before any read.
+dotnet_diagnostic.IDE0059.severity = error
+# Parameter that the method body never uses, at any accessibility by default.
+# Name a parameter that exists only to satisfy a signature `_` (or `_1`, `_2`);
+# the rule ignores discards.
+dotnet_diagnostic.IDE0060.severity = error
+# Unnecessary using directive. Reported at build time only when
+# GenerateDocumentationFile is true, which Directory.Build.props sets.
+dotnet_diagnostic.IDE0005.severity = error

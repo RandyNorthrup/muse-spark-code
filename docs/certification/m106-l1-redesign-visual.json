@@ -1,0 +1,46 @@
+[
+  {
+    "runtimeVersion": "151.0.7922.34",
+    "theme": "light",
+    "violations": [],
+    "incomplete": [],
+    "passes": 9,
+    "errors": [],
+    "screenshot": "docs/certification/m106-l1-redesign-light.png",
+    "hiddenValuesAbsent": true,
+    "escapedRendering": true
+  },
+  {
+    "runtimeVersion": "151.0.7922.34",
+    "theme": "dark",
+    "violations": [],
+    "incomplete": [],
+    "passes": 9,
+    "errors": [],
+    "screenshot": "docs/certification/m106-l1-redesign-dark.png",
+    "hiddenValuesAbsent": true,
+    "escapedRendering": true
+  },
+  {
+    "runtimeVersion": "151.0.7922.34",
+    "theme": "hc-dark",
+    "violations": [],
+    "incomplete": [],
+    "passes": 9,
+    "errors": [],
+    "screenshot": "docs/certification/m106-l1-redesign-hc-dark.png",
+    "hiddenValuesAbsent": true,
+    "escapedRendering": true
+  },
+  {
+    "runtimeVersion": "151.0.7922.34",
+    "theme": "hc-light",
+    "violations": [],
+    "incomplete": [],
+    "passes": 9,
+    "errors": [],
+    "screenshot": "docs/certification/m106-l1-redesign-hc-light.png",
+    "hiddenValuesAbsent": true,
+    "escapedRendering": true
+  }
+]

@@ -111,6 +111,20 @@ describe('locateDictationHelper', () => {
     })
   })
 
+  it('stays unavailable on Android/Termux, which has no bundled helper', () => {
+    const location = locateDictationHelper({
+      ...local,
+      platform: 'android',
+      systemRoot: undefined,
+      helperDir,
+      fileExists: () => true,
+    })
+    expect(location).toEqual({
+      isAvailable: false,
+      reason: 'Voice dictation is not available on this platform.',
+    })
+  })
+
   it('refuses in a remote window on every platform, saying the microphone is out of reach (M26)', () => {
     for (const platform of ['win32', 'darwin', 'linux'] as const) {
       const location = locateDictationHelper({
@@ -237,5 +251,21 @@ describe('locateCaptureHelper (M35)', () => {
         pathVariable: '/usr/bin',
       }),
     ).toMatchObject({ isAvailable: false, reason: expect.stringContaining('remote window') })
+  })
+
+  it('records nothing on Android/Termux, even with a Linux recorder on PATH', () => {
+    expect(
+      locateCaptureHelper({
+        ...capture,
+        platform: 'android',
+        systemRoot: undefined,
+        helperDir,
+        pathVariable: '/data/data/com.termux/files/usr/bin',
+        fileExists: onPath(['/data/data/com.termux/files/usr/bin/arecord']),
+      }),
+    ).toEqual({
+      isAvailable: false,
+      reason: 'Voice dictation is not available on this platform.',
+    })
   })
 })

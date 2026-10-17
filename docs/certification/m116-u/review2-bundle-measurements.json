@@ -1,0 +1,22 @@
+{
+  "source": "production dist/meta/webview.json",
+  "method": "Read-only static-closure calculation; no shipped budget array, gate or configuration changed",
+  "entries": [
+    "src/webview/playbook/PlaybookPanel.tsx",
+    "src/webview/playbook/PlaybookRows.tsx",
+    "src/webview/playbook/PlaybookMap.tsx"
+  ],
+  "additionalBytes": 14664,
+  "budgetBytes": 25600,
+  "legacyDeferredBytesAfterRegistration": 51175,
+  "legacyDeferredBudgetBytes": 51200,
+  "unregisteredDeferredBytes": 65839,
+  "startupBytes": 816956,
+  "startupBudgetBytes": 921600,
+  "extensionBytes": 448871,
+  "extensionBudgetBytes": 614400,
+  "acpBytes": 848090,
+  "acpBudgetBytes": 870400,
+  "shippedSizeGate": "exit 1; W has not registered the U closure",
+  "shippedSplitGate": "exit 1; exactly the three U entries are unlisted"
+}

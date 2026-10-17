@@ -1,0 +1,815 @@
+{
+  "rig": "macbook",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "results": [
+    {
+      "name": "unsafe-fields",
+      "file": "src/core/vault/mcpReferences.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "bbe7f72844266a0760c1725b9f9902ebdf227a31f471d00330996b6f75e896c5",
+      "mutationSha256": "bf664cd56aafca5dba7c2a423d59405388d400f4e830b449f8ce26d975db9a08",
+      "exitCode": 1,
+      "elapsedMs": 2290,
+      "failedTests": [
+        "M109 O command-bound references refuses handle/reference in unsafe command field",
+        "M109 O command-bound references refuses handle/reference in unsafe args field",
+        "M109 O command-bound references refuses handle/reference in unsafe cwd field",
+        "M109 O origin-bound headers refuses duplicate header aliases, plaintext downgrade and malformed references"
+      ],
+      "observed": true,
+      "restoredSha256": "bbe7f72844266a0760c1725b9f9902ebdf227a31f471d00330996b6f75e896c5",
+      "byteExact": true
+    },
+    {
+      "name": "environment-name",
+      "file": "src/core/vault/mcpReferences.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "bbe7f72844266a0760c1725b9f9902ebdf227a31f471d00330996b6f75e896c5",
+      "mutationSha256": "40d1f77c00745bb453bff0ff7fb9bb79172051dac235ba4ebe4345c083a01daf",
+      "exitCode": 1,
+      "elapsedMs": 2268,
+      "failedTests": [
+        "M109 O command-bound references refuses handle/reference in unsafe name field"
+      ],
+      "observed": true,
+      "restoredSha256": "bbe7f72844266a0760c1725b9f9902ebdf227a31f471d00330996b6f75e896c5",
+      "byteExact": true
+    },
+    {
+      "name": "header-alias",
+      "file": "src/core/vault/mcpReferences.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "bbe7f72844266a0760c1725b9f9902ebdf227a31f471d00330996b6f75e896c5",
+      "mutationSha256": "bc69c9d6c688b750e1fba187962908bc5f1456675f2cdaba0befc3d6de265b4f",
+      "exitCode": 1,
+      "elapsedMs": 2317,
+      "failedTests": [
+        "M109 O origin-bound headers refuses duplicate header aliases, plaintext downgrade and malformed references"
+      ],
+      "observed": true,
+      "restoredSha256": "bbe7f72844266a0760c1725b9f9902ebdf227a31f471d00330996b6f75e896c5",
+      "byteExact": true
+    },
+    {
+      "name": "header-routing",
+      "file": "src/core/vault/mcpReferences.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "bbe7f72844266a0760c1725b9f9902ebdf227a31f471d00330996b6f75e896c5",
+      "mutationSha256": "280070a72b5147ca33eb503156d508ca1d4c7353c0a0aad9708973ee9f2ec1ef",
+      "exitCode": 1,
+      "elapsedMs": 2354,
+      "failedTests": [
+        "M109 O origin-bound headers refuses routing/proxy credentials and ambiguous OAuth plus secret headers",
+        "M109 O origin-bound headers refuses duplicate header aliases, plaintext downgrade and malformed references"
+      ],
+      "observed": true,
+      "restoredSha256": "bbe7f72844266a0760c1725b9f9902ebdf227a31f471d00330996b6f75e896c5",
+      "byteExact": true
+    },
+    {
+      "name": "header-reference-grammar",
+      "file": "src/core/vault/mcpReferences.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "bbe7f72844266a0760c1725b9f9902ebdf227a31f471d00330996b6f75e896c5",
+      "mutationSha256": "65142f2a54fb43cebdaf1f89d54571d1b8275e6570a60036f6d7ef843a649eee",
+      "exitCode": 1,
+      "elapsedMs": 2391,
+      "failedTests": [
+        "M109 O origin-bound headers refuses duplicate header aliases, plaintext downgrade and malformed references"
+      ],
+      "observed": true,
+      "restoredSha256": "bbe7f72844266a0760c1725b9f9902ebdf227a31f471d00330996b6f75e896c5",
+      "byteExact": true
+    },
+    {
+      "name": "command-argv",
+      "file": "src/core/vault/mcpSecrets.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "mutationSha256": "dbed8ad55e185aa6a7f45b62f5b01e12a9b924facb648c6034d28726b9591d83",
+      "exitCode": 1,
+      "elapsedMs": 2594,
+      "failedTests": [
+        "M109 O command-bound references takes a snapshot before path resolution; argv substitution fails closed"
+      ],
+      "observed": true,
+      "restoredSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "byteExact": true
+    },
+    {
+      "name": "late-child-cancel",
+      "file": "src/core/vault/mcpSecrets.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "mutationSha256": "a64fc11f9cce26098ac006e0353bd7a7c0197ebf0b4bc25ca91b1b8ae3cb666c",
+      "exitCode": 1,
+      "elapsedMs": 2463,
+      "failedTests": [
+        "M109 O command-bound references cancels before resolution/start and kills a child admitted after cancellation"
+      ],
+      "observed": true,
+      "restoredSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "byteExact": true
+    },
+    {
+      "name": "header-https",
+      "file": "src/core/vault/mcpSecrets.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "mutationSha256": "5c20d86446ae49e78a2a67473e255375f5fa93f7c555965e8d0999114cf9fedb",
+      "exitCode": 1,
+      "elapsedMs": 2620,
+      "failedTests": [
+        "M109 O origin-bound headers refuses duplicate header aliases, plaintext downgrade and malformed references"
+      ],
+      "observed": true,
+      "restoredSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "byteExact": true
+    },
+    {
+      "name": "header-exact-target",
+      "file": "src/core/vault/mcpSecrets.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "mutationSha256": "611cf5550048ea46ccde2c4d65d6198ecdd60f9cf72a02dcf671867c342e263d",
+      "exitCode": 1,
+      "elapsedMs": 2678,
+      "failedTests": [
+        "M109 O origin-bound headers refuses origin before credential release",
+        "M109 O origin-bound headers refuses path before credential release",
+        "M109 O origin-bound headers refuses redirect before credential release",
+        "M109 O origin-bound headers refuses requestObject before credential release"
+      ],
+      "observed": true,
+      "restoredSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "byteExact": true
+    },
+    {
+      "name": "header-substitution",
+      "file": "src/core/vault/mcpSecrets.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "mutationSha256": "6b09a9cf58b31e77302ccb95d5603bdcfe5f825fb4bf000125dfe0bba21696c9",
+      "exitCode": 1,
+      "elapsedMs": 2871,
+      "failedTests": ["M109 O origin-bound headers refuses substitution before credential release"],
+      "observed": true,
+      "restoredSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "byteExact": true
+    },
+    {
+      "name": "header-oauth-overlap",
+      "file": "src/core/vault/mcpSecrets.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "mutationSha256": "e1a790bbcf971ef48d6bed9a11eed0b7cb2e17fa446a931305365b75bdd93a3a",
+      "exitCode": 1,
+      "elapsedMs": 3135,
+      "failedTests": [
+        "M109 O origin-bound headers refuses routing/proxy credentials and ambiguous OAuth plus secret headers"
+      ],
+      "observed": true,
+      "restoredSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "byteExact": true
+    },
+    {
+      "name": "move-use-digest",
+      "file": "src/core/vault/mcpSecrets.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "mutationSha256": "49fec52b1b575bb53d30fcb765582555f2ba998ad61a34c401fdb306ebf01193",
+      "exitCode": 1,
+      "elapsedMs": 3693,
+      "failedTests": [
+        "M109 O Move to vault review rejects a migration digest that differs from resolved live entry"
+      ],
+      "observed": true,
+      "restoredSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "byteExact": true
+    },
+    {
+      "name": "move-wipe",
+      "file": "src/core/vault/mcpSecrets.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "mutationSha256": "c1eafe54c178e046e478a1405e32fa3a94df26af337c3ce2dce8bc5e4adccc94",
+      "exitCode": 1,
+      "elapsedMs": 4178,
+      "failedTests": [
+        "M109 O Move to vault review imports and verifies selected env literal; returns review edit, preserving unrelated config",
+        "M109 O Move to vault review imports and verifies selected headers literal; returns review edit, preserving unrelated config",
+        "M109 O Move to vault review never edits settings when encrypted import fails, and erases imported bytes on failure"
+      ],
+      "observed": true,
+      "restoredSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "byteExact": true
+    },
+    {
+      "name": "move-snapshot",
+      "file": "src/core/vault/mcpSecrets.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "mutationSha256": "c58bbcbb716fd58d358a3871204aa4bfc94457ab8dcd87c46178b9988a2dccc3",
+      "exitCode": 1,
+      "elapsedMs": 4534,
+      "failedTests": [
+        "M109 O Move to vault review holds the selected name and key before awaiting live resolution"
+      ],
+      "observed": true,
+      "restoredSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "byteExact": true
+    },
+    {
+      "name": "metadata-https",
+      "file": "src/core/mcp/oauth/discovery.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "mutationSha256": "ef24a6b2183846c7cffaffc66003319c63ea267ffeeb53b6a81fb060e45ef3b2",
+      "exitCode": 1,
+      "elapsedMs": 4858,
+      "failedTests": ["M109 O OAuth audience and PKCE refuses discovery mismatch: endpoint"],
+      "observed": true,
+      "restoredSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "byteExact": true
+    },
+    {
+      "name": "metadata-size",
+      "file": "src/core/mcp/oauth/discovery.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "01ac3c388bba3b682f1982e7ee5e4d911ccda413d87939c8ecf95498aae82bbc",
+      "exitCode": 1,
+      "elapsedMs": 13566,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE never exposes token response oversize to callers"
+      ],
+      "observed": true,
+      "restoredSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "byteExact": true
+    },
+    {
+      "name": "metadata-resource",
+      "file": "src/core/mcp/oauth/discovery.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "95b0b0db605c7ce8b60e5b4c24c9503d686d902103d50c1e42b6d87392d65fb1",
+      "exitCode": 1,
+      "elapsedMs": 12028,
+      "failedTests": ["M109 O OAuth audience and PKCE refuses discovery mismatch: resource"],
+      "observed": true,
+      "restoredSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "byteExact": true
+    },
+    {
+      "name": "metadata-issuer",
+      "file": "src/core/mcp/oauth/discovery.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "afbe647807d4f2d331ea51717fbecc5f19f0e0abee4ddc6d784d020a851b7133",
+      "exitCode": 1,
+      "elapsedMs": 5415,
+      "failedTests": ["M109 O OAuth audience and PKCE refuses discovery mismatch: issuer"],
+      "observed": true,
+      "restoredSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "byteExact": true
+    },
+    {
+      "name": "metadata-s256",
+      "file": "src/core/mcp/oauth/discovery.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "cb4bcf170c7fbade856032fddc08be86b7d42ad2ff46ff46883c1822c9f145aa",
+      "exitCode": 1,
+      "elapsedMs": 3821,
+      "failedTests": ["M109 O OAuth audience and PKCE refuses discovery mismatch: S256"],
+      "observed": true,
+      "restoredSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "byteExact": true
+    },
+    {
+      "name": "metadata-redirect",
+      "file": "src/core/mcp/oauth/discovery.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "aa63e8a3a25a88b56972b5e1bb8c4c6d850d54d1c85ddbd193e6cdd9d9f418c1",
+      "exitCode": 1,
+      "elapsedMs": 3331,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE never exposes token response redirect to callers"
+      ],
+      "observed": true,
+      "restoredSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "byteExact": true
+    },
+    {
+      "name": "callback-state",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "d4ecaa032a0125249c01034b98796251bde68c21f8235b47c5c3c0b320d9a169",
+      "exitCode": 1,
+      "elapsedMs": 2902,
+      "failedTests": ["M109 O OAuth audience and PKCE refuses callback state before exchange"],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "callback-destination",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "04fc443a3a8299412af314109485f8c071925fd5efaca99b24ae0a5cc982131b",
+      "exitCode": 1,
+      "elapsedMs": 2737,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE refuses callback path before exchange",
+        "M109 O OAuth audience and PKCE refuses callback origin before exchange"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "callback-iss",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "d755d29e1ac4f184e8e2e04008ed139c373e972baa790b047546167199657df3",
+      "exitCode": 1,
+      "elapsedMs": 2501,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE requires response issuer when discovery advertises RFC 9207"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "authorization-resource",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "ef59ea68391711bfee45a23a006fecab2fdfe39831f61fdb0d78537abac94991",
+      "exitCode": 1,
+      "elapsedMs": 2284,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE discovers path-aware metadata, binds S256 and resource in both requests, stores only vault tokens"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "no-passthrough",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "cf28cb0838d5930debf5647dd8bf0eb4dbae105cd03fddfd1551b02687331835",
+      "exitCode": 1,
+      "elapsedMs": 2169,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE binds pool OAuth by registry name and resource without accepting caller credentials",
+        "M109 O OAuth audience and PKCE refuses passthrough, same-origin resource changes and another server before reading tokens"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "stored-resource",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "ff3dc007805cc8b4b0c5826b1c1d31d32e8cbb520d23ab61b16da377344fe9dc",
+      "exitCode": 1,
+      "elapsedMs": 2080,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE refuses stored resource mismatch before using access token"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "stored-issuer",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "77426680e1f12232016cf5a93d285f8315ed718d810e13a7ac2e7c26234e6852",
+      "exitCode": 1,
+      "elapsedMs": 2020,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE refuses stored issuer mismatch before using access token"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "refresh-rotation",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuthLifecycle.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "3242c1af5e4fa5e8b1e0c80ca14077d9ca7b50c906a4d149ba5f3cea574652c3",
+      "mutationSha256": "86aeb653205bc42034a46112f02b9c84ff94a5b310d3c49335609c2702693eff",
+      "exitCode": 1,
+      "elapsedMs": 1960,
+      "failedTests": [
+        "M109 O rotation and generation quarantines sameRotation; never retries stale refresh"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "serialized-refresh",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuthLifecycle.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "3242c1af5e4fa5e8b1e0c80ca14077d9ca7b50c906a4d149ba5f3cea574652c3",
+      "mutationSha256": "b8d9617cf2a05f7341ba1c0d492b8880c7194e5b1dba1063115ab30de76cd4ab",
+      "exitCode": 1,
+      "elapsedMs": 1968,
+      "failedTests": [
+        "M109 O rotation and generation serializes concurrent refreshes, commits rotation before use, wipes every borrowed/new buffer",
+        "M109 O rotation and generation refuses queued old generation after lock and never dispatches its token"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "commit-generation",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuthLifecycle.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "3242c1af5e4fa5e8b1e0c80ca14077d9ca7b50c906a4d149ba5f3cea574652c3",
+      "mutationSha256": "fc61f87fccf97524ee4ec0d518412de51f381d606a7054a16a57e52a0e8479ba",
+      "exitCode": 1,
+      "elapsedMs": 1945,
+      "failedTests": [
+        "M109 O rotation and generation checks generation at physical commit; lock refuses late sign-in bytes"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "lock-wipe",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuthLifecycle.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "3242c1af5e4fa5e8b1e0c80ca14077d9ca7b50c906a4d149ba5f3cea574652c3",
+      "mutationSha256": "b3490b419dad799e36b94bf8efc0e242519a4a5558fb75ba677c8dd79bb51c78",
+      "exitCode": 1,
+      "elapsedMs": 1873,
+      "failedTests": [
+        "M109 O rotation and generation lock synchronously erases owned material and in-flight Authorization, even with stalled transport"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "lock-header-wipe",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuthLifecycle.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "3242c1af5e4fa5e8b1e0c80ca14077d9ca7b50c906a4d149ba5f3cea574652c3",
+      "mutationSha256": "2b1a350e1a7dd418783950cc9379c7ef99ca30897a281072d09875a3c18f733c",
+      "exitCode": 1,
+      "elapsedMs": 1853,
+      "failedTests": [
+        "M109 O rotation and generation lock synchronously erases owned material and in-flight Authorization, even with stalled transport"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "rotation-finally-wipe",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuthLifecycle.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "3242c1af5e4fa5e8b1e0c80ca14077d9ca7b50c906a4d149ba5f3cea574652c3",
+      "mutationSha256": "20c3acbeb0e8b8b8070394d6425376160cd0ef217e4882cce8282fa1d18ea39f",
+      "exitCode": 1,
+      "elapsedMs": 1793,
+      "failedTests": [
+        "M109 O rotation and generation serializes concurrent refreshes, commits rotation before use, wipes every borrowed/new buffer"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "scoped-revocation",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuthLifecycle.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "3242c1af5e4fa5e8b1e0c80ca14077d9ca7b50c906a4d149ba5f3cea574652c3",
+      "mutationSha256": "9e6de9ba40bf99fd24f80c9e364445f8ccdec28cf29912c1a2c0b7440e09f0b0",
+      "exitCode": 1,
+      "elapsedMs": 1790,
+      "failedTests": [
+        "M109 O rotation and generation scoped revocation aborts its handle while leaving another queued sign-in live"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "permit-settlement",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuthLifecycle.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "3242c1af5e4fa5e8b1e0c80ca14077d9ca7b50c906a4d149ba5f3cea574652c3",
+      "mutationSha256": "4072a0c34c6754ea6865a9d6848811d4607a4e7ef4413068070644e143e02cd7",
+      "exitCode": 1,
+      "elapsedMs": 1797,
+      "failedTests": [
+        "M109 O rotation and generation settles every acquired permit, including denied I/O, after private buffers are erased"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "pool-no-vault",
+      "file": "src/core/backends/modelapi/mcp/pool.ts",
+      "testFile": "test/unit/vault/mcpVaultPool.test.ts",
+      "sourceSha256": "bc4ec8b3d84e110fb8c0e4d08f58e60023a9f5035b3a263c83e683acec209c5c",
+      "testSha256": "a86fdf63c0a104d8df650897194c1952574d6f8092f962f6b2c37fa698fc1980",
+      "mutationSha256": "6927a59d1e84f749d9a61bc41957d1302046be392a907f087eabb53a8827242a",
+      "exitCode": 1,
+      "elapsedMs": 1946,
+      "failedTests": [
+        "M109 O pool and spawner enforcement refuses an unbound vault reference before start/HTTP dispatch"
+      ],
+      "observed": true,
+      "restoredSha256": "bc4ec8b3d84e110fb8c0e4d08f58e60023a9f5035b3a263c83e683acec209c5c",
+      "byteExact": true
+    },
+    {
+      "name": "pool-no-transport",
+      "file": "src/core/backends/modelapi/mcp/pool.ts",
+      "testFile": "test/unit/vault/mcpVaultPool.test.ts",
+      "sourceSha256": "bc4ec8b3d84e110fb8c0e4d08f58e60023a9f5035b3a263c83e683acec209c5c",
+      "testSha256": "a86fdf63c0a104d8df650897194c1952574d6f8092f962f6b2c37fa698fc1980",
+      "mutationSha256": "6e9d53b6227cb7d45b0399436a77d9f8a6841372a85dd267fc1891c76b4aaeb1",
+      "exitCode": 1,
+      "elapsedMs": 1960,
+      "failedTests": [
+        "M109 O pool and spawner enforcement refuses a configured vault port that supplies no transport for secret headers"
+      ],
+      "observed": true,
+      "restoredSha256": "bc4ec8b3d84e110fb8c0e4d08f58e60023a9f5035b3a263c83e683acec209c5c",
+      "byteExact": true
+    },
+    {
+      "name": "direct-spawner",
+      "file": "src/host/backend/mcpProcess.ts",
+      "testFile": "test/unit/vault/mcpVaultPool.test.ts",
+      "sourceSha256": "b3459d44e665dd38843c786d07b5bd131f7fffd549f811200405e3a1b0e4bcb2",
+      "testSha256": "a86fdf63c0a104d8df650897194c1952574d6f8092f962f6b2c37fa698fc1980",
+      "mutationSha256": "dc731f9a41c1d594b2fd830b0ae60f87c071f9a83433dbc7918b8f62e3f2fa0d",
+      "exitCode": 1,
+      "elapsedMs": 1989,
+      "failedTests": [
+        "M109 O pool and spawner enforcement direct host spawner refuses unresolved vault references before probing/spawning"
+      ],
+      "observed": true,
+      "restoredSha256": "b3459d44e665dd38843c786d07b5bd131f7fffd549f811200405e3a1b0e4bcb2",
+      "byteExact": true
+    },
+    {
+      "name": "resolution-cancel",
+      "file": "src/core/vault/mcpSecrets.ts",
+      "testFile": "test/unit/vault/mcpSecrets.test.ts",
+      "sourceSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "testSha256": "87a574d60ff9f7510654e99aa264a4c3c8f6c66fcdc293b2610ed1dc1985e728",
+      "mutationSha256": "35885fce91fe011a8c71669b8da3b0eb200813c45ad0f9845306f4006c354727",
+      "exitCode": 1,
+      "elapsedMs": 5092,
+      "failedTests": [
+        "M109 O command-bound references refuses cancellation that arrives while resolving paths, before feeder admission"
+      ],
+      "observed": true,
+      "restoredSha256": "0fef2cc68de351b7219d53c31baf4dcf837e8db6ceee2f0e948f8581b54dc9ce",
+      "byteExact": true
+    },
+    {
+      "name": "metadata-response-type",
+      "file": "src/core/mcp/oauth/discovery.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "05b72fb674e4d09b7878695f90365556d1f8105024edf9064c3f9984ad81dfd0",
+      "exitCode": 1,
+      "elapsedMs": 6940,
+      "failedTests": ["M109 O OAuth audience and PKCE refuses discovery mismatch: responseType"],
+      "observed": true,
+      "restoredSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "byteExact": true
+    },
+    {
+      "name": "metadata-grant-type",
+      "file": "src/core/mcp/oauth/discovery.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "33205b1184825f9ec5bd3fc4702b13eab1d8123a065933b5fa3cb33924421899",
+      "exitCode": 1,
+      "elapsedMs": 8829,
+      "failedTests": ["M109 O OAuth audience and PKCE refuses discovery mismatch: grantType"],
+      "observed": true,
+      "restoredSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "byteExact": true
+    },
+    {
+      "name": "metadata-public-client",
+      "file": "src/core/mcp/oauth/discovery.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "21be83e29ac2a5a5b369c19fad124969cf02a9ba7e1b9eed120f4f4424cd20cb",
+      "exitCode": 1,
+      "elapsedMs": 11955,
+      "failedTests": ["M109 O OAuth audience and PKCE refuses discovery mismatch: authMethod"],
+      "observed": true,
+      "restoredSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "byteExact": true
+    },
+    {
+      "name": "network-admission",
+      "file": "src/core/mcp/oauth/discovery.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "04eca39ab9bff91d00efcf97647ee7733ffcead68965dc300d94a6f9342191df",
+      "exitCode": 1,
+      "elapsedMs": 8867,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE refuses non-loopback callbacks and private endpoint admission"
+      ],
+      "observed": true,
+      "restoredSha256": "c0829ae182aa585ffea2a5f80b5937c3963e57461fa01f10254796016be4a8d6",
+      "byteExact": true
+    },
+    {
+      "name": "token-empty",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "06256be6408b5674541e9e55a3a8a0944adf6c47789721180157fbae0eacbd09",
+      "exitCode": 1,
+      "elapsedMs": 1286,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE rejects unvalidated token reply: access",
+        "M109 O OAuth audience and PKCE rejects unvalidated token reply: refreshEmpty"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "token-control-byte",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "fdb8b5777af57cc1b6ec66e8695dca5351056ef9d881ba5f5d107514e867556e",
+      "exitCode": 1,
+      "elapsedMs": 1274,
+      "failedTests": ["M109 O OAuth audience and PKCE rejects unvalidated token reply: control"],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "token-type",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "6832d24ea2d17ad678eab949a51bb41782ce1fd6a019d9f195dab6c7175a87c2",
+      "exitCode": 1,
+      "elapsedMs": 1288,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE rejects unvalidated token reply: type",
+        "M109 O OAuth audience and PKCE never exposes token response type to callers"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "token-expiry-positive",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "48c00c7ca8cf9a3d1e1ae195a67dd1957d8b285743163c179870e3f851d3f22a",
+      "exitCode": 1,
+      "elapsedMs": 1276,
+      "failedTests": ["M109 O OAuth audience and PKCE rejects unvalidated token reply: expiryZero"],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "token-expiry-max",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "311c15ca97123b07a844bc3490f1ddc261616dfcb35d28c8661671c2d0ba582a",
+      "exitCode": 1,
+      "elapsedMs": 1291,
+      "failedTests": ["M109 O OAuth audience and PKCE rejects unvalidated token reply: expiryHuge"],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "callback-duplicate-state",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "9d5bf2371627cdbe19bec1ab88654977e360814ade850e8c7116d85b01e5207f",
+      "exitCode": 1,
+      "elapsedMs": 1312,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE refuses callback duplicateState before exchange"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "callback-duplicate-code",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "5373317fd3ac5c79621326ff915d7b5b7cad83b4efa65ea48a589ee3d375ab58",
+      "exitCode": 1,
+      "elapsedMs": 1425,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE refuses callback duplicateCode before exchange"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "callback-duplicate-issuer",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "16e3dcc98d508cb45a7957efdf0af68bd0cfe0da424f228c19756d6f420ad625",
+      "exitCode": 1,
+      "elapsedMs": 1442,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE refuses callback duplicateIssuer before exchange"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    },
+    {
+      "name": "response-scrub",
+      "file": "src/core/mcp/oauth/client.ts",
+      "testFile": "test/unit/vault/mcpOAuth.test.ts",
+      "sourceSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "testSha256": "918b18de49a6df0cb81cfcf66e9c9ca41f71f5c5b2cfe34a0f9e01d769f05949",
+      "mutationSha256": "081eba3b41879964eb6d02bacbd056ca5ad5701c6e8882a3fc842ace8c6b1acc",
+      "exitCode": 1,
+      "elapsedMs": 1434,
+      "failedTests": [
+        "M109 O OAuth audience and PKCE binds pool OAuth by registry name and resource without accepting caller credentials",
+        "M109 O OAuth audience and PKCE discovers path-aware metadata, binds S256 and resource in both requests, stores only vault tokens"
+      ],
+      "observed": true,
+      "restoredSha256": "e1835833d387f0c8282ba538d92f885e80e00264ad21df5f95abe747bbf86405",
+      "byteExact": true
+    }
+  ]
+}

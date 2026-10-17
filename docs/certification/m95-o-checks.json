@@ -1,0 +1,50 @@
+{
+  "machine": "macmini",
+  "snapshot": "a57c5696",
+  "codecSha256": "c9c6a388dd6613fafee38b8e3d14c9deaae92f43ef2ce45d2f1274f591d649ee",
+  "testSha256": "5f7e79a0b78fa7aa3134ad6c18b73d86e0544a97ec9aeaa80f1e280c1d33fd60",
+  "results": [
+    {
+      "gate": "typecheck",
+      "command": "npm run typecheck",
+      "exit": 0,
+      "output": "\n> muse-spark-code@0.12.1 typecheck\n> run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration\n\n\n> muse-spark-code@0.12.1 typecheck:host\n> tsc -p tsconfig.json --noEmit\n\n\n> muse-spark-code@0.12.1 typecheck:webview\n> tsc -p src/webview/tsconfig.json --noEmit\n\n\n> muse-spark-code@0.12.1 typecheck:unit\n> tsc -p test/unit/tsconfig.json --noEmit\n\n\n> muse-spark-code@0.12.1 typecheck:e2e\n> tsc -p test/e2e/tsconfig.json --noEmit\n\n\n> muse-spark-code@0.12.1 typecheck:integration\n> tsc -p test/integration/tsconfig.json --noEmit\n\n"
+    },
+    {
+      "gate": "deadcode",
+      "command": "npm run deadcode",
+      "exit": 0,
+      "output": "\n> muse-spark-code@0.12.1 deadcode\n> knip\n\nConfiguration hints (1)\nvendor/**    knip.jsonc  Remove from ignore\n"
+    },
+    {
+      "gate": "duplication",
+      "command": "npx jscpd",
+      "exit": 0,
+      "output": "\u001b[90mNo duplicates found.\u001b[39m\n\u001b[90m┌────────────┬────────────────┬─────────────┬──────────────┬──────────────┬──────────────────┬───────────────────┐\u001b[39m\n\u001b[90m│\u001b[39m\u001b[31m Format     \u001b[39m\u001b[90m│\u001b[39m\u001b[31m Files analyzed \u001b[39m\u001b[90m│\u001b[39m\u001b[31m Total lines \u001b[39m\u001b[90m│\u001b[39m\u001b[31m Total tokens \u001b[39m\u001b[90m│\u001b[39m\u001b[31m Clones found \u001b[39m\u001b[90m│\u001b[39m\u001b[31m Duplicated lines \u001b[39m\u001b[90m│\u001b[39m\u001b[31m Duplicated tokens \u001b[39m\u001b[90m│\u001b[39m\n\u001b[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\u001b[39m\n\u001b[90m│\u001b[39m css        \u001b[90m│\u001b[39m 1              \u001b[90m│\u001b[39m 3636        \u001b[90m│\u001b[39m 32477        \u001b[90m│\u001b[39m 0            \u001b[90m│\u001b[39m 0 (0.00%)        \u001b[90m│\u001b[39m 0 (0.00%)         \u001b[90m│\u001b[39m\n\u001b[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\u001b[39m\n\u001b[90m│\u001b[39m tsx        \u001b[90m│\u001b[39m 97             \u001b[90m│\u001b[39m 26359       \u001b[90m│\u001b[39m 165541       \u001b[90m│\u001b[39m 0            \u001b[90m│\u001b[39m 0 (0.00%)        \u001b[90m│\u001b[39m 0 (0.00%)         \u001b[90m│\u001b[39m\n\u001b[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\u001b[39m\n\u001b[90m│\u001b[39m typescript \u001b[90m│\u001b[39m 765            \u001b[90m│\u001b[39m 259696      \u001b[90m│\u001b[39m 1599885      \u001b[90m│\u001b[39m 0            \u001b[90m│\u001b[39m 0 (0.00%)        \u001b[90m│\u001b[39m 0 (0.00%)         \u001b[90m│\u001b[39m\n\u001b[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\u001b[39m\n\u001b[90m│\u001b[39m \u001b[1mTotal:\u001b[22m     \u001b[90m│\u001b[39m 863            \u001b[90m│\u001b[39m 289691      \u001b[90m│\u001b[39m 1797903      \u001b[90m│\u001b[39m 0            \u001b[90m│\u001b[39m 0 (0.00%)        \u001b[90m│\u001b[39m 0 (0.00%)         \u001b[90m│\u001b[39m\n\u001b[90m└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘\u001b[39m\n\u001b[90mFound 0 clones.\u001b[39m\n\u001b[90mtime: 354.352ms\u001b[39m\nUsing config from .jscpd.json\n"
+    },
+    {
+      "gate": "l10n",
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "output": "\n> muse-spark-code@0.12.1 check:l10n\n> node scripts/check-l10n.mjs\n\nl10n: 14 tables, 127 manifest strings, 435 source files; 0 problems\n"
+    },
+    {
+      "gate": "host-api",
+      "command": "npm run check:host-api",
+      "exit": 1,
+      "output": "\n> muse-spark-code@0.12.1 check:host-api\n> node scripts/check-host-api.mjs\n\nhost-api: 279 VS Code APIs, 19 files importing vscode, 23 Node built-ins, 57 theme variables; 1 problem(s)\nFAIL docs/ide-compatibility/host-api.md is not what the source gives; run `npm run check:host-api -- --write` and review the diff:\n  - | `contributes`                      | `commands` (31), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |\n  + | `contributes`                      | `commands` (34), `configuration` (2), `keybindings` (7), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |\n"
+    },
+    {
+      "gate": "build",
+      "command": "npm run build",
+      "exit": 1,
+      "output": "\n> muse-spark-code@0.12.1 build\n> node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs\n\nbundle sizes:\n  dist/extension.js  563.2 KiB\n  dist/modelApi.js  428.0 KiB\n  dist/review.js  43.5 KiB\n  dist/sessionBoard.js  62.7 KiB\n  dist/reviewer.js  29.0 KiB\n  dist/planMarkdown.js  144.1 KiB\n  dist/checkpointStore.js  109.3 KiB\n  dist/agentImport.js  91.1 KiB\n  dist/bundledSkills.js  23.1 KiB\n  dist/codeIntel.js  54.9 KiB\n  dist/voice.js  34.9 KiB\n  dist/webFetch.js  46.9 KiB\n  dist/museCodeReviewer.js  17.1 KiB\n  dist/uiText.js  115.1 KiB\n  dist/searchWorker.js  18.1 KiB\n  dist/pageWorker.js  203.2 KiB\n  dist/webview/main.js  893.1 KiB\n  dist/webview/main.css  50.7 KiB\n  dist/acp.js  788.1 KiB\nok   dist/extension.js: 563.2 KiB (budget 600 KiB)\nok   dist/modelApi.js: 428.0 KiB (budget 475 KiB)\nok   dist/review.js: 43.5 KiB (budget 50 KiB)\nok   dist/sessionBoard.js: 62.7 KiB (budget 75 KiB)\nok   dist/reviewer.js: 29.0 KiB (budget 75 KiB)\nok   dist/planMarkdown.js: 144.1 KiB (budget 150 KiB)\nok   dist/checkpointStore.js: 109.3 KiB (budget 225 KiB)\nok   dist/agentImport.js: 91.1 KiB (budget 125 KiB)\nok   dist/bundledSkills.js: 23.1 KiB (budget 50 KiB)\nok   dist/codeIntel.js: 54.9 KiB (budget 100 KiB)\nok   dist/voice.js: 34.9 KiB (budget 50 KiB)\nok   dist/webFetch.js: 46.9 KiB (budget 75 KiB)\nok   dist/museCodeReviewer.js: 17.1 KiB (budget 75 KiB)\nok   dist/uiText.js: 115.1 KiB (budget 125 KiB)\nok   dist/searchWorker.js: 18.1 KiB (budget 50 KiB)\nok   dist/pageWorker.js: 203.2 KiB (budget 300 KiB)\nok   dist/webview/main.js: 893.1 KiB (budget 900 KiB)\nok   dist/acp.js: 788.1 KiB (budget 850 KiB)\n\n  dist/uiText.js  115.1kb\n\n⚡ Done in 29ms\n\n  dist/searchWorker.js  18.1kb\n\n⚡ Done in 105ms\n\n  dist/pageWorker.js  203.2kb\n\n⚡ Done in 114ms\n\n  dist/reviewer.js  29.0kb\n\n⚡ Done in 315ms\n\n  dist/planMarkdown.js  144.1kb\n\n⚡ Done in 341ms\n\n  dist/review.js  43.5kb\n\n⚡ Done in 358ms\n\n  dist/museCodeReviewer.js  17.1kb\n\n⚡ Done in 363ms\n\n  dist/bundledSkills.js  23.1kb\n\n⚡ Done in 383ms\n\n  dist/agentImport.js  91.1kb\n\n⚡ Done in 386ms\n\n  dist/codeIntel.js  54.9kb\n\n⚡ Done in 396ms\n\n  dist/acp.js  788.1kb\n\n⚡ Done in 401ms\n\n  dist/webFetch.js  46.9kb\n\n⚡ Done in 406ms\n\n  dist/checkpointStore.js  109.3kb\n\n⚡ Done in 444ms\n\n  dist/voice.js  34.9kb\n\n⚡ Done in 539ms\n\n  dist/webview/main.js   893.1kb\n  dist/webview/main.css   50.7kb\n\n⚡ Done in 546ms\n\n  dist/sessionBoard.js  62.7kb\n\n⚡ Done in 547ms\n\n  dist/modelApi.js  428.0kb\n\n⚡ Done in 550ms\n\n  dist/extension.js  563.2kb\n\n⚡ Done in 571ms\nbundle split: 1 problem(s); see PLAN.md D6 and M57\n  src/core/backends/modelapi/codecs/ollama.ts is on neither list in scripts/check-bundle-split.mjs\n"
+    },
+    {
+      "gate": "unit",
+      "command": "node docs/certification/m95-captures/ollama/rig-verify.mjs",
+      "exit": 0,
+      "output": "{\"exit\":0,\"passed\":36,\"failed\":0,\"failures\":[]}\n"
+    }
+  ]
+}

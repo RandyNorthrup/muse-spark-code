@@ -1,0 +1,1271 @@
+import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
+import type * as acp from '@agentclientprotocol/sdk'
+import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
+import {
+  createUsageRecording,
+  isUsageWriterBundle,
+  type UsageRecording,
+} from '../../core/usage/recording'
+import { requireFile } from '../../host/lazyBundle'
+import { agentDataFolder } from '../dataFolder'
+import { randomUUID } from 'node:crypto'
+
+import path from 'node:path'
+import type { Readable } from 'node:stream'
+import {
+  handleIdentity,
+  lstatIdentity,
+  sameFile,
+  type FileIdentity,
+} from '../../core/fs/fileIdentity'
+import type { AcpMediaFactory } from '../../acp/media'
+import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
+import type { Logger } from '../../host/logger'
+import type { AgentEvent } from '../../shared/agentEvents'
+import { uiLocale, fill, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
+import {
+  ACP_AGENT_NAME,
+  ACP_COMPACT_COMMAND,
+  ACCOUNT_DEFAULT_ID,
+  ACP_CONFIG_IDS,
+  EXEC_EXIT,
+  EXEC_ENDPOINTS,
+  EXEC_PROMPT_MAX_BYTES,
+  EXEC_MODEL_TEXT,
+  EXEC_PROTOCOL_VERSION,
+  EXEC_STOP_GRACE_MS,
+  EXEC_STREAM_IDLE_MS,
+  EXEC_USD_DECIMALS,
+  HTTP_STATUS,
+  HTTP_UNAUTHORIZED,
+  JSON_RPC_ERRORS,
+  MILLISECONDS_PER_SECOND,
+  NO_COMPACTABLE_HISTORY,
+  MODEL_API_PRICES_PER_MILLION,
+  PAID_PRICES_USD,
+  MODEL_API_IMAGE_MODEL,
+  SECRET_KEYS,
+  UI_TEXT,
+} from '../../shared/constants'
+import { effortLevelsFor } from '../../shared/effort'
+import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
+import { modelApiPaidTier } from '../../shared/paid'
+import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
+import { serveOptionsFor } from './execArgs'
+import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
+import { execAccountSelection, type ExecAccountsPort } from './execAccounts'
+import type { AccountsSessionPort } from '../../acp/accounts'
+import { accountStopText, accountUsageUrl } from '../../acp/accountText'
+import { execFetch, type ExecTransport } from './execFetch'
+import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
+import { createExecLogger, type ExecSink } from './execOutput'
+import { createResourceExecSink } from '../resources/execSink'
+import type { RuntimeResources } from '../resources/port'
+import type { ResourceSettings } from '../../shared/resources'
+import {
+  exitCodeFor,
+  type ExecDenial,
+  type ExecInputRecord,
+  type ExecResult,
+  type ExecStatus,
+  type TokenTotals,
+} from './execProtocol'
+import type { FdWriter } from './fdWriter'
+import {
+  memorySecretStore,
+  type MemorySecretStore,
+  readKeyLine,
+  readProviderKeyLine,
+  readPromptStdin,
+} from './keyInput'
+import type { AssembledProviderRun } from './providerExec'
+import { createRunLedger, resolveExecOutputCap, previewResponseReservation } from './runLedger'
+import { modelPolicyFor, type ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
+import { observeBackend, type SessionTap } from './sessionTap'
+import { readUntrustedInputs } from './untrustedInput'
+import type { ExecVaultPort, ExecVaultSession } from '../vault/execVault'
+import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
+import { compileOutputSchema, type OutputSchema } from './outputSchema'
+
+/** Bind to M95's selected output.formats and the backend's session-fixed encoder at integration. */
+export interface ExecOutputSchemaPort {
+  /** Only values from an evidence-bearing `state: 'yes'` capability record. */
+  formatsFor(model: string): Promise<readonly ('strict_schema' | 'json_schema' | 'forced_tool')[]>
+  /** Set the session's format only: no dispatch, permission change or cached-prefix mutation. */
+  configure(input: {
+    runtime: RuntimeBackend
+    sessionId: string
+    model: string
+    mode: 'strict_schema' | 'json_schema' | 'forced_tool'
+    schema: Readonly<Record<string, unknown>>
+    signal: AbortSignal
+  }): Promise<void>
+}
+
+/** Production binding: captured selected formats, or the documented local-validation arm. */
+export const execOutputSchemaPort: ExecOutputSchemaPort = {
+  formatsFor: (model) => {
+    const formats = metaSideCallFormats(model)
+    return Promise.resolve(
+      formats.state === 'yes'
+        ? (formats.value ?? []).filter(
+            (format): format is 'strict_schema' | 'json_schema' | 'forced_tool' =>
+              ['strict_schema', 'json_schema', 'forced_tool'].includes(format),
+          )
+        : [],
+    )
+  },
+  configure: async ({ runtime, sessionId, model, mode, schema, signal }) => {
+    signal.throwIfAborted()
+    if (mode === 'forced_tool' || runtime.configureOutputSchema === undefined)
+      throw new Error(UI_TEXT.execRequestShape)
+    await runtime.configureOutputSchema(sessionId, model, mode, schema)
+    signal.throwIfAborted()
+  },
+}
+export { setUiText } from '../../shared/l10n/text'
+
+export interface ExecDeps {
+  readonly usageRecording?: UsageRecording | undefined
+  readonly isUsageHistoryEnabled?: (() => boolean) | undefined
+  readonly accounts?: ExecAccountsPort
+  readonly vault?: ExecVaultPort
+  options: ExecOptions
+  version: string
+  distDir: string
+  platform: NodeJS.Platform
+  env: NodeJS.ProcessEnv
+  homeDir: string
+  processCwd: string
+  stdin: Readable
+  stdout: FdWriter
+  stderr: FdWriter
+  storeSecrets: SecretStore
+  runGit: (args: readonly string[], cwd: string) => Promise<string>
+  fetch: typeof fetch
+  sleep: (ms: number) => Promise<void>
+  now: () => number
+  readFile: (path: string, maxBytes: number, signal: AbortSignal) => Promise<Uint8Array>
+  randomHex: (bytes: number) => string
+  log: Logger
+  /** Construction is lazy; W/C1 inject this same host into runtime spawn adapters. */
+  createResources?: (overrides: Partial<ResourceSettings>) => RuntimeResources
+  resourceOverrides?: Partial<ResourceSettings>
+  runProvider?: ProviderExecRunner | undefined
+  outputSchema?: ExecOutputSchemaPort
+  /** Filesystem seam for races and Windows junctions; production uses the native filesystem. */
+  schemaFileIo?: {
+    open: (file: string, flags: number) => Promise<FileHandle>
+    realpath: (file: string) => Promise<string>
+    lstat: (file: string) => Promise<FileIdentity>
+  }
+  /** W binds headless-safe capability, upload/replay and exact budget admission. */
+  media?: AcpMediaFactory
+}
+
+/** Open first, verify the held target, then read exclusively through that handle. */
+async function readSchemaFile(
+  deps: ExecDeps,
+  cwd: string,
+  signal: AbortSignal,
+  log: Logger,
+): Promise<Uint8Array> {
+  signal.throwIfAborted()
+  const io = deps.schemaFileIo ?? { open, realpath, lstat: lstatIdentity }
+  const file = path.resolve(cwd, deps.options.outputSchema ?? '')
+  // Windows has no O_NOFOLLOW; handle identity and realpath confinement still apply.
+  const flags = fileFlags.O_RDONLY | (deps.platform === 'win32' ? 0 : fileFlags.O_NOFOLLOW)
+  const handle = await io.open(file, flags)
+  try {
+    signal.throwIfAborted()
+    const [info, target, workspace] = await Promise.all([
+      handleIdentity(handle),
+      io.realpath(file),
+      io.realpath(cwd),
+    ])
+    const paths = deps.platform === 'win32' ? path.win32 : path
+    const relative = paths.relative(workspace, target).replaceAll('\\', '/')
+    const isOutside = relative === '..' || relative.startsWith('../') || paths.isAbsolute(relative)
+    if (isOutside && deps.options.outputSchemaOutside !== true)
+      throw new Error(UI_TEXT.outputSchemaOutsideRefused)
+    const current = await io.lstat(target)
+    if (!info.isFile() || !sameFile(info, current)) throw new Error(UI_TEXT.execFileUnreadable)
+    if (isOutside) log.info(UI_TEXT.outputSchemaOutsideAllowed)
+    if (info.size > BigInt(EXEC_PROMPT_MAX_BYTES)) throw new Error(UI_TEXT.execFileTooLarge)
+    const bytes = new Uint8Array(EXEC_PROMPT_MAX_BYTES + 1)
+    let offset = 0
+    for (;;) {
+      signal.throwIfAborted()
+      const part = await handle.read(bytes, offset, bytes.length - offset, null)
+      offset += part.bytesRead
+      if (offset > EXEC_PROMPT_MAX_BYTES) throw new Error(UI_TEXT.execFileTooLarge)
+      if (part.bytesRead === 0) return bytes.subarray(0, offset)
+    }
+  } finally {
+    await handle.close()
+  }
+}
+
+/** What the provider turn receives: the lifecycle, the run's deps and the assembly. */
+export interface ProviderRunRequest {
+  readonly lifecycle: Lifecycle
+  readonly deps: ExecDeps
+  readonly run: AssembledProviderRun
+}
+
+/** A test runner's provider turn on the same validated and pinned run. */
+export type ProviderExecRunner = (request: ProviderRunRequest) => Promise<number>
+
+function stopMessage(cause: StopCause, maxRequests: number): string {
+  switch (cause.kind) {
+    case 'signal': {
+      return UI_TEXT.execInterrupted
+    }
+    case 'timeout': {
+      return UI_TEXT.execTimedOut
+    }
+    case 'denied': {
+      return UI_TEXT.execDeniedStop
+    }
+    case 'requests': {
+      return plural(UI_TEXT.execRequestCapReached, maxRequests)
+    }
+    case 'budget': {
+      return UI_TEXT.execBudgetRefused
+    }
+    case 'unpriced': {
+      return UI_TEXT.execModelUnpriced
+    }
+    case 'request_shape': {
+      return UI_TEXT.execRequestShape
+    }
+    case 'breach': {
+      return UI_TEXT.execBudgetBreach
+    }
+    case 'accounting_invalid': {
+      return UI_TEXT.execAccountingInvalid
+    }
+    case 'output_closed':
+    case 'output_stalled':
+    case 'internal': {
+      return UI_TEXT.execOutputStalled
+    }
+  }
+}
+const ZERO_MICRO_USD = 0n
+
+function microUsd(value: UsdAmount): bigint {
+  return Usd.from(value).units(EXEC_USD_DECIMALS)
+}
+
+function relativePaths(cwd: string, paths: readonly string[]): string[] {
+  return [
+    ...new Set(
+      paths.flatMap((given) => {
+        const relative = path.relative(cwd, path.resolve(cwd, given)).split(path.sep).join('/')
+        return relative !== '' &&
+          relative !== '..' &&
+          !relative.startsWith('../') &&
+          !path.isAbsolute(relative) &&
+          !relative.includes(':')
+          ? [relative]
+          : []
+      }),
+    ),
+  ]
+}
+
+export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<number> {
+  const { options } = deps
+  const mediaFactory = deps.media
+  const cwd = path.resolve(deps.processCwd, options.cwd ?? deps.processCwd)
+  const literals: string[] = []
+  let isFinished = false
+  let isFinishing = false
+  const rawLog = createExecLogger({
+    stderr: deps.stderr,
+    literals: () => literals,
+    verbose: options.isVerbose,
+  })
+  const log: Logger = {
+    trace(message) {
+      if (!isFinished) rawLog.trace(message)
+    },
+    info(message) {
+      if (!isFinished) rawLog.info(message)
+    },
+    warn(message) {
+      if (!isFinished) rawLog.warn(message)
+    },
+    error(message) {
+      if (!isFinished) rawLog.error(message)
+    },
+  }
+  const usageRecording =
+    deps.usageRecording ??
+    createUsageRecording({
+      client: 'cli',
+      now: deps.now,
+      newId: () => randomUUID(),
+      isEnabled: () => deps.isUsageHistoryEnabled?.() ?? true,
+      log,
+      writer: async (onWriteError) => {
+        const bundle = requireFile(path.join(deps.distDir, 'usageService.js'))
+        if (!isUsageWriterBundle(bundle)) throw new Error('Usage writer factory unavailable')
+        return await bundle.createUsageWriter({
+          dataFolder: agentDataFolder(deps),
+          writerId: randomUUID(),
+          now: deps.now,
+          isEnabled: () => deps.isUsageHistoryEnabled?.() ?? true,
+          onWriteError,
+        })
+      },
+    })
+  let restoreUsageRecording: (() => void) | undefined
+  const limits = {
+    budgetUsd: options.budgetUsd ?? null,
+    maxRequests: options.maxRequests ?? null,
+    timeoutSeconds: options.timeoutMs / MILLISECONDS_PER_SECOND,
+  }
+  let resolvedOutputCap: number | undefined
+  const outputCap = (policy?: ModelPolicy): number =>
+    (resolvedOutputCap ??= resolveExecOutputCap(policy ?? modelPolicyFor(model ?? '')))
+  const ledger =
+    options.backend === 'modelApi' &&
+    options.budgetUsd !== undefined &&
+    options.maxRequests !== undefined
+      ? createRunLedger({
+          capUsd: options.budgetUsd,
+          maxRequests: options.maxRequests,
+          outputCap,
+        })
+      : undefined
+  let providerRun: AssembledProviderRun | undefined
+  let memory: MemorySecretStore | undefined
+  let runtime: RuntimeBackend | undefined
+  let tap: SessionTap | undefined
+  let transport: ExecTransport | undefined
+  let vaultSession: ExecVaultSession | undefined
+  let vaultDenial: string | undefined
+  const setup: { sessionId: string | null; isUsageError: boolean } = {
+    sessionId: null,
+    isUsageError: true,
+  }
+  let model: string | null = null
+  let effort: string | null = null
+  let stopReason: string | null = null
+  let isCompactionPrompt = false
+  let terminal: string | null = null
+  let incompleteReason: string | null = null
+  let backendErrorKind: string | undefined
+  let catalogueHttpStatus: number | undefined
+  let status: ExecStatus = 'failed'
+  let error = UI_TEXT.execIncomplete
+  let questionsDeclined = 0
+  let inputs: ExecInputRecord[] = []
+  const filesChanged = new Set<string>()
+  const denials: ExecDenial[] = []
+  let unsubscribe: (() => void) | undefined
+  let closeSession: (() => Promise<unknown>) | undefined
+  let cancelSession: (() => void) | undefined
+  let latestTokens: Partial<TokenTotals> | undefined
+  let outputSchema: OutputSchema | undefined
+  let outputValidation: 'provider' | 'local' = 'provider'
+  const emitted = new Set<string>()
+  const imageStarts = new Map<number, number>()
+  const sink = createResourceExecSink({
+    format: options.output,
+    out: deps.stdout,
+    now: deps.now,
+    literals: () => literals,
+    summary: (line) => {
+      log.info(line)
+    },
+    onStalled: () => {
+      lifecycle.latch({ kind: 'output_stalled' })
+    },
+    outputSchema: () => outputSchema,
+    outputValidation: () => outputValidation,
+  })
+  const resources = deps.createResources?.({ ...deps.resourceOverrides, relocate: 'off' })
+  const unsubscribeResources = resources?.subscribeEvents((event, _status, text) => {
+    if (isFinishing || isFinished) return
+    sink.resource(event)
+    log.warn(text.replaceAll('\n', ' · '))
+  })
+  const drain = (target: ExecSink) => {
+    const messages = tap?.releasedMessages() ?? []
+    for (const item of messages) {
+      if (emitted.has(item.itemId)) {
+        continue
+      }
+
+      target.message(item)
+      emitted.add(item.itemId)
+    }
+  }
+  const latch = (cause: StopCause) => {
+    if (!lifecycle.latch(cause)) return
+    if (cause.kind === 'signal') sink.emit({ type: 'signal', signal: cause.signal })
+    else if (
+      cause.kind !== 'denied' &&
+      cause.kind !== 'internal' &&
+      cause.kind !== 'output_closed' &&
+      cause.kind !== 'output_stalled'
+    )
+      sink.emit({
+        type: 'limit',
+        limit: cause.kind === 'accounting_invalid' ? 'accounting' : cause.kind,
+      })
+  }
+  const denyVault = (message: string) => {
+    if (isFinishing) return
+    vaultDenial = message
+    setup.isUsageError = false
+    latch({ kind: 'denied' })
+  }
+  const observe = (event: AgentEvent) => {
+    if (event.type === 'turnCompleted') {
+      terminal = event.terminal
+      incompleteReason = event.reason ?? null
+      backendErrorKind = event.errorKind
+    } else if (event.type === 'tokenUsage' && options.backend === 'museCode') {
+      latestTokens = {
+        inputTokens: event.inputTokens,
+        outputTokens: event.outputTokens,
+        ...(event.cachedTokens !== undefined && { cachedTokens: event.cachedTokens }),
+        ...(event.reasoningTokens !== undefined && { reasoningTokens: event.reasoningTokens }),
+      }
+    } else if (event.type === 'questionRequested') {
+      questionsDeclined += 1
+      sink.emit({ type: 'question_declined', count: 1 })
+    } else if (
+      event.type === 'itemCompleted' &&
+      event.item.kind !== 'agentMessage' &&
+      event.item.kind !== 'reasoning' &&
+      event.item.kind !== 'userMessage'
+    ) {
+      sink.emit({
+        type: 'tool',
+        name: event.item.tool ?? event.item.kind,
+        status: event.item.status,
+        durationMs: event.item.durationMs ?? 0,
+      })
+    }
+    drain(sink)
+  }
+  /**
+   * A BYO provider run (M95, PLAN.md D74): everything is resolved and
+   * checked up front — the provider from the runner's own user file, a
+   * model naming it, a bound credential, a re-checked endpoint and the
+   * pinned fetch — then the ordinary ACP engine runs the turn.
+   */
+  async function runWithProvider(): Promise<number | undefined> {
+    const [{ assembleProviderRun }, { providersFilePath, resolveEndpointHost }] = await Promise.all(
+      [import('./providerExec'), import('../providersCommands')],
+    )
+    const providerId = options.provider ?? ''
+    // Past argument parsing: failures from here are the run's, not usage,
+    // unless assembly says otherwise.
+    setup.isUsageError = false
+    const assembled = await lifecycle.race(
+      assembleProviderRun({
+        filePath: providersFilePath({
+          platform: deps.platform,
+          homeDir: deps.homeDir,
+          xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+        }),
+        readFile: async (filePath) => {
+          const bytes = await deps.readFile(filePath, EXEC_PROMPT_MAX_BYTES, lifecycle.signal)
+          return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+        },
+        secrets: deps.storeSecrets,
+        resolveHost: resolveEndpointHost,
+        readKey: (shape) => readProviderKeyLine(deps.stdin, lifecycle.signal, shape),
+        providerId,
+        model: options.model,
+        keyFromStdin: options.keyFromStdin,
+        baseFetch: deps.fetch,
+      }),
+    )
+    if (!assembled.ok) {
+      if (assembled.failure.kind === 'usage') {
+        setup.isUsageError = true
+      } else {
+        status = 'auth_required'
+      }
+      error = assembled.failure.reason
+      return await finish()
+    }
+    memory = assembled.run.memory
+    for (const literal of assembled.run.literals) {
+      literals.push(literal)
+    }
+    providerRun = assembled.run
+    return await deps.runProvider?.({ lifecycle, deps, run: assembled.run })
+  }
+  void (async () => {
+    try {
+      await lifecycle.stopped
+      transport?.close()
+      cancelSession?.()
+    } catch (error_: unknown) {
+      log.error(error_ instanceof Error ? error_.message : String(error_))
+    }
+  })()
+  const cleanupStart = { value: 0 }
+  const grace = async <T>(waiting: Promise<T>): Promise<T | undefined> => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      return await Promise.race([
+        waiting,
+        new Promise<undefined>((resolve) => {
+          timer = setTimeout(
+            () => {
+              resolve(undefined)
+            },
+            Math.min(
+              lifecycle.remainingGraceMs(),
+              Math.max(0, EXEC_STOP_GRACE_MS - (deps.now() - cleanupStart.value)),
+            ),
+          )
+        }),
+      ])
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  try {
+    if (
+      options.vault &&
+      (options.keyFromStdin ||
+        (deps.env['CI'] !== undefined &&
+          !['', '0', 'false'].includes(deps.env['CI'].toLowerCase())) ||
+        deps.vault === undefined)
+    ) {
+      denyVault(UI_TEXT.vault.brokerBlocked)
+      return await finish()
+    }
+    const selection = execAccountSelection(options)
+    const requiresAccounts =
+      options.accountPool === true || selection.account !== ACCOUNT_DEFAULT_ID
+    if (requiresAccounts && options.backend === 'museCode')
+      throw new Error(UI_TEXT.accounts.museCodeUnavailable)
+    if (requiresAccounts && deps.accounts === undefined)
+      throw new Error(UI_TEXT.accounts.unavailable)
+    if (options.provider !== undefined) {
+      const result = await runWithProvider()
+      if (result !== undefined) return result
+    }
+    const folder = await lifecycle.race(stat(cwd))
+    if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
+    if (options.outputSchema !== undefined) {
+      let bytes: Uint8Array
+      try {
+        bytes = await lifecycle.race(readSchemaFile(deps, cwd, lifecycle.signal, log))
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === UI_TEXT.outputSchemaOutsideRefused)
+          throw error
+        throw new Error(fill(UI_TEXT.outputSchemaReadFailed, { detail: 'file' }), { cause: error })
+      }
+      outputSchema = compileOutputSchema(bytes)
+      if (deps.outputSchema === undefined)
+        throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
+    }
+    let prompt: string
+    try {
+      if (options.prompt.kind === 'text') prompt = options.prompt.text
+      else if (options.prompt.kind === 'stdin')
+        prompt = await lifecycle.race(
+          readPromptStdin(deps.stdin, EXEC_PROMPT_MAX_BYTES, lifecycle.signal),
+        )
+      else
+        prompt = new TextDecoder('utf-8', { fatal: true }).decode(
+          await lifecycle.race(
+            deps.readFile(
+              path.resolve(cwd, options.prompt.path),
+              EXEC_PROMPT_MAX_BYTES,
+              lifecycle.signal,
+            ),
+          ),
+        )
+      if (prompt === '' || Buffer.byteLength(prompt) > EXEC_PROMPT_MAX_BYTES)
+        throw new Error(UI_TEXT.execPromptMissing)
+      const attachments = await lifecycle.race(
+        readUntrustedInputs({
+          files: options.untrustedFiles.map((file) => path.resolve(cwd, file)),
+          signal: lifecycle.signal,
+          readFile: deps.readFile,
+          randomHex: deps.randomHex,
+        }),
+      )
+      inputs = [...attachments.records]
+      // A resource travels via ACP's existing resource conversion, with its
+      // entire instruction envelope fitting before that converter's cap.
+      isCompactionPrompt =
+        attachments.resources.length === 0 && prompt.trim() === `/${ACP_COMPACT_COMMAND}`
+      const blocks: acp.ContentBlock[] = [
+        { type: 'text', text: prompt },
+        ...attachments.resources.map((resource): acp.ContentBlock => ({
+          type: 'resource',
+          resource: {
+            uri: `untrusted:${encodeURIComponent(resource.name)}`,
+            mimeType: 'text/plain',
+            text: resource.text,
+          },
+        })),
+        ...(await lifecycle.race(
+          execAttachmentBlocks(options.attachFiles ?? [], cwd, lifecycle.signal, deps.platform),
+        )),
+      ]
+      if ((options.attachFiles?.length ?? 0) > 0 && deps.media === undefined)
+        throw new Error(UI_TEXT.media.uploadStorageUnknown)
+      let secrets = providerRun?.secrets ?? deps.storeSecrets
+      if (providerRun === undefined && options.keyFromStdin) {
+        const key = await lifecycle.race(readKeyLine(deps.stdin, lifecycle.signal))
+        if (!key.ok) {
+          status = 'auth_required'
+          error = UI_TEXT.execKeyMissing
+          if (key.reason === 'tooLong') error = UI_TEXT.execKeyTooLong
+          else if (key.reason === 'tty') error = UI_TEXT.execKeyStdinTerminal
+          return await finish()
+        }
+        memory = memorySecretStore(key.key)
+        literals.push(key.key)
+        secrets = memory
+      }
+      const watchedSecrets: SecretStore = {
+        async get(name) {
+          const value = await lifecycle.race(Promise.resolve(secrets.get(name)))
+          if (value !== undefined && name === SECRET_KEYS.modelApiKey) {
+            if (!isValidModelApiKey(value)) return
+            if (!literals.includes(value)) literals.push(value)
+          }
+          return value
+        },
+        store: secrets.store.bind(secrets),
+        delete: secrets.delete.bind(secrets),
+      }
+      if (ledger !== undefined && providerRun === undefined)
+        transport = execFetch({
+          fetch: async (url, init) => {
+            const response = await deps.fetch(url, init)
+            if (typeof url === 'string' && new URL(url).pathname === EXEC_ENDPOINTS.models)
+              catalogueHttpStatus = response.status
+            return response
+          },
+          ledger,
+          get selectedModel() {
+            return model ?? ''
+          },
+          imageGeneration: options.paidFeatures.includes('imageGeneration'),
+          lifecycle,
+          onLatch: latch,
+          emit: (event) => {
+            if (event.type === 'paid_use' && event.n !== null) {
+              if (event.phase === 'admitted') imageStarts.set(event.n, deps.now())
+              else {
+                const startedAt = imageStarts.get(event.n)
+                if (startedAt !== undefined) {
+                  imageStarts.delete(event.n)
+                  usageRecording.note(undefined, {
+                    backend: 'modelApi',
+                    provider: 'meta',
+                    model: MODEL_API_IMAGE_MODEL,
+                    kind: 'image',
+                    startedAt,
+                    session: setup.sessionId ?? undefined,
+                    durationMs: Math.max(0, deps.now() - startedAt),
+                    units: { images: event.phase === 'refunded' ? 0 : event.units },
+                    outcome: event.phase === 'returned' ? 'completed' : 'failed',
+                    uncertain: event.phase === 'uncertain',
+                    providerCostUsd: event.phase === 'uncertain' ? undefined : event.usd,
+                    retainedLiabilityUsd: event.phase === 'uncertain' ? event.usd : undefined,
+                  })
+                }
+              }
+            }
+            if (!isFinishing) sink.emit(event)
+          },
+          onResponseStart: (n) => {
+            tap?.beginResponse(n)
+          },
+          onResponseSettled: (outcome) => {
+            tap?.settleResponse(outcome)
+            if (!isFinishing) drain(sink)
+          },
+        })
+      const engine = await import('../runtimeEngineEntry')
+      engine.setUiText(UI_TEXT, uiLocale())
+      restoreUsageRecording = engine.installUsageRecording(usageRecording)
+      const { createRuntimeBackend } = engine
+      const runtimeDeps: RuntimeBackendDeps = {
+        options: serveOptionsFor(options),
+        version: deps.version,
+        distDir: deps.distDir,
+        platform: deps.platform,
+        env: deps.env,
+        homeDir: deps.homeDir,
+        secrets: watchedSecrets,
+        runGit: deps.runGit,
+        fetch: transport?.fetch ?? deps.fetch,
+        sleep: (ms) => lifecycle.race(deps.sleep(ms)),
+        log,
+        usageRecording,
+        exec: {
+          isEphemeral: options.ephemeral,
+          outputCap,
+          ...(providerRun !== undefined && { providerRun }),
+          ...(providerRun !== undefined &&
+            ledger !== undefined && {
+              responseAccounting: {
+                ledger,
+                refuse: (reason) => {
+                  if (reason === 'closed') latch({ kind: 'internal' })
+                  else latch({ kind: reason })
+                },
+                started: (n) => {
+                  tap?.beginResponse(n)
+                },
+                settled: (outcome) => {
+                  tap?.settleResponse(outcome)
+                  if (!isFinishing) drain(sink)
+                },
+              },
+            }),
+          streamIdleMs: EXEC_STREAM_IDLE_MS,
+          headlessPaid: (request, requiresAsking) => {
+            const isAllowed =
+              request.feature === 'imageGeneration' &&
+              options.paidFeatures.includes('imageGeneration') &&
+              options.mode === 'acceptEdits' &&
+              !requiresAsking &&
+              !lifecycle.signal.aborted &&
+              microUsd(ledger?.totals().remainingUsd ?? Usd.from(0).toAmount()) >=
+                microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
+            if (!isAllowed && !isFinishing && request.feature === 'imageGeneration')
+              sink.emit({
+                type: 'paid_use',
+                feature: 'imageGeneration',
+                n: null,
+                phase: 'refused',
+                units: 1,
+                usd: Usd.from(0).toAmount(),
+                reason: requiresAsking ? 'requires_asking' : 'policy',
+              })
+            return Promise.resolve(isAllowed)
+          },
+        },
+      }
+      let accounts: AccountsSessionPort | undefined
+      if (requiresAccounts) {
+        const configured = deps.accounts?.create(runtimeDeps, selection, createRuntimeBackend)
+        if (configured === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+        runtime = configured.runtime
+        accounts = configured.accounts
+      } else runtime = createRuntimeBackend(runtimeDeps)
+      setup.isUsageError = false
+      const readiness = await lifecycle.race(runtime.backend.readiness(false))
+      if (readiness.state !== 'ready') {
+        status = readiness.state === 'signedOut' ? 'auth_required' : 'backend_unavailable'
+        error = readiness.message
+        return await finish()
+      }
+      tap = observeBackend(runtime.backend)
+      const { createAcpAgent, createExecClient } = engine
+      const agent = createAcpAgent({
+        questions: 'decline',
+        ...(accounts !== undefined && { accounts }),
+        backend: tap.backend,
+        version: deps.version,
+        options: {
+          canBypass: false,
+          allowsContributorModels: options.allowsContributorModels,
+          initialMode: options.mode,
+          isHeadless: true,
+        },
+        signIn: {
+          id: 'headless',
+          name: ACP_AGENT_NAME,
+          description: ACP_AGENT_NAME,
+          args: [],
+          command: ACP_AGENT_NAME,
+        },
+        defaultCwd: cwd,
+        paid: runtime.paid,
+        ...(resources !== undefined && { resources }),
+        log,
+        ...(mediaFactory !== undefined && {
+          media: (context) =>
+            mediaFactory({
+              ...context,
+              onAttachment: ({ name, info }) => {
+                inputs.push({
+                  name: name.replaceAll(/[\\/:]/gu, '_'),
+                  bytes: info.sizeBytes,
+                  chunks: 0,
+                  complete: true,
+                })
+              },
+            }),
+        }),
+      })
+      const client = createExecClient({
+        onAccountNotice: (event) => {
+          if (event.type === 'swap')
+            log.info(
+              `${UI_TEXT.accounts.swapEvent}: ${event.provider} · ${event.account}. ${fill(UI_TEXT.accounts.coldCache, { cost: exactUsd(parseUsd(event.coldCacheUsd)) })}`,
+            )
+          else if (event.type === 'spread')
+            log.info(`${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${event.account}`)
+          else {
+            const text = accountStopText(event)
+            let url = ''
+            try {
+              if (accounts !== undefined) url = accountUsageUrl(accounts, event.provider)
+            } catch {
+              /* The notice remains visible without reflecting an invalid URL. */
+            }
+            log.info(`${text} ${url}`)
+          }
+        },
+        sink,
+        lifecycle,
+        onDenial: (denial) => {
+          denial.paths = relativePaths(cwd, denial.paths)
+          denials.push(denial)
+          if (options.failOnDenial) latch({ kind: 'denied' })
+        },
+        onQuestion: (count) => {
+          questionsDeclined += count
+        },
+        onFilesChanged: (paths) => {
+          for (const file of relativePaths(cwd, paths)) filesChanged.add(file)
+        },
+      })
+      await lifecycle.race(
+        client.connectWith(agent, async (connection) => {
+          try {
+            await lifecycle.race(
+              connection.request('initialize', {
+                protocolVersion: engine.PROTOCOL_VERSION,
+                clientCapabilities: {},
+              }),
+            )
+            const created = await lifecycle.race(
+              connection.request('session/new', { cwd, mcpServers: [] }),
+            )
+            setup.sessionId = created.sessionId
+            closeSession = () =>
+              connection.request('session/close', { sessionId: created.sessionId })
+            cancelSession = () => {
+              void connection
+                .notify('session/cancel', { sessionId: created.sessionId })
+                .catch(() => {
+                  /* Session already stopped or closed; cancellation is best effort. */
+                })
+            }
+            if (
+              requiresAccounts &&
+              created.configOptions?.find((option) => option.id === ACP_CONFIG_IDS.account)
+                ?.currentValue !== selection.account
+            ) {
+              setup.isUsageError = true
+              error = UI_TEXT.accounts.invalidAccount
+              return
+            }
+            if (options.vault && deps.vault !== undefined) {
+              try {
+                const vault = deps.vault
+                const opening = (async () => {
+                  const session = await vault.open({
+                    cwd,
+                    sessionId: created.sessionId,
+                    signal: lifecycle.signal,
+                    source: 'headless',
+                    unattended: true,
+                    onDenied: denyVault,
+                  })
+                  if (isFinishing || lifecycle.signal.aborted) {
+                    await session.close()
+                    throw new Error(UI_TEXT.vault.noAccess)
+                  }
+                  return session
+                })()
+                vaultSession = await lifecycle.race(opening)
+              } catch {
+                denyVault(UI_TEXT.vault.brokerBlocked)
+                return
+              }
+            }
+            const modelConfig = created.configOptions?.find(
+              (option) => option.id === ACP_CONFIG_IDS.model,
+            )
+            model = typeof modelConfig?.currentValue === 'string' ? modelConfig.currentValue : null
+            if (options.model !== undefined) {
+              if (
+                modelConfig?.type !== 'select' ||
+                modelConfig.options.every(
+                  (entry) => !('value' in entry && entry.value === options.model),
+                )
+              ) {
+                setup.isUsageError = true
+                error = UI_TEXT.execUnknownModel
+                return
+              }
+              await lifecycle.race(
+                connection.request('session/set_config_option', {
+                  sessionId: created.sessionId,
+                  configId: ACP_CONFIG_IDS.model,
+                  value: options.model,
+                }),
+              )
+              model = options.model
+            }
+            if (options.effort === undefined) {
+              const config = created.configOptions?.find(
+                (option) => option.id === ACP_CONFIG_IDS.effort,
+              )
+              effort = typeof config?.currentValue === 'string' ? config.currentValue : null
+            } else {
+              if (!effortLevelsFor(model ?? undefined).includes(options.effort)) {
+                setup.isUsageError = true
+                error = UI_TEXT.execEffortUnavailable
+                return
+              }
+              await lifecycle.race(
+                connection.request('session/set_config_option', {
+                  sessionId: created.sessionId,
+                  configId: ACP_CONFIG_IDS.effort,
+                  value: options.effort,
+                }),
+              )
+              effort = options.effort
+            }
+            const tier = modelApiPaidTier(model ?? '')
+            if (outputSchema !== undefined) {
+              setup.isUsageError = true
+              const port = deps.outputSchema
+              if (port === undefined || runtime === undefined || model === null)
+                throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
+              const formats = await lifecycle.race(port.formatsFor(model))
+              const mode = (['strict_schema', 'json_schema', 'forced_tool'] as const).find(
+                (candidate) => formats.includes(candidate),
+              )
+              if (mode === undefined) {
+                outputValidation = 'local'
+                blocks.push({
+                  type: 'text',
+                  text: fill(EXEC_MODEL_TEXT.execOutputSchema, {
+                    schema: JSON.stringify(outputSchema.schema),
+                  }),
+                })
+              } else
+                await lifecycle.race(
+                  port.configure({
+                    runtime,
+                    sessionId: created.sessionId,
+                    model,
+                    mode,
+                    schema: outputSchema.schema,
+                    signal: lifecycle.signal,
+                  }),
+                )
+              setup.isUsageError = false
+            }
+            if (ledger !== undefined && providerRun === undefined) {
+              if (tier === undefined) {
+                setup.isUsageError = true
+                error = UI_TEXT.execModelUnpriced
+                return
+              }
+              // Ask the ledger's exact arithmetic for the start reservation, in a
+              // separate un-dispatched ledger. No request belongs to this run yet.
+              const preview = previewResponseReservation(
+                ledger,
+                model ?? '',
+                MODEL_API_PRICES_PER_MILLION[tier],
+              )
+              const minimum =
+                microUsd(preview.reserveUsd) +
+                (options.paidFeatures.includes('imageGeneration')
+                  ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
+                  : ZERO_MICRO_USD)
+              if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
+                error = fill(UI_TEXT.execBudgetMinimum, {
+                  minimum: formatUsd(Usd.fromUnits(minimum, EXEC_USD_DECIMALS), EXEC_USD_DECIMALS),
+                })
+                latch({ kind: 'budget' })
+                return
+              }
+            }
+            tap?.beginResponse(1)
+            unsubscribe = tap?.subscribe(created.sessionId, observe)
+            sink.emit({
+              type: 'start',
+              agent: { name: ACP_AGENT_NAME, version: deps.version },
+              backend: options.backend,
+              mode: options.mode,
+              model,
+              effort,
+              sessionId: created.sessionId,
+              ephemeral: options.ephemeral,
+              paidFeatures: options.paidFeatures,
+              limits,
+            })
+            try {
+              // ACP dispatches an exact /compact through AgentSession.compact,
+              // sharing editor guards and the same bounded exec transport ledger.
+              const answer = await lifecycle.race(
+                connection.request('session/prompt', {
+                  sessionId: created.sessionId,
+                  prompt: blocks,
+                }),
+              )
+              stopReason = answer.stopReason
+            } catch (error_: unknown) {
+              error = error_ instanceof Error ? error_.message : String(error_)
+              if (
+                error_ instanceof engine.RequestError &&
+                error_.code === JSON_RPC_ERRORS.invalidParams &&
+                ((options.attachFiles?.length ?? 0) > 0 ||
+                  prompt.trim() === '/record' ||
+                  /^\/attach(?:\s|$)/u.test(prompt.trim()))
+              )
+                setup.isUsageError = true
+            }
+            await lifecycle.race(transport?.whenSettled() ?? Promise.resolve())
+          } finally {
+            const close = closeSession
+            closeSession = undefined
+            if (close !== undefined) {
+              try {
+                await lifecycle.race(close())
+              } catch (error_: unknown) {
+                if (lifecycle.cause === null) {
+                  log.error(error_ instanceof Error ? error_.message : String(error_))
+                  lifecycle.latch({ kind: 'internal' })
+                }
+              }
+            }
+          }
+        }),
+      )
+    } catch (error_: unknown) {
+      if (runtime === undefined && status === 'failed' && lifecycle.cause === null)
+        setup.isUsageError = true
+      throw error_
+    }
+  } catch (error_: unknown) {
+    if (lifecycle.cause === null) error = error_ instanceof Error ? error_.message : String(error_)
+    if (!setup.isUsageError && setup.sessionId === null && lifecycle.cause === null)
+      status =
+        catalogueHttpStatus === HTTP_STATUS.unauthorized ||
+        catalogueHttpStatus === HTTP_STATUS.forbidden
+          ? 'auth_required'
+          : 'backend_unavailable'
+  }
+  return await finish()
+
+  function makeResult(): ExecResult {
+    const totals = ledger?.totals()
+    const last = totals?.lastResponse
+    if (last !== undefined && last !== null) {
+      terminal = last.terminal
+      incompleteReason = last.incompleteReason
+    }
+    // A successful command NOOP has no model response or turn terminal to
+    // verify. Keep those fields null and account for exactly zero requests.
+    const isEmptyCompaction =
+      isCompactionPrompt &&
+      stopReason === 'end_turn' &&
+      terminal === null &&
+      (last === null || last === undefined) &&
+      totals?.requests === 0
+    if (lifecycle.cause !== null) {
+      status = statusForStop(lifecycle.cause)
+      if (lifecycle.cause.kind !== 'budget' || error === UI_TEXT.execIncomplete)
+        error =
+          vaultDenial !== undefined && lifecycle.cause.kind === 'denied'
+            ? vaultDenial
+            : stopMessage(lifecycle.cause, options.maxRequests ?? 0)
+    } else if (status !== 'auth_required' && status !== 'backend_unavailable') {
+      if (
+        backendErrorKind === 'authRequired' ||
+        last?.httpStatus === HTTP_UNAUTHORIZED ||
+        last?.httpStatus === HTTP_STATUS.forbidden
+      )
+        status = 'auth_required'
+      else if (
+        terminal === 'failed' ||
+        last?.transportError != null ||
+        (last?.httpStatus != null && last.httpStatus >= HTTP_STATUS.badRequest)
+      )
+        status = 'failed'
+      else if (terminal !== 'completed' || last?.endedWithoutTerminal === true) {
+        status = 'incomplete'
+        const reason = terminal === null ? 'no_completion' : null
+        incompleteReason ??= isEmptyCompaction ? NO_COMPACTABLE_HISTORY : reason
+        if (isEmptyCompaction) error = UI_TEXT.nothingToCompact
+      } else if (
+        options.backend === 'modelApi' &&
+        (last?.usage !== 'valid' || last.settlement !== 'priced')
+      )
+        status = 'accounting_unverified'
+      else status = stopReason === 'end_turn' ? 'completed' : 'failed'
+    }
+    if (status === 'accounting_unverified') error = UI_TEXT.execAccountingUnverified
+    const signal = lifecycle.cause?.kind === 'signal' ? lifecycle.cause.signal : null
+    const cause = lifecycle.cause
+    const tokens = totals?.tokens ?? latestTokens
+    drain(sink)
+    const hasCompleteResponse =
+      options.backend === 'museCode'
+        ? terminal === 'completed'
+        : last?.terminal === 'completed' &&
+          last.transportError === null &&
+          !last.endedWithoutTerminal &&
+          last.httpStatus === null &&
+          last.usage !== 'invalid'
+    const result: ExecResult = {
+      v: EXEC_PROTOCOL_VERSION,
+      status,
+      exitCode: exitCodeFor(status, signal),
+      signal,
+      stopReason,
+      terminal,
+      incompleteReason,
+      backend: options.backend,
+      mode: options.mode,
+      model,
+      sessionId: setup.sessionId,
+      ephemeral: options.ephemeral,
+      finalMessage: hasCompleteResponse ? '' : UI_TEXT.execMessageWithheld,
+      filesChanged: [...filesChanged],
+      denials,
+      questionsDeclined,
+      inputs,
+      usage: {
+        requests: totals?.requests ?? null,
+        inputTokens: tokens?.inputTokens ?? null,
+        outputTokens: tokens?.outputTokens ?? null,
+        cachedTokens: tokens?.cachedTokens ?? null,
+        reasoningTokens: tokens?.reasoningTokens ?? null,
+        costUsd:
+          totals === undefined
+            ? null
+            : {
+                settled: totals.settledUsd,
+                uncertain: totals.uncertainUsd,
+                reserved: totals.reservedUsd,
+                total: sumUsd(totals.settledUsd, totals.uncertainUsd, totals.reservedUsd),
+                isUpperBound:
+                  totals.uncertainUsd !== '0' || totals.reservedUsd !== '0' || cause !== null,
+              },
+        paid: totals?.paid ?? {
+          imageAttempts: 0,
+          imagesReturned: 0,
+          imagesRefunded: 0,
+          imagesUncertain: 0,
+          settledUsd: Usd.from(0).toAmount(),
+          uncertainUsd: Usd.from(0).toAmount(),
+        },
+      },
+      ledger:
+        totals === undefined
+          ? null
+          : {
+              capUsd: totals.capUsd,
+              breach: totals.breach,
+              refusal: totals.refusal,
+              lastResponse: totals.lastResponse,
+            },
+      limits,
+      durationMs: Math.max(0, deps.now() - (lifecycle.deadlineMs - options.timeoutMs)),
+      error: status === 'completed' ? null : { kind: status, message: error },
+    }
+    return result
+  }
+
+  async function finish(): Promise<number> {
+    try {
+      cleanupStart.value = deps.now()
+      transport?.close()
+      cancelSession?.()
+      unsubscribe?.()
+      unsubscribeResources?.()
+      resources?.dispose()
+      isFinishing = true
+      if (options.backend === 'museCode' && lifecycle.cause !== null)
+        tap?.settleResponse({
+          n: 1,
+          terminal,
+          incompleteReason,
+          endedWithoutTerminal: terminal === null,
+          httpStatus: null,
+          transportError: 'aborted',
+          usage: 'missing',
+          settlement: 'full-reservation',
+        })
+      const early = lifecycle.cause === null ? undefined : makeResult()
+      if (early !== undefined) {
+        sink.forceFinish(early)
+        // The result and summary already passed egress. A force exit may
+        // pre-empt cleanup, so stop late diagnostics and drop owned key refs now.
+        isFinished = true
+        memory?.clear()
+        literals.length = 0
+      }
+      try {
+        const closingVault = vaultSession
+        await grace(
+          Promise.all([
+            closeSession?.(),
+            runtime?.close(),
+            closingVault === undefined
+              ? undefined
+              : (async () => {
+                  try {
+                    await closingVault.close()
+                  } catch {
+                    throw new Error(UI_TEXT.vault.noAccess)
+                  }
+                })(),
+          ]),
+        )
+      } catch (error_: unknown) {
+        log.error(error_ instanceof Error ? error_.message : String(error_))
+        lifecycle.latch({ kind: 'internal' })
+      }
+      await grace(transport?.whenSettled() ?? Promise.resolve())
+      if (setup.isUsageError && lifecycle.cause === null) {
+        log.error(error)
+        await grace(deps.stderr.flush(lifecycle.remainingGraceMs()))
+        return EXEC_EXIT.usage
+      }
+      const result = early ?? makeResult()
+      if (early === undefined) await grace(sink.finish(result))
+      await grace(
+        Promise.all([
+          deps.stdout.flush(lifecycle.remainingGraceMs()),
+          deps.stderr.flush(lifecycle.remainingGraceMs()),
+        ]),
+      )
+      const code =
+        lifecycle.cause === null
+          ? (sink.resultExitCode ?? result.exitCode)
+          : exitCodeFor(
+              statusForStop(lifecycle.cause),
+              lifecycle.cause.kind === 'signal' ? lifecycle.cause.signal : null,
+            )
+      return code
+    } finally {
+      await grace(usageRecording.flush())
+      restoreUsageRecording?.()
+      isFinished = true
+      memory?.clear()
+      literals.length = 0
+    }
+  }
+}

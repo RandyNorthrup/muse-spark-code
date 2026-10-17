@@ -22,16 +22,16 @@ export interface OpenInTerminalDeps {
     cliPath: string,
     args: readonly string[],
     options: TerminalLaunchOptions,
-  ) => void
+  ) => void | Promise<void>
   readonly workspaceRoot: string | undefined
   readonly showWarning: (message: string) => void
 }
 
-export function openMuseTerminal(deps: OpenInTerminalDeps): void {
+export async function openMuseTerminal(deps: OpenInTerminalDeps): Promise<void> {
   const cli = deps.resolveCli()
   if (!cli.ok) {
     deps.showWarning(`${UI_TEXT.terminalCliMissing} ${cli.reason}`)
     return
   }
-  deps.runInTerminal(cli.cliPath, [], { name: MUSE_TERMINAL_NAME, cwd: deps.workspaceRoot })
+  await deps.runInTerminal(cli.cliPath, [], { name: MUSE_TERMINAL_NAME, cwd: deps.workspaceRoot })
 }

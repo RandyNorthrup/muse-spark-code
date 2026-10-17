@@ -1,13 +1,14 @@
 // The Model API key lives only in VS Code secret storage (OS keychain). The
 // dependency is the three-method subset of `vscode.SecretStorage`, which the
-// real object satisfies structurally and tests replace with a Map.
+// real object satisfies structurally, the ACP agent's OS credential store
+// implements (PLAN.md D61), and tests replace with a Map.
 
-import { MODEL_API_KEY_PATTERN, SECRET_KEYS } from '../../shared/constants'
+import { MODEL_API_KEY_PATTERN, PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../../shared/constants'
 
 export interface SecretStore {
-  get(key: string): Thenable<string | undefined>
-  store(key: string, value: string): Thenable<void>
-  delete(key: string): Thenable<void>
+  get(key: string): PromiseLike<string | undefined>
+  store(key: string, value: string): PromiseLike<void>
+  delete(key: string): PromiseLike<void>
 }
 
 export function isValidModelApiKey(candidate: string): boolean {
@@ -21,6 +22,17 @@ export class CredentialStore {
     private readonly secrets: SecretStore,
     /** Where an unreadable secret store is reported, once. */
     private readonly warn: (message: string) => void,
+    /** The store's name in that report: the ACP agent's is the OS store (D61). */
+    private readonly storeName = "VS Code's secret storage",
+    /**
+     * The configured provider ids (lane P's providers file). Absent until
+     * that lane merges: only the Meta key counts meanwhile.
+     */
+    private readonly providerIds?: () => PromiseLike<
+      readonly (
+        string | { readonly id: string; readonly auth: string; readonly models?: readonly string[] }
+      )[]
+    >,
   ) {}
 
   /**
@@ -36,7 +48,7 @@ export class CredentialStore {
       if (!this.hasReportedFailure) {
         this.hasReportedFailure = true
         this.warn(
-          `VS Code's secret storage could not be read, so no Model API key is available: ${String(error)}`,
+          `${this.storeName} could not be read, so no Model API key is available: ${String(error)}`,
         )
       }
       return undefined
@@ -55,5 +67,47 @@ export class CredentialStore {
 
   public async clearApiKey(): Promise<void> {
     await this.secrets.delete(SECRET_KEYS.modelApiKey)
+  }
+
+  /**
+   * Whether any configured provider holds a credential. A damaged record
+   * counts: something is stored for that provider, and the panel asks for
+   * the credential again rather than treating it as absent.
+   */
+  public async hasProviderCredential(): Promise<boolean> {
+    const ids = await this.providerIds?.()
+    if (ids === undefined) {
+      return false
+    }
+    for (const provider of ids) {
+      if (
+        typeof provider !== 'string' &&
+        provider.auth === 'none' &&
+        (provider.models?.length ?? 0) > 0
+      ) {
+        return true
+      }
+      const id = typeof provider === 'string' ? provider : provider.id
+      try {
+        // Auth needs presence only; damaged records count too. Parsing and
+        // credential dispatch remain in the lazy provider store.
+        const stored = await this.secrets.get(`${PROVIDER_SECRET_PREFIX}${id}`)
+        if (stored !== undefined && stored !== '') {
+          return true
+        }
+      } catch {
+        return true
+      }
+    }
+    return false
+  }
+
+  /**
+   * A Model API credential of either kind (M95, PLAN.md D74): the Meta key
+   * or any provider's secret. Backend selection and the sign-in gate read
+   * this, never the key alone.
+   */
+  public async hasModelApiCredential(): Promise<boolean> {
+    return (await this.getApiKey()) !== undefined || (await this.hasProviderCredential())
   }
 }

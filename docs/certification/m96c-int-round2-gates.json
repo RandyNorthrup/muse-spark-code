@@ -1,0 +1,445 @@
+{
+  "date": "2026-10-05",
+  "machine": "macmini",
+  "branch": "m96c/int",
+  "sourceHead": "47431f88",
+  "mergeCommits": [
+    {
+      "sha": "8603fb41",
+      "lane": "C",
+      "secondParent": "52d04b69"
+    },
+    {
+      "sha": "11f692a8",
+      "lane": "O",
+      "secondParent": "19bb0703"
+    }
+  ],
+  "unitCommand": [
+    "npx",
+    "vitest",
+    "run",
+    "<complete files>",
+    "--maxWorkers=3",
+    "--testTimeout=120000",
+    "--reporter=json",
+    "--outputFile=<ignored report>"
+  ],
+  "tests": [
+    {
+      "files": [
+        "test/unit/teamSchedulerBoard.test.ts",
+        "test/unit/teamSchedulerPick.test.ts",
+        "test/unit/teamSchedulerReview.test.ts"
+      ],
+      "exitCode": 0,
+      "passed": 42,
+      "failed": 0,
+      "pending": 0,
+      "seconds": 1.608,
+      "failedTests": []
+    },
+    {
+      "files": [
+        "test/unit/teamSchedulerRetire.test.ts",
+        "test/unit/teamSchedulerStalls.test.ts",
+        "test/unit/teamSchedulerPool.test.ts"
+      ],
+      "exitCode": 0,
+      "passed": 29,
+      "failed": 0,
+      "pending": 0,
+      "seconds": 6.517,
+      "failedTests": []
+    },
+    {
+      "files": [
+        "test/unit/teamLanding.test.ts",
+        "test/unit/teamStagingCopy.test.ts",
+        "test/unit/teamGitIndexLock.test.ts"
+      ],
+      "exitCode": 0,
+      "passed": 49,
+      "failed": 0,
+      "pending": 0,
+      "seconds": 71.168,
+      "failedTests": []
+    },
+    {
+      "files": [
+        "test/unit/teamMergeQueue.test.ts",
+        "test/unit/teamMergeBatchRepository.test.ts",
+        "test/unit/teamCleanup.test.ts"
+      ],
+      "exitCode": 0,
+      "passed": 18,
+      "failed": 0,
+      "pending": 0,
+      "seconds": 22.459,
+      "failedTests": []
+    },
+    {
+      "files": [
+        "test/unit/teamSchedulerTools.test.ts",
+        "test/unit/teamSchedulerRoster.test.ts",
+        "test/unit/teamServerToolList.test.ts"
+      ],
+      "exitCode": 0,
+      "passed": 22,
+      "failed": 0,
+      "pending": 0,
+      "seconds": 1.689,
+      "failedTests": []
+    },
+    {
+      "files": [
+        "test/unit/trafficHandlers.test.ts",
+        "test/unit/trafficView.test.tsx",
+        "test/unit/trafficMetrics.test.ts"
+      ],
+      "exitCode": 0,
+      "passed": 79,
+      "failed": 0,
+      "pending": 0,
+      "seconds": 3.795,
+      "failedTests": []
+    },
+    {
+      "files": [
+        "test/unit/trafficHarness.test.tsx",
+        "test/unit/teamSchedulerSchemas.test.ts",
+        "test/unit/teamSchedulerText.test.ts"
+      ],
+      "exitCode": 0,
+      "passed": 30,
+      "failed": 0,
+      "pending": 0,
+      "seconds": 3.027,
+      "failedTests": []
+    },
+    {
+      "files": [
+        "test/unit/teamCollisions.test.ts",
+        "test/unit/teamConflictPredict.test.ts",
+        "test/unit/teamJsonTable.test.ts"
+      ],
+      "exitCode": 0,
+      "passed": 45,
+      "failed": 0,
+      "pending": 0,
+      "seconds": 1.607,
+      "failedTests": []
+    },
+    {
+      "files": ["test/unit/teamChangelog.test.ts", "test/unit/teamCollisionRepositories.test.ts"],
+      "exitCode": 0,
+      "passed": 7,
+      "failed": 0,
+      "pending": 0,
+      "seconds": 5.016,
+      "failedTests": []
+    },
+    {
+      "files": [
+        "test/unit/runnerRouting.test.ts",
+        "test/unit/checkSlots.test.ts",
+        "test/unit/bridgeChecks.test.ts"
+      ],
+      "exitCode": 0,
+      "passed": 29,
+      "failed": 0,
+      "pending": 0,
+      "seconds": 12.278,
+      "failedTests": []
+    },
+    {
+      "files": [
+        "test/unit/sshRunner.test.ts",
+        "test/unit/runnerHelperNative.test.ts",
+        "test/unit/l10n.test.ts"
+      ],
+      "exitCode": 0,
+      "passed": 34,
+      "failed": 0,
+      "pending": 2,
+      "seconds": 29.683,
+      "failedTests": []
+    }
+  ],
+  "totals": {
+    "passed": 384,
+    "failed": 0,
+    "platformSkipped": 2,
+    "files": 32
+  },
+  "platformSkippedTests": [
+    "native Windows runner certification parses the helper and keeps Initialize-RunnerJob separate from argument assignment",
+    "native Windows runner certification runs setup and checks through the native job branch and publishes the exit marker"
+  ],
+  "compilerProjects": {
+    "command": ["npm", "run", "typecheck"],
+    "exitCode": 0,
+    "projects": ["host", "webview", "unit", "e2e", "integration"]
+  },
+  "gates": [
+    {
+      "name": "harness-typecheck",
+      "command": ["npx", "tsc", "-p", "test/harness/tsconfig.json", "--noEmit"],
+      "exitCode": 0,
+      "seconds": 8.465,
+      "log": "temp/m96c-int-round2/harness-typecheck.log"
+    },
+    {
+      "name": "host-api-regenerate",
+      "command": ["npm", "run", "check:host-api", "--", "--write"],
+      "exitCode": 0,
+      "seconds": 8.542,
+      "log": "temp/m96c-int-round2/host-api-regenerate.log"
+    },
+    {
+      "name": "lint",
+      "command": ["npm", "run", "lint"],
+      "exitCode": 0,
+      "seconds": 117.708,
+      "log": "temp/m96c-int-round2/lint.log"
+    },
+    {
+      "name": "prettier",
+      "command": ["npm", "run", "format:check"],
+      "exitCode": 0,
+      "seconds": 56.354,
+      "log": "temp/m96c-int-round2/prettier.log"
+    },
+    {
+      "name": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exitCode": 0,
+      "seconds": 5.427,
+      "log": "temp/m96c-int-round2/deadcode.log"
+    },
+    {
+      "name": "duplication",
+      "command": ["npm", "run", "duplication"],
+      "exitCode": 0,
+      "seconds": 1.274,
+      "log": "temp/m96c-int-round2/duplication.log"
+    },
+    {
+      "name": "l10n",
+      "command": ["npm", "run", "check:l10n"],
+      "exitCode": 0,
+      "seconds": 3.477,
+      "log": "temp/m96c-int-round2/l10n.log"
+    },
+    {
+      "name": "cycles",
+      "command": ["npm", "run", "cycles"],
+      "exitCode": 0,
+      "seconds": 10.41,
+      "log": "temp/m96c-int-round2/cycles.log"
+    },
+    {
+      "name": "merged-team-cycles",
+      "command": [
+        "npx",
+        "dpdm",
+        "--no-warning",
+        "--no-tree",
+        "--exit-code",
+        "circular:1",
+        "-T",
+        "src/core/team/teamPool.ts",
+        "src/core/team/scheduler/retire.ts",
+        "src/core/team/scheduler/stalls.ts",
+        "src/core/team/scheduler/reviewFlow.ts",
+        "src/core/team/mergeQueue.ts",
+        "src/core/team/teamMerge.ts",
+        "src/core/team/teamWorkspaces.ts",
+        "src/host/team/gitIndexLock.ts",
+        "src/host/team/landingJournal.ts",
+        "src/host/team/stagingCopy.ts",
+        "src/host/team/teamCleanup.ts",
+        "src/core/team/teamTools.ts",
+        "src/core/team/roster.ts",
+        "src/host/team/teamMcpServer.ts",
+        "src/core/team/trafficMetrics.ts",
+        "src/host/modelsPanelTraffic.ts",
+        "src/webview/components/traffic/TrafficSurface.tsx",
+        "src/webview/components/traffic/TrafficView.tsx",
+        "src/webview/models/sections/runners/RunnersSection.tsx",
+        "src/core/team/writeSets.ts",
+        "src/core/team/waitFor.ts",
+        "src/core/team/conflictPredict.ts",
+        "src/core/team/sharedFiles.ts",
+        "src/core/team/merge/changelog.ts",
+        "src/core/team/merge/jsonTable.ts",
+        "src/core/team/teamConfig.ts",
+        "src/core/runners/runnerConfig.ts",
+        "src/core/runners/routing.ts",
+        "src/core/runners/health.ts",
+        "src/host/runners/sshRunner.ts",
+        "src/host/team/checkSlots.ts",
+        "src/host/team/mcpBridge.ts",
+        "src/core/team/workers/engineWorker.ts"
+      ],
+      "exitCode": 0,
+      "seconds": 3.447,
+      "log": "temp/m96c-int-round2/merged-team-cycles.log"
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 0,
+      "seconds": 29.961,
+      "log": "temp/m96c-int-round2/host-api.log"
+    },
+    {
+      "name": "build",
+      "command": ["npm", "run", "build"],
+      "exitCode": 0,
+      "seconds": 2.145,
+      "log": "temp/m96c-int-round2/build.log"
+    },
+    {
+      "name": "notices-regenerate",
+      "command": ["node", "scripts/third-party-notices.mjs", "--write"],
+      "exitCode": 0,
+      "seconds": 0.152,
+      "log": "temp/m96c-int-round2/notices-regenerate.log"
+    },
+    {
+      "name": "notices",
+      "command": ["node", "scripts/third-party-notices.mjs"],
+      "exitCode": 0,
+      "seconds": 0.174,
+      "log": "temp/m96c-int-round2/notices.log"
+    },
+    {
+      "name": "runner-bash-syntax",
+      "command": ["bash", "-n", "native/runner/runner-helper.sh"],
+      "exitCode": 0,
+      "seconds": 0.021,
+      "log": "temp/m96c-int-round2/runner-bash-syntax.log"
+    },
+    {
+      "name": "diff-check",
+      "command": ["git", "diff", "--check"],
+      "exitCode": 0,
+      "seconds": 0.114,
+      "log": "temp/m96c-int-round2/diff-check.log"
+    }
+  ],
+  "bundleCaps": [
+    {
+      "path": "dist/extension.js",
+      "bytes": 604857,
+      "budgetKiB": 600
+    },
+    {
+      "path": "dist/modelApi.js",
+      "bytes": 440523,
+      "budgetKiB": 475
+    },
+    {
+      "path": "dist/review.js",
+      "bytes": 44218,
+      "budgetKiB": 50
+    },
+    {
+      "path": "dist/sessionBoard.js",
+      "bytes": 63551,
+      "budgetKiB": 75
+    },
+    {
+      "path": "dist/reviewer.js",
+      "bytes": 55924,
+      "budgetKiB": 75
+    },
+    {
+      "path": "dist/planMarkdown.js",
+      "bytes": 142363,
+      "budgetKiB": 150
+    },
+    {
+      "path": "dist/checkpointStore.js",
+      "bytes": 138960,
+      "budgetKiB": 225
+    },
+    {
+      "path": "dist/agentImport.js",
+      "bytes": 118451,
+      "budgetKiB": 125
+    },
+    {
+      "path": "dist/bundledSkills.js",
+      "bytes": 23452,
+      "budgetKiB": 50
+    },
+    {
+      "path": "dist/codeIntel.js",
+      "bytes": 78781,
+      "budgetKiB": 100
+    },
+    {
+      "path": "dist/voice.js",
+      "bytes": 35548,
+      "budgetKiB": 50
+    },
+    {
+      "path": "dist/museCodeReviewer.js",
+      "bytes": 43776,
+      "budgetKiB": 75
+    },
+    {
+      "path": "dist/uiText.js",
+      "bytes": 114329,
+      "budgetKiB": 125
+    },
+    {
+      "path": "dist/searchWorker.js",
+      "bytes": 18571,
+      "budgetKiB": 50
+    },
+    {
+      "path": "dist/pageWorker.js",
+      "bytes": 208040,
+      "budgetKiB": 300
+    },
+    {
+      "path": "dist/webview/main.js",
+      "bytes": 888114,
+      "budgetKiB": 900
+    },
+    {
+      "path": "dist/acp.js",
+      "bytes": 820209,
+      "budgetKiB": 850
+    }
+  ],
+  "webviewCssBytes": 44036,
+  "productionTeamInputs": {
+    "dist/meta/agentImport.json": [],
+    "dist/meta/bundledSkills.json": [],
+    "dist/meta/checkpointStore.json": [],
+    "dist/meta/codeIntel.json": [],
+    "dist/meta/extension.json": [],
+    "dist/meta/modelApi.json": [],
+    "dist/meta/museCodeReviewer.json": [],
+    "dist/meta/pageWorker.json": [],
+    "dist/meta/planMarkdown.json": [],
+    "dist/meta/review.json": [],
+    "dist/meta/reviewer.json": [],
+    "dist/meta/searchWorker.json": [],
+    "dist/meta/sessionBoard.json": [],
+    "dist/meta/uiText.json": [],
+    "dist/meta/voice.json": [],
+    "dist/meta/webview.json": [],
+    "dist/meta-acp/acp.json": []
+  },
+  "notices": {
+    "packages": 83,
+    "regenerated": true,
+    "unchanged": true,
+    "sha256": "dc918f3dc4559b73a1c675fddd762818da13f9baecb7856e39d080944c1ee545"
+  }
+}

@@ -33,13 +33,21 @@ export function absolutePathEntries(
     .filter((entry) => entry !== '' && p.isAbsolute(entry))
 }
 
-/** The absolute path of `name` on PATH, or undefined when it is not there. */
+/**
+ * The absolute path of `name` on PATH, or undefined when it is not there. On
+ * Windows a name that already ends in `.exe` or `.com` (the OS adapters'
+ * `rundll32.exe`, `explorer.exe`, `powershell.exe`) is looked up as named;
+ * any other name gets those extensions, so a batch file never resolves.
+ */
 export function resolveExecutable(name: string, probe: ExecutableProbe): string | undefined {
   const p = probe.platform === 'win32' ? path.win32 : path.posix
+  const isNamedExecutable = WINDOWS_EXECUTABLE_EXTENSIONS.some((extension) =>
+    name.toLowerCase().endsWith(extension),
+  )
   const candidates =
-    probe.platform === 'win32'
-      ? WINDOWS_EXECUTABLE_EXTENSIONS.map((extension) => `${name}${extension}`)
-      : [name]
+    isNamedExecutable || probe.platform !== 'win32'
+      ? [name]
+      : WINDOWS_EXECUTABLE_EXTENSIONS.map((extension) => `${name}${extension}`)
   for (const directory of absolutePathEntries(probe.platform, probe.pathVariable)) {
     for (const candidate of candidates) {
       const full = p.join(directory, candidate)

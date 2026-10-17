@@ -3,15 +3,16 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
+import { surfacePort, surfaceSnapshot } from './playbookSurfaceFixtures'
 import { agentStatusLabel, formatDurationMs } from '../../src/webview/agentFormat'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
-import {
-  AgentMap,
+import AgentMap, {
   type AgentMapProps,
   controlsFor,
   type SubagentEntry,
   type ToolEntry,
-} from '../../src/webview/components/AgentMap'
+} from '../../src/webview/components/AgentMapContent'
+import { agentMapProps } from './helpers/transcriptFixtures'
 
 const explorer: SubagentEntry = {
   kind: 'subagent',
@@ -64,26 +65,12 @@ const task: ToolEntry = {
 
 function renderMap(overrides: Partial<AgentMapProps> = {}) {
   const props: AgentMapProps = {
-    backend: 'museCode',
-    title: 'Chrome control update',
-    modelId: 'muse-spark-1.3',
+    ...agentMapProps(),
     contextUsedTokens: 705_900,
     agents: [explorer, reviewer],
     backgroundTasks: [task],
     delegationMode: 'auto',
     isDelegationEnabled: true,
-    childTranscripts: {},
-    selectedAgentId: undefined,
-    onSelectAgent: vi.fn(),
-    onReadChild: vi.fn(),
-    onControl: vi.fn(),
-    onMessage: vi.fn(),
-    onStopTask: vi.fn(),
-    onStopAllTasks: vi.fn(),
-    onOpenMuseSettings: vi.fn(),
-    onClose: vi.fn(),
-    workflows: [],
-    workflowTriggerMode: undefined,
     ...overrides,
   }
   render(<AgentMap {...props} />)
@@ -98,24 +85,121 @@ describe('formatDurationMs', () => {
 })
 
 describe('AgentMap', () => {
+  it('keeps the lazy team tree and opens a failed agent with recovery controls', async () => {
+    const agent: SubagentEntry = {
+      ...explorer,
+      status: 'failed',
+      agentEvidence: { stopReason: 'error' },
+    }
+    const props = agentMapProps({
+      agents: [agent],
+      onControl: vi.fn(),
+      team: {
+        orchestrator: { model: 'muse-spark-1.3', backend: 'modelApi', slot: 'default' },
+        roles: [],
+      },
+    })
+    const view = render(<AgentMap {...props} />)
+    expect(await screen.findByRole('tree', { name: EN.teamTreeLabel })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Map the workspace/ })).toHaveTextContent(
+      'Inactive · Failed',
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
+    expect(props.onSelectAgent).toHaveBeenCalledWith(agent.id)
+    view.rerender(<AgentMap {...props} selectedAgentId={agent.id} />)
+    expect(screen.getByRole('region', { name: 'Agent Receipt' })).toHaveTextContent('Error')
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(props.onControl).toHaveBeenCalledWith('sub-1', 'continue')
+  })
+
+  it('offers recovery for a background task whose reported final exit is nonzero', () => {
+    const onControl = vi.fn()
+    renderMap({
+      agents: [],
+      backgroundTasks: [{ ...task, status: 'completed', exitCode: 1 }],
+      onControl,
+    })
+    expect(screen.getByText(/Inactive · Failed/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onControl).toHaveBeenCalledWith(task.id, 'continue')
+  })
+  it('shows an incomplete receipt, linked files and requested recovery controls', () => {
+    const agent: SubagentEntry = {
+      ...explorer,
+      agentEvidence: { stopReason: 'budget', unfinished: ['Run Checks'] },
+    }
+    const props = renderMap({
+      agents: [agent],
+      selectedAgentId: agent.id,
+      onOpenFile: vi.fn(),
+      childTranscripts: {
+        'child-1': {
+          entries: [
+            {
+              ...task,
+              id: 'c',
+              isBackground: false,
+              status: 'completed',
+              exitCode: 1,
+              durationMs: 1000,
+              changedFiles: [{ path: String.raw`src\app.ts`, added: 2, removed: 1 }],
+            },
+          ],
+        },
+      },
+    })
+    expect(screen.getByRole('region', { name: 'Agent Receipt' })).toHaveTextContent(
+      'Budget Exhausted',
+    )
+    expect(screen.getByText(/Inactive · Incomplete/)).toHaveAttribute('aria-live', 'polite')
+    fireEvent.click(screen.getByRole('button', { name: 'src/app.ts' }))
+    expect(props.onOpenFile).toHaveBeenCalledWith('src/app.ts', undefined)
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(props.onControl).toHaveBeenCalledWith('sub-1', 'continue')
+    expect(props.onControl).toHaveBeenCalledWith('sub-1', 'retry')
+  })
+
+  it('shows trusted per-agent strike facts and opens the shared settings surface', async () => {
+    const snapshot = surfaceSnapshot()
+    renderMap({ playbookPort: surfacePort(snapshot), playbookRecords: { sa1: snapshot.records } })
+    const badge = await screen.findByText(/Concurrency: 3 review rounds/u)
+    expect(badge.closest('button')).toHaveTextContent('Map the workspace')
+    expect(screen.getByRole('button', { name: /Review the diff/u })).not.toHaveTextContent(
+      'review rounds',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Playbook Settings' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Orchestrator Playbook', level: 1 }),
+    ).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the Map' }))
+    expect(screen.getByRole('dialog', { name: 'Agent Map' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Playbook Settings' })).toHaveFocus()
+  })
+
+  it('shows policy why-notes in the selected agent details', async () => {
+    renderMap({ selectedAgentId: 'sa1', playbookRecords: { sa1: surfaceSnapshot().records } })
+    expect(await screen.findByText(/Needs you: a safety classifier blocked/u)).toBeInTheDocument()
+    expect(screen.getByText(/requires a redesign/u)).toHaveTextContent('Concurrency')
+  })
   it('labels a billed Model API child in the map', () => {
     renderMap({ backend: 'modelApi', agents: [{ ...explorer, paid: 'subagents' }] })
-    expect(screen.getByRole('button', { name: /Map the workspace/ })).toHaveTextContent('paid')
+    expect(screen.getByRole('button', { name: /Map the workspace/ })).toHaveTextContent('Paid')
   })
 
   it('draws the conversation, its agents with duration and tokens, and the background tasks', () => {
     const props = renderMap()
-    const map = screen.getByRole('dialog', { name: 'Agent map' })
-    expect(map).toHaveTextContent('2 agents · click an agent for details')
+    const map = screen.getByRole('dialog', { name: 'Agent Map' })
+    expect(map).toHaveTextContent('2 Agents · click an agent for details')
     expect(map).toHaveTextContent('Chrome control update')
     expect(map).toHaveTextContent('muse-spark-1.3 · 705.9K tokens in context')
     expect(screen.getByRole('button', { name: /Map the workspace/ })).toHaveTextContent(
-      '1m 30s · 77.6K tokens · closed',
+      '1m 30s · 77.6K tokens · Closed',
     )
-    expect(screen.getByRole('button', { name: /Review the diff/ })).toHaveTextContent('running')
-    expect(map).toHaveTextContent('1 background task')
-    expect(screen.getByRole('list', { name: 'Background tasks' })).toHaveTextContent(
-      'PowerShellRun delayed output command · runningStop',
+    expect(screen.getByRole('button', { name: /Review the diff/ })).toHaveTextContent('Running')
+    expect(map).toHaveTextContent('1 Background Task')
+    expect(screen.getByRole('list', { name: 'Background Tasks' })).toHaveTextContent(
+      'PowerShellRun delayed output command · Running · ActiveStop',
     )
     fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
     expect(props.onSelectAgent).toHaveBeenCalledWith('sa1')
@@ -128,16 +212,16 @@ describe('AgentMap', () => {
   it('stops one background task or all of them, and only running ones (M46)', () => {
     const done: ToolEntry = { ...task, id: 'bg2', status: 'cancelled' }
     const props = renderMap({ agents: [], backgroundTasks: [task, done] })
-    expect(screen.getByRole('dialog', { name: 'Agent map' })).not.toHaveTextContent('No subagents')
-    const list = screen.getByRole('list', { name: 'Background tasks' })
+    expect(screen.getByRole('dialog', { name: 'Agent Map' })).not.toHaveTextContent('No subagents')
+    const list = screen.getByRole('list', { name: 'Background Tasks' })
     // Only the running one has a Stop, named for what it stops.
     const stops = screen.getAllByRole('button', { name: /^Stop: / })
     expect(stops).toHaveLength(1)
     expect(stops[0]).toHaveAccessibleName('Stop: PowerShell Run delayed output command')
-    expect(list).toHaveTextContent('cancelled')
+    expect(list).toHaveTextContent('Cancelled')
     fireEvent.click(screen.getByRole('button', { name: /^Stop: / }))
     expect(props.onStopTask).toHaveBeenCalledWith('bg1')
-    fireEvent.click(screen.getByRole('button', { name: 'Stop all' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Stop All' }))
     expect(props.onStopAllTasks).toHaveBeenCalledOnce()
   })
 
@@ -146,9 +230,9 @@ describe('AgentMap', () => {
     expect(screen.getByRole('button', { name: /^Stop: / })).toBeDisabled()
   })
 
-  it('offers no Stop all when every background task has ended (M46)', () => {
+  it('offers no Stop All when every background task has ended (M46)', () => {
     renderMap({ agents: [], backgroundTasks: [{ ...task, status: 'completed' }] })
-    expect(screen.queryByRole('button', { name: 'Stop all' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Stop All' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^Stop: / })).not.toBeInTheDocument()
   })
 
@@ -172,10 +256,10 @@ describe('AgentMap', () => {
         },
       },
     })
-    const map = screen.getByRole('dialog', { name: 'Agent map' })
-    expect(map).toHaveTextContent('Role: explorer · 1m 30s · 77.6K tokens · closed')
+    const map = screen.getByRole('dialog', { name: 'Agent Map' })
+    expect(map).toHaveTextContent('Role: explorer · 1m 30s · 77.6K tokens · Closed')
     expect(map).toHaveTextContent('Mapped 12 files')
-    expect(screen.getByRole('list', { name: 'Agent transcript' })).toHaveTextContent(
+    expect(screen.getByRole('list', { name: 'Agent Transcript' })).toHaveTextContent(
       'userMap the workspace',
     )
     renderMap({ selectedAgentId: 'sa2' })
@@ -189,10 +273,10 @@ describe('AgentMap', () => {
       delegationMode: 'off',
       isDelegationEnabled: false,
     })
-    const map = screen.getByRole('dialog', { name: 'Agent map' })
+    const map = screen.getByRole('dialog', { name: 'Agent Map' })
     expect(map).toHaveTextContent('No subagents in this conversation.')
     expect(map).toHaveTextContent('subagent delegation is off')
-    fireEvent.click(screen.getByText('Open the Muse Code settings file'))
+    fireEvent.click(screen.getByText('Open the Muse Code Settings File'))
     expect(props.onOpenMuseSettings).toHaveBeenCalledTimes(1)
   })
 
@@ -203,7 +287,7 @@ describe('AgentMap', () => {
       delegationMode: undefined,
       isDelegationEnabled: false,
     })
-    expect(screen.queryByText('Open the Muse Code settings file')).toBeNull()
+    expect(screen.queryByText('Open the Muse Code Settings File')).toBeNull()
   })
 })
 
@@ -264,23 +348,23 @@ describe('AgentMap owner controls (M18, M48)', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Interrupt' }))
     expect(onControl).toHaveBeenCalledWith('sub-r', 'interrupt')
-    const note = screen.getByLabelText('Send message')
-    expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled()
+    const note = screen.getByLabelText('Send Message')
+    expect(screen.getByRole('button', { name: 'Send Message' })).toBeDisabled()
     fireEvent.change(note, { target: { value: '  also check tests ' } })
     fireEvent.keyDown(note, { key: 'Enter' })
     expect(onMessage).toHaveBeenCalledWith('sub-r', 'also check tests', false)
     expect(note).toHaveValue('')
     renderMap({ backend: 'modelApi', agents: [done], selectedAgentId: 'd', onControl, onMessage })
     expect(screen.getByText('ALPHA, as asked.')).toHaveClass('agent-result-text')
-    fireEvent.change(screen.getByLabelText('Follow-up task'), { target: { value: 'now BETA' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Follow-up task' }))
+    fireEvent.change(screen.getByLabelText('Follow-Up Task'), { target: { value: 'now BETA' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Follow-Up Task' }))
     expect(onMessage).toHaveBeenCalledWith('sub-d', 'now BETA', true)
-    fireEvent.click(screen.getByRole('button', { name: 'Mark result read' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Result Read' }))
     expect(onControl).toHaveBeenCalledWith('sub-d', 'readResult')
-    fireEvent.click(screen.getByRole('button', { name: 'Close agent' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close Agent' }))
     expect(onControl).toHaveBeenCalledWith('sub-d', 'close')
     renderMap({ backend: 'modelApi', agents: [closed], selectedAgentId: 'c', onControl, onMessage })
-    fireEvent.click(screen.getByRole('button', { name: 'Reopen agent' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen Agent' }))
     expect(onControl).toHaveBeenCalledWith('sub-c', 'reopen')
   })
 })
@@ -305,12 +389,12 @@ describe('AgentMap workflows (M47)', () => {
       workflows: [run],
       workflowTriggerMode: 'auto',
     })
-    const map = screen.getByRole('dialog', { name: 'Agent map' })
+    const map = screen.getByRole('dialog', { name: 'Agent Map' })
     expect(map).toHaveTextContent('1 workflow')
     // A map with a run in it is not "empty", though it has no subagents.
     expect(map).not.toHaveTextContent('No subagents')
     const runs = screen.getByRole('list', { name: 'Workflows' })
-    expect(runs).toHaveTextContent('Written for this task')
+    expect(runs).toHaveTextContent('Written for This Task')
     expect(runs).toHaveTextContent('ping')
     expect(screen.queryByRole('button', { name: 'Cancel workflow' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Skip ping|Retry ping/ })).toBeNull()
@@ -319,7 +403,7 @@ describe('AgentMap workflows (M47)', () => {
     expect(note).toHaveTextContent('Muse Code’s workflows are on auto')
     expect(note).toHaveTextContent('Set run.workflow_trigger_mode')
     // One way to the settings file, whatever the note says.
-    fireEvent.click(screen.getByRole('button', { name: 'Open the Muse Code settings file' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open the Muse Code Settings File' }))
     expect(props.onOpenMuseSettings).toHaveBeenCalledTimes(1)
   })
 
@@ -334,10 +418,10 @@ describe('AgentMap workflows (M47)', () => {
 
 describe('agentStatusLabel (M40)', () => {
   it('says a known status in the installed table and shows an unknown one as it came', () => {
-    expect(agentStatusLabel('inProgress')).toBe('running')
-    expect(agentStatusLabel('resultReady')).toBe('result ready')
-    expect(agentStatusLabel('queued')).toBe('queued')
-    expect(agentStatusLabel('closed')).toBe('closed')
+    expect(agentStatusLabel('inProgress')).toBe('Running')
+    expect(agentStatusLabel('resultReady')).toBe('Result Ready')
+    expect(agentStatusLabel('queued')).toBe('Queued')
+    expect(agentStatusLabel('closed')).toBe('Closed')
     expect(agentStatusLabel('paused')).toBe('paused')
     expect(agentStatusLabel('toString')).toBe('toString')
     setUiText({ ...EN, agentStatuses: { ...EN.agentStatuses, completed: 'abgeschlossen' } }, 'de')

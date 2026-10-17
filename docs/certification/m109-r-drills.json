@@ -1,0 +1,1103 @@
+{
+  "rig": "macbook",
+  "defaultTestTimeout": true,
+  "modelAttempts": 0,
+  "drills": [
+    {
+      "id": "D01",
+      "control": "Strict task scope fields",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "task scopes/cards reject",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V1 V9: task scopes/cards reject claimed approvals, identities and value fields"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "7ee6123c512a06c2167003881bb8cb0af60e0424271d881cf98ad06b75d84bcd",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 4.65
+    },
+    {
+      "id": "D02",
+      "control": "Value-free strict local card snapshot",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "task scopes/cards reject",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V1 V9: task scopes/cards reject claimed approvals, identities and value fields"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "04c138da2307f080d2fbf0bc42598354bec41167728ce4dfbcc99ede76c4b48a",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 5.1
+    },
+    {
+      "id": "D03",
+      "control": "Authenticated UI authority",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "non-UI peers, hooks and remote workers",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V1 V10: non-UI peers, hooks and remote workers cannot acquire task consent"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "692195c15b6487bfdb94bcdd2647cd7d25f7f8d71a4a764fb3673e96b78f00fd",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 6.86
+    },
+    {
+      "id": "D04",
+      "control": "Hooks never gain task consent",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "non-UI peers, hooks and remote workers",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V1 V10: non-UI peers, hooks and remote workers cannot acquire task consent"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "965b6255c62d69ef0734470b26aac9d8c237ca26eec5beb7b37419e955f2f0cf",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 6.08
+    },
+    {
+      "id": "D05",
+      "control": "Remote tasks never gain task consent",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "non-UI peers, hooks and remote workers",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V1 V10: non-UI peers, hooks and remote workers cannot acquire task consent"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "7071adf44ef219eb53327c649473f6579ab071ce25a940de2c8696ae3a21f2b4",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 7.39
+    },
+    {
+      "id": "D06",
+      "control": "Unattended task consent refusal",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "unattended, ceiling-none",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V12: unattended, ceiling-none and sessionless tasks cannot acquire delegation approval"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "e36a628b4e84c22d076662f1b969a6e322531b92ad77506cb74fc284abd1e302",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 7.49
+    },
+    {
+      "id": "D07",
+      "control": "Sessionless task consent refusal",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "unattended, ceiling-none",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V12: unattended, ceiling-none and sessionless tasks cannot acquire delegation approval"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "cff52ea17a74281c87265fa96b40cf3909d8b18239c453bb5cb263046cd46a91",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 6.17
+    },
+    {
+      "id": "D08",
+      "control": "Task answer id binding",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "rejects id answer",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: rejects id answer without activating authority"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "d8720ea8e4b76748200c12ffe3fd095d66b547fd367e29b4e369397ea18622a9",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 4.08
+    },
+    {
+      "id": "D09",
+      "control": "Task answer digest binding",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "rejects digest answer",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: rejects digest answer without activating authority"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "59bb091ccdeedd0780d6c63105fbca77e413de5cd38c7aba268f90e80f21018a",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 3.57
+    },
+    {
+      "id": "D10",
+      "control": "Task answer deadline",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "rejects expiry answer",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: rejects expiry answer without activating authority"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "5f55ed3788ff57f9e0561f2ae15768e94c9710eae1331a1ddf9bf7178272ea39",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 3.76
+    },
+    {
+      "id": "D11",
+      "control": "Task denial does not activate authority",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "rejects deny answer",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: rejects deny answer without activating authority"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "7f677ff269a70e0391e04e4b17f422e2b2f7644bf27dd20f14407a615ce4bbc8",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 3.53
+    },
+    {
+      "id": "D12",
+      "control": "Task answer cannot express Always",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "rejects always answer",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: rejects always answer without activating authority"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "57642f89b3202d371fb5fcdc05bb5f78d8dc309299fcdb60353995a06b58cee5",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 3.52
+    },
+    {
+      "id": "D13",
+      "control": "One reservation per admission callback",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "task admission callback is single-use",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: task admission callback is single-use even with remaining count"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "466b1c7aad96016e707b479c080a15bbba7a48b1e527532b084bd020dbf8c700",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 3.69
+    },
+    {
+      "id": "D14",
+      "control": "Synchronous shared task-use count",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "concurrent uses spend a single",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: concurrent uses spend a single remaining slot only once"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "3fb0cbf18ee7d3c77be11240f2d335435877d870af109e351464df0c2208ba66",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.23
+    },
+    {
+      "id": "D15",
+      "control": "Admission checks latest narrowed scope",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "narrowing while admission waits",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V1 V11: narrowing while admission waits invalidates original scope"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "7a61ffb9c8a0c0be091c0e1d79567a91256da864c72ce4d34049cf2437c3e053",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.31
+    },
+    {
+      "id": "D16",
+      "control": "Model can only narrow targets/counts",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "narrowing may reduce counts/remove",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: lowering count after two admissions retains only the covered reservation ordinal",
+        "M109 R task-bound delegation V1 V11: narrowing after admission prevents delayed private release",
+        "M109 R task-bound delegation V1 V11: narrowing while admission waits invalidates original scope",
+        "M109 R task-bound delegation V1: narrowing may reduce counts/remove scopes; model cannot widen or renew authority"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "71aa89bce378c07004fccc24370df82e0162d24445b1039e35a55c57dec3fdd1",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.73
+    },
+    {
+      "id": "D17",
+      "control": "Task exact target coverage",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "out-of-task targets and tainted",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V1: an outside-task automatic ticket is refused even under an ordinary Always grant",
+        "M109 R task-bound delegation V1: out-of-task targets and tainted requests take ordinary broker approval"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "5a38fce7f3c9593007ed13c63b3ea0533b56ab66a01bedcff9514fe631499e42",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.92
+    },
+    {
+      "id": "D18",
+      "control": "Unanswered card deadline even for ignoring adapters",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "unanswered UI card has a bounded wait",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: unanswered UI card has a bounded wait even if adapter ignores cancellation"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "6244f136c5d99a569f52b20f56c12afc30864a51882019d2f4f55ba82f5a988a",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 7.86
+    },
+    {
+      "id": "D19",
+      "control": "Outside-task use cannot inherit ordinary automatic authority",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "outside-task automatic ticket is refused",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V1: an outside-task automatic ticket is refused even under an ordinary Always grant"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "917aa49b81361bd558395eb7f95cabc42eaaa71562c688db4f7a07a0614bf66b",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.47
+    },
+    {
+      "id": "D20",
+      "control": "Current narrowed scope at physical private release",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "narrowing after admission prevents delayed",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: lowering count after two admissions retains only the covered reservation ordinal",
+        "M109 R task-bound delegation V1 V11: narrowing after admission prevents delayed private release"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "1a0613a4fe3202fdde98bf07fd302beca5c385e956110af8796f5e5b2fb7490a",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.31
+    },
+    {
+      "id": "D21",
+      "control": "Current count covers the individual reservation ordinal",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/delegation.test.ts",
+      "expectedWitness": "lowering count after two admissions",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R task-bound delegation V11: lowering count after two admissions retains only the covered reservation ordinal"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "feeb848b52b6c516f0ef2c51a82e518450a4e9d51ab9f5911cc8635b4f005ed5",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.18
+    },
+    {
+      "id": "F01",
+      "control": "Built-in role ceiling defaults",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "research, design and marketing default",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V1: research, design and marketing default to none; charters validate unique handles"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "a175fa4b1e24ded5b794245a5d35d822c9e8094c6b6a0844e4bf81a046365eda",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 1.9
+    },
+    {
+      "id": "F02",
+      "control": "Inherited role ceiling intersection",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "descendants inherit a ceiling intersection",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V1: descendants inherit a ceiling intersection and cannot switch workspace/session"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "df2d62f43e59044a0cdf52a068394fec3f909b1efbcd448962459d0cce4149fa",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 1.9
+    },
+    {
+      "id": "F03",
+      "control": "Trusted host launch identity",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "every worker kind receives",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13: every worker kind receives a distinct requester/socket and host-derived facts"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "6e7ef1c38ee5665311a4eae0a6f95dedcbf2ad1e4c6a5627120be2c6210e486c",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 1.94
+    },
+    {
+      "id": "F04",
+      "control": "Parent host/session/workspace/device context",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "cannot switch workspace/session",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V1: descendants inherit a ceiling intersection and cannot switch workspace/session"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "3bfd8a24a0fc01ae3aeab5d4c05de73906cdf243c4b8f1d1db32d4659832135a",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 1.97
+    },
+    {
+      "id": "F05",
+      "control": "Automatic, inherited and headless unattended marking",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "unattended marking cannot be cleared",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V12: every automatic trigger uses real broker unattended policy, never ordinary grants",
+        "M109 R fleet identity and role ceilings V13: every worker kind receives a distinct requester/socket and host-derived facts",
+        "M109 R fleet identity and role ceilings V12: unattended marking cannot be cleared by scheduled/team/relocated launch facts"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "f470ee5e3639f3fa0b964e6c07989f679cb4d917bd74fb0232157f12c73c71ff",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.02
+    },
+    {
+      "id": "F06",
+      "control": "Windows separator normalization",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "duplicate Windows pipe paths",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13: duplicate Windows pipe paths are refused after separator/case normalization"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "9978d5996b7eefb7aa8d283f861e734fbb0f9894a406ad93d3091a174a300a0a",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 3.0
+    },
+    {
+      "id": "F07",
+      "control": "Windows pipe case normalization",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "duplicate Windows pipe paths",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13: duplicate Windows pipe paths are refused after separator/case normalization"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "85013dc05a8b22c180294531b6ebec56fe6045c655262ebbb7509d52d48ad3fd",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.84
+    },
+    {
+      "id": "F08",
+      "control": "No socket alias reuse across workers",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "duplicate Windows pipe paths",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13: duplicate Windows pipe paths are refused after separator/case normalization"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "375a95d959550586ea24f3b55aa2f9146f90cc1ee8d8ef1d506896ee0cfc912b",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.36
+    },
+    {
+      "id": "F09",
+      "control": "Bounded socket admission without eviction",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "disposed or saturated owners",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13 V16: disposed or saturated owners refuse new routes; invalid socket metadata cannot reach environment"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "45b8732861e71b9678cfcd23fb2bc369659871b46e81382a3f2c43f8c445261a",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.16
+    },
+    {
+      "id": "F10",
+      "control": "Disposed owner admission barrier",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "disposed or saturated owners",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13 V16: disposed or saturated owners refuse new routes; invalid socket metadata cannot reach environment"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "3425ed25356ae012f8ec69cfcae1b4c61262b363ae1923f4e97bd2708c3e2b0d",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.29
+    },
+    {
+      "id": "F11",
+      "control": "Socket metadata cannot carry environment newlines",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "disposed or saturated owners",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13 V16: disposed or saturated owners refuse new routes; invalid socket metadata cannot reach environment"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "64b0b9e0b9616c228a12ce984213b588bed43fd287b06116f173c0f889c3f6ea",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.33
+    },
+    {
+      "id": "F12",
+      "control": "Generation-tagged late acquisition cleanup",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "lock during socket acquisition",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13 V16: lock during socket acquisition disposes late route and never registers it"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "eb2000feb37a51dc887d248d79cdccdf8c84407fb5cc29acfb35ab14de263aff",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.51
+    },
+    {
+      "id": "F13",
+      "control": "Opaque worker capability lookup before broker entry",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "caller mutation and forged access",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V12: unattended marking cannot be cleared by scheduled/team/relocated launch facts",
+        "M109 R fleet identity and role ceilings V1: descendants inherit a ceiling intersection and cannot switch workspace/session",
+        "M109 R fleet identity and role ceilings V13: caller mutation and forged access cannot change registered requester or ceiling"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "1f62d04ee9611fae3f3a96ed1cec13f251ed046cdde291711def25a9335a9310",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.71
+    },
+    {
+      "id": "F14",
+      "control": "Trusted provenance overrides clean model input",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "host taint cannot be cleared",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V12: every automatic trigger uses real broker unattended policy, never ordinary grants",
+        "M109 R fleet identity and role ceilings V1: host taint cannot be cleared by clean model proposal"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "92556d70afd673ed2f2079bfcd390ad7f1066b833de69ac375a4b6895c1f9a9b",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 2.75
+    },
+    {
+      "id": "F15",
+      "control": "Approval snapshot requester binding",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "another requester approval",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13: another requester approval cannot be presented as this worker use"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "7d98ce968bd984b3b7fec43aee193bce4481fd9b5fb5e3c5f520333793e98137",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 3.05
+    },
+    {
+      "id": "F16",
+      "control": "Private ticket requester binding",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "tickets bind requester and exact use",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13: tickets bind requester and exact use and travel solely through private pipe"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "176d419f3472cf21f24e34cbd101abae9d84a963927ec3b02a2d8c5ec48b9f6a",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 3.11
+    },
+    {
+      "id": "F17",
+      "control": "Private ticket exact-use digest binding",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "changed ticket digest",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V11 V13: changed ticket digest never reaches inherited pipe"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "894617ea49f96c866ff2920e5ee97896fd88c71644f3109ce220c6f4f8c4d0ce",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 3.52
+    },
+    {
+      "id": "F18",
+      "control": "Physical private-pipe deadline check",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "changed ticket expiry",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V11 V13: changed ticket expiry never reaches inherited pipe"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "d2b8245e0b766eb2d91506704218e8842e5a83a768c3989abfbced8b34e46736",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 4.23
+    },
+    {
+      "id": "F19",
+      "control": "Current worker capability at final pipe write",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "revoked worker cannot deliver",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V13: a revoked worker cannot deliver a ticket after delayed pipe readiness"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "b8686c5d46124b86037cb34d13a33925c7264db950eef55d94b3b4d96862c347",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 4.75
+    },
+    {
+      "id": "F20",
+      "control": "Cleanup failure cannot leave another owned route live",
+      "source": "src/core/vault/fleet.ts",
+      "testFile": "test/unit/vault/fleet.test.ts",
+      "expectedWitness": "parent retirement closes descendants",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R fleet identity and role ceilings V16: parent retirement closes descendants, cleanup failures do not leave other routes live"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "sha256Mutation": "f25c1c3f1c004774e1f99e726aa824206bf51f3fc4149fee67e83350a7deb43e",
+      "sha256Restored": "f940097093bd1b2c584a90f7cb20adf2dbce9da04a2966dee8f810d50df3ce0f",
+      "byteExactRestoration": true,
+      "seconds": 4.86
+    },
+    {
+      "id": "R01",
+      "control": "Strict remote request envelope before effects",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "strict device request/response shapes",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10: strict device request/response shapes refuse env, items, grants, approvals and extra values"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "e87729a3450fc6fcd5415582e4a92d8225435ae9fe0608117fc28959750a7865",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.21
+    },
+    {
+      "id": "R02",
+      "control": "Value-free strict remote response envelope",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "strict device request/response shapes",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10: strict device request/response shapes refuse env, items, grants, approvals and extra values"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "7097daec635feed03abc9b5eb65a9c6c356a4d34cd348e3c455801c88d8b2863",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.17
+    },
+    {
+      "id": "R03",
+      "control": "Verified pinned mutual-TLS identity",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "unpinned identity fails",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10 V12 V13: unpinned identity fails before local selection or canAdmit"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "5dcd9d12faecb1ac6ccaad0653d3dc49593464d0dc73cc736eaa3d0ed0f74cca",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.11
+    },
+    {
+      "id": "R04",
+      "control": "Exact owning-device binding",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "wrongOwner identity fails",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10 V12 V13: wrongOwner identity fails before local selection or canAdmit"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "128dc564c7e0072f0932965c6f68788ef47978571d9141a08bad5eeb1fa91de4",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.13
+    },
+    {
+      "id": "R05",
+      "control": "Authenticated requester/device relationship",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "wrongDevice identity fails",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10 V12 V13: wrongDevice identity fails before local selection or canAdmit"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "1add84336b963eddf357b16bde07b899dc1d51154c01852382bd0caf3cd86da0",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.1
+    },
+    {
+      "id": "R06",
+      "control": "No unattended remote signature/code admission",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "unattended identity fails",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10 V12 V13: unattended identity fails before local selection or canAdmit"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "8122e1afb5fafc7f8743aaefa4edab5088890c41cb8858e62898d9527c7a6edb",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.08
+    },
+    {
+      "id": "R07",
+      "control": "Local owner UI authority only",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "a non-UI owner peer",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10: a non-UI owner peer cannot start local consent or execution"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "345c7bec132cd71b7a9c67a765b6e0765c8446266958347e386f8060eeae5ab6",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.05
+    },
+    {
+      "id": "R08",
+      "control": "Remote request replay set",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "replay is refused",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V11: replay is refused and consumes no additional approval or use"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "49d47a299bdf49d717e02d5db8fa6579720c5fb0b4f8a73c05dffd6914b4d68d",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.03
+    },
+    {
+      "id": "R09",
+      "control": "Replay capacity refuses without eviction",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "replay saturation refuses",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V11: replay saturation refuses admission instead of evicting prior request ids"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "2393ca1a085284edefe92b830dd69e57985d0b893bcdc8502d0f28c1cb908019",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.07
+    },
+    {
+      "id": "R10",
+      "control": "Resolved SSH destination check before registration",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "changed resolved SSH host/user",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10 V13: a changed resolved SSH host/user is refused before broker registration"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "5e7e54db55d7835c03478c4456481abfc9278a83ae7de9fdde84a8618e5522c7",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.05
+    },
+    {
+      "id": "R11",
+      "control": "Verified SSH session digest binding",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "changed SSH host/session",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10: changed SSH host/session and remote forwarding are refused"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "dec1823aa8be2b556931db81c677396eec66c60e12ee28f5d0bc5056a410e542",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.04
+    },
+    {
+      "id": "R12",
+      "control": "Owner-side user approval on every remote use",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "requires local choice and fresh approval",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10: ssh requires local choice and fresh approval on every use; only capability crosses",
+        "M109 R remote owner-side uses V10: totp requires local choice and fresh approval on every use; only capability crosses",
+        "M109 R remote owner-side uses V11: replay is refused and consumes no additional approval or use",
+        "M109 R remote owner-side uses V11: digest answer cannot release remote capability",
+        "M109 R remote owner-side uses V11: id answer cannot release remote capability",
+        "M109 R remote owner-side uses V11: session answer cannot release remote capability",
+        "M109 R remote owner-side uses V11: expiry answer cannot release remote capability",
+        "M109 R remote owner-side uses V11: deny answer cannot release remote capability"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "096d423c8e807f53978f81fa5d90ee51df7571f365e953993d9afb02603c170f",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.08
+    },
+    {
+      "id": "R13",
+      "control": "Remote answer request binding",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "id answer cannot release",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V11: id answer cannot release remote capability"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "93f1c6b9e48969ef149d8a623651b6a2171c0a3d224ea7c33ebd3313097b24d7",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.07
+    },
+    {
+      "id": "R14",
+      "control": "Remote composite digest binding",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "digest answer cannot release",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V11: digest answer cannot release remote capability"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "4b1119aedbaeeec6adffc332c38272f04f91a4a5d639be047f0766c9f589367a",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.12
+    },
+    {
+      "id": "R15",
+      "control": "Remote answer deadline",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "expiry answer cannot release",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V11: expiry answer cannot release remote capability"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "05da506727c0a77172322426d149065e2b08cee83179e066ddf6d6a4d567598a",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.16
+    },
+    {
+      "id": "R16",
+      "control": "No remote session or standing approval",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "session answer cannot release",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V11: session answer cannot release remote capability"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "1d28dd76ec348c1ffb23dd96f212f379b1848e45f1c0ad3ddbbbb11add67a17d",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.19
+    },
+    {
+      "id": "R17",
+      "control": "Generation/cancellation checks at capability release",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "lock invalidates pending release",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V7 V10 V16: lock invalidates pending release and wipes late bytes",
+        "M109 R remote owner-side uses V7 V10 V16: disconnect invalidates pending release and wipes late bytes",
+        "M109 R remote owner-side uses V7 V10 V16: dispose invalidates pending release and wipes late bytes"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "14d7649d99557060a8b3de99cac6c6a2885b86eefa7fabcabab9a32d6fb40d0d",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.23
+    },
+    {
+      "id": "R18",
+      "control": "Erase owner-side bytes despite malformed output/transport failure",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "malformed output and throwing transport",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10: ssh requires local choice and fresh approval on every use; only capability crosses",
+        "M109 R remote owner-side uses V10: totp requires local choice and fresh approval on every use; only capability crosses",
+        "M109 R remote owner-side uses V7 V10 V16: lock invalidates pending release and wipes late bytes",
+        "M109 R remote owner-side uses V7 V10 V16: disconnect invalidates pending release and wipes late bytes",
+        "M109 R remote owner-side uses V7 V10 V16: dispose invalidates pending release and wipes late bytes",
+        "M109 R remote owner-side uses V7: malformed output and throwing transport still wipe owned capability bytes"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "7769fd43c3e288a9d47971e1cd4c6dade1500df66101d2f9f44b813e33f4ab56",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.45
+    },
+    {
+      "id": "R19",
+      "control": "Receiver reply id binding",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "receiver privately consumes only bound kind/id",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10: receiver privately consumes only bound kind/id on pinned channel and wipes sink bytes"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "98d41138f9358ad5d9aa72619fb8b1cc9e46b0effdc933c0c9759e4cd15b5e7e",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.45
+    },
+    {
+      "id": "R20",
+      "control": "Receiver reply kind binding",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "receiver privately consumes only bound kind/id",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10: receiver privately consumes only bound kind/id on pinned channel and wipes sink bytes"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "13d0b413c0c036657941cf7aa8aa629c086acd04665b980820c95bf3ad530dde",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.51
+    },
+    {
+      "id": "R21",
+      "control": "Receiver cancellation at physical sink write",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "receiver disconnect before private write",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10 V16: receiver disconnect before private write refuses delivery and wipes retained bytes"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "11eff35bbe124abeabbcb779ca81655b02860ccb54f77395485a68f403da360d",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.55
+    },
+    {
+      "id": "R22",
+      "control": "Erase all receiver-owned byte copies after private delivery",
+      "source": "src/core/vault/remote.ts",
+      "testFile": "test/unit/vault/remote.test.ts",
+      "expectedWitness": "receiver privately consumes only bound kind/id",
+      "exitCode": 1,
+      "failedTests": [
+        "M109 R remote owner-side uses V10: receiver privately consumes only bound kind/id on pinned channel and wipes sink bytes",
+        "M109 R remote owner-side uses V10 V16: receiver disconnect before private write refuses delivery and wipes retained bytes"
+      ],
+      "namedFailureObserved": true,
+      "sha256Before": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "sha256Mutation": "8a317a6eba251f20344bdffd034d56b71e21de1642c5fb85c514dd32063a2dd1",
+      "sha256Restored": "c05eeb599f1ee7c0bbb0f63574c6044104f642a622b785154eb49d90f1a00836",
+      "byteExactRestoration": true,
+      "seconds": 2.67
+    }
+  ]
+}

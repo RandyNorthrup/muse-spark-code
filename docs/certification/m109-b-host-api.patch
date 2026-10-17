@@ -1,0 +1,28 @@
+--- a/docs/ide-compatibility/host-api.md
++++ b/docs/ide-compatibility/host-api.md
+@@ -428,19 +428,19 @@
+ | Module                 | Files |
+ | ---------------------- | ----- |
+ | `node:buffer`          | 39    |
+-| `node:child_process`   | 13    |
+-| `node:crypto`          | 46    |
++| `node:child_process`   | 14    |
++| `node:crypto`          | 53    |
+ | `node:dgram`           | 1     |
+ | `node:dns`             | 1     |
+ | `node:dns/promises`    | 3     |
+-| `node:fs`              | 33    |
+-| `node:fs/promises`     | 47    |
++| `node:fs`              | 36    |
++| `node:fs/promises`     | 49    |
+ | `node:http`            | 4     |
+ | `node:https`           | 1     |
+ | `node:module`          | 1     |
+-| `node:net`             | 7     |
++| `node:net`             | 10    |
+ | `node:os`              | 9     |
+-| `node:path`            | 84    |
++| `node:path`            | 89    |
+ | `node:process`         | 1     |
+ | `node:stream`          | 12    |
+ | `node:stream/promises` | 2     |

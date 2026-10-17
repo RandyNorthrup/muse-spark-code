@@ -1,0 +1,190 @@
+{
+  "environment": {
+    "date": "2026-10-05",
+    "machine": "macmini",
+    "darwin": "24.6.0",
+    "arch": "x86_64",
+    "node": "24.21.0",
+    "logicalCores": 12
+  },
+  "baselineLoaded": {
+    "runs": 30,
+    "passed": 30,
+    "loadWorkers": 12
+  },
+  "nativeProbe": {
+    "runs": 300,
+    "monitorTimeoutMs": 500,
+    "loadWorkers": 12,
+    "announcedBothPids": 300,
+    "latePids": [
+      {
+        "attempt": 93,
+        "announced": true,
+        "observed": [
+          {
+            "pid": 58881,
+            "stat": "reaped"
+          }
+        ]
+      },
+      {
+        "attempt": 123,
+        "announced": true,
+        "observed": [
+          {
+            "pid": 60465,
+            "stat": "60465     1 60423 R"
+          }
+        ]
+      },
+      {
+        "attempt": 278,
+        "announced": true,
+        "observed": [
+          {
+            "pid": 63106,
+            "stat": "reaped"
+          }
+        ]
+      },
+      {
+        "attempt": 289,
+        "announced": true,
+        "observed": [
+          {
+            "pid": 63169,
+            "stat": "reaped"
+          }
+        ]
+      }
+    ]
+  },
+  "nativeMacZombie": {
+    "signalZeroSucceeded": true,
+    "pid": 65115,
+    "parent": 65114,
+    "group": 65114,
+    "state": "Z",
+    "reapedInFinally": true
+  },
+  "drills": [
+    {
+      "label": "wait",
+      "file": "src/host/processTree.ts",
+      "code": 0,
+      "beforeSha256": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "restoredSha256": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "exact": true,
+      "loadedResults": {
+        "loadWorkers": 12,
+        "runs": 3,
+        "failed": 3,
+        "passed": 0
+      }
+    },
+    {
+      "label": "unit_wait",
+      "file": "src/host/processTree.ts",
+      "code": 1,
+      "beforeSha256": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "restoredSha256": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "exact": true,
+      "failedTests": 6
+    },
+    {
+      "label": "mac_state",
+      "file": "test/unit/shellBoundedMonitor.test.ts",
+      "code": 1,
+      "beforeSha256": "4e6ddbb31a550b11e879e91c9ddd471af0cc9d4e320a5f6cc4f1bd6d091fad3c",
+      "restoredSha256": "4e6ddbb31a550b11e879e91c9ddd471af0cc9d4e320a5f6cc4f1bd6d091fad3c",
+      "exact": true,
+      "failedTests": 3
+    },
+    {
+      "label": "linux_zombie",
+      "file": "src/host/processTree.ts",
+      "code": 1,
+      "beforeSha256": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "restoredSha256": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "exact": true,
+      "failedTests": 1
+    },
+    {
+      "label": "bound",
+      "file": "src/host/processTree.ts",
+      "code": 1,
+      "beforeSha256": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "restoredSha256": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "exact": true,
+      "failedTests": 2
+    },
+    {
+      "label": "reader_timeout",
+      "file": "src/host/processTree.ts",
+      "code": 1,
+      "beforeSha256": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "restoredSha256": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "exact": true,
+      "failedTests": 1
+    },
+    {
+      "label": "mac_live",
+      "file": "test/unit/shellBoundedMonitor.test.ts",
+      "code": 1,
+      "beforeSha256": "4e6ddbb31a550b11e879e91c9ddd471af0cc9d4e320a5f6cc4f1bd6d091fad3c",
+      "restoredSha256": "4e6ddbb31a550b11e879e91c9ddd471af0cc9d4e320a5f6cc4f1bd6d091fad3c",
+      "exact": true,
+      "failedTests": 3
+    }
+  ],
+  "finalLoaded": {
+    "loadWorkers": 12,
+    "runs": 30,
+    "passed": 30,
+    "failed": 0,
+    "testsPerRun": 7,
+    "passedTests": 210,
+    "file": "test/unit/shellBoundedMonitor.test.ts",
+    "sourceSha256": {
+      "src/host/processTree.ts": "de3cdb2944053b34c264f2a12260d599568b05ee2d8b713a06c28b53d1f112ae",
+      "test/unit/shellBoundedMonitor.test.ts": "4e6ddbb31a550b11e879e91c9ddd471af0cc9d4e320a5f6cc4f1bd6d091fad3c"
+    },
+    "runMilliseconds": [
+      13642, 12936, 13145, 14513, 13706, 13442, 13353, 13685, 13961, 13748, 14016, 14962, 13305,
+      13391, 14320, 13750, 13033, 13343, 12935, 12905, 13698, 13919, 14435, 14853, 14790, 14373,
+      13841, 13264, 13065, 12961
+    ]
+  },
+  "validation": {
+    "owningFiles": 5,
+    "passedTests": 113,
+    "existingWindowsOnlySkips": 6,
+    "restoredProcessTree": {
+      "passed": 22,
+      "skipped": 3
+    },
+    "restoredMonitorAfterFinalDrill": {
+      "passed": 7
+    },
+    "allFiveTypechecks": 0,
+    "finalUnitTypecheck": 0,
+    "scopedEslint": 0,
+    "deadcode": 0,
+    "duplication": {
+      "exit": 0,
+      "clones": 0,
+      "files": 1159
+    },
+    "localization": 0,
+    "hostApi": 0,
+    "productionBuild": 0,
+    "sizesKiB": {
+      "extension": 437.4,
+      "modelApi": 446.6,
+      "checkpointStore": 76.9,
+      "webviewWithStaticImports": 893.2,
+      "acp": 817.5
+    }
+  }
+}

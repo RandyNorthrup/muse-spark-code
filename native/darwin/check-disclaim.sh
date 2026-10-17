@@ -12,11 +12,24 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 HELPER="$PWD/muse-dictate"
+SCREEN_HELPER="$PWD/muse-dictate-screen.app/Contents/MacOS/muse-dictate"
 ERR="$(mktemp -t muse-dictate-check)"
 trap 'rm -f "$ERR"' EXIT
 EXIT_REFUSED=2
 EXIT_SIGTERM=143
 WAIT_SECONDS=15
+
+# Screen mode shares the same relay. Its probe never asks macOS for access,
+# records nothing and proves the new dispatch precedes dictation permissions.
+SCREEN_PROBE="$(env -u MUSE_DICTATE_DISCLAIMED "$SCREEN_HELPER" --record-screen --probe)"
+if ! /usr/bin/plutil -extract responsibility raw -o - - <<< "$SCREEN_PROBE" | /usr/bin/grep -qx helper; then
+  echo "screen recording did not run in the disclaimed copy" >&2
+  exit 1
+fi
+echo "screen-recording probe ran in the disclaimed copy without requesting access"
+if [ "${1:-}" = '--screen-only' ]; then
+  exit 0
+fi
 
 # stdin stays open (the pipe from sleep), so the helper does not quit on EOF.
 # The copy's marker is cleared, so only the helper itself can set it.

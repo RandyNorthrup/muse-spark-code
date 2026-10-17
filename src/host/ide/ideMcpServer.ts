@@ -1,16 +1,24 @@
 // The IDE tool server `muse serve` reaches from each session: MCP over
 // streamable HTTP on a loopback port, guarded by a bearer token minted per
 // extension host (never logged, never written to disk). Its tools are
-// `getDiagnostics` and, while paid image generation is on and a key is
-// stored, the image tools (M44); the list is read on every request, so a
-// session started after a change sees it. The JSON-RPC handling itself is
-// pure (src/core/mcp.ts).
+// `getDiagnostics`, web fetch in a trusted workspace (M69) and, while paid
+// image generation is on and a key is stored, the image tools (M44); the
+// list is read on every request, so a session started after a change sees
+// it. A call whose caller stops waiting (its request closed, or
+// `notifications/cancelled` naming it) is told through its signal. The
+// JSON-RPC handling itself is pure (src/core/mcp.ts).
 
-import { randomBytes, timingSafeEqual } from 'node:crypto'
-import { Buffer } from 'node:buffer'
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { handleMcpMessage, type McpTool } from '../../core/mcp'
+import { randomBytes } from 'node:crypto'
+import type { IncomingMessage, Server, ServerResponse } from 'node:http'
 import {
+  handleMcpMessage,
+  type McpOutcome,
+  type McpRequestKey,
+  mcpRequestKeys,
+  type McpTool,
+} from '../../core/mcp'
+import {
+  UI_TEXT,
   CLI_OUTPUT_MAX_BYTES,
   HTTP_STATUS,
   IDE_MCP_LOOPBACK_HOST,
@@ -19,6 +27,7 @@ import {
   IDE_MCP_TOKEN_BYTES,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
+import { isSameLoopbackSecret, listenLoopback, readLoopbackBody } from '../mcpLoopback'
 
 /** What `session/start` is told: where the server is and how to authenticate. */
 export interface IdeMcpEndpoint {
@@ -31,50 +40,92 @@ const BEARER_PREFIX = 'Bearer '
 const JSON_CONTENT_TYPE = 'application/json'
 const POST = 'POST'
 
-function readBody(request: IncomingMessage, maxBytes: number): Promise<string | undefined> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = []
-    let size = 0
-    request.on('data', (chunk: Buffer) => {
-      size += chunk.length
-      if (size <= maxBytes) {
-        chunks.push(chunk)
-      }
-    })
-    request.on('end', () => {
-      resolve(size > maxBytes ? undefined : Buffer.concat(chunks).toString('utf8'))
-    })
-    request.on('error', () => {
-      resolve(undefined)
-    })
-  })
-}
-
-function isSameSecret(presented: string, expected: string): boolean {
-  const left = Buffer.from(presented)
-  const right = Buffer.from(expected)
-  return left.length === right.length && timingSafeEqual(left, right)
-}
-
 export class IdeMcpServer {
   private readonly token = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
   private server: Server | undefined
   private endpoint: IdeMcpEndpoint | undefined
+  private generation = 0
   /** A start in flight: concurrent callers share it instead of opening two ports. */
   private starting: Promise<IdeMcpEndpoint> | undefined
+  /** The calls being answered, by request id, so a cancellation can stop them (M69). */
+  private readonly inFlight = new Map<McpRequestKey, Set<AbortController>>()
 
   public constructor(
     /** The tools offered now, asked on every request. */
     private readonly tools: () => readonly McpTool[],
     private readonly log: Logger,
+    /** B authenticates and pins a requester-specific transport before supplying vault tools. */
+    private readonly vaultTools?: (
+      request: IncomingMessage,
+      signal: AbortSignal,
+    ) => Promise<readonly McpTool[]>,
   ) {}
+
+  /**
+   * Stops every call in flight under the key (M69). Muse Code 1.4.0 sends
+   * `notifications/cancelled` for a stopped turn's call and closes its
+   * request; either one stops the tool. The server has no session identity,
+   * so two sessions' calls with the same id are both stopped: a stopped call
+   * fails, which no call takes as success.
+   */
+  private cancel(key: McpRequestKey): void {
+    const calls = this.inFlight.get(key) ?? []
+    for (const controller of calls) {
+      controller.abort()
+    }
+  }
+
+  /** The body handled with a signal that aborts when its caller stops waiting. */
+  private async handleInFlight(
+    body: string,
+    key: McpRequestKey | undefined,
+    response: ServerResponse,
+    request: IncomingMessage,
+  ): Promise<McpOutcome> {
+    const controller = new AbortController()
+    const onClose = () => {
+      if (!response.writableFinished) {
+        controller.abort()
+      }
+    }
+    response.once('close', onClose)
+    const calls = key === undefined ? undefined : (this.inFlight.get(key) ?? new Set())
+    if (key !== undefined && calls !== undefined) {
+      calls.add(controller)
+      this.inFlight.set(key, calls)
+    }
+    try {
+      let vault: readonly McpTool[]
+      try {
+        vault = (await this.vaultTools?.(request, controller.signal)) ?? []
+      } catch {
+        // Requester bindings can fail privately; their exception text is never logged.
+        throw new Error(UI_TEXT.vault.noAccess)
+      }
+      controller.signal.throwIfAborted()
+      return await handleMcpMessage(
+        body,
+        [...this.tools(), ...vault],
+        IDE_MCP_SERVER_INFO,
+        controller.signal,
+      )
+    } finally {
+      response.off('close', onClose)
+      if (key !== undefined && calls !== undefined) {
+        calls.delete(controller)
+        if (calls.size === 0) {
+          this.inFlight.delete(key)
+        }
+      }
+    }
+  }
 
   private isAuthorised(request: IncomingMessage): boolean {
     const header = request.headers[AUTHORIZATION_HEADER]
     return (
       typeof header === 'string' &&
       header.startsWith(BEARER_PREFIX) &&
-      isSameSecret(header.slice(BEARER_PREFIX.length), this.token)
+      isSameLoopbackSecret(header.slice(BEARER_PREFIX.length), this.token)
     )
   }
 
@@ -92,12 +143,19 @@ export class IdeMcpServer {
       response.writeHead(HTTP_STATUS.unauthorized).end()
       return
     }
-    const body = await readBody(request, CLI_OUTPUT_MAX_BYTES)
+    const body = await readLoopbackBody(request, CLI_OUTPUT_MAX_BYTES)
     if (body === undefined) {
       response.writeHead(HTTP_STATUS.badRequest).end()
       return
     }
-    const outcome = await handleMcpMessage(body, this.tools(), IDE_MCP_SERVER_INFO)
+    const keys = mcpRequestKeys(body)
+    if (keys.cancelled !== undefined) {
+      this.cancel(keys.cancelled)
+    }
+    const outcome = await this.handleInFlight(body, keys.request, response, request)
+    if (response.destroyed) {
+      return
+    }
     if (outcome.kind === 'accepted') {
       response.writeHead(HTTP_STATUS.accepted).end()
       return
@@ -131,27 +189,21 @@ export class IdeMcpServer {
   }
 
   private async listen(): Promise<IdeMcpEndpoint> {
-    const server = createServer((request, response) => {
-      void this.respond(request, response)
-    })
-    this.server = server
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject)
-      server.listen(0, IDE_MCP_LOOPBACK_HOST, () => {
-        server.off('error', reject)
-        resolve()
-      })
-    })
-    // Errors after the listen (a socket fault) are logged, never thrown at the host.
-    server.on('error', (error) => {
-      this.log.error(`IDE tool server error: ${error.message}`)
-    })
-    const address = server.address()
-    if (address === null || typeof address === 'string') {
-      throw new Error('IDE tool server has no TCP address')
+    const generation = this.generation
+    const { server, port } = await listenLoopback(
+      (request, response) => {
+        void this.respond(request, response)
+      },
+      this.log,
+      'IDE tool server',
+    )
+    if (generation !== this.generation) {
+      server.close()
+      throw new Error('IDE tool server closed during start')
     }
+    this.server = server
     this.endpoint = {
-      url: `http://${IDE_MCP_LOOPBACK_HOST}:${String(address.port)}${IDE_MCP_PATH}`,
+      url: `http://${IDE_MCP_LOOPBACK_HOST}:${String(port)}${IDE_MCP_PATH}`,
       headers: { Authorization: `${BEARER_PREFIX}${this.token}` },
     }
     this.log.info(`IDE tool server listening on ${this.endpoint.url}`)
@@ -176,6 +228,7 @@ export class IdeMcpServer {
   }
 
   public close(): void {
+    this.generation += 1
     this.server?.close()
     this.server = undefined
     this.endpoint = undefined

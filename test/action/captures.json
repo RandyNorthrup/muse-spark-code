@@ -1,0 +1,38 @@
+{
+  "source": "Read-only gh api calls, 2026-10-02, repository RandyNorthrup/muse-spark-code; trimmed to the fields the gate, post and apply read. Values are as GitHub returned them.",
+  "repository": {
+    "full_name": "RandyNorthrup/muse-spark-code",
+    "private": false,
+    "visibility": "public"
+  },
+  "pull": {
+    "number": 72,
+    "state": "closed",
+    "title": "M84: Session export, import and share",
+    "author_association": "OWNER",
+    "user": { "login": "RandyNorthrup", "type": "User" },
+    "head": {
+      "sha": "f0d2f466150f11a9ff8a2edda41b67ead4f197f1",
+      "ref": "feature/m84-export",
+      "repo": { "full_name": "RandyNorthrup/muse-spark-code" }
+    },
+    "base": { "sha": "44b76f2427383912bc9839432992f56c4665e8a8", "ref": "main" }
+  },
+  "issueOnPull": {
+    "number": 72,
+    "pull_request": {
+      "diff_url": "https://github.com/RandyNorthrup/muse-spark-code/pull/72.diff",
+      "html_url": "https://github.com/RandyNorthrup/muse-spark-code/pull/72",
+      "merged_at": "2026-10-02T15:56:01Z",
+      "patch_url": "https://github.com/RandyNorthrup/muse-spark-code/pull/72.patch",
+      "url": "https://api.github.com/repos/RandyNorthrup/muse-spark-code/pulls/72"
+    }
+  },
+  "plainIssue": { "number": 58 },
+  "botComment": {
+    "id": 5960644368,
+    "author_association": "NONE",
+    "user": { "login": "chatgpt-codex-connector[bot]", "type": "Bot" },
+    "body": "You have reached your Codex usage limits"
+  }
+}

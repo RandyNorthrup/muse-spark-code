@@ -1,10 +1,11 @@
+import { webviewKey } from '../../shared/keybindings'
 // The panel header: the conversation title (click to rename once a session
 // exists, M6), the Focus view badge, the History clock and New conversation.
 
 import { type KeyboardEvent, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
-import { HistoryIcon, NewConversationIcon } from './icons'
+import { BoardIcon, HistoryIcon, NewConversationIcon } from './icons'
 
 export interface HeaderProps {
   readonly title: string
@@ -13,6 +14,8 @@ export interface HeaderProps {
   readonly onNewConversation: () => void
   /** Undefined while the shell is connecting (the buttons are inert then). */
   readonly onOpenHistory?: (() => void) | undefined
+  /** The session board (M77); undefined while the shell is connecting. */
+  readonly onOpenBoard?: (() => void) | undefined
   /** Present once a session exists: the title becomes editable. */
   readonly onRename?: ((name: string) => void) | undefined
   /** The agents pill (M14): shown once a subagent exists in this conversation. */
@@ -20,15 +23,24 @@ export interface HeaderProps {
   readonly runningAgentCount?: number
   /** Background tasks still running (M46): they show the pill too. */
   readonly runningTaskCount?: number
+  /**
+   * Team tasks in the Agent map's tree (M96 lane U2): they show the pill
+   * too. Zero (and absent) is today's pill: the single-model invariant.
+   */
+  readonly teamTaskCount?: number
+  readonly runningTeamTaskCount?: number
   readonly onOpenAgents?: (() => void) | undefined
   readonly onOpenSideChat?: (() => void) | undefined
+  /** M118: opens the lazy share dialog; the host supplies the current session. */
+  readonly onShare?: (() => void) | undefined
 }
 
-/** The pill's words: the agents, the running background tasks, or both (M14, M46). */
-function pillLabel(agentCount: number, runningTaskCount: number): string {
+/** The pill's words: the agents, the running background tasks, the team tasks, or each (M14, M46, M96). */
+function pillLabel(agentCount: number, runningTaskCount: number, teamTaskCount: number): string {
   const parts = [
     agentCount > 0 ? plural(UI_TEXT.agentsCount, agentCount) : undefined,
     runningTaskCount > 0 ? plural(UI_TEXT.backgroundTasksCount, runningTaskCount) : undefined,
+    teamTaskCount > 0 ? plural(UI_TEXT.teamTasksCount, teamTaskCount) : undefined,
   ].filter((part) => part !== undefined)
   return parts.join(' · ')
 }
@@ -65,10 +77,10 @@ function TitleEditor({
     }
   }
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
+    if (webviewKey('header.rename', event) === 'accept') {
       event.preventDefault()
       commit()
-    } else if (event.key === 'Escape') {
+    } else if (webviewKey('header.rename', event) === 'close') {
       event.preventDefault()
       setDraft(undefined)
     }
@@ -96,15 +108,26 @@ export function Header({
   isSideChat = false,
   onNewConversation,
   onOpenHistory,
+  onOpenBoard,
   onRename,
   agentCount = 0,
   runningAgentCount = 0,
   runningTaskCount = 0,
+  teamTaskCount = 0,
+  runningTeamTaskCount = 0,
   onOpenAgents,
   onOpenSideChat,
+  onShare,
 }: HeaderProps) {
-  const isPillShown = agentCount > 0 || runningTaskCount > 0
-  const isAnyRunning = runningAgentCount > 0 || runningTaskCount > 0
+  const isPillShown = agentCount > 0 || runningTaskCount > 0 || teamTaskCount > 0
+  const isAnyRunning = runningAgentCount > 0 || runningTaskCount > 0 || runningTeamTaskCount > 0
+  // The map the pill opens: the agents', the background tasks', or the team's (M96 lane U2).
+  let pillTitle = UI_TEXT.agentMapTitle
+  if (agentCount > 0) {
+    pillTitle = UI_TEXT.agentsPillTitle
+  } else if (runningTaskCount > 0) {
+    pillTitle = UI_TEXT.backgroundTasksPillTitle
+  }
   return (
     <header className="header">
       {onRename === undefined ? (
@@ -115,6 +138,11 @@ export function Header({
         <TitleEditor title={title} onRename={onRename} />
       )}
       <div className="header-actions">
+        {onShare === undefined ? null : (
+          <button type="button" className="button-secondary" onClick={onShare}>
+            {UI_TEXT.shareChat}
+          </button>
+        )}
         {isFocusView ? <span className="badge">{UI_TEXT.focusViewBadge}</span> : null}
         {isSideChat ? <span className="badge">{UI_TEXT.sideChatTitle}</span> : null}
         {onOpenSideChat === undefined ? null : (
@@ -123,17 +151,12 @@ export function Header({
           </button>
         )}
         {onOpenAgents !== undefined && isPillShown ? (
-          <button
-            type="button"
-            className="agents-pill"
-            title={agentCount > 0 ? UI_TEXT.agentsPillTitle : UI_TEXT.backgroundTasksPillTitle}
-            onClick={onOpenAgents}
-          >
+          <button type="button" className="agents-pill" title={pillTitle} onClick={onOpenAgents}>
             <span
               className={isAnyRunning ? 'agent-dot agent-dot-running' : 'agent-dot agent-dot-done'}
               aria-hidden="true"
             />
-            {pillLabel(agentCount, runningTaskCount)}
+            {pillLabel(agentCount, runningTaskCount, teamTaskCount)}
           </button>
         ) : null}
         <button
@@ -151,6 +174,19 @@ export function Header({
           onClick={onOpenHistory}
         >
           <HistoryIcon />
+        </button>
+        <button
+          type="button"
+          className="icon-button"
+          title={UI_TEXT.boardTitle}
+          aria-label={UI_TEXT.boardTitle}
+          disabled={onOpenBoard === undefined}
+          onMouseDown={(event) => {
+            event.preventDefault()
+          }}
+          onClick={onOpenBoard}
+        >
+          <BoardIcon />
         </button>
         <button
           type="button"

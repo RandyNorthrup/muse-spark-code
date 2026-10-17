@@ -1,0 +1,16 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "/home/user/.gemini/tmp/workspace/chats/session-0001.jsonl",
+  "cwd": "/workspace",
+  "hook_event_name": "AfterTool",
+  "timestamp": "2026-10-05T02:32:49.693Z",
+  "tool_name": "run_shell_command",
+  "tool_input": {
+    "description": "Print hi to standard output",
+    "command": "echo hi"
+  },
+  "tool_response": {
+    "llmContent": "<untrusted_context>\nOutput: hi\nProcess Group PGID: 344745\n</untrusted_context>",
+    "returnDisplay": "hi"
+  }
+}

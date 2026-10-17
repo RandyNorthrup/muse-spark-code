@@ -3,7 +3,7 @@
 
 import { formatMentionReference, type MentionSource } from '../../core/mention'
 import { UI_TEXT } from '../../shared/constants'
-import type { ChatSurface } from '../views/webviewSetup'
+import type { ChatSurface } from '../views/chatSurface'
 
 export interface InsertMentionDeps {
   /** The active text editor's file and selection, or undefined when none. */

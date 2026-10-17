@@ -1,3 +1,5 @@
+import { legacyUsdSchema } from '../../../shared/usd'
+import type { UsdAmount } from '../../../shared/usd'
 // What a Model API session is when the window is gone (PLAN.md D14): the
 // replayed conversation, the transcript, the patches behind Open diff and
 // Revert, and the row the history list shows. The host keeps one file per
@@ -5,27 +7,50 @@
 // its validation, and the store interface the host implements. Pure.
 
 import * as z from 'zod/mini'
+import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
+import { storedReplayMediaSchema } from '../../../shared/media'
+import type { StoredMediaPart } from '../../media/replayMedia'
+import { vaultTaintSchema, type VaultTaint } from '../../../shared/vault'
+import {
+  agentEvidenceSchema,
+  agentFileSchema,
+  type AgentEvidence,
+} from '../../../shared/agentEvidence'
 import {
   type ItemSnapshot,
   itemSnapshotFields,
   type TodoItem,
   todoItemSchema,
 } from '../../../shared/agentEvents'
-import { STORED_SESSION_VERSION } from '../../../shared/constants'
+import {
+  AGENT_SOURCES,
+  EFFORT_LEVELS,
+  PERMISSION_MODES,
+  STORED_SESSION_VERSION,
+} from '../../../shared/constants'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
+import type { AgentRuntime } from '../../context/customAgents'
 import type { SessionRecord } from '../../agent/agentBackend'
 import { type GoalRecord, goalRecordSchema } from './goalRecord'
+import type { TeamCommandRecord } from '../../team/teamTools'
+import type { SessionBudgetJournal } from './sessionBudget'
 import {
   functionCallItemSchema,
   type InputItem,
-  MESSAGE_PHASES,
   reasoningItemSchema,
   webSearchActionSchema,
 } from './schemas'
 
+import type { ReplayProducer } from './modelPolicy'
+
 export interface StoredReplayItem {
+  /** Host provenance, never serialized into the provider input item. */
+  readonly provenance?: VaultTaint | undefined
   readonly turnId: string
   readonly item: InputItem
+  readonly producer?: ReplayProducer | undefined
+  /** Canonical metadata survives per-request model-switch omission notes. */
+  readonly media?: readonly { readonly index: number; readonly media: StoredMediaPart }[]
   /** The transcript user card that supplied this exact replay message (M53). */
   readonly userMessageId?: string
   /** Identifies a background task's terminal model note across fork cuts. */
@@ -45,11 +70,13 @@ export interface StoredUsage {
 }
 
 export interface StoredChild {
+  readonly evidence?: AgentEvidence | undefined
   readonly id: string
   readonly role: string
   readonly objective: string
   readonly itemId: string
   readonly parentTurnId: string
+  readonly checkpointRecording?: boolean | undefined
   readonly startedAt: number
   readonly state: 'queued' | 'running' | 'interrupted' | 'result_ready' | 'closed'
   readonly result?: {
@@ -58,9 +85,19 @@ export interface StoredChild {
     readonly errorKind?: string
   }
   readonly terminal?: string
+  /** The file policy's revision at the spawn (M78): its results reach the parent only under it. */
+  readonly policyRevision?: string
   readonly pendingMessages: readonly string[]
   readonly session: StoredSession
 }
+
+/**
+ * A completed child's result not yet in a request, with the file policy's
+ * revision its child ran under (M78). Plain text is a result saved before
+ * revisions were: it is withheld.
+ */
+export type StoredPendingChildResult =
+  string | { readonly childId: string; readonly text: string; readonly policyRevision?: string }
 
 /** One session on disk. Optional fields are absent, never null. */
 export interface StoredSession {
@@ -68,13 +105,29 @@ export interface StoredSession {
   readonly sessionId: string
   /** SHA-256 digest of the owning Model API key; absent on legacy files. */
   readonly accountId?: string
+  /** M105: durable upload references only; source bytes and paths never belong here. */
+  readonly fileRefs?: readonly UploadedMediaRef[]
   readonly sideChat?: boolean
+  /**
+   * Built from an imported session-export file (M84, PLAN.md D49), or forked
+   * from one: its history is untrusted, so it starts asking whenever it is
+   * opened.
+   */
+  readonly imported?: true
   readonly workspaceRoot: string
   readonly modelId: string
   readonly approvalMode: ApprovalMode
   readonly effort: string
+  /**
+   * A custom agent's narrowed run (M76): present on a child spawned with an
+   * agent, so a resume or fork keeps its prompt, tools and ceiling. Absent
+   * on parents, plain children, and sessions saved before M76's review.
+   */
+  readonly agent?: AgentRuntime
   readonly name?: string
   readonly createdAt: string
+  /** Local calendar date frozen at session start (M101); absent on older files. */
+  readonly promptDate?: string
   readonly lastActivityAt: string
   readonly turnIds: readonly string[]
   /** Last completed turn covered by the accepted compaction summary (M53). */
@@ -90,12 +143,33 @@ export interface StoredSession {
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
   /** Dollars the session's own requests spent (M82); absent when none. */
-  readonly budgetSpentUsd?: number
+  readonly budgetSpentUsd?: UsdAmount
+  /** Controlled first fork snapshot: copied history predates this conversation's zero spend. */
+  readonly budgetIsFreshFork?: true
+  /**
+   * Observation packing's ledger (M73): the estimated tokens packed sends
+   * left out. Absent where the session never packed, and in a file saved
+   * before the ledger was kept, which resumes at zero.
+   */
+  readonly packedTokensAvoided?: number
+  readonly hookTokensAdded?: number
+  /** Sticky packing swaps (M101), with originals retained in replay; absent on old files. */
+  readonly packedCallIds?: readonly string[]
   /** Children are nested in the parent's file; they do not appear in History. */
   readonly children?: readonly StoredChild[]
   /** Completed children whose results have not entered the next model request. */
-  readonly pendingChildResults?: readonly string[]
+  readonly pendingChildResults?: readonly StoredPendingChildResult[]
   readonly spawnCommands?: Readonly<Record<string, string>>
+  /**
+   * M96 lane T: the conversation's declared delegation family, decided at
+   * its first request and kept on resume. Absent on conversations saved
+   * before teams, which keep their single-model declared set.
+   */
+  readonly teamMode?: 'single-model' | 'team'
+  /** M96 lane T: the roster's stable part as the first request sent it, never rewritten. */
+  readonly teamRoster?: string
+  /** M96 lane T: `command_id` claims and their recorded answers. */
+  readonly teamCommands?: Readonly<Record<string, TeamCommandRecord>>
 }
 
 /**
@@ -118,6 +192,8 @@ export interface StoredSessionHeader {
 
 /** Where sessions live between windows; the host supplies the files. */
 export interface SessionStore {
+  /** Shared request liabilities and spend; required for a finite cap. */
+  readonly budget?: SessionBudgetJournal
   /** Every readable session's header; a corrupt file is skipped (and logged), never fatal. */
   list(): Promise<readonly StoredSessionHeader[]>
   /** One session in full; undefined when it is gone or no longer reads. */
@@ -157,7 +233,7 @@ const outputTextPartSchema = z.object({ type: z.literal('output_text'), text: z.
 const inputMessageSchema = z.object({
   type: z.literal('message'),
   role: z.enum(['user', 'assistant', 'developer']),
-  phase: z.optional(z.enum(MESSAGE_PHASES)),
+  phase: z.optional(z.nullable(z.string())),
   content: z.array(
     z.union([inputTextPartSchema, inputImagePartSchema, inputFilePartSchema, outputTextPartSchema]),
   ),
@@ -182,18 +258,40 @@ const storedInputItemSchema = z.union([
   webSearchCallReplaySchema,
 ])
 
+const storedUsageSchema = z.object({
+  inputTokens: z.number().check(z.nonnegative()),
+  outputTokens: z.number().check(z.nonnegative()),
+  cachedTokens: z.number().check(z.nonnegative()),
+  reasoningTokens: z.number().check(z.nonnegative()),
+})
+
 const storedSessionFields = {
   version: z.literal(STORED_SESSION_VERSION),
   sessionId: z.string(),
   // Legacy sessions remain readable for retention, but are never admitted.
   accountId: z.optional(z.string().check(z.regex(/^[a-f0-9]{64}$/))),
+  fileRefs: z.optional(z.array(uploadedMediaRefSchema)),
   sideChat: z.optional(z.boolean()),
+  imported: z.optional(z.literal(true)),
   workspaceRoot: z.string(),
   modelId: z.string(),
   approvalMode: z.enum(APPROVAL_MODES),
   effort: z.string(),
+  // Optional, so a session saved before M76's review still reads.
+  agent: z.optional(
+    z.object({
+      id: z.string(),
+      source: z.enum(AGENT_SOURCES),
+      prompt: z.string(),
+      toolAllowlist: z.optional(z.array(z.string())),
+      effort: z.enum(EFFORT_LEVELS),
+      approvalMode: z.optional(z.enum(APPROVAL_MODES)),
+      permissionMode: z.optional(z.enum(PERMISSION_MODES)),
+    }),
+  ),
   name: z.optional(z.string()),
   createdAt: z.string(),
+  promptDate: z.optional(z.string().check(z.regex(/^\d{4}-\d{2}-\d{2}$/))),
   lastActivityAt: z.string(),
   turnIds: z.array(z.string()),
   compactedThroughTurnId: z.optional(z.string()),
@@ -203,23 +301,64 @@ const storedSessionFields = {
   // Optional, so a session saved before M45 still reads.
   goal: z.optional(goalRecordSchema),
   replay: z.array(
+    z
+      .object({
+        turnId: z.string(),
+        provenance: z.optional(vaultTaintSchema),
+        producer: z.optional(z.object({ provider: z.string(), model: z.string() })),
+        item: storedInputItemSchema,
+        userMessageId: z.optional(z.string()),
+        backgroundTaskId: z.optional(z.string()),
+        media: z.optional(z.array(storedReplayMediaSchema)),
+      })
+      .check(
+        z.refine((entry) => {
+          const media = entry.media ?? []
+          if (media.length === 0) return true
+          const { item } = entry
+          return (
+            item.type === 'message' &&
+            item.role === 'user' &&
+            new Set(media.map((part) => part.index)).size === media.length &&
+            media.every(({ index, media: part }) => {
+              const content = item.content[index]
+              return (
+                content !== undefined &&
+                ((part.file === undefined && (part.files?.length ?? 0) === 0) ||
+                  content.type === 'input_text')
+              )
+            })
+          )
+        }),
+      ),
+  ),
+  // Each item keeps its optional `recordedAt` (M87, PLAN.md D66): the time the
+  // host stamped on a user message or reply; a file saved before has none.
+  transcript: z.array(
     z.object({
       turnId: z.string(),
-      item: storedInputItemSchema,
-      userMessageId: z.optional(z.string()),
-      backgroundTaskId: z.optional(z.string()),
+      item: z.object({
+        ...itemSnapshotFields,
+        // Only the disk boundary accepts historical numeric transcript fees.
+
+        agentEvidence: z.optional(agentEvidenceSchema),
+        changedFiles: z.optional(z.array(agentFileSchema)),
+        usage: z.optional(storedUsageSchema),
+        costUsd: z.optional(legacyUsdSchema),
+      }),
     }),
   ),
-  transcript: z.array(z.object({ turnId: z.string(), item: z.object(itemSnapshotFields) })),
   outputs: z.record(z.string(), z.string()),
-  usage: z.object({
-    inputTokens: z.number(),
-    outputTokens: z.number(),
-    cachedTokens: z.number(),
-    reasoningTokens: z.number(),
-  }),
-  // Optional, so a session saved before M82 still reads.
-  budgetSpentUsd: z.optional(z.number()),
+  usage: storedUsageSchema,
+  // Optional, so a session saved before M82 still reads; never below zero,
+  // which would give the cap room it does not have.
+  budgetSpentUsd: z.optional(legacyUsdSchema),
+  budgetIsFreshFork: z.optional(z.literal(true)),
+  // Optional, so a session saved before M73 kept its ledger still reads; a
+  // corrupt value is dropped before validation (withoutCorruptEstimate).
+  packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
+  hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
+  packedCallIds: z.optional(z.array(z.string())),
 } as const
 
 export const storedSessionSchema = z.object({
@@ -232,7 +371,9 @@ export const storedSessionSchema = z.object({
         objective: z.string(),
         itemId: z.string(),
         parentTurnId: z.string(),
+        checkpointRecording: z.optional(z.boolean()),
         startedAt: z.number(),
+        evidence: z.optional(agentEvidenceSchema),
         state: z.enum(['queued', 'running', 'interrupted', 'result_ready', 'closed']),
         result: z.optional(
           z.object({
@@ -242,44 +383,97 @@ export const storedSessionSchema = z.object({
           }),
         ),
         terminal: z.optional(z.string()),
+        policyRevision: z.optional(z.string()),
         pendingMessages: z.array(z.string()),
         session: z.object(storedSessionFields),
       }),
     ),
   ),
-  pendingChildResults: z.optional(z.array(z.string())),
+  pendingChildResults: z.optional(
+    z.array(
+      z.union([
+        z.string(),
+        z.object({
+          childId: z.string(),
+          text: z.string(),
+          policyRevision: z.optional(z.string()),
+        }),
+      ]),
+    ),
+  ),
   spawnCommands: z.optional(z.record(z.string(), z.string())),
+  teamMode: z.optional(z.enum(['single-model', 'team'])),
+  teamRoster: z.optional(z.string()),
+  teamCommands: z.optional(
+    z.record(
+      z.string(),
+      z.object({
+        tasksFingerprint: z.string(),
+        answer: z.string(),
+        state: z.optional(z.literal('uncertain')),
+      }),
+    ),
+  ),
 })
 
 export type StoredSessionParse =
   | { readonly ok: true; readonly session: StoredSession }
   | { readonly ok: false; readonly reason: string }
 
+/**
+ * A missing or corrupt packed-token estimate restarts at zero without losing
+ * the conversation (M73). zod's `catch` would do this too, but it keeps
+ * zod's `navigator` probe in the host bundles (scripts/check-host-globals.mjs).
+ */
+function withoutCorruptEstimate(raw: unknown): unknown {
+  if (typeof raw !== 'object' || raw === null || !('packedTokensAvoided' in raw)) {
+    return raw
+  }
+  const value: unknown = raw.packedTokensAvoided
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) {
+    return raw
+  }
+  const { packedTokensAvoided: _dropped, ...rest } = raw
+  return rest
+}
+
 /** Validates one parsed JSON document. */
 export function parseStoredSession(raw: unknown): StoredSessionParse {
-  const result = storedSessionSchema.safeParse(raw)
+  const result = storedSessionSchema.safeParse(withoutCorruptEstimate(raw))
   if (!result.success) {
     return { ok: false, reason: z.prettifyError(result.error) }
   }
   // Optional fields are absent in a StoredSession, never undefined.
   const {
     accountId,
+    fileRefs,
     name,
     forkedFrom,
     firstPrompt,
     compactedThroughTurnId,
     goal,
     sideChat,
+    imported,
     children,
     pendingChildResults,
     spawnCommands,
+    teamMode,
+    teamRoster,
+    teamCommands,
     budgetSpentUsd,
+    budgetIsFreshFork,
+    agent,
+    packedTokensAvoided,
+    hookTokensAdded,
+    packedCallIds,
+    promptDate,
     ...rest
   } = result.data
-  const replay = rest.replay.map(({ backgroundTaskId, userMessageId, ...entry }) => ({
+  const replay = rest.replay.map(({ backgroundTaskId, userMessageId, media, ...entry }) => ({
     ...entry,
     ...(userMessageId !== undefined && { userMessageId }),
     ...(backgroundTaskId !== undefined && { backgroundTaskId }),
+    ...(media !== undefined && { media }),
   }))
   const restoredChildren: StoredChild[] = []
   const storedChildren = children ?? []
@@ -288,10 +482,11 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     if (!parsedChild.ok) {
       return parsedChild
     }
-    const { result: childResult, terminal, session: _session, ...childRest } = child
+    const { result: childResult, terminal, policyRevision, session: _session, ...childRest } = child
     restoredChildren.push({
       ...childRest,
       session: parsedChild.session,
+      ...(policyRevision !== undefined && { policyRevision }),
       ...(childResult !== undefined && {
         result: {
           summary: childResult.summary,
@@ -307,6 +502,7 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     session: {
       ...rest,
       ...(accountId !== undefined && { accountId }),
+      ...(fileRefs !== undefined && { fileRefs }),
       replay,
       ...(name !== undefined && { name }),
       ...(forkedFrom !== undefined && { forkedFrom }),
@@ -314,10 +510,32 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(compactedThroughTurnId !== undefined && { compactedThroughTurnId }),
       ...(goal !== undefined && { goal }),
       ...(budgetSpentUsd !== undefined && { budgetSpentUsd }),
+      ...(budgetIsFreshFork === true && { budgetIsFreshFork }),
       ...(sideChat === true && { sideChat: true }),
+      ...(imported === true && { imported: true }),
       ...(children !== undefined && { children: restoredChildren }),
-      ...(pendingChildResults !== undefined && { pendingChildResults }),
+      ...(pendingChildResults !== undefined && {
+        pendingChildResults: pendingChildResults.map((pending) =>
+          typeof pending === 'string'
+            ? pending
+            : {
+                childId: pending.childId,
+                text: pending.text,
+                ...(pending.policyRevision !== undefined && {
+                  policyRevision: pending.policyRevision,
+                }),
+              },
+        ),
+      }),
       ...(spawnCommands !== undefined && { spawnCommands }),
+      ...(teamMode !== undefined && { teamMode }),
+      ...(teamRoster !== undefined && { teamRoster }),
+      ...(teamCommands !== undefined && { teamCommands }),
+      ...(agent !== undefined && { agent }),
+      ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
+      ...(hookTokensAdded !== undefined && { hookTokensAdded }),
+      ...(packedCallIds !== undefined && { packedCallIds }),
+      ...(promptDate !== undefined && { promptDate }),
     },
   }
 }

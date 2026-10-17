@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/stylelintrc.json",
+  "extends": ["stylelint-config-standard"],
+  "rules": {
+    "no-descending-specificity": true,
+    "no-duplicate-selectors": true,
+    "declaration-block-no-duplicate-properties": true,
+    "declaration-block-no-redundant-longhand-properties": true,
+    "shorthand-property-no-redundant-values": true,
+
+    "color-named": "never",
+    "color-hex-length": "short",
+    "color-function-notation": "modern",
+    "alpha-value-notation": "percentage",
+
+    "length-zero-no-unit": true,
+    "number-max-precision": 4,
+
+    "selector-max-id": 0,
+    "selector-max-universal": 1,
+    "selector-max-compound-selectors": 4,
+    "selector-no-qualifying-type": [true, { "ignore": ["attribute"] }],
+    "max-nesting-depth": 3,
+
+    "declaration-no-important": true,
+    "font-family-no-missing-generic-family-keyword": true,
+    "property-no-unknown": true,
+    "unit-no-unknown": true,
+    "media-feature-name-no-unknown": true,
+
+    "comment-no-empty": true,
+    "comment-whitespace-inside": "always"
+  },
+  "ignoreFiles": ["**/node_modules/**", "**/dist/**", "**/build/**", "**/*.min.css"]
+}
