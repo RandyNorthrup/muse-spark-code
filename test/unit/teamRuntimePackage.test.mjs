@@ -55,6 +55,10 @@ describe('packaged team factories', () => {
   afterAll(async () => {
     if (folder !== '') await rm(folder, { recursive: true, force: true })
   })
+  it('exposes the orchestrator validation new conversations lazy-load', async () => {
+    const team = require(path.join(folder, 'team.js'))
+    expect(typeof team.validateOrchestratorSettings).toBe('function')
+  })
   it('loads working scheduler and runner capabilities on demand with no constructor dispatch', async () => {
     const runtime = require(path.join(folder, 'team.js')).createTeamRuntime(EN, 'en')
     const schedulerFile = path.join(folder, 'teamScheduler.js')
