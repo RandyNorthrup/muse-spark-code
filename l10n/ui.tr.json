@@ -347,7 +347,7 @@
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Kullanıcı başına kimlik bilgisi kasasıyla bir terminalden çalışın: kurulum, kurtarma, sıfırlama, durum, kilit açma, kilitleme, liste, ekleme, izinler, denetim, içe aktarma ve izleme. Değerler asla yazdırılmaz; aracı tutar. Açık onaydan sonra sıfırlama, sahibi bilinmeyen yazma kilidini de değiştirebilir.",
   "referenceVaultHelp": "Kullanıcı başına kimlik bilgisi kasası komutunun kullanımını gösterir.",
-  "referenceVaultPanel": "Kimlik bilgileri kasası, entegrasyon kontrolleri tamamlanana kadar bu derlemede kapalıdır.",
+  "referenceVaultPanel": "Kullanıcıya özel kimlik bilgileri kasasını Modeller ve Aracılar panelinde açar: kurun veya kilidini açın, öğeleri ve izinleri yönetin ve kilitleyin. Windows’ta henüz kullanılamıyor.",
   "referenceVaultLock": "Kullanıcı başına kimlik bilgisi kasasını şimdi kilitleyin; her penceredeki her kullanımı sonlandırır.",
   "referenceAuthClear": "Kayıtlı Model API anahtarını kaldırın.",
   "referenceAuthStatus": "Model API anahtarının kayıtlı olup olmadığını denetleyin.",

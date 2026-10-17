@@ -7,7 +7,7 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-- Connect the credential vault end to end: the Models & Agents panel mounts its vault section, the `Vault` command opens it, `Lock vault now` (Ctrl+Alt+Shift+L) ends every use, and SSH keys can be generated or imported when adding an item. The vault Help reference is published.
+- Connect the credential vault end to end on Linux and macOS: the Models & Agents panel mounts its vault section, the `Vault` command opens it, `Lock vault now` (Ctrl+Alt+Shift+L) ends every use, and SSH keys can be generated or imported when adding an item. The vault Help reference is published. Windows still waits on lane C-M109-1c's pipe helper, existing extension keys still live in SecretStorage until the key-store migration, and the companion page has no vault surface yet (RVMSM109).
 - Repair the POSIX vault epoch contender rule and the sampler warning classifier (RVCM109JD). A killed epoch guardian no longer costs the next starter its session: a contender holding the kernel mutex replaces a provably gone writer atomically and is refused with the fixed reason when the holder is live. The installed receipt whitelists only the exact sampler cause, matched whole with a counted allowance; any other sampler output fails.
 
 - Serialize the POSIX vault's shared lock epoch across session brokers with a kernel lock, keep lifecycle fixtures alive under explicit test ownership, and distinguish verified finished-helper sampler races from acceptance failures.

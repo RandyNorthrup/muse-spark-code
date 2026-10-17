@@ -27,7 +27,6 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceScreenRecording: 'nativeRecorder=absent',
-  referenceVaultPanel: 'vaultBroker=installedDisabledPendingJoin',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
@@ -247,7 +246,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   // Import completions reconcile changes on failure too; Lock cancels sent imports.
   // Reset detects impossible public framing/anchor state, needs a terminal, and retires the exact anchor.
   vault: { description: { ui: 'referenceVaultPanel' }, canRun: true },
-  lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: true },
+  lockVault: { description: { ui: 'referenceVaultLock' }, canRun: true },
 }
 
 function feature(

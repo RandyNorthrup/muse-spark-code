@@ -347,7 +347,7 @@
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Dolgozzon a terminálból a felhasználónkénti hitelesítőadat-tárolóval: beállítás, helyreállítás, alaphelyzetbe állítás, állapot, feloldás, zárolás, lista, hozzáadás, engedélyek, naplózás, importálás és figyelés. Az értékek soha nem jelennek meg; a közvetítő őrzi őket. Kifejezett megerősítés után az alaphelyzetbe állítás az ismeretlen tulajdonosú írási zárolást is lecserélheti.",
   "referenceVaultHelp": "Megjeleníti a felhasználónkénti hitelesítőadat-tároló parancsának használatát.",
-  "referenceVaultPanel": "A hitelesítőadat-tároló ebben a buildben az integrációs ellenőrzések befejezéséig ki van kapcsolva.",
+  "referenceVaultPanel": "Megnyitja a felhasználói hitelesítőadat-tárolót a Modellek és ügynök panelen: beállítás vagy feloldás, elemek és engedélyek kezelése, majd zárolás. Windowson még nem érhető el.",
   "referenceVaultLock": "A felhasználónkénti hitelesítőadat-tároló zárolása most; minden ablakban minden használatot befejez.",
   "referenceAuthClear": "Eltávolítja a tárolt Model API-kulcsot.",
   "referenceAuthStatus": "Ellenőrzi, hogy van-e tárolt Model API-kulcs.",

@@ -347,7 +347,7 @@
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
   "referenceVault": "Utilisez le coffre d’identifiants par utilisateur depuis un terminal : configuration, récupération, réinitialisation, état, déverrouillage, verrouillage, liste, ajout, autorisations, audit, import et surveillance. Les valeurs ne s’impriment jamais ; le courtier les détient. Après confirmation explicite, la réinitialisation peut aussi remplacer un verrou d’écriture dont le propriétaire est inconnu.",
   "referenceVaultHelp": "Affiche l’utilisation de la commande du coffre d’identifiants par utilisateur.",
-  "referenceVaultPanel": "Le coffre d’identifiants est désactivé dans cette version en attendant les vérifications d’intégration.",
+  "referenceVaultPanel": "Ouvre le coffre d’identifiants de l’utilisateur dans le panneau Modèles et agents : le configurer ou le déverrouiller, gérer les éléments et les autorisations, puis le verrouiller. Pas encore disponible sous Windows.",
   "referenceVaultLock": "Verrouiller le coffre d’identifiants par utilisateur maintenant ; met fin à chaque utilisation dans chaque fenêtre.",
   "referenceAuthClear": "Supprimer la clé Model API enregistrée.",
   "referenceAuthStatus": "Vérifier si une clé Model API est enregistrée.",

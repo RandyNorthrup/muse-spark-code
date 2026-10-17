@@ -347,7 +347,7 @@
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
   "referenceVault": "Arbeite im Terminal mit dem benutzereigenen Anmeldeinformations-Tresor: Einrichtung, Wiederherstellung, Zurücksetzen, Status, Entsperren, Sperren, Auflisten, Hinzufügen, Freigaben, Prüfung, Import und Beobachtung. Werte werden nie ausgegeben; der Broker hält sie. Nach ausdrücklicher Bestätigung kann Zurücksetzen auch eine unbekannte Schreibersperre ersetzen.",
   "referenceVaultHelp": "Verwendung des Befehls für den benutzereigenen Anmeldeinformations-Tresor anzeigen.",
-  "referenceVaultPanel": "Der Zugangsdaten-Tresor ist in diesem Build bis zum Abschluss der Integrationsprüfungen ausgeschaltet.",
+  "referenceVaultPanel": "Öffnet den benutzereigenen Zugangsdaten-Tresor im Panel „Modelle & Agenten“: einrichten oder entsperren, Einträge und Freigaben verwalten und sperren. Unter Windows noch nicht verfügbar.",
   "referenceVaultLock": "Den benutzereigenen Anmeldeinformations-Tresor jetzt sperren; beendet jede Verwendung in jedem Fenster.",
   "referenceAuthClear": "Den gespeicherten Model API-Schlüssel entfernen.",
   "referenceAuthStatus": "Prüfen, ob ein Model API-Schlüssel gespeichert ist.",

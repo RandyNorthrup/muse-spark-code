@@ -23,11 +23,11 @@ import { holdVaultStartupLock } from './posixNative'
 export async function posixVaultClientPlatform(
   context: VaultClientPlatformContext,
 ): Promise<VaultClientPlatform> {
-  if (
-    (process.platform !== 'linux' && process.platform !== 'darwin') ||
-    !path.isAbsolute(context.dataDir) ||
-    !path.isAbsolute(context.distDir)
-  )
+  // Windows waits on lane C-M109-1c's pipe helper: say the vault is off
+  // here, not the generic peer-refusal sentence a person cannot act on.
+  if (process.platform !== 'linux' && process.platform !== 'darwin')
+    throw new Error(UI_TEXT.vault.brokerDisabled)
+  if (!path.isAbsolute(context.dataDir) || !path.isAbsolute(context.distDir))
     throw new Error(UI_TEXT.vault.noAccess)
   const installRoot = path.dirname(context.distDir)
   const helper = vaultPeerExecutable(installRoot)
