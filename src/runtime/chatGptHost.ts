@@ -45,22 +45,34 @@ export async function createRuntimeChatGptHost(
   options: RuntimeChatGptOptions,
 ): Promise<ChatGptHostPort> {
   const lock = { ...options.lock, ...(options.signal !== undefined && { signal: options.signal }) }
-  /** One JSON entry of the grant's store, validated on the way in and out. */
-  const readStored = async <T>(account: string, schema: z.ZodMiniType<T>) => {
+  /**
+   * One JSON entry of the grant's store, validated on the way in and out;
+   * `code` names which entry could not be read or kept.
+   */
+  const readStored = async <T>(
+    account: string,
+    schema: z.ZodMiniType<T>,
+    code: ChatGptSignInError['code'],
+  ) => {
     const stored = await grantStore(async () => await options.secrets.get(account))
     if (stored === undefined) return
     try {
       const value: unknown = JSON.parse(stored)
       const parsed = schema.safeParse(value)
-      if (!parsed.success) throw new ChatGptSignInError('invalid-token')
+      if (!parsed.success) throw new ChatGptSignInError(code)
       return parsed.data
     } catch {
-      throw new ChatGptSignInError('invalid-token')
+      throw new ChatGptSignInError(code)
     }
   }
-  const writeStored = async <T>(account: string, schema: z.ZodMiniType<T>, value: T) => {
+  const writeStored = async <T>(
+    account: string,
+    schema: z.ZodMiniType<T>,
+    value: T,
+    code: ChatGptSignInError['code'],
+  ) => {
     const parsed = schema.safeParse(value)
-    if (!parsed.success) throw new ChatGptSignInError('invalid-token')
+    if (!parsed.success) throw new ChatGptSignInError(code)
     await grantStore(async () => {
       await options.secrets.store(account, JSON.stringify(parsed.data))
     })
@@ -99,21 +111,39 @@ export async function createRuntimeChatGptHost(
       },
       startCallback: (state, timeoutMs, clientId) =>
         startChatGptCallback(state, timeoutMs, options.callbackText, options.signal, clientId),
-      readRecord: () => readStored(RECORD_ACCOUNT, chatGptRecordSchema),
-      writeRecord: (record) => writeStored(RECORD_ACCOUNT, chatGptRecordSchema, record),
+      readRecord: () => readStored(RECORD_ACCOUNT, chatGptRecordSchema, 'grant-unreadable'),
+      // A grant that fails its own schema was built from OpenAI's token answer.
+      writeRecord: (record) =>
+        writeStored(RECORD_ACCOUNT, chatGptRecordSchema, record, 'invalid-token'),
       deleteRecord: async () => {
         await grantStore(async () => {
           await options.secrets.delete(RECORD_ACCOUNT)
         })
       },
       readRegistration: () =>
-        readStored(CHATGPT_REGISTRATION_SECRET_KEY, chatGptRegistrationSchema),
+        readStored(
+          CHATGPT_REGISTRATION_SECRET_KEY,
+          chatGptRegistrationSchema,
+          'registration-unreadable',
+        ),
+      // A registration that fails its schema carries the callback's issued client.
       writeRegistration: (registration) =>
-        writeStored(CHATGPT_REGISTRATION_SECRET_KEY, chatGptRegistrationSchema, registration),
+        writeStored(
+          CHATGPT_REGISTRATION_SECRET_KEY,
+          chatGptRegistrationSchema,
+          registration,
+          'invalid-callback',
+        ),
       withRefreshLock: (work) => withChatGptRefreshLock(work, lock),
     }
   } catch (error) {
     if (error instanceof ChatGptSignInError) throw error
-    throw new ChatGptSignInError('request-failed')
+    // Preparing the host is local work (lock, store): an untyped failure is
+    // this machine's, named by its own code or name.
+    const code = error instanceof Error && 'code' in error ? error.code : undefined
+    throw new ChatGptSignInError(
+      'local-failed',
+      typeof code === 'string' ? code : error instanceof Error ? error.name : 'unknown',
+    )
   }
 }

@@ -8,23 +8,19 @@ import {
   chatGptRecordSchema,
   type ChatGptHostPort,
 } from '../core/providers/subscriptions/chatgpt'
-import * as z from 'zod/mini'
 import type { SignInMethod } from '../acp/agent'
 import { providersFile, modelRef } from '../host/backend/providersEntry'
 const { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } = providersFile
 const { parseModelRef } = modelRef
 import { createRuntimeChatGptHost, type RuntimeChatGptOptions } from './chatGptHost'
-import {
-  ACP_AGENT_NAME,
-  CHATGPT_NEW_ACCOUNT_FLAG,
-  OAUTH_CODE_TTL_MS,
-  UI_TEXT,
-} from '../shared/constants'
+import { ACP_AGENT_NAME, CHATGPT_NEW_ACCOUNT_FLAG, UI_TEXT } from '../shared/constants'
+import { failureCodeNames } from '../core/networkFailure'
 import { fill, setUiText } from '../shared/l10n/text'
 import type { ProviderClient } from '../core/backends/modelapi/client'
 import {
   createSubscriptionClient,
   chatGptAccountId,
+  chatGptCatalog,
   chatGptFailureText,
 } from '../core/providers/subscriptions/registry'
 import { PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../shared/constants'
@@ -126,7 +122,7 @@ export async function runChatGptProviderCommand(
         const stored = await host.readRecord()
         if (stored === undefined) return 'signed-out'
         const parsed = chatGptRecordSchema.safeParse(stored)
-        if (!parsed.success) throw new ChatGptSignInError('invalid-token')
+        if (!parsed.success) throw new ChatGptSignInError('grant-unreadable')
         return parsed.data.expiresAt > host.now() ? 'signed-in' : 'expired'
       })
       deps.print(deps.text.status(state))
@@ -171,11 +167,18 @@ export async function runChatGptProviderCommand(
     deps.printError(
       deps.text.failure(
         error instanceof ChatGptSignInError ? error.code : 'request-failed',
-        error instanceof ChatGptSignInError ? error.reason : undefined,
+        error instanceof ChatGptSignInError ? error.reason : failureCodeNames(error),
       ),
     )
     return 1
   }
+}
+
+/** A ChatGPT failure's own sentence, or undefined for an error that is not one. */
+export function chatGptFailureOf(error: unknown): string | undefined {
+  return error instanceof ChatGptSignInError
+    ? chatGptFailureText(error.code, error.reason)
+    : undefined
 }
 
 /** Live language reads; no provider error or store text is ever interpolated. */
@@ -187,17 +190,6 @@ export function chatGptCommandText(): ChatGptCommandText {
     failure: chatGptFailureText,
   }
 }
-
-/** Owner capture acdc0f60/577bc807, 2026-10-05: account catalogue, not API-key data[]. */
-const modelsSchema = z.object({
-  models: z.array(
-    z.object({
-      slug: z.string().check(z.minLength(1)),
-      visibility: z.enum(['list', 'hide']),
-      supported_in_api: z.boolean(),
-    }),
-  ),
-})
 
 /** Production terminal and ACP composition, using the shared atomic nonsecret file. */
 export function runtimeChatGptCommandDeps(
@@ -230,29 +222,13 @@ export function runtimeChatGptCommandDeps(
         const file = await read()
         if (file.providers.some((entry) => entry.id === 'chatgpt'))
           throw new ChatGptSignInError('already-added')
-        const url = 'https://api.openai.com/v1/models'
-        // The command already holds the nonreentrant grant lock through this commit.
-        const token = await new ChatGptSignIn({
-          ...host,
-          withRefreshLock: (work) => work(),
-        }).accessToken(url, 0)
-        const response = await host.fetch(url, {
-          redirect: 'error',
-          signal: AbortSignal.timeout(OAUTH_CODE_TTL_MS),
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!response.ok) throw new ChatGptSignInError('sign-in-required')
-        const value: unknown = await response.json()
-        const parsed = modelsSchema.safeParse(value)
-        if (!parsed.success) throw new ChatGptSignInError('invalid-token')
-        const models = [
-          ...new Set(
-            parsed.data.models
-              .filter((model) => model.visibility === 'list' && model.supported_in_api)
-              .map((model) => model.slug),
-          ),
-        ]
-        if (models.length === 0) throw new ChatGptSignInError('sign-in-required')
+        // The plan's own catalogue, read the way every surface reads it, so a
+        // refused, unreadable or empty list names its cause. The command
+        // already holds the nonreentrant grant lock through this commit.
+        const { slugs: models } = await chatGptCatalog(
+          new ChatGptSignIn({ ...host, withRefreshLock: (work) => work() }),
+          host.fetch,
+        )
         await save({
           ...file,
           providers: [
@@ -305,19 +281,20 @@ export function chatGptAuthenticationMethods(
           await host.withRefreshLock(async () => {
             const stored = await host.readRecord()
             if (stored === undefined) {
-              if (isAdd) throw new ChatGptSignInError('sign-in-required')
+              if (isAdd) throw new ChatGptSignInError('not-signed-in')
               return
             }
             const parsed = chatGptRecordSchema.safeParse(stored)
-            if (!parsed.success) throw new ChatGptSignInError('invalid-token')
-            if (action === 'remove' || (isAdd && parsed.data.expiresAt <= host.now()))
-              throw new ChatGptSignInError('sign-in-required')
+            if (!parsed.success) throw new ChatGptSignInError('grant-unreadable')
+            // An expired access token refreshes on use (as `status` says), so
+            // a stored grant is a completed sign-in.
+            if (action === 'remove') throw new ChatGptSignInError('still-signed-in')
           })
           return
         } catch (error) {
           return chatGptCommandText().failure(
             error instanceof ChatGptSignInError ? error.code : 'request-failed',
-            error instanceof ChatGptSignInError ? error.reason : undefined,
+            error instanceof ChatGptSignInError ? error.reason : failureCodeNames(error),
           )
         }
       },

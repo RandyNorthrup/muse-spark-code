@@ -1123,6 +1123,8 @@ export const EN = {
     // OpenAI's 403 subscription_sharing_user_not_eligible: retrying or signing in again cannot fix it.
     notEligible:
       'OpenAI does not allow ChatGPT plan use for this account, workspace or policy. Choose an API-key model.',
+    // OpenAI answered with no body at all.
+    noReply: 'OpenAI answered the ChatGPT plan request without a reply. Try again.',
     // {reason}: this app's own word for what it could not build or read.
     requestNotBuilt:
       'This app could not prepare the ChatGPT plan request ({reason}). Nothing was sent.',
@@ -5251,7 +5253,40 @@ export const EN = {
       'signed-out': 'ChatGPT is not signed in.',
     },
     callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
-    failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
+    // Each sign-in, refresh or catalogue failure says its own cause; none is general.
+    discoveryInvalid:
+      'OpenAI’s sign-in configuration at auth.openai.com was not in the documented form. Try again later.',
+    callbackInvalid: 'The browser’s answer did not match this ChatGPT sign-in. Try again.',
+    callbackTimeout:
+      'No answer from the browser reached this app in time, so the ChatGPT sign-in stopped. Try again.',
+    stateMismatch: 'The browser’s answer belonged to a different ChatGPT sign-in attempt. Try again.',
+    tokenAnswerInvalid:
+      'OpenAI’s token answer for this ChatGPT sign-in was not in the documented form. Try again.',
+    idTokenInvalid: 'OpenAI’s identity token for this ChatGPT sign-in could not be verified. Try again.',
+    missingPlanScope:
+      'This ChatGPT sign-in does not allow plan use: OpenAI did not grant chatgpt.tokens.use.direct. Remove ChatGPT, sign in again and allow plan use.',
+    originMismatch:
+      'This app refused to send the ChatGPT sign-in anywhere but https://api.openai.com.',
+    // {reason}: OpenAI's own refresh error code, such as invalid_grant.
+    signInRefused:
+      'OpenAI no longer accepts this ChatGPT sign-in ({reason}). Remove ChatGPT and sign in again.',
+    grantUnreadable:
+      'The ChatGPT sign-in stored on this computer could not be read. Remove ChatGPT and sign in again.',
+    registrationUnreadable:
+      'This app’s saved ChatGPT registration could not be read. Choose “Use a Different ChatGPT Account” to register again.',
+    // {reason}: where the host identifier is kept (a credential-store entry or a file name).
+    hostIdUnreadable:
+      'The ChatGPT host identifier stored on this computer ({reason}) could not be read, so no ChatGPT sign-in can start. Delete it to start over.',
+    // {reason}: the HTTP status and OpenAI's own error code.
+    catalogueRefused: 'OpenAI refused the ChatGPT plan’s model list ({reason}).',
+    catalogueUnreadable: 'OpenAI’s model list for this ChatGPT plan was not in the documented form.',
+    catalogueEmpty: 'OpenAI lists no model this ChatGPT plan can use in this app.',
+    addedModelsUnlisted:
+      'None of the ChatGPT models added here is in the plan’s current model list. Remove ChatGPT and add it again to choose from the current list.',
+    // {model}: the model reference asked for, as written.
+    modelNotAdded: '{model} is not among the plan models added here. Choose one from the plan’s list.',
+    // {reason}: the HTTP status, or Node's own network codes.
+    requestFailed: 'A request to OpenAI failed ({reason}). Try again.',
     storeUnavailable:
       'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
     // {reason}: the operating system's own code for the failure.

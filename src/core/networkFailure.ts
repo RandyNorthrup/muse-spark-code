@@ -123,6 +123,22 @@ export function networkFailureCodes(error: unknown): string {
   )
 }
 
+/**
+ * The error and its causes by their codes, or by their class names where
+ * they carry none (`TypeError: ENOTFOUND`): never a message, so nothing a
+ * server, a path or a secret put in one can reach a sentence.
+ */
+export function failureCodeNames(error: unknown): string {
+  const names: string[] = []
+  let current: unknown = error
+  while (current instanceof Error && names.length < ERROR_CAUSE_MAX_DEPTH) {
+    const code = 'code' in current && typeof current.code === 'string' ? current.code : undefined
+    names.push(code ?? current.name)
+    current = current.cause
+  }
+  return names.length === 0 ? typeof error : names.join(': ')
+}
+
 /** The advice for a kind, read when shown (PLAN.md D33); none for an unrecognised failure. */
 function adviceFor(failure: NetworkFailure, advice: NetworkAdvice): string | undefined {
   const isAgent = advice === 'agent'

@@ -228,7 +228,7 @@ describe('ChatGPT host id', () => {
       expect(resolved.hostId).not.toBe(stored)
     }
     for (const stored of ['', 'email@example.test']) {
-      expect(() => resolveChatGptHostId(stored)).toThrow('chatgpt.invalid-token')
+      expect(() => resolveChatGptHostId(stored)).toThrow('chatgpt.host-id-unreadable')
     }
   })
 
@@ -250,7 +250,7 @@ describe('ChatGPT host id', () => {
     expect(await readFile(path.join(fresh, 'chatgpt.host-id'), 'utf8')).toBe(created)
     const broken = await mkdtemp(path.join(scratch.folder, 'broken-'))
     await writeFile(path.join(broken, 'chatgpt.host-id'), 'email@example.test')
-    await expect(loadChatGptHostId(broken)).rejects.toThrow('chatgpt.invalid-token')
+    await expect(loadChatGptHostId(broken)).rejects.toThrow('chatgpt.host-id-unreadable')
   })
 
   it('tells the person what OpenAI answered, not “temporarily unavailable”', () => {

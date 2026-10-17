@@ -31,6 +31,13 @@ describe('local causes get their own sentence', () => {
     ['already-added', undefined],
     ['store-unavailable', undefined],
     ['lock-unavailable', 'EACCES'],
+    ['grant-unreadable', undefined],
+    ['registration-unreadable', undefined],
+    ['host-id-unreadable', 'museSpark.provider.chatgpt.host-id'],
+    ['callback-timeout', undefined],
+    ['not-signed-in', undefined],
+    ['model-not-added', 'chatgpt/gpt-6.1-sol'],
+    ['request-failed', 'TypeError: ENOTFOUND'],
   ] as const)('%s is not the temporary-outage sentence', (code, reason) => {
     const text = sentence(code, reason)
     expect(text).not.toBe(retry)
