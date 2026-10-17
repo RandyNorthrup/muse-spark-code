@@ -3,10 +3,12 @@
 Lane: `ms/mswinpath`. Milestone: the shipped SECWINPATH / SECWINPATH2 /
 TRUSTROOT (D105) "Safer Windows paths" line; there is no `### WINPATH`
 heading on main, no `cand/MSWINPATH/*` branch, and no `@unwired WINPATH`
-code, so there was nothing to merge and nothing unwired to connect. The
-SECWINPATH identity commits (`7cec0c47c`, `203660e7d`) are ancestors of main,
-and every trusted-path caller (`nodeBackgroundIo`, `nativeBackground`,
-`effectiveDefinition`, `convert`, vault store) is wired.
+code, so there was nothing unwired to connect. The SECWINPATH identity
+commits (`7cec0c47c`, `203660e7d`) are ancestors of main, and every
+trusted-path caller (`nodeBackgroundIo`, `nativeBackground`,
+`effectiveDefinition`, `convert`, vault store) is wired. The step-2
+merge of the then-current `main-now` (`3d30a7321`: PR #165 plus
+`origin/main`) landed as `4d80deaab` with `--no-ff`, no conflicts.
 
 ## What was finished
 
@@ -31,9 +33,48 @@ GO):
   closed, absolute path/root required) with a `run` that throws, proving
   no subprocess is needed for these paths.
 
-No README / Help / catalogue entry: the fix changes no user-visible wording
-or surface, only which ordinary names verify. The public line stays the
-ROADMAP "Safer Windows paths" entry.
+## Connections (file:line on the merged tree)
+
+Trusted-root verifier (`src/runtime/windowsTrustedPath.ts:39`
+`stepsBelow`, `:60` `windowsTrustedPathVerifier`, used at `:103`):
+
+- `src/runtime/schedules/nodeBackgroundIo.ts:192` verifies schedule
+  launchers, scripts, records and directories (`:136-137`, `:226-236`,
+  `:380-395` reach it through the `trustedPath` port).
+- `src/runtime/schedules/nativeBackground.ts:91,149,250` reverifies the
+  wake record, the registration and the executable on Windows wakes.
+- `src/runtime/schedules/effectiveDefinition.ts` carries the port to the
+  definition check; `src/core/media/convert.ts:103` gates converter
+  commands; `src/core/vault/store.ts:97,104` gates vault paths.
+- `src/runtime/trustedPathPort.ts:2` is the `TrustedPathVerifier` port.
+
+Shared spelling refusal (`src/core/windowsPathSpelling.ts:50`
+`windowsPathProblem`, `:30` `normalWindowsPath`, `:39` `isUncPath`,
+`:35` `isWindowsDeviceLike`):
+
+- `src/core/protectedPaths.ts:69-70` refuses flagged Muse Code write
+  subjects; `src/core/workspacePath.ts:121-135` guards admission with
+  the workspace root as UNC authority.
+- `src/core/git/heldTree.ts:104-105` (device-like tree names stay
+  conservative); `src/core/team/workers/workerFence.ts:238-289` (worker
+  fences); `src/host/checkpoints/checkpointStore.ts:1978` (checkpoint
+  admission carries the workspace root); `src/core/worktreeConversations.ts:189-195`
+  (held-tree identity via `src/core/pathIdentity.ts:73`
+  `pathIdentityRelation`, checkpoint storage via
+  `src/host/checkpoints/shadowGit.ts:156`).
+
+## README / Help / catalogue justification (explicit no-change)
+
+No README, Help-reference or `featureCatalog` entry was added, deliberately:
+the fix changes no user-visible wording (refusal strings are unchanged
+protocol words), no command, setting or surface — only which ordinary
+folder names verify. Adding catalogue entries would force reference
+regeneration and new translated strings for zero user-facing change, and
+`npm run check:reference` passes as is. The public line stays the
+ROADMAP "Safer Windows paths" entry (`docs/roadmap/entries.json`
+SECWINPATH, released 0.17.0); `node scripts/gen-roadmap.mjs` run
+2026-10-17, exit 0, no diff. PLAN.md §6 SECWINPATH carries the dated
+follow-up pointer.
 
 ## Red drill
 
@@ -96,10 +137,14 @@ cleanup under load. No credentials or user files were involved.
 
 ## Base note
 
-This lane started at the brief-named `821566c0f` and stays there per the
-no-merge rule: `main-now` advanced mid-session to `3d30a7321` (PR #165
-plus `origin/main` merges) after the gates above were measured. Merging
-the newer main is left to the lead's integration.
+This lane started at the brief-named `821566c0f`; `main-now` advanced
+mid-session to `3d30a7321` (PR #165 plus `origin/main` merges), which the
+lane then merged with `--no-ff` as `4d80deaab` (brief step 2, no
+conflicts). Post-merge re-verification: the 6 lane- plus merge-touched
+suites pass (85 passed, 2 skipped), all 5 typechecks exit 0,
+`check:plan` 0 drift. The pre-merge full-suite and static-gate receipts
+above stand for the lane's own diff, which the merge does not touch
+(43 merged files: PR #165 permissions work; disjoint paths).
 
 ## Real-life steps for the lead (Windows 11 host)
 
