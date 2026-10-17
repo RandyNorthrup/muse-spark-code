@@ -41,6 +41,24 @@ function fixture(name: string): unknown {
 
 const sessionId = 's1'
 
+/** A runner that holds every started command until the test releases it. */
+function heldRunner(onStart: (command: string, running: number) => void) {
+  let running = 0
+  const releases: (() => void)[] = []
+  const runHook = async (command: string): Promise<ShellResult> => {
+    running += 1
+    onStart(command, running)
+    await new Promise<void>((resolve) => {
+      releases.push(() => {
+        running -= 1
+        resolve()
+      })
+    })
+    return { stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }
+  }
+  return { runHook, releases }
+}
+
 describe('museCodeLoadedSessionCeiling', () => {
   it('reads Muse Code’s documented per-release bound from the served version', () => {
     // M-CL 1.4.5: 32 through 1.4.4, 256 from 1.4.5.
@@ -337,20 +355,10 @@ describe('hook running commands setting', () => {
       'linux',
     )
     expect(parsed.warnings).toEqual([])
-    let running = 0
     let peak = 0
-    const releases: (() => void)[] = []
-    const runHook = async (): Promise<ShellResult> => {
-      running += 1
+    const { runHook, releases } = heldRunner((_command, running) => {
       peak = Math.max(peak, running)
-      await new Promise<void>((resolve) => {
-        releases.push(() => {
-          running -= 1
-          resolve()
-        })
-      })
-      return { stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }
-    }
+    })
     const warnings: string[] = []
     const work = dispatchHooks(
       parsed.hooks,
@@ -407,22 +415,12 @@ describe('hook running commands setting', () => {
       'user',
       'linux',
     )
-    let running = 0
     let soloStartedAt = -1
-    const releases: (() => void)[] = []
-    const runHook = async (command: string): Promise<ShellResult> => {
-      running += 1
+    const { runHook, releases } = heldRunner((command, running) => {
       if (command === 'z') {
         soloStartedAt = running
       }
-      await new Promise<void>((resolve) => {
-        releases.push(() => {
-          running -= 1
-          resolve()
-        })
-      })
-      return { stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }
-    }
+    })
     const dispatch = (hooks: typeof parsed.hooks, maxRunningCommands: number) =>
       dispatchHooks(
         hooks,
