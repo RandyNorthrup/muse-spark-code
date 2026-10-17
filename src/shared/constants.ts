@@ -4453,8 +4453,11 @@ export const MODEL_API_SUBAGENT_TOOLS = {
   readResult: 'subagent_read_result',
   cancel: 'subagent_cancel',
 } as const
+// D121: a conversation spawns subagents without a count of ours (the
+// removed 64-per-conversation ceiling was invented); paid consent still
+// asks per spawn and Stop still ends them. The 8-at-once queue is C6,
+// owned by the integration branch.
 export const SUBAGENT_CAPACITY = 8
-export const SUBAGENT_MAX_PER_CONVERSATION = 64
 export const SUBAGENT_DEPTH = 1
 export const SUBAGENT_ID_PREFIX = 'subagent-'
 export const SUBAGENT_WAIT_DEFAULT_MS = 60_000

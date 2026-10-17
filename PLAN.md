@@ -14419,6 +14419,9 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   = 600 removed — not about a model; any number of checks, each naming any
   positive `timeoutSeconds` (300 unless set; `package.json` maxItems and
   maximum go with them).
+- A27 (NOLIMITS1): `SUBAGENT_MAX_PER_CONVERSATION` = 64 removed — not about
+  a model; a conversation spawns without a count of ours (paid consent
+  still asks per spawn; the 8-at-once queue is C6, untouched).
 
 ## 3. Open questions (need the owner)
 
