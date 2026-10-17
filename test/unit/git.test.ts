@@ -271,16 +271,18 @@ describe('createGitRunner (D24)', () => {
     expect(exec).toHaveBeenCalledTimes(1)
   })
 
-  it('runs git by absolute path with a timeout, no window, no prompt and no optional locks', async () => {
+  it('runs git by absolute path with no invented timeout, no window, no prompt and no optional locks', async () => {
     const { run, calls } = runner({ PATH: '.:/usr/bin', HOME: '/h' }, new Set(['/usr/bin/git']))
     await expect(run(['status', '--porcelain'], '/ws')).resolves.toBe('ok\n')
     expect(calls).toHaveLength(1)
     const [call] = calls
     expect(call?.file).toBe('/usr/bin/git')
     expect(call?.args).toEqual(['status', '--porcelain'])
+    // NOLIMITS2 C3 (owner 2026-10-16): unnamed calls name no deadline; a
+    // timeout the caller names still applies (the M32 case below).
     expect(call?.options).toMatchObject({
       cwd: '/ws',
-      timeout: 15_000,
+      timeout: undefined,
       windowsHide: true,
       env: { PATH: '.:/usr/bin', HOME: '/h', GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' },
     })
