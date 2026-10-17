@@ -179,6 +179,10 @@ happened, not what was planned; superseded entries are kept.
   numbers disappear from the usage page and CLI, and no wire object or string
   can forge an exact usage amount. Malformed loopback requests are refused
   without endangering the listener.
+- The Models panel lists the Custom server again alongside the captured
+  presets (M95 D140): it is the user's own server, admitted without a
+  capture, while presets without one (vLLM, Ollama) stay out until their
+  captures land.
 
 ### Added
 
