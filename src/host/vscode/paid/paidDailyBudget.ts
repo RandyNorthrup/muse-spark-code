@@ -1,4 +1,3 @@
-import { reportingAmount } from '../../../core/usage/reportingAmount'
 import { randomUUID } from 'node:crypto'
 import { PaidAuthority } from '../../../core/paid/paidAuthority'
 import { Usd, usdInputSchema, type UsdAmount } from '../../../shared/usd'
@@ -52,7 +51,7 @@ export function createPaidDailyBudget(deps: {
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.overrideFile)
   const stopPath = (scope: string) =>
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.stopDirectory)
-  const readLimit = (scope: string, isDisplay = false) => {
+  const readLimit = (scope: string, isDisplay = false): UsdAmount => {
     let isStopped = false
     try {
       statSync(stopPath(scope))
@@ -294,13 +293,13 @@ export function createPaidDailyBudget(deps: {
     const scope = day()
     const total = await journal.readExisting(scope, PAID_DAILY_BUDGET.accountId)
     let isStopped = false
-    let cap: number
+    let cap: UsdAmount
     try {
-      cap = Number(readLimit(scope))
+      cap = readLimit(scope)
     } catch (error: unknown) {
       if (!(error instanceof Error) || error.message !== UI_TEXT.paidDailyStopped) throw error
       isStopped = true
-      cap = Number(readLimit(scope, true))
+      cap = readLimit(scope, true)
     }
     const reset = new Date(deps.now())
     reset.setHours(0, 0, 0, 0)
@@ -310,10 +309,8 @@ export function createPaidDailyBudget(deps: {
         budget: {
           id: scope,
           kind: 'paidDaily',
-          spentUsd: Number(total?.spentUsd ?? 0),
-          ...(total?.uncertainUsd !== undefined && {
-            uncertainUsd: reportingAmount(total.uncertainUsd),
-          }),
+          spentUsd: Usd.from(total?.spentUsd ?? 0).toAmount(),
+          ...(total?.uncertainUsd !== undefined && { uncertainUsd: total.uncertainUsd }),
           capUsd: cap,
           stopped: isStopped,
           raisedToday: Usd.from(cap).compare(Usd.from(deps.capUsd())) > 0,

@@ -42,6 +42,8 @@ function attachChatPanel(
     reveal: () => {
       panel.reveal(undefined, false)
     },
+    // A focus ask delivers only while this panel is the active one (F3).
+    isActive: () => panel.active,
     markUnread: () => {
       if (panel.active) {
         return

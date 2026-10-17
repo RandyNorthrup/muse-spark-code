@@ -1,7 +1,8 @@
 import * as vscode from 'vscode'
-import { REPORT_KINDS, UI_TEXT, WEBVIEW_DIST_SEGMENTS } from '../../../shared/constants'
+import { REPORT_WORKING_KINDS, UI_TEXT, WEBVIEW_DIST_SEGMENTS } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { reportsMethods } from '../../../shared/hostApi/reports'
+
 import {
   reportDiffSchema,
   type ReportDocument,
@@ -170,7 +171,7 @@ export class ReportPanel implements vscode.Disposable {
     this.options = options
   }
 
-  /** Every kind is listed, including unavailable kinds whose engine returns an explicit failure. */
+  /** Only kinds with production sources are listed; history keeps every parsed kind readable. */
   private async pick(): Promise<void> {
     const target = this.panel
     if (target === undefined) return
@@ -181,7 +182,7 @@ export class ReportPanel implements vscode.Disposable {
     try {
       const engine = this.deps.engine()
       const choices = []
-      for (const kind of REPORT_KINDS) {
+      for (const kind of REPORT_WORKING_KINDS) {
         const result = reportsMethods['reports/history'].result.parse(
           await engine.reports.history({ workspaceKey: this.deps.workspaceKey, kind }),
         )

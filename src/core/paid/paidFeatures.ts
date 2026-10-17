@@ -181,9 +181,15 @@ export class PaidFeatureGate {
   public async review(): Promise<void> {
     const pending: PaidFeature[] = []
     for (const feature of PAID_FEATURES) {
+      if (this.deps.isAvailable?.(feature) === false) continue
       // A feature available by default needs no turn-on confirmation: its
       // price is asked per use. Nothing is forgotten either: it holds no
       // acceptance to lose.
+      if (feature === 'teamWorkers') {
+        // Only the task-specific D48 popup accepts a team price; retire old toggle receipts.
+        if (this.deps.readAccepted().has(feature)) await this.setAccepted(feature, false)
+        continue
+      }
       if (AVAILABLE_BY_DEFAULT.has(feature)) {
         continue
       }
@@ -197,7 +203,6 @@ export class PaidFeatureGate {
         await this.setAccepted(feature, true)
         this.deps.log.info(`Paid feature ${feature} on; its first use asks`)
       } else if (
-        feature !== 'teamWorkers' &&
         isSettingOn &&
         !isAccepted &&
         feature !== 'judge' &&
@@ -228,8 +233,18 @@ export class PaidFeatureGate {
   /** The palette's toggle turning a feature on: the confirmation first, then the setting. */
   public async turnOn(feature: PaidFeature, guard?: PaidFeatureMutationGuard): Promise<boolean> {
     guard?.check()
+    if (this.deps.isAvailable?.(feature) === false) return false
+
     if (this.isOn(feature)) {
       return true
+    }
+    if (feature === 'teamWorkers') {
+      if (this.deps.isTeamAvailable?.() !== true) return false
+      // The first runnable task asks its own price and budget; toggling accepts no price.
+      await this.setAccepted(feature, false)
+      await this.deps.setSetting(feature, true)
+      this.notify()
+      return this.isOn(feature)
     }
     if (this.asksOnFirstUse(feature)) {
       // No modal: its first use asks, naming the price (D48).

@@ -11,7 +11,7 @@
 // client, handed across the bundle boundary (PLAN.md D6).
 
 import { MODEL_API_MAX_RETRIES, TAB_REQUEST_TIMEOUT_MS } from '../../shared/constants'
-import type { RetryBudget } from '../backends/modelapi/client'
+import type { ResponseAttemptGuard, RetryBudget } from '../backends/modelapi/client'
 import type { CreateResponseBody, StreamEvent, Usage } from '../backends/modelapi/schemas'
 import { TabCache } from './tabCache'
 import type { TabMode } from './tabContext'
@@ -47,7 +47,10 @@ export interface TabEngineRequest {
   readonly lineAbove: string
   /** The lines below the cursor's line. */
   readonly linesBelow: readonly string[]
-  /** Read when the debounce ends: a cancelled trigger sends nothing. */
+  /**
+   * Read when the debounce ends, and last synchronously at the HTTP send
+   * (RVM94KR2 4): a cancelled trigger sends nothing.
+   */
   readonly isCancelled: () => boolean
 }
 
@@ -62,17 +65,22 @@ export interface TabEngineAnswer {
   readonly usage: Promise<TabEngineUsage>
 }
 
-/** The key client's stream, with the retry budget the engine hands it. */
+/**
+ * The key client's stream, with the retry budget and the attempt guard the
+ * engine hands it. The client calls the guard synchronously after its last
+ * wait (credentials, pacing, admission), right before the HTTP send: a throw
+ * there POSTs nothing. `onRequestStarted` runs adjacent to the send.
+ */
 export type TabStream = (
   body: CreateResponseBody,
   signal: AbortSignal,
   budget: RetryBudget,
-  trigger?: TabEngineRequest,
+  admit: ResponseAttemptGuard,
 ) => AsyncIterable<StreamEvent>
 
 export interface TabEngineDeps {
   readonly stream: TabStream
-  /** A request is about to be sent (PaidUsage counts it). */
+  /** A request is being sent: the client passed the final gate (PaidUsage counts it). */
   readonly onSent: (model: string) => void
   /** A request reported its usage (PaidUsage prices it). */
   readonly onUsage: (model: string, usage: TabEngineUsage) => void
@@ -184,6 +192,25 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine & {
         }
       }
     }
+    // The final gate (RVM94KR2 4): read synchronously at the HTTP send. A
+    // refusal there sends nothing, so the request settles at zero.
+    const gate = { isRefused: false, isSent: false }
+    const check = (): void => {
+      gate.isRefused = request.isCancelled()
+      if (gate.isRefused) {
+        throw new Error('The Tab request was refused before sending')
+      }
+    }
+    const admit: ResponseAttemptGuard = Object.assign(check, {
+      check,
+      onRequestStarted: (): void => {
+        if (gate.isSent) {
+          return
+        }
+        gate.isSent = true
+        deps.onSent(request.model)
+      },
+    })
     /** Reads the stream to its end; resolves its usage, rejects without one. */
     const drain = async (): Promise<TabEngineUsage> => {
       // A backstop only (D73): the editor never aborts a sent request.
@@ -195,7 +222,7 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine & {
         // One HTTP attempt: the reservation prices one, so the client's
         // retries are spent before the first try (RVM94LC).
         const budget: RetryBudget = { retriesUsed: MODEL_API_MAX_RETRIES }
-        for await (const event of deps.stream(body, timeout.signal, budget, request)) {
+        for await (const event of deps.stream(body, timeout.signal, budget, admit)) {
           if (shouldStopAt(event)) {
             break
           }
@@ -204,6 +231,11 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine & {
         progress.failure = asError(error)
       } finally {
         clearTimeout(timer)
+      }
+      if (gate.isRefused && !gate.isSent) {
+        // Nothing was POSTed: no suggestion and no usage (the reply is empty).
+        publish()
+        return NOT_SENT
       }
       if (!progress.isPublished) {
         if (progress.failure !== undefined && progress.reported === undefined) {
@@ -218,7 +250,6 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine & {
       deps.onUsage(request.model, progress.reported)
       return progress.reported
     }
-    deps.onSent(request.model)
     usage = drain()
     try {
       await usage

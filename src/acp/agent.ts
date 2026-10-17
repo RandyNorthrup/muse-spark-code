@@ -12,7 +12,7 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // its flag, and each use asks in the editor first, naming its price (M58,
 // paid.ts). Every update of a turn goes out before the turn's response.
 
-import { ControllerRegistry, type ControllerClaim } from '../runtime/panel/controllerRegistry'
+import type { ControllerRegistry } from '../runtime/panel/controllerRegistry'
 import { randomUUID } from 'node:crypto'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
 import { agentListingText, listedAgents, listedAgentId } from '../core/agent/agentListing'
@@ -27,6 +27,7 @@ import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
   type AgentApp,
+  type AvailableCommand,
   type AgentContext,
   type AuthMethod,
   type ClientCapabilities,
@@ -56,6 +57,8 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { wireWordForLog } from '../core/logging'
+import { resolveResumedModel } from '../core/backends/musecode/resumedModel'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
@@ -84,13 +87,12 @@ import {
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
-import { parseSkillInvocation } from '../shared/mentions'
+import { parseSkillInvocation, slashCommandText } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
   approvalModeFor,
   availablePermissionModes,
   permissionModeDetail,
-  untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
 import { acpResourceCommand, acpResourceUpdates, resourceCommands } from './resources'
@@ -102,7 +104,12 @@ import type {
   AcpQuestionRegistryFactory,
   AcpQueuedAnswerLease,
 } from './questionDeferral'
-import { AcpAccounts, accountErrorText, type AccountsSessionPort } from './accounts'
+import {
+  AcpAccounts,
+  accountErrorText,
+  isAccountSwitchRefusedError,
+  type AccountsSessionPort,
+} from './accounts'
 import {
   acpQuestionClock,
   questionDeferralLoader,
@@ -120,6 +127,7 @@ import {
   promptParts,
   UpdateTranslator,
 } from './translate'
+import { adoptedMode, answerChoice, ApprovalAnswers } from './permissionAsk'
 import type { AcpSharingPort } from './sharing'
 import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
@@ -294,6 +302,11 @@ interface PreparingPrompt {
   readonly reportAbort?: AbortController
 }
 
+/** Identity of the latest load or resume; kept while earlier releases finish. */
+interface SessionClaim {
+  readonly sessionId: string
+}
+
 const CANCELLED_TERMINAL = 'cancelled'
 const FAILED_TERMINAL = 'failed'
 // Turns that finished before `sendTurn` answered with their id; a few suffice.
@@ -304,6 +317,10 @@ function isContributorModel(modelId: string): boolean {
 }
 
 function accountRequestError(error: unknown): RequestError {
+  // A refused switch is user-actionable (the session kept its account), not
+  // an internal failure: answer invalidRequest with the stay-put text.
+  if (isAccountSwitchRefusedError(error))
+    return RequestError.invalidRequest(undefined, error.message)
   const text = accountErrorText(error)
   return text === UI_TEXT.accounts.invalidAccount
     ? RequestError.invalidParams(undefined, text)
@@ -333,11 +350,13 @@ class AcpSession {
   private readonly questionBundle: () => AcpQuestionBundle
   private media: Promise<AcpMediaPort> | undefined
   private readonly attachments: AcpAttachment[] = []
-  private readonly accounts: AcpAccounts | undefined
+  private accounts: AcpAccounts | undefined
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
   private readonly unsubscribeResources: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
+  /** What the client already answered, so one command is asked about once (F16). */
+  private readonly permissionAnswers = new ApprovalAnswers()
   private readonly earlyFinishes = new Map<string, TurnCompleted>()
   private outbox: Promise<void> = Promise.resolve()
   private pending: PendingPrompt | undefined
@@ -353,6 +372,8 @@ class AcpSession {
   private releaseSchedules: (() => Promise<void>) | undefined
   private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
+  private modelChangeRevision = 0
+  private effortChangeRevision = 0
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
   private vaultGeneration = 0
@@ -372,6 +393,7 @@ class AcpSession {
     private mode: PermissionMode,
     private modelId: string,
     private activeTurnId: string | undefined,
+    private readonly noteChoice: () => void,
   ) {
     this.sessionId = session.sessionId
     this.questionBundle =
@@ -533,126 +555,130 @@ class AcpSession {
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: [
-        ...(this.deps.sharing
-          ?.commands()
-          .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
-        { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
-        ...(this.deps.vault === undefined
-          ? []
-          : [
-              {
-                name: 'vault',
-                description: UI_TEXT.vault.title,
-                input: { hint: 'status | list | lock | audit' },
-              },
-            ]),
-        ...(this.accounts === undefined
-          ? []
-          : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
-        { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
-        {
-          name: SLASH_COMMAND_NAMES.report,
-          description: UI_TEXT.reportSlashDescription,
-          input: { hint: '<kind> [args] | history' },
-        },
-        ...(this.deps.legalScan === undefined
-          ? []
-          : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
-        ...(this.deps.usage === undefined
-          ? []
-          : [
-              {
-                name: 'usage',
-                description: UI_TEXT.acpUsageDescription,
-                input: null,
-              },
-            ]),
-        ...(this.deps.resources === undefined
-          ? []
-          : resourceCommands().filter(
-              (command) => command.name !== 'usage' || this.deps.usage === undefined,
-            )),
-        {
-          name: 'agents',
-          description: UI_TEXT.referenceAgentOutcomes,
-          input: { hint: '[receipt|continue|retry] [ID]' },
-        },
-        ...(this.deps.playbookFor === undefined
-          ? []
-          : [
-              {
-                name: 'playbook',
-                description: UI_TEXT.playbookHelpDescription,
-                input: { hint: 'status|record|settings' },
-              },
-            ]),
-        ...(this.deps.schedules === undefined
-          ? []
-          : [
-              {
-                name: 'schedule',
-                description: UI_TEXT.scheduleV2.labels.title,
-                input: { hint: UI_TEXT.scheduleV2.runtime.usage },
-              },
-            ]),
-        ...(this.deps.media === undefined || this.deps.options.isHeadless === true
-          ? []
-          : [
-              {
-                name: 'attach',
-                description: UI_TEXT.paletteTips.attachFile,
-                input: { hint: '<path>' },
-              },
-              { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
-            ]),
-        ...(this.deps.estimate === undefined
-          ? []
-          : [
-              {
-                name: SLASH_COMMAND_NAMES.estimate,
-                description: UI_TEXT.estimateCliHelp,
-                input: { hint: UI_TEXT.estimateUsage },
-              },
-            ]),
-        ...this.skills
-          .filter(
-            (skill) =>
-              skill.selector !== SLASH_COMMAND_NAMES.help &&
-              skill.selector !== SLASH_COMMAND_NAMES.estimate &&
-              skill.selector !== ACP_COMPACT_COMMAND &&
-              skill.selector !== 'legal' &&
-              ![
-                'answer',
-                'questions',
-                'share',
-                'prompt',
-                'resources',
-                'agents',
-                SLASH_COMMAND_NAMES.report,
-                'attach',
-                'record',
-                'accounts',
-                'vault',
-              ].includes(skill.selector) &&
-              ((this.deps.usage === undefined && this.deps.resources === undefined) ||
-                skill.selector !== 'usage') &&
-              (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
-              (this.deps.schedules === undefined || skill.selector !== 'schedule'),
-          )
-          .map((skill) => ({
-            name: skill.selector,
-            description: skill.description === '' ? skill.displayName : skill.description,
-            input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-          })),
-        ...(this.questionRegistry === undefined
-          ? []
-          : [
-              { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
-              { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
-            ]),
-      ],
+      availableCommands: this.availableCommands(),
     })
+  }
+
+  private availableCommands(): AvailableCommand[] {
+    return [
+      ...(this.deps.sharing
+        ?.commands()
+        .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
+      { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+      ...(this.deps.vault === undefined
+        ? []
+        : [
+            {
+              name: 'vault',
+              description: UI_TEXT.vault.title,
+              input: { hint: 'status | list | lock | audit' },
+            },
+          ]),
+      ...(this.accounts === undefined
+        ? []
+        : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
+      { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
+      {
+        name: SLASH_COMMAND_NAMES.report,
+        description: UI_TEXT.reportSlashDescription,
+        input: { hint: '<kind> [args] | history' },
+      },
+      ...(this.deps.legalScan === undefined
+        ? []
+        : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
+      ...(this.deps.usage === undefined
+        ? []
+        : [
+            {
+              name: 'usage',
+              description: UI_TEXT.acpUsageDescription,
+              input: null,
+            },
+          ]),
+      ...(this.deps.resources === undefined
+        ? []
+        : resourceCommands().filter(
+            (command) => command.name !== 'usage' || this.deps.usage === undefined,
+          )),
+      {
+        name: 'agents',
+        description: UI_TEXT.referenceAgentOutcomes,
+        input: { hint: '[receipt|continue|retry] [ID]' },
+      },
+      ...(this.deps.playbookFor === undefined
+        ? []
+        : [
+            {
+              name: 'playbook',
+              description: UI_TEXT.playbookHelpDescription,
+              input: { hint: 'status|record|settings' },
+            },
+          ]),
+      ...(this.deps.schedules === undefined || this.deps.schedules.isAvailable === false
+        ? []
+        : [
+            {
+              name: 'schedule',
+              description: UI_TEXT.scheduleV2.labels.title,
+              input: { hint: UI_TEXT.scheduleV2.runtime.usage },
+            },
+          ]),
+      ...(this.deps.media === undefined || this.deps.options.isHeadless === true
+        ? []
+        : [
+            {
+              name: 'attach',
+              description: UI_TEXT.paletteTips.attachFile,
+              input: { hint: '<path>' },
+            },
+            { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
+          ]),
+      ...(this.deps.estimate === undefined || this.deps.estimate.isAvailable === false
+        ? []
+        : [
+            {
+              name: SLASH_COMMAND_NAMES.estimate,
+              description: UI_TEXT.estimateCliHelp,
+              input: { hint: UI_TEXT.estimateUsage },
+            },
+          ]),
+      ...this.skills
+        .filter(
+          (skill) =>
+            skill.selector !== SLASH_COMMAND_NAMES.help &&
+            skill.selector !== SLASH_COMMAND_NAMES.estimate &&
+            skill.selector !== ACP_COMPACT_COMMAND &&
+            skill.selector !== 'legal' &&
+            ![
+              'answer',
+              'questions',
+              'share',
+              'prompt',
+              'resources',
+              'agents',
+              SLASH_COMMAND_NAMES.report,
+              'attach',
+              'record',
+              'accounts',
+              'vault',
+            ].includes(skill.selector) &&
+            ((this.deps.usage === undefined && this.deps.resources === undefined) ||
+              skill.selector !== 'usage') &&
+            (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
+            skill.selector !== 'schedule',
+        )
+        .map((skill) => ({
+          name: skill.selector,
+          description: skill.description === '' ? skill.displayName : skill.description,
+          input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+        })),
+      ...(this.questionRegistry === undefined
+        ? []
+        : [
+            { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
+            { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
+          ]),
+    ]
   }
 
   private mediaPort(): Promise<AcpMediaPort> {
@@ -779,6 +805,7 @@ class AcpSession {
       }
       case 'approvalResolved': {
         this.approvals.delete(event.approvalId)
+        this.permissionAnswers.resolved(event.approvalId)
         return
       }
       case 'questionRequested': {
@@ -802,13 +829,25 @@ class AcpSession {
         return
       }
       case 'modelChanged': {
+        this.modelChangeRevision += 1
         this.modelId = event.modelId
+        this.noteChoice()
         this.send({ sessionUpdate: 'config_option_update', configOptions: this.configOptions() })
+        return
+      }
+      case 'approvalModeChanged': {
+        // The CLI changed the mode itself (a ceiling or managed policy): the
+        // editor keeps showing the mode it set, and the log keeps the fact.
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: Muse Code now runs approval mode ${wireWordForLog(event.mode)}`,
+        )
         return
       }
       case 'effortChanged': {
         if (isEffortLevel(event.effort)) {
+          this.effortChangeRevision += 1
           this.effort = event.effort
+          this.noteChoice()
           this.send({ sessionUpdate: 'config_option_update', configOptions: this.configOptions() })
         }
         return
@@ -920,53 +959,86 @@ class AcpSession {
 
   private async askPermission(event: ApprovalRequest): Promise<void> {
     const pending = this.pending
-    let choice = editAutomaticallyChoice(event, this.mode)
+    // A command is asked about once (F16): an answer already given for this
+    // approval or its tool call is applied again, never asked again.
+    let choice = editAutomaticallyChoice(event, this.mode) ?? this.permissionAnswers.reuse(event)
+    let settled: ApprovalRequest = event
     if (choice === undefined) {
-      let response: RequestPermissionResponse | undefined
+      // One client request per approval: a newer stage arriving while one is
+      // open is settled by that request's answer, never by a second request.
+      if (!this.permissionAnswers.claim(event.approvalId)) {
+        return
+      }
       try {
         // The tool call the request names has gone out first.
         await this.outbox
-        if (!this.isCurrentPrompt(pending) || this.approvals.get(event.approvalId) !== event) {
+        const latest = this.approvals.get(event.approvalId)
+        if (latest === undefined || !this.isCurrentPrompt(pending)) {
           return
         }
-        response = permissionResponse(
-          await this.client.request('session/request_permission', {
-            sessionId: this.sessionId,
-            toolCall: approvalToolCall(event, this.cwd),
-            options: permissionOptions(event.availableChoices),
-          }),
-        )
-      } catch (error: unknown) {
-        this.deps.log.warn(
-          `ACP session ${this.sessionId}: permission request failed, denying: ${failureForLog(error)}`,
-        )
-        observeError(this.deps, 'permissionRequestFailed')
+        if (latest !== event) {
+          // A newer stage superseded this one while waiting: settle it
+          // instead. The claim is released first (idempotent) so the
+          // re-entered ask can take it.
+          this.permissionAnswers.release(event.approvalId)
+          await this.askPermission(latest)
+          return
+        }
+        let response: RequestPermissionResponse | undefined
+        try {
+          response = permissionResponse(
+            await this.client.request('session/request_permission', {
+              sessionId: this.sessionId,
+              toolCall: approvalToolCall(event, this.cwd),
+              options: permissionOptions(event.availableChoices),
+            }),
+          )
+        } catch (error: unknown) {
+          this.deps.log.warn(
+            `ACP session ${this.sessionId}: permission request failed, denying: ${failureForLog(error)}`,
+          )
+          observeError(this.deps, 'permissionRequestFailed')
+        }
+        const current = this.approvals.get(event.approvalId)
+        if (current === undefined || !this.isCurrentPrompt(pending)) {
+          return
+        }
+        settled = current
+        // The answer is never discarded when a newer stage landed mid-ask:
+        // the picked meaning moves to it, else the denial default decides.
+        choice =
+          answerChoice(response, event.availableChoices, settled.availableChoices) ??
+          decidedChoice(undefined, settled.availableChoices)
+      } finally {
+        this.permissionAnswers.release(event.approvalId)
       }
-      choice = decidedChoice(response, event.availableChoices)
     }
-    if (!this.isCurrentPrompt(pending) || this.approvals.get(event.approvalId) !== event) {
+    if (!this.isCurrentPrompt(pending) || this.approvals.get(event.approvalId) !== settled) {
       // Let go while the editor was asked: the answer is for a session it
       // no longer shows, which another session may now hold.
       return
     }
     if (choice === undefined) {
       this.deps.log.warn(
-        `ACP session ${this.sessionId}: approval ${event.approvalId} offers no denial; stopping the turn`,
+        `ACP session ${this.sessionId}: approval ${settled.approvalId} offers no denial; stopping the turn`,
       )
       observeError(this.deps, 'approvalWithoutDenial')
       await this.cancel()
       return
     }
+    // The next stage can arrive before approval/decide is acknowledged.
+    // Publish the consent synchronously so that event reuses it, not a new ask.
+    this.permissionAnswers.remember(settled.approvalId, settled.itemId, choice)
     try {
       await this.session.decideApproval({
-        approvalId: event.approvalId,
+        approvalId: settled.approvalId,
         choiceId: choice.choiceId,
-        requirementId: event.requirementId,
+        requirementId: settled.requirementId,
       })
     } catch (error: unknown) {
       const level = isPromptSettledError(error) ? 'info' : 'warn'
       this.deps.log[level](
-        `ACP session ${this.sessionId}: approval ${event.approvalId}: ${failureForLog(error)}`,
+        `ACP session ${this.sessionId}: approval ${settled.approvalId}: ${failureForLog(error)}`,
       )
     }
   }
@@ -1360,7 +1432,20 @@ class AcpSession {
   }
 
   public async startAccounts(): Promise<void> {
-    await this.accounts?.start()
+    // Ordinary sessions never depend on accounts: a failing port leaves the
+    // session working without accounts instead of failing adoption.
+    try {
+      await this.accounts?.start()
+    } catch (error: unknown) {
+      const accounts = this.accounts
+      this.accounts = undefined
+      this.deps.log.warn(`ACP accounts startup failed: ${failureForLog(error)}`)
+      try {
+        accounts?.dispose()
+      } catch (error: unknown) {
+        this.deps.log.warn(`ACP accounts cleanup failed: ${failureForLog(error)}`)
+      }
+    }
   }
 
   /** Broker-owned request; Bypass, tools and paid grants never enter this path. */
@@ -1509,8 +1594,56 @@ class AcpSession {
   public async applyEffort(effort: EffortLevel): Promise<void> {
     const served = servedEffort(this.modelId, effort)
     this.ensureHeld()
+    const revision = this.effortChangeRevision
     await this.session.setReasoningEffort(effortForThinking(served, true))
-    this.effort = served
+    if (this.effortChangeRevision === revision) {
+      this.effort = served
+    }
+  }
+
+  /** The model and effort the editor chose for this session, for a later load. */
+  public currentChoice(): { readonly modelId: string; readonly effort: EffortLevel } {
+    return { modelId: this.modelId, effort: this.effort }
+  }
+
+  /**
+   * A loaded session made to run on the remembered choice (restart
+   * recovery): `session/resume` takes no model, so the choice is applied
+   * with `session/setModel` and read back with `model/list` before anything
+   * is replayed or run. What the editor is shown comes from the backend's
+   * answer: on a mismatch the load fails instead, so nothing runs on a
+   * model the editor was not told.
+   */
+  public async restoreChoice(modelId: string, effort: EffortLevel): Promise<void> {
+    this.ensureHeld()
+    await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+    this.ensureHeld()
+    // Muse resume needs an explicit selection; Model API's loaded model is
+    // authoritative and an unchanged selection must not run switch hooks.
+    if (this.host.info.kind === 'museCode' || this.session.modelId !== modelId) {
+      await this.session.setModel(modelId)
+    }
+    const reported = await this.host.listModels(this.sessionId)
+    const outcome = resolveResumedModel({
+      wantedModelId: modelId,
+      activeModelId: reported.find((model) => model.isActive)?.modelId,
+    })
+    if (!outcome.ok) {
+      throw RequestError.internalError(
+        undefined,
+        fill(UI_TEXT.modelNotKeptAfterRestart, {
+          active: outcome.activeModelId,
+          wanted: outcome.wantedModelId,
+        }),
+      )
+    }
+    this.modelId = outcome.modelId
+    await this.applyEffort(effort)
+  }
+
+  /** The mode the client last set on this session. */
+  public get permissionMode(): PermissionMode {
+    return this.mode
   }
 
   public async setMode(modeId: string): Promise<void> {
@@ -1524,6 +1657,10 @@ class AcpSession {
     await this.session.setApprovalMode(approvalModeFor(mode, true))
     this.mode = mode
     this.conversation?.permissionModeChanged(mode)
+    // The set took: tell the editor, which otherwise keeps showing the old
+    // mode (it learns it only from new/load responses and this notice).
+    this.send({ sessionUpdate: 'current_mode_update', currentModeId: mode })
+    await this.outbox
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
@@ -1550,8 +1687,13 @@ class AcpSession {
         throw RequestError.invalidParams(undefined, value)
       }
       this.ensureHeld()
+      const revision = this.modelChangeRevision
       await this.session.setModel(value)
-      this.modelId = value
+      // A backend event during the command is authoritative (for example a
+      // canonicalized id); its editor update must survive the command ack.
+      if (this.modelChangeRevision === revision) {
+        this.modelId = value
+      }
       await this.applyEffort(this.effort)
       return
     }
@@ -1714,19 +1856,29 @@ class AcpSession {
         preparing.abort.signal,
       )
       if (!parsed.ok) throw RequestError.invalidParams(undefined, parsed.reason)
-      const estimatePart = blocks.find((block) => block.type === 'text')
-      if (estimatePart !== undefined && /^\/estimate(?:\s|$)/.test(estimatePart.text.trim())) {
+      // Every local command below is decided on this one text, the same one
+      // the skill parser reads (withSkill). Matching the text as sent let
+      // " /schedule list" pass the schedule refusal and still run a workspace
+      // skill of that name, or start a model turn (RVCX1F F1).
+      const typed = slashCommandText(parsed.displayText)
+      if (/^\/estimate(?:\s|$)/.test(typed)) {
         const controller = preparing.abort
         try {
           await this.announceCommands()
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
-          let text = UI_TEXT.estimateUsage
-          if (parsed.parts.length === 1)
-            text =
-              this.deps.estimate === undefined
-                ? fill(UI_TEXT.estimateWaiting, { dependency: 'M117-W-estimator-binding' })
-                : await this.deps.estimate.run(estimatePart.text, this.cwd, controller.signal)
+          let text =
+            this.deps.estimate !== undefined &&
+            this.deps.estimate.isAvailable !== false &&
+            parsed.parts.length !== 1
+              ? UI_TEXT.estimateUsage
+              : UI_TEXT.estimateRuntimeUnavailable
+          if (
+            this.deps.estimate !== undefined &&
+            this.deps.estimate.isAvailable !== false &&
+            parsed.parts.length === 1
+          )
+            text = await this.deps.estimate.run(typed, this.cwd, controller.signal)
           if ('error' in preparing) throw preparing.error
           if (this.wasEstimateCancelled(preparing)) return 'cancelled'
           this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
@@ -1750,11 +1902,11 @@ class AcpSession {
       }
 
       if (
-        ['/legal', '/legal --offline'].includes(parsed.displayText.trim()) &&
+        ['/legal', '/legal --offline'].includes(typed) &&
         this.deps.legalScan !== undefined &&
         parsed.parts.every((part) => part.type === 'text')
       )
-        return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
+        return await this.runLegalScan(this.deps.legalScan, typed === '/legal')
       const [part] = parsed.parts
       isCompact =
         parsed.parts.length === 1 &&
@@ -1772,31 +1924,7 @@ class AcpSession {
             sessionUpdate: 'agent_message_chunk',
             content: {
               type: 'text',
-              text: compactReference([
-                ACP_COMPACT_COMMAND,
-                ...(this.deps.legalScan === undefined ? [] : ['legal']),
-                ...(this.deps.usage === undefined ? [] : ['usage']),
-                ...(this.deps.media === undefined || this.deps.options.isHeadless === true
-                  ? []
-                  : ['attach', 'record']),
-                ...this.skills
-                  .map((skill) => skill.selector)
-                  .filter(
-                    (name) =>
-                      ![
-                        'answer',
-                        'questions',
-                        'share',
-                        'prompt',
-                        'agents',
-                        'attach',
-                        'record',
-                      ].includes(name),
-                  ),
-                'agents',
-                ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
-                ...(this.deps.sharing?.commands().map((command) => command.name) ?? []),
-              ]),
+              text: compactReference(this.availableCommands().map((command) => command.name)),
             },
           })
         await this.outbox
@@ -1812,11 +1940,13 @@ class AcpSession {
         },
       )
       if (local === undefined) await this.announceCommands()
-      if (/^\/schedule(?:\s|$)/.test(parsed.displayText)) {
+      if (/^\/schedule(?:\s|$)/.test(typed)) {
         const result =
-          this.deps.schedules === undefined || !this.isScheduleHostAvailable
+          this.deps.schedules === undefined ||
+          this.deps.schedules.isAvailable === false ||
+          !this.isScheduleHostAvailable
             ? UI_TEXT.scheduleV2.runtime.unavailable
-            : await this.deps.schedules.run(parsed.displayText, {
+            : await this.deps.schedules.run(typed, {
                 cwd: this.cwd,
                 sessionId: this.sessionId,
                 backend: this.deps.backend.kind,
@@ -1828,8 +1958,7 @@ class AcpSession {
         await this.outbox
         return 'end_turn'
       }
-      const first = parsed.parts[0]
-      if (first?.type === 'text' && /^\/accounts(?:\s|$)/.test(first.text)) {
+      if (/^\/accounts(?:\s|$)/.test(typed)) {
         if (this.accounts === undefined)
           throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
         if (parsed.parts.length !== 1)
@@ -1837,7 +1966,7 @@ class AcpSession {
         let text: string | undefined
         try {
           text = await this.accounts.command(
-            first.text,
+            typed,
             () => !this.isDisposed && !preparing.isCancelled && !('error' in preparing),
           )
         } catch (error) {
@@ -2066,6 +2195,7 @@ class AcpSession {
   }
 
   public async holdSchedules(): Promise<void> {
+    if (this.deps.schedules?.isAvailable === false) return
     try {
       const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
       if (this.isDisposed) await release?.()
@@ -2156,14 +2286,25 @@ class AcpSession {
 
 /** The agent's state across the connection: the client's capabilities and the live sessions. */
 class AgentState {
-  private readonly registry: ControllerRegistry<AcpSession>
+  private readonly sessions = new Map<string, AcpSession>()
+  /**
+   * The model and effort the editor chose per session: a load after the
+   * backend restarted re-applies them and reads them back, so the session
+   * keeps running on the chosen model instead of the CLI's default.
+   */
+  private readonly choices = new Map<string, { modelId: string; effort: EffortLevel }>()
+  /** Sessions being set up (`adopt`), by id: a newer load or a close lets them go too. */
+  private readonly adopting = new Map<string, AcpSession>()
+  private readonly claims = new Map<string, SessionClaim>()
+  /** Modes clients set (`session/set_mode`): a later load keeps them, not the initial mode. */
+  private readonly sessionModes = new Map<string, PermissionMode>()
+  /** Remains visible even when the session is no longer available for requests. */
+  private readonly releasing = new Map<string, Promise<unknown>>()
+  private readonly watchedHosts = new WeakSet<AgentHost>()
+  private readonly exitedHosts = new WeakSet<AgentHost>()
   private clientCapabilities: ClientCapabilities = {}
 
-  public constructor(private readonly deps: AcpAgentDeps) {
-    this.registry =
-      deps.controllers ??
-      new ControllerRegistry(deps.log, (id) => RequestError.resourceNotFound(id))
-  }
+  public constructor(private readonly deps: AcpAgentDeps) {}
 
   /**
    * The sign-in: run by the client in a terminal where it can (the spec
@@ -2201,7 +2342,7 @@ class AgentState {
     }
     await this.requireReady()
     const host = await this.deps.backend.hostFor(cwd)
-    this.registry.watch(host)
+    this.watch(host)
     const listed = await host.listModels()
     const models = this.deps.options.allowsContributorModels
       ? listed
@@ -2223,38 +2364,134 @@ class AgentState {
     cwd: string,
     client: AgentContext,
     models: readonly ModelSummary[],
-    claim: ControllerClaim,
+    claim: SessionClaim,
     prepare: (acp: AcpSession) => Promise<void>,
     isImported = false,
     activeTurnId?: string,
   ): Promise<AcpSession> {
-    return await this.registry.adopt(
-      host,
-      session,
-      claim,
-      () =>
-        new AcpSession(
-          session,
-          host,
-          cwd,
-          client,
-          this.clientCapabilities,
-          models,
-          this.deps,
-          isImported
-            ? untrustedStartMode(this.deps.options.initialMode, this.deps.options.initialMode)
-            : this.deps.options.initialMode,
-          session.modelId,
-          activeTurnId,
-        ),
-      async (acp) => {
-        await acp.loadQuestions()
-        await acp.holdSchedules()
-        await acp.prepareConversation()
-        await prepare(acp)
-        await acp.startAccounts()
-      },
+    // A session loaded again replaces the one held, and one still being set
+    // up by an earlier load, before anything runs on it: both hosts hand
+    // back a session they hold, retained, so they would share it. Those stop
+    // following it and answering at once (`release`); if this load then
+    // fails, nothing is held for that id and the editor loads it again.
+    const { sessionId } = session
+    let acp: AcpSession | undefined
+    try {
+      this.ensureClaim(claim, host)
+      // One shared barrier survives removal from the request maps. The
+      // latest request alone can attach after the old turn is stopped.
+      await this.releaseAll(sessionId)
+      this.ensureClaim(claim, host)
+      acp = new AcpSession(
+        session,
+        host,
+        cwd,
+        client,
+        this.clientCapabilities,
+        models,
+        this.deps,
+        adoptedMode(this.sessionModes.get(sessionId), this.deps.options.initialMode, isImported),
+        session.modelId,
+        activeTurnId,
+        () => {
+          // A replaced or released surface cannot overwrite its successor.
+          if (
+            acp !== undefined &&
+            !acp.isReleased &&
+            (this.sessions.get(sessionId) === acp || this.adopting.get(sessionId) === acp)
+          ) {
+            this.choices.set(sessionId, acp.currentChoice())
+          }
+        },
+      )
+      this.adopting.set(sessionId, acp)
+      await acp.loadQuestions()
+      await acp.holdSchedules()
+      // M104 (D84): the ACP session joins the shared controller, so the
+      // panel in every editor shows the same session.
+      await acp.prepareConversation()
+      await prepare(acp)
+      await acp.startAccounts()
+      this.ensureClaim(claim, host)
+      if (acp.isReleased) {
+        // A newer load of this session, or a close, let it go meanwhile.
+        throw RequestError.resourceNotFound(sessionId)
+      }
+    } catch (error: unknown) {
+      if (acp === undefined) {
+        session.dispose()
+      } else {
+        await acp.release()
+      }
+      if (this.claims.get(sessionId) === claim) {
+        this.claims.delete(sessionId)
+      }
+      throw error
+    } finally {
+      if (this.adopting.get(sessionId) === acp) {
+        this.adopting.delete(sessionId)
+      }
+    }
+    this.sessions.set(sessionId, acp)
+    return acp
+  }
+
+  private claimSession(sessionId: string): SessionClaim {
+    const claim = { sessionId }
+    this.claims.set(sessionId, claim)
+    return claim
+  }
+
+  private ensureClaim(claim: SessionClaim, host: AgentHost): void {
+    if (this.claims.get(claim.sessionId) !== claim || this.exitedHosts.has(host)) {
+      throw RequestError.resourceNotFound(claim.sessionId)
+    }
+  }
+
+  /**
+   * Lets go of the session held for `sessionId` and one being set up, so no
+   * request finds either; resolves once each has stopped its turn and let
+   * its backend session go. False when there was neither.
+   */
+  private async releaseAll(sessionId: string): Promise<boolean> {
+    const found = [this.sessions.get(sessionId), this.adopting.get(sessionId)].filter(
+      (acp) => acp !== undefined,
     )
+    this.sessions.delete(sessionId)
+    this.adopting.delete(sessionId)
+    const previous = this.releasing.get(sessionId)
+    if (previous === undefined && found.length === 0) {
+      return false
+    }
+    const released = Promise.all([previous, ...found.map((acp) => acp.release())])
+    this.releasing.set(sessionId, released)
+    try {
+      await released
+    } finally {
+      if (this.releasing.get(sessionId) === released) {
+        this.releasing.delete(sessionId)
+      }
+    }
+    return true
+  }
+
+  private watch(host: AgentHost): void {
+    if (this.watchedHosts.has(host)) {
+      return
+    }
+    this.watchedHosts.add(host)
+    host.onExit((exit) => {
+      this.exitedHosts.add(host)
+      this.deps.log.warn(`The ${host.info.kind} backend stopped: ${exit.description}`)
+      for (const [sessionId, acp] of [...this.sessions, ...this.adopting]) {
+        if (acp.host !== host) {
+          continue
+        }
+        acp.hostExited(exit.description)
+        this.claims.delete(sessionId)
+        void this.releaseAll(sessionId)
+      }
+    })
   }
 
   /**
@@ -2338,10 +2575,12 @@ class AgentState {
       ...(mcpServers !== undefined && { mcpServers }),
     })
     // The mode and model went with the start; the effort is set here.
-    const claim = this.registry.claimSession(session.sessionId)
+    const claim = this.claimSession(session.sessionId)
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
       started.applyEffort(DEFAULT_EFFORT),
     )
+    // Keep what the editor is shown, including backend events during setup.
+    this.choices.set(session.sessionId, acp.currentChoice())
     return { sessionId: session.sessionId, modes: acp.modes(), configOptions: acp.configOptions() }
   }
 
@@ -2354,10 +2593,10 @@ class AgentState {
   ) {
     // Claimed before backend I/O: a slow older resume cannot replace a
     // newer request, and a close can invalidate one still loading.
-    const claim = this.registry.claimSession(sessionId)
+    const claim = this.claimSession(sessionId)
     try {
       const { host, models } = await this.openHost(cwd)
-      this.registry.ensureClaim(claim, host)
+      this.ensureClaim(claim, host)
       const loaded = await host.resumeSession(
         sessionId,
         startingModel(models),
@@ -2367,7 +2606,10 @@ class AgentState {
       // which may differ from what the editor is told (a more permissive mode,
       // a hidden model): they are set before anything is replayed, as the
       // panel sets its own on a resume. Nothing is shown that does not run:
-      // if the backend refuses, the load fails instead.
+      // if the backend refuses, the load fails instead. Where the editor
+      // chose a model and effort in this process, that choice is applied and
+      // read back first, so a restart keeps running on it.
+      const remembered = this.choices.get(sessionId)
       const acp = await this.adopt(
         host,
         loaded.session,
@@ -2376,7 +2618,11 @@ class AgentState {
         models,
         claim,
         async (resumed) => {
-          await resumed.matchAdvertised()
+          if (remembered === undefined) {
+            await resumed.matchAdvertised()
+          } else {
+            await resumed.restoreChoice(remembered.modelId, remembered.effort)
+          }
           if (!isReplayed) {
             return
           }
@@ -2386,9 +2632,12 @@ class AgentState {
         loaded.record.imported === true,
         loaded.activeTurnId,
       )
+      this.choices.set(sessionId, acp.currentChoice())
       return { modes: acp.modes(), configOptions: acp.configOptions() }
     } catch (error: unknown) {
-      this.registry.abandonClaim(claim)
+      if (this.claims.get(sessionId) === claim) {
+        this.claims.delete(sessionId)
+      }
       throw error
     }
   }
@@ -2425,12 +2674,33 @@ class AgentState {
 
   /** The session held under this id, if any (none while it is being set up). */
   public held(sessionId: string): AcpSession | undefined {
-    return this.registry.held(sessionId)
+    return this.sessions.get(sessionId)
+  }
+
+  /** The mode the client set for a session, kept across later loads. */
+  public async setSessionMode(sessionId: string, modeId: string): Promise<void> {
+    const session = this.session(sessionId)
+    await session.setMode(modeId)
+    this.sessionModes.set(sessionId, session.permissionMode)
+  }
+
+  /** Remember the editor's latest model/effort choice for a later load. */
+  public noteChoice(sessionId: string): void {
+    const held = this.sessions.get(sessionId)
+    if (held !== undefined) {
+      this.choices.set(sessionId, held.currentChoice())
+    }
   }
 
   /** The editor closes a session: the one held, or one still being set up. */
   public async closeSession(sessionId: string): Promise<void> {
-    await this.registry.closeSession(sessionId)
+    const wasClaimed = this.claims.delete(sessionId)
+    // Close releases the live handle, not history or the client's selected mode.
+    const wasReleased = await this.releaseAll(sessionId)
+    this.choices.delete(sessionId)
+    if (!wasClaimed && !wasReleased) {
+      throw RequestError.resourceNotFound(sessionId)
+    }
   }
 
   /** A paid use asked in the session it is for; one the agent does not hold is denied (M58). */
@@ -2439,7 +2709,7 @@ class AgentState {
     request: PaidUseRequest,
     canRemember: boolean,
   ): Promise<PaidUseAnswer> {
-    const acp = this.registry.held(sessionId)
+    const acp = this.held(sessionId)
     if (acp === undefined) {
       this.deps.log.warn(
         `Paid use of ${request.feature}: no editor session ${sessionId} to ask in, so it is denied`,
@@ -2453,7 +2723,7 @@ class AgentState {
     sessionId: string,
     request: VaultApprovalRequest,
   ): Promise<VaultApprovalAnswer> {
-    const session = this.registry.held(sessionId)
+    const session = this.held(sessionId)
     return session === undefined
       ? { requestId: request.id, digest: request.digest, decision: 'deny' }
       : await session.askVaultUse(request)
@@ -2495,12 +2765,13 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
       return {}
     })
     .onRequest('session/set_mode', async (context) => {
-      await state.session(context.params.sessionId).setMode(context.params.modeId)
+      await state.setSessionMode(context.params.sessionId, context.params.modeId)
       return {}
     })
     .onRequest('session/set_config_option', async (context) => {
       const session = state.session(context.params.sessionId)
       await session.setConfigOption(context.params.configId, context.params.value)
+      state.noteChoice(context.params.sessionId)
       return { configOptions: session.configOptions() }
     })
     .onRequest('session/prompt', async (context) => ({

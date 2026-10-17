@@ -67,7 +67,7 @@ export function createRuntimeTab(deps: RuntimeTabDeps, table: UiText, locale: st
     onUsage: () => {
       // The stream below records usage with its settled immutable tariff.
     },
-    stream: async function* (body, signal, retries, trigger) {
+    stream: async function* (body, signal, retries, admit) {
       check(body.model)
       const price = deps.price(body, 'tab', undefined, lifetime.signal)
       if (!price?.isCurrent()) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
@@ -85,7 +85,8 @@ export function createRuntimeTab(deps: RuntimeTabDeps, table: UiText, locale: st
       let usage: BillableUsage | undefined
       const beforeSend = () => {
         if (dispatch.isSent) throw new Error(UI_TEXT.paidDailyStopped)
-        if (trigger?.isCancelled()) throw new Error(UI_TEXT.paidDailyStopped)
+        // The engine's final gate: a cancelled trigger sends nothing.
+        admit.check?.()
         check(body.model)
         claim.check(deps.budget.capUsd())
       }

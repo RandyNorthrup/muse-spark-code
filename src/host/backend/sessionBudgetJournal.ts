@@ -23,14 +23,20 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { Usd, maxUsd, usdAmountSchema, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
+import {
+  Usd,
+  maxUsd,
+  usdAmountSchema,
+  legacyUsdSchema as sharedLegacyUsdSchema,
+  type UsdAmount,
+} from '../../shared/usd'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from './storeErrors'
 
 /** Shared daily record fields; callers keep their existing unknown-field policy. */
 export const paidDailyLimitSchema = /* @__PURE__ */ (() =>
   z.object({
-    limitUsd: legacyUsdSchema.check(
+    limitUsd: sharedLegacyUsdSchema.check(
       z.refine(
         (amount) =>
           Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) >= 0 &&
@@ -58,16 +64,26 @@ const SEED_FILE = 'seed.json'
 const CLAIM_FILE = 'claim.json'
 const MISSING = 'ENOENT'
 const EXISTS = 'EEXIST'
+// Windows answers `mkdir` with EPERM, not EEXIST, while the directory of that
+// name is still being removed by its last holder (measured on Windows 11,
+// Node 24, 2026-10-12: two holders taking and releasing one lock directory,
+// 494 EPERM beside 6,119 EEXIST in 6,000 takes; `rmdir` never failed).
+const BEING_REMOVED_ON_WINDOWS = 'EPERM'
 const SESSION_ID = /^[A-Za-z0-9_-]+$/
 const ACCOUNT_ID = /^[a-f0-9]{64}$/
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/
 
+// Version 1 stored JSON numbers; each reads as its exact decimal text (M121).
+const legacyUsdSchema = z.pipe(
+  z.number().check(z.nonnegative()),
+  z.transform((amount) => Usd.from(amount).toString()),
+)
 const legacySeedSchema = z.object({
   version: z.literal(1),
   scopeId: z.string().check(z.regex(UUID)),
   sessionId: z.string().check(z.regex(SESSION_ID)),
   accountId: z.string().check(z.regex(ACCOUNT_ID)),
-  spentUsd: z.number().check(z.nonnegative()),
+  spentUsd: legacyUsdSchema,
   hasUnknownHistoricalFees: z.boolean(),
 })
 const usdSchema = z.string().check(z.regex(/^\d+(?:\.\d+)?$/))
@@ -92,9 +108,9 @@ const legacyClaimSchema = z.object({
   ownerId: z.string().check(z.regex(UUID)),
   sessionId: z.string().check(z.regex(SESSION_ID)),
   accountId: z.string().check(z.regex(ACCOUNT_ID)),
-  reservedUsd: z.number().check(z.nonnegative()),
-  settledUsd: z.optional(z.number().check(z.nonnegative())),
-  retainedUsd: z.optional(z.number().check(z.nonnegative())),
+  reservedUsd: legacyUsdSchema,
+  settledUsd: z.optional(legacyUsdSchema),
+  retainedUsd: z.optional(legacyUsdSchema),
   hasUnknownCost: z.optional(z.boolean()),
   isUnbounded: z.optional(z.boolean()),
 })
@@ -175,6 +191,19 @@ interface Scope {
 
 function unavailable(cause?: unknown): Error {
   return new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause })
+}
+
+/**
+ * Whether `mkdir`'s refusal says the reservation lock is held right now, so
+ * the caller waits for it within its bound: the name exists, or, on Windows,
+ * its last holder is still removing it. Anything else is a failure of the
+ * store and is reported at once.
+ */
+export function isReservationLockHeld(
+  code: string | undefined,
+  platform: NodeJS.Platform,
+): boolean {
+  return code === EXISTS || (platform === 'win32' && code === BEING_REMOVED_ON_WINDOWS)
 }
 
 function assertCost(costUsd: UsdAmount): void {
@@ -574,17 +603,22 @@ export function createSessionBudgetJournal(
     const lock = `${scope.intent}.lock`
     await mkdir(path.dirname(lock), { recursive: true })
     let hasLock = false
+    let lastRefusal: unknown
     for (let attempt = 0; attempt < DAILY_BUDGET_LOCK_ATTEMPTS; attempt += 1) {
       try {
         await mkdir(lock)
         hasLock = true
         break
       } catch (error: unknown) {
-        if (storeErrorCode(error) !== EXISTS) throw unavailable(error)
+        if (!isReservationLockHeld(storeErrorCode(error), process.platform)) {
+          throw unavailable(error)
+        }
+        lastRefusal = error
         await deps.sleep(DAILY_BUDGET_LOCK_WAIT_MS)
       }
     }
-    if (!hasLock) throw unavailable()
+    // The wait is over and the lock is still refused: the last answer says why.
+    if (!hasLock) throw unavailable(lastRefusal)
     try {
       return await operation()
     } finally {

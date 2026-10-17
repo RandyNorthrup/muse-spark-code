@@ -111,10 +111,10 @@ export type ProviderKey = z.infer<typeof providerKeySchema>
 
 /** OpenRouter's key usage, limit and remainder, in USD. */
 export const providerKeyUsageSchema = z.strictObject({
-  dayUsd: z.optional(z.number()),
-  monthUsd: z.optional(z.number()),
-  limitUsd: z.optional(z.number()),
-  remainingUsd: z.optional(z.number()),
+  dayUsd: z.optional(legacyUsdSchema),
+  monthUsd: z.optional(legacyUsdSchema),
+  limitUsd: z.optional(legacyUsdSchema),
+  remainingUsd: z.optional(legacyUsdSchema),
 })
 export type ProviderKeyUsage = z.infer<typeof providerKeyUsageSchema>
 
@@ -837,10 +837,12 @@ export const runnersMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('runners/testAll') }),
 ])
 export type RunnersMessage = z.infer<typeof runnersMessageSchema>
+/** @unwired M96c team traffic host message */
 export const trafficHostMessageSchema = z.strictObject({
   type: z.literal('traffic/state'),
   state: trafficSliceSchema,
 })
+/** @unwired M96c team runners host message */
 export const runnersHostMessageSchema = z.strictObject({
   type: z.literal('runners/state'),
   state: runnersSliceSchema,
