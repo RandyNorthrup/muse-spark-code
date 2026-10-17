@@ -25,8 +25,16 @@ history from PLAN.md").
 
 ## The owner's standing rules
 
-These bind every agent and every change. They come first; a line elsewhere in
-this file or in PLAN.md that disagrees loses.
+Two kinds, kept apart on purpose. A line elsewhere in this file or in PLAN.md
+that disagrees with either loses.
+
+### How we work on this repository (never build these into the product)
+
+These bind every agent working here. They describe how we build, test, merge
+and run our own jobs. They are not features of Muse Spark Code: never turn
+them into app behaviour, settings, skills, prompts or limits. (2026-10-17: the
+orchestrator "playbook" baked this project's own method into the app, and it
+had to come out.)
 
 - **Only real, finished work.** No stubs, fakes, TODO or FIXME, temporary
   code, fallbacks to legacy code, workarounds or dead code, in the product, the
@@ -46,27 +54,9 @@ this file or in PLAN.md that disagrees loses.
   captured it. A test that only checks that some text, key or file exists is
   not a test. When only a real run proves something (hosted CI, the packed
   product, a real provider call at release), the real run is the proof.
-- **Limits (2026-10-16, 2026-10-17).** The only hard-coded limits are each
-  provider's own, per provider and per model ("the limits we set on our agents
-  hardcoded are **ONLY** the limit set from the providers"). Every other limit
-  or threshold is one the person sets in the app, none by default: per agent
-  or role (the model role settings), per team, and for their machine's
-  resources ("the limits are supposed to be setable in the app to prevent
-  overconsumption or use"). Caps used to run this project's own work never go
-  into the repository. No time box, turn cap or tool cap of ours stops a job
-  mid-run.
-- **Every cap the person sets is static or dynamic, and a cap that fires
-  notifies the orchestrator (2026-10-17).** The owner: "the caps should be
-  dynamic and static ie if we set a dynamic cap lets say 80 perct cpu cap that
-  should allow as many agents as the role limits allow up until it hits the
-  cpu cap when this cap is triggered the orchistrator should get a
-  notification so it can assess what needs to be done if jobs should be paused
-  or moved etc, and this should be true for all of the different caps and
-  restrictions that can be set by the user". A static cap is a fixed ceiling
-  ("dont use more than this many agents"). A dynamic cap on a live reading
-  fires only when the reading stays over its threshold for the duration the
-  person set with it ("you dont want to trigger a stop for like breif
-  spikes"), and clears only when it stays back under.
+- **Our own job caps stay ours.** Caps used to run this project's own work
+  never go into the repository, and no time box, turn cap or tool cap of ours
+  stops a job mid-run.
 - **Every job through our own app.** Coding and review jobs run through Muse
   Spark Code itself, so its gaps show; a gap found that way is fixed in the
   product.
@@ -94,6 +84,42 @@ this file or in PLAN.md that disagrees loses.
   everything else i have not mentioned or thought of". It covers every case
   the owner did not name and every case nobody has thought of yet. Never read
   it as a short list.
+
+### What the app must do (product rules; their decisions are in PLAN.md)
+
+These are the owner's decisions about how Muse Spark Code behaves. Build them
+into the product as code, exactly as stated, and nothing from the section
+above.
+
+- **Limits (2026-10-16, 2026-10-17).** The only hard-coded limits are each
+  provider's own, per provider and per model, from the model's capability
+  record ("the limits we set on our agents hardcoded are **ONLY** the limit
+  set from the providers"). Every other limit or threshold is one the person
+  sets in the app, none by default: per agent or role (the model role
+  settings), per team, and for their machine's resources ("the limits are
+  supposed to be setable in the app to prevent overconsumption or use").
+- **Every cap the person sets is static or dynamic, and a cap that fires
+  notifies the orchestrator (2026-10-17).** The owner: "the caps should be
+  dynamic and static ie if we set a dynamic cap lets say 80 perct cpu cap that
+  should allow as many agents as the role limits allow up until it hits the
+  cpu cap when this cap is triggered the orchistrator should get a
+  notification so it can assess what needs to be done if jobs should be paused
+  or moved etc, and this should be true for all of the different caps and
+  restrictions that can be set by the user". A static cap is a fixed ceiling
+  ("dont use more than this many agents"). A dynamic cap on a live reading
+  fires only when the reading stays over its threshold for the duration the
+  person set with it ("you dont want to trigger a stop for like breif
+  spikes"), and clears only when it stays back under.
+- **A role gets everything its model's platform provides (2026-10-17).** When
+  a model is selected for a role, the role offers every feature that model's
+  platform provides, and the person can set custom limits per agent and per
+  team. Each role has meaningful instructions, and is applied and enforced in
+  code.
+- **Orchestration rules are code on the orchestrator role (2026-10-17, D200).**
+  The rules that prevent failures and duplicates, and that make the
+  orchestrator watch every agent, are enforced by the harness in code on the
+  orchestrator role only. They are never a playbook, a skill, a suggestion or
+  a document.
 
 ## Working rules
 
