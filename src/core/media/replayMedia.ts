@@ -191,9 +191,13 @@ export class ReplayMedia {
     return this.managed(input).filter((part) => this.parts.get(part)?.delivered !== true)
   }
 
-  public assertPendingFits(content: readonly InputContentPart[], budget: MediaBudget): void {
+  public assertPendingFits(
+    content: readonly InputContentPart[],
+    budget: MediaBudget,
+    queuedSlots = 0,
+  ): void {
     try {
-      budget.assertMessageFits(content)
+      budget.assertMessageFits(content, queuedSlots)
     } catch (error) {
       const names = new Set(
         content.flatMap((part) => {

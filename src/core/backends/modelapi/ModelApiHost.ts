@@ -7803,7 +7803,10 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private canQueueSteeredMedia(parts: readonly TurnPart[]): boolean {
     if (this.media !== undefined) {
-      this.media.assertPendingFits(this.contentParts(parts), this.budget)
+      // The steered media must fit beside what is already queued for the
+      // next request, not only on its own (RVNOLIMITS4: the aggregate
+      // character tally went, the provider's slot count stays).
+      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaSlots())
       return true
     }
     let slots = 0
