@@ -232,7 +232,7 @@ describe('new notifications', () => {
     // recap/completed was recorded (providerFailed on echo); computer-use
     // setup has no surface in this product. Both stay UNKNOWN_METHOD until
     // an owner decision gives them one (docs/certification/muse-code-latest.md).
-    for (const params of fixture('note-recap-completed-1.4.9.json') as unknown[]) {
+    for (const params of fixture('note-recap-completed-1.4.9.json') as Record<string, unknown>[]) {
       expect(mapNotification({ method: 'recap/completed', params })).toBe(UNKNOWN_METHOD)
     }
     expect(mapNotification({ method: 'computerUseSetup/changed', params: { state: {} } })).toBe(
@@ -240,7 +240,10 @@ describe('new notifications', () => {
     )
   })
   it('keeps the recorded branch observation unmapped until a surface shows it', () => {
-    for (const params of fixture('note-session-branchChanged-1.4.9.json') as unknown[]) {
+    for (const params of fixture('note-session-branchChanged-1.4.9.json') as Record<
+      string,
+      unknown
+    >[]) {
       expect(mapNotification({ method: 'session/branchChanged', params })).toBe(UNKNOWN_METHOD)
     }
   })
