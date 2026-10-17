@@ -1,10 +1,7 @@
 // Shared rig for the lane M98-S adapter suites: a settling spy over lane J's
-// entry store, exact-action entry starts, a settle waiter, one judge call
-// that waits for its settle, and tracked temporary roots. Test-only.
+// entry store, exact-action entry starts, a settle waiter, and one judge call
+// that waits for its settle. Test-only.
 
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
 import { JudgeEntryStore, type JudgeEntryHandle } from '../../../src/core/judge/entries'
 import type { JudgeQuestion } from '../../../src/core/judge/judge'
 
@@ -86,31 +83,4 @@ export async function judgeAgain(
 ): Promise<void> {
   judge.judge(job)
   await new Promise((resolve) => setTimeout(resolve, 50))
-}
-
-export interface TrackedTempRoots {
-  readonly removed: string[]
-  readonly makeTempRoot: () => Promise<string>
-  readonly removeTempRoot: (root: string) => Promise<void>
-}
-
-/**
- * Temporary roots the suite deletes afterwards: created folders join
- * `folders` for the file's `afterAll`, removed ones join `removed`.
- */
-export function trackTempRoots(folders: string[]): TrackedTempRoots {
-  const removed: string[] = []
-  return {
-    removed,
-    makeTempRoot: () => {
-      const folder = mkdtempSync(path.join(tmpdir(), 'muse-judge-'))
-      folders.push(folder)
-      return Promise.resolve(folder)
-    },
-    removeTempRoot: (root) => {
-      removed.push(root)
-      rmSync(root, { recursive: true, force: true })
-      return Promise.resolve()
-    },
-  }
 }

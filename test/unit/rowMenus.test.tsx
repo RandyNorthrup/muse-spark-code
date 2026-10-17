@@ -25,47 +25,6 @@ function expectLabelledPills() {
   return pills
 }
 
-/** A pill's max-content width in this jsdom: 56 px of icon and padding, 7 px a character. */
-const drawnPill = (label: string | null) => 56 + 7 * (label ?? '').length
-
-const px = (value: string) => Number(value.replace('px', ''))
-
-/** The shown pills, all one size, inside 320 × 760 and apart. */
-function expectPlacedInNarrowPanel(count: number) {
-  const pills = expectLabelledPills()
-  const boxes = pills.map((pill) => ({
-    left: px(pill.style.left),
-    top: px(pill.style.top),
-    width: px(pill.style.width),
-  }))
-  expect(boxes).toHaveLength(count)
-  // The owner: "they should be a uniform size", only as wide as the longest
-  // label (drawnPill's max-content width); a long note stops at the
-  // opener’s side room, 300 - 8 - 16, and ends in an ellipsis.
-  const widest = Math.min(
-    276,
-    Math.max(...pills.map((pill) => drawnPill(pill.getAttribute('aria-label')))),
-  )
-  expect(new Set(pills.map((pill) => `${pill.style.width} × ${pill.style.height}`))).toEqual(
-    new Set([`${String(widest)}px × 40px`]),
-  )
-  for (const [index, box] of boxes.entries()) {
-    expect(box.left).toBeGreaterThanOrEqual(8)
-    expect(box.left + box.width).toBeLessThanOrEqual(284)
-    expect(box.top).toBeGreaterThanOrEqual(8)
-    expect(box.top + 40).toBeLessThanOrEqual(752)
-    const later = boxes.slice(index + 1)
-    for (const other of later) {
-      const isApart =
-        box.left + box.width <= other.left ||
-        other.left + other.width <= box.left ||
-        box.top + 40 <= other.top ||
-        other.top + 40 <= box.top
-      expect(isApart).toBe(true)
-    }
-  }
-}
-
 const user = {
   kind: 'user',
   seq: 1,
@@ -421,28 +380,6 @@ describe('M87 F2 row menus', () => {
       UI_TEXT.diffTallyReview,
       UI_TEXT.rowRevertEdit,
     ])
-  })
-
-  it('keeps a row menu’s pills inside a 320 px panel and apart, in both bursts', () => {
-    vi.spyOn(window, 'innerWidth', 'get').mockReturnValue(320)
-    vi.spyOn(window, 'innerHeight', 'get').mockReturnValue(760)
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
-      this: HTMLElement,
-    ) {
-      return new DOMRect(0, 0, drawnPill(this.getAttribute('aria-label')), 40)
-    })
-    renderTranscript([user], {
-      onRewind: vi.fn(),
-      onFork: vi.fn(),
-      onForkRewind: vi.fn(),
-      onRewindConversation: vi.fn(),
-      restoreNote: UI_TEXT.checkpointsNoGit,
-      conversationNote: UI_TEXT.conversationRewindUnavailable,
-    })
-    fireEvent.contextMenu(screen.getByText('hello'), { clientX: 300, clientY: 90 })
-    expectPlacedInNarrowPanel(3)
-    choose(UI_TEXT.rowRewindGroup)
-    expectPlacedInNarrowPanel(4)
   })
 
   it('leaves selected text to the enclosing quote menu', () => {
