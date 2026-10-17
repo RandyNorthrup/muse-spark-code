@@ -272,8 +272,9 @@ export default tseslint.config(
 
   {
     // Test files: assertions and non-null access are idiomatic there, and the
-    // expected values in an assertion *are* the meaning.
-    files: ['test/**/*.{ts,tsx}'],
+    // expected values in an assertion *are* the meaning. Plain-JS tests
+    // (.mjs) are covered too: the marketplace-hook KV double lived in one.
+    files: ['test/**/*.{ts,tsx,mjs}'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
@@ -316,6 +317,20 @@ export default tseslint.config(
             'MemberExpression[property.name=/^mock(Return(Value|This)|ResolvedValue|RejectedValue|Implementation|Clear|Reset|Restore)(Once)?$/]',
           message:
             'A mock function is a stand-in. Test the real code (AGENTS.md: no fakes in tests).',
+        },
+        {
+          // Lane STANDINS: the packaging loader's vscode trap is the only
+          // `new Proxy` in test/, kept as documented load isolation
+          // (test/packaging/moduleExports.test.mjs header, PLAN.md §8).
+          selector: "NewExpression[callee.name='Proxy']",
+          message:
+            'A Proxy that answers property reads is a module-surface stand-in. Test the real code (AGENTS.md: no fakes in tests).',
+        },
+        {
+          selector:
+            'AssignmentExpression[left.object.name="Module"][left.property.name=/^(_load|_resolveFilename)$/]',
+          message:
+            'Intercepting the module loader is a stand-in. Test the real code (AGENTS.md: no fakes in tests).',
         },
       ],
       'no-restricted-imports': [

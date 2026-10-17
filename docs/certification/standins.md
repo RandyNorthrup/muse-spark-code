@@ -50,11 +50,15 @@ editor API or a store. Stand-ins are named with what they pretend to be.
   `store: PromptStoragePort` (`list`/`write`/`remove`) pretends to be the
   prompt store. Fixable by inlining the arrays into `mergePromptScopes`.
 - `test/unit/helpers/manualClock.ts` — STAND-IN helper (see teamResources).
-- `test/unit/helpers/vault/windowsVaultMemoryHello.cs` — self-described
-  "Test-only WinRT stand-ins" for the OS credential store. Zero references
-  in test/src/scripts: orphaned. Delete with no claim withdrawn.
-- `test/unit/helpers/vault/windowsVaultMemoryKsp.cs` — same as above
-  ("The fake persists only in this process"). Orphaned. Delete.
+- `test/unit/helpers/vault/windowsVaultMemoryHello.cs` and
+  `test/unit/helpers/vault/windowsVaultMemoryKsp.cs` — self-described
+  "Test-only WinRT stand-ins" ("The fake persists only in this process").
+  A deletion was attempted and REVERTED: the files are referenced by the
+  sibling `windowsVaultGuardCapture.cs`, which no test on this branch runs
+  either, so the whole native-helper cluster is test-orphaned but
+  interdependent. Left in place: no test uses them (outcome holds), and
+  partial deletion would break the cluster for the vault lane that owns
+  it. No claim withdrawn.
 
 ## REAL (keyword appears, real code driven)
 
@@ -153,6 +157,14 @@ editor API or a store. Stand-ins are named with what they pretend to be.
 
 Delete the STAND-IN cases/files above; for each, record the withdrawn claim
 and its real-use proof step in this file's follow-up section. Rewrite
-`prompts.test.ts` to inline the arrays (no claim withdrawn). Extend the
-no-fakes lint block to `test/**/*.mjs` and add `new Proxy` plus
+`prompts.test.ts` to inline the arrays (no claim withdrawn). The
+`pluginDispatch` 'real children' cases stay: real processes, real plugin
+source, real adapter/dispatcher (the `bun`-named binary is a
+same-capability runtime alias; real Bun is used where installed).
+`teamPreview` keeps its proofs with constant `select` inputs; `teamResources`
+kept cases run on the production `systemClock`. Extend the no-fakes lint
+block to `test/**/*.mjs` and add `new Proxy` plus
 `Module._load`/`_resolveFilename` interception rules with red drills.
+Correction 2026-10-17: `muse.search` skips `.cs` files, so an early
+"zero references" finding for the vault helpers was wrong (grep covers
+all extensions); the files were restored byte-identical.

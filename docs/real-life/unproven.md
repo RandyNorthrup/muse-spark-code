@@ -2849,3 +2849,48 @@ These tests drove real code but through stand-ins (`vi.fn` and mock return value
 - denial, changed preview and live admission loss each prevent publication
 - rechecks admission between patches and reports per-file failures
 - refuses evidence changes during ownership approval
+
+## Lane STANDINS (2026-10-17, branch chore/no-standins)
+
+The hand-written stand-ins the lint gate could not see. Full classification in `docs/certification/standins.md`; per-claim notes in the records named below. Rewritten-without-the-double cases (`teamPreview.test.ts` constant `select`, `teamResources.test.ts` production `systemClock`, `prompts.test.ts` inline arrays) keep their proofs and are not listed here.
+
+### test/e2e/schedulesStdio.e2e.test.ts (one case; the rest of the file stays)
+
+- a committed accepted id survives on stdout while a failing cleanup reports exit 3 without leaking private detail (record: `docs/certification/m115-x.md`)
+
+### test/packaging/moduleExports.test.mjs (four exercise branches; parity proof stays)
+
+- the reviewer's paid-call path through the packaged bundles
+- the session board read through the packaged bundles
+- the report-problem handler through the packaged bundles
+- foreign-hook adapter creation through the packaged bundles (record: `docs/certification/vsix-diet-2.md`)
+
+### test/unit/pluginDispatch.test.ts (two cases; real-children and refusal-path cases stay)
+
+- plugin hooks run under the host-wide cap
+- a grant is stripped from a plugin answer (record: `docs/certification/m91.md`)
+
+### test/unit/marketplaceHook.test.mjs (whole file)
+
+- the purchased-minus-cancelled counter in both badge formats
+- the non-negative floor on unreadable counts
+- the 404/405 answers (record: `docs/certification/badge017.md`)
+
+### test/unit/teamResources.test.ts (twelve time-driven cases; the rest of the file stays on the real clock)
+
+- lease waits and wait/timeout expiry
+- idle release boundaries and idle eviction
+- take-back admission timeout and pending-admission expiry
+- timer shutdown on close
+- replay after replacement (record: `docs/certification/m96-b.md`)
+
+### test/unit/modelApiLegalScan.test.ts (the runner-driven block; definition and unoffered-tool cases stay)
+
+- validated-JSON answers with the installed disclaimer
+- whole-workspace scans and write/exec refusal before the scan runs
+- restricted-mode and stopped-turn pre-checks
+- failure passthrough and invalid-result refusal (record: `docs/certification/m97-b.md`)
+
+### Composition note (no unit proof was ever real)
+
+- the team preview composes with lane A's real selection strategy (the deleted helper was a reduced reimplementation, not the strategy; record: `docs/certification/m96-f.md`)
