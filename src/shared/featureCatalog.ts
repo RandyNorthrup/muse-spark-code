@@ -1170,6 +1170,7 @@ const REFERENCE_DETAILS: Readonly<
   ],
   'team-configuration': ['referenceTeamPoolKeys'],
   estimator: ['estimateCliHelp'],
+  // Includes Muse Code's permission-rule exceptions, shared with localized settings.
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],
