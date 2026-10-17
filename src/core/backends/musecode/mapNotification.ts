@@ -276,12 +276,12 @@ function rawNotification(notification: WireNotification): MapOutcome {
       }
     }
     case 'turn/retryScheduled': {
-      const { sessionId, turnId, attempt, maxAttempts, retryDelayMs, reason } = params as z.infer<
+      const { sessionId, turnId, attempt, retryDelayMs, reason } = params as z.infer<
         (typeof schemas)['turn/retryScheduled']
       >
       return {
         sessionId,
-        event: { type: 'turnRetry', turnId, attempt, maxAttempts, retryDelayMs, reason },
+        event: { type: 'turnRetry', turnId, attempt, retryDelayMs, reason },
       }
     }
     case 'session/tokenUsage': {

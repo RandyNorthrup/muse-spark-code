@@ -91,9 +91,7 @@
   "outputSchemaOutsideAllowed": "正在读取工作区外部的输出架构 (--output-schema-outside)。",
   "outputSchemaLocalValidation": "输出架构验证：本地（所选模型没有结构化输出格式）。",
   "outputSchemaReadFailed": "无法读取输出架构：{detail}",
-  "modelApiPacingTokenLimit": "并行请求超出了为后台任务预留的令牌预算。",
   "modelApiPacingWaiting": "正在等待速率限制内的可用容量…",
-  "modelApiPacingExpired": "等待可用容量的时间已到。请重新发送消息以重试。",
   "modelApiStatusLabel": "Meta API 状态",
   "modelApiStatusUnavailable": "状态不可用",
   "modelApiStatusOpen": "打开服务状态",
@@ -2450,7 +2448,6 @@
   "allowSessionPrefix": "在此会话中始终允许：",
   "reject": "拒绝",
   "modelApiStalled": "Model API 在 {seconds} 秒内没有发送任何内容，因此回复已结束；请再次发送消息以重试",
-  "modelApiRetryAfterTooLong": "提供商要求在重试前等待 {wait} 秒，超过了 {cap} 秒的上限，因此未重试该请求。",
   "queuedTurnDropped": "未发送：“停止”清除了排队的消息",
   "compactionStopped": "压缩已停止",
   "compactionEmpty": "摘要为空；对话未更改。",
@@ -3536,7 +3533,7 @@
   "removeAttachmentNamed": "移除 {name}",
   "announceApprovalFor": "{tool} 需要批准",
   "turnFailed": "本轮失败。",
-  "turnRetrying": "第 {attempt}/{maxAttempts} 次尝试失败（{reason}）；{seconds} 秒后重试。",
+  "turnRetrying": "第 {attempt} 次尝试失败（{reason}）；{seconds} 秒后重试。",
   "usageWindowHours": {
     "other": "{count} 小时时段"
   },

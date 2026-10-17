@@ -11,8 +11,6 @@ import {
 } from './pacing'
 import {
   MODEL_API_BASE_URL,
-  PACING_ADMISSION_TIMEOUT_MS,
-  MODEL_API_MAX_RETRIES,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_STATUS,
   PROVIDER_RETRY_HTTP_STATUS,
@@ -22,7 +20,6 @@ import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
   PROVIDER_HTTP_BODY_MAX_BYTES,
-  MODEL_API_STREAM_IDLE_MS,
   type PaidFeature,
 } from '../../../shared/constants'
 // M95-T: the existing retry/admission loop, shared by Meta and injected codecs.
@@ -55,11 +52,16 @@ import {
   type UsageHeaders,
 } from '../../../shared/usageJournal'
 import type { AuthHeaders, AuthSource } from './authSource'
-import { DeadlineError, withDeadline } from '../../timeouts'
+import { DeadlineError, startStillWaiting, stillWaitingText, withDeadline } from '../../timeouts'
 
 export interface TransportDeps {
   readonly vaultScrub?: SecretScrubPort
   readonly streamIdleMs?: number
+  /**
+   * The still-waiting notice cadence for unnamed waits (a minute unless a
+   * test shortens it); the waits themselves never end at it.
+   */
+  readonly noticeMs?: number
   readonly pacing?: RequestPacer
   readonly pacingOwner?: object
   readonly pacingProvider?: (modelId: string | undefined) => PacingProvider
@@ -331,7 +333,6 @@ export function retryAfterMs(header: string | null, now: number): number | undef
 export interface RetryNotice {
   readonly phase?: 'pacing'
   readonly attempt: number
-  readonly maxAttempts: number
   readonly delayMs: number
   readonly reason: string
 }
@@ -339,10 +340,18 @@ export interface RetryNotice {
 /**
  * The retries one model call has used (the review of PR #28): a stream sent
  * again whole and the HTTP retries inside each of its requests draw on the
- * same MODEL_API_MAX_RETRIES.
+ * same count. No ceiling of our own (owner 2026-10-16): a call that names
+ * none retries until Stop; only a call that names one stops at it.
  */
 export interface RetryBudget {
   retriesUsed: number
+  /** A ceiling this call names; absent, retries end at Stop, never at a count. */
+  readonly maxRetries?: number
+}
+
+/** Whether `budget` still allows the retry numbered `attempt` (0-based). */
+export function canRetryWithinBudget(budget: RetryBudget | undefined, attempt: number): boolean {
+  return attempt < (budget?.maxRetries ?? Infinity)
 }
 
 /** In-memory identity of an explicitly confirmed scheduled Model API run. */
@@ -468,7 +477,10 @@ function isAborted(signal: AbortSignal | undefined): boolean {
 }
 
 /** Rejects as soon as `signal` aborts, instead of sleeping the retry delay out. */
-function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; dispose(): void } {
+export function whenAborted(signal: AbortSignal): {
+  readonly promise: Promise<never>
+  dispose(): void
+} {
   let onAbort: (() => void) | undefined
   const promise = new Promise<never>((_resolve, reject) => {
     onAbort = () => {
@@ -536,12 +548,21 @@ export class RequestTransport {
     }
   }
 
-  /** Bound headers and every body read, without timing local admission, backoff or consumers. */
+  /**
+   * Headers and every body read, without timing local admission, backoff or
+   * consumers. A provider-named idle (`streamIdleMs`) still ends silence at
+   * it; unnamed, the fetch runs until it answers or Stop ends it, saying so
+   * out loud while waiting for the first bytes (owner 2026-10-16).
+   */
   public async fetchWithIdleDeadline(url: string, init: RequestInit): Promise<Response> {
-    const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
-    const stalled = fill(UI_TEXT.modelApiStalled, {
-      seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
-    })
+    const idleMs = this.deps.streamIdleMs
+    // The named idle's sentence; unnamed waits never stall, so never say it.
+    const stalled =
+      idleMs === undefined
+        ? undefined
+        : fill(UI_TEXT.modelApiStalled, {
+            seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
+          })
     const stall = new AbortController()
     const active = AbortSignal.any([
       stall.signal,
@@ -553,19 +574,45 @@ export class RequestTransport {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
       const aborted = whenAborted(active)
+      // No deadline of our own unless the provider names one.
+      if (idleMs === undefined) {
+        try {
+          return await Promise.race([waiting, aborted.promise])
+        } finally {
+          aborted.dispose()
+        }
+      }
       try {
-        return await withDeadline(Promise.race([waiting, aborted.promise]), idleMs, stalled)
+        return await withDeadline(
+          Promise.race([waiting, aborted.promise]),
+          idleMs,
+          stalled ?? 'cancelled',
+        )
       } catch (error: unknown) {
         if (error instanceof DeadlineError) {
           stall.abort()
-          throw new ModelApiError(stalled, NETWORK_FAILURE_STATUS, undefined, undefined)
+          throw new ModelApiError(
+            stalled ?? 'cancelled',
+            NETWORK_FAILURE_STATUS,
+            undefined,
+            undefined,
+          )
         }
         throw error
       } finally {
         aborted.dispose()
       }
     }
-    const response = await within(this.deps.fetch(url, { ...init, signal: active }))
+    // The wait for the first bytes says so while it lasts.
+    const stopNoticing = startStillWaiting((elapsedMs) => {
+      this.deps.log.info(stillWaitingText('the provider answer', elapsedMs))
+    }, this.deps.noticeMs)
+    let response: Response
+    try {
+      response = await within(this.deps.fetch(url, { ...init, signal: active }))
+    } finally {
+      stopNoticing()
+    }
     if (response.body === null) return response
     const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader()
     const cancel = (reason: unknown) => {
@@ -606,14 +653,16 @@ export class RequestTransport {
   public async requestFile(
     route: string,
     method: 'GET' | 'POST' | 'DELETE',
-    signal: AbortSignal,
+    // No deadline of our own (owner 2026-10-16): the caller's signal, if
+    // any, ends it, else the provider's answer or a network failure.
+    signal: AbortSignal | undefined,
     multipart?: { readonly body: ReadableStream<Uint8Array>; readonly contentType: string },
     expectedAccountId?: string,
   ): Promise<Response> {
     if (!/^\/files(?:\?after=file-[A-Za-z0-9_-]+|\/file-[A-Za-z0-9_-]+)?$/u.test(route))
       throw new Error('Invalid Files route')
     const credentials = await this.headers(this.deps.baseUrl)
-    signal.throwIfAborted()
+    signal?.throwIfAborted()
     if (expectedAccountId !== undefined && credentials.keyDigest !== expectedAccountId)
       throw new Error(UI_TEXT.media.filesReadOnly)
     const init: RequestInit & { readonly duplex?: 'half' } = {
@@ -624,11 +673,11 @@ export class RequestTransport {
         ...(multipart !== undefined && { 'Content-Type': multipart.contentType }),
       },
       redirect: 'error',
-      signal,
+      signal: signal ?? null,
       ...(multipart !== undefined && { body: multipart.body, duplex: 'half' }),
     }
     await this.deps.verifyEndpoint?.(`${this.deps.baseUrl}${route}`)
-    signal.throwIfAborted()
+    signal?.throwIfAborted()
     const response = await this.deps.fetch(`${this.deps.baseUrl}${route}`, init)
     if (!response.ok)
       throw await describeFailure(response, this.deps.parseError, credentials.redact)
@@ -656,7 +705,12 @@ export class RequestTransport {
     return credentials.keyDigest
   }
 
-  /** Headers and parsed-event progress have an idle deadline; cancellation owns the reader. */
+  /**
+   * Headers and parsed-event progress have an idle deadline only when the
+   * provider names one (`idleMs`); unnamed, the stream runs until it
+   * finishes or Stop ends it, saying so out loud while silent (owner
+   * 2026-10-16). Cancellation owns the reader.
+   */
   public async streamRequest(
     path: string,
     init: {
@@ -677,14 +731,18 @@ export class RequestTransport {
     budget?: RetryBudget,
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
-    idleMs = MODEL_API_STREAM_IDLE_MS,
+    idleMs?: number,
   ): Promise<TransportStreamResponse> {
     const startedAt = this.deps.now()
     const stall = new AbortController()
     const combined = AbortSignal.any([signal, stall.signal])
-    const message = fill(UI_TEXT.modelApiStalled, {
-      seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
-    })
+    // The named idle's sentence; unnamed waits never stall, so never say it.
+    const message =
+      idleMs === undefined
+        ? undefined
+        : fill(UI_TEXT.modelApiStalled, {
+            seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
+          })
     const result = await this.request(
       path,
       { method: 'POST', ...init },
@@ -707,6 +765,9 @@ export class RequestTransport {
     let hasFirstToken = false
     let isClosed = false
     let idleTimer: ReturnType<typeof setTimeout> | undefined
+    // An unnamed wait says so while silent (owner 2026-10-16): each parsed
+    // event restarts the notice, so only true silence is announced.
+    let stopNoticing: (() => void) | undefined
     const eventParsed = (event?: StreamEvent) => {
       if (
         !hasFirstToken &&
@@ -721,7 +782,14 @@ export class RequestTransport {
         this.observe(admitAttempt, { firstTokenMs: Math.max(0, this.deps.now() - startedAt) })
       }
       clearTimeout(idleTimer)
-      if (!isClosed) {
+      stopNoticing?.()
+      stopNoticing = undefined
+      if (isClosed) return
+      if (idleMs === undefined) {
+        stopNoticing = startStillWaiting((elapsedMs) => {
+          this.deps.log.info(stillWaitingText('the model reply', elapsedMs))
+        }, this.deps.noticeMs)
+      } else {
         idleTimer = setTimeout(() => {
           stall.abort()
         }, idleMs)
@@ -733,6 +801,8 @@ export class RequestTransport {
       }
       isClosed = true
       clearTimeout(idleTimer)
+      stopNoticing?.()
+      stopNoticing = undefined
       combined.removeEventListener('abort', close)
       void reader.cancel().catch(ignoreClosingError)
       reader.releaseLock()
@@ -746,7 +816,12 @@ export class RequestTransport {
           const next = await Promise.race([reader.read(), aborted.promise])
           // Cancellation can close the reader before the abort promise wins the race.
           if (combined.aborted) {
-            throw new ModelApiError(signal.aborted ? 'cancelled' : message, 0, undefined, undefined)
+            throw new ModelApiError(
+              signal.aborted ? 'cancelled' : (message ?? 'cancelled'),
+              0,
+              undefined,
+              undefined,
+            )
           }
           if (next.done) {
             close()
@@ -758,7 +833,14 @@ export class RequestTransport {
           close()
           controller.error(
             combined.aborted && !(error instanceof ModelApiError)
-              ? new ModelApiError(signal.aborted ? 'cancelled' : message, 0, undefined, undefined)
+              ? new ModelApiError(
+                  // Unnamed waits never stall: anything else here is the
+                  // consumer going away, which reads as cancelled.
+                  signal.aborted ? 'cancelled' : (message ?? 'cancelled'),
+                  0,
+                  undefined,
+                  undefined,
+                )
               : redactModelApiError(error, result.redact, response.status),
           )
         } finally {
@@ -782,9 +864,14 @@ export class RequestTransport {
   }
 
   public backoffMs(attempt: number, suggestedMs?: number): number {
+    // The provider's own suggestion is honoured whole, however long: only
+    // our fallback, for a failure that named no wait, grows exponentially
+    // to a ceiling (owner 2026-10-16). Jitter only ever waits longer.
+    if (suggestedMs !== undefined) {
+      return suggestedMs + Math.floor(this.deps.random() * MODEL_API_RETRY_JITTER_MS)
+    }
     const exponential = Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS)
-    const jitter = Math.floor(this.deps.random() * MODEL_API_RETRY_JITTER_MS)
-    return Math.min((suggestedMs ?? exponential) + jitter, MODEL_API_RETRY_MAX_MS)
+    return exponential + Math.floor(this.deps.random() * MODEL_API_RETRY_JITTER_MS)
   }
 
   /**
@@ -846,7 +933,6 @@ export class RequestTransport {
       this.observe(admitAttempt, { retries: attempt + 1 })
       onRetry?.({
         attempt: attempt + 1,
-        maxAttempts: MODEL_API_MAX_RETRIES + 1,
         delayMs: delay,
         reason,
       })
@@ -912,29 +998,21 @@ export class RequestTransport {
       const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
       const kind = init.pacingClass ?? 'foreground'
       if (isGoverned) {
-        const admission = new AbortController()
-        try {
-          await withDeadline(
-            this.pacing.acquire(
-              account,
-              kind,
-              init.estimatedTokens ?? 0,
-              AbortSignal.any([signal ?? new AbortController().signal, admission.signal]),
-              (delayMs) =>
-                onRetry?.({
-                  phase: 'pacing',
-                  attempt,
-                  maxAttempts: MODEL_API_MAX_RETRIES + 1,
-                  delayMs,
-                  reason: UI_TEXT.modelApiPacingWaiting,
-                }),
-            ),
-            PACING_ADMISSION_TIMEOUT_MS,
-            UI_TEXT.modelApiPacingExpired,
-          )
-        } finally {
-          admission.abort()
-        }
+        // No admission deadline of our own (owner 2026-10-16): the wait
+        // ends at headroom, a 429 pause, or Stop, saying so while it lasts.
+        await this.pacing.acquire(
+          account,
+          kind,
+          init.estimatedTokens ?? 0,
+          signal ?? new AbortController().signal,
+          (delayMs) =>
+            onRetry?.({
+              phase: 'pacing',
+              attempt,
+              delayMs,
+              reason: UI_TEXT.modelApiPacingWaiting,
+            }),
+        )
         admitAttempt?.check?.()
         if (kind !== 'foreground' && credentials.keyDigest !== (await this.currentKeyDigest()))
           throw new Error(UI_TEXT.notSignedInReason)
@@ -1033,7 +1111,7 @@ export class RequestTransport {
                 detail: `${new URL(url).origin}: ${describeNetworkFailure(error).detail}`,
               }),
         )
-        if (isRateLimitOnly || attempt >= MODEL_API_MAX_RETRIES) {
+        if (isRateLimitOnly || !canRetryWithinBudget(budget, attempt)) {
           throw new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)
         }
         const delay = this.backoffMs(attempt, undefined)
@@ -1091,22 +1169,11 @@ export class RequestTransport {
         message: failure.message,
         retryAfterMs: waitMs,
       })
-      if (!decision.retry && decision.reason === 'retry-after-cap') {
-        throw new ModelApiError(
-          fill(UI_TEXT.modelApiRetryAfterTooLong, {
-            wait: Math.ceil((waitMs ?? 0) / MILLISECONDS_PER_SECOND),
-            cap: RETRY_TABLES.responses.retryAfterCapMs / MILLISECONDS_PER_SECOND,
-          }),
-          response.status,
-          failure.kind,
-          failure.code,
-        )
-      }
       const isRetryable =
         !this.deps.isTerminalError?.(failure) &&
         (this.deps.isRetryableFailure?.(failure, waitMs) ?? decision.retry) &&
         (!isRateLimitOnly || response.status === HTTP_TOO_MANY_REQUESTS)
-      if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {
+      if (!isRetryable || !canRetryWithinBudget(budget, attempt)) {
         if (
           response.status >= HTTP_STATUS.internalServerError &&
           provider.identity.provider === 'meta'

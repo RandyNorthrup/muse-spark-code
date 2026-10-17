@@ -2258,15 +2258,12 @@ export const STRUCTURED_OUTPUT_REPAIRS_MAX = 1
 export const WEB_SEARCH_MAX_PER_REQUEST = 5
 export const WEB_SEARCH_MIN_PER_REQUEST = 1
 export const WEB_SEARCH_MAX_PER_REQUEST_LIMIT = 20
-// U12 captured no reset header: Meta documents a one-minute window. The
-// startup allowance is conservative; captured headers replace it, never a
-// hard-coded account limit. Other providers require their own captures.
+// U12 captured no reset header: Meta documents a one-minute window.
+// Captured headers replace the empty initial bucket, never a hard-coded
+// account limit; unobserved buckets admit freely and 429 pauses hold
+// (owner 2026-10-16: no pace of our own). Other providers require their own
+// captures.
 export const PACING_WINDOW_MS = 60_000
-export const PACING_START_REQUESTS_PER_MINUTE = 10
-// Half the observed tokens remain available to the foreground after a background burst.
-export const PACING_BACKGROUND_TOKEN_FRACTION = 0.5
-// Six one-RPM admissions may wait six minutes; a stuck queue still has a finite deadline.
-export const PACING_ADMISSION_TIMEOUT_MS = 600_000
 /** Smallest documented manual-thinking budget; always below the output cap. */
 export const PROVIDER_MANUAL_THINKING_BUDGET = 1024
 // A turn that ran this long earns a notification when it ends while the
@@ -2317,17 +2314,18 @@ export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
   'service_overloaded',
   'backend_unavailable',
 ])
-export const MODEL_API_MAX_RETRIES = 4
+// How long one fallback wait may grow between silent-provider retries
+// (owner 2026-10-16): exponential to this ceiling, forever until Stop. A
+// wait the provider names is honoured whole and never capped here.
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
 export const MODEL_API_RETRY_JITTER_MS = 1000
 // The model list and the token count have no turn to stop them (PLAN.md D25).
 export const MODEL_API_STATUS_READ_TIMEOUT_MS = 3000
+// The ChatGPT sign-in's token-freshness bound (minimum validity), not a
+// request kill: a staler token is refreshed, never refused. (NOLIMITS2 C1:
+// no request names a deadline of its own any more.)
 export const MODEL_API_REQUEST_TIMEOUT_MS = 30_000
-// A reply stream that sends nothing for this long, headers or frames, ends
-// its turn (M39): it would otherwise hold the turn until Stop. Long enough
-// for a model reasoning at length before its first words.
-export const MODEL_API_STREAM_IDLE_MS = 300_000
 // The file tools load a file whole (read_file shows a window of it,
 // edit_file changes it): one larger than this is refused unread (M39).
 export const BYTES_PER_MIB = 1024 * 1024
@@ -2338,7 +2336,6 @@ export const HTTP_UNAUTHORIZED = 401
 // Refused before any work was done: the one status a per-call-billed request retries (M34).
 export const HTTP_TOO_MANY_REQUESTS = 429
 // Shared per-format retry policy (M101 BYO 5).
-export const PROVIDER_RETRY_AFTER_CAP_MS = 60_000
 export const PROVIDER_RETRY_HTTP_STATUS = {
   paymentRequired: 402,
   requestTimeout: 408,

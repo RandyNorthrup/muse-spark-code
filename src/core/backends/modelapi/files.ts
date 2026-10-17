@@ -9,7 +9,6 @@ import {
   MEDIA_NAME_MAX_CHARS,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   BYTES_PER_MIB,
-  MODEL_API_REQUEST_TIMEOUT_MS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
@@ -101,8 +100,8 @@ export class FilesApi {
       expirySeconds: expiry,
       provider: this.deps.provider,
     })
-    signal.throwIfAborted()
-    const active = AbortSignal.any([signal, AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)])
+    // The caller's signal ends it; no deadline of our own (owner 2026-10-16).
+    const active = signal
     const boundary = `muse-${randomUUID()}`
     const encoder = new TextEncoder()
     const quotedName = source.name.replaceAll('"', '%22')
@@ -187,13 +186,11 @@ export class FilesApi {
   }
 
   public async retrieve(id: string, signal?: AbortSignal): Promise<ProviderFile> {
+    // The caller's signal, if any, ends it; no deadline of our own (owner 2026-10-16).
     const response = await this.deps.client.requestFile(
       `/files/${fileId.parse(id)}`,
       'GET',
-      AbortSignal.any([
-        ...(signal === undefined ? [] : [signal]),
-        AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-      ]),
+      signal,
       undefined,
       this.deps.expectedAccountId,
     )
@@ -206,10 +203,8 @@ export class FilesApi {
     const files: ProviderFile[] = []
     const seen = new Set<string>()
     let route = '/files'
-    const active = AbortSignal.any([
-      ...(signal === undefined ? [] : [signal]),
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-    ])
+    // The caller's signal, if any, ends it; no deadline of our own (owner 2026-10-16).
+    const active = signal
     for (;;) {
       const response = await this.deps.client.requestFile(
         route,
@@ -231,13 +226,11 @@ export class FilesApi {
   }
 
   public async delete(id: string, signal?: AbortSignal): Promise<void> {
+    // The caller's signal, if any, ends it; no deadline of our own (owner 2026-10-16).
     const response = await this.deps.client.requestFile(
       `/files/${fileId.parse(id)}`,
       'DELETE',
-      AbortSignal.any([
-        ...(signal === undefined ? [] : [signal]),
-        AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-      ]),
+      signal,
       undefined,
       this.deps.expectedAccountId,
     )

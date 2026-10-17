@@ -10,7 +10,7 @@
 // Pure: no `vscode` import. The stream is the activation bundle's key
 // client, handed across the bundle boundary (PLAN.md D6).
 
-import { MODEL_API_MAX_RETRIES, TAB_REQUEST_TIMEOUT_MS } from '../../shared/constants'
+import { TAB_REQUEST_TIMEOUT_MS } from '../../shared/constants'
 import type { ResponseAttemptGuard, RetryBudget } from '../backends/modelapi/client'
 import type { CreateResponseBody, StreamEvent, Usage } from '../backends/modelapi/schemas'
 import { TabCache } from './tabCache'
@@ -218,7 +218,7 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
       try {
         // One HTTP attempt: the reservation prices one, so the client's
         // retries are spent before the first try (RVM94LC).
-        const budget: RetryBudget = { retriesUsed: MODEL_API_MAX_RETRIES }
+        const budget: RetryBudget = { retriesUsed: 0, maxRetries: 0 }
         for await (const event of deps.stream(body, timeout.signal, budget, admit)) {
           if (shouldStopAt(event)) {
             break

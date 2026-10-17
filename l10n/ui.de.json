@@ -91,9 +91,7 @@
   "outputSchemaOutsideAllowed": "Ausgabeschema außerhalb des Arbeitsbereichs wird gelesen (--output-schema-outside).",
   "outputSchemaLocalValidation": "Ausgabeschema-Prüfung: lokal (das ausgewählte Modell hat kein strukturiertes Ausgabeformat).",
   "outputSchemaReadFailed": "Das Ausgabeschema konnte nicht gelesen werden: {detail}",
-  "modelApiPacingTokenLimit": "Die parallele Anfrage überschreitet das für Hintergrundarbeit reservierte Tokenbudget.",
   "modelApiPacingWaiting": "Warten auf freie Kapazität im Ratenlimit…",
-  "modelApiPacingExpired": "Die Wartezeit auf freie Kapazität im Ratenlimit ist abgelaufen. Senden Sie die Nachricht erneut.",
   "modelApiStatusLabel": "Status der Meta-API",
   "modelApiStatusUnavailable": "Status nicht verfügbar",
   "modelApiStatusOpen": "Dienststatus öffnen",
@@ -2504,7 +2502,6 @@
   "allowSessionPrefix": "In dieser Sitzung immer zulassen:",
   "reject": "Ablehnen",
   "modelApiStalled": "Die Model API hat {seconds} s lang nichts gesendet, daher wurde die Antwort beendet; senden Sie die Nachricht erneut, um es noch einmal zu versuchen",
-  "modelApiRetryAfterTooLong": "Der Anbieter wollte {wait} s bis zum Wiederholen warten, mehr als das Limit von {cap} s, daher wurde die Anfrage nicht wiederholt.",
   "queuedTurnDropped": "Nicht gesendet: „Anhalten“ hat die eingereihten Nachrichten verworfen",
   "compactionStopped": "die Komprimierung wurde angehalten",
   "compactionEmpty": "Die Zusammenfassung war leer; die Unterhaltung bleibt unverändert.",
@@ -3616,7 +3613,7 @@
   "removeAttachmentNamed": "{name} entfernen",
   "announceApprovalFor": "Genehmigung erforderlich für {tool}",
   "turnFailed": "Der Durchgang ist fehlgeschlagen.",
-  "turnRetrying": "Versuch {attempt}/{maxAttempts} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
+  "turnRetrying": "Versuch {attempt} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
   "usageWindowHours": {
     "one": "{count}-Stunden-Zeitfenster",
     "other": "{count}-Stunden-Zeitfenster"

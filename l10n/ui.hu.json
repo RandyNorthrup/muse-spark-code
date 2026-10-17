@@ -91,9 +91,7 @@
   "outputSchemaOutsideAllowed": "Munkaterületen kívüli kimeneti séma olvasása (--output-schema-outside).",
   "outputSchemaLocalValidation": "Kimeneti séma ellenőrzése: helyben (a kiválasztott modellnek nincs strukturált kimeneti formátuma).",
   "outputSchemaReadFailed": "A kimeneti séma nem olvasható: {detail}",
-  "modelApiPacingTokenLimit": "A párhuzamos kérés meghaladja a háttérmunkára fenntartott tokenkeretet.",
   "modelApiPacingWaiting": "Várakozás a kérések korlátján belüli szabad kapacitásra…",
-  "modelApiPacingExpired": "Lejárt a szabad kapacitásra várakozás ideje. Az újrapróbálkozáshoz küldje el újra az üzenetet.",
   "modelApiStatusLabel": "A Meta API állapota",
   "modelApiStatusUnavailable": "Az állapot nem érhető el",
   "modelApiStatusOpen": "A szolgáltatás állapotának megnyitása",
@@ -2504,7 +2502,6 @@
   "allowSessionPrefix": "Mindig engedélyezve ebben a munkamenetben:",
   "reject": "Elutasítás",
   "modelApiStalled": "A Model API {seconds} mp-ig semmit sem küldött, ezért a válasz lezárult; az újrapróbáláshoz küldje el ismét az üzenetet",
-  "modelApiRetryAfterTooLong": "A szolgáltató {wait} mp várakozást kért az újrapróbálkozás előtt, ami meghaladja a {cap} mp-es korlátot, ezért a kérés nem lett újrapróbálva.",
   "queuedTurnDropped": "Nincs elküldve: a Leállítás törölte a sorba állított üzeneteket",
   "compactionStopped": "a tömörítés leállt",
   "compactionEmpty": "Az összefoglaló üres volt; a beszélgetés változatlan maradt.",
@@ -3616,7 +3613,7 @@
   "removeAttachmentNamed": "{name} eltávolítása",
   "announceApprovalFor": "Jóváhagyás szükséges: {tool}",
   "turnFailed": "A kör sikertelen volt.",
-  "turnRetrying": "{attempt}/{maxAttempts}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
+  "turnRetrying": "{attempt}. kísérlet sikertelen ({reason}); újrapróbálás {seconds} mp múlva.",
   "usageWindowHours": {
     "one": "{count} órás időablak",
     "other": "{count} órás időablak"

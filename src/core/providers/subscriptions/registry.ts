@@ -21,7 +21,6 @@ const { parseModelRef } = modelRef
 import {
   MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
-  MODEL_API_STREAM_IDLE_MS,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -29,6 +28,7 @@ import {
   assertConfirmedAllowed,
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
+  whenAborted,
 } from '../../backends/modelapi/transport'
 import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
@@ -55,9 +55,10 @@ export async function chatGptModels(
   fetcher: typeof fetch,
 ): Promise<string[]> {
   const token = await signIn.accessToken(MODELS_URL, MODEL_API_REQUEST_TIMEOUT_MS)
+  // No deadline of our own (owner 2026-10-16): the catalogue read ends at
+  // the provider's answer or a network failure.
   const response = await fetcher(MODELS_URL, {
     redirect: 'error',
-    signal: AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!response.ok) throw new Error(UI_TEXT.acpChatGpt.failure)
@@ -139,8 +140,9 @@ export interface SubscriptionRegistryDeps {
   readonly copilotUsage?: () => readonly PlanUsageRow[]
   /**
    * How long the ChatGPT stream may send nothing, headers or frames, before
-   * it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the only time
-   * limit on that stream: there is no limit on its total.
+   * it is ended; absent, the stream ends at Stop, never at an invented kill
+   * (owner 2026-10-16). It is the only time limit on that stream: there is
+   * no limit on its total.
    */
   readonly streamIdleMs?: number
 }
@@ -270,15 +272,25 @@ export function createSubscriptionClient(
         const signIn = await deps.chatgpt()
         const token = await signIn.accessToken(RESPONSES_URL, MODEL_API_REQUEST_TIMEOUT_MS)
         const stop = new AbortController()
-        // No limit on the stream's total time. Silence ends it. The idle clock
-        // starts with the request and restarts when the headers arrive and at
-        // every event the codec decodes, as on the configured-provider path
-        // (only a validated canonical event renews the deadline there). Bytes
-        // that decode to no event, such as SSE comments and empty lines, do
-        // not restart it, so keep-alive traffic cannot hold a reply open.
-        const idleMs = deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+        // No limit on the stream's total time (owner 2026-10-16). A provider
+        // that names its own idle through `streamIdleMs` still ends silence
+        // at it, as on the configured-provider path; otherwise the wait ends
+        // at Stop, never at an invented kill. The idle clock starts with the
+        // request and restarts when the headers arrive and at every event the
+        // codec decodes. Bytes that decode to no event, such as SSE comments
+        // and empty lines, do not restart it, so keep-alive traffic cannot
+        // hold a reply open past a named idle.
+        const idleMs = deps.streamIdleMs
         let lastEventAt = Date.now()
         const withinIdle = async <T>(waiting: Promise<T>): Promise<T> => {
+          if (idleMs === undefined) {
+            const aborted = whenAborted(stop.signal)
+            try {
+              return await Promise.race([waiting, aborted.promise])
+            } finally {
+              aborted.dispose()
+            }
+          }
           try {
             return await withDeadline(
               waiting,
@@ -296,6 +308,14 @@ export function createSubscriptionClient(
         const request = codec.encodeRequest({ ...body, model: ref.modelId })
         admitAttempt?.(await deps.accountId())
         if (signal.aborted) throw signal.reason
+        // Stop ends an unnamed wait: without a named idle nothing else would.
+        signal.addEventListener(
+          'abort',
+          () => {
+            stop.abort()
+          },
+          { once: true },
+        )
         // A paid-gate lapse during sign-in still refuses: re-check the gate
         // immediately before the send, like the other clients.
         assertConfirmedAllowed(body.model, confirmed)

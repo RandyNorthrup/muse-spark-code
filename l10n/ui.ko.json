@@ -91,9 +91,7 @@
   "outputSchemaOutsideAllowed": "작업 영역 외부의 출력 스키마를 읽는 중입니다 (--output-schema-outside).",
   "outputSchemaLocalValidation": "출력 스키마 검증: 로컬 (선택한 모델에 구조화된 출력 형식이 없습니다).",
   "outputSchemaReadFailed": "출력 스키마를 읽을 수 없습니다: {detail}",
-  "modelApiPacingTokenLimit": "병렬 요청이 백그라운드 작업에 예약된 토큰 예산을 초과합니다.",
   "modelApiPacingWaiting": "요청 제한 내 여유 용량을 기다리는 중…",
-  "modelApiPacingExpired": "여유 용량 대기 시간이 만료되었습니다. 다시 시도하려면 메시지를 다시 보내세요.",
   "modelApiStatusLabel": "Meta API 상태",
   "modelApiStatusUnavailable": "상태를 확인할 수 없음",
   "modelApiStatusOpen": "서비스 상태 열기",
@@ -2450,7 +2448,6 @@
   "allowSessionPrefix": "이 세션에서 항상 허용:",
   "reject": "거부",
   "modelApiStalled": "Model API에서 {seconds}초 동안 아무것도 보내지 않아 응답을 종료했습니다. 다시 시도하려면 메시지를 다시 보내세요",
-  "modelApiRetryAfterTooLong": "제공업체가 다시 시도하기 전에 {wait}초를 기다리라고 요청했지만, {cap}초 제한을 초과하므로 요청을 다시 시도하지 않았습니다.",
   "queuedTurnDropped": "전송되지 않음: 중지로 인해 대기 중인 메시지가 지워졌습니다",
   "compactionStopped": "압축이 중지되었습니다",
   "compactionEmpty": "요약이 비어 있습니다. 대화는 변경되지 않았습니다.",
@@ -3536,7 +3533,7 @@
   "removeAttachmentNamed": "{name} 제거",
   "announceApprovalFor": "{tool}에 대한 승인 필요",
   "turnFailed": "턴이 실패했습니다.",
-  "turnRetrying": "시도 {attempt}/{maxAttempts} 실패({reason}). {seconds}초 후에 다시 시도합니다.",
+  "turnRetrying": "시도 {attempt} 실패({reason}). {seconds}초 후에 다시 시도합니다.",
   "usageWindowHours": {
     "other": "{count}시간 기간"
   },

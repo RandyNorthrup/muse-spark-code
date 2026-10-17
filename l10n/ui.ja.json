@@ -91,9 +91,7 @@
   "outputSchemaOutsideAllowed": "ワークスペース外の出力スキーマを読み取っています (--output-schema-outside)。",
   "outputSchemaLocalValidation": "出力スキーマの検証: ローカル (選択したモデルには構造化出力形式がありません)。",
   "outputSchemaReadFailed": "出力スキーマを読み取れませんでした: {detail}",
-  "modelApiPacingTokenLimit": "並列リクエストがバックグラウンド処理用のトークン予算を超えています。",
   "modelApiPacingWaiting": "レート制限の空き容量を待っています…",
-  "modelApiPacingExpired": "レート制限の空き容量を待つ時間が終了しました。再試行するにはメッセージをもう一度送信してください。",
   "modelApiStatusLabel": "Meta API の状態",
   "modelApiStatusUnavailable": "状態を取得できません",
   "modelApiStatusOpen": "サービスの状態を開く",
@@ -2450,7 +2448,6 @@
   "allowSessionPrefix": "このセッションでは常に許可:",
   "reject": "拒否",
   "modelApiStalled": "Model API から {seconds} 秒間何も送られてこなかったため、応答を終了しました。再試行するにはメッセージをもう一度送信してください",
-  "modelApiRetryAfterTooLong": "プロバイダーが再試行の前に {wait} 秒の待機を求めましたが、上限の {cap} 秒を超えているため、要求は再試行されませんでした。",
   "queuedTurnDropped": "未送信: 停止によりキュー内のメッセージがクリアされました",
   "compactionStopped": "圧縮は停止されました",
   "compactionEmpty": "要約が空でした。会話は変更されていません。",
@@ -3536,7 +3533,7 @@
   "removeAttachmentNamed": "{name} を削除",
   "announceApprovalFor": "{tool} の承認が必要です",
   "turnFailed": "ターンが失敗しました。",
-  "turnRetrying": "試行 {attempt}/{maxAttempts} が失敗しました ({reason})。{seconds} 秒後に再試行します。",
+  "turnRetrying": "試行 {attempt} が失敗しました ({reason})。{seconds} 秒後に再試行します。",
   "usageWindowHours": {
     "other": "{count} 時間枠"
   },
