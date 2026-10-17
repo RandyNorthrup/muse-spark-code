@@ -5,11 +5,10 @@
 // the draft's step and posts its events. Cancel writes nothing: no
 // provider in `providers.json`, no secret in SecretStorage.
 
-import { useState } from 'react'
-import { usdInputSchema } from '../../shared/usdSchema'
+import { useState, type ReactNode } from 'react'
+import { usdInputSchema, type UsdAmount } from '../../shared/usdSchema'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
-import { loadMoneyDisplay, useMoneyLoad } from '../money'
 import type {
   ModelsCustomFormat,
   ModelsPanelState,
@@ -17,6 +16,7 @@ import type {
   PanelDraft,
   PanelToHostMessage,
   PresetCard,
+  PrefillFields,
   TickScope,
 } from '../../shared/modelsPanel'
 import type { WizardLife } from './reducer'
@@ -54,11 +54,13 @@ function WizardNav({
   onClose,
   showBack,
   continueLabel,
+  continueDisabled,
 }: {
   readonly post: (message: PanelToHostMessage) => void
   readonly onClose: () => void
   readonly showBack: boolean
   readonly continueLabel: string
+  readonly continueDisabled: boolean
 }) {
   return (
     <div className="models-row-actions">
@@ -76,6 +78,7 @@ function WizardNav({
       <button
         type="button"
         className="models-button-primary"
+        disabled={continueDisabled}
         onClick={() => {
           post({ type: 'providers/wizard', event: 'next' })
         }}
@@ -91,28 +94,99 @@ function WizardNav({
 
 /**
  * The closing block of every wizard step except confirm: the step's
- * errors, then Continue with Back and Cancel beside it.
+ * errors and blockers, then Continue with Back and Cancel beside it.
+ * Continue stays disabled with the blockers inline while any stands.
  */
 function StepFoot({
   errors,
+  blockers,
   post,
   onClose,
 }: {
   readonly errors: readonly string[]
+  readonly blockers: readonly string[]
   readonly post: (message: PanelToHostMessage) => void
   readonly onClose: () => void
 }) {
   return (
     <>
-      <InlineError messages={errors} />
+      <InlineError messages={[...errors, ...blockers]} />
       <WizardNav
         post={post}
         onClose={onClose}
         showBack={true}
         continueLabel={UI_TEXT.wizardContinue}
+        continueDisabled={blockers.length > 0}
       />
     </>
   )
+}
+
+/**
+ * The closing block of the suggestions and confirm steps: the draft's
+ * errors and blockers, then Back, the step's own primary buttons, and
+ * Cancel.
+ */
+function StepActions({
+  draft,
+  post,
+  onClose,
+  children,
+}: {
+  readonly draft: PanelDraft
+  readonly post: (message: PanelToHostMessage) => void
+  readonly onClose: () => void
+  readonly children: ReactNode
+}) {
+  return (
+    <>
+      <InlineError messages={[...draft.errors, ...draft.blockers]} />
+      <div className="models-row-actions">
+        <button
+          type="button"
+          className="models-button"
+          onClick={() => {
+            post({ type: 'providers/wizard', event: 'back' })
+          }}
+        >
+          {UI_TEXT.wizardBack}
+        </button>
+        {children}
+        <button type="button" className="models-button" onClick={cancelWizard(post, onClose)}>
+          {UI_TEXT.wizardCancel}
+        </button>
+      </div>
+    </>
+  )
+}
+
+/**
+ * Why a subscription sign-in row cannot be picked, or undefined when it can.
+ * A confidential workspace hides Copilot outright (the README's rule); any
+ * other unavailable sign-in stays visible but disabled, with its reason.
+ */
+function signInReason(
+  panelState: ModelsPanelState,
+  preset: PresetCard,
+): { readonly hidden: boolean; readonly reason?: string } {
+  if (preset.auth !== 'subscription' || (preset.id !== 'chatgpt' && preset.id !== 'copilot')) {
+    return { hidden: false }
+  }
+  if (preset.id === 'copilot' && panelState.confidentialWorkspace === true) {
+    return { hidden: true }
+  }
+  if (preset.id === 'copilot' && panelState.copilotAvailable !== true) {
+    return { hidden: false, reason: UI_TEXT.signInNotOffered }
+  }
+  if (preset.id === 'copilot') {
+    return { hidden: false }
+  }
+  if (panelState.subscriptionsAvailable !== true) {
+    return { hidden: false, reason: UI_TEXT.signInNotOffered }
+  }
+  return panelState.remoteWindow === true
+    ? { hidden: false, reason: UI_TEXT.signInRemoteWindow }
+    : { hidden: false }
 }
 
 function PickStep({ panelState, post, onClose }: Omit<WizardProps, 'draft' | 'onNavigateModels'>) {
@@ -124,18 +198,34 @@ function PickStep({ panelState, post, onClose }: Omit<WizardProps, 'draft' | 'on
     { value: 'subscription', label: filters.subscription },
     { value: 'aggregator', label: filters.aggregator },
   ]
+  // The last **Scan this computer** run: each server that answered opens
+  // its own wizard with the answering port filled; an empty run says so
+  // and names each local app with its usual port.
+  const scan = panelState.localScan
   return (
     <div className="models-wizard-step">
       <h3>{UI_TEXT.wizardPickProvider}</h3>
       <SearchableSelect
         label={UI_TEXT.providerFields.provider}
         placeholder={UI_TEXT.providerSearchPlaceholder}
-        options={panelState.presets.map((preset) => ({
-          value: preset.id,
-          label: preset.label,
-          description: preset.description,
-          category: preset.category,
-        }))}
+        options={panelState.presets.flatMap((preset) => {
+          const availability = signInReason(panelState, preset)
+          if (availability.hidden) {
+            return []
+          }
+          return [
+            {
+              value: preset.id,
+              label: preset.label,
+              description: preset.description,
+              category: preset.category,
+              ...(availability.reason !== undefined && {
+                disabled: true,
+                disabledReason: availability.reason,
+              }),
+            },
+          ]
+        })}
         chips={chips}
         activeChip={chip}
         onChip={setChip}
@@ -154,6 +244,38 @@ function PickStep({ panelState, post, onClose }: Omit<WizardProps, 'draft' | 'on
           </button>
         }
       />
+      {scan !== undefined &&
+        (scan.found.length > 0 ? (
+          <ul className="models-scan-found">
+            {scan.found.map((hit) => (
+              <li key={hit.presetId}>
+                <button
+                  type="button"
+                  className="models-button"
+                  onClick={() => {
+                    post({ type: 'providers/select', presetId: hit.presetId })
+                    post({ type: 'providers/prefill', fields: { loopbackPort: hit.port } })
+                  }}
+                >
+                  {fill(UI_TEXT.localScanChoice, { label: hit.label, port: String(hit.port) })}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <>
+            <p className="models-hint" role="status">
+              {UI_TEXT.localScanEmpty}
+            </p>
+            <ul className="models-scan-checked">
+              {scan.checked.map((hit) => (
+                <li key={hit.presetId}>
+                  {fill(UI_TEXT.localScanChoice, { label: hit.label, port: String(hit.port) })}
+                </li>
+              ))}
+            </ul>
+          </>
+        ))}
       <div className="models-row-actions">
         <button type="button" className="models-button" onClick={cancelWizard(post, onClose)}>
           {UI_TEXT.wizardCancel}
@@ -261,7 +383,7 @@ function ConfigureStep({
           </label>
         </>
       )}
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -278,7 +400,7 @@ function CredentialStep({
     return (
       <div className="models-wizard-step">
         <h3>{preset?.label ?? UI_TEXT.providerFields.provider}</h3>
-        <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+        <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
       </div>
     )
   }
@@ -337,7 +459,7 @@ function CredentialStep({
           {fill(UI_TEXT.providerConnectWaiting, { provider: preset?.label ?? '' })}
         </p>
       )}
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -396,7 +518,68 @@ function TestStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'onNav
           }}
         />
       )}
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
+    </div>
+  )
+}
+
+export function ModelLimitsFields({
+  draft,
+  id,
+  modelId,
+  reportedContext,
+  onPrefill,
+}: {
+  readonly draft: PanelDraft
+  readonly id: string
+  readonly modelId: string
+  readonly reportedContext?: number | undefined
+  readonly onPrefill: (fields: PrefillFields) => void
+}) {
+  // A custom server saves every chosen model's limits: the scan fills what
+  // it reported, and each ticked row asks the rest as plain numbers. An
+  // emptied field drops that number, never sends it.
+  const setLimit = (kind: 'contextTokens' | 'outputTokens', raw: number): void => {
+    const valued = Number.isNaN(raw) ? undefined : Math.floor(raw)
+    const current = draft.modelLimits?.[modelId]
+    const contextTokens = kind === 'contextTokens' ? valued : current?.contextTokens
+    const outputTokens = kind === 'outputTokens' ? valued : current?.outputTokens
+    onPrefill({
+      modelLimits: {
+        ...draft.modelLimits,
+        [modelId]: {
+          ...(contextTokens !== undefined && { contextTokens }),
+          ...(outputTokens !== undefined && { outputTokens }),
+        },
+      },
+    })
+  }
+  return (
+    <div className="models-limits">
+      <label className="models-field" htmlFor={`models-limits-context-${id}`}>
+        <span>{UI_TEXT.customLimitsContext}</span>
+        <input
+          id={`models-limits-context-${id}`}
+          type="number"
+          min={1}
+          value={draft.modelLimits?.[modelId]?.contextTokens ?? reportedContext ?? ''}
+          onChange={(event) => {
+            setLimit('contextTokens', event.target.valueAsNumber)
+          }}
+        />
+      </label>
+      <label className="models-field" htmlFor={`models-limits-output-${id}`}>
+        <span>{UI_TEXT.customLimitsOutput}</span>
+        <input
+          id={`models-limits-output-${id}`}
+          type="number"
+          min={1}
+          value={draft.modelLimits?.[modelId]?.outputTokens ?? ''}
+          onChange={(event) => {
+            setLimit('outputTokens', event.target.valueAsNumber)
+          }}
+        />
+      </label>
     </div>
   )
 }
@@ -408,13 +591,17 @@ function WizardModelsStep({
   onClose,
 }: Omit<WizardProps, 'onNavigateModels'>) {
   const rows = panelState.models.filter((row) => row.providerId === draft.presetId)
-  const toggle = (ref: string): void => {
+  const isCustom = draft.presetId === 'custom'
+  // The draft holds bare model ids (the host strips the `<providerId>/`
+  // prefix), so ticked state compares those, while the message keeps the
+  // full ref the host routes on.
+  const toggle = (ref: string, modelId: string): void => {
     const scope: TickScope = { scope: 'wizard' }
     post({
       type: 'models/tick',
       scope,
       ref,
-      ticked: !draft.models.includes(ref),
+      ticked: !draft.models.includes(modelId),
     })
   }
   return (
@@ -428,17 +615,28 @@ function WizardModelsStep({
               <input
                 id={`models-wizard-tick-${row.ref}`}
                 type="checkbox"
-                checked={draft.models.includes(row.ref)}
+                checked={draft.models.includes(row.modelId)}
                 onChange={() => {
-                  toggle(row.ref)
+                  toggle(row.ref, row.modelId)
                 }}
               />
               <span>{row.label ?? row.modelId}</span>
             </label>
+            {isCustom && draft.models.includes(row.modelId) && (
+              <ModelLimitsFields
+                id={row.ref}
+                modelId={row.modelId}
+                draft={draft}
+                reportedContext={row.contextTokens}
+                onPrefill={(fields) => {
+                  post({ type: 'providers/prefill', fields })
+                }}
+              />
+            )}
           </li>
         ))}
       </ul>
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )
 }
@@ -533,82 +731,60 @@ function PrivacyStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'on
           {UI_TEXT.spendLimitLink}
         </button>
       )}
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )
 }
 
-function SuggestionsStep({
-  panelState,
-  draft,
-  life,
-  post,
-  onClose,
-  onNavigateModels,
-}: WizardProps) {
-  const [budgetOverride, setBudgetOverride] = useState('')
-  // The suggested budget's exact display arrives with the lazy money chunk;
-  // its Accept waits for it, and a failed load is said with Retry above the
-  // section (the panel's notice).
-  const moneyLoad = useMoneyLoad()
-  const money = moneyLoad.status === 'ready' ? moneyLoad.display : undefined
+function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }: WizardProps) {
+  // The spending limit IS the conversation spending limit setting: the
+  // Untouched fields follow the effective setting. An edit retains its
+  // prefill for the host's compare-and-set after provider persistence.
+  // An unparseable number disables Continue (nothing is saved until the
+  // field holds a non-negative dollar amount); the wording of the failure
+  // stays host-side with the write, so this lazy bundle carries no error
+  // string for the field.
+  const [budgetEdit, setBudgetEdit] = useState<{ text: string; expectedUsd: UsdAmount }>()
+  const budgetText =
+    budgetEdit?.text ?? draft.sessionBudgetUsd ?? panelState.sessionBudget.effectiveUsd
   const ticked = draft.models
+  const budgetParsed = usdInputSchema.safeParse(budgetText.trim().replace(',', '.'))
+  const commitAndNext = (): void => {
+    if (!budgetParsed.success) {
+      return
+    }
+    if (budgetEdit !== undefined) {
+      post({
+        type: 'suggestions/change',
+        kind: 'sessionBudget',
+        usd: budgetParsed.data,
+        expectedUsd: budgetEdit.expectedUsd,
+      })
+    }
+    post({ type: 'providers/wizard', event: 'next' })
+  }
   return (
     <div className="models-wizard-step">
       {panelState.suggestions.length === 0 && (
         <p className="models-hint">{UI_TEXT.suggestUnavailable}</p>
       )}
-      {panelState.suggestions.map((suggestion) =>
-        suggestion.kind === 'defaultModel' ? (
-          <SuggestionCard
-            key={suggestion.kind}
-            title={UI_TEXT.suggestDefaultModel}
-            reason={suggestion.reason}
-            value={suggestion.modelRef}
-            accepted={suggestion.accepted}
-            onAccept={() => {
-              post({ type: 'suggestions/accept', kind: 'defaultModel' })
-            }}
-            onChange={() => {
-              onNavigateModels()
-            }}
-          />
-        ) : (
-          <SuggestionCard
-            key={suggestion.kind}
-            title={UI_TEXT.suggestSessionBudget}
-            reason={suggestion.reason}
-            value={money?.formatMoney(suggestion.usd, 2) ?? ''}
-            isValueShown={money !== undefined}
-            isValueLoading={moneyLoad.status === 'idle' || moneyLoad.status === 'loading'}
-            accepted={suggestion.accepted}
-            onAccept={() => {
-              post({ type: 'suggestions/accept', kind: 'sessionBudget' })
-            }}
-            onChange={() => {
-              // An override posts only when it parses and is positive. The
-              // positivity check waits for the money chunk, and posts only
-              // to the draft it was made for: a wizard cancelled or replaced
-              // meanwhile drops it. A failed load keeps the typed amount and
-              // is said with Retry (the panel's notice), never dropped silently.
-              const parsed = usdInputSchema.safeParse(budgetOverride.trim())
-              if (!parsed.success) {
-                return
-              }
-              const amount = parsed.data
-              const { generation } = life
-              void loadMoneyDisplay()
-                .then((display) => {
-                  if (life.isCurrent(generation) && display.isPositiveUsd(amount)) {
-                    post({ type: 'suggestions/change', kind: 'sessionBudget', usd: amount })
-                  }
-                })
-                .catch(() => {
-                  // The failed state is on show with Retry (the panel's notice).
-                })
-            }}
-          />
-        ),
+      {panelState.suggestions.map(
+        (suggestion) =>
+          suggestion.kind === 'defaultModel' && (
+            <SuggestionCard
+              key={suggestion.kind}
+              title={UI_TEXT.suggestDefaultModel}
+              reason={suggestion.reason}
+              value={suggestion.modelRef}
+              accepted={suggestion.accepted}
+              onAccept={() => {
+                post({ type: 'suggestions/accept', kind: 'defaultModel' })
+              }}
+              onChange={() => {
+                onNavigateModels()
+              }}
+            />
+          ),
       )}
       {ticked.length > 0 && (
         <label className="models-field" htmlFor="models-default-override">
@@ -635,23 +811,39 @@ function SuggestionsStep({
         </label>
       )}
       <label className="models-field" htmlFor="models-budget-override">
-        <span>{UI_TEXT.suggestSessionBudget}</span>
+        <span>{UI_TEXT.wizardSessionBudget}</span>
         <input
           id="models-budget-override"
           type="number"
           min={0}
-          value={budgetOverride}
+          value={budgetText}
           onChange={(event) => {
-            setBudgetOverride(event.target.value)
+            setBudgetEdit({
+              text: event.target.value,
+              expectedUsd:
+                budgetEdit?.expectedUsd ??
+                draft.sessionBudgetExpectedUsd ??
+                panelState.sessionBudget.effectiveUsd,
+            })
           }}
         />
       </label>
+      <p className="models-hint">{panelState.sessionBudget.nowLine}</p>
       {panelState.lastChoices.defaultModelRef !== undefined && (
         <p className="models-hint">
           {fill(UI_TEXT.lastDefaultHint, { model: panelState.lastChoices.defaultModelRef })}
         </p>
       )}
-      <StepFoot errors={draft.errors} post={post} onClose={onClose} />
+      <StepActions draft={draft} post={post} onClose={onClose}>
+        <button
+          type="button"
+          className="models-button-primary"
+          disabled={draft.blockers.length > 0 || !budgetParsed.success}
+          onClick={commitAndNext}
+        >
+          {UI_TEXT.wizardContinue}
+        </button>
+      </StepActions>
     </div>
   )
 }
@@ -663,7 +855,7 @@ function ConfirmStep({
 }: Omit<WizardProps, 'panelState' | 'onNavigateModels'>) {
   // **Save** stays disabled until the form is valid, with each blocker
   // inline in plain words.
-  const isBlocked = draft.blockers.length > 0
+  const isBlocked = draft.saving === true || draft.blockers.length > 0
   const save = (shouldUseNow: boolean): void => {
     if (isBlocked) {
       return
@@ -679,17 +871,7 @@ function ConfirmStep({
           ))}
         </ul>
       )}
-      <InlineError messages={[...draft.errors, ...draft.blockers]} />
-      <div className="models-row-actions">
-        <button
-          type="button"
-          className="models-button"
-          onClick={() => {
-            post({ type: 'providers/wizard', event: 'back' })
-          }}
-        >
-          {UI_TEXT.wizardBack}
-        </button>
+      <StepActions draft={draft} post={post} onClose={onClose}>
         <button
           type="button"
           className="models-button-primary"
@@ -710,10 +892,7 @@ function ConfirmStep({
         >
           {UI_TEXT.saveAndUseNow}
         </button>
-        <button type="button" className="models-button" onClick={cancelWizard(post, onClose)}>
-          {UI_TEXT.wizardCancel}
-        </button>
-      </div>
+      </StepActions>
     </div>
   )
 }

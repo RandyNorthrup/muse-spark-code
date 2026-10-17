@@ -31,7 +31,9 @@ export interface TeamCap {
   readonly amount: number
 }
 
-/** The map key for a cap: `tokens/day`. */
+/** The map key for a cap: `tokens/day`.
+ * @unwired M96 team cap map key
+ */
 export function teamCapKey(cap: Pick<TeamCap, 'measure' | 'window'>): string {
   return `${cap.measure}/${cap.window}`
 }
@@ -63,6 +65,7 @@ export interface TeamDefaultMarker {
   readonly defaultEntry: true
 }
 
+/** @unwired M96 team default entry marker */
 export const TEAM_DEFAULT_ENTRY: TeamDefaultMarker = { defaultEntry: true }
 
 /** One pool entry: an agent (or Default) with its own limits. */
@@ -83,6 +86,7 @@ export function isDefaultEntry(agent: TeamPoolEntry['agent']): agent is TeamDefa
  * resolves through it when each task starts, never from a snapshot, so a
  * picker change applies to the next delegation and a running task keeps
  * what it started on.
+ * @unwired M96 lane T orchestrator slot
  */
 export interface TeamOrchestratorSlot {
   resolve(): TeamAgentProfile
@@ -127,7 +131,9 @@ export interface TeamAgentSwitchPayload {
   readonly parent_session_id: string | undefined
 }
 
-/** The payload for a switch, with both agent profiles and models. */
+/** The payload for a switch, with both agent profiles' models.
+ * @unwired M96 agent switch hook payload
+ */
 export function switchHookPayload(
   change: TeamSwitch,
   fromAgent: TeamAgentProfile,
@@ -251,7 +257,9 @@ export function switchReasonText(
   }
 }
 
-/** The transcript's one row for a switch: "research: a → b, daily token cap met". */
+/** The transcript's one row for a switch: "research: a → b, daily token cap met".
+ * @unwired M96 agent switch transcript row
+ */
 export function formatSwitchRow(change: TeamSwitch, fromLabel: string, toLabel: string): string {
   return fill(UI_TEXT.teamSwitchRow, {
     role: change.roleId,
@@ -321,6 +329,7 @@ export interface TeamLimitClassifier {
  * Records a worker failure on the agent's marks (lane W calls this with the
  * limit errors it sees). Returns the switch reason when the failure was a
  * limit, so the next task skips every entry on that agent until its time.
+ * @unwired M96 team failure recorder
  */
 export function noteTeamFailure(
   marks: TeamAgentMarks,
@@ -476,6 +485,7 @@ function entryAgent(entry: TeamPoolEntry, snapshot: TeamSelectionSnapshot): Team
  * agent is not marked or unavailable, and the per-agent, global, process,
  * turn and team limits have room. A pool with no entries answers
  * "not staffed" at once, under every policy.
+ * @unwired M96 team entry selector
  */
 export function selectTeamEntry(
   pool: TeamRolePool,
@@ -563,6 +573,7 @@ function refuseEntry(
  * transcript row's data. Returning to an entry after a reset or a new day
  * is a switch too. Callers pass the last entry's refusal so the row names
  * why the role moved.
+ * @unwired M96 agent switch recorder
  */
 export function recordTeamSwitch(
   pool: TeamRolePool,
@@ -640,6 +651,7 @@ export type TeamExhaustedAnswer =
  * (room under `concurrent`, a rate limit, a usage-limit cooldown, or a day
  * cap at midnight); a spent `lifetime` cap never recovers, so it asks. An
  * empty pool answers "not staffed" before any policy.
+ * @unwired M96 exhausted-pool answer
  */
 export function answerExhausted(
   pool: TeamRolePool,
@@ -709,6 +721,7 @@ export interface QueuedTeamTask {
  * One role's queue: at most TEAM_QUEUE_MAX tasks, each waiting at most
  * TEAM_QUEUE_MAX_WAIT_MS, then it asks. Starting a task when headroom frees
  * is the scheduler's (M96c); the queue holds the wait and its deadline.
+ * @unwired M96 team task queue
  */
 export class TeamTaskQueue {
   private readonly tasks: QueuedTeamTask[] = []
@@ -765,6 +778,7 @@ export interface TeamHandoffFile {
  * write it: the brief is composed here from the original brief, the capped
  * worker's last message (marked as data), the files changed so far and the
  * switch reason.
+ * @unwired M96 agent handoff brief
  */
 export function buildHandoffBrief(brief: {
   readonly originalBrief: string
@@ -788,7 +802,9 @@ export function buildHandoffBrief(brief: {
   ].join('\n')
 }
 
-/** The "not staffed" refusal for a role whose pool the user emptied, Default included. */
+/** The "not staffed" refusal for a role whose pool the user emptied, Default included.
+ * @unwired M96 not-staffed refusal text
+ */
 export function notStaffedText(roleId: string): string {
   return fill(UI_TEXT.teamPoolNotStaffed, { role: roleId })
 }
@@ -934,7 +950,7 @@ export class TeamScheduler {
             outputTokens: 0,
             reasoningTokens: 0,
             modelCalls: 0,
-            costUsd: 0,
+            costUsd: Usd.from(0).toAmount(),
             accuracy: 'reported',
           },
         }

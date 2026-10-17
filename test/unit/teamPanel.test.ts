@@ -7,7 +7,7 @@ import { teamPanelExportSchema } from '../../src/shared/teamPanel'
 import { parsePanelToHostMessage } from '../../src/shared/modelsPanel'
 import { TEAM_WORKSPACE_KEYS, readTeamWorkspaceHint } from '../../src/shared/teamConversation'
 import { TEAM_EXPORT_FORMAT, TEAM_PANEL_EXPORT_VERSION, UI_TEXT } from '../../src/shared/constants'
-import { teamSnapshotSchema, type TeamCap } from '../../src/shared/teamConfig'
+import { teamSnapshotSchema, type TeamCap } from '../../src/shared/team'
 import { readOrchestratorOverride } from '../../src/core/team/orchestratorSlot'
 
 async function pairSlice(rig: ReturnType<typeof panelRig>) {

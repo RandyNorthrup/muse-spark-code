@@ -3,7 +3,7 @@ import { webviewKey } from '../../../../shared/keybindings'
 import { UI_TEXT } from '../../../../shared/constants'
 import { fill, formatNumber } from '../../../../shared/l10n/text'
 import { useMoneyDisplay, type MoneyDisplay } from '../../../money'
-import { teamCapMeasures, teamCapWindows } from '../../../../shared/teamConfig'
+import { teamCapMeasures, teamCapWindows } from '../../../../shared/team'
 import type {
   TeamEditorRole,
   TeamPanelMessage,

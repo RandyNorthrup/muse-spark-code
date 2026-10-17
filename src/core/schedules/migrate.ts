@@ -98,6 +98,7 @@ async function reconcileCopiedSchedule(
   }
 }
 
+/** @unwired M115 schedule store migration */
 export async function migrateSchedules(
   source: ScheduleMigrationSource,
   store: ScheduleStoreV2 & ScheduleMigrationJournalPort,

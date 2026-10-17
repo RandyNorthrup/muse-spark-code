@@ -1,7 +1,7 @@
 import './roles.css'
 import { useState } from 'react'
 import { UI_TEXT, TEAM_BUILTIN_ROLE_IDS } from '../../../../shared/constants'
-import { teamIntensityLevels } from '../../../../shared/teamConfig'
+import { teamIntensityLevels } from '../../../../shared/team'
 import { teamTemplateSchema, teamPreviewSampleSchema } from '../../../../shared/teamPanel'
 import { fill } from '../../../../shared/l10n/text'
 import type { SectionProps } from '../../sections'

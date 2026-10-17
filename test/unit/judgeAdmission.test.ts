@@ -26,6 +26,13 @@ const MODEL = 'muse-spark-1.3'
 
 interface MemoryClaim extends JudgeLedgerClaim {
   settled: UsdAmount[]
+  settleAttempts: UsdAmount[]
+}
+
+/** One pause the next ledger call of its kind takes, entered then released. */
+interface LedgerGate {
+  readonly entered: () => void
+  readonly wait: Promise<undefined>
 }
 
 function memoryLedger(balanceUsd: UsdAmount): JudgeDailyLedger & {
@@ -35,6 +42,9 @@ function memoryLedger(balanceUsd: UsdAmount): JudgeDailyLedger & {
   failReserve: boolean
   failSettle: boolean
   remaining: UsdAmount
+  remainingGate: LedgerGate | undefined
+  reserveGate: LedgerGate | undefined
+  settleGate: LedgerGate | undefined
 } {
   let next = 1
   const ledger = {
@@ -44,10 +54,13 @@ function memoryLedger(balanceUsd: UsdAmount): JudgeDailyLedger & {
     failReserve: false,
     failSettle: false,
     remaining: Usd.from(balanceUsd).toAmount(),
-    remainingUsd(): Promise<UsdAmount> {
+    remainingGate: undefined as LedgerGate | undefined,
+    reserveGate: undefined as LedgerGate | undefined,
+    settleGate: undefined as LedgerGate | undefined,
+    async remainingUsd(): Promise<UsdAmount> {
       ledger.calls.push('remaining')
       if (ledger.failRemaining) {
-        return Promise.reject(new Error('store unreadable'))
+        throw new Error('store unreadable')
       }
       let open = Usd.from(0).toAmount()
       for (const claim of ledger.claims.values()) {
@@ -55,17 +68,25 @@ function memoryLedger(balanceUsd: UsdAmount): JudgeDailyLedger & {
           .add(Usd.from(claim.settled[0] ?? claim.reservedUsd))
           .toAmount()
       }
-      return Promise.resolve(Usd.from(ledger.remaining).subtract(Usd.from(open)).toAmount())
+      const balance = Usd.from(ledger.remaining).subtract(Usd.from(open)).toAmount()
+      const gate = ledger.remainingGate
+      if (gate !== undefined) {
+        ledger.remainingGate = undefined
+        gate.entered()
+        await gate.wait
+      }
+      return balance
     },
-    reserve(costUsd: UsdAmount): Promise<JudgeLedgerClaim> {
+    async reserve(costUsd: UsdAmount): Promise<JudgeLedgerClaim> {
       ledger.calls.push('reserve')
       if (ledger.failReserve) {
-        return Promise.reject(new Error('lock failure'))
+        throw new Error('lock failure')
       }
       const claim: MemoryClaim = {
         claimId: `claim-${String(next++)}`,
         reservedUsd: Usd.from(costUsd).toAmount(),
         settled: [],
+        settleAttempts: [],
         check(): void {
           if (ledger.failRemaining || claim.settled.length > 0) {
             throw new Error('claim unavailable')
@@ -80,21 +101,33 @@ function memoryLedger(balanceUsd: UsdAmount): JudgeDailyLedger & {
             throw new Error('over budget')
           }
         },
-        settle(actualCostUsd: UsdAmount): Promise<void> {
+        async settle(actualCostUsd: UsdAmount): Promise<void> {
+          claim.settleAttempts.push(actualCostUsd)
+          const gate = ledger.settleGate
+          if (gate !== undefined) {
+            ledger.settleGate = undefined
+            gate.entered()
+            await gate.wait
+          }
           if (ledger.failSettle) {
-            return Promise.reject(new Error('store unwritable'))
+            throw new Error('store unwritable')
           }
           if (claim.settled.length > 0) {
-            return claim.settled[0] === actualCostUsd
-              ? Promise.resolve(undefined)
-              : Promise.reject(new Error(`claim ${claim.claimId} already settled`))
+            if (claim.settled[0] !== actualCostUsd)
+              throw new Error(`claim ${claim.claimId} already settled`)
+            return
           }
           claim.settled.push(actualCostUsd)
-          return Promise.resolve(undefined)
         },
       }
       ledger.claims.set(claim.claimId, claim)
-      return Promise.resolve(claim)
+      const gate = ledger.reserveGate
+      if (gate !== undefined) {
+        ledger.reserveGate = undefined
+        gate.entered()
+        await gate.wait
+      }
+      return claim
     },
   }
   return ledger
@@ -143,28 +176,17 @@ async function admittedClaim(
 }
 
 /** Stop a ledger promise at a known boundary without scheduling/timer races. */
-function pauseLedger(ledger: JudgeDailyLedger, wait: 'remaining' | 'reserve') {
+function pauseLedger(ledger: ReturnType<typeof memoryLedger>, wait: 'remaining' | 'reserve') {
   const entered = Promise.withResolvers<undefined>()
   const release = Promise.withResolvers<undefined>()
-  const pause = async (): Promise<void> => {
-    entered.resolve(undefined)
-    await release.promise
+  const gate: LedgerGate = {
+    entered: () => {
+      entered.resolve(undefined)
+    },
+    wait: release.promise,
   }
-  if (wait === 'remaining') {
-    const remaining = ledger.remainingUsd.bind(ledger)
-    vi.spyOn(ledger, 'remainingUsd').mockImplementationOnce(async () => {
-      const balance = await remaining()
-      await pause()
-      return balance
-    })
-  } else {
-    const reserve = ledger.reserve.bind(ledger)
-    vi.spyOn(ledger, 'reserve').mockImplementationOnce(async (costUsd) => {
-      const claim = await reserve(costUsd)
-      await pause()
-      return claim
-    })
-  }
+  if (wait === 'remaining') ledger.remainingGate = gate
+  else ledger.reserveGate = gate
   return {
     entered: entered.promise,
     release: () => {
@@ -188,9 +210,12 @@ function pauseSettlement(ledger: ReturnType<typeof memoryLedger>, claim: JudgeAd
   const stored = ledger.claims.get(claim.claimId)
   if (stored === undefined) throw new Error('expected stored claim')
   const release = Promise.withResolvers<undefined>()
-  const settle = vi.spyOn(stored, 'settle').mockImplementationOnce(() => release.promise)
+  ledger.settleGate = {
+    entered: () => undefined,
+    wait: release.promise,
+  }
   return {
-    settle,
+    settleAttempts: stored.settleAttempts,
     release: () => {
       release.resolve(undefined)
     },
@@ -284,23 +309,27 @@ describe('admitJudgeCall', () => {
     let current = binding()
     const entered = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
-    const reserve = ledger.reserve.bind(ledger)
-    vi.spyOn(ledger, 'reserve').mockImplementationOnce(async (costUsd) => {
-      const claim = await reserve(costUsd)
-      return {
-        ...claim,
-        reservedUsd: Usd.from(costUsd + 1).toAmount(),
-        async settle(actualCostUsd: UsdAmount): Promise<void> {
-          entered.resolve(undefined)
-          await release.promise
-          await claim.settle(Usd.from(actualCostUsd).toAmount())
-        },
-      }
-    })
+    // A ledger whose first reservation reports a dollar more than it
+    // booked, and whose settlement waits: the nonsent cleanup path.
+    const wrapped: JudgeDailyLedger = {
+      remainingUsd: () => ledger.remainingUsd(),
+      reserve: async (costUsd) => {
+        const claim = await ledger.reserve(costUsd)
+        return {
+          ...claim,
+          reservedUsd: Usd.from(costUsd + 1).toAmount(),
+          async settle(actualCostUsd: UsdAmount): Promise<void> {
+            entered.resolve(undefined)
+            await release.promise
+            await claim.settle(Usd.from(actualCostUsd).toAmount())
+          },
+        }
+      },
+    }
     const admission = admitJudgeCall({
       binding: current,
       currentBinding: () => current,
-      billing: metered(ledger),
+      billing: metered(wrapped),
       estimatedInputTokens: 1000,
       maxOutputTokens: 100,
     })
@@ -566,7 +595,7 @@ describe('JudgeAdmissionClaim settlement', () => {
     const identical = claim.settleKnown(usage)
     expect(claim.status()).toBe('settling')
     const conflict = expect(claim.refundNonSend()).rejects.toThrow(JudgeLedgerError)
-    expect(gate.settle).toHaveBeenCalledExactlyOnceWith(claim.reservedUsd)
+    expect(gate.settleAttempts).toEqual([claim.reservedUsd])
     gate.release()
     await conflict
     expect(await first).toBe(await identical)

@@ -21,14 +21,9 @@ import {
   TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
-import {
-  USD_DECIMAL_RADIX,
-  USD_DECIMAL_ZERO,
-  USD_DECIMAL_ONE,
-  USD_LIABILITY_DECIMALS,
-} from '../../shared/usdConstants'
 import { fill } from '../../shared/l10n/text'
-import { usdAmountSchema, type UsdAmount } from '../../shared/usdSchema'
+import { Usd, sumUsd } from '../../shared/usd'
+import { canonicalUsd, compareUsdAmounts, type UsdAmount } from '../../shared/usdSchema'
 import { usageLocalDay } from '../usage/localDay'
 import { redactSecrets } from '../redact'
 import {
@@ -225,6 +220,11 @@ function agentIdentity(agent: TeamAgentRef): string {
   return JSON.stringify([agent.kind, agent.agentId, agent.model, agent.provider ?? '', agent.pays])
 }
 
+/** Exact amounts never go below zero: a usage report cannot unspend money. */
+function maxUsdZero(amount: Usd): UsdAmount {
+  return amount.compare(Usd.from(0)) < 0 ? canonicalUsd(0) : amount.toAmount()
+}
+
 /** One cap's measure of one task's usage. */
 function measureOf(usage: TeamUsage, cap: TeamCap): number {
   switch (cap.measure) {
@@ -238,7 +238,9 @@ function measureOf(usage: TeamUsage, cap: TeamCap): number {
       return usage.output
     }
     case 'spendUsd': {
-      return usage.costUsd ?? 0
+      // Headroom and display only, like the token counts: the persisted
+      // claim money stays exact and the reserve gate compares exactly.
+      return usage.costUsd === undefined ? 0 : Number(usage.costUsd)
     }
     default: {
       return 1
@@ -316,33 +318,6 @@ function userMergeRefusal(reason: string): string {
       return UI_TEXT.teamTaskUnknown
     }
   }
-}
-
-/** Nano-USD units as a canonical decimal string (no Usd import: teamHost stays small). */
-function nanoUsd(units: bigint): UsdAmount {
-  const radix = BigInt(USD_DECIMAL_RADIX) ** BigInt(USD_LIABILITY_DECIMALS)
-  const whole = units / radix
-  const fraction = units % radix
-  return fraction === USD_DECIMAL_ZERO
-    ? usdAmountSchema.parse(whole.toString())
-    : usdAmountSchema.parse(
-        `${whole.toString()}.${fraction.toString().padStart(USD_LIABILITY_DECIMALS, '0').replace(/0+$/, '')}`,
-      )
-}
-
-/** Fixed USD liability units: claims round up, ceilings round down. */
-function moneyUnits(amount: number, isCeiling: boolean): bigint {
-  const [coefficient = '0', exponent = '0'] = String(amount).split(/[eE]/, 2)
-  const [whole = '0', fraction = ''] = coefficient.split('.', 2)
-  const digits = BigInt(`${whole}${fraction}`)
-  const shift = USD_LIABILITY_DECIMALS + Number(exponent) - fraction.length
-  const radix = BigInt(USD_DECIMAL_RADIX)
-  if (shift >= 0) return digits * radix ** BigInt(shift)
-  const divisor = radix ** BigInt(-shift)
-  return (
-    digits / divisor +
-    (!isCeiling && digits % divisor > USD_DECIMAL_ZERO ? USD_DECIMAL_ONE : USD_DECIMAL_ZERO)
-  )
 }
 
 export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostService {
@@ -537,21 +512,20 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     all: readonly TeamTaskRecord[],
   ): { readonly spentUsdToday: UsdAmount; readonly budgetUsdToday: UsdAmount } | undefined => {
     const today = usageLocalDay(deps.now())
-    let spent = USD_DECIMAL_ZERO
-    let budget = USD_DECIMAL_ZERO
-    let hasCost = false
+    const spent: UsdAmount[] = []
+    const budget: UsdAmount[] = []
     for (const task of all) {
       for (const claim of task.claims) {
         if (usageLocalDay(claim.atMs) !== today) continue
         const cost = claim.usage.costUsd
-        if (cost === undefined || !Number.isFinite(cost)) continue
-        hasCost = true
-        const units = moneyUnits(cost, false)
-        budget += units
-        if (claim.isSettled) spent += units
+        if (cost === undefined) continue
+        budget.push(cost)
+        if (claim.isSettled) spent.push(cost)
       }
     }
-    return hasCost ? { spentUsdToday: nanoUsd(spent), budgetUsdToday: nanoUsd(budget) } : undefined
+    return budget.length === 0
+      ? undefined
+      : { spentUsdToday: sumUsd(...spent), budgetUsdToday: sumUsd(...budget) }
   }
 
   const tree = (): TeamTreeData | undefined => {
@@ -850,12 +824,15 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       const isExceeded =
         cap.measure === 'spendUsd'
           ? checked.costUsd === undefined ||
-            claimsFor(entry, cap, cap.window === 'task' ? task : undefined).reduce(
-              (sum, claim) => sum + moneyUnits(claim.usage.costUsd ?? 0, false),
-              USD_DECIMAL_ZERO,
-            ) +
-              moneyUnits(checked.costUsd, false) >
-              moneyUnits(cap.amount, true)
+            compareUsdAmounts(
+              sumUsd(
+                ...claimsFor(entry, cap, cap.window === 'task' ? task : undefined).flatMap(
+                  (claim) => (claim.usage.costUsd === undefined ? [] : [claim.usage.costUsd]),
+                ),
+                checked.costUsd,
+              ),
+              canonicalUsd(cap.amount),
+            ) > 0
           : used + measureOf(checked, cap) > cap.amount
       if (isExceeded) {
         task.capped = `${String(cap.amount)} ${cap.measure}/${cap.window}`
@@ -916,7 +893,10 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         modelCalls: total.modelCalls + known.modelCalls,
         estimated: total.estimated || known.estimated,
         ...((total.costUsd !== undefined || known.costUsd !== undefined) && {
-          costUsd: (total.costUsd ?? 0) + (known.costUsd ?? 0),
+          costUsd: sumUsd(
+            ...(total.costUsd === undefined ? [] : [total.costUsd]),
+            ...(known.costUsd === undefined ? [] : [known.costUsd]),
+          ),
         }),
       }
     }
@@ -935,14 +915,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       modelCalls: Math.max(0, reported.modelCalls - task.usage.modelCalls),
       estimated: reported.estimated,
       ...(reported.costUsd !== undefined && {
-        costUsd: Math.max(0, reported.costUsd - (task.usage.costUsd ?? 0)),
+        costUsd: maxUsdZero(
+          Usd.from(reported.costUsd).subtract(Usd.from(task.usage.costUsd ?? canonicalUsd(0))),
+        ),
       }),
     }
     if (
       delta.modelCalls === 0 &&
       delta.input === 0 &&
       delta.output === 0 &&
-      (delta.costUsd ?? 0) === 0
+      (delta.costUsd === undefined || compareUsdAmounts(delta.costUsd, canonicalUsd(0)) === 0)
     )
       return
     const claim = task.claims.at(-1)

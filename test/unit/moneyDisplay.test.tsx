@@ -167,18 +167,13 @@ describe('money hooks', () => {
     const { result } = renderHook(({ load }) => usePaidFeaturePrice('voice', load), {
       initialProps: { load: gatedLoad(gate) },
     })
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    try {
-      gate.reject(new Error('chunk gone'))
-      await waitFor(() => {
-        expect(result.current).toBeUndefined()
-      })
-      // Settles without an unhandled rejection: the hook swallows the load.
-      await actSettled()
+    gate.reject(new Error('chunk gone'))
+    await waitFor(() => {
       expect(result.current).toBeUndefined()
-    } finally {
-      errors.mockRestore()
-    }
+    })
+    // Settles without an unhandled rejection: the hook swallows the load.
+    await actSettled()
+    expect(result.current).toBeUndefined()
   })
 
   it('leaves the price out when the tariff refuses, without throwing', async () => {

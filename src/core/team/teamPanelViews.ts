@@ -8,7 +8,7 @@ import {
   TEAM_INTENSITY_ORDER,
   PERMISSION_MODES,
   TEAM_TOKENS_PER_MTOK,
-  TEAM_PREVIEW_OUTPUT_SHARE,
+  TEAM_PREVIEW_OUTPUT_PERCENT,
 } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import type {
@@ -242,12 +242,12 @@ function hasPreviewCapRoom(
       return total <= cap.amount
     }
     case 'inputTokens': {
-      const used = need.usedTokens * (1 - TEAM_PREVIEW_OUTPUT_SHARE)
+      const used = need.usedTokens * (1 - TEAM_PREVIEW_OUTPUT_PERCENT / 100)
       const total = cap.window === 'task' ? need.stepInput : used + need.stepInput
       return total <= cap.amount
     }
     case 'outputTokens': {
-      const used = need.usedTokens * TEAM_PREVIEW_OUTPUT_SHARE
+      const used = need.usedTokens * (TEAM_PREVIEW_OUTPUT_PERCENT / 100)
       const total = cap.window === 'task' ? need.stepOutput : used + need.stepOutput
       return total <= cap.amount
     }
@@ -321,7 +321,7 @@ export function deriveTeamPanel(
     select: (roleId, _size, spent) => {
       const pool = document.roles.find((role) => role.role === roleId)?.pool ?? []
       const typical = typicalTokensFor(roleId)
-      const stepInput = Math.round(typical * (1 - TEAM_PREVIEW_OUTPUT_SHARE))
+      const stepInput = Math.round(typical * (1 - TEAM_PREVIEW_OUTPUT_PERCENT / 100))
       const stepOutput = typical - stepInput
       const usedUsd = previewSpentUsd.get(roleId) ?? []
       const usedTasks = previewTaskCounts.get(roleId) ?? []

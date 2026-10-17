@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { AGENT_FILE_MAX_BYTES, TEAM_ROLE_WHEN_TO_USE_MAX_CHARS } from '../../src/shared/constants'
-import { teamSnapshotSchema } from '../../src/shared/teamConfig'
+import { teamSnapshotSchema } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../src/shared/teamConversation'
 import {
   readOrchestratorOverride,

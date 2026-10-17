@@ -60,14 +60,22 @@ const REPORT_PLATFORMS = ['win32', 'darwin', 'linux'] as const
 /** A dotted version with an optional short suffix (`1.4.2-R4684.1`); never a sentence. */
 const VERSION_PATTERN = /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z.-]{1,32})?$/
 
-/** A setting name (`museSpark.backend`); a value never rides along. */
-const SETTING_NAME_PATTERN = /^museSpark\.[A-Za-z][A-Za-z0-9]{0,63}$/
+/**
+ * A setting name: the section, then one to four dotted segments of letters
+ * and digits (`museSpark.backend`, `museSpark.vault.enabled`). A value never
+ * rides along. Until 0.18.1 a second dot was refused, so anyone who had
+ * changed a dotted setting could not open the report at all.
+ */
+const SETTING_NAME_PATTERN = /^museSpark(?:\.[A-Za-z][A-Za-z0-9]{0,63}){1,4}$/
 
-/** How many setting names one report may carry; the manifest holds about forty. */
-const SETTING_NAMES_MAX = 64
+/** How many setting names one report may carry; the manifest holds a hundred. */
+const SETTING_NAMES_MAX = 128
 
-/** A setting name's bound before its pattern is checked: the prefix plus 64. */
+/** A setting name's bound before its pattern is checked; the longest is 41. */
 const SETTING_NAME_MAX_CHARS = 80
+
+/** The title of a report whose facts are left out and did not validate. */
+const TITLE_WITHOUT_FACTS = 'Problem report: Muse Spark'
 
 /** The shortest user/machine name worth redacting; shorter would eat ordinary words. */
 const EXTRA_LITERAL_MIN_CHARS = 3
@@ -174,6 +182,20 @@ function validatedFacts(input: unknown): ProblemReportFacts {
     throw new ReportBuildError('settingNames', 'not a setting name')
   }
   return cliVersion !== undefined && isReportVersion(cliVersion) ? { ...facts, cliVersion } : facts
+}
+
+/**
+ * The facts a draft may use. A report with its facts switched off carries
+ * none, so facts that fail validation must not stop it: it is built without
+ * them, title included. With facts on, the refusal stands and names its field.
+ */
+function draftFacts(input: ProblemReportInput): ProblemReportFacts | undefined {
+  try {
+    return validatedFacts(input.facts)
+  } catch (error: unknown) {
+    if (input.includeFacts || !(error instanceof ReportBuildError)) throw error
+    return undefined
+  }
 }
 
 /** One record the report will carry, with its place in the input it came from. */
@@ -493,14 +515,14 @@ function reportParts(input: ProblemReportInput): { title: string; text: string }
   if (!Number.isFinite(input.nowMs)) {
     throw new ReportBuildError('nowMs', 'not a finite time')
   }
-  const facts = validatedFacts(input.facts)
+  const facts = draftFacts(input)
   const events = validatedEvents(input.events)
   const sections: string[] = ['Muse Spark problem report']
   const description = cappedDescription(input.description)
   if (description !== '') {
     sections.push(`What was happening:\n${description}`)
   }
-  if (input.includeFacts) {
+  if (facts !== undefined && input.includeFacts) {
     sections.push(`Support facts:\n${factLines(facts).join('\n')}`)
   }
   if (input.includeEvents) {
@@ -510,10 +532,14 @@ function reportParts(input: ProblemReportInput): { title: string; text: string }
         : `Recent events (${String(events.length)}):\n${events.length === 0 ? NONE : eventLines(events).join('\n')}`,
     )
   }
-  return { title: problemReportTitle(facts), text: sections.join('\n\n') }
+  return {
+    title: facts === undefined ? TITLE_WITHOUT_FACTS : problemReportTitle(facts),
+    text: sections.join('\n\n'),
+  }
 }
 
-/** Existing synchronous builder for callers with no vault. */
+/** Existing synchronous builder for callers with no vault.
+ * @unwired M93 report-a-problem draft without vault */
 export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
   const parts = reportParts(input)
   return sealReportDraft(

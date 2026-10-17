@@ -51,7 +51,7 @@ function renderPalette(overrides: Partial<PaletteProps> = {}) {
   return { props, filter }
 }
 
-const TIER_NAME = /^(Minimal|Low|Medium|High|Extra high|Max)$/
+const TIER_NAME = /^(Minimal|Low|Medium|High|Extra High|Max)$/
 const sliderDots = () => document.querySelectorAll('.palette-slider .slider-step')
 
 function activeOption(): HTMLElement | undefined {
@@ -64,7 +64,7 @@ describe('Palette (actions view)', () => {
     expect(document.activeElement).toBe(filter)
     expect(screen.getByText('Context')).toBeInTheDocument()
     expect(screen.getByText('Skills')).toBeInTheDocument()
-    expect(activeOption()).toHaveTextContent('Attach file…')
+    expect(activeOption()).toHaveTextContent('Attach File…')
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(props.onAction).toHaveBeenCalledWith({ type: 'attachFile' })
   })
@@ -95,7 +95,7 @@ describe('Palette (actions view)', () => {
     fireEvent.keyDown(filter, { key: 'ArrowDown' })
     expect(activeOption()).toBe(screen.getAllByRole('option')[0])
     fireEvent.keyDown(filter, { key: 'ArrowDown' })
-    expect(activeOption()).toHaveTextContent('Mention file from this project…')
+    expect(activeOption()).toHaveTextContent('Mention File From This Project…')
   })
 
   it('steps the effort slider with Left/Right, Enter and the step buttons', () => {
@@ -113,7 +113,7 @@ describe('Palette (actions view)', () => {
     // Every dot names its tier on hover, and only the model's tiers are offered.
     expect(sliderDots()).toHaveLength(6)
     expect(screen.getByTitle('High')).toHaveClass('slider-step-on')
-    expect(screen.getByTitle('Extra high')).not.toHaveClass('slider-step-on')
+    expect(screen.getByTitle('Extra High')).not.toHaveClass('slider-step-on')
     // Inside the row the dots are no controls of their own (M37): the row is.
     expect(screen.queryAllByRole('button', { name: TIER_NAME })).toEqual([])
     expect(document.querySelector('.palette-slider')).toHaveAttribute('aria-hidden', 'true')
@@ -134,7 +134,7 @@ describe('Palette (actions view)', () => {
     const { props, filter } = renderPalette()
     fireEvent.keyDown(filter, { key: 'ArrowRight' })
     expect(props.onAction).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('option', { name: 'Clear conversation' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Clear Conversation' }))
     expect(props.onAction).toHaveBeenLastCalledWith({ type: 'clearConversation' })
   })
 
@@ -182,8 +182,8 @@ describe('Palette (models view)', () => {
     expect(screen.getAllByRole('option').map((node) => node.textContent)).toEqual([
       `Muse Spark 1.31M contextCurrent${UI_TEXT.paletteTips.switchModel}`,
     ])
-    expect(screen.queryByText('Add a model provider…')).toBeNull()
-    expect(screen.queryByText('Manage models…')).toBeNull()
+    expect(screen.queryByText('Add a Model Provider…')).toBeNull()
+    expect(screen.queryByText('Manage Models…')).toBeNull()
     fireEvent.keyDown(filter, { key: 'ArrowUp' })
     fireEvent.keyDown(filter, { key: 'Enter' })
     fireEvent.keyDown(filter, { key: 'ArrowDown' })
@@ -261,25 +261,25 @@ describe('Palette (models view)', () => {
     expect(screen.getAllByRole('option').map((node) => node.textContent)).toEqual([
       `DeepSeek V364K contextCurrent${UI_TEXT.paletteTips.switchModel}`,
       `Muse Spark 1.31M context${UI_TEXT.paletteTips.switchModel}`,
-      `qwen3:8b32.8K context · local${UI_TEXT.paletteTips.switchModel}`,
-      'Add a model provider…',
-      'Manage models…',
+      `qwen3:8b32.8K context · Local${UI_TEXT.paletteTips.switchModel}`,
+      'Add a Model Provider…',
+      'Manage Models…',
     ])
     await screen.findByText(/\$0\.2700 in · \$1\.10 out/)
     const options = screen.getAllByRole('option')
     expect(options.map((node) => node.textContent)).toEqual([
       `DeepSeek V364K context · $0.2700 in · $1.10 out (per M tokens)Current${UI_TEXT.paletteTips.switchModel}`,
       `Muse Spark 1.31M context${UI_TEXT.paletteTips.switchModel}`,
-      `qwen3:8b32.8K context · local${UI_TEXT.paletteTips.switchModel}`,
-      'Add a model provider…',
-      'Manage models…',
+      `qwen3:8b32.8K context · Local${UI_TEXT.paletteTips.switchModel}`,
+      'Add a Model Provider…',
+      'Manage Models…',
     ])
-    expect(screen.getByText('Pinned favourites')).toBeInTheDocument()
+    expect(screen.getByText('Pinned Favourites')).toBeInTheDocument()
     expect(screen.getByText('Muse Spark')).toBeInTheDocument()
     expect(screen.getByText('Ollama')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Add a model provider…'))
+    fireEvent.click(screen.getByText('Add a Model Provider…'))
     expect(props.onAction).toHaveBeenCalledWith({ type: 'addModelProvider' })
-    fireEvent.click(screen.getByText('Manage models…'))
+    fireEvent.click(screen.getByText('Manage Models…'))
     expect(props.onAction).toHaveBeenCalledWith({ type: 'manageModels' })
   })
 
@@ -297,12 +297,12 @@ describe('Palette (models view)', () => {
         },
       ],
     })
-    expect(screen.getByRole('option', { name: /Mystery/ })).toHaveTextContent('unpriced')
+    expect(screen.getByRole('option', { name: /Mystery/ })).toHaveTextContent('Unpriced')
     fireEvent.change(filter, { target: { value: 'openrouter' } })
     expect(screen.getAllByRole('option')).toHaveLength(1)
     fireEvent.change(filter, { target: { value: 'manage' } })
     expect(screen.getAllByRole('option').map((node) => node.textContent)).toEqual([
-      'Manage models…',
+      'Manage Models…',
     ])
   })
 })

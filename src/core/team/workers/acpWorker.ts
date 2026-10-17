@@ -23,6 +23,7 @@ import {
   type WorkerRootGrant,
   type WorkerFenceIo,
 } from './workerFence'
+/** @unwired M96 workerFence re-exports for ACP host consumers */
 export { AcpNativeServersError, answerAcpPermission, extractRequestPaths } from './workerFence'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
 
@@ -65,6 +66,7 @@ export interface AcpPreset {
  * The preset table. Claude's and Codex's rows are the research (§4.2, §4.3:
  * Claude's `default` asks before every edit, Codex's `workspace-write` is
  * confined to its `cwd`); the rest wait on step 1's `initialize` records.
+ * @unwired M96 external agent preset table
  */
 export const ACP_PRESETS: Readonly<Record<AcpPresetId, AcpPreset>> = {
   claude: {
@@ -164,6 +166,7 @@ export interface AcpPermissionOption {
 /**
  * Picks the once option for the verdict. `allow_always` is never forwarded:
  * the agent must never store an "always" the extension cannot see.
+ * @unwired M96 ACP once-option picker
  */
 export function pickOnceOption(
   options: readonly AcpPermissionOption[],
@@ -193,7 +196,9 @@ export interface AcpPermissionInput {
   readonly toolCall: AcpPermissionToolCall
 }
 
-/** Confines an `fs/*` path to the working copy, links followed. */
+/** Confines an `fs/*` path to the working copy, links followed.
+ * @unwired M96 ACP fs path confinement
+ */
 export async function confineAcpFsPath(input: {
   readonly folder: string
   readonly workspaceRoot: string
@@ -218,6 +223,7 @@ export interface AcpFsInput {
  * Serves `fs/read_text_file` inside the working copy only. Client file
  * methods enforce nothing on agents with their own tools (research §4.5);
  * the confinement still binds every agent that routes through them.
+ * @unwired M96 ACP fs read
  */
 export async function acpFsRead(
   input: AcpFsInput,
@@ -233,7 +239,9 @@ export async function acpFsRead(
   }
 }
 
-/** Serves `fs/write_text_file`: a `read-only` role never writes, and writers stay under `write-paths`. */
+/** Serves `fs/write_text_file`: a `read-only` role never writes, and writers stay under `write-paths`.
+ * @unwired M96 ACP fs write
+ */
 export async function acpFsWrite(
   input: AcpFsInput,
   given: string,
@@ -326,6 +334,7 @@ export interface AcpWorkerDeps {
  * for the role's shape, then the prompt. A terminal sign-in surfaces as
  * `AcpAuthRequiredError` for the host's terminal flow; no vendor credential
  * file is ever read.
+ * @unwired M96 ACP worker runner
  */
 export async function runAcpWorker(deps: AcpWorkerDeps): Promise<{
   readonly sessionId: string

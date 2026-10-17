@@ -5,28 +5,28 @@ import * as z from 'zod/mini'
 import { ACCOUNT_LABEL_MAX_LENGTH, ACCOUNT_MAX_PER_PROVIDER } from './constants'
 import { accountIdSchema } from './accountId'
 export { accountIdSchema } from './accountId'
-const opaqueId = z
+const opaqueId = /* @__PURE__ */ z
   .string()
   .check(z.minLength(1), z.maxLength(ACCOUNT_LABEL_MAX_LENGTH), z.regex(/^[A-Za-z0-9_-]+$/))
-const count = z.int().check(z.nonnegative())
+const count = /* @__PURE__ */ z.int().check(z.nonnegative())
 // Spend caps, trigger spend and swap cold-cache estimates carry canonical
 // decimal strings; numeric persisted forms normalize once at this boundary,
 // the way the other ports do.
 const money = legacyUsdSchema
-const percent = z.number().check(z.minimum(0), z.maximum(100))
-export const accountPeriodSchema = z.enum(['day', 'week', 'month'])
-const periodAmounts = z.strictObject({
+const percent = /* @__PURE__ */ z.number().check(z.minimum(0), z.maximum(100))
+export const accountPeriodSchema = /* @__PURE__ */ z.enum(['day', 'week', 'month'])
+const periodAmounts = /* @__PURE__ */ z.strictObject({
   day: z.optional(money),
   week: z.optional(money),
   month: z.optional(money),
 })
-const periodCounts = z.strictObject({
+const periodCounts = /* @__PURE__ */ z.strictObject({
   day: z.optional(count),
   week: z.optional(count),
   month: z.optional(count),
 })
 
-export const accountThresholdsSchema = z.strictObject({
+export const accountThresholdsSchema = /* @__PURE__ */ z.strictObject({
   spendUsd: z.optional(periodAmounts),
   inputTokens: z.optional(periodCounts),
   outputTokens: z.optional(periodCounts),
@@ -42,7 +42,7 @@ export const accountThresholdsSchema = z.strictObject({
 })
 export type AccountThresholds = z.infer<typeof accountThresholdsSchema>
 
-export const accountSchema = z.strictObject({
+export const accountSchema = /* @__PURE__ */ z.strictObject({
   id: accountIdSchema,
   label: z.string().check(
     z.minLength(1),
@@ -55,12 +55,12 @@ export const accountSchema = z.strictObject({
 })
 export type Account = z.infer<typeof accountSchema>
 
-export const accountPoolSchema = z.array(accountSchema).check(
+export const accountPoolSchema = /* @__PURE__ */ z.array(accountSchema).check(
   z.maxLength(ACCOUNT_MAX_PER_PROVIDER),
   z.refine((accounts) => new Set(accounts.map((account) => account.id)).size === accounts.length),
 )
 
-const spendCapTrigger = z.strictObject({
+const spendCapTrigger = /* @__PURE__ */ z.strictObject({
   kind: z.literal('userCap'),
   metric: z.literal('spendUsd'),
   period: accountPeriodSchema,
@@ -68,7 +68,7 @@ const spendCapTrigger = z.strictObject({
   threshold: money,
   resetAt: z.iso.datetime(),
 })
-const countCapTrigger = z.strictObject({
+const countCapTrigger = /* @__PURE__ */ z.strictObject({
   kind: z.literal('userCap'),
   metric: z.enum(['inputTokens', 'outputTokens', 'requests']),
   period: accountPeriodSchema,
@@ -76,7 +76,7 @@ const countCapTrigger = z.strictObject({
   threshold: count,
   resetAt: z.iso.datetime(),
 })
-export const accountTriggerSchema = z.union([
+export const accountTriggerSchema = /* @__PURE__ */ z.union([
   spendCapTrigger,
   countCapTrigger,
   z.strictObject({
@@ -89,7 +89,7 @@ export type AccountTrigger = z.infer<typeof accountTriggerSchema>
 
 // Persisted events hold opaque ids only. Labels are resolved by the local UI.
 const eventFields = { provider: accountIdSchema, account: accountIdSchema, time: z.iso.datetime() }
-export const accountEventSchema = z.discriminatedUnion('type', [
+export const accountEventSchema = /* @__PURE__ */ z.discriminatedUnion('type', [
   z.strictObject({
     ...eventFields,
     type: z.literal('swap'),
@@ -102,8 +102,12 @@ export const accountEventSchema = z.discriminatedUnion('type', [
 ])
 export type AccountEvent = z.infer<typeof accountEventSchema>
 
-export const accountConfirmationChoiceSchema = z.enum(['confirm', 'ownCapsOnly', 'cancel'])
-export const accountConfirmationSchema = z.strictObject({
+export const accountConfirmationChoiceSchema = /* @__PURE__ */ z.enum([
+  'confirm',
+  'ownCapsOnly',
+  'cancel',
+])
+export const accountConfirmationSchema = /* @__PURE__ */ z.strictObject({
   machineId: opaqueId,
   provider: accountIdSchema,
   product: accountIdSchema,

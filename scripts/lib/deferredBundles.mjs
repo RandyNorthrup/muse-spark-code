@@ -99,6 +99,18 @@ export const PLUGIN_HOOKS_ONLY = [
   'pluginChild.ts',
   'pluginFormats.ts',
 ]
+// MODELAPIDIET: the Model API backend's deferred per-call helpers (the hook
+// call fields, argument previews, fetch URL checks), loaded on first use.
+// The fetch URL checks live outside the backend's folder, so the DEFERRED
+// entry below adds their full paths beside these backend-relative names.
+export const MODEL_API_TOOLS_ONLY = [
+  'modelApiToolsEntry.ts',
+  'modelCallHooks.ts',
+  'argumentPreview.ts',
+]
+// publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
+// reads addressFamily for every request's SNI.
+export const MODEL_API_TOOLS_WEB = ['src/core/web/pageUrl.ts', 'src/core/web/fetchFailure.ts']
 // INT0170: M107 W2's machine resource journal is shared through its own bundle;
 // the governor (recorder) and usage service (reader) load it instead of copies.
 const RESOURCE_JOURNAL_SOURCE = 'src/runtime/resources/history.ts'
@@ -361,6 +373,14 @@ export const DEFERRED = [
     metafile: 'dist/meta/pluginHooks.json',
     files: PLUGIN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
   },
+  {
+    output: 'dist/modelApiTools.js',
+    metafile: 'dist/meta/modelApiTools.json',
+    files: [
+      ...MODEL_API_TOOLS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      ...MODEL_API_TOOLS_WEB,
+    ],
+  },
 ]
 
 // POSTSPAWN: the governed launcher's own modules, required by the admission
@@ -622,6 +642,7 @@ export const ON_FIRST_USE = [
       'src/core/tab/tabCache.ts',
       'src/core/tab/tabContext.ts',
       'src/core/tab/tabEngine.ts',
+      'src/core/tab/tabHooks.ts',
       'src/core/tab/tabReply.ts',
       'src/core/tab/tabRequest.ts',
       'src/core/tab/tabScheduler.ts',
@@ -679,6 +700,24 @@ export const ON_FIRST_USE = [
       'src/host/review/museCodeReviewerEntry.ts',
       'src/host/review/museCodeReviewer.ts',
       'src/core/backends/modelapi/autoReviewer.ts',
+    ],
+  },
+  // PANELBUDGET: the subscriptions half of the Models & Agents panel's host
+  // side (the sign-in flows), split out of dist/modelsPanel.js; activation
+  // requires it on the first subscription action, the panel never does.
+  {
+    output: 'dist/modelsSubscriptions.js',
+    metafile: 'dist/meta/modelsSubscriptions.json',
+    use: 'the first subscription action',
+    parents: [
+      BUNDLES.activation,
+      { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+    ],
+    files: [
+      'src/host/models/modelsSubscriptionsEntry.ts',
+      'src/host/providers/subscriptionFeatures.ts',
+      'src/host/providers/chatgptSignIn.ts',
+      'src/host/providers/copilotClient.ts',
     ],
   },
   // The report dialog (M93, PLAN.md D72), split out from the start.
@@ -1001,8 +1040,10 @@ export const sharedValidation = {
 }
 
 // Keep dynamic imports dynamic: these entries run only on their first action.
+// Exported for the generated lazy registry (scripts/gen-lazy-registry.mjs):
+// the source entry each filename-loaded bundle resolves from.
 /** @type {import('esbuild').Plugin} */
-const DEFERRED_OUTFILES = new Map([
+export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
   [path.resolve('src/core/resources/resourceProcessEntry.ts'), 'dist/resourceProcess.js'],
   [path.resolve('src/host/backend/mcpVaultEntry.ts'), 'dist/mcpVault.js'],
@@ -1040,6 +1081,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
   [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -1071,7 +1113,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamPanelEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamPanelEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

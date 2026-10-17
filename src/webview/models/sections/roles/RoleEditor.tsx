@@ -4,7 +4,7 @@ import {
   TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
   PERMISSION_MODES,
 } from '../../../../shared/constants'
-import { teamWorkspaceModes, teamReportShapes } from '../../../../shared/teamConfig'
+import { teamWorkspaceModes, teamReportShapes } from '../../../../shared/team'
 import type { TeamEditorRole, TeamPanelMessage, TeamPanelSlice } from '../../../../shared/teamPanel'
 import { useState } from 'react'
 import { TextField } from './fields'
