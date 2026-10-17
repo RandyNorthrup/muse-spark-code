@@ -82,8 +82,3 @@ export function hasLinuxHelperPins(pins: readonly LinuxHelperFilePin[]): boolean
     )
   )
 }
-
-/** The first-download bytes the consent card names (pins set, one arch). */
-export function linuxHelperBytes(pins: readonly LinuxHelperFilePin[]): number {
-  return pins.reduce((total, pin) => total + pin.bytes, 0)
-}
