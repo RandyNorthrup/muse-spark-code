@@ -598,6 +598,9 @@ export const SETTING_DEFAULTS = {
   'reports.network': 'whenSignedIn',
   'reports.keepHistory': true,
   'reports.agentSources': [],
+  // M123 (PLAN.md D104 source c): read the user's own `gh` login, off by
+  // default; machine-scoped so a repository cannot turn it on.
+  'github.useGhLogin': false,
   // M108 (PLAN.md D88.5): swap at the next request boundary and spread
   // background work across accounts, both on by default; machine-scoped so a
   // repository cannot pool the user's accounts.
@@ -842,6 +845,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'accountSwap',
   'accountParallel',
   'accounts.severalOnThisDevice',
+  // Reading the user's `gh` token is the user's choice (M123, D104 source c).
+  'github.useGhLogin',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -1696,6 +1701,10 @@ export const GIT_API_VERSION = 1
 // VS Code's built-in GitHub sign-in; `repo` lets a pull request be opened,
 // and its checks read, in a private repository too.
 export const GITHUB_AUTH_PROVIDER = 'github'
+// The built-in extension that registers it: a VS Code-family host without it
+// (Arduino IDE 2, some forks) has no editor sign-in, so D104's source (a) is
+// absent there and the device flow comes first (M123).
+export const GITHUB_AUTH_EXTENSION_ID = 'vscode.github-authentication'
 export const GITHUB_AUTH_SCOPES: readonly string[] = ['repo']
 export const GITHUB_API_BASE_URL = 'https://api.github.com'
 // The REST API version the capture ran against (docs/certification/m71.md).
@@ -1708,15 +1717,6 @@ export const GITHUB_CHECKS_PAGE_SIZE = 100
 
 // --- GitHub outside VS Code (M123, PLAN.md D104) ---
 
-// M123 ships whole or not at all (the owner, 2026-10-10): until its sign-in,
-// editor leases, panel and per-editor qualification land (PLAN.md M123,
-// "Not yet shipped"), a VS Code-family host without `vscode.git` keeps its
-// earlier behaviour and the native Git route stays off. Lane Q turns it on
-// with F36's receipts, together with `museSpark.github.useGhLogin`.
-export const M123_RELEASE: { readonly isNativeGitRouteOn: boolean } = {
-  isNativeGitRouteOn: false,
-}
-
 // The token sources, first available wins: (a) the editor's own sign-in by
 // lease, (b) the runtime's device-flow sign-in, (c) the user's `gh` login.
 export const GITHUB_TOKEN_SOURCE_ORDER = ['editorLease', 'deviceFlow', 'ghLogin'] as const
@@ -1726,12 +1726,14 @@ export const GITHUB_PERMITTED_SCOPES: readonly string[] = ['repo', 'read:org']
 // GitHub names a token's scopes in this response header (comma-separated).
 /** @unwired M71 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_SCOPES_HEADER = 'x-oauth-scopes'
-// The project's OAuth App (Q-M123): public, no secret. Empty until the owner
-// registers the app; the device flow refuses to start while it is.
-export const GITHUB_OAUTH_CLIENT_ID = ''
+// The project's OAuth App (Q-M123, registered by the owner 2026-10-08):
+// public, device flow on, expiring user tokens on, no client secret. The
+// device flow still refuses to start if this is ever emptied.
+// gitleaks reads the id as a generic key; it is public by design (PLAN.md §8).
+export const GITHUB_OAUTH_CLIENT_ID = 'Ov23liXlNSPBbFyJ0A1z' // gitleaks:allow
 // GitHub's device flow (docs.github.com, "Authorizing OAuth apps", device
-// flow; lane A re-reads and dates it). Only this verification address is
-// ever opened.
+// flow; not re-read in lane A, see docs/certification/m123.md). Only this
+// verification address is ever opened.
 /** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code'
 /** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
@@ -1740,6 +1742,33 @@ export const GITHUB_DEVICE_TOKEN_URL = 'https://github.com/login/oauth/access_to
 export const GITHUB_DEVICE_VERIFICATION_URL = 'https://github.com/login/device'
 /** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
+export const GITHUB_REFRESH_GRANT_TYPE = 'refresh_token'
+// A user code as shown to the user: letters, digits and hyphens only, so a
+// reply cannot put terminal escapes or markup on screen.
+export const GITHUB_USER_CODE_PATTERN = /^[A-Z0-9-]{1,32}$/u
+// An expiring token is refreshed this long before GitHub would refuse it.
+export const GITHUB_TOKEN_REFRESH_MARGIN_MS = 60_000
+// Where the device-flow token is kept: the OS credential store's account
+// (the M109 vault's `oauth` item once its broker binds, PLAN.md M123).
+export const GITHUB_DEVICE_FLOW_SECRET_KEY = 'museSpark.github.deviceFlow'
+// Beside it, the sign-in generation (a random id, no secret): the logout
+// barrier. Only Sign out writes it, a fresh value in one write; a stored
+// pair is read only under the generation it was issued in (PLAN.md M123).
+export const GITHUB_DEVICE_FLOW_GENERATION_KEY = 'museSpark.github.deviceFlow.generation'
+// Beside that, the id of the last pair refused (a random id, no secret): a
+// rotation may fill the slot that its own start pair's refusal emptied, and
+// no other (PLAN.md M123).
+export const GITHUB_DEVICE_FLOW_REFUSED_KEY = 'museSpark.github.deviceFlow.refused'
+export const GITHUB_STORED_TOKEN_VERSION = 3
+// Revoking a token through the API needs the app's client secret, which a
+// public client has none of; Sign out opens the app's page on GitHub, where
+// the user revokes the grant.
+export const GITHUB_AUTHORIZED_APP_URL = `https://github.com/settings/connections/applications/${GITHUB_OAUTH_CLIENT_ID}`
+// The CLI's `auth github <action>` words (M123 lane A).
+export const GITHUB_AUTH_ACTIONS = ['login', 'logout', 'status'] as const
+// `gh auth token` prints one token; anything longer is refused.
+export const GH_AUTH_TOKEN_MAX_BYTES = 4096
+export const GH_AUTH_TOKEN_TIMEOUT_MS = 10_000
 // GitHub's defaults when its reply omits them, and the step `slow_down` adds.
 /** @unwired M123 read only by tests deleted 2026-10-17 (no fakes) */
 export const GITHUB_DEVICE_CODE_EXPIRES_S = 900
@@ -3927,6 +3956,9 @@ export const MODEL_API_SESSIONS_BUNDLE_FILE = 'modelApiSessions.js'
 // The Create AGENTS.md command (D15), required when that command runs, not at
 // activation.
 export const RULES_FILE_BUNDLE_FILE = 'rulesFile.js'
+// M123's native Git route (PLAN.md D104 §1), required only in a VS Code-family
+// host without `vscode.git`.
+export const NATIVE_GIT_BUNDLE_FILE = 'nativeGit.js'
 // The plan reader's bundle (M79, PLAN.md D6), beside dist/extension.js:
 // the panel's Markdown parser, loaded on the first plan action.
 export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'
@@ -5326,6 +5358,9 @@ export const SLASH_COMMAND_NAMES = {
   push: 'push',
   pullRequest: 'pr',
   checkoutPullRequest: 'checkout-pr',
+  // M123: Muse Spark's own GitHub sign-in (the device flow) and its sign-out.
+  githubLogin: 'github-login',
+  githubLogout: 'github-logout',
   // M70: Claude Code's name for its security review, and the review pane.
   securityReview: 'security-review',
   changes: 'changes',
@@ -5948,6 +5983,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/modelApi.js',
   'dist/modelApiSessions.js',
   'dist/rulesFile.js',
+  'dist/nativeGit.js',
   'dist/mcpPool.js',
   'dist/mcpVault.js',
   'dist/modelApiCodeIntel.js',

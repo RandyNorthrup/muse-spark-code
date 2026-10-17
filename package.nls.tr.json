@@ -228,6 +228,7 @@
   "config.accountSwap.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
   "config.accountParallel.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
   "config.accounts.severalOnThisDevice.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",
+  "config.github.useGhLogin.description": "Çekme isteklerinin mevcut GitHub CLI oturumunuzu (`gh auth token`) kullanmasına izin verir; düzenleyicinin GitHub oturumu ve Muse Spark oturumundan sonra en son denenir. Belirteç her seferinde yalnızca bir istek için okunur ve asla saklanmaz. Varsayılan olarak kapalı; yalnızca kullanıcı ayarlarında, bu yüzden bir depo bunu açamaz.",
   "command.vault.title": "Kasa",
   "command.lockVault.title": "Kasayı şimdi kilitle",
   "config.vault.description": "Uyumluluk için saklanır; bu tercih bu derlemede etkili değildir.",

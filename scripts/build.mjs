@@ -175,6 +175,8 @@ const MODEL_API_SESSIONS_ENTRY = 'src/host/backend/fileSessionStoreEntry.ts'
 const MODEL_API_SESSIONS_OUTFILE = 'dist/modelApiSessions.js'
 const RULES_FILE_ENTRY = 'src/host/commands/rulesFileEntry.ts'
 const RULES_FILE_OUTFILE = 'dist/rulesFile.js'
+const NATIVE_GIT_ENTRY = 'src/runtime/panel/git/nativeGitEntry.ts'
+const NATIVE_GIT_OUTFILE = 'dist/nativeGit.js'
 const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
@@ -824,6 +826,17 @@ const rulesFileOptions = {
   outfile: RULES_FILE_OUTFILE,
 }
 
+// M123's native Git route (D104), required by the conversation Git bundle the
+// first time a conversation opens in a host without `vscode.git`: the
+// runtime Git adapter, its service, the repository lease and the runtime's
+// pull requests.
+/** @type {import('esbuild').BuildOptions} */
+const nativeGitOptions = {
+  ...conversationGitOptions,
+  entryPoints: [NATIVE_GIT_ENTRY],
+  outfile: NATIVE_GIT_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
@@ -1271,6 +1284,7 @@ if (isWatch) {
     esbuild.context(conversationGitOptions),
     esbuild.context(modelApiSessionsOptions),
     esbuild.context(rulesFileOptions),
+    esbuild.context(nativeGitOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
@@ -1388,6 +1402,7 @@ if (isWatch) {
     conversationGit: esbuild.build(conversationGitOptions),
     modelApiSessions: esbuild.build(modelApiSessionsOptions),
     rulesFile: esbuild.build(rulesFileOptions),
+    nativeGit: esbuild.build(nativeGitOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
     legalScan: esbuild.build(legalScanOptions),
     codeIntel: esbuild.build(codeIntelOptions),
@@ -1519,6 +1534,7 @@ if (isWatch) {
   reportSize(CONVERSATION_GIT_OUTFILE)
   reportSize(MODEL_API_SESSIONS_OUTFILE)
   reportSize(RULES_FILE_OUTFILE)
+  reportSize(NATIVE_GIT_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)

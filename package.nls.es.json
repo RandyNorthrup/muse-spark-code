@@ -228,6 +228,7 @@
   "config.accountSwap.description": "Se conserva por compatibilidad; esta preferencia no tiene efecto en esta compilación.",
   "config.accountParallel.description": "Se conserva por compatibilidad; esta preferencia no tiene efecto en esta compilación.",
   "config.accounts.severalOnThisDevice.description": "Se conserva por compatibilidad; esta preferencia no tiene efecto en esta compilación.",
+  "config.github.useGhLogin.description": "Permite que las solicitudes de incorporación de cambios usen tu sesión existente de GitHub CLI (`gh auth token`), probada en último lugar, después de la sesión de GitHub del editor y la de Muse Spark. El token se lee para una sola solicitud cada vez y nunca se guarda. Desactivado de forma predeterminada; solo en la configuración de usuario, así que un repositorio no puede activarlo.",
   "command.vault.title": "Bóveda",
   "command.lockVault.title": "Bloquear la bóveda ahora",
   "config.vault.description": "Se conserva por compatibilidad; esta preferencia no tiene efecto en esta compilación.",

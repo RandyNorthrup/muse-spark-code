@@ -228,6 +228,7 @@
   "config.accountSwap.description": "Zachowane dla zgodności; ta preferencja nie ma wpływu na działanie w tej kompilacji.",
   "config.accountParallel.description": "Zachowane dla zgodności; ta preferencja nie ma wpływu na działanie w tej kompilacji.",
   "config.accounts.severalOnThisDevice.description": "Zachowane dla zgodności; ta preferencja nie ma wpływu na działanie w tej kompilacji.",
+  "config.github.useGhLogin.description": "Pozwala pull requestom używać istniejącego logowania GitHub CLI (`gh auth token`), próbowanego jako ostatnie, po logowaniu do GitHuba w edytorze i logowaniu Muse Spark. Token jest odczytywany tylko na jedno żądanie i nigdy nie jest zapisywany. Domyślnie wyłączone; tylko w ustawieniach użytkownika, więc repozytorium nie może tego włączyć.",
   "command.vault.title": "Sejf",
   "command.lockVault.title": "Zablokuj sejf teraz",
   "config.vault.description": "Zachowane dla zgodności; ta preferencja nie ma wpływu na działanie w tej kompilacji.",

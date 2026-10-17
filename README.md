@@ -1933,8 +1933,8 @@ trusted workspace, since git does not run in Restricted Mode.
 
 From finished work to an open pull request without leaving the panel, on
 both backends. The **Git and Pull Requests** group of the `/` palette
-(`/commit`, `/push`, `/pr`, `/checkout-pr`) opens each step above the
-composer.
+(`/commit`, `/push`, `/pr`, `/checkout-pr`, `/github-login`,
+`/github-logout`) opens each step above the composer.
 
 Open the repository or worktree root for these actions; an ancestor
 repository returned for a workspace subfolder is refused. Git actions are
@@ -1966,16 +1966,16 @@ also unavailable while a pull request worktree is held.
   prompts apply. It never force-pushes: a branch behind its upstream is
   refused (pull first), and so is a branch or remote whose name git would
   read as an option or a force.
-- **Open a pull request** on github.com, with VS Code's GitHub sign-in
-  (VS Code asks for it the first time). The form is the confirmation: the
+- **Open a pull request** on github.com, with the window's GitHub sign-in
+  ([below](#github-sign-in): VS Code's own the first time, where your editor
+  has it). The form is the confirmation: the
   repository, the remote, the branch, the base, the title and the
   description are all shown and editable, and the pull request opens as a
   draft unless you untick it. A branch not yet pushed is pushed first,
   asking as above. From a fork it opens on the repository the fork came
   from. A credential-shaped string in the title, description or commit
   message is masked and sent back to the form, so nothing goes out that you
-  have not seen. GitHub only: VS Code has no built-in sign-in for other
-  forges.
+  have not seen. GitHub only (github.com).
   The destination is bound to the form you saw: a changed remote, fork
   parent or branch stops creation instead of sending its body elsewhere.
 - **Cancellation and changes.** Busy forms freeze their editable fields;
@@ -2060,11 +2060,54 @@ also unavailable while a pull request worktree is held.
 - **Restricted Mode.** None of this runs there, and the panel says why:
   git can run programs a repository's configuration names.
 
-**The project's GitHub app (arriving with M123).** Editors without their own
-GitHub sign-in will sign in through the GitHub OAuth app "Muse Spark Code
-(Unofficial)", using GitHub's device flow (no client secret). Like the
-extension, the app is unofficial and not affiliated with or endorsed by Meta
-or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
+### GitHub sign-in
+
+Every GitHub call (a pull request, its status and checks, someone else's
+pull request) takes its sign-in from three sources, in this order; the
+first one that already has a sign-in is used, and the panel names it:
+
+1. **Your editor's own GitHub sign-in.** VS Code and the forks that ship
+   VS Code's GitHub sign-in ask for it the first time, as before. The token
+   stays in the editor.
+2. **Muse Spark's own sign-in, with GitHub's device flow**, through the
+   project's GitHub OAuth app "Muse Spark Code (Unofficial)" (no client
+   secret; it asks for the `repo` scope only). Where the editor has no
+   GitHub sign-in of its own (Arduino IDE 2, some forks), **Sign In to
+   GitHub** starts it; anywhere, `/github-login` (**Sign In to GitHub With
+   a Code**) does. A card above the composer shows the code with **Copy
+   Code**, **Open GitHub** (only `https://github.com/login/device` is ever
+   opened, whatever a reply says) and **Cancel**, and when the code
+   expires. The token is kept in the editor's secret storage (the
+   operating system's keychain behind it), never in a file, a setting or a
+   log. In a terminal, `muse-spark-code-acp auth github login` prints the
+   same code and keeps the token in this computer's credential store
+   (Windows Credential Manager, the macOS login Keychain, or the Secret
+   Service on Linux); `auth github status` says whether one is stored.
+3. **Your existing `gh` login**, only after you turn on
+   `museSpark.github.useGhLogin` in your user or machine settings (a
+   repository's settings cannot): `gh auth token --hostname github.com`
+   runs for each GitHub call, and the token is kept for that call only.
+
+Below the pull request strip or form, a line names the GitHub account and
+the sign-in in use. **Sign Out** there (or `/github-logout`, or
+`auth github logout` in a terminal) deletes Muse Spark's own token and
+opens the app's page on GitHub, where **Revoke** ends the grant: GitHub's
+revocation API needs a client secret, which a public app does not have.
+Your editor's sign-in and `gh` keep theirs. A token GitHub refuses (401)
+is dropped, and you sign in again.
+
+Like the extension, the app is unofficial and not affiliated with or
+endorsed by Meta or GitHub. Its GitHub Marketplace listing is awaiting
+GitHub's review.
+
+**Without VS Code's Git extension.** An editor built on VS Code that does
+not ship its Git extension (Arduino IDE 2, some forks) gets the same
+commit, push and pull request steps through your own `git` on PATH: the
+same forms, confirmations and refusals (never a force-push), each change
+checked again after every wait, with one lock per repository across
+windows. **Open a Pull Request in a Conversation…** still needs VS Code's
+Git there. JetBrains IDEs, Visual Studio, Eclipse and the editors served
+through the editor protocol get these steps when their panels arrive.
 
 <!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
      Turn this into a link in the release that follows approval. -->

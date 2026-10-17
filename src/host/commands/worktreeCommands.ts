@@ -18,7 +18,7 @@ import {
   worktreeRemoveArgs,
 } from '../../core/worktrees'
 import { redactSecrets } from '../../core/redact'
-import { GIT_WORKTREE_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
 import type { PickItem, PickOne } from './pickItem'
@@ -203,7 +203,7 @@ export async function newWorktree(deps: WorktreeDeps): Promise<void> {
     return
   }
   try {
-    await runCurrentGit(deps, worktreeAddArgs(folder, branch, base), root, GIT_WORKTREE_TIMEOUT_MS)
+    await runCurrentGit(deps, worktreeAddArgs(folder, branch, base), root, Infinity)
   } catch (error: unknown) {
     deps.showError(`${UI_TEXT.worktreeAddFailed}: ${gitMessage(error)}`)
     return
@@ -240,7 +240,7 @@ function removalItem(entry: WorktreeEntry): PickItem {
 /** `git worktree remove`, then with `--force` only after a second, explicit yes. */
 async function didRemoveFolder(deps: WorktreeDeps, root: string, folder: string): Promise<boolean> {
   try {
-    await runCurrentGit(deps, worktreeRemoveArgs(folder, false), root, GIT_WORKTREE_TIMEOUT_MS)
+    await runCurrentGit(deps, worktreeRemoveArgs(folder, false), root, Infinity)
     return true
   } catch (error: unknown) {
     const message = gitMessage(error)
@@ -258,7 +258,7 @@ async function didRemoveFolder(deps: WorktreeDeps, root: string, folder: string)
     return false
   }
   try {
-    await runCurrentGit(deps, worktreeRemoveArgs(folder, true), root, GIT_WORKTREE_TIMEOUT_MS)
+    await runCurrentGit(deps, worktreeRemoveArgs(folder, true), root, Infinity)
     return true
   } catch (error: unknown) {
     deps.showError(`${UI_TEXT.worktreeRemoveFailed}: ${gitMessage(error)}`)

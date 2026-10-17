@@ -23,7 +23,6 @@ import { heldTree, type HeldEntry, unsafePathReason } from '../../core/git/heldT
 import { isSamePath } from '../../core/paths'
 import { worktreeAddHeldArgs } from '../../core/worktrees'
 import {
-  GIT_WORKTREE_TIMEOUT_MS,
   HELD_CHECKOUT_MAX_BYTES,
   HELD_CHECKOUT_MAX_ENTRIES,
   HELD_EXECUTABLE_MODE,
@@ -148,7 +147,8 @@ async function writeEntries(
     cwd: target.cwd,
     env: quietGitEnvironment(deps.env),
     input: blobs.map((entry) => `${entry.oid}\n`).join(''),
-    timeoutMs: GIT_WORKTREE_TIMEOUT_MS,
+    // No deadline of ours (M123): the checkout's size caps bound the work.
+    timeoutMs: undefined,
     onStdout: (chunk) => answers.take(chunk),
   })
   answers.finish()
@@ -162,7 +162,7 @@ async function removeWorktree(deps: HeldCheckoutDeps, target: Target): Promise<v
     await deps.runGit(
       ['worktree', 'remove', '--force', target.folder],
       target.cwd,
-      GIT_WORKTREE_TIMEOUT_MS,
+      Infinity,
       undefined,
       target.check,
     )
@@ -182,7 +182,7 @@ export function createHeldCheckout(deps: HeldCheckoutDeps): HeldCheckout {
       listing = await deps.runGit(
         ['ls-tree', '-r', '-z', '--full-tree', '--long', commit],
         cwd,
-        GIT_WORKTREE_TIMEOUT_MS,
+        Infinity,
         undefined,
         check,
       )
@@ -205,16 +205,10 @@ export function createHeldCheckout(deps: HeldCheckoutDeps): HeldCheckout {
     if (!tree.ok) {
       throw new GitUnavailableError(tree.reason)
     }
-    await deps.runGit(
-      worktreeAddHeldArgs(folder, commit),
-      cwd,
-      GIT_WORKTREE_TIMEOUT_MS,
-      undefined,
-      check,
-    )
+    await deps.runGit(worktreeAddHeldArgs(folder, commit), cwd, Infinity, undefined, check)
     try {
       // In the worktree, so named hooks its own configuration defines are found and switched off.
-      await deps.runGit(['read-tree', commit], folder, GIT_WORKTREE_TIMEOUT_MS, undefined, check)
+      await deps.runGit(['read-tree', commit], folder, Infinity, undefined, check)
       await writeEntries(deps, target, tree.entries)
     } catch (error: unknown) {
       await removeWorktree(deps, target)
