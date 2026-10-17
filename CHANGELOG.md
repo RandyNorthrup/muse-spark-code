@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- A v2 `/loop` draft no longer stamps in an end seven days out; how long a
+  schedule lives is set in the editor the draft opens. The unused duplicate
+  loop adapter that carried the same seven-day default is removed.
+
 - Carrying a pre-version schedule store into `schedules/v1` merges folders
   entry by entry when the versioned root already holds that folder, and
   never overwrites a file already in `v1`; before, the same folder on both
