@@ -2223,15 +2223,26 @@ class AcpSession {
         ) {
           this.commitAnswers(pending)
         }
-        this.noteTurnId(submission.turnId, submission.disposition)
         // A Plan-held playback (a backend with no no-tools turn of its
         // own) is watched for tool items until its turn ends, which puts
-        // the session's mode back.
+        // the session's mode back. The watch is noted before the turn id:
+        // noting settles a turn that already finished, and settling is
+        // what puts the mode back, so the other order would leave the
+        // session in Plan mode with the editor told another mode.
         if (isAccepted && isPlayback && this.session.playback === undefined) {
           this.playbackTurnId = submission.turnId
           this.playbackStopped = false
         }
-        if (!isAccepted) throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        this.noteTurnId(submission.turnId, submission.disposition)
+        if (!isAccepted) {
+          // No playback turn of its own runs (it was steered into another
+          // or refused): nothing will end to put the mode back, so the
+          // Plan hold comes off here instead of leaking into later turns.
+          if (isPlayback && this.session.playback === undefined) {
+            await this.restorePlaybackMode()
+          }
+          throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        }
       }
     } catch (error: unknown) {
       await this.releaseAnswers(pending)
