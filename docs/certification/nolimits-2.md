@@ -120,3 +120,24 @@ after 15000 ms`.
     this lane's later work and is rig-specific (order-dependent; the
     worker balloons past 1 GB). Not touched: it belongs to A17's row,
     already committed.
+
+## Review addendum (RVNOLIMITS2, 2026-10-17)
+
+- Finding 2 is fixed: the surviving bound is now
+  `CHATGPT_TOKEN_MIN_VALIDITY_MS` (commit `61b32a0a4`).
+- Finding 5 is fixed for `src/`: the transport timers read
+  `VAULT_TRANSPORT_TIMEOUT_MS`; `VAULT_APPROVAL_TTL_MS` stays only for
+  the vault harness fixture and the unmerged M109 broker work, with
+  that reason on it (commit `1796ccda7`).
+- `MSP_SLOW_HANDSHAKE_TIMEOUT_MS` was dead after C12 (no reader in
+  `src/`, `test/` or `scripts/`) and its comment claimed readers it
+  did not have; deleted (commit `bbb118910`).
+- The C1 evidence above that cites `modelApiNoIdleKill.test.ts` (3
+  passed) and `modelApiRetryNoCount.test.ts` (4 passed) described the
+  lane's tree. Those tests fed the transport invented provider
+  answers, which the owner's testing rules (2026-10-12) do not allow;
+  the review deleted `modelApiNoIdleKill.test.ts` whole and three of
+  the four retry tests, keeping the pure `backoffMs` proof and adding
+  a pure `canRetryWithinBudget` proof (commit `358cf7134`, gate-fire
+  recorded there). The retry loop's live end at Stop is unproven by
+  any committed test and is a real-life step for the lead.
