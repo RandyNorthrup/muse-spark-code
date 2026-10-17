@@ -778,7 +778,7 @@ Inspect project, user, managed and spark-hooks.json hook sources for the selecte
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.hooks`, `museSpark.runSetupHooks`, `museSpark.runHook`, `museSpark.retryPluginHooks`. Settings: `museSpark.modelApiHooks`, `museSpark.hookHttpAllowedHosts`, `museSpark.modelApiShellKeepsDirectory`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#hooks)
+Commands: `museSpark.hooks`, `museSpark.runSetupHooks`, `museSpark.runHook`, `museSpark.retryPluginHooks`. Settings: `museSpark.modelApiHooks`, `museSpark.hookHttpAllowedHosts`, `museSpark.modelApiShellKeepsDirectory`, `museSpark.hooksMaxStopContinuations`, `museSpark.hooksMaxRunningCommands`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#hooks)
 
 ### Git and Pull Requests
 
@@ -1198,7 +1198,7 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.modelApiSubagents`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#session-board-and-best-of-n)
+Commands: —. Settings: `museSpark.modelApiSubagents`, `museSpark.subagentMaxConcurrent`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#session-board-and-best-of-n)
 
 ### Permission Mode
 
@@ -2264,6 +2264,49 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 {
   "type": "boolean",
   "default": true
+}
+```
+
+### museSpark.hooksMaxStopContinuations
+
+hooks: How many times in a row Stop hooks may keep a finished turn going (Muse Code's default 8; minimum 1). Past that the turn ends.
+
+Type: `"number"`. Default: `8`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 8,
+  "minimum": 1
+}
+```
+
+### museSpark.hooksMaxRunningCommands
+
+hooks: How many hook commands run at once (minimum 0). 0 starts them all at once, as Muse Code does.
+
+Type: `"number"`. Default: `0`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 0,
+  "minimum": 0
+}
+```
+
+### museSpark.subagentMaxConcurrent
+
+sessionBoard&subagents: How many subagents work at once (1–64, Muse Code's default 8). Later ones queue.
+
+Type: `"number"`. Default: `8`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 8,
+  "minimum": 1,
+  "maximum": 64
 }
 ```
 

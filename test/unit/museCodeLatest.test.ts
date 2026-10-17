@@ -15,9 +15,16 @@ import {
   toSkillSummary,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import { mapNotification, UNKNOWN_METHOD } from '../../src/core/backends/musecode/mapNotification'
-import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
-import { museCodeLoadedSessionCeiling } from '../../src/shared/constants'
+import { dispatchHooks, parseHookConfig } from '../../src/core/backends/modelapi/hooks'
+import { subagentSpawnDescription } from '../../src/core/backends/modelapi/subagentTools'
+import {
+  HOOK_MAX_STOP_CONTINUATIONS,
+  SETTING_DEFAULTS,
+  SUBAGENT_CAPACITY,
+  museCodeLoadedSessionCeiling,
+} from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/constants'
+import type { ShellResult } from '../../src/core/shellResult'
 
 function fixture(name: string): unknown {
   return JSON.parse(readFileSync(new URL(`../fixtures/m126/${name}`, import.meta.url), 'utf8'))
@@ -250,5 +257,95 @@ describe('hook event ToolUseStart', () => {
     )
     expect(parsed.warnings).toEqual([])
     expect(parsed.hooks).toHaveLength(1)
+  })
+})
+
+describe('hook running commands setting', () => {
+  const FIVE = [
+    { type: 'command', command: 'a' },
+    { type: 'command', command: 'b' },
+    { type: 'command', command: 'c' },
+    { type: 'command', command: 'd' },
+    { type: 'command', command: 'e' },
+  ] as const
+
+  // Five command hooks through the real dispatch and gate; the runner holds
+  // every started command until the test releases it, recording the peak.
+  async function peakRunning(maxRunningCommands?: number): Promise<number> {
+    const parsed = parseHookConfig(
+      JSON.stringify({ hooks: { SessionStart: [{ hooks: [...FIVE] }] } }),
+      'user',
+      'linux',
+    )
+    expect(parsed.warnings).toEqual([])
+    let running = 0
+    let peak = 0
+    const releases: (() => void)[] = []
+    const runHook = async (): Promise<ShellResult> => {
+      running += 1
+      peak = Math.max(peak, running)
+      await new Promise<void>((resolve) => {
+        releases.push(() => {
+          running -= 1
+          resolve()
+        })
+      })
+      return { stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }
+    }
+    const warnings: string[] = []
+    const work = dispatchHooks(
+      parsed.hooks,
+      'SessionStart',
+      { cwd: '/ws' },
+      undefined,
+      { runHook },
+      undefined,
+      (warning) => {
+        warnings.push(warning)
+      },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      maxRunningCommands === undefined ? undefined : { maxRunningCommands },
+    )
+    for (let round = 0; round < 10 && releases.length === 0; round += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    while (releases.length > 0) {
+      const release = releases.shift()
+      release?.()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    await work
+    return peak
+  }
+
+  it('starts every matching handler at once when the setting is 0', async () => {
+    expect(await peakRunning(0)).toBe(5)
+  })
+
+  it('serializes handlers when the setting is 1', async () => {
+    expect(await peakRunning(1)).toBe(1)
+  })
+
+  it('keeps the extension-host fallback cap without the setting', async () => {
+    expect(await peakRunning()).toBe(4)
+  })
+})
+
+describe('hook and subagent setting defaults', () => {
+  it('ships Muse Code’s own defaults', () => {
+    expect(SETTING_DEFAULTS.hooksMaxStopContinuations).toBe(HOOK_MAX_STOP_CONTINUATIONS)
+    expect(SETTING_DEFAULTS.hooksMaxStopContinuations).toBe(8)
+    expect(SETTING_DEFAULTS.hooksMaxRunningCommands).toBe(0)
+    expect(SETTING_DEFAULTS.subagentMaxConcurrent).toBe(SUBAGENT_CAPACITY)
+    expect(SETTING_DEFAULTS.subagentMaxConcurrent).toBe(8)
+  })
+
+  it('names the live subagent count in the spawn description', () => {
+    expect(subagentSpawnDescription()).toContain('Up to 8 work at once')
+    expect(subagentSpawnDescription(3)).toContain('Up to 3 work at once')
+    expect(subagentSpawnDescription(64)).toContain('Up to 64 work at once')
   })
 })

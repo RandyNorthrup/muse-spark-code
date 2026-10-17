@@ -2801,6 +2801,9 @@ async function activateWindow(
     strictTools: () => currentSettings().modelApiStrictTools,
     parallelReads: () => currentSettings().modelApiParallelReads,
     webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
+    hookMaxStopContinuations: () => currentSettings().hooksMaxStopContinuations,
+    hookMaxRunningCommands: () => currentSettings().hooksMaxRunningCommands,
+    subagentMaxConcurrent: () => currentSettings().subagentMaxConcurrent,
     isShellKeepsDirectoryOn: () => currentSettings().modelApiShellKeepsDirectory,
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
