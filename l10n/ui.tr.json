@@ -5171,6 +5171,7 @@
     "grantSaved": "{connection} bağlantısına izin verildi. Çalışma alanları: {workspaces}",
     "grantNeedsTerminal": "Bunu kendi terminalinizde çalıştırın: izin vermek için onayı sizin yazmanız gerekir.",
     "grantInvalid": "İzin verilemedi: {reason}",
+    "notConfirmed": "Hiçbir şey değiştirilmedi.",
     "revoked": "{connection} bağlantısının izni geri alındı.",
     "killOn": "Bağlayıcı kapatıldı. Yeni işlemler reddedilir; Durdur çalışmaya devam eder.",
     "killOff": "Bağlayıcı yeniden açıldı.",

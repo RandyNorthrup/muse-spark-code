@@ -5020,6 +5020,7 @@
     "grantSaved": "已授權連線 {connection}。其工作區：{workspaces}",
     "grantNeedsTerminal": "請在您自己的終端機中執行：授權需要您親自輸入確認。",
     "grantInvalid": "無法建立授權：{reason}",
+    "notConfirmed": "未做任何變更。",
     "revoked": "已撤銷連線 {connection} 的授權。",
     "killOn": "連接器已關閉。新的操作會遭拒絕；「停止」仍可使用。",
     "killOff": "連接器已重新開啟。",

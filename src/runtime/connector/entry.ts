@@ -88,6 +88,9 @@ export async function runConnector(deps: ConnectorRuntimeDeps): Promise<number> 
         try {
           const answer = await input.question(`${question} `)
           return answer.trim().toLowerCase() === 'y'
+        } catch {
+          // Ctrl+C or Ctrl+D at the prompt is a no, never a crash.
+          return false
         } finally {
           input.close()
         }

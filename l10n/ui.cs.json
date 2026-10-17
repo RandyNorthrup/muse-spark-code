@@ -5473,6 +5473,7 @@
     "grantSaved": "Připojení {connection} má udělené oprávnění. Jeho pracovní prostory: {workspaces}",
     "grantNeedsTerminal": "Spusťte to ve svém vlastním terminálu: udělení oprávnění vyžaduje, abyste potvrzení napsali sami.",
     "grantInvalid": "Oprávnění se nepodařilo udělit: {reason}",
+    "notConfirmed": "Nic se nezměnilo.",
     "revoked": "Oprávnění připojení {connection} bylo odvoláno.",
     "killOn": "Konektor je vypnutý. Nové akce jsou odmítány; Zastavit stále funguje.",
     "killOff": "Konektor je znovu zapnutý.",

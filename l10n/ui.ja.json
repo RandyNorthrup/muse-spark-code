@@ -5020,6 +5020,7 @@
     "grantSaved": "接続 {connection} に許可を付与しました。ワークスペース: {workspaces}",
     "grantNeedsTerminal": "ご自身のターミナルで実行してください。許可を付与するには、確認を自分で入力する必要があります。",
     "grantInvalid": "許可を付与できませんでした: {reason}",
+    "notConfirmed": "何も変更されませんでした。",
     "revoked": "接続 {connection} の許可を取り消しました。",
     "killOn": "コネクターをオフにしました。新しい操作は拒否されます。停止は引き続き使用できます。",
     "killOff": "コネクターを再びオンにしました。",

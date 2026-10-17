@@ -5473,6 +5473,7 @@
     "grantSaved": "Połączenie {connection} ma nadane uprawnienie. Jego obszary robocze: {workspaces}",
     "grantNeedsTerminal": "Uruchom to we własnym terminalu: nadanie uprawnienia wymaga, abyś sam wpisał potwierdzenie.",
     "grantInvalid": "Nie udało się nadać uprawnienia: {reason}",
+    "notConfirmed": "Nic nie zostało zmienione.",
     "revoked": "Uprawnienie połączenia {connection} zostało cofnięte.",
     "killOn": "Konektor jest wyłączony. Nowe działania są odrzucane; Zatrzymaj nadal działa.",
     "killOff": "Konektor jest ponownie włączony.",

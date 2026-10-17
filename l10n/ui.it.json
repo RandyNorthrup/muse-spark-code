@@ -5322,6 +5322,7 @@
     "grantSaved": "Autorizzazione concessa alla connessione {connection}. Le sue aree di lavoro: {workspaces}",
     "grantNeedsTerminal": "Esegui questo comando nel tuo terminale: per concedere un’autorizzazione devi digitare tu stesso la conferma.",
     "grantInvalid": "Impossibile concedere l’autorizzazione: {reason}",
+    "notConfirmed": "Non è stato modificato nulla.",
     "revoked": "L’autorizzazione della connessione {connection} è stata revocata.",
     "killOn": "Il connettore è disattivato. Le nuove azioni vengono rifiutate; Arresta funziona ancora.",
     "killOff": "Il connettore è di nuovo attivo.",
