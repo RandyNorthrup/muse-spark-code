@@ -311,7 +311,7 @@ export class MuseCodeBackendManager {
     // `resourceStop`, which ends this wait and reaps the process below.
     let spawned: Awaited<ReturnType<typeof handshake.initialize>>
     try {
-      spawned = await waitForAnswer(
+      spawned = await waitForAnswer<Awaited<ReturnType<typeof handshake.initialize>>>(
         handshake.initialize({
           clientInfo: { name: MSP_CLIENT_NAME, version: this.deps.extensionVersion },
           // The panel renders question cards (M4), so the host may send
