@@ -117,6 +117,22 @@ m9-linux (`1437fc9c5`), m35-mic (`05a5636b6`).
   probe, disabled-model cleanup, Linux loader, M35 paid scope, D140 pins)
   adds 4,351 B no behaviour-adding milestone can fit. Lead either revisits
   the cap (M78b precedent, Q-M78b) or accepts the deferral.
+- Final full `npm run test:unit` on the final tree (exit 1): 543 files
+  passed, 5 failed; 9,265 tests passed, 9 failed, 91 skipped. The 9 are
+  all outside the lane's touch surface (no lane file under
+  `src/core/resources`, `src/shared/resources`, or the slots modules):
+  `fileLease` 4 (sandbox process-birth inspection),
+  `treesLifecycleNative` 2 + `treesMacNative` 1 (native zombie/kill
+  process control under the sandbox), `checkSlots` 1 (timing flake —
+  passes 18/18 isolated), and the deferred budget test 1. Fixed during
+  the lane: `cyclesRoots` 3, `bundleDiet` 1, `spawnInventory` 1 (all green
+  isolated now).
+- `npm run lint`: `lint:js:unit`, `lint:js:tests`, `lint:css`,
+  `lint:ps` all exit 0; `lint:js:main` (whole-repo eslint) aborts twice
+  with V8 out-of-memory at its pinned 6 GiB heap on this shared rig, on
+  a tree whose sources are byte-identical to the earlier green run
+  (only PLAN/cert markdown committed since). Environmental: changed
+  files pass the repo's own pre-commit hook on every lane commit.
 
 ## Real-life steps for the lead
 
