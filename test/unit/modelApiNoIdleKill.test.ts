@@ -1,27 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { RequestTransport, type TransportDeps } from '../../src/core/backends/modelapi/transport'
+import { hangingBody, transportTestDeps } from './helpers/modelApiTransport'
 
 function deps(
   overrides: Partial<TransportDeps> & { fetch: TransportDeps['fetch'] },
 ): TransportDeps {
-  return {
-    baseUrl: 'https://model.test',
+  return transportTestDeps({
     sleep: (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
-    now: () => Date.now(),
     random: () => 0.5,
-    log: {
-      trace: (_message: string) => undefined,
-      info: (_message: string) => undefined,
-      warn: (_message: string) => undefined,
-      error: (_message: string) => undefined,
-    },
     ...overrides,
-  }
-}
-
-function hangingBody(): ReadableStream<Uint8Array> {
-  // A body that never yields: the read waits until it is stopped.
-  return new ReadableStream<Uint8Array>()
+  })
 }
 
 describe('model API waits without invented kills (NOLIMITS2 C1)', () => {
