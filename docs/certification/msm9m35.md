@@ -23,7 +23,7 @@ m9-linux (`1437fc9c5`), m35-mic (`05a5636b6`).
   dispose, `dispose` marks it `void` (hook-caught
   `@typescript-eslint/no-floating-promises`).
 - `465a5c56d` — m35-mic: ACP/CLI browser-page microphone held behind
-  `COMPANION_VOICE_RELEASE` (`isReady: false`, `src/shared/constants.ts:5233`);
+  `COMPANION_VOICE_RELEASE` (`isReady: false`, `src/shared/companionVoice.ts:7`);
   `dictate.ps1` ships in the ACP package; `/dictate` is announced only when
   its factory is bound (`src/acp/agent.ts:573`); the stereo mix happens in
   float space before PCM clipping (`src/shared/companionWav.ts:31`);
@@ -89,7 +89,11 @@ m9-linux (`1437fc9c5`), m35-mic (`05a5636b6`).
 
 - `npm run build`: 0 (`voice.js` 42.3 KiB ≤ 50, `voiceLinux.js` 35.1 KiB ≤ 50).
 - `npm run typecheck` (all 5 projects): 0.
-- `npm run lint` (js+css; ps skipped on darwin): 0; `prettier --check .`: 0.
+- Lint: `lint:js:unit`, `lint:js:tests`, `lint:css`, `lint:ps`: 0;
+  whole-repo `lint:js:main` did NOT complete on macmini (V8 OOM, below),
+  so `npm run lint` as a whole has no green result on this lane;
+  `prettier --check .`: 0. Review RVMSM9M35 re-ran ESLint on all 50
+  lane-changed TypeScript files on linuxlt: 0 problems.
 - `npm run deadcode` (knip): 0. `node scripts/cycles.mjs`: 0, no cycles.
   `jscpd`: 0 clones.
 - `node scripts/check-l10n.mjs`: 0 problems. `gen-reference --check`: 0.
