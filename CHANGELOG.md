@@ -133,6 +133,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The hidden team host ships the engine chunk it loads on demand; without
+  it, enabling a team would fail at the lazy import. New conversations
+  validate a saved orchestrator override through the team chunk instead of
+  bundling the orchestrator slot, and the 23 team UI keys travel with team
+  English. Conversation and surface English stay within their budgets.
+
+- Saved team role ids keep their canonical pattern: the schema move had
+  dropped the check while its regression stayed, so noncanonical ids
+  parsed. They are refused again.
+
 - The hidden team configuration keeps its per-role editor lazy after the
   Models split, with a separate measured budget and loading/retry UI.
 

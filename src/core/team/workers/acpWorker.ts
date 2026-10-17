@@ -23,7 +23,7 @@ import {
   type WorkerRootGrant,
   type WorkerFenceIo,
 } from './workerFence'
-/** workerFence re-exports for ACP host consumers */
+/** @unwired M96 workerFence re-exports for ACP host consumers */
 export { AcpNativeServersError, answerAcpPermission, extractRequestPaths } from './workerFence'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
 
@@ -239,9 +239,7 @@ export async function acpFsRead(
   }
 }
 
-/** Serves `fs/write_text_file`: a `read-only` role never writes, and writers stay under `write-paths`.
- * @unwired M96 ACP fs write
- */
+/** Serves `fs/write_text_file`: a `read-only` role never writes, and writers stay under `write-paths`. */
 export async function acpFsWrite(
   input: AcpFsInput,
   given: string,

@@ -1516,9 +1516,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     context = { ...context, signal: AbortSignal.any([context.signal, task.controller.signal]) }
     // The flow loads lazily; the guard and phase claim above already ran here.
     const completion = (async (): Promise<TeamToolResult> => {
-      let flow: typeof teamMergeFlow
+      let runMergeFlow: typeof teamMergeFlow.runMergeFlow
       try {
-        flow = await import('./teamMergeFlow')
+        ;({ runMergeFlow } = await import('./teamMergeFlow'))
       } catch (error: unknown) {
         // A missing lazy bundle is an install fault: refuse without hanging the card.
         task.mergePhase = 'failed'
@@ -1526,7 +1526,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         task.mergeReady?.()
         return refusal(task.failure)
       }
-      return await flow.runMergeFlow(task, context, {
+      return await runMergeFlow(task, context, {
         record,
         admit,
         launch,
