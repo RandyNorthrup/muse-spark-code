@@ -2527,7 +2527,7 @@
   "museCodeUnresponsiveTurn": "Bir tur çalışırken Muse Code yanıt vermeyi bıraktı. Yeniden başlatmak o turu durdurur; konuşma sonraki mesajınızla sürer.",
   "museCodeRestarted": "Muse Code yeniden başlatıldı. Sonraki mesajınız bu konuşmayı sürdürür.",
   "sessionLogDamaged": "Bu konuşmanın Muse Code günlüğü bozuk (Muse Code’daki bir hata), bu yüzden yeni mesaj alamaz. Yeni bir konuşma başlatın; bu konuşma Geçmiş’te kalır.",
-  "museSignInLostOnRestart": "Muse Code {exit} ve artık oturum açık değil, bu yüzden bu tur çalıştırılamadı ({detail}). Bir terminalde “muse login” ile yeniden oturum açın veya CLI için META_API_KEY değerini ayarlayın, ardından yeniden gönderin.",
+  "museSignInLostOnRestart": "{exit} ve artık oturum açık değil, bu yüzden bu tur çalıştırılamadı ({detail}). Bir terminalde “muse login” ile yeniden oturum açın veya CLI için META_API_KEY değerini ayarlayın, ardından yeniden gönderin.",
   "vaultScrubUnavailable": "Kasa temizleme hizmeti kullanılamıyor.",
   "vaultSessionLogUnavailable": "Kasaya güvenli oturum günlüğü dışa aktarımı kullanılamıyor.",
   "turnUnqueued": "Gönderilmedi: kuyruktaki mesaj geri çekildi",

@@ -2527,7 +2527,7 @@
   "museCodeUnresponsiveTurn": "A Muse Code egy futó kör közben nem válaszol. Az újraindítás leállítja ezt a kört; a beszélgetés a következő üzenetével folytatódik.",
   "museCodeRestarted": "A Muse Code újraindult. A következő üzenete folytatja ezt a beszélgetést.",
   "sessionLogDamaged": "Ennek a beszélgetésnek a Muse Code-naplója sérült (a Muse Code hibája), ezért nem fogadhat új üzeneteket. Kezdjen új beszélgetést; ez megmarad az Előzmények között.",
-  "museSignInLostOnRestart": "A Muse Code {exit}, és már nincs bejelentkezve, ezért ez a kör nem futhatott le ({detail}). Jelentkezzen be újra a „muse login“ paranccsal egy terminálban, vagy állítsa be a META_API_KEY változót a CLI számára, majd küldje el újra.",
+  "museSignInLostOnRestart": "{exit}, és már nincs bejelentkezve, ezért ez a kör nem futhatott le ({detail}). Jelentkezzen be újra a „muse login“ paranccsal egy terminálban, vagy állítsa be a META_API_KEY változót a CLI számára, majd küldje el újra.",
   "vaultScrubUnavailable": "A tárolótisztító szolgáltatás nem érhető el.",
   "vaultSessionLogUnavailable": "A tároló-biztos munkamenetnapló-exportálás nem érhető el.",
   "turnUnqueued": "Nincs elküldve: a sorba állított üzenetet visszavonták",

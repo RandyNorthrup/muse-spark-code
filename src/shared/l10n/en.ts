@@ -3046,7 +3046,7 @@ export const EN = {
   // instead of failing as just another turn. {exit} is the previous
   // run's end in the log's words; {detail} the turn's reason.
   museSignInLostOnRestart:
-    'Muse Code {exit}, and it is no longer signed in, so this turn could not run ({detail}). Sign in again with “muse login” in a terminal, or set META_API_KEY for the CLI, then send again.',
+    '{exit}, and it is no longer signed in, so this turn could not run ({detail}). Sign in again with “muse login” in a terminal, or set META_API_KEY for the CLI, then send again.',
   // The vault scrubber is locked (or its build refused): the turn reason and
   // the export notice name the outage instead of failing silently (RVM109T 7).
   vaultScrubUnavailable: 'Vault scrub service is unavailable',
