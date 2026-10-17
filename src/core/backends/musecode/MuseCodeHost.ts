@@ -111,6 +111,7 @@ import {
 } from '../../agent/agentBackend'
 
 import type { CoreLogger } from '../../logging'
+import { wireWordForLog } from '../../logging'
 import { notify } from '../../events/notify'
 import {
   MALFORMED_PARAMS,
@@ -225,6 +226,12 @@ const REJECT_DECISION = 'abort'
 
 const sessionStartResultSchema = z.object({
   session: z.object({ sessionId: z.string(), modelId: z.nullable(z.string()) }),
+})
+
+// `session/setApprovalMode`'s folded effective mode (msp.d.ts
+// SessionSetApprovalModeResult): the mode the CLI actually runs.
+const approvalModeResultSchema = z.object({
+  effectiveMode: z.object({ mode: z.string() }),
 })
 
 const turnStartResultSchema = z.object({
@@ -1380,7 +1387,15 @@ export class MuseSession implements ScheduledAgentSession {
       throw new Error(UI_TEXT.scheduleBusy)
     }
     try {
-      await this.command('session/setApprovalMode', { mode: effect.mode })
+      const ack = await this.command('session/setApprovalMode', { mode: effect.mode })
+      // The CLI echoes the mode it actually runs: a ceiling or managed
+      // policy that changed it must show in the log, never misreport as set.
+      const effective = approvalModeResultSchema.safeParse(ack).data?.effectiveMode.mode
+      if (effective !== undefined && effective !== effect.mode) {
+        this.log.warn(
+          `Muse Code runs approval mode ${wireWordForLog(effective)} instead of the requested ${effect.mode}`,
+        )
+      }
       if (!this.owner.modeApplied(effect, true)) throw new Error(UI_TEXT.scheduleBusy)
     } catch (error: unknown) {
       this.owner.modeApplied(effect, false)
