@@ -3,7 +3,11 @@ import {
   postModelCallFields,
   preModelCallFields,
 } from '../../src/core/backends/modelapi/modelCallHooks'
-import { responseSchema, type CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
+import {
+  responseSchema,
+  type CreateResponseBody,
+  restoredToolText,
+} from '../../src/core/backends/modelapi/schemas'
 import {
   HOOK_MODEL_CONTENT_PARTS_MAX,
   HOOK_MODEL_MESSAGE_SUMMARIES_MAX,
@@ -27,7 +31,7 @@ const body: CreateResponseBody = {
         },
       ],
     },
-    { type: 'function_call_output', call_id: 'old', output: 'Tool result' },
+    { type: 'function_call_output', call_id: 'old', output: restoredToolText('Tool result') },
   ],
   instructions: 'Workspace instructions',
   tools: [
