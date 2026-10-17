@@ -11,6 +11,7 @@ import {
 import { ACCOUNT_DEFAULT_ID, DAYS_PER_WEEK, UI_TEXT } from '../../shared/constants'
 import { multiplyUsd, parseUsd, usdDecimal, usdNumber } from '../../shared/accountUsd'
 import { Usd as ExactUsd } from '../../shared/usd'
+import { legacyUsdSchema } from '../../shared/usdSchema'
 import type { AccountLimitsReader } from '../accounts/thresholds'
 
 type Period = 'day' | 'week' | 'month'
@@ -19,7 +20,8 @@ interface Range {
   readonly end: string
 }
 const count = z.int().check(z.nonnegative())
-const amount = z.union([z.number().check(z.nonnegative()), z.string().check(z.minLength(1))])
+// A number reads as its exact decimal text; decimal text is read by `Usd` below (M121).
+const amount = z.union([legacyUsdSchema, z.string().check(z.minLength(1))])
 // Local adapter contract, not a vendor frame or a replacement M102 envelope.
 const recordSchema = z.strictObject({
   provider: accountIdSchema,

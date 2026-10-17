@@ -72,6 +72,10 @@
     "one": "{count} unvollständige Zeile übersprungen",
     "other": "{count} unvollständige Zeilen übersprungen"
   },
+  "inexactRecords": {
+    "one": "{count} älterer Datensatz nicht gezählt: sein Betrag ist nicht exakt lesbar",
+    "other": "{count} ältere Datensätze nicht gezählt: ihre Beträge sind nicht exakt lesbar"
+  },
   "recordCount": {
     "one": "{count} Datensatz",
     "other": "{count} Datensätze"
@@ -93,7 +97,7 @@
   "apiEquivalentNote": "Ein äquivalenter API-Preis, keine zusätzliche Abonnementgebühr.",
   "totalTime": "Gesamte Anfragedauer",
   "latencyP50": "Mediane Latenz (p50)",
-  "latencyP95": "p95-Latenz",
+  "latencyP95": "P95-Latenz",
   "firstToken": "Zeit bis zum ersten Token",
   "tokensPerSecond": "Token pro Sekunde",
   "cacheHit": "Cache-Trefferquote",

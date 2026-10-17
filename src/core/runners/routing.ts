@@ -9,7 +9,9 @@ export interface ResourceRunnerRouting<T> {
   approvedRunner(): T | undefined
 }
 
-/** A routing proposal only. R owns confirmation, admission, rows and dispatch. */
+/** A routing proposal only. R owns confirmation, admission, rows and dispatch.
+ * @unwired M96c SSH runner routing preference
+ */
 export function resourceRunnerPreference<T>(routing: ResourceRunnerRouting<T>) {
   if (
     !routing.queued ||

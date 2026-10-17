@@ -13,7 +13,14 @@ export interface ChartSeries {
 export interface ChartPoint {
   readonly id: string
   readonly label: string
+  /** Plotted geometry; cost labels below never rebuild dollars from it. */
   readonly values: readonly (number | undefined)[]
+  /**
+   * Exact label per value, shown instead of `format` when present. Cost
+   * charts set it from the original amounts (M121 P2-2); other metrics
+   * already format exactly from their values.
+   */
+  readonly texts?: readonly (string | undefined)[]
 }
 export function ColumnBucket({
   x,
@@ -74,7 +81,10 @@ export function ChartFrame({
       : fill(USAGE_TEXT.chartBucket, {
           date: point.label,
           values: formatList(
-            series.map((item, index) => `${item.label}: ${format(point.values[index])}`),
+            series.map(
+              (item, index) =>
+                `${item.label}: ${point.texts?.[index] ?? format(point.values[index])}`,
+            ),
           ),
         })
   return (
@@ -165,7 +175,7 @@ export function ChartFrame({
                 <tr key={row.id}>
                   <th scope="row">{row.label}</th>
                   {series.map((item, index) => (
-                    <td key={item.id}>{format(row.values[index])}</td>
+                    <td key={item.id}>{row.texts?.[index] ?? format(row.values[index])}</td>
                   ))}
                 </tr>
               ))}

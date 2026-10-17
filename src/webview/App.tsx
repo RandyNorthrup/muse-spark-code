@@ -30,6 +30,7 @@ import {
   MUSE_DELEGATION_ENABLED,
   REVIEW_SLASH_COMMAND,
   ARE_SCHEDULES_ON_BY_DEFAULT,
+  OPTIONAL_RUNTIME_AVAILABILITY,
   IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT,
   type PaidFeature,
   type SubagentAction,
@@ -1200,6 +1201,14 @@ export function App({
     // draft clears and the host's `estimatorSection` reveals it. The full
     // parse loads with the composer so startup carries only the prefix check.
     if (isEstimateCommandText(text)) {
+      if (!OPTIONAL_RUNTIME_AVAILABILITY.estimator) {
+        dispatch({
+          type: 'noticeRaised',
+          level: 'warning',
+          text: UI_TEXT.estimateRuntimeUnavailable,
+        })
+        return
+      }
       dispatch({ type: 'draftChanged', draft: '' })
       setIsPinnedToEnd(true)
       void import('./estimator/composer')
@@ -1235,6 +1244,33 @@ export function App({
     // its props already here, dispatches the mapped draft or request.
     // `/loop` below stays on the v1 store until its migration ships.
     if (/^\/schedule(?:\s|$)/i.test(text.trim())) {
+      // What the lazy prompt mapping answers belongs to the conversation the
+      // command was typed in: one cleared or replaced before it arrives gets
+      // neither a notice nor a request.
+      const isSameConversation = (): boolean => {
+        const latest = store.getState()
+        return (
+          latest.sessionId === current.sessionId &&
+          latest.attachmentEpoch === current.attachmentEpoch
+        )
+      }
+      if (!OPTIONAL_RUNTIME_AVAILABILITY.schedules) {
+        // The reason's words belong to the schedule surfaces' English, which
+        // startup does not carry (STARTUP017): the lazy prompt mapping reads
+        // them, as it does for a bound command below. The draft stays.
+        void loadSchedulePrompt().then((mapping) => {
+          if (!isSameConversation()) return
+          dispatch({
+            type: 'noticeRaised',
+            level: 'warning',
+            text:
+              mapping === undefined
+                ? UI_TEXT.scheduleCommandFailed
+                : mapping.scheduleUnavailableReason(),
+          })
+        })
+        return
+      }
       dispatch({ type: 'draftChanged', draft: '' })
       setIsPinnedToEnd(true)
       const props = current.schedulesSurface
@@ -1258,15 +1294,10 @@ export function App({
       const defaultDraft = props.defaultDraft
       const submittedAt = now()
       const closesAtSubmit = schedulesSurfaceCloses.current
-      const isCommandLive = (): boolean => {
-        const latest = store.getState()
-        return (
-          schedulesSurfaceCloses.current === closesAtSubmit &&
-          latest.schedulesSurface?.workspaceKey === workspaceKey &&
-          latest.sessionId === current.sessionId &&
-          latest.attachmentEpoch === current.attachmentEpoch
-        )
-      }
+      const isCommandLive = (): boolean =>
+        schedulesSurfaceCloses.current === closesAtSubmit &&
+        store.getState().schedulesSurface?.workspaceKey === workspaceKey &&
+        isSameConversation()
       void loadSchedulePrompt().then((mapping) => {
         if (!isCommandLive()) return
         if (mapping === undefined) {
@@ -1428,7 +1459,7 @@ export function App({
         readonly role: string
         readonly text: string
         readonly epoch: number
-        readonly origin: { readonly x: number; readonly y: number }
+        readonly origin: HTMLElement | { readonly x: number; readonly y: number }
       }
     | undefined
   >(undefined)
@@ -1472,10 +1503,13 @@ export function App({
         return
       }
       event.preventDefault()
+      // Highlighted-text actions fan from this row's “…” button too.
+      const button = row.querySelector<HTMLElement>('.row-actions-button')
+      const origin = button ?? { x: event.clientX, y: event.clientY }
       setQuoteMenu({
         entryId,
         role: row.dataset['role'] ?? 'assistant',
-        origin: { x: event.clientX, y: event.clientY },
+        origin,
         text,
         epoch: store.getState().attachmentEpoch,
       })
@@ -2114,7 +2148,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Rewind code to here": the host reverts the edits after that message,
+  // "Rewind Code to Here": the host reverts the edits after that message,
   // newest first, and says so (or that there was nothing to revert).
   const onRewind = useCallback(
     (entryId: string) => {
@@ -2134,7 +2168,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Restore files to here" (M72): the host confirms, restores and reports.
+  // "Restore Files to Here" (M72): the host confirms, restores and reports.
   const onRestoreFiles = useCallback(
     (entryId: string) => {
       const current = store.getState()
@@ -2150,7 +2184,7 @@ export function App({
     },
     [store, postMessage],
   )
-  // "Rewind conversation and restore files" (M72): the files first, then M53's rewind.
+  // "Rewind Conversation and Restore Files" (M72): the files first, then M53's rewind.
   const onRestoreBoth = useCallback(
     (entryId: string) => {
       const request = rewindRequest(store.getState(), entryId)
@@ -2178,7 +2212,7 @@ export function App({
     },
     [store, dispatch, postMessage],
   )
-  // "Report this" on a recorded failure (M93 lane W): the row's
+  // "Report This" on a recorded failure (M93 lane W): the row's
   // sanitized event reference opens the report workflow, never its text.
   const onReportProblem = useCallback(
     (_entryId: string, ref: ReportEventRef) => {
@@ -2277,7 +2311,7 @@ export function App({
         setOverlay(undefined)
         return
       }
-      // "Add context": start an @-mention where the caret is; the mention
+      // "Add Context": start an @-mention where the caret is; the mention
       // menu opens as soon as the `@` lands. A mention token must follow
       // whitespace, so one is added after a non-blank draft.
       const { draft } = store.getState()
@@ -2543,6 +2577,7 @@ export function App({
       arePromptCommandsBound: true,
       ...((state.settings?.schedules ?? ARE_SCHEDULES_ON_BY_DEFAULT) && {
         schedules: {
+          isAvailable: OPTIONAL_RUNTIME_AVAILABILITY.schedules,
           create: { type: 'openScheduleEditor' as const },
           list: { type: 'openScheduleList' as const },
           timeline: { type: 'openScheduleTimeline' as const },
@@ -2560,9 +2595,7 @@ export function App({
       backend: state.auth.backend,
       paidFeatures: state.paid.features,
       isKeyStored: state.paid.isKeyStored,
-      // The estimator is bound in this surface (M117): its row inserts
-      // `/estimate`, which the submit path handles below.
-      estimateAvailable: true,
+      estimateAvailable: OPTIONAL_RUNTIME_AVAILABILITY.estimator,
     }),
     [
       state.paid.isKeyStored,

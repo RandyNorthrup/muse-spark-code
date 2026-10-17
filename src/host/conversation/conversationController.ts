@@ -4,6 +4,7 @@ import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { recoveryStamp } from '../../shared/agentRecovery'
 import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
 import { QuestionRegistry } from '../../core/questions/registry'
+import { compareVersions, isVersion } from '../../core/whatsNew/whatsNewVersions'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
 import type {
   OpenQuestionAnswer,
@@ -91,6 +92,7 @@ import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNErr
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog, isMspFailure, stderrForLog } from '../../core/backends/musecode/logText'
+import { resolveResumedModel } from '../../core/backends/musecode/resumedModel'
 import { chatReferenceText } from '../../core/chatReference'
 import type {
   PlanModeHold,
@@ -149,6 +151,8 @@ import {
   MSP_READ_OUTPUT_CONCURRENCY,
   MSP_REQUESTED_CAPABILITIES,
   MUSE_EVENT_LOG_FAULT,
+  MUSE_APPROVAL_LEDGER_FIXED_VERSION,
+  MUSE_INSTALL_COMMANDS,
   OUTPUT_DOCUMENT_MAX_PAGES,
   OUTPUT_PAGE_BYTES,
   OUTPUT_TAB_ID_LENGTH,
@@ -460,7 +464,7 @@ export interface ConversationDeps {
   readonly runHostAction: (action: HostAction) => Promise<void>
   /** Code block "Copy": the system clipboard. */
   readonly copyText: (text: string) => Promise<void>
-  /** Code block "Insert at cursor"; false when no text editor is active. */
+  /** Code block "Insert at Cursor"; false when no text editor is active. */
   readonly insertCode: (text: string) => Promise<boolean>
   /** A shell tool reported the OS sandbox missing: the host offers the setup. */
   readonly onSandboxUnavailable: () => void
@@ -665,7 +669,7 @@ export interface ConversationDeps {
    */
   readonly verifyGuidance?: (hasIdeServer: boolean) => string | undefined
   /**
-   * This surface's tasks tab (M87, PLAN.md D66): "Open in a tab" opens it,
+   * This surface's tasks tab (M87, PLAN.md D66): "Open in a Tab" opens it,
    * and it follows the conversation's list. Undefined in a host without
    * editor tabs, where the action says it failed.
    */
@@ -1152,8 +1156,6 @@ function errorKind(error: unknown): string {
   return error instanceof Error ? error.name : typeof error
 }
 
-export { restartConversationBackends } from './conversationBackends'
-
 export class ConversationController {
   // Revert owns turn admission until file I/O settles; pending sends own it
   // even before their turnStarted event or acknowledgement reaches the panel.
@@ -1258,7 +1260,7 @@ export class ConversationController {
   private startingVoiceConsentFence: VoiceConsentFence | undefined
   /** Context changes stay changed for consent, including a model/mode round trip. */
   private voiceContextRevision = 0
-  /** Approvals "Edit automatically" answered itself (D24): their resolution is labelled so. */
+  /** Approvals "Edit Automatically" answered itself (D24): their resolution is labelled so. */
   private readonly autoApproved = new Set<string>()
   /**
    * The Auto reviewer on Muse Code (M90, PLAN.md D69): this conversation's
@@ -1304,6 +1306,8 @@ export class ConversationController {
   private readonly effortSyncs = new WeakMap<AgentSession, EffortSync>()
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
+  /** An older Muse Code can fix #29 by updating; actual faults still surface on every version. */
+  private needsApprovalLedgerUpdate = false
   /** Best-of-N runs (M77): one manager per surface, posting to it. */
   private bestOfNManager: BestOfNManager | undefined
   /** The latest run this surface heard of, for the take's branch names. */
@@ -1611,7 +1615,7 @@ export class ConversationController {
    * Says `text` in the panel only: for a failure already logged in more
    * detail. A file restore's notice carries its Redo (M72). An error is
    * journalled as a fact (M93, D72), never its text, and its row offers
-   * "Report this" with the sanitized reference.
+   * "Report This" with the sanitized reference.
    */
   private say(level: NoticeLevel, text: string, redoRestoreId?: string): void {
     const reportRef =
@@ -1641,7 +1645,15 @@ export class ConversationController {
     }
     this.shownFaults.add(key)
     const isReplay = error.fault === 'approvalReplay'
-    const text = isReplay ? UI_TEXT.approvalReplayRefused : UI_TEXT.approvalLedgerFault
+    let text = UI_TEXT.approvalLedgerFault
+    if (this.needsApprovalLedgerUpdate) {
+      text = fill(UI_TEXT.approvalLedgerFaultUpdate, {
+        command: MUSE_INSTALL_COMMANDS[this.deps.platform === 'win32' ? 'win32' : 'posix'],
+      })
+    }
+    if (isReplay) {
+      text = UI_TEXT.approvalReplayRefused
+    }
     const actions: readonly NoticeAction[] = isReplay
       ? ['restartMuseCode', 'newConversation']
       : ['newConversation']
@@ -1805,7 +1817,7 @@ export class ConversationController {
   }
 
   /**
-   * "Open in a tab" on the task list (M87, PLAN.md D66): the tab opens for
+   * "Open in a Tab" on the task list (M87, PLAN.md D66): the tab opens for
    * this conversation, the session it runs on now or resumes on next.
    */
   private openTasksTab(): void {
@@ -2032,7 +2044,7 @@ export class ConversationController {
   }
 
   /**
-   * "Edit automatically" (PLAN.md D24): the allow-once choice for a plain
+   * "Edit Automatically" (PLAN.md D24): the allow-once choice for a plain
    * file write, which the controller answers itself; undefined for anything
    * the user must see (commands, protected writes, escalations, other modes).
    */
@@ -2214,7 +2226,7 @@ export class ConversationController {
   /** An event as the webview sees it, plus the unread mark. */
   /**
    * The failures a session's events show, journalled as facts (M93, D72): a
-   * failed turn (its error row then offers "Report this" with the returned
+   * failed turn (its error row then offers "Report This" with the returned
    * reference) and a failed tool call. Nothing else of the event is kept;
    * the event itself goes to the panel unchanged.
    */
@@ -3495,7 +3507,7 @@ export class ConversationController {
   }
 
   /**
-   * "Rewind code to here": the edits after a message, reverted newest first
+   * "Rewind Code to Here": the edits after a message, reverted newest first
    * (M13), after the same confirmation as a file restore (M72). With `fork`
    * ("Fork and Rewind") the fork follows the rewind in
    * this one action, so neither can overtake the other; declining the
@@ -3552,7 +3564,7 @@ export class ConversationController {
 
   /**
    * An edit row's Revert (M87, D66 item 17): the one edit undone after the
-   * same kind of confirmation as "Rewind code to here", whose single step
+   * same kind of confirmation as "Rewind Code to Here", whose single step
    * it is. `reviewEdit` says what was reverted, or why a file was not.
    */
   private async revertEdit(itemId: string, outputRef: string): Promise<void> {
@@ -3891,6 +3903,13 @@ export class ConversationController {
     )
     this.session = session
     this.sessionKind = host.info.kind
+    // MSP serves 1.4.3; installed build labels such as 1.4.3-R5018.1 name
+    // the same release, not a semver prerelease. Unknown versions stay defensive.
+    const version = host.info.serverVersion.replace(/-R\d+\.\d+$/, '')
+    this.needsApprovalLedgerUpdate =
+      host.info.kind === 'museCode' &&
+      isVersion(version) &&
+      compareVersions(version, MUSE_APPROVAL_LEDGER_FIXED_VERSION) < 0
     const surfaces = sessionSurfaces.get(session) ?? new Set<ConversationController>()
     surfaces.add(this)
     sessionSurfaces.set(session, surfaces)
@@ -4072,11 +4091,58 @@ export class ConversationController {
   }
 
   /**
+   * A resumed Muse Code session runs on the person's choice (restart
+   * recovery): `session/resume` takes no model and a turn carries none, so
+   * the choice is applied with `session/setModel` and read back with
+   * `model/list` before the next turn is sent. The panel and the log then
+   * show the model the CLI reports. When it differs, nothing is sent: the
+   * conversation stays resumable, so choosing the reported model and
+   * resending continues it. Returns the CLI's listing for the session.
+   */
+  private async enforceResumedModel(
+    host: AgentHost,
+    loaded: LoadedSession,
+    wantedModelId: string,
+  ): Promise<Awaited<ReturnType<AgentHost['listModels']>>> {
+    try {
+      // Model API restores its durable model itself. Setting the same id
+      // there is still a switch (hooks, judge and budget state included).
+      if (host.info.kind === 'museCode' || loaded.session.modelId !== wantedModelId) {
+        await loaded.session.setModel(wantedModelId)
+      }
+      const models = await host.listModels(loaded.session.sessionId)
+      const outcome = resolveResumedModel({
+        wantedModelId,
+        activeModelId: models.find((model) => model.isActive)?.modelId,
+      })
+      if (outcome.ok) {
+        return models
+      }
+      this.deps.log.warn(
+        `Session ${loaded.session.sessionId} resumed on ${outcome.activeModelId} instead of ${outcome.wantedModelId}: the message is not sent`,
+      )
+      throw new Error(
+        fill(UI_TEXT.modelNotKeptAfterRestart, {
+          active: outcome.activeModelId,
+          wanted: outcome.wantedModelId,
+        }),
+      )
+    } catch (error: unknown) {
+      // Ownership has not passed to attach: timeouts and read-back errors
+      // must release the retained handle just as a reported mismatch does.
+      this.ideSessions.delete(loaded.session)
+      loaded.session.dispose()
+      throw error
+    }
+  }
+
+  /**
    * After a restart, a crash or the host closing the session, the next
    * message continues the same conversation (D25) rather than starting one
    * with no context. The webview kept its transcript, so nothing is
    * replayed. If the session cannot be resumed the user is told and a new
-   * one starts.
+   * one starts. If the CLI reports another model than the chosen one, the
+   * message is refused instead and the conversation stays resumable.
    */
   private async resumeAfterRestart(
     host: AgentHost,
@@ -4096,7 +4162,6 @@ export class ConversationController {
     }
     let loaded: LoadedSession
     const mcpServers = await this.mcpServersFor(host, target.sessionId)
-    this.resumeTarget = undefined
     try {
       this.requireNonConfidentialModel(this.modelId)
       loaded = await host.resumeSession(
@@ -4109,10 +4174,12 @@ export class ConversationController {
         this.ideSessions.add(loaded.session)
       }
     } catch (error: unknown) {
+      this.resumeTarget = undefined
       this.notice('warning', `${UI_TEXT.sessionNotContinued}: ${describe(error)}`, undefined, error)
       return undefined
     }
     if (!this.canLoadIntoSurface(host, loaded)) {
+      this.resumeTarget = undefined
       loaded.session.dispose()
       this.notice('warning', UI_TEXT.sideChatSessionOnly)
       return undefined
@@ -4123,9 +4190,21 @@ export class ConversationController {
       this.postComposerState()
     }
     if (this.isDisposed || this.attachmentGeneration !== generation) {
+      this.resumeTarget = undefined
       loaded.session.dispose()
       this.requireCurrentOpening(generation)
     }
+    // The choice is applied and read back before the next turn is sent. A
+    // mismatch refuses the message (the card says why) while the
+    // conversation stays the resume target, so choosing the reported model
+    // and resending continues it on the model it really runs on.
+    await this.enforceResumedModel(host, loaded, this.modelId)
+    if (this.isDisposed || this.attachmentGeneration !== generation) {
+      this.ideSessions.delete(loaded.session)
+      loaded.session.dispose()
+      this.requireCurrentOpening(generation)
+    }
+    this.resumeTarget = undefined
     // The same conversation continues, imported history and all (M84): its
     // mark comes back from the record, while the panel keeps the mode its
     // user chose.
@@ -4670,7 +4749,9 @@ export class ConversationController {
    * Make a resumed or forked session this surface's: the transcript is
    * rebuilt from its history, the model comes from the catalogue's active
    * row (never the record's `modelId`, PLAN.md M6), and this surface's
-   * composer settings are applied to it.
+   * composer settings are applied to it. A resumed conversation then has
+   * that standing model applied and read back, and a mismatch refuses
+   * instead of sending on the wrong model.
    */
   private async adopt(
     host: AgentHost,
@@ -4730,6 +4811,17 @@ export class ConversationController {
       }
       this.modelId = fallbackId
       this.notice('info', fill(UI_TEXT.contributorResumeFallbackTo, { model: fallbackId }))
+    }
+    if (origin === 'resumed') {
+      // The resumed standing model (learned above, consent-gated) is
+      // applied and read back before anything runs on it: a restart may
+      // have reset it on the CLI, and a mismatch refuses instead of
+      // sending on the wrong model.
+      await this.enforceResumedModel(host, loaded, this.modelId)
+      if (generation !== this.sendInvalidationEpoch) {
+        loaded.session.dispose()
+        return false
+      }
     }
     // A side chat runs in Plan (M53). Like the imported mode below, applied
     // only now that this opening is still current: one overtaken by another
@@ -5325,7 +5417,7 @@ export class ConversationController {
     }
   }
 
-  /** "Save plan" under the latest Plan-mode reply. */
+  /** "Save Plan" under the latest Plan-mode reply. */
   private async savePlan(sourceSessionId: string, itemId: string): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
@@ -5477,7 +5569,7 @@ export class ConversationController {
       : { status: 'refused' }
   }
 
-  /** "Implement in a fresh conversation": the reply on screen (saved first), or a saved plan. */
+  /** "Implement in a Fresh Conversation": the reply on screen (saved first), or a saved plan. */
   private async implementPlan(source: PlanSource): Promise<void> {
     if (this.isSideChat) {
       this.notice('info', UI_TEXT.planImplementSideChat)
@@ -6096,8 +6188,8 @@ export class ConversationController {
   }
 
   /**
-   * "Restore files to here" (M72, M86), and with `rewind` the conversation
-   * too ("Rewind conversation and restore files"), once the files are
+   * "Restore Files to Here" (M72, M86), and with `rewind` the conversation
+   * too ("Rewind Conversation and Restore Files"), once the files are
    * restored.
    */
   private async restoreFiles(
@@ -9149,7 +9241,9 @@ export class ConversationController {
               record.cost.usd !== undefined &&
               record.cost.certainty !== 'uncertain' &&
               (prior === undefined || prior.costUsd !== undefined)
-                ? (prior?.costUsd ?? 0) + record.cost.usd
+                ? Usd.from(prior?.costUsd ?? 0)
+                    .add(Usd.from(record.cost.usd))
+                    .toAmount()
                 : undefined,
           })
         }
@@ -9447,7 +9541,7 @@ export class ConversationController {
   }
 
   /**
-   * "Import session…" (M84, PLAN.md D49): a picked export file resumed as a
+   * "Import Session…" (M84, PLAN.md D49): a picked export file resumed as a
    * new conversation on the Model API backend, on the user's own model, in a
    * mode that asks (`adopt` applies it, as on every later opening).
    */
@@ -9520,7 +9614,7 @@ export class ConversationController {
   }
 
   /**
-   * "Open share file…" (M84): a picked export file shown read-only in the
+   * "Open Share File…" (M84): a picked export file shown read-only in the
    * panel. Nothing reaches a session or a model; the panel only renders it.
    */
   private async openShareFile(): Promise<void> {
@@ -9926,7 +10020,7 @@ export class ConversationController {
       }
       case 'signIn': {
         // The first-run screen's third choice (M95): not a credential but
-        // the Models & Agents wizard at "Pick a provider" (lane K's
+        // the Models & Agents wizard at "Pick a Provider" (lane K's
         // `museSpark.startWithOwnModel`; an explicit error until it lands).
         if (message.method === 'byo') {
           await this.runHostAction('startWithOwnModel')
