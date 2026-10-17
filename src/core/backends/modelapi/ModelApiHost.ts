@@ -4474,7 +4474,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         source: { kind: 'harness', operation: 'media-input' },
       })),
       project: () => {
-        const mediaProjected = this.media?.project(original, this.modelId, this.budget) ?? original
+        const mediaProjected =
+          this.media?.project(
+            original,
+            this.modelId,
+            this.budget,
+            this.modelPolicy().identity.provider,
+          ) ?? original
         const fitted = this.budget.fit(
           mediaProjected,
           undefined,
@@ -7524,7 +7530,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.budget.note(sent, part.pageCount)
       }
     }
-    this.media?.assertPendingFits(content, this.budget)
+    this.media?.assertPendingFits(
+      content,
+      this.budget,
+      undefined,
+      this.modelPolicy().identity.provider,
+    )
     return content
   }
 
@@ -7808,7 +7819,12 @@ export class ModelApiSession implements ScheduledAgentSession {
   private canQueueMedia(chars: number, slots: number): boolean {
     const queued = this.queuedMediaUsage()
     const limit = this.deps.mediaBudgetMaxEncodedChars ?? MAX_ENCODED_MEDIA_CHARS
-    return queued.chars + chars <= limit && queued.slots + slots <= MODEL_API_MEDIA_PER_REQUEST
+    // The slot count is Meta's per-request budget; a configured provider
+    // answers for its own counts, so only the byte bound queues its media.
+    const isSlotsFit =
+      this.modelPolicy().identity.provider !== 'meta' ||
+      queued.slots + slots <= MODEL_API_MEDIA_PER_REQUEST
+    return queued.chars + chars <= limit && isSlotsFit
   }
 
   /** Reserve all current-batch visual outputs before their tool row reports success. */
@@ -7825,7 +7841,12 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private canQueueSteeredMedia(parts: readonly TurnPart[]): boolean {
     if (this.media !== undefined) {
-      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaUsage())
+      this.media.assertPendingFits(
+        this.contentParts(parts),
+        this.budget,
+        this.queuedMediaUsage(),
+        this.modelPolicy().identity.provider,
+      )
       return true
     }
     let chars = 0
