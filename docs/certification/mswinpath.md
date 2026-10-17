@@ -63,18 +63,34 @@ Shared spelling refusal (`src/core/windowsPathSpelling.ts:50`
   `pathIdentityRelation`, checkpoint storage via
   `src/host/checkpoints/shadowGit.ts:156`).
 
-## README / Help / catalogue justification (explicit no-change)
+## README / Help reference (added 2026-10-17)
 
-No README, Help-reference or `featureCatalog` entry was added, deliberately:
-the fix changes no user-visible wording (refusal strings are unchanged
-protocol words), no command, setting or surface — only which ordinary
-folder names verify. Adding catalogue entries would force reference
-regeneration and new translated strings for zero user-facing change, and
-`npm run check:reference` passes as is. The public line stays the
-ROADMAP "Safer Windows paths" entry (`docs/roadmap/entries.json`
-SECWINPATH, released 0.17.0); `node scripts/gen-roadmap.mjs` run
-2026-10-17, exit 0, no diff. PLAN.md §6 SECWINPATH carries the dated
-follow-up pointer.
+- README `### Safer Windows paths` (new `#safer-windows-paths` anchor at
+  the end of Privacy and security): the refusal/approval behavior, UNC
+  rule, any-drive workspaces, and trusted-root verification.
+- Help reference feature `windows-paths` (`src/shared/featureCatalog.ts`,
+  after `permissions`): name `referenceWindowsPaths`, summary
+  `referenceWindowsPathsDetail`, no commands/settings of its own, both
+  backends, vscode+acp surfaces (core refusal is used by both backends'
+  hosts and `src/acp/*`). Capability entry added to
+  `src/shared/reference/referenceSource.ts` (4-surface group).
+- English keys in `src/shared/l10n/en.ts`; English text in all 14
+  `l10n/ui.*.json` tables at the English position, allowlisted in
+  `l10n/untranslated.json` `ui.*` (precedent: `referenceAccountsTitle`).
+- Regenerated with `npm run reference:generate`: 74 features (was 73);
+  `docs/reference.md` gains the section with the docs anchor;
+  `reference.generated.*` and `src/runtime/reference.node.generated.ts`
+  updated. First generate attempt exposed a missing capability entry
+  (`Host capability mismatch: windows-paths`) — fixed by adding it, then
+  green. `npm run check:reference`: 74 features, matches, exit 0.
+  `npm run check:l10n`: 0 problems, exit 0.
+- Reference suites pass: `referenceEntry`, `featureCatalogDetails`,
+  `uiTextRegions` (28 tests). Post-change `npm run build` exit 0;
+  `SEMGREP_ENABLE_VERSION_CHECK=0 npm run security:sast` exits 2: the
+  semgrep binary itself crashes (`ca-certs: empty trust anchors`) before
+  scanning — an environment failure, unrelated to this diff (docs,
+  strings, catalog data), and the same command exited 0 earlier the same
+  day. Recorded as environmental; hosted CI owns the green run.
 
 ## Red drill
 

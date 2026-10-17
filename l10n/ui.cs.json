@@ -267,6 +267,8 @@
   "referenceAgentControls": "Ovládání agenta; Přerušit; Zastavit; Pokračovat; Zavřít agenta; Znovu otevřít agenta; Označit výsledek jako přečtený; Odeslat zprávu; Navazující úkol",
   "referenceBestOfNRequirements": "Kandidáti vyžadují Model API, zapnutou placenou funkci, důvěryhodný pracovní prostor Git, Git 2.36 či novější a žádné nakonfigurované filtry nebo hooky Git. Konečný rozpočet relace vyžaduje rozpočtový rozsah vlastněný nadřazenou relací a sdílený kandidáty. Nastavte limity pokusů a požadavků, porovnejte výsledky či zrušte běh a použijte vybrané změny a přidejte je do indexu bez commitu.",
   "referenceWindowsSessions": "Muse Code nemůže ve Windows přejmenovávat ani rozvětvovat relace (meta-models/muse-code-sdk#30, #31).",
+  "referenceWindowsPaths": "Safer Windows paths",
+  "referenceWindowsPathsDetail": "On Windows, ambiguous spellings — device paths and namespaces, alternate streams, drive-relative paths, trailing dots or spaces, and reserved names — are refused at admission, or need a one-time manual answer for flagged writes. Ordinary workspaces on any drive keep working; schedules, helpers, and vault paths verify against the folder their caller owns.",
   "referencePaletteKeys": "Procházet položky, vybrat či dokončit výběr nebo zavřít seznam. Zvolte, kolik úsilí Muse věnuje každé odpovědi.",
   "referenceServe": "{command} [volby]              Poskytuje Agent Client Protocol přes stdin a stdout",
   "referenceTabSnooze": "Odložit o 15 minut; Odložit o hodinu; Odložit do restartu.",

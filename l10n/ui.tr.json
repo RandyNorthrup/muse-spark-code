@@ -267,6 +267,8 @@
   "referenceAgentControls": "Aracı denetimleri; Kes; Durdur; Sürdür; Aracıyı kapat; Aracıyı yeniden aç; Sonucu okundu olarak işaretle; Mesaj gönder; Takip görevi",
   "referenceBestOfNRequirements": "Adaylar için Model API, açık ücretli özellik, güvenilen Git çalışma alanı, Git 2.36 veya yenisi ve yapılandırılmış Git filtre veya kanca programlarının olmaması gerekir. Sonlu oturum bütçesi, üst oturumun sahip olduğu ve adayların paylaştığı bir bütçe kapsamı gerektirir. Deneme ve istek sınırlarını belirleyin, karşılaştırın veya iptal edin, sonra seçili değişiklikleri commit oluşturmadan uygulayıp hazırlayın.",
   "referenceWindowsSessions": "Muse Code, Windows'ta oturumları yeniden adlandıramaz veya çatallayamaz (meta-models/muse-code-sdk#30, #31).",
+  "referenceWindowsPaths": "Safer Windows paths",
+  "referenceWindowsPathsDetail": "On Windows, ambiguous spellings — device paths and namespaces, alternate streams, drive-relative paths, trailing dots or spaces, and reserved names — are refused at admission, or need a one-time manual answer for flagged writes. Ordinary workspaces on any drive keep working; schedules, helpers, and vault paths verify against the folder their caller owns.",
   "referencePaletteKeys": "Öğeleri gezin, seçim yapın veya tamamlayın ya da listeyi kapatın. Muse'un her yanıta ayırdığı çabayı seçin.",
   "referenceServe": "{command} [seçenekler]              Agent Client Protocol'ü stdin ve stdout üzerinden sunar",
   "referenceTabSnooze": "15 dakika ertele; 1 saat ertele; Yeniden başlatmaya kadar ertele.",
