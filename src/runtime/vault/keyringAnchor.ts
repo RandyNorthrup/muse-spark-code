@@ -107,6 +107,7 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
     vaultId: string,
     state: VaultGenerationState,
     prior: VaultGenerationState | null,
+    assertHeld?: () => void,
   ): Promise<void> {
     const record = await this.read()
     if (record !== null && record.vaultId !== vaultId) throw new VaultError('rollback')
@@ -118,6 +119,7 @@ export class KeyringVaultAnchor implements VaultGenerationPort {
     )
       throw new VaultError('rollback')
     const next = recordSchema.parse({ v: 1, vaultId, ...state })
+    assertHeld?.()
     try {
       await storeOperation(() =>
         this.openEntry(KEYRING_SERVICE, VAULT_ANCHOR_ACCOUNT).setPassword(JSON.stringify(next)),

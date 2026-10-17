@@ -6,7 +6,6 @@
 // implements the helper (native/windows/MuseSparkVaultPipe.cs) and the relay
 // below, against these types.
 
-import { type Duplex } from 'node:stream'
 import * as z from 'zod/mini'
 import { VAULT_LIMITS } from '../../../shared/constants'
 import { type VaultSecuredListenerPort } from './channel'
@@ -124,11 +123,6 @@ export const windowsVaultPipeServerResultSchema = z.strictObject({
  */
 export interface WindowsVaultPipeServerCheck {
   inspectServer(pipe: string): Promise<z.infer<typeof windowsVaultPipeServerResultSchema>>
-}
-
-/** One relayed client: a stream with the identity the helper read for it. */
-export interface WindowsVaultPipeConnection extends Duplex {
-  readonly client: WindowsVaultPipeClient
 }
 
 /**

@@ -57,10 +57,10 @@ const anchor: VaultAnchorPort = {
   },
 }
 class InterruptedFiles extends NodeVaultFiles {
-  override async withWriter<T>(run: () => Promise<T>): Promise<T> {
-    return await super.withWriter(async () => {
+  override async withWriter<T>(operation: (assertHeld: () => void) => Promise<T>): Promise<T> {
+    return await super.withWriter(async (assertHeld) => {
       await point('writer-acquired')
-      return await run()
+      return await operation(assertHeld)
     })
   }
   override async writeAtomic(...args: Parameters<VaultFilePort['writeAtomic']>): Promise<void> {

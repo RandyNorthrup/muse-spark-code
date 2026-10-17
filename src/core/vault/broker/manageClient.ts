@@ -23,8 +23,11 @@ export type VaultConnect = () => Promise<VaultBrokerConnection>
 /** The message a person reads for each fixed refusal; never broker exception text. */
 export function vaultRefusalMessage(reason: VaultManagementRefusal): string {
   switch (reason) {
-    case 'locked': {
-      return UI_TEXT.vault.locked
+    case 'locked':
+    case 'busy':
+    case 'rollback':
+    case 'storeUnavailable': {
+      return UI_TEXT.vault[reason]
     }
     case 'uncreated': {
       return UI_TEXT.vault.setupNeeded
@@ -46,15 +49,6 @@ export function vaultRefusalMessage(reason: VaultManagementRefusal): string {
     }
     case 'sourceUnavailable': {
       return UI_TEXT.vault.sourceUnavailable
-    }
-    case 'busy': {
-      return UI_TEXT.vault.busy
-    }
-    case 'rollback': {
-      return UI_TEXT.vault.rollback
-    }
-    case 'storeUnavailable': {
-      return UI_TEXT.vault.storeUnavailable
     }
     case 'invalid':
     case 'io': {

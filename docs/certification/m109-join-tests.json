@@ -1,0 +1,464 @@
+[
+  {
+    "batch": "01",
+    "files": [
+      "test/unit/acpVault.test.ts",
+      "test/unit/execVault.test.ts",
+      "test/unit/fileLease.test.ts"
+    ],
+    "exit": 0,
+    "passed": 74,
+    "failed": 0,
+    "pending": 1,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "02",
+    "files": [
+      "test/unit/macVaultSlot.test.ts",
+      "test/unit/macVaultTransport.test.ts",
+      "test/unit/vault/approvals.test.ts"
+    ],
+    "exit": 0,
+    "passed": 78,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "03",
+    "files": [
+      "test/unit/vault/audit.test.ts",
+      "test/unit/vault/backup.test.ts",
+      "test/unit/vault/boundaries.test.ts"
+    ],
+    "exit": 0,
+    "passed": 73,
+    "failed": 0,
+    "pending": 18,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "04",
+    "files": [
+      "test/unit/vault/boundaryScrub.test.ts",
+      "test/unit/vault/broker.test.ts",
+      "test/unit/vault/channel.test.ts"
+    ],
+    "exit": 0,
+    "passed": 39,
+    "failed": 0,
+    "pending": 52,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "05",
+    "files": [
+      "test/unit/vault/contracts.test.ts",
+      "test/unit/vault/credentialAdapter.test.ts",
+      "test/unit/vault/crypto.test.ts"
+    ],
+    "exit": 0,
+    "passed": 40,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "06",
+    "files": [
+      "test/unit/vault/delegation.test.ts",
+      "test/unit/vault/execAdapters.test.ts",
+      "test/unit/vault/execBrokerLease.test.ts"
+    ],
+    "exit": 0,
+    "passed": 31,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "07",
+    "files": [
+      "test/unit/vault/execFence.test.ts",
+      "test/unit/vault/execHelpers.test.ts",
+      "test/unit/vault/execSpawn.test.ts"
+    ],
+    "exit": 0,
+    "passed": 41,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "08",
+    "files": [
+      "test/unit/vault/fakes.test.ts",
+      "test/unit/vault/feeder.test.ts",
+      "test/unit/vault/fleet.test.ts"
+    ],
+    "exit": 0,
+    "passed": 50,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "09",
+    "files": [
+      "test/unit/vault/gitHelper.test.ts",
+      "test/unit/vault/importFile.test.ts",
+      "test/unit/vault/importReset.test.ts"
+    ],
+    "exit": 0,
+    "passed": 25,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "10",
+    "files": [
+      "test/unit/vault/interleavings.test.ts",
+      "test/unit/vault/kdf.test.ts",
+      "test/unit/vault/keyslots.test.ts"
+    ],
+    "exit": 0,
+    "passed": 45,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "11",
+    "files": [
+      "test/unit/vault/limits.test.ts",
+      "test/unit/vault/loginCsv.test.ts",
+      "test/unit/vault/mcpOAuth.test.ts"
+    ],
+    "exit": 0,
+    "passed": 62,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "12",
+    "files": [
+      "test/unit/vault/mcpOAuthLifecycle.test.ts",
+      "test/unit/vault/mcpSecrets.test.ts",
+      "test/unit/vault/mcpVaultPool.test.ts"
+    ],
+    "exit": 0,
+    "passed": 55,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "13",
+    "files": [
+      "test/unit/vault/migrate.test.ts",
+      "test/unit/vault/migrationAdapters.test.ts",
+      "test/unit/vault/migrationLifecycle.test.ts"
+    ],
+    "exit": 0,
+    "passed": 29,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "14",
+    "files": [
+      "test/unit/vault/peer.test.ts",
+      "test/unit/vault/policy.test.ts",
+      "test/unit/vault/redemption.test.ts"
+    ],
+    "exit": 0,
+    "passed": 31,
+    "failed": 0,
+    "pending": 1,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "15",
+    "files": [
+      "test/unit/vault/remote.test.ts",
+      "test/unit/vault/reportScrub.test.ts",
+      "test/unit/vault/requestTaint.test.ts"
+    ],
+    "exit": 0,
+    "passed": 39,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "16",
+    "files": [
+      "test/unit/vault/reviewFixes.test.ts",
+      "test/unit/vault/reviewRound2.test.ts",
+      "test/unit/vault/reviewRound3.test.ts"
+    ],
+    "exit": 0,
+    "passed": 40,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "17",
+    "files": [
+      "test/unit/vault/reviewRound4.test.ts",
+      "test/unit/vault/reviewRound5.test.ts",
+      "test/unit/vault/rvcm1091a.test.ts"
+    ],
+    "exit": 0,
+    "passed": 25,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "18",
+    "files": [
+      "test/unit/vault/rvcm1091a2.test.ts",
+      "test/unit/vault/rvcm1091a3.test.ts",
+      "test/unit/vault/rvcm1091a3Import.test.ts"
+    ],
+    "exit": 0,
+    "passed": 28,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "19",
+    "files": [
+      "test/unit/vault/rvcm1091a3Panel.test.ts",
+      "test/unit/vault/rvcm1091a4.test.ts",
+      "test/unit/vault/rvcm1091b.test.ts"
+    ],
+    "exit": 0,
+    "passed": 186,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "20",
+    "files": [
+      "test/unit/vault/scrub.test.ts",
+      "test/unit/vault/slotShared.test.ts",
+      "test/unit/vault/sshAgent.test.ts"
+    ],
+    "exit": 0,
+    "passed": 39,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "21",
+    "files": [
+      "test/unit/vault/sshBroker.test.ts",
+      "test/unit/vault/sshConnection.test.ts",
+      "test/unit/vault/sshImport.test.ts"
+    ],
+    "exit": 1,
+    "passed": 19,
+    "failed": 0,
+    "pending": 2,
+    "failures": [],
+    "suiteErrors": [
+      {
+        "file": "test/unit/vault/sshImport.test.ts",
+        "message": "Command failed: ssh-keygen -q -t ed25519 -b 256 -N  -C generated-m109-test -f <generated temporary fixture>"
+      }
+    ]
+  },
+  {
+    "batch": "22",
+    "files": [
+      "test/unit/vault/sshKeys.test.ts",
+      "test/unit/vault/sshTransport.test.ts",
+      "test/unit/vault/sudoFeed.test.ts"
+    ],
+    "exit": 0,
+    "passed": 22,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "23",
+    "files": [
+      "test/unit/vault/taint.test.ts",
+      "test/unit/vault/totp.test.ts",
+      "test/unit/vault/useDigest.test.ts"
+    ],
+    "exit": 0,
+    "passed": 27,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "24",
+    "files": [
+      "test/unit/vault/vaultExec.test.ts",
+      "test/unit/vault/vaultManagement.test.ts",
+      "test/unit/vault/vaultNativeEditor.test.ts"
+    ],
+    "exit": 0,
+    "passed": 41,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "25",
+    "files": [
+      "test/unit/vault/vaultPanel.test.tsx",
+      "test/unit/vault/vaultPanelBuild.test.ts",
+      "test/unit/vault/vaultPanelBundle.test.ts"
+    ],
+    "exit": 1,
+    "passed": 37,
+    "failed": 1,
+    "pending": 0,
+    "failures": [
+      {
+        "test": "U host has an independent hard 50 KiB cap and does not carry the broker engine, store or platform helper",
+        "message": "AssertionError: expected 50.05859375 to be less than or equal to 50"
+      }
+    ],
+    "suiteErrors": []
+  },
+  {
+    "batch": "26",
+    "files": [
+      "test/unit/vault/vaultPanelHost.test.ts",
+      "test/unit/vault/vaultRuntimeEntry.test.ts",
+      "test/unit/vault/vaultStore.test.ts"
+    ],
+    "exit": 0,
+    "passed": 69,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "27",
+    "files": [
+      "test/unit/vault/webCsvImport.test.ts",
+      "test/unit/vault/webFill.test.ts",
+      "test/unit/vault/webPageRead.test.ts"
+    ],
+    "exit": 0,
+    "passed": 47,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "28",
+    "files": [
+      "test/unit/vault/webSessions.test.ts",
+      "test/unit/vault/writerLease.test.ts",
+      "test/unit/vaultCommand.test.ts"
+    ],
+    "exit": 0,
+    "passed": 78,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  },
+  {
+    "batch": "29",
+    "files": [
+      "test/unit/vaultInput.test.ts",
+      "test/unit/vaultSurface.test.ts",
+      "test/unit/windowsCredentialVaultSlot.test.ts"
+    ],
+    "exit": 1,
+    "passed": 56,
+    "failed": 2,
+    "pending": 0,
+    "failures": [
+      {
+        "test": "real Credential Manager with generated throwaway material compare-deletes only the named native anchor, preserving its slot and refusing the old vault after new setup",
+        "message": "VaultStoreUnavailableError: Windows Credential Manager could not complete this vault operation. Sign in locally to Windows, then try unlocking or recovering the vault."
+      },
+      {
+        "test": "real Credential Manager with generated throwaway material round trips a vault key, reopens the slot, deletes it and refuses the absent key",
+        "message": "VaultStoreUnavailableError: Windows Credential Manager could not complete this vault operation. Sign in locally to Windows, then try unlocking or recovering the vault."
+      }
+    ],
+    "suiteErrors": []
+  },
+  {
+    "batch": "30",
+    "files": [
+      "test/unit/windowsVaultChannel.test.ts",
+      "test/unit/windowsVaultNative.test.ts",
+      "test/unit/windowsVaultPipeNative.test.ts"
+    ],
+    "exit": 1,
+    "passed": 63,
+    "failed": 2,
+    "pending": 0,
+    "failures": [
+      {
+        "test": "real Windows vault pipe through the trusted guard refuses a foreign server token before announcing a stream or sending any private byte",
+        "message": "Foreign server observation process could not launch."
+      },
+      {
+        "test": "real Windows vault pipe through the trusted guard refuses a real throwaway local user and removes the account after the attempt",
+        "message": "Foreign client process exits 0xC0000142."
+      }
+    ],
+    "suiteErrors": []
+  },
+  {
+    "batch": "31",
+    "files": [
+      "test/unit/windowsVaultPipeRelay.test.ts",
+      "test/unit/windowsVaultSlot.test.ts",
+      "test/unit/windowsVaultTransport.test.ts"
+    ],
+    "exit": 0,
+    "passed": 89,
+    "failed": 0,
+    "pending": 0,
+    "failures": [],
+    "suiteErrors": []
+  }
+]

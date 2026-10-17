@@ -1,0 +1,136 @@
+[
+  {
+    "name": "dead-holder-proof",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": [
+      "production vault writer across process death reset recovers after TerminateProcess at before-copy",
+      "production vault writer across process death reset recovers after TerminateProcess at after-copy",
+      "production vault writer across process death reset recovers after TerminateProcess at after-publish",
+      "production vault writer across process death reset recovers after TerminateProcess at before-anchor",
+      "production vault writer across process death restore recovers after TerminateProcess at before-copy",
+      "production vault writer across process death restore recovers after TerminateProcess at after-copy",
+      "production vault writer across process death restore recovers after TerminateProcess at after-publish",
+      "production vault writer across process death restore recovers after TerminateProcess at before-anchor"
+    ],
+    "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+    "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+  },
+  {
+    "name": "live-holder-exclusion",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": [
+      "production vault writer across process death never takes a live holder in a two-process writer race"
+    ],
+    "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+    "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+  },
+  {
+    "name": "renewal",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": [
+      "production vault writer across process death renews its owner-bound note while the production transaction is running"
+    ],
+    "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+    "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+  },
+  {
+    "name": "publication-fence",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": ["production vault writer across process death refuses a lost fence at fence"],
+    "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+    "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+  },
+  {
+    "name": "remove-fence",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": ["production vault writer across process death refuses a lost fence at remove"],
+    "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+    "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+  },
+  {
+    "name": "copy-dispatch-fence",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": ["production vault writer across process death refuses a lost fence at quarantine"],
+    "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+    "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+  },
+  {
+    "name": "quarantine-publication-fence",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": [
+      "production vault writer across process death refuses a lost fence at quarantine-publish"
+    ],
+    "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+    "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+  },
+  {
+    "name": "stage-rollback",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": [
+      "production vault writer across process death reset recovers after TerminateProcess at after-copy",
+      "production vault writer across process death restore recovers after TerminateProcess at after-copy",
+      "production vault writer across process death retains an interrupted quarantine stage when its original is missing"
+    ],
+    "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+    "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+  },
+  {
+    "name": "stage-original-proof",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": [
+      "production vault writer across process death retains an interrupted quarantine stage when its original is missing"
+    ],
+    "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+    "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+  },
+  {
+    "name": "anchor-write-fence",
+    "file": "src/runtime/vault/keyringAnchor.ts",
+    "exit": 1,
+    "failed": [
+      "production vault writer across process death fences the protected anchor advance after its awaited read"
+    ],
+    "beforeSha256": "d7c3c3cd5d379a359d5489d844716f1729dc37f828a5ad4259db54634462d759",
+    "restoredSha256": "d7c3c3cd5d379a359d5489d844716f1729dc37f828a5ad4259db54634462d759"
+  },
+  {
+    "name": "anchor-delete-fence",
+    "file": "src/runtime/vault/keyringAnchor.ts",
+    "exit": 1,
+    "failed": [
+      "production vault writer across process death fences the protected anchor reset after its awaited read"
+    ],
+    "beforeSha256": "d7c3c3cd5d379a359d5489d844716f1729dc37f828a5ad4259db54634462d759",
+    "restoredSha256": "d7c3c3cd5d379a359d5489d844716f1729dc37f828a5ad4259db54634462d759"
+  },
+  {
+    "name": "writer-release-handoff",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": [
+      "production vault writer across process death preserves the successor fence while the prior writer release settles"
+    ],
+    "beforeSha256": "c225f5e827a9db289e772b3ff69fa53bdcf7fba05751199b53bb09b5f1ccf191",
+    "restoredSha256": "c225f5e827a9db289e772b3ff69fa53bdcf7fba05751199b53bb09b5f1ccf191"
+  },
+  {
+    "name": "local-scope-exclusion",
+    "file": "src/core/vault/store.ts",
+    "exit": 1,
+    "failed": [
+      "production vault writer across process death retains an interrupted quarantine stage when its original is missing",
+      "production vault writer across process death refuses overlapping scopes on one file port after its lease file is displaced"
+    ],
+    "beforeSha256": "c225f5e827a9db289e772b3ff69fa53bdcf7fba05751199b53bb09b5f1ccf191",
+    "restoredSha256": "c225f5e827a9db289e772b3ff69fa53bdcf7fba05751199b53bb09b5f1ccf191"
+  }
+]

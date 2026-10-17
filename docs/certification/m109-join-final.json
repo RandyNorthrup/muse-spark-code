@@ -1,0 +1,906 @@
+{
+  "platform": "Win11",
+  "testTimeout": "repository defaults; no override",
+  "maxWorkers": 3,
+  "summary": {
+    "files": 94,
+    "passed": 1595,
+    "failed": 4,
+    "platformSkipped": 72,
+    "setupBlocked": 2
+  },
+  "files": [
+    {
+      "file": "test/unit/acpVault.test.ts",
+      "passed": 20,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/execVault.test.ts",
+      "passed": 25,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/fileLease.test.ts",
+      "passed": 29,
+      "failed": 0,
+      "unexecuted": 1,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/githubTokenSource.test.ts",
+      "passed": 14,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/macVaultSlot.test.ts",
+      "passed": 40,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/macVaultTransport.test.ts",
+      "passed": 24,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/approvals.test.ts",
+      "passed": 14,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/audit.test.ts",
+      "passed": 1,
+      "failed": 0,
+      "unexecuted": 18,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/backup.test.ts",
+      "passed": 19,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/boundaries.test.ts",
+      "passed": 53,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/boundaryScrub.test.ts",
+      "passed": 13,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/broker.test.ts",
+      "passed": 20,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/channel.test.ts",
+      "passed": 6,
+      "failed": 0,
+      "unexecuted": 52,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/contracts.test.ts",
+      "passed": 24,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/credentialAdapter.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/crypto.test.ts",
+      "passed": 13,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/delegation.test.ts",
+      "passed": 19,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/execAdapters.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/execBrokerLease.test.ts",
+      "passed": 4,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/execFence.test.ts",
+      "passed": 22,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/execHelpers.test.ts",
+      "passed": 9,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/execSpawn.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/fakes.test.ts",
+      "passed": 17,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/feeder.test.ts",
+      "passed": 13,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/fleet.test.ts",
+      "passed": 20,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/gitHelper.test.ts",
+      "passed": 4,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/importFile.test.ts",
+      "passed": 12,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/importReset.test.ts",
+      "passed": 9,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/interleavings.test.ts",
+      "passed": 35,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/kdf.test.ts",
+      "passed": 5,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/keyslots.test.ts",
+      "passed": 5,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/limits.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/loginCsv.test.ts",
+      "passed": 17,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/mcpOAuth.test.ts",
+      "passed": 42,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/mcpOAuthLifecycle.test.ts",
+      "passed": 16,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/mcpSecrets.test.ts",
+      "passed": 28,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/mcpVaultPool.test.ts",
+      "passed": 11,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/migrate.test.ts",
+      "passed": 18,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/migrationAdapters.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/migrationLifecycle.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/peer.test.ts",
+      "passed": 0,
+      "failed": 0,
+      "unexecuted": 1,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/policy.test.ts",
+      "passed": 21,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/redemption.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/remote.test.ts",
+      "passed": 24,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/reportScrub.test.ts",
+      "passed": 5,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/requestTaint.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/reviewFixes.test.ts",
+      "passed": 16,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/reviewRound2.test.ts",
+      "passed": 17,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/reviewRound3.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/reviewRound4.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/reviewRound5.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/rvcm1091a.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/rvcm1091a2.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/rvcm1091a3.test.ts",
+      "passed": 12,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/rvcm1091a3Import.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/rvcm1091a3Panel.test.ts",
+      "passed": 9,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/rvcm1091a4.test.ts",
+      "passed": 170,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/rvcm1091b.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/scrub.test.ts",
+      "passed": 15,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/slotShared.test.ts",
+      "passed": 6,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/sshAgent.test.ts",
+      "passed": 18,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/sshBroker.test.ts",
+      "passed": 13,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/sshConnection.test.ts",
+      "passed": 6,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/sshImport.test.ts",
+      "passed": 0,
+      "failed": 0,
+      "unexecuted": 2,
+      "setupError": true
+    },
+    {
+      "file": "test/unit/vault/sshKeys.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/sshTransport.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/sudoFeed.test.ts",
+      "passed": 4,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/taint.test.ts",
+      "passed": 12,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/totp.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/useDigest.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/vaultExec.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/vaultManagement.test.ts",
+      "passed": 13,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/vaultNativeEditor.test.ts",
+      "passed": 18,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/vaultPanel.test.tsx",
+      "passed": 27,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/vaultPanelBuild.test.ts",
+      "passed": 2,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/vaultPanelBundle.test.ts",
+      "passed": 9,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/vaultPanelHost.test.ts",
+      "passed": 25,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/vaultRuntimeEntry.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/vaultStore.test.ts",
+      "passed": 37,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/webCsvImport.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/webFill.test.ts",
+      "passed": 33,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/webPageRead.test.ts",
+      "passed": 4,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/webSessions.test.ts",
+      "passed": 24,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vault/writerLease.test.ts",
+      "passed": 19,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vaultCommand.test.ts",
+      "passed": 37,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vaultInput.test.ts",
+      "passed": 25,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/vaultSurface.test.ts",
+      "passed": 12,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/windowsCredentialVaultSlot.test.ts",
+      "passed": 19,
+      "failed": 2,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/windowsVaultChannel.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/windowsVaultNative.test.ts",
+      "passed": 34,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/windowsVaultPipeNative.test.ts",
+      "passed": 26,
+      "failed": 2,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/windowsVaultPipeRelay.test.ts",
+      "passed": 27,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/windowsVaultSlot.test.ts",
+      "passed": 42,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    },
+    {
+      "file": "test/unit/windowsVaultTransport.test.ts",
+      "passed": 20,
+      "failed": 0,
+      "unexecuted": 0,
+      "setupError": false
+    }
+  ],
+  "sourceHashes": [
+    {
+      "file": "src/core/vault/store.ts",
+      "sha256": "c225f5e827a9db289e772b3ff69fa53bdcf7fba05751199b53bb09b5f1ccf191"
+    },
+    {
+      "file": "src/core/vault/broker/management.ts",
+      "sha256": "0bd5634e28259fc75d20dc047c45cbafca7df055bd45508d16e4e45491a81af9"
+    },
+    {
+      "file": "src/core/vault/broker/manageClient.ts",
+      "sha256": "a96ea626544acaaf965e2200d4c87a4672ea419ccb6aa1b37d487a6edcac4398"
+    },
+    {
+      "file": "src/core/vault/broker/windowsPipe.ts",
+      "sha256": "dc0ecba059994696f548cef79317ed94733cf649c585500689c4962f1b7ea768"
+    },
+    {
+      "file": "src/core/git/tokenSource.ts",
+      "sha256": "7bb73e4228509426e22f2d59961a91ea1ef04ada17ecead8755d4aca8c97f793"
+    },
+    {
+      "file": "src/runtime/vault/keyringAnchor.ts",
+      "sha256": "d7c3c3cd5d379a359d5489d844716f1729dc37f828a5ad4259db54634462d759"
+    },
+    {
+      "file": "src/shared/constants.ts",
+      "sha256": "dcf83f796b8292bba9e572e6ff4e159c4e2310aa314dd688cf0e7897a7db4089"
+    },
+    {
+      "file": "test/unit/vault/writerLease.test.ts",
+      "sha256": "fe4f860cd635453c24b09fb9c20345dd66113b660cb980ac3f36a3d56282e4a9"
+    },
+    {
+      "file": "test/unit/vault/vaultStore.test.ts",
+      "sha256": "cea546ca12aa9186ac4ca66f9e96e0e58aa883cd2669cb1c9c755df963bd9519"
+    },
+    {
+      "file": "test/unit/vault/rvcm1091a.test.ts",
+      "sha256": "ac3f81360f55d4cb3dd4e06aa070d582e049b6673baa4903683cfc4591d688aa"
+    },
+    {
+      "file": "test/unit/vault/storeFixtures.ts",
+      "sha256": "d81b9c23fc2b65fe3fdb1a3baf4aae7acb02ae0c1d9f0451c9d53c492d5c4ba2"
+    }
+  ],
+  "drills": [
+    {
+      "name": "dead-holder-proof",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": [
+        "production vault writer across process death reset recovers after TerminateProcess at before-copy",
+        "production vault writer across process death reset recovers after TerminateProcess at after-copy",
+        "production vault writer across process death reset recovers after TerminateProcess at after-publish",
+        "production vault writer across process death reset recovers after TerminateProcess at before-anchor",
+        "production vault writer across process death restore recovers after TerminateProcess at before-copy",
+        "production vault writer across process death restore recovers after TerminateProcess at after-copy",
+        "production vault writer across process death restore recovers after TerminateProcess at after-publish",
+        "production vault writer across process death restore recovers after TerminateProcess at before-anchor"
+      ],
+      "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+      "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+    },
+    {
+      "name": "live-holder-exclusion",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": [
+        "production vault writer across process death never takes a live holder in a two-process writer race"
+      ],
+      "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+      "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+    },
+    {
+      "name": "renewal",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": [
+        "production vault writer across process death renews its owner-bound note while the production transaction is running"
+      ],
+      "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+      "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+    },
+    {
+      "name": "publication-fence",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": ["production vault writer across process death refuses a lost fence at fence"],
+      "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+      "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+    },
+    {
+      "name": "remove-fence",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": ["production vault writer across process death refuses a lost fence at remove"],
+      "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+      "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+    },
+    {
+      "name": "copy-dispatch-fence",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": ["production vault writer across process death refuses a lost fence at quarantine"],
+      "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+      "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+    },
+    {
+      "name": "quarantine-publication-fence",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": [
+        "production vault writer across process death refuses a lost fence at quarantine-publish"
+      ],
+      "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+      "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+    },
+    {
+      "name": "stage-rollback",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": [
+        "production vault writer across process death reset recovers after TerminateProcess at after-copy",
+        "production vault writer across process death restore recovers after TerminateProcess at after-copy",
+        "production vault writer across process death retains an interrupted quarantine stage when its original is missing"
+      ],
+      "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+      "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+    },
+    {
+      "name": "stage-original-proof",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": [
+        "production vault writer across process death retains an interrupted quarantine stage when its original is missing"
+      ],
+      "beforeSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31",
+      "restoredSha256": "3762176a575aa2db75e28b6f033320ec5c644b18f48dadd22a77bb739488cb31"
+    },
+    {
+      "name": "anchor-write-fence",
+      "file": "src/runtime/vault/keyringAnchor.ts",
+      "exit": 1,
+      "failed": [
+        "production vault writer across process death fences the protected anchor advance after its awaited read"
+      ],
+      "beforeSha256": "d7c3c3cd5d379a359d5489d844716f1729dc37f828a5ad4259db54634462d759",
+      "restoredSha256": "d7c3c3cd5d379a359d5489d844716f1729dc37f828a5ad4259db54634462d759"
+    },
+    {
+      "name": "anchor-delete-fence",
+      "file": "src/runtime/vault/keyringAnchor.ts",
+      "exit": 1,
+      "failed": [
+        "production vault writer across process death fences the protected anchor reset after its awaited read"
+      ],
+      "beforeSha256": "d7c3c3cd5d379a359d5489d844716f1729dc37f828a5ad4259db54634462d759",
+      "restoredSha256": "d7c3c3cd5d379a359d5489d844716f1729dc37f828a5ad4259db54634462d759"
+    },
+    {
+      "name": "writer-release-handoff",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": [
+        "production vault writer across process death preserves the successor fence while the prior writer release settles"
+      ],
+      "beforeSha256": "c225f5e827a9db289e772b3ff69fa53bdcf7fba05751199b53bb09b5f1ccf191",
+      "restoredSha256": "c225f5e827a9db289e772b3ff69fa53bdcf7fba05751199b53bb09b5f1ccf191"
+    },
+    {
+      "name": "local-scope-exclusion",
+      "file": "src/core/vault/store.ts",
+      "exit": 1,
+      "failed": [
+        "production vault writer across process death retains an interrupted quarantine stage when its original is missing",
+        "production vault writer across process death refuses overlapping scopes on one file port after its lease file is displaced"
+      ],
+      "beforeSha256": "c225f5e827a9db289e772b3ff69fa53bdcf7fba05751199b53bb09b5f1ccf191",
+      "restoredSha256": "c225f5e827a9db289e772b3ff69fa53bdcf7fba05751199b53bb09b5f1ccf191"
+    }
+  ],
+  "sizes": [
+    {
+      "file": "dist/extension.js",
+      "bytes": 567707,
+      "cap": 614400
+    },
+    {
+      "file": "dist/modelApi.js",
+      "bytes": 531115,
+      "cap": 537600
+    },
+    {
+      "file": "dist/checkpointStore.js",
+      "bytes": 89441,
+      "cap": 230400
+    },
+    {
+      "file": "dist/vault.js",
+      "bytes": 34396,
+      "cap": 51200
+    },
+    {
+      "file": "dist/vaultRuntime.js",
+      "bytes": 20867,
+      "cap": 25600
+    },
+    {
+      "file": "dist/usagePanel.js",
+      "bytes": 76827,
+      "cap": 76800
+    }
+  ],
+  "independentVaultHost": {
+    "bytes": 51180,
+    "cap": 51200
+  },
+  "surfaceEnglish": {
+    "bytes": 27140,
+    "cap": 25600
+  },
+  "plan": {
+    "bytes": 3572069,
+    "archiveAt": 3565158,
+    "readerBound": 4194304
+  },
+  "remaining": [
+    "Four native Credential Manager/foreign-logon failures remain unqualified.",
+    "sshImport setup exits 255 without stdout/stderr; two tests unexecuted.",
+    "Production usagePanel and surface-English caps fail unchanged.",
+    "Two duplication clones in files byte-identical to snap/train.",
+    "PLAN archive awaits the brief-required lead selection."
+  ]
+}
