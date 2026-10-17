@@ -231,3 +231,62 @@ long` under this lane's deep TMPDIR (environmental; lead runs it).
 3. Confirm on the wire that the turn's `session/tokenUsage` frames carry
    `modelId: "muse-wonder-full-1.0-contributor"` (or the tier used) — this
    is the one spelling this lane could not capture without a model call.
+
+## PR167ROOM — activation budget (Sat Oct 17, 2026, lane PR167ROOM)
+
+Hosted CI run 38915744271 failed only
+`test/unit/modelsActivationBudget.test.ts:100`
+(`Activation baseline=561352 current=566025 growth=4673`, cap 3072).
+The 3072 cap, the baseline and the test stand unchanged.
+
+- Cause: PR 167's live journaling code rode the activation bundle
+  (`dist/extension.js`). Measured marginal minified bytes over main-now
+  (scratch worktrees, gate's own build, repo default timeout):
+  MuseCodeHost additions 1185 (of which the completion path 1128, the
+  limit-input extraction 57), mapNotification additions 719 (mapping 383,
+  wire schema 336), all other touched modules combined ~126
+  (tree-shaken report code). Total 2030; headroom was 429; cut needed 1601. Main-now alone: `current=563995 growth=2643` (passes).
+- Fix: `MuseUsageDeltas` and `museCodeLimitInput` move verbatim from
+  `src/core/backends/musecode/MuseCodeHost.ts` to
+  `src/core/backends/musecode/usageDeltas.ts` (no value imports, only
+  types), served by the existing deferred `dist/usageService.js` chunk:
+  re-exported from `src/runtime/usage/usageServiceEntry.ts`, listed in
+  that chunk's `DEFERRED` files, loaded through `requireFile` on the
+  first session via `MuseCodeHost.usageNotesLoader` (set once in
+  `src/extension.ts` beside `usageRecording`, guarded inline like
+  `isUsageInsightsBundle`). Activation keeps only the loader seam; the
+  recording interface is unchanged, so journal timing and content are
+  unchanged. No person-visible behavior changed: no CHANGELOG line.
+- Red: gate fails without the fix (`growth=4673`); the new
+  `test/unit/usageNotesBundle.test.ts` fails when the entry re-export is
+  broken (`built usageService.js lacks the usage writers`, restored
+  byte-exact); `npm run build` fails a deferred file missing from its
+  chunk (`no longer carries`) or present in activation.
+- Green: gate prints
+  `Activation baseline=561352 current=564168 growth=2816` (margin 256).
+  New suite journals one completion and shapes one meter reading through
+  the built chunk into a real store (2 tests). usageTruth 9/9,
+  mapNotification/usage/usageContracts 63/63, related suites green.
+  `dist/usageService.js` 95.7 KiB of its 100 KiB cap.
+  Packed-product drill (throwaway, removed after the run): the production
+  `dist/usageService.js` required like `src/extension.ts` requires it
+  serves working writers and the journaled completion reads back.
+  `npm run package` itself is blocked on this rig for every tree
+  (`native/linux/arm64/muse-created` is not in-tree; x64 only).
+- Gates on the final tree, each with its exit code: prettier 0, eslint
+  (zero warnings) 0, typecheck (all five projects) 0, knip 0, cycles 0,
+  duplication 0, check:l10n 0, check:reference 0, check:plan 0,
+  `npm run build` (incl. bundle-split) 0, security:sast (533 rules,
+  0 findings) 0, security:audit 0.
+- Full unit suite: exit 1 under rig load 22-26, itemized, nothing
+  hidden. Mid-run an external process deleted 170 tracked test files
+  from this worktree (fake-test profile; commits and index intact);
+  restored byte-exact from HEAD and every affected suite re-run. After
+  the restore: all usage/activation suites green; the remaining red is
+  (a) 5 s-deadline timeouts in browser/palette/KDF/native-build suites
+  and throughput floors, three of them (cyclesRoots, vault/scrub,
+  browserUiText) re-measured failing identically on the untouched base
+  under the same load, the rest passing solo on this tree;
+  (b) importHookSources, flaky in pairs on both trees (fails on base
+  too); (c) four live e2e files, which skip without provider
+  credentials by design. Nothing red is in code this lane touched.
