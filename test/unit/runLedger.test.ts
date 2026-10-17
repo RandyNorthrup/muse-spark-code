@@ -2,6 +2,7 @@ import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   createRunLedger,
+  previewResponseReservation,
   type ResponseTicket,
   type RunLedger,
 } from '../../src/runtime/exec/runLedger'
@@ -71,6 +72,12 @@ describe('M80 ledger integer admission and retained liability', () => {
   it('D121 admits a request cap past the removed 500 ceiling', () => {
     const l = createRunLedger({ capUsd: Usd.from(1).toAmount(), maxRequests: 501 })
     expect(l.totals().requests).toBe(0)
+  })
+  it('D121 quotes the full one-response reservation past a below-minimum run cap', () => {
+    const l = createRunLedger({ capUsd: Usd.from(0.1).toAmount(), maxRequests: 30 })
+    expect(previewResponseReservation(l, 'muse-spark-1.3-contributor', price).reserveUsd).toBe(
+      Usd.from(0.108135).toAmount(),
+    )
   })
   it('F1/L9 rounds contributor reservation upward and preserves isStandard minimum', () => {
     expect(

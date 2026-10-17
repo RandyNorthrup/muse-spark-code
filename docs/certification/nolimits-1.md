@@ -28,7 +28,7 @@ not stood in for.
 | id  | what it was                                      | decision                                | evidence                                                                                                                                                                                          | commit                           |
 | --- | ------------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
 | A7  | Best-of-N ≤5 attempts, 5–50 requests/attempt     | removed                                 | No provider documents a cap; both numbers are the person's per-run choice (dialog defaults 3 × 20 stay)                                                                                           | `25c7906`                        |
-| A8  | Headless exec ≤500 max requests, ≤$20 budget     | removed (person's flags stay)           | No provider documents them; `--max-requests` (default 30) and `--max-budget-usd` stay with no ceiling of ours                                                                                     | `c1e9450`                        |
+| A8  | Headless exec ≤500 max requests, ≤$20 budget     | removed (person's flags stay)           | No provider documents them; `--max-requests` (default 30) and `--max-budget-usd` stay with no ceiling of ours                                                                                     | `c1e9450` + correction below     |
 | A11 | `RENAME_MAX_FILES` = 200                         | removed                                 | A count, not about a model; the language service names the files                                                                                                                                  | `d3ef3d0`                        |
 | A13 | `HOOK_AGENT_MAX_STEPS` = 5                       | removed                                 | Our bound on a model loop, no provider documents one; loops until the model stops calling tools (Stop aborts)                                                                                     | `a82c59e`                        |
 | A21 | Goal objective ≤4000 chars                       | removed                                 | Invented (Muse Code states no limit); only a blank objective refuses                                                                                                                              | `e40fd20`                        |
@@ -111,6 +111,48 @@ share-file picker's `tooLarge` branch is unreachable through size; both
 kept to avoid l10n churn and defensive-branch removal. The
 `museSpark.teamMaxWorkers` name appears only in comments — no such
 setting exists yet.
+
+## A8 correction (2026-10-17): the starved start reservation
+
+The first A8 version capped `previewResponseReservation` at the run's own
+budget. A below-minimum budget ($0.10 < $0.108135) then refused its own
+reservation inside the preview, the minimum computed as zero, no budget
+latch fired, and the run died incomplete (exit 8) instead of
+budget-exceeded (exit 5 with the named minimum) — the W-low-budget e2e
+caught it. The preview now caps at the most one response can cost at the
+tier's prices (full-window charge from the platform's price card and
+window), which refuses nothing the person sees. Regression test:
+`runLedger.test.ts` quotes $0.108135 past a $0.10 run cap; the W-low-budget
+e2e passes again.
+
+Left for the lead (M80, not this lane): exec now accepts budget strings
+past $20 while the Action's `budgetString` (`action/lib/tools.mjs`)
+still refuses them, so `actionInputs.test.ts` "accepts exactly the budget
+strings exec accepts" fails deterministically (`20.000001`). The Action's
+cap and its parity test stay M80's — not touched, per the lane brief and
+the M80 freeze.
+
+## Full-suite triage (2026-10-17, `npm run test:unit`: 531 files passed,
+
+20 failed, 9085 tests passed)
+
+- Fixed by this lane: `BestOfNDialog.test.tsx` (A7's component test still
+  asserted the removed 2–5 range; updated to the 1-or-more contract) and
+  the W-low-budget e2e above.
+- Reported, not touched: `actionInputs.test.ts` budget parity (M80, above).
+- Load timeouts, all passing in isolation afterwards: ResourcesSection,
+  attachments (2), browserUiText (see below), checkTokens (2),
+  colourLiteralRule, cyclesRoots, legalLocalization, modelsApp, tokens
+  (2), vault scrub floor, reports e2e (md/json), packaging/vsix/usage/
+  runtimeChatGpt/inspectNative hooks, execStdio e2e hook. Rig load was
+  ~18 on 8 cores throughout.
+- `browserUiText` full-table check (~5.2 s vs the 5 s default) fails
+  identically on the untouched base (`ba995775f` worktree) — pre-existing
+  marginality on a loaded rig, not this lane; passes with room given a
+  raised exploratory timeout (stated here, not committed).
+- `treesLinuxLaunchNative` cgroup failures (`systemd-run` fails, no
+  cgroup waved through): sandbox/environment, none of this lane's files
+  involved.
 
 ## Environment incidents (2026-10-17, this rig)
 

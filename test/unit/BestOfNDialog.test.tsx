@@ -71,8 +71,11 @@ describe('BestOfNDialog', () => {
     const props = renderDialog()
     const start = screen.getByRole('button', { name: 'Start' })
     expect(start).toBeEnabled()
+    // D121: any number of attempts stands; only below 1 refuses.
     fireEvent.change(screen.getByLabelText('Attempts'), { target: { value: '9' } })
-    expect(screen.getByText('Attempts must be between 2 and 5.')).toBeDefined()
+    expect(start).toBeEnabled()
+    fireEvent.change(screen.getByLabelText('Attempts'), { target: { value: '0' } })
+    expect(screen.getByText('Attempts must be 1 or more.')).toBeDefined()
     expect(start).toBeDisabled()
     fireEvent.change(screen.getByLabelText('Attempts'), { target: { value: '3' } })
     fireEvent.change(screen.getByLabelText('Prompt'), { target: { value: ' '.repeat(3) } })

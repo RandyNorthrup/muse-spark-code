@@ -14392,6 +14392,13 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   `EXEC_MAX_BUDGET_USD` = 20 removed — no provider documents them; the
   person's `--max-requests` (default 30 stays) and `--max-budget-usd` stay
   with no ceiling of ours.
+- A8 correction (NOLIMITS1): the first version also capped the start
+  reservation preview at the run's own budget, which starved the
+  below-minimum refusal (the W-low-budget e2e went incomplete instead of
+  budget-exceeded). The preview now caps at the most one response can
+  cost at the tier's prices (full-window charge, platform numbers only);
+  it refuses nothing the person sees. The Action's own 20-cap
+  (`action/lib/tools.mjs`) and its parity test stay M80's — reported.
 - A11 (NOLIMITS1): `RENAME_MAX_FILES` = 200 removed — not about a model; a
   rename touches as many files as the language service names.
 - A13 (NOLIMITS1): `HOOK_AGENT_MAX_STEPS` = 5 removed — our own bound on a
