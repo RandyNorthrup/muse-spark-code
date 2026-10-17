@@ -2530,6 +2530,7 @@
   "museCodeUnresponsiveTurn": "Muse Code antwortet nicht mehr, während ein Durchgang läuft. Ein Neustart beendet diesen Durchgang; die Unterhaltung wird mit Ihrer nächsten Nachricht fortgesetzt.",
   "museCodeRestarted": "Muse Code wurde neu gestartet. Ihre nächste Nachricht setzt diese Unterhaltung fort.",
   "sessionLogDamaged": "Das Muse Code-Protokoll dieser Unterhaltung ist beschädigt (ein Fehler in Muse Code), daher kann sie keine neuen Nachrichten annehmen. Beginnen Sie eine neue Unterhaltung; diese bleibt im Verlauf.",
+  "museSignInLostOnRestart": "{exit}, und es ist nicht mehr angemeldet, daher konnte dieser Durchgang nicht ausgeführt werden ({detail}). Melden Sie sich erneut an – mit „muse login“ in einem Terminal – oder setzen Sie META_API_KEY für die CLI, und senden Sie dann erneut.",
   "vaultScrubUnavailable": "Der Tresor-Bereinigungsdienst ist nicht verfügbar.",
   "vaultSessionLogUnavailable": "Der Tresor-sichere Sitzungsprotokollexport ist nicht verfügbar.",
   "turnUnqueued": "Nicht gesendet: Die eingereihte Nachricht wurde zurückgezogen",

@@ -51,6 +51,13 @@ export interface HostExit {
   readonly isExpected: boolean
   /** The process refuses to run as configured (a bad setting, an old build): restarting will not help. */
   readonly isPersistent: boolean
+  /**
+   * The run ended in failure (a non-zero code, or a signal nobody asked
+   * for), whether or not a close was already asked when it landed: the
+   * incident's exit was "as asked" at code 1 (F94). A clean stop and an
+   * asked-for signal are not failures.
+   */
+  readonly isFailure: boolean
 }
 
 // The three errors below cross from a host to the conversation controller.
@@ -615,6 +622,13 @@ export interface AgentSession {
 export interface AgentHost {
   readonly info: HostInfo
   onExit(listener: (exit: HostExit) => void): () => void
+  /**
+   * Why the host this one replaced went away, if that run ended in
+   * failure (`HostExit.isFailure`): read once, so the first turn that
+   * fails for a lost sign-in can name the restart, and later turns cannot
+   * blame it. Absent where nothing replaced anything.
+   */
+  takeRestartCause?(): string | undefined
   listModels(sessionId?: string): Promise<readonly ModelSummary[]>
   startSession(options: StartSessionOptions): Promise<AgentSession>
   listSessions(options: ListSessionsOptions): Promise<SessionPage>

@@ -3050,6 +3050,12 @@ export const EN = {
   // A session whose Muse Code event log failed (a CLI fault) takes no new message.
   sessionLogDamaged:
     'This conversation’s Muse Code log is damaged (a fault in Muse Code), so it cannot take new messages. Start a new conversation; this one stays in History.',
+  // A restarted backend whose replacement lost the sign-in (F94): the
+  // first turn that fails for it names the restart and the way back,
+  // instead of failing as just another turn. {exit} is the previous
+  // run's end in the log's words; {detail} the turn's reason.
+  museSignInLostOnRestart:
+    '{exit}, and it is no longer signed in, so this turn could not run ({detail}). Sign in again with “muse login” in a terminal, or set META_API_KEY for the CLI, then send again.',
   // The vault scrubber is locked (or its build refused): the turn reason and
   // the export notice name the outage instead of failing silently (RVM109T 7).
   vaultScrubUnavailable: 'Vault scrub service is unavailable',

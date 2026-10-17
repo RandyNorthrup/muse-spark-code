@@ -848,6 +848,8 @@ export function describeExit(
       }),
       isExpected,
       isPersistent: false,
+      // A signal the close itself sent is the stop that was asked for.
+      isFailure: !isExpected,
     }
   }
   // Exit codes are ids, not amounts: no digit grouping.
@@ -858,11 +860,13 @@ export function describeExit(
         description: fill(UI_TEXT.museExitedWithCode, { code }),
         isExpected,
         isPersistent: false,
+        isFailure: exit.code !== 0,
       }
     : {
         description: fill(UI_TEXT.museExitMeaning, { meaning, code }),
         isExpected,
         isPersistent: MUSE_EXIT_PERSISTENT_CODES.has(exit.code),
+        isFailure: exit.code !== 0,
       }
 }
 
@@ -1994,6 +1998,7 @@ export class MuseCodeHost implements AgentHost {
     private readonly features: MuseCodeFeaturePorts = {},
     private readonly usageRecording = MuseCodeHost.usageRecording,
     private readonly accountHome?: MuseCodeAccountHome,
+    private restartCause?: string | undefined,
   ) {
     if (
       accountHome !== undefined &&
@@ -2440,6 +2445,18 @@ export class MuseCodeHost implements AgentHost {
     return () => {
       this.exitListeners.delete(listener)
     }
+  }
+
+  /**
+   * Why the host this one replaced went away (`AgentHost.takeRestartCause`):
+   * read once, so only the first turn that fails for a lost sign-in names
+   * the restart. Set at construction by the backend manager, never over the
+   * wire: a restart cause is local process knowledge.
+   */
+  public takeRestartCause(): string | undefined {
+    const cause = this.restartCause
+    this.restartCause = undefined
+    return cause
   }
 
   /**
