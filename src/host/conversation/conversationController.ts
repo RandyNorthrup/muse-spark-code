@@ -7205,6 +7205,7 @@ export class ConversationController {
       this.activeTurnId !== undefined ||
       this.turnSubmissionsInFlight > 0 ||
       this.reviewStart !== undefined ||
+      this.playbackStart !== undefined ||
       this.planHold !== undefined ||
       this.legalScanStart !== undefined
     ) {
@@ -7616,15 +7617,18 @@ export class ConversationController {
           submission.disposition !== STEERED_DISPOSITION,
       )
       this.acceptSubmission(localId, text, submission)
-      // A queued or steered playback answers from the turn it joins; only a
-      // started one is watched on its own. And only a Plan-held playback is
-      // watched at all: the backend's own no-tools turn refuses the call
-      // itself (its item is emitted before the refusal), so stopping there
-      // would kill a turn that was handling it correctly.
+      // A steered playback answers from the turn it joins, so it is not
+      // watched on its own; a queued one runs as its own turn later and is
+      // watched from now, or its tool use would never be stopped. And only
+      // a Plan-held playback is watched at all: the backend's own no-tools
+      // turn refuses the call itself (its item is emitted before the
+      // refusal), so stopping there would kill a turn that was handling it
+      // correctly. A turn that already ended (its end beat its ack) needs
+      // no watch; noting one would leave it watched for good.
       if (
-        submission.disposition !== QUEUED_DISPOSITION &&
         submission.disposition !== STEERED_DISPOSITION &&
-        submittedSession.playback === undefined
+        submittedSession.playback === undefined &&
+        !this.finishedTurns.has(submission.turnId)
       ) {
         this.playbackTurn = { session: submittedSession, turnId: submission.turnId, stopped: false }
       }
