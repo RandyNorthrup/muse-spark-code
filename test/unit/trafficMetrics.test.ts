@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { trafficMetrics, type TrafficMetricSource } from '../../src/core/team/trafficMetrics'
 import { type TeamAttempt } from '../../src/shared/team'
@@ -22,7 +23,7 @@ function attempt(entryId: string, accuracy: 'reported' | 'estimated', cost: numb
       outputTokens: 20,
       reasoningTokens: 10,
       modelCalls: 1,
-      costUsd: cost,
+      costUsd: Usd.from(cost).toAmount(),
       accuracy,
     },
   }
@@ -141,8 +142,25 @@ describe('Traffic ledger metrics', () => {
     )
     expect(result.queueDepth.at(-1)).toEqual({ at: day + minute * 2, ready: 0, blocked: 0 })
     expect(result.waitMedianMs).toBeNull()
-    expect(result.reportedCostUsd).toBe(2)
-    expect(result.estimatedCostUsd).toBe(0)
+    expect(result.reportedCostUsd).toBe('2')
+    expect(result.estimatedCostUsd).toBe('0')
+  })
+  it('sums merged attempt costs exactly (M121)', () => {
+    const base = { roleId: 'engineering', writing: true, createdAt: day }
+    const result = trafficMetrics(
+      {
+        tasks: [
+          { ...base, id: 'a', mergedAt: day + minute, attempts: [attempt('one', 'reported', 0.1)] },
+          { ...base, id: 'b', mergedAt: day + minute, attempts: [attempt('one', 'reported', 0.2)] },
+        ],
+        events: [],
+        slots: [],
+      },
+      { period: 'today' },
+      now,
+    )
+    // Binary addition would report 0.30000000000000004.
+    expect(result.reportedCostUsd).toBe('0.3')
   })
   it('drains the old assignment and follows reassigned attempts across entry and agent scopes', () => {
     const source: TrafficMetricSource = {
@@ -191,7 +209,7 @@ describe('Traffic ledger metrics', () => {
       const landed = trafficMetrics(source, { period: 'today', ...scope }, now)
       expect(landed.queueDepth.at(-1)?.blocked).toBe(0)
       expect(landed.mergedChanges).toBe(1)
-      expect(landed.reportedCostUsd).toBe(2)
+      expect(landed.reportedCostUsd).toBe('2')
     }
     for (const scope of [{ entryId: 'two' }, { agentProfileId: 'two' }, {}]) {
       const moved = trafficMetrics(source, { period: 'today', ...scope }, day + minute * 3)
@@ -215,8 +233,8 @@ describe('Traffic ledger metrics', () => {
     expect(result.reassignments).toBe(1)
     expect(result.candidatesReturned).toBe(1)
     expect(result.mergedChanges).toBe(2)
-    expect(result.reportedCostUsd).toBe(6)
-    expect(result.estimatedCostUsd).toBe(1)
+    expect(result.reportedCostUsd).toBe('6')
+    expect(result.estimatedCostUsd).toBe('1')
     expect(result.reportedTokens).toBe(240)
     expect(result.estimatedTokens).toBe(120)
     expect(result.timeToMergeMedianMs).toBe(minute * 40)
@@ -229,8 +247,8 @@ describe('Traffic ledger metrics', () => {
       { period: 'allTime', roleId: 'engineering', entryId: 'two', agentProfileId: 'two' },
       now,
     )
-    expect(result.reportedCostUsd).toBe(0)
-    expect(result.estimatedCostUsd).toBe(1)
+    expect(result.reportedCostUsd).toBe('0')
+    expect(result.estimatedCostUsd).toBe('1')
     expect(result.estimatedTokens).toBe(120)
     expect(result.mergedChanges).toBe(1)
     expect(result.waitMedianMs).toBeNull()
@@ -259,7 +277,7 @@ describe('Traffic ledger metrics', () => {
     expect(result.waitMedianMs).toBe(minute * 2)
     expect(result.queueDepth[0]).toEqual({ at: day, ready: 1, blocked: 0 })
     expect(result.writingTasks).toBe(0)
-    expect(result.reportedCostUsd).toBe(2)
+    expect(result.reportedCostUsd).toBe('2')
     expect(trafficMetrics(source, { period: 'week' }, now).writingTasks).toBe(3)
   })
   it('counts read-only tasks in rework denominators while keeping writing conflict denominators separate', () => {
@@ -317,7 +335,7 @@ describe('Traffic ledger metrics', () => {
     expect(result.taskCount).toBe(3)
     expect(result.writingTasks).toBe(3)
     expect(result.mergeConflicts).toBe(1)
-    expect(result.reportedCostUsd).toBe(6)
+    expect(result.reportedCostUsd).toBe('6')
     expect(result.busySlotMs).toBe(minute * 30)
     expect(result.availableSlotMs).toBe(minute * 60 * 12 * 2)
   })
@@ -339,13 +357,13 @@ describe('Traffic ledger metrics', () => {
       ],
     }
     const total = trafficMetrics(withReviews, { period: 'today' }, now)
-    expect(total.reportedCostUsd).toBe(8.5)
-    expect(total.estimatedCostUsd).toBe(1.5)
+    expect(total.reportedCostUsd).toBe('8.5')
+    expect(total.estimatedCostUsd).toBe('1.5')
     expect(total.reportedTokens).toBe(360)
     expect(total.estimatedTokens).toBe(240)
     const second = trafficMetrics(withReviews, { period: 'today', entryId: 'two' }, now)
-    expect(second.reportedCostUsd).toBe(2.5)
-    expect(second.estimatedCostUsd).toBe(1)
+    expect(second.reportedCostUsd).toBe('2.5')
+    expect(second.estimatedCostUsd).toBe('1')
     expect(second.reportedTokens).toBe(120)
     expect(second.estimatedTokens).toBe(120)
     expect(() =>
@@ -365,7 +383,7 @@ describe('Traffic ledger metrics', () => {
     const wednesday = new Date(2026, 9, 7, 12).getTime()
     expect(trafficMetrics(seed(), { period: 'today' }, wednesday).taskCount).toBe(0)
     expect(trafficMetrics(seed(), { period: 'week' }, wednesday).taskCount).toBe(3)
-    expect(trafficMetrics(seed(), { period: 'week' }, wednesday).reportedCostUsd).toBe(6)
+    expect(trafficMetrics(seed(), { period: 'week' }, wednesday).reportedCostUsd).toBe('6')
   })
   it('keeps missing samples null and refuses impossible capacity', () => {
     const empty = trafficMetrics({ tasks: [], events: [], slots: [] }, { period: 'allTime' }, now)

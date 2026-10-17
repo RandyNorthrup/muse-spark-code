@@ -25,7 +25,10 @@ describe('the ACP agent npm landing page', () => {
     // modelApiCodeIntel, structuredSchema) between acp.js and estimator.js,
     // so only presence is required, not adjacency (merge f3a6c1e5b).
     for (const name of ['package-acp.mjs', 'package-acp-test.mjs']) {
-      const script = read('scripts', name)
+      const script =
+        name === 'package-acp.mjs'
+          ? read('scripts', 'lib', 'acpBundles.mjs')
+          : read('scripts', name)
       expect(script, name).toContain("'estimator.js'")
     }
   })

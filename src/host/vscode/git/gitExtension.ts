@@ -149,7 +149,9 @@ export async function openOwnedRepository(
   return { repository, cwd: selected.cwd, check: checkOwned }
 }
 
-/** A workspace may name its repository through a link; an ancestor repository is still refused. */
+/** A workspace may name its repository through a link; an ancestor repository is still refused.
+ * @unwired M123 repository root check
+ */
 export async function isRepositoryRoot(
   repository: GitRepository,
   root: string,
@@ -229,6 +231,16 @@ export class GitUnavailableError extends Error {
     super(message)
     this.name = 'GitUnavailableError'
   }
+}
+
+/**
+ * Whether this VS Code-family host ships the `vscode.git` extension at all.
+ * Without it (Arduino IDE 2, some forks) conversations take M123's native
+ * route in-process (PLAN.md D104); a git extension the user disabled keeps
+ * its own answer.
+ */
+export function isGitExtensionInstalled(): boolean {
+  return vscode.extensions.getExtension(GIT_EXTENSION_ID) !== undefined
 }
 
 /** The git extension's API, activating it if needed; throws `GitUnavailableError` with the reason. */

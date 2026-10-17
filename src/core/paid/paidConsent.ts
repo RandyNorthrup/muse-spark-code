@@ -1,4 +1,10 @@
 import { randomUUID } from 'node:crypto'
+
+export {
+  AutoCompactionNotAuthorizedError,
+  isAutoCompactionNotAuthorizedError,
+} from './autoCompactionError'
+
 // Asking before each paid use (M58, PLAN.md D48). The owner (2026-09-27):
 // "anything requiring extra payment should promt you with a popup that asks
 // allow once allow always in this workspace or deny".
@@ -24,7 +30,7 @@ import {
   UI_TEXT,
   DEFAULT_MODEL_ID,
 } from '../../shared/constants'
-import { fill, formatNumber, uiLocale } from '../../shared/l10n/text'
+import { fill, uiLocale } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import {
   paidFeaturePrice,
@@ -32,13 +38,7 @@ import {
   type PaidQuote,
   type PaidUseDecision,
   paidFeatureName,
-  autoReviewPrice,
-  bestOfNPrice,
-  modelApiPaidTier,
-  hookModelPrice,
   type PaidUseRequest,
-  scheduledRunPrice,
-  subagentTaskPrice,
 } from '../../shared/paid'
 import { Usd, minUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
@@ -63,6 +63,13 @@ async function paidTeamRuntime() {
 
 /** The popup's three answers. */
 export type PaidUseAnswer = 'once' | 'always' | 'deny'
+
+/**
+ * What an allowing answer granted: `always` kept in this workspace, `window`
+ * a window-once feature's once, `once` this use only (an "always" that could
+ * not be kept, or a feature without a window once).
+ */
+export type PaidUseScope = 'once' | 'window' | 'always'
 
 /** A verified selected-model tariff, not a provider-name assumption. No credential value. */
 export interface SchedulePaidIdentity {
@@ -96,7 +103,9 @@ export function isScheduleConsentCurrent(
   )
 }
 
-/** Creation/renewal only. No workspace-wide grant can silently authorize a schedule. */
+/** Creation/renewal only. No workspace-wide grant can silently authorize a schedule.
+ * @unwired M58 schedule-run paid consent
+ */
 export async function askSchedulePaidConsent(deps: {
   readonly schedule: ScheduleV2
   readonly identity: SchedulePaidIdentity
@@ -154,7 +163,9 @@ export async function askSchedulePaidConsent(deps: {
   return deps.isOn() && deps.isCurrent() ? consent : undefined
 }
 
-/** The run's paid port: live identity/gates plus a hard, noninteractive reservation. */
+/** The run's paid port: live identity/gates plus a hard, noninteractive reservation.
+ * @unwired M58 schedule paid scope
+ */
 export function createSchedulePaidScope(deps: {
   readonly backend: 'modelApi' | 'museCode'
   readonly schedule: ScheduleV2
@@ -249,148 +260,14 @@ export function createSchedulePaidScope(deps: {
   }
 }
 
-/** The popup's question and what it says about the use, in the display language. */
+/** The popup's question, formatted only when its existing runtime first loads. */
 export async function paidUseQuestion(request: PaidUseRequest): Promise<{
   readonly title: string
   readonly detail: string
 }> {
-  switch (request.feature) {
-    case 'judge': {
-      const price = autoReviewPrice(request.modelId)
-      if (price === undefined || Usd.from(request.dailyBudgetUsd).compare(Usd.from(0)) < 0)
-        throw new Error('Judge use needs a verified tariff and daily budget')
-      return {
-        title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidJudgeName }),
-        detail: fill(UI_TEXT.paidConfirmJudge, {
-          price,
-          budget: formatUsd(request.dailyBudgetUsd, 2),
-        }),
-      }
-    }
-    case 'webSearch': {
-      return {
-        title: UI_TEXT.paidUseWebSearchTitle,
-        detail: [
-          fill(UI_TEXT.paidUseWebSearchDetail, {
-            price: paidFeaturePrice('webSearch', request.quote?.tariffUsd ?? request.priceUsd),
-          }),
-          ...(request.quote === undefined
-            ? []
-            : [
-                fill(UI_TEXT.paidSearchQuote, {
-                  provider: request.quote.provider,
-                  model: request.quote.model,
-                }),
-              ]),
-        ].join('\n'),
-      }
-    }
-    case 'voice': {
-      return {
-        title: UI_TEXT.paidUseVoiceTitle,
-        detail: fill(UI_TEXT.paidUseVoiceDetail, { price: paidFeaturePrice('voice') }),
-      }
-    }
-    case 'imageGeneration': {
-      // Every image, whatever the backend or permission mode: what is made,
-      // from what, and that the key pays for it (M34, M44).
-      const sources = request.sources.join(', ')
-      return {
-        title: fill(request.kind === 'edit' ? UI_TEXT.imageBuyEditTitle : UI_TEXT.imageBuyTitle, {
-          path: request.path,
-        }),
-        detail: [
-          fill(UI_TEXT.imageBuyPrompt, { prompt: request.prompt }),
-          ...(sources === '' ? [] : [fill(UI_TEXT.imageBuySources, { paths: sources })]),
-          fill(UI_TEXT.imageBuyBilling, { price: paidFeaturePrice('imageGeneration') }),
-        ].join('\n\n'),
-      }
-    }
-    case 'scheduledPrompts': {
-      return {
-        title: fill(UI_TEXT.scheduleRunConfirmTitle, { model: request.modelId }),
-        detail: [
-          fill(UI_TEXT.scheduleRunConfirmPrompt, { prompt: request.prompt }),
-          fill(UI_TEXT.scheduleRunConfirmPrice, { price: scheduledRunPrice(request.modelId) }),
-          UI_TEXT.scheduleRunConfirmExtras,
-        ].join('\n\n'),
-      }
-    }
-    case 'subagents': {
-      const { task } = request
-      return {
-        title: fill(UI_TEXT.paidSubagentTaskTitle, { role: task.role }),
-        detail: fill(UI_TEXT.paidSubagentTaskDetail, {
-          objective: task.objective,
-          price: subagentTaskPrice(task.modelId, task.attemptLimit),
-        }),
-      }
-    }
-    case 'autoReviewer': {
-      const price = autoReviewPrice(request.modelId, request.pricing)
-      if (price === undefined) throw new Error(UI_TEXT.autoReviewerFailed)
-      return {
-        title: fill(UI_TEXT.paidUseAutoReviewerTitle, { tool: request.tool }),
-        detail: fill(UI_TEXT.paidUseAutoReviewerDetail, {
-          action: request.action,
-          model: request.modelId,
-          price,
-        }),
-      }
-    }
-    case 'legalExplanation': {
-      const price = autoReviewPrice(request.modelId)
-      if (price === undefined) throw new Error(UI_TEXT.subagentTariffUnknown)
-      return {
-        title: UI_TEXT.legalExplainPaid,
-        detail: fill(UI_TEXT.legalExplainConsent, { price, model: request.modelId }),
-      }
-    }
-    case 'bestOfN': {
-      return {
-        title: fill(UI_TEXT.paidBestOfNTitle, { attempts: formatNumber(request.attempts) }),
-        detail: fill(UI_TEXT.paidBestOfNDetail, {
-          prompt: request.prompt,
-          price: bestOfNPrice(request.modelId, request.attempts, request.requestCeilingPerAttempt),
-        }),
-      }
-    }
-    case 'teamWorkers': {
-      const runtime = await paidTeamRuntime()
-      return runtime.teamWorkerQuestion(request)
-    }
-    case 'hookModels': {
-      return {
-        title: fill(UI_TEXT.paidHookModelTitle, { event: request.event }),
-        detail: fill(UI_TEXT.paidHookModelDetail, {
-          kind: request.kind,
-          model: request.modelId,
-          price:
-            request.dailyBudgetUsd === undefined
-              ? hookModelPrice(request.modelId)
-              : `${hookModelPrice(request.modelId)} ${fill(UI_TEXT.paidHookModelDailyBudget, { budget: formatUsd(request.dailyBudgetUsd, 2) })}`,
-        }),
-      }
-    }
-    case 'tab': {
-      // Tab bills the request's model per token (M94, PLAN.md D73): the
-      // popup names its rates, today's budget and the training note. An
-      // unpriced model has no rate to quote, so it never reaches a popup.
-      const tier = modelApiPaidTier(request.modelId)
-      if (tier === undefined) {
-        throw new Error(UI_TEXT.subagentTariffUnknown)
-      }
-      return {
-        title: UI_TEXT.paidUseTabTitle,
-        detail: fill(UI_TEXT.paidUseTabDetail, {
-          model: request.modelId,
-          price: scheduledRunPrice(request.modelId),
-          budget: formatUsd(request.budgetUsd, 2),
-          training: tier === 'contributor' ? UI_TEXT.tabTrainingContributor : '',
-        }),
-      }
-    }
-  }
+  const runtime = await import('../backends/modelapi/foreignHooksEntry')
+  runtime.setUiText(UI_TEXT, uiLocale())
+  return await runtime.paidUseQuestion(request)
 }
 
 export interface PaidUseConsentDeps {
@@ -464,6 +341,8 @@ export class PaidUseConsent {
    * generation it was given under: memory only, never stored.
    */
   private readonly windowOnce = new Map<PaidFeature, number | undefined>()
+  /** Each feature's local revocations; Ask again also moves the shared `revocation`. */
+  private readonly windowOnceRevocations = new Map<PaidFeature, number>()
   /**
    * A window-once feature's first question while it is open: ordinary uses
    * that arrive meanwhile share it and its answer instead of asking again.
@@ -564,23 +443,31 @@ export class PaidUseConsent {
 
   /** Asks in the popup now and keeps what the answer grants. */
   private async decide(request: PaidUseRequest, ask: PaidUseConsentDeps['ask']): Promise<boolean> {
+    return (await this.decideScope(request, ask)) !== undefined
+  }
+
+  /** Asks in the popup now, keeps what the answer grants and names it; undefined refuses. */
+  private async decideScope(
+    request: PaidUseRequest,
+    ask: PaidUseConsentDeps['ask'],
+  ): Promise<PaidUseScope | undefined> {
     const { feature } = request
     const canRemember = this.deps.canRemember()
     const answer = await ask(request, canRemember)
     if (answer === 'deny') {
       this.deps.log.info(`Paid use of ${feature}: denied`)
-      return false
+      return undefined
     }
     if (!this.isEnabled(feature)) {
       this.deps.log.info(`Paid use of ${feature}: turned off while the popup was open`)
-      return false
+      return undefined
     }
     if (
       feature === 'judge' &&
       this.deps.acceptJudgePrice !== undefined &&
       (!(await this.deps.acceptJudgePrice()) || !this.isEnabled(feature))
     )
-      return false
+      return undefined
     if (answer === 'always' && canRemember && this.deps.canRemember()) {
       // Fail closed on revocation only: an "always" whose grant write lost
       // its generation authorizes nothing. A plain storage failure still
@@ -588,21 +475,23 @@ export class PaidUseConsent {
       const kept = await this.remember(feature)
       if (kept === 'revoked') {
         this.deps.log.info(`Paid use of ${feature}: "always" was not kept, so it is refused`)
-        return false
+        return undefined
       }
       if (kept === 'kept') {
         this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
         this.notify()
-      } else {
-        this.deps.log.info(`Paid use of ${feature}: allowed once`)
+        return 'always'
       }
-    } else if (answer === 'once' && this.isWindowOnceFeature(feature)) {
+      this.deps.log.info(`Paid use of ${feature}: allowed once`)
+      return 'once'
+    }
+    if (answer === 'once' && this.isWindowOnceFeature(feature)) {
       this.windowOnce.set(feature, this.deps.windowOnceGeneration?.(feature))
       this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
-    } else {
-      this.deps.log.info(`Paid use of ${feature}: allowed once`)
+      return 'window'
     }
-    return true
+    this.deps.log.info(`Paid use of ${feature}: allowed once`)
+    return 'once'
   }
 
   private async allowSearch(
@@ -770,6 +659,22 @@ export class PaidUseConsent {
     return PAID_FEATURES.filter((feature) => this.isRemembered(feature))
   }
 
+  /** A live fence for an admitted use, including Once and revoked Always grants. */
+  public fence(feature: PaidFeature): () => boolean {
+    const revocation = this.revocation
+    const generation = this.deps.windowOnceGeneration?.(feature)
+    const wasRemembered = this.isRemembered(feature)
+    const wasOnce = this.isWindowOnce(feature)
+    const wasTrusted = this.deps.canRemember()
+    return () =>
+      revocation === this.revocation &&
+      generation === this.deps.windowOnceGeneration?.(feature) &&
+      wasTrusted === this.deps.canRemember() &&
+      this.isEnabled(feature) &&
+      (!wasRemembered || this.isRemembered(feature)) &&
+      (!wasOnce || this.isWindowOnce(feature))
+  }
+
   /**
    * Whether this use may be billed: allowed always here, or allowed in the
    * popup now. `requiresAsking` (a hook that demands a question) asks even when the
@@ -841,6 +746,35 @@ export class PaidUseConsent {
   }
 
   /**
+   * Asks now, whatever is kept, and names what the answer granted (Tab's
+   * keyed consent, RVM94KR2): the caller binds the scope to its own key, so
+   * no grant kept for the feature alone answers for it.
+   */
+  public async askScope(
+    request: Exclude<PaidUseRequest, { feature: 'webSearch' | 'teamWorkers' }>,
+  ): Promise<PaidUseScope | undefined> {
+    return this.isEnabled(request.feature)
+      ? await this.decideScope(request, this.deps.ask)
+      : undefined
+  }
+
+  /** Moves on this feature's price changes and the shared "Ask again". */
+  public revocations(feature: PaidFeature): number {
+    return this.revocation + (this.windowOnceRevocations.get(feature) ?? 0)
+  }
+
+  /**
+   * The feature's window once as a token, undefined while none holds. It
+   * changes whenever that once is revoked, so a grant taken under an older
+   * once never counts under a newer one.
+   */
+  public windowOnceToken(feature: PaidFeature): string | undefined {
+    return this.isWindowOnce(feature)
+      ? JSON.stringify([this.revocations(feature), this.windowOnce.get(feature)])
+      : undefined
+  }
+
+  /**
    * A price acceptance changed in this window (the host calls this from
    * `writeAccepted`): this window's once was given under the old price, so
    * it asks again. A change in another window shows through
@@ -848,6 +782,7 @@ export class PaidUseConsent {
    */
   public revokeWindowOnce(feature: PaidFeature): void {
     if (feature === 'webSearch') this.searchWindowOnce.clear()
+    this.windowOnceRevocations.set(feature, (this.windowOnceRevocations.get(feature) ?? 0) + 1)
     if (this.windowOnce.delete(feature)) {
       this.deps.log.info(`Paid use of ${feature} asks again in this window`)
     }
@@ -971,6 +906,7 @@ export interface AccountPaidUseConsentDeps extends Omit<
   readonly revokeQuoteGrants: () => Promise<void>
 }
 
+/** @unwired M58 account paid-use question */
 export function paidAccountQuestion(binding: PaidAccountBinding): string {
   return fill(UI_TEXT.accounts.paidConsent, {
     provider: binding.provider,
@@ -1016,6 +952,7 @@ function quoteGrantEpoch(generation: string): number | undefined {
  * decision is fenced against the captured epoch too, so a revocation during
  * the ask refuses even when persistence downgrades to Allow once. The
  * instance-local generation fences in-flight asks inside one instance only.
+ * @unwired M58 account paid-use consent
  */
 export class AccountPaidUseConsent {
   private readonly binding: PaidAccountBinding

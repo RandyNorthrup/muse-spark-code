@@ -92,7 +92,7 @@ suite('M112 real panel', () => {
       </script>`
       panel.webview.html = panel.webview.html.replace('</body>', () => `${driver}</body>`)
       await answered
-      assert.equal(panel.title, 'M112 test · 1 open')
+      assert.equal(panel.title, 'M112 test · 1 Open')
       registry.active?.post({
         type: 'openQuestions',
         snapshot: {

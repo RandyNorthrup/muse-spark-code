@@ -128,8 +128,9 @@ export interface UsageTotals {
 
 export interface PaletteContext {
   readonly arePromptCommandsBound?: boolean
-  /** W injects bound schedule actions; absent until the surface is available. */
+  /** Schedule management also owns the legacy loop row; v2 needs its runtime availability. */
   readonly schedules?: {
+    readonly isAvailable?: boolean
     readonly create: PaletteAction
     readonly list: PaletteAction
     readonly timeline: PaletteAction

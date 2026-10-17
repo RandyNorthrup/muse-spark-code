@@ -4,22 +4,12 @@
 
 import type * as vscode from 'vscode'
 import { vi } from 'vitest'
-import type { VerifyHooks } from '../../../src/core/backends/modelapi/verifyLoop'
 import type { SecretStore } from '../../../src/host/auth/credentialStore'
-import type { Logger } from '../../../src/host/logger'
-import type {
-  SessionBudgetConfig,
-  SessionBudgetConfigSource,
-  SessionBudgetScope,
-} from '../../../src/host/models/sessionBudget'
-import { createSessionBudgetConfig } from '../../../src/host/models/sessionBudget'
-import type { ProviderEntry, ProvidersStore } from '../../../src/host/providers/providerPorts'
-import { Usd, legacyUsdSchema, type UsdAmount } from '../../../src/shared/usd'
+import type { HostToWebviewMessage } from '../../../src/shared/protocol'
+import type { VerifyHooks } from '../../../src/core/backends/modelapi/verifyLoop'
+import type { ChatSurface } from '../../../src/host/views/chatSurface'
 import type { SettingsSource } from '../../../src/host/settings'
 import { EN } from '../../../src/shared/l10n/en'
-import { UI_TEXT } from '../../../src/shared/constants'
-import { providerEntrySchema } from '../../../src/core/providers/providersFile'
-import { parseModelRef } from '../../../src/core/providers/modelRef'
 import { BASE_LOCALE } from '../../../src/shared/l10n/text'
 import type { SettingsSnapshot } from '../../../src/shared/protocol'
 import type { WebviewHostContext } from '../../../src/host/vscode/views/webviewSetup'
@@ -267,60 +257,37 @@ export function fakeHostContext(settings: SettingsSnapshot = testSettings): Fake
   }
 }
 
-export { fakeSurface, type FakeSurface } from './fakeSurface'
-
-/** A `SecretStore` backed by a Map, exposed for assertions. */
-/** A `CredentialStore` warning sink for tests that expect none: one fails the test. */
-export function unexpectedWarning(message: string): never {
-  throw new Error(`unexpected warning: ${message}`)
+export interface FakeSurface extends ChatSurface {
+  readonly posted: HostToWebviewMessage[]
+  readonly reveal: ReturnType<typeof vi.fn<() => void>>
+  readonly markUnread: ReturnType<typeof vi.fn<() => void>>
+  readonly setTitle: ReturnType<typeof vi.fn<(title: string) => void>>
+  readonly reload: ReturnType<typeof vi.fn<() => void>>
+  readonly takeRestoredSessionId: ReturnType<typeof vi.fn<() => string | undefined>>
 }
 
-/**
- * The conversation spending limit setting backed by memory: the effective
- * value and the scope it is effective from, with every write recorded. The
- * shared wizard function reads and writes through this, exactly as through
- * VS Code's configuration in production.
- */
-export function memorySessionBudgetConfig(
-  parts: {
-    readonly effective?: string
-    readonly scope?: SessionBudgetScope
-    readonly failWrite?: boolean
-  } = {},
-): SessionBudgetConfig & {
-  readonly writes: readonly { readonly value: UsdAmount; readonly scope: SessionBudgetScope }[]
-} {
-  let current = Usd.from(parts.effective ?? 0).toAmount()
-  const scope = parts.scope ?? 'global'
-  const writes: { value: UsdAmount; scope: SessionBudgetScope }[] = []
-  const log: Logger = {
-    trace: () => undefined,
-    info: () => undefined,
-    warn: () => undefined,
-    error: () => undefined,
-  }
-  const source: SessionBudgetConfigSource = {
-    get: (section) => (section === 'modelApiSessionBudgetUsd' ? current : undefined),
-    inspect: (section) =>
-      section === 'modelApiSessionBudgetUsd' && scope === 'workspace'
-        ? { workspaceValue: current }
-        : undefined,
-    update: (section, value, nextScope) => {
-      if (parts.failWrite === true) {
-        return Promise.reject(new Error('settings are read-only in this test'))
-      }
-      const parsed = legacyUsdSchema.safeParse(value)
-      if (section !== 'modelApiSessionBudgetUsd' || !parsed.success) {
-        return Promise.reject(new Error('rejected by the setting schema in this test'))
-      }
-      current = parsed.data
-      writes.push({ value: parsed.data, scope: nextScope })
-      return Promise.resolve()
+export function fakeSurface(id: string, isSideChat = false): FakeSurface {
+  const posted: HostToWebviewMessage[] = []
+  return {
+    id,
+    isSideChat,
+    documentId: `${id}-document`,
+    posted,
+    post(message) {
+      posted.push(message)
+    },
+    reveal: vi.fn<() => void>(),
+    markUnread: vi.fn<() => void>(),
+    setTitle: vi.fn<(title: string) => void>(),
+    reload: vi.fn<() => void>(),
+    takeRestoredSessionId: vi.fn<() => string | undefined>(),
+    dispose() {
+      // nothing to release in the fake
     },
   }
-  return { ...createSessionBudgetConfig(source, log), writes }
 }
 
+/** An in-memory `SecretStore` for tests: a stand-in for the OS credential store (the outside world). */
 export function memorySecrets(): SecretStore & { readonly values: Map<string, string> } {
   const values = new Map<string, string>()
   return {
@@ -334,57 +301,5 @@ export function memorySecrets(): SecretStore & { readonly values: Map<string, st
       values.delete(key)
       return Promise.resolve()
     },
-  }
-}
-
-/** A `ProvidersStore` (M95 lane K) backed by an array, exposed for assertions. */
-export function memoryProvidersStore(
-  entries: readonly ProviderEntry[] = [],
-): ProvidersStore & { readonly current: ProviderEntry[]; readonly replaced: ProviderEntry[][] } {
-  const current = [...entries]
-  const replaced: ProviderEntry[][] = []
-  let defaultModel: string | undefined
-  return {
-    current,
-    replaced,
-    validate: (entry, ref) => {
-      providerEntrySchema.parse(entry)
-      if (ref !== undefined && parseModelRef(ref) === undefined)
-        throw new Error(UI_TEXT.providerText.schema.modelRef)
-    },
-    list: () => Promise.resolve([...current]),
-    add: (entry) => {
-      if (current.some((existing) => existing.id === entry.id)) {
-        return Promise.reject(new Error(`Provider ${entry.id} is already configured`))
-      }
-      current.push(entry)
-      return Promise.resolve()
-    },
-    remove: (id) => {
-      const index = current.findIndex((entry) => entry.id === id)
-      const [removed] = index === -1 ? [undefined] : current.splice(index, 1)
-      return Promise.resolve(removed)
-    },
-    restore: (entry) => {
-      current.push(entry)
-      return Promise.resolve()
-    },
-    replaceAll: (next, replacement) => {
-      const previous = [...current]
-      const rows = typeof next === 'function' ? next(previous) : next
-      current.length = 0
-      current.push(...rows)
-      replaced.push([...rows])
-      if (replacement !== undefined) defaultModel = replacement.defaultModel
-      return Promise.resolve(previous)
-    },
-    setDefaultModel: (ref, expected) => {
-      if (expected !== undefined && defaultModel !== expected.value) {
-        return Promise.reject(new Error(UI_TEXT.providerEditConflict))
-      }
-      defaultModel = ref
-      return Promise.resolve()
-    },
-    defaultModel: () => Promise.resolve(defaultModel),
   }
 }

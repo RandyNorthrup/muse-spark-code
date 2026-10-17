@@ -37,6 +37,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       reveal: () => {
         view.show(false)
       },
+      // A focus ask delivers only while the sidebar is visible (F3).
+      isActive: () => view.visible,
       // The unread dot of Claude Code's sidebar: a badge on the view while it
       // is hidden, cleared as soon as it is shown again (M6).
       markUnread: () => {

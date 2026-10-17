@@ -9,6 +9,8 @@ import {
   formatUnit,
 } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
+import { Usd, type UsdAmount } from '../../shared/usd'
+import { USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
 import type { UsageCertainty, UsageKind } from '../../shared/usageJournal'
 import type {
   UsagePageState,
@@ -66,8 +68,42 @@ export function certaintyLabel(certainty: UsageCertainty): string {
     estimated: USAGE_TEXT.certaintyEstimated,
   }[certainty]
 }
-export function money(value: number | undefined): string {
+export function money(value: UsdAmount | undefined): string {
   return value === undefined ? USAGE_TEXT.unknown : formatUsd(value, 2)
+}
+/**
+ * Exact cost label: the original amount, never a value rebuilt from plotted
+ * geometry (geometry ceils sub-nano-dollars, so a label made from it would
+ * overstate small charges; M121 P2-2).
+ */
+export function costLabel(totals: UsageTotals): string {
+  return money(billedCost(totals))
+}
+/** Exact sum of the known amounts (M121); undefined when none is known. */
+export function usdSum(values: readonly (UsdAmount | undefined)[]): UsdAmount | undefined {
+  let sum: Usd | undefined
+  for (const value of values)
+    if (value !== undefined) sum = (sum ?? Usd.from(0)).add(Usd.from(value))
+  return sum?.toAmount()
+}
+/** Whole percent of a cap, floored, so a threshold is crossed exactly when the amount is. */
+export function percentOf(part: UsdAmount, whole: UsdAmount): number {
+  const cap = Usd.from(whole)
+  return cap.compare(Usd.from(0)) <= 0 ? 100 : Number(Usd.from(part).times(100).floorDivide(cap))
+}
+/** What is left under a cap, never below zero. */
+export function remainingUsd(spent: UsdAmount, cap: UsdAmount): UsdAmount {
+  const left = Usd.from(cap).subtract(Usd.from(spent))
+  return left.compare(Usd.from(0)) < 0 ? Usd.from(0).toAmount() : left.toAmount()
+}
+/**
+ * Chart geometry for dollars: whole nano-dollars, rounded up. Labels, sorting
+ * and period comparisons use the original amounts, never this projection.
+ */
+export function costPlot(amount: UsdAmount | undefined): number | undefined {
+  return amount === undefined
+    ? undefined
+    : Number(Usd.from(amount).ceiling(USD_LIABILITY_DECIMALS).units(USD_LIABILITY_DECIMALS))
 }
 export function count(value: number | undefined): string {
   return value === undefined ? USAGE_TEXT.unknown : formatNumber(value)
@@ -86,8 +122,8 @@ export function knownSum(values: readonly (number | undefined)[]): number | unde
   const known = values.filter((value) => value !== undefined)
   return known.length === 0 ? undefined : known.reduce((total, value) => total + value, 0)
 }
-export function billedCost(totals: UsageTotals): number | undefined {
-  return knownSum(
+export function billedCost(totals: UsageTotals): UsdAmount | undefined {
+  return usdSum(
     totals.costs
       .filter(
         (row) =>
@@ -96,13 +132,14 @@ export function billedCost(totals: UsageTotals): number | undefined {
       .map((row) => row.usd),
   )
 }
-export function equivalentCost(totals: UsageTotals): number | undefined {
-  return knownSum(totals.costs.map((row) => row.apiEquivalentUsd))
+export function equivalentCost(totals: UsageTotals): UsdAmount | undefined {
+  return usdSum(totals.costs.map((row) => row.apiEquivalentUsd))
 }
+/** A chart's value: counts as they are, dollars as whole nano-dollars (`costPlot`). */
 export function metricValue(totals: UsageTotals, metric: UsageQuery['metric']): number | undefined {
   switch (metric) {
     case 'cost': {
-      return billedCost(totals)
+      return costPlot(billedCost(totals))
     }
     case 'tokens': {
       return totals.tokens.input === undefined || totals.tokens.output === undefined
@@ -118,7 +155,12 @@ export function metricValue(totals: UsageTotals, metric: UsageQuery['metric']): 
   }
 }
 export function metricText(value: number | undefined, metric: UsageQuery['metric']): string {
-  if (metric === 'cost') return money(value)
+  if (metric === 'cost')
+    return money(
+      value === undefined
+        ? undefined
+        : Usd.fromUnits(BigInt(value), USD_LIABILITY_DECIMALS).toAmount(),
+    )
   return metric === 'time' ? duration(value) : count(value)
 }
 export function costText(totals: UsageTotals): string {
@@ -170,7 +212,12 @@ export function totalsFacts(
       value:
         billed === undefined || totalTokens === undefined || totalTokens === 0
           ? USAGE_TEXT.unknown
-          : money((billed * TOKENS_PER_MILLION) / totalTokens),
+          : money(
+              Usd.from(billed)
+                .times(TOKENS_PER_MILLION)
+                .divideIntegerCeiling(totalTokens)
+                .toAmount(),
+            ),
     },
     { label: USAGE_TEXT.retries, value: count(totals.retries) },
     { label: USAGE_TEXT.rateLimited, value: count(totals.rateLimited) },

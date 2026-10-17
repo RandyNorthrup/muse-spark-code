@@ -1,4 +1,5 @@
 import { legalScanLoader } from '../host/ide/legalScanBundle'
+import { failureForLog } from '../core/backends/musecode/logText'
 // `muse-spark-code-acp` (PLAN.md D62): the Muse Spark agent for editors that
 // speak the Agent Client Protocol, and the sign-in commands their terminal
 // sign-ins run (D61). stdout carries the protocol; everything the user or
@@ -106,6 +107,8 @@ import {
   UnverifiedStopError,
 } from './lsp/supervisor'
 import { trustedPrivateRoot } from './privateDirectory'
+import { keepGitCredentialRoutes } from './gitUserEnvironment'
+
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
 import type { Logger } from '../host/logger'
@@ -113,7 +116,7 @@ import { type LogLevel, stderrLogger } from './stderrLog'
 import { webReadable } from './webStreams'
 import { createLifecycle } from './exec/execLimits'
 import { createFdWriter } from './exec/fdWriter'
-import { createExecLogger, redactWhole } from './exec/execOutput'
+import { crashTextForLog, createExecLogger, redactWhole } from './exec/execOutput'
 import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
@@ -169,8 +172,11 @@ const HEADLESS_WIRING_EXIT = {
 const wasEnvironmentApiKeyPresent = process.env[META_API_KEY_VARIABLE] !== undefined
 // Credential variables leave the agent's own environment before anything
 // starts a process; no child gets them back (FIXM95X). Removed values remain
-// in memory only for D98 sharing redaction, never for authentication or children.
+// in memory for D98 sharing redaction, and their Git routes (no model or
+// provider key) for D104's named exception only: the user's confirmed push
+// and pull request fetch (M123, gitUserEnvironment.ts). No other child.
 const sharingCredentials = takeCredentials(process.env)
+keepGitCredentialRoutes(sharingCredentials)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
@@ -759,6 +765,19 @@ async function serve(
     const controllers = new ControllerRegistry<AcpController>(log, (id) =>
       engine.RequestError.resourceNotFound(id),
     )
+    // Model API sessions only: the Muse Code backend runs on its
+    // subscription. Meta's entry is built in, so the metadata reads without
+    // a providers file; a refused file or a loader failure leaves the
+    // session working without accounts instead of refusing `serve`.
+    let accounts: Awaited<ReturnType<RuntimeAccountServices['sessionsIfPresent']>>
+    if (options.backend === 'modelApi') {
+      try {
+        accounts = await loadAccounts().sessionsIfPresent('meta')
+      } catch (error: unknown) {
+        log.warn(`ACP accounts unavailable: ${failureForLog(error)}`)
+      }
+    }
+
     const agent = engine.createAcpAgent({
       controllers,
       createConversation: panelLoader({
@@ -782,6 +801,7 @@ async function serve(
         uiLocale(),
       ),
       schedules: {
+        isAvailable: false,
         async holdWorkspace(cwd) {
           loadedSchedules ??= await loadSchedules()
           return await loadedSchedules.holdWorkspace(cwd)
@@ -811,8 +831,9 @@ async function serve(
           uiLocale(),
         ),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
-      vault: acpVault,
-      ...(options.backend === 'modelApi' && { accounts: loadAccounts().sessions('meta') }),
+      // The account picker serves Model API sessions (list, current,
+      // thresholds). Switching stays refused (no adoption transaction).
+      ...(accounts !== undefined && { accounts }),
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
         const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
@@ -1735,8 +1756,7 @@ async function main(): Promise<number> {
         process.stderr,
         localized.command === 'invalid' ? localized.reason : UI_TEXT.accounts.unavailable,
       )
-      writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
-      writeLine(process.stderr, UI_TEXT.acpChatGpt.usage)
+      writeLine(process.stderr, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
       return command.exitCode ?? EXIT_FAILED
     }
   }
@@ -1752,10 +1772,7 @@ async function run(): Promise<void> {
   try {
     process.exitCode = await main()
   } catch (error: unknown) {
-    writeLine(
-      process.stderr,
-      redactWhole(error instanceof Error ? (error.stack ?? error.message) : String(error), []),
-    )
+    writeLine(process.stderr, redactWhole(crashTextForLog(error), []))
     process.exitCode = EXIT_FAILED
   } finally {
     processResources.dispose()

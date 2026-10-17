@@ -30,6 +30,7 @@ export const PRODUCTION_BUILD_SUITES = [
   '/visualCapture.test.mjs',
   '/visualStability.test.mjs',
   '/m114ConversationReview.test.mjs',
+  '/packagedBundles.test.mjs',
 ]
 
 export function buildProductionPackage(root: string, folder: string, shared?: unknown): void {
@@ -92,7 +93,13 @@ export function buildProductionPackage(root: string, folder: string, shared?: un
   }
 }
 
-/** The real badge gate receives scripted public bytes, never a network skip. */
+/**
+ * The real badge gate receives scripted public bytes, never a network skip.
+ * This preload stands in for the outside world only: the public network
+ * `scripts/check-badges.mjs` reads through `fetch` (the GitHub tree API, the
+ * badge CDNs). No module of ours is replaced. Repository image bytes stay
+ * real: they are read from the fixture's own copied `media/` tree.
+ */
 export function packageImagePreload(file: string, root: string, requests: string): void {
   writeFileSync(
     file,

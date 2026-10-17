@@ -22,6 +22,7 @@ import * as z from 'zod/mini'
 import { PaidUseConsent, type PaidUseAnswer, paidUseQuestion } from '../../../core/paid/paidConsent'
 import { PaidFeatureGate, PaidUsage, paidStateOf } from '../../../core/paid/paidFeatures'
 import {
+  IS_AUTO_COMPACTION_EVALUATED,
   GLOBAL_STATE_KEYS,
   PAID_APPROVAL_ORDER_DIRECTORY,
   PAID_FEATURE_SETTINGS,
@@ -74,6 +75,7 @@ export interface PaidFeaturesDeps {
   /** Whether the feature's setting is on, as the settings reader validated it. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
   readonly isAvailable?: (feature: PaidFeature) => boolean
+  readonly autoCompactionEvaluated?: () => boolean
   readonly isDefaultOn?: (feature: PaidFeature) => boolean
   readonly dailyBudgetUsd?: (feature?: PaidFeature) => UsdAmount | undefined
   /** Separate from startup review, since subscription judging has no price popup. */
@@ -103,6 +105,7 @@ export interface PaidFeatures {
 /** What the confirmation says the feature does and costs, in the display language. */
 function confirmationDetail(feature: PaidFeature): string {
   const details: Readonly<Record<PaidFeature, string>> = {
+    autoCompaction: UI_TEXT.paidConfirmAutoCompaction,
     webSearch: UI_TEXT.paidConfirmWebSearch,
     imageGeneration: UI_TEXT.paidConfirmImage,
     voice: UI_TEXT.paidConfirmVoice,
@@ -233,7 +236,10 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
       feature === 'judge'
         ? (deps.isJudgeOn?.() ?? deps.isSettingOn(feature))
         : deps.isSettingOn(feature),
-    ...(deps.isAvailable !== undefined && { isAvailable: deps.isAvailable }),
+    isAvailable: (feature) =>
+      (feature !== 'autoCompaction' ||
+        (deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED)) &&
+      deps.isAvailable?.(feature) !== false,
     ...(deps.isDefaultOn !== undefined && { isDefaultOn: deps.isDefaultOn }),
     // Tab is on by default and asks once, at its first request, with the
     // price and the daily budget (owner 2026-10-04, Q-M94a): no turn-on

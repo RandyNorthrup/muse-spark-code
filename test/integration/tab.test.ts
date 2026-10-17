@@ -160,8 +160,10 @@ suite('tab completions', () => {
       services: {
         // The key client's stream, faked: the real body goes to the fake
         // server, and its answer comes back as Responses events.
-        stream: (body) =>
+        stream: (body, _signal, _budget, admit) =>
           (async function* replay(): AsyncGenerator<StreamEvent> {
+            admit(undefined)
+            admit.onRequestStarted?.()
             const response = await fetch(url, {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
@@ -200,12 +202,15 @@ suite('tab completions', () => {
         onSent: () => undefined,
         onUsage: () => undefined,
       },
-      consent: { requestUse: () => Promise.resolve(true) },
+      consent: { requestUse: () => Promise.resolve({ scope: 'window', isCurrent: () => true }) },
       hooks: {
         beforeRead: () => Promise.resolve(true),
         afterEdit: (edit) => {
           edits.push(edit)
         },
+        bindPolicy: () =>
+          Promise.resolve({ key: 'fixture', isConfigurationInvalid: false, isReloading: false }),
+        policyKey: () => 'fixture',
       },
     })
     // Tab is on: register at once; the first request loads the bundle.

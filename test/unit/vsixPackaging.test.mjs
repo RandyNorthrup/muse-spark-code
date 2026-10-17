@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -6,6 +7,7 @@ import { brotliCompressSync, brotliDecompressSync, constants as zlibConstants } 
 import { createRequire } from 'node:module'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
+import { fromMarkdown } from 'mdast-util-from-markdown'
 import {
   UI_TEXT_REGIONS,
   regionalUiText,
@@ -13,6 +15,12 @@ import {
 } from '../../scripts/lib/uiTextRegions.mjs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { stageVsix, packagedChangelog } from '../../scripts/package-vsix.mjs'
+import {
+  contributedIds,
+  parseChangelog,
+  repositoryUrl,
+  selectWhatsNewReleases,
+} from '../../scripts/lib/whatsNewContent.mjs'
 import { renderPackageReadme } from '../../scripts/check-badges.mjs'
 import { compactVsix } from '../../scripts/lib/compactVsix.mjs'
 import { readZip } from '@vscode/vsce/out/zip.js'
@@ -644,8 +652,405 @@ describe('VSIX packaging', () => {
     expect(shipped).toContain('[Complete Unreleased notes]')
     expect(shipped).not.toContain(sections[2][0])
     expect(shipped).toContain('[Complete release history]')
-    expect(packagedChangelog('## [0.1.0] - 2026-01-01\n\nNotes')).toContain('Notes')
-    expect(() => packagedChangelog('No releases')).toThrow('No released')
+    const tiny = '## [0.1.0] - 2026-01-01\n\nNotes'
+    const tinyParsed = parseChangelog(
+      tiny,
+      { commands: new Set(), settings: new Set() },
+      'https://github.com/example/repo',
+    )
+    expect(packagedChangelog(tiny, tinyParsed)).toContain('Notes')
+    expect(() => packagedChangelog('No releases', [])).toThrow('No released')
+  })
+  it.each(['HTTPS', 'Http', 'git+https', 'ftp'])(
+    'resolves or refuses %s repository full-notes links in direct packaging',
+    (scheme) => {
+      const repository = `${scheme}://github.com/Example/Repo`
+      const changelog = '## [1.0.3] - 2026-10-04\n\n### Fixed\n\n- Previous fix.\n'
+      const parsed = parseChangelog(
+        changelog,
+        { commands: new Set(), settings: new Set() },
+        repository,
+      )
+      const plan = [{ version: '1.0.3', full: false }]
+      if (scheme === 'git+https' || scheme === 'ftp') {
+        expect(() => packagedChangelog(changelog, parsed, plan, repository)).toThrow(
+          "What's New repository URL must use HTTP or HTTPS",
+        )
+      } else {
+        const normalized = repository.replace(scheme, () => scheme.toLowerCase())
+        expect(packagedChangelog(changelog, parsed, plan, repository)).toContain(
+          `[Full notes for 1.0.3](${normalized}/blob/main/CHANGELOG.md).`,
+        )
+      }
+    },
+  )
+  it('ships the writer’s plan, so the packaged notes agree with What’s New on what is shown', () => {
+    const repository = 'https://github.com/example/repo'
+    const changelog = [
+      '## [2.0.0] - 2026-10-09',
+      '',
+      '### Highlights',
+      '',
+      '- **New.** Shiny new detail stays.',
+      '',
+      '### Added',
+      '',
+      `- New detail stays. ${'y'.repeat(2000)}`,
+      '',
+      '## [1.9.0] - 2026-10-01',
+      '',
+      '### Highlights',
+      '',
+      '- **Old.** Stable highlight stays.',
+      '',
+      '### Added',
+      '',
+      `- Old detail goes. ${'y'.repeat(2000)}`,
+      '',
+      '## [1.8.0] - 2026-09-01',
+      '',
+      '### Highlights',
+      '',
+      '- **Ancient.** Dusty.',
+      '',
+    ].join('\n')
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    const shortened = selectWhatsNewReleases(parsed, repository, 3000)
+    expect(shortened.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '1.9.0', full: false },
+    ])
+    const packaged = packagedChangelog(changelog, parsed, shortened.plan, repository)
+    expect(packaged).toContain('New detail stays.')
+    expect(packaged).toContain('Stable highlight stays.')
+    expect(packaged).toContain(`[Full notes for 1.9.0](${repository}/blob/main/CHANGELOG.md).`)
+    expect(packaged).not.toContain('Old detail goes.')
+    expect(packaged).not.toContain('## [1.8.0]')
+    expect(packaged).toContain('[Complete release history]')
+    const omitted = selectWhatsNewReleases(parsed, repository, 2400)
+    expect(omitted.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '1.9.0', full: false, omitted: true },
+    ])
+    const withoutSecond = packagedChangelog(changelog, parsed, omitted.plan, repository)
+    expect(withoutSecond).toContain('## [2.0.0]')
+    expect(withoutSecond).not.toContain('1.9.0')
+  })
+  it.each(['newest', 'predecessor'])(
+    'keeps both fitting releases in the package with uppercase HTTPS in %s Highlights',
+    (location) => {
+      const repository = 'https://github.com/example/repo'
+      const highlight = 'See [docs](HTTPS://example.com/CaseSensitive).'
+      const changelog =
+        '## [1.0.4] - 2026-10-05\n\n### Highlights\n\n' +
+        `- **New.** ${location === 'newest' ? highlight : 'Current.'}\n\n` +
+        '## [1.0.3] - 2026-10-04\n\n### Highlights\n\n' +
+        `- **Old.** ${location === 'predecessor' ? highlight : 'Previous.'}\n\n` +
+        '### Added\n\n- Older detail stays.\n'
+      const parsed = parseChangelog(
+        changelog,
+        { commands: new Set(), settings: new Set() },
+        repository,
+      )
+      const selection = selectWhatsNewReleases(parsed, repository)
+      expect(selection.plan).toEqual([
+        { version: '1.0.4', full: true },
+        { version: '1.0.3', full: true },
+      ])
+      expect(selection.shortened).toBe(false)
+      const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+      expect(packaged).toContain(changelog.trimEnd())
+      expect(packaged).toContain(highlight)
+      expect(packaged).toContain('Older detail stays.')
+    },
+  )
+  it('ships a shortened release without Highlights as its full-notes link, as the page shows it', () => {
+    const repository = 'https://github.com/example/repo'
+    const pad = 'y'.repeat(2000)
+    const changelog = [
+      '## [1.0.4] - 2026-10-05',
+      '',
+      '### Fixed',
+      '',
+      `- Current fix detail stays. ${pad}`,
+      '',
+      '## [1.0.3] - 2026-10-04',
+      '',
+      '### Fixed',
+      '',
+      `- Previous fix detail goes. ${pad}`,
+      '',
+    ].join('\n')
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    const selection = selectWhatsNewReleases(parsed, repository, 3000)
+    expect(selection.plan).toEqual([
+      { version: '1.0.4', full: true },
+      { version: '1.0.3', full: false },
+    ])
+    const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+    expect(packaged).toContain('## [1.0.4]')
+    expect(packaged).toContain('Current fix detail stays.')
+    expect(packaged).toContain('## [1.0.3]')
+    expect(packaged).toContain(`[Full notes for 1.0.3](${repository}/blob/main/CHANGELOG.md).`)
+    expect(packaged).not.toContain('Previous fix detail goes.')
+  })
+  it('packages a prerelease predecessor through the writer’s own release pattern', () => {
+    const repository = 'https://github.com/example/repo'
+    const changelog = [
+      '## [2.0.0] - 2026-10-09',
+      '',
+      '### Highlights',
+      '',
+      '- **New.** Stable highlight.',
+      '',
+      '## [2.0.0-beta.1] - 2026-10-01',
+      '',
+      '### Highlights',
+      '',
+      '- **Beta.** Prerelease highlight.',
+      '',
+    ].join('\n')
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    expect(parsed.map((release) => release.version)).toEqual(['2.0.0', '2.0.0-beta.1'])
+    const selection = selectWhatsNewReleases(parsed, repository, 100_000)
+    expect(selection.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '2.0.0-beta.1', full: true },
+    ])
+    const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+    expect(packaged).toContain('## [2.0.0]')
+    expect(packaged).toContain('## [2.0.0-beta.1]')
+    expect(packaged).toContain('Prerelease highlight.')
+  })
+  it('selects and packages the real beta when a fenced example names it first', () => {
+    const repository = 'https://github.com/example/repo'
+    const changelog = [
+      '## [2.0.0] - 2026-10-09',
+      '',
+      '### Highlights',
+      '',
+      '- **New.** Stable highlight.',
+      '',
+      '### Added',
+      '',
+      'An example names the beta first, but only as text:',
+      '',
+      '```md',
+      '## [2.0.0-beta.1] - 2026-10-01',
+      '```',
+      '',
+      '## [2.0.0-beta.1] - 2026-10-01',
+      '',
+      '### Highlights',
+      '',
+      '- **Beta.** Prerelease highlight.',
+      '',
+      '### Fixed',
+      '',
+      '- Beta fix stays.',
+      '',
+    ].join('\n')
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    // The writer never sees the fenced line as a section.
+    expect(parsed.map((release) => release.version)).toEqual(['2.0.0', '2.0.0-beta.1'])
+    const selection = selectWhatsNewReleases(parsed, repository, 100_000)
+    expect(selection.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '2.0.0-beta.1', full: true },
+    ])
+    // The packager slices the parsed ranges, so it ships the real beta
+    // section instead of the fenced text that names it first.
+    const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+    expect(packaged).toContain('## [2.0.0-beta.1]')
+    expect(packaged).toContain('Beta fix stays.')
+    expect(packaged).toContain('Prerelease highlight.')
+  })
+  it('selects and packages an indented release heading exactly like the writer reads it', () => {
+    const repository = 'https://github.com/example/repo'
+    const changelog = [
+      '## [2.0.0] - 2026-10-09',
+      '',
+      '### Highlights',
+      '',
+      '- **New.** Stable highlight.',
+      '',
+      ' ## [2.0.0-beta.1] - 2026-10-01',
+      '',
+      '### Highlights',
+      '',
+      '- **Beta.** Prerelease highlight.',
+      '',
+      '### Fixed',
+      '',
+      '- Beta fix stays.',
+      '',
+    ].join('\n')
+    // One leading space is still a Markdown heading: the writer parses it.
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    expect(parsed.map((release) => release.version)).toEqual(['2.0.0', '2.0.0-beta.1'])
+    const selection = selectWhatsNewReleases(parsed, repository, 100_000)
+    expect(selection.plan).toEqual([
+      { version: '2.0.0', full: true },
+      { version: '2.0.0-beta.1', full: true },
+    ])
+    // The packager slices the same parsed section instead of throwing for
+    // a heading line its own pattern would never match.
+    const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+    expect(packaged).toContain('## [2.0.0-beta.1]')
+    expect(packaged).toContain('Beta fix stays.')
+    expect(packaged).toContain('Prerelease highlight.')
+  })
+  it.each(['\n', '\r\n'])(
+    'shortens by parsed heading spans under %j, including indented and fenced headings',
+    (eol) => {
+      const repository = 'https://github.com/example/repo'
+      for (const indent of ['', ' ', ' '.repeat(3)]) {
+        const changelog = [
+          '## [1.0.4] - 2026-10-05',
+          '',
+          '### Fixed',
+          '',
+          '- Current fix.',
+          '',
+          '```md',
+          '## [1.0.3] - 2026-10-04',
+          '```',
+          '',
+          `${indent}## [1.0.3] - 2026-10-04`,
+          '',
+          '### Highlights',
+          '',
+          '- Previous highlight.',
+          '',
+          '### Fixed',
+          '',
+          `- Old detailed notes. ${'x'.repeat(80_000)}`,
+          '',
+        ].join(eol)
+        const parsed = parseChangelog(
+          changelog,
+          { commands: new Set(), settings: new Set() },
+          repository,
+        )
+        const selection = selectWhatsNewReleases(parsed, repository)
+        expect(selection.plan).toEqual([
+          { version: '1.0.4', full: true },
+          { version: '1.0.3', full: false },
+        ])
+        const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+        expect(packaged).toContain('Current fix.')
+        expect(packaged).toContain('Previous highlight.')
+        expect(packaged).toContain(`[Full notes for 1.0.3](${repository}/blob/main/CHANGELOG.md).`)
+        expect(packaged).not.toContain('Old detailed notes.')
+        expect(Buffer.byteLength(packaged)).toBeLessThan(1000)
+        // The shortened heading remains a heading, including under CRLF.
+        expect(
+          fromMarkdown(packaged)
+            .children.filter((node) => node.type === 'heading' && node.depth === 2)
+            .map((node) => node.children.map((child) => child.value).join('')),
+        ).toEqual(['[1.0.4] - 2026-10-05', '[1.0.3] - 2026-10-04'])
+      }
+    },
+  )
+  it('refuses CR-only and Setext release headings before packaging can diverge from the page', () => {
+    const repository = 'https://github.com/example/repo'
+    const packageText = (text) => {
+      const parsed = parseChangelog(text, { commands: new Set(), settings: new Set() }, repository)
+      return packagedChangelog(
+        text,
+        parsed,
+        selectWhatsNewReleases(parsed, repository).plan,
+        repository,
+      )
+    }
+    expect(() => packageText('## [1.0.4] - 2026-10-05\r\r### Fixed\r\r- Fix.\r')).toThrow(
+      'CHANGELOG.md: CR-only line endings are not supported; use LF or CRLF',
+    )
+    expect(() =>
+      packageText('[1.0.4] - 2026-10-05\n----------------------\n\n### Fixed\n\n- Fix.\n'),
+    ).toThrow('CHANGELOG.md 1.0.4: Setext release headings are not supported')
+  })
+  it('packages the retained earlier Highlights, so the packaged notes agree with the page', () => {
+    const repository = 'https://github.com/example/repo'
+    const changelog = [
+      '## [1.0.4] - 2026-10-05',
+      '',
+      '### Fixed',
+      '',
+      '- Current fix.',
+      '',
+      '## [1.0.3] - 2026-10-04',
+      '',
+      '### Fixed',
+      '',
+      '- Previous fix.',
+      '',
+      '## [1.0.2] - 2026-10-03',
+      '',
+      '### Highlights',
+      '',
+      '- Newest Highlights.',
+      '',
+    ].join('\n')
+    const parsed = parseChangelog(
+      changelog,
+      { commands: new Set(), settings: new Set() },
+      repository,
+    )
+    const selection = selectWhatsNewReleases(parsed, repository, 100_000)
+    expect(selection.plan).toEqual([
+      { version: '1.0.4', full: true },
+      { version: '1.0.3', full: true },
+      { version: '1.0.2', full: false },
+    ])
+    const packaged = packagedChangelog(changelog, parsed, selection.plan, repository)
+    expect(packaged).toContain('## [1.0.2]')
+    expect(packaged).toContain('Newest Highlights.')
+    expect(packaged).toContain(`[Full notes for 1.0.2](${repository}/blob/main/CHANGELOG.md).`)
+  })
+  // Parsing the real CHANGELOG is the next case's input, not what it asserts:
+  // about 0.4 s alone, 3 to 5 s beside a hosted runner's other files, which
+  // is the case's whole deadline. Prepared once, like the archives above.
+  const realChangelog = {}
+  beforeAll(() => {
+    const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
+    realChangelog.source = readFileSync('CHANGELOG.md', 'utf8')
+    realChangelog.repository = repositoryUrl(manifest)
+    realChangelog.parsed = parseChangelog(
+      realChangelog.source,
+      contributedIds(manifest),
+      realChangelog.repository,
+    )
+  }, ARCHIVE_SETUP_TIMEOUT_MS)
+  it('packs the writer’s plan for the real CHANGELOG exactly as the legacy slice', () => {
+    const { source, repository, parsed } = realChangelog
+    const selection = selectWhatsNewReleases(parsed, repository)
+    expect(selection.plan).toEqual(
+      selection.releases.map((release) => ({ version: release.version, full: true })),
+    )
+    expect(packagedChangelog(source, parsed, selection.plan, repository)).toBe(
+      packagedChangelog(source, parsed),
+    )
   })
   it('generates both static badges from the manifest, with no unresolved token', () => {
     const version = JSON.parse(

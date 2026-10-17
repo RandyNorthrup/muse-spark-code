@@ -32,7 +32,9 @@ import { unpackUiTable } from '../../src/shared/l10n/packed'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
+import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 import { buildHostBundles, buildModelApiBundle } from '../unit/helpers/modelApiBundle'
+
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import { buildAcpFixture, removeAcpFixture } from './acpFixture'
 import {
@@ -158,7 +160,7 @@ beforeAll(async () => {
     planMarkdown: path.join(ROOT, 'src/host/planMarkdownEntry.ts'),
     checkpointStore: path.join(ROOT, 'src/host/checkpoints/checkpointStoreEntry.ts'),
   })
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 
 afterAll(async () => {
   const made = [fake.installDir, signedIn, signedOut, loggedOut, workspace, dataHome]
@@ -342,8 +344,8 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
     expect(wrong.status).toBe(1)
     expect(wrong.stderr).toContain('--colour')
-    // Usage errors print the short usage block, not the full help.
-    expect(wrong.stderr).toContain(`${fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })}\n`)
+    expect(wrong.stderr).toContain(`${helpUsage}\n`)
+    expect(wrong.stderr).not.toMatch(/--(?:no-)?auto-compaction/)
   })
 
   it('prints the complete translated usage and reference hint from the installed table', async () => {
@@ -662,13 +664,16 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         approvalMode: 'promptUnmatched',
       })
       const events: AgentEvent[] = []
-      session.onEvent((event) => {
-        events.push(event)
+      // Wait for the event itself, under this test's own deadline: a poll
+      // with its default one-second window gave up on a slow Windows runner.
+      const completed = new Promise<void>((resolve) => {
+        session.onEvent((event) => {
+          events.push(event)
+          if (event.type === 'turnCompleted') resolve()
+        })
       })
       await session.sendTurn([{ type: 'text', text: 'hello' }], 'hello')
-      await vi.waitFor(() => {
-        expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
-      })
+      await completed
       expect(JSON.stringify(events)).toContain('From the bundle.')
       expect(log.error).not.toHaveBeenCalled()
     } finally {
