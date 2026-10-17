@@ -91,15 +91,15 @@ Intermediate (merged tree `5f940132b`, macmini, repo timeouts; every
 
 Tests (merged tree, `npx vitest run <files> --maxWorkers=3`, repo timeouts):
 
-| Files                                | Result                                              |
-| ------------------------------------ | --------------------------------------------------- |
-| execArgs/execOutput/execSchema       | 128/128 pass                                        |
-| runLedger/scanSecrets/untrustedInput | 53/53 pass                                          |
-| redact/execKeyInput                  | 167/167 pass                                        |
-| ciTemplates                          | 31/31 pass                                          |
-| ciReference (new)                    | 1/1 pass                                            |
-| ciRun                                | 13 pass; 11 time out, all environmental (see §5)    |
-| ciTemplatesRun                       | 18 failed under load — under investigation (see §5) |
+| Files                                | Result                                           |
+| ------------------------------------ | ------------------------------------------------ |
+| execArgs/execOutput/execSchema       | 128/128 pass                                     |
+| runLedger/scanSecrets/untrustedInput | 53/53 pass                                       |
+| redact/execKeyInput                  | 167/167 pass                                     |
+| ciTemplates                          | 31/31 pass                                       |
+| ciReference (new)                    | 1/1 pass                                         |
+| ciRun                                | 13 pass; 11 time out, all environmental (see §5) |
+| ciTemplatesRun (post-fix run)        | 42/43; bitbucket key case passes solo (see §5)   |
 
 Still to run: `ciRun` and `ciTemplatesRun` to green in a quiet window;
 the W rehearsal (`test/e2e/execTestLauncher.e2e.test.ts`) through the packed
@@ -129,9 +129,12 @@ product after `npm run package:acp`.
    intake, deadline) pass; every `ciRun` failure is a timeout, none an
    assertion. Kubuntu certified the same suites green. Re-run off-peak
    before closing; the timeouts themselves are unchanged.
-2. **`ciTemplatesRun`'s 18 failures were a real bug, not load** (found
-   2026-10-17 ~10:30): the macOS-sh `case`-in-`$()` parse failure above,
-   fixed in `ed8e7dcaa`. Full re-run after the fix is in flight.
+2. **`ciTemplatesRun`'s 18 failures were two real bugs, not load**
+   (found 2026-10-17 ~10:30–11:00): the macOS-sh `case`-in-`$()` parse
+   failure, fixed in `ed8e7dcaa`, and the bare-`exec`+trap exit-0 quirk,
+   fixed in `2b757acf2`. Post-fix full run: **42/43**; the one failure
+   (bitbucket key case, cleanup-deadline warning under load 18) passes
+   solo. A single quiet full-green run is still wanted before closing.
 3. **170 tracked test files deleted from the worktree at ~08:41 by an
    unknown process** (no delete command from this lane; `ps` is sandbox
    blocked). Restored byte-exact with `git checkout -- test/` (status clean,
