@@ -828,7 +828,7 @@ function describeForLog(error: unknown): string {
 // The ledger's explicit deletion failure, read by its fixed name: the ledger
 // rides in another bundle, so instanceof would compare across class copies.
 // fileName carries the file's display name, never its id.
-function isUploadDeleteFailed(error: unknown): error is Error & { fileName: string } {
+export function isUploadDeleteFailed(error: unknown): error is Error & { fileName: string } {
   return (
     error instanceof Error &&
     error.name === 'UploadDeleteFailedError' &&
