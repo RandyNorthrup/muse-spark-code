@@ -3,6 +3,7 @@
 // Only flat primitive forms are offered. No values enter logs or events.
 import * as z from 'zod/mini'
 import type { ElicitationField } from '../../../../shared/agentEvents'
+import type { ExtensionHookDispatch } from '../extensionHooks'
 import { McpError } from './protocol'
 
 const annotations = { title: z.optional(z.string()), description: z.optional(z.string()) }
@@ -204,7 +205,7 @@ export function validateElicitationValues(
   return { ok: true, content: Object.fromEntries(content) }
 }
 
-// Lane E owns real dispatch. Only explicit user-scope answers may be accepted.
+// The default seam runs the configured extension hooks. Only explicit user-scope answers may be accepted.
 export interface ElicitationHookInput {
   readonly server: string
   readonly message: string
@@ -221,12 +222,47 @@ export interface ElicitationResultInput {
   readonly server: string
   readonly fieldNames: readonly string[]
   readonly action: ElicitationOutcome['action']
+  /**
+   * The accepted answer, for user-scope hooks only; absent unless the
+   * elicitation was accepted. Project hooks never receive it.
+   */
+  readonly values?: Readonly<Record<string, unknown>>
 }
 export interface ElicitationHookSeam {
   fireElicitation(input: ElicitationHookInput): Promise<ElicitationHookVerdict>
   fireElicitationResult(input: ElicitationResultInput): Promise<void>
 }
-// The unwired seam deliberately proceeds to the explicit user form.
+
+function isVerdictAnswerRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * The Elicitation verdict from the two scope-grouped dispatches (M91 D70).
+ * Policy hooks (project, managed) run first and can only decline; the
+ * user's own hooks run next and may also answer. A refusal declines with
+ * the hook's reason; cancel stays the caller's own stop/timeout path,
+ * because the hook protocol carries a single refusal. A user answer that
+ * is not a record declines rather than guessing.
+ */
+export function elicitationVerdictFromDispatch(
+  policy: ExtensionHookDispatch | undefined,
+  personal: ExtensionHookDispatch | undefined,
+): ElicitationHookVerdict {
+  if (policy?.refusedReason !== undefined) {
+    return { decision: 'decline', source: 'project', reason: policy.refusedReason }
+  }
+  if (personal?.refusedReason !== undefined) {
+    return { decision: 'decline', source: 'user', reason: personal.refusedReason }
+  }
+  if (personal?.hasAnswer === true) {
+    return isVerdictAnswerRecord(personal.answer)
+      ? { decision: 'answer', source: 'user', values: personal.answer }
+      : { decision: 'decline', source: 'user', reason: 'hook answer is not a record' }
+  }
+  return { decision: 'proceed' }
+}
+// The fallback seam proceeds to the explicit user form (hooks off).
 export const ALLOW_ELICITATION_SEAM: ElicitationHookSeam = {
   fireElicitation: () => Promise.resolve({ decision: 'proceed' }),
   fireElicitationResult: () => Promise.resolve(),
