@@ -35,7 +35,9 @@ it('keeps account, developer and help values out of startup and loads them exact
   expect(() => built.bundle.UI_TEXT.accounts).toThrow('English surface is not loaded')
   expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
   expect(() => built.bundle.UI_TEXT.developer).toThrow('English surface is not loaded')
-  expect(() => built.bundle.EN.providerText).toThrow('English surface is not loaded')
+  // No browser surface reads providerText, so the compact table carries no
+  // slot for it at all; the providers surface reads acpChatGpt and waits lazily.
+  expect(Object.hasOwn(built.bundle.EN, 'providerText')).toBe(false)
   expect(() => built.bundle.EN.acpChatGpt).toThrow('English surface is not loaded')
   // STARTUP017: a restored settlement row's words paint with startup; the
   // rest of the schedule English loads only with the schedule surfaces.
@@ -68,11 +70,13 @@ it('keeps account, developer and help values out of startup and loads them exact
   expect(built.bundle.installEmbeddedTable(embedded(german))).toBeUndefined()
   await Promise.all([built.bundle.loadDeferredEnglish(), built.bundle.loadDeferredEnglish()])
   expect(built.bundle.UI_TEXT).toEqual(german)
-  expect(built.bundle.EN.providerText).toEqual(EN.providerText)
+  expect(Object.hasOwn(built.bundle.EN, 'providerText')).toBe(false)
   expect(built.bundle.EN.acpChatGpt).toEqual(EN.acpChatGpt)
   // The vault group's English loads with the vault surface alone (CAPS017);
   // with no vault surface installed, its installer adds no key to this table.
-  expect(() => built.bundle.EN.vault).toThrow('English surface is not loaded: vault')
+  // No probe entry reaches a vault reader, so the compact table carries no
+  // vault slot at all, before or after the installer runs.
+  expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
   built.bundle.installVaultEnglish()
   expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
   // M107 U-C1: English read only by the resource chip and pages loads with
