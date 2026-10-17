@@ -17735,6 +17735,13 @@ owner commands; accepted control shapes remain uncaptured.
 
 **Status 2026-09-27: built.**
 
+- **MSM56 finish (2026-10-17).** While `http.proxy` is set on an editor
+  that does not route the extension host's `WebSocket` (VS Code 1.101 to
+  1.111, or an editor built on it that routes neither global), the Muse
+  Voice microphone stays unavailable with the reason instead of recording
+  audio that cannot be sent (`src/core/voice/voiceNetwork.ts`,
+  `museVoiceNoProxy`, `docs/certification/msm56.md`).
+
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M58 — A popup before every paid use (D48)
