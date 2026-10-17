@@ -251,7 +251,7 @@ export function renderChatShare(
 ): string {
   switch (format) {
     case 'json': {
-      return `${JSON.stringify(doc, undefined, 2)}\n`
+      return JSON.stringify(doc, undefined, 2) + '\n'
     }
     case 'html': {
       return renderChatShareHtml(doc)
