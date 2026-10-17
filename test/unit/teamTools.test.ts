@@ -31,7 +31,6 @@ import {
   TEAM_BRIEF_MAX_CHARS,
   TEAM_COLLECT_PAGE_CHARS,
   TEAM_COLLECT_WAIT_MAX_SECONDS,
-  TEAM_DELEGATE_MAX,
   type TeamReasonCode,
   TEAM_IDENTIFIER_MAX_CHARS,
   TEAM_REASON_MAX_CHARS,
@@ -98,14 +97,11 @@ describe('delegate arguments', () => {
     expect(parsed.success).toBe(false)
   })
 
-  it('refuses an empty task list and more than six tasks', () => {
+  it('refuses an empty task list and takes any number of tasks (D121)', () => {
     expect(delegateArgs.safeParse({ tasks: [] }).success).toBe(false)
     expect(
       delegateArgs.safeParse({ tasks: [task, task, task, task, task, task, task] }).success,
-    ).toBe(false)
-    expect(delegateArgs.safeParse({ tasks: [task, task, task, task, task, task] }).success).toBe(
-      true,
-    )
+    ).toBe(true)
   })
 
   it('reports argument failures through parseTeamArgs', () => {
@@ -152,7 +148,6 @@ describe('refusal texts', () => {
 
 describe('plan contracts', () => {
   it('pins the plan’s tunables the lanes code against (D75)', () => {
-    expect(TEAM_DELEGATE_MAX).toBe(6)
     expect(TEAM_COLLECT_PAGE_CHARS).toBe(16_000)
     expect(TEAM_BRIEF_MAX_CHARS).toBe(8000)
     expect(TEAM_BRIEF_FILES_MAX_BYTES).toBe(65_536)
@@ -429,8 +424,10 @@ describe('shared team argument size limits', () => {
     expect(TEAM_TOOL_SCHEMAS.delegate.properties['command_id']).toMatchObject({
       maxLength: TEAM_IDENTIFIER_MAX_CHARS,
     })
-    expect(TEAM_TOOL_SCHEMAS.delegate.properties['tasks']).toMatchObject({
-      maxItems: TEAM_DELEGATE_MAX,
+    const tasks = TEAM_TOOL_SCHEMAS.delegate.properties['tasks']
+    expect(tasks).toMatchObject({ minItems: 1 })
+    expect('maxItems' in tasks).toBe(false)
+    expect(tasks).toMatchObject({
       items: {
         properties: {
           role: { maxLength: TEAM_IDENTIFIER_MAX_CHARS },

@@ -6826,7 +6826,7 @@ export const TEAM_MODEL_TEXT = {
   toolShowTheTeamAsItIs:
     'Show the team as it is now: each role with its pool and headroom, the queue, the budget left today and finished tasks not yet merged. Call it once before delegating.',
   toolStartOneToTasksBehindOne:
-    "Start one to {value1} tasks behind one approval and answer at once with each task's id, entry, state and ceilings. A retry with the same command_id and the same tasks starts nothing new. dry_run plans without starting or spending anything.",
+    "Start tasks behind one approval and answer at once with each task's id, entry, state and ceilings. A retry with the same command_id and the same tasks starts nothing new. dry_run plans without starting or spending anything.",
   toolTheWorkYouKeepForYourself2: 'The work you keep for yourself, so the user sees the whole plan',
   toolOptionalRequestIdARetryWith:
     'Optional request id; a retry with the same id and tasks reuses the tasks already started',
@@ -7455,11 +7455,11 @@ export const TEAM_META_STANDARD_RPM = 3000
 export const TEAM_META_STANDARD_TPM = 4_000_000
 export const TEAM_META_CONTRIBUTOR_RPM = 100
 export const TEAM_META_CONTRIBUTOR_TPM = 3_000_000
-// Our hard ceilings (D75): 20 on the Model API and M95's engines (the
-// owner's figure), 4 sessions per `muse serve`, 4 per external agent.
-// Unknown external agents start at 2, until refusals show their limits.
-// The engine ceiling is also the top of `museSpark.teamMaxWorkers`' default.
-export const TEAM_ENGINE_HARD_CEILING = 20
+// The kinds' ceilings (D75, D121): 4 sessions per `muse serve`, 4 per
+// external agent. Unknown external agents start at 2, until refusals show
+// their limits. Engines carry no hard ceiling of ours (the removed 20 was
+// invented): the provider's documented limits and live 429 adaptation bound
+// them, then the machine's (`museSpark.teamMaxWorkers`).
 export const TEAM_MUSE_CODE_HOST_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2
@@ -7476,9 +7476,8 @@ export const TEAM_USAGE_LIMIT_COOLDOWN_MS = 1_800_000
 // A delegating worker never gets `merge`: its sub-tasks' changes are merged
 // by the orchestrator.
 export const TEAM_MAX_DEPTH = 2
-// One `delegate` call starts this many tasks at most, behind one approval
-// (D75).
-export const TEAM_DELEGATE_MAX = 6
+// One `delegate` call starts any number of tasks behind one approval
+// (D75, D121: the removed at-most-6 count was invented).
 export const TEAM_MCP_SERVER_NAME = 'team'
 export const TEAM_MCP_TOKEN_BYTES = 32
 // No positive collect wait until the Muse Code timeout capture lands (M96 P).
