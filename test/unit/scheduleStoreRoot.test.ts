@@ -42,3 +42,27 @@ it('carries every pre-version entry across exactly once', async () => {
   await expect(readFile(path.join(root, 'index.json'), 'utf8')).resolves.toBe('{"v":1}')
   await expect(readdir(path.join(data, 'schedules'))).resolves.toEqual(['v1'])
 })
+
+it('merges a legacy folder into an existing v1 folder and never overwrites a v1 file', async () => {
+  const data = await dataDir()
+  const root = path.join(data, 'schedules', 'v1')
+  await mkdir(path.join(data, 'schedules', 'workspace'), { recursive: true })
+  await mkdir(path.join(root, 'workspace'), { recursive: true })
+  await writeFile(path.join(data, 'schedules', 'workspace', 'job.json'), '{"legacy":true}')
+  await writeFile(path.join(root, 'workspace', 'other.json'), '{"current":true}')
+  await writeFile(path.join(data, 'schedules', 'index.json'), '{"stale":true}')
+  await writeFile(path.join(root, 'index.json'), '{"current":true}')
+  await carryLegacyScheduleStore(data)
+  await expect(readFile(path.join(root, 'workspace', 'job.json'), 'utf8')).resolves.toBe(
+    '{"legacy":true}',
+  )
+  await expect(readFile(path.join(root, 'workspace', 'other.json'), 'utf8')).resolves.toBe(
+    '{"current":true}',
+  )
+  // The v1 file already in use wins; the stale legacy copy is left in place
+  // rather than silently replacing current data.
+  await expect(readFile(path.join(root, 'index.json'), 'utf8')).resolves.toBe('{"current":true}')
+  await expect(readFile(path.join(data, 'schedules', 'index.json'), 'utf8')).resolves.toBe(
+    '{"stale":true}',
+  )
+})
