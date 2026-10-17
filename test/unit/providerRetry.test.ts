@@ -87,11 +87,13 @@ describe('classifyRetry', () => {
     }
   })
 
-  it('fails at once past a 60 s Retry-After, and retries at it', () => {
+  it('honours a Retry-After of any length (NOLIMITS2 C1: no retry-after cap)', () => {
     for (const tables of Object.values(RETRY_TABLES)) {
       expect(classifyRetry(tables, failure(429, { retryAfterMs: 61_000 }))).toEqual({
-        retry: false,
-        reason: 'retry-after-cap',
+        retry: true,
+      })
+      expect(classifyRetry(tables, failure(429, { retryAfterMs: 3_600_000 }))).toEqual({
+        retry: true,
       })
       expect(classifyRetry(tables, failure(503, { retryAfterMs: 60_000 }))).toEqual({
         retry: true,
@@ -121,11 +123,11 @@ describe('FormatQuirks retry tables', () => {
     }
   })
 
-  it('covers every preset’s format with a non-empty retryable set', () => {
+  it('covers every preset’s format with a non-empty retryable set and no wait cap', () => {
     for (const preset of PRESETS) {
       const quirks = quirksOf(preset)
       expect(quirks.retry.statuses.length).toBeGreaterThan(0)
-      expect(quirks.retry.retryAfterCapMs).toBeGreaterThan(0)
+      expect('retryAfterCapMs' in quirks.retry).toBe(false)
     }
   })
 

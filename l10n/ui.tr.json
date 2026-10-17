@@ -91,9 +91,7 @@
   "outputSchemaOutsideAllowed": "Çalışma alanı dışında bir çıktı şeması okunuyor (--output-schema-outside).",
   "outputSchemaLocalValidation": "Çıktı şeması doğrulaması: yerel (seçilen modelin yapılandırılmış çıktı biçimi yok).",
   "outputSchemaReadFailed": "Çıktı şeması okunamadı: {detail}",
-  "modelApiPacingTokenLimit": "Paralel istek, arka plan çalışması için ayrılan token bütçesini aşıyor.",
   "modelApiPacingWaiting": "İstek sınırı içinde boş kapasite bekleniyor…",
-  "modelApiPacingExpired": "Boş kapasite bekleme süresi doldu. Yeniden denemek için mesajı tekrar gönderin.",
   "modelApiStatusLabel": "Meta API durumu",
   "modelApiStatusUnavailable": "Durum bilgisi alınamıyor",
   "modelApiStatusOpen": "Hizmet durumunu aç",
@@ -2504,7 +2502,6 @@
   "allowSessionPrefix": "Bu oturumda her zaman izin ver:",
   "reject": "Reddet",
   "modelApiStalled": "Model API {seconds} sn boyunca hiçbir şey göndermedi, bu yüzden yanıt sonlandırıldı; yeniden denemek için mesajı tekrar gönderin",
-  "modelApiRetryAfterTooLong": "Sağlayıcı, yeniden denemeden önce {wait} sn beklemeyi istedi; bu, {cap} sn sınırını aştığı için istek yeniden denenmedi.",
   "queuedTurnDropped": "Gönderilmedi: Durdur düğmesi kuyruktaki mesajları temizledi",
   "compactionStopped": "sıkıştırma durduruldu",
   "compactionEmpty": "Özet boştu; konuşma değişmedi.",
@@ -3616,7 +3613,7 @@
   "removeAttachmentNamed": "{name} öğesini kaldır",
   "announceApprovalFor": "{tool} için onay gerekiyor",
   "turnFailed": "Tur başarısız oldu.",
-  "turnRetrying": "Deneme {attempt}/{maxAttempts} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor.",
+  "turnRetrying": "Deneme {attempt} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor.",
   "usageWindowHours": {
     "one": "{count} saatlik pencere",
     "other": "{count} saatlik pencere"

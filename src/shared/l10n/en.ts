@@ -131,11 +131,7 @@ export const EN = {
   outputSchemaLocalValidation:
     'Output schema validation: local (the selected model has no structured-output format).',
   outputSchemaReadFailed: 'Could not read the output schema: {detail}',
-  modelApiPacingTokenLimit:
-    'Fan-out request exceeds the token budget reserved for background work.',
   modelApiPacingWaiting: 'Waiting for rate limit headroom…',
-  modelApiPacingExpired:
-    'The wait for rate limit headroom expired. Send the message again to retry.',
   modelApiStatusLabel: 'Meta API Status',
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open Service Status',
@@ -2995,10 +2991,6 @@ export const EN = {
   reject: 'Reject',
   modelApiStalled:
     'The Model API sent nothing for {seconds} s, so the reply was ended; send the message again to retry',
-  // {wait}: the Retry-After the provider asked for, in seconds; {cap}: the
-  // wait past which a request fails at once instead of waiting it out.
-  modelApiRetryAfterTooLong:
-    'The provider asked to wait {wait} s before retrying, past the {cap} s limit, so the request was not retried.',
   queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
   compactionStopped: 'the compaction was stopped',
   compactionEmpty: 'The summary was empty; the conversation is unchanged.',
@@ -4358,7 +4350,7 @@ export const EN = {
   announceApprovalFor: 'Approval needed for {tool}',
   // A failed turn's card when the backend gave no reason.
   turnFailed: 'The turn failed.',
-  turnRetrying: 'Attempt {attempt}/{maxAttempts} failed ({reason}); retrying in {seconds} s.',
+  turnRetrying: 'Attempt {attempt} failed ({reason}); retrying in {seconds} s.',
   // The subscription window's length (English writes the unit singular here).
   usageWindowHours: forms({ one: '{count}-hour window', other: '{count}-hour window' }),
   usageWindowMinutes: forms({ one: '{count}-minute window', other: '{count}-minute window' }),

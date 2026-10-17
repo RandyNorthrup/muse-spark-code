@@ -130,7 +130,6 @@ import {
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
-  MODEL_API_MAX_RETRIES,
   MODEL_API_MAX_TOOL_ROUNDS,
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_MODEL_PREFIX,
@@ -319,6 +318,7 @@ import {
   type RetryNotice,
   type ResponseAttemptGuard,
 } from './client'
+import { canRetryWithinBudget } from './transport'
 import {
   applyGoalCommand,
   type GoalContext,
@@ -5999,7 +5999,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           !hasRecoveredMedia &&
           !signal.aborted &&
           this.media !== undefined &&
-          budget.retriesUsed < MODEL_API_MAX_RETRIES &&
+          canRetryWithinBudget(budget, budget.retriesUsed) &&
           (await this.media.recover(
             error,
             this.replay.map((entry) => entry.item),
@@ -6014,7 +6014,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
-          budget.retriesUsed >= MODEL_API_MAX_RETRIES
+          !canRetryWithinBudget(budget, budget.retriesUsed)
         ) {
           throw error
         }
@@ -6026,7 +6026,6 @@ export class ModelApiSession implements ScheduledAgentSession {
           type: 'turnRetry',
           turnId,
           attempt: attempt + 1,
-          maxAttempts: MODEL_API_MAX_RETRIES + 1,
           retryDelayMs: delayMs,
           reason: `${error.code}: ${error.message}`,
         })
@@ -6143,7 +6142,6 @@ export class ModelApiSession implements ScheduledAgentSession {
         type: 'turnRetry',
         turnId,
         attempt: notice.attempt,
-        maxAttempts: notice.maxAttempts,
         retryDelayMs: notice.delayMs,
         reason: notice.reason,
       })
@@ -14499,7 +14497,6 @@ export class ModelApiSession implements ScheduledAgentSession {
               type: 'turnRetry',
               turnId,
               attempt: notice.attempt,
-              maxAttempts: notice.maxAttempts,
               retryDelayMs: notice.delayMs,
               reason: notice.reason,
             })
@@ -14592,7 +14589,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
           (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) ||
-          budget.retriesUsed >= MODEL_API_MAX_RETRIES
+          !canRetryWithinBudget(budget, budget.retriesUsed)
         ) {
           throw error
         }
@@ -14603,7 +14600,6 @@ export class ModelApiSession implements ScheduledAgentSession {
           type: 'turnRetry',
           turnId,
           attempt: retry + 1,
-          maxAttempts: MODEL_API_MAX_RETRIES + 1,
           retryDelayMs: delayMs,
           reason: `${error.code}: ${error.message}`,
         })
@@ -17022,7 +17018,8 @@ export class ModelApiSession implements ScheduledAgentSession {
             body,
             signal,
             undefined,
-            { retriesUsed: MODEL_API_MAX_RETRIES },
+            // The judge names no retries: one send, then its verdict stands.
+            { retriesUsed: 0, maxRetries: 0 },
             guard,
           )
           for await (const event of stream) {

@@ -2055,7 +2055,6 @@ function applyAgentEvent(
         'warning',
         fill(UI_TEXT.turnRetrying, {
           attempt: event.attempt,
-          maxAttempts: event.maxAttempts,
           reason: event.reason,
           seconds,
         }),

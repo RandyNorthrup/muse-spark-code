@@ -720,7 +720,6 @@ describe('diagnostic event boundary', () => {
         type: 'turnRetry',
         turnId: 't',
         attempt: 1,
-        maxAttempts: 2,
         retryDelayMs: 100,
         reason: secret,
       }),

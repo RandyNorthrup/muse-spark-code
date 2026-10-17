@@ -419,7 +419,6 @@ const agentEventSchema = z.discriminatedUnion('type', [
     type: z.literal('turnRetry'),
     turnId: stringSchema,
     attempt: numberSchema,
-    maxAttempts: numberSchema,
     retryDelayMs: numberSchema,
     reason: stringSchema,
   }),

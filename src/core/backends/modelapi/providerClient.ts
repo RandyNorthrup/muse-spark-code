@@ -19,7 +19,7 @@ import {
   type RetryNotice,
 } from './transport'
 import type { AuthSource } from './authSource'
-import { MODEL_API_REQUEST_TIMEOUT_MS, UI_TEXT } from '../../../shared/constants'
+import { UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { streamEventSchema, usageSchema } from '../../../host/backend/modelApiEntry'
 
@@ -150,10 +150,13 @@ export class CodecClient implements ProviderClient {
     this.waitBeforeRetry = this.transport.pause.bind(this.transport)
   }
   public async listModels(): Promise<readonly string[]> {
+    // No deadline of our own (owner 2026-10-16): the catalogue read ends at
+    // the provider's answer or a network failure. No turn stops it; a hung
+    // provider is waited on until the network itself gives up.
     const result = await this.transport.request(
       this.deps.codec.models.path,
       { method: 'GET', accept: 'application/json' },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      undefined,
     )
     const models = await parseJsonResponse(result, (json) => this.deps.codec.models.parse(json))
     return models.map((model) => result.redact(model.id))
@@ -177,7 +180,8 @@ export class CodecClient implements ProviderClient {
         ...(request.headers !== undefined && { headers: request.headers }),
         accept: 'application/json',
       },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      // No deadline of our own (owner 2026-10-16); see listModels.
+      undefined,
     )
     const count = await parseJsonResponse(result, (json) => counter.parse(json))
     if (!Number.isSafeInteger(count) || count < 0) {

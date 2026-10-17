@@ -40,7 +40,6 @@ import {
   AUTO_REVIEWER_MODEL_TEXT,
   AUTO_REVIEWER_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
-  MODEL_API_MAX_RETRIES,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill, setUiText } from '../../../shared/l10n/text'
@@ -334,7 +333,7 @@ async function requestReviewer(
       AbortSignal.any([signal, AbortSignal.timeout(AUTO_REVIEWER_TIMEOUT_MS)]),
       undefined,
       // No transport retry; structured repair is separately admitted and settled.
-      { retriesUsed: MODEL_API_MAX_RETRIES },
+      { retriesUsed: 0, maxRetries: 0 },
       admission,
       {
         ...confirmed,

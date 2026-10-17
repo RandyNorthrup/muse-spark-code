@@ -9,6 +9,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Model API requests are no longer ended by the product's own clocks: no 30-second request timeout and no 300-second stream idle limit. A request names how long it has been waiting and keeps waiting until Stop or a caller-named deadline. Retries are not counted out at four and a Retry-After is honoured at any length; only a call that names its own ceiling stops early, and quota never retries.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

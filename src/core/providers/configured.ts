@@ -54,8 +54,6 @@ import {
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_ITEMS,
   MILLISECONDS_PER_SECOND,
-  MODEL_API_REQUEST_TIMEOUT_MS,
-  MODEL_API_STREAM_IDLE_MS,
   PROVIDER_SECRET_PREFIX,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   TOKENS_PER_MILLION,
@@ -78,8 +76,9 @@ export interface ConfiguredProviderOptions {
   ) => Promise<PinnedResponse>
   /**
    * How long an inference stream may send nothing, headers or frames,
-   * before it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the
-   * only time limit on an inference stream: there is no limit on its total.
+   * before it is ended; absent, the stream ends at Stop, never at an
+   * invented kill (owner 2026-10-16). It is the only time limit on an
+   * inference stream: there is no limit on its total.
    */
   readonly streamIdleMs?: number
 }
@@ -115,12 +114,16 @@ function ignoreProviderCache(): void {
   // Provider requests do not maintain a page cache.
 }
 
-async function* chunks(response: PinnedResponse, idleMs: number) {
+async function* chunks(response: PinnedResponse, idleMs: number | undefined) {
   let size = 0
   const iterator = response.body[Symbol.asyncIterator]()
   try {
     for (;;) {
-      const part = await withDeadline(iterator.next(), idleMs, UI_TEXT.actionFailed)
+      // No deadline of our own (owner 2026-10-16) unless the provider names one.
+      const part =
+        idleMs === undefined
+          ? await iterator.next()
+          : await withDeadline(iterator.next(), idleMs, UI_TEXT.actionFailed)
       if (part.done) return
       const bytes = z.instanceof(Uint8Array).parse(part.value)
       size += bytes.byteLength
@@ -137,11 +140,15 @@ export function createConfiguredProviderServices(
   options: ConfiguredProviderOptions,
 ) {
   // The only time limit on an inference stream: silence, of headers or
-  // frames. The transport ends such a stream with this sentence (read when
-  // it is compared: the language can change while the services live).
-  const idleMs = options.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+  // frames, and only when the provider names an idle. The transport ends
+  // such a stream with this sentence (read when it is compared: the
+  // language can change while the services live); unnamed, no sentence is
+  // ever compared.
+  const idleMs = options.streamIdleMs
   const stalled = () =>
-    fill(UI_TEXT.modelApiStalled, { seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND) })
+    idleMs === undefined
+      ? undefined
+      : fill(UI_TEXT.modelApiStalled, { seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND) })
   const readCatalog = async () => {
     try {
       return catalogSchema.parse(JSON.parse(await readFile(options.catalogFile, 'utf8')))
@@ -235,7 +242,7 @@ export function createConfiguredProviderServices(
           }),
         now: Date.now,
         random: Math.random,
-        streamIdleMs: idleMs,
+        ...(idleMs !== undefined && { streamIdleMs: idleMs }),
         log: {
           trace: ignoreTransportLog,
           info: ignoreTransportLog,
@@ -248,7 +255,10 @@ export function createConfiguredProviderServices(
           else if (url instanceof URL) requestUrl = url.href
           else requestUrl = url.url
           if (target?.url.href !== requestUrl || init?.redirect !== 'error') return fail()
-          const signal = init.signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
+          // The caller's signal, if any; no deadline of our own (owner 2026-10-16).
+          // Without one the send still needs a signal to listen to, so it
+          // gets one that never aborts.
+          const signal = init.signal ?? new AbortController().signal
           const headers = Object.fromEntries(
             Object.entries(z.record(z.string(), z.string()).parse(init.headers)).map(
               ([name, value]) => [
@@ -376,7 +386,7 @@ export function createConfiguredProviderServices(
     entry: ProviderEntry,
     path: string,
     supplied: string | undefined,
-    signal: AbortSignal,
+    signal: AbortSignal | undefined,
     keyTestOrigin?: string,
   ) => {
     const preset = presetFor(entry)
@@ -407,7 +417,9 @@ export function createConfiguredProviderServices(
   const scan = async (
     entry: ProviderEntry,
     supplied?: string,
-    signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+    // No deadline of our own (owner 2026-10-16): the catalogue read ends at
+    // the provider's answer or a network failure.
+    signal?: AbortSignal,
   ): Promise<readonly NativeModelMetadata[]> => {
     try {
       const format = entry.format ?? presetFor(entry).format
@@ -725,7 +737,7 @@ export function createConfiguredProviderServices(
       auth: connection.auth,
       verifyEndpoint: connection.verifyEndpoint,
       transport: connection.transport,
-      streamIdleMs: idleMs,
+      ...(idleMs !== undefined && { streamIdleMs: idleMs }),
       modelFor: () => ({
         id: ref,
         capabilities: capabilities.capabilitiesOf({ capabilityRecord: record }),
@@ -769,9 +781,9 @@ export function createConfiguredProviderServices(
           assertConfirmedAllowed(body.model, confirmed)
           if (body.model !== ref) return fail()
           // No limit on the stream's total time: it ends when it finishes,
-          // on the caller's signal, on a budget or request cap, or after
-          // `idleMs` of silence (the transport bounds the wait for headers
-          // and every gap between frames).
+          // on the caller's signal, on a budget or request cap, or after a
+          // provider-named idle of silence (the transport bounds the wait
+          // for headers and every gap between frames only then).
           const events = client.streamResponse(
             body,
             signal,
@@ -973,7 +985,9 @@ export function createConfiguredProviderServices(
               entry,
               path,
               key,
-              AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+              // No deadline of our own (owner 2026-10-16): the probe ends at
+              // the provider's answer or a network failure.
+              undefined,
               origin === new URL(entry.address ?? fail()).origin ? undefined : origin,
             )
             return { ok: true, modelCount: undefined }

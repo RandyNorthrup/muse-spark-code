@@ -91,9 +91,7 @@
   "outputSchemaOutsideAllowed": "正在讀取工作區外部的輸出結構描述 (--output-schema-outside)。",
   "outputSchemaLocalValidation": "輸出結構描述驗證：本機（所選模型沒有結構化輸出格式）。",
   "outputSchemaReadFailed": "無法讀取輸出結構描述：{detail}",
-  "modelApiPacingTokenLimit": "並行請求超出了為背景工作預留的權杖預算。",
   "modelApiPacingWaiting": "正在等待速率限制內的可用容量…",
-  "modelApiPacingExpired": "等待可用容量的時間已到。請重新傳送訊息以重試。",
   "modelApiStatusLabel": "Meta API 狀態",
   "modelApiStatusUnavailable": "狀態無法取得",
   "modelApiStatusOpen": "開啟服務狀態",
@@ -2450,7 +2448,6 @@
   "allowSessionPrefix": "在此工作階段中一律允許：",
   "reject": "拒絕",
   "modelApiStalled": "Model API 在 {seconds} 秒內沒有傳送任何內容，因此已結束回覆；請再次傳送訊息以重試",
-  "modelApiRetryAfterTooLong": "提供者要求在重試前等候 {wait} 秒，超過了 {cap} 秒的上限，因此未重試該要求。",
   "queuedTurnDropped": "未傳送：「停止」已清除排入佇列的訊息",
   "compactionStopped": "壓縮已停止",
   "compactionEmpty": "摘要為空；對話未變更。",
@@ -3536,7 +3533,7 @@
   "removeAttachmentNamed": "移除 {name}",
   "announceApprovalFor": "{tool} 需要核准",
   "turnFailed": "此回合失敗。",
-  "turnRetrying": "第 {attempt}/{maxAttempts} 次嘗試失敗（{reason}）；{seconds} 秒後重試。",
+  "turnRetrying": "第 {attempt} 次嘗試失敗（{reason}）；{seconds} 秒後重試。",
   "usageWindowHours": {
     "other": "{count} 小時時段"
   },

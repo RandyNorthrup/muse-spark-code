@@ -42,7 +42,6 @@ import {
   type PaidFeature,
   MODEL_API_BASE_URL,
   MODEL_API_MIN_OUTPUT_TOKENS,
-  MODEL_API_REQUEST_TIMEOUT_MS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { estimateInput, requestParts, searchAllowanceUsd } from './sessionBudget'
@@ -357,11 +356,13 @@ export class ModelApiClient implements TransportProviderClient {
 
   /** The chat model ids the key can use, as the catalogue lists them. */
   public async listModels(): Promise<readonly string[]> {
-    // No turn to stop it: a deadline instead, so a panel never waits for ever (D25).
+    // No deadline of our own (owner 2026-10-16): the catalogue read ends at
+    // the provider's answer or a network failure. No turn stops it; a hung
+    // provider is waited on until the network itself gives up.
     const result = await this.transport.request(
       '/models',
       { method: 'GET', accept: JSON_MEDIA_TYPE },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      undefined,
     )
     const parsed = await parseJsonResponse(result, (json) => modelListSchema.parse(json))
     return parsed.data.map((model) => result.redact(model.id))
@@ -380,10 +381,8 @@ export class ModelApiClient implements TransportProviderClient {
       const response = await this.transport.fetchWithIdleDeadline(`${MODEL_API_BASE_URL}/status`, {
         method: 'GET',
         headers: { Accept: JSON_MEDIA_TYPE },
-        signal: AbortSignal.any([
-          AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
-          ...(signal === undefined ? [] : [signal]),
-        ]),
+        // The caller's signal, if any; no deadline of our own (owner 2026-10-16).
+        ...(signal !== undefined && { signal }),
       })
       status = response.status
       retryAfter = retryAfterMs(response.headers.get('retry-after'), this.deps.now())
@@ -411,11 +410,12 @@ export class ModelApiClient implements TransportProviderClient {
     body: Omit<CreateResponseBody, 'stream'>,
     signal?: AbortSignal,
   ): Promise<number> {
-    const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
+    // No deadline of our own (owner 2026-10-16): the caller's signal, if
+    // any, ends it, else the provider's answer or a network failure.
     const result = await this.transport.request(
       '/responses/input_tokens',
       { method: 'POST', body, modelId: body.model, accept: JSON_MEDIA_TYPE },
-      signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
+      signal,
     )
     return await parseJsonResponse(result, (json) => inputTokensSchema.parse(json).input_tokens)
   }
