@@ -86,6 +86,18 @@ export const providerEntrySchema = z
     numCtx: z.optional(z.record(z.string(), z.number())),
     // Set once the user answers the private-network question for this entry.
     privateNetwork: z.optional(z.boolean()),
+    // Models added despite the provider not listing them (D117): each maps
+    // to the `--force` reason shown on the entry. Never a credential.
+    forcedModels: z.optional(
+      z.record(
+        z.string(),
+        z.string().check(
+          z.refine((reason) => reason.trim() !== '' && !/\p{Cc}|\p{Zl}|\p{Zp}/u.test(reason), {
+            error: () => UI_TEXT.actionFailed,
+          }),
+        ),
+      ),
+    ),
   })
   .check(
     z.refine(

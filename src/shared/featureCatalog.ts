@@ -156,6 +156,8 @@ interface Feature {
   readonly summary: ReferenceText
   readonly description: ReferenceText
   readonly commands: readonly string[]
+  /** Runtime command discriminators documented by this feature. */
+  readonly cliRoutes?: readonly string[] | undefined
   readonly settings: readonly string[]
   readonly docs: string
   readonly editors: readonly ('vscode' | 'acp')[]
@@ -1106,6 +1108,8 @@ export function featureCatalog(): readonly Feature[] {
     const surfaces = isInProgress ? [] : (REFERENCE_SURFACES[entry.id] ?? entry.surfaces)
     return {
       ...entry,
+      ...(entry.id === 'providers' && { cliRoutes: ['providersModels'] }),
+      ...(entry.id === 'acp' && { cliRoutes: ['helpTopic'] }),
       ...(isInProgress && {
         summary: { ui: 'referenceInProgress' },
         description: { ui: 'referenceInProgress' },
@@ -1130,7 +1134,13 @@ export function featureCatalog(): readonly Feature[] {
       // combine: neither source may silently erase the other.
       details: isInProgress
         ? []
-        : [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
+        : [
+            ...entry.details,
+            ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui })),
+            ...(entry.id === 'providers'
+              ? ([{ cli: 'add' }, { cli: 'remove' }, { cli: 'force' }] as const)
+              : []),
+          ],
       facts: {},
     }
   })
@@ -1155,7 +1165,9 @@ const REFERENCE_DETAILS: Readonly<
     'pricePerMillion',
     'privacyNoRetentionDetail',
     'referenceOutputCapMinimum',
+    'customLimitsMissing',
   ],
+  acp: ['referenceBriefHelp'],
   estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],

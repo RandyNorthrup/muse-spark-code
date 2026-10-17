@@ -34,6 +34,14 @@ provider=openrouter&privacy=zdr: Only providers that retain no data are used.
 
 outputMinimum=known: Output caps below the provider’s known minimum are refused when saved and before sending. Meta requires at least 16 tokens.
 
+Each chosen model needs its context window and longest reply before saving.
+
+--add &lt;model&gt;: Offer this model on the entry; repeat the option for more models.
+
+--remove &lt;model&gt;: Stop offering this model on the entry; repeat the option for more models.
+
+--force &lt;reason&gt;: Add a model the provider does not list; the reason is stored on the entry.
+
 ```json
 {
   "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
@@ -500,6 +508,8 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 ### Help & Reference
 
 Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+
+help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.
 
 ```json
 {
@@ -3385,6 +3395,8 @@ These are defaults; editor customizations take precedence.
 - `providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]`: Add a model provider with an API key and pick a model.
 - `providers test <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers remove <id>`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `help <command>`: help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.
 - `providers add|remove|status chatgpt`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `[options]`: muse-spark-code-acp [options] Serve the Agent Client Protocol on stdin and stdout
 - `login`: Runs Muse Code’s own sign-in in a terminal. Your Muse subscription pays for the conversations.
@@ -3423,7 +3435,7 @@ These are defaults; editor customizations take precedence.
 
 - `fonts install [--from <directory>]`: Usage: muse-spark-code-acp fonts install [--from &lt;directory&gt;]
 - `help --all`: Commands, settings and features, with descriptions and documentation.
-- `help / --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.
+- `help / --help / -h`: help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.
 - `share chat SESSION_ID [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 - `prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt`: Prompts are stored as plain text. Do not save passwords or keys.
 - `prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]`: Prompt Library
@@ -3442,6 +3454,10 @@ These are defaults; editor customizations take precedence.
 - `providersAdd: --privacy <value>`: --privacy: Any provider may be used, including ones that train on data. `{"type":"string","repeatable":false,"enum":["zdr","no-training","any"],"preset":"openrouter"}`
 - `providersAdd: --private-ok`: privateNetwork: --private-ok: {origin} is on a private network; re-run with --private-ok to confirm. `{"type":"boolean","repeatable":false,"consent":"privateNetwork","default":false}`
 - `providersAdd: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false}`
+- `providersModels: --add <value>`: --add &lt;model&gt;: Offer this model on the entry; repeat the option for more models. `{"type":"string","repeatable":true}`
+- `providersModels: --remove <value>`: --remove &lt;model&gt;: Stop offering this model on the entry; repeat the option for more models. `{"type":"string","repeatable":true}`
+- `providersModels: --force <value>`: --force &lt;reason&gt;: Add a model the provider does not list; the reason is stored on the entry. `{"type":"string","repeatable":false}`
+- `providersModels: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `usage: --range <value>`: --range today|7d|30d|90d|custom: Range `{"type":"string","repeatable":false,"enum":["today","7d","30d","90d","custom"],"default":"30d"}`
 - `usage: --by <value>`: --by provider|model|kind|client: Group by `{"type":"string","repeatable":false,"enum":["provider","model","kind","client"]}`
 - `usage: --from <value>`: --from &lt;value&gt;: From `{"type":"string","repeatable":false,"format":"YYYY-MM-DD"}`
