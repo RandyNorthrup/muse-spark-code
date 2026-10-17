@@ -451,7 +451,6 @@
   "sessionDeleteConnectionClosed": "La conexión se cerró antes de confirmar la eliminación. La sesión permanece en el historial.",
   "sessionDeleteHostExited": "Muse Code terminó antes de confirmar la eliminación. La sesión permanece en el historial.",
   "sessionDeleteHostClosed": "El host se cerró antes de confirmar la eliminación. La sesión permanece en el historial.",
-  "sessionDeleteTimedOut": "Se agotó el tiempo de espera para confirmar la eliminación. La sesión permanece en el historial.",
   "playbookTitle": "Guía del orquestador",
   "playbookStatus": "Estado",
   "playbookRecord": "Registro",

@@ -451,7 +451,6 @@
   "sessionDeleteConnectionClosed": "Spojení se zavřelo před potvrzením smazání. Relace zůstává v historii.",
   "sessionDeleteHostExited": "Muse Code skončil před potvrzením smazání. Relace zůstává v historii.",
   "sessionDeleteHostClosed": "Hostitel se zavřel před potvrzením smazání. Relace zůstává v historii.",
-  "sessionDeleteTimedOut": "Časový limit pro potvrzení smazání vypršel. Relace zůstává v historii.",
   "playbookTitle": "Příručka orchestrátoru",
   "playbookStatus": "Stav",
   "playbookRecord": "Záznam",

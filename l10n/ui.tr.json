@@ -451,7 +451,6 @@
   "sessionDeleteConnectionClosed": "Silme işlemi onaylanmadan bağlantı kapandı. Oturum geçmişte kalır.",
   "sessionDeleteHostExited": "Silme işlemi onaylanmadan Muse Code sonlandı. Oturum geçmişte kalır.",
   "sessionDeleteHostClosed": "Silme işlemi onaylanmadan ana bilgisayar kapandı. Oturum geçmişte kalır.",
-  "sessionDeleteTimedOut": "Silme onayı için bekleme süresi doldu. Oturum geçmişte kalır.",
   "playbookTitle": "Orkestratör kılavuzu",
   "playbookStatus": "Durum",
   "playbookRecord": "Kayıt",

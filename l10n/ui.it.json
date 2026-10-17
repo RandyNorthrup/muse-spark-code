@@ -451,7 +451,6 @@
   "sessionDeleteConnectionClosed": "La connessione si è chiusa prima della conferma dell’eliminazione. La sessione rimane nella cronologia.",
   "sessionDeleteHostExited": "Muse Code è terminato prima della conferma dell’eliminazione. La sessione rimane nella cronologia.",
   "sessionDeleteHostClosed": "L’host si è chiuso prima della conferma dell’eliminazione. La sessione rimane nella cronologia.",
-  "sessionDeleteTimedOut": "Il tempo di attesa per la conferma dell’eliminazione è scaduto. La sessione rimane nella cronologia.",
   "playbookTitle": "Guida dell’orchestratore",
   "playbookStatus": "Stato",
   "playbookRecord": "Registro",
