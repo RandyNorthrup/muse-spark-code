@@ -144,6 +144,9 @@ describe('usage assets in the ACP package', () => {
         expect(archived[file.slice('usage.'.length, -'.json'.length)]).toEqual(
           JSON.parse(readFileSync(path.join(f.root, 'l10n', file), 'utf8')),
         )
+    // What's New's content file rides beside the agent bundle (M99): ACP's
+    // /whatsnew reads it, so the tarball must actually carry it.
+    expect(files).toContain('package/dist/whatsNew.json')
     expect(files).not.toContain('package/dist/webview/main.js')
     expect(files).not.toContain('package/dist/webview/usage.js.map')
     expect(files).not.toContain('package/l10n/untranslated.json')
