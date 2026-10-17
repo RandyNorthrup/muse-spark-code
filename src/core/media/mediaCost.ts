@@ -419,7 +419,9 @@ export async function reserveMediaRequest(request: {
   }
 }
 
-/** Every editor asks through its own modal/permission bridge, before upload. */
+/** Every editor asks through its own modal/permission bridge, before upload.
+ * @unwired M105 per-editor media consent bridge
+ */
 export class MediaContributorConsent {
   private readonly allowed = new Set<string>()
   private readonly pending = new Map<string, Promise<'send' | 'useStandard' | 'remove'>>()
