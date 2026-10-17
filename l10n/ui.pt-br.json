@@ -267,6 +267,8 @@
   "referenceAgentControls": "Controles do agente; Interromper; Parar; Retomar; Fechar o agente; Reabrir o agente; Marcar resultado como lido; Enviar mensagem; Tarefa de acompanhamento",
   "referenceBestOfNRequirements": "Candidatos exigem Model API, a função paga ativada, um espaço Git confiável, Git 2.36 ou posterior e nenhum programa de filtro ou hook Git configurado. Um orçamento de sessão finito exige um escopo de orçamento pertencente à sessão principal e compartilhado pelos candidatos. Defina limites de tentativas e solicitações, compare ou cancele e aplique e prepare as mudanças selecionadas sem criar commit.",
   "referenceWindowsSessions": "O Muse Code não consegue renomear nem bifurcar sessões no Windows (meta-models/muse-code-sdk#30, #31).",
+  "referenceWindowsPaths": "Safer Windows paths",
+  "referenceWindowsPathsDetail": "On Windows, ambiguous spellings — device paths and namespaces, alternate streams, drive-relative paths, trailing dots or spaces, and reserved names — are refused at admission, or need a one-time manual answer for flagged writes. Ordinary workspaces on any drive keep working; schedules, helpers, and vault paths verify against the folder their caller owns.",
   "referencePaletteKeys": "Percorrer itens, escolher ou completar uma seleção ou fechar a lista. Escolha quanto esforço o Muse dedica a cada resposta.",
   "referenceServe": "{command} [opções]              Servir o Agent Client Protocol em stdin e stdout",
   "referenceTabSnooze": "Adiar por 15 minutos; Adiar por uma hora; Adiar até reiniciar.",
