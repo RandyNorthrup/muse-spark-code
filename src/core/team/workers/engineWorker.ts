@@ -332,7 +332,7 @@ export interface EngineWorkerResult {
  * confines every path to the task's folder; approvals and questions are
  * declined (no surface can ask); and a limit error marks the agent before
  * the failure reaches the caller.
- * @unwired M96 engine worker runner
+ * Engine worker runner
  */
 export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWorkerResult> {
   if (!deps.isTrusted) {

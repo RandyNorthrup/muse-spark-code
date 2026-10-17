@@ -23,7 +23,7 @@ import {
   type WorkerRootGrant,
   type WorkerFenceIo,
 } from './workerFence'
-/** @unwired M96 workerFence re-exports for ACP host consumers */
+/** workerFence re-exports for ACP host consumers */
 export { AcpNativeServersError, answerAcpPermission, extractRequestPaths } from './workerFence'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
 
