@@ -4542,6 +4542,10 @@ export const HEARTBEAT_BEAM_LINE_WIDTH_PX = 1.5
 export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
 export const SECONDS_PER_MINUTE = 60
+// Node timers stop at 2^31-1 ms (about 24.8 days, a platform fact): a
+// longer delay warns and fires at once. Long waits re-arm in slices of at
+// most this, so a person's long timeout still waits its whole length.
+export const NODE_MAX_TIMER_MS = 2_147_483_647
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
 
 // M102 / D82: machine-local usage history, independent of spend ledgers.
