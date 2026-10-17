@@ -1,0 +1,10 @@
+{
+  "hooks": [
+    {
+      "enabled": false,
+      "event": "sessionStart",
+      "handlerKind": "project",
+      "key": "/home/randy/lanes/MUSEUPDATE.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ce2b4ea5-1911-4e24-a779-4f1d02e684ea/musews/.muse/hooks.json:session_start:def-589c31907f2c758b"
+    }
+  ]
+}

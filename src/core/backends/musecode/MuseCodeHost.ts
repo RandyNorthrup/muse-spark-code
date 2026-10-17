@@ -62,6 +62,7 @@ import {
   MUSE_APPROVAL_REPLAY_FAULT,
   MUSE_EVENT_LOG_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
+  RECAP_SETTLE_TIMEOUT_MS,
   type SubagentAction,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -86,14 +87,17 @@ import {
   type LoadedSession,
   type ModelSummary,
   type MuseCodeFault,
+  type BackgroundTaskSummary,
   type OutputPage,
   type OutputPageRequest,
   type QueuedMessageRef,
   type SessionEventListener,
   type SessionHistoryOutcome,
+  type SessionHookRow,
   type SessionListEvent,
   type SessionMcpServer,
   type SessionPage,
+  type SessionPluginRow,
   type SkillSummary,
   type StartSessionOptions,
   type TurnPart,
@@ -344,6 +348,214 @@ export function toSkillSummary(
     argumentHint: skill.argumentHint,
   }
 }
+
+/** One `skill/import` candidate that installed, skipped, quarantined or failed. */
+export interface ForeignSkillEntry {
+  readonly id: string | null
+  readonly reason?: string | undefined
+}
+
+/** A `skill/import` receipt: per-skill ids plus counts (M126). */
+export interface ForeignSkillImport {
+  readonly source: string
+  readonly dryRun: boolean
+  readonly status: string
+  readonly counts: {
+    readonly installed: number
+    readonly quarantined: number
+    readonly skipped: number
+    readonly failed: number
+  }
+  readonly installed: readonly string[]
+  readonly skipped: readonly string[]
+  readonly quarantined: readonly ForeignSkillEntry[]
+  readonly failed: readonly ForeignSkillEntry[]
+}
+
+/** A settled `recap/completed` (M126): outcome is an open vocabulary. */
+export interface SessionRecap {
+  readonly outcome: string
+  readonly title?: string | undefined
+  readonly text?: string | undefined
+  readonly reason?: string | undefined
+}
+
+/** One macOS grant as setup last saw it (open, like the phase). */
+export type ComputerUsePermission = string
+
+/** The host's computer-use setup state (M126, `computerUseSetup/check`). */
+export interface ComputerUseSetup {
+  readonly accessibility: ComputerUsePermission
+  readonly inputMonitoring: ComputerUsePermission
+  readonly screenRecording: ComputerUsePermission
+  readonly setup: string
+  readonly message?: string | undefined
+  readonly refused?: string | undefined
+}
+
+/** Exported for the M126 capture tests. */
+export const backgroundTaskListResultSchema = z.object({
+  tasks: z.array(
+    z.object({
+      taskId: z.string(),
+      kind: z.string(),
+      status: z.string(),
+      startedAt: z.optional(z.string()),
+    }),
+  ),
+})
+
+/** One recorded `task/list` row as the summary readers get. */
+export function toBackgroundTaskSummary(
+  task: z.infer<typeof backgroundTaskListResultSchema>['tasks'][number],
+): BackgroundTaskSummary {
+  return {
+    taskId: task.taskId,
+    kind: task.kind,
+    status: task.status,
+    ...(task.startedAt !== undefined && { startedAt: task.startedAt }),
+  }
+}
+
+/** Exported for the M126 capture tests. */
+export const hookListResultSchema = z.object({
+  hooks: z.array(
+    z.object({
+      key: z.string(),
+      event: z.string(),
+      handlerKind: z.string(),
+      enabled: z.boolean(),
+    }),
+  ),
+})
+
+/** One recorded `hook/list` row as readers get it. */
+export function toSessionHookRow(
+  hook: z.infer<typeof hookListResultSchema>['hooks'][number],
+): SessionHookRow {
+  return { key: hook.key, event: hook.event, handlerKind: hook.handlerKind, enabled: hook.enabled }
+}
+
+/** Exported for the M126 capture tests. */
+export const pluginListResultSchema = z.object({
+  plugins: z.array(
+    z.object({
+      id: z.string(),
+      version: z.string(),
+      enabled: z.boolean(),
+      source: z.unknown(),
+    }),
+  ),
+})
+
+/** One recorded `plugin/list` row as readers get it. */
+export function toSessionPluginRow(
+  plugin: z.infer<typeof pluginListResultSchema>['plugins'][number],
+): SessionPluginRow {
+  return { id: plugin.id, version: plugin.version, enabled: plugin.enabled, source: plugin.source }
+}
+
+const foreignSkillEntrySchema = z.object({
+  id: z.nullable(z.string()),
+  reason: z.optional(z.string()),
+})
+
+/** Exported for the M126 capture tests. */
+export const skillImportResultSchema = z.object({
+  source: z.string(),
+  dryRun: z.boolean(),
+  status: z.string(),
+  counts: z.object({
+    installed: z.number(),
+    quarantined: z.number(),
+    skipped: z.number(),
+    failed: z.number(),
+  }),
+  installed: z.array(z.string()),
+  skipped: z.array(z.string()),
+  quarantined: z.array(foreignSkillEntrySchema),
+  failed: z.array(foreignSkillEntrySchema),
+})
+
+/** A recorded `skill/import` receipt as readers get it. */
+export function toForeignSkillImport(
+  result: z.infer<typeof skillImportResultSchema>,
+): ForeignSkillImport {
+  return {
+    source: result.source,
+    dryRun: result.dryRun,
+    status: result.status,
+    counts: result.counts,
+    installed: result.installed,
+    skipped: result.skipped,
+    quarantined: result.quarantined.map((entry) => ({
+      id: entry.id,
+      ...(entry.reason !== undefined && { reason: entry.reason }),
+    })),
+    failed: result.failed.map((entry) => ({
+      id: entry.id,
+      ...(entry.reason !== undefined && { reason: entry.reason }),
+    })),
+  }
+}
+
+const recapRequestResultSchema = z.object({
+  commandId: z.string(),
+  status: z.string(),
+})
+
+/**
+ * Claims a `recap/completed` settlement for its waiter by the request's
+ * commandId (M126): removes the waiter and answers the recap, or answers
+ * undefined when nobody asked (a late settlement past the wait). Exported
+ * for the capture tests.
+ */
+export function claimRecapSettlement(
+  pending: Map<
+    string,
+    { readonly sessionId: string; readonly settle: (recap: SessionRecap) => void }
+  >,
+  params: z.infer<typeof recapCompletedSchema>,
+): SessionRecap | undefined {
+  const waiting = pending.get(params.commandId)
+  if (waiting === undefined) {
+    return undefined
+  }
+  pending.delete(params.commandId)
+  const recap: SessionRecap = {
+    outcome: params.outcome,
+    ...(params.title !== undefined && { title: params.title }),
+    ...(params.text !== undefined && { text: params.text }),
+    ...(params.reason !== undefined && { reason: params.reason }),
+  }
+  waiting.settle(recap)
+  return recap
+}
+
+const recapCompletedSchema = z.object({
+  commandId: z.string(),
+  // Open vocabularies: later splits stay additive (tdd SS3.28.2).
+  outcome: z.string(),
+  sessionId: z.string(),
+  title: z.optional(z.string()),
+  text: z.optional(z.string()),
+  reason: z.optional(z.string()),
+})
+
+const computerUseSetupSchema = z.object({
+  accessibility: z.string(),
+  inputMonitoring: z.string(),
+  screenRecording: z.string(),
+  setup: z.string(),
+  message: z.optional(z.string()),
+  refused: z.optional(z.string()),
+})
+
+const workflowResumeResultSchema = z.object({
+  commandId: z.string(),
+  status: z.string(),
+  turnId: z.string(),
+})
 
 /** Exported for the M126 capture tests: parses the recorded `skill/list` result. */
 export const skillListResultSchema = z.object({
@@ -1158,12 +1370,22 @@ export class MuseSession implements ScheduledAgentSession {
     })
   }
 
-  private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
+  private async command(
+    method: string,
+    params: Record<string, unknown>,
+    commandId?: string,
+  ): Promise<unknown> {
     try {
-      return await commandWithin(this.channel, this.leaseGeneration, method, {
-        sessionId: this.sessionId,
-        ...params,
-      })
+      return await commandWithin(
+        this.channel,
+        this.leaseGeneration,
+        method,
+        {
+          sessionId: this.sessionId,
+          ...params,
+        },
+        commandId ?? this.channel.connection.mintCommandId(),
+      )
     } catch (error: unknown) {
       this.noteLogFault(error)
       throw error
@@ -1974,6 +2196,62 @@ export class MuseSession implements ScheduledAgentSession {
     return skillListResultSchema.parse(result).skills.map((skill) => toSkillSummary(skill))
   }
 
+  /** The session's live background-task inventory, oldest first (M126, `task/list` query). */
+  public async listBackgroundTasks(): Promise<readonly BackgroundTaskSummary[]> {
+    const result = await this.command('task/list', {})
+    return backgroundTaskListResultSchema
+      .parse(result)
+      .tasks.map((task) => toBackgroundTaskSummary(task))
+  }
+
+  /** The session's installed hook rows (M126, `hook/list` query). */
+  public async listSessionHooks(): Promise<readonly SessionHookRow[]> {
+    const result = await this.command('hook/list', {})
+    return hookListResultSchema.parse(result).hooks.map((hook) => toSessionHookRow(hook))
+  }
+
+  /** The installed plugin records (M126, `plugin/list` query). */
+  public async listSessionPlugins(): Promise<readonly SessionPluginRow[]> {
+    const result = await this.command('plugin/list', {})
+    return pluginListResultSchema.parse(result).plugins.map((plugin) => toSessionPluginRow(plugin))
+  }
+
+  /**
+   * Import foreign skills through the host seam (M126, `skill/import`):
+   * `source` is `claude` or `codex`; `dryRun` previews without writing.
+   * The receipt answers per-skill ids plus counts, commandId-idempotent.
+   */
+  public async importForeignSkills(
+    source: string,
+    options?: { readonly dryRun?: boolean; readonly force?: boolean },
+  ): Promise<ForeignSkillImport> {
+    const commandId = this.channel.connection.mintCommandId()
+    const result = await this.command(
+      'skill/import',
+      {
+        source,
+        ...(options?.dryRun === true && { dryRun: true }),
+        ...(options?.force === true && { force: true }),
+      },
+      commandId,
+    )
+    return toForeignSkillImport(skillImportResultSchema.parse(result))
+  }
+
+  /**
+   * Resume a paused workflow run (M126, `workflow/resume`): host-driven,
+   * the reply names the driven turn. The read-only Tasks surface shows
+   * runs; resuming one from it is an owner UI decision (certification).
+   */
+  public async resumeWorkflowRun(
+    workflowRunId: string,
+  ): Promise<{ readonly status: string; readonly turnId: string }> {
+    const commandId = this.channel.connection.mintCommandId()
+    const result = await this.command('workflow/resume', { workflowRunId }, commandId)
+    const parsed = workflowResumeResultSchema.parse(result)
+    return { status: parsed.status, turnId: parsed.turnId }
+  }
+
   /** Releases this surface's hold; the last one forgets the session (D25). */
   public dispose(): void {
     if (this.isDisposed) {
@@ -2014,6 +2292,11 @@ export class MuseCodeHost implements AgentHost {
   private readonly lifecycleListeners = new Set<(event: MuseCodeLifecycleEvent) => void>()
   private readonly deletionTerminalListeners = new Set<(event: MuseCodeLifecycleEvent) => void>()
   private readonly deletionStopped = new AbortController()
+  /** In-flight `recap/request` settlements by request commandId (M126). */
+  private readonly pendingRecaps = new Map<
+    string,
+    { readonly sessionId: string; readonly settle: (recap: SessionRecap) => void }
+  >()
   private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
   /** Set by `close()`: the exit that follows is the extension's, not a crash (D25). */
   private isClosing = false
@@ -2258,6 +2541,18 @@ export class MuseCodeHost implements AgentHost {
    * was one of them.
    */
   private dispatchHostEvent(method: string, params: unknown): boolean {
+    // A requested recap's settlement never reaches the conversation: it
+    // resolves the waiter by the request's commandId. Anything else with
+    // this method (a late settlement past the wait, or one nobody asked
+    // for) falls through to the notice mapping.
+    if (method === 'recap/completed') {
+      const parsed = recapCompletedSchema.safeParse(params)
+      if (!parsed.success) {
+        this.warnShape(method)
+        return true
+      }
+      return claimRecapSettlement(this.pendingRecaps, parsed.data) !== undefined
+    }
     if (
       this.features.lifecycle !== undefined &&
       (method === 'session/started' || method === 'session/deleteCompleted')
@@ -2530,6 +2825,85 @@ export class MuseCodeHost implements AgentHost {
     this.listListeners.add(listener)
     return () => {
       this.listListeners.delete(listener)
+    }
+  }
+
+  /**
+   * A "while you were away" recap (M126): the ack admits, then the request
+   * settles exactly once on `recap/completed` matched by commandId. Past
+   * `RECAP_SETTLE_TIMEOUT_MS` the wait ends and a late settlement becomes
+   * a notice instead of a hang. One in flight per session, host-enforced.
+   */
+  public async requestSessionRecap(sessionId: string): Promise<SessionRecap> {
+    for (const pending of this.pendingRecaps.values()) {
+      if (pending.sessionId === sessionId) {
+        throw new Error(`a recap is already in flight for session ${sessionId}`)
+      }
+    }
+    // Arm before dispatch: the settlement can be in the same read as admission.
+    const commandId = this.channel.connection.mintCommandId()
+    let settle!: (recap: SessionRecap) => void
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Node 20 (VS Code 1.99's host) lacks Promise.withResolvers (PLAN.md §8); the executor assigns the resolver synchronously, so the settlement always has one.
+    const settled = new Promise<SessionRecap>((resolve) => {
+      settle = resolve
+    })
+    this.pendingRecaps.set(commandId, { sessionId, settle })
+    try {
+      const ack = recapRequestResultSchema.parse(
+        await commandWithin(
+          this.channel,
+          this.channel.generation,
+          'recap/request',
+          { sessionId },
+          commandId,
+        ),
+      )
+      if (ack.commandId !== commandId) {
+        throw new Error(`recap/request ack did not echo its commandId ${commandId}`)
+      }
+      return await withDeadline(
+        settled,
+        RECAP_SETTLE_TIMEOUT_MS,
+        `recap for session ${sessionId} did not settle in time`,
+      )
+    } finally {
+      this.pendingRecaps.delete(commandId)
+    }
+  }
+
+  /**
+   * Cancel the session's in-flight recap (M126): it settles `cancelled`;
+   * idle is an accepted no-op. Answers the cancel's admission status.
+   */
+  public async cancelSessionRecap(sessionId: string): Promise<string> {
+    const commandId = this.channel.connection.mintCommandId()
+    const result = recapRequestResultSchema.parse(
+      await commandWithin(
+        this.channel,
+        this.channel.generation,
+        'recap/cancel',
+        { sessionId },
+        commandId,
+      ),
+    )
+    return result.status
+  }
+
+  /**
+   * The host's computer-use setup state (M126, `computerUseSetup/check`):
+   * the three macOS grants with no prompt, never requesting one. Refusals
+   * (a Linux host answers `computerUseUnavailable`) flow as the MSP error.
+   */
+  public async checkComputerUseSetup(): Promise<ComputerUseSetup> {
+    const result = await this.command('computerUseSetup/check', {})
+    const parsed = computerUseSetupSchema.parse(result)
+    return {
+      accessibility: parsed.accessibility,
+      inputMonitoring: parsed.inputMonitoring,
+      screenRecording: parsed.screenRecording,
+      setup: parsed.setup,
+      ...(parsed.message !== undefined && { message: parsed.message }),
+      ...(parsed.refused !== undefined && { refused: parsed.refused }),
     }
   }
 

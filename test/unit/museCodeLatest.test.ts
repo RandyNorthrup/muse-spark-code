@@ -9,9 +9,18 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
+  backgroundTaskListResultSchema,
+  claimRecapSettlement,
+  hookListResultSchema,
   modelListResultSchema,
+  pluginListResultSchema,
+  skillImportResultSchema,
   skillListResultSchema,
+  toBackgroundTaskSummary,
+  toForeignSkillImport,
   toModelSummary,
+  toSessionHookRow,
+  toSessionPluginRow,
   toSkillSummary,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import { mapNotification, UNKNOWN_METHOD } from '../../src/core/backends/musecode/mapNotification'
@@ -228,24 +237,71 @@ describe('new notifications', () => {
       }),
     ).toMatchObject({ event: { type: 'backendNotice', text: UI_TEXT.turnRetractDeclined } })
   })
-  it('leaves surfaces without a UI home unmapped and logged, not invented', () => {
-    // recap/completed was recorded (providerFailed on echo); computer-use
-    // setup has no surface in this product. Both stay UNKNOWN_METHOD until
-    // an owner decision gives them one (docs/certification/muse-code-latest.md).
+  it('shows an unrequested recap settlement as it came', () => {
+    // Requested recaps resolve the waiter in dispatchHostEvent and never
+    // reach here; the recorded providerFailed echo settlement does.
     for (const params of fixture('note-recap-completed-1.4.9.json') as Record<string, unknown>[]) {
-      expect(mapNotification({ method: 'recap/completed', params })).toBe(UNKNOWN_METHOD)
+      expect(mapNotification({ method: 'recap/completed', params })).toEqual({
+        sessionId: (params as { sessionId: string }).sessionId,
+        event: { type: 'backendNotice', level: 'info', text: 'providerFailed' },
+      })
     }
-    expect(mapNotification({ method: 'computerUseSetup/changed', params: { state: {} } })).toBe(
-      UNKNOWN_METHOD,
-    )
   })
-  it('keeps the recorded branch observation unmapped until a surface shows it', () => {
-    for (const params of fixture('note-session-branchChanged-1.4.9.json') as Record<
+  it('shows the recorded branch observations with the served branch', () => {
+    // Both recorded frames observe feat/muse-code-latest at different
+    // cursors; the detached-HEAD shape below follows the CLI's own schema
+    // (branch null), unobservable on a branched checkout.
+    const frames = fixture('note-session-branchChanged-1.4.9.json') as Record<string, unknown>[]
+    expect(frames).toHaveLength(2)
+    for (const params of frames) {
+      expect(mapNotification({ method: 'session/branchChanged', params })).toEqual({
+        sessionId: (params as { sessionId: string }).sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text: `${UI_TEXT.sessionBranchChanged} (feat/muse-code-latest)`,
+        },
+      })
+    }
+    expect(
+      mapNotification({ method: 'session/branchChanged', params: { sessionId, branch: null } }),
+    ).toEqual({
+      sessionId,
+      event: { type: 'backendNotice', level: 'info', text: UI_TEXT.sessionBranchChanged },
+    })
+  })
+  it('shows view-health moves with the served word', () => {
+    expect(
+      mapNotification({
+        method: 'session/viewHealthChanged',
+        params: { sessionId, health: 'unavailable' },
+      }),
+    ).toEqual({
+      sessionId,
+      event: {
+        type: 'backendNotice',
+        level: 'info',
+        text: `${UI_TEXT.sessionViewHealthChanged} (unavailable)`,
+      },
+    })
+  })
+  it('says why the turn indicator keeps spinning', () => {
+    for (const params of fixture('note-turn-foregroundCompleted-1.4.9.json') as Record<
       string,
       unknown
     >[]) {
-      expect(mapNotification({ method: 'session/branchChanged', params })).toBe(UNKNOWN_METHOD)
+      expect(mapNotification({ method: 'turn/foregroundCompleted', params })).toEqual({
+        sessionId: (params as { sessionId: string }).sessionId,
+        event: { type: 'backendNotice', level: 'info', text: UI_TEXT.turnForegroundCompleted },
+      })
     }
+  })
+  it('leaves computer-use setup changes unmapped until an owner surface exists', () => {
+    // No computer-use surface in this product; stays UNKNOWN_METHOD
+    // (docs/certification/muse-code-latest.md names the owner decision).
+    expect(mapNotification({ method: 'computerUseSetup/changed', params: { state: {} } })).toBe(
+      UNKNOWN_METHOD,
+    )
   })
 })
 
@@ -334,6 +390,126 @@ describe('hook running commands setting', () => {
 
   it('keeps the extension-host fallback cap without the setting', async () => {
     expect(await peakRunning()).toBe(4)
+  })
+})
+
+describe('session inventories (task/hook/plugin)', () => {
+  it('reads the recorded empty task and plugin lists', () => {
+    expect(backgroundTaskListResultSchema.parse(fixture('task-list-1.4.9.json'))).toEqual({
+      tasks: [],
+    })
+    expect(pluginListResultSchema.parse(fixture('plugin-list-1.4.9.json'))).toEqual({ plugins: [] })
+  })
+
+  it('reads the recorded hook row with the wire event word', () => {
+    const rows = hookListResultSchema.parse(fixture('hook-list-1.4.9.json')).hooks
+    expect(rows).toHaveLength(1)
+    // Served camelCase on the wire (HookEventName is PascalCase): kept verbatim.
+    expect(toSessionHookRow(rows[0])).toMatchObject({
+      event: 'sessionStart',
+      handlerKind: 'project',
+      enabled: false,
+    })
+    expect(toSessionHookRow(rows[0]).key).toContain('session_start')
+  })
+
+  it('maps running task and installed plugin rows per the CLI schema', () => {
+    // No background task ran on the echo host and no plugin is installed
+    // in the scratch home; row shapes follow the CLI's own schema export.
+    expect(
+      toBackgroundTaskSummary({
+        taskId: 't1',
+        kind: 'shell',
+        status: 'running',
+        startedAt: '2026-10-17T18:20:00Z',
+      }),
+    ).toEqual({ taskId: 't1', kind: 'shell', status: 'running', startedAt: '2026-10-17T18:20:00Z' })
+    expect(
+      toSessionPluginRow({ id: 'p1', version: '1.0.0', enabled: true, source: { type: 'local' } }),
+    ).toEqual({ id: 'p1', version: '1.0.0', enabled: true, source: { type: 'local' } })
+  })
+})
+
+describe('skill/import receipt', () => {
+  it('reads the recorded codex dry-run receipt', () => {
+    const receipt = toForeignSkillImport(
+      skillImportResultSchema.parse(fixture('skill-import-dryrun-1.4.9.json')),
+    )
+    expect(receipt).toMatchObject({ source: 'codex', dryRun: true, status: 'accepted' })
+    expect(receipt.counts).toEqual({ failed: 0, installed: 0, quarantined: 0, skipped: 0 })
+    expect(receipt.installed).toEqual([])
+  })
+
+  it('carries quarantine and failure entries with their reasons', () => {
+    // Empty on the echo dry run; entry shapes follow the CLI's own schema.
+    const receipt = toForeignSkillImport({
+      source: 'claude',
+      dryRun: false,
+      status: 'accepted',
+      counts: { installed: 1, quarantined: 1, skipped: 1, failed: 1 },
+      installed: ['ok-skill'],
+      skipped: ['known-skill'],
+      quarantined: [{ id: 'q-skill', reason: 'unsigned' }],
+      failed: [{ id: null, reason: 'no frontmatter' }],
+    })
+    expect(receipt.installed).toEqual(['ok-skill'])
+    expect(receipt.quarantined).toEqual([{ id: 'q-skill', reason: 'unsigned' }])
+    expect(receipt.failed).toEqual([{ id: null, reason: 'no frontmatter' }])
+  })
+})
+
+describe('recap, computer-use and workflow shapes', () => {
+  it('pairs the recorded request ack with its settlement by commandId', () => {
+    const ack = fixture('recap-request-1.4.9.json') as {
+      result: { commandId: string; status: string }
+    }
+    const settlements = fixture('note-recap-completed-1.4.9.json') as {
+      commandId: string
+      outcome: string
+      reason: string
+    }[]
+    expect(ack.result.status).toBe('accepted')
+    expect(settlements).toHaveLength(1)
+    expect(settlements[0].commandId).toBe(ack.result.commandId)
+    expect(settlements[0]).toMatchObject({ outcome: 'failed', reason: 'providerFailed' })
+  })
+
+  it('settles a requested recap by commandId and leaves the rest unclaimed', () => {
+    const settlements = fixture('note-recap-completed-1.4.9.json') as {
+      commandId: string
+      outcome: string
+      reason: string
+      sessionId: string
+    }[]
+    const pending = new Map<
+      string,
+      { readonly sessionId: string; readonly settle: (recap: unknown) => void }
+    >()
+    let settled: unknown
+    pending.set(settlements[0].commandId, {
+      sessionId: settlements[0].sessionId,
+      settle: (recap) => {
+        settled = recap
+      },
+    })
+    expect(claimRecapSettlement(pending, settlements[0])).toEqual({
+      outcome: 'failed',
+      reason: 'providerFailed',
+    })
+    expect(settled).toEqual({ outcome: 'failed', reason: 'providerFailed' })
+    expect(pending.size).toBe(0)
+    // A late settlement past the wait, or one nobody asked for, stays
+    // unclaimed for the notice mapping.
+    expect(claimRecapSettlement(pending, settlements[0])).toBeUndefined()
+  })
+
+  it('refuses computer-use setup on this host with the documented kind', () => {
+    // The Linux rig cannot grant macOS permissions: the recorded check
+    // answers the -32033 refusal, which the wrapper lets flow as-is.
+    const frame = fixture('computerUseSetup-check-1.4.9.json') as {
+      error: { code: number; data: { kind: string } }
+    }
+    expect(frame.error).toMatchObject({ code: -32_033, data: { kind: 'computerUseUnavailable' } })
   })
 })
 

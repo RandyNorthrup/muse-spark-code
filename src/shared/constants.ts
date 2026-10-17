@@ -4481,6 +4481,10 @@ export const MODEL_API_SUBAGENT_TOOLS = {
 // The default concurrent subagents (Muse Code's own default 8, M126):
 // `museSpark.subagentMaxConcurrent` overrides this within 1–64.
 export const SUBAGENT_CAPACITY = 8
+// A `recap/request` settles exactly once on `recap/completed` with a
+// host-enforced 45 s timeout (ADR 45447): waiting past it keeps the late
+// settlement a notice instead of a hang.
+export const RECAP_SETTLE_TIMEOUT_MS = 60_000
 export const SUBAGENT_MAX_PER_CONVERSATION = 64
 export const SUBAGENT_DEPTH = 1
 export const SUBAGENT_ID_PREFIX = 'subagent-'
