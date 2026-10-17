@@ -4684,14 +4684,17 @@ export class ConversationController {
             : undefined
         let takenNotice = fill(UI_TEXT.bestOfNTaken, { branch: run.takenBranch })
         if (tokens !== undefined) {
+          // The slot carries its unit ("1,234 tokens"), as the comparison's
+          // attempt line does; a bare count would not say what was used.
+          const reportedUse = fill(UI_TEXT.agentTokens, { tokens: formatNumber(tokens) })
           takenNotice = fill(UI_TEXT.bestOfNTakenSpend, {
             branch: run.takenBranch,
-            tokens: formatNumber(tokens),
+            tokens: reportedUse,
           })
           if (cost !== undefined) {
             takenNotice = fill(UI_TEXT.bestOfNTakenSpendCost, {
               branch: run.takenBranch,
-              tokens: formatNumber(tokens),
+              tokens: reportedUse,
               cost: formatUsd(cost),
             })
           }

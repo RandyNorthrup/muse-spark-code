@@ -137,6 +137,38 @@ describe('BestOfNDialog', () => {
     expect(screen.getByText('right diff')).toBeDefined()
   })
 
+  it('shows each attempt’s reported tokens and cost, a partial cost as pending', () => {
+    renderDialog({
+      run: runWith({
+        status: 'completed',
+        runAttempts: [
+          attempt({
+            attemptId: '0',
+            status: 'completed',
+            requestsMade: 2,
+            reportedInputTokens: 300,
+            reportedOutputTokens: 75,
+            reportedCostUsd: '1.5',
+            hasUnreportedCost: false,
+          }),
+          attempt({
+            attemptId: '1',
+            status: 'completed',
+            requestsMade: 1,
+            reportedInputTokens: 100,
+            reportedOutputTokens: 0,
+            reportedCostUsd: '0.25',
+            hasUnreportedCost: true,
+          }),
+        ],
+      }),
+    })
+    expect(screen.getByText(/375 tokens/)).toBeDefined()
+    expect(screen.getByText(/reported spend \$1\.50/)).toBeDefined()
+    expect(screen.getByText(/100 tokens/)).toBeDefined()
+    expect(screen.getByText(/\$0\.2500 reported, more pending/)).toBeDefined()
+  })
+
   it('keeps the form after Start until the host publishes the new run', () => {
     const t = renderUpdated()
     fireEvent.click(screen.getByRole('button', { name: 'Start' }))
