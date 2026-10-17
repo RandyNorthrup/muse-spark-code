@@ -14436,6 +14436,12 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   parses and the checkout writes at any size (an ls-tree listing past the
   git reader's buffer still refuses as unreadable; unsafe and colliding
   paths still refuse before anything is written).
+- A29 (NOLIMITS1): `MODEL_API_IMPORT_MAX_REPLAY_BYTES` (≈768 KiB) KEPT and
+  listed for the lead (outcome 4) — it is window-minus-reserve against the
+  model's documented 1 MiB window (dev.meta.ai/docs/models), so an import
+  that fits can still answer; removing it breaks every later message past
+  the window instead of refusing once at import. Rewiring the window to the
+  per-model record is lane L2's.
 
 ## 3. Open questions (need the owner)
 
