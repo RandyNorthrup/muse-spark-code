@@ -310,6 +310,9 @@ export interface SourceReadContext {
   /** Captured once by the request owner, also across lazy bundle boundaries. */
   readonly reportText: UiText
 
+  /** The BCP-47 locale of reportText, for locale-sensitive formatting. */
+  readonly locale: string
+
   /** Identity shared by all reads in one generation, including refreshes at the same stamp. */
   readonly run?: object
 

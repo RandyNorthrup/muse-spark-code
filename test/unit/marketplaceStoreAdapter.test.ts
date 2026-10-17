@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { marketplaceStoreAdapter } from '../../src/core/reporting/sources/marketplaceStore'
 import { npmStoreAdapter } from '../../src/core/reporting/sources/npmStore'
-import { readStoresReport } from './helpers/reportNetwork'
+import { readStoresReport } from './helpers/reportKindNetwork'
 
 const CAPTURED_ANSWER: unknown = JSON.parse(
   readFileSync(

@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { openVsxStoreAdapter } from '../../src/core/reporting/sources/openVsxStore'
 import { npmStoreAdapter } from '../../src/core/reporting/sources/npmStore'
-import { readStoresReport } from './helpers/reportNetwork'
+import { readStoresReport } from './helpers/reportKindNetwork'
 
 const CAPTURED_RECORD: unknown = JSON.parse(
   readFileSync(

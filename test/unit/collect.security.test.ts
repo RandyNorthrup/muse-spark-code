@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { codeUnitCompare } from '../../src/core/reporting/sources/local'
-import { collectFixture, fullSnapshot, getSection, noSources } from './helpers/reporting/collect'
-import { availableSource } from './helpers/reporting/snapshot'
+import {
+  collectFixture,
+  fullSnapshot,
+  getSection,
+  noSources,
+  availableSource,
+} from './helpers/reporting/kindFixtures'
 import type { SecurityFacts } from '../../src/core/reporting/sources/types'
 
 function collectWithSecurity(overrides: Partial<SecurityFacts>) {

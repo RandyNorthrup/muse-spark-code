@@ -11,8 +11,8 @@ import {
   createAccountsReportReader,
   createSecurityReportReader,
 } from '../../src/runtime/reporting/reportInputs'
-import { collectFixture, getSection } from './helpers/reporting/collect'
-import { availableSource, buildSourceSnapshot } from './helpers/reporting/snapshot'
+import { collectFixture, getSection } from './helpers/reporting/kindFixtures'
+import { availableSource, buildSourceSnapshot } from './helpers/reporting/kindFixtures'
 import { reasonContext } from './helpers/reporting/reasonCases'
 import { tempDirTracker } from './helpers/reporting/tempDir'
 import { canaryVaultSnapshot } from './helpers/reporting/canaryVault'

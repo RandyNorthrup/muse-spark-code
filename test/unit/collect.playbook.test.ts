@@ -5,8 +5,13 @@ import {
   playbookSections,
   type PlaybookView,
 } from '../../src/core/reporting/collect/playbook'
-import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
-import { availableSource, reportOptions } from './helpers/reporting/snapshot'
+import {
+  collectFixture,
+  fullSnapshot,
+  getSection,
+  availableSource,
+  reportOptions,
+} from './helpers/reporting/kindFixtures'
 
 const view: PlaybookView = {
   modules: [

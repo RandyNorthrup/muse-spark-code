@@ -18,8 +18,12 @@ import type {
   PlanMilestone,
   SourceSnapshot,
 } from '../../src/core/reporting/sources/types'
-import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
-import { availableSource } from './helpers/reporting/snapshot'
+import {
+  collectFixture,
+  fullSnapshot,
+  getSection,
+  availableSource,
+} from './helpers/reporting/kindFixtures'
 import { PLAN_FORMAT_FIXTURE } from './helpers/reporting/plans'
 
 type ReportKind = (typeof REPORT_KINDS)[number]

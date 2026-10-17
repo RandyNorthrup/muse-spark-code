@@ -37,6 +37,7 @@ export const sharedValidation: Plugin
 export const sharedRedaction: Plugin
 export const deferredCohort: Plugin
 
+export const DEFERRED_OUTFILES: ReadonlyMap<string, string>
 export const MODEL_API_OPTIONAL_ONLY: readonly string[]
 export const sharedStructuredSchema: Plugin
 export const sharedModelApiBoundaries: Plugin

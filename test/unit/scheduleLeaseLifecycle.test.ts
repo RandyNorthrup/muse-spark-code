@@ -21,8 +21,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { createSchedulesReportReader } from '../../src/runtime/reporting/playbookSchedulesInputs'
 import { localFailureOf } from '../../src/core/reporting/sources/local'
 import { FIXTURE_WORKSPACE_KEY } from './helpers/reporting/reportKindFixtures'
-import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
-import { MemoryScheduleFs } from './helpers/schedules/storage'
+import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/kindFixtures'
+import { MemoryScheduleFs } from './helpers/schedules/kindStorage'
 import { accelerateLeaseHeartbeat } from './helpers/schedules/heartbeatAcceleration'
 import { temporaryDir, removeFolder } from './helpers/temporaryFolders'
 
@@ -95,7 +95,7 @@ function visit(node: ts.Node) {
   ts.forEachChild(node, visit)
 }
 visit(tree)
-const twinFile = path.resolve('test/unit/helpers/schedules/storage.ts')
+const twinFile = path.resolve('test/unit/helpers/schedules/kindStorage.ts')
 const twinSource = await readFile(twinFile, 'utf8')
 const twinTree = ts.createSourceFile(twinFile, twinSource, ts.ScriptTarget.Latest, true)
 const twinSites: typeof sites = []
@@ -341,6 +341,7 @@ describe.each(ports)('$name structural lease lifecycle', ({ name, make }) => {
             workspaceKey: FIXTURE_WORKSPACE_KEY,
           }).read({
             reportText: EN,
+            locale: 'en',
             asOf: REPORT_FIXTURE_AS_OF,
             workspaceKey: FIXTURE_WORKSPACE_KEY,
             options: reportOptions('schedules'),

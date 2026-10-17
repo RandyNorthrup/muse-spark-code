@@ -400,6 +400,7 @@ export class ModelApiSchedules {
       return {
         modelId: confirmed.modelId,
         keyDigest: job.accountId,
+        runKind: 'scheduled',
         isStillAllowed: () =>
           !this.port.isDisposed() &&
           this.port.modelId() === confirmed.modelId &&

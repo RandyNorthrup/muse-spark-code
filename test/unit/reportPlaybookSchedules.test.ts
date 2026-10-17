@@ -15,15 +15,15 @@ import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { SCHEDULE_STORE_SUBFOLDER, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import { installGerman } from './helpers/germanTable'
+import { installGerman } from './helpers/kindGermanTable'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { reportOptions } from './helpers/reporting/snapshot'
+import { reportOptions } from './helpers/reporting/kindFixtures'
 import { sectionById, fireFixture } from './helpers/reporting/reportKindFixtures'
 import { setUiText } from '../../src/shared/l10n/text'
 import { scheduleV2Schema } from '../../src/shared/scheduleV2'
 import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
 import { playbookModuleFixture, scheduleFixture } from './helpers/reporting/reportKindFixtures'
-import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
+import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/kindFixtures'
 
 setUiText(EN, 'en')
 
@@ -41,6 +41,7 @@ async function dir(prefix: string): Promise<string> {
 const moduleLine = { kind: 'module', value: { module: playbookModuleFixture(), at: 1000 } }
 const context = (kind: 'playbook' | 'schedules') => ({
   reportText: EN,
+  locale: 'en',
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: {

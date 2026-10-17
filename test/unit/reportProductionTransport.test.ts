@@ -22,13 +22,13 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { createReportingNetwork } from '../../src/runtime/reporting/network'
 import type { ReportStoreProject } from '../../src/core/reporting/sources/storeProject'
-import { networkContext } from './helpers/reportNetwork'
+import { networkContext } from './helpers/reportKindNetwork'
 
 // reportGitIo shells out through the resource launcher: the failure under
 // test is routing, not process governance, so the direct bounded execFile
 // fixture stands in, as in storeProject.test.ts.
 vi.mock('../../src/core/resources/launcher', async (original) => {
-  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  const { withFixtureCommand } = await import('./helpers/resources/kindLaunch')
   return withFixtureCommand(await original())
 })
 

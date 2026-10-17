@@ -181,8 +181,10 @@ export function withRuntimeAccounting(
   client: ProviderClient,
   daily: ReturnType<typeof createRuntimeDailyBudget>,
   accounting?: RuntimeResponseAccounting,
+  outputCap?: (policy: ResolvedModel['policy']) => number,
 ): ProviderClient {
   const wrap = (model: ResolvedModel): ResolvedModel => {
+    outputCap?.(model.policy)
     const original = model.client
     const bounded: ModelClient = {
       currentKeyDigest: original.currentKeyDigest.bind(original),
@@ -256,7 +258,7 @@ export function withRuntimeAccounting(
         }
         const attempt: ResponseAttemptGuard = Object.assign(
           (digest: string | undefined) => {
-            if (!model.isCurrent()) throw new Error(UI_TEXT.scheduleConfirmationExpired)
+            if (!model.isCurrent()) throw new Error(UI_TEXT.requestStaleRun)
             claim?.check(Usd.from(0).toAmount())
             guard?.(digest)
           },

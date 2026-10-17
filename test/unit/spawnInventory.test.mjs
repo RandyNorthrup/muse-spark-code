@@ -8,14 +8,17 @@ import {
   readCorpus,
   scanSpawnSites,
 } from '../../scripts/lib/spawn-inventory.mjs'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 
 const root = path.resolve('.')
 const captured = {}
 const order = (left, right) => left.localeCompare(right)
-// Scan the source tree and read the test corpus once, at the repository's own hook timeout.
+// Scan the source tree and read the test corpus once. That is work that grows
+// with the product, not a wait: it has the fixture budget, not the default
+// hook limit it passed on a loaded hosted runner (release 0.18.0's run).
 beforeAll(async () => {
   Object.assign(captured, scanSpawnSites(root, await readCorpus(root)))
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 
 describe('complete production process inventory', () => {
   it('requires every source process import and launch, including aliases and embedded programs', () => {

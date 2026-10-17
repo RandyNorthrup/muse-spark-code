@@ -3,7 +3,7 @@ import { EN } from '../../../../src/shared/l10n/en'
 // (RVCM1133B): one copy of the boilerplate instead of a clone in every
 // file that reads a source through its real port.
 import { expect } from 'vitest'
-import { REPORT_FIXTURE_AS_OF, reportOptions } from './snapshot'
+import { REPORT_FIXTURE_AS_OF, reportOptions } from './kindFixtures'
 import type { SourceReadContext } from '../../../../src/core/reporting/sources/types'
 import type { tempDirTracker } from './tempDir'
 
@@ -27,6 +27,7 @@ export interface ReasonWant {
 export function sourceContextFor(kind: SourceReadContext['options']['kind']): SourceReadContext {
   return {
     reportText: EN,
+    locale: 'en',
     asOf: REPORT_FIXTURE_AS_OF,
     workspaceKey: 'fixture',
     options: reportOptions(kind),
@@ -37,6 +38,7 @@ export function sourceContextFor(kind: SourceReadContext['options']['kind']): So
 /** A source-read context for the reason suites, identical in every file. */
 export const reasonContext = (kind: 'accounts' | 'security') => ({
   reportText: EN,
+  locale: 'en',
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: {

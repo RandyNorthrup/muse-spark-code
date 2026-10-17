@@ -8,7 +8,7 @@ import {
   LocalSourceError,
 } from '../../src/core/reporting/sources/local'
 import { UI_TEXT } from '../../src/shared/constants'
-import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
+import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/kindFixtures'
 
 /** A second bundle copy: the same shape and brand, no shared prototype. */
 class ForeignLocalSourceError extends Error {
@@ -45,6 +45,7 @@ describe('local source failures', () => {
     )
     const result = await source.read({
       reportText: EN,
+      locale: 'en',
       asOf: REPORT_FIXTURE_AS_OF,
       workspaceKey: 'fixture',
       options: reportOptions('session'),

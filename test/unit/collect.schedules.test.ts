@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { compare } from '../../src/core/reporting/collect/common'
 import { schedulesSections, type SchedulesView } from '../../src/core/reporting/collect/schedules'
 import { scheduleFireRecordSchema, scheduleV2Schema } from '../../src/shared/scheduleV2'
-import { collectFixture, fullSnapshot, getSection } from './helpers/reporting/collect'
+import {
+  collectFixture,
+  fullSnapshot,
+  getSection,
+  availableSource,
+  reportOptions,
+} from './helpers/reporting/kindFixtures'
 import {
   FIXTURE_WORKSPACE_KEY,
   fireFixture,
   scheduleFixture,
   scheduleTriggerFixtures,
 } from './helpers/reporting/reportKindFixtures'
-import { availableSource, reportOptions } from './helpers/reporting/snapshot'
 
 function schedule(overrides: Record<string, unknown> = {}) {
   return scheduleV2Schema.parse(scheduleFixture(FIXTURE_WORKSPACE_KEY, overrides))

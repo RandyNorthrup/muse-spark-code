@@ -13,8 +13,19 @@ import {
   reportSectionSchema,
   type ReportKind,
 } from '../../src/shared/reportSchema'
-import { collectFixture, facet, fullSnapshot } from './helpers/reporting/collect'
-import { availableSource, unavailableSource } from './helpers/reporting/snapshot'
+import {
+  collectFixture,
+  facet,
+  fullSnapshot,
+  availableSource,
+  unavailableSource,
+  reportOptions,
+} from './helpers/reporting/kindFixtures'
+import { playbookSections } from '../../src/core/reporting/collect/playbook'
+import { estimateReportSections } from '../../src/core/reporting/collect/estimate'
+import { schedulesSections } from '../../src/core/reporting/collect/schedules'
+import { fakeEstimate } from './helpers/estimator/kindFixtures'
+import { playbookProbeView, schedulesProbeView } from './helpers/reporting/reportKindFixtures'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const folder = path.join(root, 'src/core/reporting/collect')
@@ -40,17 +51,20 @@ const casesByKind: Record<ReportKind, string> = {
     'security.ts:grouped:0 security.ts:collectSecurity:0 security.ts:collectSecurity:1 security.ts:collectSecurity:2 security.ts:collectSecurity:3 security.ts:collectSecurity:4',
   accounts:
     'accounts.ts:collectAccounts:0 accounts.ts:collectAccounts:1 accounts.ts:collectAccounts:2 accounts.ts:collectAccounts:3 accounts.ts:collectAccounts:4 accounts.ts:collectAccounts:5 accounts.ts:collectAccounts:6',
-  estimate: 'index.ts:forward:0',
-  playbook: 'index.ts:forward:0',
+  estimate:
+    'index.ts:forward:0 estimate.ts:totals:0 estimate.ts:totals:1 estimate.ts:criticalPath:0 estimate.ts:limitingResource:0 estimate.ts:setups:0 estimate.ts:inputs:0 estimate.ts:calibration:0',
+  playbook:
+    'index.ts:forward:0 playbook.ts:playbookSections:0 playbook.ts:playbookSections:1 playbook.ts:playbookSections:2 playbook.ts:playbookSections:3 playbook.ts:playbookSections:4',
   issues: 'index.ts:forward:0',
-  schedules: 'index.ts:forward:0',
+  schedules:
+    'index.ts:forward:0 schedules.ts:schedulesSections:0 schedules.ts:schedulesSections:1 schedules.ts:schedulesSections:2 schedules.ts:schedulesSections:3 schedules.ts:schedulesSections:4 schedules.ts:schedulesSections:5 schedules.ts:schedulesSections:6',
   keybindings:
     'index.ts:forward:0 keybindings.ts:bindingRows:0 keybindings.ts:bindingRows:1 keybindings.ts:bindingRows:2 keybindings.ts:conflictRows:0',
 }
 const forwardedFacets = {
   fleet: 'agents workers devices nodes',
   estimate: 'totals criticalPath limitingResource setups inputs calibration',
-  playbook: 'totals decisions drills disabledRules refusals',
+  playbook: 'totals decisions hookVerification disabledRules refusals',
   issues: 'issues limits',
   schedules: 'timeline schedules fires refusals cost',
   keybindings: 'keybindings conflicts',
@@ -161,17 +175,40 @@ beforeAll(async () => {
   const result = await build({
     stdin: {
       contents: `
-        import { collectFixture } from './test/unit/helpers/reporting/collect';
-        import { availableSource } from './test/unit/helpers/reporting/snapshot';
+        import { collectFixture, availableSource, reportOptions } from './test/unit/helpers/reporting/kindFixtures';
         import { collectKeybindingSections } from './src/core/reporting/collect/keybindings';
+        import { playbookSections } from './src/core/reporting/collect/playbook';
+        import { estimateReportSections } from './src/core/reporting/collect/estimate';
+        import { schedulesSections } from './src/core/reporting/collect/schedules';
+        import { fakeEstimate } from './test/unit/helpers/estimator/kindFixtures';
+        import { playbookProbeView, schedulesProbeView } from './test/unit/helpers/reporting/reportKindFixtures';
         export { target, keys } from 'row-probe';
+        import { suspend } from 'row-probe';
         export function collect(kind, options, snapshot) {
+          // The forwarded kinds run their real section builders here (as the
+          // live sources do), so the probe sees their row calls; the
+          // collector then forwards the built sections.
+          const full = reportOptions(kind, { scope: 'fixture-workspace', ...options });
           if (kind === 'keybindings') snapshot = { ...snapshot, sources: { ...snapshot.sources,
             keybindings: availableSource('keybindings', collectKeybindingSections({
               editor: [{ command: 'first', key: 'ctrl+a' }, { command: 'second', key: 'ctrl+a' }],
               panel: [{ context: 'row', key: 'Enter' }], acp: [{ name: 'help' }],
             })),
           } };
+          suspend(true);
+          try {
+            if (kind === 'playbook') snapshot = { ...snapshot, sources: { ...snapshot.sources,
+              playbook: availableSource('playbook', playbookSections(playbookProbeView(), full)),
+            } };
+            if (kind === 'estimate') snapshot = { ...snapshot, sources: { ...snapshot.sources,
+              estimate: availableSource('estimate', estimateReportSections(fakeEstimate(), full)),
+            } };
+            if (kind === 'schedules') snapshot = { ...snapshot, sources: { ...snapshot.sources,
+              schedules: availableSource('schedules', schedulesSections(schedulesProbeView(), full)),
+            } };
+          } finally {
+            suspend(false);
+          }
           return collectFixture(kind, options, snapshot);
         }
       `,
@@ -192,12 +229,17 @@ beforeAll(async () => {
           }))
           build.onLoad({ filter: /.*/, namespace: 'probe' }, () => ({
             contents: `
-        let selected = ''; const seen = new Set();
+        let selected = ''; const seen = new Set(); let live = true;
         export function target(id) { selected = id; seen.clear(); }
         export function keys() { return [...seen]; }
+        // The probe builds some sources through their real section builders
+        // before the collector forwards them; those builders already ran
+        // their sections once, so duplication suspends around them and runs
+        // once in the forwarded section, as it does for facet sources.
+        export function suspend(on) { live = !on; }
         export function capture(id, row) { if (id === selected) seen.add(row.key); return row; }
         export function captureRows(id, rows) { return rows.map(row => capture(id, row)); }
-        export function duplicate(rows) { return rows.flatMap(row => seen.has(row.key) ? [row, { ...row }] : [row]); }
+        export function duplicate(rows) { return !live ? rows : rows.flatMap(row => seen.has(row.key) ? [row, { ...row }] : [row]); }
       `,
             loader: 'js',
           }))
@@ -278,6 +320,34 @@ function snapshotFor(source: string, kind: ReportKind) {
         })
     }
   }
+  // The estimate, playbook and schedules kinds run their real section
+  // builders (as the probe bundle does), so the clean run emits the same
+  // section ids the duplicate cases cover.
+  const full = reportOptions(kind, { scope: 'fixture-workspace', full: true })
+  if (kind === 'playbook')
+    return {
+      ...snapshot,
+      sources: {
+        ...sources,
+        playbook: availableSource('playbook', playbookSections(playbookProbeView(), full)),
+      },
+    }
+  if (kind === 'estimate')
+    return {
+      ...snapshot,
+      sources: {
+        ...sources,
+        estimate: availableSource('estimate', estimateReportSections(fakeEstimate(), full)),
+      },
+    }
+  if (kind === 'schedules')
+    return {
+      ...snapshot,
+      sources: {
+        ...sources,
+        schedules: availableSource('schedules', schedulesSections(schedulesProbeView(), full)),
+      },
+    }
   const facets = Object.entries(forwardedFacets).find(([name]) => name === kind)?.[1]
   if (facets !== undefined)
     return {

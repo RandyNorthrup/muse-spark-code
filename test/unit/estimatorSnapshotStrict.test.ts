@@ -12,7 +12,7 @@ import {
 } from '../../src/host/estimator/planSnapshotSource'
 import { planSnapshotLoader } from '../../src/host/estimator/planSnapshotBundle'
 import { createAcpEstimate } from '../../src/acp/estimate'
-import { fakePlanSourceIo } from './helpers/estimator/fakes'
+import { fakePlanSourceIo } from './helpers/estimator/kindFakes'
 import { EstimateViewSession } from '../../src/runtime/estimator/session'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { registerSecretValue } from '../../src/core/redact'

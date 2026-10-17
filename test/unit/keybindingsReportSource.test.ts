@@ -27,32 +27,37 @@ import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { AcpVault } from '../../src/acp/vault'
 import type { RuntimeResources } from '../../src/runtime/resources/port'
-import { FakeAgentHost, museCodeTestBackend } from './helpers/fakeAgent'
-import { memoryPaidGrants } from './helpers/paidGrants'
-import { sessionAccountsRig } from './helpers/runtimeAccounts'
-import { FakeAcpQuestionRegistry } from './helpers/questions/acpRegistry'
-import { fakeUsageAccess } from './helpers/usageAdapters'
+import { FakeAgentHost, museCodeTestBackend } from './helpers/kindFakeAgent'
+import { memoryPaidGrants } from './helpers/kindPaidGrants'
+import { sessionAccountsRig } from './helpers/kindRuntimeAccounts'
+import { FakeAcpQuestionRegistry } from './helpers/questions/kindAcpRegistry'
+import { fakeUsageAccess } from './helpers/kindUsageAdapters'
 import { compare } from '../../src/core/reporting/collect/common'
 import { collectKeybindingSections } from '../../src/core/reporting/collect/keybindings'
 import { keybindingsManifestReader } from '../../src/runtime/reporting/reportInputs'
 import { createReportingEngine } from '../../src/runtime/reporting/engine'
 import { reportWorkspaceKey } from '../../src/core/reporting/sources/local'
-import { REPORT_AS_OF } from './helpers/reporting/runtime'
-import { availableSource, buildSourceSnapshot, reportOptions } from './helpers/reporting/snapshot'
-import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
-import { fixtureCollector } from './helpers/reporting/collect'
+import { REPORT_AS_OF } from './helpers/reporting/kindRuntime'
+import {
+  availableSource,
+  buildSourceSnapshot,
+  reportOptions,
+} from './helpers/reporting/kindFixtures'
+import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/kindFixtures'
+import { fixtureCollector } from './helpers/reporting/kindFixtures'
 import { referenceKeyboardActions } from '../../src/shared/keybindings'
 import manifest from '../../package.json'
 
 // Bounded probe exec stands in for governed admission here (see spawnGovernance).
 vi.mock('../../src/core/resources/launcher', async (original) => {
-  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  const { withFixtureCommand } = await import('./helpers/resources/kindLaunch')
   return withFixtureCommand(await original())
 })
 
 function keybindingsContext() {
   return {
     reportText: EN,
+    locale: 'en',
     asOf: REPORT_FIXTURE_AS_OF,
     workspaceKey: 'keybindings-fixture',
     options: reportOptions('keybindings'),

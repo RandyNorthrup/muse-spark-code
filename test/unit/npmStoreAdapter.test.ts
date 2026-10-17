@@ -18,7 +18,17 @@ import * as z from 'zod/mini'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { githubReportSource } from '../../src/core/reporting/sources/github'
-import { CAPTURED_CHECKS_FAILED, CAPTURED_PULL_LIST } from './helpers/githubCapture'
+import { CAPTURED_CHECKS_RUNNING, CAPTURED_PULL_LIST } from './helpers/githubCapture'
+
+// The capture helper's running set with its in-progress run finished as a
+// failure: every wire field stays captured, and the adapter must stay honest
+// about the failing run while keeping pulls and checks.
+const CAPTURED_CHECKS_FAILED = {
+  ...CAPTURED_CHECKS_RUNNING,
+  check_runs: CAPTURED_CHECKS_RUNNING.check_runs.map((run) =>
+    run.status === 'in_progress' ? { ...run, status: 'completed', conclusion: 'failure' } : run,
+  ),
+}
 import {
   encodeNpmPackageName,
   isNpmPackageName,
@@ -30,8 +40,8 @@ import {
   networkContext,
   networkRig,
   readStoresReport,
-} from './helpers/reportNetwork'
-import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
+} from './helpers/reportKindNetwork'
+import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/kindFixtures'
 
 const NPM_CAPTURED_DOC: unknown = JSON.parse(
   readFileSync(new URL('fixtures/legalRegistry/npm-is-even-1.0.0.json', import.meta.url), 'utf8'),

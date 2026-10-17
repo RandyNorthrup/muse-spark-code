@@ -8,11 +8,12 @@ import {
 } from '../../src/core/reporting/sources/admission'
 import { LocalSourceError, localSource } from '../../src/core/reporting/sources/local'
 import type { SourceReadContext } from '../../src/core/reporting/sources/types'
-import { reportOptions } from './helpers/reporting/snapshot'
+import { reportOptions } from './helpers/reporting/kindFixtures'
 
 function contextFor(kind: (typeof REPORT_KINDS)[number], signal: AbortSignal): SourceReadContext {
   return {
     reportText: EN,
+    locale: 'en',
     options: reportOptions(kind),
     asOf: '2026-10-06T12:00:00Z',
     workspaceKey: 'fixture',

@@ -42,6 +42,17 @@ describe('feature catalogue details merge', () => {
     expect(vault?.summary).toEqual({ ui: 'referenceInProgress' })
   })
 
+  it('certifies argument previews on both the panel and ACP surfaces', () => {
+    // RVCM1062B P3: previews are certified in VS Code and ACP, so the
+    // catalogue and its generated reference must name both surfaces.
+    const preview = featureCatalog().find((entry) => entry.id === 'argument-preview')
+    if (preview === undefined) throw new Error('missing feature: argument-preview')
+    expect(preview.summary).toEqual({ ui: 'toolArgumentPreviewDescription' })
+    expect(EN.toolArgumentPreviewDescription).toContain('before the tool runs')
+    expect(preview.editors).toEqual(['vscode', 'acp'])
+    expect(preview.surfaces).toEqual(['vscode:modelApi', 'acp:modelApi'])
+  })
+
   it('ships the schedules limitation in the generated reference model', () => {
     const schedules = referenceModel().features.find((feature) => feature.id === 'schedules')
     if (schedules === undefined) throw new Error('missing generated schedules feature')

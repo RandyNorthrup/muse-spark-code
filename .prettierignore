@@ -18,6 +18,12 @@ vendor/
 # comparison).
 test/fixtures/golden-requests/
 
+# Lane M106 live Meta receipts (RVCM1062B): byte-exact collector output
+# (`JSON.stringify` expands short arrays; prettier would collapse them and
+# break both the live-manifest SHA-256 and the fixture pins).
+test/fixtures/m106/u9-raw-strict-stream.json
+test/fixtures/m106/output-incomplete.json
+
 # M91 saved vendor sources, kept byte-exact: code cites them by line
 # (cline-hooks-901d1b5c97.md:157), and reformatting would move those lines.
 test/fixtures/hookFormats/docs/*.md

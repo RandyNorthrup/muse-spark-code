@@ -17,12 +17,13 @@ import {
   buildSourceSnapshot,
   REPORT_FIXTURE_AS_OF,
   reportOptions,
-} from './helpers/reporting/snapshot'
-import { facet, fixtureCollector, getSection } from './helpers/reporting/collect'
+} from './helpers/reporting/kindFixtures'
+import { facet, fixtureCollector, getSection } from './helpers/reporting/kindFixtures'
 
 function contextFor(kind: Parameters<typeof reportOptions>[0]): SourceReadContext {
   return {
     reportText: EN,
+    locale: 'en',
     asOf: REPORT_FIXTURE_AS_OF,
     workspaceKey: 'workspace',
     options: reportOptions(kind),

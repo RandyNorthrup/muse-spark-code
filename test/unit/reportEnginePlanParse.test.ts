@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import type * as planReader from '../../src/core/reporting/plan/reader'
-import { reportingServicesFor } from './helpers/reporting/runtime'
+import { reportingServicesFor } from './helpers/reporting/kindRuntime'
 
 const parseCalls = vi.hoisted(() => [] as number[])
 

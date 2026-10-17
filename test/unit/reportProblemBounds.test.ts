@@ -11,7 +11,7 @@ import { readReportSource } from '../../src/core/reporting/sources/boundary'
 import { stubLocalSources } from './helpers/reporting/localStubs'
 import { createAccountsReportReader } from '../../src/runtime/reporting/reportInputs'
 import type { AccountsFacts } from '../../src/core/reporting/sources/types'
-import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
+import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/kindFixtures'
 
 const TEMP = path.resolve(import.meta.dirname, '../../temp')
 const badUsage = (account: string): AccountsFacts['usage'][number] => ({
@@ -72,6 +72,7 @@ describe('bounded problem text', () => {
     })
     const context = {
       reportText: EN,
+      locale: 'en',
       asOf: REPORT_FIXTURE_AS_OF,
       workspaceKey: 'workspace',
       options: reportOptions('accounts'),

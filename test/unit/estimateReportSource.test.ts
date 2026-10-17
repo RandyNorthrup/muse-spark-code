@@ -18,19 +18,23 @@ function textCell(entry: ReportRow, key: string): string | undefined {
   return cell?.type === 'text' ? cell.value : undefined
 }
 import { readFileSync } from 'node:fs'
-import { fakeEstimate } from './helpers/estimator/fixtures'
-import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
+import { fakeEstimate } from './helpers/estimator/kindFixtures'
+import { ESTIMATOR_AS_OF } from './helpers/estimator/kindFakes'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { installGerman, restoreEnglish } from './helpers/germanTable'
+import { installGerman, restoreEnglish } from './helpers/kindGermanTable'
 import germanTable from '../../l10n/ui.de.json'
 import { loadUiTable } from '../../src/host/l10n'
 import { EN, type UiText } from '../../src/shared/l10n/en'
 import { fill, setUiText } from '../../src/shared/l10n/text'
 import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
 import { parseEstimateGoal } from '../../src/shared/estimate'
-import { availableSource, reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
-import { fullSnapshot, getSection } from './helpers/reporting/collect'
-import { renderAllFormats, renderTestCollector } from './helpers/reporting/render'
+import {
+  availableSource,
+  reportOptions,
+  REPORT_FIXTURE_AS_OF,
+} from './helpers/reporting/kindFixtures'
+import { fullSnapshot, getSection } from './helpers/reporting/kindFixtures'
+import { renderAllFormats, renderTestCollector } from './helpers/reporting/kindRender'
 
 const scrub = (text: string) => text.replaceAll('private-canary', '[redacted]')
 
@@ -41,9 +45,11 @@ function estimateContext(options?: {
   deadline?: string
   kind?: SourceReadContext['options']['kind']
   reportText?: UiText
+  locale?: string
 }): SourceReadContext {
   return {
     reportText: options?.reportText ?? EN,
+    locale: options?.locale ?? 'en',
     asOf: options?.asOf ?? ESTIMATOR_AS_OF,
     workspaceKey: 'fixture',
     options: reportOptions(options?.kind ?? 'estimate', {
@@ -425,13 +431,14 @@ describe('estimate report source', () => {
       },
     ]
     expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    const germanContext = () => estimateContext({ reportText: germanTable, locale: 'de' })
     try {
       for (const refusal of refusals) {
         for (const message of messages) {
           // A German report over any estimator sentence: the report
           // language's sentence, never the estimator's words.
           expect(
-            await estimateReason(throwing(refusal.diagnostic, message)),
+            await estimateReason(throwing(refusal.diagnostic, message), germanContext()),
             `${refusal.name} (German report, message ${JSON.stringify(message)})`,
           ).toBe(refusal.german())
         }
@@ -463,7 +470,7 @@ describe('estimate report source', () => {
         Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
       log: new FakeLogOutputChannel(),
     })
-    const germanContext = () => estimateContext({ reportText: table })
+    const germanContext = () => estimateContext({ reportText: table, locale: 'de' })
     try {
       expect(
         await estimateReason(
@@ -546,7 +553,7 @@ describe('estimate report source', () => {
       for (const [name, error] of refusals) {
         // The generic German sentence, never a named German refusal.
         expect(
-          await estimateReason(error, estimateContext({ reportText: table })),
+          await estimateReason(error, estimateContext({ reportText: table, locale: 'de' })),
           `${name} (German report)`,
         ).toBe(table.reportSourceReasons.failed)
       }
@@ -674,7 +681,10 @@ Release notes.
     try {
       // The lanes and the count cross as data; the report renders its own
       // words around them — no English `and 2 more` in a German reason.
-      const german = await estimateReason(hostile, estimateContext({ scope: 'M912' }))
+      const german = await estimateReason(
+        hostile,
+        estimateContext({ scope: 'M912', reportText: germanTable, locale: 'de' }),
+      )
       expect(german).toBe(
         fill(germanTable.estimateFailed, {
           detail: `missing-estimate: ${shown.join(', ')} und 2 weitere`,

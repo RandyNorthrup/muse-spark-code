@@ -18,7 +18,7 @@ import { buildPlanSnapshot } from '../../src/core/estimator/planSnapshot'
 import { buildEstimateDag } from '../../src/core/estimator/dag'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
-import { fakeEstimate } from './helpers/estimator/fixtures'
+import { fakeEstimate } from './helpers/estimator/kindFixtures'
 import {
   ESTIMATE_DIAGNOSTIC_CASES,
   ESTIMATE_SURFACES,
