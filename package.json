@@ -955,7 +955,6 @@
         "museSpark.checkCommands": {
           "type": "array",
           "default": [],
-          "maxItems": 8,
           "items": {
             "type": "object",
             "required": [
@@ -983,7 +982,6 @@
               "timeoutSeconds": {
                 "type": "integer",
                 "minimum": 1,
-                "maximum": 600,
                 "default": 300,
                 "description": "%config.checkCommands.timeoutSeconds.description%"
               }

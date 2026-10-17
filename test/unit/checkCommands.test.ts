@@ -12,9 +12,7 @@ import {
   verifyGuidance,
 } from '../../src/core/verify/checkCommands'
 import {
-  CHECK_COMMANDS_MAX,
   CHECK_DEFAULT_TIMEOUT_SECONDS,
-  CHECK_MAX_TIMEOUT_SECONDS,
   MILLISECONDS_PER_SECOND,
   MODEL_TEXT,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
@@ -51,7 +49,7 @@ describe('checkCommandsSchema', () => {
     ])
   })
 
-  it('refuses a blank command, a repeated name, a bad time cap and too many checks', () => {
+  it('refuses a blank command, a repeated name and a non-positive time cap', () => {
     expect(checkCommandsSchema.safeParse([{ name: 'lint', command: '  ' }]).success).toBe(false)
     expect(
       checkCommandsSchema.safeParse([
@@ -60,18 +58,22 @@ describe('checkCommandsSchema', () => {
       ]).success,
     ).toBe(false)
     expect(
-      checkCommandsSchema.safeParse([
-        { name: 'lint', command: 'a', timeoutSeconds: CHECK_MAX_TIMEOUT_SECONDS + 1 },
-      ]).success,
-    ).toBe(false)
-    expect(
       checkCommandsSchema.safeParse([{ name: 'lint', command: 'a', timeoutSeconds: 0 }]).success,
     ).toBe(false)
-    const many = Array.from({ length: CHECK_COMMANDS_MAX + 1 }, (_, index) => ({
+  })
+
+  it('takes any number of checks and any positive per-check seconds (D121)', () => {
+    const many = Array.from({ length: 9 }, (_, index) => ({
       name: `c${String(index)}`,
       command: 'x',
     }))
-    expect(checkCommandsSchema.safeParse(many).success).toBe(false)
+    expect(checkCommandsSchema.safeParse(many).success).toBe(true)
+    expect(
+      checkCommandsSchema.safeParse([{ name: 'slow', command: 'x', timeoutSeconds: 3600 }]).success,
+    ).toBe(true)
+    expect(checkTimeoutMs({ name: 'slow', command: 'x', timeoutSeconds: 3600 })).toBe(
+      3600 * MILLISECONDS_PER_SECOND,
+    )
   })
 })
 

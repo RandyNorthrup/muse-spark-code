@@ -2459,8 +2459,9 @@ files, and before the next request to Meta:
   after `--`, each quoted as one argument; a file name that starts with `-`
   or `@`, or on Windows one holding `"`, `&`, `|`, `<`, `>`, `^`, `%` or `!`
   (which Windows PowerShell 5.1 and `cmd.exe` would read as syntax), keeps
-  the check from running. `timeoutSeconds` (300 unless set, 600 at most)
-  caps each run. A check you reject is not asked again until your next
+  the check from running. `timeoutSeconds` names how long a run may take
+  (300 seconds unless you name more); a check that runs longer is stopped
+  and reported. A check you reject is not asked again until your next
   message, and a check the model already ran since its last edit is not run
   again after the round. Nothing runs after the turn's last round.
 - **One budget.** What the model reads after a round, diagnostics and every

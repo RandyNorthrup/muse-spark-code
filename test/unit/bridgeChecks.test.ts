@@ -4,7 +4,7 @@ import { routeWorkerCheck } from '../../src/core/team/workers/engineWorker'
 import type { Runner } from '../../src/shared/team'
 import { runnerTestProcess } from './helpers/runnerProcesses'
 import type { CheckJob } from '../../src/core/runners/routing'
-import { VERIFY_TOOLS, CHECK_COMMANDS_MAX } from '../../src/shared/constants'
+import { VERIFY_TOOLS } from '../../src/shared/constants'
 
 const idleHealth: BridgeChecksDeps['routing']['sample'] = () =>
   Promise.resolve({ cores: 2, load: 0, freeSlots: 1, inputReady: true })
@@ -226,14 +226,13 @@ describe('bridge run_checks and engine test-command region', () => {
     expect(deps.routing.sample).not.toHaveBeenCalled()
     expect(deps.routing.remote).not.toHaveBeenCalled()
   })
-  it('rejects unknown fields, missing checks, unknown names, unsafe paths and oversized calls', async () => {
+  it('rejects unknown fields, missing checks, unknown names and unsafe paths', async () => {
     const deps = dependencies()
     const tool = bridgeRunChecks(deps)
     for (const input of [
       { command: 'evil' },
       { names: ['unknown'] },
       { names: [] },
-      { names: Array.from({ length: CHECK_COMMANDS_MAX + 1 }, () => 'unit') },
       { paths: ['@response-file'] },
       { paths: ['newline\nfile'] },
     ])
