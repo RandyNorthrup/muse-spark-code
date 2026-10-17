@@ -29,6 +29,24 @@ happened, not what was planned; superseded entries are kept.
   at 60 seconds, and takes any number of click or type steps instead of at
   most eight. Loopback-only addressing, the per-call extra-hosts approval
   and the 45-day runtime expiry are unchanged.
+- Web fetch no longer stops same-host redirects after 5 or refuses pages
+  past 5 MiB; a redirect loop ends at the fetch deadline and cross-host
+  redirects are still handed back. The https-only, no-credentials and
+  public-hosts refusals stay, and a caller-set text limit still applies.
+- MCP servers are waited on instead of timed out: an entry's own startup
+  and tool timeouts are honoured whole however long, and unnamed they are
+  no deadline at all, with a still-waiting notice each minute.
+- Muse Code commands no longer fail at 60 or 180 seconds: unnamed they are
+  waited on until Muse Code answers or the wait is stopped, with notices
+  that still count toward the unresponsive-host watchdog.
+- Shell commands no longer default to 120 seconds or clamp to 600: the
+  model's own timeout is honoured whole, unnamed commands run until they
+  end or are stopped, and the user's own shell loses its 10-minute kill.
+- Billed image requests no longer abort at 180 seconds: the backend waits
+  until Meta answers or the turn stops it, saying so each minute.
+- The legal scan, its workspace walk and the headless legal command no
+  longer stop at 120 seconds: unnamed they run until done or stopped, and
+  a caller-named deadline still marks what it could not cover.
 
 ### Pending
 
