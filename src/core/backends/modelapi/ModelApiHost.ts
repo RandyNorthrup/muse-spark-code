@@ -14331,12 +14331,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       await this.finishWrapUp(turn, signal, isStopHookActive)
     }
     // Input accepted during the last permitted round still needs a request
-    // that sees it. Steered messages belonged to this turn, so run them
-    // before separately queued messages; a goal cue follows them.
-    if (turn.goalWakePending && isGoalActive(this.goal)) {
-      this.queuedTurns.unshift(this.queuedGoalWake())
-    }
-    this.promoteSteered(turn)
+    // that sees it, through the one re-queue every exit uses: it clears the
+    // held-wake flag, so turn finalization cannot queue the same wake again.
+    this.requeueHeldInput(turn)
     // A call limit is not a money stop: it carries its own stop reason.
     this.outcomeStopReason = 'limit'
     throw new ModelCallLimitError(turn.modelCalls)
