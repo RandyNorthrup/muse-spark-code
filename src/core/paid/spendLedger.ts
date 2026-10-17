@@ -417,8 +417,16 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
   // same-scope operations queue here first, so the on-disk lock only ever
   // arbitrates between processes and a holder in this process can never
   // make its own next operation refuse as busy.
-  const serialise = async <T>(scope: LedgerScope, operation: () => Promise<T>): Promise<T> => {
+  const serialise = async <T>(
+    scope: LedgerScope,
+    operation: () => Promise<T>,
+    isOpportunistic = false,
+  ): Promise<T> => {
     const key = scope.directory
+    // An opportunistic drain (zero wait) never queues behind this process's
+    // own holder: it tries the on-disk lock once and falls back to the
+    // lock-free view, exactly as it does for another process's holder.
+    if (isOpportunistic && operationTails.has(key)) return await operation()
     const previous = operationTails.get(key) ?? Promise.resolve()
     // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
     let releaseGate: (() => void) | undefined
@@ -585,7 +593,11 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     timeoutMs: number = SPEND_LEDGER_LOCK_TIMEOUT_MS,
   ): Promise<T> => {
     try {
-      return await serialise(scope, async () => await lockOperation(scope, operation, timeoutMs))
+      return await serialise(
+        scope,
+        async () => await lockOperation(scope, operation, timeoutMs),
+        timeoutMs === 0,
+      )
     } catch (error: unknown) {
       if (isSpendLedgerError(error)) throw error
       return fail(scope, 'unreadable', 'lock or recovery', error)
