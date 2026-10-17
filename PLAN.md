@@ -24631,7 +24631,7 @@ live compaction effectiveness or the aggregate quality gates.
 **CM1013R9 binding run and latch flip (2026-10-12; the lead's run on the Windows host, the flip lane on the macbook rig).** The
 lead's counted run at `3c68efb2e` (`node scripts/m101-e.mjs --live-m75`,
 full frozen set, contributor model) returned verdict `pass`: certified
-digest equals the frozen pin, 274 of 588 ceiling calls at $0.06285, all
+digest equals the frozen pin, 274 attempts / 276 requests of the 588 ceiling at $0.06285, all
 four arms above both 0.75 floors, packing engaged on both long-output
 tasks, one settled D78 admission applied on each long-context task, strict
 tools engaged everywhere with both its floors held. The documented Part B
@@ -24643,7 +24643,7 @@ step ran to the letter: receipts committed byte-exact, the latch flipped,
 macbook rig; lane MSM101 merged current main 2026-10-16/17).** The
 lead's second counted run at `28686235d` returned verdict `pass`:
 certified equals computed equals the frozen pin `a59c8448…725e28`,
-267 calls at $0.059742, all eight floor rows held, compaction engaged
+265 attempts / 267 requests at $0.059742, all eight floor rows held, compaction engaged
 on both long-context tasks. Receipts kept byte-exact beside the first
 run's (`docs/certification/m101-binding-report-2026-10-12-28686235d.json`/`.md`,
 `docs/certification/m101-binding-run-2026-10-12-28686235d.log`).
@@ -24656,7 +24656,15 @@ under `--max-budget-usd`), with truthful budget refusals, atomic
 apply, Help reference, README, ACP/CI docs, l10n tables and
 regenerated reference/exec-schema output. Certification:
 `docs/certification/m101-cm1013r10.md`; milestone lane record:
-`docs/certification/msm101.md`.
+`docs/certification/msm101.md`. **RVMSM101 review (2026-10-17):** the
+runtime admission's workspace-trust fence made the connected headless
+and untrusted-ACP surfaces unreachable (exec can never trust); the
+runtime now authorizes compaction spending by the editor's per-use
+paid question or exec's explicit flag under its run budget, the editor
+keeps its Restricted Mode fence, and `--auto-compaction` on the Muse
+Code backend is refused instead of accepted as a no-op. The same
+review fixed the lane's two knip findings instead of deferring them
+and deleted three inherited suites that tested stand-ins.
 
 Status detail retained: planned; lanes start from `m101/base` (the M95
 integration branch plus this plan). C-M101-1 (2026-10-10, lane CM1011,
