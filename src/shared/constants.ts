@@ -4911,14 +4911,13 @@ export const VERIFY_COMMAND_RULE_KEY = 'verify_command'
 // decides what it runs was edited while it was being authorized (M68).
 export const VERIFY_AUTHORIZE_ATTEMPTS = 2
 export const THEN_RUN_ARGUMENT = 'then_run'
-// `museSpark.checkCommands`: at most this many, each within these lengths.
-export const CHECK_COMMANDS_MAX = 8
+// `museSpark.checkCommands` (D121: the removed at-most-8 count was
+// invented): any number of checks, each within these lengths.
 export const CHECK_NAME_MAX_CHARS = 40
 export const CHECK_COMMAND_MAX_CHARS = 1000
-// A check's time cap unless it names its own, and the most it may name: the
-// shell tool's own ceiling.
+// A check's time cap unless it names its own (D121: the removed 600-second
+// ceiling was invented); the person names any number of seconds.
 export const CHECK_DEFAULT_TIMEOUT_SECONDS = 300
-export const CHECK_MAX_TIMEOUT_SECONDS = SHELL_MAX_TIMEOUT_MS / MILLISECONDS_PER_SECOND
 // A scoped check's paths follow the end-of-options marker, each quoted as one
 // argument. A path that starts like an option (`-`) or a response file
 // (`@`) is refused, never passed; so, on Windows, is one holding a character

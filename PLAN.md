@@ -14415,6 +14415,10 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
 - A25 (NOLIMITS1): `ACCOUNT_MAX_PER_PROVIDER` = 64 removed — not about a
   model; pools, orders and the Add control take any number of accounts
   (duplicate ids still refuse).
+- A26 (NOLIMITS1): `CHECK_COMMANDS_MAX` = 8 and `CHECK_MAX_TIMEOUT_SECONDS`
+  = 600 removed — not about a model; any number of checks, each naming any
+  positive `timeoutSeconds` (300 unless set; `package.json` maxItems and
+  maximum go with them).
 
 ## 3. Open questions (need the owner)
 
