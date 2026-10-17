@@ -16,8 +16,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { canonicalRecord } from '../../src/core/estimator/calibration/records'
 import { prepareEstimateSchedule } from '../../src/core/estimator/schedule'
-import { scheduleFleet, scheduleLane } from './helpers/estimatorScheduleFixtures'
-import { goalLane } from './helpers/estimatorGoalFixtures'
+import { scheduleFleet, scheduleLane } from './helpers/estimatorKindScheduleFixtures'
+import { goalLane } from './helpers/estimatorKindGoalFixtures'
 
 const asOf = '2026-10-11T12:00:00.000Z'
 const context = { asOf, optimize: 'cost' } as const

@@ -1,7 +1,10 @@
 // Shared playbook and schedules report fixtures (M113 lane C-M113-4):
 // one copy of the journal records, store rows and section lookup, so the
 // source, collect, reader and live-CLI suites read the same shapes.
+import type { PlaybookView } from '../../../../src/core/reporting/collect/playbook'
+import type { SchedulesView } from '../../../../src/core/reporting/collect/schedules'
 import type { ReportSection } from '../../../../src/shared/reportSchema'
+import { scheduleFireRecordSchema, scheduleV2Schema } from '../../../../src/shared/scheduleV2'
 
 export const FIXTURE_WORKSPACE_KEY = 'fixture-workspace'
 
@@ -161,4 +164,110 @@ export function scheduleTriggerFixtures(atMs = 2000) {
     event,
     { kind: 'afterEvent', event, time: { kind: 'once', atMs } },
   ]
+}
+
+/** A playbook view with one row in every section, for suites that must run
+ * the real section builders (duplicate-source coverage). */
+export function playbookProbeView(): PlaybookView {
+  return {
+    modules: [
+      {
+        id: 'm1',
+        key: 'src/alpha',
+        strikes: 1,
+        rounds: [
+          { class: null, round: 2 },
+          { class: 'validation', round: 1 },
+        ],
+      },
+    ],
+    designs: [
+      {
+        id: 'd1',
+        moduleKey: 'src/alpha',
+        redesignLane: 'C-M113-4',
+        failureClass: 'Checks raced',
+        outcome: 'remains',
+        at: 4000,
+        dateIso: '1970-01-01T00:00:04.000Z',
+      },
+    ],
+    drills: [
+      {
+        commit: 'abc123',
+        moduleId: 'm1',
+        scope: 'commit',
+        result: 'pass',
+        at: 5000,
+        dateIso: '1970-01-01T00:00:05.000Z',
+      },
+    ],
+    disabledRules: [
+      {
+        rule: 'loudFailures',
+        actor: 'lead',
+        reason: 'Too noisy',
+        at: 6000,
+        dateIso: '1970-01-01T00:00:06.000Z',
+      },
+    ],
+    refusals: [
+      {
+        code: 'lineageRequired',
+        module: 'src/alpha',
+        actor: 'rev',
+        reason: 'Around the gate',
+        at: 8000,
+        dateIso: '1970-01-01T00:00:08.000Z',
+      },
+    ],
+  }
+}
+
+function probeSchedule(overrides: Record<string, unknown> = {}) {
+  return scheduleV2Schema.parse(scheduleFixture(FIXTURE_WORKSPACE_KEY, overrides))
+}
+
+function probeFire(overrides: Record<string, unknown> = {}) {
+  return scheduleFireRecordSchema.parse(fireFixture(overrides))
+}
+
+function probeEntry(
+  overrides: Record<string, unknown> = {},
+  iso = '1970-01-01T00:00:02.000Z',
+): SchedulesView['schedules'][number] {
+  return {
+    schedule: probeSchedule(overrides),
+    triggerText: 'every 3600000 ms',
+    targetText: 'New conversation each fire: modelApi',
+    deliveryText: 'New conversation',
+    creatorText: undefined,
+    grantText: '0 rules, 0 destinations, cap 0',
+    nextFireIso: iso,
+  }
+}
+
+/** A schedules view with running, paused and fired rows, for suites that
+ * must run the real section builders (duplicate-source coverage). */
+export function schedulesProbeView(): SchedulesView {
+  return {
+    schedules: [
+      probeEntry(),
+      probeEntry({ id: 'sched-2', name: 'Evening build', nextFireAtMs: 2000 }),
+      {
+        ...probeEntry(
+          { id: 'sched-3', name: 'Paused job', paused: true, nextFireAtMs: 3000 },
+          '1970-01-01T00:00:03.000Z',
+        ),
+      },
+    ],
+    fires: [
+      {
+        fire: probeFire(),
+        outcomeText: 'Refused',
+        scheduleName: 'Morning build',
+        occurrenceIso: '1970-01-01T00:00:01.500Z',
+      },
+    ],
+  }
 }

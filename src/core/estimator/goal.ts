@@ -65,6 +65,7 @@ const snapshotSchema = z
     }),
   )
 
+/** @unwired M117 estimator goal snapshot */
 export type EstimateGoalSnapshot = z.infer<typeof snapshotSchema>
 
 /** M117-G-M113-snapshot: scrubbed application projections, not wire frames.

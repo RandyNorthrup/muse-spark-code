@@ -36,8 +36,8 @@ import {
   buildSourceSnapshot,
   REPORT_FIXTURE_AS_OF,
   reportOptions,
-} from './helpers/reporting/snapshot'
-import { facet, fixtureCollector } from './helpers/reporting/collect'
+} from './helpers/reporting/kindFixtures'
+import { facet, fixtureCollector } from './helpers/reporting/kindFixtures'
 import { canaryVaultSnapshot } from './helpers/reporting/canaryVault'
 import { malformed } from './helpers/reporting/reasonCases'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -48,13 +48,14 @@ const scrub = (text: string) => text
 // The check-run journal below runs report storage directly (as in
 // checkRuns.test.ts), so its identity probe is the fixture command.
 vi.mock('../../src/core/resources/launcher', async (original) => {
-  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  const { withFixtureCommand } = await import('./helpers/resources/kindLaunch')
   return withFixtureCommand(await original())
 })
 
 function contextFor(kind: Parameters<typeof reportOptions>[0]): SourceReadContext {
   return {
     reportText: EN,
+    locale: 'en',
     asOf: REPORT_FIXTURE_AS_OF,
     workspaceKey: 'workspace',
     options: reportOptions(kind),

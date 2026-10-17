@@ -33,7 +33,7 @@ import {
   networkContext,
   networkRig,
   readGithubReleases,
-} from './helpers/reportNetwork'
+} from './helpers/reportKindNetwork'
 
 const {
   tags: TAGS,

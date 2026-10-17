@@ -18,7 +18,7 @@ import {
 import { ESTIMATE_MISSING_DETAIL_LIMIT } from '../../../shared/constants'
 import { estimateDiagnostic } from '../../../shared/estimateDiagnostic'
 import type { PluralForms } from '../../../shared/l10n/forms'
-import { fill, UI_TEXT, uiLocale } from '../../../shared/l10n/text'
+import { fill } from '../../../shared/l10n/text'
 import { reportSectionSchema } from '../../../shared/reportSchema'
 import { estimateReportSections } from '../collect/estimate'
 import type { ReportSourcePayloads, SourceReadContext } from './types'
@@ -63,17 +63,17 @@ const ESTIMATE_LANE_ID = /^[\w.-]+(?::[\w.-]+)?$/
 const UNKNOWN_GOAL_REF = /^[\w.:-]+$/
 
 /**
- * The installed table synchronously, only for readers built without the
- * factory. This runs before the first await, so no interleaving generation
- * can move the language under it.
+ * The request's own table, only for readers built without the factory.
+ * This runs before the first await, so no interleaving generation can move
+ * the language under it.
  */
-function installedReportText(): EstimateReportText {
+function contextReportText(context: SourceReadContext): EstimateReportText {
   return {
-    failed: UI_TEXT.estimateFailed,
-    noCapacity: UI_TEXT.estimateNoCapacity,
-    notFound: UI_TEXT.estimateNotFound,
-    missingMore: UI_TEXT.estimateMissingMore,
-    locale: uiLocale(),
+    failed: context.reportText.estimateFailed,
+    noCapacity: context.reportText.estimateNoCapacity,
+    notFound: context.reportText.estimateNotFound,
+    missingMore: context.reportText.estimateMissingMore,
+    locale: context.locale,
   }
 }
 
@@ -173,9 +173,9 @@ export function estimateSource(reader: ReportEstimateReader | undefined, scrub: 
     })
     // The report's refusal language, captured before the estimator runs:
     // the factory snapshots its own table onto the reader; anything else
-    // snapshots the installed table here, synchronously, so a generation
+    // snapshots the request's table here, synchronously, so a generation
     // that starts later cannot move the language under this one.
-    const text = reader.text ?? installedReportText()
+    const text = reader.text ?? contextReportText(context)
     let read: Awaited<ReturnType<ReportEstimateReader['read']>>
     try {
       read = await reader.read(request, context)

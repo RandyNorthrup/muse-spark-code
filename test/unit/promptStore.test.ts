@@ -64,15 +64,13 @@ describe('portable prompt store and library', () => {
     }
     const later = { ...remote, body: 'Other window at one', updatedAt: '2026-10-05T13:00:00Z' }
     const other = new PromptStore(data, a)
-    const original = store.write.bind(store)
-    let hasInterleaved = false
-    vi.spyOn(store, 'write').mockImplementation(async (prompt, shouldKeepNewer) => {
-      if (!hasInterleaved) {
-        hasInterleaved = true
-        await other.write(later)
-      }
-      await original(prompt, shouldKeepNewer)
-    })
+    // The other window's newer save is already on disk when this window
+    // writes its chosen (older) revision with keep-newer: the store must
+    // recheck under its lock and keep the newer one, and the library's
+    // read-back after synchronise must then mirror that newer revision.
+    await other.write(later)
+    await store.write(remote, true)
+    expect(await store.list('user')).toEqual([later])
     const write = vi.fn(() => Promise.resolve())
     await new PromptLibrary(store, identity, {
       isOn: () => true,

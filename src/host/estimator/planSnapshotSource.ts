@@ -27,7 +27,7 @@ import {
   GITHUB_API_BASE_URL,
   UI_TEXT,
 } from '../../shared/constants'
-import { setUiText } from '../../shared/l10n/text'
+import { setUiText, uiLocale } from '../../shared/l10n/text'
 
 import {
   isReportNetworkAllowed,
@@ -200,6 +200,7 @@ export function createPlanSnapshotSource(
     const context = {
       // The snapshot bundle's installed table, like every other read here.
       reportText: UI_TEXT,
+      locale: uiLocale(),
       asOf,
       workspaceKey: deps.root,
       signal: signal ?? new AbortController().signal,

@@ -69,6 +69,10 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ...['strict-tools', 'parallel-reads', 'cut-short-tools', 'structured-side-calls'].map(
     (id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']],
   ),
+  // M106 (C-M106-2): the selected model's record is bound in production, so
+  // previews render in the panel and in ACP where that record verifies
+  // streamed arguments.
+  ['argument-preview', ['vscode:modelApi', 'acp:modelApi']],
   ...['service-status'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi']]),
   ['native-deletion', ['vscode:museCode']],
   ['output-schema', ['acp:modelApi']],
@@ -78,7 +82,6 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
   ['team-workers', []],
   ['auto-compaction', []],
-  ['argument-preview', []],
   ['compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
   ['mcp-elicitation', ['vscode:modelApi']],

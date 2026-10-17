@@ -152,6 +152,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
       // the engine awaits each read's own settlement, never racing it.
       const readContext = {
         reportText,
+        locale,
         run: {},
         options,
         asOf: options.asOf,

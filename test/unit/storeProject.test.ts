@@ -16,12 +16,16 @@ import {
 } from '../../src/core/reporting/sources/storeProject'
 import { routeReportTransport } from '../../src/runtime/reporting/network'
 import { ReportNetworkFailure } from '../../src/core/reporting/sources/cache'
-import { bindStoresNetwork, networkContext, readBoundChannelRows } from './helpers/reportNetwork'
+import {
+  bindStoresNetwork,
+  networkContext,
+  readBoundChannelRows,
+} from './helpers/reportKindNetwork'
 
 // Report storage's own-process identity probe runs directly, as in
 // reportEngine.test.ts.
 vi.mock('../../src/core/resources/launcher', async (original) => {
-  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  const { withFixtureCommand } = await import('./helpers/resources/kindLaunch')
   return withFixtureCommand(await original())
 })
 

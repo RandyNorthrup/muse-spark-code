@@ -16,7 +16,7 @@ import {
 } from '../../src/runtime/reporting/playbookSchedulesInputs'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import * as nodeSchedules from '../../src/runtime/schedules/nodeScheduleFs'
-import { MemoryScheduleFs } from './helpers/schedules/storage'
+import { MemoryScheduleFs } from './helpers/schedules/kindStorage'
 import { schedulesSource } from '../../src/core/reporting/sources/schedules'
 import { scheduleTimePlan } from '../../src/runtime/schedules/timePlan'
 import { UI_TEXT, SCHEDULE_FS_RETRY_ATTEMPTS } from '../../src/shared/constants'
@@ -28,11 +28,12 @@ import {
   type ScheduleV2,
 } from '../../src/shared/scheduleV2'
 import { FIXTURE_WORKSPACE_KEY, scheduleFixture } from './helpers/reporting/reportKindFixtures'
-import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
+import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/kindFixtures'
 import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
 
 const context = () => ({
   reportText: EN,
+  locale: 'en',
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: FIXTURE_WORKSPACE_KEY,
   options: reportOptions('schedules'),

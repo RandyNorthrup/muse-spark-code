@@ -13,10 +13,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { createReportingServices } from '../../src/runtime/reporting/engine'
 import type { ReportStoreProject } from '../../src/core/reporting/sources/storeProject'
-import { REPORT_AS_OF } from './helpers/reporting/runtime'
+import { REPORT_AS_OF } from './helpers/reporting/kindRuntime'
 
 vi.mock('../../src/core/resources/launcher', async (original) => {
-  const { withFixtureCommand } = await import('./helpers/resources/fixtureLaunch')
+  const { withFixtureCommand } = await import('./helpers/resources/kindLaunch')
   return withFixtureCommand(await original())
 })
 

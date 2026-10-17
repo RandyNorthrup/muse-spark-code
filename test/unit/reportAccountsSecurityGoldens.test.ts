@@ -8,8 +8,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { finalizeReport } from '../../src/core/reporting/render/canonical'
 import type { ReportKind } from '../../src/shared/reportSchema'
-import { collectFixture } from './helpers/reporting/collect'
-import { RENDERERS, REPORT_THEME } from './reportRenderFixtures'
+import { collectFixture } from './helpers/reporting/kindFixtures'
+import { RENDERERS, REPORT_THEME } from './reportKindRenderFixtures'
 
 setUiText(EN, 'en')
 

@@ -37,7 +37,7 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
-**Contents:** [What's new](#whats-new-in-0171) · [Roadmap](ROADMAP.md) ·
+**Contents:** [What's new](#whats-new-in-0182) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -57,7 +57,50 @@ built, what is planned and what each release shipped.
 Saved reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
-## What's new in 0.17.1
+## What's new in 0.18.2
+
+- **The landing screen shows the extension's own mark.** The empty chat panel
+  showed the Meta logo beside the product name; it now shows the product's
+  own squiggled "m", blue in dark and light themes and in the theme's text
+  colour in high-contrast themes.
+
+### Earlier in 0.18.1
+
+- **Your own providers, a ChatGPT plan and Copilot work again.** In 0.18.0
+  a turn on any of them stopped before it was sent, with an internal error.
+  Sorry for the broken release; Meta's own models were not affected.
+- **Usage from earlier versions is counted again.** 0.18.0 left those records
+  out as not exact; nothing was deleted.
+- **Report a Problem opens again** if you had changed a setting with a second
+  dot in its name; it used to answer "That did not work".
+
+### Earlier in 0.18.0
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
+  provider's accounts and sets their thresholds; `auth set --provider <id>
+--account <id>` stores a key for one account; `exec --account <id>` runs on
+  the account you name. In an ACP editor on a Model API key, `/accounts`
+  shows the list and the current account. Changing account inside a session,
+  pooled runs and an Accounts page in the editor are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete; content and edits stay hidden and nothing runs until the call
+  is complete. Other models keep the finished-call row for now.
+- **Reviewing Git changes works without a Git filter.** Without Git LFS or
+  another filter configured, every native review was refused since 0.15.0.
+- **The activity-bar icon is the extension's own mark**, the squiggled "m".
+
+### Earlier in 0.17.2
+
+- **Long replies from your own providers and a ChatGPT plan finish.**
+  Since 0.15.0 a reply from a provider you added in Models & Agents, or
+  from a ChatGPT plan sign-in, was cut off 30 seconds after the request
+  started. A reply now has no limit on its total time; one that goes
+  silent ends after 5 minutes, and the message says so.
+
+### Earlier in 0.17.1
 
 - **The provider picker works again.** Models & Agents lists every provider
   again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
@@ -225,66 +268,26 @@ model call or a charge. **Needs You** comes first; every source names its
 availability, freshness and observation time. Missing integrations remain
 visible as unavailable.
 
-| Kind        | Input                                                                           |
-| ----------- | ------------------------------------------------------------------------------- |
-| Project     | `/report project`                                                               |
-| Milestone   | `/report milestone M113`                                                        |
-| Release     | `/report release latest`                                                        |
-| Changes     | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry    |
-| Quality     | `/report quality`                                                               |
-| Usage       | `/report usage today`; also `7d`, `30d`, `90d`, `week`, `month` or a date range |
-| Session     | `/report session`; `--session <id>` reads a stored session (terminal)           |
-| Keybindings | `/report keybindings`; editor bindings, panel gestures, ACP commands            |
-| Accounts    | `/report accounts`; provider accounts, limits, usage, swaps and confirmations   |
-| Security    | `/report security`; vault counts, grants, audits and developer audit            |
-| Playbook    | `/report playbook`; `--module <glob>` and `--milestone <id>` filter modules     |
-| Schedules   | `/report schedules`                                                             |
+| Kind                 | Input                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------- |
+| Project              | `/report project`                                                                           |
+| Milestone            | `/report milestone M113`                                                                    |
+| Release              | `/report release latest`                                                                    |
+| Changes              | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry                |
+| Quality              | `/report quality`                                                                           |
+| Usage                | `/report usage`; `30d --by model` scopes the window and breakdown                           |
+| Session              | `/report session`                                                                           |
+| Key Bindings         | `/report keybindings`                                                                       |
+| Accounts             | `/report accounts`                                                                          |
+| Security             | `/report security`                                                                          |
+| Estimate             | `/report estimate M113`; `--by <date>` sets the deadline, `--fleet minimum` picks the setup |
+| Engineering Playbook | `/report playbook`                                                                          |
+| Schedules            | `/report schedules`                                                                         |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
-all available rows. Accounts and security reads retain independently valid
-records and name invalid, unavailable or bounded facets in their partial reason;
-one malformed limit or vault view cannot erase the other evidence.
-Next steps follow the plan's declared delivery order and
+all available rows. Next steps follow the plan's declared delivery order and
 only become ready when their required milestones are complete. At most three
-next steps are shown. Session turn
-and approval totals require retained activity facts; transcript row counts
-never substitute for them. The session report reads the current conversation
-in the editor, a stored Model API session by id, or primary-backend history
-through the active ACP host (the CLI opens a read-only host when needed).
-Usage periods use the machine timezone unless `--as-of` carries an explicit
-offset; journal day labels remain as recorded. The usage report reads
-the on-disk usage journal through the same aggregation as Account & usage, so
-its totals match that page for the same period; `--by model`, `provider`,
-`kind`, `session`, `client` or `account` chooses the breakdown. Per-tool
-usage is not recorded in the journal, so `--by tool` reports totals with an
-explicit partial breakdown instead of invented rows. Account rows use
-`provider/account` identities. Reports await pending recording and share one
-journal snapshot per generation. Damaged, incomplete, newer-version or
-unattributable evidence is disclosed in partial source rows. Limits respect
-the selected period; live finite daily and conversation budgets use the
-usage page's snapshots when available in that period. Historical or unbound
-budget snapshots are explicitly unavailable. The playbook report reads the
-orchestrator journal through the same replay the policy uses, so its
-three-strikes counts per module and class match enforcement: design
-decisions with their outcomes, hook-verification receipts with their
-pass/fail results, currently disabled rules per team with their latest
-reason, actor and date, and the route-around refusals. `--module
-<glob>` keeps matching modules (`*` stays inside one path segment, `**`
-crosses them); `--milestone <id>` keeps modules, lanes and decisions
-naming it; workspace-wide rows stay in both cases. The schedules report
-reads the workspace's schedules and fire record: the timeline of upcoming
-fires with collisions, each schedule's trigger, target, delivery, grant
-and creator, recent fires with translated outcomes, refused actions and cost.
-Schedule revisions reconcile around the fire-history read; admitted one-shots,
-paused/ended schedules and occurrences at or beyond the end date stay off the
-upcoming timeline. Writer contention retries and is named as busy if it persists.
-A waiting read stops at its deadline; cancellation releases its lease so another
-writer can acquire immediately. A heartbeat that contradicts its immutable
-lease identity reports invalid without retrying.
-Each report keeps the language table captured when its request starts. Until
-delivery is registered no v2 fire exists, so the fire sections stay
-empty instead of invented. Both kinds work in VS Code, ACP and the
-terminal without a model call.
+next steps are shown.
 
 The tab provides **Save As…**, **Copy as Markdown**, **Attach to Message**,
 **History**, **Diff With Previous** and **Refresh**. Save as exports Markdown,
@@ -305,11 +308,7 @@ The terminal requires `--network` on every collection, and uses `gh`'s own
 identity. CI egress remains denied. Cache reads and writes use confined,
 owner-only storage, validated decoded data and ETags; interrupted requests
 retain honest unavailable or partial status. Store, workflow and release
-channels read their captured public endpoints (Marketplace, Open VSX, npm,
-GitHub Actions runs, releases with tag commits); uncaptured shapes refuse
-with named reasons. Posting, scheduled destinations,
-mail, vault and node-browser integration await their owning milestones;
-the tab does not offer them yet.
+adapters await approved live captures.
 
 `museSpark.reports.agentSources` defaults to an empty array. Only agents you
 explicitly enable (`claudeCode`, `codex`) have their confined local usage files
@@ -2078,6 +2077,48 @@ or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
 <!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
      Turn this into a link in the release that follows approval. -->
 
+<!-- reference: streamed-argument-previews -->
+
+## Streamed argument previews
+
+On the Model API backend, a selected model with verified streamed-argument
+support shows an **Argument preview** in its tool row, in the shared panel
+and in ACP. The preview shows only declared top-level string fields after
+their closing quote validates: file paths, shell commands, search patterns
+and fetch URLs. These values pass through the existing credential scrubber
+before display. File content, edits, nested values and other fields stay
+hidden. An offered IDE or MCP tool declares its own string fields the same
+way; a tool the request never offered shows a received byte count only.
+
+One model has that verified record today: `muse-spark-1.3-contributor`.
+Every other model keeps the completed-call row until its own stream is
+captured.
+
+An unfinished string never appears. Malformed JSON, duplicate keys,
+non-string values for declared fields or excessive nesting freeze the last
+safe display with **Preparing arguments…** until valid complete arguments
+arrive. Retained input and display text are bounded at 16,000 characters;
+the byte count continues after that bound. Updates coalesce every 100 ms,
+with a final safe flush before interruption. A preview does not execute a
+tool, request approval or run a hook; only the existing completed-response
+path admits execution. Previews never enter model replay.
+
+Completion, promotion and interruption clear a call's preview. Reloading
+the panel clears saved previews even while the same turn continues, because
+a turn ID cannot prove a tool is still pending. A fresh update restores an
+active preview to its original call row. Recognized credential patterns
+and registered literals are scrubbed; arbitrary unregistered secrets in a
+declared field remain outside that scrubber's contract.
+
+VS Code and interactive ACP use the selected record’s documented output
+maximum (131,072 tokens for Muse Spark), clamped by their budget. Headless
+`exec` requests at most 32,768 output tokens, or the record’s smaller maximum:
+its run ledger reserves the worst case before dispatch, so raising that cap
+would change what existing headless money budgets can run. Headless exec
+records completed tools and does not display live argument previews.
+
+<!-- /reference: streamed-argument-previews -->
+
 ## Code intelligence
 
 The agent finds its way around code the way the editor does: from VS Code's
@@ -2204,75 +2245,6 @@ both backends, as Muse Code's `/goal` does.
   nothing runs: the backend never continues on its own and runs no check of
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
-
-## Estimates
-
-The composer `/estimate <goal> [--by <date>] [--fleet
-current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
-`muse-spark-code-acp estimate` use one lazy engine. The snapshot reads your
-workspace `PLAN.md` with its git and `gh` evidence: lane hours, Starts
-dependencies, rigs, file affinities, the delivery order and §10 releases.
-Every prerequisite in the selected goal's dependency closure must resolve;
-duplicate identities, invalid rows, reader drift and unknown unfinished rigs in
-that closure refuse with all problems named. Unrelated rows do not block a
-forecast. Release goals also validate their declared release members. Completed lanes remain addressable
-with zero remaining work and require no placement. Merge evidence uses origin's
-default branch; a current replacement branch overrides older merged PRs.
-Failed or incomplete enabled evidence collection refuses by source name. Git-only
-forecasts remain available while network reads are disabled; PR goals then refuse.
-Editor network reads follow the current Reports network/sign-in policy and trust
-admission on every estimate. ACP/headless network reads remain disabled.
-The panel, ACP, CLI and TUI show the same named diagnostic for plan and engine
-refusals, including self dependencies and cycles. External errors show only
-the fixed unavailable reason, so private paths and content stay hidden.
-`muse-spark-code-acp estimate --help` shows the
-standalone syntax without starting a model or asking for credentials.
-A refused estimate, refresh or first-wave start replaces the previous forecast with its
-diagnostic; old P50/P90, schedule rows and setup cards are removed.
-
-`muse-spark-code-acp estimate --check-plan` and ACP `/estimate --check-plan`
-check the entire workspace plan without estimating, reading git or calling a
-model. Use the flag alone, with no goal or other flags. The checker requires
-`plan-format-v1` and at least one lane table; empty, truncated or unsupported
-plans fail. It lists every row problem, including malformed Starts, invalid
-identities, unresolved references, self prerequisites and reader drift. CLI
-exit codes are 0 for a clean plan, 1 for problems or an unavailable plan, and
-2 for usage errors. A clean check prints nothing; ACP returns the problem
-list or an empty response for a clean plan.
-
-Starts uses `after` followed by lane, qualified-lane or milestone references,
-separated by commas or `and`, with clauses separated by semicolons. `lane M1`
-always refers to the local lane M1; bare `M1` refers to milestone M1.
-`first` and `day 0` have no prerequisites; `last` follows every other lane.
-Parenthetical notes may describe a reference, but ordering words such as
-`after`, `before`, `once`, `when`, `finished`, `last` and `freeze` in a note
-are rejected. Put ordering in Starts itself, for example `after 0; last`.
-
-- **Verified with fakes, and with real plans.** The engine returns P50/P90 dates,
-  critical-path schedules, limiting resources and current/minimum/optimum setups. Figures
-  carry parameter-specific evidence and sample sizes; unknown capacity and
-  approximate placement stay qualified. Below 20 samples, fitted parameters
-  remain priors. Bases older than seven days carry a schedule-risk flag. A goal
-  whose lanes lack hour estimates is refused naming the lanes, instead of a
-  partial forecast; per-lane metered demands the plan never carries are
-  disclosed zero-sample assumptions until calibration replaces them per kind.
-  Issue and label goals resolve once their lane associations land with M113 N.
-- **Existing fleet.** The panel sends an audited, contract-first first-wave
-  request independently of rental readiness. Production dispatch still
-  refuses with `M117-W-M96-board`. Finished-lane history updates and automatic
-  production refresh wait for M115.
-- **Still waiting.** Starting lanes (M96's board), price catalogs (M113's
-  catalogs), finished-lane history (M115) and multi-machine fleets each refuse
-  with their handoff names until those land; the local single-machine forecast
-  from your plan works now.
-- **Rentals remain advice-only.** M109/M110 provider/install/pair bindings
-  and P's internal Slice 2 provisioning lifecycle are still absent. Liability
-  reservation, separate spend confirmation, funded-deadline/idle teardown,
-  Keep and wipe-before-delete are planned, not shipped behavior. No rental
-  creation is enabled.
-- **Settings** (this machine): `museSpark.estimator.optimize` (`cost` or
-  `speed`) and `museSpark.estimator.priceLookup`, which follows the Reports
-  network policy; catalog quotes retain their dates.
 
 ## Review
 
@@ -3438,8 +3410,8 @@ rest of the file still shows. A file is refused whole if it is over 16 MiB, is a
 format or a newer version, or holds any field this version does not know.
 At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
 with the theme's focus border; Escape closes the view and focuses the composer.
-For a local visual check, `node scripts/harness-shots.mjs share share-narrow`
-captures both widths; `share-narrow` also runs in all four accessibility themes.
+For a local visual check, `npm run ui:look -- share` renders the scene
+from the built webview into `temp/ui-look/`.
 The picker reads a local `file:` URI on the extension host through one
 checked descriptor, stopping at the size cap even if the file grows.
 Other file providers are explicitly refused because this reader cannot
@@ -5106,7 +5078,6 @@ schedules, workers and hooks always remain fenced.
 
 The unbound features include:
 
-- <a id="streamed-argument-previews"></a>Tool argument previews
 - <a id="estimates"></a>Capacity estimates
 - <a id="the-vault"></a>Credential vault
 
@@ -5222,11 +5193,6 @@ What's New browser pages and their metafiles with production options and
 stale-chunk cleanup; it omits the Node
 bundles so browser tests stay within their default setup deadline.
 
-After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI
-surfaces in Chrome against a fake host: no startup requests, first-use loading
-under the shared CSP, and recovery from actual failed entry/static-dependency
-fetches. Retry reloads the panel with its saved conversation and draft. Cold
-menus remain dismissible and cannot take focus after dismissal.
 The generated [feature reference](docs/reference.md) takes its entries from
 `src/shared/featureCatalog.ts` and the marked README sections. Run
 `node scripts/gen-reference.mjs` after updating an entry, and
@@ -5308,7 +5274,7 @@ The delivery helpers require Python 3.12 or newer. See the
   `npm run security:secrets`.
 - semgrep for `npm run security:sast`, at CI's version:
   `pip install -r .github/semgrep/requirements.txt`.
-- Google Chrome (or `CHROME_PATH`) for `test:a11y`, `harness:shots` and
+- Google Chrome (or `CHROME_PATH`) for `test:a11y`, `ui:look` and
   `images`.
 - On Windows, PSScriptAnalyzer 1.25.0 for `npm run lint`
   (`Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser`).
@@ -5359,12 +5325,10 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run build:dev`                       | Dev bundles for the extension, the Model API backend, the review, the search worker, web fetch's page converter worker, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `npm run watch`                           | Rebuild the extension, the Model API backend, the search worker, the page converter worker and the webview on change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev`. `--theme=dark`, `light`, `hc-dark`, `hc-light`, `one-dark-pro` or `dracula` uses a captured theme; `chat-menu-narrow` uses a true 320 px viewport. The README's screenshots refresh with `npm run readme:shots` (the mapping in `scripts/readme-shots.json`), captured at the mapped viewport size after the harness readiness scan into `media/readme/`: `tools-open` (as `turn.png`), `agents`, `slash-palette` (as `palette.png`), `slash-commands`, `approval`, `question`, `quote-menu` (as `quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation` (as `voice.png`), `paid` and `paid-always`, the Languages section's is `usage --lang=de` (as `languages.png`), `readme-open-question` (as `open-question.png`), `readme-help` (as `help.png`) and `resources-throttle` (as `resources.png`); the walkthrough's are `empty`, `tools`, `slash-palette` and `signin` (as `open.png`, `welcome.png`, `chat.png` and `sign-in.png` in `resources/walkthrough/`); `--lang=<id>` renders them in a table from `l10n/` (`--lang=pseudo` in the pseudo-locale)           |
+| `npm run ui:look -- <scene>`              | Renders one webview scene from the built webview into `temp/ui-look/` for a person to look at after a UI change; no baseline, no comparison, no CI. `--theme=light` or `dark` renders one theme (both by default); needs `build:dev`.row`uses a true 320 px viewport. The README's screenshots refresh with`npm run readme:shots`(the mapping in`scripts/readme-shots.json`), captured at the mapped viewport size after the harness readiness scan into `media/readme/`: `tools-open`(as`turn.png`), `agents`, `slash-palette`(as`palette.png`), `slash-commands`, `approval`, `question`, `quote-menu`(as`quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation`(as`voice.png`), `paid`and`paid-always`, the Languages section's is `usage --lang=de`(as`languages.png`), `readme-open-question`(as`open-question.png`), `readme-help`(as`help.png`) and `resources-throttle`(as`resources.png`); the walkthrough's are `empty`, `tools`, `slash-palette`and`signin`(as`open.png`, `welcome.png`, `chat.png`and`sign-in.png`in`resources/walkthrough/`); `--lang=<id>`renders them in a table from`l10n/` (`--lang=pseudo` in the pseudo-locale)                                                                    |
 | `npm run build:tokens`                    | Regenerate shared CSS and native/desktop/TUI token inputs from `design/tokens/muse.tokens.json`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run check:tokens`                    | Reject stale generated outputs, missing contrast coverage and pairs below AA in all four Muse palettes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run check:visual`                    | Compare every audited component scene, six control states, six captured themes and 320/690 px widths with pixelmatch (colour threshold 0.1, AA detection, per-image allowance at most 0.01% or 12 pixels). Full PNG baselines stay outside git under a 512 MiB budget. An absent archive reconstructs the manifest's Git revision with the current browser/fonts. Both CI tiers require six deterministic shards and their complete receipt merge. Use `-- --shard=1/6` to rerun one batch and `-- --merge-shards=<receipt-directory>` to require all batches and the combined budget. Each shard reconstructs the reviewed source on the runner; see [S's certification](docs/certification/m114-s-screenshots,-visual-regression-and-docs.md). A reviewed update uses `-- --update --review=<reference> --archive=<new-external-directory>`; commit the changed manifest only after reviewing the images. See [the visual contract](test/harness/goldens/README.md).                                                                                                                                                                                                                                                         |
-| `npm run check:visual:a11y`               | Record scoped axe findings for every audited component in six themes at true 320/690 px; retain incomplete findings and fail on violations. The full `test:a11y` gate remains separate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `harness:shots --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `ui:look -- <scene> --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `npm run test:a11y`                       | The accessibility gate: axe-core checks every harness scenario in VS Code's four default themes against WCAG 2.2 AA and fails on any violation, on anything axe leaves undecided (except the contrast of text it could not see and of glyph-only content, which it counts), and on a page without a result or whose scenario threw; needs a build. `node scripts/capture-themes.mjs` refreshes the theme colours from a real VS Code; `--lang=<id>` checks the scenarios in a table from `l10n/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `npm run build`                           | Minified production bundles with chat, Models and What’s New sharing one browser splitting build, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if the Model API backend's files, the review's, or web fetch's page converter (parse5 and its parts), are in the activation bundle, or an English fallback is in any Node bundle except its shared `dist/uiText.js` (`scripts/check-bundle-split.mjs`), or a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages. The provider catalogue keeps its exact JSON values in a CommonJS data module, staged through the existing verified Brotli runtime loader                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -5376,7 +5340,7 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run deadcode`                        | `knip`: unused files, exports (including namespace values and types), dependencies (no `--strict`; see `knip.jsonc`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `npm run cycles`                          | `dpdm` circular-import check (`scripts/cycles.mjs` over the roots in `scripts/cycles.json`) covering every build entry, runtime lazy import target, entry-named module and knip entry; `cyclesRoots.test.ts` guards coverage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `npm run test:unit`                       | vitest with no coverage gate (the number measured tests of fake code; removed with the 2026-10-14 test overhaul); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `npm run test:e2e:live`                   | Two real turns on the installed Muse Code CLI (a reply-only turn and M70's review turn held in Plan mode), opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (25 to 45 model attempts measured for a reply-only turn: one for the answer, the rest for Muse Code's bundled reminder agents, which loop a varying number of times; budget 60 per turn, counted from the CLI's trace log); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `npm run test:e2e:live:modelapi`          | The Model API sweep: the production backend against Meta's real API in empty temporary workspaces, one case per feature (`-- -t case07` runs one); opt-in with `MUSE_LIVE_MODEL_API=1` and a key already stored by `muse-spark-code-acp auth set` in the OS credential store; key environment variables are rejected, contributor tier only; bills the key (about $0.03 a full run, $0.02 of it two images; it stops sending past $0.50); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `npm run test:e2e:live:eval`              | The M75 paired efficiency evaluation: the twelve fixture tasks (seven accept, five held-out; two with a tool output long enough to pack) on the baseline and the observation packing arm (M73), on the extension's own Model API harness against Meta's real API, each in an empty temporary workspace, judged by a verifier that runs the fixed code; attempts counted from the requests sent, tokens, cost and pass rate per task, and the capability floors (0.75 per split); a packing run also fails unless it packed on every long-output task, and its report says so. Opt-in with `MUSE_LIVE_MODEL_API=1` and a key already stored by `muse-spark-code-acp auth set` in the OS credential store; key environment variables are rejected, the model's shell commands get no credential variable, the arms take turns going first, contributor model only; `MUSE_EVAL_TASKS` picks tasks, `MUSE_EVAL_REPORT=<path>` writes `<path>.json` and `.md`; run `npm run build:dev` first. Bills the key (the ten-task baseline measured 39 model calls and $0.0041; both arms on all twelve tasks measured 111 model calls and $0.0156 for M73; it stops sending past $0.50 or when a sent call has unknown usage); never in CI |
@@ -5479,6 +5443,18 @@ bundle declarations and callable split guard in
 rejected, then restored byte-exact and accepted. See the
 [timing and gate-fire record](docs/certification/deflake4.md).
 
+**Lazy-bundle registry.** `src/shared/lazyBundles.generated.ts` names every
+dist bundle loaded by file name, the function or constant that names it,
+which process loads it and which package carries it.
+`npm run lazy-registry:generate` writes it from the production build;
+`node scripts/gen-lazy-registry.mjs --check` runs in `npm run build` and
+fails when the file is stale, when a source loads a file the build does not
+emit, when a package lacks a bundle its side can load, when a load's file
+name is worked out at run time and is not listed with its reason
+(`scripts/lib/lazyRegistry.mjs`), and when the build's metafiles are
+missing. The command is tested as a child process over a real production
+build (`test/unit/packagedBundles.test.mjs`).
+
 **Project structure.**
 
 ```
@@ -5493,13 +5469,13 @@ src/webview/                React app (own tsconfig, browser libs)
 native/windows/             dictate.ps1 (dictation, System.Speech) and capture.ps1 (Muse Voice's recorder); MuseSparkJob.cs, MuseSparkMcpLauncher.cs, MuseSparkMcpJob.cs: the Windows job helpers' C#, compiled on first use
 native/darwin/              Dictation.swift, Info.plist, build.sh, check-disclaim.sh: the macOS helper (built and checked in CI)
 resources/walkthrough/      the Get Started walkthrough
-test/unit/                  vitest tests, vscode mock, fakes
-test/e2e/                   the fake Muse Code CLI and the tests that drive the real backend through it; the opt-in live suites
+test/unit/                  vitest tests over real code only: no mocks, fakes, stand-ins or screenshot comparisons
+test/e2e/                   the live drills, kept listed for the real-life run
 test/integration/           @vscode/test-cli suites
 test/fixtures/workspace/    the workspace the integration tests open
-test/harness/               the webview behind a fake host, for screenshots and the accessibility gate; themes/ holds four VS Code themes and captured One Dark Pro/Dracula colours; goldens/ holds the visual manifest, with PNGs outside git
+test/harness/               the webview behind a scripted host, for the local look, the README pictures and the accessibility gate; themes/ holds four captured VS Code themes
 test/hosts/                 the extension and the ACP agent in other editors (VSCodium, code-server, Theia, JupyterLab, Emacs, Neovim), one script per host
-scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, harness screenshots, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
+scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, the local UI look, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
 docs/                       PRIVACY.md, and certification/: per-milestone gate-fire records
 media/                      icons, banner, social preview, README screenshots
 .github/                    workflows (ci, build, release, hosts, forks, action-check), issue and pull-request templates, audit exceptions, pinned semgrep, CODEOWNERS, Dependabot, FUNDING
@@ -5580,6 +5556,24 @@ without rebuilding.
   another machine.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
+
+#### M106 wire captures
+
+`node scripts/capture-m106-meta.mjs --help` explains the developer capture
+tool; `node scripts/capture-m106-meta.mjs --plan` prints its six requests
+without network access. Live collection requires an explicit paid-capture
+opt-in and a key on standard input. It runs two status GETs and four
+contributor-model POST attempts without retries, including a request with
+the recommended 131,072-token output cap. It writes counted, scrubbed
+receipts into a new directory and exits unsuccessfully if a required wire
+contract is refused or missing. The lead supplies the key and reviews the
+receipts before installing fixtures or enabling a capability.
+
+The [C-M106-1 capture record](docs/certification/m106-completion-captures.md)
+contains Muse Code 1.4.4's observed effort, feedback and lifecycle frames,
+the missing credential or local runtime for every provider, and the remaining
+live checks. The collector is a developer tool shared across Windows,
+macOS and Linux; editor bindings belong to the later completion lanes.
 
 PNG/JPEG images are resized before entering Model API replay when the selected
 model record supplies vision support and documented pixel limits. The portable
@@ -5739,7 +5733,8 @@ Always remains revocable. Unknown prices cannot spend under a dollar cap.
 Charges and durable claims use exact decimal USD, and uncertain dispatches
 retain liability.
 
-Structured side calls prefer a captured
+Argument previews use a separate lazy chunk and are available only with
+recorded streaming-argument support. Structured side calls prefer a captured
 schema format, allow one repair and retain the text fallback. Git commit and
 pull-request drafts apply this contract to the user's own turn, with repairs
 under the session's hooks and budget. Judge uses the selected model's captured

@@ -15,7 +15,7 @@ import {
   createSessionReportReader,
 } from '../../src/runtime/reporting/reportInputs'
 import type { SourceReadContext } from '../../src/core/reporting/sources/types'
-import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
+import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/kindFixtures'
 
 const scrub = (text: string) => text
 
@@ -26,6 +26,7 @@ function contextFor(
 ): SourceReadContext {
   return {
     reportText: EN,
+    locale: 'en',
     asOf: REPORT_FIXTURE_AS_OF,
     workspaceKey: 'workspace',
     options: reportOptions(kind),

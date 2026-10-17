@@ -13,7 +13,7 @@ import {
   playbookModuleFixture,
   sectionById,
 } from './helpers/reporting/reportKindFixtures'
-import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
+import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/kindFixtures'
 
 setUiText(EN, 'en')
 
@@ -22,6 +22,7 @@ const journal = playbookJournalFixture()
 const scrub = (text: string) => text.replaceAll('private-canary', '[redacted]')
 const context = (kind: 'playbook' | 'usage' = 'playbook') => ({
   reportText: EN,
+  locale: 'en',
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: reportOptions(kind),

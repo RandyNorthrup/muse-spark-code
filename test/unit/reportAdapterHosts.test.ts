@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { marketplaceStoreAdapter } from '../../src/core/reporting/sources/marketplaceStore'
 import { npmStoreAdapter } from '../../src/core/reporting/sources/npmStore'
 import { openVsxStoreAdapter } from '../../src/core/reporting/sources/openVsxStore'
-import { networkContext, networkRig } from './helpers/reportNetwork'
+import { networkContext, networkRig } from './helpers/reportKindNetwork'
 
 const schema = z.looseObject({})
 

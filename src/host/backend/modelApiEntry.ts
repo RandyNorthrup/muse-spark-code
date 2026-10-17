@@ -20,6 +20,13 @@ import {
 // available when this backend is loaded outside the extension.
 
 // T's one request loop and framing API are shared by the lazy provider adapters.
+// The build points every other bundle's import of transport.ts, sse.ts and
+// ndjson.ts at this bundle (deferredCohort), so a name those bundles import
+// exists at run time only if it is exported here: TypeScript checks the import
+// against the source module and cannot see the difference. 0.18.0 shipped
+// without the three confirmed-dispatch names, and every turn on a configured
+// provider, a plan or Copilot failed before sending (HOTFIX0181). The split
+// gate now reads the built bundles and fails on a member this list lacks.
 export {
   RequestTransport,
   ModelApiError,
@@ -29,6 +36,9 @@ export {
   redactModelApiError,
   ignoreClosingError,
   redactSecrets,
+  assertConfirmedAllowed,
+  isStaleConfirmedError,
+  noteConfirmedRequestStarted,
 } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'
@@ -36,10 +46,13 @@ export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/sch
 export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
 import type { HookDefinition, HookLoadDeps } from '../../core/backends/modelapi/hooks'
+import { metaResolvedModel } from '../../core/backends/modelapi/modelPolicy'
 import {
   metaModelFacts,
   metaSideCallFormats,
   metaHostedCapabilities,
+  metaArgumentPreviewCapabilities,
+  metaOutputMaxTokens,
 } from '../../core/backends/modelapi/modelCapabilities'
 
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
@@ -179,6 +192,20 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       ? undefined
       : await import('../../core/backends/modelapi/modelApiMcpEntry.js')
   mcp?.setUiText(deps.uiText, deps.uiLocale)
+  // The host carries the exact resolved record through each request.
+  // The session client's own resolver is authoritative in every production
+  // path (RVCM1062B P1/P2): the runtime's accounting-wrapped headless client
+  // keeps its daily reservation and run-ledger admission, and the
+  // subscription-aware extension/ACP client keeps its plan routing and
+  // shared usage ownership. A standalone registry is only the fallback for
+  // a client without one; a plan ref it cannot name still resolves against
+  // the session client, as it did before any registry was supplied. Bare
+  // Meta models never reach the resolver (the host answers them from M95's
+  // own policy), so they fall through to the shared Meta default.
+  // The `in` narrowings (not truthiness reads) carry the optional
+  // members off the ModelApiClient | ProviderClient union.
+  const clientModels = 'models' in client ? client.models : undefined
+  const isPlanModel = 'isPlanModel' in client ? client.isPlanModel : undefined
   const host = new ModelApiHost({
     ...hostDeps,
     autoCompactModel: hostDeps.autoCompactModel ?? resolveAutoCompactModel,
@@ -186,19 +213,36 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
     modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,
+    argumentPreviewCapabilities:
+      hostDeps.argumentPreviewCapabilities ?? metaArgumentPreviewCapabilities,
+    modelOutputMaxTokens: hostDeps.modelOutputMaxTokens ?? metaOutputMaxTokens,
     client,
-    ...('models' in client && { models: client.models }),
-    ...(deps.createProviders !== undefined && {
+    ...((clientModels !== undefined || deps.createProviders !== undefined) && {
       models: {
         resolve: async (ref: string) => {
+          if (clientModels !== undefined) {
+            return await clientModels.resolve(ref)
+          }
           const registry = await resolveProviders()
-          return await registry.resolve(ref)
+          try {
+            return await registry.resolve(ref)
+          } catch (error: unknown) {
+            if (isPlanModel?.(ref) === true) {
+              return metaResolvedModel(ref, client)
+            }
+            throw error
+          }
         },
-        list: async () => {
-          const { list } = await resolveProviders()
-          if (list === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
-          return await list()
-        },
+        // A client without a list keeps the host's client-only catalogue:
+        // always defining list would turn that absence into a failure.
+        ...((clientModels?.list !== undefined || deps.createProviders !== undefined) && {
+          list: async () => {
+            if (clientModels?.list !== undefined) return await clientModels.list()
+            const { list } = await resolveProviders()
+            if (list === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+            return await list()
+          },
+        }),
       },
     }),
     mcpServers:

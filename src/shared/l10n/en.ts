@@ -108,6 +108,8 @@ export const EN = {
   resourceRelocateOffDescription: 'Keep work on this machine.',
   // M106: loop previews, structured answers, health and explicit feedback.
   toolArgumentPreviewLabel: 'Argument Preview',
+  toolArgumentPreviewDescription:
+    'Show validated, scrubbed tool arguments as they arrive, before the tool runs.',
   toolArgumentPreviewTruncated: 'Preview truncated.',
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
@@ -506,7 +508,7 @@ export const EN = {
   referenceQuestionsDeferral:
     'Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer <n> <text> answers one.',
   referencePermissionLimits:
-    'museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
+    'museCode:manual: Muse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
   referenceElicitationTitle: 'MCP Elicitation',
   referenceElicitation:
     'MCP forms ask for information for the requesting MCP server. Submitted form values go to that server, outside the model conversation and transcript. A server can include them in later tool output. Never enter a password or key.',
@@ -1216,6 +1218,11 @@ export const EN = {
   sessionContinued: 'Conversation continued after the restart.',
   sessionNotContinued:
     'The conversation could not be continued after the restart, so this message starts a new one',
+  // After a restart the resumed conversation runs on {active} instead of the
+  // chosen {wanted}: the message is not sent, and the conversation stays
+  // resumable, so choosing the reported model and resending continues it.
+  modelNotKeptAfterRestart:
+    'Muse Code reports this conversation runs on {active} instead of {wanted}, so the message was not sent. Choose the model again and resend to continue it.',
   surfaceClosed: 'The panel was closed',
   hostStartFailed: 'The backend could not start',
   decisionErrorNotice:
@@ -1786,6 +1793,11 @@ export const EN = {
   // dist/extensionHooks.js failed to load.
   extensionHooksUnavailable:
     'The extension hooks could not be loaded, so no hook ran; reinstall the extension and reload the window. The log has the details.',
+  // dist/modelApiTools.js failed to load.
+  modelApiToolsUnavailable:
+    'The model call helpers could not be loaded, so hook call fields are unavailable; reinstall the extension and reload the window. The log has the details.',
+  modelApiToolsPreviewUnavailable:
+    'The model call helpers could not be loaded, so argument previews are unavailable; reinstall the extension and reload the window. The log has the details.',
   // The Model API shell's kept working directory. {path}: workspace-relative.
   shellDirectory: 'In {path}',
   shellDirectoryReset:
@@ -3742,9 +3754,10 @@ export const EN = {
   // reviewer (M78) checks commands no rule settles while it is on
   // (modelApiReviewedAutoDetail).
   permissionModeDetails: {
-    manual: 'Muse will ask before running commands; Muse Code edits workspace files without asking',
+    manual:
+      'Muse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without asking',
     acceptEdits:
-      'On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
+      'On Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it',
     plan: 'Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
     auto: 'Muse Code runs the commands it judges simple without asking and asks before the rest',
     bypassPermissions: 'Muse will edit files and run commands without asking',
@@ -3975,6 +3988,12 @@ export const EN = {
     'Other enabled paid tools may add their own charges. Bypass does not skip this confirmation.',
   scheduleConfirmationExpired:
     'The model, conversation or prompt changed during confirmation. Review the schedule and choose Run again.',
+  requestStaleTurn: 'The model or conversation changed while sending. Send your message again.',
+  requestStaleCompaction: 'The model or conversation changed while compacting. Compact again.',
+  requestStaleRetry: 'The model or conversation changed before the request was sent. Try again.',
+  requestStaleHookModel:
+    'The model changed while the hook was asking the model. Try the action again.',
+  requestStaleRun: 'The model changed during the run. Run the command again.',
   webNoResults: 'No results',
   backgroundRunning: 'Running in the background',
   // M46 (PLAN.md D39): moving a running command to the background, stopping

@@ -11,11 +11,11 @@ import {
   buildSourceSnapshot,
   reportOptions,
   REPORT_FIXTURE_AS_OF,
-} from './helpers/reporting/snapshot'
-import { fixtureCollector } from './helpers/reporting/collect'
+} from './helpers/reporting/kindFixtures'
+import { fixtureCollector } from './helpers/reporting/kindFixtures'
 import { finalizeReport } from '../../src/core/reporting/render/canonical'
 import { CANARIES, canaryVaultSnapshot } from './helpers/reporting/canaryVault'
-import { RENDERERS, REPORT_THEME } from './reportRenderFixtures'
+import { RENDERERS, REPORT_THEME } from './reportKindRenderFixtures'
 
 setUiText(EN, 'en')
 
@@ -29,6 +29,7 @@ describe('security report canary', () => {
       })
       const context = {
         reportText: EN,
+        locale: 'en',
         asOf: REPORT_FIXTURE_AS_OF,
         workspaceKey: 'fixture',
         options: reportOptions('security'),

@@ -6,7 +6,7 @@ import {
 } from '../../src/host/estimator/planSnapshotSource'
 import { parseEstimateGoal } from '../../src/shared/estimate'
 import { resolveEstimateGoal } from '../../src/core/estimator/goal'
-import { ESTIMATOR_AS_OF, fakePlanSourceIo } from './helpers/estimator/fakes'
+import { ESTIMATOR_AS_OF, fakePlanSourceIo } from './helpers/estimator/kindFakes'
 
 const PLAN = `## 6. Milestones
 

@@ -278,12 +278,13 @@ function feature(
 
 // CX1R3: retained for coverage validation, omitted from published Help.
 // Accounts left the list with CM108ACC: the terminal and ACP serve them.
+// Argument previews left it with C-M106-2: the panel and ACP render them on
+// a model whose record verifies streamed arguments.
 export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
   'team-workers',
   'vault',
   'estimator',
   'auto-compaction',
-  'argument-preview',
 ]
 
 export function featureCatalog(): readonly Feature[] {
@@ -537,11 +538,13 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'argument-preview',
       { ui: 'toolArgumentPreviewLabel' },
-      { ui: 'toolArgumentPreviewPending' },
+      { ui: 'toolArgumentPreviewDescription' },
       [],
       [],
       'agent-loop-guarantees',
       ['modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
     feature(
       'cut-short-tools',
@@ -1161,6 +1164,7 @@ const REFERENCE_DETAILS: Readonly<
   ],
   // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS.
   estimator: ['estimateDiagnosticHelp', 'estimateCliHelp'],
+  // Includes Muse Code's permission-rule exceptions, shared with localized settings.
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

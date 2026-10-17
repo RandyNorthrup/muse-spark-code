@@ -13,7 +13,6 @@ import {
   EXEC_SSE_FRAME_MAX_BYTES,
   MODEL_API_BASE_URL,
   MODEL_API_IMAGE_MODEL,
-  MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   UI_TEXT,
 } from '../../shared/constants'
@@ -27,18 +26,22 @@ export interface ExecTransport {
   close(): void
 }
 
-const requestSchema = z.looseObject({
-  model: z.string(),
-  stream: z.literal(true),
-  max_output_tokens: z.number().check(
-    z.int(),
-    z.gte(EXEC_MIN_OUTPUT_TOKENS, {
-      error: () => outputTokenMinimumMessage(EXEC_MIN_OUTPUT_TOKENS),
-    }),
-    z.lte(MODEL_API_MAX_OUTPUT_TOKENS),
-  ),
-  tools: z.optional(z.array(z.looseObject({ type: z.literal('function') }))),
-})
+// The run's one resolved output cap bounds the body from above (RVCM1062 round
+// 10); the minimum keeps its own sentence (MINOUT).
+const requestSchema = (outputCap: number) =>
+  z.looseObject({
+    model: z.string(),
+    stream: z.literal(true),
+    max_output_tokens: z.number().check(
+      z.int(),
+      z.gte(EXEC_MIN_OUTPUT_TOKENS, {
+        error: () => outputTokenMinimumMessage(EXEC_MIN_OUTPUT_TOKENS),
+      }),
+      z.lte(outputCap),
+    ),
+    tools: z.optional(z.array(z.looseObject({ type: z.literal('function') }))),
+  })
+
 // This projects only fields already captured by the existing stream boundary;
 // unknown usage stays unknown so malformed accounting cannot become "missing".
 const terminalSchema = z.looseObject({
@@ -131,7 +134,7 @@ export function execFetch(input: {
     } catch {
       return refuse('request_shape')
     }
-    const responseShape = requestSchema.safeParse(data)
+    const responseShape = requestSchema(input.ledger.outputCap).safeParse(data)
     if (
       isResponse &&
       (!responseShape.success ||

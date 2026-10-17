@@ -24,7 +24,7 @@ import {
   scheduleTriggerFixtures,
   sectionById,
 } from './helpers/reporting/reportKindFixtures'
-import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/snapshot'
+import { REPORT_FIXTURE_AS_OF, reportOptions } from './helpers/reporting/kindFixtures'
 
 setUiText(EN, 'en')
 
@@ -44,6 +44,7 @@ const stored = <T>(value: T): T => structuredClone(value)
 const scrub = (text: string) => text.replaceAll('private-canary', '[redacted]')
 const context = (kind: 'schedules' | 'usage' = 'schedules', reportText: UiText = EN) => ({
   reportText,
+  locale: 'en',
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: reportOptions(kind),
@@ -258,7 +259,7 @@ describe('schedules source', () => {
           outcomes.map((outcome) => fireFixture({ outcome, runId: outcome })),
         ),
         scrub,
-      ).read({ ...context(), reportText: loaded.table })
+      ).read({ ...context(), reportText: loaded.table, locale: loaded.locale })
       const rows = sectionById(result.data, 'schedules/fires').rows
       expect(rows).toHaveLength(outcomes.length)
       for (const outcome of outcomes) {

@@ -5,7 +5,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { REPORT_KIND_REGISTRY } from '../../src/core/reporting/registry'
 import { readReportField, readReportRows } from '../../src/core/reporting/sources/boundary'
 import { questionsSource } from '../../src/core/reporting/sources/questions'
-import { reportOptions } from './helpers/reporting/snapshot'
+import { reportOptions } from './helpers/reporting/kindFixtures'
 
 const schema = z.strictObject({
   name: z.string().check(z.minLength(1), z.maxLength(REPORT_MAX_TEXT_CHARS)),
@@ -52,6 +52,7 @@ it.each(cases)(
     const facet = REPORT_KIND_REGISTRY[kind].sections[0]
     const context = {
       reportText: EN,
+      locale: 'en',
       options: reportOptions(kind),
       asOf: '2026-10-06T12:00:00Z',
       workspaceKey: 'fixture',

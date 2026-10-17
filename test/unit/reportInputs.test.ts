@@ -35,7 +35,7 @@ import type { UsageReportJournal } from '../../src/core/usage/reportUsage'
 import { UsageJournalStore, USAGE_JOURNAL_ROOT } from '../../src/core/usage/journalStore'
 import { Usd } from '../../src/shared/usd'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
-import { reportingServicesFor } from './helpers/reporting/runtime'
+import { reportingServicesFor } from './helpers/reporting/kindRuntime'
 import { stubLocalSources } from './helpers/reporting/localStubs'
 import { usageReportFixtureRecord } from './helpers/usageFixture'
 
@@ -53,6 +53,7 @@ const TODAY = usageLocalDay(NOW)
 const AS_OF = new Date(NOW).toISOString()
 const context = (options?: { sessionId?: string; scope?: string; by?: 'session' }) => ({
   reportText: EN,
+  locale: 'en',
   asOf: AS_OF,
   workspaceKey: 'fixture',
   options: {

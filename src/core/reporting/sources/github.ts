@@ -550,6 +550,7 @@ function isPostingAllowed(deps: ReportPostingDeps, context: SourceReadContext): 
   return isReportNetworkAllowed(deps.policy, context) && deps.policy.githubSignedIn
 }
 
+/** @unwired M113 report posting to GitHub */
 export async function postReport(
   deps: ReportPostingDeps,
   context: SourceReadContext,
