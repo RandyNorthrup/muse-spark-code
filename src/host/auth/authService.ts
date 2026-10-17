@@ -39,6 +39,13 @@ export interface AuthBackendFacts {
    */
   readonly cliSignIn: (isUserAction: boolean) => Promise<CliSignIn>
   /**
+   * What the credential file settles alone, without asking the CLI (F60):
+   * undefined when only the CLI can say. Lets a refresh show a signed-in
+   * file's answer before its remaining reads (the stored key) answer; a
+   * file the structure settles never reaches `account/read` at all.
+   */
+  readonly peekCliSignIn?: () => CliSignIn | undefined
+  /**
    * Leaves an unanswered probe behind (Cancel): the next question asks
    * afresh, and a remembered answer stands.
    */
@@ -1009,6 +1016,61 @@ export class AuthService {
     }
   }
 
+  /**
+   * A signed-in answer the credential facts settle without the CLI (F60):
+   * shown at once while the refresh's remaining reads answer (the stored
+   * key, whose secret-storage read can be slow where no keyring runs), so
+   * first start says "signed in" without waiting for them. A file the
+   * structure cannot settle still waits for `account/read`: only a
+   * signed-in answer ever jumps ahead, because a stored key may still
+   * sign in where the file says nothing.
+   */
+  private publishFastSignIn(ticket: number): void {
+    if (
+      this.snapshot.status !== 'checking' ||
+      this.isSigningOut ||
+      this.isDeviceFlowWaiting ||
+      this.isLogoutHeld
+    ) {
+      return
+    }
+    const fileSays = this.deps.backend.peekCliSignIn?.()
+    if (fileSays !== 'signedIn' && !this.deps.backend.hasEnvironmentKey()) {
+      return
+    }
+    const cli = this.deps.backend.resolveCli()
+    if (!cli.ok) {
+      return
+    }
+    const setting = this.deps.backend.getBackendMode()
+    if (setting === 'modelApi') {
+      return
+    }
+    // The file (or the environment key) already counts as a CLI session, as
+    // `cliCredential` counts it; with one present the choice is the CLI's
+    // whatever a stored key would add.
+    const choice = selectBackend({
+      setting,
+      hasCli: true,
+      hasCliSession: true,
+      hasStoredKey: false,
+    })
+    if (choice.kind !== 'museCode' || choice.status !== 'signedIn') {
+      return
+    }
+    this.set(
+      {
+        status: 'signedIn',
+        detail: undefined,
+        backend: 'museCode',
+        methods: choice.methods,
+        hasCli: true,
+        hasCliSession: true,
+      },
+      ticket,
+    )
+  }
+
   public cancelSignIn(): void {
     this.deviceAbort?.abort()
     // Sign-out and the next sign-in ask afresh rather than wait on a probe
@@ -1123,6 +1185,7 @@ export class AuthService {
     // Publications are ordered by when their questions began: a slower,
     // older refresh never overwrites a newer state (the review of PR #49).
     const ticket = this.nextTicket()
+    this.publishFastSignIn(ticket)
     const selected = await this.selectedSnapshot(isUserAction)
     // A refresh begun before a sign-out (its probe may answer long after)
     // never overwrites what the sign-out, or a later sign-in, published (the

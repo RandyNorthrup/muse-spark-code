@@ -1834,6 +1834,10 @@ async function activateWindow(
             }
       },
       cliSignIn: (isUserAction) => cliAccount.signIn(isUserAction),
+      // First start shows a signed-in file's answer before the refresh's
+      // remaining reads answer (F60); anything the file cannot settle waits
+      // for the probe.
+      peekCliSignIn: () => cliAccount.peekFile(),
       abandonCliProbe: () => {
         cliAccount.abandonProbe()
       },
