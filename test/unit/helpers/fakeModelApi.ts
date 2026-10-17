@@ -7,7 +7,6 @@
 
 import { ModelApiClient, type ModelApiClientDeps } from '../../../src/core/backends/modelapi/client'
 import { createHash } from 'node:crypto'
-import * as z from 'zod/mini'
 import type { CoreLogger } from '../../../src/core/logging'
 
 export interface ScriptedCall {
@@ -16,6 +15,12 @@ export interface ScriptedCall {
   readonly callId?: string
   /** A call the reply left uncompleted (M101 item 8): never run, answered with an error. */
   readonly status?: 'completed' | 'incomplete'
+  /**
+   * The streamed argument deltas (M106 R2): they must concatenate to
+   * `arguments` byte-exact. Absent serves one delta with the whole
+   * arguments, as before.
+   */
+  readonly argumentDeltas?: readonly string[]
 }
 
 /** One hosted web search in a reply (M33), streamed before the text. */
@@ -269,11 +274,14 @@ export function streamFor(
         status: 'in_progress',
       },
     })
-    text += frame({
-      type: 'response.function_call_arguments.delta',
-      item_id: id,
-      delta: call.arguments,
-    })
+    const deltas = call.argumentDeltas ?? [call.arguments]
+    for (const delta of deltas) {
+      text += frame({
+        type: 'response.function_call_arguments.delta',
+        item_id: id,
+        delta,
+      })
+    }
     text += frame({
       type: 'response.function_call_arguments.done',
       item_id: id,
@@ -441,7 +449,7 @@ function urlOf(input: string | URL | Request): URL {
   return input instanceof URL ? input : new URL(input.url)
 }
 
-/** A client on the fake API with no waits and a fixed clock. */
+/** The key the fake API's scripted replies accept. */
 export const FAKE_MODEL_API_KEY = 'LLM|1|secret'
 export const FAKE_MODEL_API_ACCOUNT_ID = createHash('sha256')
   .update(FAKE_MODEL_API_KEY)
@@ -449,7 +457,7 @@ export const FAKE_MODEL_API_ACCOUNT_ID = createHash('sha256')
 
 export const FAKE_MODEL_API_BASE_URL = 'https://api.example.test/v1'
 
-/** Everything a client on the fake API needs but its `fetch` (M75 wraps that in its trace). */
+/** Everything a client on the fake API needs but its `fetch`. */
 export function fakeModelApiClientSettings(log: CoreLogger): Omit<ModelApiClientDeps, 'fetch'> {
   let clock = 0
   return {
@@ -467,28 +475,6 @@ export function fakeModelApiClientSettings(log: CoreLogger): Omit<ModelApiClient
 
 export function fakeModelApiClient(api: FakeModelApi, log: CoreLogger): ModelApiClient {
   return new ModelApiClient({ ...fakeModelApiClientSettings(log), fetch: api.fetch })
-}
-
-const responseOutputSchema = z.object({
-  type: z.literal('function_call_output'),
-  call_id: z.optional(z.string()),
-  output: z.string(),
-})
-
-/** The string tool outputs the `index`th `POST /responses` carried, by call id. */
-export function responseOutputsByCall(api: FakeModelApi, index: number): Map<string, string> {
-  const input = api.responseBodies()[index]?.['input']
-  const found = new Map<string, string>()
-  if (!Array.isArray(input)) {
-    return found
-  }
-  for (const item of input) {
-    const parsed = responseOutputSchema.safeParse(item)
-    if (parsed.success && parsed.data.call_id !== undefined) {
-      found.set(parsed.data.call_id, parsed.data.output)
-    }
-  }
-  return found
 }
 
 export function fakeModelApi(): FakeModelApi {

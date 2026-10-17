@@ -86,6 +86,7 @@ export const legalReportEnvelopeSchema = z.strictObject({
   result: legalScanResultSchema,
   registry: registrySectionSchema,
 })
+/** @unwired M97 legal report envelope */
 export type LegalReportEnvelope = z.infer<typeof legalReportEnvelopeSchema>
 
 function disabledRegistry(): LegalRegistryReport {

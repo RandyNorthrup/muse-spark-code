@@ -3,20 +3,14 @@
 // shows its pull request's status again when it is resumed. The link names
 // the pull request only; its status is read from GitHub each time.
 
-import * as z from 'zod/mini'
-import { PULL_REQUEST_LINKS_KEPT, WORKSPACE_STATE_KEYS } from '../../shared/constants'
+import { WORKSPACE_STATE_KEYS } from '../../shared/constants'
+import {
+  parsePullRequestLinkRecords,
+  prunePullRequestLinks,
+  type PullRequestLinkRecord,
+} from '../../core/git/pullRequestLinksStore'
 
-const linkSchema = z.object({
-  repository: z.string(),
-  number: z.number(),
-  url: z.string(),
-  title: z.string(),
-  /** Epoch ms, for dropping the oldest past the limit. */
-  linkedAt: z.number(),
-})
-export type PullRequestLink = z.infer<typeof linkSchema>
-
-const linksSchema = z.record(z.string(), linkSchema)
+export type PullRequestLink = PullRequestLinkRecord
 
 /** `vscode.Memento`'s two methods this reads and writes. */
 export interface LinkMemento {
@@ -39,10 +33,9 @@ export class PullRequestLinks {
 
   /** The stored links; a value that does not validate reads as none. */
   private all(): Readonly<Record<string, PullRequestLink>> {
-    const parsed = linksSchema.safeParse(
+    return parsePullRequestLinkRecords(
       this.memento.get(WORKSPACE_STATE_KEYS.pullRequestLinks) ?? {},
     )
-    return parsed.success ? parsed.data : {}
   }
 
   public get(sessionId: string): PullRequestLink | undefined {
@@ -55,10 +48,8 @@ export class PullRequestLinks {
     const previous = this.pendingWrite
     const write = (async () => {
       await previous
-      const kept = Object.entries({ ...this.all(), [sessionId]: link })
-        .toSorted(([, left], [, right]) => right.linkedAt - left.linkedAt)
-        .slice(0, PULL_REQUEST_LINKS_KEPT)
-      await this.memento.update(WORKSPACE_STATE_KEYS.pullRequestLinks, Object.fromEntries(kept))
+      const kept = prunePullRequestLinks({ ...this.all(), [sessionId]: link })
+      await this.memento.update(WORKSPACE_STATE_KEYS.pullRequestLinks, kept)
     })()
     // A failed caller still receives its rejection; later saves can retry.
     this.pendingWrite = settled(write)

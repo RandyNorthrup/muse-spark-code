@@ -7,12 +7,19 @@ import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { ContextWindow } from './components/ContextWindow'
 import { fill, plural } from '../../shared/l10n/text'
-import { useFormatUsd } from '../money'
+import type { UsdAmount } from '../../shared/usdSchema'
+import { useMoneyLoad } from '../money'
 
 /** A usage amount with the lazy money chunk's exact display. */
-function UsageAmount({ usd }: { readonly usd: number | string }) {
-  const formatted = useFormatUsd(usd, 2)
-  return formatted === undefined ? null : <>{formatted}</>
+function UsageAmount({ usd }: { readonly usd: UsdAmount }) {
+  const money = useMoneyLoad()
+  return (
+    <span
+      data-deferred-loading={money.status === 'idle' || money.status === 'loading' || undefined}
+    >
+      {money.status === 'ready' ? money.display.formatMoney(usd, 2) : null}
+    </span>
+  )
 }
 import type {
   ModelsPanelState,
@@ -102,7 +109,7 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
   if (usage === undefined) {
     return null
   }
-  const rows: (readonly [string, number | string])[] = []
+  const rows: (readonly [string, UsdAmount])[] = []
   if (usage.totalUsd !== undefined) rows.push([UI_TEXT.usageKeyTotal, usage.totalUsd])
   if (usage.weekUsd !== undefined) rows.push([UI_TEXT.usageWeekly, usage.weekUsd])
   if (usage.dayUsd !== undefined) {

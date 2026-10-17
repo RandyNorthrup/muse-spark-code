@@ -408,10 +408,16 @@ describe('configured provider production transport', () => {
   it('refuses uncaptured local presets even when keyless (rule 13)', async () => {
     // C-M95-4 R2: the wire-capture refusal skipped `auth === 'none'`, so a
     // picked vLLM or Ollama entry sent chat with no capture behind it.
+    // The key test reports a refusal envelope (never a throw, never ok),
+    // and the pinned transport is never reached: no packet leaves the rig.
     const f = await fixture()
+    const send = vi.fn<NonNullable<ConfiguredProviderOptions['send']>>(() =>
+      Promise.resolve(response(Buffer.from('{}'))),
+    )
     const services = createConfiguredProviderServices(undefined, {
       ...f,
       resolve: () => Promise.resolve(['127.0.0.1']),
+      send,
     })
     for (const [id, address] of [
       ['ollama', 'http://127.0.0.1:11434'],
@@ -424,10 +430,10 @@ describe('configured provider production transport', () => {
         auth: 'none',
         models: ['m'],
       })
-      await expect(services.test(entry, 'unused-key')).rejects.toThrow(
-        UI_TEXT.modelsPanelUnavailable,
-      )
+      const outcome = await services.test(entry, 'unused-key')
+      expect(outcome).toEqual({ kind: 'failed', detail: UI_TEXT.providerProbeUnparseable })
     }
+    expect(send).not.toHaveBeenCalled()
   })
 
   it('fails a llama.cpp scan closed when the list carries no live window', async () => {
@@ -877,6 +883,13 @@ describe('configured provider production transport', () => {
       isStillAllowed: () => true,
       onRequestStarted: vi.fn(),
     }
+    // A rotated credential trips the dispatch identity re-check first (the
+    // confirmed key digest no longer matches); every other condition reaches
+    // the provider boundary refusal. Neither sends.
+    const expected =
+      condition === 'credential rotation'
+        ? UI_TEXT.scheduleConfirmationExpired
+        : UI_TEXT.modelsPanelUnavailable
     await expect(
       consume(
         resolved.client.streamResponse(
@@ -888,7 +901,7 @@ describe('configured provider production transport', () => {
           confirmed,
         ),
       ),
-    ).rejects.toThrow(UI_TEXT.modelsPanelUnavailable)
+    ).rejects.toThrow(expected)
     expect(send).toHaveBeenCalledTimes(['redirect', 'echoed error'].includes(condition) ? 1 : 0)
     expect(services.client.readPlanUsage?.()).toHaveLength(
       ['redirect', 'echoed error'].includes(condition) ? 1 : 0,

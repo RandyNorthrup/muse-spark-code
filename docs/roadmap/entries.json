@@ -665,7 +665,7 @@
     {
       "id": "M94",
       "title": "Tab completions",
-      "summary": "Ghost-text code completions in the languages you enable, billed to your Model API key after a one-time price prompt and stopped by a separate hard daily budget.",
+      "summary": "Ghost-text completions billed to your Model API key with a hard daily budget; other features preserve Tab's window grant, only Allow always in this workspace saves the model and price, and Allow once saves nothing so each new window asks again.",
       "area": "editors",
       "release": "0.14.0"
     },
@@ -678,7 +678,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Add origin-bound provider keys or connect OpenRouter in the browser, view exact current-key usage and limits on request, preserve keys when cancelling authorization, match model features and output caps to capabilities, and use scanned or manually entered local context windows shared by the wizard, panel and ACP configuration.",
+      "summary": "Use cloud or local models with keys bound to their provider's address and features matched to each model's capabilities; connect OpenRouter in the browser, view exact current-key usage and limits on request, use scanned or manually entered local context windows shared by the wizard, panel and ACP configuration, and refuse an output cap below a provider's known minimum before sending.",
       "area": "models-providers",
       "release": "0.15.0"
     },
@@ -783,7 +783,7 @@
     {
       "id": "M106",
       "title": "Stronger agent-loop guarantees",
-      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers and concurrent read-only calls wherever the selected model supports them; live tool-argument previews are in progress.",
+      "summary": "On the Model API the agent loop uses strict tool contracts, validated side answers, concurrent read-only calls and live tool-argument previews wherever the selected model supports them; Muse Code's native effort and feedback readers are in progress.",
       "area": "agents",
       "release": "0.16.0"
     },
@@ -835,7 +835,7 @@
     {
       "id": "M114",
       "title": "Refreshed design",
-      "summary": "Panel surfaces share theme-aware design tokens, compact activity indicators and menus sized to their labels, with consistent hover, focus and pressed states and motion that stops when reduced motion is on.",
+      "summary": "Panel surfaces share theme-aware tokens, compact indicators and label-sized menus with consistent hover, focus and pressed states and reduced motion; the empty chat shows the extension's own theme-aware mark (0.18.2).",
       "area": "platform",
       "release": "0.17.0"
     },
@@ -881,13 +881,25 @@
     {
       "id": "M121",
       "title": "Exact money everywhere",
-      "summary": "Every cost, budget and usage total kept as an exact decimal dollar amount, so the figures you see match what the budget checks enforce.",
+      "summary": "Every cost, budget and usage total kept as an exact decimal dollar amount, with exact period comparisons and historical days or months refused with an explanation when their dollars cannot be preserved.",
       "area": "usage-billing"
     },
     {
       "id": "M122",
       "public": false,
       "note": "this roadmap's generator and gate (project documentation tooling)"
+    },
+    {
+      "id": "M125",
+      "title": "A faster, more accurate agent through a fast judge",
+      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
+      "area": "agents"
+    },
+    {
+      "id": "M123",
+      "title": "Git and pull requests in every editor",
+      "summary": "Commit drafts, confirmed pushes, pull requests and held checkouts of other people's pull requests in every supported editor, signing in to GitHub through your editor, a one-time code or your gh login.",
+      "area": "editors"
     },
     {
       "id": "BADGEFIX",
@@ -1241,8 +1253,10 @@
     },
     {
       "id": "SHOTS",
-      "public": false,
-      "note": "README screenshot refresh"
+      "title": "Updated product pictures",
+      "summary": "The README pictures show the extension's own mark, and the Get Started walkthrough's four pictures show the current panel, including the sign-in screen's Start with your own model choice.",
+      "area": "platform",
+      "release": "0.18.2"
     },
     {
       "id": "STARTDIET",

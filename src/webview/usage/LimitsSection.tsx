@@ -14,7 +14,7 @@ import { fill, formatDateTime, formatPercent, formatUnit, plural } from '../../s
 import { formatDuration } from '../../shared/usage'
 import type { UsageLimitSnapshot } from '../../shared/usageJournal'
 import type { UsagePageState } from '../../shared/usagePage'
-import { money, type PostUsage } from './display'
+import { money, percentOf, remainingUsd, type PostUsage } from './display'
 import { StepLines } from './charts/StepLines'
 import { BurnLine } from './charts/BurnLine'
 
@@ -142,8 +142,7 @@ export function BudgetCard({
     cap: money(budget.capUsd),
   })
   let percent: number | undefined
-  if (budget.capUsd !== undefined)
-    percent = budget.capUsd === 0 ? 100 : (budget.spentUsd / budget.capUsd) * 100
+  if (budget.capUsd !== undefined) percent = percentOf(budget.spentUsd, budget.capUsd)
   return (
     <article className="usage-limit-card">
       <h3>{label}</h3>
@@ -159,7 +158,7 @@ export function BudgetCard({
       {budget.capUsd === undefined ? null : (
         <p>
           {fill(USAGE_TEXT.budgetRemaining, {
-            remaining: money(Math.max(0, budget.capUsd - budget.spentUsd)),
+            remaining: money(remainingUsd(budget.spentUsd, budget.capUsd)),
           })}
         </p>
       )}
@@ -287,20 +286,10 @@ export function LimitsSection({
                 {account.usedUsd === undefined || account.limitUsd === undefined ? null : (
                   <>
                     <Meter
-                      percent={
-                        Number(account.limitUsd) === 0
-                          ? 100
-                          : (Number(account.usedUsd) / Number(account.limitUsd)) * 100
-                      }
+                      percent={percentOf(account.usedUsd, account.limitUsd)}
                       description={description}
                     />
-                    <Warning
-                      percent={
-                        Number(account.limitUsd) === 0
-                          ? 100
-                          : (Number(account.usedUsd) / Number(account.limitUsd)) * 100
-                      }
-                    />
+                    <Warning percent={percentOf(account.usedUsd, account.limitUsd)} />
                   </>
                 )}
                 <p>

@@ -856,10 +856,12 @@ export const runnersMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('runners/testAll') }),
 ])
 export type RunnersMessage = z.infer<typeof runnersMessageSchema>
+/** @unwired M96c team traffic host message */
 export const trafficHostMessageSchema = z.strictObject({
   type: z.literal('traffic/state'),
   state: trafficSliceSchema,
 })
+/** @unwired M96c team runners host message */
 export const runnersHostMessageSchema = z.strictObject({
   type: z.literal('runners/state'),
   state: runnersSliceSchema,

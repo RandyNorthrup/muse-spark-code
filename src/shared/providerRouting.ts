@@ -13,11 +13,14 @@ import { outputTokenMinimumMessage } from './outputTokenMinimum'
 // code keeps reading it from here.
 export { outputTokenMinimumMessage } from './outputTokenMinimum'
 
-export const openRouterRoutingSchema = z.object({
-  privacy: z.enum(['zdr', 'no-training', 'any']),
-  order: z.optional(z.array(z.string())),
-  allowFallbacks: z.optional(z.boolean()),
-})
+// Pure factory: bundles that never read a provider file (panels, headless)
+// drop the schema instead of carrying it.
+export const openRouterRoutingSchema = /* @__PURE__ */ (() =>
+  z.object({
+    privacy: z.enum(['zdr', 'no-training', 'any']),
+    order: z.optional(z.array(z.string())),
+    allowFallbacks: z.optional(z.boolean()),
+  }))()
 
 /**
  * Compatibility overrides for a custom server (M101 BYO 14): the wire
@@ -25,38 +28,40 @@ export const openRouterRoutingSchema = z.object({
  * typo that would send the wrong shape, so it refuses the entry instead
  * of stripping it.
  */
-export const customCompatSchema = z.strictObject({
-  outputCapParam: z.optional(
-    z.enum([
-      'max_output_tokens',
-      'max_completion_tokens',
-      'max_tokens',
-      'maxOutputTokens',
-      'num_predict',
-    ]),
-  ),
-  toolChoice: z.optional(z.enum(['auto', 'omit', 'string-only'])),
-  sendsParallelToolCalls: z.optional(z.boolean()),
-  reasoningField: z.optional(
-    z.enum([
-      'encrypted',
-      'reasoning',
-      'reasoning_content',
-      'reasoning_details',
-      'thoughtSignature',
-      'thinking',
-      'content-list',
-      'none',
-    ]),
-  ),
-  reasoningReplay: z.optional(z.enum(['same-model', 'none'])),
-  usageOnFinishChunk: z.optional(z.boolean()),
-  usageNeedsOptIn: z.optional(z.boolean()),
-  supportsStrictTools: z.optional(z.boolean()),
-})
+// Pure factory: same droppability as above for custom-server overrides.
+export const customCompatSchema = /* @__PURE__ */ (() =>
+  z.strictObject({
+    outputCapParam: z.optional(
+      z.enum([
+        'max_output_tokens',
+        'max_completion_tokens',
+        'max_tokens',
+        'maxOutputTokens',
+        'num_predict',
+      ]),
+    ),
+    toolChoice: z.optional(z.enum(['auto', 'omit', 'string-only'])),
+    sendsParallelToolCalls: z.optional(z.boolean()),
+    reasoningField: z.optional(
+      z.enum([
+        'encrypted',
+        'reasoning',
+        'reasoning_content',
+        'reasoning_details',
+        'thoughtSignature',
+        'thinking',
+        'content-list',
+        'none',
+      ]),
+    ),
+    reasoningReplay: z.optional(z.enum(['same-model', 'none'])),
+    usageOnFinishChunk: z.optional(z.boolean()),
+    usageNeedsOptIn: z.optional(z.boolean()),
+    supportsStrictTools: z.optional(z.boolean()),
+  }))()
 
 /** User-supplied custom-server limits; both are finite positive token counts. */
-export const modelLimitsSchema = z
+export const modelLimitsSchema = /* @__PURE__ */ z
   .object({
     contextTokens: z.int().check(z.positive()),
     outputTokens: z.int().check(z.gte(1, { error: () => outputTokenMinimumMessage(1) })),

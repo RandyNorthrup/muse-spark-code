@@ -6,7 +6,7 @@
 
 import { OLLAMA_NUM_CTX_OPTIONS, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, plural } from '../../shared/l10n/text'
-import { useFormatUsd } from '../money'
+import { useMoneyLoad } from '../money'
 import type { ModelPriceNote, ModelRow, ModelSort } from '../../shared/modelsPanel'
 import { Badge, type BadgeKind } from './components/Badge'
 import { DataTable, type DataColumn } from './components/DataTable'
@@ -55,15 +55,41 @@ function contextCell(row: ModelRow): string {
 function InputPriceCell({ row }: { readonly row: ModelRow }) {
   // The exact display arrives with the lazy money chunk; until then the
   // cell reads as unpriced, never a guessed number.
-  const formatted = useFormatUsd(row.inputPerMillion ?? 0, 2)
+  const money = useMoneyLoad(undefined, row.inputPerMillion !== undefined)
+  const formatted =
+    money.status === 'ready' ? money.display.formatMoney(row.inputPerMillion ?? 0, 2) : undefined
   const text = formatted === undefined || row.inputPerMillion === undefined ? '—' : formatted
-  return row.priceNote === 'priced' ? <>{text}</> : <PriceNote priceNote={row.priceNote} />
+  return row.priceNote === 'priced' ? (
+    <span
+      data-deferred-loading={
+        (row.inputPerMillion !== undefined &&
+          (money.status === 'idle' || money.status === 'loading')) ||
+        undefined
+      }
+    >
+      {text}
+    </span>
+  ) : (
+    <PriceNote priceNote={row.priceNote} />
+  )
 }
 
 function OutputPriceCell({ row }: { readonly row: ModelRow }) {
-  const formatted = useFormatUsd(row.outputPerMillion ?? 0, 2)
+  const money = useMoneyLoad(undefined, row.outputPerMillion !== undefined)
+  const formatted =
+    money.status === 'ready' ? money.display.formatMoney(row.outputPerMillion ?? 0, 2) : undefined
   const text = formatted === undefined || row.outputPerMillion === undefined ? '—' : formatted
-  return row.priceNote === 'priced' ? <>{text}</> : null
+  return row.priceNote === 'priced' ? (
+    <span
+      data-deferred-loading={
+        (row.outputPerMillion !== undefined &&
+          (money.status === 'idle' || money.status === 'loading')) ||
+        undefined
+      }
+    >
+      {text}
+    </span>
+  ) : null
 }
 
 function RowBadges({ row }: { readonly row: ModelRow }) {
