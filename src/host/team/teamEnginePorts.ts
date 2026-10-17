@@ -314,6 +314,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
         }) => {
           check()
           await meterWrites
+          check()
           const requestOrdinal = await spec.meter.reserveRequest({
             ...EMPTY_USAGE,
             input: maximum.inputTokens,
@@ -326,7 +327,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           // The host's final synchronous fence runs after it owns this callback.
           // Every result belongs to this ordinal, including refused/unsent attempts.
           let hasSettled = false
-          return async (outcome: ResponseAttemptOutcome) => {
+          const settle = async (outcome: ResponseAttemptOutcome) => {
             if (hasSettled) return
             hasSettled = true
             const reported = outcome.kind === 'billed' ? outcome.usage : undefined
@@ -358,6 +359,14 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
             )
             await meterWrites
           }
+          try {
+            check()
+          } catch (error: unknown) {
+            // A late durable admission owns only its unsent ordinal, never an ended task.
+            await settle({ kind: 'released' })
+            throw error
+          }
+          return settle
         },
       })
       const { fenceWorkerToolIo } = await import('../../core/team/workers/workerToolIoEntry')
