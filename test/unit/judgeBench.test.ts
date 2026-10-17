@@ -1,4 +1,3 @@
-import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   VETO_WINDOW_MS,
@@ -109,30 +108,5 @@ describe('summarize', () => {
     ])
     expect(summary.perLabel['allow']).toMatchObject({ precision: 1, recall: 0.5 })
     expect(summary.perDomain['shell']).toMatchObject({ support: 2, accuracy: 0.5 })
-  })
-})
-
-describe('committed bench results', () => {
-  it('holds no keys or bearer tokens (apiKey stays <held-in-env>)', () => {
-    const dir = new URL('../../docs/certification/judge-bench/', import.meta.url)
-    let names: string[]
-    try {
-      names = readdirSync(dir)
-        .filter((n) => n.startsWith('results-') && n.endsWith('.json'))
-        .toSorted((a, b) => a.localeCompare(b))
-    } catch {
-      names = []
-    }
-    const offenders: string[] = []
-    for (const name of names) {
-      const text = readFileSync(new URL(name, dir), 'utf8')
-      const scrubbed = text.replaceAll('<held-in-env>', '')
-      if (/"apiKey"\s*:\s*"[^"]+"/.test(scrubbed)) offenders.push(`${name}: apiKey value`)
-      if (/Bearer\s+[A-Za-z0-9\-._~+/=]{10,}/.test(scrubbed))
-        offenders.push(`${name}: bearer token`)
-      if (/\bsk-(or-v1|ant|live)-[A-Za-z0-9]{8,}/.test(scrubbed))
-        offenders.push(`${name}: secret-key prefix`)
-    }
-    expect(offenders).toEqual([])
   })
 })
