@@ -76,7 +76,7 @@ describe('Palette (actions view)', () => {
       screen
         .getAllByRole('option')
         .map((node) => node.querySelector('.palette-item-text')?.textContent),
-    ).toEqual(['/fix-bugFixes a bug'])
+    ).toEqual(['/fix-bugFix bug'])
     fireEvent.keyDown(filter, { key: 'Enter' })
     expect(props.onAction).toHaveBeenCalledWith({ type: 'insertSkill', selector: 'fix-bug' })
     expect(filter).toHaveAttribute('aria-controls', 'palette-listbox')
@@ -345,18 +345,27 @@ describe('Palette (attached to the prompt)', () => {
 })
 
 describe('M87 palette descriptions', () => {
-  it('gives each action row the same pointer tooltip and accessible description', () => {
+  it('reads a repeated description once, and keeps tips that say more', () => {
     renderPalette()
     const rows = screen.getAllByRole('option')
     expect(rows.length).toBeGreaterThan(0)
     for (const row of rows) {
-      expect(row.title.trim()).not.toBe('')
-      expect(row).toHaveAttribute('aria-describedby')
-      expect(
-        document.querySelector(`[id="${CSS.escape(row.getAttribute('aria-describedby') ?? '')}"]`),
-      ).toHaveTextContent(row.title)
-      expect(row).toHaveAccessibleDescription(row.title)
+      const describedby = row.getAttribute('aria-describedby')
+      if (describedby === null) {
+        // The tip repeated the visible detail, so it stays silent; the
+        // detail itself still reads.
+        expect(row.title).toBe('')
+        expect(row.querySelector('.palette-item-detail')!.textContent.trim()).not.toBe('')
+      } else {
+        expect(document.querySelector(`[id="${CSS.escape(describedby)}"]`)).toHaveTextContent(
+          row.title,
+        )
+        expect(row).toHaveAccessibleDescription(row.title)
+      }
     }
+    // Both kinds are on the board: repeated descriptions and real tips.
+    expect(rows.some((row) => !row.hasAttribute('aria-describedby'))).toBe(true)
+    expect(rows.some((row) => row.hasAttribute('aria-describedby'))).toBe(true)
   })
 
   it.each(['', ' '.repeat(3)])(
