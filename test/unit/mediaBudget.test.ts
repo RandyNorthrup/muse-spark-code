@@ -273,7 +273,7 @@ describe('Model API replay media budget', () => {
     expect(budget.fit(input, record, required)).toEqual(input)
     expect(budget.omitted).toBe(false)
     expect(() => {
-      budget.assertMessageFits(required, undefined, record)
+      budget.assertMessageFits(required, undefined, record.identity.provider)
     }).not.toThrow()
     expect(() => {
       budget.assertMessageFits(required)
