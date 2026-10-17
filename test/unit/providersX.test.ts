@@ -4,6 +4,10 @@
 // per-codec path allowlist).
 
 import { describe, expect, it, vi } from 'vitest'
+// The probe lazily imports the host bundle at run time; pre-warm it at
+// collection so the transform cost does not run inside the 5 s test budget.
+import '../../src/host/backend/configuredProvidersEntry'
+import '../../src/host/backend/modelApiEntry'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
 import { CREDENTIAL_RECORD_VERSION, UI_TEXT } from '../../src/shared/constants'
 import { parseCommandLine } from '../../src/runtime/cliArgs'

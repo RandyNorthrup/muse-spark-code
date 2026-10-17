@@ -127,7 +127,7 @@ function providersReport(): Partial<UsageDialogProps> {
           pricing: 'priced',
           inputTokens: 1200,
           outputTokens: 300,
-          costUsd: 0.001,
+          costUsd: Usd.from('0.001').toAmount(),
           keyUsage: {
             todayUsd: Usd.from(0.4).toAmount(),
             monthUsd: Usd.from(2.1).toAmount(),
@@ -901,8 +901,20 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
 
 describe('UsageDialog Team section (M96 lane U2)', () => {
   const team: TeamUsageSummary = {
-    today: { tasks: 3, inputTokens: 80_000, outputTokens: 20_000, costUsd: 1.2, estimated: false },
-    window: { tasks: 5, inputTokens: 100_000, outputTokens: 40_000, costUsd: 2.5, estimated: true },
+    today: {
+      tasks: 3,
+      inputTokens: 80_000,
+      outputTokens: 20_000,
+      costUsd: Usd.from('1.2').toAmount(),
+      estimated: false,
+    },
+    window: {
+      tasks: 5,
+      inputTokens: 100_000,
+      outputTokens: 40_000,
+      costUsd: Usd.from('2.5').toAmount(),
+      estimated: true,
+    },
     byRole: [
       {
         roleId: 'engineering',
@@ -911,7 +923,7 @@ describe('UsageDialog Team section (M96 lane U2)', () => {
           tasks: 3,
           inputTokens: 80_000,
           outputTokens: 20_000,
-          costUsd: 1.2,
+          costUsd: Usd.from('1.2').toAmount(),
           estimated: false,
         },
       },
@@ -926,7 +938,7 @@ describe('UsageDialog Team section (M96 lane U2)', () => {
           tasks: 2,
           inputTokens: 70_000,
           outputTokens: 10_000,
-          costUsd: 1,
+          costUsd: Usd.from(1).toAmount(),
           estimated: false,
         },
       },
@@ -939,7 +951,7 @@ describe('UsageDialog Team section (M96 lane U2)', () => {
           tasks: 1,
           inputTokens: 10_000,
           outputTokens: 10_000,
-          costUsd: 0,
+          costUsd: Usd.from(0).toAmount(),
           estimated: true,
         },
       },
