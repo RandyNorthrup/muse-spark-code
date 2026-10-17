@@ -11,7 +11,6 @@ import {
   DEFAULT_EFFORT,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   CONVERSATION_MODEL_TEXT,
-  SESSION_EXPORT_MAX_ITEMS,
   SESSION_EXPORT_SCRUB_SLICE_CHARS,
   UI_TEXT,
 } from '../../src/shared/constants'
@@ -539,14 +538,14 @@ describe('parseSessionExport', () => {
     }
   })
 
-  it('refuses a wrong shape, a date that is not ISO 8601, and too many items', async () => {
+  it('refuses a wrong shape and a date that is not ISO 8601, and accepts any item count', async () => {
     expect(parseSessionExport({ ...(await valid()), transcript: 'nope' }).ok).toBe(false)
     expect(parseSessionExport({ ...(await valid()), exportedAt: 'yesterday' }).ok).toBe(false)
     expect(parseSessionExport({ ...(await valid()), redacted: 'yes' }).ok).toBe(false)
+    // NOLIMITS1FIX: the removed 20,000-item bound was invented.
     const item = userItem('u', 'x')
-    const atCap = Array.from({ length: SESSION_EXPORT_MAX_ITEMS }, () => item)
-    expect(parseSessionExport({ ...(await valid()), transcript: atCap }).ok).toBe(true)
-    expect(parseSessionExport({ ...(await valid()), transcript: [...atCap, item] }).ok).toBe(false)
+    const many = Array.from({ length: 20_001 }, () => item)
+    expect(parseSessionExport({ ...(await valid()), transcript: many }).ok).toBe(true)
   })
 })
 

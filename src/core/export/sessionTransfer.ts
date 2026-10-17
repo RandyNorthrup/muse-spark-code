@@ -32,7 +32,6 @@ import {
   REDACTED_MARK,
   SESSION_EXPORT_FIELD_PATH_MAX,
   SESSION_EXPORT_FORMAT,
-  SESSION_EXPORT_MAX_ITEMS,
   SESSION_EXPORT_SCRUB_SLICE_CHARS,
   SESSION_EXPORT_VERSION,
   STORED_SESSION_VERSION,
@@ -95,7 +94,9 @@ export const sessionExportSchema = z.object({
   name: z.optional(z.string()),
   /** The model the conversation ran on; informational, an import never takes it. */
   modelId: z.string(),
-  transcript: z.array(z.object(portableItemFields)).check(z.maxLength(SESSION_EXPORT_MAX_ITEMS)),
+  // NOLIMITS1FIX: the removed 20,000-item bound was invented — a transcript
+  // of any length parses.
+  transcript: z.array(z.object(portableItemFields)),
 })
 
 export type SessionExport = z.infer<typeof sessionExportSchema>

@@ -159,7 +159,6 @@
   "shareAllMessages": "Alle Nachrichten",
   "shareAttachmentContents": "Inhalte ausgewählter Anhänge einschließen",
   "shareRangeInvalid": "Wählen Sie einen geordneten Nachrichtenbereich aus dieser Unterhaltung.",
-  "shareTooLarge": "Diese Freigabe überschreitet die Grenze für Dateigröße oder Transkript.",
   "shareAttachmentUnavailable": "Der ausgewählte Anhanginhalt ist in diesem Bereich nicht verfügbar.",
   "sharePreviewExpired": "Die Vorschau hat sich geändert oder ist abgelaufen. Öffnen Sie sie vor der Freigabe erneut.",
   "estimateTitle": "Kapazitätsschätzer",
@@ -1257,7 +1256,6 @@
     "other": "{count} Anmeldeinformationen oder Schlüssel-Hashes entfernt"
   },
   "exportPreviewKnownCredentials": "Bekannte Formen von Anmeldedaten (API-Schlüssel, Tokens, Passwörter, private Schlüssel) und der Schlüssel-Hash werden immer entfernt. Ein Geheimnis in anderer Form bleibt: Lesen Sie die Datei, bevor Sie sie weitergeben.",
-  "exportTooLarge": "Diese Unterhaltung ist zu lang für eine Sitzungsexportdatei.",
   "importPreviewTitle": "Sitzung importieren",
   "importPreviewDetail": "Von {source}: {messages}. Sie wird mit {model} fortgesetzt und startet im Modus {mode}; Sitzungsregeln, Ziele, Zeitpläne und Patches werden verworfen, und der importierte Verlauf gilt als nicht vertrauenswürdig.",
   "importSessionFailed": "Die Sitzung konnte nicht importiert werden",

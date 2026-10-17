@@ -330,7 +330,6 @@ function safePromptFailure(error: unknown): Error {
     UI_TEXT.promptStoreBusy,
     UI_TEXT.promptWorkspaceRequired,
     UI_TEXT.shareRangeInvalid,
-    UI_TEXT.shareTooLarge,
     UI_TEXT.shareAttachmentUnavailable,
     UI_TEXT.sharePreviewExpired,
     UI_TEXT.exportNothing,

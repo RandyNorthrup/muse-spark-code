@@ -1,6 +1,6 @@
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { isConversationShareItem, type ItemSnapshot } from '../../shared/agentEvents'
-import { SESSION_EXPORT_MAX_ITEMS, SHARE_SCHEMA_VERSION, UI_TEXT } from '../../shared/constants'
+import { SHARE_SCHEMA_VERSION, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import {
   shareJsonSchema,
@@ -141,7 +141,8 @@ export function buildChatShare(
 ): ChatShareDocument {
   const request = shareRequestSchema.parse(input)
   if (request.target !== 'chat') throw new Error(UI_TEXT.shareRangeInvalid)
-  if (source.items.length > SESSION_EXPORT_MAX_ITEMS) throw new Error(UI_TEXT.shareTooLarge)
+  // NOLIMITS1FIX: the removed 20,000-item bound was invented — a share
+  // renders at any item count (paged 200 at a time in the view).
   const selected = selectedItems(source, request)
   const scrub = (text: string) => scrubShareText(text, privacy)
   const idMap = new Map<string, string>()

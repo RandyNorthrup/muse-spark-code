@@ -159,7 +159,6 @@
   "shareAllMessages": "Todos los mensajes",
   "shareAttachmentContents": "Incluir el contenido de los adjuntos seleccionados",
   "shareRangeInvalid": "Elige un intervalo ordenado de mensajes de esta conversación.",
-  "shareTooLarge": "El contenido supera el límite de tamaño del archivo o de la transcripción.",
   "shareAttachmentUnavailable": "El contenido del adjunto seleccionado no está disponible en este intervalo.",
   "sharePreviewExpired": "La vista previa ha cambiado o ha caducado. Revísala de nuevo antes de compartir.",
   "estimateTitle": "Estimador",
@@ -1265,7 +1264,6 @@
     "many": "{count} credenciales o resúmenes de clave eliminados"
   },
   "exportPreviewKnownCredentials": "Las formas conocidas de credenciales (claves de API, tokens, contraseñas, claves privadas) y el resumen de la clave se quitan siempre. Un secreto con otra forma se queda: lea el archivo antes de compartirlo.",
-  "exportTooLarge": "Esta conversación es demasiado larga para un archivo de exportación de sesión.",
   "importPreviewTitle": "Importar sesión",
   "importPreviewDetail": "Desde {source}: {messages}. Continúa en {model} y comienza en {mode}; las reglas de sesión, los objetivos, las programaciones y los parches se descartan, y el historial importado se trata como no confiable.",
   "importSessionFailed": "La sesión no se pudo importar",

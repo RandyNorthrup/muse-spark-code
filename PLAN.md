@@ -14441,7 +14441,10 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   a model; shares render and export files write at any byte size, and the
   picker reads them back whole (the transcript item count still bounds all
   three; the report reader keeps its 16 MiB bound as
-  `REPORT_SOURCE_MAX_BYTES`).
+  `REPORT_SOURCE_MAX_BYTES`). NOLIMITS1FIX: the 20,000-item count
+  `SESSION_EXPORT_MAX_ITEMS` is removed too — not about a model; exports,
+  shares and imports take any item count (the share view still pages 200 at
+  a time, which refuses nothing).
 - A35 (NOLIMITS1): `HELD_CHECKOUT_MAX_ENTRIES` = 20000 and
   `HELD_CHECKOUT_MAX_BYTES` = 250 MB removed — not about a model; the tree
   parses and the checkout writes at any size (an ls-tree listing past the
@@ -14463,8 +14466,8 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   reader was not this lane's row). None is a provider's documented limit or
   a person's setting; each needs the lead's keep-or-remove decision.
   NOLIMITS1FIX (this lane's brief): the prompt file bound is REMOVED (see
-  A23 above); the transcript item count and the report reader bound follow
-  in this same lane.
+  A23 above) and so is the transcript item count (see A30 above); the
+  report reader bound follows in this same lane.
 
 ## 3. Open questions (need the owner)
 

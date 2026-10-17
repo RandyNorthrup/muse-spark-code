@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildChatShare, renderChatShare } from '../../src/core/sharing/chatShare'
 import { createChatSharePrivacy } from '../../src/core/sharing/privacy'
-import { SESSION_EXPORT_MAX_ITEMS } from '../../src/shared/constants'
 
 const privacy = createChatSharePrivacy({
   workspaceRoots: [],
@@ -77,23 +76,23 @@ describe('M118 ranges and limits', () => {
       ),
     ).toThrow()
   })
-  it('refuses empty history and too many items, and renders past the old byte cap (D121)', () => {
+  it('refuses empty history, accepts any item count, and renders past the old byte cap (D121)', () => {
     expect(() => buildChatShare({ ...source, items: [] }, request, privacy)).toThrow(
       'no conversation',
     )
-    expect(() =>
-      buildChatShare(
-        {
-          ...source,
-          items: Array.from({ length: SESSION_EXPORT_MAX_ITEMS + 1 }, (_, index) => ({
-            ...source.items[0]!,
-            itemId: String(index),
-          })),
-        },
-        request,
-        privacy,
-      ),
-    ).toThrow('limit')
+    // NOLIMITS1FIX: the removed 20,000-item bound was invented.
+    const many = buildChatShare(
+      {
+        ...source,
+        items: Array.from({ length: 20_001 }, (_, index) => ({
+          ...source.items[0]!,
+          itemId: String(index),
+        })),
+      },
+      request,
+      privacy,
+    )
+    expect(many.items).toHaveLength(20_001)
     const huge = buildChatShare(
       {
         ...source,
