@@ -71,13 +71,23 @@ const present = z.optional(
   ),
 )
 
+// The key's presence as a string, never the string: the parse keeps only
+// whether it is one (a non-string `api_key` makes `muse serve` exit 3,
+// captured on 1.4.10-R6427.1, 2026-10-17).
+const presentString = z.optional(
+  z.pipe(
+    z.unknown(),
+    z.transform((value: unknown): boolean => typeof value === 'string'),
+  ),
+)
+
 // Unknown keys are dropped by the parse: a provider keeps its storage lane
 // and whether it carries a captured credential key, never a key or a token.
 const credentialFileSchema = z.object({
   schema_version: z.number(),
   providers: z.record(
     z.string(),
-    z.object({ storage: z.optional(z.string()), api_key: present, access_token: present }),
+    z.object({ storage: z.optional(z.string()), api_key: presentString, access_token: present }),
   ),
 })
 
