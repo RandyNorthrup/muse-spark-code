@@ -38,14 +38,22 @@ import { parseNdjson } from '../backends/modelapi/ndjson'
 import { parseSse } from '../backends/modelapi/sse'
 import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
 import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
-import { RequestTransport, parseJsonResponse, ModelApiError } from '../backends/modelapi/transport'
+import {
+  RequestTransport,
+  parseJsonResponse,
+  ModelApiError,
+  assertConfirmedAllowed,
+  isStaleConfirmedError,
+} from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
 import { Usd } from '../../shared/usd'
+import { fill } from '../../shared/l10n/text'
 import {
   ADDRESS_FAMILIES,
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_ITEMS,
+  MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
   PROVIDER_SECRET_PREFIX,
@@ -68,6 +76,12 @@ export interface ConfiguredProviderOptions {
     headers: Readonly<Record<string, string>>,
     signal: AbortSignal,
   ) => Promise<PinnedResponse>
+  /**
+   * How long an inference stream may send nothing, headers or frames,
+   * before it is ended (MODEL_API_STREAM_IDLE_MS when absent). It is the
+   * only time limit on an inference stream: there is no limit on its total.
+   */
+  readonly streamIdleMs?: number
 }
 const secretSchema = z.object({
   v: z.literal(1),
@@ -101,16 +115,12 @@ function ignoreProviderCache(): void {
   // Provider requests do not maintain a page cache.
 }
 
-async function* chunks(response: PinnedResponse) {
+async function* chunks(response: PinnedResponse, idleMs: number) {
   let size = 0
   const iterator = response.body[Symbol.asyncIterator]()
   try {
     for (;;) {
-      const part = await withDeadline(
-        iterator.next(),
-        MODEL_API_STREAM_IDLE_MS,
-        UI_TEXT.actionFailed,
-      )
+      const part = await withDeadline(iterator.next(), idleMs, UI_TEXT.actionFailed)
       if (part.done) return
       const bytes = z.instanceof(Uint8Array).parse(part.value)
       size += bytes.byteLength
@@ -126,6 +136,12 @@ export function createConfiguredProviderServices(
   meta: ProviderClient | undefined,
   options: ConfiguredProviderOptions,
 ) {
+  // The only time limit on an inference stream: silence, of headers or
+  // frames. The transport ends such a stream with this sentence (read when
+  // it is compared: the language can change while the services live).
+  const idleMs = options.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+  const stalled = () =>
+    fill(UI_TEXT.modelApiStalled, { seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND) })
   const readCatalog = async () => {
     try {
       return catalogSchema.parse(JSON.parse(await readFile(options.catalogFile, 'utf8')))
@@ -225,6 +241,7 @@ export function createConfiguredProviderServices(
           }),
         now: Date.now,
         random: Math.random,
+        streamIdleMs: idleMs,
         log: {
           trace: ignoreTransportLog,
           info: ignoreTransportLog,
@@ -283,7 +300,7 @@ export function createConfiguredProviderServices(
             // and refuse an ambiguous retry, with no echoed diagnostic text.
             throw new ModelApiError(UI_TEXT.modelsPanelUnavailable, 0, undefined, undefined)
           }
-          const iterator = chunks(response)[Symbol.asyncIterator]()
+          const iterator = chunks(response, idleMs)[Symbol.asyncIterator]()
           return new Response(
             new ReadableStream<Uint8Array>({
               async pull(controller) {
@@ -714,6 +731,7 @@ export function createConfiguredProviderServices(
       auth: connection.auth,
       verifyEndpoint: connection.verifyEndpoint,
       transport: connection.transport,
+      streamIdleMs: idleMs,
       modelFor: () => ({
         id: ref,
         capabilities: capabilities.capabilitiesOf({ capabilityRecord: record }),
@@ -751,10 +769,18 @@ export function createConfiguredProviderServices(
           },
         )
         try {
+          // The shared helper is the only confirmed-dispatch decision: a
+          // lapsed or mismatched confirmation refuses with the run's own
+          // guidance before the provider's unavailable text.
+          assertConfirmedAllowed(body.model, confirmed)
           if (body.model !== ref) return fail()
+          // No limit on the stream's total time: it ends when it finishes,
+          // on the caller's signal, on a budget or request cap, or after
+          // `idleMs` of silence (the transport bounds the wait for headers
+          // and every gap between frames).
           const events = client.streamResponse(
             body,
-            AbortSignal.any([signal, AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)]),
+            signal,
             onRetry,
             budget,
             observe,
@@ -764,13 +790,19 @@ export function createConfiguredProviderServices(
             if ('response' in event && event.response.usage != null) usage = event.response.usage
             yield event
           }
-        } catch (error) {
+        } catch (error: unknown) {
           // A typed codec refusal (an unsupported reasoning effort and its
           // localized reason) and the output-cap minimum refusal (MINOUT)
           // reach the caller; genuinely unknown errors keep the generic
           // unavailable error (lane FIXDSTHINK2 finding 3).
           if (chat.isChatCodecError(error)) throw error
           if (error instanceof RangeError) throw error
+          // A lapsed confirmation keeps the run's own guidance instead of
+          // the provider's unavailable text.
+          if (isStaleConfirmedError(error)) throw error
+          // The idle limit ended the stream: the user is told so, in the
+          // sentence the Meta Model API path uses.
+          if (error instanceof ModelApiError && error.message === stalled()) throw error
           return fail()
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)

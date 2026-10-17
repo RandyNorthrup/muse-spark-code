@@ -11,6 +11,7 @@
 !dist/prompts.js
 !dist/modelApi.js
 !dist/modelApiSessions.js
+!dist/rulesFile.js
 !dist/modelApiCodeIntel.js
 !dist/mcpPool.js
 !dist/structuredSchema.js
@@ -44,6 +45,7 @@
 !dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/modelsPanel.js
+!dist/modelsSubscriptions.js
 !dist/usageService.js
 !dist/usageCompanion.js
 !dist/usagePanel.js
@@ -119,6 +121,7 @@
 !dist/productionMedia.js
 !dist/productionAudio.js
 !dist/runtimeMedia.js
+!dist/modelApiTools.js
 
 !dist/reporting.js
 !dist/reportingPanel.js

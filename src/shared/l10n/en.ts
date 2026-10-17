@@ -38,7 +38,7 @@ export const EN = {
   resourceOverrideNotice: 'Work resumed until {time}.',
   resourceRelocatedNotice: 'Queued work moved to {device} because this machine is busy.',
   resourceRelocationNoRoute:
-    'Relocation is not available yet: it needs a paired device or runner route. Work stays on this machine.',
+    'Relocation requires a paired device or runner route. Work stays on this machine.',
   resourceUnavailable: 'This reading is unavailable on this machine.',
   resourceGovernorOff: 'Resource limits are off on this machine.',
   resourceStatusRefused: 'The latest resource status could not be read, so no readings are shown.',
@@ -102,13 +102,14 @@ export const EN = {
   resourceDiskBusyMaxPercentDescription:
     'Optional disk busy limit in percent. Unset means no disk probe.',
   resourceRelocateDescription:
-    'Where queued team tasks and checks may move when this machine is busy. Relocation needs a paired device or runner route and is not available yet, so work stays on this machine.',
-  resourceRelocatePairedDescription:
-    'Use an approved paired device with normal resource load once relocation is available.',
+    'Relocation requires a paired device or runner route. Work stays on this machine.',
+  resourceRelocatePairedDescription: 'No paired-device route is bound. Work stays on this machine.',
   resourceRelocateAskDescription: 'Ask before moving queued work.',
   resourceRelocateOffDescription: 'Keep work on this machine.',
   // M106: loop previews, structured answers, health and explicit feedback.
   toolArgumentPreviewLabel: 'Argument Preview',
+  toolArgumentPreviewDescription:
+    'Show validated, scrubbed tool arguments as they arrive, before the tool runs.',
   toolArgumentPreviewTruncated: 'Preview truncated.',
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
   toolArgumentPreviewPreparing: 'Preparing arguments…',
@@ -282,8 +283,7 @@ export const EN = {
   estimateSpeedDescription: 'Fastest setup while another machine still saves enough time.',
   estimateCommandTitle: 'Open Estimator',
   estimateUsage: 'Usage: /estimate <goal> [--by <date>] [--fleet current|minimum|optimum]',
-  estimateCliHelp:
-    'Estimate a goal using linked machines, agent slots, accounts and CI; no model call.',
+  estimateCliHelp: 'In progress.',
   estimateCiUnavailable: 'CI minutes unavailable',
   estimateInstalling: 'Installing node',
   estimatePairing: 'Pairing node',
@@ -317,6 +317,7 @@ export const EN = {
   estimateClassStrikes: 'Finding-Class Strikes',
   estimateRedesigns: 'Redesign Events',
   estimateDisclosureMissing: 'Numeric calibration disclosures are incomplete.',
+  estimateRuntimeUnavailable: 'Estimates are unavailable in this host. No plan snapshot is bound.',
   // The estimator's own module (dist/estimator.js) could not be loaded.
   estimateUnavailable:
     'The estimator could not be loaded, so no estimate can run; reinstall the extension and reload the window. The log has the details.',
@@ -421,6 +422,8 @@ export const EN = {
     description: '--description <text>  What was happening, in your own words',
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
+    'auto-compaction':
+      'Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.',
     'no-auto-compaction': 'Disable automatic compaction',
     'output-schema':
       'Validate the final answer against a bounded JSON schema file (Model API only).',
@@ -432,12 +435,10 @@ export const EN = {
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
-  referenceVault:
-    'Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
-  referenceVaultHelp: 'Show the per-user credential vault command usage.',
-  referenceVaultPanel:
-    'The credential vault is unavailable in this build because the broker is not installed.',
-  referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
+  referenceVault: 'In progress.',
+  referenceVaultHelp: 'In progress.',
+  referenceVaultPanel: 'In progress.',
+  referenceVaultLock: 'In progress.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
   referenceAccountsTitle: 'Several Accounts per Provider',
@@ -506,7 +507,7 @@ export const EN = {
   referenceQuestionsDeferral:
     'Each question or MCP form has one card pinned above the composer. Answer on its Open question transcript marker opens or expands the card and focuses its first control, even after deferral. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (default 60 seconds; 0 waits indefinitely), Muse resumes independent work; answer or dismiss the card later. Late answers are your messages and approve nothing. Next open question / Previous open question navigate cards. Scheduled prompts defer immediately; headless exec declines questions. ACP: --questions-defer-after sets the deadline; /questions lists open questions; /answer <n> <text> answers one.',
   referencePermissionLimits:
-    'museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
+    'museCode:manual: Muse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
   referenceElicitationTitle: 'MCP Elicitation',
   referenceElicitation:
     'MCP forms ask for information for the requesting MCP server. Submitted form values go to that server, outside the model conversation and transcript. A server can include them in later tool output. Never enter a password or key.',
@@ -532,7 +533,7 @@ export const EN = {
   referenceMcp:
     'MCP servers: Muse Code runs its own servers; on Model API this window runs configured servers. ACP Model API has no editor MCP servers.',
   referenceTab:
-    'Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.',
+    'Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic. Consent covers the model and price shown; changing either asks again. A legacy Allow always grant asks a migration question. Only Allow always in this workspace saves the model and price; Allow once saves nothing, stays in this window, and each new window asks again.',
   referenceNativeSearch:
     'Muse Code web search and native cron use the subscription. Native cron has no MSP schedule controls; extension search and schedules are separate paid Model API features.',
   referenceCustomAgents:
@@ -578,8 +579,8 @@ export const EN = {
   referenceTasks: 'Open this conversation’s task list in a separate editor tab.',
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
-  referenceEstimate:
-    'Ship-date forecast for a goal from the current fleet, or the setup a target date needs.',
+  referenceInProgress: 'In progress.',
+  referenceEstimate: 'In progress.',
   referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',
   referenceRules: 'Create or open AGENTS.md in the workspace root.',
   referenceWalkthrough: 'Open the Getting Started walkthrough.',
@@ -1237,6 +1238,11 @@ export const EN = {
   sessionContinued: 'Conversation continued after the restart.',
   sessionNotContinued:
     'The conversation could not be continued after the restart, so this message starts a new one',
+  // After a restart the resumed conversation runs on {active} instead of the
+  // chosen {wanted}: the message is not sent, and the conversation stays
+  // resumable, so choosing the reported model and resending continues it.
+  modelNotKeptAfterRestart:
+    'Muse Code reports this conversation runs on {active} instead of {wanted}, so the message was not sent. Choose the model again and resend to continue it.',
   surfaceClosed: 'The panel was closed',
   hostStartFailed: 'The backend could not start',
   decisionErrorNotice:
@@ -1807,6 +1813,11 @@ export const EN = {
   // dist/extensionHooks.js failed to load.
   extensionHooksUnavailable:
     'The extension hooks could not be loaded, so no hook ran; reinstall the extension and reload the window. The log has the details.',
+  // dist/modelApiTools.js failed to load.
+  modelApiToolsUnavailable:
+    'The model call helpers could not be loaded, so hook call fields are unavailable; reinstall the extension and reload the window. The log has the details.',
+  modelApiToolsPreviewUnavailable:
+    'The model call helpers could not be loaded, so argument previews are unavailable; reinstall the extension and reload the window. The log has the details.',
   // The Model API shell's kept working directory. {path}: workspace-relative.
   shellDirectory: 'In {path}',
   shellDirectoryReset:
@@ -1901,6 +1912,7 @@ export const EN = {
   worktreeDetachedHead: 'the commit checked out now',
   worktreeFolderExists: 'That folder already exists:',
   worktreeAddFailed: 'git could not create the worktree',
+  worktreeRecordsWriteUnknown: 'The worktree records may have been written',
   worktreeCreated: 'Worktree ready at {path}',
   worktreeOpen: 'Open in New Window',
   worktreeListFailed: 'git could not list the worktrees',
@@ -2072,6 +2084,7 @@ export const EN = {
   openPullRequestConfirm: 'Open pull request #{number} in a new window?',
   openPullRequestBy: 'By {author}',
   openPullRequestBranches: 'From {head} into {base}',
+  openPullRequestRepository: 'Repository: {repository}',
   openPullRequestOwnDetail:
     'Your own pull request: checked out at its head commit in a worktree beside the repository.',
   openPullRequestHeldDetail:
@@ -2295,7 +2308,7 @@ export const EN = {
     attached: 'Report attached to the message.',
     saveFailed: 'The report could not be saved.',
     copyFailed: 'The report could not be copied.',
-    unsupportedKind: 'Report kind {kind} is not available yet.',
+    unsupportedKind: 'Report kind {kind} is unavailable.',
     localBudgetExceeded: 'The local report exceeded {duration}.',
     confirmFirstSend: 'Confirm the first email to this recipient.',
     destinations: 'Destinations',
@@ -2317,7 +2330,7 @@ export const EN = {
     failed: 'The source could not be read completely.',
     refused: 'The source path is private or outside its allowed folder.',
     disabled: 'This agent usage source is not enabled.',
-    unbound: 'This source integration is not available yet.',
+    unbound: 'This source integration is unavailable.',
     history: 'History for the selected session is unavailable.',
   },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
@@ -3094,6 +3107,11 @@ export const EN = {
   installOrKeyDetail:
     'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
   compactionDone: 'Context compacted',
+  referenceManualCompaction:
+    'Summarize the conversation with /compact and keep recent turns verbatim.',
+  autoCompactionName: 'Automatic compaction',
+  paidConfirmAutoCompaction:
+    'Automatic compaction uses the selected model at {price}. The subscription does not pay for it.',
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
@@ -3718,9 +3736,10 @@ export const EN = {
   // reviewer (M78) checks commands no rule settles while it is on
   // (modelApiReviewedAutoDetail).
   permissionModeDetails: {
-    manual: 'Muse will ask before running commands; Muse Code edits workspace files without asking',
+    manual:
+      'Muse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without asking',
     acceptEdits:
-      'On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands',
+      'On Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it',
     plan: 'Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking',
     auto: 'Muse Code runs the commands it judges simple without asking and asks before the rest',
     bypassPermissions: 'Muse will edit files and run commands without asking',
@@ -3951,6 +3970,12 @@ export const EN = {
     'Other enabled paid tools may add their own charges. Bypass does not skip this confirmation.',
   scheduleConfirmationExpired:
     'The model, conversation or prompt changed during confirmation. Review the schedule and choose Run again.',
+  requestStaleTurn: 'The model or conversation changed while sending. Send your message again.',
+  requestStaleCompaction: 'The model or conversation changed while compacting. Compact again.',
+  requestStaleRetry: 'The model or conversation changed before the request was sent. Try again.',
+  requestStaleHookModel:
+    'The model changed while the hook was asking the model. Try the action again.',
+  requestStaleRun: 'The model changed during the run. Run the command again.',
   webNoResults: 'No results',
   backgroundRunning: 'Running in the background',
   // M46 (PLAN.md D39): moving a running command to the background, stopping
@@ -4051,6 +4076,7 @@ export const EN = {
   whatsNewOpenSetting: 'Open the Setting',
   whatsNewNotesInEnglish: 'The release notes are in English.',
   whatsNewNoNotes: 'No release notes ship with version {version}.',
+  whatsNewEarlierNotes: 'Earlier notes: see the full changelog',
   whatsNewFullChangelog: 'Full Changelog on GitHub',
   whatsNewReadme: 'README on GitHub',
   whatsNewStarGithub: 'Enjoying Muse Spark Code? A star on GitHub helps other people find it.',
@@ -4491,7 +4517,7 @@ export const EN = {
   paidTeamWorkersDetail:
     '{tasks}\n\nBilled to your API key for each task’s provider. Actual cost depends on tokens used. Allow once covers these tasks only.',
   paidConfirmTeamWorkers:
-    'Team tasks run on models billed to your Model API key. {price} The first delegate call that starts key tasks asks for approval in every permission mode, including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are not paid uses. Actual cost depends on tokens used; other paid tools cost extra.',
+    'Team workers are unavailable: no team runtime is bound, so no team task can start and nothing is billed.',
   usagePaidTeamTasks: forms({ one: '{count} team task', other: '{count} team tasks' }),
   // Team pool selection (M96 lane A, PLAN.md D75): the switch row and its
   // reasons, and the two refusals callers surface. {measure} and {window}
@@ -4530,6 +4556,11 @@ export const EN = {
   tabStatusCopilot: 'Tab: on Invoke while Copilot is on',
   // {kind} is the last failure's class, never code or a path.
   tabStatusError: 'Tab failed ({kind})',
+  // A spark-hooks.json file is present but could not be loaded in full, so
+  // Tab reads no file until it is fixed (M94 lane K).
+  tabStatusHooksInvalid: 'Tab paused: hook file has errors',
+  tabStatusHooksInvalidDetail:
+    'A spark-hooks.json file could not be loaded in full, so Tab reads no file until it is fixed. The Muse Spark log names the problem.',
   // The status bar menu: turn off, the snoozes, languages, the multi-line
   // mode, Copilot's row and Account & usage.
   tabMenuTurnOff: 'Turn Tab Off',
@@ -5101,7 +5132,7 @@ export const EN = {
   importNeedsKey: 'needs a key',
   importNeedsKeyLabel: 'Needs a Key',
   providerOpenRouterServices:
-    'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
+    'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
   refreshModels: 'Refresh Models',
   scanNewModels: forms({
     one: '{count} new model since the last scan',
@@ -6101,6 +6132,10 @@ export const EN = {
       'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
+    providersInvalid:
+      'The providers file is invalid, so its entries were refused and the file was left unchanged.',
+    poolUnavailable:
+      'Account pooling is unavailable in this runtime: it needs a bound resource owner. Run again without --account-pool.',
     cliUsage:
       'Accounts: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ordered ids]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
     slashDescription: 'List accounts, view thresholds, or choose an account.',
@@ -6126,10 +6161,12 @@ export const EN = {
     parallelDescription:
       'Spread background work by headroom and keep each worker on its assigned account.',
     current: 'Current Account',
+    switchUnavailable:
+      'This session stays on {provider} · {account}. Account switching is unavailable in this runtime.',
     swapNotice: 'Now on {provider} · {account}: {previous} reached {threshold}.',
     coldCache: 'Estimated context re-read cost: {cost}.',
-    stopped: '{provider} has no account with room. Resets {reset}.',
-    resetUnknown: '{provider} has no account with room. Reset time is unknown.',
+    stopped: '{provider} · {account} has no room. Resets {reset}.',
+    resetUnknown: '{provider} · {account} has no room. Reset time is unknown.',
     sharedGroup: '{account} shares the same vendor limit group; another key adds no capacity.',
     policy: 'Vendor Account Policy',
     policyOn: 'Pooling Available',

@@ -17,7 +17,15 @@ const entries = {
   resourceSurface: 'src/webview/resources/ResourceSurface.tsx',
   resourceHistory: 'src/webview/usage/ResourcesSection.tsx',
 }
-const fixture = { folder: '', canonical: undefined, browser: undefined, keys: undefined }
+const fixture = {
+  folder: '',
+  canonical: undefined,
+  browser: undefined,
+  keys: undefined,
+  installed: undefined,
+  accountKeys: undefined,
+  resourceKeys: undefined,
+}
 const byText = (left, right) => left.localeCompare(right)
 
 beforeAll(async () => {
@@ -40,11 +48,27 @@ export async function loadPalette() { return await import('../../src/shared/pale
 export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english'), import('browser-playbook-english')]) }
 export async function loadResources() { await import('browser-resource-english') }
 export async function loadAccounts() { await import('../../src/webview/models/sections/accounts/accountsEntry') }
+export async function loadVault() { await import('../../src/webview/models/sections/vault/VaultSurface') }
 export async function loadDeveloper() { await import('../../src/webview/developer/DeveloperOptionsPage') }
 `,
   )
   fixture.canonical = await loadL10n(process.cwd())
   fixture.keys = browserTextKeys([...Object.values(entries), probe], fixture.canonical.EN).keys
+  // Every walk of the source graph is setup, like the build below: the case
+  // that parsed the whole browser graph a second time missed its deadline
+  // on a slow runner.
+  fixture.installed = browserTextKeys(Object.values(entries), fixture.canonical.EN).keys
+  fixture.accountKeys = browserTextKeys(
+    [
+      'src/webview/models/sections/accounts/accountsEntry.ts',
+      'src/webview/developer/DeveloperOptionsPage.tsx',
+    ],
+    fixture.canonical.EN,
+  ).keys
+  fixture.resourceKeys = browserTextKeys(
+    [entries.resourceSurface, entries.resourceHistory],
+    fixture.canonical.EN,
+  ).keys
   await build({
     entryPoints: { ...entries, probe },
     outdir: path.join(fixture.folder, 'dist'),
@@ -76,13 +100,7 @@ describe('the production browser English and full-table contract', () => {
   })
 
   it('loads surface English on demand, retaining every browser value and installed language', async () => {
-    const accountKeys = browserTextKeys(
-      [
-        'src/webview/models/sections/accounts/accountsEntry.ts',
-        'src/webview/developer/DeveloperOptionsPage.tsx',
-      ],
-      fixture.canonical.EN,
-    ).keys
+    const { accountKeys, installed, resourceKeys } = fixture
     for (const key of accountKeys) expect(fixture.keys.has(key), key).toBe(true)
     const { EN: canonical } = fixture.canonical
     const {
@@ -96,7 +114,17 @@ describe('the production browser English and full-table contract', () => {
       installVaultEnglish,
     } = fixture.browser
     expect(Object.keys(EN).toSorted(byText)).toEqual([...fixture.keys].toSorted(byText))
+    // C-X-1: Help does not name the vault, and the installed entries mount
+    // neither the vault nor the accounts surface. CM108ACC: Help lists accounts
+    // again, so production carries that group, out of startup and on demand.
+    // The probe mounts both (loadAccounts, loadVault) to keep their loading pinned.
+    expect(installed.has('accounts')).toBe(true)
+    expect(installed.has('vault')).toBe(false)
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
+    // MINOUT: the provider file's English is Node-only. Team settings take
+    // their output-minimum message from its own leaf, never providerRouting.ts.
+    expect(installed.has('providerText')).toBe(false)
+    expect(Object.hasOwn(EN, 'providerText')).toBe(false)
     expect(EN.composerLabel).toBe(canonical.composerLabel)
     expect(() => EN.referenceSearch).toThrow('English surface is not loaded')
     expect(() => EN.accounts).toThrow('English surface is not loaded')
@@ -131,10 +159,6 @@ describe('the production browser English and full-table contract', () => {
     expect(EN.referenceSearch).toEqual(canonical.referenceSearch)
     expect(() => EN.resourceShow).toThrow('English surface is not loaded')
     await loadResources()
-    const resourceKeys = browserTextKeys(
-      [entries.resourceSurface, entries.resourceHistory],
-      canonical,
-    ).keys
     for (const key of resourceKeys) expect(EN[key], key).toEqual(canonical[key])
     // The vault group's English is installed by the vault surface alone; the
     // shared surface English never carries it a second time.

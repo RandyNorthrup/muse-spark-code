@@ -117,24 +117,6 @@ export const CAPTURED_PULL_OWN = {
   },
 }
 
-/** `GET /repos/…/pulls/49`: closed and merged. */
-export const CAPTURED_PULL_MERGED = {
-  ...CAPTURED_PULL_OWN,
-  html_url: `https://github.com/${REPOSITORY}/pull/49`,
-  number: 49,
-  state: 'closed',
-  title: "Read the Muse Code CLI's sign-in from its credential file, not its presence",
-  closed_at: '2026-09-28T16:06:29Z',
-  merged_at: '2026-09-28T16:06:29Z',
-  merged: true,
-  head: {
-    ...CAPTURED_PULL_OWN.head,
-    label: 'RandyNorthrup:fix/cli-sign-in-detection',
-    ref: 'fix/cli-sign-in-detection',
-    sha: '5184f26986283cfcacd64da8628c76a5e062a4ff',
-  },
-}
-
 /**
  * `GET /repos/…/pulls?head=RandyNorthrup:docs/how-its-built&state=open`:
  * the list form, which has no `merged` field.
@@ -173,32 +155,6 @@ export const CAPTURED_CHECKS_RUNNING = {
   ],
 }
 
-/** The same for 1ae3604f: one failed, one skipped. */
-export const CAPTURED_CHECKS_FAILED = {
-  total_count: 7,
-  check_runs: [
-    checkRun(1, 'build / package (.vsix)', 'completed', 'skipped'),
-    checkRun(2, 'build / quality (macos-latest)', 'completed', 'failure'),
-    checkRun(3, 'build / gitleaks', 'completed', 'success'),
-    checkRun(4, 'build / semgrep', 'completed', 'success'),
-    checkRun(5, 'build / quality (ubuntu-latest)', 'completed', 'success'),
-    checkRun(6, 'build / quality (windows-latest)', 'completed', 'success'),
-    checkRun(7, 'build / dictation helper (macos)', 'completed', 'success'),
-  ],
-}
-
-/** The same for 19e74b07: a cancelled run. */
-export const CAPTURED_CHECKS_CANCELLED = {
-  total_count: 2,
-  check_runs: [
-    checkRun(8, 'build / quality (ubuntu-latest)', 'completed', 'cancelled'),
-    checkRun(9, 'build / semgrep', 'completed', 'success'),
-  ],
-}
-
-/** The fork pull request #51: its workflows waited for approval, so no runs. */
-export const CAPTURED_CHECKS_NONE = { total_count: 0, check_runs: [] }
-
 /** `GET /repos/…/commits/e9ebe7a…/status`: no statuses reads `pending` with a count of 0. */
 export const CAPTURED_STATUS_NONE = {
   state: 'pending',
@@ -207,58 +163,9 @@ export const CAPTURED_STATUS_NONE = {
   total_count: 0,
 }
 
-/** `GET /repos/microsoft/TypeScript/commits/df1a31e…/status`: statuses posted by other services. */
-export const CAPTURED_STATUS_FAILED = {
-  state: 'failure',
-  sha: 'df1a31e6d5c4aa4485f276fdfb4218a7bfcdf348',
-  total_count: 3,
-  statuses: [
-    {
-      state: 'success',
-      context: 'codecov/patch',
-      description: 'Coverage not affected when comparing 55a46f1...df1a31e',
-      target_url: 'https://app.codecov.io/gh/microsoft/TypeScript/commit/df1a31e',
-    },
-    {
-      state: 'success',
-      context: 'codecov/project',
-      description: '88.23286% (+0.01818%) compared to 55a46f1',
-      target_url: 'https://app.codecov.io/gh/microsoft/TypeScript/commit/df1a31e',
-    },
-    {
-      state: 'failure',
-      context: 'TypeScript Localization Update',
-      description: '#20260924.2 failed',
-      target_url: 'https://devdiv.visualstudio.com/_build/results?buildId=15440273',
-    },
-  ],
-}
-
 /** `GET /repos/…/pulls/999999`. */
 export const CAPTURED_NOT_FOUND = {
   message: 'Not Found',
   documentation_url: 'https://docs.github.com/rest/pulls/pulls#get-a-pull-request',
   status: '404',
-}
-
-/** `POST /repos/…/pulls` with a head branch that does not exist. */
-export const CAPTURED_INVALID_HEAD = {
-  message: 'Validation Failed',
-  errors: [{ resource: 'PullRequest', field: 'head', code: 'invalid' }],
-  documentation_url: 'https://docs.github.com/rest/pulls/pulls#create-a-pull-request',
-  status: '422',
-}
-
-/** `POST /repos/…/pulls` for a head that already has an open pull request. */
-export const CAPTURED_ALREADY_EXISTS = {
-  message: 'Validation Failed',
-  errors: [
-    {
-      resource: 'PullRequest',
-      code: 'custom',
-      message: 'A pull request already exists for RandyNorthrup:docs/how-its-built.',
-    },
-  ],
-  documentation_url: 'https://docs.github.com/rest/pulls/pulls#create-a-pull-request',
-  status: '422',
 }

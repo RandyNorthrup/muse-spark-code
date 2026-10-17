@@ -38,7 +38,7 @@ import type { MediaBudget } from '../backends/modelapi/mediaBudget'
 import { pinOwnerForRequest, type UploadLedger } from './uploadLedger'
 import { modalityGate, type MediaModelCapabilities, type MediaGateResult } from './modalityGate'
 
-export { storedMediaPartSchema, type StoredMediaPart } from '../../shared/media'
+export type { StoredMediaPart } from '../../shared/media'
 
 export interface ReplayMediaDeps {
   readonly estimator?: MediaCostEstimator

@@ -5,7 +5,7 @@
     <title>Muse Spark webview harness</title>
     <!--
       Loads the built webview bundle behind a scripted fake host so the UI can
-      be exercised in an ordinary browser (see scripts/harness-shots.mjs).
+      be exercised in an ordinary browser (see scripts/ui-look.mjs).
       Served from the repository root; run `npm run build:dev` first.
       The colour variables below approximate VS Code's light theme for the
       screenshots; `?theme=` applies a theme captured from VS Code itself,
@@ -246,6 +246,9 @@
       const FIND_INTERVAL_MS = 50
       const FIND_TIMEOUT_MS = 3000
       let pendingFinds = 0
+      // Models captures finish counted actions after a lazy section arrives.
+      if (harnessBundle === 'models')
+        globalThis.harnessSceneWorkPending = () => pendingScenarioEvents > 0 || pendingFinds > 0
       const whenFound = (selector, fn) => {
         if (isScenarioDone) refuse(`scene work after scenarioDone() in ${playingScenario}`)
         pendingFinds += 1

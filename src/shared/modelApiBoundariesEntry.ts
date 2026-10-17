@@ -10,3 +10,12 @@ export * from './usd'
 
 // M105 port: share pure usage validation across Node readers.
 export * from './usageJournal'
+// The build points usdSchema.ts in every Node bundle at this one, which
+// exports what this file exports. exactJson.ts reads `canonicalUsd` from
+// usdSchema.ts; 0.18.0 did not export it here and every version 1 amount was
+// judged inexact (HOTFIX0181). It is exported here and not through usd.ts:
+// usd.ts is also an input of four webview bundles, and a name added to its
+// list renames identifiers in a chunk the reviewed screenshots were made
+// from. The split gate fails the build if a bundle reads a name this file
+// does not export.
+export { canonicalUsd } from './usdSchema'

@@ -1,5 +1,6 @@
 import type { UsageCost } from '../shared/usageJournal'
 import { estimateCostUsd } from '../core/usage/insights'
+import { Usd } from '../shared/usd'
 import {
   MODEL_API_PRICED_MODELS,
   ACP_TOOL_OUTPUT_MAX_CHARS,
@@ -378,7 +379,12 @@ export class UpdateTranslator {
       toolCallId: item.itemId,
       status,
       ...(content !== undefined && { content }),
-      ...(wasPreview && preview === undefined && { rawInput: args ?? item.args, title }),
+      ...(wasPreview &&
+        preview === undefined && {
+          rawInput: args ?? item.args,
+          title,
+          locations: toolLocations(args, this.cwd),
+        }),
       ...(item.kind === 'subagent' && item.result !== undefined && { rawOutput: item.result }),
     })
     if (isCompleted) {
@@ -411,7 +417,9 @@ export class UpdateTranslator {
         ) {
           this.cost = {
             certainty: 'computed',
-            usd: (this.cost?.usd ?? 0) + Number(estimateCostUsd(delta, event.modelId)),
+            usd: Usd.from(this.cost?.usd ?? 0)
+              .add(Usd.from(estimateCostUsd(delta, event.modelId)))
+              .toAmount(),
           }
         } else {
           this.hasUnpricedUsage = true
@@ -443,8 +451,6 @@ export class UpdateTranslator {
         const cost = this.readCost === undefined ? this.cost : this.readCost()
         const hasCost =
           cost?.usd !== undefined &&
-          Number.isFinite(cost.usd) &&
-          cost.usd >= 0 &&
           cost.certainty !== 'unpriced' &&
           cost.certainty !== 'uncertain' &&
           cost.certainty !== 'plan'
@@ -456,7 +462,9 @@ export class UpdateTranslator {
                 used: event.usedTokens,
                 size: event.windowTokens,
                 ...(hasCost && {
-                  cost: { amount: cost.usd ?? 0, currency: 'USD' },
+                  // ACP's `amount` is a JSON number on the wire: the exact
+                  // decimal becomes a number only here, at that boundary.
+                  cost: { amount: Number(cost.usd ?? 0), currency: 'USD' },
                   _meta: { museSpark: { costCertainty: cost.certainty } },
                 }),
               },

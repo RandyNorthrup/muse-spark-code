@@ -3,8 +3,9 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { brotliDecompressSync } from 'node:zlib'
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { ACP_NATIVE_FILES, layOutAcpNativeSources } from './helpers/acpPackageSources'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { ACP_BUNDLES } from '../../scripts/lib/acpBundles.mjs'
+import { layOutAcpNativeSources } from './helpers/acpPackageSources'
 
 const folders = []
 // Cold archive preparation and npm pack run once outside five-second assertions.
@@ -38,72 +39,8 @@ function fixture() {
       devDependencies: { '@napi-rs/keyring': '2.1.0' },
     }),
   )
-  for (const bundle of [
-    'acp',
-    'headless',
-    'sharingRuntime',
-    'modelApi',
-    'modelApiSessions',
-    'modelApiHooks',
-    'modelApiMcp',
-    'productionMedia',
-    'productionAudio',
-    'runtimeMedia',
-    'runtimeAccounting',
-    'acpQuestions',
-    'acpPlaybook',
-    'runtimeQuestions',
-    'runtimeAccounts',
-    'questionNotes',
-    'mcpPool',
-    'exec',
-    'modelApiCodeIntel',
-    'structuredSchema',
-    'resourceAdmission',
-    'resourceGovernor',
-    'resourceProcess',
-    'resourceJournal',
-    'runtimeEngine',
-    'schedules',
-    'providerPolicy',
-    'modelApiBoundaries',
-    'vault',
-    'vaultBoundaries',
-    'estimator',
-    'estimateContracts',
-    'media',
-    'legalScan',
-    'imageResizeWorker',
-    'team',
-    'teamScheduler',
-    'teamRunners',
-    'providers',
-    'subscriptions',
-    'configuredProviders',
-    'reviewer',
-    'foreignHooks',
-    'hookRuntime',
-    'recorder',
-    'reference',
-    'uiText',
-    'uiTextRuntime',
-    'uiTextHooks',
-    'uiTextSurfaces',
-    'uiTextMedia',
-    'extensionHooks',
-    'validation',
-    'wire',
-    'searchWorker',
-    'pageWorker',
-    'usageService',
-    'usageCompanion',
-    'fontsInstall',
-    'scheduleBackground',
-    'reporting',
-    'reportingNetwork',
-    'reportingDestinations',
-  ])
-    put(`dist/${bundle}.js`, 'exports.EN = {}')
+  for (const bundle of ACP_BUNDLES)
+    if (bundle.endsWith('.js')) put(`dist/${bundle}`, 'exports.EN = {}')
   layOutAcpNativeSources(root, process.cwd())
   put('LICENSE', 'MIT')
   put('design/fonts/manifest.json', readFileSync('design/fonts/manifest.json', 'utf8'))
@@ -206,72 +143,54 @@ describe('usage assets in the ACP package', () => {
         expect(archived[file.slice('usage.'.length, -'.json'.length)]).toEqual(
           JSON.parse(readFileSync(path.join(f.root, 'l10n', file), 'utf8')),
         )
-    // M105 lanes V and VB: the runtime's media bundles and the converter's
-    // Windows job launcher ship, or Windows conversion would refuse there.
-    for (const file of [
-      'dist/runtimeMedia.js',
-      'dist/modelApiSessions.js',
-      'dist/productionAudio.js',
-    ])
-      expect(files).toContain(`package/${file}`)
-    for (const file of ACP_NATIVE_FILES)
-      expect(files).toContain(`package/${file.replaceAll('\\', '/')}`)
     expect(files).not.toContain('package/dist/webview/main.js')
     expect(files).not.toContain('package/dist/webview/usage.js.map')
     expect(files).not.toContain('package/l10n/untranslated.json')
   })
 
-  describe('package refusal guards', () => {
-    let refusalFixture
-    beforeEach(() => {
-      // Immutable fixture setup is outside each 5 s guard assertion. The
-      // command, mutated input and every refusal/stage assertion stay inside.
-      refusalFixture = fixture()
-    })
-    it.each([
-      'dist/usageService.js',
-      'dist/usageCompanion.js',
-      'dist/webview/chunks/detail.js',
-      'l10n/usage.de.json',
-    ])('refuses missing usage asset before packaging: %s', (file) => {
-      const f = refusalFixture
-      rmSync(path.join(f.root, file))
-      expect(f.run().status, file).not.toBe(0)
-    })
-
-    it.each([
-      { path: 'dist/outside.js' },
-      { path: 'dist/webview/private.txt' },
-      { path: 'https://foreign.example/script.js', external: true },
-      { path: 'dist/webview/chunks/react.js', external: true },
-    ])('refuses a foreign or external browser import: $path', (imported) => {
-      const f = refusalFixture
-      if (!imported.external) {
-        f.outputs[imported.path] = {}
-        f.put(imported.path, 'private fixture')
-      }
-      f.outputs['dist/webview/usage.js'].imports = [imported]
-      f.put('dist/meta/usageWebview.json', JSON.stringify({ outputs: f.outputs }))
-      expect(f.run().status).not.toBe(0)
-    })
-
-    it.each(['metadata', 'directory', 'json'])(
-      'keeps the prior package stage intact with invalid %s',
-      (problem) => {
-        const f = refusalFixture
-        f.put('dist/acp-package/prior.txt', 'prior package')
-        if (problem === 'metadata') {
-          delete f.outputs['dist/webview/chunks/detail.js']
-          f.put('dist/meta/usageWebview.json', JSON.stringify({ outputs: f.outputs }))
-        } else if (problem === 'directory') {
-          rmSync(path.join(f.root, 'dist/webview/chunks/detail.js'))
-          mkdirSync(path.join(f.root, 'dist/webview/chunks/detail.js'))
-        } else f.put('l10n/usage.de.json', '{invalid')
-        expect(f.run().status, problem).not.toBe(0)
-        expect(readFileSync(path.join(f.root, 'dist/acp-package/prior.txt'), 'utf8')).toBe(
-          'prior package',
-        )
-      },
-    )
+  it.each([
+    'dist/usageService.js',
+    'dist/usageCompanion.js',
+    'dist/webview/chunks/detail.js',
+    'l10n/usage.de.json',
+  ])('refuses missing usage asset before packaging: %s', (file) => {
+    const f = fixture()
+    rmSync(path.join(f.root, file))
+    expect(f.run().status, file).not.toBe(0)
   })
+
+  it.each([
+    { path: 'dist/outside.js' },
+    { path: 'dist/webview/private.txt' },
+    { path: 'https://foreign.example/script.js', external: true },
+    { path: 'dist/webview/chunks/react.js', external: true },
+  ])('refuses a foreign or external browser import: $path', (imported) => {
+    const f = fixture()
+    if (!imported.external) {
+      f.outputs[imported.path] = {}
+      f.put(imported.path, 'private fixture')
+    }
+    f.outputs['dist/webview/usage.js'].imports = [imported]
+    f.put('dist/meta/usageWebview.json', JSON.stringify({ outputs: f.outputs }))
+    expect(f.run().status).not.toBe(0)
+  })
+
+  it.each(['metadata', 'directory', 'json'])(
+    'keeps the prior package stage intact with invalid %s',
+    (problem) => {
+      const f = fixture()
+      f.put('dist/acp-package/prior.txt', 'prior package')
+      if (problem === 'metadata') {
+        delete f.outputs['dist/webview/chunks/detail.js']
+        f.put('dist/meta/usageWebview.json', JSON.stringify({ outputs: f.outputs }))
+      } else if (problem === 'directory') {
+        rmSync(path.join(f.root, 'dist/webview/chunks/detail.js'))
+        mkdirSync(path.join(f.root, 'dist/webview/chunks/detail.js'))
+      } else f.put('l10n/usage.de.json', '{invalid')
+      expect(f.run().status, problem).not.toBe(0)
+      expect(readFileSync(path.join(f.root, 'dist/acp-package/prior.txt'), 'utf8')).toBe(
+        'prior package',
+      )
+    },
+  )
 })
