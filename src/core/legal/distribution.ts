@@ -100,7 +100,11 @@ export function materialInSnapshot(snapshot: LegalFileSnapshot, dep: LegalDepend
         const text = snapshot.readFile(file)
         if (text === undefined) return false
         const manifest = recordOf(parseJson(text))
-        return dep.version === undefined || manifest?.['version'] === dep.version
+        // A versionless dependency locates only a lone installed copy;
+        // with several copies it never borrows another version's material.
+        return dep.version === undefined
+          ? manifests.length === 1
+          : manifest?.['version'] === dep.version
       })
       // A lone installed location with no manifest remains approximate; multiple
       // locations without exact-version evidence never borrow one another.
