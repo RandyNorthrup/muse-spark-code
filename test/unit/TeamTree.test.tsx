@@ -3,7 +3,6 @@
 // pattern, the actions, the read-only render, the header pill and the
 // AgentMap region. Single-model mode renders no team tree: that is today's
 // map, covered by AgentMap.test.tsx.
-import { Usd } from '../../src/shared/usd'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
