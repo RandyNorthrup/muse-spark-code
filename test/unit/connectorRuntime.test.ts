@@ -6,7 +6,7 @@
 // under the owner's testing rules; the protocol and framing are covered by
 // connectorServe.test.ts and test/e2e/connectorStdio.e2e.test.ts against
 // the real server, and the page by connectorServe.test.ts over loopback.)
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -16,6 +16,7 @@ import type { ConnectorGrant } from '../../src/shared/connector'
 import { SharedLimits } from '../../src/core/connector/policy'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
 import { ConnectorStore } from '../../src/runtime/connector/store'
+import { removeFolder } from './helpers/temporaryFolders'
 
 /** The awaited result's field (the lint rule forbids member access on an await). */
 async function field<T extends object, K extends keyof T>(
@@ -28,7 +29,7 @@ async function field<T extends object, K extends keyof T>(
 
 const folders: string[] = []
 afterEach(async () => {
-  await Promise.all(folders.splice(0).map((folder) => rm(folder, { recursive: true, force: true })))
+  await Promise.all(folders.splice(0).map((folder) => removeFolder(folder)))
 })
 async function folder(): Promise<string> {
   const created = await mkdtemp(path.join(os.tmpdir(), 'm124-connector-'))

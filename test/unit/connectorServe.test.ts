@@ -196,6 +196,33 @@ async function saveAwaiting(server: Serving, id: number): Promise<string> {
   return (answer['data'] as { operationId: string }).operationId
 }
 
+/** One save through the page's decision; its operation state and the library afterwards. */
+async function decidedSave(isApproved: boolean) {
+  const data = await mkdtemp(path.join(os.tmpdir(), 'm124-serve-'))
+  try {
+    await granted(data, ['prompts:write'])
+    let launch = ''
+    const server = serve(data, (url) => {
+      launch = url
+      return Promise.resolve()
+    })
+    try {
+      const operationId = await saveAwaiting(server, 1)
+      expect(await new PromptStore(data, undefined).list('user')).toEqual([])
+      await decideOnPage(launch, isApproved)
+      await sleep(250)
+      return {
+        state: await operationState(server, 2, operationId),
+        prompts: await new PromptStore(data, undefined).list('user'),
+      }
+    } finally {
+      await server.close()
+    }
+  } finally {
+    await removeFolder(data)
+  }
+}
+
 describe('M124 connector serving (real store, page and pipes)', () => {
   it('serves granted reads scrubbed and writes nothing of them to the audit', async () => {
     const data = await mkdtemp(path.join(os.tmpdir(), 'm124-serve-'))
@@ -234,54 +261,16 @@ describe('M124 connector serving (real store, page and pipes)', () => {
   })
 
   it('writes a save only after the approval page approves it, once', async () => {
-    const data = await mkdtemp(path.join(os.tmpdir(), 'm124-serve-'))
-    try {
-      await granted(data, ['prompts:write'])
-      let launch = ''
-      const server = serve(data, (url) => {
-        launch = url
-        return Promise.resolve()
-      })
-      try {
-        const operationId = await saveAwaiting(server, 1)
-        expect(await new PromptStore(data, undefined).list('user')).toEqual([])
-        await decideOnPage(launch, true)
-        await sleep(250)
-        const state = await operationState(server, 2, operationId)
-        expect(state['state']).toBe('completed')
-        const saved = await new PromptStore(data, undefined).list('user')
-        expect(saved.map((prompt) => prompt.title)).toEqual(['From another agent'])
-        expect(saved[0]?.untrusted).toBe(true)
-      } finally {
-        await server.close()
-      }
-    } finally {
-      await removeFolder(data)
-    }
+    const { state, prompts } = await decidedSave(true)
+    expect(state['state']).toBe('completed')
+    expect(prompts.map((prompt) => prompt.title)).toEqual(['From another agent'])
+    expect(prompts[0]?.untrusted).toBe(true)
   })
 
   it('writes nothing when the approval page denies the save', async () => {
-    const data = await mkdtemp(path.join(os.tmpdir(), 'm124-serve-'))
-    try {
-      await granted(data, ['prompts:write'])
-      let launch = ''
-      const server = serve(data, (url) => {
-        launch = url
-        return Promise.resolve()
-      })
-      try {
-        const operationId = await saveAwaiting(server, 1)
-        await decideOnPage(launch, false)
-        await sleep(250)
-        const state = await operationState(server, 2, operationId)
-        expect(state['state']).toBe('cancelled')
-        expect(await new PromptStore(data, undefined).list('user')).toEqual([])
-      } finally {
-        await server.close()
-      }
-    } finally {
-      await removeFolder(data)
-    }
+    const { state, prompts } = await decidedSave(false)
+    expect(state['state']).toBe('cancelled')
+    expect(prompts).toEqual([])
   })
 
   it('stops pending work when the kill switch lands, while Stop still answers', async () => {
