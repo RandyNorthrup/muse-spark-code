@@ -27899,6 +27899,27 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**MSM108 main integration (2026-10-17, macmini).** Merged `main-now`
+3d30a7321 (568 commits) into the lane tip a79ed4c1f with `git merge
+--no-ff`; all 45 conflicted files resolved by meaning and main's test
+overhaul deletions kept deleted. Main's newer designs win where they
+supersede the lane (paid-consent epochs, `selectedModel` host, section-lazy
+panel, fake-based suite removals); the lane's account wiring survives on
+top (leases, per-account consent route, restore register, composition
+e2e). Notable adaptations: duplicate `@unwired` M58 per-account block
+removed from `paidConsent` (the lane's wired module is the single
+definition); `REFERENCE_SURFACES.accounts` static pin removed so catalog
+surfaces ride the certification switch; README/restore held texts narrowed
+to main's published contract (refusal prose stays; pool-flag and settings
+sentences out); `dist/runtimeAccounts.js` ships in the VSIX. All static
+gates green; touched suites and the 4-test production composition e2e
+pass. `ACCOUNT_REQUEST_CERTIFICATION.isComplete` stays false; pooling,
+swaps, placement, devices and usage mounts wait on their recorded owners
+(Q-M108 captures, M100/M102/M107, Linux B42). Record:
+`docs/certification/msm108.md`.
+
+**MSM108 gate triage (2026-10-17, macmini).** The 12 full-suite failures were triaged file-by-file against pristine `main-now`: fixed the lane's l10n key order (13-locale archive round-trip), the paid allow-list site move, three dpdm roots, the dispatch inventory (one candidate, three fences, one comment), and two warm-up imports; `fileLease`/`treesLifecycleNative`/`treesMacNative` fail identically on main (rig syscalls), and `execStdio`/`checkSlots`/`runtimeChatGptPackage` pass alone (load flakes). One merge-caused failure stays open: the lane-K activation budget (see §7); no cap changed.
+
 **CM1082R4 verification (2026-10-11).** Logical requests retain their payer through retries; durable conversation selection reports removal before fallback; day-indexed claims recover dead owners at their own time and prune 62-day history. Hidden Models bootstrap is typed and gated; policy modals do not block other eligible owners. Native image/reviewer/hook requests ask under their leased payer. 186 dependent suites ran at repository deadlines; sudo uid, browser/editor and the production search/Judge paid-kind joins remain unproved, so availability stays false and full closure is not claimed. See `docs/certification/cm1082.md` and its R4 receipt; next slice remains C-M108-2 certification.
 
 **CM1082R4 review scope (2026-10-11).** Fix every RVCM1082 finding: lease-bound paid consent, retry payer continuity, period-scoped recovery and bounded day-indexed journal, durable conversation selection with removed-account notice, typed hidden panel bootstrap, concurrent processes, measured closure receipt and policy admission isolation. D88.5 explicitly spreads subagents, best-of-N, team workers and scheduled runs by headroom; those workers retain independent sticky owners. Confirmed requests on the conversation retain its selection. Availability stays false; no browser on this rig. Certification records each regression and byte-exact red drill.
@@ -33281,6 +33302,8 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**MSM108 activation-budget overage (2026-10-17, macmini, open).** `test/unit/modelsActivationBudget.test.ts` (lane-K cap: at most 3 KiB over the immutable pre-K activation bundle) measures growth 6069 B on the MSM108 tree: main alone already grows 2863 B, and the lane's sanctioned wiring (per-account consent route, account-services factory, lazy loader, required tunables) adds 3206 B minified. Slimming cannot cover the 2997 B gap (removing the whole factory closure saves only 1620 B, measured); deferring the factory needs the M95/M109 async seams. No cap, threshold or assertion changed. Owner decision pending: raise the lane-K cap or schedule the deferral. Receipts: `docs/certification/msm108.md` §6.
 
 **C-M108-2 build overage resolved (2026-10-11, continuation).** Deferring the optional provider import editor reduces the original Models body from 77,698 to 76,274 B under its unchanged 76,800 B cap. Its new lazy closure measures 2,128 B under an independent 25 KiB cap; loading, failure, retry and dismissal retain the section label. Account chunk failures now use the same section boundary. Production build passes without adding Model API bytes. Availability stays false pending complete dependents and external visual/editor/review receipts. See `docs/certification/cm1082.md`.
 
