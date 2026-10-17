@@ -143,6 +143,12 @@ happened, not what was planned; superseded entries are kept.
   dropped the check while its regression stayed, so noncanonical ids
   parsed. They are refused again.
 
+- The hidden team engine reads its file-grant authority and retry helper
+  through the shared host and Model API bundles that export them; without
+  those exports the lazy engine chunk would read undefined at run time.
+  The hidden Roles panel chunk ships in the package, as activation and
+  the Models panel require.
+
 - The hidden team configuration keeps its per-role editor lazy after the
   Models split, with a separate measured budget and loading/retry UI.
 
