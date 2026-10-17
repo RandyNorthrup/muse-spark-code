@@ -25,6 +25,7 @@
 !dist/sessionBoard.js
 !dist/reviewer.js
 !dist/team.js
+!dist/teamPanel.js
 !dist/teamRunners.js
 !dist/teamHost.js
 !dist/teamEngine.js

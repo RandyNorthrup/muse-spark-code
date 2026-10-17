@@ -19,6 +19,7 @@ const TEAM_ENTRIES = {
   'dist/team.js': 'src/core/team/teamEntry.ts',
   'dist/teamRunners.js': 'src/host/runners/teamRunnersEntry.ts',
   'dist/teamHost.js': 'src/host/team/teamHostEntry.ts',
+  'dist/teamPanel.js': 'src/core/team/teamPanelEntry.ts',
   'dist/teamScheduler.js': 'src/core/team/teamSchedulerEntry.ts',
   'dist/teamWorkerOps.js': 'src/core/team/workers/workerOpsEntry.ts',
   'dist/teamEngine.js': 'src/host/team/teamEngineEntry.ts',
@@ -29,6 +30,7 @@ const VSIX_TEAM_ENTRIES = [
   'dist/team.js',
   'dist/teamRunners.js',
   'dist/teamHost.js',
+  'dist/teamPanel.js',
   'dist/teamScheduler.js',
 ]
 const ACP_TEAM_ENTRIES = ['dist/team.js', 'dist/teamRunners.js', 'dist/teamScheduler.js']
