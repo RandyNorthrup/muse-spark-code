@@ -19,8 +19,10 @@ happened, not what was planned; superseded entries are kept.
   project's `Elicitation` hook can decline the request and a user hook can
   answer it (checked against the server's schema); `ElicitationResult`
   observers in the project see field names and the outcome only, while user
-  hooks also see accepted values. Previously these hooks were accepted by
-  the configuration but never ran.
+  hooks also see accepted values. When a project or managed hook declines,
+  user hooks are not run for that request (they still see the outcome in
+  `ElicitationResult`). Previously these hooks were accepted by the
+  configuration but never ran.
 
 ### Pending
 
