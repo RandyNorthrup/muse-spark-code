@@ -6676,7 +6676,7 @@ prompts into a chat in any workspace".
 
 <!-- plan-archive:end id="2-D76-01" -->
 
-## D108 — A chat surface takes the keyboard only while it holds it (panel-focus, 2026-10-12)
+## D116 — A chat surface takes the keyboard only while it holds it (panel-focus, 2026-10-12; numbered D108 until 2026-10-15)
 
 <!-- plan-archive:begin id="decisions-6409d5aad-14637" lines="14637-14673" at="6409d5aad" bytes="2388" sha256="5e93bad2d134d71cbd13ac74eea7a8087b3db7d711d960cf97f6cb91896d7568" -->
 

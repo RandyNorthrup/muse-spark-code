@@ -10,7 +10,7 @@ editor 0.4–0.8 s after `showTextDocument` resolved (webview "ready" at
 1 the takeover came before the first look (the red Hosts job on 0.18.2).
 The code is unchanged since 2026-09-21 (commit `fb1166ec6f`).
 
-## The rule (PLAN.md D108)
+## The rule (PLAN.md D116, numbered D108 until 2026-10-15)
 
 Focus is taken only as the direct effect of something the person just did
 on that surface, and only if that surface still holds the keyboard when the
@@ -119,7 +119,7 @@ is what makes the second half pass). Nothing else needs an editor.
 
 ## Looked at in light and dark (2026-10-14, this lane)
 
-D108 changes the interface's focus behavior, so the changed surfaces were
+D116 changes the interface's focus behavior, so the changed surfaces were
 inspected on the built product in both themes with the repository's own
 local screenshot tool (`node scripts/harness-shots.mjs`, headless Chrome,
 `dist/webview/main.js` from `npm run build`): the chat transcript with its
