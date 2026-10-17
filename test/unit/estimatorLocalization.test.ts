@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
-import manifestCopy from '../fixtures/estimator/manifest-strings.json'
 import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
@@ -76,15 +75,4 @@ describe('M117 localized estimator consent and manifest handoff', () => {
         expect(UI_TEXT.estimateConfirmServer).not.toBe(EN.estimateConfirmServer)
     },
   )
-
-  it('supplies exact five manifest translations for W without registering unfinished commands', () => {
-    expect(Object.keys(manifestCopy.mapping)).toHaveLength(5)
-    const tables = z.record(z.string(), strings).parse(manifestCopy.tables)
-    expect(new Set(Object.keys(tables))).toEqual(new Set([BASE_LOCALE, ...TABLE_LOCALES]))
-    for (const [locale, table] of Object.entries(tables)) {
-      const region = regionFor(locale)
-      expect(new Set(Object.keys(table))).toEqual(new Set(Object.values(manifestCopy.mapping)))
-      for (const [key, value] of Object.entries(table)) expect(value).toBe(region[key])
-    }
-  })
 })

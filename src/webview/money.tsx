@@ -205,7 +205,8 @@ export function useFormatUsd(
   return api?.formatMoney(amount, fractionDigits)
 }
 
-/** A conservative amount (four places under a dollar), or undefined until loaded. */
+/** A conservative amount (four places under a dollar), or undefined until loaded.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function useConservativeUsd(
   amount: number | string | Usd,
   importer?: MoneyImporter,
@@ -214,7 +215,8 @@ export function useConservativeUsd(
   return api?.formatConservativeUsd(amount)
 }
 
-/** A check's test cost as the language writes it, or undefined until loaded. */
+/** A check's test cost as the language writes it, or undefined until loaded.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function useFormatTestCost(
   costUsd: UsdAmount | undefined,
   importer?: MoneyImporter,
