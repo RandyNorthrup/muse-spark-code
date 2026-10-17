@@ -287,13 +287,18 @@ suite('saved team composition in VS Code', () => {
       assert.ok(!plan.output.startsWith('Error:'), plan.output)
       const delegated = await binding.seams.teamRunner.delegate(args, context)
       assert.ok(!delegated.output.startsWith('Error:'), delegated.output)
-      while (
-        tree?.roles.some(
-          (role) => role.queued.length > 0 || role.entries.some((entry) => entry.running > 0),
-        )
-      ) {
-        await binding.seams.teamRunner.collect({ wait_seconds: 10 }, context)
+      const runner = binding.seams.teamRunner
+      assert.ok(runner, 'the team runner is bound')
+      const drainQueue = async (): Promise<void> => {
+        while (
+          tree?.roles.some(
+            (role) => role.queued.length > 0 || role.entries.some((entry) => entry.running > 0),
+          )
+        ) {
+          await runner.collect({ wait_seconds: 10 }, context)
+        }
       }
+      await drainQueue()
       const result = await binding.seams.teamRunner.collect({ wait_seconds: 10 }, context)
       assert.ok(!result.output.startsWith('Error:'), result.output)
       const worker = tree?.roles.find((role) => role.id === 'engineering')?.unmerged[0]
@@ -307,13 +312,7 @@ suite('saved team composition in VS Code', () => {
         reviewing.output.includes('a reviewer started checking this branch'),
         reviewing.output,
       )
-      while (
-        tree?.roles.some(
-          (role) => role.queued.length > 0 || role.entries.some((entry) => entry.running > 0),
-        )
-      ) {
-        await binding.seams.teamRunner.collect({ wait_seconds: 10 }, context)
-      }
+      await drainQueue()
       const merged = await binding.seams.teamRunner.merge({ task_id: worker.taskId }, context)
       assert.ok(!merged.output.startsWith('Error:'), merged.output)
       assert.equal(await readFile(path.join(repo, 'tracked.txt'), 'utf8'), 'after\n')

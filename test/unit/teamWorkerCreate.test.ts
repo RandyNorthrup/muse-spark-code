@@ -294,6 +294,28 @@ async function setup(role = WRITER, admit: () => void = () => undefined) {
   }
 }
 
+async function fillFailingTool(
+  failure: { write: () => Promise<never> } | { writeBytes: () => Promise<never> },
+): Promise<{
+  tool: ReturnType<typeof fenceWorkerToolIo>
+  copy: string
+}> {
+  const { copy, input, role } = await setup()
+  await mkdir(path.join(copy, 'docs'))
+  const nativeOpen = WORKER_NATIVE_IO.openFile
+  if (nativeOpen === undefined) throw new Error('native existing-file opener missing')
+  const openFile: NonNullable<WorkerFenceIo['openFile']> = async (absolute, isWrite) => {
+    const handle = await nativeOpen(absolute, isWrite)
+    return { ...handle, ...failure }
+  }
+  const tool = fenceWorkerToolIo(base, {
+    input: { ...input, io: { ...input.io, openFile } },
+    role,
+    admit: () => undefined,
+  })
+  return { tool, copy }
+}
+
 describe('verified native worker creation', () => {
   it('NF reopened names honor platform separators and directory case', async () => {
     const { copy, tool } = await setup()
@@ -457,7 +479,11 @@ describe('verified native worker creation', () => {
         await job.dispose()
         if (shell.folder !== '') await removeFolder(shell.folder)
       })
-      it('NF windows production launcher creates through PowerShell and the job assembly', async () => {
+      async function productionTool(): Promise<{
+        tool: ReturnType<typeof fenceWorkerToolIo>
+        copy: string
+        dispose: () => void
+      }> {
         const assembly = shell.assembly
         const executable = job.path
         if (assembly === undefined || executable === undefined)
@@ -475,19 +501,23 @@ describe('verified native worker creation', () => {
               }),
           }),
         )
+        // No fixture override: the create falls back to the packaged
+        // production launcher under test here.
+        const productionIo: WorkerFenceIo = {
+          realPath: input.io.realPath,
+          pathIdentity: input.io.pathIdentity,
+          ...(input.io.openFile !== undefined && { openFile: input.io.openFile }),
+        }
+        const tool = fenceWorkerToolIo(base, {
+          input: { ...input, io: productionIo },
+          role,
+          admit: () => undefined,
+        })
+        return { tool, copy, dispose: resources.dispose }
+      }
+      it('NF windows production launcher creates through PowerShell and the job assembly', async () => {
+        const { tool, copy, dispose } = await productionTool()
         try {
-          // No fixture override: the create falls back to the packaged
-          // production launcher under test here.
-          const productionIo: WorkerFenceIo = {
-            realPath: input.io.realPath,
-            pathIdentity: input.io.pathIdentity,
-            ...(input.io.openFile !== undefined && { openFile: input.io.openFile }),
-          }
-          const tool = fenceWorkerToolIo(base, {
-            input: { ...input, io: productionIo },
-            role,
-            admit: () => undefined,
-          })
           const target = path.join(copy, 'src', 'launched.ts')
           await tool.writeFile(target, 'launched\n')
           expect(await readFile(target, 'utf8')).toBe('launched\n')
@@ -501,7 +531,7 @@ describe('verified native worker creation', () => {
           ).rejects.toThrow(UI_TEXT.teamFileExists)
           expect(await readFile(raced, 'utf8')).toBe('owner')
         } finally {
-          resources.dispose()
+          dispose()
           resources.dispose = configureResources({
             inspect: () => undefined,
             onError: () => undefined,
@@ -509,43 +539,17 @@ describe('verified native worker creation', () => {
         }
       })
       it('NF windows production launcher reports a nested file parent copy-relative', async () => {
-        const assembly = shell.assembly
-        const executable = job.path
-        if (assembly === undefined || executable === undefined)
-          throw new Error('Native launch unavailable')
-        const { copy, input, role } = await setup()
-        resources.dispose = configureResources(
-          immediateResourceSettings({
-            inspect: () => undefined,
-            onError: () => undefined,
-            windowsJob: () =>
-              Promise.resolve({
-                assemblyPath: assembly,
-                executablePath: executable,
-                verify: () => Promise.resolve(),
-              }),
-          }),
-        )
+        // No fixture override: the refusal below travels through the
+        // packaged nativeOperation, which must print the copy-relative
+        // path, not the ancestor-relative suffix.
+        const { tool, copy, dispose } = await productionTool()
         try {
-          // No fixture override: the refusal below travels through the
-          // packaged nativeOperation, which must print the copy-relative
-          // path, not the ancestor-relative suffix.
-          const productionIo: WorkerFenceIo = {
-            realPath: input.io.realPath,
-            pathIdentity: input.io.pathIdentity,
-            ...(input.io.openFile !== undefined && { openFile: input.io.openFile }),
-          }
-          const tool = fenceWorkerToolIo(base, {
-            input: { ...input, io: productionIo },
-            role,
-            admit: () => undefined,
-          })
           await writeFile(path.join(copy, 'src', 'plain'), 'owner')
           await expect(
             tool.writeFile(path.join(copy, 'src', 'plain', 'deep', 'new'), 'blocked\n'),
           ).rejects.toThrow(fill(UI_TEXT.teamFileCannotCreate, { path: 'src/plain/deep/new' }))
         } finally {
-          resources.dispose()
+          dispose()
           resources.dispose = configureResources({
             inspect: () => undefined,
             onError: () => undefined,
@@ -846,18 +850,8 @@ describe('verified native worker creation', () => {
     expect(await readdir(path.join(copy, 'src'))).not.toContain('deep')
   })
   it('NF a failed first write keeps a pre-existing empty folder', async () => {
-    const { copy, input, role } = await setup()
-    await mkdir(path.join(copy, 'docs'))
-    const nativeOpen = WORKER_NATIVE_IO.openFile
-    if (nativeOpen === undefined) throw new Error('native existing-file opener missing')
-    const openFile: NonNullable<WorkerFenceIo['openFile']> = async (absolute, isWrite) => {
-      const handle = await nativeOpen(absolute, isWrite)
-      return { ...handle, write: () => Promise.reject(new Error('first write lost')) }
-    }
-    const tool = fenceWorkerToolIo(base, {
-      input: { ...input, io: { ...input.io, openFile } },
-      role,
-      admit: () => undefined,
+    const { tool, copy } = await fillFailingTool({
+      write: () => Promise.reject(new Error('first write lost')),
     })
     const target = path.join(copy, 'docs', 'a', 'b.txt')
     await expect(tool.writeFile(target, 'lost\n')).rejects.toThrow('first write lost')
@@ -868,18 +862,8 @@ describe('verified native worker creation', () => {
     expect(await readdir(path.join(copy, 'docs'))).toEqual([])
   })
   it('NF cleanup removes only the folders this operation created', async () => {
-    const { copy, input, role } = await setup()
-    await mkdir(path.join(copy, 'docs'))
-    const nativeOpen = WORKER_NATIVE_IO.openFile
-    if (nativeOpen === undefined) throw new Error('native existing-file opener missing')
-    const openFile: NonNullable<WorkerFenceIo['openFile']> = async (absolute, isWrite) => {
-      const handle = await nativeOpen(absolute, isWrite)
-      return { ...handle, writeBytes: () => Promise.reject(new Error('fill lost')) }
-    }
-    const tool = fenceWorkerToolIo(base, {
-      input: { ...input, io: { ...input.io, openFile } },
-      role,
-      admit: () => undefined,
+    const { tool, copy } = await fillFailingTool({
+      writeBytes: () => Promise.reject(new Error('fill lost')),
     })
     const target = path.join(copy, 'docs', 'a', 'b.bin')
     // A concurrent creator makes docs/a after preflight, so the helper

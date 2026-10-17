@@ -280,11 +280,16 @@ async function settle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
-async function finishedTeam() {
+async function delegatedTeam() {
   const h = harness(team([entry('e1', WORKER_MODEL)]))
   const service = createTeamHostService(h.deps)
   await service.probeEntries()
   await service.teamRunner.delegate(delegateOne, context())
+  return { h, service }
+}
+
+async function finishedTeam() {
+  const { h, service } = await delegatedTeam()
   h.finish(0)
   await settle()
   return { h, service }
@@ -494,10 +499,7 @@ describe('the team host service', () => {
   })
 
   it('reports the settled engine costs as exact decimals on the team tally', async () => {
-    const h = harness(team([entry('e1', WORKER_MODEL)]))
-    const service = createTeamHostService(h.deps)
-    await service.probeEntries()
-    await service.teamRunner.delegate(delegateOne, context())
+    const { h, service } = await delegatedTeam()
     // 12 input + 3 output tokens at the standard tariff: exact, never float.
     h.finish(0, {
       usage: {
@@ -1803,6 +1805,19 @@ const hookRig = (stored: TeamSnapshot, shouldRefuseSwitch = false) => {
   return { h, service, events }
 }
 
+async function delegateCeilingPair(isCeilingReached: boolean): Promise<ReturnType<typeof hookRig>> {
+  const t = hookRig(team([entry('one', WORKER_MODEL)]))
+  await t.service.probeEntries()
+  await t.service.teamRunner.delegate(
+    { tasks: [delegateOne.tasks[0], delegateOne.tasks[0]] },
+    context(),
+  )
+  await settle()
+  t.h.finish(0, { isCeilingReached })
+  await settle()
+  return t
+}
+
 describe('team lifecycle hook firing', () => {
   it('fires Start once and Stop once with the actual child session after cancellation', async () => {
     const t = hookRig(team([entry('one', WORKER_MODEL)]))
@@ -1877,30 +1892,14 @@ describe('team lifecycle hook firing', () => {
     await t.service.dispose()
   })
   it('does not fire Idle after a worker reaches its request ceiling', async () => {
-    const t = hookRig(team([entry('one', WORKER_MODEL)]))
-    await t.service.probeEntries()
-    await t.service.teamRunner.delegate(
-      { tasks: [delegateOne.tasks[0], delegateOne.tasks[0]] },
-      context(),
-    )
-    await settle()
-    t.h.finish(0, { isCeilingReached: true })
-    await settle()
+    const t = await delegateCeilingPair(true)
     expect(t.events.filter((item) => item.event === 'TeammateIdle')).toEqual([])
     t.h.finish(1)
     await settle()
     await t.service.dispose()
   })
   it('re-admits Idle continuations on the same copy and bounds them', async () => {
-    const t = hookRig(team([entry('one', WORKER_MODEL)]))
-    await t.service.probeEntries()
-    await t.service.teamRunner.delegate(
-      { tasks: [delegateOne.tasks[0], delegateOne.tasks[0]] },
-      context(),
-    )
-    await settle()
-    t.h.finish(0, { isCeilingReached: false })
-    await settle()
+    const t = await delegateCeilingPair(false)
     expect(t.h.started[2]?.continueFrom?.folder).toBe('/copies/x')
     for (let index = 2; index < 2 + HOOK_MAX_STOP_CONTINUATIONS; index += 1) {
       t.h.finish(index, { isCeilingReached: false })

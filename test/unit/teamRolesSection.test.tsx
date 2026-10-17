@@ -118,6 +118,26 @@ async function roleEditorRig(overrides?: Parameters<typeof panelRig>[0]) {
   return { rig, slice, posted, post, role, view }
 }
 
+type TemperatureRig = Pick<Awaited<ReturnType<typeof roleEditorRig>>, 'posted' | 'rig'>
+
+async function changeTemperatureSetting(
+  parts: TemperatureRig,
+  value: string,
+  effort: string,
+  temperature: number,
+): Promise<void> {
+  const { posted, rig } = parts
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Temperature' }), {
+    target: { value },
+  })
+  const last = posted.at(-1)
+  expect(last).toMatchObject({
+    fields: { settings: { effort, outputCap: 1024, temperature } },
+  })
+  if (last === undefined) throw new Error('No settings edit')
+  await rig.controller.handle(last)
+}
+
 async function outputCapSlice() {
   const rig = panelRig()
   await rig.read()
@@ -398,15 +418,7 @@ describe('M96 U1 Roles UI', () => {
     })
     const partial = structuredClone(await rig.read())
     view.rerender(<RoleEditor role={engineeringRole(partial)} slice={partial} post={post} />)
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Temperature' }), {
-      target: { value: '0.5' },
-    })
-    const last = posted.at(-1)
-    expect(last).toMatchObject({
-      fields: { settings: { effort: 'low', outputCap: 1024, temperature: 0.5 } },
-    })
-    if (last === undefined) throw new Error('No settings edit')
-    await rig.controller.handle(last)
+    await changeTemperatureSetting({ posted, rig }, '0.5', 'low', 0.5)
     expect(engineeringRole(await rig.read()).pool[0]?.settings).toEqual({
       effort: 'low',
       outputCap: 1024,
@@ -531,15 +543,7 @@ describe('M96 U1 Roles UI', () => {
     view.rerender(<RoleEditor role={engineeringRole(reapplied)} slice={reapplied} post={post} />)
     // The level restores High: the editor shows it, not the retired Low.
     expect(screen.getByRole('combobox', { name: 'Effort' })).toHaveValue('high')
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Temperature' }), {
-      target: { value: '0.6' },
-    })
-    const last = posted.at(-1)
-    expect(last).toMatchObject({
-      fields: { settings: { effort: 'high', outputCap: 1024, temperature: 0.6 } },
-    })
-    if (last === undefined) throw new Error('No settings edit')
-    await rig.controller.handle(last)
+    await changeTemperatureSetting({ posted, rig }, '0.6', 'high', 0.6)
     expect(engineeringRole(await rig.read()).pool[0]?.settings).toEqual({
       effort: 'high',
       outputCap: 1024,
