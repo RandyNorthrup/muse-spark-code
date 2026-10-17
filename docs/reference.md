@@ -2211,7 +2211,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.schedules
 
-scheduleDeliveryCertified=true: Controls the legacy /loop shortcut in Muse Code chat. Scheduled prompt delivery requires certification.
+scheduleDeliveryCertified=true: Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 

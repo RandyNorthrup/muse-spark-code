@@ -2936,7 +2936,7 @@
       },
       "id": "museSpark.schedules",
       "name": "museSpark.schedules",
-      "description": "Controls the legacy /loop shortcut in Muse Code chat. Scheduled prompt delivery requires certification.",
+      "description": "Controls the legacy /loop shortcut in Muse Code chat. Schedule management and scheduled prompt execution are unavailable.",
       "descriptionKey": "config.schedules.description",
       "type": "boolean",
       "default": true,
