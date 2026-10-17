@@ -13,8 +13,11 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // paid.ts). Every update of a turn goes out before the turn's response.
 
 import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
 import { agentListingText, listedAgents, listedAgentId } from '../core/agent/agentListing'
+import { parseWhatsNewContent } from '../core/whatsNew/whatsNewContent'
+import { whatsNewTextForContent } from '../core/whatsNew/whatsNewText'
 import { buildAgentReceipt } from '../shared/agentReceipt'
 import { recoveryStamp } from '../shared/agentRecovery'
 import { agentStateText } from '../shared/agentOutcome'
@@ -83,6 +86,7 @@ import {
   QUESTION_DEFER_DEFAULT_SECONDS,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
+  WHATS_NEW_CONTENT_FILE,
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
@@ -546,6 +550,7 @@ class AcpSession {
         ?.commands()
         .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
       { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+      { name: 'whatsnew', description: UI_TEXT.paletteTips.whatsNew, input: null },
       ...(this.deps.vault === undefined
         ? []
         : [
@@ -642,6 +647,7 @@ class AcpSession {
               'record',
               'accounts',
               'vault',
+              'whatsnew',
             ].includes(skill.selector) &&
             ((this.deps.usage === undefined && this.deps.resources === undefined) ||
               skill.selector !== 'usage') &&
@@ -1235,6 +1241,27 @@ class AcpSession {
     } finally {
       if (this.legalStop === stop) this.legalStop = undefined
       if (this.preparing === preparing) this.preparing = undefined
+    }
+  }
+
+  /**
+   * What's New in another editor (M99): this version's release notes as
+   * text, read from the package's own content file beside the agent bundle
+   * and checked before use. A missing or unreadable file is logged with its
+   * path and answered with the generic failure, never an empty success.
+   */
+  private whatsNewText(): string {
+    const file = path.join(__dirname, WHATS_NEW_CONTENT_FILE)
+    try {
+      return whatsNewTextForContent(
+        parseWhatsNewContent(readFileSync(file, 'utf8')),
+        this.deps.version,
+      )
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: What's New unavailable: ${failureForLog(error)} (${file})`,
+      )
+      return UI_TEXT.actionFailed
     }
   }
 
@@ -1915,6 +1942,20 @@ class AcpSession {
               type: 'text',
               text: compactReference(this.availableCommands().map((command) => command.name)),
             },
+          })
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
+      // A reserved command, decided on the one typed text like the others:
+      // anything after the name stays a local answer, never a skill or a
+      // model turn (the reserved-command rule below).
+      if (parsed.parts.length === 1 && part?.type === 'text' && /^\/whatsnew(?:\s|$)/.test(typed)) {
+        await this.announceCommands()
+        if ('error' in preparing) throw preparing.error
+        if (!preparing.isCancelled)
+          this.send({
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: this.whatsNewText() },
           })
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'

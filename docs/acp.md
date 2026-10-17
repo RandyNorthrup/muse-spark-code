@@ -361,6 +361,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   M108's `/accounts <list|current|thresholds [id]>` on the Model API
   backend, answered locally with no model turn; `/accounts use <id>` is
   refused and names the account the session keeps.
+  M99's `/whatsnew` reads this version's release highlights and full notes
+  from the package's own content file, answered locally with no model turn.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
