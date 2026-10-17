@@ -1,0 +1,41 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/FIXM96K
+
+ ❯ test/unit/teamNativeLifetime.test.ts (8 tests | 1 failed) 4462ms
+   ❯ M96 K real native lifetime (8)
+     × warns about malformed launch payloads at startup and preserves all foreign bytes 744ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > warns about malformed launch payloads at startup and preserves all foreign bytes
+AssertionError: expected [ Array(1) ] to deeply equal [ …(2) ]
+
+- Expected
++ Received
+
+  [
+    "/tmp/m96-native-K6XSWF/team/journal/485396b4-9793-41ba-86b3-ff0c86c298ef/damaged.json",
+-   "/tmp/m96-native-K6XSWF/team/journal/485396b4-9793-41ba-86b3-ff0c86c298ef/launch-damaged.json",
+  ]
+
+ ❯ test/unit/teamNativeLifetime.test.ts:251:32
+    249|     stops.push(() => started.lifetime.dispose())
+    250|     expect(started.records.map((row) => row.id)).toEqual([child.launch…
+    251|     expect(started.unreadable).toEqual([broken, malformed])
+       |                                ^
+    252|     if (process.platform !== 'win32')
+    253|       expect(started.orphans.map((row) => row.launchId)).toContain(chi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 7 passed (8)
+   Start at  10:23:23
+   Duration  5.70s (tests 80%, transform 12%, import 4%, setup 3%)
+

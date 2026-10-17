@@ -18,6 +18,14 @@
       "note": "An approval card, docked above the message box, with the CLI's own choices"
     },
     {
+      "file": "media/readme/question.png",
+      "scenario": "question",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "A compact transcript marker and one question card pinned above the composer, with tabs, choices, Other and Explain instead"
+    },
+    {
       "file": "media/readme/history.png",
       "scenario": "history",
       "theme": "light",
@@ -40,7 +48,7 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "note": "Permission modes, one line each, Shift+Tab to cycle"
+      "note": "Permission modes and effort; Shift+Tab cycles modes"
     },
     {
       "file": "media/readme/paid.png",
@@ -55,8 +63,8 @@
       "scenario": "paid-always",
       "theme": "light",
       "width": 690,
-      "height": 760,
-      "note": "What no longer asks in this workspace, and Ask again"
+      "height": 1000,
+      "note": "Paid feature tallies, workspace consent, Tab daily budget, Model hooks and Judge"
     },
     {
       "file": "media/readme/palette.png",
@@ -64,15 +72,7 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "note": "Type /: the palette above the prompt"
-    },
-    {
-      "file": "media/readme/question.png",
-      "scenario": "question",
-      "theme": "light",
-      "width": 690,
-      "height": 760,
-      "note": "A question card: tabs, radios or checkboxes, Other, Submit, Explain instead and Cancel"
+      "note": "Type /: context, Git and model actions above the prompt"
     },
     {
       "file": "media/readme/quote.png",
@@ -80,7 +80,7 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "note": "Highlight, right-click: Copy, Ask about this or Comment on this"
+      "note": "Highlight, right-click: Copy, Ask About This or Comment on This"
     },
     {
       "file": "media/readme/rewind.png",
@@ -88,7 +88,7 @@
       "theme": "light",
       "width": 690,
       "height": 760,
-      "note": "Every sent message's ⋯: fork, fork and rewind the code, or Rewind for the conversation or the code"
+      "note": "Every sent message's ⋯: Fork Conversation, Fork and Rewind, Rewind, Save Prompt and Share Prompt…"
     },
     {
       "file": "media/readme/slash-commands.png",
@@ -121,6 +121,38 @@
       "width": 690,
       "height": 760,
       "note": "Voice dictation: tap or hold, Ctrl+D"
+    },
+    {
+      "file": "media/readme/open-question.png",
+      "scenario": "readme-open-question",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "An open question reopened in the attention dock, with its transcript row and navigation chip"
+    },
+    {
+      "file": "media/readme/help.png",
+      "scenario": "readme-help",
+      "theme": "light",
+      "width": 1000,
+      "height": 760,
+      "note": "Help & Reference searched for Next open question: question handling, deferral setting and navigation commands"
+    },
+    {
+      "file": "media/readme/deterministic-report.png",
+      "scenario": "deterministic-report",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Local deterministic report tab and export actions"
+    },
+    {
+      "file": "media/readme/resources.png",
+      "scenario": "resources-throttle",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "The Resources chip beside the heartbeat while throttling, opened as Show resources does: readings against their limits, waiting work, no relocation route on this build, and Resume now, Open settings and Show resources"
     }
   ],
   "excluded": [

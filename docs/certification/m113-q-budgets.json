@@ -1,0 +1,145 @@
+{
+  "nodeBytes": 55125,
+  "uiBytes": 8108,
+  "cssBytes": 881,
+  "nodeCapKiB": 75,
+  "uiCapKiB": 25,
+  "forbiddenImports": [],
+  "externalModules": [
+    {
+      "path": "node:crypto",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "./uiText.js",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "./validation.js",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:crypto",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "./validation.js",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "./wire.js",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "./wire.js",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:url",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:path",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "./validation.js",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:crypto",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "./validation.js",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "./validation.js",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:crypto",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:fs/promises",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:path",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:timers/promises",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "./validation.js",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:fs/promises",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:path",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:crypto",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:fs",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:fs/promises",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:path",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:fs/promises",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:path",
+      "kind": "require-call",
+      "external": true
+    },
+    {
+      "path": "node:crypto",
+      "kind": "require-call",
+      "external": true
+    }
+  ]
+}

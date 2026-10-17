@@ -1,0 +1,20 @@
+{
+  "exit": 1,
+  "restoredManifestSha256": "548a7d33462495c131cc524b927ade317983c2c8238191d03274117b9a6fe7c0",
+  "directoriesBefore": [],
+  "directoriesAfter": [],
+  "temporarySourcesAndPngsCleaned": true,
+  "normalComparison": {
+    "exit": 1,
+    "capture": "panel/approval-moved/focus-visible/light/320",
+    "changedPixels": 2,
+    "manifestUnchanged": true
+  },
+  "reconstructedComparison": {
+    "exit": 1,
+    "sourceCaptures": 4824,
+    "capture": "panel/agents-details/pressed/light/320",
+    "changedPixels": 5,
+    "noGreenReceiptClaimed": true
+  }
+}

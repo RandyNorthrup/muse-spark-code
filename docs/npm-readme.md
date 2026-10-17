@@ -1,9 +1,9 @@
 <p align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/banner.png" alt="Muse Spark Code: Meta's Muse Spark as a coding agent in your editor" width="100%"></p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="npm version" src="https://badgen.net/npm/v/muse-spark-code-acp?color=3b6cf6"></a>
+  <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="npm version" src="https://img.shields.io/badge/npm-v{version}-3b6cf6"></a>
   <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="npm weekly downloads" src="https://badgen.net/npm/dw/muse-spark-code-acp?color=3b6cf6"></a>
-  <a href="https://github.com/RandyNorthrup/muse-spark-code/releases/latest"><img alt="GitHub release" src="https://badgen.net/github/release/RandyNorthrup/muse-spark-code?color=3b6cf6"></a>
+  <a href="https://github.com/RandyNorthrup/muse-spark-code/releases/latest"><img alt="GitHub release" src="https://img.shields.io/badge/GitHub%20release-v{version}-3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/blob/main/package.json"><img alt="Node 22 or later" src="https://img.shields.io/badge/node-%3E%3D22-2b7de9"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>
@@ -16,12 +16,18 @@ coding agent in any editor that speaks the
 IDEs through AI Assistant, Neovim, Emacs, JupyterLab and others — plus
 one-turn headless `exec` runs and a GitHub Action for CI. It runs on your
 Muse subscription through the Muse Code CLI, or pay as you go on a Meta
-Model API key, and never mixes the two. The same project ships the
-[VS Code extension](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
-(also on [Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)).
+Model API key, and never mixes the two. The project ships from four places:
+the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
+and [Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)
+(the VS Code extension), [npm](https://www.npmjs.com/package/muse-spark-code-acp)
+(this ACP agent) and
+[GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
+(both the `.vsix` and the agent's `.tgz`).
 
 > Unofficial. Not affiliated with or endorsed by Meta. "Muse Spark" and
 > "Muse Code" are Meta trademarks. You bring your own credentials.
+
+[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
 ## Install
 
@@ -30,6 +36,14 @@ Node.js 22 or later is required.
 ```sh
 npm install -g muse-spark-code-acp
 muse-spark-code-acp --version
+```
+
+Or install the `.tgz` attached to a
+[GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases),
+replacing `<version>` with the release's version:
+
+```sh
+npm install -g https://github.com/RandyNorthrup/muse-spark-code/releases/download/v<version>/muse-spark-code-acp-<version>.tgz
 ```
 
 On Windows, npm installs the command as a `.cmd` launcher, which some
@@ -221,4 +235,17 @@ about to be billed and its price.
 - [Changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md)
 - [VS Code extension on the Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code)
 - [VS Code extension on Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code)
+- [GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases) (the `.vsix` and the agent's `.tgz`)
 - [MIT license](https://github.com/RandyNorthrup/muse-spark-code/blob/main/LICENSE)
+
+## Local usage history
+
+`/usage` prints the shared journal summary; `/usage page` supplies the authenticated
+loopback companion link. The terminal also accepts `usage`, `usage --json`,
+`usage --csv`, `usage open`, `usage serve --stdio` and root `--usage` JSON.
+Use `--usage-history=off` when serving ACP to stop new records. The history and
+exports stay on this machine; raw calls roll up after 30 days and daily history
+defaults to 365 days. Deleting it leaves spend ledgers and grants intact. The
+companion uses a one-use fragment code, an in-memory bearer per window and
+fetch-streamed events, with no cookies. See the README Usage and cost section
+for storage folders and the M102 certification for editor/rig receipts.

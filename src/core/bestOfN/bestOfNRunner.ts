@@ -12,6 +12,9 @@
 // pays: the runner refuses any backend but the Model API, whose turns bill
 // the key.
 
+import { admitResource, inResourceClass } from '../resources/admission'
+import type { ResourceLease } from '../resources/launch'
+import type { ResourceClass } from '../../shared/resources'
 import type { BestOfNCoordinator } from './bestOfNCoordinator'
 import type { ResponseAttemptGuard } from '../backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../backends/modelapi/sessionBudget'
@@ -26,7 +29,9 @@ import type { SubagentUsage } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
 import { isSamePath } from '../paths'
 import { pathModule } from '../workspaceRoot'
-import { worktreeAddArgs, worktreeRemoveArgs } from '../worktrees'
+import { worktreeAddArgs, worktreeHookPath, worktreeRemoveArgs } from '../worktrees'
+import { HOOK_MAX_STOP_CONTINUATIONS } from '../../shared/constants'
+import type { ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
 import type { BestOfNRequest } from '../../shared/bestOfN'
 import { validateBestOfNRequest } from '../../shared/bestOfN'
 import {
@@ -47,13 +52,46 @@ const CLEAN_ARGS = ['status', '--porcelain=v1', '-z', '--untracked-files=normal'
 const OBJECT_ID = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i
 
 import { BestOfNError, isBestOfNError } from './bestOfNError'
-export { BestOfNError } from './bestOfNError'
 
 /** An attempt's conversation, started by the host around a worktree. */
 export interface BestOfNAttemptDriver {
   readonly sessionId: string | undefined
   cancel(): Promise<void>
   dispose(): void
+  /**
+   * A TeammateIdle hook kept the attempt working (M91 lane E): send one more
+   * turn with the hook's reason. Absent until the host implements it; without
+   * it the attempt completes as before.
+   */
+  readonly continueAttempt?: ((reason: string) => Promise<void>) | undefined
+}
+
+/** What a WorktreeCreate hook's answer leaves behind for the attempt. */
+export interface BestOfNWorktreeHookResult {
+  readonly failedReason?: string | undefined
+}
+
+/** A TeammateIdle hook's answer for an attempt that stopped with siblings running. */
+export interface BestOfNTeammateIdleResult {
+  readonly keepWorking: boolean
+  readonly reason?: string | undefined
+}
+
+/**
+ * The run's extension hooks (M91 lane E), fired from the parent session's
+ * snapshot by the host: attempts run with hooks off, so the coordinator's
+ * side fires. Absent until the host wires it; without it the run behaves as
+ * before.
+ */
+export interface BestOfNExtensionHooks {
+  readonly fireWorktreeHook: (
+    event: Extract<ExtensionHookEvent, 'WorktreeCreate' | 'WorktreeRemove'>,
+    relativePath: string,
+  ) => Promise<BestOfNWorktreeHookResult>
+  readonly fireTeammateIdle: (
+    attemptId: string,
+    siblingsRunning: number,
+  ) => Promise<BestOfNTeammateIdleResult>
 }
 
 export type BestOfNAttemptEvent =
@@ -118,6 +156,7 @@ export interface BestOfNRunnerDeps {
   readonly startAttempt: (start: BestOfNAttemptStart) => Promise<BestOfNAttemptDriver>
   readonly onUpdate: (run: BestOfNRun) => void
   readonly log: CoreLogger
+  readonly extensionHooks?: BestOfNExtensionHooks | undefined
 }
 
 export interface BestOfNStart extends BestOfNRequest {
@@ -130,6 +169,8 @@ export interface BestOfNStart extends BestOfNRequest {
 export interface BestOfNGitGuard {
   (): void
   readonly prepare?: (() => Promise<void>) | undefined
+  readonly signal?: AbortSignal | undefined
+  readonly resourceClass?: ResourceClass | undefined
 }
 
 /** One Take owns its captured conversation recorder and all pending write notices. */
@@ -139,12 +180,15 @@ type BeginBestOfNWorkspaceEdits = (
 ) => Promise<(wasWritten: boolean) => void>
 
 interface RunningAttempt {
+  resource?: ResourceLease | undefined
   attempt: BestOfNAttempt
   driver: BestOfNAttemptDriver | undefined
   tree: string | undefined
   patch: string | undefined
   isCapturing: boolean
   gitDir: string | undefined
+  /** TeammateIdle keeps so far; past `HOOK_MAX_STOP_CONTINUATIONS` the attempt stops. */
+  teammateKeeps: number
 }
 
 interface LiveRun {
@@ -216,6 +260,7 @@ function freshAttempt(
     patch: undefined,
     isCapturing: false,
     gitDir: undefined,
+    teammateKeeps: 0,
   }
 }
 
@@ -314,7 +359,14 @@ export class BestOfNRunner {
         if (input !== undefined && this.deps.hasDirtyEditors())
           throw new BestOfNError('targetChanged')
       },
-      { prepare: finalPrepare },
+      {
+        prepare: finalPrepare,
+        signal: canAllowStopped ? undefined : run.controller.signal,
+        resourceClass:
+          canAllowStopped || input !== undefined
+            ? ('foreground' as const)
+            : ('background' as const),
+      },
     )
     beforeRun()
     return await this.deps.runGit(invocation, cwd, input, beforeRun)
@@ -342,6 +394,8 @@ export class BestOfNRunner {
   }
 
   private disposeOf(entry: RunningAttempt): void {
+    entry.resource?.complete(true)
+    entry.resource = undefined
     const driver = entry.driver
     entry.driver = undefined
     if (driver === undefined) {
@@ -380,64 +434,76 @@ export class BestOfNRunner {
     const { attempt } = entry
     try {
       this.requireCurrent(run)
-      const driver = await this.deps.startAttempt({
-        attemptId: attempt.attemptId,
-        branch: attempt.branch,
-        worktreePath: attempt.worktreePath,
-        prompt: start.prompt,
-        modelId: start.modelId,
-        requestCeilingPerAttempt: start.requestCeilingPerAttempt,
-        approvalMode: start.approvalMode,
-        signal: run.controller.signal,
-        budgetScope: run.budgetScope,
-        noteUsage: (modelId, usage) => {
-          if (
-            this.run === run &&
-            !run.controller.signal.aborted &&
-            run.isCurrent() &&
-            modelId === run.modelId
-          ) {
-            this.deps.noteAttemptUsage?.(modelId, usage)
-          }
-        },
-        admitRequest: Object.assign(
-          (keyDigest: string | undefined) => {
-            this.requireCurrent(run)
-            if (keyDigest === undefined || keyDigest !== run.accountId) {
-              throw new BestOfNError('contextChanged')
-            }
-            if (run.budgetScope?.isStillAllowed(keyDigest) === false)
-              throw new BestOfNError('contextChanged')
-            if (isTerminal(entry.attempt.status) || entry.isCapturing)
-              throw new BestOfNError('attemptNotDone')
-            if (!(entry.attempt.requestsMade >= run.requestCeilingPerAttempt)) {
-              return
-            }
-
-            entry.attempt = { ...entry.attempt, ceilingReached: true }
-            this.publish(run)
-            throw new BestOfNError('attemptNotDone')
-          },
-          {
-            onRequestStarted: () => {
-              this.requireCurrent(run)
-              if (entry.attempt.requestsMade === 0) {
-                this.deps.notePaidUse(1)
+      entry.resource = await admitResource('bestOfN', run.controller.signal, 'background')
+      this.requireCurrent(run)
+      if (isTerminal(entry.attempt.status)) {
+        this.disposeOf(entry)
+        return
+      }
+      const driver = await inResourceClass(
+        'background',
+        async () =>
+          await this.deps.startAttempt({
+            attemptId: attempt.attemptId,
+            branch: attempt.branch,
+            worktreePath: attempt.worktreePath,
+            prompt: start.prompt,
+            modelId: start.modelId,
+            requestCeilingPerAttempt: start.requestCeilingPerAttempt,
+            approvalMode: start.approvalMode,
+            signal: run.controller.signal,
+            budgetScope: run.budgetScope,
+            noteUsage: (modelId, usage) => {
+              if (
+                this.run === run &&
+                !run.controller.signal.aborted &&
+                run.isCurrent() &&
+                modelId === run.modelId
+              ) {
+                this.deps.noteAttemptUsage?.(modelId, usage)
               }
-              entry.attempt = { ...entry.attempt, requestsMade: entry.attempt.requestsMade + 1 }
-              this.deps.noteAttemptRequest?.()
-              this.publish(run)
             },
-          },
-        ),
-        onEvent: (event) => {
-          void this.onAttemptEvent(run, attempt.attemptId, event).catch(() => {
-            this.deps.log.warn('A best-of-N attempt event arrived after its run ended')
-          })
-        },
-      })
+            admitRequest: Object.assign(
+              (keyDigest: string | undefined) => {
+                this.requireCurrent(run)
+                if (keyDigest === undefined || keyDigest !== run.accountId) {
+                  throw new BestOfNError('contextChanged')
+                }
+                if (run.budgetScope?.isStillAllowed(keyDigest) === false)
+                  throw new BestOfNError('contextChanged')
+                if (isTerminal(entry.attempt.status) || entry.isCapturing)
+                  throw new BestOfNError('attemptNotDone')
+                if (!(entry.attempt.requestsMade >= run.requestCeilingPerAttempt)) {
+                  return
+                }
+
+                entry.attempt = { ...entry.attempt, ceilingReached: true }
+                this.publish(run)
+                throw new BestOfNError('attemptNotDone')
+              },
+              {
+                pacingClass: 'bestOfN' as const,
+                onRequestStarted: () => {
+                  this.requireCurrent(run)
+                  if (entry.attempt.requestsMade === 0) {
+                    this.deps.notePaidUse(1)
+                  }
+                  entry.attempt = { ...entry.attempt, requestsMade: entry.attempt.requestsMade + 1 }
+                  this.deps.noteAttemptRequest?.()
+                  this.publish(run)
+                },
+              },
+            ),
+            onEvent: (event) => {
+              void this.onAttemptEvent(run, attempt.attemptId, event).catch(() => {
+                this.deps.log.warn('A best-of-N attempt event arrived after its run ended')
+              })
+            },
+          }),
+      )
       // A cancel may have settled the attempt while the host started it.
       if (isTerminal(entry.attempt.status) || run.controller.signal.aborted) {
+        this.disposeOf(entry)
         try {
           driver.dispose()
         } catch {
@@ -500,6 +566,9 @@ export class BestOfNRunner {
           this.disposeOf(entry)
           break
         }
+        if (!event.ceilingReached && (await this.maybeKeepWorking(run, entry))) {
+          break
+        }
         await this.completeAttempt(run, entry, event)
         break
       }
@@ -513,6 +582,63 @@ export class BestOfNRunner {
         break
       }
     }
+  }
+
+  /**
+   * An attempt stopped while its siblings run (M91 lane E): TeammateIdle
+   * fires from the parent's snapshot, because attempts run with hooks off.
+   * A block keeps the attempt working inside its consented run — the driver
+   * sends one more turn, billed to the run's ceiling — up to
+   * `HOOK_MAX_STOP_CONTINUATIONS` keeps, then the attempt stops for good.
+   * True when the attempt keeps working; its completion waits for the next
+   * event.
+   */
+  private async maybeKeepWorking(run: LiveRun, entry: RunningAttempt): Promise<boolean> {
+    const fireTeammateIdle = this.deps.extensionHooks?.fireTeammateIdle
+    if (fireTeammateIdle === undefined) {
+      return false
+    }
+    const siblingsRunning = run.running.filter(
+      (candidate) =>
+        candidate.attempt.attemptId !== entry.attempt.attemptId &&
+        !isTerminal(candidate.attempt.status),
+    ).length
+    if (siblingsRunning === 0 || entry.teammateKeeps >= HOOK_MAX_STOP_CONTINUATIONS) {
+      return false
+    }
+    let verdict: BestOfNTeammateIdleResult
+    try {
+      verdict = await fireTeammateIdle(entry.attempt.attemptId, siblingsRunning)
+    } catch {
+      this.deps.log.warn('A best-of-N TeammateIdle hook failed')
+      return false
+    }
+    if (!verdict.keepWorking || isTerminal(entry.attempt.status)) {
+      return false
+    }
+    // Called as the driver's method: extracted, it would lose its `this`.
+    const driver = entry.driver
+    if (driver?.continueAttempt === undefined) {
+      this.deps.log.warn(
+        'A TeammateIdle hook kept an attempt working, but its driver cannot continue it',
+      )
+      return false
+    }
+    try {
+      await inResourceClass(
+        'background',
+        async () => await driver.continueAttempt?.(verdict.reason ?? 'kept working by hook'),
+      )
+    } catch {
+      this.deps.log.warn('A best-of-N attempt could not keep working')
+      return false
+    }
+    entry.teammateKeeps += 1
+    // The hook's reason stays out of the log with the hook's other words;
+    // the host shows it with the attempt.
+    this.deps.log.info(`A TeammateIdle hook kept ${entry.attempt.attemptId} working`)
+    this.publish(run)
+    return true
   }
 
   private async completeAttempt(
@@ -648,6 +774,15 @@ export class BestOfNRunner {
   ): Promise<void> {
     for (const entry of entries) {
       try {
+        // WorktreeRemove observes before the removal (M91 lane E).
+        try {
+          await this.deps.extensionHooks?.fireWorktreeHook(
+            'WorktreeRemove',
+            worktreeHookPath(cwd, entry.attempt.worktreePath, this.deps.platform),
+          )
+        } catch {
+          this.deps.log.warn('A best-of-N WorktreeRemove hook failed')
+        }
         await this.git(
           run,
           worktreeRemoveArgs(entry.attempt.worktreePath, false),
@@ -769,6 +904,27 @@ export class BestOfNRunner {
         )
         entry.attempt = { ...entry.attempt, hasWorktree: true }
         created.push(entry)
+        // A WorktreeCreate hook's non-zero exit fails that attempt (M91 lane
+        // E): it never launches, and its worktree waits for the run's
+        // cleanup. A hook that throws cannot fail the run, so it is logged.
+        try {
+          const createdHook = await this.deps.extensionHooks?.fireWorktreeHook(
+            'WorktreeCreate',
+            worktreeHookPath(repositoryRoot, entry.attempt.worktreePath, this.deps.platform),
+          )
+          if (createdHook?.failedReason !== undefined) {
+            entry.attempt = {
+              ...entry.attempt,
+              status: 'failed',
+              failureReason: createdHook.failedReason,
+            }
+            this.disposeOf(entry)
+            this.publish(run)
+            continue
+          }
+        } catch {
+          this.deps.log.warn('A best-of-N WorktreeCreate hook failed')
+        }
         this.requireCurrent(run)
         await this.deps.validateWorktree(entry.attempt.worktreePath)
         this.requireCurrent(run)

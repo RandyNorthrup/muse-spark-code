@@ -5,3 +5,7 @@
 *.vsix binary
 # Pinned upstream bytes: never normalize vendored line endings.
 vendor/** -text whitespace=cr-at-eol
+
+# M114 F: preserve pinned OFL bytes and WOFF2 payloads on every platform.
+design/fonts/pack/** -text whitespace=cr-at-eol
+*.woff2 binary

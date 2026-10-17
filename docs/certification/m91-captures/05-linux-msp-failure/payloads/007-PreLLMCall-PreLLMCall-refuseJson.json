@@ -1,0 +1,227 @@
+{
+  "attempt": 1,
+  "cwd": "<workspace>",
+  "hook_event_name": "PreLLMCall",
+  "message_count": 3,
+  "messages": [
+    {
+      "content": [
+        {
+          "text": "m91 capture: PreLLMCall refuse2",
+          "type": "text"
+        }
+      ],
+      "role": "user"
+    },
+    {
+      "content": [
+        {
+          "text": "[Previous turn ended without an assistant reply.]",
+          "type": "text"
+        }
+      ],
+      "role": "assistant"
+    },
+    {
+      "content": [
+        {
+          "text": "m91 capture: PreLLMCall refuseJson",
+          "type": "text"
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "model": "echo",
+  "options": {},
+  "permission_mode": "default",
+  "provider": "model.unknown.response",
+  "request_id": "01a10858-6788-7000-91c2-c2e1b98949c0:0:1",
+  "session_id": "01a10858-6094-7390-8685-60a37851fb0e",
+  "step": 0,
+  "tool_count": 30,
+  "tools": [
+    {
+      "description": "Use this to orchestrate multi-agent work with a deterministic JavaScript workflow. Follow the current workflow availability context to decide whether to launch, propose, or abstain; this static tool description does not override that per-run policy. For a ...[truncated]",
+      "has_parameters": true,
+      "name": "workflow",
+      "strict": false
+    },
+    {
+      "description": "Read a line-numbered UTF-8 text file window, or attach a supported image or MP4/MOV video file as model-visible output.",
+      "has_parameters": true,
+      "name": "read_file",
+      "strict": false
+    },
+    {
+      "description": "Search files with native ripgrep semantics. Results are confined by the current filesystem policy and emitted through tool output. Prefer this tool over shelling out to `rg`, `find`, or `grep -r` via bash: it is policy-confined, output-bounded, and watchdo...[truncated]",
+      "has_parameters": true,
+      "name": "search",
+      "strict": false
+    },
+    {
+      "description": "Create or overwrite a complete UTF-8 file admitted by the current filesystem policy. For a LARGE file, write a small first chunk here and then grow it with edit_file — one huge write can exceed a single model response and fail to send.",
+      "has_parameters": true,
+      "name": "write_file",
+      "strict": false
+    },
+    {
+      "description": "Replace one unique exact text match in a file admitted by the current filesystem policy. Also use this to GROW a large file in steps: match its current last line(s) and replace them with those line(s) plus more, so you never send one huge write_file that c...[truncated]",
+      "has_parameters": true,
+      "name": "edit_file",
+      "strict": false
+    },
+    {
+      "description": "Read a bounded line window from one local Markdown memory file. Use this when you need live memory content; reads never write to memory.",
+      "has_parameters": true,
+      "name": "read_memory",
+      "strict": false
+    },
+    {
+      "description": "Add Markdown content to local memory: creates the file when it is missing, appends to the end when it already exists, and does not overwrite existing content. Use edit_memory for exact replacements.",
+      "has_parameters": true,
+      "name": "add_memory",
+      "strict": false
+    },
+    {
+      "description": "Replace one exact string in local Markdown memory. The edit fails unless old_str appears exactly once; use add_memory to append new content.",
+      "has_parameters": true,
+      "name": "edit_memory",
+      "strict": false
+    },
+    {
+      "description": "Stop one runtime-owned work item by canonical Work ID, such as a launched workflow run or other long-running background work.",
+      "has_parameters": true,
+      "name": "work_stop",
+      "strict": false
+    },
+    {
+      "description": "List current background work in this session, including Monitor, Bash, Workflow and native subagents. Use this to recover a lost canonical work_id for work_stop. Returns up to 100 items; pass next_after_work_id as after_work_id for the next page. stop_requ...[truncated]",
+      "has_parameters": true,
+      "name": "work_list",
+      "strict": null
+    },
+    {
+      "description": "Run a bash-compatible shell command. By default the runtime waits at most 10 seconds in the foreground; for a slow build or test, pass a larger yield_time_ms (up to 300000) to wait for it to finish in this one call. Commands still running after the wait re...[truncated]",
+      "has_parameters": true,
+      "name": "bash",
+      "strict": false
+    },
+    {
+      "description": "Send input to or terminate a running bash PTY session using the internal session_id handle returned by bash — use it when a live interactive process needs input. Do not use it to poll a backgrounded command for completion: the final result is delivered aut...[truncated]",
+      "has_parameters": true,
+      "name": "bash_input",
+      "strict": false
+    },
+    {
+      "description": "Monitor is for repeated events from one long-running source, never for a single completion: for one-shot work such as \"tell me when the build is done\", run the command once with bash and report. Sources: a shell command (each stdout line is an event; exit ...[truncated]",
+      "has_parameters": true,
+      "name": "monitor",
+      "strict": false
+    },
+    {
+      "description": "Schedule a prompt to run later — once, or on a repeating 5-field local-time cron. Recurring jobs auto-expire after 7 days unless permanent is true. Returns a job id you can pass to cron_delete.",
+      "has_parameters": true,
+      "name": "cron_create",
+      "strict": false
+    },
+    {
+      "description": "Cancel a scheduled job by its id (from cron_create/cron_list).",
+      "has_parameters": true,
+      "name": "cron_delete",
+      "strict": false
+    },
+    {
+      "description": "List all scheduled jobs for this session, with their cadence and next fire time.",
+      "has_parameters": true,
+      "name": "cron_list",
+      "strict": false
+    },
+    {
+      "description": "Read the active session goal and progress. Returns {\"goal\": null} when no goal is set. Do not call to orient yourself, to check whether a goal exists, or on a greeting — only call when you are already working on an explicit goal and need its current state.",
+      "has_parameters": true,
+      "name": "get_goal",
+      "strict": false
+    },
+    {
+      "description": "Start a session goal only when requested. Fails if this session already has an unfinished goal; the failure message names the way out.",
+      "has_parameters": true,
+      "name": "create_goal",
+      "strict": false
+    },
+    {
+      "description": "Mark the active goal complete or blocked. Use complete only when no required work remains.",
+      "has_parameters": true,
+      "name": "update_goal",
+      "strict": false
+    },
+    {
+      "description": "Report active goal progress. percent_complete=100 is equivalent to update_goal(status=\"complete\").",
+      "has_parameters": true,
+      "name": "report_progress",
+      "strict": false
+    },
+    {
+      "description": "Request user input for one to three short structured questions and wait for the response. Argument rules: for single-select, omit selection or use selection={mode:single}; the single-select shape has no numeric bounds. For multi-select, use selection={mode...[truncated]",
+      "has_parameters": true,
+      "name": "request_user_input",
+      "strict": false
+    },
+    {
+      "description": "Spawn a simple child agent. The root Agent Tree uses one include-root execution pool: an explicit agents.execution_capacity limit from 1 to 64 always wins; otherwise an unconfigured fresh root has 64 total slots when its effective startup effort is max or ...[truncated]",
+      "has_parameters": true,
+      "name": "subagent_spawn",
+      "strict": false
+    },
+    {
+      "description": "Read subagent status from the replayable owner registry.",
+      "has_parameters": true,
+      "name": "subagent_status",
+      "strict": false
+    },
+    {
+      "description": "Queue a message for a running child. Pass the spawn-returned subagent_id or exact agent_path.",
+      "has_parameters": true,
+      "name": "subagent_send_message",
+      "strict": false
+    },
+    {
+      "description": "Wait for a child result. timeout_ms defaults to 30000 ms and accepts 10000-300000. timeout or would_park leaves the child running. Finished results arrive automatically when your session is idle. Use subagent_cancel to stop the child. Pass the spawn-return...[truncated]",
+      "has_parameters": true,
+      "name": "subagent_wait",
+      "strict": false
+    },
+    {
+      "description": "Read a bounded result envelope and artifact refs. Pass the spawn-returned subagent_id or exact agent_path.",
+      "has_parameters": true,
+      "name": "subagent_read_result",
+      "strict": false
+    },
+    {
+      "description": "Request child cancellation. Pass the spawn-returned subagent_id or exact agent_path.",
+      "has_parameters": true,
+      "name": "subagent_cancel",
+      "strict": false
+    },
+    {
+      "description": "Read one available SKILL.md body as a tool result.",
+      "has_parameters": true,
+      "name": "read_skill",
+      "strict": false
+    },
+    {
+      "description": "Temporarily suppress matching async reminder notifications.",
+      "has_parameters": true,
+      "name": "snooze_reminder",
+      "strict": false
+    },
+    {
+      "description": "Records the task's todo plan, which the user sees as live progress. Call it at the start of any task with three or more distinct steps, then update it as each step finishes. Always send the full list; keep exactly one item in_progress. Skip it for trivial ...[truncated]",
+      "has_parameters": true,
+      "name": "write_todos",
+      "strict": false
+    }
+  ],
+  "transcript_path": null,
+  "turn_id": "01a10858-6788-7000-91c2-c2e1b98949c0"
+}

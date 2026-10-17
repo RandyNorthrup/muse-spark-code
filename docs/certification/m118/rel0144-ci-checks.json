@@ -1,0 +1,408 @@
+{
+  "rig": "kubuntu",
+  "node": "v24.18.0",
+  "sourceCommit": "b881f932feab666287260310a4d835ec14504b5d",
+  "checks": [
+    {
+      "name": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 4.5
+    },
+    {
+      "name": "duplication",
+      "command": ["npx", "jscpd"],
+      "exit": 0,
+      "seconds": 1.24
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 18.29
+    },
+    {
+      "name": "build",
+      "command": ["npm", "run", "build"],
+      "exit": 0,
+      "seconds": 4.43
+    },
+    {
+      "name": "vsix",
+      "command": ["npm", "run", "package"],
+      "exit": 0,
+      "seconds": 37.83
+    },
+    {
+      "name": "acp",
+      "command": ["npm", "run", "package:acp"],
+      "exit": 0,
+      "seconds": 14.23
+    },
+    {
+      "name": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 2.73
+    },
+    {
+      "name": "semgrep",
+      "command": [
+        "semgrep",
+        "scan",
+        "--config",
+        "auto",
+        "--error",
+        "--exclude=dist",
+        "--exclude=coverage",
+        "--exclude=node_modules",
+        "--json"
+      ],
+      "exit": 0,
+      "seconds": 105.28,
+      "version": "1.178.0",
+      "findings": 0,
+      "warnings": 13
+    },
+    {
+      "name": "install",
+      "command": [
+        "npm",
+        "install",
+        "--prefix",
+        "/home/randy/lanes/REL0144/temp/acp-final-install",
+        "--offline",
+        "--ignore-scripts",
+        "--audit=false",
+        "--fund=false",
+        "./dist/muse-spark-code-acp-0.14.4.tgz"
+      ],
+      "exit": 0,
+      "seconds": 0.98
+    },
+    {
+      "name": "universal-help",
+      "command": [
+        "node",
+        "scripts/check-ui-text.mjs",
+        "/home/randy/lanes/REL0144/temp/acp-final-install/node_modules/muse-spark-code-acp"
+      ],
+      "exit": 0,
+      "seconds": 5.71
+    },
+    {
+      "name": "universal-exec",
+      "command": ["npx", "vitest", "run", "test/e2e/execStdio.e2e.test.ts", "--maxWorkers=3"],
+      "exit": 0,
+      "seconds": 56.54
+    }
+  ],
+  "semgrepWarnings": [
+    {
+      "code": 2,
+      "level": "warn",
+      "type": "Timeout",
+      "rule_id": "javascript.express.security.audit.express-ssrf.express-ssrf",
+      "message": "Timeout when running javascript.express.security.audit.express-ssrf.express-ssrf on src/core/backends/modelapi/ModelApiHost.ts:\n ",
+      "path": "src/core/backends/modelapi/ModelApiHost.ts"
+    },
+    {
+      "code": 2,
+      "level": "warn",
+      "type": "Timeout",
+      "rule_id": "javascript.express.security.express-insecure-template-usage.express-insecure-template-usage",
+      "message": "Timeout when running javascript.express.security.express-insecure-template-usage.express-insecure-template-usage on src/core/backends/modelapi/ModelApiHost.ts:\n ",
+      "path": "src/core/backends/modelapi/ModelApiHost.ts"
+    },
+    {
+      "code": 2,
+      "level": "warn",
+      "type": "Timeout",
+      "rule_id": "javascript.express.security.x-frame-options-misconfiguration.x-frame-options-misconfiguration",
+      "message": "Timeout when running javascript.express.security.x-frame-options-misconfiguration.x-frame-options-misconfiguration on src/core/backends/modelapi/ModelApiHost.ts:\n ",
+      "path": "src/core/backends/modelapi/ModelApiHost.ts"
+    },
+    {
+      "code": 2,
+      "level": "warn",
+      "type": "Timeout",
+      "rule_id": "javascript.express.security.audit.express-ssrf.express-ssrf",
+      "message": "Timeout when running javascript.express.security.audit.express-ssrf.express-ssrf on src/extension.ts:\n ",
+      "path": "src/extension.ts"
+    },
+    {
+      "code": 2,
+      "level": "warn",
+      "type": "Timeout",
+      "rule_id": "javascript.aws-lambda.security.tainted-html-string.tainted-html-string",
+      "message": "Timeout when running javascript.aws-lambda.security.tainted-html-string.tainted-html-string on src/host/conversation/conversationController.ts:\n ",
+      "path": "src/host/conversation/conversationController.ts"
+    },
+    {
+      "code": 2,
+      "level": "warn",
+      "type": "Timeout",
+      "rule_id": "javascript.express.security.audit.express-ssrf.express-ssrf",
+      "message": "Timeout when running javascript.express.security.audit.express-ssrf.express-ssrf on src/host/conversation/conversationController.ts:\n ",
+      "path": "src/host/conversation/conversationController.ts"
+    },
+    {
+      "code": 2,
+      "level": "warn",
+      "type": "Timeout",
+      "rule_id": "problem-based-packs.insecure-transport.js-node.using-http-server.using-http-server",
+      "message": "Timeout when running problem-based-packs.insecure-transport.js-node.using-http-server.using-http-server on src/shared/l10n/en.ts:\n ",
+      "path": "src/shared/l10n/en.ts"
+    },
+    {
+      "code": 2,
+      "level": "warn",
+      "type": "Timeout",
+      "rule_id": "javascript.lang.security.audit.unknown-value-with-script-tag.unknown-value-with-script-tag",
+      "message": "Timeout when running javascript.lang.security.audit.unknown-value-with-script-tag.unknown-value-with-script-tag on src/webview/App.tsx:\n ",
+      "path": "src/webview/App.tsx"
+    },
+    {
+      "code": 2,
+      "level": "warn",
+      "type": "Timeout",
+      "rule_id": "typescript.react.security.audit.react-unsanitized-method.react-unsanitized-method",
+      "message": "Timeout when running typescript.react.security.audit.react-unsanitized-method.react-unsanitized-method on src/webview/state/uiState.ts:\n ",
+      "path": "src/webview/state/uiState.ts"
+    },
+    {
+      "code": 3,
+      "level": "warn",
+      "type": [
+        "PartialParsing",
+        [
+          {
+            "path": ".github/workflows/build.yml",
+            "start": {
+              "line": 55,
+              "col": 15,
+              "offset": 2372
+            },
+            "end": {
+              "line": 90,
+              "col": 75,
+              "offset": 4224
+            }
+          }
+        ]
+      ],
+      "message": "Syntax error at line .github/workflows/build.yml:55:\n When parsing a snippet as Bash for metavariable-pattern in rule 'yaml.github-actions.security.curl-eval.curl-eval', `$version = node scripts/lint-ps.mjs --print-version\n$sha512 = node scripts/lint-ps.mjs --print-sha512\nif (Get-Module -ListAvailable PSScriptAnalyzer | Where-Object { $_.Version -eq [version]$version }) {\n  Write-Host \"PSScriptAnalyzer $version is already installed\"\n  exit 0\n}\nfor ($attempt = 1; $attempt -le 2; $attempt++) {\n  try {\n    Install-Module PSScriptAnalyzer -RequiredVersion $version -Force -Scope CurrentUser -AcceptLicense -ErrorAction Stop\n    exit 0\n  } catch {\n    Write-Warning \"Install-Module attempt $attempt failed: $_\"\n    Start-Sleep -Seconds 10\n  }\n}\n$package = Join-Path $env:RUNNER_TEMP \"PSScriptAnalyzer.$version.nupkg\"\nfor ($attempt = 1; ; $attempt++) {\n  try {\n    Invoke-WebRequest \"https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/$version\" -OutFile $package -ErrorAction Stop\n    break\n  } catch {\n    if ($attempt -ge 3) { throw }\n    Write-Warning \"Package download attempt $attempt failed: $_\"\n    Start-Sleep -Seconds 10\n  }\n}\n$hash = [Convert]::ToBase64String([Security.Cryptography.SHA512]::HashData([IO.File]::ReadAllBytes($package)))\nif ($hash -ne $sha512) { throw \"PSScriptAnalyzer $version package hash $hash is not the pinned $sha512\" }\n$modules = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\\Modules\\PSScriptAnalyzer'\n$target = Join-Path $modules $version\nExpand-Archive $package -DestinationPath $target -Force\nRemove-Item -Recurse -Force (Join-Path $target '_rels'), (Join-Path $target 'package') -ErrorAction SilentlyContinue\nRemove-Item -Force -LiteralPath (Join-Path $target '[Content_Types].xml') -ErrorAction SilentlyContinue\nRemove-Item -Force -Path (Join-Path $target '*.nuspec') -ErrorAction SilentlyContinue\nImport-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop\nWrite-Host \"PSScriptAnalyzer $version installed from the checked package\"\n` was unexpected",
+      "path": ".github/workflows/build.yml",
+      "spans": [
+        {
+          "file": ".github/workflows/build.yml",
+          "start": {
+            "line": 55,
+            "col": 15,
+            "offset": 2372
+          },
+          "end": {
+            "line": 90,
+            "col": 75,
+            "offset": 4224
+          }
+        }
+      ]
+    },
+    {
+      "code": 3,
+      "level": "warn",
+      "type": [
+        "PartialParsing",
+        [
+          {
+            "path": ".github/workflows/build.yml",
+            "start": {
+              "line": 55,
+              "col": 15,
+              "offset": 2372
+            },
+            "end": {
+              "line": 90,
+              "col": 75,
+              "offset": 4224
+            }
+          }
+        ]
+      ],
+      "message": "Syntax error at line .github/workflows/build.yml:55:\n When parsing a snippet as Bash for metavariable-pattern in rule 'yaml.github-actions.security.gha-curl-pipe-shell.gha-curl-pipe-shell', `$version = node scripts/lint-ps.mjs --print-version\n$sha512 = node scripts/lint-ps.mjs --print-sha512\nif (Get-Module -ListAvailable PSScriptAnalyzer | Where-Object { $_.Version -eq [version]$version }) {\n  Write-Host \"PSScriptAnalyzer $version is already installed\"\n  exit 0\n}\nfor ($attempt = 1; $attempt -le 2; $attempt++) {\n  try {\n    Install-Module PSScriptAnalyzer -RequiredVersion $version -Force -Scope CurrentUser -AcceptLicense -ErrorAction Stop\n    exit 0\n  } catch {\n    Write-Warning \"Install-Module attempt $attempt failed: $_\"\n    Start-Sleep -Seconds 10\n  }\n}\n$package = Join-Path $env:RUNNER_TEMP \"PSScriptAnalyzer.$version.nupkg\"\nfor ($attempt = 1; ; $attempt++) {\n  try {\n    Invoke-WebRequest \"https://www.powershellgallery.com/api/v2/package/PSScriptAnalyzer/$version\" -OutFile $package -ErrorAction Stop\n    break\n  } catch {\n    if ($attempt -ge 3) { throw }\n    Write-Warning \"Package download attempt $attempt failed: $_\"\n    Start-Sleep -Seconds 10\n  }\n}\n$hash = [Convert]::ToBase64String([Security.Cryptography.SHA512]::HashData([IO.File]::ReadAllBytes($package)))\nif ($hash -ne $sha512) { throw \"PSScriptAnalyzer $version package hash $hash is not the pinned $sha512\" }\n$modules = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'PowerShell\\Modules\\PSScriptAnalyzer'\n$target = Join-Path $modules $version\nExpand-Archive $package -DestinationPath $target -Force\nRemove-Item -Recurse -Force (Join-Path $target '_rels'), (Join-Path $target 'package') -ErrorAction SilentlyContinue\nRemove-Item -Force -LiteralPath (Join-Path $target '[Content_Types].xml') -ErrorAction SilentlyContinue\nRemove-Item -Force -Path (Join-Path $target '*.nuspec') -ErrorAction SilentlyContinue\nImport-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop\nWrite-Host \"PSScriptAnalyzer $version installed from the checked package\"\n` was unexpected",
+      "path": ".github/workflows/build.yml",
+      "spans": [
+        {
+          "file": ".github/workflows/build.yml",
+          "start": {
+            "line": 55,
+            "col": 15,
+            "offset": 2372
+          },
+          "end": {
+            "line": 90,
+            "col": 75,
+            "offset": 4224
+          }
+        }
+      ]
+    },
+    {
+      "code": 3,
+      "level": "warn",
+      "type": [
+        "PartialParsing",
+        [
+          {
+            "path": ".github/workflows/hosts.yml",
+            "start": {
+              "line": 278,
+              "col": 35,
+              "offset": 10679
+            },
+            "end": {
+              "line": 278,
+              "col": 50,
+              "offset": 10694
+            }
+          },
+          {
+            "path": ".github/workflows/hosts.yml",
+            "start": {
+              "line": 278,
+              "col": 110,
+              "offset": 10679
+            },
+            "end": {
+              "line": 278,
+              "col": 125,
+              "offset": 10694
+            }
+          }
+        ]
+      ],
+      "message": "Syntax error at line .github/workflows/hosts.yml:278:\n When parsing a snippet as Bash for metavariable-pattern in rule 'yaml.github-actions.security.curl-eval.curl-eval', `{ matrix.client` was unexpected",
+      "path": ".github/workflows/hosts.yml",
+      "spans": [
+        {
+          "file": ".github/workflows/hosts.yml",
+          "start": {
+            "line": 278,
+            "col": 35,
+            "offset": 10679
+          },
+          "end": {
+            "line": 278,
+            "col": 50,
+            "offset": 10694
+          }
+        },
+        {
+          "file": ".github/workflows/hosts.yml",
+          "start": {
+            "line": 278,
+            "col": 110,
+            "offset": 10679
+          },
+          "end": {
+            "line": 278,
+            "col": 125,
+            "offset": 10694
+          }
+        }
+      ]
+    },
+    {
+      "code": 3,
+      "level": "warn",
+      "type": [
+        "PartialParsing",
+        [
+          {
+            "path": ".github/workflows/hosts.yml",
+            "start": {
+              "line": 278,
+              "col": 35,
+              "offset": 10679
+            },
+            "end": {
+              "line": 278,
+              "col": 50,
+              "offset": 10694
+            }
+          },
+          {
+            "path": ".github/workflows/hosts.yml",
+            "start": {
+              "line": 278,
+              "col": 110,
+              "offset": 10679
+            },
+            "end": {
+              "line": 278,
+              "col": 125,
+              "offset": 10694
+            }
+          }
+        ]
+      ],
+      "message": "Syntax error at line .github/workflows/hosts.yml:278:\n When parsing a snippet as Bash for metavariable-pattern in rule 'yaml.github-actions.security.gha-curl-pipe-shell.gha-curl-pipe-shell', `{ matrix.client` was unexpected",
+      "path": ".github/workflows/hosts.yml",
+      "spans": [
+        {
+          "file": ".github/workflows/hosts.yml",
+          "start": {
+            "line": 278,
+            "col": 35,
+            "offset": 10679
+          },
+          "end": {
+            "line": 278,
+            "col": 50,
+            "offset": 10694
+          }
+        },
+        {
+          "file": ".github/workflows/hosts.yml",
+          "start": {
+            "line": 278,
+            "col": 110,
+            "offset": 10679
+          },
+          "end": {
+            "line": 278,
+            "col": 125,
+            "offset": 10694
+          }
+        }
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "muse-spark-code-0.14.4.vsix",
+      "bytes": 2375871,
+      "sha256": "d782a18eb13ad48d65f880c459a87753dd1c1582fbffb301af7ffc637db495d7"
+    },
+    {
+      "file": "dist/muse-spark-code-acp-0.14.4.tgz",
+      "bytes": 1683308,
+      "sha256": "e95b6eb80d93ebbe565b3b49175bb31e66cb14657712b6f5fd2098e6f2b6b23d"
+    }
+  ],
+  "universalHelpLanguages": 15,
+  "universalExecPassedTests": 38,
+  "liveModelCalls": 0,
+  "paidModelCalls": 0,
+  "preAggregateChecks": [
+    "npm run typecheck (all five projects)",
+    "changed-file eslint --max-warnings=0",
+    "changed-file prettier --check",
+    "node scripts/check-l10n.mjs (14 tables, 0 problems)"
+  ],
+  "notes": [
+    "No npm run quality: shared lane rules reserve the aggregate gate for the lead.",
+    "The Linux VSIX has no CI-supplied native macOS helper; the installed-tarball help/process checks pass locally. Hosted universal native-member validation remains with CI."
+  ]
+}

@@ -35,12 +35,12 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 for (const kind of ['result', 'event']) {
-  const file = path.join(process.argv[2], 'schemas', `exec-${kind}-v1.schema.json`)
+  const file = path.join(process.argv[2], 'schemas', `exec-${kind}-v2.schema.json`)
   const schema = JSON.parse(readFileSync(file, 'utf8'))
   const variants = kind === 'event' ? schema.anyOf : [schema]
   assert.ok(variants.length > 0)
   for (const variant of variants) {
-    assert.equal(variant.properties.v.const, 1)
+    assert.equal(variant.properties.v.const, 2)
     assert.ok(variant.required.includes(kind === 'result' ? 'status' : 'type'))
   }
 }

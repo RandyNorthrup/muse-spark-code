@@ -32,16 +32,18 @@ export const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..', '..')
 export const ACTION_DIR = path.join(REPO_ROOT, 'action')
 export const TEST_ACTION_DIR = path.join(REPO_ROOT, 'test', 'action')
 export const FAKE_AGENT = path.join(TEST_ACTION_DIR, 'fake-agent.mjs')
-export const FAKE_NPM = path.join(TEST_ACTION_DIR, 'fake-npm.mjs')
 export const SENTINEL = path.join(TEST_ACTION_DIR, 'sentinel.mjs')
 export const TEMPLATES_DIR = path.join(ACTION_DIR, 'prompts')
 export const NODE = realpathSync.native(process.execPath)
 // Fabricated: shaped like a Meta key and a GitHub token, valid for nothing.
 export const TEST_KEY = `LLM_${'k'.repeat(24)}`
-export const PERCENT_KEY = 'LLM|123|before%after+/.=$&'
 export const TEST_TOKEN = `ghs_${'t'.repeat(36)}`
-export const SECRET_TOKEN = `ghp_${'S'.repeat(36)}`
 export const FAST_BOUNDS = { killAfterMs: 400, reapMs: 2000, cleanupMs: 3000 }
+// Plain Git's global file: no automatic maintenance after a fixture commit,
+// fetch or merge. On POSIX that maintenance detaches, and with Git 2.55 (the
+// hosted runners' Git) it can still be writing into the repository after the
+// command returns, racing cleanup (orchestration gotcha G65).
+const PLAIN_GITCONFIG = '[maintenance]\n\tauto = false\n[gc]\n\tauto = 0\n'
 // Suites that start real Git and agent children: on the Windows VM one full run
 // (fixture origin, checkout, exec, patch, scan) takes about 1.5 s and a case
 // loops over up to four. Per-suite, as the MCP process suites do.
@@ -62,6 +64,7 @@ export function tempLayout(isSpaced = false): TempLayout {
   const runnerTemp = path.join(root, isSpaced ? 'runner temp' : 'runner-temp')
   const sentinels = path.join(root, 'sentinels')
   for (const directory of [workspace, runnerTemp, sentinels]) mkdirSync(directory)
+  writeFileSync(path.join(root, 'plain-gitconfig'), PLAIN_GITCONFIG)
   return {
     root,
     workspace,
@@ -219,7 +222,22 @@ export function originRepo(
   plainGit(layout, source, ['commit', '--quiet', '-m', 'head'])
   const head = plainGit(layout, source, ['rev-parse', 'HEAD'])
   const bare = `${source}.git`
-  plainGit(layout, layout.root, ['clone', '--quiet', '--bare', source, bare])
+  // A push into a local path runs receive-pack here, with this repository's
+  // configuration and the pusher's global file but not the pusher's `-c`
+  // options, so safeGit's maintenance.auto=false does not reach it. With
+  // receive.autoGc on, receive-pack starts `git maintenance run --auto`,
+  // which on POSIX detaches; Git 2.55's default strategy then repacks in the
+  // background whenever objects/17 holds two or more loose objects, after the
+  // push has returned. A hosted origin does that work on its own servers.
+  plainGit(layout, layout.root, [
+    'clone',
+    '--quiet',
+    '--bare',
+    '--config',
+    'receive.autoGc=false',
+    source,
+    bare,
+  ])
   return { bare, base, head }
 }
 
@@ -377,18 +395,6 @@ export async function preparedRun(layout: TempLayout, options: RunOptions): Prom
     },
   }
   return { paths, repo, test, input, logs }
-}
-
-/** The fake agent's report lines. */
-export function fakeReports(paths: ActionPaths): Record<string, unknown>[] {
-  try {
-    return readFileSync(path.join(paths.work, 'fake-report.jsonl'), 'utf8')
-      .split('\n')
-      .filter((line) => line !== '')
-      .map((line) => jsonRecord(line))
-  } catch {
-    return []
-  }
 }
 
 /** A compare function for sorting text in tests. */

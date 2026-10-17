@@ -27,7 +27,7 @@ import {
 } from '../../shared/constants'
 import type { ReviewRequest } from '../../shared/reviewCommand'
 import type { PickOne } from '../commands/pickItem'
-import { gitFilterOptions } from '../git'
+import { gitExitCode, gitFilterOptions } from '../git'
 import { captureWorkspaceIdentity, type WorkspaceIdentity } from '../workspaceIdentity'
 
 // A failed git call that carried no exit code (git was not found, say).
@@ -148,13 +148,10 @@ async function collect(
   }
 }
 
-/** How a failed git call reads in the log: its exit code or Node's error code, never its text. */
+/** How a failed git call reads in the log: its exit code, never its text. */
 function exitOf(error: unknown): string {
-  if (typeof error === 'object' && error !== null && 'code' in error) {
-    const { code } = error
-    return typeof code === 'number' || typeof code === 'string' ? String(code) : UNKNOWN_EXIT
-  }
-  return UNKNOWN_EXIT
+  const code = gitExitCode(error)
+  return code === undefined ? UNKNOWN_EXIT : String(code)
 }
 
 /** The collector the conversation asks: git's material for a request, the pickers included. */
@@ -214,7 +211,7 @@ export function createReviewCollector(
       } catch (error: unknown) {
         // `--get-regexp` exits 1 only when no matching names exist. Every
         // other failure keeps review closed, never as an empty inventory.
-        if (exitOf(error) !== '1') {
+        if (gitExitCode(error) !== 1) {
           throw error
         }
         output = ''

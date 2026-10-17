@@ -29,6 +29,7 @@ const base: SupportFacts = {
   backendSetting: 'auto',
   shellSandboxSetting: 'auto',
   shellSandboxPosture: 'sandboxed (default)',
+  isShellSandboxed: true,
   sandboxNetworkSetting: 'default',
   isSandboxNetworkApplied: false,
   isBinaryPathConfigured: false,
@@ -62,6 +63,7 @@ describe('renderSupportReport', () => {
         'workspace: open, trusted: yes',
         'backend setting: auto',
         'shell sandbox: setting auto, posture sandboxed (default)',
+        'muse code file writes: workspace only (writes outside it fail); inside it, only .git, .muse and .agents ask',
         'sandbox network: setting default, not passed (Muse Code’s own default, or the shell sandbox is off)',
         'muse binary path configured: no; environment variables: 2',
         // The home directory is `~` in a report meant for a public issue (D24).
@@ -83,6 +85,20 @@ describe('renderSupportReport', () => {
         '    plane=policy source_class=windows_machine_policy state=absent',
       ].join('\n'),
     )
+  })
+
+  // musecode-write-asks: the report says what the shell sandbox means for
+  // Muse Code's file tools (Meta's permissions page; probed 2026-10-04).
+  it('says that without the sandbox the file tools can write anywhere without asking', () => {
+    const text = renderSupportReport({
+      ...base,
+      shellSandboxPosture: 'disabled (profileWorkspace, Muse Code 1.4.0-R4302.1)',
+      isShellSandboxed: false,
+    })
+    expect(text).toContain(
+      'muse code file writes: anywhere this account can write, without asking, in every mode (shell sandbox off); only .git, .muse and .agents ask',
+    )
+    expect(text).not.toContain('workspace only')
   })
 
   it('names what is missing: no workspace, no CLI, no version, no dictation, a remote', () => {

@@ -38,7 +38,8 @@ export type McpOutcome =
   | { readonly kind: 'response'; readonly body: Readonly<Record<string, unknown>> }
   | { readonly kind: 'accepted' }
 
-const messageSchema = z.object({
+/** A JSON-RPC 2.0 message on the loopback wire (shared by the `ide` server and the team bridge). */
+export const messageSchema = z.object({
   jsonrpc: z.literal('2.0'),
   id: z.optional(z.union([z.string(), z.number(), z.null()])),
   method: z.optional(z.string()),

@@ -1,0 +1,269 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamNativeLifetime.test.ts (18 tests | 13 failed) 26238ms
+   ❯ M96 K real native lifetime (18)
+     × starts a separate journalled team Muse Code host over real fake-CLI pipes 561ms
+     × preserves the real command exit code through its native container 524ms
+     × warns about malformed launch payloads at startup and preserves all foreign bytes 75ms
+     × runs marked child at below-normal priority with intent and OS confirmation on disk 75ms
+     × aborts a held confirmation on dispose without releasing the real command 82ms
+     × signals nothing on disposal after PID and process-group reuse 584ms
+     × rechecks the leader identity before KILL after TERM 526ms
+     × signals Linux through a stable pidfd and rejects a changed final identity 57ms
+     × reproves ownership and retries native retirement after transient EPERM 493ms
+     × holds short commands until their OS confirmation is durable 139ms
+     × scans real marked descendants and stops only after click and second identity check 577ms
+     × retains no-scope detached descendants as uncertain after direct child exit 571ms
+     × hard parent death kills the real direct child under setpriv without a user scope 213ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > starts a separate journalled team Muse Code host over real fake-CLI pipes
+Error: This socket has been ended by the other party
+ ❯ src/host/team/processLifetime.ts:669:18
+    667|           recorded = parsed
+    668|           await new Promise<void>((resolve, reject) => {
+    669|             gate.write(`${launchId}\n`, 'utf8', (error) => {
+       |                  ^
+    670|               gate.end()
+    671|               if (error == null) resolve()
+ ❯ Object.resume src/host/team/processLifetime.ts:668:17
+ ❯ src/host/team/processLifetime.ts:298:16
+ ❯ Object.launch src/host/team/processLifetime.ts:347:26
+ ❯ startTeamMuseCodeHost src/host/team/processLifetime.ts:44:21
+ ❯ test/unit/teamNativeLifetime.test.ts:147:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > preserves the real command exit code through its native container
+Error: This socket has been ended by the other party
+ ❯ src/host/team/processLifetime.ts:669:18
+    667|           recorded = parsed
+    668|           await new Promise<void>((resolve, reject) => {
+    669|             gate.write(`${launchId}\n`, 'utf8', (error) => {
+       |                  ^
+    670|               gate.end()
+    671|               if (error == null) resolve()
+ ❯ Object.resume src/host/team/processLifetime.ts:668:17
+ ❯ src/host/team/processLifetime.ts:298:16
+ ❯ Object.launch src/host/team/processLifetime.ts:347:26
+ ❯ test/unit/teamNativeLifetime.test.ts:233:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > warns about malformed launch payloads at startup and preserves all foreign bytes
+Error: This socket has been ended by the other party
+ ❯ src/host/team/processLifetime.ts:669:18
+    667|           recorded = parsed
+    668|           await new Promise<void>((resolve, reject) => {
+    669|             gate.write(`${launchId}\n`, 'utf8', (error) => {
+       |                  ^
+    670|               gate.end()
+    671|               if (error == null) resolve()
+ ❯ Object.resume src/host/team/processLifetime.ts:668:17
+ ❯ src/host/team/processLifetime.ts:298:16
+ ❯ Object.launch src/host/team/processLifetime.ts:347:26
+ ❯ test/unit/teamNativeLifetime.test.ts:253:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > runs marked child at below-normal priority with intent and OS confirmation on disk
+Error: This socket has been ended by the other party
+ ❯ src/host/team/processLifetime.ts:669:18
+    667|           recorded = parsed
+    668|           await new Promise<void>((resolve, reject) => {
+    669|             gate.write(`${launchId}\n`, 'utf8', (error) => {
+       |                  ^
+    670|               gate.end()
+    671|               if (error == null) resolve()
+ ❯ Object.resume src/host/team/processLifetime.ts:668:17
+ ❯ src/host/team/processLifetime.ts:298:16
+ ❯ Object.launch src/host/team/processLifetime.ts:347:26
+ ❯ test/unit/teamNativeLifetime.test.ts:304:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > aborts a held confirmation on dispose without releasing the real command
+AssertionError: promise resolved "Buffer[ 101, 120, 101, 99, 117, …(-107) ]" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "data": [
++     101,
++     120,
++     101,
++     99,
++     117,
++     116,
++     101,
++     100,
++   ],
++   "type": "Buffer",
+  }
+
+ ❯ test/unit/teamNativeLifetime.test.ts:371:35
+    369|     await rejected
+    370|     await disposing
+    371|     await expect(readFile(output)).rejects.toMatchObject({ code: 'ENOE…
+       |                                   ^
+    372|   })
+    373|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > signals nothing on disposal after PID and process-group reuse
+Error: This socket has been ended by the other party
+ ❯ src/host/team/processLifetime.ts:669:18
+    667|           recorded = parsed
+    668|           await new Promise<void>((resolve, reject) => {
+    669|             gate.write(`${launchId}\n`, 'utf8', (error) => {
+       |                  ^
+    670|               gate.end()
+    671|               if (error == null) resolve()
+ ❯ Object.resume src/host/team/processLifetime.ts:668:17
+ ❯ src/host/team/processLifetime.ts:298:16
+ ❯ Object.launch src/host/team/processLifetime.ts:347:26
+ ❯ runningFallbackFixture test/unit/teamNativeLifetime.test.ts:401:21
+ ❯ test/unit/teamNativeLifetime.test.ts:407:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rechecks the leader identity before KILL after TERM
+Error: This socket has been ended by the other party
+ ❯ src/host/team/processLifetime.ts:669:18
+    667|           recorded = parsed
+    668|           await new Promise<void>((resolve, reject) => {
+    669|             gate.write(`${launchId}\n`, 'utf8', (error) => {
+       |                  ^
+    670|               gate.end()
+    671|               if (error == null) resolve()
+ ❯ Object.resume src/host/team/processLifetime.ts:668:17
+ ❯ src/host/team/processLifetime.ts:298:16
+ ❯ Object.launch src/host/team/processLifetime.ts:347:26
+ ❯ test/unit/teamNativeLifetime.test.ts:432:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > signals Linux through a stable pidfd and rejects a changed final identity
+Error: This socket has been ended by the other party
+ ❯ src/host/team/processLifetime.ts:669:18
+    667|           recorded = parsed
+    668|           await new Promise<void>((resolve, reject) => {
+    669|             gate.write(`${launchId}\n`, 'utf8', (error) => {
+       |                  ^
+    670|               gate.end()
+    671|               if (error == null) resolve()
+ ❯ Object.resume src/host/team/processLifetime.ts:668:17
+ ❯ src/host/team/processLifetime.ts:298:16
+ ❯ Object.launch src/host/team/processLifetime.ts:347:26
+ ❯ test/unit/teamNativeLifetime.test.ts:495:23
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > reproves ownership and retries native retirement after transient EPERM
+Error: This socket has been ended by the other party
+ ❯ src/host/team/processLifetime.ts:669:18
+    667|           recorded = parsed
+    668|           await new Promise<void>((resolve, reject) => {
+    669|             gate.write(`${launchId}\n`, 'utf8', (error) => {
+       |                  ^
+    670|               gate.end()
+    671|               if (error == null) resolve()
+ ❯ Object.resume src/host/team/processLifetime.ts:668:17
+ ❯ src/host/team/processLifetime.ts:298:16
+ ❯ Object.launch src/host/team/processLifetime.ts:347:26
+ ❯ runningFallbackFixture test/unit/teamNativeLifetime.test.ts:401:21
+ ❯ test/unit/teamNativeLifetime.test.ts:603:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > holds short commands until their OS confirmation is durable
+AssertionError: promise resolved "Buffer[ 115, 116, 97, 114, 116, …(-93) ]" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "data": [
++     115,
++     116,
++     97,
++     114,
++     116,
++     101,
++     100,
++   ],
++   "type": "Buffer",
+  }
+
+ ❯ Object.<anonymous> test/unit/teamNativeLifetime.test.ts:672:41
+    670|           if (record.confirmation === undefined || record.end !== unde…
+    671|           await delay(100)
+    672|           await expect(readFile(output)).rejects.toMatchObject({ code:…
+       |                                         ^
+    673|         })
+    674|       const child = await f.lifetime.launch(
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > scans real marked descendants and stops only after click and second identity check
+Error: This socket has been ended by the other party
+ ❯ src/host/team/processLifetime.ts:669:18
+    667|           recorded = parsed
+    668|           await new Promise<void>((resolve, reject) => {
+    669|             gate.write(`${launchId}\n`, 'utf8', (error) => {
+       |                  ^
+    670|               gate.end()
+    671|               if (error == null) resolve()
+ ❯ Object.resume src/host/team/processLifetime.ts:668:17
+ ❯ src/host/team/processLifetime.ts:298:16
+ ❯ Object.launch src/host/team/processLifetime.ts:347:26
+ ❯ test/unit/teamNativeLifetime.test.ts:697:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > retains no-scope detached descendants as uncertain after direct child exit
+Error: This socket has been ended by the other party
+ ❯ src/host/team/processLifetime.ts:669:18
+    667|           recorded = parsed
+    668|           await new Promise<void>((resolve, reject) => {
+    669|             gate.write(`${launchId}\n`, 'utf8', (error) => {
+       |                  ^
+    670|               gate.end()
+    671|               if (error == null) resolve()
+ ❯ Object.resume src/host/team/processLifetime.ts:668:17
+ ❯ src/host/team/processLifetime.ts:298:16
+ ❯ Object.launch src/host/team/processLifetime.ts:347:26
+ ❯ test/unit/teamNativeLifetime.test.ts:727:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/13]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > hard parent death kills the real direct child under setpriv without a user scope
+Error: native owner exited before readiness: Error: This socket has been ended by the other party
+ ❯ ChildProcess.<anonymous> test/unit/teamNativeLifetime.test.ts:138:14
+    136|     parent.once('error', reject)
+    137|     parent.once('exit', () => {
+    138|       reject(new Error(`native owner exited before readiness: ${errors…
+       |              ^
+    139|     })
+    140|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/13]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  13 failed | 5 passed (18)
+   Start at  12:51:16
+   Duration  27.17s (tests 97%, transform 2%, import 1%)

@@ -1,0 +1,24 @@
+{
+  "current": 450126,
+  "base": 448930,
+  "promptEntryBytes": 33692,
+  "activationDelta": 1196,
+  "promptNodeInputs": [
+    "src/host/prompts/promptInsertion.ts",
+    "src/shared/browserCheckConstants.ts",
+    "src/shared/l10n/text.ts",
+    "src/shared/constants.ts",
+    "src/core/prompts/promptTypes.ts",
+    "src/shared/prompts.ts",
+    "src/core/fs/fileIdentity.ts",
+    "src/core/prompts/promptStore.ts",
+    "src/core/prompts/promptLibrary.ts",
+    "src/shared/redact.ts",
+    "src/shared/share.ts",
+    "src/core/prompts/promptImport.ts",
+    "src/core/prompts/promptPrivacy.ts",
+    "src/runtime/dataFolder.ts",
+    "src/host/prompts/promptCommands.ts",
+    "src/host/prompts/promptEntry.ts"
+  ]
+}

@@ -313,3 +313,16 @@ only documentation and these captures were added afterward. All lane
 checks are complete. Full `npm run quality` and PR publication remain the
 lead's work, as the brief requires. Live/installed VS Code was not exercised
 by this lane; no lane blocker remains.
+
+## Muse Code 1.4.3 follow-up (2026-10-05)
+
+The owner-authorized MUSE143 live check on Windows `1.4.3-R5018.1` submitted
+one shell approval: `approval/decide` returned accepted/terminal and the
+stream resolved it without the #29 ledger fault. Upstream's closure names
+1.4.3 as its fix. The extension now gives older versions the existing
+installer command in that fault's notice; 1.4.3 and later keep fault
+detection without suggesting an already-installed fix. This ordinary
+approval does not certify recovery of the older cancelled multi-stage
+session or change this record's historical repros and replay protection.
+Rename and fork still failed. Full scope, counts, scrubbed wire frames and
+scoped gates: [MUSE143](muse143.md).

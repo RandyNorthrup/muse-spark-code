@@ -1,0 +1,35 @@
+{
+  "rig": "macmini",
+  "node": "v24.21.0",
+  "base": "ccce6e6ac",
+  "command": "CI=true npx vitest run test/unit/companionBrowser.test.ts test/unit/usageL10nGate.test.mjs test/e2e/execStdio.e2e.test.ts --maxWorkers=3",
+  "initialPass": {
+    "passed": 61,
+    "failed": 0,
+    "files": [
+      {
+        "file": "test/e2e/execStdio.e2e.test.ts",
+        "status": "passed",
+        "passed": 44,
+        "failed": 0,
+        "maxCaseMs": 17569
+      },
+      {
+        "file": "test/unit/companionBrowser.test.ts",
+        "status": "passed",
+        "passed": 9,
+        "failed": 0,
+        "maxCaseMs": 1154
+      },
+      {
+        "file": "test/unit/usageL10nGate.test.mjs",
+        "status": "passed",
+        "passed": 8,
+        "failed": 0,
+        "maxCaseMs": 1570
+      }
+    ]
+  },
+  "cleanRuns": [],
+  "gates": []
+}

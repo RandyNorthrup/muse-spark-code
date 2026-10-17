@@ -56,4 +56,27 @@ describe('resolveExecutable', () => {
       }),
     ).toBeUndefined()
   })
+
+  it('finds a Windows program named with its extension, as named, and still never a batch file', () => {
+    // The CLI's OS adapters (usage open, share copy/browser) name rundll32.exe,
+    // powershell.exe and explorer.exe; appending .exe again never resolved them.
+    const system = new Set([
+      String.raw`C:\Windows\System32\rundll32.exe`,
+      String.raw`C:\Tools\git.cmd`,
+    ])
+    const probe = {
+      platform: 'win32' as const,
+      pathVariable: String.raw`.;C:\Tools;C:\Windows\System32`,
+      fileExists: (file: string) => system.has(file),
+    }
+    expect(resolveExecutable('rundll32.exe', probe)).toBe(
+      String.raw`C:\Windows\System32\rundll32.exe`,
+    )
+    expect(resolveExecutable('RUNDLL32.EXE', { ...probe, fileExists: () => true })).toBe(
+      String.raw`C:\Tools\RUNDLL32.EXE`,
+    )
+    expect(resolveExecutable('rundll32.exe.exe', probe)).toBeUndefined()
+    // A named batch file is only ever looked up with an executable extension.
+    expect(resolveExecutable('git.cmd', probe)).toBeUndefined()
+  })
 })

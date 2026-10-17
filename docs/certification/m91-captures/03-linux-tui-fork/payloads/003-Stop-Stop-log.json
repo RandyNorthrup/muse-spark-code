@@ -1,0 +1,11 @@
+{
+  "cwd": "<workspace>",
+  "hook_event_name": "Stop",
+  "last_assistant_message": "echo: m91 capture: first turn",
+  "model": "unknown",
+  "permission_mode": "default",
+  "session_id": "01a10853-b57c-71b1-a626-bae2e0a813a2",
+  "stop_hook_active": false,
+  "transcript_path": null,
+  "turn_id": "86e76cc9-4bce-43a4-9d87-030a9bdd971b"
+}

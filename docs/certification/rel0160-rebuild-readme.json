@@ -1,0 +1,137 @@
+[
+  {
+    "name": "agents.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 78427,
+    "before": "897fe042ecfff7a110b759fb67009d1154675b6c2c97b994a0107bae239b8e60",
+    "after": "f81cd0a4508613770de3ce4767f7637404aebf13168cd405832050c122765eef"
+  },
+  {
+    "name": "approval.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 55156,
+    "before": "572974057d6201327dd204456976c8058aab301ba39bdfa887ab14c016751204",
+    "after": "81cd6378d4e181d61dfd1e8b5c2c91be47e69282c04ec6a09c58e7e7fc65a369"
+  },
+  {
+    "name": "history.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 95149,
+    "before": "8c27a3d12002a637349ea99e52700f8b39c9e2fb9aad8517d4c2eb77bedd2b33",
+    "after": "5ad135ba6b2e214d5ea300961619d747b3054635dc08f833028c8c8924b95c81"
+  },
+  {
+    "name": "languages.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 105792,
+    "before": "80e3a1896c857fb3609f39830b20d74a77d25500a0d59678d4b07eb46682f40a",
+    "after": "8e71d23272317f34eb2ca0980d0fd4097d5c39fd6cd0b2123760ada7202f14e0"
+  },
+  {
+    "name": "modes.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 90977,
+    "before": "ce64ce4e3feb1d4b1d46bee09035f2a3b38e0d89c069d1d6ae0e6bfde5290ea4",
+    "after": "0a574c8134fea1611281ff16fd8235897895b31af0450c1a14bba086d24d0b3d"
+  },
+  {
+    "name": "paid.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 13050,
+    "before": "af456fd3efb687add3250876aaa09ec198aef9bb5abf8cf4c376934117a97499",
+    "after": "b6d06a823747e99fc84845bfb15d9559fb7f43d2480f54142fbaff59080027f3"
+  },
+  {
+    "name": "paid-always.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 1000],
+    "before": "bfea025bba6451071aa82881bffbb57f4b6883d621bb03d9b08c159aec6994cf",
+    "after": "7bf0e5934547571b78975ef1c19cf95c82223afe0813312ba337042bfc078c85"
+  },
+  {
+    "name": "palette.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 67132,
+    "before": "0c9d689e22af2d211629c1b448823f3026e7fec2d638ff8456c1eedfdcdc2ad2",
+    "after": "86baa7c43b57c5d36f3c48018d7577d753755e5b1eab657ea9c28efa5976efd2"
+  },
+  {
+    "name": "question.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 64612,
+    "before": "7b0ed3de4d0a2b1b921cb77daea9b5b8aa1d7a4d4293eb640cf18512d02986a9",
+    "after": "9143d8d5fb1aba14368322af1ac721ed611d5880436f6f904a4d7d386ca0e087"
+  },
+  {
+    "name": "quote.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 23306,
+    "before": "2bda044de1782267d4249fb326cc20d1442718fcb0fdb1b0d3f8624ed1d7215b",
+    "after": "4f504de62530ca66cc1f9469f475f45928c00ecfc3ca97e8a5b587e262cecf28"
+  },
+  {
+    "name": "rewind.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 49505,
+    "before": "f52d57bc7f7f208e9687a80520ffc27e72942d8932526ad91a1e26a5e215ab6c",
+    "after": "2372b0963885c63aa9a4690d8bd2a2716f46da44cc62ae7185e7ec38b94d7293"
+  },
+  {
+    "name": "slash-commands.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 83918,
+    "before": "a8483f611400a39fa04641bd332888fc3ef3a30f6f261ed2b0d832816755fcbe",
+    "after": "34d9b99de1b5f150566d8710cae4e2a5394a436615431e1a3d4bf278e8175dcf"
+  },
+  {
+    "name": "turn.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 47630,
+    "before": "72b42a1e54fccfbf3b6f837dc4d170c8357217fa4bdb109d612a9d7b6fd600bc",
+    "after": "43af00ebd29f3a790fa3f5a508a9c649d6538a1910a48c3950b05f2ee07448d8"
+  },
+  {
+    "name": "usage.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 94986,
+    "before": "15012f9ad63899fdb4a2ee35f966b1ba0b84000452c1d049ec582a1f01ed2700",
+    "after": "99011785c257695a71782eae1a3f1cc832e4f6f2473f002dbcdcdc7fae573213"
+  },
+  {
+    "name": "voice.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 36056,
+    "before": "25fcf02f57d2f55ea6318e98e26006d099618f21b3f36c6f1b6e95d757bb9ad0",
+    "after": "d1e34433dbea8d4ca250b0ad811c2509efe65e7c6738c7cb979ac7a7f1bc9693"
+  },
+  {
+    "name": "open-question.png",
+    "beforeSize": [690, 760],
+    "afterSize": [690, 760],
+    "changedPixels": 18764,
+    "before": "2cf2a97358f3bf488a1772de5e3155577ec5e9f2518d04267526d65d13890ae0",
+    "after": "d556bb291a9e6778198da5ac242b59b87ee51d3643c7da94f7f3ce818dc3f51d"
+  },
+  {
+    "name": "help.png",
+    "beforeSize": [1000, 760],
+    "afterSize": [1000, 760],
+    "changedPixels": 63295,
+    "before": "33dbc7b0013ddad97f27b8bdee1cc91b9eea5fcd43f27d164d65d8f3f77be823",
+    "after": "b3cab91f5118906536706179ff1a396df221f584f12a2f53c0736ed5bd2aa7b6"
+  }
+]

@@ -1,0 +1,152 @@
+{
+  "provider": "mistral",
+  "step": "models-list",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "https://api.mistral.ai/v1/models",
+    "headers": {
+      "authorization": "<redacted>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a457a9c7ae7e29ab-LAX",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-type": "application/json",
+      "date": "Sun, 04 Oct 2026 22:36:03 GMT",
+      "mistral-correlation-id": "01a1090f-591d-7988-b498-06d223843a28",
+      "server": "cloudflare",
+      "set-cookie": "<redacted>",
+      "strict-transport-security": "max-age=15552000; includeSubDomains; preload",
+      "transfer-encoding": "chunked",
+      "x-content-type-options": "nosniff",
+      "x-envoy-upstream-service-time": "52",
+      "x-kong-proxy-latency": "18",
+      "x-kong-request-id": "01a1090f-591d-7988-b498-06d223843a28",
+      "x-kong-upstream-latency": "53"
+    },
+    "bodySummary": {
+      "note": "trimmed: count, keys and sample entries",
+      "count": 53,
+      "topLevelKeys": ["object", "data"],
+      "entryKeys": [
+        "aliases",
+        "billing_model_name",
+        "capabilities",
+        "created",
+        "default_model_temperature",
+        "deprecation",
+        "deprecation_replacement_model",
+        "description",
+        "id",
+        "max_context_length",
+        "name",
+        "object",
+        "owned_by",
+        "type"
+      ],
+      "sample": [
+        {
+          "id": "codestral-2508",
+          "object": "model",
+          "created": 1791153363,
+          "owned_by": "mistralai",
+          "capabilities": {
+            "completion_chat": true,
+            "function_calling": true,
+            "reasoning": false,
+            "completion_fim": true,
+            "fine_tuning": false,
+            "vision": false,
+            "ocr": false,
+            "classification": false,
+            "moderation": false,
+            "audio": false,
+            "audio_transcription": false,
+            "audio_transcription_realtime": false,
+            "audio_speech": false,
+            "unified_resources": false
+          },
+          "name": "codestral-2508",
+          "description": "Our cutting-edge language model for coding released August 2025.",
+          "max_context_length": 256000,
+          "aliases": ["codestral-latest", "mistral-code-latest", "mistral-code-fim-latest"],
+          "deprecation": null,
+          "deprecation_replacement_model": null,
+          "default_model_temperature": 0.3,
+          "billing_model_name": "codestral-2508",
+          "type": "base"
+        },
+        {
+          "id": "codestral-latest",
+          "object": "model",
+          "created": 1791153363,
+          "owned_by": "mistralai",
+          "capabilities": {
+            "completion_chat": true,
+            "function_calling": true,
+            "reasoning": false,
+            "completion_fim": true,
+            "fine_tuning": false,
+            "vision": false,
+            "ocr": false,
+            "classification": false,
+            "moderation": false,
+            "audio": false,
+            "audio_transcription": false,
+            "audio_transcription_realtime": false,
+            "audio_speech": false,
+            "unified_resources": false
+          },
+          "name": "codestral-2508",
+          "description": "Our cutting-edge language model for coding released August 2025.",
+          "max_context_length": 256000,
+          "aliases": ["codestral-2508", "mistral-code-latest", "mistral-code-fim-latest"],
+          "deprecation": null,
+          "deprecation_replacement_model": null,
+          "default_model_temperature": 0.3,
+          "billing_model_name": "codestral-2508",
+          "type": "base"
+        },
+        {
+          "id": "ministral-3b-latest",
+          "object": "model",
+          "created": 1791153363,
+          "owned_by": "mistralai",
+          "capabilities": {
+            "completion_chat": true,
+            "function_calling": true,
+            "reasoning": false,
+            "completion_fim": false,
+            "fine_tuning": true,
+            "vision": true,
+            "ocr": false,
+            "classification": false,
+            "moderation": false,
+            "audio": false,
+            "audio_transcription": false,
+            "audio_transcription_realtime": false,
+            "audio_speech": false,
+            "unified_resources": false
+          },
+          "name": "ministral-3b-2512",
+          "description": "Ministral 3 (a.k.a. Tinystral) 3B Instruct.",
+          "max_context_length": 131072,
+          "aliases": ["ministral-3b-2512"],
+          "deprecation": null,
+          "deprecation_replacement_model": null,
+          "default_model_temperature": 0.3,
+          "billing_model_name": "ministral-3b-2512",
+          "type": "base"
+        }
+      ]
+    }
+  }
+}

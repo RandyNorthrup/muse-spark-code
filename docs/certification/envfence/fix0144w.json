@@ -1,0 +1,1035 @@
+{
+  "rig": "Windows 11",
+  "worktree": "C:/lanes/FIX0144W",
+  "releaseBase": "555a95158",
+  "mainBase": "8c6351d73",
+  "testCommand": "npx.cmd vitest run test/unit/shellEnvironmentOrigins.test.ts test/unit/toolIoCommandAdmission.test.ts --maxWorkers=3",
+  "repositoryTimeoutsUnchanged": true,
+  "baselineRelease": [
+    {
+      "run": 1,
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "durationSeconds": 17.57,
+      "note": "Initial complete-file default-reporter run; no JSON reporter requested."
+    },
+    {
+      "run": 2,
+      "report": "temp/fix0144w-env-release-2.json",
+      "passed": 15,
+      "failed": 1,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/shellEnvironmentOrigins.test.ts",
+          "assertions": [
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 754.5720999999999
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled with a later interactive turn origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 924.6495000000004
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the interactive origin through directory preparation after backgrounding",
+              "status": "failed",
+              "durationMs": 1162.6933
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments marks top-level model shells and the user’s ! command interactive",
+              "status": "passed",
+              "durationMs": 12.999399999999696
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps then_run and verification unattended",
+              "status": "passed",
+              "durationMs": 19.098700000000463
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a confirmed schedule’s model shell unattended",
+              "status": "passed",
+              "durationMs": 113.39630000000034
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a child/team worker’s model shell unattended",
+              "status": "passed",
+              "durationMs": 77.4339
+            }
+          ]
+        },
+        {
+          "file": "test/unit/toolIoCommandAdmission.test.ts",
+          "assertions": [
+            {
+              "title": "native command final owner admission D89.5 fences the RVENVFENCE credential names in a real unattended shell",
+              "status": "passed",
+              "durationMs": 373.7466999999999
+            },
+            {
+              "title": "native command final owner admission D89.5 real-shell environment probe withholds parent credentials unless interactive and named",
+              "status": "passed",
+              "durationMs": 1378.1877999999997
+            },
+            {
+              "title": "native command final owner admission refuses after the held Windows assembly before any process entry",
+              "status": "passed",
+              "durationMs": 3.2806000000000495
+            },
+            {
+              "title": "native command final owner admission runs a real unchanged local shell command with the final callback",
+              "status": "passed",
+              "durationMs": 327.94219999999996
+            },
+            {
+              "title": "native command final owner admission proves no process exists when spawn itself throws, and keeps the failure",
+              "status": "passed",
+              "durationMs": 4.655499999999847
+            },
+            {
+              "title": "native command final owner admission gives no proof to an error that arrives after the real process launched",
+              "status": "passed",
+              "durationMs": 20.39920000000029
+            },
+            {
+              "title": "native command final owner admission keeps a real started-then-cancelled shell distinct from entry refusal",
+              "status": "passed",
+              "durationMs": 630.9326000000001
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a shell command by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 4.530100000000402
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a hook by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 3.257999999999811
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run": 3,
+      "report": "temp/fix0144w-env-release-3.json",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/shellEnvironmentOrigins.test.ts",
+          "assertions": [
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 1060.0700000000006
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled with a later interactive turn origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 722.5261
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the interactive origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 668.4871000000003
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments marks top-level model shells and the user’s ! command interactive",
+              "status": "passed",
+              "durationMs": 13.193999999999505
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps then_run and verification unattended",
+              "status": "passed",
+              "durationMs": 19.355199999999968
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a confirmed schedule’s model shell unattended",
+              "status": "passed",
+              "durationMs": 17.51969999999892
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a child/team worker’s model shell unattended",
+              "status": "passed",
+              "durationMs": 76.73649999999907
+            }
+          ]
+        },
+        {
+          "file": "test/unit/toolIoCommandAdmission.test.ts",
+          "assertions": [
+            {
+              "title": "native command final owner admission D89.5 fences the RVENVFENCE credential names in a real unattended shell",
+              "status": "passed",
+              "durationMs": 361.6455000000001
+            },
+            {
+              "title": "native command final owner admission D89.5 real-shell environment probe withholds parent credentials unless interactive and named",
+              "status": "passed",
+              "durationMs": 2218.5991
+            },
+            {
+              "title": "native command final owner admission refuses after the held Windows assembly before any process entry",
+              "status": "passed",
+              "durationMs": 3.362999999999829
+            },
+            {
+              "title": "native command final owner admission runs a real unchanged local shell command with the final callback",
+              "status": "passed",
+              "durationMs": 320.6178
+            },
+            {
+              "title": "native command final owner admission proves no process exists when spawn itself throws, and keeps the failure",
+              "status": "passed",
+              "durationMs": 4.826599999999871
+            },
+            {
+              "title": "native command final owner admission gives no proof to an error that arrives after the real process launched",
+              "status": "passed",
+              "durationMs": 19.67679999999973
+            },
+            {
+              "title": "native command final owner admission keeps a real started-then-cancelled shell distinct from entry refusal",
+              "status": "passed",
+              "durationMs": 629.6932000000002
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a shell command by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 4.513699999999517
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a hook by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 3.4265000000004875
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "baselineMain": [
+    {
+      "run": 1,
+      "report": "temp/fix0144w-env-main-1.json",
+      "passed": 13,
+      "failed": 3,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/shellEnvironmentOrigins.test.ts",
+          "assertions": [
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled origin through directory preparation after backgrounding",
+              "status": "failed",
+              "durationMs": 1234.1031000000003
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled with a later interactive turn origin through directory preparation after backgrounding",
+              "status": "failed",
+              "durationMs": 1681.9897999999994
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the interactive origin through directory preparation after backgrounding",
+              "status": "failed",
+              "durationMs": 1168.0899999999983
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments marks top-level model shells and the user’s ! command interactive",
+              "status": "passed",
+              "durationMs": 13.340300000001662
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps then_run and verification unattended",
+              "status": "passed",
+              "durationMs": 28.179400000000896
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a confirmed schedule’s model shell unattended",
+              "status": "passed",
+              "durationMs": 32.97860000000037
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a child/team worker’s model shell unattended",
+              "status": "passed",
+              "durationMs": 71.78530000000137
+            }
+          ]
+        },
+        {
+          "file": "test/unit/toolIoCommandAdmission.test.ts",
+          "assertions": [
+            {
+              "title": "native command final owner admission D89.5 fences the RVENVFENCE credential names in a real unattended shell",
+              "status": "passed",
+              "durationMs": 971.1087000000002
+            },
+            {
+              "title": "native command final owner admission D89.5 real-shell environment probe withholds parent credentials unless interactive and named",
+              "status": "passed",
+              "durationMs": 1360.6668999999993
+            },
+            {
+              "title": "native command final owner admission refuses after the held Windows assembly before any process entry",
+              "status": "passed",
+              "durationMs": 3.30580000000009
+            },
+            {
+              "title": "native command final owner admission runs a real unchanged local shell command with the final callback",
+              "status": "passed",
+              "durationMs": 324.8109999999997
+            },
+            {
+              "title": "native command final owner admission proves no process exists when spawn itself throws, and keeps the failure",
+              "status": "passed",
+              "durationMs": 4.757200000000012
+            },
+            {
+              "title": "native command final owner admission gives no proof to an error that arrives after the real process launched",
+              "status": "passed",
+              "durationMs": 21.53110000000015
+            },
+            {
+              "title": "native command final owner admission keeps a real started-then-cancelled shell distinct from entry refusal",
+              "status": "passed",
+              "durationMs": 1028.6503999999995
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a shell command by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 4.662500000000364
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a hook by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 3.405800000000454
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "report": "temp/fix0144w-env-main-2.json",
+      "passed": 14,
+      "failed": 2,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/shellEnvironmentOrigins.test.ts",
+          "assertions": [
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 1000.7903999999999
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled with a later interactive turn origin through directory preparation after backgrounding",
+              "status": "failed",
+              "durationMs": 1686.5140999999985
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the interactive origin through directory preparation after backgrounding",
+              "status": "failed",
+              "durationMs": 2182.9781999999996
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments marks top-level model shells and the user’s ! command interactive",
+              "status": "passed",
+              "durationMs": 474.5568000000003
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps then_run and verification unattended",
+              "status": "passed",
+              "durationMs": 18.119399999999587
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a confirmed schedule’s model shell unattended",
+              "status": "passed",
+              "durationMs": 48.825300000000425
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a child/team worker’s model shell unattended",
+              "status": "passed",
+              "durationMs": 71.6135000000013
+            }
+          ]
+        },
+        {
+          "file": "test/unit/toolIoCommandAdmission.test.ts",
+          "assertions": [
+            {
+              "title": "native command final owner admission D89.5 fences the RVENVFENCE credential names in a real unattended shell",
+              "status": "passed",
+              "durationMs": 1658.7981
+            },
+            {
+              "title": "native command final owner admission D89.5 real-shell environment probe withholds parent credentials unless interactive and named",
+              "status": "passed",
+              "durationMs": 1678.2660999999998
+            },
+            {
+              "title": "native command final owner admission refuses after the held Windows assembly before any process entry",
+              "status": "passed",
+              "durationMs": 3.416400000000067
+            },
+            {
+              "title": "native command final owner admission runs a real unchanged local shell command with the final callback",
+              "status": "passed",
+              "durationMs": 428.29119999999966
+            },
+            {
+              "title": "native command final owner admission proves no process exists when spawn itself throws, and keeps the failure",
+              "status": "passed",
+              "durationMs": 4.751000000000204
+            },
+            {
+              "title": "native command final owner admission gives no proof to an error that arrives after the real process launched",
+              "status": "passed",
+              "durationMs": 20.405499999999847
+            },
+            {
+              "title": "native command final owner admission keeps a real started-then-cancelled shell distinct from entry refusal",
+              "status": "passed",
+              "durationMs": 742.7037999999993
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a shell command by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 4.6109000000005835
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a hook by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 3.277999999999338
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run": 3,
+      "report": "temp/fix0144w-env-main-3.json",
+      "passed": 14,
+      "failed": 2,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/shellEnvironmentOrigins.test.ts",
+          "assertions": [
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled origin through directory preparation after backgrounding",
+              "status": "failed",
+              "durationMs": 1235.1709
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled with a later interactive turn origin through directory preparation after backgrounding",
+              "status": "failed",
+              "durationMs": 1382.8809999999994
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the interactive origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 652.5393000000004
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments marks top-level model shells and the user’s ! command interactive",
+              "status": "passed",
+              "durationMs": 13.339900000000853
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps then_run and verification unattended",
+              "status": "passed",
+              "durationMs": 18.288000000000466
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a confirmed schedule’s model shell unattended",
+              "status": "passed",
+              "durationMs": 16.804399999999077
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a child/team worker’s model shell unattended",
+              "status": "passed",
+              "durationMs": 74.16890000000058
+            }
+          ]
+        },
+        {
+          "file": "test/unit/toolIoCommandAdmission.test.ts",
+          "assertions": [
+            {
+              "title": "native command final owner admission D89.5 fences the RVENVFENCE credential names in a real unattended shell",
+              "status": "passed",
+              "durationMs": 353.2491
+            },
+            {
+              "title": "native command final owner admission D89.5 real-shell environment probe withholds parent credentials unless interactive and named",
+              "status": "passed",
+              "durationMs": 2189.0312
+            },
+            {
+              "title": "native command final owner admission refuses after the held Windows assembly before any process entry",
+              "status": "passed",
+              "durationMs": 3.522899999999936
+            },
+            {
+              "title": "native command final owner admission runs a real unchanged local shell command with the final callback",
+              "status": "passed",
+              "durationMs": 340.6124999999997
+            },
+            {
+              "title": "native command final owner admission proves no process exists when spawn itself throws, and keeps the failure",
+              "status": "passed",
+              "durationMs": 4.852799999999661
+            },
+            {
+              "title": "native command final owner admission gives no proof to an error that arrives after the real process launched",
+              "status": "passed",
+              "durationMs": 21.036799999999857
+            },
+            {
+              "title": "native command final owner admission keeps a real started-then-cancelled shell distinct from entry refusal",
+              "status": "passed",
+              "durationMs": 677.8942000000002
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a shell command by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 4.937399999999798
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a hook by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 3.5500999999994747
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "final": [
+    {
+      "run": 1,
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/shellEnvironmentOrigins.test.ts test/unit/toolIoCommandAdmission.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-final-1.json",
+      "report": "temp/fix0144w-env-final-1.json",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/shellEnvironmentOrigins.test.ts",
+          "assertions": [
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 750.1745000000001
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled with a later interactive turn origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 632.1602999999996
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the interactive origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 659.0239000000001
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments marks top-level model shells and the user’s ! command interactive",
+              "status": "passed",
+              "durationMs": 12.24329999999918
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps then_run and verification unattended",
+              "status": "passed",
+              "durationMs": 18.04160000000047
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a confirmed schedule’s model shell unattended",
+              "status": "passed",
+              "durationMs": 16.3778999999995
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a child/team worker’s model shell unattended",
+              "status": "passed",
+              "durationMs": 78.59439999999995
+            }
+          ]
+        },
+        {
+          "file": "test/unit/toolIoCommandAdmission.test.ts",
+          "assertions": [
+            {
+              "title": "native command final owner admission D89.5 fences the RVENVFENCE credential names in a real unattended shell",
+              "status": "passed",
+              "durationMs": 260.9204000000001
+            },
+            {
+              "title": "native command final owner admission D89.5 real-shell environment probe withholds parent credentials unless interactive and named",
+              "status": "passed",
+              "durationMs": 1017.1467
+            },
+            {
+              "title": "native command final owner admission refuses after the held Windows assembly before any process entry",
+              "status": "passed",
+              "durationMs": 3.3712000000000444
+            },
+            {
+              "title": "native command final owner admission runs a real unchanged local shell command with the final callback",
+              "status": "passed",
+              "durationMs": 353.2914999999998
+            },
+            {
+              "title": "native command final owner admission proves no process exists when spawn itself throws, and keeps the failure",
+              "status": "passed",
+              "durationMs": 4.046200000000226
+            },
+            {
+              "title": "native command final owner admission gives no proof to an error that arrives after the real process launched",
+              "status": "passed",
+              "durationMs": 20.0308
+            },
+            {
+              "title": "native command final owner admission keeps a real started-then-cancelled shell distinct from entry refusal",
+              "status": "passed",
+              "durationMs": 654.6741000000002
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a shell command by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 4.5745999999999185
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a hook by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 3.550999999999931
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run": 2,
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/shellEnvironmentOrigins.test.ts test/unit/toolIoCommandAdmission.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-final-2.json",
+      "report": "temp/fix0144w-env-final-2.json",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/shellEnvironmentOrigins.test.ts",
+          "assertions": [
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 818.2608
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled with a later interactive turn origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 634.0869999999995
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the interactive origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 619.6633999999995
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments marks top-level model shells and the user’s ! command interactive",
+              "status": "passed",
+              "durationMs": 11.647500000000036
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps then_run and verification unattended",
+              "status": "passed",
+              "durationMs": 17.540099999999256
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a confirmed schedule’s model shell unattended",
+              "status": "passed",
+              "durationMs": 15.486799999999675
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a child/team worker’s model shell unattended",
+              "status": "passed",
+              "durationMs": 71.53729999999996
+            }
+          ]
+        },
+        {
+          "file": "test/unit/toolIoCommandAdmission.test.ts",
+          "assertions": [
+            {
+              "title": "native command final owner admission D89.5 fences the RVENVFENCE credential names in a real unattended shell",
+              "status": "passed",
+              "durationMs": 265.7816
+            },
+            {
+              "title": "native command final owner admission D89.5 real-shell environment probe withholds parent credentials unless interactive and named",
+              "status": "passed",
+              "durationMs": 1005.5373999999997
+            },
+            {
+              "title": "native command final owner admission refuses after the held Windows assembly before any process entry",
+              "status": "passed",
+              "durationMs": 108.01260000000002
+            },
+            {
+              "title": "native command final owner admission runs a real unchanged local shell command with the final callback",
+              "status": "passed",
+              "durationMs": 343.39739999999983
+            },
+            {
+              "title": "native command final owner admission proves no process exists when spawn itself throws, and keeps the failure",
+              "status": "passed",
+              "durationMs": 4.268799999999828
+            },
+            {
+              "title": "native command final owner admission gives no proof to an error that arrives after the real process launched",
+              "status": "passed",
+              "durationMs": 21.80079999999998
+            },
+            {
+              "title": "native command final owner admission keeps a real started-then-cancelled shell distinct from entry refusal",
+              "status": "passed",
+              "durationMs": 638.5234
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a shell command by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 4.757100000000264
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a hook by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 3.3947000000002845
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run": 3,
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/shellEnvironmentOrigins.test.ts test/unit/toolIoCommandAdmission.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-final-3.json",
+      "report": "temp/fix0144w-env-final-3.json",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "files": [
+        {
+          "file": "test/unit/shellEnvironmentOrigins.test.ts",
+          "assertions": [
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 728.0375999999997
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the scheduled with a later interactive turn origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 727.6276000000007
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments retains the interactive origin through directory preparation after backgrounding",
+              "status": "passed",
+              "durationMs": 706.1557000000003
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments marks top-level model shells and the user’s ! command interactive",
+              "status": "passed",
+              "durationMs": 13.992500000000291
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps then_run and verification unattended",
+              "status": "passed",
+              "durationMs": 20.083700000000135
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a confirmed schedule’s model shell unattended",
+              "status": "passed",
+              "durationMs": 249.4269000000004
+            },
+            {
+              "title": "D89.5 command origins cannot widen unattended environments keeps a child/team worker’s model shell unattended",
+              "status": "passed",
+              "durationMs": 76.76589999999942
+            }
+          ]
+        },
+        {
+          "file": "test/unit/toolIoCommandAdmission.test.ts",
+          "assertions": [
+            {
+              "title": "native command final owner admission D89.5 fences the RVENVFENCE credential names in a real unattended shell",
+              "status": "passed",
+              "durationMs": 275.9228999999998
+            },
+            {
+              "title": "native command final owner admission D89.5 real-shell environment probe withholds parent credentials unless interactive and named",
+              "status": "passed",
+              "durationMs": 1113.1999999999998
+            },
+            {
+              "title": "native command final owner admission refuses after the held Windows assembly before any process entry",
+              "status": "passed",
+              "durationMs": 3.292500000000018
+            },
+            {
+              "title": "native command final owner admission runs a real unchanged local shell command with the final callback",
+              "status": "passed",
+              "durationMs": 330.9234999999999
+            },
+            {
+              "title": "native command final owner admission proves no process exists when spawn itself throws, and keeps the failure",
+              "status": "passed",
+              "durationMs": 3.9765000000002146
+            },
+            {
+              "title": "native command final owner admission gives no proof to an error that arrives after the real process launched",
+              "status": "passed",
+              "durationMs": 21.36220000000003
+            },
+            {
+              "title": "native command final owner admission keeps a real started-then-cancelled shell distinct from entry refusal",
+              "status": "passed",
+              "durationMs": 789.7764999999999
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a shell command by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 5.425600000000031
+            },
+            {
+              "title": "Windows commands join their job (M27) starts a hook by joining its job when the helper is there, and without one when it is not",
+              "status": "passed",
+              "durationMs": 4.096800000000258
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "promptSharing": [
+    {
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/promptHostLifecycle.test.ts test/unit/promptEntry.test.ts test/unit/promptNative.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-prompts-1.json",
+      "exitCode": 0,
+      "files": [
+        "test/unit/promptHostLifecycle.test.ts",
+        "test/unit/promptEntry.test.ts",
+        "test/unit/promptNative.test.ts"
+      ],
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "elapsedSeconds": 5.338
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/promptStore.test.ts test/unit/promptImport.test.ts test/unit/promptPrivacy.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-prompts-2.json",
+      "exitCode": 0,
+      "files": [
+        "test/unit/promptStore.test.ts",
+        "test/unit/promptImport.test.ts",
+        "test/unit/promptPrivacy.test.ts"
+      ],
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "elapsedSeconds": 4.111
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/prompts.test.ts test/unit/promptMenus.test.ts test/unit/promptWorkspaceIntegration.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-prompts-3.json",
+      "exitCode": 0,
+      "files": [
+        "test/unit/prompts.test.ts",
+        "test/unit/promptMenus.test.ts",
+        "test/unit/promptWorkspaceIntegration.test.ts"
+      ],
+      "passed": 36,
+      "failed": 0,
+      "skipped": 0,
+      "elapsedSeconds": 2.664
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/promptBridge.test.ts test/unit/acpSharing.test.ts test/unit/runtimeSharing.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-prompts-4.json",
+      "exitCode": 0,
+      "files": [
+        "test/unit/promptBridge.test.ts",
+        "test/unit/acpSharing.test.ts",
+        "test/unit/runtimeSharing.test.ts"
+      ],
+      "passed": 69,
+      "failed": 0,
+      "skipped": 0,
+      "elapsedSeconds": 5.459
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/chatSharingHost.test.ts test/unit/chatShareDestinations.test.ts test/unit/chatShareRelease.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-prompts-5.json",
+      "exitCode": 0,
+      "files": [
+        "test/unit/chatSharingHost.test.ts",
+        "test/unit/chatShareDestinations.test.ts",
+        "test/unit/chatShareRelease.test.ts"
+      ],
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "elapsedSeconds": 3.732
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/chatShareFormats.test.ts test/unit/chatShareScrub.test.ts test/unit/chatShareRange.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-prompts-6.json",
+      "exitCode": 0,
+      "files": [
+        "test/unit/chatShareFormats.test.ts",
+        "test/unit/chatShareScrub.test.ts",
+        "test/unit/chatShareRange.test.ts"
+      ],
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "elapsedSeconds": 3.582
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/chatShareFilter.test.ts test/unit/shareContracts.test.ts test/unit/sharingArtifacts.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-prompts-7.json",
+      "exitCode": 0,
+      "files": [
+        "test/unit/chatShareFilter.test.ts",
+        "test/unit/shareContracts.test.ts",
+        "test/unit/sharingArtifacts.test.ts"
+      ],
+      "passed": 53,
+      "failed": 0,
+      "skipped": 0,
+      "elapsedSeconds": 3.717
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/sharingBridge.test.tsx test/unit/shareCommand.test.ts test/unit/ChatShareDialog.test.tsx --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-prompts-8.json",
+      "exitCode": 0,
+      "files": [
+        "test/unit/sharingBridge.test.tsx",
+        "test/unit/shareCommand.test.ts",
+        "test/unit/ChatShareDialog.test.tsx"
+      ],
+      "passed": 115,
+      "failed": 0,
+      "skipped": 0,
+      "elapsedSeconds": 8.428
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/promptLibrary.test.tsx --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-prompts-9.json",
+      "exitCode": 0,
+      "files": ["test/unit/promptLibrary.test.tsx"],
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "elapsedSeconds": 3.056
+    }
+  ],
+  "drills": [
+    {
+      "source": "src/host/backend/toolIo.ts",
+      "mutation": "Permit named credentials in unattended native shells",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/shellEnvironmentOrigins.test.ts test/unit/toolIoCommandAdmission.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-drill-tests.json",
+      "exitCode": 1,
+      "beforeSha256": "ad037cedb54c5292633ca262e025d3b64fe09d18a21d564d07f50b787a9cdfe8",
+      "restoredSha256": "ad037cedb54c5292633ca262e025d3b64fe09d18a21d564d07f50b787a9cdfe8",
+      "failed": [
+        {
+          "title": "D89.5 command origins cannot widen unattended environments retains the scheduled origin through directory preparation after backgrounding",
+          "assertion": ["AssertionError: expected true to be false // Object.is equality"]
+        },
+        {
+          "title": "D89.5 command origins cannot widen unattended environments retains the scheduled with a later interactive turn origin through directory preparation after backgrounding",
+          "assertion": ["AssertionError: expected true to be false // Object.is equality"]
+        },
+        {
+          "title": "native command final owner admission D89.5 fences the RVENVFENCE credential names in a real unattended shell",
+          "assertion": ["AssertionError: expected true to be false // Object.is equality"]
+        },
+        {
+          "title": "native command final owner admission D89.5 real-shell environment probe withholds parent credentials unless interactive and named",
+          "assertion": ["AssertionError: expected true to be false // Object.is equality"]
+        }
+      ],
+      "passed": 12,
+      "failedCount": 4
+    },
+    {
+      "source": "test/unit/toolIoCommandAdmission.test.ts",
+      "mutation": "Restore formatted PowerShell environment table",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/toolIoCommandAdmission.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/fix0144w-env-probe-drill-tests.json",
+      "exitCode": 1,
+      "beforeSha256": "cf6e9b43582c371d888f1808ec0b761beeb17e146c046b12640ac44cbc00a478",
+      "restoredSha256": "cf6e9b43582c371d888f1808ec0b761beeb17e146c046b12640ac44cbc00a478",
+      "failed": [
+        {
+          "title": "native command final owner admission D89.5 fences the RVENVFENCE credential names in a real unattended shell",
+          "assertion": ["AssertionError: expected false to be true // Object.is equality"]
+        }
+      ],
+      "passed": 8,
+      "failedCount": 1
+    }
+  ],
+  "checks": [
+    {
+      "command": "npm.cmd run typecheck",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "command": "npx.cmd eslint --max-warnings=0 test/unit/shellEnvironmentOrigins.test.ts test/unit/toolIoCommandAdmission.test.ts",
+      "exit_code": 1,
+      "output": "\nC:\\lanes\\FIX0144W\\test\\unit\\shellEnvironmentOrigins.test.ts\n  189:49  error  void is only valid as a return type or generic type argument  @typescript-eslint/no-invalid-void-type\n\n✖ 1 problem (1 error, 0 warnings)\n\n"
+    },
+    {
+      "command": "npx.cmd eslint --max-warnings=0 test/unit/shellEnvironmentOrigins.test.ts test/unit/toolIoCommandAdmission.test.ts",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "command": "npm.cmd run typecheck:unit",
+      "exit_code": 0,
+      "output": ""
+    },
+    {
+      "command": "npm.cmd run deadcode",
+      "exit_code": 0,
+      "output": "\n> muse-spark-code@0.14.4 deadcode\n> knip\n\nConfiguration hints (2)\nvendor/**    knip.jsonc  Remove from ignore            \naxe-core     knip.jsonc  Remove from ignoreDependencies\n"
+    },
+    {
+      "command": "npx.cmd jscpd",
+      "exit_code": 0,
+      "output": "Using config from .jscpd.json\nNo duplicates found.\n┌────────────┬────────────────┬─────────────┬──────────────┬──────────────┬──────────────────┬───────────────────┐\n│ Format     │ Files analyzed │ Total lines │ Total tokens │ Clones found │ Duplicated lines │ Duplicated tokens │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ css        │ 5              │ 4351        │ 37775        │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ tsx        │ 136            │ 35267       │ 227232       │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ typescript │ 1152           │ 380124      │ 2331006      │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ Total:     │ 1293           │ 419742      │ 2596013      │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘\nFound 0 clones.\ntime: 729.614ms\n"
+    },
+    {
+      "command": "node scripts/check-l10n.mjs",
+      "exit_code": 0,
+      "output": "l10n: 14 tables, 176 manifest strings, 660 source files; 0 problems\n"
+    },
+    {
+      "command": "npm.cmd run check:host-api",
+      "exit_code": 0,
+      "output": "\n> muse-spark-code@0.14.4 check:host-api\n> node scripts/check-host-api.mjs\n\nhost-api: 336 VS Code APIs, 34 files importing vscode, 26 Node built-ins, 65 theme variables; 0 problem(s)\n"
+    },
+    {
+      "command": "npm.cmd run check:reference",
+      "exit_code": 0,
+      "output": "\n> muse-spark-code@0.14.4 check:reference\n> node scripts/gen-reference.mjs --check\n\nReference: 55 features, 52 commands, 61 settings, 26 slash, 129 CLI; current\nSharing reference matches the feature catalog.\n"
+    },
+    {
+      "command": "npm.cmd run build",
+      "exit_code": 0,
+      "output": "\n> muse-spark-code@0.14.4 build\n> node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs\n\nWhat's New: 3 releases from CHANGELOG.md into dist/whatsNew.json\n\n  dist\\webview\\whatsNew.css  2.5kb\n  dist\\webview\\whatsNew.js   708b \n\nDone in 132ms\n\n  dist\\codeIntel.js  39.1kb\n\nDone in 340ms\n\n  dist\\validation.js  40.5kb\n\nDone in 445ms\n\n  dist\\uiTextRuntime.js  8.8kb\n\nDone in 429ms\n\n  dist\\uiTextSurfaces.js  5.8kb\n\nDone in 453ms\n\n  dist\\runtimeQuestions.js  24.3kb\n\nDone in 391ms\n\n  dist\\browserRuntime.js  19.3kb\n\nDone in 470ms\n\n  dist\\webFetch.js  38.0kb\n\nDone in 483ms\n\n  dist\\judge.js  47.1kb\n\nDone in 501ms\n\n  dist\\uiText.js  147.4kb\n\nDone in 501ms\n\n  dist\\pluginHooks.js  34.7kb\n\nDone in 552ms\n\n  dist\\bundledSkills.js  14.8kb\n\nDone in 552ms\n\n  dist\\recorder.js  24.3kb\n\nDone in 628ms\n\n  dist\\reviewer.js  22.6kb\n\nDone in 645ms\n\n  dist\\webview\\referencePage.js   37.3kb\n  dist\\webview\\referencePage.css   1.5kb\n\nDone in 662ms\n\n  dist\\sharingRuntime.js  154.9kb\n\nDone in 685ms\n\n  dist\\tab.js  49.9kb\n\nDone in 693ms\n\n  dist\\uiTextHooks.js  12.2kb\n\nDone in 702ms\n\n  dist\\report.js  21.7kb\n\nDone in 779ms\n\n  dist\\searchWorker.js  4.9kb\n\nDone in 840ms\n\n  dist\\questionNotes.js  6.8kb\n\nDone in 852ms\n\n  dist\\extensionHooks.js  35.9kb\n\nDone in 852ms\n\n  dist\\hookRuntime.js  43.0kb\n\nDone in 890ms\n\n  dist\\browserCheck.js  42.5kb\n\nDone in 882ms\n\n  dist\\acpQuestions.js  15.1kb\n\nDone in 866ms\n\n  dist\\whatsNew.js  19.1kb\n\nDone in 886ms\n\n  dist\\museCodeReviewer.js  23.1kb\n\nDone in 936ms\n\n  dist\\checkpointStore.js  77.0kb\n\nDone in 928ms\n\n  dist\\pageWorker.js  188.6kb\n\nDone in 937ms\n\n  dist\\planMarkdown.js  144.1kb\n\nDone in 957ms\n\n  dist\\voice.js  19.8kb\n\nDone in 1068ms\n\n  dist\\sessionBoard.js  45.1kb\n\nDone in 1110ms\n\n  dist\\review.js  29.1kb\n\nDone in 1102ms\n\n  dist\\conversationGit.js  72.3kb\n\nDone in 1126ms\n\n  dist\\conversation.js  216.8kb\n\nDone in 1131ms\n\n  dist\\agentImport.js  115.6kb\n\nDone in 1149ms\n\n  dist\\wire.js  44.0kb\n\nDone in 1152ms\n\n  dist\\prompts.js  163.8kb\n\nDone in 1210ms\n\n  dist\\foreignHooks.js  69.3kb\n\nDone in 1243ms\n\n  dist\\extension.js  443.2kb\n\nDone in 1264ms\n\n  dist\\reference.js  44.8kb\n\nDone in 2215ms\n\n  dist\\modelApi.js  447.4kb\n\nDone in 2246ms\n\n  dist\\acp.js  832.9kb\n\nDone in 2313ms\n\n  dist\\webview\\main.js             323.4kb\n  dist\\webview\\chunks\\BFLAA6JG.js   93.1kb\n  dist\\webview\\chunks\\CFDSZ3QP.js   77.1kb\n  dist\\webview\\chunks\\7H2GA36U.js   60.2kb\n  dist\\webview\\main.css             56.8kb\n  ...and 79 more output files...\n\nDone in 2491ms\nbundle sizes:\n  dist/acpQuestions.js  15.1 KiB\n  dist/extension.js  443.2 KiB\n  dist/conversation.js  216.8 KiB\n  dist/tab.js  49.9 KiB\n  dist/prompts.js  163.8 KiB\n  dist/sharingRuntime.js  154.9 KiB\n  dist/modelApi.js  447.4 KiB\n  dist/review.js  29.1 KiB\n  dist/sessionBoard.js  45.1 KiB\n  dist/reference.js  44.8 KiB\n  dist/reviewer.js  22.6 KiB\n  dist/foreignHooks.js  69.3 KiB\n  dist/hookRuntime.js  43.0 KiB\n  dist/planMarkdown.js  144.1 KiB\n  dist/checkpointStore.js  77.0 KiB\n  dist/agentImport.js  115.6 KiB\n  dist/conversationGit.js  72.3 KiB\n  dist/bundledSkills.js  14.8 KiB\n  dist/codeIntel.js  39.1 KiB\n  dist/voice.js  19.8 KiB\n  dist/webFetch.js  38.0 KiB\n  dist/museCodeReviewer.js  23.1 KiB\n  dist/extensionHooks.js  35.9 KiB\n  dist/report.js  21.7 KiB\n  dist/recorder.js  24.3 KiB\n  dist/whatsNew.js  19.1 KiB\n  dist/whatsNew.json  11.7 KiB\n  dist/judge.js  47.1 KiB\n  dist/uiText.js  55.1 KiB\n  dist/uiTextRuntime.js  3.7 KiB\n  dist/uiTextHooks.js  4.7 KiB\n  dist/uiTextSurfaces.js  2.5 KiB\n  dist/validation.js  40.5 KiB\n  dist/browserCheck.js  42.5 KiB\n  dist/browserRuntime.js  19.3 KiB\n  dist/searchWorker.js  4.9 KiB\n  dist/pageWorker.js  188.6 KiB\n  dist\\webview\\main.js  323.4 KiB\n  dist\\webview\\main.css  56.8 KiB\n  dist\\webview\\whatsNew.js  0.7 KiB\n  dist\\webview\\whatsNew.css  2.5 KiB\n  dist/acp.js  832.9 KiB\nok   dist/acpQuestions.js: 15.1 KiB (budget 25 KiB)\nok   dist/runtimeQuestions.js: 24.3 KiB (budget 25 KiB)\nok   dist/questionNotes.js: 6.8 KiB (budget 25 KiB)\nok   dist/extension.js: 443.2 KiB (budget 600 KiB)\nok   dist/conversation.js: 216.8 KiB (budget 250 KiB)\nok   dist/tab.js: 49.9 KiB (budget 75 KiB)\nok   dist/prompts.js: 163.8 KiB (budget 200 KiB)\nok   dist/sharingRuntime.js: 154.9 KiB (budget 175 KiB)\nok   dist/modelApi.js: 447.4 KiB (budget 475 KiB)\nok   dist/review.js: 29.1 KiB (budget 50 KiB)\nok   dist/sessionBoard.js: 45.1 KiB (budget 75 KiB)\nok   dist/reviewer.js: 22.6 KiB (budget 75 KiB)\nok   dist/foreignHooks.js: 69.3 KiB (budget 100 KiB)\nok   dist/hookRuntime.js: 43.0 KiB (budget 50 KiB)\nok   dist/pluginHooks.js: 34.7 KiB (budget 50 KiB)\nok   dist/planMarkdown.js: 144.1 KiB (budget 150 KiB)\nok   dist/checkpointStore.js: 77.0 KiB (budget 225 KiB)\nok   dist/agentImport.js: 115.6 KiB (budget 125 KiB)\nok   dist/browserCheck.js: 42.5 KiB (budget 75 KiB)\nok   dist/browserRuntime.js: 19.3 KiB (budget 50 KiB)\nok   dist/conversationGit.js: 72.3 KiB (budget 150 KiB)\nok   dist/bundledSkills.js: 14.8 KiB (budget 50 KiB)\nok   dist/codeIntel.js: 39.1 KiB (budget 100 KiB)\nok   dist/voice.js: 19.8 KiB (budget 50 KiB)\nok   dist/webFetch.js: 38.0 KiB (budget 75 KiB)\nok   dist/museCodeReviewer.js: 23.1 KiB (budget 75 KiB)\nok   dist/extensionHooks.js: 35.9 KiB (budget 75 KiB)\nok   dist/report.js: 21.7 KiB (budget 75 KiB)\nok   dist/recorder.js: 24.3 KiB (budget 75 KiB)\nok   dist/whatsNew.js: 19.1 KiB (budget 50 KiB)\nok   dist/whatsNew.json: 11.7 KiB (budget 40 KiB)\nok   dist/judge.js: 47.1 KiB (budget 100 KiB)\nok   dist/uiText.js: 55.1 KiB (budget 125 KiB)\nok   dist/uiTextRuntime.js: 3.7 KiB (budget 25 KiB)\nok   dist/uiTextHooks.js: 4.7 KiB (budget 25 KiB)\nok   dist/uiTextSurfaces.js: 2.5 KiB (budget 25 KiB)\nok   dist/validation.js: 40.5 KiB (budget 50 KiB)\nok   dist/wire.js: 44.0 KiB (budget 50 KiB)\nok   dist/searchWorker.js: 4.9 KiB (budget 50 KiB)\nok   dist/pageWorker.js: 188.6 KiB (budget 300 KiB)\nok   dist/webview/main.js + static imports: 733.1 KiB (budget 900 KiB)\nok   dist/webview/whatsNew.js: 0.7 KiB (budget 25 KiB)\nok   dist/webview/referencePage.js: 37.3 KiB (budget 50 KiB)\nok   dist/reference.js: 44.8 KiB (budget 100 KiB)\nok   dist/acp.js: 832.9 KiB (budget 850 KiB)\nok   dist/webview/chunks/X6OR655M.js (SignIn): 3.9 KiB (budget 25 KiB)\nok   dist/webview/chunks/OMCDZH57.js (GoalPanel): 3.2 KiB (budget 25 KiB)\nok   dist/webview/chunks/24HUIT2E.js (SchedulePanel): 1.6 KiB (budget 25 KiB)\nok   dist/webview/chunks/LFTCHD26.js (Palette): 5.5 KiB (budget 25 KiB)\nok   dist/webview/chunks/LOJXGBVR.js (PopoverMenu): 2.0 KiB (budget 25 KiB)\nok   dist/webview/chunks/WA6B74UT.js (GooeyMenuContent): 4.9 KiB (budget 25 KiB)\nok   dist/webview/chunks/RADFQ6WV.js (UsageDialogContent): 12.7 KiB (budget 25 KiB)\nok   dist/webview/chunks/3LVH6C3K.js (AgentMapContent): 8.2 KiB (budget 25 KiB)\nok   dist/webview deferred JS: 32.1 KiB (budget 50 KiB)\nok   dist/webview EffortSlider: 0.9 KiB (budget 25 KiB)\nok   dist/webview ToolBodies: 5.5 KiB (budget 25 KiB)\nok   dist/webview ReviewFindings: 1.8 KiB (budget 25 KiB)\nok   dist/webview HistoryPromptRow: 3.5 KiB (budget 25 KiB)\nok   dist/webview SignIn: 3.9 KiB (budget 25 KiB)\nok   dist/webview GoalPanel: 3.8 KiB (budget 25 KiB)\nok   dist/webview SchedulePanel: 1.6 KiB (budget 25 KiB)\nok   dist/webview Palette: 8.4 KiB (budget 25 KiB)\nok   dist/webview PopoverMenu: 2.0 KiB (budget 25 KiB)\nok   dist/webview GooeyMenuContent: 4.9 KiB (budget 25 KiB)\nok   dist/webview UsageDialogContent: 12.7 KiB (budget 25 KiB)\nok   dist/webview AgentMapContent: 10.5 KiB (budget 25 KiB)\nok   dist/webview question UI: 19.8 KiB (budget 25 KiB)\nok   dist/webview workflow details: 2.6 KiB (budget 25 KiB)\nok   dist/webview code highlighting: 93.1 KiB (budget 125 KiB)\nok   dist/webview action dialogs: 11.7 KiB (budget 25 KiB)\nok   dist/webview prompt library: 9.9 KiB (budget 25 KiB)\nok   dist/webview chat sharing: 13.5 KiB (budget 25 KiB)\nok   dist/webview tasks tab: 1.3 KiB (budget 25 KiB)\nok   dist/extension.js: 6 of the backend's 65 files (14.7 KiB), all on the allowed list\n       goalRecord.ts 0.4 KiB: a stored session's goal (D14, M45)\n       imageGeneration.ts 3.5 KiB: the IDE server's image tools on Muse Code (M44)\n       imageToolDefinitions.ts 1.0 KiB: the IDE server's image tools on Muse Code (M44)\n       schedules.ts 1.3 KiB: the schedule store's next occurrence (M52)\n       schemas.ts 3.5 KiB: shared boundary schemas used by activation and ACP\n       sessionStore.ts 5.1 KiB: the stored-session format the window's session store reads (D14)\nok   dist/acp.js: 4 of the backend's files, all on the allowed list\nok   dist/modelApi.js: carries the 37 files that load only with the backend, and no English table\nok   dist/planMarkdown.js: carries the plan reader; dist/extension.js carries none of its parser\nok   dist/pageWorker.js: the page converter (parse5 and its parts) loads only there, never at activation\nok   dist/checkpointStore.js: carries the checkpoint implementation; activation keeps the port and synchronous loader\nok   dist/browserCheck.js: carries the browser check's pipe, run, proxy, canaries and processes; activation keeps the loaders and the tool\nok   dist/browserRuntime.js: carries the runtime's acquisition (pin, download, ZIP reader, store); no other bundle does\nok   dist/review.js: carries the review and edit review; dist/extension.js keeps the loader\nok   dist/agentImport.js: carries the import (scan, converters, file access, smol-toml); dist/extension.js carries none of it\nok   model text: QUESTION_MODEL_TEXT, QUESTION_DELIVERY_MODEL_TEXT, CONVERSATION_MODEL_TEXT, TAB_MODEL_TEXT, HOOK_MODEL_TEXT, MODEL_API_MODEL_TEXT, CODE_INTEL_MODEL_TEXT, CHECKPOINT_MODEL_TEXT, AGENT_IMPORT_MODEL_TEXT, GIT_MODEL_TEXT, REVIEW_MODEL_TEXT, REVIEW_COMMENT_MODEL_TEXT, WEB_FETCH_MODEL_TEXT, EXEC_MODEL_TEXT, AUTO_REVIEWER_MODEL_TEXT, JUDGE_MODEL_TEXT each in its readers and in no other of the 124 shipped bundles; FILE_REFUSAL_MODEL_TEXT pinned to 2 keys; 87 MODEL_TEXT keys, each read at activation\nok   dist/uiText.js: Node bundles share the English fallback\nok   webview: optional surfaces and highlighting load only in guarded deferred chunks\nok   dist/conversationGit.js: carries the Git adapter and the window's 13 git and pull request files; activation keeps its checked loader\nok   dist/reference.js: loads only on its first action\nok   dist/sessionBoard.js: loads only on its first action\nok   dist/reviewer.js: loads only on its first action\nok   dist/foreignHooks.js: loads only on its first action\nok   dist/hookRuntime.js: loads only on its first action\nok   dist/pluginHooks.js: loads only on its first action\nok   dist/questionNotes.js: loads only on the first backend question deferral, never at activation\nok   dist/runtimeQuestions.js: loads only on the first interactive ACP session with durable questions, never at activation\nok   dist/acpQuestions.js: loads only on the first ACP question, elicitation or question command, never at activation\nok   dist/conversation.js: loads only on the first chat surface, never at activation\nok   dist/judge.js: loads only on the first eligible Judge approval, never at activation\nok   dist/tab.js: loads only on the first Tab request or menu, never at activation\nok   dist/codeIntel.js: loads only on the first code intelligence call, never at activation\nok   dist/voice.js: loads only on the first recording, never at activation\nok   dist/webFetch.js: loads only on the first web fetch, never at activation\nok   dist/museCodeReviewer.js: loads only on the first review, never at activation\nok   dist/report.js: loads only on the first report dialog, never at activation\nok   dist/recorder.js: loads only on the journal, just after activation, never at activation\nok   dist/whatsNew.js: loads only on the first What’s New page or notice, never at activation\nok   dist/webview/whatsNew.js: the page script alone, no package and no display table\nok   dist/validation.js: 0 reference(s) to navigator\nok   dist/wire.js: 0 reference(s) to navigator\nok   dist/uiText.js: 0 reference(s) to navigator\nok   dist/uiTextRuntime.js: 0 reference(s) to navigator\nok   dist/uiTextHooks.js: 0 reference(s) to navigator\nok   dist/uiTextSurfaces.js: 0 reference(s) to navigator\nok   dist/extension.js: 0 reference(s) to navigator\nok   dist/conversation.js: 0 reference(s) to navigator\nok   dist/tab.js: 0 reference(s) to navigator\nok   dist/modelApi.js: 0 reference(s) to navigator\nok   dist/review.js: 0 reference(s) to navigator\nok   dist/sessionBoard.js: 0 reference(s) to navigator\nok   dist/reviewer.js: 0 reference(s) to navigator\nok   dist/foreignHooks.js: 0 reference(s) to navigator\nok   dist/hookRuntime.js: 0 reference(s) to navigator\nok   dist/extensionHooks.js: 0 reference(s) to navigator\nok   dist/pluginHooks.js: 0 reference(s) to navigator\nok   dist/planMarkdown.js: 0 reference(s) to navigator\nok   dist/checkpointStore.js: 0 reference(s) to navigator\nok   dist/browserCheck.js: 0 reference(s) to navigator\nok   dist/browserRuntime.js: 0 reference(s) to navigator\nok   dist/agentImport.js: 0 reference(s) to navigator\nok   dist/conversationGit.js: 0 reference(s) to navigator\nok   dist/bundledSkills.js: 0 reference(s) to navigator\nok   dist/codeIntel.js: 0 reference(s) to navigator\nok   dist/voice.js: 0 reference(s) to navigator\nok   dist/webFetch.js: 0 reference(s) to navigator\nok   dist/museCodeReviewer.js: 0 reference(s) to navigator\nok   dist/report.js: 0 reference(s) to navigator\nok   dist/recorder.js: 0 reference(s) to navigator\nok   dist/whatsNew.js: 0 reference(s) to navigator\nok   dist/judge.js: 0 reference(s) to navigator\nok   dist/searchWorker.js: 0 reference(s) to navigator\nok   dist/pageWorker.js: 0 reference(s) to navigator\nok   THIRD_PARTY_NOTICES.txt: 83 bundled packages\n"
+    },
+    {
+      "command": "npx.cmd prettier --check test/unit/shellEnvironmentOrigins.test.ts test/unit/toolIoCommandAdmission.test.ts CHANGELOG.md PLAN.md docs/certification/envfence.md",
+      "exit_code": 0,
+      "output": "All matched files use Prettier code style!\n"
+    }
+  ]
+}

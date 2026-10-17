@@ -11,3 +11,23 @@ CHANGELOG.md
 
 # Pinned third-party workflow package; retain archive bytes.
 vendor/
+
+# Lane M91-G golden fixtures: written byte-exact by
+# test/unit/modelApiGoldenRequests.test.ts in regenerate mode (`JSON.stringify`
+# always expands arrays; prettier would collapse them and break the byte
+# comparison).
+test/fixtures/golden-requests/
+
+# Lane M106 live Meta receipts (RVCM1062B): byte-exact collector output
+# (`JSON.stringify` expands short arrays; prettier would collapse them and
+# break both the live-manifest SHA-256 and the fixture pins).
+test/fixtures/m106/u9-raw-strict-stream.json
+test/fixtures/m106/output-incomplete.json
+
+# M91 saved vendor sources, kept byte-exact: code cites them by line
+# (cline-hooks-901d1b5c97.md:157), and reformatting would move those lines.
+test/fixtures/hookFormats/docs/*.md
+
+# M121 real 0.17.0 usage journal (written by 8f0a75ea1's writer and rollup);
+# the migration test reads these bytes as stored.
+test/fixtures/m121/

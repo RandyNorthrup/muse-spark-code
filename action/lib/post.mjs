@@ -15,7 +15,7 @@ import {
   isEntry,
   redactLiterals,
 } from './lifecycle.mjs'
-import { isExecResult } from './result.mjs'
+import { isExecResult, microUsd } from './result.mjs'
 import { actionPaths, githubJson, httpsBase, invocationFromEnv } from './tools.mjs'
 
 export const STICKY_MARKER = '<!-- muse-spark-code-action:review -->'
@@ -24,6 +24,7 @@ const DEFUSED_AT = String.fromCodePoint(0x40, 0x20_0b)
 const CUT_NOTICE = '\n\n(The message was cut to fit a comment.)'
 const COMMENT_PAGES_MAX = 30
 const PER_PAGE = 100
+const USD_DECIMALS = 6
 // The fix notice's file list and the footer's model id are bounded, so the
 // message's room is never negative and the whole body keeps its cap (RVM80CD P2-6).
 export const ACTION_COMMENT_FILES_MAX_CHARS = 4000
@@ -51,8 +52,16 @@ function cut(text, max) {
   return text.slice(0, Math.max(0, end))
 }
 
-function usd(value) {
-  return `$${value.toFixed(6)}`
+function usd(...values) {
+  const zero = 0n
+  const unitsPerUsd = 1_000_000n
+  let units = zero
+  for (const value of values) {
+    const amount = microUsd(value)
+    if (amount === undefined) throw new Error('Invalid USD field in exec result')
+    units += amount
+  }
+  return `$${String(units / unitsPerUsd)}.${String(units % unitsPerUsd).padStart(USD_DECIMALS, '0')}`
 }
 
 function footerFor(result, runUrl) {
@@ -61,7 +70,7 @@ function footerFor(result, runUrl) {
   const costText =
     cost === null
       ? 'cost n/a'
-      : `${usd(cost.settled)} settled, ${usd(cost.uncertain + cost.reserved)} uncertain${cost.isUpperBound ? ' (total is an upper bound)' : ''}`
+      : `${usd(cost.settled)} settled, ${usd(cost.uncertain, cost.reserved)} uncertain${cost.isUpperBound ? ' (total is an upper bound)' : ''}`
   return [
     `Model ${result.model === null ? 'n/a' : cut(result.model, ACTION_COMMENT_MODEL_MAX_CHARS)}`,
     `${String(result.usage.requests ?? 'n/a')} requests`,

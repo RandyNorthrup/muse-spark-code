@@ -1,0 +1,23 @@
+[
+  { "id": "linux-x64-small", "vcpu": 2, "ramGiB": 4, "os": "linux", "architecture": "x64" },
+  { "id": "linux-x64-builder", "vcpu": 8, "ramGiB": 16, "os": "linux", "architecture": "x64" },
+  { "id": "linux-arm64-builder", "vcpu": 8, "ramGiB": 16, "os": "linux", "architecture": "arm64" },
+  { "id": "windows-x64-builder", "vcpu": 8, "ramGiB": 16, "os": "windows", "architecture": "x64" },
+  {
+    "id": "windows-arm64-builder",
+    "vcpu": 8,
+    "ramGiB": 16,
+    "os": "windows",
+    "architecture": "arm64"
+  },
+  { "id": "macos-arm64-builder", "vcpu": 8, "ramGiB": 16, "os": "macos", "architecture": "arm64" },
+  { "id": "macos-x64-builder", "vcpu": 8, "ramGiB": 16, "os": "macos", "architecture": "x64" },
+  {
+    "id": "linux-x64-gpu",
+    "vcpu": 8,
+    "ramGiB": 32,
+    "os": "linux",
+    "architecture": "x64",
+    "gpu": { "count": 1, "memoryGiB": 16 }
+  }
+]

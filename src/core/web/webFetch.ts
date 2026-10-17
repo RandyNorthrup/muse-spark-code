@@ -121,6 +121,8 @@ export interface WebFetchDeps {
   /** Fresh random hexadecimal for the markers around the page's content. */
   readonly newMarker: () => string
   /** The whole fetch's deadline; WEB_FETCH_TIMEOUT_MS unless a test shortens it. */
+  /** M118 raw portable files keep exact text and use their smaller ingress cap. */
+  readonly rawTextLimit?: number
   readonly timeoutMs?: number
 }
 
@@ -536,12 +538,12 @@ function decoded(body: AsyncIterable<Uint8Array>, coding: string): Decoded {
 }
 
 /** Every chunk, refused as soon as the total passes the cap. */
-async function collect(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
+async function collect(chunks: AsyncIterable<Uint8Array>, maxBytes: number): Promise<Uint8Array> {
   const parts: Uint8Array[] = []
   let total = 0
   for await (const chunk of chunks) {
     total += chunk.byteLength
-    if (total > WEB_FETCH_MAX_BYTES) {
+    if (total > maxBytes) {
       refuse('tooLarge')
     }
     parts.push(chunk)
@@ -557,15 +559,16 @@ async function readCapped(
   response: PinnedResponse,
   headers: ReadHeaders,
   signal: AbortSignal,
+  maxBytes = WEB_FETCH_MAX_BYTES,
 ): Promise<Uint8Array> {
   const declared = Number(headers['content-length'] ?? NaN)
-  if (Number.isFinite(declared) && declared > WEB_FETCH_MAX_BYTES) {
+  if (Number.isFinite(declared) && declared > maxBytes) {
     refuse('tooLarge')
   }
   const coding = (headers['content-encoding'] ?? IDENTITY).trim().toLowerCase()
   const body = decoded(response.body, coding)
   try {
-    return await collect(body.chunks)
+    return await collect(body.chunks, maxBytes)
   } catch (error: unknown) {
     if (error instanceof FetchRefused || signal.aborted || body.hasSourceFailed()) {
       throw error
@@ -689,7 +692,20 @@ async function readPage(
   if (!isHtml && !WEB_FETCH_TEXT_TYPES.has(type)) {
     refuse('contentType', { type: shownToken(type) })
   }
-  const bytes = await readCapped(response, headers, signal)
+  if (isHtml && deps.rawTextLimit !== undefined) refuse('contentType', { type })
+  const bytes = await readCapped(response, headers, signal, deps.rawTextLimit)
+  if (deps.rawTextLimit !== undefined)
+    return {
+      kind: 'page',
+      page: {
+        url: urls.requested.href,
+        finalUrl: urls.final.href,
+        status,
+        type,
+        bytes: bytes.byteLength,
+      },
+      text: decodeText(bytes, contentType),
+    }
   const { content, hasMore } = await contentOf(
     { bytes, contentType, isHtml },
     urls,

@@ -1,0 +1,455 @@
+{
+  "rig": "kubuntu",
+  "branch": "release/0.14.2",
+  "releaseBase": "d8e958f09",
+  "mergedHead": "a010a199476fbd8f0c5b387b223499d3cc48c28e",
+  "scope": "REL0142 round 2; scoped checks only; aggregate quality belongs to the lead",
+  "distinctPassingTests": 587,
+  "distinctTestFiles": 20,
+  "files": [
+    "CHANGELOG.md",
+    "PLAN.md",
+    "README.md",
+    "docs/certification/help-reference.md",
+    "docs/certification/help-reference/fixhelpref4-drills.json",
+    "docs/certification/help-reference/fixhelpref4-validation.json",
+    "docs/certification/rel0142-round2-drills.json",
+    "docs/certification/rel0142-round2-validation.json",
+    "docs/certification/rel0142.md",
+    "docs/reference.md",
+    "l10n/ui.cs.json",
+    "l10n/ui.de.json",
+    "l10n/ui.es.json",
+    "l10n/ui.fr.json",
+    "l10n/ui.hu.json",
+    "l10n/ui.it.json",
+    "l10n/ui.ja.json",
+    "l10n/ui.ko.json",
+    "l10n/ui.pl.json",
+    "l10n/ui.pt-br.json",
+    "l10n/ui.ru.json",
+    "l10n/ui.tr.json",
+    "l10n/ui.zh-cn.json",
+    "l10n/ui.zh-tw.json",
+    "scripts/lib/reference.mjs",
+    "src/shared/featureCatalog.ts",
+    "src/shared/l10n/en.ts",
+    "src/shared/reference/reference.generated.json",
+    "src/shared/reference/reference.generated.ts",
+    "src/shared/reference/referenceEntry.ts",
+    "src/shared/reference/text.ts",
+    "src/shared/reference/types.ts",
+    "src/webview/components/ReferencePage.tsx",
+    "test/unit/ReferencePage.test.tsx",
+    "test/unit/referenceEntry.test.ts",
+    "test/unit/referenceGenerator.test.mjs"
+  ],
+  "tests": [
+    {
+      "rig": "kubuntu",
+      "name": "tests-1",
+      "command": "npx vitest run test/unit/referenceGenerator.test.mjs test/unit/referenceKeyboardTruth.test.tsx test/unit/referenceEntry.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "elapsedSeconds": 79.55,
+      "finishedUtc": "2026-10-06T14:05:23.687482+00:00",
+      "output": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'vitest' run test/unit/referenceGenerator.test.mjs test/unit/referenceKeyboardTruth.test.tsx test/unit/referenceEntry.test.ts --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  3 passed (3)\n      Tests  68 passed (68)\n   Start at  07:04:04\n   Duration  78.72s (tests 96%, import 2%, transform 1%, environment 1%)\n\n"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "tests-2",
+      "command": "npx vitest run test/unit/ReferencePage.test.tsx test/unit/AppLazy.test.tsx test/unit/Palette.test.tsx --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "elapsedSeconds": 10.8,
+      "finishedUtc": "2026-10-06T14:05:34.484330+00:00",
+      "output": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'vitest' run test/unit/ReferencePage.test.tsx test/unit/AppLazy.test.tsx test/unit/Palette.test.tsx --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  3 passed (3)\n      Tests  40 passed (40)\n   Start at  07:05:24\n   Duration  9.87s (tests 58%, transform 17%, environment 15%, import 7%, setup 2%)\n\n"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "tests-3",
+      "command": "npx vitest run test/unit/readmeVersion.test.ts test/unit/whatsNewContent.test.ts test/unit/vsixPackaging.test.mjs --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "elapsedSeconds": 11.51,
+      "finishedUtc": "2026-10-06T14:05:45.990704+00:00",
+      "output": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'vitest' run test/unit/readmeVersion.test.ts test/unit/whatsNewContent.test.ts test/unit/vsixPackaging.test.mjs --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  3 passed (3)\n      Tests  39 passed (39)\n   Start at  07:05:35\n   Duration  10.73s (tests 83%, import 11%, transform 4%, setup 3%)\n\n"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "tests-4",
+      "command": "npx vitest run test/unit/checkBadges.test.mjs test/unit/acpAgent.test.ts test/unit/acpRuntime.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "elapsedSeconds": 7.16,
+      "finishedUtc": "2026-10-06T14:05:53.151083+00:00",
+      "output": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'vitest' run test/unit/checkBadges.test.mjs test/unit/acpAgent.test.ts test/unit/acpRuntime.test.ts --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  3 passed (3)\n      Tests  164 passed (164)\n   Start at  07:05:46\n   Duration  6.38s (tests 63%, transform 20%, import 14%, setup 3%)\n\n"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "tests-5",
+      "command": "npx vitest run test/unit/Modal.test.tsx test/unit/paletteRegistry.test.ts test/unit/App.test.tsx --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "elapsedSeconds": 16.04,
+      "finishedUtc": "2026-10-06T14:06:09.195174+00:00",
+      "output": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'vitest' run test/unit/Modal.test.tsx test/unit/paletteRegistry.test.ts test/unit/App.test.tsx --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\nNot implemented: HTMLCanvasElement's getContext() method: without installing the canvas npm package\n\n Test Files  3 passed (3)\n      Tests  191 passed (191)\n   Start at  07:05:53\n   Duration  15.23s (tests 75%, transform 10%, environment 9%, import 4%, setup 2%)\n\n"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "tests-6",
+      "command": "npx vitest run test/unit/deferredBundles.test.ts test/unit/uiTextRegions.test.mjs test/unit/webviewBundle.test.mjs --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "elapsedSeconds": 6.31,
+      "finishedUtc": "2026-10-06T14:06:15.501027+00:00",
+      "output": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'vitest' run test/unit/deferredBundles.test.ts test/unit/uiTextRegions.test.mjs test/unit/webviewBundle.test.mjs --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  3 passed (3)\n      Tests  43 passed (43)\n   Start at  07:06:09\n   Duration  5.54s (tests 80%, import 10%, transform 7%, setup 4%)\n\n"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "execStdio",
+      "command": "npx vitest run test/e2e/execStdio.e2e.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "elapsedSeconds": 68.13,
+      "finishedUtc": "2026-10-06T14:07:23.629237+00:00",
+      "output": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'vitest' run test/e2e/execStdio.e2e.test.ts --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  1 passed (1)\n      Tests  36 passed (36)\n   Start at  07:06:16\n   Duration  67.37s (tests 99%)\n\n"
+    }
+  ],
+  "checks": [
+    {
+      "rig": "kubuntu",
+      "name": "owning-budget",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiAttemptBudget.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 4.01,
+      "finishedUtc": "2026-10-06T14:12:28.188377+00:00",
+      "outputBytes": 706,
+      "outputSha256": "442e92f6aa425d039b21cea16d43b38096534385167b016c72744ca70a22f328",
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'vitest' run test/unit/modelApiAttemptBudget.test.ts --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  1 passed (1)\n      Tests  6 passed (6)\n   Start at  07:12:24\n   Duration  3.15s (transform 59%, tests 21%, import 14%, setup 5%)\n"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "restored-reference",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceGenerator.test.mjs",
+        "test/unit/referenceEntry.test.ts",
+        "test/unit/ReferencePage.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 86.99,
+      "finishedUtc": "2026-10-06T14:13:55.175240+00:00",
+      "outputBytes": 777,
+      "outputSha256": "56d2d3b58b106557c2035bf2daae4c2a90e3da1a9056cfaf87739e5d7a42e1e3",
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'vitest' run test/unit/referenceGenerator.test.mjs test/unit/referenceEntry.test.ts test/unit/ReferencePage.test.tsx --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  3 passed (3)\n      Tests  89 passed (89)\n   Start at  07:12:29\n   Duration  86.07s (tests 95%, transform 2%, import 2%, environment 1%)\n"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "live-badges",
+      "command": ["node", "scripts/check-badges.mjs"],
+      "exitCode": 0,
+      "elapsedSeconds": 8.9,
+      "finishedUtc": "2026-10-06T14:14:04.072598+00:00",
+      "outputBytes": 64,
+      "outputSha256": "1cdf542537635b64002a2094c301099d021e7f7127d5f7da461ac5461e520c4b",
+      "outputSummary": "Badges: 34 HTTPS images; SVG badges and content images verified"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "l10n",
+      "command": ["node", "scripts/check-l10n.mjs"],
+      "exitCode": 0,
+      "elapsedSeconds": 2.21,
+      "finishedUtc": "2026-10-06T14:14:06.281694+00:00",
+      "outputBytes": 68,
+      "outputSha256": "51c75c0eca81db26f24ad732841e88713751d9797f61997665cff15e141fc567",
+      "outputSummary": "l10n: 14 tables, 166 manifest strings, 605 source files; 0 problems"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 0,
+      "elapsedSeconds": 16.14,
+      "finishedUtc": "2026-10-06T14:14:22.424803+00:00",
+      "outputBytes": 207,
+      "outputSha256": "bfc1bea1bd5574228ee612ad5e0b5817660bcc212a5f9577a2613ac664c6b804",
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 check:host-api\nnpm notice run node scripts/check-host-api.mjs\nhost-api: 332 VS Code APIs, 31 files importing vscode, 25 Node built-ins, 61 theme variables; 0 problem(s)"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exitCode": 0,
+      "elapsedSeconds": 2.24,
+      "finishedUtc": "2026-10-06T14:14:24.667322+00:00",
+      "outputBytes": 185,
+      "outputSha256": "0e9cf185a6d7734a1a6b400314ab64af121a6b8746e8a6333c481a94eaab3eab",
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 check:reference\nnpm notice run node scripts/gen-reference.mjs --check\nReference: 53 features, 44 commands, 59 settings, 26 slash, 116 CLI; current"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exitCode": 0,
+      "elapsedSeconds": 75.21,
+      "finishedUtc": "2026-10-06T14:15:39.873534+00:00",
+      "outputBytes": 700,
+      "outputSha256": "720b59f009831b8ebf0be2591c014df55f3e0fa85f35de9e3f8ba1b3cefc6a4b",
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 typecheck\nnpm notice run run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration\nnpm notice run muse-spark-code@0.14.2 typecheck:host\nnpm notice run tsc -p tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.2 typecheck:webview\nnpm notice run tsc -p src/webview/tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.2 typecheck:unit\nnpm notice run tsc -p test/unit/tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.2 typecheck:e2e\nnpm notice run tsc -p test/e2e/tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.2 typecheck:integration\nnpm notice run tsc -p test/integration/tsconfig.json --noEmit"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "scripts/lib/reference.mjs",
+        "src/shared/featureCatalog.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/reference/reference.generated.ts",
+        "src/shared/reference/referenceEntry.ts",
+        "src/shared/reference/text.ts",
+        "src/shared/reference/types.ts",
+        "src/webview/components/ReferencePage.tsx",
+        "test/unit/ReferencePage.test.tsx",
+        "test/unit/referenceEntry.test.ts",
+        "test/unit/referenceGenerator.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 19.93,
+      "finishedUtc": "2026-10-06T14:15:59.801379+00:00",
+      "outputBytes": 447,
+      "outputSha256": "4fa63c08c94fd7fd9e0e76540ff62cb86094decbf269185cae97711c6c93410c",
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'eslint' --max-warnings=0 scripts/lib/reference.mjs src/shared/featureCatalog.ts src/shared/l10n/en.ts src/shared/reference/reference.generated.ts src/shared/reference/referenceEntry.ts src/shared/reference/text.ts src/shared/reference/types.ts src/webview/components/ReferencePage.tsx test/unit/ReferencePage.test.tsx test/unit/referenceEntry.test.ts test/unit/referenceGenerator.test.mjs"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "prettier",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "docs/certification/help-reference.md",
+        "docs/certification/help-reference/fixhelpref4-drills.json",
+        "docs/certification/help-reference/fixhelpref4-validation.json",
+        "docs/reference.md",
+        "l10n/ui.cs.json",
+        "l10n/ui.de.json",
+        "l10n/ui.es.json",
+        "l10n/ui.fr.json",
+        "l10n/ui.hu.json",
+        "l10n/ui.it.json",
+        "l10n/ui.ja.json",
+        "l10n/ui.ko.json",
+        "l10n/ui.pl.json",
+        "l10n/ui.pt-br.json",
+        "l10n/ui.ru.json",
+        "l10n/ui.tr.json",
+        "l10n/ui.zh-cn.json",
+        "l10n/ui.zh-tw.json",
+        "scripts/lib/reference.mjs",
+        "src/shared/featureCatalog.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/reference/reference.generated.json",
+        "src/shared/reference/reference.generated.ts",
+        "src/shared/reference/referenceEntry.ts",
+        "src/shared/reference/text.ts",
+        "src/shared/reference/types.ts",
+        "src/webview/components/ReferencePage.tsx",
+        "test/unit/ReferencePage.test.tsx",
+        "test/unit/referenceEntry.test.ts",
+        "test/unit/referenceGenerator.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 12.18,
+      "finishedUtc": "2026-10-06T14:16:11.980209+00:00",
+      "outputBytes": 991,
+      "outputSha256": "840ee0609315a3299e69e12826286b8f31552b97ccb9f5c4ad71c94c3363eb3d",
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'prettier' --check CHANGELOG.md PLAN.md README.md docs/certification/help-reference.md docs/certification/help-reference/fixhelpref4-drills.json docs/certification/help-reference/fixhelpref4-validation.json docs/reference.md l10n/ui.cs.json l10n/ui.de.json l10n/ui.es.json l10n/ui.fr.json l10n/ui.hu.json l10n/ui.it.json l10n/ui.ja.json l10n/ui.ko.json l10n/ui.pl.json l10n/ui.pt-br.json l10n/ui.ru.json l10n/ui.tr.json l10n/ui.zh-cn.json l10n/ui.zh-tw.json scripts/lib/reference.mjs src/shared/featureCatalog.ts src/shared/l10n/en.ts src/shared/reference/reference.generated.json src/shared/reference/reference.generated.ts src/shared/reference/referenceEntry.ts src/shared/reference/text.ts src/shared/reference/types.ts src/webview/components/ReferencePage.tsx test/unit/ReferencePage.test.tsx test/unit/referenceEntry.test.ts test/unit/referenceGenerator.test.mjs\nChecking formatting...\nAll matched files use Prettier code style!"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exitCode": 0,
+      "elapsedSeconds": 3.23,
+      "finishedUtc": "2026-10-06T14:16:15.207968+00:00",
+      "outputBytes": 203,
+      "outputSha256": "0d001e567c8fad38966c61e217b3c3bfac35c75ef6332ef84ce40a59ac1c2e8b",
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 deadcode\nnpm notice run knip\nConfiguration hints (2)\nvendor/**    knip.jsonc  Remove from ignore            \naxe-core     knip.jsonc  Remove from ignoreDependencies"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "duplication",
+      "command": ["npx", "jscpd"],
+      "exitCode": 0,
+      "elapsedSeconds": 1.08,
+      "finishedUtc": "2026-10-06T14:16:16.289589+00:00",
+      "outputBytes": 3430,
+      "outputSha256": "4a3a7f7d4ad238d2b7ff59032eb6e0fe5f8479b2d1e131b7ba676ae9819ba0f3",
+      "outputSummary": "npm notice run 'jscpd'\nUsing config from .jscpd.json\n\u001b[90mNo duplicates found.\u001b[39m\n\u001b[90m\u250c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u252c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510\u001b[39m\n\u001b[90m\u2502\u001b[39m\u001b[31m Format     \u001b[39m\u001b[90m\u2502\u001b[39m\u001b[31m Files analyzed \u001b[39m\u001b[90m\u2502\u001b[39m\u001b[31m Total lines \u001b[39m\u001b[90m\u2502\u001b[39m\u001b[31m Total tokens \u001b[39m\u001b[90m\u2502\u001b[39m\u001b[31m Clones found \u001b[39m\u001b[90m\u2502\u001b[39m\u001b[31m Duplicated lines \u001b[39m\u001b[90m\u2502\u001b[39m\u001b[31m Duplicated tokens \u001b[39m\u001b[90m\u2502\u001b[39m\n\u001b[90m\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\u001b[39m\n\u001b[90m\u2502\u001b[39m css        \u001b[90m\u2502\u001b[39m 3              \u001b[90m\u2502\u001b[39m 4140        \u001b[90m\u2502\u001b[39m 36597        \u001b[90m\u2502\u001b[39m 0            \u001b[90m\u2502\u001b[39m 0 (0.00%)        \u001b[90m\u2502\u001b[39m 0 (0.00%)         \u001b[90m\u2502\u001b[39m\n\u001b[90m\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\u001b[39m\n\u001b[90m\u2502\u001b[39m tsx        \u001b[90m\u2502\u001b[39m 116            \u001b[90m\u2502\u001b[39m 31036       \u001b[90m\u2502\u001b[39m 197460       \u001b[90m\u2502\u001b[39m 0            \u001b[90m\u2502\u001b[39m 0 (0.00%)        \u001b[90m\u2502\u001b[39m 0 (0.00%)         \u001b[90m\u2502\u001b[39m\n\u001b[90m\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\u001b[39m\n\u001b[90m\u2502\u001b[39m typescript \u001b[90m\u2502\u001b[39m 1062           \u001b[90m\u2502\u001b[39m 362368      \u001b[90m\u2502\u001b[39m 2203942      \u001b[90m\u2502\u001b[39m 0            \u001b[90m\u2502\u001b[39m 0 (0.00%)        \u001b[90m\u2502\u001b[39m 0 (0.00%)         \u001b[90m\u2502\u001b[39m\n\u001b[90m\u251c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u253c\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524\u001b[39m\n\u001b[90m\u2502\u001b[39m \u001b[1mTotal:\u001b[22m     \u001b[90m\u2502\u001b[39m 1181           \u001b[90m\u2502\u001b[39m 397544      \u001b[90m\u2502\u001b[39m 2437999      \u001b[90m\u2502\u001b[39m 0            \u001b[90m\u2502\u001b[39m 0 (0.00%)        \u001b[90m\u2502\u001b[39m 0 (0.00%)         \u001b[90m\u2502\u001b[39m\n\u001b[90m\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518\u001b[39m\n\u001b[90mFound 0 clones.\u001b[39m\n\u001b[90mtime: 546.383ms\u001b[39m"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "build",
+      "command": ["npm", "run", "build"],
+      "exitCode": 0,
+      "elapsedSeconds": 5.71,
+      "finishedUtc": "2026-10-06T14:16:21.997669+00:00",
+      "outputBytes": 12124,
+      "outputSha256": "56a6dfd9fb5262e50388ba77eb58208d9c119d99d0edb2dd20e83e6f2f012361",
+      "outputSummary": "ok   dist/browserCheck.js: 0 reference(s) to navigator\nok   dist/browserRuntime.js: 0 reference(s) to navigator\nok   dist/agentImport.js: 0 reference(s) to navigator\nok   dist/conversationGit.js: 0 reference(s) to navigator\nok   dist/bundledSkills.js: 0 reference(s) to navigator\nok   dist/codeIntel.js: 0 reference(s) to navigator\nok   dist/voice.js: 0 reference(s) to navigator\nok   dist/webFetch.js: 0 reference(s) to navigator\nok   dist/museCodeReviewer.js: 0 reference(s) to navigator\nok   dist/report.js: 0 reference(s) to navigator\nok   dist/recorder.js: 0 reference(s) to navigator\nok   dist/whatsNew.js: 0 reference(s) to navigator\nok   dist/judge.js: 0 reference(s) to navigator\nok   dist/searchWorker.js: 0 reference(s) to navigator\nok   dist/pageWorker.js: 0 reference(s) to navigator\nok   THIRD_PARTY_NOTICES.txt: 83 bundled packages"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "bundle-size",
+      "command": ["node", "scripts/check-bundle-size.mjs"],
+      "exitCode": 0,
+      "elapsedSeconds": 0.05,
+      "finishedUtc": "2026-10-06T14:16:22.047645+00:00",
+      "outputBytes": 2278,
+      "outputSha256": "fc7b50a9130f9e2ed9922c27bc7322a27a1be61d40fbbf3d2f68271f420ea679",
+      "outputSummary": "ok   dist/uiTextRuntime.js: 3.5 KiB (budget 25 KiB)\nok   dist/uiTextHooks.js: 4.7 KiB (budget 25 KiB)\nok   dist/uiTextSurfaces.js: 2.5 KiB (budget 25 KiB)\nok   dist/validation.js: 39.8 KiB (budget 50 KiB)\nok   dist/wire.js: 40.8 KiB (budget 50 KiB)\nok   dist/searchWorker.js: 4.9 KiB (budget 50 KiB)\nok   dist/pageWorker.js: 188.6 KiB (budget 300 KiB)\nok   dist/webview/main.js + static imports: 794.1 KiB (budget 900 KiB)\nok   dist/webview/whatsNew.js: 0.7 KiB (budget 25 KiB)\nok   dist/webview/referencePage.js: 37.0 KiB (budget 50 KiB)\nok   dist/reference.js: 98.2 KiB (budget 100 KiB)\nok   dist/acp.js: 821.4 KiB (budget 850 KiB)\nok   dist/webview deferred JS: 50.0 KiB (budget 50 KiB)\nok   dist/webview code highlighting: 93.1 KiB (budget 125 KiB)\nok   dist/webview action dialogs: 9.2 KiB (budget 25 KiB)\nok   dist/webview tasks tab: 1.3 KiB (budget 25 KiB)"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "bundle-split",
+      "command": ["node", "scripts/check-bundle-split.mjs"],
+      "exitCode": 0,
+      "elapsedSeconds": 1.26,
+      "finishedUtc": "2026-10-06T14:16:23.308974+00:00",
+      "outputBytes": 3559,
+      "outputSha256": "a496d1751728a8389b974b876fcb7e2b52e208a397562ab68c7b8203392c5553",
+      "outputSummary": "ok   dist/sessionBoard.js: loads only on its first action\nok   dist/reviewer.js: loads only on its first action\nok   dist/foreignHooks.js: loads only on its first action\nok   dist/hookRuntime.js: loads only on its first action\nok   dist/pluginHooks.js: loads only on its first action\nok   dist/conversation.js: loads only on the first chat surface, never at activation\nok   dist/judge.js: loads only on the first eligible Judge approval, never at activation\nok   dist/tab.js: loads only on the first Tab request or menu, never at activation\nok   dist/codeIntel.js: loads only on the first code intelligence call, never at activation\nok   dist/voice.js: loads only on the first recording, never at activation\nok   dist/webFetch.js: loads only on the first web fetch, never at activation\nok   dist/museCodeReviewer.js: loads only on the first review, never at activation\nok   dist/report.js: loads only on the first report dialog, never at activation\nok   dist/recorder.js: loads only on the journal, just after activation, never at activation\nok   dist/whatsNew.js: loads only on the first What\u2019s New page or notice, never at activation\nok   dist/webview/whatsNew.js: the page script alone, no package and no display table"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "notices",
+      "command": ["node", "scripts/third-party-notices.mjs"],
+      "exitCode": 0,
+      "elapsedSeconds": 0.09,
+      "finishedUtc": "2026-10-06T14:16:23.394837+00:00",
+      "outputBytes": 50,
+      "outputSha256": "8017adb32b42b840120e1a56f976b0cae3e73b5b194539d69fed4f5c1e5c8bc6",
+      "outputSummary": "ok   THIRD_PARTY_NOTICES.txt: 83 bundled packages"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "version",
+      "command": ["node", "dist/acp.js", "--version"],
+      "exitCode": 0,
+      "elapsedSeconds": 0.23,
+      "finishedUtc": "2026-10-06T14:16:23.629687+00:00",
+      "outputBytes": 7,
+      "outputSha256": "232cca15f9cab0453d820d20649067576ec18d279ce3b1dc6d2931d1eb638721",
+      "outputSummary": "0.14.2"
+    },
+    {
+      "rig": "kubuntu",
+      "name": "help-all",
+      "command": ["node", "dist/acp.js", "help", "--all"],
+      "exitCode": 0,
+      "elapsedSeconds": 0.3,
+      "finishedUtc": "2026-10-06T14:16:23.925528+00:00",
+      "outputBytes": 111218,
+      "outputSha256": "a24d36f4668225870ed05b7c69702537055019e240bb60ff9b54113cfdc08adc",
+      "outputSummary": "Full reference printed; corrected budget prerequisite, merged shell setting and enum conditions verified."
+    },
+    {
+      "rig": "kubuntu",
+      "name": "exec-help",
+      "command": ["node", "dist/acp.js", "exec", "--help"],
+      "exitCode": 0,
+      "elapsedSeconds": 0.3,
+      "finishedUtc": "2026-10-06T14:16:24.226689+00:00",
+      "outputBytes": 111218,
+      "outputSha256": "a24d36f4668225870ed05b7c69702537055019e240bb60ff9b54113cfdc08adc",
+      "outputSummary": "Full reference printed; corrected budget prerequisite, merged shell setting and enum conditions verified."
+    }
+  ],
+  "releaseIntegrity": [
+    {
+      "name": "Manifest and both lockfile versions remain 0.14.2",
+      "passed": true
+    },
+    {
+      "name": "Unreleased stays empty",
+      "passed": true
+    },
+    {
+      "name": "Released history from 0.14.1 is byte-identical to round 1",
+      "passed": true
+    },
+    {
+      "name": "New final-audit fix is in dated 0.14.2",
+      "passed": true
+    },
+    {
+      "name": "README.md current heading/anchor preserved once",
+      "passed": true
+    },
+    {
+      "name": "README.md current release notes unchanged",
+      "passed": true
+    },
+    {
+      "name": "docs/marketplace-readme.md current heading/anchor preserved once",
+      "passed": true
+    },
+    {
+      "name": "docs/marketplace-readme.md current release notes unchanged",
+      "passed": true
+    },
+    {
+      "name": "Hungarian key ordering is unchanged",
+      "passed": true
+    },
+    {
+      "name": "Hungarian values change only the authorized budget prerequisite",
+      "passed": true
+    },
+    {
+      "name": "Round-1 stdio fixture is unchanged",
+      "passed": true
+    },
+    {
+      "name": "Main future plans and badge certification are retained byte-exact",
+      "passed": true
+    },
+    {
+      "name": "Both reference packing strategies are retained",
+      "passed": true
+    },
+    {
+      "name": "Generated TypeScript has no merge markers",
+      "passed": true
+    }
+  ],
+  "bundles": {
+    "extension.js": {
+      "bytes": 450075
+    },
+    "modelApi.js": {
+      "bytes": 457597
+    },
+    "reference.js": {
+      "bytes": 100597
+    },
+    "webview/referencePage.js": {
+      "bytes": 37935
+    },
+    "acp.js": {
+      "bytes": 841145
+    }
+  }
+}

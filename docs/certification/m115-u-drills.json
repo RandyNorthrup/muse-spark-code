@@ -1,0 +1,456 @@
+{
+  "rig": "kubuntu",
+  "base": "36b04cfd7",
+  "tests": "Complete owned files, at most three per invocation; --maxWorkers=3 --testTimeout=120000; no test-name filter",
+  "restoration": "Each mutation restored in finally; original and restored SHA-256 compared; every receipt equals final source",
+  "receipts": [
+    {
+      "drill": "G-physical",
+      "test": "never grants physical",
+      "exit": 1,
+      "file": "src/core/schedules/grant.ts",
+      "sha256": "77a1ddbdeea0edeb95014c9908a6f28b68db4e298ece92eccd914261f88b5540"
+    },
+    {
+      "drill": "G-protected",
+      "test": "never grants physical",
+      "exit": 1,
+      "file": "src/core/schedules/grant.ts",
+      "sha256": "77a1ddbdeea0edeb95014c9908a6f28b68db4e298ece92eccd914261f88b5540"
+    },
+    {
+      "drill": "G-tool",
+      "test": "matches exact tool names",
+      "exit": 1,
+      "file": "src/core/schedules/grant.ts",
+      "sha256": "77a1ddbdeea0edeb95014c9908a6f28b68db4e298ece92eccd914261f88b5540"
+    },
+    {
+      "drill": "G-access",
+      "test": "matches all canonical edit paths",
+      "exit": 1,
+      "file": "src/core/schedules/grant.ts",
+      "sha256": "77a1ddbdeea0edeb95014c9908a6f28b68db4e298ece92eccd914261f88b5540"
+    },
+    {
+      "drill": "U-canonical",
+      "test": "refuses canonical link escapes",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-defer",
+      "test": "defers immediately",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-note",
+      "test": "defers immediately",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-audit",
+      "test": "fails closed if auditing fails",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "A-CAS",
+      "test": "stale editor cannot restore",
+      "exit": 1,
+      "file": "src/core/schedules/grantAudit.ts",
+      "sha256": "1dbab2bff733ab0d790488b72787ddffc6c006da41b2943ec4affda8cfd3aa8b"
+    },
+    {
+      "drill": "A-retry",
+      "test": "retries revocation from fresh state",
+      "exit": 1,
+      "file": "src/core/schedules/grantAudit.ts",
+      "sha256": "1dbab2bff733ab0d790488b72787ddffc6c006da41b2943ec4affda8cfd3aa8b"
+    },
+    {
+      "drill": "G-prefix",
+      "test": "matches conservative command prefixes",
+      "exit": 1,
+      "file": "src/core/schedules/grant.ts",
+      "sha256": "77a1ddbdeea0edeb95014c9908a6f28b68db4e298ece92eccd914261f88b5540"
+    },
+    {
+      "drill": "G-glob",
+      "test": "matches literal and Unicode segments",
+      "exit": 1,
+      "file": "src/core/schedules/grant.ts",
+      "sha256": "77a1ddbdeea0edeb95014c9908a6f28b68db4e298ece92eccd914261f88b5540"
+    },
+    {
+      "drill": "U-physical",
+      "test": "refuses physical and person-required",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-asking",
+      "test": "refuses physical and person-required",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-protected",
+      "test": "refuses physical and person-required",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-protected-alias",
+      "test": "refuses canonical link escapes",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-safety",
+      "test": "refuses physical and person-required",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-captured",
+      "test": "cannot widen captured authority",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-live-grant",
+      "test": "cannot widen captured authority",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-after-audit",
+      "test": "fails closed if auditing fails",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "U-paid-asking",
+      "test": "cannot enable paid extras",
+      "exit": 1,
+      "file": "src/core/schedules/unattended.ts",
+      "sha256": "fea6f9b20cf0b652c5cdc7cb81dd85022114a25523483b3257e820bfa995fa86"
+    },
+    {
+      "drill": "A-create-revision",
+      "test": "creates authority and its audit atomically",
+      "exit": 1,
+      "file": "src/core/schedules/grantAudit.ts",
+      "sha256": "1dbab2bff733ab0d790488b72787ddffc6c006da41b2943ec4affda8cfd3aa8b"
+    },
+    {
+      "drill": "P-deny",
+      "test": "asks once at creation with price",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-CAS",
+      "test": "refuses stale/off creation answers",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-on-answer",
+      "test": "rechecks the feature after the popup",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-current-answer",
+      "test": "refuses stale/off creation answers",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-reuse",
+      "test": "reuses the same consent",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-model",
+      "test": "requires renewal for a changed model",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-account",
+      "test": "requires renewal for a changed model",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-tariff",
+      "test": "requires renewal for a changed model",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-shared",
+      "test": "requires renewal for a changed model",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-cap",
+      "test": "uses the granted schedule cap",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-grant-cap",
+      "test": "uses the granted schedule cap",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-selected",
+      "test": "admits only selected enabled extras",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-feature-gate",
+      "test": "keeps a disabled extra off",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-body-model",
+      "test": "admits only selected enabled extras",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-unpriced",
+      "test": "admits Muse Code paid extras",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-before-send",
+      "test": "admits only selected enabled extras",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "P-unknown",
+      "test": "retains missing-usage liability",
+      "exit": 1,
+      "file": "src/core/paid/paidConsent.ts",
+      "sha256": "3ffd5120618c157294184c661fbc35d302c1247028713e495136851c8ee9feb8"
+    },
+    {
+      "drill": "C-reservation",
+      "test": "enforces a schedule cap across independent processes",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/client.ts",
+      "sha256": "fb62545f6d1910ee0efcd1bf65bf5db40fee4ae6ad14a851b334608530f65096"
+    },
+    {
+      "drill": "Controller-v2",
+      "test": "routes a v2 occurrence",
+      "exit": 1,
+      "file": "src/host/conversation/conversationController.ts",
+      "sha256": "3eec4cc9320781676b4714f3663fe7f80629938c4437062fc72fec76aeb15ec2"
+    },
+    {
+      "drill": "D-own-cap",
+      "test": "enforces a schedule cap across independent processes",
+      "exit": 1,
+      "file": "src/host/paid/paidDailyBudget.ts",
+      "sha256": "69c32e348d182f91f27db9572c15817e209360d3071fd4ab364a927d4301a196"
+    },
+    {
+      "drill": "D-shared-cap",
+      "test": "enforces the shared cap across different schedules",
+      "exit": 1,
+      "file": "src/host/paid/paidDailyBudget.ts",
+      "sha256": "69c32e348d182f91f27db9572c15817e209360d3071fd4ab364a927d4301a196"
+    },
+    {
+      "drill": "D-local-day",
+      "test": "enforces the shared cap across different schedules",
+      "exit": 1,
+      "file": "src/host/paid/paidDailyBudget.ts",
+      "sha256": "69c32e348d182f91f27db9572c15817e209360d3071fd4ab364a927d4301a196"
+    },
+    {
+      "drill": "V-mode-restore",
+      "test": "refuses concurrent native admission",
+      "exit": 1,
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "512e5819333e2e8dbe6478a9bce9d752eef754f0d15b7ab7cef15ffbcdfc4232"
+    },
+    {
+      "drill": "V-bypass",
+      "test": "refuses concurrent native admission",
+      "exit": 1,
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "512e5819333e2e8dbe6478a9bce9d752eef754f0d15b7ab7cef15ffbcdfc4232"
+    },
+    {
+      "drill": "V-admission",
+      "test": "refuses concurrent native admission",
+      "exit": 1,
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "512e5819333e2e8dbe6478a9bce9d752eef754f0d15b7ab7cef15ffbcdfc4232"
+    },
+    {
+      "drill": "V-late",
+      "test": "does not replay an unattended approval",
+      "exit": 1,
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "512e5819333e2e8dbe6478a9bce9d752eef754f0d15b7ab7cef15ffbcdfc4232"
+    },
+    {
+      "drill": "V-failed-ack",
+      "test": "retains unattended ownership when a start ack fails",
+      "exit": 1,
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "512e5819333e2e8dbe6478a9bce9d752eef754f0d15b7ab7cef15ffbcdfc4232"
+    },
+    {
+      "drill": "V-single-use",
+      "test": "allows only once for a matched rule",
+      "exit": 1,
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "512e5819333e2e8dbe6478a9bce9d752eef754f0d15b7ab7cef15ffbcdfc4232"
+    },
+    {
+      "drill": "V-deferral",
+      "test": "defers a question at once",
+      "exit": 1,
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "512e5819333e2e8dbe6478a9bce9d752eef754f0d15b7ab7cef15ffbcdfc4232"
+    },
+    {
+      "drill": "V-late-stop",
+      "test": "never cancels a later ordinary turn",
+      "exit": 1,
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "512e5819333e2e8dbe6478a9bce9d752eef754f0d15b7ab7cef15ffbcdfc4232"
+    },
+    {
+      "drill": "V-prompt-retain",
+      "test": "never cancels a later ordinary turn",
+      "exit": 1,
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "512e5819333e2e8dbe6478a9bce9d752eef754f0d15b7ab7cef15ffbcdfc4232"
+    },
+    {
+      "drill": "V-question-retain",
+      "test": "defers a question at once",
+      "exit": 1,
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "sha256": "512e5819333e2e8dbe6478a9bce9d752eef754f0d15b7ab7cef15ffbcdfc4232"
+    },
+    {
+      "drill": "M-approval",
+      "test": "refuses the real shell/edit dispatchers",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "311772cc0d2a3d59c191b76789902198df18023ce7436c40203617396f33a528"
+    },
+    {
+      "drill": "M-safety",
+      "test": "checks requester safety even",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "311772cc0d2a3d59c191b76789902198df18023ce7436c40203617396f33a528"
+    },
+    {
+      "drill": "M-question",
+      "test": "refuses the real shell/edit dispatchers",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "311772cc0d2a3d59c191b76789902198df18023ce7436c40203617396f33a528"
+    },
+    {
+      "drill": "M-elicitation",
+      "test": "declines MCP elicitation immediately",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "311772cc0d2a3d59c191b76789902198df18023ce7436c40203617396f33a528"
+    },
+    {
+      "drill": "M-mode",
+      "test": "uses the schedule mode/grant",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "311772cc0d2a3d59c191b76789902198df18023ce7436c40203617396f33a528"
+    },
+    {
+      "drill": "M-queue",
+      "test": "carries the context through queue admission",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "311772cc0d2a3d59c191b76789902198df18023ce7436c40203617396f33a528"
+    },
+    {
+      "drill": "M-steer",
+      "test": "carries the context through steer admission",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "311772cc0d2a3d59c191b76789902198df18023ce7436c40203617396f33a528"
+    },
+    {
+      "drill": "M-rename-paths",
+      "test": "matches the entire native rename plan",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "311772cc0d2a3d59c191b76789902198df18023ce7436c40203617396f33a528"
+    },
+    {
+      "drill": "M-rename-safety",
+      "test": "matches the entire native rename plan",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "311772cc0d2a3d59c191b76789902198df18023ce7436c40203617396f33a528"
+    },
+    {
+      "drill": "M-live-entry",
+      "test": "rechecks revocation at the native shell entry",
+      "exit": 1,
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "311772cc0d2a3d59c191b76789902198df18023ce7436c40203617396f33a528"
+    }
+  ]
+}

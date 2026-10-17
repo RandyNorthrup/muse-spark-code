@@ -17,7 +17,10 @@ import {
   renderPrompt,
   truncateUtf8,
 } from '../../action/lib/inputs.mjs'
-import { ACTION_META_MAX_BYTES } from '../../action/lib/lifecycle.mjs'
+import {
+  ACTION_META_MAX_BYTES,
+  ACTION_CHILD_STDOUT_MAX_BYTES,
+} from '../../action/lib/lifecycle.mjs'
 import { execArguments } from '../../action/lib/run-exec.mjs'
 import {
   allocateInvocation,
@@ -33,6 +36,7 @@ import {
 import { parseExec } from '../../src/runtime/exec/execArgs'
 import {
   allocate,
+  originRepo,
   gitPath,
   preparedRun,
   PROCESS_SUITE,
@@ -44,6 +48,18 @@ import {
 } from './helpers/actionFixtures'
 
 const BUDGET = { MUSE_INPUT_MAX_BUDGET_USD: '1.00' }
+
+async function generateRunDiff(layout: TempLayout, run: Awaited<ReturnType<typeof preparedRun>>) {
+  const staged = await readStaged(run.paths)
+  const diff = await generateDiff({
+    owner: run.test.owner,
+    git: gitPath(layout),
+    paths: run.paths,
+    baseEnv: run.input.baseEnv,
+    staged,
+  })
+  return { staged, diff }
+}
 
 describe('Action inputs', () => {
   it('parses the documented defaults', () => {
@@ -361,14 +377,7 @@ describe('staging and the prompt (G12)', PROCESS_SUITE, () => {
       mode: 'review',
       inputs: { MUSE_INPUT_MAX_DIFF_BYTES: '40' },
     })
-    const staged = await readStaged(run.paths)
-    const diff = await generateDiff({
-      owner: run.test.owner,
-      git: gitPath(layout),
-      paths: run.paths,
-      baseEnv: run.input.baseEnv,
-      staged,
-    })
+    const { staged, diff } = await generateRunDiff(layout, run)
     expect(diff.truncated).toBe(true)
     const cut = readFileSync(run.paths.diff)
     expect(cut.length).toBeLessThanOrEqual(40)
@@ -382,6 +391,67 @@ describe('staging and the prompt (G12)', PROCESS_SUITE, () => {
     expect(prompt).toContain(run.repo.head)
     expect(prompt).not.toContain('Untrusted body')
     await run.test.owner.cleanup()
+  })
+
+  it('drops an incomplete UTF-8 code point at the retained Git prefix', async () => {
+    const run = await preparedRun(layout, {
+      mode: 'review',
+      inputs: { MUSE_INPUT_MAX_DIFF_BYTES: '16' },
+      repo: originRepo(
+        layout,
+        (source) => {
+          writeFileSync(path.join(source, 'base.txt'), 'base\n')
+        },
+        (source) => {
+          writeFileSync(path.join(source, '😀.txt'), 'new\n')
+        },
+      ),
+    })
+    try {
+      const { diff } = await generateRunDiff(layout, run)
+      expect(diff.truncated).toBe(true)
+      expect(readFileSync(run.paths.diff, 'utf8')).toBe('diff --git a/')
+      expect(run.test.owner.stopped).toBe(false)
+    } finally {
+      await run.test.owner.cleanup()
+    }
+  })
+
+  it('retains only the review prefix when the real Git diff exceeds the ordinary child cap', async () => {
+    const run = await preparedRun(layout, {
+      mode: 'review',
+      inputs: { MUSE_INPUT_MAX_DIFF_BYTES: '40' },
+      repo: originRepo(
+        layout,
+        (source) => {
+          writeFileSync(path.join(source, 'base.txt'), 'base\n')
+        },
+        (source) => {
+          writeFileSync(
+            path.join(source, 'large.txt'),
+            '€'.repeat(ACTION_CHILD_STDOUT_MAX_BYTES / 2) + '\n',
+          )
+        },
+      ),
+    })
+    try {
+      const { staged, diff } = await generateRunDiff(layout, run)
+      expect(diff.bytes).toBeGreaterThan(ACTION_CHILD_STDOUT_MAX_BYTES)
+      expect(diff.truncated).toBe(true)
+      const retained = readFileSync(run.paths.diff)
+      expect(retained.byteLength).toBeLessThanOrEqual(staged.maxDiffBytes)
+      expect(new TextDecoder('utf-8', { fatal: true }).decode(retained)).toBe(
+        retained.toString('utf8'),
+      )
+      expect(run.test.owner.stopped).toBe(false)
+      expect(existsSync(run.paths.diffFull)).toBe(false)
+      await renderPrompt({ paths: run.paths, staged, diff, templatesDir: TEMPLATES_DIR })
+      expect(readFileSync(run.paths.prompt, 'utf8')).toContain(
+        `diff truncated: the attached diff holds the first 40 of ${String(diff.bytes)} bytes.`,
+      )
+    } finally {
+      await run.test.owner.cleanup()
+    }
   })
 
   it('fills each placeholder once and refuses a prompt larger than exec accepts', async () => {

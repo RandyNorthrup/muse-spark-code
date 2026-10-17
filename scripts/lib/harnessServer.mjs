@@ -3,16 +3,67 @@
 // accessibility gate). Only files under the repository are served.
 
 import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { createServer } from 'node:http'
 import path from 'node:path'
+import { performance } from 'node:perf_hooks'
 import { chromium } from 'playwright-core'
+import { buildTrafficHarness } from '../../test/harness/buildTraffic.mjs'
+import { build } from 'esbuild'
+import { buildScheduleHarness } from '../../test/harness/build-schedules.mjs'
+import { SCHEDULE_SCENES } from '../../test/harness/scheduleScenes.mjs'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
+// The bundle a scenario plays in: the Models & Agents panel's own
+// (`?bundle=models`, M95 lane M) for its scenarios, the chat's otherwise.
+export function bundleFor(scenario) {
+  if (scenario.startsWith('usage-page-')) return 'usage'
+  return scenario !== 'models-byo' && scenario.startsWith('models-') ? 'models' : 'main'
+}
 // Real time for one page; a hung browser fails rather than producing an empty result.
 export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
+export const TRAFFIC_SCENARIOS = [
+  'team-traffic',
+  'team-traffic-320',
+  'team-traffic-hints',
+  'team-traffic-recovery',
+  'runners',
+]
+// Scenes that end by calling scenarioDone(), so <html data-scenario-played>
+// says they are finished. Tests wait for that mark only on these scenes, and
+// teamHarness.test.mjs checks each of them in a real browser.
+export const PLAYED_SCENARIOS = [
+  'team-tree',
+  'team-tree-320',
+  'team-cards',
+  'question',
+  'legal-preview',
+  'jump',
+]
 export const SCENARIOS = [
+  ...[
+    'empty',
+    'history-off',
+    'one-provider',
+    'nine-providers',
+    'plan-only',
+    'local-only',
+    'stale',
+    'over-limit',
+    'newer-version',
+    'long-german',
+    'long-russian',
+    'narrow',
+  ].map((name) => `usage-page-${name}`),
+  'prompt-menu',
+  'prompt-menu-narrow',
+  'prompt-menu-toolbar',
+  'prompt-library',
+  'prompt-library-narrow',
+  'chat-sharing',
+  'chat-sharing-narrow',
   'empty',
   'signin',
   'signin-nocli',
@@ -21,9 +72,14 @@ export const SCENARIOS = [
   'signin-error',
   'signin-history',
   'signin-history-narrow',
+  // M95: the first-run screen with its own-model choice, in both states.
+  'signin-byo',
+  'signin-nocli-byo',
   'usage-install',
   'usage-install-narrow',
   'palette',
+  'help',
+  'help-narrow',
   'context-meter',
   'context-meter-warning',
   'context-meter-full',
@@ -31,6 +87,8 @@ export const SCENARIOS = [
   'slash-tips',
   'stop-running',
   'models',
+  // M95: the picker grouped by provider, pinned first, with its rows.
+  'models-byo',
   'pill-toggle',
   'mention',
   'chips',
@@ -52,7 +110,36 @@ export const SCENARIOS = [
   'approval-several',
   'approval-narrow',
   'approval-moved',
+  'judge',
+  'judge-narrow',
+  'judge-slow',
+  'judge-usage',
   'question',
+  'questions-waiting',
+  'questions-waiting-narrow',
+  'questions-open',
+  'questions-open-narrow',
+  'questions-chip',
+  'questions-chip-narrow',
+  'questions-approval',
+  'questions-approval-narrow',
+  'questions-answered',
+  'questions-answered-narrow',
+  'questions-answered-later',
+  'questions-answered-later-narrow',
+  'questions-reasked',
+  'questions-reasked-narrow',
+  'questions-explained',
+  'questions-explained-narrow',
+  'questions-declined',
+  'questions-declined-narrow',
+  'questions-dismissed',
+  'questions-dismissed-narrow',
+  'questions-expired',
+  'questions-expired-narrow',
+
+  'elicitation',
+  'elicitation-narrow',
   'todo',
   'todo-collapsed',
   'tasks-tab',
@@ -80,9 +167,27 @@ export const SCENARIOS = [
   'checkpoint-read-only',
   'checkpoint-read-only-narrow',
   'checkpoint-legacy',
+  ...TRAFFIC_SCENARIOS,
   'agents',
   'agents-off',
+  // M96 lane U2: the team tree (and at 320 px), and the transcript cards.
+  'team-tree',
+  'team-tree-320',
+  'team-cards',
   'usage-api',
+  // M95: Account & usage with per-provider rows and key usage.
+  'usage-providers',
+  // M95b shared plan surfaces and their 320 px layouts.
+  'plan-chatgpt',
+  'plan-notice',
+  'plan-notice-narrow',
+  'plan-limit',
+  'plan-limit-narrow',
+  'plan-usage',
+  'plan-usage-narrow',
+  'plan-key',
+  'copilot-plan',
+  'copilot-plan-narrow',
   'reply-usage',
   'banner',
   'jump',
@@ -100,6 +205,18 @@ export const SCENARIOS = [
   'agents-details',
   'agents-result',
   'agents-closed',
+  ...[
+    'active',
+    'approval',
+    'input',
+    'queued',
+    'interrupted',
+    'complete',
+    'incomplete',
+    'failed',
+    'cancelled',
+    'unverified',
+  ].map((state) => `agent-${state}`),
   'composer-grow',
   'composer-max',
   'cancelled',
@@ -136,9 +253,16 @@ export const SCENARIOS = [
   'muse-workflow-map',
   'schedules',
   'schedules-narrow',
+  ...SCHEDULE_SCENES,
+  'git-held',
+  'git-commit',
+  'git-pr',
+  'git-pr-narrow',
   'auto-review',
   'auto-review-rule',
   'auto-review-usage',
+  'tab-usage',
+  'tab-usage-off',
   'share',
   'share-narrow',
   'verify',
@@ -154,28 +278,101 @@ export const SCENARIOS = [
   'review-pane',
   'review-pane-narrow',
   'review-comment',
+  // M95 lane M: the Models & Agents panel (`?bundle=models`), one per state.
+  'models-empty',
+  'models-pick',
+  'models-configure',
+  'models-errors',
+  'models-credential',
+  'models-test',
+  'models-test-cost',
+  'models-test-failed',
+  'models-models',
+  'models-privacy',
+  'models-suggestions',
+  'models-confirm',
+  'models-providers',
+  'models-edit',
+  'models-scanning',
+  'models-scan-failed',
+  'models-scan-diff',
+  'models-table',
+  'models-table-filtered',
+  'models-undo',
+  'models-import',
+  'models-narrow',
   'report',
   'report-narrow',
+  'legal',
+  'legal-narrow',
+  'legal-preview',
+  'readme-open-question',
+  'readme-help',
+  'resources-throttle',
 ]
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
   '.css': 'text/css',
   '.map': 'application/json',
   '.json': 'application/json',
   '.png': 'image/png',
 }
 
+// The harness bundles a server needs, built once per repository root in this
+// process: a suite that opens many servers no longer rebuilds them each time.
+const harnessBuilds = new Map()
+
+async function buildHarness(repoRoot) {
+  try {
+    await buildTrafficHarness(repoRoot)
+    return await build({
+      // Capture fixtures belong to the running gate, like buildTrafficHarness;
+      // a historical production revision may predate this test-only source.
+      entryPoints: [
+        fileURLToPath(new URL('../../test/unit/helpers/usageFixtures.ts', import.meta.url)),
+      ],
+      outfile: path.join(repoRoot, 'temp/harness-usage.js'),
+      bundle: true,
+      platform: 'browser',
+      format: 'iife',
+      globalName: 'museUsageHarness',
+      write: false,
+    })
+  } catch (error) {
+    // A failed build is retried by the next server instead of cached.
+    harnessBuilds.delete(repoRoot)
+    throw error
+  }
+}
+
+function harnessBuild(repoRoot) {
+  if (!harnessBuilds.has(repoRoot)) harnessBuilds.set(repoRoot, buildHarness(repoRoot))
+  return harnessBuilds.get(repoRoot)
+}
+
 /** Serves `repoRoot` on an unused loopback port: `{ server, port }`. */
-export function serveRepo(repoRoot) {
+export async function serveRepo(repoRoot) {
+  const fixture = await harnessBuild(repoRoot)
+  let scheduleBuild
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', `http://${LOOPBACK}`)
+    if (url.pathname === '/usage-harness.js') {
+      response.writeHead(200, { 'content-type': 'text/javascript' })
+      response.end(fixture.outputFiles[0].contents)
+      return
+    }
     const target = path.resolve(repoRoot, `.${decodeURIComponent(url.pathname)}`)
     if (!target.startsWith(repoRoot)) {
       response.writeHead(403).end()
       return
     }
     try {
+      if (url.pathname.endsWith('/test/harness/schedules.mjs')) {
+        scheduleBuild ??= buildScheduleHarness(repoRoot)
+        await scheduleBuild
+      }
       const body = await readFile(target)
       response.writeHead(200, {
         'content-type': CONTENT_TYPES[path.extname(target)] ?? 'application/octet-stream',
@@ -185,7 +382,7 @@ export function serveRepo(repoRoot) {
       response.writeHead(404).end()
     }
   })
-  return new Promise((resolve) => {
+  return await new Promise((resolve) => {
     server.listen(0, LOOPBACK, () => {
       resolve({ server, port: server.address().port })
     })
@@ -201,7 +398,47 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  ...Object.fromEntries(
+    TRAFFIC_SCENARIOS.map((scenario) => [
+      scenario,
+      { width: scenario === 'team-traffic-320' ? 320 : 690, ready: 'body[data-traffic-ready]' },
+    ]),
+  ),
   'share-narrow': { width: 320, ready: '[role="dialog"]' },
+  'team-tree-320': { width: 320, ready: '[role="dialog"]' },
+  'usage-page-narrow': { width: 320, ready: '.usage-page[aria-busy="false"]' },
+  'prompt-menu-narrow': { width: 320, ready: '.popover-pointer' },
+  'prompt-library-narrow': { width: 320, ready: '.prompt-library' },
+  'chat-sharing-narrow': { width: 320, ready: '.chat-share-preview' },
+  'questions-waiting-narrow': { width: 320, ready: '.attention-dock, .question' },
+  'questions-open-narrow': { width: 320, ready: '.attention-dock, .question' },
+  'questions-chip-narrow': { width: 320, ready: '.attention-dock, .question' },
+  'questions-approval-narrow': { width: 320, ready: '.attention-dock, .question' },
+  'questions-answered-narrow': { width: 320, ready: '.attention-dock, .question' },
+  'questions-answered-later-narrow': { width: 320, ready: '.attention-dock, .question' },
+  'questions-reasked-narrow': { width: 320, ready: '.attention-dock, .question' },
+  'questions-explained-narrow': { width: 320, ready: '.attention-dock, .question' },
+  'questions-declined-narrow': { width: 320, ready: '.attention-dock, .question' },
+  'questions-dismissed-narrow': { width: 320, ready: '.attention-dock, .question' },
+  'questions-expired-narrow': { width: 320, ready: '.attention-dock, .question' },
+  help: { width: 1000, ready: '#reference-search' },
+  'help-narrow': { width: 320, ready: '#reference-search' },
+  'schedules-v2-background-narrow': { width: 320, ready: '.schedule-v2-consent' },
+  'schedules-v2-list-narrow': { width: 320, ready: '[data-schedule-ready]' },
+  'schedules-v2-editor-narrow': { width: 320, ready: '.schedule-v2-editor' },
+  'schedules-v2-timeline-narrow': { width: 320, ready: '.schedule-v2-timeline li' },
+  'schedule-settlements-narrow': { width: 320, ready: '.schedule-v2-fire' },
+  'judge-narrow': { width: 320, ready: '.judge-status' },
+  judge: { width: 690, ready: '.judge-status' },
+  'judge-slow': { width: 690, ready: '.judge-status' },
+  'judge-usage': { width: 690, ready: '[role="dialog"]' },
+  'plan-notice-narrow': { width: 320, ready: '#chatgpt-plan-title' },
+  'plan-limit-narrow': { width: 320, ready: '#chatgpt-plan-title' },
+  'plan-usage-narrow': { width: 320, ready: '#usage-title' },
+  'copilot-plan-narrow': { width: 320, ready: '.copilot-note' },
+  // M91 lane M: the MCP elicitation form at the panel's narrowest width.
+  'elicitation-narrow': { width: 320, ready: 'form' },
+  'legal-narrow': { width: 320, ready: '[role="dialog"]' },
   'report-narrow': { width: 320, ready: '[role="dialog"]' },
   'chat-menu-narrow': { width: 320, ready: '[role="menu"]' },
   'chat-tool-menu-narrow': { width: 320, ready: '[role="menu"]' },
@@ -216,18 +453,24 @@ const VIEWPORT_HEIGHT = 760
 
 /** Chrome's CLI clamps windows to 500 px: a sized scenario gets a real viewport of its width. */
 export async function withSizedPage(chrome, profileDir, url, sized, run) {
+  const deadline = performance.now() + PAGE_TIMEOUT_MS
+  const remaining = () => Math.max(1, deadline - performance.now())
   const browser = await chromium.launchPersistentContext(profileDir, {
     ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
     ...(sized.hasScrollbars === true && { ignoreDefaultArgs: ['--hide-scrollbars'] }),
     viewport: { width: sized.width, height: VIEWPORT_HEIGHT },
-    timeout: PAGE_TIMEOUT_MS,
+    timeout: remaining(),
   })
   try {
+    browser.setDefaultTimeout(remaining())
+    browser.setDefaultNavigationTimeout(remaining())
     const page = await browser.newPage()
-    page.setDefaultTimeout(PAGE_TIMEOUT_MS)
-    page.setDefaultNavigationTimeout(PAGE_TIMEOUT_MS)
+    page.setDefaultTimeout(remaining())
+    page.setDefaultNavigationTimeout(remaining())
     await page.goto(url)
-    return await run(page)
+    page.setDefaultTimeout(remaining())
+    page.setDefaultNavigationTimeout(remaining())
+    return await run(page, remaining)
   } finally {
     await browser.close()
   }

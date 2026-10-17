@@ -42,7 +42,9 @@ import {
 } from '../../core/support/flightRecorder'
 import {
   REPORT_ERROR_CODES,
+  REPORT_JOURNAL_MAX_AGE_MS,
   REPORT_JOURNAL_MAX_BYTES,
+  REPORT_JOURNAL_PRUNE_TARGET_BYTES,
   REPORT_RECENT_EVENT_COUNT,
   REPORT_STORAGE_DIR,
   REPORT_STORAGE_FILE_MODE,
@@ -50,6 +52,7 @@ import {
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
 import type { Logger } from '../logger'
+import type { SecretScrubPort } from '../../shared/redact'
 
 /** One directory entry: links and unexpected types never enter the journal. */
 export interface ReportDirEntry {
@@ -214,6 +217,7 @@ export const nodeReportJournalFs: ReportJournalFs = {
 }
 
 export interface ReportJournalOptions {
+  readonly vaultScrub?: SecretScrubPort
   /** `ExtensionContext.globalStorageUri.fsPath`: the only root this touches. */
   readonly globalStorageDir: string
   /** This window's instance (`crypto.randomUUID()`): one journal and marker. */
@@ -244,6 +248,18 @@ export interface MergedJournal {
  * a window writes carries that window's versions.
  */
 export type ReportEventInput = Omit<FlightEventInput, 'ext' | 'host'>
+
+/** A journal's bytes as written and its oldest record's time. */
+function measured(entries: readonly FlightRecord[]): {
+  readonly bytes: number
+  readonly oldestAt: number | undefined
+} {
+  let bytes = 0
+  for (const entry of entries) {
+    bytes += Buffer.byteLength(serializeFlightRecord(entry), 'utf8')
+  }
+  return { bytes, oldestAt: entries[0]?.at }
+}
 
 /** An errno-shaped word for the log, or nothing: paths never reach the log. */
 function errorCodeForLog(error: unknown): string {
@@ -277,10 +293,17 @@ export class ReportJournal {
   private readonly instance: string
   private readonly isAlive: (pid: number) => boolean
   private readonly log: Logger
+  private readonly vaultScrub: SecretScrubPort | undefined
   private tail: Promise<void> = Promise.resolve()
   private disabled = false
   private warned = false
   private stopped = false
+  /**
+   * This window's own journal as last measured: its bytes and its oldest
+   * record's time, kept as appends land so an append reads the whole file
+   * again only when it crosses a bound. Undefined until measured.
+   */
+  private own: { readonly bytes: number; readonly oldestAt: number | undefined } | undefined
 
   public constructor(options: ReportJournalOptions) {
     const journal = journalNameFor(options.instance)
@@ -299,6 +322,7 @@ export class ReportJournal {
     this.instance = options.instance
     this.isAlive = options.isAlive
     this.log = options.log
+    this.vaultScrub = options.vaultScrub
   }
 
   private disable(error: unknown): void {
@@ -348,6 +372,7 @@ export class ReportJournal {
   private async pruneFile(
     file: string,
     now: number,
+    maxBytes: number = REPORT_JOURNAL_MAX_BYTES,
   ): Promise<{ readonly entries: readonly FlightRecord[]; readonly skipped: number }> {
     let text: string
     try {
@@ -356,8 +381,10 @@ export class ReportJournal {
       if (isMissingPath(error)) return { entries: [], skipped: 0 }
       throw error
     }
-    const parsed = parseJournalText(text)
-    const entries = pruneFlightEntries(parsed.entries, now)
+    const parsed = parseJournalText(
+      this.vaultScrub === undefined ? text : await this.vaultScrub.scrub(text),
+    )
+    const entries = pruneFlightEntries(parsed.entries, now, maxBytes)
     const clean = entries.map((entry) => serializeFlightRecord(entry)).join('')
     // Zero valid entries also removes an empty or over-cap invalid-only file.
     if ((clean !== text || entries.length === 0) && (await this.mayPrune(file))) {
@@ -457,12 +484,20 @@ export class ReportJournal {
     try {
       await this.enqueue(async () => {
         if (this.disabled || this.stopped) return
-        const built = buildFlightRecord({ ...input, ext: this.ext, host: this.host }, this.clock())
+        const now = this.clock()
+        const built = buildFlightRecord({ ...input, ext: this.ext, host: this.host }, now)
         if (!built.ok) return
         const line = serializeFlightRecord(built.record)
+        // A value matching a structural fact makes that record untrustworthy.
+        // Refuse it rather than persisting a damaged schema or secret residue.
+        if (this.vaultScrub !== undefined && (await this.vaultScrub.scrub(line)) !== line) return
         try {
-          // Recover a torn tail before appending; otherwise it swallows the new event.
-          await this.pruneFile(this.ownJournal, this.clock())
+          // The first append measures and repairs what the journal holds (a
+          // torn tail would swallow the new event); later ones keep count.
+          if (this.own === undefined) {
+            const present = await this.pruneFile(this.ownJournal, now)
+            this.own = measured(present.entries)
+          }
           await this.store.appendFile(this.ownJournal, line)
         } catch (error: unknown) {
           if (isMissingPath(error)) {
@@ -478,10 +513,25 @@ export class ReportJournal {
             return
           }
         }
-        try {
-          await this.pruneFile(this.ownJournal, this.clock())
-        } catch (error: unknown) {
-          if (!isMissingPath(error)) this.disable(error)
+        const own = {
+          bytes: (this.own?.bytes ?? 0) + Buffer.byteLength(line, 'utf8'),
+          oldestAt: this.own?.oldestAt ?? built.record.at,
+        }
+        this.own = own
+        // Amortized: the whole journal is read again only once it is past its
+        // byte cap or holds an expired record. Past the cap it drops to
+        // REPORT_JOURNAL_PRUNE_TARGET_BYTES, so the next rewrite is many
+        // appends away; the bounds themselves are unchanged.
+        const isOverCap = own.bytes > REPORT_JOURNAL_MAX_BYTES
+        if (isOverCap || own.oldestAt < now - REPORT_JOURNAL_MAX_AGE_MS) {
+          try {
+            const target = isOverCap ? REPORT_JOURNAL_PRUNE_TARGET_BYTES : REPORT_JOURNAL_MAX_BYTES
+            const pruned = await this.pruneFile(this.ownJournal, now, target)
+            this.own = measured(pruned.entries)
+          } catch (error: unknown) {
+            this.own = undefined
+            if (!isMissingPath(error)) this.disable(error)
+          }
         }
       })
     } catch (error: unknown) {
@@ -517,6 +567,8 @@ export class ReportJournal {
         .map((entry) => entry.name)
         .toSorted((left, right) => left.localeCompare(right))
       const now = this.clock()
+      // Reading may prune this window's own journal too: measure it again on the next append.
+      this.own = undefined
       const merged: {
         readonly record: FlightRecord
         readonly name: string

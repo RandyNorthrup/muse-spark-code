@@ -5,10 +5,18 @@
 // fence not closed yet) shows plain text until it closes (M25), so a long
 // block is not re-highlighted whole on every delta.
 
-import { useMemo } from 'react'
+import { lazy, Suspense } from 'react'
 import { UI_TEXT } from '../../shared/constants'
-import { highlight, resolveLanguage } from '../highlight'
+import { resolveLanguage } from '../highlight'
 import { useCopiedFlag } from '../useCopiedFlag'
+
+const HighlightedCode = lazy(async () => {
+  const { HighlightedCode } = await import('./HighlightedCode')
+  return { default: HighlightedCode }
+})
+
+// The action buttons share one class string (M114 startup compaction).
+const CODE_BLOCK_BUTTON = 'code-block-button chat-control'
 
 export interface CodeBlockProps {
   readonly code: string
@@ -35,12 +43,6 @@ export function CodeBlock({
 }: CodeBlockProps) {
   const [isCopied, markCopied] = useCopiedFlag()
   const resolved = resolveLanguage(language)
-  // highlight.js returns HTML it escaped itself; nothing from the model
-  // reaches the DOM unescaped.
-  const html = useMemo(
-    () => (isOpen ? undefined : { __html: highlight(code, language) }),
-    [code, language, isOpen],
-  )
   return (
     <div className="code-block">
       <div className="code-block-bar">
@@ -48,7 +50,7 @@ export function CodeBlock({
         <span className="code-block-actions">
           <button
             type="button"
-            className="code-block-button"
+            className={CODE_BLOCK_BUTTON}
             onClick={() => {
               onCopy(code)
               markCopied()
@@ -59,7 +61,7 @@ export function CodeBlock({
           {onInsert === undefined ? null : (
             <button
               type="button"
-              className="code-block-button"
+              className={CODE_BLOCK_BUTTON}
               onClick={() => {
                 onInsert(code)
               }}
@@ -70,7 +72,7 @@ export function CodeBlock({
           {onApply === undefined ? null : (
             <button
               type="button"
-              className="code-block-button"
+              className={CODE_BLOCK_BUTTON}
               onClick={() => {
                 onApply(code)
               }}
@@ -81,11 +83,13 @@ export function CodeBlock({
         </span>
       </div>
       {/* Keyboard users need to reach and scroll long lines, including in share files. */}
-      <pre className="code-block-body" tabIndex={0}>
-        {html === undefined ? (
+      <pre className="code-block-body chat-control" tabIndex={0}>
+        {isOpen || resolved === undefined ? (
           <code className="hljs">{code}</code>
         ) : (
-          <code className="hljs" dangerouslySetInnerHTML={html} />
+          <Suspense fallback={<code className="hljs">{code}</code>}>
+            <HighlightedCode code={code} language={resolved} />
+          </Suspense>
         )}
       </pre>
     </div>

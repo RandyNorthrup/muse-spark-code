@@ -1,0 +1,9 @@
+{
+  "cwd": "<workspace>",
+  "hook_event_name": "SessionStart",
+  "model": "echo",
+  "permission_mode": "default",
+  "session_id": "01a10858-e524-7e21-9110-3d5e657d5582",
+  "source": "startup",
+  "transcript_path": null
+}

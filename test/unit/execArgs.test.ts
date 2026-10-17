@@ -1,9 +1,57 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { parseExec, serveOptionsFor } from '../../src/runtime/exec/execArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { UI_TEXT } from '../../src/shared/constants'
 
 describe('M80 args (A1–A10, F1)', () => {
+  it('shares the automatic compaction opt-out between ACP and headless', () => {
+    expect(parseCommandLine(['--no-auto-compaction'])).toMatchObject({
+      command: 'serve',
+      options: { autoCompaction: false },
+    })
+    const parsed = parseExec({ 'no-auto-compaction': true }, ['hi'])
+    if (!parsed.ok) throw new Error(parsed.reason)
+    expect(serveOptionsFor(parsed.options).autoCompaction).toBe(false)
+    expect(parseCommandLine(['exec', '--no-auto-compaction', 'hi'])).toMatchObject({
+      command: 'exec',
+      options: { autoCompaction: false },
+    })
+  })
+  it('M106 accepts a schema file only on the bounded Model API path and omits the unused option', () => {
+    const values = { backend: 'modelApi', 'max-budget-usd': '1' }
+    const plain = parseExec(values, ['task'])
+    expect(plain.ok && Object.hasOwn(plain.options, 'outputSchema')).toBe(false)
+    expect(parseExec({ ...values, 'output-schema': 'answer.json' }, ['task'])).toMatchObject({
+      ok: true,
+      options: { outputSchema: 'answer.json' },
+    })
+    for (const outputSchema of ['', true, ['schema.json']])
+      expect(parseExec({ ...values, 'output-schema': outputSchema }, ['task']).ok).toBe(false)
+    expect(parseExec({ 'output-schema': 'answer.json' }, ['task'])).toEqual({
+      ok: false,
+      reason: UI_TEXT.execModelApiOnly,
+    })
+  })
+  it('requires the outside-schema flag to be explicit and paired with a Model API schema', () => {
+    const values = {
+      backend: 'modelApi',
+      'max-budget-usd': '1',
+      'output-schema': 'answer.json',
+      'output-schema-outside': true,
+    }
+    expect(parseExec(values, ['task'])).toMatchObject({
+      ok: true,
+      options: { outputSchema: 'answer.json', outputSchemaOutside: true },
+    })
+    expect(parseExec({ 'output-schema-outside': true }, ['task']).ok).toBe(false)
+    expect(
+      parseExec({ backend: 'modelApi', 'max-budget-usd': '1', 'output-schema-outside': true }, [
+        'task',
+      ]).ok,
+    ).toBe(false)
+    expect(parseExec({ ...values, 'output-schema-outside': 'true' }, ['task']).ok).toBe(false)
+  })
   it('A1 keeps safe Muse Code defaults and projects an untrusted serve session', () => {
     const parsed = parseExec({}, ['hi'])
     expect(parsed.ok).toBe(true)
@@ -65,8 +113,9 @@ describe('M80 args (A1–A10, F1)', () => {
     ['0001.000001', 1_000_001],
   ])('F1 parses %s directly into exact micro-USD', (value, units) => {
     const parsed = parseExec({ backend: 'modelApi', 'max-budget-usd': value }, ['hi'])
-    expect(parsed.ok && parsed.options.budgetMicroUsd).toBe(units)
-    expect(parsed.ok && parsed.options.budgetUsd).toBe(units / 1e6)
+    if (!parsed.ok || parsed.options.budgetUsd === undefined) throw new Error('budget was refused')
+    expect(Usd.from(parsed.options.budgetUsd).units(6)).toBe(BigInt(units))
+    expect(parsed.options.budgetUsd).toBe(Usd.from(value).toAmount())
   })
   it.each([
     { 'trust-workspace': true },
@@ -121,7 +170,7 @@ describe('M80 args (A1–A10, F1)', () => {
       paidFeatures: ['imageGeneration'],
       timeoutMs: 10_000,
       maxRequests: 1,
-      budgetMicroUsd: 2_000_000,
+      budgetUsd: Usd.from('2').toAmount(),
     })
     expect(parseExec({}, ['-'])).toMatchObject({ ok: true, options: { prompt: { kind: 'stdin' } } })
   })

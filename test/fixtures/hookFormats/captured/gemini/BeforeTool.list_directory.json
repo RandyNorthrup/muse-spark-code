@@ -1,0 +1,11 @@
+{
+  "session_id": "session-0002",
+  "transcript_path": "/home/user/.gemini/tmp/workspace/chats/session-0002.jsonl",
+  "cwd": "/workspace",
+  "hook_event_name": "BeforeTool",
+  "timestamp": "2026-10-05T02:43:29.798Z",
+  "tool_name": "list_directory",
+  "tool_input": {
+    "dir_path": "."
+  }
+}

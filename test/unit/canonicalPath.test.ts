@@ -2,6 +2,7 @@
 // file system: a junction (Windows, no privilege needed) or a symbolic link
 // (elsewhere) inside a temporary folder, pointing outside it.
 
+import { spawnSync } from 'node:child_process'
 import { realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -30,6 +31,22 @@ describe('canonicalPath', () => {
   it('returns an existing path as the file system names it', async () => {
     await expect(canonicalPath(path.join(paths.root, 'src'))).resolves.toBe(
       path.join(paths.root, 'src'),
+    )
+  })
+
+  it('expands a Windows short alias before appending an existing or missing tail', async () => {
+    const short =
+      process.platform === 'win32'
+        ? spawnSync('cmd.exe', ['/d', '/c', `for %I in ("${paths.root}") do @echo %~sI`], {
+            encoding: 'utf8',
+            windowsVerbatimArguments: true,
+          })
+        : undefined
+    if (short !== undefined) expect(short.status).toBe(0)
+    const root = short?.stdout.trim() ?? paths.root
+    await expect(canonicalPath(path.join(root, 'src'))).resolves.toBe(path.join(paths.root, 'src'))
+    await expect(canonicalPath(path.join(root, 'src', 'new', 'a.ts'))).resolves.toBe(
+      path.join(paths.root, 'src', 'new', 'a.ts'),
     )
   })
 

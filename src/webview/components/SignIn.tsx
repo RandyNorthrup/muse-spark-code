@@ -25,7 +25,7 @@ export interface SignInProps {
   readonly onOpenExternal: (url: string) => void
 }
 
-const ALL_METHODS: readonly SignInMethod[] = ['browser', 'apiKey']
+const ALL_METHODS: readonly SignInMethod[] = ['browser', 'apiKey', 'byo']
 
 export function SignIn({
   status,
@@ -57,11 +57,16 @@ export function SignIn({
   }, [confirmInstall, onInstallConfirmationChange, status])
   const hasBrowser = methods.includes('browser')
   const hasApiKey = methods.includes('apiKey')
+  const hasByo = methods.includes('byo')
+  // With no backend set up the three choices rank equally: the same button
+  // style, in a stack, with Muse not presumed (M95, PLAN.md D74).
+  const isEqualChoice = hasBrowser && hasApiKey && hasByo
+  const primaryClass = 'button-primary'
   const apiKeyButton = hasApiKey ? (
     <>
       <button
         type="button"
-        className="button-secondary"
+        className={isEqualChoice ? primaryClass : 'button-secondary'}
         onClick={() => {
           onSignIn('apiKey')
         }}
@@ -69,6 +74,20 @@ export function SignIn({
         {UI_TEXT.signInApiKey}
       </button>
       <p className="gate-hint">{UI_TEXT.signInApiKeyDetail}</p>
+    </>
+  ) : null
+  const byoButton = hasByo ? (
+    <>
+      <button
+        type="button"
+        className={isEqualChoice ? primaryClass : 'button-secondary'}
+        onClick={() => {
+          onSignIn('byo')
+        }}
+      >
+        {UI_TEXT.startWithOwnModel}
+      </button>
+      <p className="gate-hint">{UI_TEXT.startWithOwnModelDetail}</p>
     </>
   ) : null
 
@@ -158,6 +177,7 @@ export function SignIn({
             </button>
           ) : null}
           {status === 'noCli' ? apiKeyButton : null}
+          {status === 'noCli' ? byoButton : null}
         </div>
       </section>
     )
@@ -211,7 +231,7 @@ export function SignIn({
           <>
             <button
               type="button"
-              className="button-primary"
+              className={isEqualChoice ? primaryClass : 'button-primary'}
               onClick={() => {
                 onSignIn('browser')
               }}
@@ -222,6 +242,7 @@ export function SignIn({
           </>
         ) : null}
         {apiKeyButton}
+        {byoButton}
         {status === 'error' ? (
           <button type="button" className="button-secondary" onClick={onRetry}>
             {UI_TEXT.retryAction}

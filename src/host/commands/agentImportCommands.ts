@@ -31,7 +31,7 @@ import {
   scanAgentImports,
 } from '../../core/import/agentImport'
 import { isSamePath } from '../../core/paths'
-import { confineWorkspacePath } from '../../core/workspacePath'
+import { confineWorkspacePath, resolveWorkspacePath } from '../../core/workspacePath'
 import { pathModule } from '../../core/workspaceRoot'
 import {
   AGENT_IMPORT_ROOT_CHANGED_CODE,
@@ -82,6 +82,14 @@ export interface AgentImportPickItem {
 }
 
 export interface AgentImportDeps extends Omit<ImportScanInput, 'sources'> {
+  /**
+   * Whether this window is held on someone else's pull request (M71): when
+   * held, project reads and writes are refused with the held-worktree text
+   * even while VS Code trusts the folder. `isWorkspaceTrusted` carries the
+   * combined project trust (trusted and not held); user-scope imports never
+   * consult either predicate.
+   */
+  readonly isProjectHeld?: () => boolean
   /** Muse Code's settings file where `muse serve` reads it; its folder holds the personal skills. */
   readonly museSettingsFile: string
   /**
@@ -136,7 +144,14 @@ export interface AgentImportDeps extends Omit<ImportScanInput, 'sources'> {
 /** What the VS Code side supplies; the import's own file access and gate come with its bundle. */
 export type AgentImportHost = Omit<
   AgentImportDeps,
-  'io' | 'writer' | 'isPresent' | 'gate' | 'claudeConfigDir' | 'codexHome'
+  | 'io'
+  | 'writer'
+  | 'isPresent'
+  | 'gate'
+  | 'claudeConfigDir'
+  | 'codexHome'
+  | 'copilotHome'
+  | 'xdgConfigHome'
 > & {
   /** The extension host's environment: the tools' own folder variables are read from it inside the bundle. */
   readonly environment: Readonly<Record<string, string | undefined>>
@@ -148,6 +163,15 @@ const SENTENCE_SEPARATOR = ' '
 const PREVIEW_EXTENSION = '.md'
 const LOG_PREFIX = 'Import from other agents:'
 
+/**
+ * What a project-scope refusal shows: the held-worktree text while the
+ * window is held on someone else's pull request (M71), else the untrusted
+ * workspace text. User-scope imports never reach this helper.
+ */
+function projectTrustRefusal(deps: AgentImportDeps): string {
+  return deps.isProjectHeld?.() === true ? UI_TEXT.worktreeHeldShell : UI_TEXT.agentImportUntrusted
+}
+
 function sourceLabel(source: AgentImportSource): string {
   switch (source) {
     case 'claudeCode': {
@@ -158,6 +182,27 @@ function sourceLabel(source: AgentImportSource): string {
     }
     case 'cursor': {
       return UI_TEXT.agentImportSourceCursor
+    }
+    case 'gemini': {
+      return UI_TEXT.agentImportSourceGemini
+    }
+    case 'copilot': {
+      return UI_TEXT.agentImportSourceCopilot
+    }
+    case 'windsurf': {
+      return UI_TEXT.agentImportSourceWindsurf
+    }
+    case 'kiro': {
+      return UI_TEXT.agentImportSourceKiro
+    }
+    case 'cline': {
+      return UI_TEXT.agentImportSourceCline
+    }
+    case 'amp': {
+      return UI_TEXT.agentImportSourceAmp
+    }
+    case 'opencode': {
+      return UI_TEXT.agentImportSourceOpenCode
     }
   }
 }
@@ -226,11 +271,40 @@ function reasonLabel(reason: ImportSkipReason): string {
     case 'ignoredToTracked': {
       return UI_TEXT.agentImportIgnoredToTracked
     }
+    case 'weaker': {
+      return UI_TEXT.agentImportSkippedWeaker
+    }
+    case 'chooses': {
+      return UI_TEXT.agentImportSkippedChooses
+    }
+    case 'field': {
+      // The field arrives separately: `skipReasonText` fills it in.
+      return UI_TEXT.agentImportSkippedField
+    }
+    case 'needsMatcher': {
+      return UI_TEXT.agentImportSkippedNeedsMatcher
+    }
+    case 'unknownFormat': {
+      return UI_TEXT.agentImportSkippedUnknownFormat
+    }
+    case 'keptWaiting': {
+      return UI_TEXT.agentImportKeptWaiting
+    }
+    case 'notify': {
+      return UI_TEXT.agentImportSkippedNotify
+    }
   }
 }
 
+/** A refusal in the user's language; `field` names the refusing field when there is one. */
+function skipReasonText(reason: ImportSkipReason, field?: string): string {
+  return reason === 'field'
+    ? fill(UI_TEXT.agentImportSkippedField, { field: field ?? '' })
+    : reasonLabel(reason)
+}
+
 function skipLabel(skip: ImportSkip): string {
-  return reasonLabel(skip.reason)
+  return skipReasonText(skip.reason, skip.field)
 }
 
 /** Undefined for a source outside home and workspace (or unclassified): its refusal says why. */
@@ -256,7 +330,7 @@ function pickItemOf(candidate: ImportCandidate): AgentImportPickItem {
   const { target } = candidate
   let why: string | undefined
   if (target.kind === 'none') {
-    why = reasonLabel(target.reason)
+    why = skipReasonText(target.reason, target.field)
   }
   return {
     id: candidate.id,
@@ -288,6 +362,7 @@ function previewMarkdown(
       const candidate = byId.get(id)
       if (candidate === undefined) continue
       blocks.push(`- ${candidate.label} (${describeCandidate(candidate)})`)
+      if (candidate.previewNote !== undefined) blocks.push(candidate.previewNote)
       if (candidate.dropped.length > 0)
         blocks.push(
           fill(UI_TEXT.agentImportPreviewDropped, {
@@ -301,7 +376,7 @@ function previewMarkdown(
     const candidate = byId.get(skipped.candidateId)
     if (candidate !== undefined)
       blocks.push(
-        `- ${candidate.label} (${describeCandidate(candidate)}): ${reasonLabel(skipped.reason)}`,
+        `- ${candidate.label} (${describeCandidate(candidate)}): ${skipReasonText(skipped.reason, skipped.field)}`,
       )
   }
   return `${blocks.join('\n\n')}\n`
@@ -346,19 +421,39 @@ async function readPlanFile(
   project: ImportProjectRoot | undefined,
   isProject: boolean,
 ): Promise<ImportPlanFile> {
-  if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {
+  // A personal settings spelling can resolve into any open project (XDG
+  // roots and links included). Classify before reading, without Git metadata.
+  let isProjectFile = isProject
+  if (!isProjectFile) {
+    try {
+      const file = await deps.io.realPath(absolutePath)
+      const roots =
+        deps.workspaceRoots?.() ?? (deps.workspaceRoot === undefined ? [] : [deps.workspaceRoot])
+      for (const root of roots) {
+        const canonical = await deps.io.realPath(root)
+        if (resolveWorkspacePath(canonical, file, deps.platform).ok) {
+          isProjectFile = true
+          break
+        }
+      }
+    } catch {
+      deps.log.warn(`${LOG_PREFIX}  could not be resolved (failed)`)
+      return { status: 'unreadable' }
+    }
+  }
+  if (!deps.isActive() || (isProjectFile && !deps.isWorkspaceTrusted())) {
     return { status: 'outside' }
   }
-  if (isProject && (await projectStanding(deps, absolutePath, project)) !== 'inside') {
+  if (isProjectFile && (await projectStanding(deps, absolutePath, project)) !== 'inside') {
     deps.log.warn(`${LOG_PREFIX}  is unsafe or outside the workspace`)
     return { status: 'outside' }
   }
-  if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {
+  if (!deps.isActive() || (isProjectFile && !deps.isWorkspaceTrusted())) {
     return { status: 'outside' }
   }
   let read: ImportRead
   try {
-    read = await deps.io.readFile(absolutePath, maxBytes, isProject ? project?.path : undefined)
+    read = await deps.io.readFile(absolutePath, maxBytes, isProjectFile ? project?.path : undefined)
   } catch {
     deps.log.warn(`${LOG_PREFIX}  could not be read (failed)`)
     return { status: 'unreadable' }
@@ -475,7 +570,7 @@ async function isCopyTargetSafe(
   }
   if (!copy.isProject) return deps.isActive() && (await isExposureSafe())
   if (!deps.isWorkspaceTrusted()) {
-    deps.showWarning(UI_TEXT.agentImportUntrusted)
+    deps.showWarning(projectTrustRefusal(deps))
     return false
   }
   const standing =
@@ -487,7 +582,7 @@ async function isCopyTargetSafe(
       return false
     }
     if (!deps.isWorkspaceTrusted()) {
-      deps.showWarning(UI_TEXT.agentImportUntrusted)
+      deps.showWarning(projectTrustRefusal(deps))
       return false
     }
     return await isExposureSafe()
@@ -581,7 +676,7 @@ async function planFor(
         deps,
         deps.museSettingsFile,
         HOOK_CONFIG_MAX_BYTES,
-        undefined,
+        project,
         false,
       ),
       hooksFile: await hooksFileState(deps, hooksFile, project),
@@ -589,10 +684,10 @@ async function planFor(
   )
 }
 
-/** The import's guard: the window is live, and a project write also needs a trusted workspace. */
+/** The import's guard: the window is live, and a project write also needs project trust (M71). */
 function requireLive(deps: AgentImportDeps, isProject: boolean): void {
   if (!deps.isActive() || (isProject && !deps.isWorkspaceTrusted())) {
-    throw Object.assign(new Error(UI_TEXT.agentImportUntrusted), { code: 'EPERM' })
+    throw Object.assign(new Error(projectTrustRefusal(deps)), { code: 'EPERM' })
   }
 }
 
@@ -730,7 +825,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
   }
   const isTrusted = deps.isWorkspaceTrusted()
   if (!isTrusted && deps.workspaceRoot !== undefined) {
-    deps.showWarning(UI_TEXT.agentImportUntrusted)
+    deps.showWarning(projectTrustRefusal(deps))
   }
   const scan = await scanAgentImports({
     io: deps.io,
@@ -738,6 +833,8 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     homeDir: deps.homeDir,
     claudeConfigDir: deps.claudeConfigDir,
     codexHome: deps.codexHome,
+    copilotHome: deps.copilotHome,
+    xdgConfigHome: deps.xdgConfigHome,
     workspaceRoot: deps.workspaceRoot,
     ...(deps.workspaceRoots !== undefined && { workspaceRoots: deps.workspaceRoots }),
     isWorkspaceTrusted: deps.isWorkspaceTrusted,
@@ -755,7 +852,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     deps.showInformation(
       [
         fill(UI_TEXT.agentImportNothing, {
-          source: choice === 'all' ? UI_TEXT.agentImportSourceAll : sourceLabel(choice),
+          source: choice === 'all' ? UI_TEXT.agentImportSourceEvery : sourceLabel(choice),
         }),
         ...(hasSkippedFiles ? [UI_TEXT.agentImportSkippedFiles] : []),
       ].join(SENTENCE_SEPARATOR),
@@ -798,7 +895,7 @@ async function runImport(deps: AgentImportDeps): Promise<void> {
     !deps.isWorkspaceTrusted() &&
     (plan.writes.some((write) => write.isProject) || plan.copies.some((copy) => copy.isProject))
   ) {
-    deps.showWarning(UI_TEXT.agentImportUntrusted)
+    deps.showWarning(projectTrustRefusal(deps))
     deps.log.info(`${LOG_PREFIX} workspace trust changed; the accepted import was not applied`)
     return
   }

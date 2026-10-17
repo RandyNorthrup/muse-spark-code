@@ -1,0 +1,294 @@
+{
+  "implementationCommit": "091a5ba8ef0d6636d836f0330891f57449a6943e",
+  "rig": "Kubuntu",
+  "node": "24.18.0",
+  "tests": [
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceKeyboardTruth.test.tsx",
+        "test/unit/Composer.test.tsx",
+        "test/unit/PopoverMenu.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 10.87,
+      "passedTests": 86,
+      "passedFiles": 3,
+      "rig": "Kubuntu"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/Palette.test.tsx",
+        "test/unit/Modal.test.tsx",
+        "test/unit/GooeyMenu.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 3.96,
+      "passedTests": 32,
+      "passedFiles": 3,
+      "rig": "Kubuntu"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/HistoryDialog.test.tsx",
+        "test/unit/SessionBoardDialog.test.tsx",
+        "test/unit/AgentMap.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 3.25,
+      "passedTests": 29,
+      "passedFiles": 3,
+      "rig": "Kubuntu"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/GoalPanel.test.tsx",
+        "test/unit/elicitationCard.test.tsx",
+        "test/unit/DeferredSurface.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 3.17,
+      "passedTests": 19,
+      "passedFiles": 3,
+      "rig": "Kubuntu"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/BestOfNDialog.test.tsx",
+        "test/unit/toolRows.test.tsx",
+        "test/unit/backgroundRows.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 3.7,
+      "passedTests": 49,
+      "passedFiles": 3,
+      "rig": "Kubuntu"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/paidFeatures.test.ts",
+        "test/unit/paidConsent.test.ts",
+        "test/unit/paidHost.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 1.54,
+      "passedTests": 83,
+      "passedFiles": 3,
+      "rig": "Kubuntu"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/acpRuntime.test.ts",
+        "test/unit/acpAgent.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 7.2,
+      "passedTests": 132,
+      "passedFiles": 2,
+      "rig": "Kubuntu"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/deferredBundles.test.ts",
+        "test/unit/webviewBundle.test.mjs",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 6.86,
+      "passedTests": 36,
+      "passedFiles": 2,
+      "rig": "Kubuntu"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceGenerator.test.mjs",
+        "test/unit/referenceEntry.test.ts",
+        "test/unit/ReferencePage.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exit": 0,
+      "seconds": 31.95,
+      "passedTests": 75,
+      "passedFiles": 3,
+      "rig": "Kubuntu",
+      "logNote": "Repeated after final resolver, encoding and keyboard-inventory edits: 75 passed."
+    }
+  ],
+  "distinctPassedTests": 541,
+  "distinctPassedFiles": 25,
+  "redDrills": 19,
+  "staticChecks": [
+    {
+      "name": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "summary": "All five projects: host, webview, unit, e2e, integration."
+    },
+    {
+      "name": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 3.31,
+      "summary": []
+    },
+    {
+      "name": "duplication",
+      "command": ["npx", "jscpd"],
+      "exit": 0,
+      "seconds": 1.09,
+      "summary": ["\u001b[90mNo duplicates found.\u001b[39m", "\u001b[90mFound 0 clones.\u001b[39m"]
+    },
+    {
+      "name": "localization",
+      "command": ["node", "scripts/check-l10n.mjs"],
+      "exit": 0,
+      "seconds": 2.25,
+      "summary": ["l10n: 14 tables, 165 manifest strings, 602 source files; 0 problems"]
+    },
+    {
+      "name": "reference",
+      "command": ["node", "scripts/gen-reference.mjs", "--check"],
+      "exit": 0,
+      "seconds": 2.05,
+      "summary": ["Reference: 52 features, 44 commands, 58 settings, 26 slash, 116 CLI; current"]
+    },
+    {
+      "name": "host-api",
+      "command": ["node", "scripts/check-host-api.mjs"],
+      "exit": 0,
+      "seconds": 16.51,
+      "summary": [
+        "host-api: 332 VS Code APIs, 31 files importing vscode, 25 Node built-ins, 61 theme variables; 0 problem(s)"
+      ]
+    },
+    {
+      "name": "eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "scripts/lib/reference.mjs",
+        "test/unit/referenceGenerator.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 3.01,
+      "summary": []
+    },
+    {
+      "name": "prettier",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "PLAN.md",
+        "docs/certification/help-reference.md",
+        "docs/certification/help-reference/redhelpref-drills.json",
+        "docs/certification/help-reference/redhelpref-validation.json",
+        "scripts/lib/reference.mjs",
+        "test/unit/referenceGenerator.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 5.9,
+      "summary": ["All matched files use Prettier code style!"]
+    },
+    {
+      "name": "build",
+      "command": ["npm", "run", "build"],
+      "exit": 0,
+      "seconds": 5.7,
+      "summary": [
+        "ok   dist/extension.js: 437.8 KiB (budget 600 KiB)",
+        "ok   dist/modelApi.js: 446.6 KiB (budget 475 KiB)",
+        "ok   dist/review.js: 29.0 KiB (budget 50 KiB)",
+        "ok   dist/foreignHooks.js: 69.2 KiB (budget 100 KiB)",
+        "ok   dist/hookRuntime.js: 43.0 KiB (budget 50 KiB)",
+        "ok   dist/pluginHooks.js: 34.1 KiB (budget 50 KiB)",
+        "ok   dist/browserRuntime.js: 19.3 KiB (budget 50 KiB)",
+        "ok   dist/bundledSkills.js: 14.7 KiB (budget 50 KiB)",
+        "ok   dist/codeIntel.js: 39.1 KiB (budget 100 KiB)",
+        "ok   dist/voice.js: 18.9 KiB (budget 50 KiB)",
+        "ok   dist/whatsNew.js: 18.6 KiB (budget 50 KiB)",
+        "ok   dist/judge.js: 47.0 KiB (budget 100 KiB)",
+        "ok   dist/validation.js: 39.8 KiB (budget 50 KiB)",
+        "ok   dist/wire.js: 40.8 KiB (budget 50 KiB)",
+        "ok   dist/searchWorker.js: 4.9 KiB (budget 50 KiB)",
+        "ok   dist/webview/referencePage.js: 33.8 KiB (budget 50 KiB)",
+        "ok   dist/reference.js: 97.8 KiB (budget 100 KiB)",
+        "ok   dist/acp.js: 820.0 KiB (budget 850 KiB)",
+        "ok   dist/webview deferred JS: 49.8 KiB (budget 50 KiB)"
+      ]
+    }
+  ],
+  "limits": {
+    "fullQuality": "Not run: forbidden by rig brief",
+    "liveOrPaidCalls": 0,
+    "credentialReads": 0,
+    "nativeOrPhoneIntegration": "Not certified"
+  },
+  "hooks": {
+    "implementationCommit": "091a5ba8ef0d6636d836f0330891f57449a6943e",
+    "lintStagedConcurrency": 1,
+    "sourceFiles": 38,
+    "documentFiles": 20,
+    "eslint": 0,
+    "prettier": 0,
+    "gitleaks": 0,
+    "gitleaksResult": "No leaks found."
+  },
+  "buildKiB": {
+    "extension": 437.8,
+    "modelApi": 446.6,
+    "referenceNode": 97.8,
+    "referencePage": 33.8,
+    "deferredWebviewJs": 49.8,
+    "acp": 820.0
+  },
+  "drillAssertions": {
+    "count": 19,
+    "allNonzero": true,
+    "allNamedDiagnostics": true,
+    "allRestoredSha256": true
+  }
+}

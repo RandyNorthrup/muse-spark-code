@@ -19,6 +19,33 @@ extension loaded; `npm run watch` rebuilds on save. The Muse Code CLI and a
 Meta Model API key are optional: the unit tests run against fakes, and the
 sign-in gate explains what is missing.
 
+New UI surfaces ship in their own lazy chunks, loaded on first use, with
+accessible loading, an honest failure and retry, and a measured budget of their
+own (D6). Keep startup and the original deferred aggregate for first paint and
+retain their existing caps; chat, composer and approvals remain eager.
+
+## Design tokens and visual changes
+
+Read [the token contract](design/tokens/README.md). Edit only
+`design/tokens/muse.tokens.json`, then run `npm run build:tokens` and
+`npm run check:tokens`. Generated CSS is not hand edited. Colours belong
+only in that source: stylelint and ESLint reject raw paint elsewhere. Use
+`--ms-radius-xs/sm/md/lg/xl/pill` and the flat/raised/popover/overlay elevation
+scale; host colours and fonts come through the mapped roles. High contrast
+must remain opaque and shadowless, with contrast borders. Never blur a control.
+Use the 120/180/240 ms motion tokens only for meaningful changes, inside
+`prefers-reduced-motion: no-preference`; streamed text stays still.
+
+A UI change gets one small local look: `npm run ui:look -- <scene>`
+renders that scene from the built webview into `temp/ui-look/`, in the
+light and dark themes unless `--theme` names one. No baseline, no
+comparison, no CI. There are no screenshot runs anywhere in the pipeline.
+Look at both pictures yourself and put them into the change's
+certification record: a green CI says nothing about how a screen looks.
+
+README media comes only from the existing curated `scripts/readme-shots.mjs`
+list (2 MiB total budget, banner included).
+
 ## Before you open a pull request
 
 Use this order for a candidate branch:
@@ -26,18 +53,24 @@ Use this order for a candidate branch:
 1. Integrate the planned milestones onto the current `main` in order. Resolve
    conflicts and stage the candidate with no unstaged changes. Record its
    `git write-tree` hash.
-2. Run `npm ci` and `npm run quality` on that exact staged tree. Hosted CI
-   is the platform gate: the merge queue runs every OS once on the commit
-   that lands, so the maintainer's Mac mini, Kubuntu VM and Windows 11 VM
-   serve targeted runs and reproductions only (the affected real
-   filesystem, process and packaging paths, temporary-directory aliases and
-   Windows short names), never a full suite before each push. Record the
-   tree hash, OS and tool versions, commands and process exit codes of any
-   such run.
+2. Run `npm ci` and the fast local checks on that exact staged tree: format,
+   lint, typecheck, the suites you touched and the packed product itself
+   (its commands, its help, its errors, its files on disk). Hosted CI is the
+   gate for a release: every job green on the commit that merges. Its full
+   tier runs the static gates and the unit tests on three systems and the
+   accessibility and integration gates on Ubuntu (no screenshot runs
+   anywhere), so no complete local
+   `npm run quality` is owed before a push, and the maintainer's Mac mini,
+   Kubuntu VM and Windows 11 VM serve targeted runs and reproductions only
+   (the affected real filesystem, process and packaging paths,
+   temporary-directory aliases and Windows short names). Record the tree
+   hash, OS and tool versions, commands and process exit codes of any such
+   run. A red hosted job is read and its cause measured; it is never rerun
+   into green.
 3. Have an independent agent review the staged diff and acceptance evidence.
    Scan the staged changes for secrets too: local `security:secrets` scans
    committed history, so it cannot see the index before commit. Fix findings,
-   restage, and repeat the full local gate, staged secret scan and affected
+   restage, and repeat the local checks, staged secret scan and affected
    platform checks. Commit only after the final tree passes; verify the
    commit's tree matches the tested `git write-tree` hash.
 4. Push the reviewed commit to its feature branch and open one pull request.
@@ -47,11 +80,11 @@ Use this order for a candidate branch:
    full branch check without a pull request.
 5. Use `gh run watch RUN_ID --exit-status`, then
    `gh run view RUN_ID --json headSha,jobs`. Match `headSha` to the pushed
-   commit and inspect all seven required conclusions. After the PR checks and
+   commit and inspect all five required conclusions. After the PR checks and
    review pass, choose **Merge when ready** (`gh pr merge N --merge`) to put
    the PR in GitHub's merge queue. The `merge_group` event runs the full tier
    once on the merge commit that will become `main`; the queue merges it only
-   if all seven pass, and removes the PR otherwise. Fix failures and repeat
+   if all five pass, and removes the PR otherwise. Fix failures and repeat
    from the exact-tree gate; later branch changes need fresh PR checks and a
    fresh queue entry. Do not merge `main` into a PR just to refresh it: the
    queue tests the combination itself.
@@ -59,17 +92,32 @@ Use this order for a candidate branch:
    independent review, and any unproved platform or live gate to the PR
    proof. A printed success line without the process exit status is not a
    gate result.
+7. Before a release, hold real conversations through the packed product:
+   install the tarball the candidate's build packs (`npm run package:acp`)
+   in an empty folder and, on the cheapest models under a stated spending
+   cap, run one plain turn, one turn with a tool call and an approval, and
+   one long streamed answer, then read `usage` back; the terminal agent and
+   ACP both. State the expected number of calls first and count them
+   afterwards. 0.18.0 shipped a defect that every suite passed.
 
-- Run `npm run quality` and make it green. It runs every gate: formatting,
-  ESLint (zero warnings), stylelint, type checks, dead-code and cycle
-  detection, duplication, unit tests with coverage thresholds, the
+- `npm run quality` runs every local gate in one go, when you want that
+  before a push; it is feedback, not the release record. It leaves out only
+  the VS Code integration tests (`npm run test:integration`, run by
+  `npm run quality:ci` and CI): formatting, ESLint (zero warnings),
+  stylelint, the PowerShell lint, type checks, the localization and host-API
+  checks, dead-code and cycle detection, duplication, unit tests with no coverage gate, the
   production build with bundle budgets and the bundle split, `npm audit`,
   the accessibility gate, secret scanning and semgrep. CI's full tier runs
-  the gates on Ubuntu, Windows and macOS, the complete accessibility gate on
-  Ubuntu and integration tests on Ubuntu and Windows, and gitleaks and
+  the gates on Ubuntu, Windows and macOS, the accessibility gate on Ubuntu
+  except on pull requests, and integration tests on Ubuntu and Windows, and gitleaks and
   semgrep as jobs of their own; the PowerShell lint runs only where Windows
   PowerShell exists, so a green run on one platform is not quite the whole
   set.
+- Tests stand on the built product wherever the behaviour is the product's.
+  A stand-in is allowed for the outside world only (for example a server
+  replaying a recorded exchange), never for our own code.
+- An exact-size assertion may move with the measured number and a one-line
+  reason in the same change; a cap moves only on the owner's word.
 - Add or change tests with the code. A new check must be seen to fail once
   on purpose; the certification records under `docs/certification/`
   show how that is written down.
@@ -86,12 +134,41 @@ Use this order for a candidate branch:
   nobody captured says so in a comment.
 - Update `CHANGELOG.md` (Keep a Changelog, under `Unreleased`), the README
   where behaviour changed, and `docs/PRIVACY.md` when anything new leaves
-  the machine.
+  the machine. A change users should try can add a bullet to the section's
+  `### Highlights` list, which What's New shows after the update (at most 5
+  per release; `docs/RELEASING.md` has the form and the `<!-- try: … -->`
+  button).
+
 - A visible change gets a harness scenario (`test/harness/index.html`, its
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
-  rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
-  `hc-dark` or `hc-light`; `--lang=pseudo` for clipping) and checked with
-  `node scripts/a11y.mjs <names>` in the four themes. The M87 scenarios:
+  rendered with `npm run ui:look -- <names>` (`--theme=dark`, `light`,
+  `hc-dark`, `hc-light`, `one-dark-pro` or `dracula`; `--lang=pseudo` for clipping) and checked with
+  `node scripts/a11y.mjs <names>` in the four themes. Scenes wait with
+  `whenFound`, never fixed delays; nest waits when one control reveals the
+  next. Keep `later` (and the fake host's `hostLater`) only for intentional
+  host-event timing or readiness polling, with a `// kept-timing: <reason>`
+  comment immediately before it.
+  The source guard in `test/unit/harnessWaits.test.ts` checks every timer,
+  including DOM work through helpers. Axe waits for outstanding control
+  waits before scanning. A scene a test waits on must schedule all of its
+  work through the counted helpers (`later`, `whenFound`,
+  `whenEvent(target, type, fn)`, `track(promise)`; the fake host uses
+  `hostLater` / `hostTrack`) and call `scenarioDone()` from its final
+  continuation, the last thing it waits for. Only that call sets
+  `<html data-scenario-played="<name>">`, once nothing counted is outstanding.
+  Counted scene work after `scenarioDone()` fails the scene; any counted failure
+  removes the mark for good and records it in `<html data-scenario-failed>`. A
+  scene that others reuse keeps its steps in a fixture and calls
+  `scenarioDone()` only in its own entry. Such scenes are listed in
+  `PLAYED_SCENARIOS` (`scripts/lib/harnessServer.mjs`). For each, a browser
+  test verifies the ordering (marked once, at its own end), a quiet window
+  with no logged move after the mark, no page or console error, and no mark
+  when its final step fails. Work started outside the helpers (raw timers,
+  detached promises) is not detected; keeping it out of scenes is a
+  code-review rule for scene authors, not something the harness proves. A
+  browser test starts the deadline for what the scene renders
+  at that mark, not at page load (`test/unit/teamHarness.test.mjs`). The M87
+  scenarios:
   `context-meter`, `context-meter-warning`, `context-meter-full`,
   `palette-tips`, `slash-tips`, `stop-running`, `tool-io`,
   `tool-io-expanded`, `status-heartbeat`, `status-heartbeat-narrow`,
@@ -116,37 +193,48 @@ Use this order for a candidate branch:
 - No new dependency without a reason in the pull request and a
   compatibility check; no suppressed lint rule or `any` without an inline
   reason and a row in PLAN.md §8.
+- A test or script that cites `PLAN.md`, `README.md` or `CHANGELOG.md` names
+  a heading and quotes a phrase from under it
+  (`test/unit/helpers/planCitation.ts`), never a line number. Every branch
+  moves the lines; the phrase must be found exactly once, under that
+  heading, or the check fails.
 - Keep secrets out: the pre-commit hook runs gitleaks, and nothing in the
   repository may contain a real credential.
 - The pre-commit hook runs staged lint and format tasks serially to limit
   concurrent child processes on a developer's machine. It still runs every
   configured check.
+- `npm run prepare` (run by `npm ci`) installs the hooks through
+  `scripts/install-git-hooks.mjs`: husky, then stubs that keep a failing
+  hook's status even when nothing reads Git's output any more (on Windows a
+  broken pipe used to turn a failed hook into a pass). Run it once in every
+  new worktree; the pre-commit hook refuses to run on husky's bare stubs and
+  says so.
 - `main` is protected: changes land through a pull request with the CI
   checks green, it cannot be force-pushed or deleted, and release tags
-  (`v*`) cannot be moved or deleted.
+  (`v*`) cannot be moved or deleted, except by a repository admin (both
+  rulesets let the Admin role bypass them).
 
 ## CI tiers and required checks
 
 `ci.yml` calls `build.yml` with `fast: true` only for a `pull_request` while
 the repository variable `CI_MERGE_QUEUE` is `on`. That tier runs formatting,
 ESLint/stylelint, all five compiler projects, localization, host API, knip,
-cycles, duplication, the production build and its size/split/host-global/
-notices checks, audit, and every unit/process-e2e test on Ubuntu (no
-coverage). Gitleaks and semgrep also run. Expected wall time is at most about
-12 minutes, pending hosted measurement.
+cycles, duplication, token checks, the production build and its size/split/host-global/
+notices checks, audit, and every unit test on Ubuntu. Gitleaks and semgrep
+also run. There is no screenshot run on either tier.
 
 Everything else selects the full tier: `merge_group`, manual dispatch, the
 release workflow's fallback build, and every PR while `CI_MERGE_QUEUE` is not
-`on`. Static gates run on all three OSes. Each OS runs four Vitest shards
-(Windows files stay serial within a shard), uploads blob reports, checks that
-all four arrived, then merges them and enforces the unchanged coverage
-thresholds once per OS. The 448-page a11y harness runs once on Ubuntu against
-the production webview from the static gate; its pages, themes and scenarios
-do not depend on the OS. Linux/Windows VS Code integration, the macOS helper
-and the universal VSIX/ACP package checks remain. Expected wall time is
-roughly 10–15 minutes, pending hosted proof. In a merge group, gitleaks runs
-its pinned CLI (checksum-checked) over every commit the group reaches, since
-the gitleaks action refuses the `merge_group` event.
+`on`. Static gates run on all three OSes. Ubuntu runs four Vitest shards,
+Windows and macOS eight (their files stay serial within a shard); all run
+without a coverage gate. The accessibility harness runs on Ubuntu against
+the production webview from the static gate except on pull requests; its
+pages, themes and scenarios do not depend on the OS. Linux/Windows VS Code
+integration, the macOS helper and the universal VSIX/ACP package checks
+remain. Expected wall time is roughly 10–15 minutes, pending hosted proof.
+In a merge group, gitleaks runs its pinned CLI (checksum-checked) over every
+commit the group reaches, since the gitleaks action refuses the
+`merge_group` event.
 
 The seven required names stay: `build / quality (ubuntu-latest)`,
 `build / quality (windows-latest)`, `build / quality (macos-latest)`,
@@ -170,11 +258,214 @@ and this one belongs to a user account: until the owner decides otherwise,
 PRs keep the full tier. Settings and evidence:
 [`docs/certification/ciflow.md`](docs/certification/ciflow.md).
 
+## The public roadmap (M122)
+
+[`ROADMAP.md`](ROADMAP.md) is generated; never edit it by hand. Its inputs:
+
+- **`PLAN.md`** gives every milestone id and its current status line, read
+  by the same parser as `npm run check:plan`. §10's records decide which
+  changelog versions are still being prepared, and so listed as the next
+  release: each version with an `X.Y.Z preparation (…)` record and no
+  `X.Y.Z released (…)` record, in its own section, oldest first.
+- **`CHANGELOG.md`** gives the releases: every dated `## [X.Y.Z] - date`
+  heading.
+- **`docs/roadmap/entries.json`** gives the words: one entry per PLAN
+  milestone, each with:
+  - `id`, spelled exactly as PLAN.md's heading;
+  - `title`, a few user-facing words;
+  - `summary`, one plain sentence ending with a period, with no milestone,
+    decision or working ids in any case (`M19`, `m19`, `SECWINPATH`; the
+    generator adds the `M…` tag itself);
+  - `area`: one of `chat`, `agents`, `editors`, `models-providers`,
+    `usage-billing`, `security`, `voice-media`, `devices` or `platform`;
+  - `release` (optional), the changelog version that first shipped the
+    milestone's user-facing work;
+  - `labels` (optional): `experimental`, `untested`, `preview` or
+    `not available yet`, used only when PLAN, the changelog or the
+    certification says so.
+
+  Internal or tooling work (release trains, CI repairs, test infrastructure,
+  review-fix rounds, size budgets) is `{ "id": …, "public": false, "note": … }`
+  and is listed in no section. Superseded milestones must be internal.
+
+When you add a milestone, change a status line, ship a release or change a
+user-facing limit, update the entry in the same change and run
+`npm run roadmap:generate`. `npm run check:roadmap` (part of `quality:gates`
+and CI's static gates) fails when `ROADMAP.md` is stale, when a PLAN
+milestone has no entry, when an entry names a milestone PLAN.md does not have,
+and on malformed entries. `ROADMAP.md` carries a fingerprint of every fact it
+is built from (each milestone's id, heading, status and status date, each §10
+record, each changelog heading and every entry, internal notes included), so
+the check also fails after such a change when the listing would read the
+same. The rules live in `scripts/lib/roadmap.mjs`, tested by
+`test/unit/genRoadmap.test.mjs`. It also prints a note for each planned milestone
+whose entry names a release, a sign that its PLAN status line is behind.
+Write for users: no lane, machine, agent or review-round names, no
+credentials, and nothing PLAN or the certification does not support. When
+unsure, say less.
+
+## Archiving closed history from PLAN.md
+
+`PLAN.md` is read whole by `npm run check:plan`, `npm run check:roadmap` and
+`/report`, and their reader refuses a plan over 4 MiB
+(`REPORT_PLAN_MAX_BYTES`). Reaching that bound stops all three at once, in the
+middle of whatever branch added the last paragraph, so `check:plan` fails
+earlier: once the file passes 85% of the bound. When it does, move closed
+history to [`docs/plan-archive/`](docs/plan-archive/) before adding more. What
+moves is kept there byte for byte:
+
+- **`milestones.md`**: sections of closed, released milestones. PLAN.md §6
+  keeps the heading, every status row, the Goal / Depends on / Gates fields,
+  the lane tables and the line `- **Archived.** The full section is in …`.
+  The checklist of a closed section may follow its text into the archive
+  when room is needed (the stub then lists no items in `/report`); a lane
+  table a test reads never does.
+- **`gates.md`**: §7 gate records of lanes that are verified and no longer
+  worked on. One paragraph in §7 says where they went.
+- **`decisions.md`**: the design record of §2 decisions. PLAN.md §2 keeps the
+  heading and one paragraph that states the rule in force and ends with
+  `Full record: …`. It also keeps, in place, every passage an open branch
+  touches with the passages next to it, every passage a test cites, and every
+  live table (budgets, caps, prices, limits, version pins).
+
+What never moves: §3, §8, §9 and §10; a milestone that is not fully released;
+the status rows, fields, checklists and lane tables of unfinished work;
+anything a test or script cites; D3 and D6.
+
+To archive:
+
+1. List what open work touches: each unmerged branch's own `PLAN.md` diff
+   against its merge base. A passage a branch changes or stands next to stays
+   where it is, so that branch still merges without a modify/delete conflict.
+2. Move whole top-level blocks only: a paragraph, a list item with everything
+   indented under it, a table, a whole ordered list. Never part of one.
+3. Put each moved passage in its archive file between
+   `<!-- plan-archive:begin id="…" lines="…" at="…" bytes="…" sha256="…" -->`
+   and `<!-- plan-archive:end id="…" -->`, with one blank line inside each
+   marker (`at` is the commit the line numbers refer to; the first move's
+   blocks carry none). `test/unit/planArchive.test.ts` hashes every block;
+   never edit inside one.
+4. Write each decision's summary from the decision itself, amendments
+   included, and nothing beyond it. Lanes read it first and act on it.
+5. Prove nothing was lost and nothing got harder: rebuild the old `PLAN.md`
+   from the new one plus the archive and compare the bytes; merge every open
+   branch's `PLAN.md` onto the new file and onto the old one, and accept no
+   new and no larger conflict.
+6. Run `npm run check:plan`, `npm run roadmap:generate` (`ROADMAP.md` must not
+   change), `npm run check:reference`, `prettier --check` on `PLAN.md` and
+   the archive files, and the suites that read the plan (`planReader`,
+   `checkPlan`, `planArchive`, `planCitation`, `autoCompact`, `geminiCodec`,
+   `m113cLaneClosure`, `teamPlanRecord`, `paidMoneyStructure`).
+7. Record the bytes before and after, the bytes moved per section and the
+   proofs in [`docs/certification/plan-archive.md`](docs/certification/plan-archive.md).
+
+### The command
+
+`npm run plan:archive` (`scripts/plan-archive.mjs`) does steps 2 and 3 and
+the first proof of step 5, and refuses a move it cannot prove. It works on
+the `PLAN.md` of your checkout, so a lane archives the passages of its own
+branch with it.
+
+```sh
+# Where the plan stands against the bound and the gate; every block's hash.
+npm run plan:archive -- status
+
+# A decision's design record: the summary paragraph stays, with the link.
+npm run plan:archive -- move decisions --heading "D108 — Role preference" \
+  --lines 6120-6230,6240-6300 --summary summary.txt --dry-run
+
+# Lane history or a gate record: one pointer line stays.
+npm run plan:archive -- move gates --heading "0.17.1 gate records" \
+  --lines 39714-39727 --pointer
+
+# A closed milestone that already links to its archive section: nothing stays.
+npm run plan:archive -- move milestones --heading "QPIN — One question card" \
+  --lines 16599-16608 --linked --allow-fact-change
+
+# Several moves in the line numbers of one PLAN.md.
+npm run plan:archive -- move --batch moves.json --dry-run
+```
+
+- `--lines` are 1-based, inclusive ranges of `PLAN.md` as it stands, each a
+  run of whole top-level blocks. A heading never moves.
+- The first range is replaced by the paragraph in `--summary <file>` followed
+  by `Full record: <link>`, by one `- **Archived.**` line (`--pointer`), or by
+  nothing (`--linked`, allowed only where the section already links to the
+  archive file). The blocks go under `## <heading>` in the archive file.
+- `--batch` takes a JSON list such as
+  `[{ "to": "milestones", "heading": "…", "lines": "A-B,C-D", "pointer": true }]`,
+  with `"summary": "…"` or `"linked": true` in place of `"pointer"`.
+- Each block's marker names the commit its `lines` refer to: `HEAD`, or
+  `--at <commit>` for text a merge in progress brought in (the branch's
+  commit). When `PLAN.md` differs from that commit's, every passage is looked
+  up there and must stand in it exactly once.
+- Before anything is written the command rebuilds the old `PLAN.md` from the
+  new one plus the archive files and compares the bytes, and compares what the
+  plan reader parses before and after. Either difference stops it;
+  `--allow-fact-change` accepts the second for a closed milestone whose
+  fields, checklist or lane tables move.
+- `--dry-run` prints the same report (sizes before and after against the
+  bound and the gate, each block's id, lines, bytes and SHA-256, the
+  reassembly result, the parsed facts) and writes nothing.
+
+The command does not look at other branches: step 1 and the merge proof of
+step 5 stay with whoever moves text that open work may touch.
+
+A design record lives in the archive from the day it lands: `PLAN.md` carries
+the rule in force and the link, and a branch that adds a decision moves its
+record with this command in the same change.
+
 ## Style
 
 Prettier and ESLint decide formatting and style; the hooks apply them on
 commit. Comments explain why, not what. Timeouts, limits and other magic
 values are named constants in `src/shared/constants.ts`.
+
+## Questions and the attention dock (M112)
+
+Agent questions are a separate kind of attention prompt: approvals stay first
+and block, while a question defers into the open set after its host-owned
+deadline. MCP elicitation retains its own expiry and has no late-answer path.
+Never send a question answer through an approval handler or let it grant a
+rule, change mode or settle a paid-use permission prompt.
+
+Use the portable contracts in `src/shared/questions.ts` and the shared core
+registry (`src/core/questions/**`, lane Q). ACP's
+`src/acp/questionDeferral.ts` owns the form clock and cooperative withdrawal;
+its injected registry port has no production substitute. A native UI never
+owns the clock. Open questions and queued idle answers belong in owner-only,
+validated per-session storage, deleted with that session. Log ids or fixed
+diagnostics only; report counts, never question text, drafts or answers.
+
+Certify deadline/answer races, Stop and close, replayed deadlines, no-form
+immediate deferral, late steering and durable queue acknowledgement with the
+injected clock and fake client. Break each guard, observe its named test fail,
+restore byte-exact and record the drill. Headless execution declines at once
+with no clock; scheduled/unattended prompts defer at once, even when the
+interactive setting is 0. See [M112's contracts](docs/certification/m112-contracts.md)
+and [lane A's record](docs/certification/m112-a.md) for integration ownership.
+
+## The orchestrator playbook (M116)
+
+Orchestrated work on this repository follows nine rules: eight the team can
+configure (never to off for safety, never above their ceiling) plus the
+safety rule that always applies. A classifier or permission block is never
+retried or rerouted; only the user's pre-named fallback reviewer may take a
+blocked review, and only the user decides otherwise. Dispatch briefs render
+structurally and record their hash first; shared configuration drift reports
+after the job; residuals stay open per milestone until a lead or owner
+accepts them, and release refuses while any are open.
+
+Use the shared contracts in `src/shared/playbook.ts` and the policy in
+`src/core/orchestration/playbook/` (lanes L0/P), the brief and reports in
+`src/core/orchestration/` (lane I), the settings/record surfaces in
+`src/webview/playbook/` (lane U) and `src/runtime/playbook/` (lane W), and
+the reviewer charter in `first-party-skills/orchestrator_playbook/` (lane K).
+User-initiated surfaces stamp actor and time from trusted context; P
+re-checks authority on every change, and an agent-supplied actor never
+grants one. Certify each amendment with a red drill and record it; see
+[the milestone record](docs/certification/m116.md) for what is bound and
+the install checklist that remains.
 
 ## Text the user reads
 
@@ -198,14 +489,32 @@ never a literal in the code:
   does not carry it: one object is carried whole, and `npm run build` fails a
   `MODEL_TEXT` key that no file of `dist/extension.js` reads, a block found in
   a shipped bundle that is not among its declared readers, and a new block
-  that `scripts/check-bundle-split.mjs` does not guard. The Model API and review bundles carry no English table at all
-  (they install the activation bundle's before they run, and `npm run build`
-  fails if one comes back): a lazily loaded bundle that reads `UI_TEXT`
-  must do the same in its factory.
+  that `scripts/check-bundle-split.mjs` does not guard. No checked Node bundle carries the English table itself: each
+  loads the shared `dist/uiText.js`, and `npm run build` fails if one
+  duplicates `en.ts` or stops loading it. Each lazily loaded bundle keeps its
+  own language state, so one that reads `UI_TEXT` must install the caller's
+  table in its factory.
+- **A name one bundle imports from another** exists at run time only if the
+  other bundle's entry exports it. The build points imports of some shared
+  modules at the bundle that carries them (`transport.ts`, `sse.ts` and
+  `ndjson.ts` at `dist/modelApi.js`, whose entry is
+  `src/host/backend/modelApiEntry.ts`; `usdSchema.ts` at
+  `dist/modelApiBoundaries.js`, whose entry is
+  `src/shared/modelApiBoundariesEntry.ts`).
+  TypeScript checks the import against the source module and cannot see a
+  name the entry lacks. `npm run build` reads the built bundles and fails on
+  such a member, and `test/unit/modelApiEntryExports.test.ts` names the file
+  and the import for the Model API bundle. The check follows a loaded bundle
+  to the members read from it, and what it cannot follow fails the build
+  with the form it met, never passes unchecked: keep a sibling's module in a
+  variable, a property or a function that returns it and read its members
+  by name, not passed whole to other code or kept in an object. A load whose
+  file name is worked out at run time has to be listed, with the reason, in
+  `COMPUTED_LOADS` (`scripts/lib/bundleExports.mjs`).
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a
-`UI_TEXT` read at module load. `npm run harness:shots -- --lang=pseudo`
+`UI_TEXT` read at module load. `npm run ui:look -- --lang=pseudo`
 renders the panel in a pseudo-locale where any English left outside the
 table stands out.
 
@@ -221,7 +530,7 @@ there, and the gate compares each form's slots with the English.
 **Correcting a translation.** The translations are machine-made. Edit the
 line in `l10n/ui.<language>.json` or `package.nls.<language>.json`, keeping
 its `{slots}` and code spans. Run `npm run check:l10n` and
-`npm run harness:shots -- --lang=<language>` to see the result.
+`npm run ui:look -- --lang=<language>` to see the result.
 
 - **A value that reads the same as English** (a name, or a word the language
   borrows) goes in `l10n/untranslated.json` under that language.
@@ -260,6 +569,27 @@ the extension-side Node process exits, and `fakeMcpPrebindParent.mjs` checks dea
 helper binds that process. The withheld-GO test's marker must never start.
 The test-owned fixture PIDs must be gone after the suite.
 
+## Hooks from other agents (M91)
+
+A hook imported in another agent's format runs only through lane P's
+adapters (`src/core/backends/modelapi/hookFormats/`, PLAN.md D70), never as a
+native hook:
+
+- Each vendor's contract is a table under `hookFormats/contracts/`, and
+  every row cites its saved source.
+- `hookFormatsContracts.test.ts` proves the engine's invariants over every
+  row; a new row is covered there the moment it exists. Above all, no row
+  produces an allow.
+- The dispatcher's side lives in `hooks.ts` (the import record's checks,
+  `ForeignHookAdapter`) and `foreignHooksEntry.ts` (the source's rules
+  around the run: patterns, triggers, directory, shell, timeouts, loop
+  limits). It is tested in `foreignHooks.test.ts` and, in a running
+  session, in `modelApiForeignHooks.test.ts`.
+- The adapters ship in `dist/foreignHooks.js`. `check-bundle-split.mjs`
+  fails if `dist/modelApi.js` starts carrying them.
+- `modelApiGoldenRequests.test.ts` must stay byte-identical: with hooks
+  off, no change may move a request's bytes.
+
 ## Reporting bugs and proposing features
 
 Use the issue templates. For a bug, run **Muse Spark: Diagnostics** from
@@ -284,6 +614,22 @@ for its proxy and certificates too. Keep every destination check in
 only VS Code can show (the proxy asked for the pinned address) is in
 `test/integration/webFetch.test.ts`, against a loopback proxy.
 
+## Outside contributors: what happens to your pull request
+
+Pull requests from outside the project are vetted before they run or land,
+as [docs/contributor-vetting.md](docs/contributor-vetting.md) sets out:
+
+1. CI on a pull request from a fork waits until a maintainer approves the
+   run, and that happens only after the change has been read.
+2. The public record of the account that opened it (its age, repositories,
+   activity and other pull requests) is checked, and every changed file is
+   read. Workflows, scripts, dependencies, native helpers, binaries and
+   security-sensitive code get the closest reading.
+3. Two independent reviews and a written record under
+   `docs/certification/vetting/` follow, and the owner decides on that pull
+   request himself. Nothing is merged, cherry-picked or copied into the
+   project before he says yes.
+
 ## Licence
 
 By contributing you agree that your contribution is licensed under the MIT
@@ -293,8 +639,8 @@ licence of this repository.
 
 M80 v4 plus F1/F2 rulings assigns A contracts, B engine, C Action and D packaging/
 docs/process/hosts. Implementing lanes run owned focused files serially on rigs;
-the lead runs unchanged `npm run quality` on the exact integrated tree before
-proposing merge, then build.yml, hosts.yml and action-check.yml OS matrices.
+hosted CI gates the exact integrated tree: the build.yml, hosts.yml and
+action-check.yml OS matrices.
 No lane's focused pass certifies integrated behavior or the release.
 
 Focused D command: `npx vitest run test/e2e/execStdio.e2e.test.ts` (on a rig).
@@ -332,3 +678,75 @@ portable root `tmp/`; this is test tooling only, never an npm/product dependency
 or global install. Windows Node tar checks use native System32 bsdtar so drive
 letters are not interpreted as GNU tar remote hosts. A shell startup failure or
 failure to reach the fixture is a failed check, never a proved refusal.
+
+## Tab completion checks (M94)
+
+`test/unit/tab*.test.ts` covers the core, privacy boundaries, spend ledger,
+consent, startup status and localized menus against fakes. The integration
+suite `test/integration/tab.test.ts` loads the dev build's real `dist/tab.js`
+against a loopback fake Model API, then exercises full and word accepts in
+VS Code at the manifest floor and stable. It uses no credential.
+
+The opt-in probe is `test/e2e/tab.live.e2e.test.ts`. Only the lead runs it with
+explicit paid-call authorization: first announce the expected 30 requests,
+count HTTP attempts and usage frames separately, and record the actual cost
+and workspace in `docs/certification/m94.md`. Lane W's validation makes no
+live model calls. The final live check and the real Tab hook drills wait
+for M91/lane K. Every new guard or gate must have an observed failing drill
+and a byte-exact restoration recorded before certification.
+
+The Windows release-shell fixtures use Git Bash's installed path when it
+exists, otherwise Bash from PATH. A missing Bash remains a test failure.
+
+## Portable prompts and sharing
+
+A `.muse-prompt.md` file starts with `---`, one JSON metadata object, and a
+closing `---` on its own line. The remaining body is preserved verbatim,
+including CRLF and trailing spaces. Use `serialisePromptFile` and
+`parsePromptFile` from `src/shared/prompts.ts`; do not implement another
+front-matter parser. Metadata includes schema version, id, title, scope,
+tags, variables, timestamps and the untrusted flag. The strict schema and
+128 KiB reader cap reject malformed or oversized files.
+
+Use the same `PromptStore` and agent data folder on every surface. Personal
+prompts are not keyed by workspace. Loading is insert-only and must never
+submit a model turn. Import requires a complete preview and explicit scope
+confirmation. `buildChatShare` owns the portable chat projection, scrub and
+formats; keep the conversation mode an allow-list. Destination adapters
+receive exact reviewed bytes and recheck policy at their real sinks.
+
+Update `src/shared/featureCatalog.ts` with sharing commands/settings and
+regenerate `docs/sharing-reference.md` using `node scripts/gen-reference.mjs`.
+Run `npm run check:reference`, the owning tests, localization, host API,
+bundle split/size and the sharing accessibility scenes. Certification must
+distinguish fake bridges from mounted editor receipts and name pending M104
+or TUI bindings.
+
+Every new command, setting or feature updates `src/shared/featureCatalog.ts`
+in the same PR (and the shared CLI table for runtime commands). Run
+`npm run reference:generate`, then `npm run check:reference`; the gate rejects
+missing descriptions, invalid relationships and stale generated references.
+
+## Resource delivery checks
+
+M107 keeps policy in `dist/resourceGovernor.js`, shared process admission in
+`dist/resourceAdmission.js`, the governed launcher in `dist/resourceProcess.js`
+(the split gate fails a governor that carries it again), and controls/history
+in independent browser entries. Reuse the injected ports when their owning milestone is absent;
+record its binding rather than supplying a fake production implementation.
+The browser entries share the caller's React and installed-language runtime.
+
+Run the affected complete test files with the repository's ordinary timeout
+and at most three files/workers per rig invocation. New size, split, settings
+and package guards need a deliberate red run and byte-exact restoration in
+the [W record](<docs/certification/m107-w-wiring,-docs-and-gates-(last).md>).
+Hosted CI gates the final candidate. Neither integration handoffs nor a scoped
+lane receipt reduce the release gates.
+
+M106 keeps optional work behind built entry points. The Model API loads code
+intelligence from `dist/modelApiCodeIntel.js` and MCP transport from
+`dist/mcpPool.js`; schema conversion uses `dist/structuredSchema.js`.
+`dist/exec.js` belongs only to the standalone package and its notices inventory.
+Install the caller's language before using a lazy Node factory. New artifacts
+use their measured size plus 15%, rounded up to 25 KiB; the activation, Model
+API, ACP, startup and original deferred caps stay fixed.

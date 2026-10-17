@@ -13,7 +13,7 @@
 //   `iex`, `-EncodedCommand`) never counts as allowed.
 // - The strictest rule that matches wins: forbid, then ask, then allow.
 //
-// D24's session rules ("Allow for this session") stay keyed on the exact
+// D24's session rules ("Allow for This Session") stay keyed on the exact
 // command line; these rules are the user's (or machine's) standing ones.
 
 import {

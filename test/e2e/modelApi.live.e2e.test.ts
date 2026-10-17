@@ -72,10 +72,17 @@ import { memoryDataRoot } from '../../src/core/memory/memoryLocation'
 import { MemoryStore } from '../../src/core/memory/memoryStore'
 import { PaidFeatureGate, PaidUsage } from '../../src/core/paid/paidFeatures'
 import { pdfPageCount } from '../../src/core/pdf'
+import {
+  commitMessageFrom,
+  commitMessagePrompt,
+  pullRequestPrompt,
+  pullRequestTextFrom,
+} from '../../src/core/git/gitText'
 import { planBody } from '../../src/core/plans/planDocument'
 import { listItems } from '../../src/core/plans/planMarkdown'
 import { listWorkspaceFiles } from '../../src/core/eval/workspace'
 import { estimateCostUsd } from '../../src/core/usage/insights'
+import { Usd } from '../../src/shared/usd'
 import type { DictationHandle, DictationListener } from '../../src/core/voice/dictation'
 import { MuseVoiceDictation } from '../../src/core/voice/museVoice'
 import { reviewTurnText } from '../../src/core/review/reviewPrompt'
@@ -91,6 +98,8 @@ import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendMa
 import { museSettingsPath } from '../../src/host/backend/museSettings'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import { processGitRunner } from '../../src/host/git'
+import { ConversationGit } from '../../src/host/git/conversationGit'
+import { fakeGitWindow } from '../unit/helpers/fakeGit'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { createLogger, type Logger } from '../../src/host/logger'
 import { liveFetch } from '../../src/host/networkPosture'
@@ -346,13 +355,15 @@ function tokenUsd(calls: readonly WireCall[]): number {
   let total = 0
   for (const call of calls) {
     if (isBilledResponse(call)) {
-      total += estimateCostUsd(
-        {
-          inputTokens: call.inputTokens,
-          outputTokens: call.outputTokens,
-          cachedTokens: call.cachedTokens,
-        },
-        call.model ?? MODEL_ID,
+      total += Number(
+        estimateCostUsd(
+          {
+            inputTokens: call.inputTokens,
+            outputTokens: call.outputTokens,
+            cachedTokens: call.cachedTokens,
+          },
+          call.model ?? MODEL_ID,
+        ),
       )
     }
   }
@@ -365,7 +376,7 @@ function imagesBought(calls: readonly WireCall[]): number {
 
 /** The running estimate the budget stop reads: tokens and images so far. */
 function spentUsd(): number {
-  return tokenUsd(wire) + imagesBought(wire) * PAID_PRICES_USD.imageGeneration
+  return tokenUsd(wire) + imagesBought(wire) * Number(PAID_PRICES_USD.imageGeneration)
 }
 
 /** The global `fetch` while the sweep runs: Meta's requests counted, anything else passed on. */
@@ -441,9 +452,9 @@ function isClientError(call: WireCall): boolean {
 function caseUsd(calls: readonly WireCall[], tally: PaidTally): number {
   return (
     tokenUsd(calls) +
-    (tally.webSearches / SEARCHES_PER_PRICE_UNIT) * PAID_PRICES_USD.webSearchPerThousand +
-    tally.images * PAID_PRICES_USD.imageGeneration +
-    (tally.voiceSeconds / SECONDS_PER_HOUR) * PAID_PRICES_USD.voicePerHour
+    (tally.webSearches / SEARCHES_PER_PRICE_UNIT) * Number(PAID_PRICES_USD.webSearchPerThousand) +
+    tally.images * Number(PAID_PRICES_USD.imageGeneration) +
+    (tally.voiceSeconds / SECONDS_PER_HOUR) * Number(PAID_PRICES_USD.voicePerHour)
   )
 }
 
@@ -797,14 +808,19 @@ async function openRig(options: RigOptions): Promise<Rig> {
         }),
       promptCacheRetention: () =>
         options.promptCacheRetention ?? SETTING_DEFAULTS.modelApiPromptCacheRetention,
-      sessionBudgetUsd: options.sessionBudgetUsd ?? (() => 0),
+      sessionBudgetUsd: () => Usd.from(options.sessionBudgetUsd?.() ?? 0).toAmount(),
       showReplyUsage: () => false,
       isPaidFeatureOn: (feature) => gate.isOn(feature),
-      notePaidUse: (feature, units) => {
-        usage.add(feature, units)
+      notePaidUse: (feature, units, settlement) => {
+        usage.add(feature, units, settlement)
       },
       // The paid-use popup (M58), answered "Allow once" like every card.
-      allowsPaidUse: (request) => Promise.resolve(gate.isOn(request.feature)),
+      allowsPaidUse: (request) =>
+        Promise.resolve(
+          request.feature === 'webSearch'
+            ? gate.isOn(request.feature) && (request.quote ?? false)
+            : gate.isOn(request.feature),
+        ),
       isPaidUseRemembered: () => false,
       noteSubagentUsage: (modelId, childUsage) => {
         usage.addSubagentUsage(modelId, childUsage)
@@ -996,6 +1012,7 @@ interface LivePanel {
  */
 function livePanel(rig: Rig): LivePanel {
   const allowed: string[] = []
+  const git = fakeGitWindow({ isTrusted: false, isSignedOut: true })
   const surface = fakeSurface('live')
   const holder: { controller?: ConversationController } = {}
   const signedIn: AuthSnapshot = { status: 'signedIn', detail: undefined, backend: 'modelApi' }
@@ -1064,8 +1081,7 @@ function livePanel(rig: Rig): LivePanel {
     insertCode: unreached,
     onSandboxUnavailable: () => undefined,
     platform: process.platform,
-    userProfileDir: undefined,
-    shellSandbox: () => ({ isSandboxed: false, reason: 'setting' }),
+    shellSandbox: () => ({ isSandboxed: false, reason: 'setting', isUnsupportedWorkspace: false }),
     editorContext: () => undefined,
     isAutosaveEnabled: () => false,
     saveAll: () => Promise.resolve(),
@@ -1096,7 +1112,7 @@ function livePanel(rig: Rig): LivePanel {
     isRestorable: false,
     dictation: { isAvailable: false, reason: 'no microphone in the live sweep' },
     museVoice: () => undefined,
-    modelApiSessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    modelApiSessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
     voiceAccountId: () => rig.manager.accountId(),
     ownedVoiceBudgetScope: async (sessionId) => {
       const host = await rig.manager.ensureHost()
@@ -1144,6 +1160,8 @@ function livePanel(rig: Rig): LivePanel {
     }),
     setPaidFeature: unreached,
     isWorkspaceTrusted: () => true,
+    isWorktreeHeld: () => false,
+    createGit: (gitSurface) => new ConversationGit(git.window, gitSurface),
     onForegroundTasksChanged: () => undefined,
     allowsPaidUse: () => Promise.resolve(false),
     forgetPaidUse: unreached,
@@ -2248,6 +2266,64 @@ describe.skipIf(!IS_ENABLED)('live Model API sweep (MUSE_LIVE_MODEL_API=1)', () 
         rig.notes.push(
           `rows ${[...toolsRun(asked), ...toolsRun(stopped)].join(' ')}`,
           `replies ${JSON.stringify(asked.reply)} ${JSON.stringify(resumed.reply)}`,
+        )
+      })
+    },
+    CASE_MS,
+  )
+
+  it(
+    'case21 git drafts: a commit message and a pull request, each as the user’s own turn (M71)',
+    async () => {
+      const name = 'case21 git drafts'
+      await runCase(name, {}, async (rig) => {
+        const driver = await startSession(rig)
+        const commit = await send(driver, [
+          { type: 'text', text: 'Write a commit message for my changes.' },
+          {
+            type: 'text',
+            text: commitMessagePrompt({
+              branch: 'fix/precedence',
+              scope: 'staged',
+              files: ['src/parser.ts'],
+              diff: [
+                'diff --git a/src/parser.ts b/src/parser.ts',
+                '@@ -10,3 +10,3 @@',
+                "-const PRECEDENCE = ['||', '??']",
+                "+const PRECEDENCE = ['??', '||']",
+              ].join('\n'),
+            }),
+          },
+        ])
+        expectCompleted(commit)
+        const message = commitMessageFrom(commit.reply)
+        expect(message).toBeDefined()
+        const subject = message?.split('\n', 1)[0] ?? ''
+        expect(subject.length).toBeGreaterThan(0)
+        expect(subject.length).toBeLessThanOrEqual(72)
+        const pullRequest = await send(driver, [
+          {
+            type: 'text',
+            text: 'Write the title and description of a pull request for this branch.',
+          },
+          {
+            type: 'text',
+            text: pullRequestPrompt({
+              head: 'fix/precedence',
+              base: 'main',
+              commits: ['Parse ?? before || in the precedence table'],
+              files: ['src/parser.ts'],
+            }),
+          },
+        ])
+        expectCompleted(pullRequest)
+        const text = pullRequestTextFrom(pullRequest.reply)
+        expect(text?.title).toBeTruthy()
+        expect(text?.body).toBeTruthy()
+        rig.notes.push(
+          `commit reply ${JSON.stringify(commit.reply)}`,
+          `draft subject ${JSON.stringify(subject)}`,
+          `pull request title ${JSON.stringify(text?.title)} body ${String(text?.body.length)} chars`,
         )
       })
     },

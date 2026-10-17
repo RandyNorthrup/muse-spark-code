@@ -1,3 +1,4 @@
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 // Owns the single `muse serve` process for this extension host: locates the
 // CLI, shapes its environment, spawns it through the SDK, and hands out the
 // MuseCodeHost wrapper. Everything platform-specific is delegated to the pure
@@ -15,11 +16,14 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { type FingerprintWarning, spawnMspConnection } from '@muse-code/sdk'
+import { type FingerprintWarning } from '@muse-code/sdk'
 import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
+import type { MuseCodeAccountHome } from '../../core/backends/musecode/accountHomes'
 import {
   type CommandTimeouts,
+  type MuseCodeFeaturePorts,
   MuseCodeHost,
+  type spawnAccountMspConnection,
   type MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
 import {
@@ -63,6 +67,12 @@ import {
 import { readCredentialFile } from '../auth/cliAccount'
 import type { Logger } from '../logger'
 import { systemPath } from './memoryIo'
+import { admitResource } from '../../core/resources/admission'
+import {
+  spawnResourceMuseConnection,
+  spawnResourceAccountConnection,
+} from '../resources/museResourceLaunch'
+import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
 export interface ProxySettings {
@@ -86,6 +96,9 @@ export interface UnresponsiveHostDeps {
 }
 
 export interface BackendManagerDeps {
+  readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
+  /** One manager per capture-gated CLI account. Absent preserves today's single account. */
+  readonly accountHome?: MuseCodeAccountHome
   /** Awaited before any agent host process can edit this workspace. */
   readonly beforeWorkspaceHostStart: () => Promise<void>
   /**
@@ -98,6 +111,10 @@ export interface BackendManagerDeps {
   readonly extensionVersion: string
   readonly getConfiguredBinaryPath: () => string
   readonly getEnvironmentVariables: () => readonly EnvironmentVariable[]
+  /** Main conversation only; every worker remains fenced. */
+  readonly getAgentFence?: () => boolean
+  /** S binds this host's own requester socket, never the user's ambient socket. */
+  readonly getVaultFence?: () => VaultFenceOptions
   readonly workspaceRoot: string | undefined
   /** `museSpark.shellSandbox`; read at each spawn (a host keeps its posture). */
   readonly getShellSandbox: () => ShellSandboxMode
@@ -114,6 +131,7 @@ export interface BackendManagerDeps {
   /** The whole wait for a slow start whose process still runs; likewise. */
   readonly slowHandshakeTimeoutMs?: number
   /** The commands' deadlines and the watchdog's silence; the constants unless a test shortens them. */
+  readonly featurePorts?: MuseCodeFeaturePorts | undefined
   readonly commandTimeouts?: CommandTimeouts
 }
 
@@ -155,6 +173,7 @@ export class MuseCodeBackendManager {
   private hostPromise: Promise<MuseCodeHost> | undefined
   /** Bumped by every spawn and every dispose: an attempt only clears its own slot. */
   private generation = 0
+  private resourceStop = new AbortController()
   private launchCache: { readonly key: string; readonly resolution: LaunchResolution } | undefined
 
   public constructor(private readonly deps: BackendManagerDeps) {}
@@ -208,6 +227,26 @@ export class MuseCodeBackendManager {
     )
   }
 
+  /** A capture-gated account's host: the same admission, with its tree registered on the lease. */
+  private async spawnAccountHost(
+    options: Parameters<typeof spawnAccountMspConnection>[0],
+    accountHome: MuseCodeAccountHome,
+    resource: ResourceLease | undefined,
+    assertCanRun: () => Promise<void>,
+  ): Promise<ReturnType<typeof spawnAccountMspConnection>> {
+    return await spawnResourceAccountConnection(
+      options,
+      accountHome,
+      resource,
+      () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
+      environmentValue(options.env ?? {}, process.platform, 'SystemRoot'),
+      async () => {
+        await assertCanRun()
+        accountHome.assertCurrent()
+      },
+    )
+  }
+
   private async spawn(generation: number): Promise<MuseCodeHost> {
     const resolution = this.resolveLaunch()
     if (!resolution.ok) {
@@ -215,20 +254,29 @@ export class MuseCodeBackendManager {
     }
     const launch: MuseLaunch = resolution.launch
     await this.admitWorkspaceHost()
+    const resource = await admitResource('museServe', this.resourceStop.signal)
     if (this.generation !== generation) {
+      resource?.complete(true)
       throw new Error(UI_TEXT.questionCancelled)
     }
     const posture = this.shellSandboxPosture()
     this.deps.log.info(
       `Shell sandbox ${posture.isSandboxed ? 'on' : 'off'} (${posture.reason}) for this host`,
     )
+    if (!posture.isSandboxed) {
+      // Meta's permissions page: --disable-sandbox "also removes workspace
+      // confinement from the file tools" (musecode-write-asks, 2026-10-04).
+      this.deps.log.warn(
+        'Without the sandbox, Muse Code’s file tools can write outside the workspace without asking',
+      )
+    }
     const network = this.deps.getSandboxNetwork()
     if (network !== 'default' && !isSandboxNetworkApplied(network, posture)) {
       this.deps.log.warn(
         `museSpark.sandboxNetwork is ${network}, but the shell sandbox is off for this host, so commands have the network you have`,
       )
     }
-    const env = this.childEnvironment()
+    const env = resourceEnvironment(this.childEnvironment(), resource)
     // The CLI's own credential pays (its login or its own key); the key the
     // panel stores is for the Model API backend and is never passed here.
     this.deps.log.info(
@@ -237,17 +285,32 @@ export class MuseCodeBackendManager {
     this.deps.log.info(`Spawning ${launch.command} ${launch.args.join(' ')}`)
     // Spawn to handshake, for the log (M39).
     const spawnedAt = Date.now()
-    const handshake = spawnMspConnection({
+    const spawnOptions = {
       command: launch.command,
       args: [...launch.args],
       ...(this.deps.workspaceRoot !== undefined && { cwd: this.deps.workspaceRoot }),
       env,
-      onStderr: (chunk) => {
+      onStderr: (chunk: string) => {
         // A chatty or looping CLI must not flood the log (PLAN.md D24), and
         // its free text is named in fixed words (the review of PR #49).
         this.deps.log.warn(`muse serve stderr: ${clipForLog(stderrForLog(chunk))}`)
       },
-    })
+    }
+    const assertCanRun = async () => {
+      await this.admitWorkspaceHost()
+      if (this.generation !== generation) throw new Error(UI_TEXT.questionCancelled)
+    }
+    const accountHome = this.deps.accountHome
+    const handshake =
+      accountHome === undefined
+        ? await spawnResourceMuseConnection(
+            spawnOptions,
+            resource,
+            () => this.deps.shellJobAssembly?.() ?? Promise.resolve(undefined),
+            environmentValue(env, process.platform, 'SystemRoot'),
+            assertCanRun,
+          )
+        : await this.spawnAccountHost(spawnOptions, accountHome, resource, assertCanRun)
     const firstMs = this.deps.handshakeTimeoutMs ?? MSP_HANDSHAKE_TIMEOUT_MS
     const totalMs = this.deps.slowHandshakeTimeoutMs ?? MSP_SLOW_HANDSHAKE_TIMEOUT_MS
     const seconds = (ms: number) => String(Math.round(ms / MILLISECONDS_PER_SECOND))
@@ -260,7 +323,7 @@ export class MuseCodeBackendManager {
     void handshake.exited.then(noteExit).catch(noteExit)
     let spawned: Awaited<ReturnType<typeof handshake.initialize>>
     try {
-      spawned = await withSlowDeadline(
+      spawned = await withSlowDeadline<Awaited<ReturnType<typeof handshake.initialize>>>(
         handshake.initialize({
           clientInfo: { name: MSP_CLIENT_NAME, version: this.deps.extensionVersion },
           // The panel renders question cards (M4), so the host may send
@@ -292,25 +355,34 @@ export class MuseCodeBackendManager {
       }
       throw error
     }
-    if (!spawned.initializeResult.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
-      this.deps.log.warn(
-        `muse serve did not grant ${IDE_MCP_CAPABILITY}; the IDE diagnostics tool is unavailable (granted: ${spawned.initializeResult.grantedCapabilities.join(', ')})`,
-      )
-    }
     this.logFingerprint(spawned.fingerprintWarning)
     const mspHost: MspHost = {
       connection: spawned.connection,
+      ...('commandOwner' in spawned && { commandOwner: spawned.commandOwner }),
       initializeResult: spawned.initializeResult,
       exited: spawned.exited,
       close: () => spawned.close(),
     }
     let host: MuseCodeHost
     try {
-      host = new MuseCodeHost(mspHost, this.deps.log, this.deps.commandTimeouts)
+      this.deps.accountHome?.assertCurrent()
+      host = new MuseCodeHost(
+        mspHost,
+        this.deps.log,
+        this.deps.commandTimeouts,
+        this.deps.featurePorts,
+        undefined,
+        this.deps.accountHome,
+      )
     } catch (error: unknown) {
       // An initialize result the wrapper cannot read: the process goes too.
       await spawned.close()
       throw error
+    }
+    if (!host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
+      this.deps.log.warn(
+        `muse serve did not grant ${IDE_MCP_CAPABILITY}; the IDE diagnostics tool is unavailable (granted: ${host.info.grantedCapabilities.join(', ')})`,
+      )
     }
     this.deps.log.info(
       `Connected to ${host.info.serverName} ${host.info.serverVersion} in ${String(Date.now() - spawnedAt)} ms (museHome ${host.info.museHome})`,
@@ -372,16 +444,20 @@ export class MuseCodeBackendManager {
    * bypasses it so Muse Code reaches the extension's `ide` server (M56).
    */
   public childEnvironment(): NodeJS.ProcessEnv {
-    return withLoopbackBypass(
+    const env = withLoopbackBypass(
       buildChildEnvironment({
         platform: process.platform,
         baseEnv: process.env,
         extraVariables: [...this.proxyVariables(), ...this.deps.getEnvironmentVariables()],
         systemRoot: process.env['SystemRoot'],
         programFiles: process.env['ProgramFiles'],
+        ...(this.deps.accountHome !== undefined && { accountHome: this.deps.accountHome }),
       }),
       process.platform,
     )
+    return this.deps.getAgentFence?.() === false
+      ? env
+      : vaultFenceEnvironment(env, { ...this.deps.getVaultFence?.(), museCode: true })
   }
 
   /**
@@ -486,6 +562,13 @@ export class MuseCodeBackendManager {
 
   /** The running host, spawning it on first use. Rejects when the CLI is absent. */
   public ensureHost(): Promise<MuseCodeHost> {
+    try {
+      this.deps.accountHome?.assertCurrent()
+    } catch (error: unknown) {
+      return Promise.reject(
+        error instanceof Error ? error : new Error(UI_TEXT.accounts.invalidAccount),
+      )
+    }
     if (this.hostPromise !== undefined) {
       return this.hostPromise
     }
@@ -564,6 +647,8 @@ export class MuseCodeBackendManager {
   }
 
   public async dispose(): Promise<void> {
+    this.resourceStop.abort()
+    this.resourceStop = new AbortController()
     const pending = this.hostPromise
     this.hostPromise = undefined
     this.generation += 1

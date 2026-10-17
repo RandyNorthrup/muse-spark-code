@@ -244,6 +244,7 @@ export function buildFlightRecord(input: FlightEventInput, at: number): BuiltFli
  * `reportWebviewErrorSchema` (the webview's own failure kinds only, strict,
  * no free-text fields), and its frames are re-verified as package-relative
  * here, since transport bounds alone cannot see an absolute path.
+ * @unwired M93 report dialog flight record
  */
 export function buildWebviewFlightRecord(
   input: unknown,
@@ -330,6 +331,7 @@ export function parseJournalText(text: string): ParsedJournal {
 export function pruneFlightEntries(
   entries: readonly FlightRecord[],
   now: number,
+  maxBytes: number = REPORT_JOURNAL_MAX_BYTES,
 ): readonly FlightRecord[] {
   const cutoff = now - REPORT_JOURNAL_MAX_AGE_MS
   const fresh = entries.filter((entry) => entry.at >= cutoff)
@@ -340,7 +342,7 @@ export function pruneFlightEntries(
   let total = 0
   for (const line of lines) total += line.bytes
   let first = 0
-  while (first < lines.length && total > REPORT_JOURNAL_MAX_BYTES) {
+  while (first < lines.length && total > maxBytes) {
     const dropped = lines[first]
     if (dropped === undefined) break
     total -= dropped.bytes

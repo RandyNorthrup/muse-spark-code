@@ -6,14 +6,15 @@
 
 import type {
   AgentEvent,
+  ElicitationReply,
   ItemSnapshot,
   QuestionAnswer,
   RequirementRef,
   SessionGoal,
   TodoItem,
 } from '../../shared/agentEvents'
-import type { GoalCommandVerb, SubagentAction } from '../../shared/constants'
-import type { SubscriptionUsage } from '../../shared/usage'
+import type { GoalCommandVerb, ModelPricing, SubagentAction } from '../../shared/constants'
+import type { PlanUsageRow, SubscriptionUsage } from '../../shared/usage'
 import type {
   ScheduleCadence,
   ScheduledPrompt,
@@ -21,8 +22,26 @@ import type {
 } from '../../shared/schedule'
 import type { ApprovalMode } from '../../shared/permissionModes'
 import type { SessionExport } from '../export/sessionTransfer'
+import type { GitDraftOutputPort } from '../git/gitText'
+import type { ExtensionHookDispatch, ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
 
 export type BackendKind = 'museCode' | 'modelApi'
+
+/** Shared empty result; importing it never loads a backend bundle. */
+export const NO_EXTENSION_HOOK_DISPATCH: ExtensionHookDispatch = {
+  refusedReason: undefined,
+  failedReason: undefined,
+  messages: [],
+  contexts: [],
+  displayText: undefined,
+  allowedTools: undefined,
+  answer: undefined,
+  hasAnswer: false,
+  output: '',
+  keepWorking: false,
+  keepReason: undefined,
+  attemptFailed: undefined,
+}
 
 /** How a backend process ended, as the conversations need to know it (PLAN.md D25). */
 export interface HostExit {
@@ -237,6 +256,21 @@ export interface ModelSummary {
   readonly contextLimit: number | undefined
   readonly isDefault: boolean
   readonly isActive: boolean
+  /**
+   * A BYO provider's fields (M95, PLAN.md D74): set by the Model API
+   * backend's lane from the provider registry; absent on Meta's own models.
+   * `pricing` tells the picker and usage how the price reads; per-M-token
+   * prices only where the provider prices the model; `trainsOnContent`
+   * hides the model in a confidential workspace.
+   */
+  readonly providerId?: string | undefined
+  readonly providerLabel?: string | undefined
+  readonly pricing?: ModelPricing | undefined
+  readonly inputUsdPerMTokens?: number | undefined
+  readonly outputUsdPerMTokens?: number | undefined
+  readonly isPinned?: boolean | undefined
+  readonly trainsOnContent?: boolean | undefined
+  readonly planLimitsUrl?: string | undefined
 }
 
 export interface SkillSummary {
@@ -451,6 +485,8 @@ export interface AgentSession {
    * the prompt, used when the parts carry more than the user typed (M5).
    */
   sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission>
+  /** Formats and repairs a user-requested Git draft in this session, under its live guards. */
+  readonly gitDraftOutput?: GitDraftOutputPort
   /**
    * A `/review` turn run as the built-in Reviewer, with its own prompt and
    * only the tools that read (M70, PLAN.md D49). The Model API backend has
@@ -474,6 +510,18 @@ export interface AgentSession {
   answerQuestions(userInputId: string, answers: readonly QuestionAnswer[]): Promise<void>
   /** Decline the prompt: the tool call resolves with a cancelled result the model sees (M16). */
   cancelQuestions(userInputId: string): Promise<void>
+  /**
+   * M112: continue without guessing, preserving the question for a late answer.
+   * Resolve only once the tool call is settled. Q binds both backend hosts;
+   * the registry takes this method through its required injected port.
+   */
+  deferQuestions(userInputId: string): Promise<void>
+  /**
+   * Settle an MCP elicitation form (M91 lane M): accept with validated
+   * values, or decline or cancel. Absent where the backend never asks
+   * (Muse Code answers its own elicitations itself).
+   */
+  settleElicitation?: (elicitationId: string, reply: ElicitationReply) => Promise<void>
   /**
    * Answer with an explanation instead of the options (MSP `userInput/clarify`,
    * M46): the model reads it and decides again.
@@ -534,6 +582,19 @@ export interface AgentSession {
    */
   readonly setTodos?: (items: readonly TodoItem[]) => void
   /**
+   * Fire one extension hook event from the session's own snapshot (M91):
+   * the Model API backend runs its spark-hooks.json snapshot outside any
+   * turn (a Best-of-N worktree, an idling teammate, a message about to
+   * show). Hook context has no turn to join, so only the decision comes
+   * back. Sessions without such a point leave it absent, and the operation
+   * proceeds as before.
+   */
+  readonly fireExtensionHook?: (
+    event: ExtensionHookEvent,
+    fields: Readonly<Record<string, unknown>>,
+    matcherValue?: string,
+  ) => Promise<ExtensionHookDispatch>
+  /**
    * Told when the backend reports this session's own event log failed, so
    * it can take no new message (CLI recovery): Muse Code 1.4.2 answered a
    * command with "event log failed: …". The Model API keeps no such log.
@@ -562,6 +623,8 @@ export interface AgentHost {
     sessionId: string,
     options?: { readonly recoverGoal?: boolean },
   ): Promise<SessionHistoryOutcome>
+  /** Stored output in its own session, without loading it (M119). */
+  readSessionOutput(sessionId: string, request: OutputPageRequest): Promise<OutputPage>
   resumeSession(
     sessionId: string,
     modelId: string,
@@ -581,6 +644,7 @@ export interface AgentHost {
    * yet (it reports one after a turn).
    */
   readUsage(): Promise<SubscriptionUsage | undefined>
+  readPlanUsage?(): readonly PlanUsageRow[]
   /** A fresh observation arrived (MSP `usage/changed`). */
   onUsageChanged(listener: (usage: SubscriptionUsage) => void): () => void
   /**

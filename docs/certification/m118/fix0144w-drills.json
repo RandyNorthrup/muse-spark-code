@@ -1,0 +1,30 @@
+[
+  {
+    "exitCode": 1,
+    "originalSha256": "a795248f44ed6063e81373614d667761c84c0e787011a905cbe2ab03d1689da9",
+    "restoredSha256": "a795248f44ed6063e81373614d667761c84c0e787011a905cbe2ab03d1689da9",
+    "name": "drain",
+    "command": "npx.cmd vitest run test/unit/promptHostLifecycle.test.ts --maxWorkers=3"
+  },
+  {
+    "exitCode": 1,
+    "originalSha256": "a795248f44ed6063e81373614d667761c84c0e787011a905cbe2ab03d1689da9",
+    "restoredSha256": "a795248f44ed6063e81373614d667761c84c0e787011a905cbe2ab03d1689da9",
+    "name": "admission",
+    "command": "npx.cmd vitest run test/unit/promptHostLifecycle.test.ts --maxWorkers=3"
+  },
+  {
+    "exitCode": 1,
+    "originalSha256": "a795248f44ed6063e81373614d667761c84c0e787011a905cbe2ab03d1689da9",
+    "restoredSha256": "a795248f44ed6063e81373614d667761c84c0e787011a905cbe2ab03d1689da9",
+    "name": "idempotence",
+    "command": "npx.cmd vitest run test/unit/promptHostLifecycle.test.ts --maxWorkers=3"
+  },
+  {
+    "exitCode": 1,
+    "originalSha256": "a795248f44ed6063e81373614d667761c84c0e787011a905cbe2ab03d1689da9",
+    "restoredSha256": "a795248f44ed6063e81373614d667761c84c0e787011a905cbe2ab03d1689da9",
+    "name": "late-close",
+    "command": "npx.cmd vitest run test/unit/promptHostLifecycle.test.ts --maxWorkers=3"
+  }
+]
