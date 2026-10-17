@@ -4210,6 +4210,7 @@ export const EN = {
     usage: 'Usage:',
     options: 'Options:',
     examples: 'Examples:',
+    exits: 'Exits:',
     commands: 'Commands:',
     // {command}: the executable's name.
     topHint: "Run '{command} help <command>' for one command's own options and examples.",
@@ -4401,6 +4402,12 @@ export const EN = {
   execExits:
     'Exits 0 completed, 1 internal, 2 usage, 3 sign-in or backend unavailable, 4 failed, 5 budget or request limit, 6 timeout, 7 denied, 8 incomplete, 9 accounting unverified, 10 output schema mismatch, 130 on SIGINT, 143 on SIGTERM.',
   reportExits: 'Exits 0 when the report is written, 1 on failure, 2 for misuse.',
+  // From LEGAL_EXIT (D76): 0 a complete scan with no blockers, 1 a complete
+  // scan with blockers, 2 incomplete coverage, bad input or failure.
+  legalExits:
+    'Exits 0 when the scan completes with no blockers, 1 when blockers are found, 2 for incomplete coverage or misuse.',
+  // The CLI-wide convention (CLI_EXIT) for commands with no exit table.
+  genericExits: 'Exits 0 on success, 1 on failure, 2 for misuse.',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
   execSummaryUpperBound:
