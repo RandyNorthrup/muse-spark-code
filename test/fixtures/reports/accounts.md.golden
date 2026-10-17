@@ -8,7 +8,7 @@ Version: 0.14.2
 
 SHA-256: 54299e3d1aba583293d9b24ea941257ec112d37621fcad9808aaf19904b1aab0
 
-## Needs you
+## Needs You
 
 | Questions | Sources |
 | --- | --- |
@@ -55,11 +55,11 @@ SHA-256: 54299e3d1aba583293d9b24ea941257ec112d37621fcad9808aaf19904b1aab0
 
 ## Sources
 
-| Name | Status | Reason | Observed at | Freshness |
+| Name | Status | Reason | Observed At | Freshness |
 | --- | --- | --- | --- | --- |
 | git | Partial | Commit bound reached. | 2026-10-06T11:00:00.000+00:00 | Stale &#40;3,600s&#41; |
 | github | Unavailable | Network is off. | Unknown | Unknown |
 | plan | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
-| usage | Not applicable | Journal integration is not present. | Unknown | Unknown |
+| usage | Not Applicable | Journal integration is not present. | Unknown | Unknown |
 
 Renderer 1; ICU 77.1; locale en

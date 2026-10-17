@@ -103,14 +103,14 @@ describe('TeamPlanCard', () => {
   it('lists each item delegated or kept, with its reason', () => {
     setup()
     render(<TeamPlanCard entry={planEntry} />)
-    expect(screen.getByText('Delegation plan')).toBeDefined()
+    expect(screen.getByText('Delegation Plan')).toBeDefined()
     expect(screen.getByText('Plan only: nothing started or spent.')).toBeDefined()
-    const items = within(screen.getByRole('list', { name: 'Delegation plan' })).getAllByRole(
+    const items = within(screen.getByRole('list', { name: 'Delegation Plan' })).getAllByRole(
       'listitem',
     )
     expect(items).toHaveLength(2)
     expect(screen.getByText('Delegated')).toBeDefined()
-    expect(screen.getByText('Kept by the main agent')).toBeDefined()
+    expect(screen.getByText('Kept by the Main Agent')).toBeDefined()
     expect(screen.getByText('Add the retry', { exact: false })).toBeDefined()
   })
 })
@@ -134,13 +134,13 @@ describe('TeamWaitingCard', () => {
     setup()
     const onAnswer = vi.fn()
     render(<TeamWaitingCard entry={waitingEntry} onAnswer={onAnswer} />)
-    expect(screen.getByText('Waiting for you')).toBeDefined()
-    for (const label of ['Queue it', 'Main agent does it', 'Raise a limit…', 'Cancel']) {
+    expect(screen.getByText('Waiting for You')).toBeDefined()
+    for (const label of ['Queue It', 'Main Agent Does It', 'Raise a Limit…', 'Cancel']) {
       expect(screen.getByRole('button', { name: label })).toBeDefined()
     }
-    fireEvent.click(screen.getByRole('button', { name: 'Queue it' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Queue It' }))
     expect(onAnswer).toHaveBeenCalledWith('wait-1', 'queue')
-    expect(screen.getByRole('button', { name: 'Queue it' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Queue It' })).toBeDefined()
     // Answered: the other choices lock, as a decided approval card does.
     expect(screen.getByRole('button', { name: 'Cancel' }).hasAttribute('disabled')).toBe(true)
   })
@@ -148,7 +148,7 @@ describe('TeamWaitingCard', () => {
   it('reads only without an answer handler', () => {
     setup()
     render(<TeamWaitingCard entry={waitingEntry} />)
-    expect(screen.getByText('Waiting for you')).toBeDefined()
+    expect(screen.getByText('Waiting for You')).toBeDefined()
     expect(screen.queryByRole('button')).toBeNull()
   })
 })
@@ -162,7 +162,7 @@ describe('TeamMergeCard', () => {
     expect(screen.getByRole('button', { name: 'Merge' })).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Merge' }))
     expect(onDecide).toHaveBeenCalledWith('t3', 'merge')
-    fireEvent.click(screen.getByRole('button', { name: 'Review diff' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review Diff' }))
     expect(onReviewDiff).toHaveBeenCalledWith('t3')
   })
 
@@ -173,7 +173,7 @@ describe('TeamMergeCard', () => {
         entry={mergeEntry({ review: 'not-reviewed', branchMoved: true, conflicted: true })}
       />,
     )
-    expect(screen.getByText(/Not reviewed/)).toBeDefined()
+    expect(screen.getByText(/Not Reviewed/)).toBeDefined()
     expect(screen.getByText('The branch moved during the task.')).toBeDefined()
     expect(screen.getByText('Conflicts need resolving before merge.')).toBeDefined()
   })
@@ -181,7 +181,7 @@ describe('TeamMergeCard', () => {
   it('notes a same-model review', () => {
     setup()
     render(<TeamMergeCard entry={mergeEntry({ review: 'same-model' })} />)
-    expect(screen.getByText(/Reviewed by the same model/)).toBeDefined()
+    expect(screen.getByText(/Reviewed by the Same Model/)).toBeDefined()
   })
 
   it('reads only without handlers', () => {
@@ -229,7 +229,7 @@ describe('worker label', () => {
         subject: { kind: 'tool', toolName: 'edit', path: 'src/a.ts' },
         rawArgs: '{}',
         availableChoices: [
-          { choiceId: 'allow', label: 'Allow once', decision: 'approved', scope: 'once' },
+          { choiceId: 'allow', label: 'Allow Once', decision: 'approved', scope: 'once' },
         ],
         isProtectedWrite: false,
         isJudgeEscalated: false,
@@ -305,7 +305,7 @@ describe('team label fallbacks', () => {
   it('shows an unknown entry state as it came', () => {
     setup()
     expect(teamEntryStateLabel('quantum')).toBe('quantum')
-    expect(teamEntryStateLabel('capped')).toBe('capped')
+    expect(teamEntryStateLabel('capped')).toBe('Capped')
     expect(teamSwitchReasonLabel('cap')).toBe('cap reached')
   })
 })
@@ -318,11 +318,11 @@ describe('RVM96B card regressions', () => {
     const { rerender } = render(
       <TeamWaitingCard entry={{ ...waitingEntry, status: 'completed' }} onAnswer={onAnswer} />,
     )
-    expect(screen.getByRole('button', { name: 'Queue it' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Queue It' }).hasAttribute('disabled')).toBe(true)
     rerender(
       <TeamWaitingCard entry={{ ...waitingEntry, teamDecision: 'self' }} onAnswer={onAnswer} />,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Queue it' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Queue It' }))
     expect(onAnswer).not.toHaveBeenCalled()
     rerender(<TeamMergeCard entry={mergeEntry({ status: 'completed' })} onDecide={onDecide} />)
     expect(screen.getByRole('button', { name: 'Merge' }).hasAttribute('disabled')).toBe(true)
@@ -336,17 +336,17 @@ describe('RVM96B card regressions', () => {
     const onAnswer = vi.fn()
     const onDecide = vi.fn()
     const { rerender } = render(<TeamWaitingCard entry={waitingEntry} onAnswer={onAnswer} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Queue it' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Queue It' }))
     rerender(<TeamWaitingCard entry={waitingEntry} onAnswer={onAnswer} />)
-    expect(screen.getByRole('button', { name: 'Queue it' }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Queue It' }).hasAttribute('disabled')).toBe(true)
     rerender(
       <TeamWaitingCard
         entry={{ ...waitingEntry, reasonText: 'Request refused; choose again' }}
         onAnswer={onAnswer}
       />,
     )
-    expect(screen.getByRole('button', { name: 'Queue it' }).hasAttribute('disabled')).toBe(false)
-    fireEvent.click(screen.getByRole('button', { name: 'Main agent does it' }))
+    expect(screen.getByRole('button', { name: 'Queue It' }).hasAttribute('disabled')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Main Agent Does It' }))
     expect(onAnswer).toHaveBeenLastCalledWith('wait-1', 'self')
     const first = mergeEntry()
     rerender(<TeamMergeCard entry={first} onDecide={onDecide} />)
@@ -370,17 +370,17 @@ describe('RVM96B card regressions', () => {
         })}
       />,
     )
-    const affected = within(screen.getByRole('list', { name: 'Affected files' }))
+    const affected = within(screen.getByRole('list', { name: 'Affected Files' }))
     expect(affected.getAllByRole('listitem')).toHaveLength(11)
     expect(affected.getByText('and 2 more')).toBeDefined()
     expect(affected.queryByText('src/file-10.ts')).toBeNull()
     expect(
-      within(screen.getByRole('list', { name: 'Protected paths' })).getByText('.muse/team.json'),
+      within(screen.getByRole('list', { name: 'Protected Paths' })).getByText('.muse/team.json'),
     ).toBeDefined()
     expect(
-      within(screen.getByRole('list', { name: 'Conflict paths' })).getByText('src/conflict.ts'),
+      within(screen.getByRole('list', { name: 'Conflict Paths' })).getByText('src/conflict.ts'),
     ).toBeDefined()
-    expect(screen.getByText('Review verdict: changes requested')).toBeDefined()
+    expect(screen.getByText('Review Verdict: changes requested')).toBeDefined()
     expect(screen.getByText('P1: preserve the user edit')).toBeDefined()
   })
 

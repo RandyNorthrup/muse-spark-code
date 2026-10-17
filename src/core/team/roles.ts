@@ -447,6 +447,7 @@ export interface NewRoleAsks {
   readonly delegates: boolean
 }
 
+/** @unwired M96 new role approval asks */
 export function newRoleAsks(role: RoleDefinition): NewRoleAsks {
   const ceiling = new Set(newRoleCeilingTools())
   return {
@@ -461,6 +462,7 @@ export function newRoleAsks(role: RoleDefinition): NewRoleAsks {
  * A new-id project role as it runs: the ceiling until the workspace allows
  * its wider asks for this file's SHA-256. A personal role never passes
  * through here: it is the user's own and may change anything.
+ * @unwired M96 new role ceiling
  */
 export function applyNewRoleCeiling(
   role: RoleDefinition,
@@ -690,7 +692,9 @@ function resolveSnapshotRole(snapshot: RoleSnapshot, id: string): ResolvedRole |
   return Object.freeze({ ...met.role, workspace, delegates, tools: toolset.tools, toolset })
 }
 
-/** Capture every input first. Any failure invalidates the whole catalogue. */
+/** Capture every input first. Any failure invalidates the whole catalogue.
+ * @unwired M96 role catalogue loader
+ */
 export async function loadRoles(
   deps: AgentsLoaderDeps,
   roots: readonly AgentRoot[],
@@ -890,12 +894,16 @@ export async function loadRoles(
   })
 }
 
-/** No role is offered from an incomplete snapshot. */
+/** No role is offered from an incomplete snapshot.
+ * @unwired M96 offered roles
+ */
 export function offeredRoles(catalogue: RolesLoad): readonly ResolvedRole[] {
   return catalogue.snapshot.kind === 'known' ? catalogue.roles : []
 }
 
-/** An Unknown anywhere blocks every name, independent of source precedence. */
+/** An Unknown anywhere blocks every name, independent of source precedence.
+ * @unwired M96 role resolution
+ */
 export function resolveRole(catalogue: RolesLoad, id: string): RoleResolution {
   if (catalogue.snapshot.kind === 'unknown') {
     const unknown = catalogue.snapshot

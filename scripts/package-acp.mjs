@@ -36,77 +36,9 @@ import {
   RUNNER_HELPERS,
 } from './lib/acpNativeSources.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
+import { ACP_BUNDLES as BUNDLES, acpUsageAssets } from './lib/acpBundles.mjs'
 
 const STAGE = path.join('dist', 'acp-package')
-const BUNDLES = [
-  'acp.js',
-  'estimator.js',
-  'headless.js',
-  'sharingRuntime.js',
-  'acpQuestions.js',
-  'acpPlaybook.js',
-  'runtimeQuestions.js',
-  'runtimeAccounts.js',
-  'questionNotes.js',
-  'mcpPool.js',
-  'exec.js',
-  'modelApiCodeIntel.js',
-  'structuredSchema.js',
-  'fontsInstall.js',
-  'scheduleBackground.js',
-  'modelApi.js',
-  'resourceAdmission.js',
-  'resourceGovernor.js',
-  'resourceProcess.js',
-  'resourceJournal.js',
-  'modelApiHooks.js',
-  'modelApiMcp.js',
-  'runtimeAccounting.js',
-  'providerPolicy.js',
-  'runtimeEngine.js',
-  'modelApiBoundaries.js',
-  'vault.js',
-  'vaultBroker.js',
-  'vaultBrokerBindings.js',
-  'vaultStore.js',
-  'vaultPosix.js',
-  'vaultRuntime.js',
-  'vaultActions.js',
-  'vaultBoundaries.js',
-  'estimateContracts.js',
-  'legalScan.js',
-  'providers.js',
-  'subscriptions.js',
-  'configuredProviders.js',
-  'providerCatalog.json',
-  'providerCatalog.js',
-  'media.js',
-  'reviewer.js',
-  'team.js',
-  'teamRunners.js',
-  'teamScheduler.js',
-  'schedules.js',
-  'foreignHooks.js',
-  'hookRuntime.js',
-  'recorder.js',
-  'reporting.js',
-  'reportingNetwork.js',
-  'reportingDestinations.js',
-  'reference.js',
-  'uiText.js',
-  'uiTextRuntime.js',
-  'uiTextHooks.js',
-  'uiTextSurfaces.js',
-  'uiTextMedia.js',
-  'extensionHooks.js',
-  'validation.js',
-  'wire.js',
-  'searchWorker.js',
-  'pageWorker.js',
-  'imageResizeWorker.js',
-  'usageService.js',
-  'usageCompanion.js',
-]
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const SCHEMAS = [
   'exec-result-v1.schema.json',
@@ -137,35 +69,7 @@ function requireBundles() {
 
 /** Ship only the usage entry's transitive assets, never chat code or maps. */
 function usageAssets() {
-  const root = path.resolve('dist', 'webview')
-  const meta = JSON.parse(readFileSync(path.join('dist', 'meta', 'usageWebview.json'), 'utf8'))
-  const pending = ['dist/webview/usage.js', 'dist/webview/usage.css']
-  const files = new Set()
-  while (pending.length > 0) {
-    const file = pending.pop()
-    if (files.has(file)) continue
-    const relative = path.relative(root, path.resolve(file))
-    if (
-      relative === '' ||
-      relative.startsWith('..') ||
-      path.isAbsolute(relative) ||
-      !['.js', '.css'].includes(path.extname(file))
-    ) {
-      throw new Error('Usage asset is outside the browser bundle')
-    }
-    const output = meta.outputs?.[file]
-    if (output === undefined || !statSync(file).isFile()) {
-      throw new Error(`${file} is missing from the usage browser build`)
-    }
-    files.add(file)
-    if (output.cssBundle !== undefined) pending.push(output.cssBundle)
-    const imports = output.imports ?? []
-    for (const imported of imports) {
-      if (imported.external) throw new Error('Usage assets must be bundled locally')
-      pending.push(imported.path)
-    }
-  }
-  return [...files]
+  return acpUsageAssets()
 }
 
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))

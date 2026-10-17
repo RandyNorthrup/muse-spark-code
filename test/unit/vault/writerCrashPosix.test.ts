@@ -18,7 +18,10 @@ function child(root: string, action: string, key: Buffer, stage?: string) {
   const process = spawn(
     globalThis.process.execPath,
     [fixture.file, root, action, ...(stage ? [stage] : [])],
-    { env: {}, stdio: ['pipe', 'pipe', 'pipe'] },
+    // The writer lease identifies each process through its machine identity,
+    // which lives under the data directory from the environment: a child
+    // without an environment cannot name itself and is refused fail-closed.
+    { env: globalThis.process.env, stdio: ['pipe', 'pipe', 'pipe'] },
   )
   const exited = once(process, 'exit')
   process.stderr.resume()
@@ -48,8 +51,9 @@ async function complete(root: string, action: string, key: Buffer) {
     await run.exited
   }
 }
-// CM109JOINA supplies the shared cross-process writer lease; the current bare writer.lock cannot recover SIGKILL.
-describe.skip('POSIX production writer crash recovery (CM109JOINA)', () => {
+// The shared cross-process writer lease (owner-death-only takeover) recovers
+// SIGKILL at every reset/restore stage and never takes over a live writer.
+describe('POSIX production writer crash recovery (CM109JOINA)', () => {
   beforeAll(async () => {
     fixture.directory = await mkdtemp(path.join(os.tmpdir(), 'vkill-'))
     fixture.file = path.join(fixture.directory, 'child.cjs')

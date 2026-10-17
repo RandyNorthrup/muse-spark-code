@@ -50,9 +50,8 @@ beforeEach(() => {
 })
 describe('companion browser transport', () => {
   it('sends the File as the HTTP body with guards and no content in bridge metadata', async () => {
-    const read = vi.spyOn(FileReader.prototype, 'readAsArrayBuffer').mockImplementation(() => {
-      throw new Error('The page must not read file bytes')
-    })
+    // Call-through only: the page must not read file bytes, asserted below.
+    const read = vi.spyOn(FileReader.prototype, 'readAsArrayBuffer')
     const rig = setup()
     expect(read).not.toHaveBeenCalled()
     expect(rig.send).toHaveBeenCalledWith(endpoint, expect.objectContaining({ body: rig.file }))
@@ -143,6 +142,12 @@ describe('companion browser transport', () => {
     rig.reply()
     await expect(rig.pending).rejects.toThrow(UI_TEXT.media.uploadStop)
     expect(rig.progress).toHaveBeenCalledExactlyOnceWith(0, rig.file.size)
+  })
+  it('keeps the sentence-case stop error when an upload is aborted', async () => {
+    const rig = setup()
+    rig.stop.abort()
+    rig.reply()
+    await expect(rig.pending).rejects.toThrow('Stop upload')
   })
   it('Stop aborts the request; no stale token survives it', async () => {
     const rig = setup()

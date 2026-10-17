@@ -189,7 +189,9 @@ describe.skipIf(process.platform === 'win32')('session-owned POSIX broker', () =
           userSession: 'test',
         }),
       ],
-      { env: {}, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] },
+      // The broker names its machine identity from the environment, like the
+      // crash children: without one it cannot start and is refused fail-closed.
+      { env: globalThis.process.env, stdio: ['ignore', 'pipe', 'pipe', 'ipc'] },
     )
     children.add(child)
     if (child.pid !== undefined) brokers.add(child.pid)

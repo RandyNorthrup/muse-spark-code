@@ -6,7 +6,12 @@
 // suggestions) arrives as parameters, read from `dist/providers.js`.
 
 import * as vscode from 'vscode'
-import { GLOBAL_STATE_KEYS, PROVIDER_IMPORT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
+import {
+  GLOBAL_STATE_KEYS,
+  PROVIDER_IMPORT_MAX_BYTES,
+  SETTINGS_SECTION,
+  UI_TEXT,
+} from '../../shared/constants'
 import { providerSetupSchema } from '../../shared/providerSetup'
 import type { ChatSurface } from '../views/chatSurface'
 import { fill, setUiText } from '../../shared/l10n/text'
@@ -23,13 +28,13 @@ import {
   type ModelsVaultFactory,
 } from './modelsPanel'
 import { runAddProviderQuickPick, type ProviderQuickPickOutcome } from './modelsQuickPick'
+import { createSessionBudgetConfig } from './sessionBudget'
 import { createProvidersHost, type ProvidersHost } from '../providers/providersHost'
 import type { ModelScan, ScanStore } from '../providers/modelScans'
 import type { PendingRemoval, RemovalStore } from '../providers/providerRemoval'
 import type { ModelsPanelSeam, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
 export type { ModelsPanelSeam } from '../providers/providerPorts'
 import type { WizardSaveOutcome } from '../providers/wizardSave'
-export { createSubscriptionFeatures } from '../providers/subscriptionFeatures'
 
 /** VS Code's global state, taken by shape (as `MementoLike` in paidHost). */
 export interface ModelsPanelMemento {
@@ -301,15 +306,45 @@ export function createModelsPanelFeatures(
         (await vscode.window.showWarningMessage(
           message,
           { modal: true },
-          UI_TEXT.providerPrivateConfirm,
+          UI_TEXT.providerPrivateConfirmLabel,
           UI_TEXT.wizardCancel,
-        )) === UI_TEXT.providerPrivateConfirm,
+        )) === UI_TEXT.providerPrivateConfirmLabel,
       openBrowser: (url) => {
         void vscode.env.openExternal(vscode.Uri.parse(url))
         return Promise.resolve()
       },
     },
   })
+
+  // The wizard's spending limit IS the conversation spending limit
+  // setting: both the panel and the quick pick read and write it through
+  // this one configuration, at the scope it is effective from.
+  const sessionBudget = createSessionBudgetConfig(
+    {
+      get: (section) => vscode.workspace.getConfiguration(SETTINGS_SECTION).get(section),
+      inspect: (section) => {
+        const inspected = vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect(section)
+        return inspected === undefined
+          ? undefined
+          : {
+              workspaceValue: inspected.workspaceValue,
+              workspaceFolderValue: inspected.workspaceFolderValue,
+            }
+      },
+      update: async (section, value, scope): Promise<void> => {
+        await vscode.workspace
+          .getConfiguration(SETTINGS_SECTION)
+          .update(
+            section,
+            value,
+            scope === 'workspace'
+              ? vscode.ConfigurationTarget.Workspace
+              : vscode.ConfigurationTarget.Global,
+          )
+      },
+    },
+    host.log,
+  )
 
   let panel: ModelsPanel | undefined
   const openPanel = (navigate?: ModelsPanelNavigate): void => {
@@ -320,6 +355,7 @@ export function createModelsPanelFeatures(
         log: host.log,
         vault: host.createVault,
         providers,
+        sessionBudget,
         connectChatGpt: host.connectChatGpt,
         connectCopilot: host.connectCopilot,
         removeSubscription: host.removeSubscription,
@@ -330,7 +366,7 @@ export function createModelsPanelFeatures(
         confirmImport: async (preview) => {
           const lines = preview.rows.map(
             (row) =>
-              `${row.change}: ${row.entry.id} (${row.entry.address})${row.needsKey ? ` · ${UI_TEXT.importNeedsKey}` : ''}`,
+              `${row.change}: ${row.entry.id} (${row.entry.address})${row.needsKey ? ` · ${UI_TEXT.importNeedsKeyLabel}` : ''}`,
           )
           return (
             (await vscode.window.showWarningMessage(
@@ -379,6 +415,7 @@ export function createModelsPanelFeatures(
       const outcome = await runAddProviderQuickPick({
         providers,
         isRemote: host.isRemote,
+        sessionBudget,
         ui: {
           pickOne: (items, title, placeholder) => showPickOne(items, title, placeholder),
           pickMany: async (items, title, placeholder) => {
@@ -424,8 +461,16 @@ export function createModelsPanelFeatures(
           },
         },
       })
+      // The wizard's budget answer reaches the setting through the shared
+      // function inside the quick pick; it is forwarded here, no longer
+      // dropped.
       if (outcome !== undefined) {
-        await host.onWizardSaved?.({ ...outcome, composerSet: true, sessionBudgetUsd: undefined })
+        await host.onWizardSaved?.({
+          providerId: outcome.providerId,
+          modelRef: outcome.modelRef,
+          composerSet: true,
+          sessionBudgetUsd: outcome.sessionBudgetUsd,
+        })
       }
       return outcome
     },
