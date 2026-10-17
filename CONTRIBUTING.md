@@ -290,19 +290,73 @@ ruleset):
    nothing else, installable **Only on this account**. Contents lets the job
    push a branch; Workflows lets that push carry `.github/workflows` files,
    which GitHub refuses otherwise.
+   Done 2026-10-17: the app is `msc-ci-capacity` (App ID 5362310, owned by
+   `scnetsolutions`).
 2. On the app's page, copy its **Client ID** and **Generate a private key**
-   (a `.pem` file downloads).
+   (a `.pem` file downloads). Done 2026-10-17.
 3. **Install App** on `scnetsolutions`, **Only select repositories**:
    `muse-spark-code-ci`. The key then reaches nothing else.
+   Done 2026-10-17: installed on that repository only.
 4. Here, as Actions settings (not Dependabot's):
    `gh variable set ORG_CI_APP_CLIENT_ID --body <client id>`,
    `gh secret set ORG_CI_APP_PRIVATE_KEY < <file>.pem` (then delete the
    file), and last `gh variable set ORG_CI --body on`.
+   Done 2026-10-17: the client-ID variable and the private-key secret are
+   set, and `ORG_CI` is `on`.
 5. Keep `scnetsolutions/muse-spark-code-ci` public with Actions on: public
    repositories use standard runners free (a private one would draw on the
    free organization's 2,000 included minutes a month, and one of its runs
-   is sixteen shard jobs of up to 20 minutes), and the `org` job reads the
-   run there with its own read-only token.
+   is sixteen shard jobs of up to 25 minutes), and the `org` job reads the
+   run there with its own read-only token. The first hosted split run is the
+   proof that read works with the job's token
+   (`docs/certification/ciflow.md`, D122).
+6. Warm the capacity repository's npm cache. A cache restores only from the
+   current or the default branch (the dependency-caching reference), and a
+   `ci/pr-<number>` branch is neither, so every new pull request's shards
+   would otherwise start cold; a cold `npm ci` is about a minute on top of
+   shards that measured up to 19 warm minutes under their 25-minute `org`
+   bound. Add this file once as `.github/workflows/seed-cache.yml` on the
+   capacity repository's `main` branch (nothing else ever lives there) and
+   run it once by hand (Actions, "seed npm cache", Run workflow); the weekly
+   schedule keeps it fresh. It checks out only this repository's
+   `package.json` and `package-lock.json`, warms one npm cache per
+   capacity OS, and holds no secret:
+
+   ```yaml
+   # One npm cache per capacity OS, saved on the default branch so the
+   # ci/pr-<number> runs restore it. Uses this repository's own lockfile,
+   # read-only; holds no secret.
+   name: seed npm cache
+   on:
+     schedule:
+       - cron: '23 4 * * 0'
+     workflow_dispatch:
+   permissions:
+     contents: read
+   jobs:
+     seed:
+       strategy:
+         fail-fast: false
+         matrix:
+           os: [windows-latest, macos-latest]
+       runs-on: ${{ matrix.os }}
+       timeout-minutes: 15
+       steps:
+         - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+           with:
+             repository: RandyNorthrup/muse-spark-code
+             ref: main
+             sparse-checkout: |
+               package.json
+               package-lock.json
+             sparse-checkout-cone-mode: false
+             persist-credentials: false
+         - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+           with:
+             node-version: 22
+             cache: npm
+         - run: npm ci --ignore-scripts --no-audit --no-fund
+   ```
 
 ## The public roadmap (M122)
 

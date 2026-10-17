@@ -443,3 +443,106 @@ macOS), behind an App that account owns, with the two hard-coded names in
 `ci.yml` and `build.yml` changed. With the queue on, pull requests take the
 fast tier and `merge_group` runs carry the full one, which `route` keeps on
 part `all` today.
+
+### Review fixes (ORGFIX210, 2026-10-17, on this rig)
+
+The Codex reviewer's three P1 findings on PR #210, each fixed at its cause.
+This section supersedes "Still open" above as of this date. `main-now`
+(3d30a7321) was already merged into this branch (a218586e0), so the
+required merge added no commit.
+
+**Re-proof of the workflow steps against the edited files (this rig,
+2026-10-17).** `actionlint` 1.7.12 (latest release) on all eight workflows:
+exit 0. `zizmor` 1.31.1 (latest release) `--offline` on `ci.yml` and
+`build.yml`: exit 0, with two low findings, both on lines this change does
+not touch: `ci.yml`'s `./.github/workflows/build.yml` (newer zizmor prefers
+the `$` self-repository syntax) and `build.yml`'s `npm install` of the
+just-built agent tarball (that install is the test of the packaged
+artifact). Both stay as they are. Three reasoned `shellcheck disable`
+comments were added, none changing behavior: the push step's single quotes
+keep the App token out of git's process list (the helper's shell expands it
+from the step environment), `browser-check.yml`'s guard is deliberately
+"not (A and B)" over two `[ ]` tests, and `release.yml`'s backticks are
+literal markdown. They are visible only where shellcheck is installed;
+without it `actionlint` passed before and after.
+`route`'s step, read out of `ci.yml` and run with GitHub's
+`bash --noprofile --norc -eo pipefail`, for the same nine cases: every
+result as documented (`ci/pr-185` push → `org`, `ci/head-abc` push →
+exit 1, own PR with `ORG_CI` on and the key → `home`, everything else →
+`all`). The push step, read out of `build.yml` and run against a local bare
+repository with a merge commit made as GitHub makes it: `ci/base` at the
+first parent and `ci/pr-185` at the merge, and the second push after new
+commits on both sides updated both refs without re-sending history. The
+credential helper answered `username=x-access-token` and the step's `TOKEN`.
+The `required` step with `PART=home`: `org` success → exit 0; failure,
+cancelled or skipped → exit 1; `PART=all` with `org` skipped → exit 0. The
+deliberate break on a copy (the `org` check removed) gave exit 0 with a
+failed `org`, and the restored file gives exit 1. A cold `npm ci` from
+`registry.npmjs.org` (901 packages, empty cache) took 11–12 s twice.
+The extracted seed workflow parses as YAML and passes `actionlint`: exit 0.
+The wait step's logic is unchanged; its `bash -n` passes and its exact query
+shape and `pick` filter were run live against real runs (vitest-dev/vitest
+38750089126 success → selected, `test success` passes; 38930830264 failure
+→ selected, `test success` fails; the jobs endpoint returned the 22 rows the
+summary renders). Only the `gh` transport itself could not run here: this
+rig's `gh` build requires a login and there is no credential to give it, so
+that transport rests on its unchanged 2026-10-17 run; nothing about it was
+edited.
+
+**Finding 1 — prove the cross-repository path before merging.** The four
+App setup steps in CONTRIBUTING.md are done 2026-10-17: the app is
+`msc-ci-capacity` (App ID 5362310, owned by `scnetsolutions`), installed on
+`scnetsolutions/muse-spark-code-ci` only, with Contents and Workflows read
+and write; `ORG_CI_APP_CLIENT_ID` and the secret `ORG_CI_APP_PRIVATE_KEY`
+are set here, and `ORG_CI` is `on` (CONTRIBUTING.md steps 1–4 now say so).
+PR #210 does not merge until the first hosted split run is recorded below:
+nothing merges unproven, and the record belongs on the pull request. The
+lead's next push of this branch triggers that run by itself (same-repo PR,
+full tier while the queue is off, key present → `route` picks `home` and
+pushes `ci/pr-210`). It must show all of this:
+
+- Here: the PR's `CI` run is part `home`; the job named `tests
+(windows-latest, macos-latest) in scnetsolutions/muse-spark-code-ci`
+  pushes `GITHUB_SHA` as `ci/pr-210` (and `ci/base` at its first parent),
+  finds the capacity run, and succeeds with a summary reading `Windows and
+macOS unit shards: success` followed by sixteen linked shard rows.
+- There: a push-triggered `CI` run on branch `ci/pr-210` whose head SHA is
+  that same merge SHA; `route` picks `org`; all sixteen `tests
+(windows-latest, shard 1–8)` and `tests (macos-latest, shard 1–8)` succeed.
+- The required `quality (windows-latest)` and `quality (macos-latest)` are
+  green here with the ruleset unchanged, and this run's cross-repo poll is
+  what the `org` job's own read-only token proved (the App token only
+  pushes; it expires after an hour while the wait may run up to six).
+- Record here: both run URLs, both wall times against a part `all` run, and
+  the shard times — the first run's shards start cold (step 6's seed lands
+  after), which is what the 25-minute `org` bound below covers.
+
+**Finding 2 — let the capacity wait survive the documented queue
+(`build.yml` `org`, was 180 minutes).** The bound is now 360: GitHub's own
+job ceiling on hosted runners (`actions/reference/limits`, read from
+`github/docs` 2026-10-17: "Each job in a workflow can run for up to 6 hours
+of execution time"), not our figure. Four queued pull requests ahead take
+eight waves for their 32 macOS shards plus two more for this run's eight:
+ten waves of full-length shards is 200 minutes before route and setup
+overhead, which fits in 360 with room left; anything longer fails at the
+platform's limit instead of ours. The poll itself costs one status read a
+minute (at most ~360 reads, far under the token's 1,000-requests-an-hour
+allowance), and the wait loop has no bound of its own besides the job. No
+other line of the wait changed, so its proof above still covers it.
+
+**Finding 3 — share one warmed cache across the capacity branches
+(`build.yml` `unit`, was 20 minutes everywhere).** A cache restores only
+from the current or the default branch (the dependency-caching reference),
+and a `ci/pr-<number>` branch is neither, so every new pull request's
+sixteen shards started cold; with macOS shards measured at 19 warm minutes
+under a 20-minute limit, the cold install alone could time out a healthy
+shard. Two legs: the `unit` job's bound is now `part == 'org'` → 25,
+everything else stays 20 (the warm bound and its history are untouched).
+25 is the 20-minute warm bound plus the measured cold `npm ci` (about a
+minute, above) and margin, still far under the platform ceiling. And
+CONTRIBUTING.md step 6 has the owner seed the capacity default-branch
+cache: a `seed-cache.yml` file placed once on that repository's `main`,
+run once by hand, then weekly, checking out only this repository's
+`package.json` and `package-lock.json` and warming one npm cache per
+capacity OS, holding no secret. `setup-node` restores by key prefix, so any
+recent seed warms every `ci/pr-<number>` run on the same OS.
