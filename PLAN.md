@@ -24626,7 +24626,7 @@ Certification and current generated freeze: `docs/certification/m101-eval-arms.m
 The production latch remains false; this fake certification does not certify
 live compaction effectiveness or the aggregate quality gates.
 
-**Status 2026-10-12 (first parts shipped in 0.15.0; automatic compaction evaluated and on after the binding run passed — receipts in `docs/certification/m101-binding-report.json`/`.md`, `IS_AUTO_COMPACTION_EVALUATED` true; the remaining port items remain): building.**
+**Status 2026-10-17 (automatic compaction evaluated, connected on every surface and shipped; lane record `docs/certification/msm101.md`; the remaining upstream port items stay open): shipped.**
 
 **CM1013R9 binding run and latch flip (2026-10-12; the lead's run on the Windows host, the flip lane on the macbook rig).** The
 lead's counted run at `3c68efb2e` (`node scripts/m101-e.mjs --live-m75`,
@@ -24638,6 +24638,25 @@ tools engaged everywhere with both its floors held. The documented Part B
 step ran to the letter: receipts committed byte-exact, the latch flipped,
 `modelApiStrictTools` kept `true`. Certification:
 `docs/certification/m101-cm1013r9.md`.
+
+**CM1013R10 second binding run and per-host connection (2026-10-12,
+macbook rig; lane MSM101 merged current main 2026-10-16/17).** The
+lead's second counted run at `28686235d` returned verdict `pass`:
+certified equals computed equals the frozen pin `a59c8448…725e28`,
+267 calls at $0.059742, all eight floor rows held, compaction engaged
+on both long-context tasks. Receipts kept byte-exact beside the first
+run's (`docs/certification/m101-binding-report-2026-10-12-28686235d.json`/`.md`,
+`docs/certification/m101-binding-run-2026-10-12-28686235d.log`).
+Part B measured the one missed check from the receipt tool sequence
+(the model ended its turn with text instead of writing the answer
+file); no product change, pin unchanged. Parts C+D connected true
+automatic compaction per host (panel setting, ACP `--auto-compaction`
+/ `--no-auto-compaction`, headless only with `--auto-compaction`
+under `--max-budget-usd`), with truthful budget refusals, atomic
+apply, Help reference, README, ACP/CI docs, l10n tables and
+regenerated reference/exec-schema output. Certification:
+`docs/certification/m101-cm1013r10.md`; milestone lane record:
+`docs/certification/msm101.md`.
 
 Status detail retained: planned; lanes start from `m101/base` (the M95
 integration branch plus this plan). C-M101-1 (2026-10-10, lane CM1011,
