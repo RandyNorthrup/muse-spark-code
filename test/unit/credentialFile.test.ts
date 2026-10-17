@@ -112,11 +112,21 @@ describe('credentialFileVerdict', () => {
     },
   )
 
-  it('takes either captured credential key alone as the sign-in off macOS', () => {
-    expect(credentialFileVerdict(withMeta({ access_token: '<placeholder>' }), 'linux')).toBe(
-      'inline',
-    )
+  // `api_key` alone still starts `muse serve` 1.4.10-R6427.1 (`apiKey`,
+  // captured 2026-10-17, F94); an `access_token` without `api_key`
+  // exits 3 there ("malformed auth file"), so the CLI places it.
+  it('takes the key `muse auth set` writes as the sign-in off macOS', () => {
     expect(credentialFileVerdict(withMeta({ api_key: '<placeholder>' }), 'linux')).toBe('inline')
+    expect(credentialFileVerdict(withMeta({ api_key: '<placeholder>' }), 'win32')).toBe('inline')
+  })
+
+  it('leaves a token without its key to the CLI off macOS', () => {
+    expect(credentialFileVerdict(withMeta({ access_token: '<placeholder>' }), 'linux')).toBe(
+      'unrecognized',
+    )
+    expect(credentialFileVerdict(withMeta({ access_token: '<placeholder>' }), 'win32')).toBe(
+      'unrecognized',
+    )
   })
 
   // Each made `muse serve` exit 3 on 1.4.0-R4302.1, Windows and Linux

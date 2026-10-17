@@ -11,11 +11,14 @@
 // - `{"schema_version": 1, "providers": {}}`: what `muse logout` and MSP
 //   `account/logout` leave behind (they rewrite the file, never delete it).
 //   Signed out on every OS.
-// - Version 1 with `providers.meta` holding its credential, no `storage`:
-//   `muse auth set` writes `api_key` alone, a browser sign-in `access_token`,
-//   the key and the account's name (Windows and Linux). Signed in there. On
-//   macOS nobody captured whether 1.4.0 reads or migrates such a file, so the
-//   CLI is asked.
+// - Version 1 with `providers.meta` holding an `api_key` string, no
+//   `storage`: `muse auth set` writes `api_key` alone (1.4.0, still
+//   starting on 1.4.10-R6427.1, 2026-10-17); a browser sign-in carries
+//   `api_key` beside `access_token` (the granted capture, still
+//   `accountLogin` on 1.4.10). An `access_token` without `api_key`
+//   exits 3 on 1.4.10 ("malformed auth file"), so it is the CLI's to
+//   place (Windows and Linux). On macOS nobody captured whether any
+//   1.4.x reads or migrates such a file, so the CLI is asked.
 // - Only `providers.meta` speaks for the sign-in: 1.4.0-R4302.1's bundled
 //   Slack connector reads its own `providers.slack_connector`, so a file
 //   naming other providers alone is left to the CLI, as is a `meta` entry in
@@ -81,12 +84,16 @@ const credentialFileSchema = z.object({
 type ProviderEntry = z.infer<typeof credentialFileSchema>['providers'][string]
 
 /**
- * The shapes captured holding the sign-in in the file (the review of PR #49):
- * no `storage` lane, and `api_key` (`muse auth set`) or `access_token` (a
- * browser sign-in). Any other `meta` entry is the CLI's to place.
+ * The shapes `muse serve` starts with (F94): no `storage` lane, and an
+ * `api_key` string. `muse auth set` writes `api_key` alone (captured on
+ * 1.4.0, still starting on 1.4.10-R6427.1, 2026-10-17); a browser
+ * sign-in carries `api_key` beside `access_token` (the granted capture
+ * of 2026-09-27, still `accountLogin` on 1.4.10). An `access_token`
+ * without `api_key` is NOT enough: 1.4.10 exits 3 on it ("malformed
+ * auth file"), so it is the CLI's to place, like any other `meta` entry.
  */
 function isCapturedInlineEntry(entry: ProviderEntry): boolean {
-  return entry.storage === undefined && (entry.api_key === true || entry.access_token === true)
+  return entry.storage === undefined && entry.api_key === true
 }
 
 export function credentialFileVerdict(
