@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto'
 import {
   type VaultApprovalRequest,
   type VaultAuditRecord,
@@ -10,7 +9,6 @@ import {
   type VaultUse,
 } from '../../../../src/shared/vault'
 import { type VaultPanelState } from '../../../../src/shared/modelsPanel'
-import { type VaultPanelService } from '../../../../src/host/vault/vaultPanelHost'
 
 export function requester(): VaultRequester {
   return {
@@ -124,17 +122,6 @@ export function audit(): VaultAuditRecord {
     mac: '2'.repeat(64),
   }
 }
-/** A slot's C-supplied identity and generation metadata; the epoch varies per case. */
-export function slotContext(createdAt = 0) {
-  return {
-    id: randomBytes(16).toString('hex'),
-    vaultId: randomBytes(16).toString('hex'),
-    lastGeneration: 0,
-    auditGeneration: 0,
-    auditHead: '0'.repeat(64),
-    createdAt,
-  }
-}
 export function panel(): VaultPanelState {
   return {
     status: {
@@ -151,21 +138,5 @@ export function panel(): VaultPanelState {
     audit: [audit()],
     pending: [],
     ambientFiles: [],
-  }
-}
-
-/**
- * The setup flow of a stub panel service: unused unless the test drives
- * `vaultSetup`. Plain functions, not spies: tests that assert on the
- * setup flow replace them.
- */
-export function inertVaultSetup(): Pick<
-  VaultPanelService,
-  'setup' | 'confirmSetup' | 'cancelSetup'
-> {
-  return {
-    setup: () => Promise.reject(new Error('unused')),
-    confirmSetup: () => Promise.resolve(),
-    cancelSetup: () => Promise.resolve(),
   }
 }
