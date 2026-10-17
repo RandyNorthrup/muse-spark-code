@@ -14391,6 +14391,63 @@ and thats it." A thousand-test suite kept shipping broken code as
 - Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
   1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
 
+### D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
+
+**Why.** GitHub runs at most five macOS jobs at a time per account (40 jobs
+in all on Pro, 20 on a free organization; docs `actions/reference/limits`),
+and a full run of ours has twelve macOS jobs, so pull requests queued behind
+each other. The owner opened the free organization `scnetsolutions` only for
+capacity: "we are only using the org account to remove the bottleneck",
+"these should still merge to my personal account main", and "yes for ci in
+the org do what you need".
+
+**The first design (2026-10-16), replaced.** A relay on the maintainer's
+computer (`scripts/ci-org-relay.mjs`, his `gh` sign-in) pushed the merge
+commit to the capacity repository and posted an eighth status,
+`build / org part`. The review of 2026-10-17 found four faults. The main
+ruleset requires the seven names, not the eighth, while a `home` run's
+`quality (windows-latest)` and `quality (macos-latest)` passed with no
+Windows or macOS unit shard run, so a pull request could merge with them
+failing. Every home pull request waited whenever the relay was not running.
+Dependabot's branches live in this repository, so its pull requests went
+`home`. A home run counted as a successful CI run for release reuse without
+the shards.
+
+**The design in force.** `route` picks part `home` only for a
+same-repository pull request on the full tier while `ORG_CI` is `on` and
+`secrets.ORG_CI_APP_PRIVATE_KEY` is not empty (GitHub leaves it empty for
+forks and Dependabot). build.yml's `org` job mints an installation token of
+the organization's GitHub App with `actions/create-github-app-token` (v3.3.0)
+for `scnetsolutions/muse-spark-code-ci` alone, `contents: write` and
+`workflows: write` (GitHub refuses a push that carries `.github/workflows`
+files without it). It pushes `+<merge>^1:refs/heads/ci/base` and
+`+<merge>:refs/heads/ci/pr-<number>`, with git reading the token from the
+step's environment. It then reads the capacity repository's runs with its own
+job token until the `ci.yml` push run on that exact commit completes, writes
+each shard's result to the step summary and takes the run's conclusion. A run
+that has not appeared ten minutes after the push fails the job, and the job's
+limit is 180 minutes. The `required` aggregate needs `org` and, in a `home`
+run, its success: the seven names keep their meaning, the ruleset does not
+change, and the run's own conclusion (what release reuse reads) includes the
+shards. In the capacity repository `route` accepts only `ci/pr-<number>`,
+part `org` runs the sixteen shards and nothing else, `ci.yml`'s concurrency
+cancels the run of a replaced branch, and no secret is kept. It stays public:
+standard runners are free there, and the job token reads its runs.
+
+**Weighed and not taken.** The capacity repository posting a status back: a
+second key, kept in the repository that runs every pull request's code, an
+eighth required name, and a status any writer can set. `repository_dispatch`:
+it runs the capacity repository's default-branch workflow, not the pull
+request's own build.yml, and needs the same credential. A fine-grained
+personal token: tied to the owner's account and expiring. An OIDC token
+exchange through a third party: that party holds a key to the capacity
+repository. Self-hosted runners: a machine to keep running and patched,
+which on a public repository would run fork pull requests' code. Moving the
+repository: refused in the owner's words above. Sources, owner steps and
+proofs:
+`docs/certification/ciflow.md` (D122) and CONTRIBUTING.md, "The capacity
+repository (D122)".
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
@@ -14726,63 +14783,6 @@ its single post gate and drops it while its panel is not the active one, and
 the webview records and lands an ask only within the 1000 ms delivery window
 (`docs/certification/panel-focus.md`). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
-
-### D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
-
-**Why.** GitHub runs at most five macOS jobs at a time per account (40 jobs
-in all on Pro, 20 on a free organization; docs `actions/reference/limits`),
-and a full run of ours has twelve macOS jobs, so pull requests queued behind
-each other. The owner opened the free organization `scnetsolutions` only for
-capacity: "we are only using the org account to remove the bottleneck",
-"these should still merge to my personal account main", and "yes for ci in
-the org do what you need".
-
-**The first design (2026-10-16), replaced.** A relay on the maintainer's
-computer (`scripts/ci-org-relay.mjs`, his `gh` sign-in) pushed the merge
-commit to the capacity repository and posted an eighth status,
-`build / org part`. The review of 2026-10-17 found four faults. The main
-ruleset requires the seven names, not the eighth, while a `home` run's
-`quality (windows-latest)` and `quality (macos-latest)` passed with no
-Windows or macOS unit shard run, so a pull request could merge with them
-failing. Every home pull request waited whenever the relay was not running.
-Dependabot's branches live in this repository, so its pull requests went
-`home`. A home run counted as a successful CI run for release reuse without
-the shards.
-
-**The design in force.** `route` picks part `home` only for a
-same-repository pull request on the full tier while `ORG_CI` is `on` and
-`secrets.ORG_CI_APP_PRIVATE_KEY` is not empty (GitHub leaves it empty for
-forks and Dependabot). build.yml's `org` job mints an installation token of
-the organization's GitHub App with `actions/create-github-app-token` (v3.3.0)
-for `scnetsolutions/muse-spark-code-ci` alone, `contents: write` and
-`workflows: write` (GitHub refuses a push that carries `.github/workflows`
-files without it). It pushes `+<merge>^1:refs/heads/ci/base` and
-`+<merge>:refs/heads/ci/pr-<number>`, with git reading the token from the
-step's environment. It then reads the capacity repository's runs with its own
-job token until the `ci.yml` push run on that exact commit completes, writes
-each shard's result to the step summary and takes the run's conclusion. A run
-that has not appeared ten minutes after the push fails the job, and the job's
-limit is 180 minutes. The `required` aggregate needs `org` and, in a `home`
-run, its success: the seven names keep their meaning, the ruleset does not
-change, and the run's own conclusion (what release reuse reads) includes the
-shards. In the capacity repository `route` accepts only `ci/pr-<number>`,
-part `org` runs the sixteen shards and nothing else, `ci.yml`'s concurrency
-cancels the run of a replaced branch, and no secret is kept. It stays public:
-standard runners are free there, and the job token reads its runs.
-
-**Weighed and not taken.** The capacity repository posting a status back: a
-second key, kept in the repository that runs every pull request's code, an
-eighth required name, and a status any writer can set. `repository_dispatch`:
-it runs the capacity repository's default-branch workflow, not the pull
-request's own build.yml, and needs the same credential. A fine-grained
-personal token: tied to the owner's account and expiring. An OIDC token
-exchange through a third party: that party holds a key to the capacity
-repository. Self-hosted runners: a machine to keep running and patched,
-which on a public repository would run fork pull requests' code. Moving the
-repository: refused in the owner's words above. Sources, owner steps and
-proofs:
-`docs/certification/ciflow.md` (D122) and CONTRIBUTING.md, "The capacity
-repository (D122)".
 
 ### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
 
