@@ -230,4 +230,5 @@ export {
   guardianMessageSchema,
   isSameProcess,
   isReceiptMatching,
+  rootLocatorSchema,
 } from './stopReceipt'

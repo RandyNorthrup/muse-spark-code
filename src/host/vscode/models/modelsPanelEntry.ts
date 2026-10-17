@@ -37,7 +37,6 @@ import type {
 } from '../../providers/providerPorts'
 export type { ModelsPanelSeam } from '../../providers/providerPorts'
 import type { WizardSaveOutcome } from '../../providers/wizardSave'
-export { createSubscriptionFeatures } from '../providers/subscriptionFeatures'
 
 /** VS Code's global state, taken by shape (as `MementoLike` in paidHost). */
 export interface ModelsPanelMemento {
