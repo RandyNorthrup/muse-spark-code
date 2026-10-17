@@ -39,6 +39,15 @@ happened, not what was planned; superseded entries are kept.
   is left to the CLI. Muse Code's "malformed auth file" start refusal is
   named in the log in fixed words, without the file's path.
 
+- MCP elicitation hooks now run. With `museSpark.modelApiHooks` on, a
+  project's `Elicitation` hook can decline the request and a user hook can
+  answer it (checked against the server's schema); `ElicitationResult`
+  observers in the project see field names and the outcome only, while user
+  hooks also see accepted values. When a project or managed hook declines,
+  user hooks are not run for that request (they still see the outcome in
+  `ElicitationResult`). Previously these hooks were accepted by the
+  configuration but never ran.
+
 ### Release infrastructure
 
 - Every fake test is gone (the owner's order: "there can be no more fakes at

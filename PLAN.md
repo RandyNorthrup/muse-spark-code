@@ -22999,8 +22999,7 @@ process that owns the work.
 
 ### M91 — Hooks from every popular agent (D70)
 
-**Status 2026-10-05: integrated on `feature/m91-hooks-parity`; pull request
-next, in the 0.14.0 batch.**
+**Status 2026-10-17 (MSM91M93; shipped in 0.14.0): released.**
 
 - **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
