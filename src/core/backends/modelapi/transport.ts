@@ -40,6 +40,7 @@ import { classifyRetry, RETRY_TABLES, type RetryTables } from '../../../shared/r
 import type { CoreLogger } from '../../logging'
 import {
   describeNetworkFailure,
+  isConnectionFailure,
   type NetworkAdvice,
   networkFailureMessage,
 } from '../../networkFailure'
@@ -83,6 +84,12 @@ export interface TransportDeps {
   readonly random: () => number
   readonly log: CoreLogger
   readonly networkAdvice?: NetworkAdvice
+  /**
+   * The sentence a send that produced no answer reads as: a configured
+   * provider names itself, the network failure and that whether the request
+   * arrived is unknown. Meta's network advice when absent.
+   */
+  readonly sendFailure?: (error: unknown) => string
 }
 
 /** The stream has already reported its failure; cancellation must not add a second one. */
@@ -1069,8 +1076,8 @@ export class RequestTransport {
       try {
         response = await this.fetchWithIdleDeadline(url, requestInit)
       } catch (error: unknown) {
-        if (error instanceof ModelApiError || signal?.aborted === true) {
-          throw error instanceof ModelApiError
+        if (isModelApiError(error) || signal?.aborted === true) {
+          throw isModelApiError(error)
             ? redactModelApiError(error, credentials.redact, NETWORK_FAILURE_STATUS)
             : new ModelApiError(
                 credentials.redact(error instanceof Error ? error.message : String(error)),
@@ -1079,14 +1086,20 @@ export class RequestTransport {
                 undefined,
               )
         }
-        // Never reached the server: its causes say why, and the message
-        // names the setting or store to check (M56, PLAN.md D43).
+        // A refusal the product raised inside the send (an endpoint pin, a
+        // budget or ledger stop) is no connection failure: it passes on with
+        // its own message and type and is never retried (lane PROVERRORS).
+        if (!isConnectionFailure(error)) throw error
+        // No answer came: its causes say why, and the message names the
+        // setting or store to check (M56, PLAN.md D43), or the provider and
+        // the unknown fate of the send (lane PROVERRORS). A transient send
+        // failure is retried below, as Anthropic documents its SDK doing
+        // ("automatically retries transient failures (such as connection
+        // errors …) with exponential backoff", platform.claude.com/docs/en/
+        // api/errors, read 2026-10-17); the retry notice marks the attempt
+        // ambiguous, since the send may have arrived.
         const reason = credentials.redact(
-          this.deps.auth === undefined
-            ? networkFailureMessage(error, this.deps.networkAdvice)
-            : fill(UI_TEXT.webFetchNetwork, {
-                detail: `${new URL(url).origin}: ${describeNetworkFailure(error).detail}`,
-              }),
+          this.deps.sendFailure?.(error) ?? networkFailureMessage(error, this.deps.networkAdvice),
         )
         if (isRateLimitOnly || attempt >= MODEL_API_MAX_RETRIES) {
           throw new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)

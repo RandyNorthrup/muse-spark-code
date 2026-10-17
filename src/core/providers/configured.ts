@@ -43,15 +43,16 @@ import {
   parseJsonResponse,
   ModelApiError,
   assertConfirmedAllowed,
-  isStaleConfirmedError,
   isModelApiError,
 } from '../backends/modelapi/transport'
 import {
+  boundProviderMessage,
   isRefusalRetryable,
   parseRefusalError,
   refusalOf,
   refusalSentence,
 } from '../backends/modelapi/providerRefusal'
+import { isConnectionFailure, networkFailureCodes } from '../networkFailure'
 import { withDeadline } from '../timeouts'
 import { Usd } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
@@ -62,6 +63,7 @@ import {
   ANTHROPIC_MAX_ITEMS,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
+  PROVIDER_CONNECTION_LOST_CODE,
   PROVIDER_SECRET_PREFIX,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   TOKENS_PER_MILLION,
@@ -450,6 +452,14 @@ export function createConfiguredProviderServices(
           warn: ignoreTransportLog,
           error: ignoreTransportLog,
         },
+        // A send that produced no answer: the provider, Node's own failure
+        // codes (never what a server wrote) and that whether the request
+        // arrived is unknown (lane PROVERRORS).
+        sendFailure: (error: unknown) =>
+          fill(UI_TEXT.providerUnreachable, {
+            provider: providerDisplayName(entry, preset),
+            detail: boundProviderMessage(networkFailureCodes(error)),
+          }),
         fetch: async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
           let requestUrl: string
           if (typeof url === 'string') requestUrl = url
@@ -469,49 +479,37 @@ export function createConfiguredProviderServices(
             ),
           )
           const body = typeof init.body === 'string' ? init.body : undefined
+          // A send that throws produced no answer. A typed failure keeps its
+          // kind; a native one goes to the transport as it is, which retries
+          // it as a transient send failure and, when it stops, reads it with
+          // `sendFailure` above (the network codes, and the send's unknown
+          // fate). Its status stays 0, so any liability is kept uncertain.
           let response: PinnedResponse
-          try {
-            if (options.send !== undefined)
-              response = await options.send(target, body, headers, signal)
-            else if (body === undefined) {
-              response = await pinnedHttpsRequest(
-                target,
-                signal,
-                ignoreProviderCache,
-                (requestOptions, callback) => {
-                  const request = target?.url.protocol === 'http:' ? httpRequest : httpsGet
-                  return request(
-                    { ...requestOptions, headers: { host: base.host, ...headers } },
-                    callback,
-                  )
-                },
-                target.url.protocol !== 'http:',
-              )
-            } else {
-              response = await pinnedPostRequest(
-                target,
-                body,
-                headers,
-                signal,
-                ignoreProviderCache,
-                target.url.protocol === 'http:' ? httpRequest : undefined,
-                target.url.protocol !== 'http:',
-              )
-            }
-          } catch (error: unknown) {
-            // A typed failure keeps its kind; a native send failure produced
-            // no answer, so before anything was written the provider could
-            // not be reached. The status stays 0 so any liability after a
-            // write is retained as uncertain; telling a mid-write failure
-            // apart belongs to the transmission work, not this branch.
-            if (isModelApiError(error)) throw error
-            throw new ModelApiError(
-              fill(UI_TEXT.providerUnreachable, {
-                provider: providerDisplayName(entry, preset),
-              }),
-              0,
-              undefined,
-              undefined,
+          if (options.send !== undefined)
+            response = await options.send(target, body, headers, signal)
+          else if (body === undefined) {
+            response = await pinnedHttpsRequest(
+              target,
+              signal,
+              ignoreProviderCache,
+              (requestOptions, callback) => {
+                const request = target?.url.protocol === 'http:' ? httpRequest : httpsGet
+                return request(
+                  { ...requestOptions, headers: { host: base.host, ...headers } },
+                  callback,
+                )
+              },
+              target.url.protocol !== 'http:',
+            )
+          } else {
+            response = await pinnedPostRequest(
+              target,
+              body,
+              headers,
+              signal,
+              ignoreProviderCache,
+              target.url.protocol === 'http:' ? httpRequest : undefined,
+              target.url.protocol !== 'http:',
             )
           }
           const iterator = chunks(response, idleMs, providerDisplayName(entry, preset))[
@@ -525,7 +523,24 @@ export function createConfiguredProviderServices(
                   if (next.done) controller.close()
                   else controller.enqueue(next.value)
                 } catch (error: unknown) {
-                  controller.error(error)
+                  // The provider answered 200 and the connection was lost
+                  // while its reply came: said as that, with Node's codes,
+                  // never as the provider's error (lane PROVERRORS). A typed
+                  // failure, the idle deadline, a refusal of ours and a Stop
+                  // keep their own.
+                  controller.error(
+                    signal.aborted || isModelApiError(error) || !isConnectionFailure(error)
+                      ? error
+                      : new ModelApiError(
+                          fill(UI_TEXT.providerConnectionLost, {
+                            provider: providerDisplayName(entry, preset),
+                            detail: boundProviderMessage(networkFailureCodes(error)),
+                          }),
+                          0,
+                          undefined,
+                          PROVIDER_CONNECTION_LOST_CODE,
+                        ),
+                  )
                 }
               },
               cancel: async () => {
@@ -1039,24 +1054,24 @@ export function createConfiguredProviderServices(
             yield event
           }
         } catch (error: unknown) {
-          // A typed codec refusal (an unsupported reasoning effort and its
-          // localized reason) and the output-cap minimum refusal (MINOUT)
-          // reach the caller; genuinely unknown errors keep a generic
-          // error (lane FIXDSTHINK2 finding 3).
-          if (chat.isChatCodecError(error)) throw error
-          if (error instanceof RangeError) throw error
-          // A lapsed confirmation keeps the run's own guidance instead of
-          // the provider's sentence.
-          if (isStaleConfirmedError(error)) throw error
           // An answered refusal keeps its status and kind, with the
           // sentence the person reads (lane PROVERR) — including a refusal
           // the provider ended its answer with, which carries the stream's
-          // own status. Anything local — a cancellation, the stall limit,
-          // an unreachable send — keeps its own text, so the ledger still
-          // sees what happened.
+          // own status.
           if (isModelApiError(error) && (error.status !== 0 || error.kind === 'streamError'))
             throw refusalError(entry, preset, error)
-          if (isModelApiError(error)) throw error
+          // Everything else is the product's own, raised before any answer
+          // (the client turns whatever decoding an answer throws into a
+          // ModelApiError): a cancellation, the stall limit, an unreachable
+          // send or a lost connection, a typed codec refusal and its
+          // localized reason (FIXDSTHINK2 finding 3), the output-cap minimum
+          // (MINOUT), a lapsed confirmation's own guidance, a session-budget
+          // or ledger stop. Each passes on unchanged, with its own message
+          // and type, so the caller and the ledger see what stopped the
+          // request and a refusal of ours is never retried (lane PROVERRORS:
+          // a budget stop that read as "not available in this build" was
+          // retried until the job died).
+          if (error instanceof Error) throw error
           throw new ModelApiError(UI_TEXT.actionFailed, 0, undefined, undefined)
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)
@@ -1229,22 +1244,28 @@ export function createConfiguredProviderServices(
       if (entry.address === undefined) throw invalidEntry(entry, { kind: 'missingAddress' })
       const address: string = entry.address
       // RVPROVERR: an answered refusal on the probe reads as that refusal
-      // (a rejected key is neither "unreachable" nor "could not be read");
-      // only a failure with no answer keeps the probe sentences.
-      const probeFailure = (error: unknown, fallback: string): string =>
-        isModelApiError(error) && error.status !== 0
-          ? refusalSentence(refusalOf(error), providerDisplayName(entry, presetFor(entry)))
-          : fallback
+      // (a rejected key is neither "unreachable" nor "could not be read").
+      // Lane PROVERRORS: a failure with no answer says what happened — the
+      // network codes of a failed send, or the entry's own cause — and only
+      // the probe's own time running out, or a list that cannot be read,
+      // keeps the probe sentences.
+      const probeFailure = (error: unknown, signal: AbortSignal, fallback: string): string => {
+        if (!isModelApiError(error) || (error.status === 0 && signal.aborted)) return fallback
+        return error.status === 0
+          ? error.message
+          : refusalSentence(refusalOf(error), providerDisplayName(entry, presetFor(entry)))
+      }
       const outcome = await presets.runProviderKeyTest(
         presetFor(entry).keyTest,
         new URL(address).origin,
         async (origin, path) => {
+          const signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
           try {
             await getJson(
               entry,
               path,
               key,
-              AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+              signal,
               origin === new URL(address).origin ? undefined : origin,
             )
             return { ok: true, modelCount: undefined }
@@ -1252,19 +1273,20 @@ export function createConfiguredProviderServices(
             return {
               ok: false,
               paid: false,
-              reason: probeFailure(error, UI_TEXT.providerProbeUnreachable),
+              reason: probeFailure(error, signal, UI_TEXT.providerProbeUnreachable),
             }
           }
         },
         async () => {
+          const signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
           try {
-            const rows = await scan(entry, key)
+            const rows = await scan(entry, key, signal)
             return { ok: true, modelCount: rows.length }
           } catch (error: unknown) {
             return {
               ok: false,
               paid: false,
-              reason: probeFailure(error, UI_TEXT.providerProbeUnparseable),
+              reason: probeFailure(error, signal, UI_TEXT.providerProbeUnparseable),
             }
           }
         },
