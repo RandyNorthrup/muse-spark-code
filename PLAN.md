@@ -14479,6 +14479,24 @@ and thats it." A thousand-test suite kept shipping broken code as
 - Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
   1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
 
+### D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
+
+**D122 — The capacity repository runs the Windows and macOS unit shards; the
+project, its pull requests and main stay on the owner's account.** While
+`ORG_CI` is `on` and the organization GitHub App's key
+(`ORG_CI_APP_PRIVATE_KEY`, which GitHub never gives a fork's or Dependabot's
+run) reaches a same-repository pull request's full-tier run, that run is part
+`home`: build.yml's `org` job pushes the merge commit to
+`scnetsolutions/muse-spark-code-ci` as `ci/pr-<number>` with a one-hour token
+for that repository alone (contents and workflows write), the same `ci.yml`
+runs the sixteen Windows and macOS unit shards there (part `org`), and `org`
+succeeds only if that run did. The seven required names fold in its result, so
+the ruleset is unchanged; every other run keeps every job here (part `all`).
+The capacity repository stays public and holds no secret. Owner setup:
+CONTRIBUTING.md, "The capacity repository (D122)"; proofs:
+`docs/certification/ciflow.md` (D122). Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
 ## 3. Open questions (need the owner)
 
 **Q-REFUSAL-FALLBACK (lane PROVERRR2, 2026-10-13).** GAPANTH-G11's scan row
