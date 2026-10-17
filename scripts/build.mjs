@@ -211,6 +211,8 @@ const AUTH_OUTFILE = 'dist/auth.js'
 // first time a paid path needs them.
 const PAID_ENTRY = 'src/host/paid/paidEntry.ts'
 const PAID_OUTFILE = 'dist/paid.js'
+const MODELS_SUBSCRIPTIONS_ENTRY = 'src/host/models/modelsSubscriptionsEntry.ts'
+const MODELS_SUBSCRIPTIONS_OUTFILE = 'dist/modelsSubscriptions.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
@@ -721,6 +723,16 @@ const paidOptions = {
   plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [PAID_ENTRY],
   outfile: PAID_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+const modelsSubscriptionsOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  entryPoints: [MODELS_SUBSCRIPTIONS_ENTRY],
+  outfile: MODELS_SUBSCRIPTIONS_OUTFILE,
   platform: 'node',
   external: ['vscode'],
   format: 'cjs',
@@ -1299,6 +1311,7 @@ if (isWatch) {
     esbuild.context(modelsPanelOptions),
     esbuild.context(authOptions),
     esbuild.context(paidOptions),
+    esbuild.context(modelsSubscriptionsOptions),
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
@@ -1417,6 +1430,7 @@ if (isWatch) {
     modelsPanel: esbuild.build(modelsPanelOptions),
     auth: esbuild.build(authOptions),
     paid: esbuild.build(paidOptions),
+    modelsSubscriptions: esbuild.build(modelsSubscriptionsOptions),
     usageService: esbuild.build(usageServiceOptions),
     usageCompanion: esbuild.build(usageCompanionOptions),
     usagePanel: esbuild.build(usagePanelOptions),
@@ -1567,6 +1581,7 @@ if (isWatch) {
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
+  reportSize(MODELS_SUBSCRIPTIONS_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(IMAGE_RESIZE_WORKER_OUTFILE)

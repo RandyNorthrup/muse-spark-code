@@ -47,6 +47,7 @@
 !dist/modelsPanel.js
 !dist/auth.js
 !dist/paid.js
+!dist/modelsSubscriptions.js
 !dist/usageService.js
 !dist/usageCompanion.js
 !dist/usagePanel.js
