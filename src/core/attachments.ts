@@ -101,6 +101,24 @@ function recordByteLimit(
   return recordBytes ?? (isMeta ? metaBytes : undefined)
 }
 
+/**
+ * Bytes past the record's limit are refused; undefined when they fit, so
+ * both adders share one gate instead of mirroring it.
+ */
+function refuseOverLimit(
+  recordBytes: number | undefined,
+  isMeta: boolean,
+  metaBytes: number,
+  byteLength: number,
+  metaReason: string,
+): AddAttachmentResult | undefined {
+  const maxBytes = recordByteLimit(recordBytes, isMeta, metaBytes)
+  if (maxBytes !== undefined && byteLength > maxBytes) {
+    return { ok: false, reason: isMeta ? metaReason : UI_TEXT.modelAttachmentOverLimit }
+  }
+  return undefined
+}
+
 export class AttachmentStore {
   private readonly entries = new Map<string, StoredAttachment>()
 
@@ -141,16 +159,15 @@ export class AttachmentStore {
     const isMeta = record === undefined || record.identity.provider === 'meta'
     // The record decides: Meta's own policy (its published inline limits),
     // another provider's, or Meta's numbers while no record reached attach.
-    const maxBytes = recordByteLimit(
+    const documentLimit = refuseOverLimit(
       policy?.state === 'yes' ? policy.value.maxBytes : undefined,
       isMeta,
       MAX_DOCUMENT_BYTES,
+      bytes.byteLength,
+      UI_TEXT.documentTooLarge,
     )
-    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
-      return {
-        ok: false,
-        reason: isMeta ? UI_TEXT.documentTooLarge : UI_TEXT.modelAttachmentOverLimit,
-      }
+    if (documentLimit !== undefined) {
+      return documentLimit
     }
     const pageCount = pdfPageCount(bytes)
     if (
@@ -191,16 +208,15 @@ export class AttachmentStore {
     if (policy !== undefined && policy.state !== 'yes')
       return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
     const isMeta = record === undefined || record.identity.provider === 'meta'
-    const maxBytes = recordByteLimit(
+    const imageLimit = refuseOverLimit(
       policy?.state === 'yes' ? policy.value.maxBytes : undefined,
       isMeta,
       MAX_IMAGE_BYTES,
+      bytes.byteLength,
+      UI_TEXT.attachmentTooLarge,
     )
-    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
-      return {
-        ok: false,
-        reason: isMeta ? UI_TEXT.attachmentTooLarge : UI_TEXT.modelAttachmentOverLimit,
-      }
+    if (imageLimit !== undefined) {
+      return imageLimit
     }
     const info = readImageInfo(bytes)
     if (info === undefined) {
