@@ -3231,7 +3231,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         readonly requestOutput: BoundedToolText
         readonly visibleOutput: string
         readonly cut: ToolResultCut
-        readonly spill: string
+        /** Undefined when the spill file could not be written; the notices say so. */
+        readonly spill: string | undefined
       }
   > {
     const bounded = boundToolResultText(text, this.toolResultLimits())
@@ -3307,14 +3308,19 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** TOOLCAP: the person's preview of a cut says the same in plain words. */
-  private cutPreview(cut: ToolResultCut, spill: string): string {
-    return fill(UI_TEXT.toolResultCutPreview, {
-      total: formatNumber(cut.totalChars),
-      head: formatNumber(cut.headLines),
-      tail: formatNumber(cut.tailLines),
-      omitted: formatNumber(cut.omittedChars),
-      spill,
-    })
+  private cutPreview(cut: ToolResultCut, spill: string | undefined): string {
+    return spill === undefined
+      ? fill(UI_TEXT.toolResultCutPreviewUnkept, {
+          total: formatNumber(cut.totalChars),
+          omitted: formatNumber(cut.omittedChars),
+        })
+      : fill(UI_TEXT.toolResultCutPreview, {
+          total: formatNumber(cut.totalChars),
+          head: formatNumber(cut.headLines),
+          tail: formatNumber(cut.tailLines),
+          omitted: formatNumber(cut.omittedChars),
+          spill,
+        })
   }
 
   /** TOOLCAP: the spill's workspace-relative path (forward slashes, every platform). */
@@ -3325,10 +3331,13 @@ export class ModelApiSession implements ScheduledAgentSession {
   /**
    * TOOLCAP: keep the cut result's full text where the file tools can page
    * it: under the session's spill directory in the workspace root, with a
-   * `.gitignore` keeping spills out of git. A failed write is said out loud
-   * (log and person notice), never silent.
+   * `.gitignore` keeping spills out of git. A failed write (a read-only
+   * workspace) is said out loud (log and person notice) and returns
+   * undefined: the cut text still goes to the model with a notice that
+   * names no file, so a spill failure never ends the turn it was cutting
+   * for.
    */
-  private async writeSpill(callId: string, text: string): Promise<string> {
+  private async writeSpill(callId: string, text: string): Promise<string | undefined> {
     const relative = this.spillRelative(callId)
     const p = pathModule(this.deps.platform)
     const absolute = p.resolve(this.deps.workspaceRoot, relative).replaceAll('\\', '/')
@@ -3343,14 +3352,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.emit({
         type: 'backendNotice',
         level: 'warning',
-        text: fill(UI_TEXT.toolResultCapRefused, {
-          source: 'spill',
-          value: relative,
-          reason: 'the full result could not be kept',
-          fallback: formatNumber(TOOL_OUTPUT_MAX_CHARS),
-        }),
+        text: fill(UI_TEXT.toolResultSpillFailed, { spill: relative }),
       })
-      throw error
+      return undefined
     }
     this.spills.add(relative)
     this.spillById.set(callId, relative)
@@ -3380,9 +3384,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     const relative = this.spillRelative(key)
     this.spillById.set(key, relative)
     this.spillById.set(noticeId, relative)
-    void this.writeSpill(key, text).catch((error: unknown) => {
-      this.deps.log.warn(`Tool-result spill failed: ${describe(error)}`)
-    })
+    // A failed write is said by writeSpill itself (log and person notice).
+    void this.writeSpill(key, text)
     this.cutToolOutputs.add(key)
     return withCutNotice(bounded.text, cutNotice(bounded.cut, relative, noticeId))
   }
@@ -13628,7 +13631,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const spillKey = backgroundTaskId ?? `note-${this.latestTurnId()}`
       const relative = await this.writeSpill(spillKey, text)
       finalText = withCutNotice(bounded.text, cutNotice(bounded.cut, relative, spillKey))
-      this.spillById.set(backgroundNoteId(finalText), relative)
+      if (relative !== undefined) this.spillById.set(backgroundNoteId(finalText), relative)
     }
     const note: PendingNote = {
       text: finalText,

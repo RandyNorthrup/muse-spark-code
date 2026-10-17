@@ -6584,8 +6584,12 @@ export const MODEL_API_MODEL_TEXT = {
   // more (the spill file, paged with read_file). Never silent: every cut
   // ends with this line.
   toolResultCut:
-    'Tool result cut: {totalChars} characters ({totalTokens} tokens) in {totalLines} lines, kept {keptChars} as the first {headLines} and last {tailLines} lines ({omittedChars} characters omitted in the middle){longest}. Full result in {spill}: page it back with recall_output id "{id}" (offset in characters) or read_file with offset and limit. The spill file is removed with the session.',
+    'Tool result cut: {totalChars} characters (about {totalTokens} tokens) in {totalLines} lines; kept {keptChars} characters from the start and end ({headLines} whole lines at the start, {tailLines} at the end; {omittedChars} characters omitted){longest}. Full result in {spill}: page it back with recall_output id "{id}" (offset in characters) or read_file with offset and limit. The spill file is removed with the session.',
   toolResultCutLongest: '; longest line {longestLine} characters, cut to {lineCap}',
+  // TOOLCAP: the same one line when the spill file could not be written (a
+  // read-only workspace): it must never name a file that does not exist.
+  toolResultCutNoSpill:
+    'Tool result cut: {totalChars} characters (about {totalTokens} tokens) in {totalLines} lines; kept {keptChars} characters from the start and end ({headLines} whole lines at the start, {tailLines} at the end; {omittedChars} characters omitted){longest}. The full result could not be kept, so only this cut text remains: re-run the tool with a narrower request to see more.',
   // PLAN.md D27: what the Model API's file tools say when they will not write.
   fileChangedSinceRead:
     'has changed since you last read it, or you have not read it yet; read it with read_file first so nothing is overwritten unseen',

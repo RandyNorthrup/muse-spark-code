@@ -14,6 +14,7 @@ import {
   isReasoningItem,
   messageText,
   responseSchema,
+  restoredToolText,
   type CreateResponseBody,
   type FunctionToolDefinition,
   type InputItem,
@@ -323,7 +324,7 @@ describe('anthropic codec goldens (checked-in request bytes)', () => {
       {
         type: 'function_call_output',
         call_id: 'toolu_01test',
-        output: '{"timezone":"UTC","time":"2026-10-04T12:00:00Z"}',
+        output: restoredToolText('{"timezone":"UTC","time":"2026-10-04T12:00:00Z"}'),
       },
     ])
     expect(

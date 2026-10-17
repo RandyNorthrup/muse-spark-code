@@ -3087,7 +3087,7 @@ export const EN = {
   // TOOLCAP: the person's preview of a cut tool result says the same as the
   // model's one-line notice, in plain words, with the spill file to open.
   toolResultCutPreview:
-    'Tool result cut: {total} kept as the first {head} and last {tail} lines ({omitted} left out). The full result is in {spill}; open it with read_file. It is removed with the session.',
+    'Tool result cut: {total} characters, kept the start and end ({head} whole lines at the start, {tail} at the end; {omitted} left out). The full result is in {spill}. It is removed with the session.',
   // TOOLCAP: the turn's last word when trimming and compaction could not fit
   // the conversation into the model's window. True by construction: the
   // numbers come from the provider's own refusal, and nothing was deleted.
@@ -3101,6 +3101,12 @@ export const EN = {
   // its own translated sentence for the person reading the refusal above.
   toolResultCapBelowFloor: 'below the readable floor of {floor} bytes',
   toolResultCapAboveWindow: 'larger than the model’s window of about {window} tokens',
+  // TOOLCAP: the spill file for a cut tool result could not be written (for
+  // example a read-only workspace); the cut text still went to the model.
+  toolResultSpillFailed:
+    'The full tool result could not be kept in {spill}; only the cut text remains.',
+  toolResultCutPreviewUnkept:
+    'Tool result cut: {total} characters, kept the start and end ({omitted} left out). The full result could not be kept.',
   // The Model API session budget (M82): a request that cannot fit is not
   // sent, and the turn's cost is shown against the cap afterwards.
   sessionBudgetStopped:

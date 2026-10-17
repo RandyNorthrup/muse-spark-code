@@ -40,6 +40,7 @@ export interface ToolResultCut {
   readonly totalBytes: number
   readonly totalTokens: number
   readonly totalLines: number
+  /** Original characters carried in the kept text (the cut's own `…` markers are not original characters). */
   readonly keptChars: number
   readonly keptBytes: number
   /** Whole lines actually kept in the head part (all of them when no middle was cut). */
@@ -205,26 +206,35 @@ export function capRefusalReason(refused: ToolResultCapRefusal): string {
     : fill(UI_TEXT.toolResultCapAboveWindow, { window: formatNumber(refused.windowTokens) })
 }
 
-/** The one line a cut result carries; the spill holds the full text. */
-export function cutNotice(cut: ToolResultCut, spill: string, id: string): string {
-  return fill(MODEL_API_MODEL_TEXT.toolResultCut, {
-    id,
-    totalChars: String(cut.totalChars),
-    totalTokens: String(cut.totalTokens),
-    totalLines: String(cut.totalLines),
-    keptChars: String(cut.keptChars),
-    headLines: String(cut.headLines),
-    tailLines: String(cut.tailLines),
-    omittedChars: String(cut.omittedChars),
-    longest:
-      cut.longestLine > 0
-        ? fill(MODEL_API_MODEL_TEXT.toolResultCutLongest, {
-            longestLine: String(cut.longestLine),
-            lineCap: String(cut.lineCap),
-          })
-        : '',
-    spill,
-  })
+/**
+ * The one line a cut result carries; the spill holds the full text. When
+ * the spill could not be written (`spill` undefined) the line says so
+ * instead of naming a file that does not exist.
+ */
+export function cutNotice(cut: ToolResultCut, spill: string | undefined, id: string): string {
+  return fill(
+    spill === undefined
+      ? MODEL_API_MODEL_TEXT.toolResultCutNoSpill
+      : MODEL_API_MODEL_TEXT.toolResultCut,
+    {
+      id,
+      totalChars: String(cut.totalChars),
+      totalTokens: String(cut.totalTokens),
+      totalLines: String(cut.totalLines),
+      keptChars: String(cut.keptChars),
+      headLines: String(cut.headLines),
+      tailLines: String(cut.tailLines),
+      omittedChars: String(cut.omittedChars),
+      longest:
+        cut.longestLine > 0
+          ? fill(MODEL_API_MODEL_TEXT.toolResultCutLongest, {
+              longestLine: String(cut.longestLine),
+              lineCap: String(cut.lineCap),
+            })
+          : '',
+      spill: spill ?? '',
+    },
+  )
 }
 
 export function boundToolResultText(text: string, limits: ToolResultLimits): BoundToolResult {
@@ -253,20 +263,32 @@ export function boundToolResultText(text: string, limits: ToolResultLimits): Bou
   }
   let capped = lines
   let wasLineCut = false
+  // Offsets of the markers this cut adds, in the line-capped joined text:
+  // `keptChars` counts original characters, and a marker is not one (an
+  // original `…` in the text is counted, because only these offsets are).
+  const markerOffsets: number[] = []
   if (longestLine > limits.maxLineChars) {
     wasLineCut = true
     const keep = Math.max(limits.maxLineChars - LINE_MARK.length, 0)
     const head = Math.ceil(keep / HALVES)
     const tail = Math.floor(keep / HALVES)
+    let lineStart = 0
     capped = lines.map((line) => {
-      return line.length <= limits.maxLineChars
-        ? line
-        : `${line.slice(0, boundary(line, head))}${LINE_MARK}${line.slice(boundary(line, line.length - tail))}`
+      if (line.length <= limits.maxLineChars) {
+        lineStart += line.length + 1
+        return line
+      }
+      const headEnd = boundary(line, head)
+      markerOffsets.push(lineStart + headEnd)
+      const cutLine = `${line.slice(0, headEnd)}${LINE_MARK}${line.slice(boundary(line, line.length - tail))}`
+      lineStart += cutLine.length + 1
+      return cutLine
     })
   }
   let joined = capped.join('\n')
   let headLines: number
   let tailLines: number
+  let keptMarkers: number
   if (joined.length > estimateCapChars || utf8Length(joined) > hardCapBytes) {
     // The most kept characters that fit BOTH the estimate and the byte
     // guarantee (binary search: byte length falls as kept characters fall).
@@ -282,15 +304,23 @@ export function boundToolResultText(text: string, limits: ToolResultLimits): Bou
       const tailStart = boundary(joined, joined.length - Math.floor(kept / HALVES))
       return { head: joined.slice(0, headEnd), tail: joined.slice(tailStart), headEnd, tailStart }
     }
+    // The kept head and tail are joined by the same marker a line cut
+    // uses, so two fragments never read as one continuous line the tool
+    // never printed; its bytes count against the guarantee like any kept
+    // character's.
+    const spliceBytes = (parts: { readonly head: string; readonly tail: string }): number =>
+      parts.head === '' || parts.tail === '' ? 0 : utf8Length(LINE_MARK)
     let low = 0
     let high = Math.min(estimateCapChars, joined.length)
     while (low < high) {
       const mid = Math.ceil((low + high) / HALVES)
       const parts = fit(mid)
-      if (utf8Length(parts.head) + utf8Length(parts.tail) <= hardCapBytes) low = mid
-      else high = mid - 1
+      if (utf8Length(parts.head) + spliceBytes(parts) + utf8Length(parts.tail) <= hardCapBytes) {
+        low = mid
+      } else high = mid - 1
     }
     const parts = fit(low)
+    const isSpliced = parts.head !== '' && parts.tail !== ''
     // Whole lines only: a fragment the cut made inside a line is not a kept
     // line, so the two counts can never claim more lines than there were.
     headLines =
@@ -303,13 +333,18 @@ export function boundToolResultText(text: string, limits: ToolResultLimits): Bou
         ? 0
         : parts.tail.split('\n').length -
           (parts.tailStart === 0 || joined[parts.tailStart - 1] === '\n' ? 0 : 1)
-    joined = `${parts.head}${parts.tail}`
+    keptMarkers =
+      markerOffsets.filter((offset) => offset < parts.headEnd || offset >= parts.tailStart).length +
+      (isSpliced ? 1 : 0)
+    joined = isSpliced ? `${parts.head}${LINE_MARK}${parts.tail}` : `${parts.head}${parts.tail}`
   } else {
     // Lines were cut but no middle was: every line is kept, shortened.
     headLines = splitLines(joined).length
     tailLines = 0
+    keptMarkers = markerOffsets.length
   }
   const keptBytes = utf8Length(joined)
+  const keptChars = joined.length - keptMarkers
   return {
     // Brand: the cut kept at most the estimate characters and at most the guaranteed bytes (PLAN.md §8: TOOLCAP brand).
     text: joined as BoundedToolText,
@@ -318,11 +353,11 @@ export function boundToolResultText(text: string, limits: ToolResultLimits): Bou
       totalBytes,
       totalTokens: estimatePackTokens(totalChars),
       totalLines: lines.length,
-      keptChars: joined.length,
+      keptChars,
       keptBytes,
       headLines,
       tailLines,
-      omittedChars: totalChars - joined.length,
+      omittedChars: totalChars - keptChars,
       longestLine: wasLineCut ? longestLine : 0,
       lineCap: limits.maxLineChars,
     },
