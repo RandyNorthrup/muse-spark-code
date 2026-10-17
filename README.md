@@ -400,11 +400,10 @@ reason and record the owner. The reviewer charter ships as the
 ## Screenshots
 
 M106 development: the Model API client paces tagged background requests from
-captured Meta request and token limits. Concurrent responses retain local
-charges, and background work reserves half the observed token budget for the
-foreground. A queued request reports that it is waiting for rate-limit
-headroom, with a separate ten-minute admission deadline; provider idle timing
-starts at dispatch. Gateway-timeout retries remain bounded. Public status
+the provider's observed rate-limit headers and 429 answers, with no invented
+pace of its own. A queued request reports that it is waiting for rate-limit
+headroom and keeps waiting until Stop; retries follow the provider's
+Retry-After and its documented guidance. Public status
 failures expose fixed text and safe status fields. Its service-status read and usage/report
 presentation ports await the integration bindings listed in
 [the lane R certification](docs/certification/m106-r.md).
@@ -4059,8 +4058,8 @@ source cannot elevate their priority. See [M95 N's record contract](docs/certifi
 | A message to Muse Code           | 10 MiB. Attachment admission reserves 2 MiB for the prompt, context and frame; serialized text and base64 images count toward the rest. The exact outbound frame is checked at send.                                                                            |
 | Model API: tool rounds           | 50 per turn                                                                                                                                                                                                                                                     |
 | Model API: shell commands        | 2 minutes by default, 10 at most                                                                                                                                                                                                                                |
-| Model API: retries               | Up to 5 attempts on 429, 500, 502 and 503, and when a reply stream ends because the server shut down or was overloaded, honouring `Retry-After`, shown in the transcript; Stop cuts the wait short                                                              |
-| Model API: a silent reply stream | Ended after 5 minutes with nothing from the server; send again to retry                                                                                                                                                                                         |
+| Model API: retries               | Retryable failures (429, 500, 502 and 503, and a reply stream the server shut down or overloaded) retry honouring `Retry-After` at any length, shown in the transcript; attempts end at Stop, never at a count, and quota never retries                         |
+| Model API: a silent reply stream | Waits until Stop, saying so while it lasts; a provider-named idle still ends silence at it                                                                                                                                                                      |
 | Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
 | Opened tool outputs              | 16 MiB each; the latest 20, and 33,554,432 characters together                                                                                                                                                                                                  |
 
