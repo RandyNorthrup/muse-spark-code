@@ -7,6 +7,7 @@ import {
 import { metaCapabilityRecord } from '../../src/core/providers/capabilityRecord'
 import type { TeamEngineModel } from '../../src/core/team/teamModelRegistry'
 import type { UsageLimitSnapshot } from '../../src/shared/usageJournal'
+import { USAGE_JOURNAL_VERSION } from '../../src/shared/constants'
 
 const base = metaCapabilityRecord('muse-spark-1.3')
 const engine = (provider = 'meta', preset = provider): TeamEngineModel => ({
@@ -29,7 +30,7 @@ const input = {
   canRunKind: () => true,
 }
 const limit = (observedAt: number, raw: UsageLimitSnapshot['raw']): UsageLimitSnapshot => ({
-  v: 1,
+  v: USAGE_JOURNAL_VERSION,
   id: `limit-${String(observedAt)}`,
   at: observedAt,
   day: '2026-10-11',

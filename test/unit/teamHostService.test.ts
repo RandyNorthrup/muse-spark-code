@@ -24,6 +24,7 @@ import {
   UI_TEXT,
   HOOK_MAX_STOP_CONTINUATIONS,
 } from '../../src/shared/constants'
+import { Usd } from '../../src/shared/usd'
 
 const ORCHESTRATOR = 'muse-spark-1.3'
 const WORKER_MODEL = 'other-model-7'
@@ -506,7 +507,7 @@ describe('the team host service', () => {
         reasoning: 0,
         modelCalls: 1,
         estimated: false,
-        costUsd: 0.00002775,
+        costUsd: Usd.from(0.00002775).toAmount(),
       },
     })
     await settle()
@@ -1308,12 +1309,16 @@ describe('RVCM963C ownership redesign', () => {
     const second = h.started[1]
     expect(first).toBeDefined()
     expect(second).toBeDefined()
-    await first?.meter.reserveRequest({ ...usage(50), costUsd: 0.75 })
-    await expect(second?.meter.reserveRequest({ ...usage(50), costUsd: 0.75 })).rejects.toThrow()
+    await first?.meter.reserveRequest({ ...usage(50), costUsd: Usd.from(0.75).toAmount() })
+    await expect(
+      second?.meter.reserveRequest({ ...usage(50), costUsd: Usd.from(0.75).toAmount() }),
+    ).rejects.toThrow()
     h.fail(0, new Error('response lost'))
     await settle()
     expect(service.tree()?.roles[0]?.entries[0]?.caps[0]?.used).toBe(0.75)
-    await expect(second?.meter.reserveRequest({ ...usage(1), costUsd: 0.5 })).rejects.toThrow()
+    await expect(
+      second?.meter.reserveRequest({ ...usage(1), costUsd: Usd.from(0.5).toAmount() }),
+    ).rejects.toThrow()
     await service.dispose()
   })
 
@@ -1650,15 +1655,15 @@ it('R4-2: late per-request settlement preserves known tokens and other uncertain
   const meter = h.started[0]?.meter
   expect(meter).toBeDefined()
   if (meter === undefined) throw new Error('worker missing')
-  const first = await meter.reserveRequest({ ...usage(80), costUsd: 0.75 })
+  const first = await meter.reserveRequest({ ...usage(80), costUsd: Usd.from(0.75).toAmount() })
   await meter.settleRequest(first, usage(80))
-  const second = await meter.reserveRequest({ ...usage(10), costUsd: 0.5 })
-  await meter.settleRequest(first, { ...usage(80), costUsd: 0.3 })
+  const second = await meter.reserveRequest({ ...usage(10), costUsd: Usd.from(0.5).toAmount() })
+  await meter.settleRequest(first, { ...usage(80), costUsd: Usd.from(0.3).toAmount() })
   expect(service.tree()?.roles[0]?.entries[0]?.caps[0]).toMatchObject({
     used: 0.8,
     estimated: true,
   })
-  await meter.settleRequest(second, { ...usage(5), costUsd: 0.1 })
+  await meter.settleRequest(second, { ...usage(5), costUsd: Usd.from(0.1).toAmount() })
   expect(service.tree()?.roles[0]?.entries[0]?.caps[0]?.used).toBeCloseTo(0.4)
   const collected = await service.teamRunner.collect({}, context())
   expect(JSON.parse(collected.output)).toMatchObject({ tasks: [{ usage: { input: 85 } }] })
@@ -1730,7 +1735,7 @@ it('R6 release: revocation during durable admission releases the never-dispatche
     await service.teamRunner.delegate(delegateOne, context())
     isRevoked = true
     await expect(
-      h.started[0]?.meter.reserveRequest({ ...usage(80), costUsd: 0.75 }),
+      h.started[0]?.meter.reserveRequest({ ...usage(80), costUsd: Usd.from(0.75).toAmount() }),
     ).rejects.toThrow()
     expect(service.tree()?.roles[0]?.entries[0]?.caps[0]?.used).toBe(0)
     expect(h.values.get(TEAM_TASKS_STATE_KEY)).toMatchObject({ tasks: [{ claims: [] }] })
@@ -1747,9 +1752,13 @@ it('R6 final claims: unknown-priced receipt retains labelled liability with no o
     await service.teamRunner.delegate(delegateOne, context())
     const meter = h.started[0]?.meter
     if (meter === undefined) throw new Error('worker missing')
-    const claim = await meter.reserveRequest({ ...usage(80, 20), estimated: true, costUsd: 0.75 })
+    const claim = await meter.reserveRequest({
+      ...usage(80, 20),
+      estimated: true,
+      costUsd: Usd.from(0.75).toAmount(),
+    })
     await meter.settleRequest(claim, usage(12, 3), true)
-    h.finish(0, { usage: { ...usage(0), modelCalls: 0, costUsd: 0 } })
+    h.finish(0, { usage: { ...usage(0), modelCalls: 0, costUsd: Usd.from(0).toAmount() } })
     await settle()
     expect(service.tree()?.roles[0]?.entries[0]?.caps[0]).toMatchObject({
       used: 0.75,
