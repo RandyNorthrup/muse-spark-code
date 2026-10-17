@@ -248,7 +248,7 @@ export class AcpPaidUse {
     if (this.deps.headless !== undefined) return
     const flagged: readonly AcpPaidFeature[] =
       this.deps.autoCompactionOff === true
-        ? this.deps.flagged
+        ? this.deps.flagged.filter((feature) => feature !== 'autoCompaction')
         : (['autoCompaction', ...this.deps.flagged] as readonly AcpPaidFeature[])
     const unflagged = ACP_PAID_FEATURES.filter((feature) => !flagged.includes(feature))
     if (unflagged.length === 0) {
