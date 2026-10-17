@@ -2795,3 +2795,57 @@ These held no test titles of their own: the stand-ins and fixtures the deleted t
 - `test/unit/vault/sshFixture.ts`
 - `.github/workflows/action-check.yml` (the Action check against the fake-only test package)
 - `scripts/package-acp-test.mjs` (packed the fake-only Action test package)
+
+## Removed when the no-stand-ins lint gate landed (2026-10-17)
+
+These tests drove real code but through stand-ins (`vi.fn` and mock return values) that the deleted-files sweep above did not catch, because they were written across lines. ESLint now refuses every stand-in API in test files.
+
+### test/unit/GoalPanel.test.tsx
+
+- is not there without a goal
+- shows the objective, the status in words, the progress and what is now and next
+- clamps the bar, not the number, and shows an unknown status as it came
+- offers the verbs the status allows, and sends them
+- edits the objective in place: save sends it, an unchanged one or Escape sends nothing
+- closes the field when the goal can no longer be edited
+- keeps an open objective editor through a progress update
+- does not reopen an old editor when a cleared goal returns with the same objective
+- gives the focus back to Edit when the field closes, never to the page
+
+### test/unit/hostL10n.test.ts
+
+- keeps English for a display language without a table, and says so once
+- reads and installs the table the display language maps to
+- stays in English, with a warning, when the file cannot be read
+- stays in English, with a warning, when the file is not JSON
+- stays in English, naming the first problems, when the table does not match English
+- names only the first few problems of a badly damaged table
+- reads ordinary source/ACP JSON without changing its text
+- decodes the staged table and installs its actual translated values
+- refuses a compressed table whose decoded bytes exceed the fixed bound
+- refuses corrupt compressed bytes instead of using a second file
+
+### test/unit/openInTerminal.test.ts
+
+- runs the CLI with no arguments in the workspace root
+- leaves the directory to VS Code without a workspace
+- warns with the reason when the CLI is absent
+
+### test/unit/planCommands.test.ts
+
+- lists the plans by title and file, then offers Open and Implement
+- answers Implement, and nothing when either pick is dismissed
+
+### test/unit/whatsNewPage.test.ts
+
+- sends a link’s index in place of following it, from a click inside it too
+- never follows a link it cannot index, and sends nothing for it
+- sends a Try it’s index, and nothing for another button or the page
+- sends the toggle’s state
+
+### test/unit/legalFixProduction.test.ts (four tests; the rest of the file stays)
+
+- writes only the exact prepared selection after explicit ownership approval
+- denial, changed preview and live admission loss each prevent publication
+- rechecks admission between patches and reports per-file failures
+- refuses evidence changes during ownership approval

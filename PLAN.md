@@ -2206,7 +2206,7 @@ reason. Limits: 10 MiB per image, 20 per message.
 on, the index runs `git ls-files --cached --others --exclude-standard -z` in
 the workspace root (git's own ignore semantics), falls back to `findFiles`
 with a logged warning when git is missing or the folder is not a repository,
-and is capped at 20 000 paths, cached for 15 s and invalidated by a
+with no path count of ours, cached for 15 s and invalidated by a
 create/delete file watcher. Ranking is a deterministic fuzzy scorer
 (`src/core/fuzzy.ts`), file-name matches winning over folder matches.
 
@@ -2866,7 +2866,7 @@ model at once, and what it printed is added to the replay as a user note that
 waits for the next request, because this backend makes no model call nobody
 asked for. `!` commands run as typed, outside any turn, with no approval card
 in any permission mode, and never in Restricted Mode; on the Model API backend
-they run for at most ten minutes. Explain instead sends up to 500 characters.
+they run until they finish or the person stops them. Explain sends the whole selection.
 Full record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D41 — One memory for both backends (M49, 2026-09-25)
@@ -3345,7 +3345,7 @@ Existing explicit false settings remain false. Observation packing, hooks and
 reply usage default on, and web search, images, Muse Voice availability, Auto
 reviewer, subagents, schedules and best-of-N default on for Model API; free OS
 dictation remains the selected engine. Interactive extras share
-`museSpark.paidDailyBudgetUsd`, machine scoped and USD 5 by default;
+`museSpark.paidDailyBudgetUsd`, machine scoped, a budget the person sets (none by default);
 unreadable or incomplete storage refuses spending. Hosted search and Muse
 Voice transports remain refused pending verified bounds. After the FIXDEF
 review, a committed daily Stop must survive every pending raise. Full record:
@@ -3671,9 +3671,10 @@ and all of it stays here in place. Full record:
   - `report`: `summary`, `review` or `qa` (the shapes below).
   - `delegates`: the roles this role may delegate to.
     - Without the key it may delegate to none, so the depth is 1.
-    - With it, the depth is at most 2. The roles named may not include the
+    - With it, the roles named may delegate in turn as their own `delegates`
+      allow, with no depth limit of ours. The roles named may not include the
       role itself or its delegator, and their tasks count under the same
-      limits.
+      limits the person set.
   - `permission-mode`: M76's key, the role's approval ceiling.
   - `model` and `effort`: M76's keys.
     - For a team task, `effort` applies where the worker's model serves
@@ -4062,7 +4063,7 @@ and all of it stays here in place. Full record:
       or device servers, M92's gadgets among them), matched by command and
       package name.
     - **Shared:** unknown servers, with a per-role limit that the user
-      sets (default 2).
+      sets (none by default).
     - **Where it is set:** in the Models & Agents panel's Roles section,
       under **Tools and devices**, at user level only. A repository cannot
       declare a resource free or raise a limit.
@@ -4110,21 +4111,19 @@ and all of it stays here in place. Full record:
     It is set automatically to that agent's computed ceiling (Team
     intensity, below), because a plan's or key's limit is shared by every
     entry that uses it. The user may lower it.
-  - **Per role:** tasks per orchestrator turn (default 6); minutes per task
-    (default 30); the exhausted policy; and `continue on next` (below).
+  - **Per role, each set by the person (none by default):** tasks per
+    orchestrator turn; minutes per task; the exhausted policy; and
+    `continue on next` (below).
   - **Global, machine-scoped settings** (with the ceilings under Team
     intensity). The worker and command caps bound each window; their sum
     across windows is shown as an advisory figure (Scheduler and traffic,
     below). The budget is shared across windows through the paid ledger:
-    - `museSpark.teamMaxWorkers`: by default the lower of 20 and twice the
-      logical CPUs;
+    - `museSpark.teamMaxWorkers`: set by the person, none by default;
     - `museSpark.teamMaxProcessWorkers`, for Muse Code and external
-      workers, which are processes or sessions with memory of their own.
-      Its default is the lowest of 4, the logical CPUs less 2, and the free
-      memory at activation less 4 GiB divided by 1.5 GiB, and never below
-      1;
+      workers, which are processes or sessions with memory of their own:
+      set by the person, none by default;
     - the machine's daily team budget, `museSpark.teamDailyBudgetUsd` and
-      `museSpark.teamDailyBudgetTokens` ($50.00 and 25,000,000 by default).
+      `museSpark.teamDailyBudgetTokens`: set by the person, none by default.
       It bounds the sum across every window of this editor, as a scope of
       D78's shared paid ledger, and no workspace's own budget passes it.
       The intensity level sets each workspace's own budget beneath it;
@@ -4230,19 +4229,18 @@ model-profile show`, read without a model call);
       headers at run time (OpenAI's `x-ratelimit-*`, Anthropic's
       `anthropic-ratelimit-*`, OpenRouter's key limit). Where a provider
       documents none (Gemini), 429s decide.
-    - **External agents**: 2, until their own limits show in refusals.
-  - **Our hard ceiling:** 20 on the Model API and M95's engines (the
-    owner's figure), 4 per host for Muse Code, 4 per external agent.
+    - **External agents**: their own documented limits, then their
+      refusals; no number of ours.
+  - **The ceiling is the provider's:** the limit each provider documents
+    for that model (its capability record, with source and date), read
+    live from its headers where it reports them. There is no ceiling of
+    ours.
   - **The machine's ceiling:**
-    - `museSpark.teamMaxWorkers`: by default the lower of 20 and twice
-      the logical CPUs;
-    - `museSpark.teamMaxProcessWorkers`: for Muse Code and external
-      workers, as before;
-    - `TEAM_MAX_CONCURRENT_COMMANDS`: half the logical CPUs, at least 1.
-      This is the number of engine workers' shell commands that run at
-      once; the rest wait for a slot. Muse Code and external workers run
-      their own commands, so `museSpark.teamMaxProcessWorkers` bounds
-      them instead.
+    - `museSpark.teamMaxWorkers` and `museSpark.teamMaxProcessWorkers`:
+      set by the person, none by default;
+    - engine workers' shell commands run as they come, with no
+      command-slot count of ours; the person's resource limits (M107)
+      apply when set.
 - **Live adaptation.**
   - A 429, or a remaining-requests or remaining-tokens header under 10%,
     halves that entry's running cap, down to 1.
@@ -4271,8 +4269,9 @@ model-profile show`, read without a model call);
     - A 429, or a provider's `Retry-After`, marks the agent rate-limited
       until then.
     - A subscription's usage-limit refusal marks it until the reset time
-      the provider names, or `TEAM_USAGE_LIMIT_COOLDOWN_MS` (30 minutes)
-      when it names none. Each wire shape comes from step 1's captures and
+      the provider names. When it names none, the mark stays until the
+      provider accepts a request again or the person clears it; no waiting
+      period of ours. Each wire shape comes from step 1's captures and
       M88's pending usage-limit capture (AGENTS rule 13).
     - Both marks are per agent, because a plan or a key is shared by all
       its entries.
@@ -4331,9 +4330,9 @@ model-profile show`, read without a model call);
       note.
     - **`queue`**. The task waits for headroom, but only for a reason that
       recovers: room under `concurrent`, a rate limit, a usage-limit
-      cooldown, or a day cap at midnight. It waits at most
-      `TEAM_QUEUE_MAX_WAIT_MS` (60 minutes), in a queue of at most
-      `TEAM_QUEUE_MAX` (16) tasks, and then asks. A spent `lifetime` cap
+      cooldown, or a day cap at midnight. It waits, with no
+      time or queue-length limit of ours, shown on the board, where the
+      person can stop it. A spent `lifetime` cap
       never recovers, so it asks.
     - **`self`**. The task is refused, with the reason, and the guidance
       tells the orchestrator to do the work itself.
@@ -4638,8 +4637,7 @@ brief, reason, files?, entry?, continue? }`.
     2. the role's body (the user's guidance; stable);
     3. the workspace's rules and skills, as its backend loads them: the
        Model API's (M10), Muse Code's own, or an external agent's own;
-    4. the task: its id, its branch and folder, the brief (at most
-       `TEAM_BRIEF_MAX_CHARS`, 8,000), and the files named, as paths. Small
+    4. the task: its id, its branch and folder, the whole brief, and the files named, as paths. Small
        text files are inlined up to `TEAM_BRIEF_FILES_MAX_BYTES` (64 KiB),
        under M54's private-path and protected-path checks.
 
@@ -4782,10 +4780,9 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       a key entry.
     - Each `delegate` call that starts key tasks asks the D48 popup once
       for all of them, in every mode, Bypass included. The popup names each
-      model's prices and each task's ceiling. The ceiling is the tightest
-      of the entry's `task` caps at list price and the request ceiling
-      (`TEAM_TASK_MAX_REQUESTS`: 40 for `engineering` and `qa`, 20 for the
-      others).
+      model's prices and each task's ceiling. The ceiling is the entry's
+      `task` caps the person set, at list price; with none set, there is no
+      ceiling of ours.
     - "Always in this workspace" holds per model, as M76 holds it.
     - A switch to a key entry that this call's popup did not name asks
       again.
@@ -5340,8 +5337,8 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
       team's tasks and the edges between them. It is kept in the window's
       own journal (below), and its rows in the team ledger, D75's one
       durable record, so it survives a reload.
-      - It holds at most `TEAM_BOARD_MAX` (64) open tasks per workspace,
-        M48's per-conversation figure.
+      - It holds every open task of the workspace, with no count limit
+        of ours.
       - **After a reload or a crash** the board is kept but paused. Running
         attempts become interrupted (D75), and nothing queued starts until
         the user clicks **Resume queue** once. Key tasks then ask the D48
@@ -5426,9 +5423,8 @@ summary, files?, checks?, sources?, questions?, next? }`. `blocked`
     - **Waiting for a lane is not exhaustion** (the amendment above).
       - A task waits `ready` or `queued`, and starts when it can without
         asking, when all it lacks is one of: `concurrent`, the running caps,
-        per-agent, window or process slots, a rate limit that
-        resets within `TEAM_STALL_RATE_LIMIT_MS` (2 minutes), a lease, or a
-        dependency.
+        per-agent, window or process slots, a rate limit whose
+        reset time the provider gave, a lease, or a dependency.
       - D75's policy (`ask`, `queue`, `self`) applies only when every entry
         is out for a reason that waiting will not fix soon: a spent cap, the
         team's daily budget in the shared paid ledger, a usage limit
@@ -5585,8 +5581,8 @@ serve` and every worker session in it, after a confirmation that
         `continue on next`, off by default, because a cap is the user's own
         budget line.
       - **Bounds.**
-        - At most `TEAM_MAX_REASSIGNMENTS` (2) per task. A third stall turns
-          the task `blocked`, with its history, for the orchestrator.
+        - No reassignment count of ours. Every stall is recorded in the
+          task's history, and the orchestrator decides each reassignment.
         - A switch to a key entry that the `delegate` call's popup did not
           name asks the D48 popup again.
         - A reassignment is a switch: one transcript row, and
@@ -7284,8 +7280,8 @@ Inline completions (Tab) use the Model API only, never the subscription, and
 run only on a stored key. A Tab request never carries, reads or changes a
 session's input, history, goal or memory. Tab's setting is on by default on
 the Model API backend, but the first request in a window asks D48's question
-and nothing is sent before an allowing answer; a hard daily budget, $1.00 by
-default, then caps the spend. Once a request is sent it runs to its end, even
+and nothing is sent before an allowing answer; a daily budget the person
+sets (none by default) caps the spend. Once a request is sent it runs to its end, even
 when the token is cancelled. Everything sent goes through `redactSecrets`
 first. Under `museSpark.tabWithCopilot: "yield"`, the default, Tab sends no
 automatic request for a language while Copilot is installed, enabled for that
@@ -7340,8 +7336,9 @@ and the two hook points.
     and its confirmation name the model's rates and the estimated cost per
     hour of typing (research §7). The confirmation also says that Copilot, if
     on, is yielded to.
-  - **A hard daily budget**, `museSpark.tabDailyBudgetUsd` (machine-scoped;
-    default $1.00, decided 2026-10-04 (Q-M94c); from $0.05 to $50).
+  - **A daily budget the person sets**, `museSpark.tabDailyBudgetUsd`
+    (machine-scoped; none by default, owner 2026-10-17, superseding
+    Q-M94c's $1.00).
     - It is kept for each local calendar day, across every window on the
       machine, in a ledger of its own under the extension's global storage:
       one file per window per day (`tab-spend/<date>/<window>.json`),
@@ -7363,7 +7360,7 @@ and the two hook points.
   - **The D48 popup, once per window, not per keystroke** (Q-M94a, decided
     2026-10-04). A popup before each request is impossible. The first request
     in a window asks D48's question, naming Tab, the model's rates and today's
-    budget (default $1.00/day). Nothing is sent before an allowing answer;
+    budget, if the person set one. Nothing is sent before an allowing answer;
     closing the modal denies. No separate enable-price modal at activation:
     - **Allow once** allows Tab in this window until it closes;
     - **Allow always in this workspace** is D48's revocable grant;
@@ -7478,8 +7475,7 @@ and the two hook points.
       invalid JSON, an answer that fails the schema, a crash, a timeout, or no
       answer all refuse the read; for Tab every failure fails closed, which
       is stricter than Cursor's default and allowed by D70's "never weaker".
-    - Each hook's timeout is capped at `TAB_HOOK_TIMEOUT_MS` (1,500 ms), since
-      a suggestion waits for it.
+    - A suggestion waits for each hook to finish; no timeout of ours.
     - Answers are cached per path and content digest
       (`TAB_HOOK_VERDICT_CACHE` entries). The cache is cleared when the hook
       configuration changes, and a `deny` holds until then.
@@ -7815,8 +7811,9 @@ changes nothing (U14).
      exec result schema gets an additive field under M80's versioning rule.
 
 4. **Hosted tools are bounded per response.**
-   - Every request that carries `web_search` sets `max_tool_calls`
-     (`museSpark.webSearchMaxPerRequest`, 5 by default, 1–20). Capture U8
+   - A request that carries `web_search` sets `max_tool_calls` only when
+     the person sets `museSpark.webSearchMaxPerRequest` (none by default),
+     within the provider's documented bound. Capture U8
      showed `max_tool_calls: 1` bounds `web_search_call` to exactly one.
    - D78's reservation becomes the tokens plus the bound times the search
      price. Settlement counts the `web_search_call` items actually returned;
@@ -7854,12 +7851,10 @@ changes nothing (U14).
      - `museSpark.modelApiParallelReads` (default on) turns it off.
    - **Output cap per model.** It comes from the record's `output.maxTokens`;
      Meta's models in VS Code and interactive ACP get the recommended 131,072
-     (from 32,768). Headless exec requests at most 32,768 output tokens, or
-     the record's smaller maximum: its worst-case run-ledger reservation
-     makes a larger ceiling a separate money decision. The reservation
-     clamps it to what the budget allows. One continuation follows an
-     `incomplete` reply for `max_output_tokens`
-     (`MODEL_API_CONTINUATIONS_MAX` = 1), then a notice. Tool calls in a
+     (from 32,768). Headless exec requests the record's maximum, as every surface does;
+     a budget the person set clamps it. A reply cut off at
+     `max_output_tokens` is continued under the one repeat policy, with no
+     continuation count of ours. Tool calls in a
      cut-short reply keep M101 item 8's rule: answered with an error, never
      run.
    - **The repeat guard.** The same tool with the same canonical arguments
@@ -7974,13 +7969,14 @@ one governor for everything the harness starts.
 3. **The thresholds are the user's, per machine.** Machine-scoped settings
    (D15); a workspace cannot change them. The ACP agent and the CLI read the
    same values from the runtime's settings store, and headless takes flags.
-   - `museSpark.resourceGovernor`: on by default (D78).
-   - `museSpark.resourceCpuMaxPercent`: 85 (30–100), sustained for
-     `RESOURCE_CPU_WINDOW_MS` (30 seconds), M96's figures.
-   - `museSpark.resourceMemoryMaxPercent`: 90 (40–98), memory in use.
-   - `museSpark.resourceMemoryMinFreeGiB`: 2 (0.5–64), available memory; on
-     a small machine the floor is at most `RESOURCE_MEMORY_FLOOR_MAX_FRACTION`
-     (15%) of the RAM, so an 8 GB laptop trips at 1.2 GB.
+   - `museSpark.resourceGovernor`: off by default (owner 2026-10-17: the
+     person sets resource limits to prevent overconsumption; none is ours).
+   - `museSpark.resourceCpuMaxPercent`: set by the person, none by default;
+     it acts once held for `RESOURCE_CPU_WINDOW_MS` (30 seconds).
+   - `museSpark.resourceMemoryMaxPercent`: set by the person, none by
+     default, memory in use.
+   - `museSpark.resourceMemoryMinFreeGiB`: set by the person, none by
+     default, available memory.
    - `museSpark.resourceGpuMaxPercent` and
      `museSpark.resourceDiskBusyMaxPercent`: unset, and not sampled, until
      the user sets them.
@@ -8063,8 +8059,8 @@ one governor for everything the harness starts.
      first in first out per kind under M96c's priorities, shown as "waiting:
      machine busy". Running work keeps running.
    - **Foreground** is never deferred at throttle. At pause, a new
-     foreground spawn waits at most `RESOURCE_FOREGROUND_WAIT_MS` (20
-     seconds) behind a visible row with **Run now**, then runs anyway.
+     foreground spawn waits behind a visible row with **Run now** until the
+     level drops or the person runs it; no wait limit of ours.
 
 7. **Relocate: only where M100 or M96c already allow it, never silently.**
    - **Targets.**
@@ -8153,7 +8149,8 @@ one governor for everything the harness starts.
     registers when the governor first loads. Each spawning bundle gains only
     its admission call, and no cap rises (D6).
 
-14. **Free disk space is governed too, on by default** (added 2026-10-06).
+14. **Free disk space is governed too, when the person sets a floor**
+    (added 2026-10-06; off by default, owner 2026-10-17).
     - **Why.** On 2026-10-06 the Mac mini's data volume filled while seven
       agent lanes ran their tests. Every one of them died with "No space
       left on device" in the middle of its work. Most of the space was the
@@ -8172,12 +8169,11 @@ one governor for everything the harness starts.
         5 seconds once the volume is below twice the floor.
       - A failed read is "unknown", as in item 4.
     - **The thresholds,** machine-scoped like item 3:
-      - `museSpark.resourceDiskMinFreeGiB` is the floor. By default it is
-        10 GiB, or 10% of the volume when that is smaller, but never below
-        2 GiB.
+      - `museSpark.resourceDiskMinFreeGiB` is the floor, set by the
+        person; none by default.
       - Throttle starts at the floor.
       - Pause starts at half the floor.
-      - Critical is 1 GiB or 1% of the volume, whichever is larger.
+      - Critical: a level the person sets, none by default.
       - The trend also counts: when the last five minutes' rate of filling
         would reach the floor within `RESOURCE_DISK_ETA_MS` (10 minutes),
         the level steps up early.
@@ -9351,9 +9347,10 @@ user's own nodes only (decision 10), and adds one D89.2 keyslot kind
      limited per sandbox, because hosting providers forbid scanning other
      networks (Hetzner, DigitalOcean; research §4.9) and an agent's `nmap`
      could get the user's server locked.
-   - **Quotas and cleanup.** Each workspace has a disk quota and a retention
-     period after its last use; caches and stale sandboxes are cleaned; below
-     the disk-free floor the node takes no new work (decision 19).
+   - **Quotas and cleanup.** A workspace's disk quota, its retention period
+     after its last use and the node's disk-free floor are set by the person,
+     none by default; caches and stale sandboxes are cleaned; below a floor
+     the person set, the node takes no new work (decision 19).
 
 6. **Workspaces come from git, with brokered credentials.**
    - **Clone and pull** go through M109's broker. SSH remotes use the broker's
@@ -10260,7 +10257,7 @@ restore` checks versions and replays migrations. A schedule writes to a
       - The firewall allows only the node's port, and SSH when a key was
         added.
       - Every unit passes the `systemd-analyze security` threshold (M110's
-        gates); journald and every log are capped (decision 19).
+        gates); journald and every log keep the retention the person sets (decision 19).
     - **Disk encryption** for `/var` (state and workspaces), with LUKS2 and
       systemd-cryptenroll:
       - **With a TPM 2.0:** sealed to it, so the machine unlocks by itself.
@@ -10323,7 +10320,7 @@ restore` checks versions and replays migrations. A schedule writes to a
         says "not yet reproducible". The check becomes blocking once lane OS6
         shows two builds matching; it is never loosened afterwards.
       - **Release assets** carry checksums and signatures, and every artifact
-        has a retention limit (decision 19).
+        keeps the retention the person sets (decision 19).
     - **Licences.** The images carry GPL software, so each release publishes
       the exact Debian source packages it was built from beside the images,
       and the notices gate lists every package's licence. Software that is
@@ -10674,7 +10671,7 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
         its licence on the device, by the user's click, as Chrome does.
       - **Sizes before install, and an offline cache.** The download and disk
         size are shown before **Install**. Installed layers stay in a cache on
-        the state volume under its quota (decision 19), so a re-install or a
+        the state volume under the quota the person sets (decision 19), so a re-install or a
         new workspace works offline.
       - **Bounded and visible.** An install is governed background work, kind
         `packInstall` (D87.2): it waits at throttle and pause, and shows
@@ -10888,8 +10885,9 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
   be trusted to erase; destroying the keys first can be.
 - **Clock checks** (decision 19). _Reason:_ certificates, TOTP and journal
   ordering all fail quietly with a wrong clock.
-- **Caps and retention on everything** (decision 19). _Reason:_ the GitHub
-  Actions storage incident; a node that fills its disk stops working.
+- **Retention and disk floors the person sets** (decision 19; none by
+  default, no cap of ours). _Reason:_ the GitHub Actions storage incident; a
+  node that fills its disk stops working.
 - **A native node on macOS** (decision 4). _Reason:_ Apple's GPU cannot reach
   a Linux container.
 - **Remote actuation only from a surface within sight** (decision 14).
@@ -10910,8 +10908,10 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
 - **Other agents' sign-in tokens never enter the vault** (decision 7).
   _Reason:_ Anthropic, Google and OpenAI each forbid or warn against a third
   party holding them; only API keys are brokered.
-- **Outbound connection limits per sandbox** (decision 5). _Reason:_ rented
-  servers' providers lock servers that scan other networks.
+- **Outbound connection limits per sandbox, as the hosting provider's rules
+  require** (decision 5; the person sets the numbers from those rules, none of
+  ours). _Reason:_ rented servers' providers lock servers that scan other
+  networks.
 - **The browser pairing installs the node's own certificate** (decision 23).
   _Reason:_ browsers refuse passkeys behind a clicked-through warning, and a
   self-signed, non-CA certificate can vouch for nothing but the node.
@@ -12066,11 +12066,14 @@ The owner, 2026-10-05:
     (`mapNotification.ts:362–367`), admitted once by the prompt ledger
     (`promptLedger.ts:191–197`). The answers are `userInput/answer`,
     `userInput/cancel` and `userInput/clarify` (`MuseCodeHost.ts:1088–1117`);
-    a clarification holds at most `CLARIFICATION_MAX_CHARS` (500) characters
-    (`constants.ts:3172–3176`).
-  - Only an MCP form has a deadline: `MCP_ELICITATION_TIMEOUT_MS`, 300
-    seconds (`constants.ts:717`), after which it is cancelled
-    (`ModelApiHost.ts:4982`, `mcp/connection.ts:274`).
+    a clarification was capped at `CLARIFICATION_MAX_CHARS` (500)
+    characters (`constants.ts:3172–3176`); the cap is removed (owner
+    2026-10-17: no limit of ours).
+  - An MCP form had a deadline, `MCP_ELICITATION_TIMEOUT_MS`, 300 seconds
+    (`constants.ts:717`), after which it was cancelled
+    (`ModelApiHost.ts:4982`, `mcp/connection.ts:274`). It is removed (owner
+    2026-10-17): a form waits until it is answered or cancelled, unless the
+    MCP server itself sets a deadline.
 - **A settled question can no longer be answered.** The outcomes are
   answered, cancelled and clarified (`ModelApiHost.ts:4851–4855`), and the
   settled row drops the card (`uiState.ts:2075–2093`).
@@ -12120,8 +12123,8 @@ The owner, 2026-10-05:
      (D15), so a repository can make questions neither block nor vanish:
      - 60 by default (`QUESTION_DEFER_DEFAULT_SECONDS`);
      - 0 means never;
-     - otherwise 10 to 3,600 (`QUESTION_DEFER_MIN_SECONDS`,
-       `QUESTION_DEFER_MAX_SECONDS`), and a value from 1 to 9 is read as 10.
+     - otherwise the seconds the person sets, with no maximum of ours
+       (`QUESTION_DEFER_MIN_SECONDS`: a value from 1 to 9 is read as 10).
    - **The clock** starts when the question arrives, in the process that
      holds the session: the extension host in VS Code; the runtime for the
      companion page, the native plugins, the TUI, Muse Desktop and ACP
@@ -12167,8 +12170,8 @@ The owner, 2026-10-05:
      - Owner-only files, zod-validated, deleted with their session.
      - Never exported or logged (ids only), and sent nowhere but to the model
        inside the answer.
-   - **Bounded.** At most `OPEN_QUESTIONS_MAX` (20) are open per session.
-     Past it the oldest becomes `expired`, and its row says so.
+   - **Unbounded.** Every question stays open until it is answered or
+     cancelled; no count limit of ours.
    - **They survive** a reload, a resume and another editor. The host posts
      the open set when a surface attaches. A row found by its item id shows
      its card; one whose row is not in the loaded history shows in the dock
@@ -12215,8 +12218,8 @@ The owner, 2026-10-05:
      turn, under the existing setting and only while the window is
      unfocused (`BackgroundNotifier`'s rule).
 
-   Each question is expanded again at most `QUESTION_REMINDERS_MAX` (2)
-   times in all, and at most one question per turn end. The model is never
+   Each unanswered question is expanded again at turn ends until it is
+   answered, at most one question per turn end. The model is never
    asked to ask again.
 
 7. **Easy to pick out in the transcript.**
@@ -12349,8 +12352,8 @@ The owner, 2026-10-05:
      turn, under the existing setting and only while the window is
      unfocused (`BackgroundNotifier`'s rule).
 
-   Each question is expanded again at most `QUESTION_REMINDERS_MAX` (2)
-   times in all, and at most one question per turn end. The model is never
+   Each unanswered question is expanded again at turn ends until it is
+   answered, at most one question per turn end. The model is never
    asked to ask again.
 
 4. **Runs nobody watches keep what they do.** Headless `exec`, best-of-N
@@ -12605,14 +12608,14 @@ Needs: <items>.`).
    loop's check runs (M68) and, once merged, M96c's check slots append
    `{check, outcome, durationMs, commit, at}` (never the command line or its
    output) to `<agentDataFolder>/reports/v1/checks/<workspaceKey>.jsonl`,
-   at most `REPORT_CHECK_RUNS_MAX` (500) per workspace. The `quality` kind
+   every run kept, unless the person sets a retention. The `quality` kind
    reads it beside CI's runs.
 
 10. **History and diff.**
     - **Kept.** `museSpark.reports.keepHistory` (on) keeps each generated
       report's JSON under
-      `<agentDataFolder>/reports/v1/history/<workspaceKey>/<kind>/`, the
-      newest `REPORT_HISTORY_MAX_PER_KIND` (50) per kind. It is listed in the
+      `<agentDataFolder>/reports/v1/history/<workspaceKey>/<kind>/`, every
+      report kept, unless the person sets a retention per kind. It is listed in the
       report tab, by `report history` and by ACP's `/report history`.
     - **Diff with the previous report** is pure, over two `report-v1`
       documents by section and row key: added, removed, changed (field by
@@ -12695,7 +12698,7 @@ Needs: <items>.`).
          UI). A name template (`{kind}`, `{scope}`, `{date}`, `{time}`,
          `{hash8}`, `{ext}`; `{kind}-{date}-{time}.{ext}` by default, with
          milliseconds preserved so each occurrence has its own name) and a
-         retention of the newest N (`REPORT_SAVE_RETENTION_DEFAULT`, 30),
+         retention of the newest N that the person sets (none by default),
          which deletes only files that destination wrote (a manifest keyed
          by both schedule and destination).
          Paths are canonicalised and confined to the allowed root (no link
@@ -16138,7 +16141,8 @@ github.com` only. `test/unit/helpers/github/`: the device-flow shapes,
   Linux may reuse. A cleanup refused by trust leaves git's worktree
   registration for `git worktree prune`. Liveness: a live lock owner holds
   at most its 30 s lease, watched across attempts; a pending checkout
-  waits at most the hour; a busy store fails loudly after 10 s; a writer
+  waits until the lock frees or the person cancels it; a busy store is
+  reported at once and waits the same way; a writer
   stuck in a system call that never returns keeps its record pending; a
   file system without hard links fails closed. Windows whole-tree
   retirement of the batch stays lane G's.
@@ -18113,8 +18117,8 @@ created for: empty, `.` or `..` segments, any `.git` form (case-insensitive,
 trailing dots/spaces, `GIT~1`, HFS-ignorable characters), backslashes,
 undecodable names, Windows-illegal names on Windows, folded collisions
 (case and NFC on Windows/macOS; file-versus-folder and duplicates
-everywhere), unknown modes, and more than `HELD_CHECKOUT_MAX_ENTRIES`
-(20,000) entries or `HELD_CHECKOUT_MAX_BYTES` (250 MB). Mode 100755 sets the
+everywhere), and unknown modes. The former entry and size caps
+(`HELD_CHECKOUT_MAX_ENTRIES`, `HELD_CHECKOUT_MAX_BYTES`) are removed: no limit of ours. Mode 100755 sets the
 execute bit on POSIX, 120000 becomes a file holding the link text, 160000
 an empty folder. A failure after the add removes the worktree with
 `worktree remove --force` (no status, so no filter), when trust still holds.
@@ -20203,21 +20207,21 @@ Each finding gets a named regression and byte-exact red drill in `m96-r.md`.
       change applies from the next conversation.
   - `museSpark.modelApiTeamWorkers` (boolean, default `false`; paid): the
     paid feature `teamWorkers`, for tasks billed to a key.
-  - `museSpark.teamMaxWorkers` (number, default the lower of 20 and twice
-    the logical CPUs, from 1 to 32), per window. The sum across windows is
-    shown as an advisory figure.
-  - `museSpark.teamMaxProcessWorkers` (number, default computed as D75
-    says, from 1 to 16), per window, likewise.
-  - `museSpark.teamDailyBudgetUsd` (number, default $50.00, from $0 to
-    $500; at 0, key tasks never start): the daily team budget.
+  - `museSpark.teamMaxWorkers` (number, set by the person, none by
+    default), per window. The sum across windows is shown as an advisory
+    figure.
+  - `museSpark.teamMaxProcessWorkers` (number, set by the person, none by
+    default), per window, likewise.
+  - `museSpark.teamDailyBudgetUsd` (number, set by the person, none by
+    default; at 0, key tasks never start): the daily team budget.
     - It bounds the sum across every window of this editor, as a scope of
       D78's shared paid ledger (per workspace until D78 is on main).
     - The intensity level sets each workspace's own budget beneath it
       (**Balanced**: $10.00), and no level or edit passes it.
-  - `museSpark.teamDailyBudgetTokens` (number, default 25,000,000): the same
-    budget in tokens, for what M95 cannot price (**Balanced**: 5,000,000).
-  - `museSpark.teamHeavyCommandSlots` (number, default one per eight logical
-    CPUs and at least 1, from 1 to 8): heavy commands at once in a window
+  - `museSpark.teamDailyBudgetTokens` (number, set by the person, none by
+    default): the same budget in tokens, for what M95 cannot price (**Balanced**: 5,000,000).
+  - `museSpark.teamHeavyCommandSlots` (number, set by the person, none by
+    default): heavy commands at once in a window
     (lane K; check slots in M96c).
   - `museSpark.teamWorkerPriority` (`belowNormal`, the default, or
     `normal`): the priority of every process the team starts (lane K).
@@ -22099,7 +22103,7 @@ it process lifetime, the journal, hints and the load guard. The research is
 
 | Lane                              | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0c Strings, constants and schemas | M96c's keys in `src/shared/l10n/en.ts`, the 14 tables and `package.nls*.json`; the scheduler block of the Team region of `src/shared/constants.ts` (`TEAM_BOARD_MAX` (64), `TEAM_PRIORITY_WEIGHTS`, `TEAM_SIZE_MINUTES`, `TEAM_AGING_MS`, `TEAM_STARVATION_MS`, `TEAM_SCHED_TICK_MS`, `TEAM_STALL_MS`, `TEAM_STALL_RATE_LIMIT_MS`, `TEAM_RETIRE_WAIT_MS` (30,000), `TEAM_HANDOFF_TOOL_CALLS`, `TEAM_MAX_REASSIGNMENTS`, `TEAM_DIVERGE_REPEATS`, `TEAM_DIVERGE_SIZE_FACTOR`, `TEAM_START_STAGGER_MS`, `TEAM_DIFF_POLL_MS`, `TEAM_MERGE_BATCH_MAX`, `TEAM_MERGE_BATCH_SMALL_LINES`, `TEAM_MERGE_FLAKE_RETRIES`, `TEAM_BLAST_WEIGHTS`, `TEAM_HEAVY_COMMAND_SECONDS`, `RUNNER_CONNECT_TIMEOUT_MS` (10,000), `RUNNER_HEALTH_MS` (60,000), `RUNNER_SELFTEST_TIMEOUT_MS` (10,000)); the scheduler text of `TEAM_MODEL_TEXT`; the board, task fields, attempts, write-sets, states, events, metrics and runners in `src/shared/team.ts`                                                                                                                                                                                                                                                                                            |
+| 0c Strings, constants and schemas | M96c's keys in `src/shared/l10n/en.ts`, the 14 tables and `package.nls*.json`; the scheduler block of the Team region of `src/shared/constants.ts` (`TEAM_PRIORITY_WEIGHTS`, `TEAM_SIZE_MINUTES`, `TEAM_AGING_MS`, `TEAM_STARVATION_MS`, `TEAM_SCHED_TICK_MS`, `TEAM_STALL_MS`, `TEAM_RETIRE_WAIT_MS` (30,000), `TEAM_HANDOFF_TOOL_CALLS`, `TEAM_DIVERGE_REPEATS`, `TEAM_DIVERGE_SIZE_FACTOR`, `TEAM_START_STAGGER_MS`, `TEAM_DIFF_POLL_MS`, `TEAM_MERGE_BATCH_MAX`, `TEAM_MERGE_BATCH_SMALL_LINES`, `TEAM_MERGE_FLAKE_RETRIES`, `TEAM_BLAST_WEIGHTS`, `TEAM_HEAVY_COMMAND_SECONDS`, `RUNNER_CONNECT_TIMEOUT_MS` (10,000), `RUNNER_HEALTH_MS` (60,000), `RUNNER_SELFTEST_TIMEOUT_MS` (10,000)); the scheduler text of `TEAM_MODEL_TEXT`; the board, task fields, attempts, write-sets, states, events, metrics and runners in `src/shared/team.ts`                                                                                                                                                                                                                                                                                                                                                                         |
 | S Scheduler                       | the new `src/core/team/scheduler/`: `board.ts` (the DAG, states, cycle and edge refusals, the two dependency kinds, attempt numbers and stale-event refusal, the reload pause), `criticalPath.ts`, `pick.ts` (the score, aging, the starvation bound, priority inheritance, fair share between conversations, work-stealing within a role, preemption only between tasks, staggered starts), `retire.ts` (retirement per worker kind, exits seen inside the window, descendants proved by the job or the user scope, the bounded escalation, attempts that have not stopped, **Restart the team host**, **Continue anyway**, **Hand off anyway** only with a free slot, and quarantine), `slots.ts` (a delegating worker's child slots reserved at `delegate`, or the refusal), `stalls.ts` (detection, the checkpoint after retirement, the handoff, where it goes, bounds, divergence), `reviewFlow.ts` (the integration flow, the automatic review, class reviews and their merge, full re-review after a change, rework rounds, `redesign`, claim checks); the scheduler region of `teamPool.ts`                                                                                                                       |
 | C Collisions                      | `src/core/team/writeSets.ts` (glob expansion, per-file overlap, attempt leases in the window, inheritance, growth, clipping, exclusive writers, the hint question for files another window names), `src/core/team/waitFor.ts` (the wait-for graph over leases, dependencies, children and slots, and cycle refusal), `src/core/team/conflictPredict.ts` (diff polling, prediction through lane Q's merge routine, the integration state), `src/core/team/sharedFiles.ts` (the list and the built-in entries), `src/core/team/merge/changelog.ts` (bullet identity, the authorized delta, released sections, the kept check, fragments), `src/core/team/merge/jsonTable.ts` (the strict parse that keeps raw key order, decodes escapes and refuses duplicates at any depth; the three-way merge by key for flat and nested objects; same-key and type conflicts; the refusal on input that does not parse, with no text fallback; key order; the file's own style, byte-order mark and line endings; the two-way kept check after the formatter) and the staging copy's formatter step for merged JSON files, through M68's `formatAfterEdit` (with lane Q); the `sharedFiles` key in `teamConfig.ts`'s `team.json` region |
 | Q Merge queue and hygiene         | `src/core/team/mergeQueue.ts` (the order, batches closed under dependency, the flaky rerun, serial cumulative admission, `on_conflict`), `src/core/team/mergeRoutine.ts` (the one merge routine landing and prediction share), `src/host/team/stagingCopy.ts` (the whole snapshot through a temporary index, its tree hash, the check identity, the staging clone), `src/host/team/landingJournal.ts` (the write-ahead journal in the window's journal, and **Recover** by M86's rule), `src/host/team/gitIndexLock.ts` (the known-holder check: an `index.lock`, another window's fresh hint on the tree, a git operation in progress; the landing branch `agents/landing/<id>` and **Apply**; taking and releasing the working tree's `index.lock` by exclusive create, its content; never removing a lock it did not take; the read-back after the last file), `src/host/team/teamCleanup.ts` (link-safe removal, `\\?\` paths, the orphan sweep, quarantined copies, disk use), the checkout guard in `teamWorkspaces.ts`'s region, the landing region of `teamMerge.ts` (the in-process exclusion, the lock, the snapshot and blob comparison)                                                                        |
@@ -22802,7 +22806,7 @@ it process lifetime, the journal, hints and the load guard. The research is
 | T24 | Two landings, a landing and a git command, or a landing and another known holder write one working tree at once | One landing at a time in the window; no write to the tree or index while an `index.lock`, another window's fresh hint on the tree, or a git operation in progress holds the repository, but a commit to a landing branch the user applies later; otherwise git's own `index.lock` from before the first file to after the last, never removed by the extension; per-file byte checks and a read-back after the last file that reports writers ignoring the lock (`git checkout-index`, `git clean`, ref-only moves, other linked worktrees) as changed during landing, detected and not prevented |
 | T25 | Cleanup deletes outside a working copy                                                                          | Links and junctions are unlinked, never recursed; canonical paths checked against the storage folder; nothing unmerged is deleted without the user                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | T26 | A worker escapes into the user's checkout                                                                       | The checkout guard at start and at every command; only `in-place`, set by the user, may run there                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| T27 | The board floods: endless tasks, reassignments or reviews                                                       | `TEAM_BOARD_MAX`; tasks per turn; two reassignments per task; three review rounds; every attempt counted under D75's caps and budgets                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| T27 | The board floods: endless tasks, reassignments or reviews                                                       | the limits the person set (tasks per turn, budgets; none by default); the provider's rate limits; every attempt counted and shown, so the person can stop a flood                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | T28 | A scheduler event or report steers the orchestrator                                                             | Events are structured fields in tool answers and the state-change note, never instructions; reports and handoff text are data (T1)                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | T29 | A stalled worker, or its detached descendant, keeps writing after its replacement starts                        | Retirement only when every descendant has ended: proved by Windows' job or a Linux user scope, otherwise the user's **Continue anyway**; an uncertain attempt blocks the handoff, keeps its process slots, and its copy is never reused; **Hand off anyway** only with a free slot; stale events refused by attempt number                                                                                                                                                                                                                                                                        |
 
@@ -24182,7 +24186,7 @@ the exact redacted prompt reservation before the engine receives it.
   what Tab spends):
   - `museSpark.modelApiTab` (boolean, default `true`; paid, asks once first);
   - `museSpark.tabModel` (`muse-spark-1.3` | `muse-spark-1.3-contributor`);
-  - `museSpark.tabDailyBudgetUsd` (number, $1.00, from $0.05 to $50);
+  - `museSpark.tabDailyBudgetUsd` (number, set by the person, none by default);
   - `museSpark.tabLanguages` (object, Copilot's default shape);
   - `museSpark.tabMultiline` (`auto` | `onInvoke` | `never`);
   - `museSpark.tabTrigger` (`automatic` | `onInvoke`; the default is set by
@@ -24229,9 +24233,9 @@ the exact redacted prompt reservation before the engine receives it.
        total time, input, cached, output and reasoning tokens, the status, and
        whether the reply stayed inside the tags.
      - **What it sets** (from the medians and the 95th percentiles):
-       `TAB_DEBOUNCE_MS`, `TAB_FAST_MAX_OUTPUT_TOKENS` and
-       `TAB_MULTILINE_MAX_OUTPUT_TOKENS` (the p99 reasoning plus the mode's
-       completion allowance), and `TAB_REQUEST_TIMEOUT_MS`. It also replaces
+       `TAB_DEBOUNCE_MS` (pacing, not a limit). Output tokens are the provider's
+       maximum for the model unless the person sets lower ones, and there is
+       no request timeout of ours (owner 2026-10-17). It also replaces
        research §7's estimate with measured cost per request and the cache hit
        rate (U1–U3).
      - **The latency gate.** If the median time to the first text of a fast
@@ -24307,8 +24311,8 @@ the exact redacted prompt reservation before the engine receives it.
   8. **Typing through and partial accept.** After a suggestion, typing its
      first characters shows the rest with no request. After VS Code's Accept
      Word, the rest is served from the cache.
-  9. **Caps.** At most 2 open requests. The 21st trigger in a minute sends
-     nothing.
+  9. **Pacing.** Requests follow the provider's rate limits for the model
+     (its capability record and live headers); no count of ours.
   10. **The daily budget.**
       - A request whose worst case would pass the budget is not sent.
       - Two windows, two ledger writers on one folder, never pass it together.
@@ -24444,9 +24448,9 @@ the exact redacted prompt reservation before the engine receives it.
   - The setting is on by default; the first request asks the price before dispatch.
   - The D48 question comes once per window (Q-M94a).
   - The model choice says which tier trains on the code (Q-M94b).
-  - The hard daily budget is reserved before every request across windows
-    (Q-M94c).
-  - At most 2 requests are open, and at most 20 start per minute.
+  - The daily budget, when the person set one, is reserved before every
+    request across windows.
+  - Requests follow the provider's rate limits for the model; no count of ours.
   - A sent request is never aborted, so its usage is always counted.
   - The typing-through cache, and yielding to Copilot, avoid requests whose
     answer nobody would see.
@@ -24778,7 +24782,7 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   write resolve the same path. 12. `edit_file` falls back to a normalised unique match (NFKC, trailing
   whitespace, quotes, dashes, Unicode spaces) and copies untouched lines
   from the original; `find` equal to `replace` is refused. 13. `read_file` truncation names the next offset; an offset past the end is
-  an error. 14. One search hit is capped at about 500 characters with a note. 15. Shell output elided in the middle stays recoverable through
+  an error. 14. Search hits are returned whole; the model's context window (its capability record) is the only bound. 15. Shell output elided in the middle stays recoverable through
   `recall_output` when packing is on (or an owner-only temp file). 18. A single long line packs to about a 1k excerpt and packing is skipped
   when it saves under half; a non-string `then_run` reports "not run";
   `clip` and `clipOutput` never split a surrogate pair. 20. `edit_file` takes `edits[]`, all or nothing, overlaps refused (one tool
@@ -25128,7 +25132,7 @@ receipts remain the lead's checks under the rig brief.
   write resolve the same path. 12. `edit_file` falls back to a normalised unique match (NFKC, trailing
   whitespace, quotes, dashes, Unicode spaces) and copies untouched lines
   from the original; `find` equal to `replace` is refused. 13. `read_file` truncation names the next offset; an offset past the end is
-  an error. 14. One search hit is capped at about 500 characters with a note. 15. Shell output elided in the middle stays recoverable through
+  an error. 14. Search hits are returned whole; the model's context window (its capability record) is the only bound. 15. Shell output elided in the middle stays recoverable through
   `recall_output` when packing is on (or an owner-only temp file). 18. A single long line packs to about a 1k excerpt and packing is skipped
   when it saves under half; a non-string `then_run` reports "not run";
   `clip` and `clipOutput` never split a surrogate pair. 20. `edit_file` takes `edits[]`, all or nothing, overlaps refused (one tool
@@ -26226,9 +26230,12 @@ every Model API user in every editor.
   matrix), PRIVACY, SECURITY, CHANGELOG, `docs/acp.md`, `docs/ci.md`,
   `docs/ide-compatibility/**` rows, M104's registry rows, certification.
 - **Settings** (machine-scoped where they run or bill, D15):
-  - `museSpark.mediaUploadExpiryDays`: 7 (1–30);
-  - `museSpark.mediaMaxUploadMiB`: 200 (up to 1,024);
-  - `museSpark.screenRecordingMaxSeconds`: 120 (10–600);
+  - `museSpark.mediaUploadExpiryDays`: the provider's documented expiry for
+    the model's uploads (capability record), unless the person sets one;
+  - `museSpark.mediaMaxUploadMiB`: the provider's documented upload limit
+    for the model (capability record); the person may set a lower one;
+  - `museSpark.screenRecordingMaxSeconds`: set by the person, none by
+    default; the provider's documented video limit for the model applies;
   - `museSpark.mediaAudioAction`: `transcribe` (the default where the
     model's audio is degraded) or `sendAudio`.
 - **Commands.** **Attach file…** gains the media filter; **Attach screen
@@ -27477,7 +27484,7 @@ cumulative minute snapshots merge idempotently by their segment timestamp,
 including final tree accounting against the same cached machine sample.
 Reject non-finite or unrepresentable history timestamps and override deadlines
 before formatting, using one shared history date helper for page and text.
-Keep at most seven days/10,080 minute segments and 1,000 recent events, evicting
+Keep every minute segment and event unless the person sets a retention, evicting
 oldest first while preserving exact retained-input work/event totals. Page
 charts, bands and detail tables in batches of 60 entries. Add before-fix
 regressions and byte-exact red drills for every guard in J's certification.
@@ -27821,7 +27828,7 @@ Each joins when its dependency merges, and none blocks the others.
      - The defaults hold on a new install, with the governor on.
      - A workspace setting changes nothing (a red drill reads the workspace
        value, and the test fails).
-     - Each range is enforced. The memory floor caps at 15% of RAM.
+     - Each value the person sets is validated; none is set by default.
      - The runtime and headless read the same values, and their flags.
   2. **The sampler.**
      - Scripted readings give the expected CPU, memory and pressure figures.
