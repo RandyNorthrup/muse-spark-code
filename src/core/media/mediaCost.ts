@@ -464,5 +464,3 @@ export async function reserveMediaRequest(request: {
     },
   }
 }
-
-export { MediaContributorConsent } from './contributorConsent'

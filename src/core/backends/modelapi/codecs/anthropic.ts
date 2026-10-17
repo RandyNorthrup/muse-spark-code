@@ -65,6 +65,7 @@ import {
   ChatCodecError,
   cleanJsonStrings,
   cleanWireText,
+  hasHeldVideo,
   isBlankWireText,
   isRecord,
   nativeCallId,
@@ -444,10 +445,8 @@ export function encodeAnthropicRequest(
   // shape without a vendor capture behind it, so it refuses with the
   // model's own reason before any other validation instead of being
   // dropped while the rest of the message is sent.
-  for (const item of body.input) {
-    if (item.type === 'message' && item.content.some((part) => part.type === 'input_video')) {
-      throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: options.model }))
-    }
+  if (hasHeldVideo(body)) {
+    throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model: options.model }))
   }
   const record = options.capabilityRecord ?? capturedCapabilities('anthropic', options.model)
   const modes = record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []

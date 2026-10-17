@@ -73,18 +73,12 @@ const VLLM_LIKE: ChatPresetQuirks = {
 
 function chatBody(content: readonly InputContentPart[]): CreateResponseBody {
   return {
-    model: 'test-model',
+    ...heldVideoBody('test-model'),
     input: [{ type: 'message', role: 'user', content }],
-    instructions: 'be brief',
-    tools: [],
-    tool_choice: 'auto',
     reasoning: { effort: 'low', summary: 'auto' },
-    stream: true,
-    store: false,
     include: ['reasoning.encrypted_content'],
     max_output_tokens: 100,
     prompt_cache_key: 'unused',
-    prompt_cache_retention: '24h',
   }
 }
 
@@ -454,11 +448,38 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
 
-/**
- * A held video turn through the production configured-provider client:
- * rejects with the refusal's own sentence and sends zero requests.
- */
-async function productionRefusal(family: ProductionFamily, expected?: string): Promise<number> {
+/** No configured providers: the subscription client stays keyless. */
+const noProviders = () => Promise.resolve({ v: 1 as const, providers: [] })
+
+/** A held video turn body for the model: the clip the codecs must refuse. */
+function heldVideoBody(model: string): CreateResponseBody {
+  return {
+    model,
+    instructions: 'be brief',
+    input: [
+      {
+        type: 'message',
+        role: 'user',
+        content: [
+          { type: 'input_text', text: 'what is in this clip?' },
+          { type: 'input_video', file_id: 'file-abc123' },
+        ],
+      },
+    ],
+    tools: [],
+    tool_choice: 'auto',
+    reasoning: { effort: 'none', summary: 'auto' },
+    stream: true,
+    store: false,
+    include: [],
+    max_output_tokens: 1024,
+    prompt_cache_key: 'test',
+    prompt_cache_retention: '24h',
+  }
+}
+
+/** A production configured-provider client with a counting transport. */
+async function productionServices(family: ProductionFamily) {
   const root = await mkdtemp(path.join(tmpdir(), 'm105r2-vendor-'))
   roots.push(root)
   const entry = providerEntrySchema.parse({
@@ -488,34 +509,21 @@ async function productionRefusal(family: ProductionFamily, expected?: string): P
       })
     },
   })
+  return { services, sentCount: () => sent }
+}
+
+/**
+ * A held video turn through the production configured-provider client:
+ * rejects with the refusal's own sentence and sends zero requests.
+ */
+async function productionRefusal(family: ProductionFamily, expected?: string): Promise<number> {
+  const { services, sentCount } = await productionServices(family)
   const ref = `${family.id}/${family.native}`
-  const body: CreateResponseBody = {
-    model: ref,
-    instructions: 'be brief',
-    input: [
-      {
-        type: 'message',
-        role: 'user',
-        content: [
-          { type: 'input_text', text: 'what is in this clip?' },
-          { type: 'input_video', file_id: 'file-abc123' },
-        ],
-      },
-    ],
-    tools: [],
-    tool_choice: 'auto',
-    reasoning: { effort: 'none', summary: 'auto' },
-    stream: true,
-    store: false,
-    include: [],
-    max_output_tokens: 1024,
-    prompt_cache_key: 'test',
-    prompt_cache_retention: '24h',
-  }
+  const body: CreateResponseBody = heldVideoBody(ref)
   await expect(
     Array.fromAsync(services.client.streamResponse(body, new AbortController().signal)),
   ).rejects.toThrow(expected ?? `${family.native} is not known to take video.`)
-  return sent
+  return sentCount()
 }
 
 describe('M105 lane V R2 the refusal arrives as itself through the production client', () => {
@@ -555,53 +563,9 @@ describe('M105 lane V R2 the refusal arrives as itself through the production cl
   it('never surfaces the generic unavailable error for a held video', async () => {
     const openrouter = PRODUCTION_FAMILIES[0]
     if (openrouter === undefined) throw new Error('openrouter family must exist')
-    const root = await mkdtemp(path.join(tmpdir(), 'm105r2-vendor-'))
-    roots.push(root)
-    const entry = providerEntrySchema.parse({
-      id: openrouter.id,
-      preset: openrouter.preset,
-      address: openrouter.address,
-      auth: openrouter.auth,
-      models: [openrouter.native],
-    })
-    const configFile = path.join(root, 'providers.json')
-    const written = await writeProvidersFileAtomic(configFile, { v: 1, providers: [entry] })
-    expect(written.ok).toBe(true)
-    const services = createConfiguredProviderServices(undefined, {
-      configFile,
-      catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
-      secrets: memorySecrets(),
-      resolve: () => Promise.resolve(['127.0.0.1']),
-      send: () =>
-        Promise.resolve({ status: 200, headers: {}, body: emptyBytes(), close: () => undefined }),
-    })
+    const { services } = await productionServices(openrouter)
     const ref = `${openrouter.id}/${openrouter.native}`
-    const events = services.client.streamResponse(
-      {
-        model: ref,
-        instructions: 'be brief',
-        input: [
-          {
-            type: 'message',
-            role: 'user',
-            content: [
-              { type: 'input_text', text: 'what is in this clip?' },
-              { type: 'input_video', file_id: 'file-abc123' },
-            ],
-          },
-        ],
-        tools: [],
-        tool_choice: 'auto',
-        reasoning: { effort: 'none', summary: 'auto' },
-        stream: true,
-        store: false,
-        include: [],
-        max_output_tokens: 1024,
-        prompt_cache_key: 'test',
-        prompt_cache_retention: '24h',
-      },
-      new AbortController().signal,
-    )
+    const events = services.client.streamResponse(heldVideoBody(ref), new AbortController().signal)
     let error: unknown
     try {
       await Array.fromAsync(events)
@@ -618,29 +582,7 @@ describe('M105 lane V R2 the refusal arrives as itself through the production cl
 // drives the REAL client with a counting transport and asserts the refusal
 // arrives as its own sentence with zero requests sent. One shared helper
 // (`isChatCodecError`) decides; no client keeps its own list.
-const SUBSCRIPTION_VIDEO_BODY = (model: string): CreateResponseBody => ({
-  model,
-  instructions: 'be brief',
-  input: [
-    {
-      type: 'message',
-      role: 'user',
-      content: [
-        { type: 'input_text', text: 'what is in this clip?' },
-        { type: 'input_video', file_id: 'file-abc123' },
-      ],
-    },
-  ],
-  tools: [],
-  tool_choice: 'auto',
-  reasoning: { effort: 'none', summary: 'auto' },
-  stream: true,
-  store: false,
-  include: [],
-  max_output_tokens: 1024,
-  prompt_cache_key: 'test',
-  prompt_cache_retention: '24h',
-})
+const SUBSCRIPTION_VIDEO_BODY = (model: string): CreateResponseBody => heldVideoBody(model)
 
 /** A real ChatGPT sign-in whose stored grant never expires in this test. */
 function chatGptSignInForTest(): ChatGptSignIn {
@@ -823,41 +765,14 @@ describe('M105 lane V R3 the refusal arrives as itself on every plan leg', () =>
     // reason, as for the configured client). Nothing is sent on either leg.
     const openrouter = PRODUCTION_FAMILIES[0]
     if (openrouter === undefined) throw new Error('openrouter family must exist')
-    const root = await mkdtemp(path.join(tmpdir(), 'm105r2-vendor-'))
-    roots.push(root)
-    const entry = providerEntrySchema.parse({
-      id: openrouter.id,
-      preset: openrouter.preset,
-      address: openrouter.address,
-      auth: openrouter.auth,
-      models: [openrouter.native],
-    })
-    const configFile = path.join(root, 'providers.json')
-    const written = await writeProvidersFileAtomic(configFile, { v: 1, providers: [entry] })
-    expect(written.ok).toBe(true)
-    let sent = 0
-    const services = createConfiguredProviderServices(undefined, {
-      configFile,
-      catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
-      secrets: memorySecrets(),
-      resolve: () => Promise.resolve(['127.0.0.1']),
-      send: () => {
-        sent += 1
-        return Promise.resolve({
-          status: 200,
-          headers: {},
-          body: emptyBytes(),
-          close: () => undefined,
-        })
-      },
-    })
+    const { services, sentCount } = await productionServices(openrouter)
     let planSends = 0
     const subscribed = createSubscriptionClient(services.client, {
       fetch: () => {
         planSends += 1
         throw new Error('the Meta passthrough must not reach the plan fetch')
       },
-      providers: () => Promise.resolve({ v: 1 as const, providers: [] }),
+      providers: noProviders,
       chatgpt: () => Promise.reject(new Error('no subscription sign-in')),
       accountId: () => Promise.resolve(undefined),
     })
@@ -873,7 +788,7 @@ describe('M105 lane V R3 the refusal arrives as itself on every plan leg', () =>
     // Identity, not just the message: the passthrough maps nothing.
     if (!isChatCodecError(error)) throw new Error('expected the typed codec refusal')
     expect(error.message).toBe(`${openrouter.native} is not known to take video.`)
-    expect(sent).toBe(0)
+    expect(sentCount()).toBe(0)
     expect(planSends).toBe(0)
   })
 })

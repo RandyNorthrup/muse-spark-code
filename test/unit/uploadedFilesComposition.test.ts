@@ -26,7 +26,7 @@ import {
 } from '../../src/shared/constants'
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { parseHostToWebviewMessage } from '../../src/shared/protocol'
-import { uploadedFilesReportSchema } from '../../src/shared/media'
+import { uploadedFilesReportSchema, type UploadedMediaRef } from '../../src/shared/media'
 import { UploadLedger, type UploadLedgerState } from '../../src/core/media/uploadLedger'
 import { createUploadedFilesPort } from '../../src/core/media/uploadedFiles'
 import {
@@ -41,9 +41,10 @@ import {
   runDeleteUploadedFilesCommand,
 } from '../../src/host/conversation/uploadedFilesBinding'
 import { runUploadsCommand } from '../../src/acp/uploads'
-import { createRuntimeBackend } from '../../src/runtime/backends'
+import { createRuntimeBackend, type RuntimeBackendDeps } from '../../src/runtime/backends'
 import type { ServeOptions } from '../../src/runtime/cliArgs'
 import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
+import { emptyStoredSession } from './helpers/fakeSessionStore'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const root = mkdtempSync(path.join(tmpdir(), 'muse-uploaded-files-'))
@@ -185,6 +186,81 @@ function deletes(t: Rig) {
   return t.requestFile.mock.calls.filter((call) => call[1] === 'DELETE')
 }
 
+/** A Files client and ledger opener over one account directory. */
+function ledgerFiles(t: Rig, directory: string) {
+  const files = new FilesApi({
+    client: t.filesClient(),
+    provider: 'meta',
+    authorizeUpload: () => Promise.resolve(),
+  })
+  const open = (storage = fileUploadLedgerStorage(directory)) =>
+    new UploadLedger({
+      storage,
+      files,
+      accountId: t.accountId,
+      provider: 'meta',
+      poolBytes: 100,
+      currentAccountId: () => Promise.resolve(t.accountId),
+      now: () => NOW,
+    })
+  return { files, open }
+}
+
+/** One provider DELETE for the file, then an empty listing. */
+async function expectDeletedListed(
+  t: Rig,
+  binding: Pick<ReturnType<typeof vsCodeBinding>['binding'], 'list'>,
+  ref: Pick<UploadedMediaRef, 'fileId'>,
+): Promise<void> {
+  expect(deletes(t)).toHaveLength(1)
+  expect(deletes(t)[0]?.[0]).toBe(`/files/${ref.fileId}`)
+  expect(await binding.list()).toEqual(expect.objectContaining({ files: [] }))
+}
+
+/** Releasing the last session deletes the provider copy at once. */
+async function expectReleasedDelete(
+  t: Rig,
+  ledger: Pick<UploadLedger, 'releaseSession'>,
+  binding: Pick<ReturnType<typeof vsCodeBinding>['binding'], 'list'>,
+  ref: Pick<UploadedMediaRef, 'fileId'>,
+  sessionId: string,
+): Promise<void> {
+  await ledger.releaseSession(sessionId)
+  await expectDeletedListed(t, binding, ref)
+}
+
+/** The Delete command refuses the referenced file and names it. */
+async function expectRefusalNamed(
+  t: Rig,
+  binding: Pick<ReturnType<typeof vsCodeBinding>['binding'], 'list' | 'remove'>,
+  name: string,
+): Promise<void> {
+  const failures: string[] = []
+  await deleteAllChosen(binding, (message) => {
+    failures.push(message)
+  })
+  expect(failures).toHaveLength(1)
+  expect(failures[0]).toContain(name)
+  expect(deletes(t)).toHaveLength(0)
+}
+
+/** The Delete command over a binding, choosing every listed file. */
+async function deleteAllChosen(
+  binding: Pick<ReturnType<typeof vsCodeBinding>['binding'], 'list' | 'remove'>,
+  fail: (message: string) => void,
+): Promise<void> {
+  await runDeleteUploadedFilesCommand({
+    list: binding.list,
+    remove: binding.remove,
+    confirmForeign: () => Promise.resolve(true),
+    dialogs: {
+      pick: (files) => Promise.resolve(files.map((file) => file.fileId)),
+      inform: () => undefined,
+      fail,
+    },
+  })
+}
+
 /**
  * An upload whose session reference never reached the ledger (a crash):
  * listed while young, deletable early. A released reference deletes
@@ -247,27 +323,8 @@ describe('uploaded-files production composition', () => {
     expect(posted).toHaveLength(1)
     expect(read.files.map((file) => file.fileId)).toEqual([ref.fileId])
     // A file a session still references cannot go: the failure names it.
-    const failures: string[] = []
-    await runDeleteUploadedFilesCommand({
-      list: binding.list,
-      remove: binding.remove,
-      confirmForeign: () => Promise.resolve(true),
-      dialogs: {
-        pick: (files) => Promise.resolve(files.map((file) => file.fileId)),
-        inform: () => undefined,
-        fail: (message) => {
-          failures.push(message)
-        },
-      },
-    })
-    expect(failures).toHaveLength(1)
-    expect(failures[0]).toContain('clip.mp4')
-    expect(deletes(t)).toHaveLength(0)
-    // Releasing the last session deletes the provider copy at once.
-    await ledger.releaseSession('s1')
-    expect(deletes(t)).toHaveLength(1)
-    expect(deletes(t)[0]?.[0]).toBe(`/files/${ref.fileId}`)
-    expect(await binding.list()).toEqual(expect.objectContaining({ files: [] }))
+    await expectRefusalNamed(t, binding, 'clip.mp4')
+    await expectReleasedDelete(t, ledger, binding, ref, 's1')
   })
 
   it('deletes an unseen orphan through the Delete command', async () => {
@@ -293,9 +350,7 @@ describe('uploaded-files production composition', () => {
       },
     })
     expect(picked).toEqual([[ref.fileId]])
-    expect(deletes(t)).toHaveLength(1)
-    expect(deletes(t)[0]?.[0]).toBe(`/files/${ref.fileId}`)
-    expect(await binding.list()).toEqual(expect.objectContaining({ files: [] }))
+    await expectDeletedListed(t, binding, ref)
   })
 
   it('serves ACP /uploads from the same production ledger', async () => {
@@ -349,20 +404,7 @@ describe('uploaded-files production composition', () => {
       refs: readonly (typeof oldRef)[],
       lastActivityAt: string,
     ): StoredSession => ({
-      version: 1,
-      sessionId,
-      workspaceRoot: '/ws',
-      modelId: 'muse-spark-1.3',
-      approvalMode: 'allowAll',
-      effort: 'high',
-      createdAt: '2026-09-22T09:00:00.000Z',
-      lastActivityAt,
-      turnIds: [],
-      todos: [],
-      replay: [],
-      transcript: [],
-      outputs: {},
-      usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
+      ...emptyStoredSession(sessionId, lastActivityAt),
       accountId: t.accountId,
       fileRefs: [...refs],
     })
@@ -416,23 +458,8 @@ describe('uploaded-files production composition', () => {
   it('cleans the same ledger from two windows exactly once without corrupting it', async () => {
     const t = rig('windows', [OLD])
     const directory = path.join(t.uploadsDir, t.accountId)
-    const files = new FilesApi({
-      client: t.filesClient(),
-      provider: 'meta',
-      authorizeUpload: () => Promise.resolve(),
-    })
-    const ledgers = [0, 1].map(
-      () =>
-        new UploadLedger({
-          storage: fileUploadLedgerStorage(directory),
-          files,
-          accountId: t.accountId,
-          provider: 'meta',
-          poolBytes: 100,
-          currentAccountId: () => Promise.resolve(t.accountId),
-          now: () => NOW,
-        }),
-    )
+    const { open } = ledgerFiles(t, directory)
+    const ledgers = [0, 1].map(() => open())
     const first = ledgers[0]
     const second = ledgers[1]
     if (first === undefined || second === undefined) throw new Error('two ledgers')
@@ -452,22 +479,8 @@ describe('uploaded-files production composition', () => {
     // only the expiry sweep takes the expired orphan once unpinned.
     const t = rig('table', [OLD])
     const directory = path.join(t.uploadsDir, t.accountId)
-    const files = new FilesApi({
-      client: t.filesClient(),
-      provider: 'meta',
-      authorizeUpload: () => Promise.resolve(),
-    })
     const baseStorage = () => fileUploadLedgerStorage(directory)
-    const makeLedger = (storage = baseStorage()) =>
-      new UploadLedger({
-        storage,
-        files,
-        accountId: t.accountId,
-        provider: 'meta',
-        poolBytes: 100,
-        currentAccountId: () => Promise.resolve(t.accountId),
-        now: () => NOW,
-      })
+    const makeLedger = ledgerFiles(t, directory).open
     const windowA = makeLedger()
     const windowB = makeLedger()
     const ref = await windowA.ensure('s', sha256, source, new AbortController().signal)
@@ -543,7 +556,49 @@ describe('uploaded-files production composition', () => {
  * removing runExec's forwarding fails the headless /uploads run in
  * execRun.test.ts (drilled).
  */
-function runtimeBackend(backend: ServeOptions['backend']) {
+/** A home with one retained ledger entry, keyed as the tests find it. */
+async function seedRetainedUploads(dirName: string, keyName: string, sessions: readonly string[]) {
+  const home = mkdtempSync(path.join(root, dirName))
+  const secrets = memorySecrets()
+  secrets.values.set(SECRET_KEYS.modelApiKey, keyName)
+  const keyed = createHash('sha256').update(keyName).digest('hex')
+  const directory = accountLedgerDirectory(
+    path.join(
+      agentDataFolder({ platform: process.platform, env: {}, homeDir: home }),
+      MODEL_API_UPLOADS_DIR,
+    ),
+    keyed,
+  )
+  await mkdir(directory, { recursive: true })
+  await writeFile(
+    path.join(directory, 'uploads.json'),
+    JSON.stringify({
+      version: 1,
+      accountId: keyed,
+      entries: [
+        {
+          file: {
+            fileId: 'file-one',
+            provider: 'meta',
+            expiresAt: 4_000_000_000,
+            sha256,
+            bytes: 3,
+            name: 'clip.mp4',
+            mime: 'video/mp4',
+          },
+          sessions: [...sessions],
+        },
+      ],
+      cachedFiles: [],
+    }),
+  )
+  return { home, secrets, keyed, directory }
+}
+
+function runtimeBackend(
+  backend: ServeOptions['backend'],
+  overrides?: Pick<Partial<RuntimeBackendDeps>, 'homeDir' | 'secrets' | 'fetch' | 'exec'>,
+) {
   return createRuntimeBackend({
     options: {
       backend,
@@ -559,11 +614,12 @@ function runtimeBackend(backend: ServeOptions['backend']) {
     distDir: root,
     platform: process.platform,
     env: {},
-    homeDir: mkdtempSync(path.join(root, 'runtime-home-')),
-    secrets: memorySecrets(),
+    homeDir: overrides?.homeDir ?? mkdtempSync(path.join(root, 'runtime-home-')),
+    secrets: overrides?.secrets ?? memorySecrets(),
     runGit: () => Promise.resolve(''),
     // Keyless reads never reach the wire: any provider traffic fails this.
-    fetch: () => Promise.reject(new Error('unexpected provider traffic')),
+    fetch: overrides?.fetch ?? (() => Promise.reject(new Error('unexpected provider traffic'))),
+    ...(overrides?.exec !== undefined && { exec: overrides.exec }),
     sleep: () => Promise.resolve(),
     log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   })
@@ -595,60 +651,15 @@ describe('uploaded-files runtime assembly', () => {
     // Finding 7 through the real runtime assembly: with the key, the port
     // lists the account's files; without it, the retained list stays
     // readable read-only and the provider hears nothing more.
-    const home = mkdtempSync(path.join(root, 'runtime-home-retained-'))
-    const secrets = memorySecrets()
-    const KEY = 'uploads-retention-key'
-    secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
-    const keyed = createHash('sha256').update(KEY).digest('hex')
-    const directory = accountLedgerDirectory(
-      path.join(
-        agentDataFolder({ platform: process.platform, env: {}, homeDir: home }),
-        MODEL_API_UPLOADS_DIR,
-      ),
-      keyed,
-    )
-    await mkdir(directory, { recursive: true })
-    await writeFile(
-      path.join(directory, 'uploads.json'),
-      JSON.stringify({
-        version: 1,
-        accountId: keyed,
-        entries: [
-          {
-            file: {
-              fileId: 'file-one',
-              provider: 'meta',
-              expiresAt: 4_000_000_000,
-              sha256,
-              bytes: 3,
-              name: 'clip.mp4',
-              mime: 'video/mp4',
-            },
-            sessions: ['s1'],
-          },
-        ],
-        cachedFiles: [],
-      }),
+    const { home, secrets } = await seedRetainedUploads(
+      'runtime-home-retained-',
+      'uploads-retention-key',
+      ['s1'],
     )
     let listCalls = 0
-    const runtime = createRuntimeBackend({
-      options: {
-        backend: 'modelApi',
-        trustWorkspace: false,
-        canBypass: false,
-        allowsContributorModels: false,
-        museBinary: '',
-        shellSandbox: 'auto',
-        paidFeatures: [],
-        isVerbose: false,
-      },
-      version: 'uploads-composition-test',
-      distDir: root,
-      platform: process.platform,
-      env: {},
+    const runtime = runtimeBackend('modelApi', {
       homeDir: home,
       secrets,
-      runGit: () => Promise.resolve(''),
       fetch: (url: unknown, init?: { method?: string }) => {
         if (
           typeof url === 'string' &&
@@ -687,8 +698,6 @@ describe('uploaded-files runtime assembly', () => {
         }
         return Promise.reject(new Error('unexpected provider traffic'))
       },
-      sleep: () => Promise.resolve(),
-      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     })
     try {
       const live = uploadedFilesReportSchema.parse(await runtime.uploads?.read())
@@ -719,40 +728,10 @@ describe('uploaded-files runtime assembly', () => {
     // first lists keyed (recording the last account), the key goes, the
     // restarted instance still lists the persisted ledger read-only while
     // the provider hears nothing more.
-    const home = mkdtempSync(path.join(root, 'runtime-home-restart-'))
-    const secrets = memorySecrets()
-    const KEY = 'uploads-restart-key'
-    secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
-    const keyed = createHash('sha256').update(KEY).digest('hex')
-    const directory = accountLedgerDirectory(
-      path.join(
-        agentDataFolder({ platform: process.platform, env: {}, homeDir: home }),
-        MODEL_API_UPLOADS_DIR,
-      ),
-      keyed,
-    )
-    await mkdir(directory, { recursive: true })
-    await writeFile(
-      path.join(directory, 'uploads.json'),
-      JSON.stringify({
-        version: 1,
-        accountId: keyed,
-        entries: [
-          {
-            file: {
-              fileId: 'file-one',
-              provider: 'meta',
-              expiresAt: 4_000_000_000,
-              sha256,
-              bytes: 3,
-              name: 'clip.mp4',
-              mime: 'video/mp4',
-            },
-            sessions: [],
-          },
-        ],
-        cachedFiles: [],
-      }),
+    const { home, secrets } = await seedRetainedUploads(
+      'runtime-home-restart-',
+      'uploads-restart-key',
+      [],
     )
     const listed = {
       object: 'list',
@@ -770,31 +749,13 @@ describe('uploaded-files runtime assembly', () => {
       ],
       has_more: false,
     }
-    const backendOptions = {
-      backend: 'modelApi' as const,
-      trustWorkspace: false,
-      canBypass: false,
-      allowsContributorModels: false,
-      museBinary: '',
-      shellSandbox: 'auto' as const,
-      paidFeatures: [],
-      isVerbose: false,
-    }
-    const first = createRuntimeBackend({
-      options: backendOptions,
-      version: 'uploads-composition-test',
-      distDir: root,
-      platform: process.platform,
-      env: {},
+    const first = runtimeBackend('modelApi', {
       homeDir: home,
       secrets,
-      runGit: () => Promise.resolve(''),
       fetch: (url: unknown) =>
         String(url).endsWith('/files')
           ? Promise.resolve(Response.json(listed))
           : Promise.reject(new Error('unexpected provider traffic')),
-      sleep: () => Promise.resolve(),
-      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     })
     try {
       const live = uploadedFilesReportSchema.parse(await first.uploads?.read())
@@ -804,19 +765,7 @@ describe('uploaded-files runtime assembly', () => {
       await first.close()
     }
     secrets.values.delete(SECRET_KEYS.modelApiKey)
-    const restarted = createRuntimeBackend({
-      options: backendOptions,
-      version: 'uploads-composition-test',
-      distDir: root,
-      platform: process.platform,
-      env: {},
-      homeDir: home,
-      secrets,
-      runGit: () => Promise.resolve(''),
-      fetch: () => Promise.reject(new Error('unexpected provider traffic')),
-      sleep: () => Promise.resolve(),
-      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-    })
+    const restarted = runtimeBackend('modelApi', { homeDir: home, secrets })
     try {
       const retained = uploadedFilesReportSchema.parse(await restarted.uploads?.read())
       expect(retained.files.map((file) => file.fileId)).toEqual(['file-one'])
@@ -866,60 +815,15 @@ describe('uploaded-files runtime assembly', () => {
     // Finding 9: serve forwards runtime.uploads into the ACP command
     // (main.ts). The backend's installed port answers the command's
     // list and delete flow end to end.
-    const home = mkdtempSync(path.join(root, 'runtime-home-serve-'))
-    const secrets = memorySecrets()
-    const KEY = 'uploads-serve-key'
-    secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
-    const keyed = createHash('sha256').update(KEY).digest('hex')
-    const directory = accountLedgerDirectory(
-      path.join(
-        agentDataFolder({ platform: process.platform, env: {}, homeDir: home }),
-        MODEL_API_UPLOADS_DIR,
-      ),
-      keyed,
-    )
-    await mkdir(directory, { recursive: true })
-    await writeFile(
-      path.join(directory, 'uploads.json'),
-      JSON.stringify({
-        version: 1,
-        accountId: keyed,
-        entries: [
-          {
-            file: {
-              fileId: 'file-one',
-              provider: 'meta',
-              expiresAt: 4_000_000_000,
-              sha256,
-              bytes: 3,
-              name: 'clip.mp4',
-              mime: 'video/mp4',
-            },
-            sessions: [],
-          },
-        ],
-        cachedFiles: [],
-      }),
+    const { home, secrets } = await seedRetainedUploads(
+      'runtime-home-serve-',
+      'uploads-serve-key',
+      [],
     )
     let wasDeleted = false
-    const runtime = createRuntimeBackend({
-      options: {
-        backend: 'modelApi',
-        trustWorkspace: false,
-        canBypass: false,
-        allowsContributorModels: false,
-        museBinary: '',
-        shellSandbox: 'auto',
-        paidFeatures: [],
-        isVerbose: false,
-      },
-      version: 'uploads-composition-test',
-      distDir: root,
-      platform: process.platform,
-      env: {},
+    const runtime = runtimeBackend('modelApi', {
       homeDir: home,
       secrets,
-      runGit: () => Promise.resolve(''),
       fetch: (_url: unknown, init?: { method?: string }) => {
         if (init?.method === 'DELETE') {
           wasDeleted = true
@@ -946,8 +850,6 @@ describe('uploaded-files runtime assembly', () => {
           }),
         )
       },
-      sleep: () => Promise.resolve(),
-      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     })
     try {
       expect(runtime.uploads).toBeDefined()
@@ -1006,50 +908,12 @@ describe('uploaded-files runtime assembly', () => {
     expect(parseHostToWebviewMessage(posted[0])).toEqual({ ok: true, message: posted[0] })
     // The Delete Uploaded Files command over the same binding: the file a
     // session still references cannot go, and the failure names it.
-    const failures: string[] = []
-    await runDeleteUploadedFilesCommand({
-      list: binding.list,
-      remove: binding.remove,
-      confirmForeign: () => Promise.resolve(true),
-      dialogs: {
-        pick: (files) => Promise.resolve(files.map((file) => file.fileId)),
-        inform: () => undefined,
-        fail: (message) => {
-          failures.push(message)
-        },
-      },
-    })
-    expect(failures).toHaveLength(1)
-    expect(failures[0]).toContain('clip.mp4')
-    expect(deletes(t)).toHaveLength(0)
-    // Releasing the last session deletes the provider copy at once.
-    await ledger.releaseSession('s1')
-    expect(deletes(t)).toHaveLength(1)
-    expect(await binding.list()).toEqual(expect.objectContaining({ files: [] }))
+    await expectRefusalNamed(t, binding, 'clip.mp4')
+    await expectReleasedDelete(t, ledger, binding, ref, 's1')
   })
 
   it('keeps the ephemeral headless port keyless and provider-silent', async () => {
-    const runtime = createRuntimeBackend({
-      options: {
-        backend: 'modelApi',
-        trustWorkspace: false,
-        canBypass: false,
-        allowsContributorModels: false,
-        museBinary: '',
-        shellSandbox: 'auto',
-        paidFeatures: [],
-        isVerbose: false,
-      },
-      version: 'uploads-composition-test',
-      distDir: root,
-      platform: process.platform,
-      env: {},
-      homeDir: mkdtempSync(path.join(root, 'runtime-home-')),
-      secrets: memorySecrets(),
-      runGit: () => Promise.resolve(''),
-      fetch: () => Promise.reject(new Error('unexpected provider traffic')),
-      sleep: () => Promise.resolve(),
-      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    const runtime = runtimeBackend('modelApi', {
       exec: {
         isEphemeral: true,
         headlessPaid: () => Promise.resolve(false),
