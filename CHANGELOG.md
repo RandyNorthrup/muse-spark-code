@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The Model API backend bundle is back under its 525 KiB budget (521.4 KiB):
+  byte-range file reads and edits now load with the deferred tools chunk on
+  the first range addressed call, with the shared edit matching, outcomes
+  and text shapes beside them in a neutral module both bundles read. A
+  bundle that cannot load refuses the call that needed it, naming the chunk.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

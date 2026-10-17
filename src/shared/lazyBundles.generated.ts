@@ -362,6 +362,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'ModelApiSession.toolAssist',
         side: ['acp', 'vscode'],
       },
+      {
+        importer: 'src/core/backends/modelapi/tools.ts',
+        symbol: 'loadFileRangeTools',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   {
