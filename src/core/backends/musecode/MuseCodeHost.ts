@@ -973,7 +973,6 @@ export class MuseSession implements ScheduledAgentSession {
    */
   private readonly unqueuedTurns = new Set<string>()
   private readonly log: CoreLogger
-  private readonly timeouts: CommandTimeouts
   private readonly owner: SessionOwner
   private readonly scheduledItems = new Map<string, NativeFireToken>()
   private readonly scheduledApprovals = new Map<string, NativeFireToken>()
@@ -994,7 +993,6 @@ export class MuseSession implements ScheduledAgentSession {
   ) {
     this.owner = new SessionOwner(initialApprovalMode)
     this.log = channel.log
-    this.timeouts = channel.timeouts
     this.leaseGeneration = channel.generation
   }
 

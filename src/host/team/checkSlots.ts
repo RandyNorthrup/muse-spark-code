@@ -260,6 +260,7 @@ export class CheckSlots {
       () => {
         this.admit(job)
       },
+      job.timeoutMs,
     )
     slot.uncertain = false
     try {
