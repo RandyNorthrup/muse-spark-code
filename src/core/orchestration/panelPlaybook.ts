@@ -71,6 +71,7 @@ function reviewBlocks(text: string): readonly ReviewBlock[] {
   )
 }
 
+/** @unwired M116 panel playbook port */
 export class PanelPlaybook implements PanelPlaybookPort {
   constructor(
     private readonly integration: PlaybookIntegration,

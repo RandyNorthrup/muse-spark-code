@@ -8,7 +8,7 @@ Version: 0.14.2
 
 SHA-256: 2dec21295752de45bfd473687c22b25204543a2a5246d45b67e556914dad5298
 
-## Needs you
+## Needs You
 
 | Questions | Sources |
 | --- | --- |
@@ -39,14 +39,14 @@ SHA-256: 2dec21295752de45bfd473687c22b25204543a2a5246d45b67e556914dad5298
 | M12: fixture contracts | Planned | git, plan |
 | M110a0: fixture runtime<br>A second commit. | Merged | git |
 
-## Release record
+## Release Record
 
 | Name | Status | Sources |
 | --- | --- | --- |
 | M12: fixture contracts | Planned | git, plan |
 | M110a0: fixture runtime<br>A second commit. | Merged | git |
 
-## Continuous integration
+## Continuous Integration
 
 | Name | Status | Sources |
 | --- | --- | --- |
@@ -55,11 +55,11 @@ SHA-256: 2dec21295752de45bfd473687c22b25204543a2a5246d45b67e556914dad5298
 
 ## Sources
 
-| Name | Status | Reason | Observed at | Freshness |
+| Name | Status | Reason | Observed At | Freshness |
 | --- | --- | --- | --- | --- |
 | git | Partial | Commit bound reached. | 2026-10-06T11:00:00.000+00:00 | Stale &#40;3,600s&#41; |
 | github | Unavailable | Network is off. | Unknown | Unknown |
 | plan | Available |  | 2026-10-06T12:00:00.000+00:00 | Fresh &#40;0s&#41; |
-| usage | Not applicable | Journal integration is not present. | Unknown | Unknown |
+| usage | Not Applicable | Journal integration is not present. | Unknown | Unknown |
 
 Renderer 1; ICU 77.1; locale en

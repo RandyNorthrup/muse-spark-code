@@ -78,6 +78,11 @@
     "many": "{count} de lignes incomplètes ignorées",
     "other": "{count} lignes incomplètes ignorées"
   },
+  "inexactRecords": {
+    "one": "{count} ancien enregistrement non compté : son montant n’a pas pu être lu exactement",
+    "many": "{count} d’anciens enregistrements non comptés : leurs montants n’ont pas pu être lus exactement",
+    "other": "{count} anciens enregistrements non comptés : leurs montants n’ont pas pu être lus exactement"
+  },
   "recordCount": {
     "one": "{count} enregistrement",
     "many": "{count} d’enregistrements",

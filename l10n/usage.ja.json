@@ -66,6 +66,9 @@
   "tornLines": {
     "other": "不完全な行{count}件をスキップしました"
   },
+  "inexactRecords": {
+    "other": "金額を正確に読み取れなかった古い記録{count}件は集計に含まれていません"
+  },
   "recordCount": {
     "other": "{count}件の記録"
   },
@@ -85,7 +88,7 @@
   "apiEquivalentNote": "追加のサブスクリプション料金ではなく、等価なAPI価格です。",
   "totalTime": "合計リクエスト時間",
   "latencyP50": "中央値レイテンシ (p50)",
-  "latencyP95": "p95レイテンシ",
+  "latencyP95": "P95レイテンシ",
   "firstToken": "初回トークンまでの時間",
   "tokensPerSecond": "1秒あたりのトークン数",
   "cacheHit": "キャッシュヒット率",

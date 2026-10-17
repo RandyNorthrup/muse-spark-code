@@ -174,7 +174,7 @@ asks for it. Elsewhere, run it yourself once:
   Keychain sign-in), the agent asks it when the editor checks the sign-in
   again after you sign in (ACP's `authenticate`), and otherwise assumes
   the sign-in holds until a turn says it does not.
-- **Model API key**: `muse-spark-code-acp auth set` asks for the key without
+- **Model API Key**: `muse-spark-code-acp auth set` asks for the key without
   showing it and keeps it in the operating system's credential store:
   Windows Credential Manager, the macOS Keychain, or on Linux the Secret
   Service (GNOME Keyring, KWallet, KeePassXC). `auth status` says whether
@@ -211,6 +211,13 @@ still needs provider-aware budget admission and settlement. No supported
 headless provider inference is claimed.
 The npm package includes the shared catalogue and lazy provider bundles.
 Installed-editor and live provider certification remain open.
+
+Output caps below the selected provider's known minimum are refused when saved
+and before sending, including older stored values. The same translated message
+names the minimum; Meta requires 16 tokens. Custom provider entries declare a
+minimum with `modelCapabilities.<model>.output.minTokens`; their capability cap
+and custom output limit must meet it. ACP config options and CLI/exec flags
+currently expose no separate output-token cap.
 
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
@@ -334,21 +341,18 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 ## Interactive ACP options
 
-| Argument                               | Effect                                                                                                                            |
-| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                               |
-| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted           |
-| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                            |
-| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                                    |
-| `--questions-defer-after <seconds>`    | M112: 60 by default; 0 waits indefinitely; 1–9 become 10; maximum 3600. Clients without forms defer immediately.                  |
-| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                                 |
-| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                          |
-| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                            |
-| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price                       |
-| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                               |
-| `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec); production is awaiting evaluation and inactive |
-| `--scheduled-prompts`                  | Offer the `/schedule` command with unattended runs (Model API backend only); needs `--max-budget-usd`                             |
-| `--max-budget-usd <USD>`               | Hard spending cap for unattended scheduled runs; without a positive cap paid authorization is refused                             |
+| Argument                               | Effect                                                                                                                  |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `--backend museCode\|modelApi`         | Which backend, and so who pays (default `museCode`)                                                                     |
+| `--trust-workspace`                    | Load the folder's rules, skills and memory, as Muse Code's own flag does. Without it the folder is treated as untrusted |
+| `--muse-binary <path>`                 | The Muse Code CLI to run; by default the agent looks where the VS Code extension looks                                  |
+| `--shell-sandbox auto\|muse\|off`      | Muse Code's shell sandbox, as the extension's `museSpark.shellSandbox` setting                                          |
+| `--questions-defer-after <seconds>`    | M112: 60 by default; 0 waits indefinitely; 1–9 become 10; maximum 3600. Clients without forms defer immediately.        |
+| `--allow-dangerously-skip-permissions` | Offer the Bypass permissions mode                                                                                       |
+| `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                |
+| `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                  |
+| `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price             |
+| `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                     |
 
 ## What the editor sees
 
@@ -367,14 +371,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
   M116's `/playbook <status|record|settings ...>`, answered locally with no
   model turn.
-  M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
-  timeline; `run-due` and background maintenance are refused here), offered
-  only with `--scheduled-prompts`.
-  M108's `/accounts <list|current|use <id>|thresholds [id]>`, answered
-  locally with no model turn.
-  M117's `/estimate <goal> [--by <date>] [--fleet current|minimum|optimum]`
-  when the estimator binding is present; it runs the same engine as the
-  panel with no model call.
+  M108's `/accounts <list|current|thresholds [id]>` on the Model API
+  backend, answered locally with no model turn; `/accounts use <id>` is
+  refused and names the account the session keeps.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -487,19 +486,18 @@ what waits for M96's planner.
 
 ## Several accounts per provider (M108)
 
-`/accounts list`, `/accounts current` and `/accounts thresholds [id]`
-read local metadata without a model turn. The command parser and event adapter
-also support `/accounts use <id>` and the `account` session option through an
-injected profile-owned pool. The installed runtime currently refuses changing
-the backend credential; that pool awaits M95/M109. It never reports a swap
-while retaining another account's key.
+On the Model API backend `/accounts list`, `/accounts current` and
+`/accounts thresholds [id]` read local metadata without a model turn, and the
+`account` session option shows the same accounts. The Muse Code backend runs
+on its subscription and has neither. Changing the session's account
+(`/accounts use <id>`, or another choice in the picker) is still refused: the
+refusal names the account the session keeps, and the agent never reports a
+swap while retaining another account's key. A session starts without accounts
+when their metadata cannot be read.
 
 The terminal's `providers accounts` commands manage metadata, ordering,
 thresholds and stored API keys. Keys are read only from standard input,
-never an argument or file. The panel's account section and automatic swap/stop
-notices await the installed M95/M102/M104/M109 bindings in every editor.
-See [the milestone certification](certification/m108.md) for those blockers
-and the injected-port tests.
+never an argument or file.
 
 ## Paid features
 
@@ -511,12 +509,12 @@ first in the editor's permission prompt, as the VS Code panel's popup
 does, naming what is about to be billed and its price: each prompt that
 may search the web (Meta runs the searches inside the reply, so the
 question comes once per prompt, not per search) and each image. The
-answers are **Allow once**, **Allow always in this workspace** and
+answers are **Allow Once**, **Allow Always in This Workspace** and
 **Deny**; Deny sends the prompt without web search, or makes no image.
 A cancelled prompt, an answer the prompt did not offer, or an editor
 that cannot ask counts as Deny.
 
-**Allow always in this workspace** is offered only when the agent runs
+**Allow Always in This Workspace** is offered only when the agent runs
 with `--trust-workspace`. It is kept for that folder in the agent's data
 folder (`paid-uses.json.d` under `%LOCALAPPDATA%\Muse Spark Code\acp`,
 `~/Library/Application Support/Muse Spark Code/acp` or
@@ -532,12 +530,6 @@ flag on again asks again. Every paid row names its
 price, and the agent log counts each billed use. Subagents,
 best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
-
-Scheduled prompts are offered with `--scheduled-prompts` (Model API
-backend only) together with `--max-budget-usd`. Each billed run asks in
-the editor's permission prompt, naming its price and the shared daily
-budget, unless allowed always in this workspace; a run without a positive
-budget is refused before dispatch.
 
 ## Networks and proxies
 
@@ -677,14 +669,6 @@ sends no model request. Its exec result retains the response-proof contract:
 `incomplete` (exit 8), null terminal and `no_compactable_history`, rather than
 claiming a completed model response. Attachments or additional arguments remain ordinary
 prompts, rather than being silently discarded as command input.
-
-The unreleased M96c adapters are packaged behind the team factory: the board
-and scheduler load from `dist/teamScheduler.js`, runner and Traffic host
-capabilities from `dist/teamRunners.js`. Both native runner helpers ship with
-the ACP package. These factories need the editor/window runtime to supply
-journalled launch, ownership, permissions and landing; team dispatch and the
-Traffic/Runners panel remain unavailable until those bindings are integrated.
-Packaging them does not enable remote execution or spend.
 
 ## Local usage history
 
@@ -916,10 +900,7 @@ ACP exposes `/report <kind>` in its available commands and replies in Markdown
 through the same portable report methods, without sending the command to a model.
 
 Network collection requires `--network`; `gh` owns terminal GitHub authentication.
-No Model API key is needed or read. Missing service captures and future source
-adapters remain unavailable. Posting and scheduled destinations are not exposed
-until their capture, scheduler, vault and browser dependencies are mounted.
-The [README report guide](../README.md#report) describes the kinds and settings.
+No Model API key is needed or read. The [README report guide](../README.md#report) describes the kinds and settings.
 
 Exit codes are 0 for a generated/rendered report, 1 for a collection or output
 failure, 2 for invalid arguments or unsupported format, 3 for an unknown exact
@@ -927,29 +908,3 @@ scope (with nearest ids), and 4 when a requested `--fail-on` condition holds.
 Conditions are `unavailable`, `drift`, `blocked`, `channelLag` and `ciFailing`.
 History-save revocation or cancellation fails explicitly. Equal observation
 times preserve the newest saved sequence when selecting the previous report.
-
-## Vault integration (M109 H)
-
-The H handlers consume injected broker/panel contracts. The installed
-`dist/vault.js` factory is an integration handoff; until bound, access reports
-a fixed broker-unavailable error. No credential or guessed wire frame is used.
-
-`/vault` defaults to status and accepts `status`, `list`, `lock` and `audit`.
-Commands are intercepted locally before skill/model dispatch. Invalid syntax
-and extra attachments are refused. Lock remains available during an active
-turn and invalidates outstanding permission answers. Hidden and first-party
-items are excluded from the ACP item list.
-
-A broker request maps to `session/request_permission`: `allow_once`,
-`allow_always` labelled **Allow for this session** where policy permits, and
-`reject_once`. No standing Always grant is offered. Answers retain the
-broker's exact id and digest; cancel, expiry, session close/reload, lock, an
-unknown option, or a failed editor request deny. Bypass and paid grants do
-not approve a vault use. The full requester and resolved use, process exposure,
-taint, presence and separate paid-consent warning appear in the permission.
-
-Terminal subcommands and their input contract are documented in the
-repository README's vault section. Companion and native bridges share the
-same public panel handler; M104 must bind authenticated connections and honor
-its cancellation signal before committing effects. Add/edit opens the host's
-terminal. No value is accepted or returned in panel messages.

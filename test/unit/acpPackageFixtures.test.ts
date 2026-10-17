@@ -40,7 +40,14 @@ function packagingFixtures(): Set<string> {
       .filter((file) => file !== '' && file !== SELF && file !== HELPER)
       .filter((file) => {
         const text = read(file)
-        return text.includes('mkdtempSync') && /\bspawnSync\(/u.test(text)
+        // A fixture names the packager in a string: the path it runs. A
+        // suite that only mentions it in a comment and spawns another
+        // command (packagedBundles runs the registry command) is not one.
+        return (
+          text.includes('mkdtempSync') &&
+          /\bspawnSync\(/u.test(text) &&
+          /['"`][^'"`\n]*package-acp\.mjs['"`]/u.test(text)
+        )
       }),
   )
 }

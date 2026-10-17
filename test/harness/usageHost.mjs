@@ -78,7 +78,7 @@ view.usageHarness.addAccount = () => {
     backend: 'modelApi',
     source: 'openRouter',
     windows: [],
-    account: { usedUsd: 9, limitUsd: 10, remainingUsd: 1, period: 'monthly' },
+    account: { usedUsd: '9', limitUsd: '10', remainingUsd: '1', period: 'monthly' },
   })
 }
 const language = { 'long-german': 'de', 'long-russian': 'ru' }[scenario] ?? 'en'

@@ -1,5 +1,10 @@
 import type { UsagePageState, UsageTotals } from '../../../src/shared/usagePage'
 import type { UsageCertainty } from '../../../src/shared/usageJournal'
+import { Usd } from '../../../src/shared/usd'
+
+function usd(value: number) {
+  return Usd.from(value).toAmount()
+}
 
 export const USAGE_SCENARIOS = [
   'empty',
@@ -29,10 +34,10 @@ export function usageTotals(certainty: UsageCertainty = 'reported', index = 1): 
       {
         certainty,
         records: 2,
-        ...(certainty === 'plan' && { apiEquivalentUsd: index / 10 }),
+        ...(certainty === 'plan' && { apiEquivalentUsd: Usd.from(index).divide(10).toAmount() }),
         ...(certainty !== 'plan' &&
           certainty !== 'unpriced' && {
-            usd: certainty === 'local' ? 0 : index / 10,
+            usd: certainty === 'local' ? usd(0) : Usd.from(index).divide(10).toAmount(),
           }),
       },
     ],
@@ -93,7 +98,7 @@ export function usageStateFor(scenario = 'one-provider', now = Date.now()): Usag
       }
   const observedAt = scenario === 'stale' ? now - 16 * 60 * 1000 : now
   return {
-    v: 1,
+    v: 2,
     query: { range: 'today', groupBy: 'provider', metric: 'cost' },
     generatedAt: now,
     history: {
@@ -104,6 +109,7 @@ export function usageStateFor(scenario = 'one-provider', now = Date.now()): Usag
       recordCount: totals.records,
       newerVersionRecords: scenario === 'newer-version' ? 7 : 0,
       tornLines: scenario === 'newer-version' ? 1 : 0,
+      inexactRecords: 0,
       since: day,
     },
     totals,
@@ -114,7 +120,7 @@ export function usageStateFor(scenario = 'one-provider', now = Date.now()): Usag
     limits: [
       {
         type: 'limit',
-        v: 1,
+        v: 2,
         id: 'limit-1',
         at: observedAt,
         day,
@@ -136,7 +142,7 @@ export function usageStateFor(scenario = 'one-provider', now = Date.now()): Usag
       },
       {
         type: 'limit',
-        v: 1,
+        v: 2,
         id: 'headers-1',
         at: now,
         day,
@@ -154,12 +160,12 @@ export function usageStateFor(scenario = 'one-provider', now = Date.now()): Usag
       {
         id: 'paid',
         kind: 'paidDaily',
-        spentUsd: scenario === 'over-limit' ? 6 : 1.2,
-        capUsd: 5,
-        uncertainUsd: 0.1,
+        spentUsd: usd(scenario === 'over-limit' ? 6 : 1.2),
+        capUsd: usd(5),
+        uncertainUsd: usd(0.1),
         stopped: scenario === 'over-limit',
         raisedToday: scenario === 'over-limit',
-        projectedUsd: 2.5,
+        projectedUsd: usd(2.5),
         resetsAt: now + 10 * 60 * 60 * 1000,
       },
     ],
@@ -173,6 +179,6 @@ export function usageStateFor(scenario = 'one-provider', now = Date.now()): Usag
         ],
     savings: isEmpty
       ? {}
-      : { cachedTokens: totals.tokens.cached, cacheUsd: 0.2, packedAvoided: 500 },
+      : { cachedTokens: totals.tokens.cached, cacheUsd: usd(0.2), packedAvoided: 500 },
   }
 }

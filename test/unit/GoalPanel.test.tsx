@@ -66,11 +66,11 @@ describe('GoalPanel (M45)', () => {
 
   it('shows the objective, the status in words, the progress and what is now and next', () => {
     show(active)
-    const strip = screen.getByRole('region', { name: 'Session goal' })
+    const strip = screen.getByRole('region', { name: 'Session Goal' })
     expect(strip.textContent).toContain('Make the parser tests pass')
     expect(screen.getByText('Active')).toBeTruthy()
     expect(screen.getByText('60% done')).toBeTruthy()
-    const bar = screen.getByRole('progressbar', { name: 'Goal progress' })
+    const bar = screen.getByRole('progressbar', { name: 'Goal Progress' })
     expect(bar.getAttribute('value')).toBe('60')
     expect(screen.getByText('Writing the parser tests')).toBeTruthy()
     expect(screen.getByText('Fix the precedence bug')).toBeTruthy()
@@ -112,7 +112,7 @@ describe('GoalPanel (M45)', () => {
     const edit = screen.getByRole('button', { name: 'Edit' })
     fireEvent.click(edit)
     expect(edit.getAttribute('aria-expanded')).toBe('true')
-    const field = screen.getByRole<HTMLInputElement>('textbox', { name: 'Goal objective' })
+    const field = screen.getByRole<HTMLInputElement>('textbox', { name: 'Goal Objective' })
     expect(field.value).toBe('Make the parser tests pass')
     expect(document.activeElement).toBe(field)
     fireEvent.change(field, { target: { value: '  ' } })

@@ -197,6 +197,8 @@ const CONVERSATION_GIT_ENTRY = 'src/host/git/conversationGitEntry.ts'
 const CONVERSATION_GIT_OUTFILE = 'dist/conversationGit.js'
 const MODEL_API_SESSIONS_ENTRY = 'src/host/backend/fileSessionStoreEntry.ts'
 const MODEL_API_SESSIONS_OUTFILE = 'dist/modelApiSessions.js'
+const RULES_FILE_ENTRY = 'src/host/commands/rulesFileEntry.ts'
+const RULES_FILE_OUTFILE = 'dist/rulesFile.js'
 const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
@@ -225,6 +227,8 @@ const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
+const MODELS_SUBSCRIPTIONS_ENTRY = 'src/host/models/modelsSubscriptionsEntry.ts'
+const MODELS_SUBSCRIPTIONS_OUTFILE = 'dist/modelsSubscriptions.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
@@ -503,6 +507,18 @@ const pluginHooksOptions = {
   outfile: PLUGIN_HOOKS_OUTFILE,
 }
 
+// MODELAPIDIET: the Model API backend's deferred per-call helpers (the hook
+// call fields, argument previews, fetch URL checks), loaded on first use.
+const MODEL_API_TOOLS_ENTRY = 'src/core/backends/modelapi/modelApiToolsEntry.ts'
+const MODEL_API_TOOLS_OUTFILE = 'dist/modelApiTools.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiToolsOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_TOOLS_ENTRY],
+  outfile: MODEL_API_TOOLS_OUTFILE,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
@@ -706,6 +722,18 @@ const modelsPanelOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const modelsSubscriptionsOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  entryPoints: [MODELS_SUBSCRIPTIONS_ENTRY],
+  outfile: MODELS_SUBSCRIPTIONS_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
   plugins: [
@@ -809,6 +837,15 @@ const modelApiSessionsOptions = {
   ...conversationGitOptions,
   entryPoints: [MODEL_API_SESSIONS_ENTRY],
   outfile: MODEL_API_SESSIONS_OUTFILE,
+}
+
+// The Create AGENTS.md command (D15), required when that command runs: the
+// command, the rules template and their redaction.
+/** @type {import('esbuild').BuildOptions} */
+const rulesFileOptions = {
+  ...conversationGitOptions,
+  entryPoints: [RULES_FILE_ENTRY],
+  outfile: RULES_FILE_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1268,6 +1305,7 @@ if (isWatch) {
       outfile: 'dist/runtimeAccounting.js',
     }),
     esbuild.context(hookRuntimeOptions),
+    esbuild.context(modelApiToolsOptions),
     esbuild.context({
       ...modelApiOptions,
       entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
@@ -1286,6 +1324,7 @@ if (isWatch) {
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
     esbuild.context(modelApiSessionsOptions),
+    esbuild.context(rulesFileOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
@@ -1294,6 +1333,7 @@ if (isWatch) {
     esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
+    esbuild.context(modelsSubscriptionsOptions),
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
@@ -1403,6 +1443,7 @@ if (isWatch) {
     }),
     hookRuntime: shippedBuild(hookRuntimeOptions),
     pluginHooks: shippedBuild(pluginHooksOptions),
+    modelApiTools: shippedBuild(modelApiToolsOptions),
     planMarkdown: shippedBuild(planMarkdownOptions),
     checkpointStore: shippedBuild(checkpointStoreOptions),
     media: shippedBuild(mediaOptions),
@@ -1410,6 +1451,7 @@ if (isWatch) {
     agentImport: shippedBuild(agentImportOptions),
     conversationGit: shippedBuild(conversationGitOptions),
     modelApiSessions: shippedBuild(modelApiSessionsOptions),
+    rulesFile: shippedBuild(rulesFileOptions),
     bundledSkills: shippedBuild(bundledSkillsOptions),
     legalScan: shippedBuild(legalScanOptions),
     codeIntel: shippedBuild(codeIntelOptions),
@@ -1418,6 +1460,7 @@ if (isWatch) {
     mcpVault: shippedBuild(mcpVaultOptions),
     museCodeReviewer: shippedBuild(museCodeReviewerOptions),
     modelsPanel: shippedBuild(modelsPanelOptions),
+    modelsSubscriptions: shippedBuild(modelsSubscriptionsOptions),
     usageService: shippedBuild(usageServiceOptions),
     usageCompanion: shippedBuild(usageCompanionOptions),
     usagePanel: shippedBuild(usagePanelOptions),
@@ -1545,6 +1588,7 @@ if (isWatch) {
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
   reportSize(MODEL_API_SESSIONS_OUTFILE)
+  reportSize(RULES_FILE_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
@@ -1552,6 +1596,7 @@ if (isWatch) {
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
+  reportSize(MODELS_SUBSCRIPTIONS_OUTFILE)
   reportSize('dist/usageService.js')
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')
@@ -1571,6 +1616,7 @@ if (isWatch) {
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
+  reportSize(MODELS_SUBSCRIPTIONS_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(IMAGE_RESIZE_WORKER_OUTFILE)
