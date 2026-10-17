@@ -399,7 +399,7 @@ export function fakeDeviceStorage(base?: DeviceStorageProtection) {
  * Complete means every member of the real interface is implemented, so the
  * compiler reports when the API changes.
  */
-function acceptDeviceMessage(): Thenable<boolean> {
+function acceptDeviceMessage(_message: unknown): Thenable<boolean> {
   return Promise.resolve(true)
 }
 
