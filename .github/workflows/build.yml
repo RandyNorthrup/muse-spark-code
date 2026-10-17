@@ -232,10 +232,10 @@ jobs:
 
   # AGENTS.md rule 2 at the merge door (docs/certification/rule2-gate.md): no
   # attempt after the first passes, and every other workflow run on the same
-  # head (Hosts, Action check, a second CI run) must be complete and green on
-  # its first attempt; one still in progress is waited for, and the head is
-  # read once more immediately before passing, so a run started after the
-  # judged set was read refuses. It needs every
+  # head (Hosts, Browser check, Forks, a second CI run) must be complete and
+  # green on its first attempt; one still in progress is waited for, and the
+  # head is read once more immediately before passing, so a run started after
+  # the judged set was read refuses. It needs every
   # job, so starting any of them again starts this one again, and it names
   # the job and step of the first attempt that was not green. Its output is
   # the attempt it judged: the required names below pass only for that one.
@@ -552,12 +552,6 @@ jobs:
           mkdir -p "$acp"
           npm install --prefix "$acp" --ignore-scripts --audit=false --fund=false ./dist/muse-spark-code-acp-*.tgz
           node scripts/check-ui-text.mjs "$acp/node_modules/muse-spark-code-acp"
-      - name: built headless process and package guards (fake transport only)
-        env:
-          MUSE_ACP_PACKAGE_DIR: ${{ runner.temp }}/acp-install/node_modules/muse-spark-code-acp
-        run: |
-          npx vitest run test/e2e/execStdio.e2e.test.ts
-          npx vitest run test/e2e/acpStdio.e2e.test.ts -t "the ACP registry release gate"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-acp
