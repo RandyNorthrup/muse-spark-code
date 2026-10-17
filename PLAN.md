@@ -32191,7 +32191,11 @@ Record regression failures, byte-exact red drills and bounded checks in
 
 ### M97 — Read-only legal scan, then selected fixes (D76, integrated candidate; certification incomplete)
 
-**Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
+**Status 2026-10-17: built.** MSM97 lane merged to the test-overhaul main
+with runnable gates green and the packed-product proof in
+`docs/certification/msm97.md`; SAST, installed-host/Windows/visual
+receipts and aggregate quality stay with the lead, F27–F31 with
+LEGALTRUE. Retained requirements and receipts follow.
 
 - **Decision 2026-10-10 (owner).** The bundled SPDX License List 3.28.0
   templates and equivalent-words list (CM971-R3) stay attributed under
