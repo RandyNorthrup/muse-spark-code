@@ -434,9 +434,13 @@ export function modelLabelFor(state: UiState): string {
 
 /** The reference's provider (`openrouter` of `openrouter/…`); undefined for Meta's bare ids. */
 /** The `/schedule` prompt mapping, loaded on first submit; undefined when its chunk fails. */
-async function loadSchedulePrompt(): Promise<typeof SchedulePromptModule | undefined> {
+async function loadSchedulePrompt(): Promise<
+  | Pick<typeof SchedulePromptModule, 'schedulePromptAction' | 'scheduleUnavailableReason'>
+  | undefined
+> {
   try {
-    return await import('./schedules/prompt')
+    const { schedulePromptAction, scheduleUnavailableReason } = await import('./schedules/prompt')
+    return { schedulePromptAction, scheduleUnavailableReason }
   } catch {
     return undefined
   }
