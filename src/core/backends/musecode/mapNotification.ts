@@ -146,6 +146,38 @@ const schemas = {
   // `skill/list`). The skill set is the one this UI re-lists.
   'plugin/changed': z.object(sessionScoped),
   'plugin/marketplaceChanged': z.object(sessionScoped),
+  // A settlement nobody asked for (requested ones resolve the waiter in
+  // dispatchHostEvent and never reach here): show the text as it came, a
+  // title first when the host gave one. Outcome and reason are open
+  // vocabularies; the outcome always reads.
+  'recap/completed': z.object({
+    ...sessionScoped,
+    commandId: z.string(),
+    outcome: z.string(),
+    title: z.optional(z.string()),
+    text: z.optional(z.string()),
+    reason: z.optional(z.string()),
+  }),
+  // The session's VCS branch moved (1.4.6); `null` on a detached-HEAD
+  // observation — a fact, not "unchanged".
+  'session/branchChanged': z.object({
+    ...sessionScoped,
+    branch: z.nullable(z.string()),
+  }),
+  // The host's view-health state moved (v1 emits only `unavailable`;
+  // the vocabulary is open, so the word reads as served).
+  'session/viewHealthChanged': z.object({
+    ...sessionScoped,
+    health: z.string(),
+    noneReason: z.optional(z.string()),
+  }),
+  // The turn's foreground work is done while background checks still hold
+  // it open; the turn indicator keeps spinning, this says why.
+  'turn/foregroundCompleted': z.object({
+    ...sessionScoped,
+    turnId: z.string(),
+    blockingAgents: z.array(z.string()),
+  }),
   // The session's running totals (D26): `cumulative` counts prompt tokens once
   // under the provider's cache convention; the raw per-completion counters
   // beside it do not sum across providers, so they are not shown.
@@ -375,6 +407,51 @@ function rawNotification(notification: WireNotification): MapOutcome {
     case 'plugin/changed':
     case 'plugin/marketplaceChanged': {
       return { sessionId: params.sessionId, event: { type: 'skillsChanged' } }
+    }
+    case 'recap/completed': {
+      const { sessionId, title, text, reason, outcome } = params as z.infer<
+        (typeof schemas)['recap/completed']
+      >
+      const body = text ?? reason ?? outcome
+      return {
+        sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text: title === undefined ? body : `${title}: ${body}`,
+        },
+      }
+    }
+    case 'session/branchChanged': {
+      const { sessionId, branch } = params as z.infer<(typeof schemas)['session/branchChanged']>
+      return {
+        sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text:
+            branch === null
+              ? UI_TEXT.sessionBranchChanged
+              : `${UI_TEXT.sessionBranchChanged} (${branch})`,
+        },
+      }
+    }
+    case 'session/viewHealthChanged': {
+      const { sessionId, health } = params as z.infer<(typeof schemas)['session/viewHealthChanged']>
+      return {
+        sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text: `${UI_TEXT.sessionViewHealthChanged} (${health})`,
+        },
+      }
+    }
+    case 'turn/foregroundCompleted': {
+      return {
+        sessionId: params.sessionId,
+        event: { type: 'backendNotice', level: 'info', text: UI_TEXT.turnForegroundCompleted },
+      }
     }
     case 'session/tokenUsage': {
       const { sessionId, cumulative, modelId } = params as z.infer<

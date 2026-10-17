@@ -64,6 +64,12 @@ All captured 2026-10-17 on this rig (installed CLI 1.4.9-R6297.1):
 - Unlimited gate removed (`state.running < max` without the `=== 0`
   branch): `starts every matching handler at once` failed; restored
   (`hooks.ts` sha `af925b0f…`).
+- Waiter claim dropped (settle never resolves): `settles a requested
+recap by commandId` failed; restored (`MuseCodeHost.ts` sha
+  `3c9bf72e…` before and after).
+- View-health separator changed (`: ` for ` ()`): `shows view-health
+moves` failed; restored (`mapNotification.ts` sha `0cec988b…` before
+  and after).
 
 ## What changed, and where
 
@@ -101,7 +107,7 @@ All captured 2026-10-17 on this rig (installed CLI 1.4.9-R6297.1):
   1.4.5, unknown→32); contributor RPM corrected to the documented 150
   (still ~9 workers). Stale frame-drop comment fixed (the host answers
   `-32002`/`-32700`, the connection stays open).
-- Tests: `test/unit/museCodeLatest.test.ts` (22 tests over the recorded
+- Tests: `test/unit/museCodeLatest.test.ts` (33 tests over the recorded
   fixtures plus schema-faithful params for events the echo host cannot
   emit), ceiling/RPM updates in `teamCeilings.test.ts`,
   `teamConstants.test.ts`. Fixtures under `test/fixtures/m126/`.
@@ -121,19 +127,58 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
    hooks: they run one at a time; at 0 they start together.
 5. Set `museSpark.subagentMaxConcurrent: 3`: the spawn tool says
    "Up to 3"; the fourth child queues.
+6. `task/list`, `hook/list`, `plugin/list` with a session id: empty
+   task/plugin rows, the workspace hook row from `.muse/hooks.json`.
+7. `recap/request`: ack `accepted`, then `recap/completed`
+   (`providerFailed` on the echo provider); the waiter resolves with
+   the outcome and reason.
+8. `computerUseSetup/check`: `-32033 computerUseUnavailable` on Linux;
+   on macOS the three grants with no prompt.
+
+## Second round: every remaining method wrapped, every notice surfaced
+
+- Queries: `MuseSession.listBackgroundTasks` (`task/list`),
+  `listSessionHooks` (`hook/list`), `listSessionPlugins` (`plugin/list`),
+  on the `AgentSession` contract as optionals (absent where the backend
+  keeps none). Recorded empty task/plugin lists and the real hook row
+  (`event: sessionStart` kept verbatim) under `test/fixtures/m126/`;
+  33 tests in `museCodeLatest.test.ts`.
+- `MuseSession.importForeignSkills` (`skill/import`, dry-run preview,
+  commandId-idempotent) over the wire; the `importSkills` command keeps
+  its CLI transport (M91 behavior unchanged).
+- `MuseSession.resumeWorkflowRun` (`workflow/resume`): host-driven, the
+  reply names the driven turn. The Tasks surface stays read-only; a
+  resume affordance there is an owner UI decision.
+- `MuseCodeHost.requestSessionRecap`/`cancelSessionRecap`: ack admits,
+  the settlement resolves a commandId waiter (past
+  `RECAP_SETTLE_TIMEOUT_MS` = 60 s the wait ends, a late settlement
+  becomes a notice). Unsolicited settlements map to a notice with the
+  text as it came (standard notice redaction applies).
+- `MuseCodeHost.checkComputerUseSetup` (`computerUseSetup/check`): the
+  three macOS grants with no prompt; the recorded Linux refusal
+  (`computerUseUnavailable`) flows as the MSP error.
+- Notices: `recap/completed` (unclaimed), `session/branchChanged`
+  (branch spliced, bare sentence when detached), `session/viewHealthChanged`
+  (served word spliced, v1 emits only `unavailable`),
+  `turn/foregroundCompleted` (why the indicator keeps spinning). New UI
+  keys `sessionBranchChanged`, `sessionViewHealthChanged`,
+  `turnForegroundCompleted` in all 14 tables in English order.
+- Mutations without an approval surface stay unwrapped by owner
+  decision: `plugin/install`, `plugin/marketplaceAdd/Remove/Update`
+  (install and remove code), `computerUseSetup/start` (opens the macOS
+  opt-in flow). `computerUseSetup/changed` stays `UNKNOWN_METHOD`
+  (logged once): no computer-use surface exists.
 
 ## Left undone, named plainly
 
-- `recap/completed`, `computerUseSetup/changed`, `session/branchChanged`,
-  `session/viewHealthChanged`, `turn/foregroundCompleted` stay
-  `UNKNOWN_METHOD` (logged once): the product sends no recap requests,
-  has no computer-use or recap surface, and shows no per-session VCS
-  branch. Each needs an owner UI decision (recorded here, not in code).
-- New methods the product does not call (`plugin/*`,
-  `computerUseSetup/*`, `recap/*`, `task/*`, `workflow/*`,
-  `skill/import`) are decided per method in §M126 of PLAN.md: parsed by
-  the SDK types, unwrapped only where a surface exists. `task/list` and
-  `skill/import` are the next surfaces if the owner wants them.
+- UI wiring for the newly wrapped reads (background-task, hook and
+  plugin panels; a History-dialog recap action; a Tasks resume
+  affordance) is owner design work; the backend methods, types and
+  fixtures are in place and tested.
+- New methods the product does not call beyond the above
+  (`task/cancel`, `task/stopAll`, `task/background`, `goal/*`,
+  `workflow/*` except resume) are parsed by the SDK types and unwrapped
+  until a surface needs them.
 - Host-loop settings (`hooksMaxStopContinuations`,
   `subagentMaxConcurrent`) are proven by the reference gate, the defaults
   test and the real-use steps above, not by a host unit harness: no unit

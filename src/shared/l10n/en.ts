@@ -3051,6 +3051,10 @@ export const EN = {
   turnRetractDeclined:
     'Withdrawing the message was declined, so the turn continues with it still in place.',
   approvalReviewing: 'The Safety Check is reviewing this approval.',
+  sessionBranchChanged: "The session's version-control branch changed.",
+  sessionViewHealthChanged: 'The session view health changed.',
+  turnForegroundCompleted:
+    'The turn finished its visible work; background checks are still running.',
   modelRouteUnserved:
     'The signed-in account cannot serve this conversation’s model; choose another model from the model menu.',
   viewGapReloaded: 'Some updates from Muse Code were missed, so the conversation was reloaded.',

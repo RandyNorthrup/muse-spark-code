@@ -284,6 +284,33 @@ export interface SkillSummary {
   readonly argumentHint: string | undefined
 }
 
+/**
+ * One background-task row (M126, MSP `task/list`): `kind` is an open
+ * vocabulary, `status` the host's lifecycle word.
+ */
+export interface BackgroundTaskSummary {
+  readonly taskId: string
+  readonly kind: string
+  readonly status: string
+  readonly startedAt?: string | undefined
+}
+
+/** One installed hook row (M126, MSP `hook/list`): `event` is open. */
+export interface SessionHookRow {
+  readonly key: string
+  readonly event: string
+  readonly handlerKind: string
+  readonly enabled: boolean
+}
+
+/** One installed plugin record (M126, MSP `plugin/list`); `source` stays opaque. */
+export interface SessionPluginRow {
+  readonly id: string
+  readonly version: string
+  readonly enabled: boolean
+  readonly source: unknown
+}
+
 /** A per-session MCP server over streamable HTTP (MSP `SessionMcpServerConfig`). */
 export interface SessionMcpHttpServer {
   readonly url: string
@@ -575,6 +602,21 @@ export interface AgentSession {
   }
   readOutput(request: OutputPageRequest): Promise<OutputPage>
   listSkills(): Promise<readonly SkillSummary[]>
+  /**
+   * The session's live background-task inventory, oldest first (M126, MSP
+   * `task/list`). Absent where the backend keeps none.
+   */
+  readonly listBackgroundTasks?: () => Promise<readonly BackgroundTaskSummary[]>
+  /**
+   * The session's installed hook rows (M126, MSP `hook/list`). Absent
+   * where the backend keeps none.
+   */
+  readonly listSessionHooks?: () => Promise<readonly SessionHookRow[]>
+  /**
+   * The installed plugin records (M126, MSP `plugin/list`). Absent where
+   * the backend keeps none.
+   */
+  readonly listSessionPlugins?: () => Promise<readonly SessionPluginRow[]>
   /** Resolves to the canonical name, or undefined when it arrives as an event. */
   rename(name: string): Promise<string | undefined>
   /**
