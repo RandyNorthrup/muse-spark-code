@@ -3563,6 +3563,7 @@
   "providerRefusalStreamError": "{provider} hibával hagyta abba a válaszadást. Próbálja újra; a kérés díjköteles lehetett — ellenőrizze a használatot itt: {provider}. {provider} mondta: {detail}",
   "providerRefusalUnrecognised": "{provider} olyan hibával válaszolt, amelyet ez a build nem ismer fel (HTTP {status}). Próbálja újra; a kérésért felszámíthattak díjat — ellenőrizze a használatot itt: {provider}. A válasz így kezdődött: {detail}",
   "providerRefusalWait": " (próbálja újra {seconds} múlva)",
+  "providerRefusalRequestId": " (kérésazonosító: {id})",
   "providerUnreachable": "Nem érhető el: {provider}. A kapcsolat meghiúsult ({detail}), így nem tudni, megérkezett-e a kérés; ellenőrizze a hálózatot és a szolgáltató címét.",
   "providerConnectionLost": "A kapcsolat megszakadt ezzel: {provider}, miután elfogadta a kérést ({detail}). A válasz hiányos, és a kérést felszámíthatták — ellenőrizze a használatot itt: {provider}.",
   "configuredProviderUnknownPreset": "A(z) {entry} szolgáltatói bejegyzés a nem létező {preset} presetet nevezi meg. Válasszon presetet a Models & Agentsben.",

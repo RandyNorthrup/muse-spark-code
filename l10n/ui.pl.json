@@ -3717,6 +3717,7 @@
   "providerRefusalStreamError": "{provider} przerwał odpowiedź z błędem. Spróbuj ponownie; żądanie mogło zostać naliczone — sprawdź użycie u {provider}. {provider} zgłosił: {detail}",
   "providerRefusalUnrecognised": "{provider} odpowiedział błędem, którego ta kompilacja nie rozpoznaje (HTTP {status}). Spróbuj ponownie; żądanie mogło zostać policzone — sprawdź użycie u {provider}. Odpowiedź zaczynała się: {detail}",
   "providerRefusalWait": " (spróbuj ponownie za {seconds})",
+  "providerRefusalRequestId": " (identyfikator żądania {id})",
   "providerUnreachable": "Nie można połączyć z {provider}: połączenie nie powiodło się ({detail}), więc nie wiadomo, czy żądanie dotarło; sprawdź sieć i adres dostawcy.",
   "providerConnectionLost": "Połączenie z {provider} zostało utracone po przyjęciu żądania ({detail}). Odpowiedź jest niepełna, a żądanie mogło zostać policzone — sprawdź użycie u {provider}.",
   "configuredProviderUnknownPreset": "Wpis dostawcy {entry} wskazuje preset {preset}, który nie istnieje. Wybierz preset w Models & Agents.",

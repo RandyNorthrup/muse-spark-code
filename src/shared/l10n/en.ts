@@ -4309,6 +4309,8 @@ export const EN = {
     '{provider} answered with an error this build does not recognise (HTTP {status}). Try again; the request may have been charged — check usage at {provider}. The answer began: {detail}',
   // {seconds}: the wait the provider named, in seconds.
   providerRefusalWait: ' (retry after {seconds})',
+  // {id}: the provider's request id, for its support (lane PROVERRORS).
+  providerRefusalRequestId: ' (request id {id})',
   // {provider}: the provider's display name; {detail}: Node's own failure
   // codes (ECONNRESET, ENOTFOUND, …), never what a server wrote.
   // Round 2, finding 7: the connection failed, and whether the request

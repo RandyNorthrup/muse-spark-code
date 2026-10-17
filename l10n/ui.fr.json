@@ -3640,6 +3640,7 @@
   "providerRefusalStreamError": "{provider} a interrompu sa réponse par une erreur. Réessayez ; la requête a peut-être été facturée — vérifiez l’usage chez {provider}. {provider} a dit : {detail}",
   "providerRefusalUnrecognised": "{provider} a répondu avec une erreur que cette version ne reconnaît pas (HTTP {status}). Réessayez ; la requête a peut-être été facturée — vérifiez l’usage chez {provider}. La réponse commençait : {detail}",
   "providerRefusalWait": " (réessayez dans {seconds})",
+  "providerRefusalRequestId": " (identifiant de requête {id})",
   "providerUnreachable": "Impossible de joindre {provider} : la connexion a échoué ({detail}) ; on ignore si la requête est arrivée. Vérifiez le réseau et l’adresse du fournisseur.",
   "providerConnectionLost": "La connexion à {provider} a été perdue après l’acceptation de la requête ({detail}). La réponse est incomplète et la requête a pu être facturée — vérifiez l’utilisation chez {provider}.",
   "configuredProviderUnknownPreset": "L’entrée de fournisseur {entry} nomme le préréglage {preset}, qui n’existe pas. Choisissez un préréglage dans Models & Agents.",

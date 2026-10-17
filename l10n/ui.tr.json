@@ -3563,6 +3563,7 @@
   "providerRefusalStreamError": "{provider} bir hatayla yanıtlamayı durdurdu. Tekrar deneyin; istek ücretlendirilmiş olabilir — {provider} üzerindeki kullanımı denetleyin. {provider} dedi: {detail}",
   "providerRefusalUnrecognised": "{provider} bu derlemenin tanımadığı bir hatayla yanıt verdi (HTTP {status}). Yeniden deneyin; istek ücretlendirilmiş olabilir — {provider} üzerindeki kullanımı denetleyin. Yanıt şöyle başlıyordu: {detail}",
   "providerRefusalWait": " ({seconds} sonra yeniden deneyin)",
+  "providerRefusalRequestId": " (istek kimliği {id})",
   "providerUnreachable": "{provider} erişilemedi: bağlantı başarısız oldu ({detail}), bu yüzden isteğin ulaşıp ulaşmadığı bilinmiyor; ağı ve sağlayıcı adresini denetleyin.",
   "providerConnectionLost": "{provider} isteği kabul ettikten sonra bağlantı koptu ({detail}). Yanıt eksik ve istek için ücret alınmış olabilir; kullanımı {provider} üzerinden denetleyin.",
   "configuredProviderUnknownPreset": "{entry} sağlayıcı girdisi, var olmayan {preset} ön ayarını adlandırıyor. Models & Agents içinde bir ön ayar seçin.",

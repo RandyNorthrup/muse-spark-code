@@ -3640,6 +3640,7 @@
   "providerRefusalStreamError": "{provider} parou de responder com um erro. Tente de novo; a solicitação pode ter sido cobrada — verifique o uso em {provider}. {provider} disse: {detail}",
   "providerRefusalUnrecognised": "{provider} respondeu com um erro que esta compilação não reconhece (HTTP {status}). Tente de novo; a solicitação pode ter sido cobrada — verifique o uso em {provider}. A resposta começava: {detail}",
   "providerRefusalWait": " (tente de novo em {seconds})",
+  "providerRefusalRequestId": " (ID da solicitação {id})",
   "providerUnreachable": "Não foi possível alcançar {provider}: a conexão falhou ({detail}), então não se sabe se a solicitação chegou; verifique a rede e o endereço do provedor.",
   "providerConnectionLost": "A conexão com {provider} caiu depois que a solicitação foi aceita ({detail}). A resposta está incompleta e a solicitação pode ter sido cobrada — verifique o uso em {provider}.",
   "configuredProviderUnknownPreset": "A entrada de provedor {entry} nomeia o preset {preset}, que não existe. Escolha um preset em Models & Agents.",
