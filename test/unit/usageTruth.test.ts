@@ -15,9 +15,9 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
 import { MuseUsageDeltas, museCodeLimitInput } from '../../src/core/backends/musecode/usageDeltas'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { createUsageRecording } from '../../src/core/usage/recording'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { createTestRecording } from './helpers/testRecording'
 import { createUsageService } from '../../src/core/usage/usageService'
 import { usageText } from '../../src/core/usage/usageText'
 import { EN } from '../../src/shared/l10n/en'
@@ -119,34 +119,19 @@ async function recordedThroughRealJournal(shouldRepeatFirst = false): Promise<{
   roots.push(root)
   const warnings: string[] = []
   let nowMs = COMPLETIONS[0].at
-  const store = new UsageJournalStore(new NodeUsageFs(root), {
-    writerId: 'usage-truth-writer',
-    now: () => nowMs,
-    isEnabled: () => true,
-    onWriteError: () => {
-      warnings.push('usageWriteFailed')
+  const { recording, store } = createTestRecording(
+    {
+      root,
+      writerId: 'usage-truth-writer',
+      client: 'test',
+      now: () => nowMs,
+      newId: (() => {
+        let next = 0
+        return () => `id-${String((next += 1))}`
+      })(),
     },
-  })
-  const recording = createUsageRecording({
-    client: 'test',
-    now: () => nowMs,
-    newId: (() => {
-      let next = 0
-      return () => `id-${String((next += 1))}`
-    })(),
-    isEnabled: () => true,
-    writer: () => Promise.resolve(store),
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: (message: string) => {
-        warnings.push(message)
-      },
-      error: (message: string) => {
-        warnings.push(message)
-      },
-    },
-  })
+    warnings,
+  )
   const sessionId = '01a13b83-c144-7603-8aa4-c81f912efdd3'
   const deltas = new MuseUsageDeltas(recording, sessionId, STANDING_MODEL, true, () => nowMs)
   deltas.receive({ type: 'turnStarted', turnId: 'turn-1' })
