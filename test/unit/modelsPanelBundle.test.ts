@@ -13,13 +13,10 @@ import { EN } from '../../src/shared/l10n/en'
 
 describe('isModelsPanelBundle', () => {
   it('accepts the factory and refuses anything else', () => {
-    expect(
-      isModelsPanelBundle({
-        createModelsPanelFeatures: () => ({}),
-        createSubscriptionFeatures: () => ({}),
-      }),
-    ).toBe(true)
-    expect(isModelsPanelBundle({ createModelsPanelFeatures: () => ({}) })).toBe(false)
+    // PANELBUDGET: the subscriptions factory lives in
+    // dist/modelsSubscriptions.js now; the panel bundle carries only its own.
+    expect(isModelsPanelBundle({ createModelsPanelFeatures: () => ({}) })).toBe(true)
+    expect(isModelsPanelBundle({ createSubscriptionFeatures: () => ({}) })).toBe(false)
     for (const bad of [undefined, null, {}, { createModelsPanelFeatures: 'x' }]) {
       expect(isModelsPanelBundle(bad)).toBe(false)
     }

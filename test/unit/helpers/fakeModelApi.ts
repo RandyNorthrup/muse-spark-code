@@ -16,6 +16,12 @@ export interface ScriptedCall {
   readonly callId?: string
   /** A call the reply left uncompleted (M101 item 8): never run, answered with an error. */
   readonly status?: 'completed' | 'incomplete'
+  /**
+   * The streamed argument deltas (M106 R2): they must concatenate to
+   * `arguments` byte-exact. Absent serves one delta with the whole
+   * arguments, as before.
+   */
+  readonly argumentDeltas?: readonly string[]
 }
 
 /** One hosted web search in a reply (M33), streamed before the text. */
@@ -269,11 +275,14 @@ export function streamFor(
         status: 'in_progress',
       },
     })
-    text += frame({
-      type: 'response.function_call_arguments.delta',
-      item_id: id,
-      delta: call.arguments,
-    })
+    const deltas = call.argumentDeltas ?? [call.arguments]
+    for (const delta of deltas) {
+      text += frame({
+        type: 'response.function_call_arguments.delta',
+        item_id: id,
+        delta,
+      })
+    }
     text += frame({
       type: 'response.function_call_arguments.done',
       item_id: id,
@@ -441,7 +450,7 @@ function urlOf(input: string | URL | Request): URL {
   return input instanceof URL ? input : new URL(input.url)
 }
 
-/** A client on the fake API with no waits and a fixed clock. */
+/** The key the fake API's scripted replies accept. */
 export const FAKE_MODEL_API_KEY = 'LLM|1|secret'
 export const FAKE_MODEL_API_ACCOUNT_ID = createHash('sha256')
   .update(FAKE_MODEL_API_KEY)

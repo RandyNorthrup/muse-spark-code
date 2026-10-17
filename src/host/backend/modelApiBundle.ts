@@ -20,6 +20,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
+import type { ModelApiBackendManagerDeps } from './modelApiBackendManager'
 
 /** The bundle's MCP server pool (M50), built from the activation bundle's spawner and settings. */
 export type McpPoolFactory = (deps: McpPoolDeps) => McpToolSource
@@ -46,6 +47,11 @@ export interface ModelApiBundleDeps {
   readonly host: Omit<
     ModelApiHostDeps,
     'client' | 'loadHooks' | 'mcpServers' | 'prepareAudioMessage'
+  >
+  /** Admission is constructed only after this backend loads, in editor and runtime. */
+  readonly autoCompaction?: Pick<
+    ModelApiBackendManagerDeps,
+    'autoCompactionAccounting' | 'reserveAutoCompaction' | 'paidUseFence' | 'paidDailyBudgetUsd'
   >
   /** Muse Code's settings file, read for hooks while `host.isHooksEnabled` says so (M51). */
   readonly hookSettingsPath: string | undefined

@@ -86,6 +86,8 @@ export class UploadDeleteFailedError extends Error {
   public readonly fileName: string
   public constructor(fileName: string) {
     super('Upload deletion failed')
+    // Fixed cross-bundle identity: surfaces read this name instead of
+    // instanceof, since each bundle carries its own copy of this class.
     this.name = 'UploadDeleteFailedError'
     this.fileName = fileName
   }

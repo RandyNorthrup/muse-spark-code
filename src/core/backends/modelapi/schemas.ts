@@ -9,6 +9,7 @@ import * as z from 'zod/mini'
 import type { PromptCacheRetention } from '../../../shared/constants'
 import { TOOL_SCHEMA_MAX_DEPTH } from '../../../shared/constants'
 import { webResultSchema } from '../../../shared/webResults'
+import { legacyUsdSchema } from '../../../shared/usdSchema'
 
 /** A source the reply cites (`url_citation`, search-grounding); offsets are not used. */
 const urlCitationSchema = z.object({
@@ -170,7 +171,7 @@ export function messageText(item: MessageItem): string {
 
 export const usageSchema = z.object({
   // Internal normalized receipt from the codecs' captured provider cost fields.
-  provider_cost_usd: z.optional(z.number().check(z.nonnegative())),
+  provider_cost_usd: z.optional(legacyUsdSchema),
   input_tokens: z.number(),
   output_tokens: z.number(),
   total_tokens: z.optional(z.number()),
@@ -423,12 +424,18 @@ export function withStrictTools(
         if (tool.parameters['type'] !== 'object') {
           throw new Error('strict_tool_schema_unsupported')
         }
-        return {
+        const converted = {
           ...tool,
           parameters: strictToolSchema(tool.parameters),
           strict: true,
           [ORIGINAL_TOOL_PARAMETERS]: tool[ORIGINAL_TOOL_PARAMETERS] ?? tool.parameters,
         }
+        // Host tools curate even an absent field list. Spreading drops this
+        // nonenumerable descriptor and wrongly admits schema-derived fields.
+        const preview = Object.getOwnPropertyDescriptor(tool, 'previewFields')
+        return preview === undefined
+          ? converted
+          : Object.defineProperty(converted, 'previewFields', preview)
       })
     : tools
 }

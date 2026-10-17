@@ -20,6 +20,7 @@ import {
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
   COMMAND_IDS,
+  OPTIONAL_RUNTIME_AVAILABILITY,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
   EXTENSION_NAME,
@@ -46,6 +47,7 @@ import {
   BROWSER_RUNTIME_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   MODELS_PANEL_BUNDLE_FILE,
+  MODELS_SUBSCRIPTIONS_BUNDLE_FILE,
   LEGAL_SCAN_BUNDLE_FILE,
   EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
@@ -61,6 +63,7 @@ import {
   TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
   PAID_FEATURE_SETTINGS,
+  IS_AUTO_COMPACTION_EVALUATED,
   PAID_DAILY_BUDGET,
   type PaidFeature,
   PERSONAL_SKILLS_GLOB,
@@ -77,6 +80,7 @@ import {
   MUSE_INIT_ARGS,
   MUSE_INIT_TIMEOUT_MS,
   MUSE_INSTALL_COMMANDS,
+  RULES_FILE_BUNDLE_FILE,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
   PROMPT_BUNDLE_FILE,
@@ -98,7 +102,7 @@ import {
   TAB_CONTEXT_FILES,
 } from './shared/constants'
 import { PaidAuthority } from './core/paid/paidAuthority'
-import { Usd } from './shared/usd'
+import { Usd, type UsdAmount } from './shared/usd'
 import {
   createUsageRecording,
   isUsageWriterBundle,
@@ -200,7 +204,8 @@ import { createRevertIo } from './host/editor/revertIo'
 import { createVerifyEditor } from './host/editor/verifyEditor'
 import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
-import { createRulesFile } from './host/commands/createRulesFile'
+import type { CreateRulesFileDeps } from './host/commands/createRulesFile'
+import { loadRulesFileBundle } from './host/commands/rulesFileBundle'
 import { insertMentionReference } from './host/commands/insertMention'
 import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/openInTerminal'
 import { toggleInputFocus } from './host/commands/focusInput'
@@ -241,10 +246,13 @@ import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
+  TAB_CONSENT_STATE_KEY,
   TAB_LEDGER_DIR,
   TAB_SNOOZE_STATE_KEY,
   type TabFilesExclude,
   createTabActivation,
+  createTabConsent,
+  tabPriceFingerprint,
   tabTextChangeEvent,
   deferredRefresh,
 } from './host/tab/tabBundle'
@@ -348,6 +356,7 @@ import {
   providerCredentials,
   recoverProviderRemovals,
 } from './host/models/modelsPanelBundle'
+import { modelsSubscriptionsLoader } from './host/models/modelsSubscriptionsBundle'
 import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 
@@ -862,6 +871,10 @@ async function activateWindow(
     },
   })
   let isInputFocused = false
+  // The file the toggle hands the keyboard back to: focusing the editor
+  // group keeps a chat tab active when the chat shares the group, so Focus
+  // Input with the composer focused reopens the file the person was in.
+  let lastTextDocumentUri: vscode.Uri | undefined
   // Ctrl+B belongs to the panel only while the conversation in view runs a
   // command it can move to the background (M46); VS Code's sidebar toggle
   // keeps it otherwise.
@@ -1046,6 +1059,11 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
     log,
   })
+  const modelsSubscriptionsBundle = modelsSubscriptionsLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_SUBSCRIPTIONS_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
   const providerConfigFile = path.join(
     process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
     PROVIDERS_CONFIG_DIR_NAME,
@@ -1053,9 +1071,10 @@ async function activateWindow(
   )
   let isSubscriptionConnecting = false
   let subscriptions:
-    ReturnType<ReturnType<typeof modelsPanelBundle>['createSubscriptionFeatures']> | undefined
+    | ReturnType<ReturnType<typeof modelsSubscriptionsBundle>['createSubscriptionFeatures']>
+    | undefined
   const subscriptionFeatures = () =>
-    (subscriptions ??= modelsPanelBundle().createSubscriptionFeatures({
+    (subscriptions ??= modelsSubscriptionsBundle().createSubscriptionFeatures({
       log,
       secrets: context.secrets,
       globalStorageUri: context.globalStorageUri,
@@ -1149,6 +1168,7 @@ async function activateWindow(
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
     isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
+    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     isAvailable: (feature) =>
       feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
     isDefaultOn: isDefaultPaidOn,
@@ -1319,7 +1339,13 @@ async function activateWindow(
     }
     return absolutePath === root || absolutePath.startsWith(`${root}${path.sep}`)
   }
+  // Lane K: Tab's hook guard and dispatch bridge load with the lazy Tab
+  // bundle on first use; activation only hands the runner factory over.
   const tab = createTabActivation({
+    hookDispatch: {
+      isHooksEnabled: () => currentSettings().modelApiHooks,
+      load: () => hookRunnerFor(false),
+    },
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', TAB_BUNDLE_FILE).fsPath,
     log,
     isTabSettingOn: () => currentSettings().modelApiTab,
@@ -1444,7 +1470,10 @@ async function activateWindow(
     // window's ledger file (lane L) from these. The key client is the one
     // M44 loads on its first paid use; it is read only on a Tab request.
     services: {
-      stream: (body, signal, budget) => keyClient().streamResponse(body, signal, undefined, budget),
+      // The engine's guard runs last, synchronously, inside the client's send
+      // path (RVM94KR2 4).
+      stream: (body, signal, budget, admit) =>
+        keyClient().streamResponse(body, signal, undefined, budget, admit),
       ledgerDirectory: path.join(context.globalStorageUri.fsPath, TAB_LEDGER_DIR),
       windowId: crypto.randomUUID(),
       onSent: () => {
@@ -1458,18 +1487,27 @@ async function activateWindow(
     onTodayTotalChanged: () => {
       broadcastPaidState()
     },
-    // D48's question, once per window (Q-M94a): the first request asks with
-    // the model's rates and today's budget; Deny snoozes the window.
-    consent: {
-      requestUse: async () => {
-        const settings = currentSettings()
-        return await paid.consent.allows({
+    // D48's question (Q-M94a), keyed by model and price (RVM94KR2): the
+    // first request for a key asks with its rates and today's budget; Deny
+    // snoozes the window. A kept or window grant counts only for its key.
+    consent: createTabConsent({
+      priceOf: tabPriceFingerprint,
+      ask: async (model) =>
+        await paid.consent.askScope({
           feature: 'tab',
-          modelId: settings.tabModel,
-          budgetUsd: settings.tabDailyBudgetUsd,
-        })
+          modelId: model,
+          budgetUsd: currentSettings().tabDailyBudgetUsd,
+        }),
+      isOn: () => paid.gate.isOn('tab'),
+      isRemembered: () => paid.consent.isRemembered('tab'),
+      windowOnceToken: () => paid.consent.windowOnceToken('tab'),
+      revocations: () => paid.consent.revocations('tab'),
+      readAlways: () => context.workspaceState.get<unknown>(TAB_CONSENT_STATE_KEY),
+      writeAlways: async (record) => {
+        await context.workspaceState.update(TAB_CONSENT_STATE_KEY, record)
       },
-    },
+      log,
+    }),
   })
   tabDisposables.push({
     dispose: () => {
@@ -2566,6 +2604,20 @@ async function activateWindow(
       { modal: true },
       UI_TEXT.memoryDeleteAction,
     )) === UI_TEXT.memoryDeleteAction
+  // One exact daily reservation for the lanes that bill outside a request
+  // (Muse Voice transcription, automatic compaction): the same shared daily
+  // ledger, released when the caller is gone before it is used.
+  const reserveExactDaily = async (amount: UsdAmount, signal: AbortSignal) => {
+    signal.throwIfAborted()
+    const claim = await dailyPaid.reserveExact(amount)
+    try {
+      signal.throwIfAborted()
+    } catch (error: unknown) {
+      await claim.settle(Usd.from(0).toAmount())
+      throw error
+    }
+    return claim
+  }
   const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
     attachedMedia,
     // Machine scope only (lane V seam 3B): a repository never picks the converter.
@@ -2593,6 +2645,11 @@ async function activateWindow(
         ? meta
         : await subscriptionFeatures().createClient(meta),
     getProviderAccountId: () => subscriptionFeatures().accountId(),
+    // RVCM1062B P1/P2: no standalone registry here. The entry binds the
+    // selected record through the session client's own resolver, which is
+    // the subscription-aware service (shared plan identity and usage
+    // ownership) or bare Meta; a separate service lost plan usage and
+    // rejected subscription models.
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded
@@ -2763,8 +2820,7 @@ async function activateWindow(
     // D78's exact reservation for Muse Voice's batch transcription (lane V
     // seam 4): the same shared daily ledger, its Raise/Stop and its owner.
     reservePaidExtra: async (costUsd, signal) => {
-      signal.throwIfAborted()
-      const claim = await dailyPaid.reserveExact(costUsd)
+      const claim = await reserveExactDaily(costUsd, signal)
       return {
         reservedUsd: claim.reservedUsd,
         check: () => {
@@ -2772,6 +2828,21 @@ async function activateWindow(
           claim.check()
         },
         settle: (amountUsd, hasUnknownCost) => claim.settle(amountUsd, hasUnknownCost),
+      }
+    },
+    // C-M101-1: the D78 daily claim behind automatic compaction. Exact-USD,
+    // like the reservationUsd branch above; without it the host has no
+    // production admission and automatic compaction stays dormant.
+    paidDailyBudgetUsd: () => dailyPaid.capUsd(),
+    reserveAutoCompaction: async (amount, signal) => {
+      const claim = await reserveExactDaily(amount, signal)
+      return {
+        reservedUsd: claim.reservedUsd,
+        check: () => {
+          signal.throwIfAborted()
+          claim.check()
+        },
+        settle: (actual, hasUnknownCost) => claim.settle(actual, hasUnknownCost, true),
       }
     },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
@@ -2803,6 +2874,7 @@ async function activateWindow(
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
     pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
+    autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
     strictTools: () => currentSettings().modelApiStrictTools,
     parallelReads: () => currentSettings().modelApiParallelReads,
     webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
@@ -2810,6 +2882,7 @@ async function activateWindow(
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
     isPaidUseRemembered: (feature) => paid.consent.isRemembered(feature),
+    paidUseFence: (feature) => paid.consent.fence(feature),
     noteSubagentUsage: (modelId, usage) => {
       paid.usage.addSubagentUsage(modelId, usage)
     },
@@ -2874,6 +2947,8 @@ async function activateWindow(
     gitProcess: processGitProcess(),
     env: process.env,
     isCurrent: () => !nativeStarts.signal.aborted,
+    // M123's native route (a host without `vscode.git`) stops its git with the window.
+    signal: nativeStarts.signal,
     // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
     admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
     restartBackends: (reason) => restartBackend(reason),
@@ -3228,10 +3303,10 @@ async function activateWindow(
     let loaded: ExtensionHooksModule
     try {
       loaded = await hookBundle.loadBundle()
-    } catch (error: unknown) {
-      log.warn(
-        `Extension hooks are unavailable: ${error instanceof Error ? error.message : String(error)}`,
-      )
+    } catch {
+      // Fixed words only: a bundle-load failure can name a path under the
+      // user's profile (M94 lane K).
+      log.warn('Extension hooks are unavailable')
       if (shouldAnnounceFailure) {
         void vscode.window.showWarningMessage(UI_TEXT.extensionHooksUnavailable)
       }
@@ -3294,7 +3369,9 @@ async function activateWindow(
     if (!areHooksArmed()) {
       return
     }
-    const runner = await hookRunnerFor(shouldAnnounceFailure)
+    // A loaded runner runs at once, inside the event: a ConfigChange moves
+    // Tab's policy epoch before anything is awaited (RVM94KR2 3).
+    const runner = hookRunner ?? (await hookRunnerFor(shouldAnnounceFailure))
     if (runner === undefined) {
       return
     }
@@ -4011,7 +4088,7 @@ async function activateWindow(
     register: (id, action) => registerLoggedCommand(log, id, action),
     active: () => registry.active,
     isReady: (surface) => readyPromptSurfaces.has(surface),
-    isEnabled: () => currentSettings().schedules,
+    isEnabled: () => OPTIONAL_RUNTIME_AVAILABILITY.schedules && currentSettings().schedules,
     openConversation,
     open: async (surface, view) => {
       surface.reveal()
@@ -4164,11 +4241,16 @@ async function activateWindow(
               source: 'openRouter',
               observedAt: Date.now(),
               windows: [],
+              // OpenRouter's `/key` numbers become exact decimals here (M121).
               account: {
-                usedUsd: snapshot.usedThisMonth,
+                usedUsd: Usd.from(snapshot.usedThisMonth).toAmount(),
                 period: 'month',
-                ...(snapshot.limit !== undefined && { limitUsd: snapshot.limit }),
-                ...(snapshot.remaining !== undefined && { remainingUsd: snapshot.remaining }),
+                ...(snapshot.limit !== undefined && {
+                  limitUsd: Usd.from(snapshot.limit).toAmount(),
+                }),
+                ...(snapshot.remaining !== undefined && {
+                  remainingUsd: Usd.from(snapshot.remaining).toAmount(),
+                }),
               },
             })
           },
@@ -4295,8 +4377,13 @@ async function activateWindow(
         ideServer.close()
       },
     },
-    vscode.window.onDidChangeActiveTextEditor(() => {
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
       editorContext.update(editorSnapshot)
+      // A webview becoming active clears the active text editor; only a real
+      // text editor moves the toggle's target.
+      if (editor !== undefined) {
+        lastTextDocumentUri = editor.document.uri
+      }
       // Tab's language-off and snooze states follow the active editor (M94).
       tab.refreshStatus()
     }),
@@ -4552,8 +4639,13 @@ async function activateWindow(
       })
     }),
     registerLoggedCommand(log, COMMAND_IDS.createRulesFile, async () => {
+      // The command loads on first use (PLAN.md D6); a missing or damaged
+      // bundle refuses the run with its cause and the next run tries again.
+      const rulesFile = loadRulesFileBundle(
+        vscode.Uri.joinPath(context.extensionUri, 'dist', RULES_FILE_BUNDLE_FILE).fsPath,
+      )
       const check = backend.workspaceActionGuard(nativeStarts.signal)
-      await createRulesFile({
+      const deps: CreateRulesFileDeps = {
         workspaceRoot,
         // `muse init` reads the project: not while the window is held (M71).
         isWorkspaceTrusted: isProjectTrusted,
@@ -4586,7 +4678,8 @@ async function activateWindow(
           void vscode.window.showWarningMessage(message)
         },
         log,
-      })
+      }
+      await rulesFile.createRulesFile(deps, UI_TEXT, uiLocale())
     }),
     registerLoggedCommand(log, COMMAND_IDS.openWalkthrough, async () => {
       await vscode.commands.executeCommand(
@@ -4615,6 +4708,8 @@ async function activateWindow(
     // Open the capacity estimator (M117, PLAN.md D97): the composer takes
     // `/estimate ` in the conversation in view or one opened for it.
     registerLoggedCommand(log, COMMAND_IDS.estimate, async () => {
+      if (!OPTIONAL_RUNTIME_AVAILABILITY.estimator)
+        throw new Error(UI_TEXT.estimateRuntimeUnavailable)
       const surface = registry.active
       if (surface === undefined) {
         isEstimatePending = true
@@ -4724,7 +4819,32 @@ async function activateWindow(
       await toggleInputFocus({
         isInputFocused: () => isInputFocused,
         activeSurface: () => registry.active,
-        focusEditor: () => vscode.commands.executeCommand(VSCODE_COMMANDS.focusActiveEditorGroup),
+        focusEditor: async () => {
+          // The group focus is a no-op while a chat tab is the group's
+          // active tab, so the toggle returns to the file itself while a tab
+          // still holds it; a file the person closed is not reopened, and
+          // without one the toggle falls back to the group, which is still
+          // the sidebar toggle's way back.
+          const target = lastTextDocumentUri
+          const isStillOpen =
+            target !== undefined &&
+            vscode.window.tabGroups.all.some((group) =>
+              group.tabs.some(
+                (tab) =>
+                  tab.input instanceof vscode.TabInputText &&
+                  tab.input.uri.toString() === target.toString(),
+              ),
+            )
+          if (isStillOpen) {
+            try {
+              await vscode.window.showTextDocument(target)
+              return
+            } catch {
+              lastTextDocumentUri = undefined
+            }
+          }
+          await vscode.commands.executeCommand(VSCODE_COMMANDS.focusActiveEditorGroup)
+        },
         openSidebar,
       })
     }),
