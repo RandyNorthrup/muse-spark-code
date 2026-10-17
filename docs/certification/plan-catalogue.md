@@ -376,3 +376,167 @@ A Codex review through our app on `chatgpt/gpt-6.1-sol` (xhigh) ran 11 turns of 
 Fix, one place: the Responses codec's ChatGPT profile (`src/core/backends/modelapi/codecs/responses.ts`) keeps each streamed `output_item.done` item by its output index, and a terminal frame's output is those items in order (Codex reads its items from the same frames). A terminal frame that lists items itself must list the same number, or the stream is refused rather than one of the two trusted. The output cap still judges the frame as it arrived, before the output is rebuilt, so an over-cap reply keeps nothing.
 
 Proof: `test/unit/chatgptResponsesCodec.test.ts` gains the measured frame shapes (a streamed call and message with `output: []`, and a count mismatch); red drill with the codec change reverted: 2 of 18 fail; restored: 18/18, and the codec suites together 92/92 (`chatgptResponsesCap` included). Live on the packed agent through our app's editor protocol: the same turn now called `read_file`, sent a second request, and answered "lantern" (end_turn, 2 plan requests). Gates: `typecheck` 0, ESLint 0 and Prettier on the changed files, `build` 0.
+
+# PROVPLAN: the plan route against OpenAI's own pages (2026-10-17, Windows)
+
+Lane PROVPLAN, continuing `fix/plan-review` (PR #180) in place in a worktree
+of its own, after `origin/main` (`03ae95171`, PR #183's fake-test deletion)
+was merged as `799dc67d4`. Source of truth: the provider research
+`docs/research/providers/chatgpt-codex.md` (PR #202, branch
+`research/claude-a`, read 2026-10-17). Every value below was checked again
+against OpenAI's pages, read 2026-10-17 as Markdown (`<page>.md`):
+
+- SIWC-SIGNIN `developers.openai.com/siwc/token-sharing-open-source/sign-in`:
+  "For a previously registered account, use its saved issued `client_id`
+  instead of `client_id=dynamic_agent_client`"; `agent_name_hint` "include it
+  only on initial dynamic-registration requests. Omit it from
+  reauthorization"; "On reauthorization, the callback may omit `client_id`
+  … If the callback supplies a different client ID, reject the result"; the
+  callback "may also include `scope`"; "If code exchange returns
+  `invalid_grant`, … start a fresh authorization with the issued client ID
+  retained for this attempt".
+- SIWC-ACCOUNTS `…/profiles-and-sessions`: "Signing out or switching back to
+  a saved ChatGPT account does not create a new client"; sign-out: "Retain
+  its account/client mapping and this host's ID for a later sign-in";
+  "Use a different ChatGPT account: … register a new one with
+  `client_id=dynamic_agent_client`".
+- SIWC-ERR `…/errors-and-recovery`: the direct-admission table (401, 403,
+  503 with `{"detail": …}`) and the structured codes (403
+  `subscription_sharing_user_not_eligible`, 429
+  `subscription_sharing_usage_limit_exceeded`, 503
+  `subscription_sharing_usage_unavailable` and
+  `subscription_sharing_user_unavailable`: "Preserve credentials and retry
+  (later) with bounded backoff"); refresh errors `invalid_grant`,
+  `invalid_refresh_token`, `token_expired`, `refresh_token_expired`,
+  `refresh_token_invalidated`, `refresh_token_reused` ("repeat OAuth with
+  the saved issued client ID") and `invalid_client`. No usage, rate-limit or
+  reset header, no `Retry-After` rule, no retry count.
+- SIWC-LIMITS `…/preview-limitations`: "Omit … `max_output_tokens`".
+- SIWC-MODELS `…/models-and-inference`: a usage-limit or usage-unavailable
+  answer "can arrive as `response.failed` … after streaming has begun".
+- SIWC-TOKEN `…/token-reference`: `earliest_refresh_at` is listed as a
+  token-response field, with no type and no rule.
+
+The recorded plan exchange (owner run `577bc807`, 2026-10-05,
+`test/fixtures/responses-codec/chatgpt-responses-capture.json`) lists every
+response header: `x-codex-turn-state`, `x-models-etag`, `x-oai-request-id`
+and transport headers; no usage-window header. Its response object reports
+`"max_output_tokens": null`.
+
+## Research rows fixed (`docs/research/providers/chatgpt-codex.md`)
+
+| Row                                                                     | Class          | Fix                                                                                                                                                    | Commit      |
+| ----------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| §3 Registration, later sign-ins; §6.1 CB3                               | (b)            | reuse the saved issued client, no `agent_name_hint`, same host id; callback may omit `client_id`, never another one; registration kept across sign-out | `246440f6a` |
+| §3 Refresh failures                                                     | (b)            | all six unusable-refresh codes ask for sign-in; the repeat uses the saved client                                                                       | `246440f6a` |
+| §4.3 `subscription_sharing_usage_limit_exceeded` as HTTP 429; §6.1 CB4  | (b)            | the plan-limit answer (card, Manage Usage) instead of a generic failure                                                                                | `8414085c7` |
+| §4.3 503 `usage_unavailable` / `user_unavailable`; §6.2 CC1             | (c)            | the turn's bounded retry, before the stream and as `response.failed` after it; credentials untouched                                                   | `8414085c7` |
+| §4.3 403 `user_not_eligible`, 403 region / 503 direct routing; §6.2 CC2 | (c)            | own sentence, never retried; `{"detail"}` shown as OpenAI's words; 503 retried                                                                         | `8414085c7` |
+| §4.3 `invalid_client`; §6.2 CC2                                         | (c)            | `client-refused`: the saved registration is refused, with the way out                                                                                  | `246440f6a` |
+| §4.1 Output cap; §6.3 CD1; §6.1 CB2 (output)                            | (d)            | no client-side output cap on the plan route                                                                                                            | `dd4d5e203` |
+| §4.1 Stream size; §6.3 CD2 (size)                                       | (d)            | no 16 MiB stream cap on the plan route                                                                                                                 | `dd4d5e203` |
+| §2 item 5, §7 usage headers                                             | not documented | the route's headers go to the usage journal as reported (allow list, no meter, no reset time)                                                          | `8414085c7` |
+
+Rows already settled before this lane (the research read `main` at
+`3d30a73214`, before PR #180): CB1 effort (`effortForPolicy` resolves from
+the catalogue's own levels, `modelPolicy.ts`), CB2 context (`contextTokens`
+from the catalogue's `context_window`, `metaResolvedModel`), CC6 Fast
+(`service_tier: "priority"` where listed). CC4 (link to ChatGPT settings →
+Usage) was already built on `main` (`PlanUi.tsx`: the limit card's Manage
+Usage opens `CHATGPT_MANAGE_USAGE_URL`); the research row missed it. The
+HTTP 429 now reaches it too.
+
+## Left open, with the reason
+
+- §4.1 Stream time and the 30 s list/OAuth timeouts (CD2): one product-wide
+  idle time and request timeout shared by every provider's transport
+  (`MODEL_API_STREAM_IDLE_MS`, `MODEL_API_REQUEST_TIMEOUT_MS`,
+  `OAUTH_CODE_TTL_MS`). The person-set form needs the limits settings
+  (AGENTS.md product rules: static and dynamic caps the person sets). Node's
+  fetch (undici) applies its own 300 s headers and body timeouts by default
+  (undici `Agent` documentation; not measured here), so removing ours alone
+  would not give "none by default". Not changed.
+- The retry bound: OpenAI requires a bounded backoff and gives no number;
+  the plan route rides the product-wide `MODEL_API_MAX_RETRIES` (4). Whether
+  that count becomes a person-set limit belongs to the same limits work.
+- CC3 `earliest_refresh_at`: no type and no rule documented. Capture: one
+  token response with the field's type (value-blind) and OpenAI's rule.
+- CC5 images and files: the catalogue capture (2026-10-14) names no input
+  modality field. Capture: a `/v1/models` entry's full field list and one
+  plan turn with an image.
+- CC6 Ultrafast: the capture lists only the `priority` tier. Capture: the
+  catalogue of an account on the $500 Pro tier.
+- Usage windows and reset times: none documented, none in the capture.
+- `display_name` (SIWC-MODELS says show it): the capture's field list does
+  not name it; the pickers show the slug. Capture: an entry's field list.
+- Request id: SIWC-ERR says to preserve it; the capture shows
+  `x-oai-request-id`; plan refusals neither show nor log it yet.
+- `id_token_hint` and `login_hint` are optional and not sent: the app keeps
+  neither the ID token nor the e-mail address.
+- One saved registration: OpenAI describes an account picker over several;
+  "Use a Different ChatGPT Account" replaces the saved one.
+- README's ChatGPT section stays as it is until the lead's real use (the
+  standing rule: nothing is claimed before it worked in real use).
+- The merge commit `799dc67d4` carries git's default message without this
+  lane's trailer; it was not amended (no history rewrites).
+
+## Tests and drills
+
+`test/unit/chatgptResponsesCap.test.ts` is deleted with the cap it covered
+(it also used `vi.fn`). Two cases join `test/unit/chatGptHostId.test.ts`,
+driving the real modules: a returning account's authorize URL (saved
+client, no `agent_name_hint`, same host id; `dynamic_agent_client` refused
+as a saved client), and a returning callback without `client_id`, accepted
+by the parser and by the real runtime callback listener (HTTP 200), with
+another client's id refused. Red drills: sending `agent_name_hint` always
+failed the first case (exit 1); requiring `client_id` always failed the
+second (exit 1); restored, 16/16 (exit 0). The plan-route error mapping and
+the sign-in orchestration (registration kept, reused, mismatch refused)
+have no recorded 429/503 exchange or sign-in to replay, and a host, store
+or provider stand-in is forbidden: they are lead steps below.
+
+## Real use of the packed product (this Windows machine, empty folder)
+
+`npm run build` exit 0 (extension 551.2/600 KiB, providers 139.7/150,
+subscriptions 38.6/50, modelsPanel 107.2/125, acp 241.8/850, headless
+98.7/100). No credential store was read and no provider was called.
+
+1. `node dist/acp.js providers add chatgpt --bogus` and
+   `… --new-account extra`: refused at parse, exit 1, "Usage:
+   muse-spark-code-acp providers add|remove|status chatgpt [--new-account]".
+2. `node dist/acp.js help --all`: lists `providers add|remove|status chatgpt
+[--new-account]`.
+3. The packed agent over stdio, `initialize` with `auth.terminal`: sign-in
+   methods `chatgpt-add` (`providers add chatgpt`), `chatgpt-add-new-account`
+   "Use a Different ChatGPT Account" (`providers add chatgpt
+--new-account`), `chatgpt-remove`, `chatgpt-status`; without terminal
+   support each says "Run “muse-spark-code-acp providers add chatgpt
+   --new-account” in a terminal, then try again."
+4. `dist/providers.js`'s codec decodes the recorded plan stream (run
+   `577bc807`) with no cap sink: 4 events (`response.created`,
+   `response.in_progress`, `error`, `response.failed`); the build before
+   this lane refused any plan stream without a cap ("missing ChatGPT output
+   cap").
+5. `npm run ui:look -- models-empty`, light and dark: the two ChatGPT
+   buttons side by side. The first look showed the whole subscription block
+   unstyled (dark theme: light text on a light-grey face); fixed in
+   `bce224aa6` and looked at again. Measured side effect: `ui:look` builds
+   `dist/traffic-harness/`, and the next `npm run build` failed its lazy
+   registry check on those three files (exit 1); after removing that build
+   output the build passed (exit 0).
+
+## Lead steps (need a ChatGPT sign-in, a browser and the real store)
+
+1. Signed in today: `providers remove chatgpt`, then `providers add chatgpt`.
+   The printed authorize URL carries `client_id=oaiapp_…` (not
+   `dynamic_agent_client`) and no `agent_name_hint`; the browser shows the
+   account selector and no consent screen; "Added provider chatgpt."
+2. `providers add chatgpt --new-account`: the URL carries
+   `client_id=dynamic_agent_client` and `agent_name_hint`; consent shows.
+3. Reuse with another account picked in the browser: "This is not the
+   ChatGPT account this app registered here …"; nothing replaced.
+4. VS Code Models panel: Continue With ChatGPT and Use a Different ChatGPT
+   Account, the same two flows; with ChatGPT added, the second says
+   "ChatGPT is already added. Remove it before signing in again."
+5. A plan turn at the usage limit before the reply starts opens the limit
+   card with Manage Usage.
