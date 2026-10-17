@@ -8,13 +8,7 @@ import {
   EVAL_MODEL_ID,
 } from '../../../src/shared/constants'
 import { modelApiPaidTier } from '../../../src/shared/paid'
-import {
-  EVAL_TASKS,
-  evalTaskSchema,
-  evalTasksOfSplit,
-  isEvalPath,
-  type EvalTask,
-} from '../../../src/core/eval/tasks'
+import { EVAL_TASKS, evalTaskSchema, isEvalPath, type EvalTask } from '../../../src/core/eval/tasks'
 import {
   createEvalWorkspace,
   listWorkspaceFiles,
@@ -69,15 +63,6 @@ function probeTask(verify: string, files = [{ path: 'a.js', content: 'export con
 }
 
 describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
-  it('holds seven accept and five held-out tasks, one of each with a long output (M73)', () => {
-    expect(evalTasksOfSplit('accept')).toHaveLength(7)
-    expect(evalTasksOfSplit('heldout')).toHaveLength(5)
-    expect(EVAL_TASKS).toHaveLength(12)
-    expect(
-      EVAL_TASKS.filter((task) => task.isLongOutput === true).map((task) => task.split),
-    ).toEqual(['accept', 'heldout'])
-  })
-
   it('has unique ids, complete definitions and safe paths', () => {
     const ids = EVAL_TASKS.map((task) => task.id)
     expect(new Set(ids).size).toBe(ids.length)

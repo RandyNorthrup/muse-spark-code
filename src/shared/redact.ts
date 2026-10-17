@@ -128,8 +128,7 @@ export interface SecretRule {
   /**
    * Lower case; every match of `pattern` that `replace` changes holds at
    * least one of these, case ignored. `MAY_HOLD_SECRET` must find each, or
-   * the pattern never runs: redact.test.ts checks both against real-shaped
-   * matches.
+   * the pattern never runs.
    */
   readonly literals: readonly string[]
   readonly replace: (match: string, lead: string, quote: string) => string
@@ -350,8 +349,7 @@ export const SECRET_RULES: readonly SecretRule[] = [
 // Every rule's literals, case ignored: text with none of them, which is most
 // of a conversation and most log lines, skips all the patterns in one linear
 // scan instead of one scan each (RV84 #9). Kept as a literal pattern; a rule
-// whose literal this misses would never run, so redact.test.ts proves it
-// finds every rule's literals and every rule's real-shaped matches.
+// whose literal this misses would never run.
 export const MAY_HOLD_SECRET =
   /LLM|bearer|basic|eyJ|token|secret|passw|api_?key|api-key|private|credential|access_?key|accountkey|_auth|aws_|:\/\/|gh[pousr]_|github_pat_|glpat-|npm_|mgst_|AIza|AKIA|ASIA|xox|_live_|_test_|sk-|[?&](?:key|sig|signature|auth)=|gsk_|xai-|fw_|hf_|tgp_v1_|absk|bedrock-api-key|user_id|workspace|team|account|organization|organisation|project/i
 
