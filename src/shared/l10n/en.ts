@@ -4309,11 +4309,16 @@ export const EN = {
     '{provider} answered with an error this build does not recognise (HTTP {status}). Try again; the request may have been charged — check usage at {provider}. The answer began: {detail}',
   // {seconds}: the wait the provider named, in seconds.
   providerRefusalWait: ' (retry after {seconds})',
-  // {provider}: the provider's display name.
+  // {provider}: the provider's display name; {detail}: Node's own failure
+  // codes (ECONNRESET, ENOTFOUND, …), never what a server wrote.
   // Round 2, finding 7: the connection failed, and whether the request
   // arrived is unknown — never "nothing was sent".
   providerUnreachable:
-    'Could not reach {provider}. The connection failed, so whether the request arrived is unknown; check the network and the provider address.',
+    'Could not reach {provider}: the connection failed ({detail}), so whether the request arrived is unknown; check the network and the provider address.',
+  // Lane PROVERRORS: {provider} answered 200 and the connection was lost
+  // while its reply came; {detail}: Node's own failure codes.
+  providerConnectionLost:
+    'The connection to {provider} was lost after it accepted the request ({detail}). The reply is incomplete, and the request may have been charged — check usage at {provider}.',
   // Round 2, finding 6: each cause a person can meet has its own sentence;
   // slots carry technical values only (ids, origins, paths), never prose.
   // {entry}: the provider entry id; {preset}: the preset id as typed.

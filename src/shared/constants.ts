@@ -2347,6 +2347,10 @@ export const BOUNDED_FILE_READ_CHUNK_BYTES = 64 * 1024
 export const HTTP_UNAUTHORIZED = 401
 // Refused before any work was done: the one status a per-call-billed request retries (M34).
 export const HTTP_TOO_MANY_REQUESTS = 429
+// The code a configured provider's failure carries when its connection was
+// lost after it answered 200 (lane PROVERRORS): the reply is incomplete and
+// the request may have been charged, and before any content it is resent.
+export const PROVIDER_CONNECTION_LOST_CODE = 'connection_lost'
 // Shared per-format retry policy (M101 BYO 5).
 export const PROVIDER_RETRY_HTTP_STATUS = {
   paymentRequired: 402,

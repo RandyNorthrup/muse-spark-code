@@ -22,6 +22,7 @@ import { isRefusalRetryable, isRetryableStreamFailure } from './providerRefusal'
 import {
   MODEL_API_MAX_RETRIES,
   MODEL_API_REQUEST_TIMEOUT_MS,
+  PROVIDER_CONNECTION_LOST_CODE,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
@@ -258,12 +259,19 @@ export class CodecClient implements ProviderClient {
         // correspond to an HTTP 529"; OpenRouter's mid-stream 429 or 503)
         // is sent again under the same policy as that status (lane
         // PROVERRORS, research anthropic.md AB3, openrouter.md "Mid-stream
-        // 429"). Once content has arrived the turn ends with it, as before.
+        // 429"); so is a connection lost before any content, as a transient
+        // send failure is. Once content has arrived the turn ends with it.
+        // A per-call-billed (media) request is never sent again here, as the
+        // transport retries it only on a 429.
+        const isResendable =
+          isRetryableStreamFailure(failure, this.deps.transport.retryTable) ||
+          (failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE)
         if (
+          !isResendable ||
           hasContent ||
           signal.aborted ||
-          retries.retriesUsed >= MODEL_API_MAX_RETRIES ||
-          !isRetryableStreamFailure(failure, this.deps.transport.retryTable)
+          admitAttempt?.mediaAccounting !== undefined ||
+          retries.retriesUsed >= MODEL_API_MAX_RETRIES
         )
           throw failure
         const attempt = retries.retriesUsed
