@@ -598,9 +598,8 @@ export class ReportNetworkReader {
   }
 }
 
-/** Public fetch has no authorization and refuses redirects to another host.
- * @unwired M113 public report fetch transport
- */
+/** Public fetch has no authorization and refuses redirects to another host. */
+
 export function publicReportTransport(fetcher: typeof fetch): ReportNetworkTransport {
   return async (request, etag, signal) =>
     await fetcher(request.url, {

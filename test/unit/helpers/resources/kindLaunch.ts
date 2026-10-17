@@ -1,7 +1,5 @@
-import type * as ResourceAdmission from '../../../../src/core/resources/admission'
 import type * as ResourceLauncher from '../../../../src/core/resources/launcher'
 import { fixtureResourceCommand } from '../kindResourceProcess'
-import { fakeResourceLease } from './kindFakes'
 
 // Every governed launch is refused with "Resource admission unavailable" until
 // the window or runtime configures its resources: that is the production
@@ -9,20 +7,6 @@ import { fakeResourceLease } from './kindFakes'
 // without configuring them picks one of these fixtures from a vi.mock factory.
 // Admission itself (pause, cancel, dispose, containment) is proved by
 // spawnBootstrap, spawnGovernance and spawnRuntimeAdmission.
-
-/**
- * Suites that build real Windows job helpers: bootstrap admission grants a
- * fake lease, and the real bootstrap runner (bootstrapCommand → launcher →
- * process.ts) still spawns the compiler.
- *
- *   vi.mock('../../src/core/resources/admission', async (original) => {
- *     const { withFixtureBootstrap } = await import('./helpers/resources/kindLaunch')
- *     return withFixtureBootstrap(await original())
- *   })
- */
-export function withFixtureBootstrap(actual: typeof ResourceAdmission): typeof ResourceAdmission {
-  return { ...actual, admitBootstrap: () => Promise.resolve(fakeResourceLease()) }
-}
 
 /**
  * Suites whose bounded OS probes (process identity, Git metadata) are not the

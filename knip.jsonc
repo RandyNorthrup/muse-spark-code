@@ -179,6 +179,11 @@
     // The README-shots script starts this reporting verifier by path
     // (scripts/readme-shots.mjs), which knip does not trace.
     "test/harness/reporting/verify.mjs",
+    // The verifier's esbuild stdin bundle (`export * from
+    // './test/unit/reportKindRenderFixtures' plus a computed dynamic import)
+    // reads this fixture module's renderFixture/REPORT_THEMES, which knip
+    // does not trace.
+    "test/unit/reportKindRenderFixtures.ts",
     // Tab's configured hook flow starts this real fake-hook process by path.
     "test/fixtures/tabHooks/completion.mjs",
     // M116 playbook scenes: the axe runner (an npm script knip already sees)

@@ -700,6 +700,26 @@ Release notes.
     )
   })
 
+  it('E23 keeps disclosure pointers through the production scrub', async () => {
+    // The export scrubber reads multi-segment JSON Pointers as POSIX paths
+    // and redacts them; the source restores the estimator's disclosures
+    // whole (they carry no user text) so the schema still validates and a
+    // real forecast renders instead of refusing.
+    const { reportScrubber } = await import('../../src/core/reporting/render/redaction')
+    const section = fakeEstimate()
+    const pointers = section.disclosures.map((disclosure) => disclosure.path)
+    expect(pointers.some((path) => path.split('/').length > 2)).toBe(true)
+    const result = await estimateSource(
+      readerFor(section),
+      reportScrubber({ workspaceRoot: '/tmp/kind-fixture', localRoots: [] }),
+    ).read(estimateContext({ scope: 'M117' }))
+    expect(result.record.status).toBe('ok')
+    if (result.record.status !== 'ok' && result.record.status !== 'partial')
+      throw new Error('unreachable')
+    const totals = (result.data ?? []).find((entry) => entry.id === 'estimate/totals')
+    expect(totals?.rows.length).toBeGreaterThan(0)
+  })
+
   it('E19 projects sections from codes only: the installed language changes no byte', async () => {
     const section = fakeEstimate()
     const options = reportOptions('estimate', { scope: 'M117' })

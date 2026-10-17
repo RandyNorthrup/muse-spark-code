@@ -196,7 +196,16 @@ export function estimateSource(reader: ReportEstimateReader | undefined, scrub: 
         'failed',
         scrub(fill(text.failed, { detail: 'estimate-unavailable' })),
       )
-    const section = estimateSectionSchema.parse(scrubSourceValue(read.section, scrub))
+    // Disclosure paths are JSON Pointers the estimator builds from fixed
+    // field names and array indices: they carry no user text, but the
+    // export scrubber reads multi-segment pointers as POSIX paths and
+    // redacts them, breaking the schema. Scrub everything else, then
+    // restore the disclosures whole; the parse below still validates them.
+    const scrubbed = scrubSourceValue(read.section, scrub) as Record<string, unknown>
+    const section = estimateSectionSchema.parse({
+      ...scrubbed,
+      disclosures: (read.section as { disclosures: unknown }).disclosures,
+    })
     // The run must answer this generation's request, not a stale one.
     if (
       JSON.stringify(estimateRequestSchema.parse(section.inputs.request)) !==

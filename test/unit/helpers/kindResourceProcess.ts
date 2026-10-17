@@ -1,10 +1,4 @@
-import {
-  execFile,
-  spawn,
-  type ExecFileOptionsWithStringEncoding,
-  type SpawnOptions,
-} from 'node:child_process'
-import { PassThrough } from 'node:stream'
+import { execFile, type ExecFileOptionsWithStringEncoding } from 'node:child_process'
 
 /**
  * OS helper tests (native schedules, trusted paths) keep a direct bounded
@@ -25,35 +19,5 @@ export function fixtureResourceCommand(
       else
         reject(Object.assign(new Error(error.message, { cause: error }), error, { stdout, stderr }))
     })
-  })
-}
-
-/** Slot protocol tests retain their native/fake peer; launch containment has its own suite. */
-export function fixtureResourceProcess(
-  _profile: 'contained' | 'handoff' | 'bootstrap',
-  file: string,
-  args: readonly string[],
-  options: SpawnOptions,
-  stdio: SpawnOptions['stdio'] = 'pipe',
-) {
-  const { signal: _signal, stdio: _stdio, ...spawnOptions } = options
-  const child = spawn(file, [...args], {
-    ...spawnOptions,
-    stdio,
-    shell: false,
-    windowsHide: true,
-  })
-  const pipes = {
-    stdin: child.stdin ?? new PassThrough(),
-    stdout: child.stdout ?? new PassThrough(),
-    stderr: child.stderr ?? new PassThrough(),
-  }
-  return Promise.resolve({
-    child: Object.assign(child, pipes),
-    pid: () => Promise.resolve(child.pid),
-    stop: () => {
-      child.kill('SIGKILL')
-      return Promise.resolve()
-    },
   })
 }

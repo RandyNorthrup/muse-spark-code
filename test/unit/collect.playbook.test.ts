@@ -224,6 +224,9 @@ describe('module glob matching', () => {
     ['src/alpha/index.ts', 'src/**/*.ts', true],
     [String.raw`src\alpha`, 'src/alpha', true],
     ['src/alpha', 'src/beta/**', false],
+    ['src/alphaXts', 'src/*.ts', false],
+    ['src/a+b', 'src/a+b', true],
+    ['src/a(b)', 'src/a(b)', true],
   ])('matches %s against %s as %s', (key, glob, expected) => {
     expect(isModuleMatch(key, glob)).toBe(expected)
   })

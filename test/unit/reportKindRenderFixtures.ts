@@ -1,17 +1,7 @@
-import { Usd as PortUsd } from '../../src/shared/usd'
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
 import { EN } from '../../src/shared/l10n/en'
-import { tableProblems } from '../../src/shared/l10n/check'
 import { finalizeReport } from '../../src/core/reporting/render/canonical'
 import { createReportRenderers } from '../../src/core/reporting/render'
-import type { ReportLocalePort } from '../../src/core/reporting/render/display'
-import type {
-  ReportKind,
-  ReportLabelKey,
-  ReportTheme,
-  ReportValue,
-} from '../../src/shared/reportSchema'
+import type { ReportKind, ReportLabelKey, ReportTheme } from '../../src/shared/reportSchema'
 import { reportDocument } from './helpers/reporting/kindFixtures'
 
 export const REPORT_THEME: ReportTheme = {
@@ -46,7 +36,6 @@ export const REPORT_THEMES: readonly ReportTheme[] = [
   },
 ]
 export const RENDERERS = createReportRenderers({ textForLocale: () => EN })
-export const GOLDEN_ROOT = path.resolve(import.meta.dirname, '../fixtures/reports')
 
 const KIND_SECTIONS: Record<ReportKind, readonly ReportLabelKey[]> = {
   project: ['releases', 'milestones', 'lanes', 'pullRequests', 'ci', 'usage', 'risks', 'nextSteps'],
@@ -172,61 +161,4 @@ export function renderFixture(kind: ReportKind = 'project') {
     omittedRows: index === 0 ? 12 : 0,
   }))
   return finalizeReport(document)
-}
-
-export function valueFixture() {
-  const document = renderFixture('usage')
-  const values: Record<string, ReportValue> = {
-    number: { type: 'number', value: 1234.5 },
-    count: { type: 'count', value: 1234 },
-    percent: { type: 'percent', value: 42 },
-    usd: { type: 'usd', value: PortUsd.from(1.46).toAmount(), certainty: 'reported' },
-    unknown: { type: 'usd', value: null, certainty: 'unknown' },
-    estimated: { type: 'usd', value: PortUsd.from(2).toAmount(), certainty: 'estimated' },
-    duration: { type: 'durationMs', value: 1250 },
-    timestamp: { type: 'timestamp', value: '2026-10-06T12:00:00-07:00' },
-    boolean: { type: 'boolean', value: true },
-    off: { type: 'boolean', value: false },
-    list: { type: 'textList', value: ['one', 'two'] },
-  }
-  document.sections = [
-    {
-      id: 'values',
-      label: 'totals',
-      sortKey: 'key',
-      columns: [{ key: 'value', label: 'count' }],
-      rows: Object.entries(values).map(([key, value]) => ({
-        key,
-        cells: { value },
-        sourceIds: ['usage'],
-      })),
-      omittedRows: 0,
-    },
-  ]
-  return finalizeReport(document)
-}
-
-type LocaleText = ReturnType<ReportLocalePort['textForLocale']>
-function isLocaleText(input: unknown, locale: string): input is LocaleText {
-  if (typeof input !== 'object' || input === null) return false
-  const english: LocaleText = {
-    reportLabels: EN.reportLabels,
-    reportKinds: EN.reportKinds,
-    reportUi: EN.reportUi,
-    reportRowsMore: EN.reportRowsMore,
-    toggleOn: EN.toggleOn,
-    toggleOff: EN.toggleOff,
-  }
-  const subset = Object.fromEntries(
-    Object.keys(english).map((key) => [key, Reflect.get(input, key)]),
-  )
-  return tableProblems(english, subset, { locale, isStrict: false }).length === 0
-}
-
-export async function localePort(locale: string): Promise<ReportLocalePort> {
-  const parsed: unknown = JSON.parse(
-    await readFile(path.resolve(import.meta.dirname, `../../l10n/ui.${locale}.json`), 'utf8'),
-  )
-  if (!isLocaleText(parsed, locale)) throw new Error('Invalid reporting translation fixture')
-  return { textForLocale: () => parsed }
 }
