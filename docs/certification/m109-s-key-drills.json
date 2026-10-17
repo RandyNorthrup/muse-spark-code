@@ -1,0 +1,114 @@
+[
+  {
+    "guard": "key-signature-method",
+    "file": "src/core/vault/ssh/keys.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 generates unpooled Ed25519 material, exports only public data and verifies signatures 22ms",
+      "\u00d7 handles P-256 and RSA SHA2; rejects weak or mismatched methods and unknown flags 45ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > generates unpooled Ed25519 material, exports only public data and verifies signatures",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > handles P-256 and RSA SHA2; rejects weak or mismatched methods and unknown flags"
+    ],
+    "restoredSha256": "6365aad05f1761c006622e62c2b38a7afa652737100d99bfd26b2424a4f7e673"
+  },
+  {
+    "guard": "key-data-integrity",
+    "file": "src/core/vault/ssh/keys.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 generates unpooled Ed25519 material, exports only public data and verifies signatures 18ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > generates unpooled Ed25519 material, exports only public data and verifies signatures"
+    ],
+    "restoredSha256": "6365aad05f1761c006622e62c2b38a7afa652737100d99bfd26b2424a4f7e673"
+  },
+  {
+    "guard": "rsa-sha1-refused",
+    "file": "src/core/vault/ssh/keys.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 handles P-256 and RSA SHA2; rejects weak or mismatched methods and unknown flags 82ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > handles P-256 and RSA SHA2; rejects weak or mismatched methods and unknown flags"
+    ],
+    "restoredSha256": "6365aad05f1761c006622e62c2b38a7afa652737100d99bfd26b2424a4f7e673"
+  },
+  {
+    "guard": "openssh-checkints",
+    "file": "src/core/vault/ssh/keys.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 imports PEM, encrypted PEM and unencrypted OpenSSH; rejects a public/private mismatch 12ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > imports PEM, encrypted PEM and unencrypted OpenSSH; rejects a public/private mismatch"
+    ],
+    "restoredSha256": "6365aad05f1761c006622e62c2b38a7afa652737100d99bfd26b2424a4f7e673"
+  },
+  {
+    "guard": "known-host-key",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed 11ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "known-host-revoked",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed 10ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "known-host-negation",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed 9ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "known-host-alias",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed 12ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "known-host-hash",
+    "file": "src/core/vault/ssh/knownHosts.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed 7ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed"
+    ],
+    "restoredSha256": "eb9db88f1c18f667f57fc44b1497bf4416c2059c62683109fa0e85728fc2612e"
+  },
+  {
+    "guard": "wire-trailing-data",
+    "file": "src/core/vault/ssh/wire.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 parses fragmented/coalesced frames, bounds lengths, rejects trailing and malformed fields 8ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > parses fragmented/coalesced frames, bounds lengths, rejects trailing and malformed fields"
+    ],
+    "restoredSha256": "ce64987bcb794b058b7c7f08198dc3036fbebd30b056135b78835ed2ab93f852"
+  },
+  {
+    "guard": "wire-length-bounds",
+    "file": "src/core/vault/ssh/wire.ts",
+    "exitCode": 1,
+    "failures": [
+      "\u00d7 parses fragmented/coalesced frames, bounds lengths, rejects trailing and malformed fields 12ms",
+      "FAIL  test/unit/vault/sshKeys.test.ts > vault SSH keys and RFC 9987 boundary > parses fragmented/coalesced frames, bounds lengths, rejects trailing and malformed fields"
+    ],
+    "restoredSha256": "ce64987bcb794b058b7c7f08198dc3036fbebd30b056135b78835ed2ab93f852"
+  }
+]

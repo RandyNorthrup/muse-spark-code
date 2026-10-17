@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The pieces tool rows are built from (M15, M43): text clipped behind Show
 // more, a diff clipped behind Click to expand, and a block that opens its
 // whole content in an editor tab.
@@ -18,11 +19,11 @@ function Openable({
     <div
       role="button"
       tabIndex={0}
-      className="tool-open"
+      className="tool-open chat-control"
       title={UI_TEXT.openOutputTitle}
       onClick={onOpen}
       onKeyDown={(event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') {
+        if (webviewKey('output.open', event) !== 'open') {
           return
         }
         event.preventDefault()
@@ -39,15 +40,17 @@ export function Clipped({
   text,
   className,
   onOpen,
+  previewLines = OUTPUT_PREVIEW_LINES,
 }: {
   readonly text: string
   readonly className: string
   readonly onOpen?: (() => void) | undefined
+  readonly previewLines?: number
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const allLines = text.split('\n')
-  const isLong = allLines.length > OUTPUT_PREVIEW_LINES || text.length > OUTPUT_PREVIEW_CHARS
-  const firstLines = allLines.slice(0, OUTPUT_PREVIEW_LINES).join('\n')
+  const isLong = allLines.length > previewLines || text.length > OUTPUT_PREVIEW_CHARS
+  const firstLines = allLines.slice(0, previewLines).join('\n')
   const preview =
     firstLines.length > OUTPUT_PREVIEW_CHARS
       ? `${firstLines.slice(0, OUTPUT_PREVIEW_CHARS)}…`
@@ -60,7 +63,8 @@ export function Clipped({
       {isLong ? (
         <button
           type="button"
-          className="tool-more"
+          className="tool-more chat-control"
+          aria-expanded={isExpanded}
           onClick={() => {
             setIsExpanded(!isExpanded)
           }}
@@ -103,7 +107,7 @@ export function DiffTable({
       {onExpand !== undefined || (isLong && !isExpanded) ? (
         <button
           type="button"
-          className="tool-expand"
+          className="tool-expand chat-control"
           onClick={
             onExpand ??
             (() => {

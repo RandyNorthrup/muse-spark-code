@@ -1,4 +1,4 @@
-// Git worktrees for "New worktree…" and "Remove worktree…" (M32, PLAN.md
+// Git worktrees for "New Worktree…" and "Remove worktree…" (M32, PLAN.md
 // D30): work on a branch in a folder of its own, the checkout in front of
 // the user untouched, as Muse Code's `--worktree` does for the CLI (which
 // MSP does not carry). New worktrees go beside the repository, in
@@ -105,8 +105,37 @@ export function worktreeAddArgs(
   return ['worktree', 'add', '-b', branch, folder, baseRef]
 }
 
+/** A worktree at `commit` with no branch (M71: a pull request's head, read-only by default). */
+export function worktreeAddDetachedArgs(folder: string, commit: string): readonly string[] {
+  return ['worktree', 'add', '--detach', folder, commit]
+}
+
+/**
+ * The same with nothing checked out (M71: someone else's pull request, whose
+ * files the extension writes itself, so no checkout filter or hook runs).
+ */
+export function worktreeAddHeldArgs(folder: string, commit: string): readonly string[] {
+  return ['worktree', 'add', '--no-checkout', '--detach', folder, commit]
+}
+
 export function worktreeRemoveArgs(folder: string, isForced: boolean): readonly string[] {
   return ['worktree', 'remove', ...(isForced ? ['--force'] : []), folder]
+}
+
+/**
+ * The path a WorktreeCreate/Remove hook sees (M91 lane E): the worktree
+ * relative to the repository, with forward slashes, so matchers stay
+ * portable. Best-of-N worktrees live beside the repository, which reads as
+ * a `..` path; a workspace-rooted watcher resolves it from there.
+ */
+export function worktreeHookPath(
+  repositoryRoot: string,
+  worktreePath: string,
+  platform: NodeJS.Platform,
+): string {
+  const p = platform === 'win32' ? path.win32 : path.posix
+  const relative = p.relative(repositoryRoot, worktreePath)
+  return relative === '' ? '.' : relative.split(p.sep).join('/')
 }
 
 /** git refused because the worktree has changes; `--force` would discard them. */

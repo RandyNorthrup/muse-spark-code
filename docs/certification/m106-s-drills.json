@@ -1,0 +1,442 @@
+{
+  "machine": "win11",
+  "workspace": "C:/lanes/M106S",
+  "defaultTestTimeout": true,
+  "maxWorkers": 3,
+  "entries": [
+    {
+      "name": "native-fingerprint",
+      "file": "src/shared/constants.ts",
+      "test": "test/unit/museCodeBackendManager.test.ts",
+      "exitCode": 1,
+      "originalSha256": "9a934c3dd8fe3e3314723b21420e6961a4e538c45a07fff029d9635f56ebf169",
+      "restoredSha256": "9a934c3dd8fe3e3314723b21420e6961a4e538c45a07fff029d9635f56ebf169",
+      "failures": [
+        "FAIL  test/unit/museCodeBackendManager.test.ts > MuseCodeBackendManager: known MSP builds (SDK142) > recognizes sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2 as 1.4.2-R4684.1 without a mismatch warning",
+        "FAIL  test/unit/museCodeBackendManager.test.ts > MuseCodeBackendManager: known MSP builds (SDK142) > uses the captured 1.4.2-R4684.1 SDK pin and logs no mismatch"
+      ]
+    },
+    {
+      "name": "router-retained",
+      "file": "src/runtime/exec/execClient.ts",
+      "test": "test/unit/execClient.test.ts",
+      "exitCode": 1,
+      "originalSha256": "8f871ab3ee7a514c730fcb00c37ffce63e8e4c6d8a869ddc8fed8bf5714ae445",
+      "restoredSha256": "8f871ab3ee7a514c730fcb00c37ffce63e8e4c6d8a869ddc8fed8bf5714ae445",
+      "failures": [
+        "FAIL  test/unit/execClient.test.ts > exec client: pinned ACP constructor seam with Muse Code SDK 1.4.2 > preserves a future non-tool update through real JSON-RPC and suppresses tool and message bytes"
+      ]
+    },
+    {
+      "name": "router-descriptor",
+      "file": "src/runtime/exec/execClient.ts",
+      "test": "test/unit/execClient.test.ts",
+      "exitCode": 1,
+      "originalSha256": "8f871ab3ee7a514c730fcb00c37ffce63e8e4c6d8a869ddc8fed8bf5714ae445",
+      "restoredSha256": "8f871ab3ee7a514c730fcb00c37ffce63e8e4c6d8a869ddc8fed8bf5714ae445",
+      "failures": [
+        "FAIL  test/unit/execClient.test.ts > exec client: pinned ACP constructor seam with Muse Code SDK 1.4.2 > preserves a future non-tool update through real JSON-RPC and suppresses tool and message bytes"
+      ]
+    },
+    {
+      "name": "feedback-extra-artifacts",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > defaults both disclosures to false and sends only the selected parameters"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-bug-note",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses a blank bug note before dispatch"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-files-consent",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses a record without files consent before dispatch"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-record-classification",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses a record for goodResult before dispatch",
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses a record for other before dispatch"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-session",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses an empty session before dispatch"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-boolean-consent",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses a non-boolean disclosure before dispatch"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-files-default",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > defaults both disclosures to false and sends only the selected parameters",
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses a record without files consent before dispatch"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-record-default",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > defaults both disclosures to false and sends only the selected parameters",
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses a non-string domain outcome and does not retry"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-outcome-validation",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses a non-string domain outcome and does not retry"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-checkbox-off",
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "test": "test/unit/FeedbackDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > starts with both disclosures off, sends once, and displays the exact returned outcome",
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > does not submit twice while a receipt is pending",
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > resets both consents and the note when the session changes"
+      ],
+      "originalSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177",
+      "restoredSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177"
+    },
+    {
+      "name": "feedback-duplicate",
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "test": "test/unit/FeedbackDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > does not submit twice while a receipt is pending"
+      ],
+      "originalSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177",
+      "restoredSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177"
+    },
+    {
+      "name": "feedback-note-before-send",
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "test": "test/unit/FeedbackDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > requires a nonblank note for a bug"
+      ],
+      "originalSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177",
+      "restoredSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177"
+    },
+    {
+      "name": "feedback-classification-change",
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "test": "test/unit/FeedbackDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > revokes record consent when the classification changes"
+      ],
+      "originalSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177",
+      "restoredSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177"
+    },
+    {
+      "name": "feedback-files-change",
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "test": "test/unit/FeedbackDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > revokes record consent when files are unchecked"
+      ],
+      "originalSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177",
+      "restoredSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177"
+    },
+    {
+      "name": "feedback-session-reset",
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "test": "test/unit/FeedbackDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > resets both consents and the note when the session changes"
+      ],
+      "originalSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177",
+      "restoredSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177"
+    },
+    {
+      "name": "effort-catalogue",
+      "file": "src/webview/components/EffortSlider.tsx",
+      "test": "test/unit/EffortSlider.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/EffortSlider.test.tsx > EffortSlider > uses the catalogue order, descriptions and default, including tiers outside the old family table",
+        "FAIL  test/unit/EffortSlider.test.tsx > EffortSlider > keeps the selected catalogue tier ahead of the default and stays read-only without its handler",
+        "FAIL  test/unit/EffortSlider.test.tsx > EffortSlider > keeps the legacy range when capabilities are unknown and respects a known empty range",
+        "FAIL  test/unit/EffortSlider.test.tsx > EffortSlider > keeps catalogue variants inside an option mouse-only"
+      ],
+      "originalSha256": "3d139668085ca28f1dc9e3ccca4ea75f9865cc3b9d1e83b6573bfdc751ad8c97",
+      "restoredSha256": "3d139668085ca28f1dc9e3ccca4ea75f9865cc3b9d1e83b6573bfdc751ad8c97"
+    },
+    {
+      "name": "effort-selection",
+      "file": "src/webview/components/EffortSlider.tsx",
+      "test": "test/unit/EffortSlider.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/EffortSlider.test.tsx > EffortSlider > keeps the selected catalogue tier ahead of the default and stays read-only without its handler"
+      ],
+      "originalSha256": "3d139668085ca28f1dc9e3ccca4ea75f9865cc3b9d1e83b6573bfdc751ad8c97",
+      "restoredSha256": "3d139668085ca28f1dc9e3ccca4ea75f9865cc3b9d1e83b6573bfdc751ad8c97"
+    },
+    {
+      "name": "history-search-edit",
+      "file": "src/webview/components/HistoryDialog.tsx",
+      "test": "test/unit/HistoryDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/HistoryDialog.test.tsx > HistoryDialog: injected Muse Code deletion > never deletes a highlighted session while the user is editing search text",
+        "FAIL  test/unit/HistoryDialog.test.tsx > HistoryDialog > archives and unarchives the highlighted row with Delete, and only with an empty search"
+      ],
+      "originalSha256": "ab409a89bc5d3f28411a180e2b66c9e95980b27201ab33cc6281314f44f91495",
+      "restoredSha256": "ab409a89bc5d3f28411a180e2b66c9e95980b27201ab33cc6281314f44f91495"
+    },
+    {
+      "name": "history-archive-separation",
+      "file": "src/webview/components/HistoryDialog.tsx",
+      "test": "test/unit/HistoryDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/HistoryDialog.test.tsx > HistoryDialog: injected Muse Code deletion > offers deletion only with the host callback and keeps archive separate"
+      ],
+      "originalSha256": "ab409a89bc5d3f28411a180e2b66c9e95980b27201ab33cc6281314f44f91495",
+      "restoredSha256": "ab409a89bc5d3f28411a180e2b66c9e95980b27201ab33cc6281314f44f91495"
+    },
+    {
+      "name": "delete-session-identity",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museCodeSdk142.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > matches both session and command, keeps unknown outcomes visible, and waits for a known terminal"
+      ],
+      "originalSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4",
+      "restoredSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4"
+    },
+    {
+      "name": "delete-command-identity",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museCodeSdk142.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > matches both session and command, keeps unknown outcomes visible, and waits for a known terminal"
+      ],
+      "originalSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4",
+      "restoredSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4"
+    },
+    {
+      "name": "delete-known-terminal",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museCodeSdk142.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > matches both session and command, keeps unknown outcomes visible, and waits for a known terminal"
+      ],
+      "originalSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4",
+      "restoredSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4"
+    },
+    {
+      "name": "delete-failed-handle",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museCodeSdk142.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > keeps a tracked session after a failed deletion"
+      ],
+      "originalSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4",
+      "restoredSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4"
+    },
+    {
+      "name": "feedback-grant",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museCodeSdk142.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > refuses feedback before sending when the captured reader or grant is absent"
+      ],
+      "originalSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4",
+      "restoredSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4"
+    },
+    {
+      "name": "feedback-classification-vocabulary",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > keeps the client-selected classification vocabulary closed"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-record-boolean",
+      "file": "src/core/backends/musecode/feedback.ts",
+      "test": "test/unit/feedback.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/feedback.test.ts > Muse Code feedback: user choices before an injected receipt reader > refuses non-boolean attachSessionRecord consent before dispatch"
+      ],
+      "originalSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9",
+      "restoredSha256": "87a1aea7340afbc879a547c6955672b8c460fa7a2af79cce2d7e637725c8dba9"
+    },
+    {
+      "name": "feedback-files-checkbox-off",
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "test": "test/unit/FeedbackDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > starts with both disclosures off, sends once, and displays the exact returned outcome",
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > includes files and the record only after their separate checkboxes are selected",
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > revokes record consent when files are unchecked",
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > resets both consents and the note when the session changes"
+      ],
+      "originalSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177",
+      "restoredSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177"
+    },
+    {
+      "name": "feedback-offered-classification",
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "test": "test/unit/FeedbackDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > refuses dispatch without an offered classification"
+      ],
+      "originalSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177",
+      "restoredSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177"
+    },
+    {
+      "name": "feedback-record-availability",
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "test": "test/unit/FeedbackDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > starts with both disclosures off, sends once, and displays the exact returned outcome",
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > revokes record consent when files are unchecked",
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > revokes record consent when the classification changes"
+      ],
+      "originalSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177",
+      "restoredSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177"
+    },
+    {
+      "name": "feedback-invalid-choice",
+      "file": "src/webview/components/FeedbackDialog.tsx",
+      "test": "test/unit/FeedbackDialog.test.tsx",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/FeedbackDialog.test.tsx > FeedbackDialog: disclosure consent > ignores an unsupported classification change"
+      ],
+      "originalSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177",
+      "restoredSha256": "9be4c2f26523f1fcf7d07e7d98ceb1a76a1891c46f337beb9864ffef5839b177"
+    },
+    {
+      "name": "lifecycle-method-filter",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museCodeSdk142.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > keeps the existing closed and list-changed frames away from the new reader"
+      ],
+      "originalSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4",
+      "restoredSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4"
+    },
+    {
+      "name": "delete-reader-required",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museCodeSdk142.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > refuses deletion before dispatch without a captured lifecycle reader"
+      ],
+      "originalSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4",
+      "restoredSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4"
+    },
+    {
+      "name": "feedback-reader-required",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museCodeSdk142.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > refuses feedback before sending when the captured reader or grant is absent"
+      ],
+      "originalSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4",
+      "restoredSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4"
+    },
+    {
+      "name": "delete-arm-before-admission",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museCodeSdk142.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > arms deletion before admission and disposes the tracked session only on completed",
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > keeps a tracked session after a failed deletion"
+      ],
+      "originalSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4",
+      "restoredSha256": "c12ccd22fd3ffbecf7a12fe66a65daaf40bb9213f16331bd0aa3f3a727acdcd4"
+    },
+    {
+      "name": "served-echo-fingerprint",
+      "file": "test/fixtures/m106/msp-echo-1.4.2.json",
+      "test": "test/unit/museCodeSdk142.test.ts",
+      "exitCode": 1,
+      "failures": [
+        "FAIL  test/unit/museCodeSdk142.test.ts > Muse Code 1.4.2 feature ports > recognizes the locally served echo handshake and empty catalogue with zero model attempts"
+      ],
+      "originalSha256": "edd2b8ea556b59b9fcbd993a222eedf5b6ec67adfcb3e5a6f635191822332355",
+      "restoredSha256": "edd2b8ea556b59b9fcbd993a222eedf5b6ec67adfcb3e5a6f635191822332355"
+    }
+  ]
+}

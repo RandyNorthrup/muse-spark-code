@@ -1,0 +1,247 @@
+{
+  "viewport": 320,
+  "builtCssSha256": "54e57dd180b55d69e31fcf1d98188419bed737d3e33ea8a1e2e082d39652281c",
+  "restoredSha256": "54e57dd180b55d69e31fcf1d98188419bed737d3e33ea8a1e2e082d39652281c",
+  "results": [
+    {
+      "theme": "light",
+      "green": {
+        "width": 320,
+        "scrollWidth": 320,
+        "tools": [
+          {
+            "text": "Read",
+            "right": 59.796875
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Edit",
+            "right": 52.5625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Write",
+            "right": 60.265625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "PowerShellList files in workspace folder",
+            "right": 280
+          },
+          {
+            "text": "",
+            "right": 312
+          }
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "green": {
+        "width": 320,
+        "scrollWidth": 320,
+        "tools": [
+          {
+            "text": "Read",
+            "right": 59.796875
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Edit",
+            "right": 52.5625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Write",
+            "right": 60.265625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "PowerShellList files in workspace folder",
+            "right": 280
+          },
+          {
+            "text": "",
+            "right": 312
+          }
+        ]
+      },
+      "red": {
+        "width": 320,
+        "scrollWidth": 320,
+        "tools": [
+          {
+            "text": "Read",
+            "right": 59.796875
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Edit",
+            "right": 52.5625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Write",
+            "right": 60.265625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "PowerShellList files in workspace folder",
+            "right": 317.1875
+          },
+          {
+            "text": "",
+            "right": 349.1875
+          }
+        ]
+      },
+      "restored": {
+        "width": 320,
+        "scrollWidth": 320,
+        "tools": [
+          {
+            "text": "Read",
+            "right": 59.796875
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Edit",
+            "right": 52.5625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Write",
+            "right": 60.265625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "PowerShellList files in workspace folder",
+            "right": 280
+          },
+          {
+            "text": "",
+            "right": 312
+          }
+        ]
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "green": {
+        "width": 320,
+        "scrollWidth": 320,
+        "tools": [
+          {
+            "text": "Read",
+            "right": 59.796875
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Edit",
+            "right": 52.5625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Write",
+            "right": 60.265625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "PowerShellList files in workspace folder",
+            "right": 280
+          },
+          {
+            "text": "",
+            "right": 312
+          }
+        ]
+      }
+    },
+    {
+      "theme": "hc-light",
+      "green": {
+        "width": 320,
+        "scrollWidth": 320,
+        "tools": [
+          {
+            "text": "Read",
+            "right": 59.796875
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Edit",
+            "right": 52.5625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "Write",
+            "right": 60.265625
+          },
+          {
+            "text": "",
+            "right": 312
+          },
+          {
+            "text": "PowerShellList files in workspace folder",
+            "right": 280
+          },
+          {
+            "text": "",
+            "right": 312
+          }
+        ]
+      }
+    }
+  ]
+}

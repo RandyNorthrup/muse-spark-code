@@ -10,10 +10,16 @@
 
 import { UI_TEXT } from '../shared/constants'
 import type { UiText } from '../shared/l10n/en'
+import { uiLocale } from '../shared/l10n/text'
 import type { AgentImportHost } from './commands/agentImportCommands'
-import { lazyBundleLoader } from './lazyBundle'
+import { fixedMessageLog, lazyBundleLoader } from './lazyBundle'
 import type { Logger } from './logger'
 import type { AgentImportHostDeps } from './agentImportHost'
+
+/** Activation's shim; the UI adapter and its config schema load only with the bundle. */
+export async function runAgentImport(deps: AgentImportHostDeps): Promise<void> {
+  await deps.bundle().runAgentImport(deps, UI_TEXT, uiLocale())
+}
 
 /** The injected flow and the VS Code UI entry, shipped and loaded together. */
 export interface AgentImportBundle {
@@ -49,24 +55,11 @@ export interface AgentImportLoaderDeps {
 export function agentImportLoader(deps: AgentImportLoaderDeps): () => AgentImportBundle {
   return lazyBundleLoader({
     ...deps,
-    log: {
-      trace: (message) => {
-        deps.log.trace(message)
-      },
-      info: (message) => {
-        deps.log.info(message)
-      },
-      warn: (message) => {
-        deps.log.warn(message)
-      },
-      error: (message) => {
-        deps.log.error(
-          message.includes('does not export')
-            ? 'The import bundle does not export the import'
-            : 'The import bundle could not be loaded',
-        )
-      },
-    },
+    log: fixedMessageLog({
+      log: deps.log,
+      loadFailed: 'The import bundle could not be loaded',
+      wrongShape: 'The import bundle does not export the import',
+    }),
     isBundle: isAgentImportBundle,
     label: 'import bundle',
     unavailable: () => UI_TEXT.agentImportUnavailable,

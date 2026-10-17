@@ -1,0 +1,109 @@
+[
+  {
+    "name": "status-field-required",
+    "file": "src/core/backends/modelapi/schemas.ts",
+    "test": "test/unit/modelApiCaptures.test.ts",
+    "exit": 1,
+    "sha256Before": "757f33d8d3af12434c56f07f0248d21f32c435fe26e449fbc0cdaa3f37144219",
+    "sha256After": "757f33d8d3af12434c56f07f0248d21f32c435fe26e449fbc0cdaa3f37144219",
+    "failure": "FAIL  test/unit/modelApiCaptures.test.ts > M106 captured Meta wire contracts > status accepts both authentication lanes and rejects malformed consumed fields"
+  },
+  {
+    "name": "compaction-nonblank",
+    "file": "src/shared/sideCallSchemas.ts",
+    "test": "test/unit/sideCallSchemas.test.ts",
+    "exit": 1,
+    "sha256Before": "e0e24bbf04449d9b639b80f8e00c2d795bfe3304cab5d51e5e8f75f4671308d6",
+    "sha256After": "e0e24bbf04449d9b639b80f8e00c2d795bfe3304cab5d51e5e8f75f4671308d6",
+    "failure": "FAIL  test/unit/sideCallSchemas.test.ts > M106 side-call contracts > requires C1\u2019s six prose sections without accepting host metadata from the model"
+  },
+  {
+    "name": "compaction-host-authority",
+    "file": "src/shared/sideCallSchemas.ts",
+    "test": "test/unit/sideCallSchemas.test.ts",
+    "exit": 1,
+    "sha256Before": "e0e24bbf04449d9b639b80f8e00c2d795bfe3304cab5d51e5e8f75f4671308d6",
+    "sha256After": "e0e24bbf04449d9b639b80f8e00c2d795bfe3304cab5d51e5e8f75f4671308d6",
+    "failure": "FAIL  test/unit/sideCallSchemas.test.ts > M106 side-call contracts > requires C1\u2019s six prose sections without accepting host metadata from the model"
+  },
+  {
+    "name": "u8-hosted-count",
+    "file": "test/fixtures/m106/u8-hosted-bound.json",
+    "test": "test/unit/modelApiCaptures.test.ts",
+    "exit": 1,
+    "sha256Before": "a7d2fa0b79b699ca6083c9c079799fb0567978f37d875d7d5f3756e1e9fbc7d3",
+    "sha256After": "a7d2fa0b79b699ca6083c9c079799fb0567978f37d875d7d5f3756e1e9fbc7d3",
+    "failure": "FAIL  test/unit/modelApiCaptures.test.ts > M106 captured Meta wire contracts > U8 returns one hosted search for max_tool_calls 1, with counted usage"
+  },
+  {
+    "name": "u9-event-count",
+    "file": "test/fixtures/m106/u9-strict-stream.json",
+    "test": "test/unit/modelApiCaptures.test.ts",
+    "exit": 1,
+    "sha256Before": "2d31193a7f122c35347e4dc66be077d0dcc47aa22e5e0921c64d859478091d34",
+    "sha256After": "2d31193a7f122c35347e4dc66be077d0dcc47aa22e5e0921c64d859478091d34",
+    "failure": "FAIL  test/unit/modelApiCaptures.test.ts > M106 captured Meta wire contracts > U9 validates complete captured SSE frames and distinguishes summaries from missing deltas"
+  },
+  {
+    "name": "u9-exact-refusal",
+    "file": "test/fixtures/m106/u9-strict-refusal.json",
+    "test": "test/unit/modelApiCaptures.test.ts",
+    "exit": 1,
+    "sha256Before": "f48554a6b7cea70a60dca06ee6806c7aea0698e475637aae8ba87167af3b7fc4",
+    "sha256After": "f48554a6b7cea70a60dca06ee6806c7aea0698e475637aae8ba87167af3b7fc4",
+    "failure": "FAIL  test/unit/modelApiCaptures.test.ts > M106 captured Meta wire contracts > U9 preserves the exact strict-schema refusal without guessing its shape"
+  },
+  {
+    "name": "u10-strict-output",
+    "file": "test/fixtures/m106/u10-structured-output.json",
+    "test": "test/unit/modelApiCaptures.test.ts",
+    "exit": 1,
+    "sha256Before": "7e6c1da9edcccfaa1ce9fb0ba1bf2580cf341e54ac5f87bc29c39923d571fba7",
+    "sha256After": "7e6c1da9edcccfaa1ce9fb0ba1bf2580cf341e54ac5f87bc29c39923d571fba7",
+    "failure": "FAIL  test/unit/modelApiCaptures.test.ts > M106 captured Meta wire contracts > U10 accepts strict structured output alongside a strict function tool at minimal effort"
+  },
+  {
+    "name": "u11-compaction-inconclusive",
+    "file": "test/fixtures/m106/u11-compaction.json",
+    "test": "test/unit/modelApiCaptures.test.ts",
+    "exit": 1,
+    "sha256Before": "11973e00e9c8c96db831d6aef93c8aff07d55ea14ab5fc22aafb4fbc4bcae47b",
+    "sha256After": "11973e00e9c8c96db831d6aef93c8aff07d55ea14ab5fc22aafb4fbc4bcae47b",
+    "failure": "FAIL  test/unit/modelApiCaptures.test.ts > M106 captured Meta wire contracts > U11 records the threshold refusal and no compaction item without enabling server compaction"
+  },
+  {
+    "name": "u12-live-limit",
+    "file": "test/fixtures/m106/u12-rate-headers.json",
+    "test": "test/unit/modelApiCaptures.test.ts",
+    "exit": 1,
+    "sha256Before": "450841ab3f6d34ae9db12e324aa3c1268d2456a80d7fa451a224ef628e004fcf",
+    "sha256After": "450841ab3f6d34ae9db12e324aa3c1268d2456a80d7fa451a224ef628e004fcf",
+    "failure": "FAIL  test/unit/modelApiCaptures.test.ts > M106 captured Meta wire contracts > U12 retains distinct live remaining counts for streamed and ordinary responses, without reset headers"
+  },
+  {
+    "name": "u13-retained-phase",
+    "file": "test/fixtures/m106/u13-phases.json",
+    "test": "test/unit/modelApiCaptures.test.ts",
+    "exit": 1,
+    "sha256Before": "73946348cea61f074cd97533aae3174454e345fe2e29c28b16c04524f06e422f",
+    "sha256After": "73946348cea61f074cd97533aae3174454e345fe2e29c28b16c04524f06e422f",
+    "failure": "FAIL  test/unit/modelApiCaptures.test.ts > M106 captured Meta wire contracts > U13 retains commentary and absent phases exactly as captured"
+  },
+  {
+    "name": "u14-identical-models",
+    "file": "test/fixtures/m106/u14-models.json",
+    "test": "test/unit/modelApiCaptures.test.ts",
+    "exit": 1,
+    "sha256Before": "f2ff4fcd568cb6fa5435979ff4b6bf223cefb6f4b512f8a9df9fbe4d23f6bd0d",
+    "sha256After": "f2ff4fcd568cb6fa5435979ff4b6bf223cefb6f4b512f8a9df9fbe4d23f6bd0d",
+    "failure": "FAIL  test/unit/modelApiCaptures.test.ts > M106 captured Meta wire contracts > U14 has the same model list for no client, Muse Code and VS Code"
+  },
+  {
+    "name": "upstream-hosted-field",
+    "file": "docs/research/m106-capability-record.patch",
+    "test": "offline actual upstream resolver",
+    "beforeExit": 1,
+    "afterExit": 0,
+    "failure": "Upstream rejects hosted.maxToolCalls as an unrecognized key; patched resolver passes provenance, unknown, malformed value and precedence checks across nine providers."
+  }
+]

@@ -5,8 +5,8 @@
 // app reads it through `useSyncExternalStore`, and the persister saves it to
 // VS Code's webview state so the crash screen's Reload comes back with it.
 
-import { WEBVIEW_STATE_SAVE_MS } from '../../shared/constants'
-import { parseHostToWebviewMessage } from '../../shared/protocol'
+import { UI_TEXT, WEBVIEW_STATE_SAVE_MS } from '../../shared/constants'
+import { isEstimatorHostMessage, parseHostToWebviewMessage } from '../../shared/protocol'
 import type { ErrorReporter } from '../errorReport'
 import type { MessageSource } from '../hostBridge'
 import { webviewStateOf, type WebviewState } from './snapshot'
@@ -65,14 +65,53 @@ export function listenToHost(
   now: () => number,
   report: ErrorReporter,
 ): () => void {
+  let generation = 0
+  let isActive = true
   const onMessage = (event: MessageEvent<unknown>) => {
+    if (isEstimatorHostMessage(event.data)) {
+      const owner = generation
+      void import('../../shared/estimatorProtocol')
+        .then((parser) => {
+          if (!isActive || owner !== generation) return
+          const parsed = parser.parseHostToEstimatorMessage(event.data)
+          if (!parsed.ok) {
+            report('hostMessage', parsed.error)
+            return
+          }
+          store.dispatch({ type: 'hostMessage', message: parsed.message, at: now() })
+        })
+        .catch((error: unknown) => {
+          if (!isActive || owner !== generation) return
+          report('hostMessage', error)
+          store.dispatch({
+            type: 'hostMessage',
+            message: { type: 'estimatorFailure', reason: UI_TEXT.surfaceLoadFailed },
+            at: now(),
+          })
+        })
+      return
+    }
     const parsed = parseHostToWebviewMessage(event.data)
     if (!parsed.ok) {
       const reason = `Dropped malformed host message: ${parsed.error}`
       console.warn(reason)
       report('hostMessage', reason)
+      // M107: a refused resource status replaces the shown one with "unavailable".
+      if (
+        typeof event.data === 'object' &&
+        event.data !== null &&
+        'type' in event.data &&
+        event.data.type === 'resourceStatus'
+      )
+        store.dispatch({
+          type: 'hostMessage',
+          message: { type: 'resourceStatus', status: null },
+          at: now(),
+        })
       return
     }
+    if (parsed.message.type === 'conversationCleared' || parsed.message.type === 'historyLoaded')
+      generation++
     try {
       store.dispatch({ type: 'hostMessage', message: parsed.message, at: now() })
     } catch (error: unknown) {
@@ -84,6 +123,8 @@ export function listenToHost(
   }
   target.addEventListener('message', onMessage)
   return () => {
+    isActive = false
+    generation++
     target.removeEventListener('message', onMessage)
   }
 }

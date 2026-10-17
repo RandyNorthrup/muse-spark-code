@@ -1,0 +1,36 @@
+
+ RUN  v5.0.2 /Users/randy/lanes/FIXM96K4
+
+ ❯ test/unit/teamProcessLifetime.test.ts (25 tests | 4 failed) 4423ms
+   ❯ M96 K launcher contract (20)
+     × warns about a damaged foreign journal directory and keeps valid launches: link 183ms
+     × warns about a damaged foreign journal directory and keeps valid launches: file 177ms
+     × warns about a damaged foreign journal directory and keeps valid launches: removed 227ms
+     × warns about a damaged foreign journal directory and keeps valid launches: unreadable 190ms
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 21 passed (25)
+   Start at  14:07:07
+   Duration  5.37s (tests 85%, transform 10%, import 3%, setup 2%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > warns about a damaged foreign journal directory and keeps valid launches: link
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > warns about a damaged foreign journal directory and keeps valid launches: file
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > warns about a damaged foreign journal directory and keeps valid launches: removed
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > warns about a damaged foreign journal directory and keeps valid launches: unreadable
+Error: TEAM_JOURNAL_DIRECTORY_UNREADABLE
+ ❯ Object.otherWindows src/host/team/teamJournal.ts:272:17
+    270|           names = await readdir(foreignDirectory)
+    271|         } catch {
+    272|           throw new Error('TEAM_JOURNAL_DIRECTORY_UNREADABLE')
+       |                 ^
+    273|         }
+    274|         let owner: WindowIdentity | undefined
+ ❯ test/unit/teamProcessLifetime.test.ts:400:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯

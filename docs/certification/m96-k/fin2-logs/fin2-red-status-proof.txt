@@ -1,0 +1,73 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+rig=win11 slot=finm96k2-red snapshot=f375289d
+rig: Windows WIN-11-VM; slot finm96k2-red; snapshot f375289d6a595d79fa1a1e9c953d5b9fa3bb1efe
+base=C:\Users\randy\gates\base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 C:/Users/Randy/gates/rt-finm96k2-red
+
+ ❯ test/unit/teamNativeLifetime.test.ts (5 tests | 2 failed) 6661ms
+   ❯ M96 K real native lifetime (5)
+     ✓ starts a separate journalled team Muse Code host over real fake-CLI pipes 724ms
+     × preserves the real command exit code through its native container 1298ms
+     ✓ reconciles foreign journals before startup returns and preserves all foreign bytes 2070ms
+     × runs marked child at below-normal priority with intent and OS confirmation on disk 621ms
+     ✓ prepared Windows owner (1)
+       ✓ hard host death closes jobs and ends detached grandchildren 1146ms
+ ✓ test/unit/teamHintsAndLoad.test.ts (9 tests) 944ms
+   ✓ M96 K advisory hints (5)
+     ✓ uses state home and secures a real native owner-only hints folder 781ms
+ ✓ test/unit/teamProcessLifetime.test.ts (15 tests) 715ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > preserves the real command exit code through its native container
+AssertionError: expected { childExited: true, …(1) } to deeply equal { childExited: true, …(1) }
+
+- Expected
++ Received
+
+  {
+    "childExited": true,
+-   "descendants": "proved",
++   "descendants": "uncertain",
+  }
+
+ ❯ test/unit/teamNativeLifetime.test.ts:182:19
+    180|     const end = await launched.ended
+    181|     if (process.platform === 'win32') {
+    182|       expect(end).toEqual({ childExited: true, descendants: 'proved' })
+       |                   ^
+    183|       expect(await f.lifetime.recoveryRecords(f.journal)).toEqual([])
+    184|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > runs marked child at below-normal priority with intent and OS confirmation on disk
+AssertionError: expected 'uncertain' to be 'proved' // Object.is equality
+
+Expected: "proved"
+Received: "uncertain"
+
+ ❯ test/unit/teamNativeLifetime.test.ts:252:67
+    250|     if (process.platform === 'win32') expect(child.child.exitCode).not…
+    251|     expect(outcome.childExited).toBe(true)
+    252|     if (process.platform === 'win32') expect(outcome.descendants).toBe…
+       |                                                                   ^
+    253|   })
+    254|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  2 failed | 27 passed (29)
+   Start at  09:03:36
+   Duration  11.22s (tests 78%, import 10%, transform 6%, setup 6%)
+
+exit=1

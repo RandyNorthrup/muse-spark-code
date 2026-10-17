@@ -1,0 +1,86 @@
+{
+  "rig": "kubuntu",
+  "checks": [
+    {
+      "check": "deadcode",
+      "command": "npm run deadcode",
+      "exit": 0,
+      "durationSeconds": 9.199
+    },
+    {
+      "check": "duplication",
+      "command": "npx jscpd",
+      "exit": 0,
+      "durationSeconds": 2.528
+    },
+    {
+      "check": "l10n",
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "durationSeconds": 5.327
+    },
+    {
+      "check": "tokens",
+      "command": "npm run check:tokens",
+      "exit": 0,
+      "durationSeconds": 4.928
+    },
+    {
+      "check": "host-api",
+      "command": "npm run check:host-api",
+      "exit": 0,
+      "durationSeconds": 27.513
+    },
+    {
+      "check": "typecheck",
+      "command": "npm run typecheck",
+      "exit": 0,
+      "projects": 5
+    },
+    {
+      "check": "capture-unit",
+      "command": "npx vitest run test/unit/visualCapture.test.mjs --maxWorkers=3",
+      "exit": 0,
+      "assertions": 5,
+      "durationSeconds": 12.9,
+      "defaultDeadlines": true
+    },
+    {
+      "check": "stability-unit",
+      "command": "npx vitest run test/unit/visualStability.test.mjs --maxWorkers=3",
+      "exit": 0,
+      "assertions": 1,
+      "durationSeconds": 40.49,
+      "defaultDeadlines": true
+    },
+    {
+      "check": "pure-unit",
+      "command": "npx vitest run test/unit/visualGate.test.mjs test/unit/visualMatrix.test.mjs test/unit/visualSource.test.mjs --maxWorkers=3",
+      "exit": 0,
+      "assertions": 21,
+      "durationSeconds": 3.73,
+      "defaultDeadlines": true
+    },
+    {
+      "check": "eslint",
+      "command": "npx eslint --max-warnings=0 scripts/check-visual.mjs scripts/lib/visualManifest.mjs test/harness/goldens/capture.mjs test/unit/visualGate.test.mjs test/unit/visualCapture.test.mjs test/unit/visualStability.test.mjs",
+      "exit": 0
+    },
+    {
+      "check": "production-build",
+      "command": "npm run build",
+      "exit": 0,
+      "logSha256": "f03cca044025fef01cb8a64d121e05ad6796cc6fd38d5ef01d994f05ac282c5a"
+    }
+  ],
+  "modelAttempts": 0,
+  "retainedFailedAttempts": [
+    {
+      "check": "stability-unit",
+      "exit": 1,
+      "durationSeconds": 11.23,
+      "error": "default 10000 ms setup hook timeout; isolated retry unchanged passes"
+    }
+  ],
+  "overlapNote": "Typecheck briefly overlapped the final capture test and an automatically resumed capture build; all exited 0. Later checks ran serially. Capture builds in the two roots were serialized."
+}

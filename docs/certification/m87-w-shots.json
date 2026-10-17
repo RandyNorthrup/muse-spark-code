@@ -1,0 +1,840 @@
+{
+  "tree": "78909aab (dev build)",
+  "shots": [
+    {
+      "name": "m87-w-context-meter-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-warning-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-warning-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-warning-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-warning-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-full-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-full-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-full-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-context-meter-full-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-palette-tips-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-palette-tips-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-palette-tips-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-palette-tips-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-slash-tips-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-slash-tips-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-slash-tips-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-slash-tips-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-stop-running-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-stop-running-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-stop-running-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-stop-running-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tool-io-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tool-io-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tool-io-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tool-io-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tool-io-expanded-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tool-io-expanded-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tool-io-expanded-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tool-io-expanded-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-status-heartbeat-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-status-heartbeat-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-status-heartbeat-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-status-heartbeat-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-status-heartbeat-narrow-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-status-heartbeat-narrow-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-steps-summary-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-steps-summary-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-steps-summary-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-steps-summary-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-steps-summary-open-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-steps-summary-open-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-steps-summary-open-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-steps-summary-open-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-todo-collapsed-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-todo-collapsed-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-todo-collapsed-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-todo-collapsed-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-ended-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-ended-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-ended-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-ended-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-plain-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-plain-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-plain-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tasks-tab-plain-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-message-time-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-message-time-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-message-time-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-message-time-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-queued-menu-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Queued message actions"
+    },
+    {
+      "name": "m87-w-queued-menu-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Queued message actions"
+    },
+    {
+      "name": "m87-w-queued-menu-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Queued message actions"
+    },
+    {
+      "name": "m87-w-queued-menu-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Queued message actions"
+    },
+    {
+      "name": "m87-w-queued-menu-edit-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Queued message actions"
+    },
+    {
+      "name": "m87-w-queued-menu-edit-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Queued message actions"
+    },
+    {
+      "name": "m87-w-queued-menu-edit-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Queued message actions"
+    },
+    {
+      "name": "m87-w-queued-menu-edit-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Queued message actions"
+    },
+    {
+      "name": "m87-w-diff-tally-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-diff-tally-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-diff-tally-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-diff-tally-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-chat-menu-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Rewind"
+    },
+    {
+      "name": "m87-w-chat-menu-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Rewind"
+    },
+    {
+      "name": "m87-w-chat-menu-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Rewind"
+    },
+    {
+      "name": "m87-w-chat-menu-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Rewind"
+    },
+    {
+      "name": "m87-w-chat-menu-narrow-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Rewind"
+    },
+    {
+      "name": "m87-w-chat-menu-narrow-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Rewind"
+    },
+    {
+      "name": "m87-w-chat-tool-menu-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Message actions"
+    },
+    {
+      "name": "m87-w-chat-tool-menu-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Message actions"
+    },
+    {
+      "name": "m87-w-chat-tool-menu-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Message actions"
+    },
+    {
+      "name": "m87-w-chat-tool-menu-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Message actions"
+    },
+    {
+      "name": "m87-w-chat-tool-menu-narrow-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Message actions"
+    },
+    {
+      "name": "m87-w-chat-tool-menu-narrow-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "Message actions"
+    },
+    {
+      "name": "m87-w-transcript-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-transcript-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-transcript-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-transcript-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tools-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tools-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tools-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-tools-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-approval-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-approval-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-approval-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-approval-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-editor-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-editor-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-editor-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-editor-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-focus-dark-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-focus-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-focus-light-690.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-focus-light-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-context-meter-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-context-meter-warning-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-context-meter-full-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-palette-tips-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-slash-tips-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-stop-running-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-tool-io-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-tool-io-expanded-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-status-heartbeat-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-status-heartbeat-narrow-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-steps-summary-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-steps-summary-open-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-todo-collapsed-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-tasks-tab-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-tasks-tab-ended-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-tasks-tab-plain-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-message-time-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-queued-menu-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "⟦Qúéúéd méššágé áçtíóñš ẋẋẋẋẋ ẋ⟧"
+    },
+    {
+      "name": "m87-w-pseudo-queued-menu-edit-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "⟦Qúéúéd méššágé áçtíóñš ẋẋẋẋẋ ẋ⟧"
+    },
+    {
+      "name": "m87-w-pseudo-diff-tally-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-chat-menu-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "⟦Réwíñd ẋẋ⟧"
+    },
+    {
+      "name": "m87-w-pseudo-chat-menu-narrow-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "⟦Réwíñd ẋẋ⟧"
+    },
+    {
+      "name": "m87-w-pseudo-chat-tool-menu-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "⟦Méššágé áçtíóñš ẋẋẋẋẋ⟧"
+    },
+    {
+      "name": "m87-w-pseudo-chat-tool-menu-narrow-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": "⟦Méššágé áçtíóñš ẋẋẋẋẋ⟧"
+    },
+    {
+      "name": "m87-w-pseudo-transcript-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-tools-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-approval-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-editor-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    },
+    {
+      "name": "m87-w-pseudo-focus-dark-320.png",
+      "overflow": false,
+      "harnessReports": 0,
+      "menu": null
+    }
+  ],
+  "problems": []
+}

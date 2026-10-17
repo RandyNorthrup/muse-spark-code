@@ -13,22 +13,29 @@ export async function walkFiles(
   root: string,
   limit: number,
   log: Logger,
+  signal?: AbortSignal,
 ): Promise<readonly string[]> {
   const found: string[] = []
   const folders = ['']
   while (found.length < limit) {
+    signal?.throwIfAborted()
     const folder = folders.shift()
     if (folder === undefined) {
       break
     }
     let entries
     try {
+      // Native directory reads have no signal option; the dispatcher
+      // detaches a stuck OS call and discards its eventual result.
       entries = await readdir(path.join(root, folder), { withFileTypes: true })
+      signal?.throwIfAborted()
     } catch (error: unknown) {
+      signal?.throwIfAborted()
       log.warn(`Could not list ${folder === '' ? root : folder}: ${String(error)}`)
       continue
     }
     for (const entry of entries) {
+      signal?.throwIfAborted()
       const relative = folder === '' ? entry.name : `${folder}/${entry.name}`
       if (FILE_WALK_SKIPPED.has(entry.name)) {
         continue

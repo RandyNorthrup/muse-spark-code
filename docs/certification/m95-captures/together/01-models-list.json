@@ -1,0 +1,198 @@
+{
+  "provider": "together",
+  "step": "models-list",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "https://api.together.ai/v1/models",
+    "headers": {
+      "authorization": "<redacted>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-methods": "GET,POST,PATCH",
+      "access-control-allow-origin": "*",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a457abc9796c4ea5-LAX",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-type": "application/json",
+      "date": "Sun, 04 Oct 2026 22:37:25 GMT",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=2592000; includeSubDomains",
+      "transfer-encoding": "chunked",
+      "vary": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+      "x-content-type-options": "nosniff"
+    },
+    "bodySummary": {
+      "note": "trimmed: count, keys and sample entries",
+      "count": 264,
+      "topLevelKeys": ["<array>"],
+      "entryKeys": [
+        "config",
+        "context_length",
+        "created",
+        "display_name",
+        "id",
+        "license",
+        "link",
+        "object",
+        "organization",
+        "pricing",
+        "running",
+        "type",
+        "uuid"
+      ],
+      "sample": [
+        {
+          "id": "deepseek-ai/DeepSeek-V4.1-Flash",
+          "object": "model",
+          "created": 1789197495,
+          "type": "chat",
+          "running": false,
+          "display_name": "DeepSeek V4.1 Flash",
+          "organization": "<redacted>",
+          "context_length": 1048576,
+          "config": {
+            "chat_template": null,
+            "stop": [],
+            "bos_token": null,
+            "eos_token": null
+          },
+          "pricing": {
+            "hourly": 0,
+            "input": 0.3,
+            "output": 1.2,
+            "base": 0,
+            "finetune": 0,
+            "cached_input": 0.006,
+            "image_pixel": 0,
+            "transcribe": 0,
+            "image": 0,
+            "video": 0
+          }
+        },
+        {
+          "id": "zai-org/GLM-5.3",
+          "object": "model",
+          "created": 1787957543,
+          "type": "chat",
+          "running": false,
+          "display_name": "GLM 5.3",
+          "organization": "<redacted>",
+          "context_length": 1048575,
+          "config": {
+            "chat_template": null,
+            "stop": [],
+            "bos_token": null,
+            "eos_token": null
+          },
+          "pricing": {
+            "hourly": 0,
+            "input": 1.4,
+            "output": 4.4,
+            "base": 0,
+            "finetune": 0,
+            "cached_input": 0.25999999999999995,
+            "image_pixel": 0,
+            "transcribe": 0,
+            "image": 0,
+            "video": 0
+          }
+        },
+        {
+          "id": "Qwen/Qwen3.8-Flash",
+          "uuid": "endpoint-1cbc4863-1b21-4b68-99d4-6c51112fae53",
+          "object": "model",
+          "created": 1790008874,
+          "type": "chat",
+          "running": false,
+          "display_name": "Qwen3.8 Flash",
+          "organization": "<redacted>",
+          "context_length": 1000000,
+          "config": {
+            "chat_template": null,
+            "stop": [],
+            "bos_token": null,
+            "eos_token": null
+          },
+          "pricing": {
+            "hourly": 0,
+            "input": 0.15,
+            "output": 0.47,
+            "base": 0,
+            "finetune": 0,
+            "image_pixel": 0,
+            "transcribe": 0,
+            "image": 0,
+            "video": 0
+          }
+        },
+        {
+          "id": "openai/gpt-oss-120b",
+          "uuid": "endpoint-cf361a3e-47d0-4dfc-851a-97098881e6a2",
+          "object": "model",
+          "created": 1754414557,
+          "type": "chat",
+          "running": false,
+          "display_name": "OpenAI GPT-OSS 120B",
+          "organization": "<redacted>",
+          "link": "https://huggingface.co/openai/gpt-oss-120b",
+          "license": "other",
+          "context_length": 131072,
+          "config": {
+            "chat_template": null,
+            "stop": ["<|return|>"],
+            "bos_token": "<|startoftext|>",
+            "eos_token": "<|return|>"
+          },
+          "pricing": {
+            "hourly": 0,
+            "input": 0.15,
+            "output": 0.6,
+            "base": 0,
+            "finetune": 0,
+            "image_pixel": 0,
+            "transcribe": 0,
+            "image": 0,
+            "video": 0
+          }
+        },
+        {
+          "id": "openai/gpt-oss-20b",
+          "uuid": "endpoint-f382c20a-6806-4ac2-abfb-d00d7a0b0c2b",
+          "object": "model",
+          "created": 1774480577,
+          "type": "chat",
+          "running": false,
+          "display_name": "OpenAI GPT-OSS 20B",
+          "organization": "<redacted>",
+          "link": "https://huggingface.co/api/models/openai/gpt-oss-20b",
+          "license": "apache-2.0",
+          "context_length": 131072,
+          "config": {
+            "chat_template": null,
+            "stop": [],
+            "bos_token": null,
+            "eos_token": null
+          },
+          "pricing": {
+            "hourly": 0,
+            "input": 0.05,
+            "output": 0.2,
+            "base": 0,
+            "finetune": 0,
+            "image_pixel": 0,
+            "transcribe": 0,
+            "image": 0,
+            "video": 0
+          }
+        }
+      ]
+    }
+  }
+}

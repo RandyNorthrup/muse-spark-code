@@ -1,0 +1,51 @@
+{
+  "path": "/v1/messages",
+  "headers": {
+    "anthropic-version": "2023-06-01"
+  },
+  "body": {
+    "model": "claude-sonnet-5-5",
+    "max_tokens": 256,
+    "system": [
+      {
+        "type": "text",
+        "text": "Describe the attached picture.",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "5m"
+        }
+      }
+    ],
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "What is in this picture?"
+          },
+          {
+            "type": "image",
+            "source": {
+              "type": "base64",
+              "media_type": "image/png",
+              "data": "iVBORw0KGgo="
+            },
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "5m"
+            }
+          }
+        ]
+      }
+    ],
+    "stream": true,
+    "thinking": {
+      "type": "adaptive",
+      "display": "summarized"
+    },
+    "output_config": {
+      "effort": "high"
+    }
+  }
+}

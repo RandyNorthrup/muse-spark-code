@@ -22,9 +22,9 @@ describe('SignIn', () => {
   it('shows the sign-in choices without a diagnostic when signed out cleanly', () => {
     const props = renderSignIn()
     expect(screen.queryByRole('alert')).toBeNull()
-    expect(screen.queryByText('Check again')).toBeNull()
-    fireEvent.click(screen.getByText('Sign in with your Meta account'))
-    fireEvent.click(screen.getByText('Use a Model API key'))
+    expect(screen.queryByText('Check Again')).toBeNull()
+    fireEvent.click(screen.getByText('Sign In With Your Meta Account'))
+    fireEvent.click(screen.getByText('Use a Model API Key'))
     expect(vi.mocked(props.onSignIn).mock.calls).toEqual([['browser'], ['apiKey']])
   })
 
@@ -37,21 +37,21 @@ describe('SignIn', () => {
   it('shows a backend error as an alert with a retry button', () => {
     const props = renderSignIn({ status: 'error', detail: 'Muse Code stopped unexpectedly.' })
     expect(screen.getByRole('alert')).toHaveTextContent('Muse Code stopped unexpectedly.')
-    fireEvent.click(screen.getByText('Check again'))
+    fireEvent.click(screen.getByText('Check Again'))
     expect(props.onRetry).toHaveBeenCalledOnce()
   })
 
   it('shows install guidance when the CLI is missing, with and without a diagnostic', () => {
     const props = renderSignIn({ status: 'noCli' })
-    expect(screen.getByRole('heading', { name: 'Muse Code is not installed' })).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Open install instructions'))
+    expect(screen.getByRole('heading', { name: 'Muse Code Is Not Installed' })).toBeInTheDocument()
+    fireEvent.click(screen.getByText('Open Install Instructions'))
     expect(props.onOpenExternal).toHaveBeenCalledWith('https://dev.meta.ai/products/muse-code/')
   })
 
   it('shows the waiting text while signing in, falling back to the default copy', () => {
     const props = renderSignIn({ status: 'signingIn' })
     expect(screen.getByText('Waiting for browser approval…')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Cancel sign-in'))
+    fireEvent.click(screen.getByText('Cancel Sign-In'))
     expect(props.onCancelSignIn).toHaveBeenCalledOnce()
   })
 
@@ -71,7 +71,7 @@ describe('SignIn', () => {
     expect(screen.queryByRole('dialog', { name: 'Install Muse Code' })).toBeNull()
     expect(props.onInstall).not.toHaveBeenCalled()
     fireEvent.click(screen.getByText('Install Muse Code'))
-    fireEvent.click(screen.getByText('Run installer'))
+    fireEvent.click(screen.getByText('Run Installer'))
     expect(props.onInstall).toHaveBeenCalledOnce()
   })
 
@@ -82,18 +82,18 @@ describe('SignIn', () => {
       userCode: 'ABCD-EFGH',
     })
     expect(screen.getByText('ABCD-EFGH')).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Open sign-in page'))
+    fireEvent.click(screen.getByText('Open Sign-In Page'))
     expect(props.onOpenExternal).toHaveBeenCalledWith(
       'https://auth.meta.com/oauth/device/?code=example',
     )
-    fireEvent.click(screen.getByText('Cancel sign-in'))
+    fireEvent.click(screen.getByText('Cancel Sign-In'))
     expect(props.onCancelSignIn).toHaveBeenCalledOnce()
   })
 
   it('offers only the paths the host lists, and the key path beside the install guidance', () => {
     const props = renderSignIn({ methods: ['apiKey'] })
-    expect(screen.queryByText('Sign in with your Meta account')).toBeNull()
-    fireEvent.click(screen.getByText('Use a Model API key'))
+    expect(screen.queryByText('Sign In With Your Meta Account')).toBeNull()
+    fireEvent.click(screen.getByText('Use a Model API Key'))
     expect(props.onSignIn).toHaveBeenCalledWith('apiKey')
   })
 
@@ -104,9 +104,38 @@ describe('SignIn', () => {
         'The Muse Code CLI hosts conversations for this extension; without it you can still use a Meta Model API key.',
       ),
     ).toBeInTheDocument()
-    fireEvent.click(screen.getByText('Use a Model API key'))
+    fireEvent.click(screen.getByText('Use a Model API Key'))
     expect(props.onSignIn).toHaveBeenCalledWith('apiKey')
     renderSignIn({ status: 'noCli', methods: [] })
-    expect(screen.queryAllByText('Use a Model API key')).toHaveLength(1)
+    expect(screen.queryAllByText('Use a Model API Key')).toHaveLength(1)
+  })
+
+  it('ranks the own-model choice equally with the other two when no backend is set up', () => {
+    const props = renderSignIn({ methods: ['browser', 'apiKey', 'byo'] })
+    const browser = screen.getByText('Sign In With Your Meta Account')
+    const key = screen.getByText('Use a Model API Key')
+    const own = screen.getByText('Start With Your Own Model')
+    expect(
+      screen.getByText('Add a model provider with an API key and pick a model.'),
+    ).toBeInTheDocument()
+    for (const button of [browser, key, own]) {
+      expect(button.tagName).toBe('BUTTON')
+      expect(button).toHaveClass('button-primary')
+    }
+    fireEvent.click(own)
+    expect(props.onSignIn).toHaveBeenCalledWith('byo')
+  })
+
+  it('keeps the ranking when the own-model choice is missing', () => {
+    renderSignIn({ methods: ['browser', 'apiKey'] })
+    expect(screen.getByText('Sign In With Your Meta Account')).toHaveClass('button-primary')
+    expect(screen.getByText('Use a Model API Key')).toHaveClass('button-secondary')
+    expect(screen.queryByText('Start With Your Own Model')).toBeNull()
+  })
+
+  it('offers the own-model choice beside the install guidance when the CLI is missing', () => {
+    const props = renderSignIn({ status: 'noCli', methods: ['browser', 'apiKey', 'byo'] })
+    fireEvent.click(screen.getByText('Start With Your Own Model'))
+    expect(props.onSignIn).toHaveBeenCalledWith('byo')
   })
 })

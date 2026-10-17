@@ -1,0 +1,17 @@
+.companion-recorder {
+  max-width: 100%;
+}
+
+.companion-recorder label {
+  display: block;
+}
+
+.companion-recorder video {
+  display: block;
+  width: 100%;
+}
+
+.companion-recorder button {
+  max-width: 100%;
+  white-space: normal;
+}

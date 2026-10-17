@@ -1,0 +1,68 @@
+{
+  "provider": "openai",
+  "capturedAt": "2026-10-04",
+  "totalRequests": 6,
+  "billedRequests": 4,
+  "freeRequests": 2,
+  "expected": {
+    "billed": 4,
+    "free": 2
+  },
+  "models": ["gpt-5.6-luna"],
+  "calls": [
+    {
+      "seq": 1,
+      "name": "models-list",
+      "method": "GET",
+      "url": "https://api.openai.com/v1/models",
+      "status": 200,
+      "billed": false,
+      "ms": 1164
+    },
+    {
+      "seq": 2,
+      "name": "tool-call-stream",
+      "method": "POST",
+      "url": "https://api.openai.com/v1/responses",
+      "status": 200,
+      "billed": true,
+      "ms": 3287
+    },
+    {
+      "seq": 3,
+      "name": "tool-result-stream",
+      "method": "POST",
+      "url": "https://api.openai.com/v1/responses",
+      "status": 200,
+      "billed": true,
+      "ms": 2114
+    },
+    {
+      "seq": 4,
+      "name": "cache-call-1",
+      "method": "POST",
+      "url": "https://api.openai.com/v1/responses",
+      "status": 200,
+      "billed": true,
+      "ms": 2383
+    },
+    {
+      "seq": 5,
+      "name": "cache-call-2",
+      "method": "POST",
+      "url": "https://api.openai.com/v1/responses",
+      "status": 200,
+      "billed": true,
+      "ms": 842
+    },
+    {
+      "seq": 6,
+      "name": "error-invalid-model",
+      "method": "POST",
+      "url": "https://api.openai.com/v1/responses",
+      "status": 404,
+      "billed": false,
+      "ms": 235
+    }
+  ]
+}

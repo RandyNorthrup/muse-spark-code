@@ -1,7 +1,7 @@
 // Result extraction (M80, SPEC §6.5): after the exec child closes, and before
 // any patch is considered, its JSONL is checked whole: every line a valid
-// v1 event (envelope and body, each variant against a structural mirror of
-// execEventSchema, including the update egress rule; RVM80CD P2-3) with
+// v2 event (envelope and body, each variant against a structural mirror of
+// the exec schemas, including the update egress rule; RVM80CD P2-3) with
 // consecutive sequence numbers, exactly one result and that result last,
 // the result valid against a mirror of the execResultSchema invariants (both
 // parity-tested against lane A's zod schemas), and its exit code equal to
@@ -58,13 +58,42 @@ const LIMIT_KINDS = new Set([
   'accounting',
 ])
 const PAID_PHASES = new Set(['admitted', 'returned', 'refunded', 'uncertain', 'refused'])
+// Structural projections of shared/resources.ts, parity-tested against event v2.
+const RESOURCE_LEVELS = new Set(['normal', 'throttle', 'relocate', 'pause'])
+const RESOURCE_KINDS = new Set([
+  'toolShell',
+  'backgroundTask',
+  'check',
+  'mcpServer',
+  'worker',
+  'subagent',
+  'bestOfN',
+  'schedule',
+  'browserCheck',
+  'hook',
+  'museServe',
+  'other',
+])
+const RESOURCE_REASONS = new Set([
+  'cpu',
+  'memoryUsed',
+  'memoryFree',
+  'gpu',
+  'disk',
+  'recovery',
+  'critical',
+  'override',
+  'disabled',
+  'transport',
+  'osService',
+])
 // Projections of src/shared/constants.ts EXEC_PROHIBITED_UPDATE_PATTERN and
 // EXEC_RAW_TOOL_FIELDS (parity-tested).
 export const PROHIBITED_UPDATE = /^(?:agent_(?:message|thought)_chunk|tool)/
 export const RAW_TOOL_FIELDS = Object.freeze(['rawInput', 'rawOutput', 'toolCallId'])
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
 const USD_DECIMALS = 6
-const MAX_BUDGET_USD = 20
+const MAX_BUDGET_USD = '20'
 const MAX_REQUESTS = 500
 const MIN_TIMEOUT_SECONDS = 10
 const MAX_TIMEOUT_SECONDS = 21_600
@@ -93,24 +122,23 @@ const isCounter = (value) => Number.isSafeInteger(value) && value >= 0
 const isNullableCounter = (value) => value === null || isCounter(value)
 const isNullableText = (value) => value === null || typeof value === 'string'
 
-/** USD is a serialization only: its canonical micro-USD integer, or undefined. */
+/** Canonical decimal USD; fixed micro-units are bigint throughout validation. */
 export function microUsd(value) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return
-  const raw = value.toFixed(USD_DECIMALS)
-  if (Number(raw) !== value) return
-  const units = Number(raw.replace('.', ''))
-  return Number.isSafeInteger(units) ? units : undefined
+  if (typeof value !== 'string' || !/^(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/.test(value)) return
+  const [whole, fraction = ''] = value.split('.', 2)
+  if (fraction.length > USD_DECIMALS) return
+  const units =
+    BigInt(whole) * 10n ** BigInt(USD_DECIMALS) + BigInt(fraction.padEnd(USD_DECIMALS, '0'))
+  return units <= BigInt(Number.MAX_SAFE_INTEGER) ? units : undefined
 }
-
 const isAmount = (value) => microUsd(value) !== undefined
-
 function isSumEqual(total, values) {
   const expected = microUsd(total)
   const units = values.map((value) => microUsd(value))
   if (expected === undefined || units.includes(undefined)) return false
-  let sum = 0
+  let sum = 0n
   for (const unit of units) sum += unit
-  return Number.isSafeInteger(sum) && sum === expected
+  return sum === expected
 }
 
 function isRelativePath(value) {
@@ -156,7 +184,7 @@ function isCost(value) {
     isObject(value, ['settled', 'uncertain', 'reserved', 'total', 'isUpperBound']) &&
     typeof value.isUpperBound === 'boolean' &&
     isSumEqual(value.total, [value.settled, value.uncertain, value.reserved]) &&
-    (!(value.uncertain > 0 || value.reserved > 0) || value.isUpperBound)
+    ((value.uncertain === '0' && value.reserved === '0') || value.isUpperBound)
   )
 }
 
@@ -197,7 +225,8 @@ function isLastResponse(value) {
   )
 }
 
-const isCap = (value) => isAmount(value) && value > 0 && value <= MAX_BUDGET_USD
+const isCap = (value) =>
+  isAmount(value) && microUsd(value) > 0n && microUsd(value) <= microUsd(MAX_BUDGET_USD)
 
 function isLedger(value) {
   return (
@@ -299,7 +328,7 @@ function isBackendAccountingValid(value) {
       usage.requests === null &&
       limits.budgetUsd === null &&
       limits.maxRequests === null &&
-      Object.values(usage.paid).every((total) => total === 0)
+      Object.entries(usage.paid).every(([key, total]) => total === (key.endsWith('Usd') ? '0' : 0))
     )
   }
   if (
@@ -391,6 +420,44 @@ function isSafeUpdate(value) {
 
 const isTextFields = (value, keys) => keys.every((key) => typeof value[key] === 'string')
 
+function isResourceEvent(value) {
+  if (typeof value !== 'object' || value === null || !isCounter(value.atMs)) return false
+  switch (value.type) {
+    case 'levelChanged': {
+      return (
+        isObject(value, ['type', 'atMs', 'from', 'to', 'reason']) &&
+        RESOURCE_LEVELS.has(value.from) &&
+        RESOURCE_LEVELS.has(value.to) &&
+        RESOURCE_REASONS.has(value.reason)
+      )
+    }
+    case 'deferred': {
+      return (
+        isObject(value, ['type', 'atMs', 'kind', 'class']) &&
+        RESOURCE_KINDS.has(value.kind) &&
+        (value.class === 'foreground' || value.class === 'background')
+      )
+    }
+    case 'relocated': {
+      return (
+        isObject(value, ['type', 'atMs', 'kind', 'level', 'reason']) &&
+        (value.kind === 'worker' || value.kind === 'check') &&
+        RESOURCE_LEVELS.has(value.level) &&
+        value.reason === 'machineBusy'
+      )
+    }
+    case 'paused': {
+      return isObject(value, ['type', 'atMs', 'kind']) && RESOURCE_KINDS.has(value.kind)
+    }
+    case 'override': {
+      return isObject(value, ['type', 'atMs', 'untilMs']) && isCounter(value.untilMs)
+    }
+    default: {
+      return false
+    }
+  }
+}
+
 /** One event body by its type, field for field against execEventSchema (SPEC §5.1). */
 const EVENT_BODIES = Object.freeze({
   start: (value) =>
@@ -471,14 +538,15 @@ const EVENT_BODIES = Object.freeze({
     isObject(value, ['type', 'signal']) &&
     (value.signal === 'SIGINT' || value.signal === 'SIGTERM'),
   result: (value) => isObject(value, ['type', 'result']) && isExecResult(value.result),
+  resource: (value) => isObject(value, ['type', 'event']) && isResourceEvent(value.event),
 })
 
-/** One exec event: the v1 envelope and its body (SPEC §2.2, §5.1). */
+/** One exec event: the v2 envelope, including resource and structured-result variants. */
 export function isExecEvent(value) {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   const { v, seq, time, ...body } = value
   return (
-    v === 1 &&
+    v === 2 &&
     isCounter(seq) &&
     seq >= 1 &&
     typeof time === 'string' &&
@@ -489,11 +557,11 @@ export function isExecEvent(value) {
   )
 }
 
-/** The ExecResult v1 invariants, field for field (SPEC §2.1, §2.3). */
+/** The ExecResult v2 invariants, field for field (SPEC §2.1, §2.3). */
 export function isExecResult(value) {
   return (
     isObject(value, RESULT_KEYS) &&
-    value.v === 1 &&
+    value.v === 2 &&
     STATUSES.has(value.status) &&
     isCounter(value.exitCode) &&
     [null, 'SIGINT', 'SIGTERM'].includes(value.signal) &&
@@ -532,7 +600,7 @@ export function isExecResult(value) {
 
 /**
  * The single result in exec's JSONL text, or undefined when any line is not a
- * valid v1 event with the next sequence number, the text is cut mid-line,
+ * valid v2 event with the next sequence number, the text is cut mid-line,
  * there is no result, more than one, a line after it, or the result is
  * invalid.
  */

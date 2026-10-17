@@ -1,0 +1,41 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamProcessLifetime.test.ts (21 tests | 1 failed) 633ms
+   ❯ M96 K launcher contract (16)
+     × journals a later proved retirement and never downgrades it to uncertain 62ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > journals a later proved retirement and never downgrades it to uncertain
+AssertionError: expected { childExited: true, …(1) } to deeply equal { childExited: true, …(1) }
+
+- Expected
++ Received
+
+  {
+    "childExited": true,
+-   "descendants": "proved",
++   "descendants": "uncertain",
+  }
+
+ ❯ test/unit/teamProcessLifetime.test.ts:444:34
+    442|     hasChildExited = true
+    443|     shouldProve = false
+    444|     expect(await child.retire()).toEqual({ childExited: true, descenda…
+       |                                  ^
+    445|     expect(await lifetime.recoveryRecords(f.journal)).toEqual([])
+    446|     await lifetime.dispose()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 20 passed (21)
+   Start at  12:51:44
+   Duration  1.54s (tests 45%, transform 33%, import 13%, setup 9%)

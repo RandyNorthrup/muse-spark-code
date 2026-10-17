@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The session goal (M45, PLAN.md D38), pinned above the composer while the
 // conversation has one: the objective, its status in words, a progress bar,
 // what the agent is doing now and next, and Muse Code's verbs as buttons
@@ -76,7 +77,7 @@ function ObjectiveForm({
     }
   }
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== 'Escape') {
+    if (webviewKey('goal.edit', event) !== 'close') {
       return
     }
     // Escape closes the field, not the panel's menus behind it.
@@ -88,7 +89,7 @@ function ObjectiveForm({
     <form className="goal-edit" onSubmit={submit}>
       <input
         ref={inputRef}
-        className="question-input goal-edit-input"
+        className="question-input goal-edit-input chat-control"
         type="text"
         dir="auto"
         aria-label={UI_TEXT.goalEditLabel}
@@ -98,10 +99,14 @@ function ObjectiveForm({
         }}
         onKeyDown={onKeyDown}
       />
-      <button type="submit" className="tool-more" disabled={isPending || draft.trim() === ''}>
+      <button
+        type="submit"
+        className="tool-more chat-control"
+        disabled={isPending || draft.trim() === ''}
+      >
         {UI_TEXT.goalEditSave}
       </button>
-      <button type="button" className="tool-more" onClick={onCancel}>
+      <button type="button" className="tool-more chat-control" onClick={onCancel}>
         {UI_TEXT.goalEditCancel}
       </button>
     </form>
@@ -157,7 +162,7 @@ function GoalPanelBody({
           {isActive ? (
             <button
               type="button"
-              className="tool-more"
+              className="tool-more chat-control"
               title={UI_TEXT.goalPauseTitle}
               onClick={() => {
                 onCommand('pause')
@@ -169,7 +174,7 @@ function GoalPanelBody({
           {isPaused ? (
             <button
               type="button"
-              className="tool-more"
+              className="tool-more chat-control"
               title={UI_TEXT.goalResumeTitle}
               onClick={() => {
                 onCommand('resume')
@@ -182,7 +187,7 @@ function GoalPanelBody({
             <button
               ref={editRef}
               type="button"
-              className="tool-more"
+              className="tool-more chat-control"
               title={UI_TEXT.goalEditTitle}
               aria-expanded={isFormShown}
               onClick={() => {
@@ -199,7 +204,7 @@ function GoalPanelBody({
           ) : null}
           <button
             type="button"
-            className="tool-more"
+            className="tool-more chat-control"
             title={UI_TEXT.goalClearTitle}
             onClick={() => {
               closeForm()

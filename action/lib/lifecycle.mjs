@@ -268,24 +268,34 @@ async function within(waiting, withinMs) {
 }
 
 /** Bytes from a child stream, into memory or a private file, never past the bound. */
-function boundedSink(stream, maxBytes, filePath, onOverflow, onFileError) {
+function boundedSink(stream, maxBytes, filePath, onOverflow, onFileError, prefixMaxBytes) {
   const chunks = []
   let bytes = 0
+  let retained = 0
   const file =
     filePath === undefined ? undefined : createWriteStream(filePath, { flags: 'wx', mode: 0o600 })
   file?.on('error', onFileError)
   stream.on('data', (chunk) => {
     bytes += chunk.length
-    if (bytes > maxBytes) {
+    if (!Number.isSafeInteger(bytes) || (prefixMaxBytes === undefined && bytes > maxBytes)) {
       stream.destroy()
       onOverflow()
       return
     }
-    if (file === undefined) chunks.push(chunk)
-    else file.write(chunk)
+    // Review input keeps only its bounded prefix; drain/count the rest without
+    // retaining it. The same child and phase deadlines still govern the stream.
+    const captured =
+      prefixMaxBytes === undefined
+        ? chunk
+        : Buffer.from(chunk.subarray(0, Math.max(0, prefixMaxBytes - retained)))
+    retained += captured.length
+    if (captured.length === 0) return
+    if (file === undefined) chunks.push(captured)
+    else file.write(captured)
   })
   return {
     bytes: () => new Uint8Array(Buffer.concat(chunks)),
+    totalBytes: () => bytes,
     finish: (done) => {
       if (file === undefined) done()
       else file.end(done)
@@ -370,6 +380,13 @@ export function createLauncherOwner({
 
   function child(input) {
     refuseIfStopped()
+    if (
+      input.stdoutPrefixMaxBytes !== undefined &&
+      (!Number.isSafeInteger(input.stdoutPrefixMaxBytes) ||
+        input.stdoutPrefixMaxBytes <= 0 ||
+        input.stdoutPrefixMaxBytes > input.stdoutMaxBytes)
+    )
+      throw new Error('stdout prefix must fit the existing output bound')
     if (current !== undefined && !current.isClosed) {
       throw new Error('the owner runs one child at a time')
     }
@@ -406,6 +423,7 @@ export function createLauncherOwner({
         input.stdoutPath,
         overflow,
         fileFailure,
+        input.stdoutPrefixMaxBytes,
       )
       const stderr = boundedSink(spawned.stderr, input.stderrMaxBytes, undefined, overflow)
       spawned.stdin.on('error', () => {
@@ -421,7 +439,15 @@ export function createLauncherOwner({
         stdout.finish(() => {
           if (isSettled) return
           isSettled = true
-          resolve({ code, signal, stdout: stdout.bytes(), stderr: stderr.bytes() })
+          resolve({
+            code,
+            signal,
+            stdout: stdout.bytes(),
+            stderr: stderr.bytes(),
+            ...(input.stdoutPrefixMaxBytes !== undefined && {
+              stdoutTotalBytes: stdout.totalBytes(),
+            }),
+          })
         })
       })
       if (input.stdin === undefined) {

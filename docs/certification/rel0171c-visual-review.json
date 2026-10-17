@@ -1,0 +1,1078 @@
+{
+  "lane": "REL0171C",
+  "date": "2026-10-11",
+  "review": "REL0171C-0.17.1-truth-pass-notes-2026-10-11",
+  "revision": "dbdb55a0ee56769d09cfa7435f818685ebc55c31",
+  "rendered": {
+    "snapshot": "49b071f7ece526acfb968a69997738e0eefbbb82",
+    "tree": "c55e60d355547047b6e70724aa60a6462a431aa7",
+    "note": "The render ran on the rig snapshot of the worktree at dbdb55a0e; both commits have this tree, so the manifest names the branch commit.",
+    "seconds": 4383,
+    "rig": "linuxlt"
+  },
+  "browser": "153.0.8010.52",
+  "platform": "linux",
+  "rasterization": "a8de1ddfb6e62687899116825ad89f19166af18efdb086980f1c0e365c739033",
+  "archive": "/var/tmp/l-REL0171C/visual-rel0171c-dbdb55a",
+  "captures": 9792,
+  "totalBytes": 449727746,
+  "manifestSha256": "37e03deb3ca2352111f922d77ac65206c473856ec69cf5d01dd16c79aad4e6cf",
+  "previous": {
+    "review": "REL0171B-0.17.1-menus-settled-2026-10-10",
+    "revision": "cd2d3e687bc26872d57efcac7d0e6777658010da",
+    "archive": "/var/tmp/l-REL0171B/visual-rel0171b-cd2d3e6"
+  },
+  "policy": {
+    "threshold": 0.1,
+    "includeAA": false,
+    "maxChangedPixelRatio": 0.0001,
+    "maxChangedPixels": 12
+  },
+  "comparison": {
+    "counts": {
+      "identical": 8527,
+      "within": 1157,
+      "over": 108
+    },
+    "coverageChanged": 0,
+    "withinMaxChangedPixels": 3,
+    "overFramesBySceneAndWidth": {
+      "whats-new-footer": {
+        "320": 36,
+        "690": 36
+      },
+      "whats-new": {
+        "690": 36
+      }
+    },
+    "overScenes": {
+      "whats-new": "CHANGELOG 0.17.1 at 690 px: the Smaller fixes highlight gains the share-preview, ACP-session, budget-message and truth clauses, and the truth pass's entry is the first under Changed. At 320 px the first screen ends above that highlight and is unchanged.",
+      "whats-new-footer": "CHANGELOG 0.17.1: the end of the Fixed list, which this scene shows above the footer links, gains the truth pass's capture entry (CX1) as its last bullet; the entries before it move up by its height."
+    }
+  },
+  "inspection": "Every over-allowance frame (108: whats-new 36 at 690 px, whats-new-footer 72 at 320 and 690 px, six themes, six states) inspected at original size as before | after. Frames with the same before and after bytes share one image: 56 distinct pairs, listed below with the frames each stands for. Checked in each: Title Case labels (Try It, Full Changelog on GitHub, README on GitHub, Don’t Show on Updates), the keyboard focus ring on Full Changelog on GitHub clear of README on GitHub, pressed and disabled states, nothing clipped at 320 px, and What’s New text as written in CHANGELOG. No defect found; nothing re-baselined beyond these two scenes.",
+  "pairs": [
+    {
+      "image": "001-whats-new-footer-light-320-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/light/320",
+        "whats-new/whats-new-footer/hover/light/320",
+        "whats-new/whats-new-footer/selected/light/320"
+      ],
+      "changedPixels": 16813,
+      "beforeSha256": "7df693deb8043e8d93b6e6bc661e3903c1d6783fc16938d67c93f58994b1aee5",
+      "afterSha256": "acafb88d5a049ba3835baea5d3d8cbf7cd1d49cb3c5f7a17deab154f541c9334"
+    },
+    {
+      "image": "002-whats-new-footer-light-320-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/light/320"],
+      "changedPixels": 16813,
+      "beforeSha256": "698cd60ca73893cfd6d6ea9747c370bbd63916e4c0f9208d3ff323e607ffcbb4",
+      "afterSha256": "71286dc2916fb0fac0d2d82363bd9468f725256950be01ecbb34cc04446a5564"
+    },
+    {
+      "image": "003-whats-new-footer-light-320-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/light/320"],
+      "changedPixels": 16813,
+      "beforeSha256": "935d7a16aa0d738100470f685020f720e06a789ab8af25bba559a2993c9124f0",
+      "afterSha256": "fe9bb29982b37e52f85b46cfb745749114df45a5550e07745005ad5ec401cb66"
+    },
+    {
+      "image": "004-whats-new-footer-light-320-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/light/320"],
+      "changedPixels": 16813,
+      "beforeSha256": "c819bb9988677075a25559dcb413df1b213b9ba56bdc18aa07095af2a2f4d4b9",
+      "afterSha256": "fe49dab7e11d5ed23c2c9931b99ec0a445bb6a8a0c64d614a8eac9367f5d8196"
+    },
+    {
+      "image": "005-whats-new-light-690-default.png",
+      "frames": [
+        "whats-new/whats-new/default/light/690",
+        "whats-new/whats-new/hover/light/690",
+        "whats-new/whats-new/focus-visible/light/690",
+        "whats-new/whats-new/pressed/light/690",
+        "whats-new/whats-new/disabled/light/690",
+        "whats-new/whats-new/selected/light/690"
+      ],
+      "changedPixels": 27771,
+      "beforeSha256": "96d9e85b88c5f5073ebbeb7f8aa3cd925aca45b8788dad3846fe959aba2ae21a",
+      "afterSha256": "e3440432c01d1abb9add021729cd0ff0d8d5d90890c9df5fcc534e9febad66e5"
+    },
+    {
+      "image": "006-whats-new-footer-light-690-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/light/690",
+        "whats-new/whats-new-footer/hover/light/690",
+        "whats-new/whats-new-footer/selected/light/690"
+      ],
+      "changedPixels": 56456,
+      "beforeSha256": "aa6dfe233f75f9f0217c179f570c1aa98298be7757fbb8a6f89b83e2dd375f03",
+      "afterSha256": "6995fe3d16362c235600d7863049739e3a8d25c6003c9153bdf3822f1bca230b"
+    },
+    {
+      "image": "007-whats-new-footer-light-690-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/light/690"],
+      "changedPixels": 56456,
+      "beforeSha256": "0f37e1cbde22cef1cfd77f2cb1fd5bbae7c0b40a246fda031b94d6b1d2a8f769",
+      "afterSha256": "08c69795982895a15ce481076b1177fabf8fa8ae8914ffc28804e725b2037b1f"
+    },
+    {
+      "image": "008-whats-new-footer-light-690-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/light/690"],
+      "changedPixels": 56458,
+      "beforeSha256": "b89c9d2e79d10c5a9feffc3f1593b7dfb4cedca308c6aeae236b623b28d1683c",
+      "afterSha256": "99369764b3e2e2fa7f80a84dbfe4b74afd84c76831f60472722eb7004b532a26"
+    },
+    {
+      "image": "009-whats-new-footer-light-690-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/light/690"],
+      "changedPixels": 56451,
+      "beforeSha256": "35f47a81e478b011a752a0fe5827fe60d7da1b963701bb9506436472eeca0d83",
+      "afterSha256": "aa990c50eb18b0e680224e02ab79bdf413d5675fa2c90379927dd7e8ffea7a6f"
+    },
+    {
+      "image": "010-whats-new-footer-dark-320-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/dark/320",
+        "whats-new/whats-new-footer/hover/dark/320",
+        "whats-new/whats-new-footer/selected/dark/320"
+      ],
+      "changedPixels": 16945,
+      "beforeSha256": "28a6828612a7d7da4352021c51852d101dc1e5f0756faad4577e3509a5993f41",
+      "afterSha256": "5a2541e134f980fd2c2324226d5b20c38d4482361508379bde328d93c8ea0d4f"
+    },
+    {
+      "image": "011-whats-new-footer-dark-320-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/dark/320"],
+      "changedPixels": 16945,
+      "beforeSha256": "9bcde75827e6f4829cc303697cd7e538a0a516126b732067fda1c6f20c478716",
+      "afterSha256": "44799411c1010a38d86cbd96dc1a052288fdbfff29d101e682130c00126cdce1"
+    },
+    {
+      "image": "012-whats-new-footer-dark-320-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/dark/320"],
+      "changedPixels": 16945,
+      "beforeSha256": "790e314fb37776aa55c7b5441588c6692af281deb515058b2a2f6d3feaf9f047",
+      "afterSha256": "778f294522d50fdcb2d3c6a77d9bf716a450e2c9fba1bb77977d42602db5b8c4"
+    },
+    {
+      "image": "013-whats-new-footer-dark-320-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/dark/320"],
+      "changedPixels": 16945,
+      "beforeSha256": "5e191158461c946167c12206b0cb677777197e5cfb127318c8977025bd0f3c0e",
+      "afterSha256": "b9e091290b7d36d84f26448dde1e7d0d7bd6176941e4583e3dbe3549d2921fe5"
+    },
+    {
+      "image": "014-whats-new-dark-690-default.png",
+      "frames": [
+        "whats-new/whats-new/default/dark/690",
+        "whats-new/whats-new/hover/dark/690",
+        "whats-new/whats-new/focus-visible/dark/690",
+        "whats-new/whats-new/pressed/dark/690",
+        "whats-new/whats-new/disabled/dark/690",
+        "whats-new/whats-new/selected/dark/690"
+      ],
+      "changedPixels": 27899,
+      "beforeSha256": "4fb7aa72e75485887be04fe28f6b7690b6d360d7e3b92b66c5e0a8d2d2f09b92",
+      "afterSha256": "321f3e3e9c438c5416bcf604c0b1f84bba36d7f7a940a8559853ac081b635153"
+    },
+    {
+      "image": "015-whats-new-footer-dark-690-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/dark/690",
+        "whats-new/whats-new-footer/hover/dark/690",
+        "whats-new/whats-new-footer/selected/dark/690"
+      ],
+      "changedPixels": 57297,
+      "beforeSha256": "20850b3fbe24d4959d8dac40b62bd343ae165bcdee72ed42ab16831cdd117db7",
+      "afterSha256": "d0e90bf28ccbb8bb98231968b62fd6696e45c6ee3daffddb5636b3d239115e60"
+    },
+    {
+      "image": "016-whats-new-footer-dark-690-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/dark/690"],
+      "changedPixels": 57297,
+      "beforeSha256": "8e78d9cffeee1fbf98649dca5519612ea5713a6f02a8f7449da257f582ff14e4",
+      "afterSha256": "68139671fdd90567790521736c248b2fc51b0be712c12a0f0467d04375463990"
+    },
+    {
+      "image": "017-whats-new-footer-dark-690-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/dark/690"],
+      "changedPixels": 57299,
+      "beforeSha256": "8c21e203e5be3ae4fc190902fb3dbef507362865edb048e114f46468f8a3569f",
+      "afterSha256": "d8e20756e3af14e28ef6d519482fbc3c3061c9f6c5f7c5c74a897f0b81da2fbe"
+    },
+    {
+      "image": "018-whats-new-footer-dark-690-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/dark/690"],
+      "changedPixels": 57297,
+      "beforeSha256": "364fe01902441a9148c2f1c23a416b14874c7977d9b54d10e51dc5070ed3f38d",
+      "afterSha256": "9311fd287228d3ced400dfd0bfbd71ed340cb22db075d9455b8193dc8ecf5125"
+    },
+    {
+      "image": "019-whats-new-footer-hc-dark-320-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/hc-dark/320",
+        "whats-new/whats-new-footer/hover/hc-dark/320",
+        "whats-new/whats-new-footer/selected/hc-dark/320"
+      ],
+      "changedPixels": 18734,
+      "beforeSha256": "6e27997a5991bc94cac43cdc74238c584e15de64734e80c309796043ca787ac7",
+      "afterSha256": "252ebc45f87415f96f910c4d0146a0043db01e1e10b9e0a747fec5fda5868180"
+    },
+    {
+      "image": "020-whats-new-footer-hc-dark-320-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/hc-dark/320"],
+      "changedPixels": 18734,
+      "beforeSha256": "99f76ac121226daf9afc269dca37276d06e09d1df22ea59880cc24f483cc3620",
+      "afterSha256": "57404bce87fb81a4fdfd0b1125e330e6e6ff50223f8f9c0c10782ebd8aa6645d"
+    },
+    {
+      "image": "021-whats-new-footer-hc-dark-320-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/hc-dark/320"],
+      "changedPixels": 18734,
+      "beforeSha256": "dc2022114346bac370aaf435504198617449ba807ff0106caf2bc408444871fc",
+      "afterSha256": "af0d9b9a450e8f654c917d95975e3b5bccf58b988b5e0c0ec8b66408c0d5eb79"
+    },
+    {
+      "image": "022-whats-new-footer-hc-dark-320-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/hc-dark/320"],
+      "changedPixels": 18734,
+      "beforeSha256": "96c8b035575cc10c42018281498e633e16233b0103a85fe08fd223f22d5862dc",
+      "afterSha256": "23ce561f57dffb871b8f0cd157ee7fad0d96fad4371b80ee7fba6fcd5642f619"
+    },
+    {
+      "image": "023-whats-new-hc-dark-690-default.png",
+      "frames": [
+        "whats-new/whats-new/default/hc-dark/690",
+        "whats-new/whats-new/hover/hc-dark/690",
+        "whats-new/whats-new/focus-visible/hc-dark/690",
+        "whats-new/whats-new/pressed/hc-dark/690",
+        "whats-new/whats-new/disabled/hc-dark/690",
+        "whats-new/whats-new/selected/hc-dark/690"
+      ],
+      "changedPixels": 31556,
+      "beforeSha256": "5c9d43b7c36790ecdf52dce3d5523587aa66328bd9e3945353d4b4f1c38b500b",
+      "afterSha256": "cfc03415487957ce1e3a74b85044088ec5a7f07a12d9011558c17a8fcb1fdcd3"
+    },
+    {
+      "image": "024-whats-new-footer-hc-dark-690-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/hc-dark/690",
+        "whats-new/whats-new-footer/hover/hc-dark/690",
+        "whats-new/whats-new-footer/selected/hc-dark/690"
+      ],
+      "changedPixels": 63570,
+      "beforeSha256": "38da86b6e640c6048da2e700733221fac30be631bfe061e5917fcad759e362d8",
+      "afterSha256": "8c6df61d8801fa4e21f3626a8a0b09b259cc5abeafb0e031d08b88aefaf2fb44"
+    },
+    {
+      "image": "025-whats-new-footer-hc-dark-690-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/hc-dark/690"],
+      "changedPixels": 63570,
+      "beforeSha256": "97e736289b629cf9f75fa8bb712dfc5f0f40aac5c06a89ea900caaacbee824cf",
+      "afterSha256": "8c29b6633448da353ada0624ebe9b82b493eb637cae7477ffdfea1a7914b468e"
+    },
+    {
+      "image": "026-whats-new-footer-hc-dark-690-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/hc-dark/690"],
+      "changedPixels": 63572,
+      "beforeSha256": "f471c856e9b76d9b123b7a6270021d164cf9cc6ee2fe540a7c6bddb48866e961",
+      "afterSha256": "db46aac8523aa4ca98f65fb21440e85259e453f31f9277e85a19cabdd6453f1e"
+    },
+    {
+      "image": "027-whats-new-footer-hc-dark-690-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/hc-dark/690"],
+      "changedPixels": 63570,
+      "beforeSha256": "22fd564bfe005b24ac5907bd339c70b75febad8ab54998946c4476576f862b13",
+      "afterSha256": "3870d06e531a579055d32af5c9d7722c863817a3c8d376bec9d20215ff231b02"
+    },
+    {
+      "image": "028-whats-new-footer-hc-light-320-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/hc-light/320",
+        "whats-new/whats-new-footer/hover/hc-light/320",
+        "whats-new/whats-new-footer/selected/hc-light/320"
+      ],
+      "changedPixels": 17028,
+      "beforeSha256": "fc44ea55b0ad10881c756d34768acef1c7f294513f30a4e8774631d33067be0c",
+      "afterSha256": "a661cfc62f87f8ef6e3bdf9c855b417826370e23e33b778efbadd0bfdf3fdade"
+    },
+    {
+      "image": "029-whats-new-footer-hc-light-320-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/hc-light/320"],
+      "changedPixels": 17028,
+      "beforeSha256": "e07d9cbbccab9f59a4a983d871db3cdc20af36825f3f5ce440a25749c0826587",
+      "afterSha256": "dc4dfb0d46163700db61be6b84e27eb3bd0be1e6f7c4df9359119681a1be5fe4"
+    },
+    {
+      "image": "030-whats-new-footer-hc-light-320-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/hc-light/320"],
+      "changedPixels": 17028,
+      "beforeSha256": "42b1f9364df9242d7c68debfa3dcdb772ab66e742da372188ea01796726f54bf",
+      "afterSha256": "91128b0f3ca0d58869df32d14220a57ef1819506583384607d9ae15fdd36c1ca"
+    },
+    {
+      "image": "031-whats-new-footer-hc-light-320-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/hc-light/320"],
+      "changedPixels": 17028,
+      "beforeSha256": "eaa17d42694090a4a6cd5178e4129fe65e3816c67f8b01418109860f935c9558",
+      "afterSha256": "68e27473c821f43d23812ee31a716cba6a9391dba2efe748e5fefc0006c87e80"
+    },
+    {
+      "image": "032-whats-new-hc-light-690-default.png",
+      "frames": [
+        "whats-new/whats-new/default/hc-light/690",
+        "whats-new/whats-new/hover/hc-light/690",
+        "whats-new/whats-new/focus-visible/hc-light/690",
+        "whats-new/whats-new/pressed/hc-light/690",
+        "whats-new/whats-new/disabled/hc-light/690",
+        "whats-new/whats-new/selected/hc-light/690"
+      ],
+      "changedPixels": 29147,
+      "beforeSha256": "aa4f2a1f1215ec65c2964bdfd1d7efd5ab8f6e7f0d1378ce53694781b8bfadf1",
+      "afterSha256": "ca7df0480bbdf8e2f7e6b0320962a29a2b9b510eceb33cd5033fbdacf1bc30e3"
+    },
+    {
+      "image": "033-whats-new-footer-hc-light-690-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/hc-light/690",
+        "whats-new/whats-new-footer/hover/hc-light/690",
+        "whats-new/whats-new-footer/selected/hc-light/690"
+      ],
+      "changedPixels": 57235,
+      "beforeSha256": "2f3a50c93e2efc9c28e1e52661220f999ce7914e951ddc6d55d81f659ff7d9b9",
+      "afterSha256": "cd0f90d7870b209c64dacf8db2ca738bd0e3502186186bac78346e289d2dac48"
+    },
+    {
+      "image": "034-whats-new-footer-hc-light-690-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/hc-light/690"],
+      "changedPixels": 57235,
+      "beforeSha256": "7ce9a2629e936f6ab47108947e0eb6e99834a87f66c07579686f5e1c91de8f2d",
+      "afterSha256": "2bd25647ca0b2ae199c46627d6440841c43c918e99e17abe418eb22a67b2d6d0"
+    },
+    {
+      "image": "035-whats-new-footer-hc-light-690-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/hc-light/690"],
+      "changedPixels": 57237,
+      "beforeSha256": "03271223318cfbb53a6b804e62cd73591dcb30309a693314629d05578d0b86ac",
+      "afterSha256": "deb46568b76bad4dab783b8bcb65b525da4bf0248fab77264ed0491fa36357d3"
+    },
+    {
+      "image": "036-whats-new-footer-hc-light-690-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/hc-light/690"],
+      "changedPixels": 57230,
+      "beforeSha256": "b9f5c029451565bce39fe535050fedc359e9f8d971e78342917bc87f9385bc35",
+      "afterSha256": "d13c16e675456086b4932391f663107099c11d4acd67ca507e0c9fb7bec8c190"
+    },
+    {
+      "image": "037-whats-new-footer-one-dark-pro-320-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/one-dark-pro/320",
+        "whats-new/whats-new-footer/selected/one-dark-pro/320"
+      ],
+      "changedPixels": 16625,
+      "beforeSha256": "83c3b04e789fbd70d7e6757d85b3e8cf47729babbcdcf73a6c6e5bc65cf564a9",
+      "afterSha256": "4e55fc1a3492e0893109c59ef7dc8148382d3707f9da983ff8abf4465603259e"
+    },
+    {
+      "image": "038-whats-new-footer-one-dark-pro-320-hover.png",
+      "frames": ["whats-new/whats-new-footer/hover/one-dark-pro/320"],
+      "changedPixels": 16625,
+      "beforeSha256": "67b30feab6faec698cd801e536d2c9c01c2f8c790337d384fac86021faaed94d",
+      "afterSha256": "bd294758b09fae62cee17937fa539a7144e992ad0a0fa93e0eed59df51969eb4"
+    },
+    {
+      "image": "039-whats-new-footer-one-dark-pro-320-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/one-dark-pro/320"],
+      "changedPixels": 16625,
+      "beforeSha256": "935932c9c8d2cfd7c4144a9226a5b07d313b0f5cb01041c6b7e0b443ed7be4d2",
+      "afterSha256": "c90f9ea41e308cbaa0d662fa83c4e958fa4148a7559f71a455c2a899077425fb"
+    },
+    {
+      "image": "040-whats-new-footer-one-dark-pro-320-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/one-dark-pro/320"],
+      "changedPixels": 16625,
+      "beforeSha256": "c4f6e74c0a0b78d5f6cbbf8a25371f08bc55bb5bd6de15af68b40c270c27f902",
+      "afterSha256": "95c6f80a57c2a1ccb91c80f3d618263c0df4966e33b07ff9517121dd48685a96"
+    },
+    {
+      "image": "041-whats-new-footer-one-dark-pro-320-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/one-dark-pro/320"],
+      "changedPixels": 16625,
+      "beforeSha256": "6188da38ab2dae2787c59c838c6f8f0e58e43c056da280070f40591fea657410",
+      "afterSha256": "f38173e5cb9534f37db0b41a19b6756c15bee798f405077031a8bda73a85af2a"
+    },
+    {
+      "image": "042-whats-new-one-dark-pro-690-default.png",
+      "frames": [
+        "whats-new/whats-new/default/one-dark-pro/690",
+        "whats-new/whats-new/hover/one-dark-pro/690",
+        "whats-new/whats-new/focus-visible/one-dark-pro/690",
+        "whats-new/whats-new/pressed/one-dark-pro/690",
+        "whats-new/whats-new/disabled/one-dark-pro/690",
+        "whats-new/whats-new/selected/one-dark-pro/690"
+      ],
+      "changedPixels": 27372,
+      "beforeSha256": "218b6d41475538a13ec2dd19b7e69ab8e50329c3c44312ace77386d5aaa1b36e",
+      "afterSha256": "365b655fa2c30e20cead0442c9b3f40d776000602d721d7e3a034da6cc1ac781"
+    },
+    {
+      "image": "043-whats-new-footer-one-dark-pro-690-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/one-dark-pro/690",
+        "whats-new/whats-new-footer/selected/one-dark-pro/690"
+      ],
+      "changedPixels": 56186,
+      "beforeSha256": "a7f7b712b41bd4a2e71644030c8f7b12a1bf8e836a4e1c16fdbe043b6112c46b",
+      "afterSha256": "676666b5eea8427acf7a69f5329ada7946c68e5bdf6d4f067f4648e963bcae90"
+    },
+    {
+      "image": "044-whats-new-footer-one-dark-pro-690-hover.png",
+      "frames": ["whats-new/whats-new-footer/hover/one-dark-pro/690"],
+      "changedPixels": 56186,
+      "beforeSha256": "335e69b48fefcfc44425870e505b6c97bafb3152327328db9155ed9257a06ef3",
+      "afterSha256": "e09b0957e610b3db594f6cddd9be3ef9ecc75c71241bbae6096ceca48e824958"
+    },
+    {
+      "image": "045-whats-new-footer-one-dark-pro-690-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/one-dark-pro/690"],
+      "changedPixels": 56186,
+      "beforeSha256": "756ee295abd0dab9f4a6e4eb89b29be4f096e035dbe03ebc838162a759121b74",
+      "afterSha256": "95a89d52153cf44a6128626318e6de28c7ad76adb573f7a7ba03bea54f1afb6d"
+    },
+    {
+      "image": "046-whats-new-footer-one-dark-pro-690-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/one-dark-pro/690"],
+      "changedPixels": 56188,
+      "beforeSha256": "d05c5491258e3d50ef6ebc7b8ba46e0790400416d36eeea606ae54674cd8c182",
+      "afterSha256": "bc2ec99b086ad49767c4b65ee15e312a00be5634d0c652512dcd043b1f22e15a"
+    },
+    {
+      "image": "047-whats-new-footer-one-dark-pro-690-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/one-dark-pro/690"],
+      "changedPixels": 56186,
+      "beforeSha256": "436c4bc43a22452c88e037f4249762fe14374918f5817ef9ee4a74afed241ce6",
+      "afterSha256": "bf86d198161d23ccfdcdde94dc7b027baa40c87a1c08804ba991e686fb16241c"
+    },
+    {
+      "image": "048-whats-new-footer-dracula-320-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/dracula/320",
+        "whats-new/whats-new-footer/hover/dracula/320",
+        "whats-new/whats-new-footer/selected/dracula/320"
+      ],
+      "changedPixels": 18092,
+      "beforeSha256": "064eb8487c8bb36a8d4e52a1fc846af4f0bf4369c8e59692a42d69ff761af849",
+      "afterSha256": "9de7206c13589535d6acd2fdf65fdc149b942f30d89dbc9ddf672d7df0550618"
+    },
+    {
+      "image": "049-whats-new-footer-dracula-320-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/dracula/320"],
+      "changedPixels": 18092,
+      "beforeSha256": "ad4677521c963126406e9c13bea3fbe1132762d7517757e15fbd1e2d82a09cd3",
+      "afterSha256": "6d641430055cd73e89c3523d1bb75799d2a28cdf91a0d29394b0e2f2f14c3854"
+    },
+    {
+      "image": "050-whats-new-footer-dracula-320-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/dracula/320"],
+      "changedPixels": 18092,
+      "beforeSha256": "a60688978a05054d41bccba2eeff6df34ca80d8222ec8b650ec5153a1b53df2b",
+      "afterSha256": "a8f122fd5e260b7460179943021bc7fce21b8768c286113de2c3b9064af936a4"
+    },
+    {
+      "image": "051-whats-new-footer-dracula-320-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/dracula/320"],
+      "changedPixels": 18092,
+      "beforeSha256": "7b6689f4608330ca7885b38b5ecaf676f47a01884a39d60e5bd8231bd33b41e2",
+      "afterSha256": "d84451e2b5cb0029977c9e6fa44cb9ce963ce18aedffbb96f9224350b809e15b"
+    },
+    {
+      "image": "052-whats-new-dracula-690-default.png",
+      "frames": [
+        "whats-new/whats-new/default/dracula/690",
+        "whats-new/whats-new/hover/dracula/690",
+        "whats-new/whats-new/focus-visible/dracula/690",
+        "whats-new/whats-new/pressed/dracula/690",
+        "whats-new/whats-new/disabled/dracula/690",
+        "whats-new/whats-new/selected/dracula/690"
+      ],
+      "changedPixels": 30474,
+      "beforeSha256": "bff3e974e85f111ff9a75f497ce15c044c730fa213115cdc0c6af57dd3636144",
+      "afterSha256": "4b1503b9e1fd3b7f3e3b01435b592d290efebd5c0f26a003c838137061bc3cd5"
+    },
+    {
+      "image": "053-whats-new-footer-dracula-690-default.png",
+      "frames": [
+        "whats-new/whats-new-footer/default/dracula/690",
+        "whats-new/whats-new-footer/hover/dracula/690",
+        "whats-new/whats-new-footer/selected/dracula/690"
+      ],
+      "changedPixels": 61018,
+      "beforeSha256": "9cdf3e417dbbdc3f47746ab84da916fdb43ba63bca655c2f68dda055ebd65968",
+      "afterSha256": "217f83bf4be82d553c1eabee1b538d986869e67dbdbc1947e52e9cf8514e10f8"
+    },
+    {
+      "image": "054-whats-new-footer-dracula-690-focus-visible.png",
+      "frames": ["whats-new/whats-new-footer/focus-visible/dracula/690"],
+      "changedPixels": 61018,
+      "beforeSha256": "e7e1e4018978c5b1fab123f8f189687202bd4e1369f56a3ca3248378d78eb286",
+      "afterSha256": "337bc15952a5ae172113f7b60cb80f78c46e6b2a0f349c0bae47170fa99a5447"
+    },
+    {
+      "image": "055-whats-new-footer-dracula-690-pressed.png",
+      "frames": ["whats-new/whats-new-footer/pressed/dracula/690"],
+      "changedPixels": 61020,
+      "beforeSha256": "1ffad37d352539f99ba34cb8ff1b4542799ad848dcdeafb8f949138b75a1d17e",
+      "afterSha256": "0e3f154d3aa06592dea16ac4fe509b5aec759bf405eb36d4a4679d24fd20d427"
+    },
+    {
+      "image": "056-whats-new-footer-dracula-690-disabled.png",
+      "frames": ["whats-new/whats-new-footer/disabled/dracula/690"],
+      "changedPixels": 61018,
+      "beforeSha256": "e2b61abc721d063362d7037ccc2748171b48df0140d1d8a77f8153e37ec0b18b",
+      "afterSha256": "5001c6386342390f1a02da8d258e95c5ec87afac48c3df4cf6a3cbe2f229960e"
+    }
+  ],
+  "over": [
+    {
+      "key": "whats-new/whats-new-footer/default/light/320",
+      "changed": 16813,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/light/320",
+      "changed": 16813,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/light/320",
+      "changed": 16813,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/light/320",
+      "changed": 16813,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/light/320",
+      "changed": 16813,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/light/320",
+      "changed": 16813,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/default/light/690",
+      "changed": 27771,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/hover/light/690",
+      "changed": 27771,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/focus-visible/light/690",
+      "changed": 27771,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/pressed/light/690",
+      "changed": 27771,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/disabled/light/690",
+      "changed": 27771,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/selected/light/690",
+      "changed": 27771,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/light/690",
+      "changed": 56456,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/light/690",
+      "changed": 56456,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/light/690",
+      "changed": 56456,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/light/690",
+      "changed": 56458,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/light/690",
+      "changed": 56451,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/light/690",
+      "changed": 56456,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/dark/320",
+      "changed": 16945,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/dark/320",
+      "changed": 16945,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/dark/320",
+      "changed": 16945,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/dark/320",
+      "changed": 16945,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/dark/320",
+      "changed": 16945,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/dark/320",
+      "changed": 16945,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/default/dark/690",
+      "changed": 27899,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/hover/dark/690",
+      "changed": 27899,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/focus-visible/dark/690",
+      "changed": 27899,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/pressed/dark/690",
+      "changed": 27899,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/disabled/dark/690",
+      "changed": 27899,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/selected/dark/690",
+      "changed": 27899,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/dark/690",
+      "changed": 57297,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/dark/690",
+      "changed": 57297,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/dark/690",
+      "changed": 57297,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/dark/690",
+      "changed": 57299,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/dark/690",
+      "changed": 57297,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/dark/690",
+      "changed": 57297,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/hc-dark/320",
+      "changed": 18734,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/hc-dark/320",
+      "changed": 18734,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/hc-dark/320",
+      "changed": 18734,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/hc-dark/320",
+      "changed": 18734,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/hc-dark/320",
+      "changed": 18734,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/hc-dark/320",
+      "changed": 18734,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/default/hc-dark/690",
+      "changed": 31556,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/hover/hc-dark/690",
+      "changed": 31556,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/focus-visible/hc-dark/690",
+      "changed": 31556,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/pressed/hc-dark/690",
+      "changed": 31556,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/disabled/hc-dark/690",
+      "changed": 31556,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/selected/hc-dark/690",
+      "changed": 31556,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/hc-dark/690",
+      "changed": 63570,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/hc-dark/690",
+      "changed": 63570,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/hc-dark/690",
+      "changed": 63570,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/hc-dark/690",
+      "changed": 63572,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/hc-dark/690",
+      "changed": 63570,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/hc-dark/690",
+      "changed": 63570,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/hc-light/320",
+      "changed": 17028,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/hc-light/320",
+      "changed": 17028,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/hc-light/320",
+      "changed": 17028,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/hc-light/320",
+      "changed": 17028,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/hc-light/320",
+      "changed": 17028,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/hc-light/320",
+      "changed": 17028,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/default/hc-light/690",
+      "changed": 29147,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/hover/hc-light/690",
+      "changed": 29147,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/focus-visible/hc-light/690",
+      "changed": 29147,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/pressed/hc-light/690",
+      "changed": 29147,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/disabled/hc-light/690",
+      "changed": 29147,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/selected/hc-light/690",
+      "changed": 29147,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/hc-light/690",
+      "changed": 57235,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/hc-light/690",
+      "changed": 57235,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/hc-light/690",
+      "changed": 57235,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/hc-light/690",
+      "changed": 57237,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/hc-light/690",
+      "changed": 57230,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/hc-light/690",
+      "changed": 57235,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/one-dark-pro/320",
+      "changed": 16625,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/one-dark-pro/320",
+      "changed": 16625,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/one-dark-pro/320",
+      "changed": 16625,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/one-dark-pro/320",
+      "changed": 16625,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/one-dark-pro/320",
+      "changed": 16625,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/one-dark-pro/320",
+      "changed": 16625,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/default/one-dark-pro/690",
+      "changed": 27372,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/hover/one-dark-pro/690",
+      "changed": 27372,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/focus-visible/one-dark-pro/690",
+      "changed": 27372,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/pressed/one-dark-pro/690",
+      "changed": 27372,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/disabled/one-dark-pro/690",
+      "changed": 27372,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/selected/one-dark-pro/690",
+      "changed": 27372,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/one-dark-pro/690",
+      "changed": 56186,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/one-dark-pro/690",
+      "changed": 56186,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/one-dark-pro/690",
+      "changed": 56186,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/one-dark-pro/690",
+      "changed": 56188,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/one-dark-pro/690",
+      "changed": 56186,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/one-dark-pro/690",
+      "changed": 56186,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/dracula/320",
+      "changed": 18092,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/dracula/320",
+      "changed": 18092,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/dracula/320",
+      "changed": 18092,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/dracula/320",
+      "changed": 18092,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/dracula/320",
+      "changed": 18092,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/dracula/320",
+      "changed": 18092,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/default/dracula/690",
+      "changed": 30474,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/hover/dracula/690",
+      "changed": 30474,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/focus-visible/dracula/690",
+      "changed": 30474,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/pressed/dracula/690",
+      "changed": 30474,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/disabled/dracula/690",
+      "changed": 30474,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new/selected/dracula/690",
+      "changed": 30474,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/default/dracula/690",
+      "changed": 61018,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/hover/dracula/690",
+      "changed": 61018,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/focus-visible/dracula/690",
+      "changed": 61018,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/pressed/dracula/690",
+      "changed": 61020,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/disabled/dracula/690",
+      "changed": 61018,
+      "allowed": 12
+    },
+    {
+      "key": "whats-new/whats-new-footer/selected/dracula/690",
+      "changed": 61018,
+      "allowed": 12
+    }
+  ]
+}

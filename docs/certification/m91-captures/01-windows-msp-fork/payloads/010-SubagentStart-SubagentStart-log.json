@@ -1,0 +1,11 @@
+{
+  "hook_event_name": "SubagentStart",
+  "subagent_id": "verify-reminder",
+  "child_session_id": "487f14b4-779b-4ccc-b72e-1717fff186de",
+  "session_id": "487f14b4-779b-4ccc-b72e-1717fff186de",
+  "turn_id": "487f14b4-779b-4ccc-b72e-1717fff186de",
+  "cwd": "<workspace>",
+  "transcript_path": null,
+  "model": "echo",
+  "permission_mode": "default"
+}

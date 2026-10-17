@@ -9,7 +9,6 @@ import {
   HOOK_MODEL_TEXT_PREVIEW_CHARS,
   HOOK_MODEL_TOOL_DESCRIPTION_CHARS,
   HOOK_MODEL_TOOL_SUMMARIES_MAX,
-  MODEL_API_HOOK_PROVIDER,
 } from '../../../shared/constants'
 import {
   isMessageItem,
@@ -20,6 +19,7 @@ import {
   type ResponseObject,
   type ToolDefinition,
 } from './schemas'
+import { replayProducer } from './modelPolicy'
 import { redactHookText } from './toolHookPayload'
 
 interface TextSummary {
@@ -102,7 +102,8 @@ function requestFields(body: CreateResponseBody, requestId: string, attempt: num
   const messages = messageSummaries(body)
   const tools = toolSummaries(body)
   return {
-    provider: MODEL_API_HOOK_PROVIDER,
+    provider: replayProducer(body.model).provider,
+    model: body.model,
     request_id: requestId,
     attempt,
     step,
@@ -122,7 +123,7 @@ export function preModelCallFields(
 ): Readonly<Record<string, unknown>> {
   return {
     ...requestFields(body, requestId, attempt, step),
-    options: { 'meta.reasoning.effort': body.reasoning.effort },
+    options: { [`${replayProducer(body.model).provider}.reasoning.effort`]: body.reasoning.effort },
   }
 }
 
@@ -150,7 +151,8 @@ export function postModelCallFields(
     .join('')
   const usage = response.usage
   return {
-    provider: MODEL_API_HOOK_PROVIDER,
+    provider: replayProducer(body.model).provider,
+    model: body.model,
     request_id: requestId,
     attempt,
     step,
@@ -174,8 +176,8 @@ export function postModelCallFields(
     tools,
     tool_count: tools.length,
     options: {
-      'meta.reasoning.effort': body.reasoning.effort,
-      'meta.session_id': sessionId,
+      [`${replayProducer(body.model).provider}.reasoning.effort`]: body.reasoning.effort,
+      [`${replayProducer(body.model).provider}.session_id`]: sessionId,
     },
   }
 }

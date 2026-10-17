@@ -1,0 +1,96 @@
+[
+  {
+    "drill": "pixel-ratio",
+    "source": "scripts/lib/visualImages.mjs",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > detects visible differences and limits each image to 0.01 percent or 12 pixels",
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > rejects traversal, wrong dimensions, malformed metadata, relaxed pixel policy and oversized archives"
+    ],
+    "restoredSha256": "5c45cd39a03c6cc310a8a30ede183fbb86df5c32039fd141d21cf904b337c0f8"
+  },
+  {
+    "drill": "pixel-cap",
+    "source": "scripts/lib/visualImages.mjs",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > detects visible differences and limits each image to 0.01 percent or 12 pixels",
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > rejects traversal, wrong dimensions, malformed metadata, relaxed pixel policy and oversized archives"
+    ],
+    "restoredSha256": "5c45cd39a03c6cc310a8a30ede183fbb86df5c32039fd141d21cf904b337c0f8"
+  },
+  {
+    "drill": "pixel-area",
+    "source": "scripts/lib/visualImages.mjs",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > detects visible differences and limits each image to 0.01 percent or 12 pixels"
+    ],
+    "restoredSha256": "5c45cd39a03c6cc310a8a30ede183fbb86df5c32039fd141d21cf904b337c0f8"
+  },
+  {
+    "drill": "ci-visual-command",
+    "source": ".github/workflows/build.yml",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > requires visual source replay and tokens in both CI tiers and the required aggregate"
+    ],
+    "restoredSha256": "28d3ddec48ebb7804c987b2d3511b3946d7076f9a799b5c1abfbd90dc3d1e70f"
+  },
+  {
+    "drill": "ci-required",
+    "source": ".github/workflows/build.yml",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > requires visual source replay and tokens in both CI tiers and the required aggregate"
+    ],
+    "restoredSha256": "28d3ddec48ebb7804c987b2d3511b3946d7076f9a799b5c1abfbd90dc3d1e70f"
+  },
+  {
+    "drill": "ci-history",
+    "source": ".github/workflows/build.yml",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > requires visual source replay and tokens in both CI tiers and the required aggregate"
+    ],
+    "restoredSha256": "28d3ddec48ebb7804c987b2d3511b3946d7076f9a799b5c1abfbd90dc3d1e70f"
+  },
+  {
+    "drill": "ci-tokens",
+    "source": ".github/workflows/build.yml",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > requires visual source replay and tokens in both CI tiers and the required aggregate"
+    ],
+    "restoredSha256": "28d3ddec48ebb7804c987b2d3511b3946d7076f9a799b5c1abfbd90dc3d1e70f"
+  },
+  {
+    "drill": "theme-observation",
+    "source": "test/harness/themes/dracula.json",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualMatrix.test.mjs > M114 lane 0 visual contract > separates absent archive entries from captured registered defaults for dracula"
+    ],
+    "restoredSha256": "817cecbd776e10e8a10125665f8838f7d3b3c03eec40f4bb3995953f1b5c2f2a"
+  },
+  {
+    "drill": "aa-detection",
+    "source": "scripts/lib/visualImages.mjs",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > detects visible differences and limits each image to 0.01 percent or 12 pixels",
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > filters an antialiased edge while retaining a visible colour regression",
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > rejects traversal, wrong dimensions, malformed metadata, relaxed pixel policy and oversized archives"
+    ],
+    "restoredSha256": "5c45cd39a03c6cc310a8a30ede183fbb86df5c32039fd141d21cf904b337c0f8"
+  },
+  {
+    "drill": "ci-fast-tier",
+    "source": ".github/workflows/build.yml",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/visualGate.test.mjs > M114 bounded pixelmatch visual gate > requires visual source replay and tokens in both CI tiers and the required aggregate"
+    ],
+    "restoredSha256": "28d3ddec48ebb7804c987b2d3511b3946d7076f9a799b5c1abfbd90dc3d1e70f"
+  }
+]

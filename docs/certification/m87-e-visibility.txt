@@ -1,0 +1,89 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+rig=win11 slot=m87e2 snapshot=17285317
+rig: Windows WIN-11-VM; slot m87e2; snapshot 172853177b4461b0073f4bfa3d0ebf5a5b9d1aab
+base=C:\Users\randy\gates\base-cea22aae4ddb7fb0 lock=cea22aae4ddb7fb0d0bcf2e9d197656e859d307e622c3cbea187725d09a53101
+base reused
+[33m(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.[39m
+
+[1m[30m[46m RUN [49m[39m[22m [36mv5.0.1 [39m[90mC:/Users/Randy/gates/rt-m87e2[39m
+
+ [31m❯[39m test/unit/DiffTally.test.tsx [2m([22m[2m5 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 243[2mms[22m[39m
+   [31m❯[39m DiffTally [2m(5)[22m
+[31m     [31m×[31m renders nothing for a conversation without edits, even with Review available[39m[32m 43[2mms[22m[39m
+[31m     [31m×[31m shows singular files, formatted line totals, and the scope tooltip from real edits[39m[32m 153[2mms[22m[39m
+     [32m✓[39m uses the plural file form and keeps a zero-line edit visible[32m 6[2mms[22m[39m
+[31m     [31m×[31m offers Review only with its callback and invokes it once[39m[32m 23[2mms[22m[39m
+     [32m✓[39m reads installed text at render time and preserves translated order and number grouping[32m 16[2mms[22m[39m
+ [32m✓[39m test/unit/diffTally.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 3 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m test/unit/DiffTally.test.tsx[2m > [22mDiffTally[2m > [22mrenders nothing for a conversation without edits, even with Review available
+[31m[1mError[22m: [2mexpect([22m[31melement[31m[2m).toBeEmptyDOMElement()[22m
+
+Received:
+  [31m"<div class="diff-tally" role="group" aria-label="Changes in this conversation" aria-description="Lines added and removed by this conversation's edits, added up edit by edit. Changes made by shell commands or by you are not counted." title="Lines added and removed by this conversation's edits, added up edit by edit. Changes made by shell commands or by you are not counted."><span class="diff-tally-files">0 files changed</span><span class="diff-tally-lines">+<span class="diff-tally-added">0</span> −<span class="diff-tally-removed">0</span></span><button class="button-secondary diff-tally-review" type="button" title="Open the review pane on these changes">Review</button></div>"[31m[39m
+[36m [2m❯[22m test/unit/DiffTally.test.tsx:[2m28:23[22m[39m
+    [90m 26|[39m   it('renders nothing for a conversation without edits, even with Revi…
+    [90m 27|[39m     const { container } = render(<DiffTally counts={diffTally([])} onR…
+    [90m 28|[39m     expect(container).toBeEmptyDOMElement()
+    [90m   |[39m                       [31m^[39m
+    [90m 29|[39m     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    [90m 30|[39m   })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/unit/DiffTally.test.tsx[2m > [22mDiffTally[2m > [22mshows singular files, formatted line totals, and the scope tooltip from real edits
+[31m[1mError[22m: [2mexpect([22m[31melement[31m[2m).not.toBeInTheDocument()[22m
+
+[31mexpected document not to contain element, found <button
+  class="button-secondary diff-tally-review"
+  title="Open the review pane on these changes"
+  type="button"
+>
+  Review
+</button> instead[31m[39m
+[36m [2m❯[22m test/unit/DiffTally.test.tsx:[2m42:66[22m[39m
+    [90m 40|[39m     expect(row).toHaveAttribute('title', EN.diffTallyTitle)
+    [90m 41|[39m     expect(row).toHaveAccessibleDescription(EN.diffTallyTitle)
+    [90m 42|[39m     expect(screen.queryByRole('button', { name: 'Review' })).not.toBeI…
+    [90m   |[39m                                                                  [31m^[39m
+    [90m 43|[39m   })
+    [90m 44|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/unit/DiffTally.test.tsx[2m > [22mDiffTally[2m > [22moffers Review only with its callback and invokes it once
+[31m[1mError[22m: [2mexpect([22m[31melement[31m[2m).not.toBeInTheDocument()[22m
+
+[31mexpected document not to contain element, found <button
+  class="button-secondary diff-tally-review"
+  title="Open the review pane on these changes"
+  type="button"
+>
+  Review
+</button> instead[31m[39m
+[36m [2m❯[22m test/unit/DiffTally.test.tsx:[2m63:66[22m[39m
+    [90m 61|[39m     expect(onReview).toHaveBeenCalledExactlyOnceWith()
+    [90m 62|[39m     rerender(<DiffTally counts={counts} />)
+    [90m 63|[39m     expect(screen.queryByRole('button', { name: 'Review' })).not.toBeI…
+    [90m   |[39m                                                                  [31m^[39m
+    [90m 64|[39m   })
+    [90m 65|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[31m3 failed[39m[22m[2m | [22m[1m[32m14 passed[39m[22m[90m (17)[39m
+[2m   Start at [22m 19:44:59
+[2m   Duration [22m 3.14s[2m (environment 41%, import 18%, transform 17%, setup 15%, tests 9%)[22m
+
+[2m    Isolate [22m [33m2 workers spawned[39m[2m · ~730ms startup each (spawn + environment, per file)[22m
+[2m            [22m [2mat least ~730ms faster with [22m[33misolate: false[39m[2m — reuses workers across files instead of one per file[22m
+
+exit=1

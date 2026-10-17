@@ -1,0 +1,1270 @@
+// Shared by the production split gate and its real-build red drills.
+// No filesystem reads or child processes: callers supply the built inputs.
+import path from 'node:path'
+
+export const BUNDLES = {
+  providers: { output: 'dist/providers.js', metafile: 'dist/meta/providers.json' },
+  subscriptions: { output: 'dist/subscriptions.js', metafile: 'dist/meta/subscriptions.json' },
+  configured: {
+    output: 'dist/configuredProviders.js',
+    metafile: 'dist/meta/configuredProviders.json',
+  },
+  activation: { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' },
+  modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
+  acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
+}
+export const SUBSCRIPTION_ONLY = [
+  'src/core/providers/subscriptions/chatgpt.ts',
+  'src/core/providers/subscriptions/registry.ts',
+]
+export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
+export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
+const MODEL_API_DIR = 'src/core/backends/modelapi'
+export const MODEL_API_OPTIONAL_ONLY = [
+  'codeIntelEntry.ts',
+  'codeIntelCalls.ts',
+  'mcpPoolEntry.ts',
+  'mcp/connection.ts',
+  'mcp/http.ts',
+  'mcp/pool.ts',
+  'mcp/servers.ts',
+  'mcp/stdio.ts',
+]
+export const SCHEDULES_ONLY = ['schedulesEntry.ts', 'schedules.ts']
+const RUNTIME_SCHEDULES_DIR = 'src/runtime/schedules'
+const CORE_SCHEDULES_DIR = 'src/core/schedules'
+// M115 W: the v2 runtime binding beside v1 in dist/schedules.js. Only files
+// owned by the schedules feature are pinned here; shared utilities the
+// bundle also carries (export text, the wire schemas) stay unlisted.
+export const SCHEDULES_RUNTIME = [
+  'schedulesBundle.ts',
+  'runtimeEntry.ts',
+  'engine.ts',
+  'control.ts',
+  'authorityStore.ts',
+  'consent.ts',
+  'registry.ts',
+  'timePlan.ts',
+  'wake.ts',
+  'runtime.ts',
+  'surface.ts',
+  'host.ts',
+  'command.ts',
+  'background.ts',
+  'nativeBackground.ts',
+  'nodeBackgroundIo.ts',
+  'nodeScheduleFs.ts',
+  'effectiveDefinition.ts',
+  'registration.ts',
+  'reportCli.ts',
+]
+export const SCHEDULES_CORE = [
+  'store.ts',
+  'scheduler.ts',
+  'fireRecord.ts',
+  'journal.ts',
+  'migrate.ts',
+  'delivery.ts',
+  'grantAudit.ts',
+  'time/cron.ts',
+  'time/scheduleTime.ts',
+  'time/zonedCalendar.ts',
+  'events/conditions.ts',
+  'events/ports.ts',
+  'events/privacy.ts',
+  'events/registry.ts',
+  'events/signals.ts',
+]
+export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
+
+export const FOREIGN_HOOKS_ONLY = [
+  'foreignHooksEntry.ts',
+  'hookFormats.ts',
+  'hookFormats/core.ts',
+  'hookFormats/engine.ts',
+  'hookFormats/transforms.ts',
+  'hookFormats/contracts/cline.ts',
+  'hookFormats/contracts/copilot.ts',
+  'hookFormats/contracts/cursor.ts',
+  'hookFormats/contracts/gemini.ts',
+  'hookFormats/contracts/kiro.ts',
+  'hookFormats/contracts/vscode.ts',
+  'hookFormats/contracts/windsurf.ts',
+]
+export const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts', 'hookHandlers.ts']
+
+export const PLUGIN_HOOKS_ONLY = [
+  'pluginHooksEntry.ts',
+  'pluginHost.ts',
+  'pluginChild.ts',
+  'pluginFormats.ts',
+]
+// MODELAPIDIET: the Model API backend's deferred per-call helpers (the hook
+// call fields, argument previews, fetch URL checks), loaded on first use.
+// The fetch URL checks live outside the backend's folder, so the DEFERRED
+// entry below adds their full paths beside these backend-relative names.
+export const MODEL_API_TOOLS_ONLY = [
+  'modelApiToolsEntry.ts',
+  'modelCallHooks.ts',
+  'argumentPreview.ts',
+]
+// publicAddress.ts stays in dist/modelApi.js: the pinned HTTPS transport
+// reads addressFamily for every request's SNI.
+export const MODEL_API_TOOLS_WEB = ['src/core/web/pageUrl.ts', 'src/core/web/fetchFailure.ts']
+// INT0170: M107 W2's machine resource journal is shared through its own bundle;
+// the governor (recorder) and usage service (reader) load it instead of copies.
+const RESOURCE_JOURNAL_SOURCE = 'src/runtime/resources/history.ts'
+const RESOURCE_JOURNAL_BUNDLE = {
+  output: 'dist/resourceJournal.js',
+  metafile: 'dist/meta/resourceJournal.json',
+  use: 'the shared resource journal (dist/resourceJournal.js)',
+  parents: [
+    BUNDLES.activation,
+    BUNDLES.modelApi,
+    BUNDLES.acp,
+    { output: 'dist/resourceGovernor.js', metafile: 'dist/meta/resourceGovernor.json' },
+    { output: 'dist/usageService.js', metafile: 'dist/meta/usageService.json' },
+  ],
+  files: [
+    'src/runtime/resources/resourceJournalEntry.ts',
+    RESOURCE_JOURNAL_SOURCE,
+    'src/core/usage/resourceJournal.ts',
+    'src/core/usage/resourceRecords.ts',
+    'src/runtime/usage/resourceResetFile.ts',
+  ],
+}
+export const DEFERRED = [
+  RESOURCE_JOURNAL_BUNDLE,
+  {
+    output: 'dist/mcpPool.js',
+    metafile: 'dist/meta/mcpPool.json',
+    files: ['src/core/backends/modelapi/mcpPoolEntry.ts', 'src/core/backends/modelapi/mcp/pool.ts'],
+  },
+  {
+    output: 'dist/exec.js',
+    metafile: 'dist/meta-acp/exec.json',
+    files: ['src/runtime/exec/execEntry.ts'],
+  },
+  {
+    output: 'dist/modelApiCodeIntel.js',
+    metafile: 'dist/meta/modelApiCodeIntel.json',
+    files: [
+      'src/core/backends/modelapi/codeIntelEntry.ts',
+      'src/core/backends/modelapi/codeIntelCalls.ts',
+    ],
+  },
+  {
+    output: 'dist/structuredSchema.js',
+    metafile: 'dist/meta/structuredSchema.json',
+    files: ['src/shared/structuredSchemaEntry.ts'],
+  },
+
+  {
+    output: 'dist/runtimeEngine.js',
+    metafile: 'dist/meta/runtimeEngine.json',
+    files: ['src/runtime/runtimeEngineEntry.ts'],
+  },
+  {
+    output: 'dist/providerPolicy.js',
+    metafile: 'dist/meta/providerPolicy.json',
+    files: ['src/host/backend/providerPolicyEntry.ts'],
+  },
+  {
+    output: 'dist/runtimeAccounting.js',
+    metafile: 'dist/meta/runtimeAccounting.json',
+    files: ['src/runtime/runtimeAccountingEntry.ts'],
+  },
+  {
+    output: 'dist/modelApiHooks.js',
+    metafile: 'dist/meta/modelApiHooks.json',
+    files: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
+  },
+  {
+    output: 'dist/modelApiMcp.js',
+    metafile: 'dist/meta/modelApiMcp.json',
+    files: [
+      'src/core/backends/modelapi/modelApiMcpEntry.ts',
+      'src/core/backends/modelapi/mcp/pool.ts',
+      'src/core/backends/modelapi/mcp/connection.ts',
+      'src/core/backends/modelapi/mcp/http.ts',
+      'src/core/backends/modelapi/mcp/stdio.ts',
+      'src/core/backends/modelapi/mcp/servers.ts',
+    ],
+  },
+  {
+    output: 'dist/vaultBoundaries.js',
+    metafile: 'dist/meta/vaultBoundaries.json',
+    files: [
+      'src/shared/vaultBoundariesEntry.ts',
+      'src/shared/redact.ts',
+      'src/shared/vault.ts',
+      'src/shared/vaultProtocol.ts',
+      'src/shared/vaultPanel.ts',
+      'src/core/vault/taint.ts',
+      'src/core/vault/exec/schema.ts',
+      'src/core/vault/exec/toolSchema.ts',
+    ],
+  },
+  {
+    output: 'dist/estimateContracts.js',
+    metafile: 'dist/meta/estimateContracts.json',
+    files: ['src/shared/estimate.ts', 'src/shared/estimatorProtocol.ts'],
+  },
+  {
+    output: 'dist/modelApiBoundaries.js',
+    metafile: 'dist/meta/modelApiBoundaries.json',
+    files: [
+      'src/shared/modelApiBoundariesEntry.ts',
+      'src/core/nodeBoundariesEntry.ts',
+      'src/core/pathIdentity.ts',
+      'src/core/backends/modelapi/schemas.ts',
+      'src/shared/teamConversation.ts',
+      'src/shared/paidBoundary.ts',
+      'src/shared/usd.ts',
+      'src/shared/legal.ts',
+      'src/core/backends/modelapi/legalScanTool.ts',
+    ],
+  },
+  {
+    output: 'dist/teamScheduler.js',
+    metafile: 'dist/meta/teamScheduler.json',
+    files: [
+      'src/core/team/teamSchedulerEntry.ts',
+      'src/core/team/scheduler/board.ts',
+      'src/core/team/scheduler/slots.ts',
+      'src/core/team/teamPool.ts',
+    ],
+  },
+  {
+    output: 'dist/teamRunners.js',
+    metafile: 'dist/meta/teamRunners.json',
+    files: [
+      'src/host/runners/teamRunnersEntry.ts',
+      'src/host/runners/sshRunner.ts',
+      'src/host/team/checkSlots.ts',
+      'src/host/modelsPanelTraffic.ts',
+    ],
+  },
+  {
+    output: 'dist/team.js',
+    metafile: 'dist/meta/team.json',
+    files: ['src/core/team/teamEntry.ts', 'src/core/team/teamTools.ts', 'src/core/team/roster.ts'],
+  },
+
+  {
+    output: 'dist/headless.js',
+    metafile: 'dist/meta-acp/headless.json',
+    files: ['src/runtime/exec/runExec.ts'],
+  },
+  {
+    output: 'dist/usageService.js',
+    metafile: 'dist/meta/usageService.json',
+    files: [
+      'src/runtime/usage/usageServiceEntry.ts',
+      'src/runtime/usage/usageAcp.ts',
+      'src/core/usage/usageService.ts',
+      'src/core/usage/journalStore.ts',
+      'src/core/usage/aggregate.ts',
+      'src/core/usage/usageText.ts',
+    ],
+  },
+  {
+    output: 'dist/usageCompanion.js',
+    metafile: 'dist/meta/usageCompanion.json',
+    files: ['src/runtime/usage/usageCompanionEntry.ts', 'src/runtime/companion/server.ts'],
+  },
+  {
+    output: 'dist/usagePanel.js',
+    metafile: 'dist/meta/usagePanel.json',
+    files: [
+      'src/host/usage/usagePanelEntry.ts',
+      'src/host/usage/usagePanel.ts',
+      'src/host/paid/paidDailyBudget.ts',
+    ],
+  },
+  {
+    output: 'dist/reference.js',
+    metafile: 'dist/meta/reference.json',
+    files: [
+      'src/shared/reference/referenceEntry.ts',
+      'src/runtime/reference.node.generated.ts',
+      'src/shared/reference/text.ts',
+    ],
+  },
+  {
+    output: 'dist/schedules.js',
+    metafile: 'dist/meta/schedules.json',
+    files: [
+      ...SCHEDULES_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      ...SCHEDULES_RUNTIME.map((name) => `${RUNTIME_SCHEDULES_DIR}/${name}`),
+      ...SCHEDULES_CORE.map((name) => `${CORE_SCHEDULES_DIR}/${name}`),
+    ],
+  },
+  {
+    output: 'dist/scheduleBackground.js',
+    metafile: 'dist/meta/scheduleBackground.json',
+    use: 'the first native schedule wake or maintenance',
+    files: [
+      'src/runtime/schedules/backgroundEntry.ts',
+      'src/runtime/schedules/nativeBackground.ts',
+      'src/runtime/schedules/nodeBackgroundIo.ts',
+      'src/runtime/schedules/effectiveDefinition.ts',
+      'src/runtime/windowsTrustedPath.ts',
+    ],
+  },
+  {
+    output: 'dist/sessionBoard.js',
+    metafile: 'dist/meta/sessionBoard.json',
+    files: [
+      'src/host/sessionBoardEntry.ts',
+      'src/host/sessionBoard.ts',
+      'src/host/bestOfN/bestOfNManager.ts',
+      'src/core/bestOfN/bestOfNRunner.ts',
+      'src/core/bestOfN/worktreeConversationHost.ts',
+      'src/core/bestOfN/bestOfN.ts',
+    ],
+  },
+  {
+    output: 'dist/reviewer.js',
+    metafile: 'dist/meta/reviewer.json',
+    files: DEFERRED_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/foreignHooks.js',
+    metafile: 'dist/meta/foreignHooks.json',
+    files: FOREIGN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/hookRuntime.js',
+    metafile: 'dist/meta/hookRuntime.json',
+    files: HOOK_RUNTIME_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/pluginHooks.js',
+    metafile: 'dist/meta/pluginHooks.json',
+    files: PLUGIN_HOOKS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  {
+    output: 'dist/modelApiTools.js',
+    metafile: 'dist/meta/modelApiTools.json',
+    files: [
+      ...MODEL_API_TOOLS_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      ...MODEL_API_TOOLS_WEB,
+    ],
+  },
+]
+
+// POSTSPAWN: the governed launcher's own modules, required by the admission
+// facade on the first governed launch; no other shipped bundle carries them.
+export const RESOURCE_PROCESS_ONLY = [
+  'src/core/resources/resourceProcessEntry.ts',
+  'src/core/resources/process.ts',
+  'src/core/resources/commands.ts',
+]
+// The MCP job launch, which the launcher shares with the window's activation.
+export const RESOURCE_PROCESS_SHARED = ['src/host/backend/mcpJobLaunch.ts']
+// POSTSPAWN: launch and helper-preparation code the window's activation also
+// uses for its own helpers and MCP servers; the governor carries none of it,
+// so its 125 KiB cap measures policy alone. The helper preparation launches
+// through the lazy launcher (bootstrap compiles), so it ships with its callers
+// (activation, the runtime's dist/acp.js), never inside the launcher it loads.
+export const RESOURCE_LAUNCH_SHARED = [
+  ...RESOURCE_PROCESS_SHARED,
+  'src/runtime/resources/jobs.ts',
+  'src/host/processTree.ts',
+  'src/host/backend/jobBuild.ts',
+  'src/host/backend/shellJob.ts',
+  'src/host/backend/mcpJobExecutable.ts',
+  'src/host/backend/helperIntegrity.ts',
+  'src/host/backend/jobSource.ts',
+  'src/core/bootstrapCommand.ts',
+]
+const RESOURCE_GOVERNOR_BUNDLE = {
+  output: 'dist/resourceGovernor.js',
+  metafile: 'dist/meta/resourceGovernor.json',
+}
+export const RESOURCE_PROCESS_BUNDLE = {
+  output: 'dist/resourceProcess.js',
+  metafile: 'dist/meta/resourceProcess.json',
+  use: 'the first governed process launch',
+  parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp, RESOURCE_GOVERNOR_BUNDLE],
+  files: RESOURCE_PROCESS_ONLY,
+}
+
+// Split out of activation on 2026-10-03 (D6): each loads on its first use.
+// The Model API backend keeps its own copy of code intelligence.
+export const ON_FIRST_USE = [
+  {
+    output: 'dist/resourceGovernor.js',
+    metafile: 'dist/meta/resourceGovernor.json',
+    use: 'the first governed spawn',
+    files: [
+      'src/core/resources/resourceGovernorEntry.ts',
+      'src/core/resources/launchHost.ts',
+      'src/core/resources/governor.ts',
+      'src/core/resources/queue.ts',
+      'src/core/resources/events.ts',
+      'src/core/resources/disk.ts',
+      'src/core/resources/createdRegistry.ts',
+      'src/core/resources/sampler/system.ts',
+      'src/core/resources/trees/registry.ts',
+      'src/runtime/resources/entry.ts',
+      'src/runtime/resources/host.ts',
+      'src/runtime/resources/settings.ts',
+      // U–C1: the window's status item and pause notice, never at activation.
+      'src/host/resources/resourceStatus.ts',
+    ],
+  },
+  RESOURCE_PROCESS_BUNDLE,
+  // POSTSPAWN: the vault MCP launch (scrubber, leases, governed start); the
+  // route checks (mcpSecrets.ts) stay with the pool, whose fetchFor is synchronous.
+  {
+    output: 'dist/mcpVault.js',
+    metafile: 'dist/meta/mcpVault.json',
+    use: 'the first vault-backed MCP server',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/host/backend/mcpVaultEntry.ts',
+      'src/host/backend/mcpVault.ts',
+      'src/core/vault/scrub.ts',
+    ],
+  },
+  {
+    output: 'dist/legalScan.js',
+    metafile: 'dist/meta/legalScan.json',
+    use: 'the first legal scan',
+    files: [
+      'src/core/legal/compat.ts',
+      'src/core/legal/data.ts',
+      'src/core/legal/depLicenses.ts',
+      'src/core/legal/dependencies.ts',
+      'src/core/legal/distribution.ts',
+      'src/core/legal/ecosystems/cargo.ts',
+      'src/core/legal/ecosystems/composer.ts',
+      'src/core/legal/ecosystems/gems.ts',
+      'src/core/legal/ecosystems/go.ts',
+      'src/core/legal/ecosystems/jvm.ts',
+      'src/core/legal/ecosystems/npm.ts',
+      'src/core/legal/ecosystems/nuget.ts',
+      'src/core/legal/ecosystems/python.ts',
+      'src/core/legal/ecosystems/toml.ts',
+      'src/core/legal/entry.ts',
+      'src/core/legal/files.ts',
+      'src/core/legal/headerFix.ts',
+      'src/core/legal/headers.ts',
+      'src/core/legal/markdown.ts',
+      'src/core/legal/projectLicense.ts',
+      'src/core/legal/scan.ts',
+      'src/core/legal/spdx.ts',
+      'src/core/legal/workspace.ts',
+    ],
+  },
+  {
+    output: 'dist/reportingNetwork.js',
+    metafile: 'dist/meta/reportingNetwork.json',
+    use: 'the first permitted report network read',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/network.ts',
+      'src/core/reporting/sources/cache.ts',
+      'src/core/reporting/sources/admission.ts',
+      'src/core/reporting/sources/github.ts',
+    ],
+  },
+  {
+    output: 'dist/reportingDestinations.js',
+    metafile: 'dist/meta/reportingDestinations.json',
+    use: 'the first scheduled report action',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/destinationsEntry.ts',
+      'src/core/reporting/destinations/runner.ts',
+      'src/core/reporting/destinations/email.ts',
+      'src/core/reporting/destinations/post.ts',
+    ],
+  },
+  {
+    output: 'dist/reporting.js',
+    metafile: 'dist/meta/reporting.json',
+    use: 'the first deterministic report',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/reportsEntry.ts',
+      'src/runtime/reporting/engine.ts',
+      'src/core/reporting/collect/index.ts',
+      'src/core/reporting/render/index.ts',
+      'src/core/reporting/history.ts',
+      'src/core/reporting/plan/reader.ts',
+    ],
+  },
+  {
+    output: 'dist/reportingPanel.js',
+    metafile: 'dist/meta/reportingPanel.json',
+    use: 'the first report tab',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/host/reporting/reportPanelEntry.ts', 'src/host/reporting/reportPanel.ts'],
+  },
+  {
+    output: 'dist/media.js',
+    metafile: 'dist/meta/media.json',
+    use: 'the first media attachment or trusted media read',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/core/media/inspectEntry.ts',
+      'src/core/media/limits.ts',
+      'src/core/media/sniff/isoBmff.ts',
+      'src/core/media/sniff/ebml.ts',
+      'src/core/media/sniff/riff.ts',
+      'src/core/media/sniff/mp3.ts',
+    ],
+  },
+  {
+    output: 'dist/questionNotes.js',
+    metafile: 'dist/meta/questionNotes.json',
+    use: 'the first backend question deferral',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/core/questions/deferralEntry.ts'],
+  },
+  {
+    output: 'dist/runtimeQuestions.js',
+    metafile: 'dist/meta-acp/runtimeQuestions.json',
+    use: 'the first interactive ACP session with durable questions',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/questions/questionRegistryEntry.ts',
+      'src/runtime/questions/acpRegistry.ts',
+    ],
+  },
+  {
+    output: 'dist/acpQuestions.js',
+    metafile: 'dist/meta-acp/acpQuestions.json',
+    use: 'the first ACP question, elicitation or question command',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/acp/questionDeferralEntry.ts', 'src/acp/questionDeferral.ts'],
+  },
+  {
+    output: 'dist/runtimeAccounts.js',
+    metafile: 'dist/meta-acp/runtimeAccounts.json',
+    use: 'the first accounts, developer or keyed headless ACP command',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/providers/accountsEntry.ts',
+      'src/runtime/providers/runtimeServices.ts',
+      'src/runtime/providers/providersFileStore.ts',
+      'src/runtime/developer/developerCommand.ts',
+      'src/runtime/developer/localFiles.ts',
+      'src/core/developer/developerOptions.ts',
+      'src/core/developer/surfaces.ts',
+      'src/core/providers/accounts.ts',
+      'src/core/providers/accountPolicy.ts',
+      'src/core/providers/accountCredentialRecord.ts',
+      'src/host/providers/accountSecrets.ts',
+    ],
+  },
+  {
+    output: 'dist/conversation.js',
+    metafile: 'dist/meta/conversation.json',
+    use: 'the first chat surface',
+    files: [
+      'src/host/conversation/conversationEntry.ts',
+      'src/host/conversation/conversationController.ts',
+      'src/host/conversation/sessionImport.ts',
+      'src/core/export/transcriptMarkdown.ts',
+    ],
+  },
+  {
+    output: 'dist/judge.js',
+    metafile: 'dist/meta/judge.json',
+    use: 'the first eligible Judge approval',
+    files: [
+      'src/host/judge/judgeEntry.ts',
+      'src/host/judge/judgeTransport.ts',
+      'src/host/judge/judgeUse.ts',
+      'src/host/judge/judgeUsage.ts',
+      'src/host/judge/museCodeSameJudge.ts',
+      'src/host/judge/modelApiSameJudge.ts',
+      'src/core/judge/admission.ts',
+      'src/core/judge/entries.ts',
+      'src/core/judge/judge.ts',
+      'src/core/judge/math.ts',
+      'src/core/judge/techniques.ts',
+      'src/core/judge/prompt.ts',
+      'src/core/judge/resolve.ts',
+      'src/core/judge/same/allowRules.ts',
+      'src/core/judge/same/answers.ts',
+      'src/core/judge/same/batches.ts',
+      'src/core/judge/same/resultCache.ts',
+      'src/core/judge/same/scheduler.ts',
+      'src/core/judge/same/sessionSpec.ts',
+      'src/core/judge/same/sideRequest.ts',
+      'src/core/judge/same/wording.ts',
+    ],
+  },
+  {
+    output: 'dist/tab.js',
+    metafile: 'dist/meta/tab.json',
+    use: 'the first Tab request or menu',
+    files: [
+      'src/host/tab/tabEntry.ts',
+      'src/host/tab/tabProvider.ts',
+      'src/host/tab/tabStatus.ts',
+      'src/host/tab/tabLedger.ts',
+      'src/host/tab/tabSpendGate.ts',
+      'src/core/tab/tabCache.ts',
+      'src/core/tab/tabContext.ts',
+      'src/core/tab/tabEngine.ts',
+      'src/core/tab/tabHooks.ts',
+      'src/core/tab/tabReply.ts',
+      'src/core/tab/tabRequest.ts',
+      'src/core/tab/tabScheduler.ts',
+      'src/core/tab/tabSpend.ts',
+    ],
+  },
+  {
+    output: 'dist/codeIntel.js',
+    metafile: 'dist/meta/codeIntel.json',
+    use: 'the first code intelligence call',
+    files: [
+      'src/host/ide/codeIntelEntry.ts',
+      'src/core/codeIntel/codeIntelQuery.ts',
+      'src/core/codeIntel/codeIntelTools.ts',
+      'src/core/codeIntel/codeText.ts',
+      'src/core/codeIntel/rename.ts',
+      'src/core/codeIntel/repoMap.ts',
+    ],
+  },
+  {
+    output: 'dist/voice.js',
+    metafile: 'dist/meta/voice.json',
+    use: 'the first recording',
+    files: [
+      'src/host/voice/voiceEntry.ts',
+      'src/host/voice/voiceProcesses.ts',
+      'src/core/voice/dictation.ts',
+      'src/core/voice/museVoice.ts',
+      'src/core/voice/recorderHelper.ts',
+    ],
+  },
+  // The window's web fetch (M69), split out on 2026-10-04: the Model API
+  // backend keeps its own URL checks, the ACP agent its own fetch.
+  {
+    output: 'dist/webFetch.js',
+    metafile: 'dist/meta/webFetch.json',
+    use: 'the first web fetch',
+    files: [
+      'src/host/web/webFetchEntry.ts',
+      'src/host/web/webFetcher.ts',
+      'src/host/web/pinnedRequest.ts',
+      'src/core/web/webFetch.ts',
+      'src/core/web/fetchFailure.ts',
+      'src/core/web/pageUrl.ts',
+      'src/core/web/publicAddress.ts',
+      'src/core/web/mimeType.ts',
+      'src/core/web/textDecoding.ts',
+    ],
+  },
+  {
+    output: 'dist/museCodeReviewer.js',
+    metafile: 'dist/meta/museCodeReviewer.json',
+    use: 'the first review',
+    files: [
+      'src/host/review/museCodeReviewerEntry.ts',
+      'src/host/review/museCodeReviewer.ts',
+      'src/core/backends/modelapi/autoReviewer.ts',
+    ],
+  },
+  // PANELBUDGET: the subscriptions half of the Models & Agents panel's host
+  // side (the sign-in flows), split out of dist/modelsPanel.js; activation
+  // requires it on the first subscription action, the panel never does.
+  {
+    output: 'dist/modelsSubscriptions.js',
+    metafile: 'dist/meta/modelsSubscriptions.json',
+    use: 'the first subscription action',
+    parents: [
+      BUNDLES.activation,
+      { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+    ],
+    files: [
+      'src/host/models/modelsSubscriptionsEntry.ts',
+      'src/host/providers/subscriptionFeatures.ts',
+      'src/host/providers/chatgptSignIn.ts',
+      'src/host/providers/copilotClient.ts',
+    ],
+  },
+  // The report dialog (M93, PLAN.md D72), split out from the start.
+  {
+    output: 'dist/report.js',
+    metafile: 'dist/meta/report.json',
+    use: 'the first report dialog',
+    files: [
+      'src/host/support/reportEntry.ts',
+      'src/host/conversation/reportProblemHandler.ts',
+      'src/host/support/reportProblem.ts',
+      'src/core/support/problemReport.ts',
+    ],
+  },
+  // The capacity estimator's engine (M117, PLAN.md D6, D97): the host, the
+  // CLI and the ACP agent require it the first time an estimate runs.
+  {
+    output: 'dist/estimator.js',
+    metafile: 'dist/meta/estimator.json',
+    use: 'the first estimate',
+    files: [
+      'src/host/estimator/estimatorEntry.ts',
+      'src/core/estimator/goal.ts',
+      'src/core/estimator/baseRisk.ts',
+      'src/core/estimator/calibration/fit.ts',
+      'src/core/estimator/calibration/records.ts',
+      'src/core/estimator/schedule.ts',
+      'src/core/estimator/simulate.ts',
+      'src/core/estimator/bottleneck.ts',
+      'src/core/estimator/recommend.ts',
+      'src/core/estimator/prices.ts',
+      'src/core/estimator/provision/owner.ts',
+      'src/core/estimator/provision/start.ts',
+    ],
+  },
+  // The flight recorder's journal (M93, PLAN.md D6, D72): activation keeps
+  // only the front that answers and queues; the journal, its policy and the
+  // frame mapping load just after activation or at the first failure.
+  {
+    output: 'dist/recorder.js',
+    metafile: 'dist/meta/recorder.json',
+    use: 'the journal, just after activation',
+    files: [
+      'src/host/support/recorderEntry.ts',
+      'src/host/support/reportJournal.ts',
+      'src/host/support/hostFrames.ts',
+      'src/core/support/flightRecorder.ts',
+      'src/core/support/journalEvents.ts',
+    ],
+  },
+  // What's New (M99, D79): activation keeps the update check, the claim and
+  // the loader; the page is required on the first page or notice.
+  {
+    output: 'dist/whatsNew.js',
+    metafile: 'dist/meta/whatsNew.json',
+    use: 'the first What’s New page or notice',
+    files: [
+      'src/host/whatsNew/whatsNewEntry.ts',
+      'src/host/whatsNew/whatsNewPanel.ts',
+      'src/host/whatsNew/whatsNewHtml.ts',
+      'src/core/whatsNew/whatsNewContent.ts',
+      'src/shared/whatsNewMessages.ts',
+    ],
+  },
+]
+/** The same parent exclusions and destination requirements used by the CLI. */
+export function checkDeferredBundles(inputsOf) {
+  const problems = []
+  for (const [names, owner] of [
+    [CONFIGURED_TRANSPORT_ONLY, BUNDLES.configured],
+    [SHARED_TRANSPORT_ONLY, BUNDLES.modelApi],
+  ]) {
+    for (const name of names) {
+      const source = `${MODEL_API_DIR}/${name}`
+      if (!inputsOf(owner).has(source)) problems.push(`${owner.output} no longer carries ${source}`)
+      for (const parent of Object.values(BUNDLES)) {
+        if (parent === owner) continue
+        if (inputsOf(parent).has(source))
+          problems.push(`${parent.output} carries ${source}, which loads only in ${owner.output}`)
+      }
+    }
+  }
+  if (!inputsOf(BUNDLES.configured).has('src/core/providers/configured.ts'))
+    problems.push('dist/configuredProviders.js no longer carries src/core/providers/configured.ts')
+  for (const source of SUBSCRIPTION_ONLY) {
+    if (!inputsOf(BUNDLES.subscriptions).has(source))
+      problems.push(`dist/subscriptions.js no longer carries ${source}`)
+    if (inputsOf(BUNDLES.providers).has(source))
+      problems.push(`dist/providers.js carries ${source}, which loads only on subscription use`)
+  }
+  for (const bundle of [...DEFERRED, ...ON_FIRST_USE]) {
+    const inputs = inputsOf(bundle)
+    const parents =
+      bundle.parents ??
+      (DEFERRED.includes(bundle) || bundle.output === 'dist/resourceGovernor.js'
+        ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
+        : [BUNDLES.activation])
+    for (const file of bundle.files) {
+      for (const parent of parents) {
+        if (inputsOf(parent).has(file)) {
+          problems.push(
+            `${parent.output} carries ${file}, which loads only on ${bundle.use ?? 'its first action'}`,
+          )
+        }
+      }
+      if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
+    }
+  }
+  // POSTSPAWN: the governor never carries the launcher's machinery again.
+  for (const file of RESOURCE_LAUNCH_SHARED) {
+    if (inputsOf(RESOURCE_GOVERNOR_BUNDLE).has(file))
+      problems.push(
+        `${RESOURCE_GOVERNOR_BUNDLE.output} carries ${file}, which loads only with the governed launcher (${RESOURCE_PROCESS_BUNDLE.output})`,
+      )
+  }
+  for (const file of RESOURCE_PROCESS_SHARED)
+    if (!inputsOf(RESOURCE_PROCESS_BUNDLE).has(file))
+      problems.push(`${RESOURCE_PROCESS_BUNDLE.output} no longer carries ${file}`)
+  // CAPS017: account services take the engine's backend factory through their
+  // port; the backend closure stays in dist/runtimeEngine.js.
+  const runtimeAccounts = ON_FIRST_USE.find((bundle) => bundle.output === 'dist/runtimeAccounts.js')
+  for (const file of [
+    'src/runtime/backends.ts',
+    'src/core/backends/musecode/MuseCodeHost.ts',
+    'src/host/backend/toolIo.ts',
+  ]) {
+    if (inputsOf(runtimeAccounts).has(file))
+      problems.push(
+        `${runtimeAccounts.output} carries ${file}, which the engine supplies through the accounts port`,
+      )
+  }
+  // CAPS017: classic zod's unused locales stay out of the ACP engine.
+  const runtimeEngine = DEFERRED.find((bundle) => bundle.output === 'dist/runtimeEngine.js')
+  for (const file of inputsOf(runtimeEngine).keys()) {
+    if (/^node_modules\/zod\/v4\/locales\/(?!(?:en|index)\.js$)/.test(file))
+      problems.push(`${runtimeEngine.output} carries ${file}; only zod's English locale ships`)
+  }
+  // Session export remains available to the conversation and ACP front ends;
+  // the backend loads its import sanitizer only from the existing lazy runtime.
+  const transfer = 'src/core/export/sessionTransfer.ts'
+  if (inputsOf(BUNDLES.modelApi).has(transfer))
+    problems.push(`${BUNDLES.modelApi.output} carries ${transfer}, which loads only on import`)
+  const importRuntime = DEFERRED.find((bundle) => bundle.output === 'dist/foreignHooks.js')
+  if (!inputsOf(importRuntime).has(transfer))
+    problems.push(`${importRuntime.output} no longer carries ${transfer}`)
+  // The plugin host loads only on the first plugin hook: the adapters' bundle
+  // requires it rather than carry it (M91b).
+  {
+    const adapters = inputsOf(DEFERRED.find((bundle) => bundle.output === 'dist/foreignHooks.js'))
+    for (const name of PLUGIN_HOOKS_ONLY) {
+      const file = `${MODEL_API_DIR}/${name}`
+      if (adapters.has(file)) {
+        problems.push(
+          `dist/foreignHooks.js carries ${file}, which loads only on the first plugin hook`,
+        )
+      }
+    }
+  }
+  const acp = inputsOf(BUNDLES.acp)
+  for (const file of ['src/host/support/recorderEntry.ts', 'src/host/support/reportJournal.ts']) {
+    if (acp.has(file))
+      problems.push(
+        `${BUNDLES.acp.output} carries ${file}, which loads only from the recorder bundle`,
+      )
+  }
+  const providerSources = ['anthropic', 'chat', 'gemini', 'ollama', 'responses'].map(
+    (name) => `${MODEL_API_DIR}/codecs/${name}.ts`,
+  )
+  for (const source of providerSources) {
+    if (!inputsOf(BUNDLES.providers).has(source))
+      problems.push(`dist/providers.js no longer carries ${source}`)
+  }
+  for (const bundle of [
+    ...Object.values(BUNDLES),
+    ...DEFERRED,
+    ...ON_FIRST_USE,
+    { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+    { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' },
+  ]) {
+    if (bundle === BUNDLES.providers) continue
+    for (const source of inputsOf(bundle).keys()) {
+      if (
+        (source.startsWith(`${MODEL_API_DIR}/codecs/`) ||
+          source.startsWith('src/core/providers/')) &&
+        !(bundle === BUNDLES.subscriptions && SUBSCRIPTION_ONLY.includes(source)) &&
+        !(source === 'src/core/providers/configured.ts' && bundle === BUNDLES.configured) &&
+        !(
+          bundle.output === 'dist/providerPolicy.js' &&
+          ['credentialRecord.ts', 'modelRef.ts', 'endpointPolicy.ts'].some(
+            (file) => source === `src/core/providers/${file}`,
+          )
+        ) &&
+        !(
+          source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
+        ) &&
+        !(
+          bundle.output === 'dist/runtimeAccounts.js' &&
+          ['accounts.ts', 'accountPolicy.ts', 'accountCredentialRecord.ts'].some(
+            (file) => source === `src/core/providers/${file}`,
+          )
+        )
+      )
+        problems.push(`${bundle.output} carries ${source}, which loads only in dist/providers.js`)
+    }
+  }
+  const wire = { output: 'dist/wire.js', metafile: 'dist/meta/wire.json' }
+  for (const file of WIRE_FILES) {
+    if (!inputsOf(wire).has(file)) problems.push(`${wire.output} no longer carries ${file}`)
+    for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE]) {
+      if (inputsOf(bundle).has(file))
+        problems.push(`${bundle.output} duplicates shared wire schemas in ${file}`)
+    }
+  }
+  const imageWorker = {
+    output: 'dist/imageResizeWorker.js',
+    metafile: 'dist/meta/imageResizeWorker.json',
+  }
+  const rasterOnly = [
+    'src/core/imageResizeWorker.ts',
+    'node_modules/jpeg-js/',
+    'node_modules/pngjs/',
+  ]
+  for (const prefix of rasterOnly) {
+    if (
+      inputsOf(imageWorker)
+        .keys()
+        .every((file) => !file.startsWith(prefix))
+    )
+      problems.push(`${imageWorker.output} no longer carries ${prefix}`)
+    for (const bundle of [
+      ...Object.values(BUNDLES),
+      ...DEFERRED,
+      ...ON_FIRST_USE,
+      { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+      { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' },
+    ]) {
+      if (
+        inputsOf(bundle)
+          .keys()
+          .some((file) => file.startsWith(prefix))
+      )
+        problems.push(
+          `${bundle.output} carries ${prefix}, which runs only on the image resize worker`,
+        )
+    }
+  }
+  for (const output of [
+    'dist/reporting.js',
+    'dist/reportingPanel.js',
+    'dist/reportingNetwork.js',
+    'dist/reportingDestinations.js',
+  ]) {
+    const bundle = ON_FIRST_USE.find((entry) => entry.output === output)
+    for (const input of inputsOf(bundle).keys()) {
+      const normalized = input.replaceAll('\\', '/')
+      if (normalized.startsWith('src/core/backends/') || normalized.startsWith('src/host/backend/'))
+        problems.push(`${output} carries a backend: ${normalized}`)
+      if (normalized.startsWith('src/core/paid/'))
+        problems.push(`${output} carries the paid gate: ${normalized}`)
+    }
+  }
+  return problems
+}
+
+/** Resource policy is shared through one lazy governor and one admission shim. */
+export function checkResourceBundles(inputsOf, bundles) {
+  const problems = []
+  for (const bundle of bundles) {
+    const output = bundle.output.replaceAll('\\', '/')
+    for (const raw of inputsOf(bundle).keys()) {
+      const file = raw.replaceAll('\\', '/')
+      if (!file.startsWith('src/core/resources/')) continue
+      if (
+        [
+          'src/core/resources/admission.ts',
+          'src/core/resources/launcher.ts',
+          'src/core/resources/admissionEntry.ts',
+        ].includes(file)
+      ) {
+        if (output !== 'dist/resourceAdmission.js')
+          problems.push(`${output} duplicates resource admission`)
+      } else if (
+        output !== 'dist/resourceGovernor.js' &&
+        !(output === RESOURCE_PROCESS_BUNDLE.output && RESOURCE_PROCESS_ONLY.includes(file)) &&
+        !['src/core/resources/launch.ts', 'src/core/resources/trees/processTable.ts'].includes(file)
+      ) {
+        problems.push(`${output} carries resource policy ${file} outside the lazy governor`)
+      }
+    }
+  }
+  return problems
+}
+
+/** @type {import('esbuild').Plugin} */
+export const sharedUiText = {
+  name: 'shared-ui-text',
+  setup(build) {
+    // esbuild sends this filter to Go RE2, which rejects JavaScript's u flag.
+    // `en`, `en.js` and `en.ts` all name the table's TypeScript source.
+    build.onResolve({ filter: /\/en(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+      path.resolve('src/shared/l10n/en.ts')
+        ? { path: './uiText.js', external: true }
+        : undefined,
+    )
+  },
+}
+
+// Share the used mini-parser API across Node bundles; browsers and integration
+// test bundles still inline it. The split gate checks every runtime member.
+/** @type {import('esbuild').Plugin} */
+export const sharedValidation = {
+  name: 'shared-validation',
+  setup(build) {
+    build.onResolve({ filter: /^zod\/mini$/ }, () => ({
+      path: './validation.js',
+      external: true,
+    }))
+  },
+}
+
+// Keep dynamic imports dynamic: these entries run only on their first action.
+// Exported for the generated lazy registry (scripts/gen-lazy-registry.mjs):
+// the source entry each filename-loaded bundle resolves from.
+/** @type {import('esbuild').Plugin} */
+export const DEFERRED_OUTFILES = new Map([
+  [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
+  [path.resolve('src/core/resources/resourceProcessEntry.ts'), 'dist/resourceProcess.js'],
+  [path.resolve('src/host/backend/mcpVaultEntry.ts'), 'dist/mcpVault.js'],
+  [path.resolve('src/runtime/runtimeEngineEntry.ts'), 'dist/runtimeEngine.js'],
+  [path.resolve('src/host/backend/providerPolicyEntry.ts'), 'dist/providerPolicy.js'],
+  [path.resolve('src/runtime/runtimeAccountingEntry.ts'), 'dist/runtimeAccounting.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiHooksEntry.ts'), 'dist/modelApiHooks.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiMcpEntry.ts'), 'dist/modelApiMcp.js'],
+  [path.resolve('src/runtime/exec/runExec.ts'), 'dist/headless.js'],
+  [path.resolve('src/runtime/usage/usageAcp.ts'), 'dist/usageService.js'],
+  [path.resolve('src/host/backend/providersEntry.ts'), 'dist/providers.js'],
+  [path.resolve('src/host/backend/subscriptionsEntry.ts'), 'dist/subscriptions.js'],
+  [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
+  [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
+  [path.resolve('src/core/media/inspectEntry.ts'), 'dist/media.js'],
+  [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
+  [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
+  [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
+  [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
+  [path.resolve('src/runtime/schedules/backgroundEntry.ts'), 'dist/scheduleBackground.js'],
+  [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
+  [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
+  [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
+  [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
+  [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
+  [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
+  [path.resolve('src/core/backends/modelapi/schedulesEntry.ts'), 'dist/schedules.js'],
+  [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
+  [path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'), 'dist/foreignHooks.js'],
+  [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
+  [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
+  [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiToolsEntry.ts'), 'dist/modelApiTools.js'],
+])
+/** @type {import('esbuild').Plugin} */
+export const deferredCohort = {
+  name: 'deferred-cohort',
+  setup(build) {
+    // The shared request/framing implementations stay in the existing backend
+    // bundle; providers and ACP require its exported API only when used.
+    build.onResolve({ filter: /\/(?:transport|sse|ndjson|modelApiEntry)(?:\.ts)?$/ }, (args) => {
+      if (args.kind === 'entry-point') return
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      if (
+        (['transport.ts', 'sse.ts', 'ndjson.ts'].every(
+          (name) => source !== path.resolve(`src/core/backends/modelapi/${name}`),
+        ) &&
+          source !== path.resolve('src/host/backend/modelApiEntry.ts')) ||
+        path.resolve(build.initialOptions.outfile ?? '') === path.resolve('dist/modelApi.js')
+      )
+        return
+      return { path: './modelApi.js', external: true }
+    })
+    build.onResolve(
+      {
+        filter:
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+      },
+      (args) => {
+        if (
+          args.kind !== 'dynamic-import' &&
+          !/(?:providerPolicyEntry|providersEntry|subscriptionsEntry|runExec)$/.test(args.path)
+        )
+          return
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
+        const output = DEFERRED_OUTFILES.get(source)
+        return output === undefined
+          ? undefined
+          : { path: `./${path.basename(output)}`, external: true }
+      },
+    )
+  },
+}
+
+// The schema modules dist/wire.js carries; CAPS017 added the five schemas
+// the protocol already pulled in, so lazy bundles stop duplicating them.
+const WIRE_FILES = [
+  'src/shared/protocol.ts',
+  'src/shared/agentEvents.ts',
+  'src/shared/scheduleProtocol.ts',
+  'src/shared/scheduleV2.ts',
+  'src/shared/scheduleEvents.ts',
+  'src/shared/schedule.ts',
+  'src/shared/media.ts',
+  'src/shared/questions.ts',
+]
+const WIRE_SOURCES = new Set(WIRE_FILES.map((file) => path.resolve(file)))
+/** @type {import('esbuild').Plugin} */
+export const sharedWire = {
+  name: 'shared-wire',
+  setup(build) {
+    build.onResolve(
+      {
+        filter:
+          /(?:^|\/)(?:protocol|agentEvents|scheduleProtocol|scheduleV2|scheduleEvents|schedule|media|questions)(?:\.ts)?$/,
+      },
+      (args) => {
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+        return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
+      },
+    )
+  },
+}
+
+// One process-wide admission configuration, shared by every lazy Node bundle.
+// Admission's state and the lazy launch shims (launcher.ts) ship once, in
+// dist/resourceAdmission.js (admissionEntry.ts re-exports both).
+const RESOURCE_ADMISSION_SOURCES = new Set(
+  ['src/core/resources/admission.ts', 'src/core/resources/launcher.ts'].map((file) =>
+    path.resolve(file),
+  ),
+)
+export const sharedResourceAdmission = {
+  name: 'shared-resource-admission',
+  setup(build) {
+    build.onResolve({ filter: /(?:^|\/)(?:admission|launcher)(?:\.[jt]s)?$/ }, (args) => {
+      if (
+        args.kind === 'entry-point' ||
+        path.resolve(build.initialOptions.outfile ?? '') ===
+          path.resolve('dist/resourceAdmission.js')
+      )
+        return
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return RESOURCE_ADMISSION_SOURCES.has(source)
+        ? { path: './resourceAdmission.js', external: true }
+        : undefined
+    })
+  },
+}
+
+// CAPS017: the ACP SDK imports classic zod as a namespace, so esbuild keeps
+// zod's `export * as locales` namespaces whole: 63 locale modules, 258 KiB
+// of dist/runtimeEngine.js. Nothing selects a zod locale (classic zod
+// installs English itself and no code calls `z.config`), so the locale
+// index keeps only `en`. The file keeps its own path, so the notices still
+// attribute it to zod's package.
+const ZOD_LOCALE_INDEX = /[/\\]node_modules[/\\]zod[/\\]v4[/\\]locales[/\\]index\.js$/
+/** @type {import('esbuild').Plugin} */
+export const englishZodLocales = {
+  name: 'english-zod-locales',
+  setup(build) {
+    build.onLoad({ filter: ZOD_LOCALE_INDEX }, () => ({
+      contents: "export { default as en } from './en.js'",
+      loader: 'js',
+    }))
+  },
+}
+
+// CAPS017: the four report bundles each carried their own 7.8-8.8 KiB copy
+// of the secret scrubber. They take the shared one dist/vaultBoundaries.js
+// already exports to every other Node bundle; no other vault code comes.
+/** @type {import('esbuild').Plugin} */
+export const sharedRedaction = {
+  name: 'shared-redaction',
+  setup(build) {
+    build.onResolve({ filter: /\/redact(?:\.[jt]s)?$/ }, (args) =>
+      path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) ===
+      path.resolve('src/shared/redact.ts')
+        ? { path: './vaultBoundaries.js', external: true }
+        : undefined,
+    )
+  },
+}
+
+/** Keep schema conversion out of each feature's request code. */
+export const sharedStructuredSchema = {
+  name: 'shared-structured-schema',
+  setup(build) {
+    build.onResolve({ filter: /^zod\/v4\/core$/ }, () => ({
+      path: './structuredSchema.js',
+      external: true,
+    }))
+  },
+}
+
+// The sources every Node bundle built with sharedModelApiBoundaries reads from
+// dist/modelApiBoundaries.js; the split check fails a bundle that loads it and
+// still carries one of them (INT0170).
+export const MODEL_API_BOUNDARY_SOURCES = [
+  'src/core/pathIdentity.ts',
+  // INT0170: the Windows path rules and their words, once per process.
+  'src/core/windowsPathSpelling.ts',
+  'src/core/backends/modelapi/schemas.ts',
+  'src/shared/teamConversation.ts',
+  'src/shared/paidBoundary.ts',
+  'src/shared/usd.ts',
+  // INT0170: PORTS017's boundary schemas, which usd.ts re-exports.
+  'src/shared/usdSchema.ts',
+  'src/shared/legal.ts',
+  'src/core/backends/modelapi/legalScanTool.ts',
+]
+
+// Share captured Model API validators, native path identity and team admission across Node
+// consumers; browser validators retain their original inline implementation.
+/** @type {import('esbuild').Plugin} */
+export const sharedModelApiBoundaries = {
+  name: 'shared-model-api-boundaries',
+  setup(build) {
+    build.onResolve(
+      {
+        filter:
+          /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history)(?:\.[jt]s)?$/,
+      },
+      (args) => {
+        const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        // INT0170: the resource journal, once for the window governor and the usage service.
+        if (source === path.resolve(RESOURCE_JOURNAL_SOURCE))
+          return path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve(RESOURCE_JOURNAL_BUNDLE.output)
+            ? undefined
+            : { path: './resourceJournal.js', external: true }
+        if (
+          ['src/shared/estimate.ts', 'src/shared/estimatorProtocol.ts'].some(
+            (file) => source === path.resolve(file),
+          )
+        )
+          return path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/estimateContracts.js')
+            ? undefined
+            : { path: './estimateContracts.js', external: true }
+        if (
+          [
+            'src/shared/redact.ts',
+            'src/shared/vault.ts',
+            'src/shared/vaultProtocol.ts',
+            'src/shared/vaultPanel.ts',
+            'src/core/vault/taint.ts',
+            'src/core/vault/exec/schema.ts',
+            'src/core/vault/exec/toolSchema.ts',
+          ].some((file) => source === path.resolve(file))
+        ) {
+          return path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/vaultBoundaries.js')
+            ? undefined
+            : { path: './vaultBoundaries.js', external: true }
+        }
+        return MODEL_API_BOUNDARY_SOURCES.some((file) => source === path.resolve(file))
+          ? { path: './modelApiBoundaries.js', external: true }
+          : undefined
+      },
+    )
+  },
+}
+
+/** Node-only compressed reference data; the browser keeps its portable schema. */
+export const nodeReferenceData = {
+  name: 'node-reference-data',
+  setup(build) {
+    build.onResolve({ filter: /\/reference\.generated$/ }, () => ({
+      path: path.resolve('src/runtime/reference.node.generated.ts'),
+    }))
+  },
+}

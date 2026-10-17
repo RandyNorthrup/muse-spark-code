@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "Setup": [
+      {
+        "matcher": "init",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"process.stdin.resume(); process.stdin.on('end', () => process.stdout.write('setup-init-ok\\n'))\""
+          }
+        ]
+      },
+      {
+        "matcher": "maintenance",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"process.stdin.resume(); process.stdin.on('end', () => process.stdout.write('setup-maintenance-ok\\n'))\""
+          }
+        ]
+      }
+    ]
+  }
+}

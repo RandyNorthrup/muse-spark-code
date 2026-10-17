@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- The browser check's fixture page (M81): a console error, a request that
+  fails (HTTP 404), and a field and a button for the click and type steps.
+  Served on 127.0.0.1 by test/unit/browserCheckLive.test.ts. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Browser check fixture</title>
+  </head>
+  <body>
+    <h1>It renders</h1>
+    <label>Name <input id="name" type="text" /></label>
+    <button id="go" type="button">Go</button>
+    <script>
+      console.error('fixture console error', 7)
+      fetch('/missing.json')
+      document.getElementById('go').addEventListener('click', () => {
+        console.error('clicked with ' + document.getElementById('name').value)
+      })
+    </script>
+  </body>
+</html>

@@ -1,9 +1,11 @@
+import { webviewKey } from '../../shared/keybindings'
 // The combobox-dialog shell the History dialog and the session board share
 // (M77): one search box over rows, Up/Down to move, Enter to resume the
 // active row, Esc to close, and rows that keep the search box focused for
 // the mouse.
 
 import {
+  type HTMLAttributes,
   type FocusEvent,
   type KeyboardEvent,
   type ReactNode,
@@ -32,23 +34,23 @@ export function usePaletteNavigation(
     setActiveIndex(wrapIndex(activeIndex, delta, count))
   }
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    switch (event.key) {
-      case 'ArrowDown': {
+    switch (webviewKey('dialog', event)) {
+      case 'next': {
         event.preventDefault()
         move(1)
         break
       }
-      case 'ArrowUp': {
+      case 'previous': {
         event.preventDefault()
         move(-1)
         break
       }
-      case 'Enter': {
+      case 'accept': {
         event.preventDefault()
         onEnterIndex(activeIndex)
         break
       }
-      case 'Escape': {
+      case 'close': {
         event.preventDefault()
         onClose()
         break
@@ -76,7 +78,7 @@ export function usePaletteDismiss(
   }
   const onDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     // The search box handles its own Escape.
-    if (event.key !== 'Escape' || event.target === search.current) {
+    if (webviewKey('dialog', event) !== 'close' || event.target === search.current) {
       return
     }
     event.preventDefault()
@@ -155,7 +157,9 @@ export function PaletteSessionRow({
   keyDescription,
   onHover,
   onResume,
+  rowProps,
 }: {
+  readonly rowProps?: Pick<HTMLAttributes<HTMLLIElement>, 'onContextMenu' | 'onKeyDown'>
   readonly rowId: string
   readonly title: string
   readonly isActive: boolean
@@ -170,20 +174,22 @@ export function PaletteSessionRow({
 }): ReactNode {
   return (
     <li
+      {...rowProps}
       id={rowId}
       role="option"
       aria-selected={isActive}
       aria-keyshortcuts={keyShortcuts}
       aria-description={keyDescription}
-      className={
-        isActive ? 'palette-item history-row palette-item-active' : 'palette-item history-row'
-      }
+      className={`palette-item history-row${isActive ? ' palette-item-active' : ''}`}
       onMouseEnter={onHover}
       onMouseDown={(event) => {
         // Keep the search box focused; the click still resumes.
         event.preventDefault()
       }}
-      onClick={onResume}
+      onClick={(event) => {
+        if (!(event.target instanceof Element && event.target.closest('button, [role="menu"]')))
+          onResume()
+      }}
     >
       <span className="palette-item-text">
         <span className="palette-item-label">

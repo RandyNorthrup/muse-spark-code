@@ -1,0 +1,128 @@
+[
+  {
+    "id": "kiro-userPromptSubmit-stdin-1",
+    "vendor": "kiro",
+    "event": "userPromptSubmit",
+    "direction": "stdin",
+    "source": "hooks-parity/raw/kiro_hooks_types.html:143-143",
+    "raw": "{\n  \"hook_event_name\": \"userPromptSubmit\",\n  \"cwd\": \"/current/working/directory\",\n  \"session_id\": \"abc123-def456-789\",\n  \"prompt\": \"user's input prompt\"\n}",
+    "json": {
+      "hook_event_name": "userPromptSubmit",
+      "cwd": "/current/working/directory",
+      "session_id": "abc123-def456-789",
+      "prompt": "user's input prompt"
+    },
+    "note": "section \"Prompt Submit\", CLI tab (v1 trigger UserPromptSubmit); the saved .md export blanked or truncated this block (kiro_hooks_types.md:43-45 empty block); raw is the code string from the page's Next.js RSC payload on the cited HTML line, final newline removed"
+  },
+  {
+    "id": "kiro-stop-stdin-1",
+    "vendor": "kiro",
+    "event": "stop",
+    "direction": "stdin",
+    "source": "hooks-parity/raw/kiro_hooks_types.html:143-143",
+    "raw": "{\n  \"hook_event_name\": \"stop\",\n  \"cwd\": \"/current/working/directory\",\n  \"session_id\": \"abc123-def456-789\",\n  \"assistant_response\": \"The assistant's last response text...\"\n}",
+    "json": {
+      "hook_event_name": "stop",
+      "cwd": "/current/working/directory",
+      "session_id": "abc123-def456-789",
+      "assistant_response": "The assistant's last response text..."
+    },
+    "note": "section \"Agent Stop\", CLI tab (v1 trigger Stop); the saved .md export blanked or truncated this block (kiro_hooks_types.md:67-69 empty block); raw is the code string from the page's Next.js RSC payload on the cited HTML line, final newline removed"
+  },
+  {
+    "id": "kiro-stop-stdout-1",
+    "vendor": "kiro",
+    "event": "stop",
+    "direction": "stdout",
+    "exitCode": 0,
+    "source": "hooks-parity/raw/kiro_hooks_types.html:143-143",
+    "raw": "{\"decision\": \"block\", \"reason\": \"You haven't run the tests yet.\"}",
+    "json": {
+      "decision": "block",
+      "reason": "You haven't run the tests yet."
+    },
+    "note": "Block Decision: on exit 0 a block decision on STDOUT makes the agent continue; reason is sent as a new user message (kiro_hooks_types.md:72, 75, 81); the saved .md export blanked or truncated this block (kiro_hooks_types.md:77-79 empty block); raw is the code string from the page's Next.js RSC payload on the cited HTML line, final newline removed"
+  },
+  {
+    "id": "kiro-agentSpawn-stdin-1",
+    "vendor": "kiro",
+    "event": "agentSpawn",
+    "direction": "stdin",
+    "source": "hooks-parity/raw/kiro_hooks_types.md:107-111",
+    "raw": "{\n  \"hook_event_name\": \"agentSpawn\",\n  \"cwd\": \"/current/working/directory\",\n  \"session_id\": \"abc123-def456-789\"\n}",
+    "json": {
+      "hook_event_name": "agentSpawn",
+      "cwd": "/current/working/directory",
+      "session_id": "abc123-def456-789"
+    },
+    "note": "section \"Agent Spawn\": CLI 2.x trigger; CLI V3 canonical trigger is SessionStart and accepts AgentSpawn/agentSpawn (line 104); identical to the RSC copy in kiro_hooks_types.html:143"
+  },
+  {
+    "id": "kiro-preToolUse-stdin-1",
+    "vendor": "kiro",
+    "event": "preToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/raw/kiro_hooks_types.html:143-143",
+    "raw": "{\n  \"hook_event_name\": \"preToolUse\",\n  \"cwd\": \"/current/working/directory\",\n  \"session_id\": \"abc123-def456-789\",\n  \"tool_name\": \"read\",\n  \"tool_input\": {\n    \"operations\": [\n      {\n        \"mode\": \"Line\",\n        \"path\": \"/current/working/directory/docs/hooks.md\"\n      }\n    ]\n  }\n}",
+    "json": {
+      "hook_event_name": "preToolUse",
+      "cwd": "/current/working/directory",
+      "session_id": "abc123-def456-789",
+      "tool_name": "read",
+      "tool_input": {
+        "operations": [
+          {
+            "mode": "Line",
+            "path": "/current/working/directory/docs/hooks.md"
+          }
+        ]
+      }
+    },
+    "note": "section \"Pre Tool Use\", CLI tab \"Hook Event\" (v1 trigger PreToolUse); tool_name \"read\" is an alias form; the saved .md export blanked or truncated this block (kiro_hooks_types.md:171-176 truncated to its last three lines); raw is the code string from the page's Next.js RSC payload on the cited HTML line, final newline removed"
+  },
+  {
+    "id": "kiro-postToolUse-stdin-1",
+    "vendor": "kiro",
+    "event": "postToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/raw/kiro_hooks_types.html:143-143",
+    "raw": "{\n  \"hook_event_name\": \"postToolUse\",\n  \"cwd\": \"/current/working/directory\",\n  \"session_id\": \"abc123-def456-789\",\n  \"tool_name\": \"read\",\n  \"tool_input\": {\n    \"operations\": [\n      {\n        \"mode\": \"Line\",\n        \"path\": \"/current/working/directory/docs/hooks.md\"\n      }\n    ]\n  },\n  \"tool_response\": {\n    \"success\": true,\n    \"result\": [\"# Hooks\\n\\nHooks allow you to execute...\"]\n  }\n}",
+    "json": {
+      "hook_event_name": "postToolUse",
+      "cwd": "/current/working/directory",
+      "session_id": "abc123-def456-789",
+      "tool_name": "read",
+      "tool_input": {
+        "operations": [
+          {
+            "mode": "Line",
+            "path": "/current/working/directory/docs/hooks.md"
+          }
+        ]
+      },
+      "tool_response": {
+        "success": true,
+        "result": ["# Hooks\n\nHooks allow you to execute..."]
+      }
+    },
+    "note": "section \"Post Tool Use\", CLI tab \"Hook Event\" (v1 trigger PostToolUse); the saved .md export blanked or truncated this block (kiro_hooks_types.md:201-207 truncated); raw is the code string from the page's Next.js RSC payload on the cited HTML line, final newline removed"
+  },
+  {
+    "id": "kiro-preToolUse-stdin-2",
+    "vendor": "kiro",
+    "event": "preToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/raw/kiro_hooks_types.md:282-290",
+    "raw": "{\n  \"hook_event_name\": \"preToolUse\",\n  \"cwd\": \"/current/working/directory\",\n  \"session_id\": \"abc123-def456-789\",\n  \"tool_name\": \"@postgres/query\",\n  \"tool_input\": {\n    \"sql\": \"SELECT * FROM orders LIMIT 10;\"\n  }\n}",
+    "json": {
+      "hook_event_name": "preToolUse",
+      "cwd": "/current/working/directory",
+      "session_id": "abc123-def456-789",
+      "tool_name": "@postgres/query",
+      "tool_input": {
+        "sql": "SELECT * FROM orders LIMIT 10;"
+      }
+    },
+    "note": "section \"MCP tool hooks\": MCP tool_name uses the namespaced form @<server>/<tool> (line 279); applies to Pre and Post Tool Use (line 293); identical to the RSC copy in kiro_hooks_types.html:143"
+  }
+]

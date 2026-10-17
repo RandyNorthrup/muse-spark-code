@@ -5,11 +5,22 @@
 // every stage of a multi-command line (M25).
 // A paid call never gets a card: the host's paid-use popup asks (M58).
 
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { ApprovalStage, RequirementRef } from '../../shared/agentEvents'
-import { MODEL_API_SUBAGENT_TOOLS, UI_TEXT, WEB_FETCH_SUBJECT_KIND } from '../../shared/constants'
+import {
+  BROWSER_CHECK_SUBJECT_KIND,
+  BROWSER_CHECK_WIDEN_SUBJECT_KIND,
+  MODEL_API_SUBAGENT_TOOLS,
+  UI_TEXT,
+  WEB_FETCH_SUBJECT_KIND,
+} from '../../shared/constants'
 import { fill, templateParts } from '../../shared/l10n/text'
+import type { TeamWorkerLabel } from '../../shared/teamView'
 import type { PendingApproval } from '../state/uiState'
+const TeamWorkerLabelView = lazy(async () => {
+  const module = await import('./TeamUi')
+  return { default: module.TeamWorkerLabel }
+})
 
 export interface ApprovalDecisionInput {
   readonly approvalId: string
@@ -21,6 +32,11 @@ export interface ApprovalDecisionInput {
 export interface ApprovalCardProps {
   readonly approval: PendingApproval
   readonly toolName: string
+  /**
+   * A worker's own approval (M96 lane U2): the panel labels the card with
+   * the role, the agent and the task, never with worker text (threat T8).
+   */
+  readonly worker?: TeamWorkerLabel | undefined
   readonly onDecide: (decision: ApprovalDecisionInput) => void
 }
 
@@ -60,7 +76,7 @@ function spawnObjective(rawArgs: string): string | undefined {
   return 'message' in parsed && typeof parsed.message === 'string' ? parsed.message : undefined
 }
 
-/** The card's sentence: a command or path, a page to fetch (M69), or a tool. */
+/** The card's sentence: a command or path, a page to fetch (M69) or to check (M81), or a tool. */
 function titleTemplate(approval: PendingApproval, stage: ApprovalStage | undefined): string {
   if (stage !== undefined) {
     return UI_TEXT.approvalAction
@@ -72,13 +88,19 @@ function titleTemplate(approval: PendingApproval, stage: ApprovalStage | undefin
     case WEB_FETCH_SUBJECT_KIND: {
       return UI_TEXT.approvalFetch
     }
+    case BROWSER_CHECK_SUBJECT_KIND: {
+      return UI_TEXT.approvalBrowserCheck
+    }
+    case BROWSER_CHECK_WIDEN_SUBJECT_KIND: {
+      return UI_TEXT.approvalBrowserCheckWiden
+    }
     default: {
       return UI_TEXT.approvalAction
     }
   }
 }
 
-export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps) {
+export function ApprovalCard({ approval, toolName, worker, onDecide }: ApprovalCardProps) {
   const [feedback, setFeedback] = useState('')
   const hasFeedbackChoice = approval.availableChoices.some(
     (choice) => choice.acceptsFeedback === true,
@@ -110,6 +132,11 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
       // which a stray Enter would then make).
       tabIndex={-1}
     >
+      {worker === undefined ? null : (
+        <Suspense fallback={null}>
+          <TeamWorkerLabelView worker={worker} />
+        </Suspense>
+      )}
       <div className="approval-title">
         {templateParts(title).map((part, index) =>
           typeof part === 'string' ? part : <code key={String(index)}>{subject}</code>,
@@ -129,11 +156,21 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
           {prompt}
         </blockquote>
       )}
+      {stage === undefined && approval.subject.kind === BROWSER_CHECK_WIDEN_SUBJECT_KIND ? (
+        <div className="approval-flags">
+          <span>{UI_TEXT.approvalBrowserCheckWidenResidual}</span>
+        </div>
+      ) : null}
       {approval.isProtectedWrite || approval.isJudgeEscalated ? (
         <div className="approval-flags">
           {approval.isProtectedWrite ? <span>{UI_TEXT.approvalProtectedWrite}</span> : null}
           {approval.isJudgeEscalated ? <span>{UI_TEXT.approvalJudgeEscalated}</span> : null}
         </div>
+      ) : null}
+      {approval.judgeCaution === true ? (
+        <p className="approval-note" dir="auto">
+          {UI_TEXT.judgeCaution}
+        </p>
       ) : null}
       {approval.note === undefined ? null : (
         <p className="approval-note" dir="auto">
@@ -161,7 +198,8 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
             className={
               choice.decision.startsWith('approved') ? 'button-primary' : 'button-secondary'
             }
-            title={choice.rulePreview}
+            // A label longer than the card ellipsizes; the title keeps it whole.
+            title={choice.rulePreview ?? choice.label}
             disabled={isLocked}
             onClick={() => {
               const { sourceIndex } = approval.requirementId

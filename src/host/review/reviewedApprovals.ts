@@ -1,3 +1,4 @@
+import { startApprovalJudge } from '../../core/judge/use'
 // The approvals one conversation hands the Auto reviewer on Muse Code (M90,
 // PLAN.md D69). The panel holds a request Muse Code raised in Auto (its card
 // is not shown) and hands it here; this decides what follows:
@@ -18,6 +19,7 @@ import {
   isMuseCodeFaultError,
   isPromptSettledError,
 } from '../../core/agent/agentBackend'
+import type { JudgeAdvisory, JudgeFence } from '../../core/judge/use'
 import { allowOnceChoice } from '../../core/agent/approvalRules'
 import type { ReviewBreaker, ReviewRequest } from '../../core/backends/modelapi/autoReviewer'
 import type { CoreLogger } from '../../core/logging'
@@ -35,6 +37,7 @@ export interface ReviewedApprovalsDeps {
   readonly notice: (level: 'info' | 'warning', text: string) => void
   /** Whether the reviewer may still answer it: Auto, the setting on, the same session. */
   readonly mayAllow: (event: ApprovalRequest) => boolean
+  readonly judge?: JudgeAdvisory | undefined
   readonly log: CoreLogger
   /** A failure as the log may name it (never the CLI's own words). */
   readonly describeFailure: (error: unknown) => string
@@ -57,6 +60,7 @@ export type ReviewOne = (
 interface Held {
   event: ApprovalRequest
   readonly stop: AbortController
+  readonly caution: JudgeFence | undefined
 }
 
 interface Allowance {
@@ -114,7 +118,18 @@ export class ReviewedApprovals {
   ) {}
 
   private async judge(event: ApprovalRequest, hold: ReviewHold): Promise<void> {
-    const held: Held = { event, stop: new AbortController() }
+    const caution = startApprovalJudge(
+      this.deps.judge,
+      {
+        backend: 'museCode',
+        sessionId: hold.session.sessionId,
+        turnId: event.turnId ?? '',
+        tool: event.toolName,
+      },
+      event.rawArgs,
+      JSON.stringify(hold.request),
+    )
+    const held: Held = { event, stop: new AbortController(), caution }
     this.held.set(event.approvalId, held)
     this.deps.log.info(`Approval ${event.approvalId} goes to the Auto reviewer first`)
     if (this.isFirstReview()) {
@@ -142,6 +157,8 @@ export class ReviewedApprovals {
       return
     }
     this.held.delete(event.approvalId)
+    const hasJudgeCaution = held.caution?.read() === 'caution'
+    if (hasJudgeCaution) held.event = { ...held.event, judgeCaution: true }
     if (outcome.hasTripped) {
       this.deps.notice('warning', UI_TEXT.autoReviewerTripped)
     }
@@ -150,6 +167,8 @@ export class ReviewedApprovals {
     )
     if (outcome.decision === 'ask') {
       this.deps.showCard(held.event, reviewNote(outcome))
+    } else if (hasJudgeCaution) {
+      this.deps.showCard(held.event, undefined)
     } else if (this.deps.mayAllow(held.event)) {
       await this.allow(hold.session, held.event, outcome.reason)
     } else {
@@ -200,6 +219,8 @@ export class ReviewedApprovals {
 
   /** An approval goes to the reviewer; the panel shows nothing of it until the review ends. */
   public hold(event: ApprovalRequest, hold: ReviewHold): void {
+    this.held.get(event.approvalId)?.caution?.discard()
+    this.held.get(event.approvalId)?.stop.abort()
     void this.judge(event, hold)
   }
 
@@ -219,6 +240,7 @@ export class ReviewedApprovals {
       const isSame = isSameSubject(held.event.subject, event.subject)
       held.event = { ...held.event, ...stage }
       if (!isSame) {
+        held.caution?.discard()
         held.stop.abort()
         this.held.delete(event.approvalId)
         this.deps.showCard(held.event, undefined)
@@ -244,6 +266,7 @@ export class ReviewedApprovals {
    * transcript's reason when the reviewer allowed it, else undefined.
    */
   public resolved(event: Extract<AgentEvent, { type: 'approvalResolved' }>): string | undefined {
+    this.held.get(event.approvalId)?.caution?.discard()
     this.held.get(event.approvalId)?.stop.abort()
     this.held.delete(event.approvalId)
     const allowance = this.allowed.get(event.approvalId)
@@ -256,6 +279,7 @@ export class ReviewedApprovals {
   /** Auto was left: every approval the reviewer still judges is the user's now. */
   public release(): void {
     for (const held of this.held.values()) {
+      held.caution?.discard()
       held.stop.abort()
       this.deps.showCard(held.event, undefined)
     }
@@ -272,6 +296,7 @@ export class ReviewedApprovals {
   /** The conversation left the panel: its reviews stop and nothing more is shown. */
   public forget(): void {
     for (const held of this.held.values()) {
+      held.caution?.discard()
       held.stop.abort()
     }
     this.held.clear()

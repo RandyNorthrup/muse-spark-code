@@ -1,3 +1,4 @@
+import { Usd } from '../../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -24,7 +25,7 @@ function result(overrides: Partial<EvalTaskResult>): EvalTaskResult {
     inputTokens: 600,
     cachedTokens: 200,
     outputTokens: 40,
-    costUsd: 0.0001,
+    costUsd: Usd.from(0.0001).toAmount(),
     toolCalls: 2,
     approvals: 0,
     questions: 0,
@@ -49,7 +50,7 @@ function arm(name: string, results: readonly EvalTaskResult[], inputTokens: numb
         inputTokens,
         cachedTokens: 0,
         outputTokens: 40,
-        costUsd: 0.0001,
+        costUsd: Usd.from(0.0001).toAmount(),
       },
       {
         split: 'heldout',
@@ -61,7 +62,7 @@ function arm(name: string, results: readonly EvalTaskResult[], inputTokens: numb
         inputTokens: 0,
         cachedTokens: 0,
         outputTokens: 0,
-        costUsd: 0,
+        costUsd: Usd.from(0).toAmount(),
       },
     ],
   }
@@ -104,7 +105,12 @@ describe('eval report', () => {
     if (!captured.success) throw new Error('the authentic baseline did not parse')
     const parsed = captured.data
     expect(parsed.version).toBe(1)
-    expect(parsed).toEqual(original)
+    expect(JSON.parse(formatEvalReportJson(parsed))).toMatchObject({
+      version: 1,
+      model: parsed.model,
+    })
+    for (const arm of parsed.arms)
+      for (const result of arm.results) expect(typeof result.costUsd).toBe('string')
     for (const baseline of parsed.arms) {
       for (const task of baseline.results) {
         expect(Object.hasOwn(task, 'questions')).toBe(false)
@@ -112,7 +118,11 @@ describe('eval report', () => {
         expect(Object.hasOwn(task, 'order')).toBe(false)
       }
     }
-    expect(JSON.parse(formatEvalReportJson(parsed))).toEqual(original)
+    expect(JSON.parse(formatEvalReportJson(parsed))).toEqual(
+      JSON.parse(bytes.toString(), (key, value: unknown) =>
+        key === 'costUsd' && typeof value === 'number' ? String(value) : value,
+      ),
+    )
     const markdown = formatEvalReportMarkdown(parsed)
     expect(markdown).toContain('| not recorded | not recorded | not recorded |')
     expect(markdown).not.toContain('undefined')
@@ -171,10 +181,10 @@ describe('eval report', () => {
       'Model: muse-spark-1.3-contributor · generated 2026-09-28T00:00:00.000Z · verdict: fail',
     )
     expect(markdown).toContain(
-      '| accept-off-by-one | accept | yes | completed | 3 | 3 | 600 | 200 | 40 | $0.0001 | 2 | 0 | 0 | 0 | 1 |',
+      '| accept-off-by-one | accept | yes | completed | 3 | 3 | 600 | 200 | 40 | $0.00010 | 2 | 0 | 0 | 0 | 1 |',
     )
     expect(markdown).toContain(
-      'accept: 1/1 passed (100%), 3 attempts in 3 requests, 600 input (0 cached) + 40 output tokens, $0.0001.',
+      'accept: 1/1 passed (100%), 3 attempts in 3 requests, 600 input (0 cached) + 40 output tokens, $0.00010.',
     )
     expect(markdown).toContain(
       'heldout-sort-numbers failed:\n\n```text\nthe turn ended failed: overloaded\nthe verifier failed: 1 !== 9\n```',

@@ -1,0 +1,20 @@
+{
+  "source": "production dist/meta/webview.json, scripts/lib/webviewBundles.mjs static closures",
+  "method": "Read-only calculation with the proposed additional group in memory; no gate/config edit",
+  "entries": [
+    "src/webview/playbook/PlaybookPanel.tsx",
+    "src/webview/playbook/PlaybookRows.tsx",
+    "src/webview/playbook/PlaybookMap.tsx"
+  ],
+  "additionalBytes": 13311,
+  "budgetBytes": 25600,
+  "legacyDeferredBytesAfterRegistration": 51175,
+  "legacyDeferredBudgetBytes": 51200,
+  "unregisteredDeferredBytes": 64486,
+  "shippedSizeGate": "fails until W registers the group",
+  "shippedSplitGate": "fails with exactly the three unlisted entries",
+  "startupKiB": 797.8,
+  "startupBudgetKiB": 900,
+  "acpKiB": 828.3,
+  "acpBudgetKiB": 850
+}

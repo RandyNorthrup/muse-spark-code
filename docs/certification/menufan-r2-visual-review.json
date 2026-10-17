@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "review": "owner-2026-10-10-menu-fan-r2",
+  "sourceRevision": "cbb9bc70cb43eddafc4584db24ba23084b237037",
+  "baselineRevision": "71ca4b93e89e60e50225e5d5114f345a4a518042",
+  "changedScenes": [],
+  "baselineUpdated": false,
+  "baselineDecision": "All 9,792 captures pass the existing pixel policy; retain every baseline byte-exact under the instruction to update only affected scenes.",
+  "interactionScenes": ["checkpoint-restore", "quote-menu"],
+  "afterScreenshot": "temp/menufan/after/checkpoint-restore-320.png",
+  "captureInputsMatchCommittedBytes": true,
+  "verification": {
+    "command": "npm run check:visual",
+    "revision": "71ca4b93e89e60e50225e5d5114f345a4a518042",
+    "manifestSha256": "3951179a8aa655657632557845efdeca6c82c0916a5f60738aa0733efdd86542",
+    "candidateSha256": "28c36e7850568dcb0bf7110f3c37142693546b3d6e82ad266110e22465ffe0d1",
+    "selectionSha256": "6b26f11bcfa3b6dbf26400de28bb5a2682895da231835c7d07bc2fe7eb0e43cd",
+    "checked": 9792,
+    "changedPixels": 9,
+    "maxImageChangedPixels": 1,
+    "regenerated": false,
+    "baselineBytes": 447111110,
+    "candidateBytes": 447112960,
+    "browser": "150.0.7871.186",
+    "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+    "platform": "linux",
+    "policy": {
+      "threshold": 0.1,
+      "includeAA": false,
+      "maxChangedPixelRatio": 0.0001,
+      "maxChangedPixels": 12
+    }
+  }
+}

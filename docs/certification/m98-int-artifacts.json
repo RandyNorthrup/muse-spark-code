@@ -1,0 +1,145 @@
+{
+  "bundles": [
+    {
+      "path": "dist/extension.js",
+      "bytes": 572175,
+      "sha256": "72c1ffba42a712153b3be81a44d02f5dc467eaf1c3442ff5a0a3a8f1fec7af16"
+    },
+    {
+      "path": "dist/modelApi.js",
+      "bytes": 439520,
+      "sha256": "6928dbade27831589402da1041de44df27d6e3dfabda0f7c81821b514c032a3c"
+    },
+    {
+      "path": "dist/judge.js",
+      "bytes": 79954,
+      "sha256": "6f79024703afb69c7801d7646d6c96dccbed01212ec360c076eb5cfb624008d6"
+    },
+    {
+      "path": "dist/webview/main.js",
+      "bytes": 884182,
+      "sha256": "fa23e4cc78515417bd9c745c65b89a8937373c595621269c279cdff7555a4f5d"
+    },
+    {
+      "path": "dist/acp.js",
+      "bytes": 806229,
+      "sha256": "99b77a051e91f0cbcbb205ec360c5ab1be50b8838dcfeb988c40ccdf6a77ede9"
+    },
+    {
+      "path": "dist/uiText.js",
+      "bytes": 108861,
+      "sha256": "cda6dbcdbffd423aac723295d28b00cc39a9445f89b3c52a01dc92eaf9f1d784"
+    },
+    {
+      "path": "dist/checkpointStore.js",
+      "bytes": 111723,
+      "sha256": "856fcdaefeca081ad6c5657c2e9c8aa4e8bcf5dde836bc90d39a3b24f6e560c1"
+    }
+  ],
+  "judgeInputs": {
+    "extension": {
+      "src/core/judge/engine.ts": 32,
+      "src/host/judge/judgeBundle.ts": 625,
+      "src/core/judge/use.ts": 113
+    },
+    "judge": {
+      "src/host/judge/judgeEntry.ts": 3852,
+      "src/core/judge/admission.ts": 5907,
+      "src/core/judge/entries.ts": 1623,
+      "src/core/judge/same/allowRules.ts": 1621,
+      "src/core/judge/same/resultCache.ts": 451,
+      "src/core/judge/engine.ts": 32,
+      "src/core/judge/resolve.ts": 728,
+      "src/core/judge/use.ts": 1708,
+      "src/host/judge/judgeUse.ts": 773,
+      "src/host/judge/judgeUsage.ts": 929,
+      "src/core/judge/math.ts": 362,
+      "src/core/judge/judge.ts": 1540,
+      "src/core/judge/techniques.ts": 1349,
+      "src/core/judge/same/answers.ts": 1199,
+      "src/core/judge/prompt.ts": 1785,
+      "src/core/judge/same/scheduler.ts": 285,
+      "src/core/judge/same/wording.ts": 302,
+      "src/core/judge/same/batches.ts": 1859,
+      "src/core/judge/same/sessionSpec.ts": 182,
+      "src/host/judge/museCodeSameJudge.ts": 3067,
+      "src/core/judge/same/sideRequest.ts": 820,
+      "src/host/judge/modelApiSameJudge.ts": 1806,
+      "src/host/judge/judgeTransport.ts": 1245
+    },
+    "modelApi": {}
+  },
+  "vsix": {
+    "path": "muse-spark-code-0.12.1.vsix",
+    "bytes": 2113751,
+    "capBytes": 2252800,
+    "sizeCheckExit": 0,
+    "packageExit": 0,
+    "entries": 119,
+    "sha256": "0b8a83774fd02e1082f60602ff3941270288c46af54da4c00cfff251e3fc36c1",
+    "hasUniversalHelper": false,
+    "ciPresenceExit": 1,
+    "missingRequiredEntries": ["extension/native/darwin/muse-dictate"],
+    "universalCapCertified": false
+  },
+  "quality": {
+    "command": "npm run quality",
+    "rig": "kubuntu",
+    "exit": 0,
+    "passedFiles": 369,
+    "skippedFiles": 4,
+    "passedTests": 7317,
+    "skippedTests": 56,
+    "coverage": {
+      "statements": 94.22,
+      "branches": 89.86,
+      "functions": 95.9,
+      "lines": 94.39
+    },
+    "a11y": {
+      "pages": 464,
+      "scenarios": 116,
+      "themes": 4,
+      "violatedRules": 0,
+      "violatedElements": 0,
+      "undecidedFailures": 0,
+      "pagesWithoutResult": 0,
+      "existingExemptions": 44
+    },
+    "gitleaks": {
+      "commits": 1461,
+      "bytes": 368873711,
+      "leaks": 0
+    },
+    "sast": {
+      "rules": 287,
+      "targets": 756,
+      "findings": 0,
+      "timeoutWarnings": {
+        "src/core/backends/modelapi/ModelApiHost.ts": 3,
+        "src/host/conversation/conversationController.ts": 1
+      },
+      "followups": [
+        {
+          "command": "semgrep scan --config auto --error --timeout 60 <controller and four new source files>",
+          "exit": 0,
+          "rules": 210,
+          "targets": 5,
+          "findings": 0,
+          "timeoutWarnings": 0,
+          "parsedLinesPercent": 100
+        },
+        {
+          "command": "semgrep scan --config auto --error --timeout 60 src/core/backends/modelapi/ModelApiHost.ts",
+          "exit": 0,
+          "rules": 210,
+          "targets": 1,
+          "findings": 0,
+          "timeoutWarnings": 0,
+          "parsedLinesPercent": 100
+        }
+      ]
+    },
+    "powerShellGate": "existing Linux skip; Windows CI receipt remains open"
+  }
+}

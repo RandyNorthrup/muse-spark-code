@@ -7,19 +7,9 @@
 import {
   type EffortLevel,
   type ExportFormat,
-  ISSUES_URL,
-  MUSE_DOCS_URL,
   type PaidFeature,
   type PermissionMode,
-  RESUME_SKILL_SELECTORS,
-  SKILL_IMPORT_SOURCES,
-  SLASH_COMMAND_NAMES,
-  type SkillImportSource,
-  UI_TEXT,
 } from './constants'
-import { effortLabel, effortLevelsFor } from './effort'
-import { fill, formatNumber } from './l10n/text'
-import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from './paid'
 import type { BackendKind, ModelOption, SkillOption } from './protocol'
 import type { ReviewRequest } from './reviewCommand'
 
@@ -39,8 +29,12 @@ export type PaletteAction =
   | { readonly type: 'clearConversation' }
   | { readonly type: 'openHistory' }
   | { readonly type: 'openUsage' }
+  | { readonly type: 'openUsagePage' }
   | { readonly type: 'openAgents' }
   | { readonly type: 'openModelPicker' }
+  /** The models view's footer rows (M95): the provider quick-pick, the Models & Agents panel. */
+  | { readonly type: 'addModelProvider' }
+  | { readonly type: 'manageModels' }
   | { readonly type: 'setEffort'; readonly effort: EffortLevel }
   | { readonly type: 'toggleThinking' }
   | { readonly type: 'openPermissionModes' }
@@ -53,6 +47,11 @@ export type PaletteAction =
   /** `/goal ` in the prompt, for the objective (M45). */
   | { readonly type: 'startGoal' }
   | { readonly type: 'startLoop' }
+  /** Scheduled prompts v2 (M115): the surface's list, editor and timeline. */
+  | { readonly type: 'openScheduleList' }
+  | { readonly type: 'openScheduleEditor' }
+  | { readonly type: 'openScheduleTimeline' }
+  | { readonly type: 'startHook' }
   | { readonly type: 'compact' }
   /** `/handoff …` in the prompt, for the new conversation's goal (M74). */
   | { readonly type: 'startHandoff' }
@@ -66,18 +65,31 @@ export type PaletteAction =
   | { readonly type: 'showPlans' }
   | { readonly type: 'newWorktree' }
   | { readonly type: 'removeWorktree' }
+  /** Commit, push and pull requests in the panel (M71). */
+  | { readonly type: 'gitAction'; readonly action: 'openCommit' | 'push' | 'openPullRequest' }
+  | { readonly type: 'openPullRequestInConversation' }
   | { readonly type: 'exportConversation'; readonly format: ExportFormat }
-  /** "Import session…" (M84): resume a portable JSON file on the Model API backend. */
+  /** "Import Session…" (M84): resume a portable JSON file on the Model API backend. */
   | { readonly type: 'importSession' }
-  /** "Open share file…" (M84): a portable JSON file read-only in the panel. */
+  /** "Open Share File…" (M84): a portable JSON file read-only in the panel. */
   | { readonly type: 'openShareFile' }
+  /** M118-P-REACT-BRIDGE: supplied only after the host binds these actions. */
+  | { readonly type: 'shareChat' }
+  | { readonly type: 'promptCommand'; readonly command: 'library' | 'use' | 'share' }
   | { readonly type: 'openLog' }
+  /** "Report an Issue…" (M93, PLAN.md D72): the scrubbed report's preview, never a bare link. */
+  | { readonly type: 'openReport' }
+  /** Deterministic reports (M113); W routes this action to the host command. */
+  | { readonly type: 'showReport' }
   /** "What's New" (M99): the release notes of this version in an editor tab. */
   | { readonly type: 'showWhatsNew' }
+  | { readonly type: 'openHelp' }
   | { readonly type: 'openExternal'; readonly url: string }
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
   /** `/review ` in the prompt, for what to review (M70). */
   | { readonly type: 'startReview' }
+  /** `/legal ` in the prompt, for the read-only legal scan (M97). */
+  | { readonly type: 'startLegalScan' }
   /** A review preset (M70): the request as the host takes it. */
   | { readonly type: 'review'; readonly request: ReviewRequest }
   /** The review pane over the conversation's changes (M70). */
@@ -87,6 +99,8 @@ export type PaletteAction =
 export interface PaletteItem {
   readonly id: string
   readonly label: string
+  /** Absent only on the loading/empty notes and externally supplied rows. */
+  readonly tip?: string | undefined
   readonly detail?: string
   readonly widget?: PaletteWidget
   readonly action: PaletteAction
@@ -113,6 +127,16 @@ export interface UsageTotals {
 }
 
 export interface PaletteContext {
+  readonly arePromptCommandsBound?: boolean
+  /** Schedule management also owns the legacy loop row; v2 needs its runtime availability. */
+  readonly schedules?: {
+    readonly isAvailable?: boolean
+    readonly create: PaletteAction
+    readonly list: PaletteAction
+    readonly timeline: PaletteAction
+  }
+  /** M117: W supplies the local composer handler before offering this command. */
+  readonly estimateAvailable?: boolean
   readonly currentModel:
     { readonly modelId: string; readonly contextLimit: number | undefined } | undefined
   readonly models: readonly ModelOption[]
@@ -132,528 +156,8 @@ export interface PaletteContext {
   readonly isKeyStored: boolean
 }
 
-/** The backend's name as the palette, the usage dialog and an export show it. */
-export function backendLabel(kind: BackendKind): string {
-  // Built per call, so the name is the installed table's (PLAN.md D33).
-  const labels: Readonly<Record<BackendKind, string>> = {
-    museCode: UI_TEXT.backendMuseCode,
-    modelApi: UI_TEXT.backendModelApi,
-  }
-  return labels[kind]
-}
+export { backendLabel, formatTokenWindow } from './paletteFormatting'
 
-const TOKENS_PER_MILLION = 1_000_000
-const TOKENS_PER_THOUSAND = 1000
-// Thousands are shown to one decimal: 12.3K.
-const TOKENS_PER_TENTH_THOUSAND = 100
-const TENTHS_PER_UNIT = 10
-
-/** "1M" / "200K" / "12.3K" / "512" for a token count, in the display language's digits. */
-export function formatTokenWindow(tokens: number): string {
-  if (tokens < TOKENS_PER_THOUSAND) {
-    return formatNumber(tokens)
-  }
-  const thousands = Math.round(tokens / TOKENS_PER_TENTH_THOUSAND) / TENTHS_PER_UNIT
-  // 999,950 and up round to a thousand thousands: that is "1M", not "1,000K".
-  return thousands < TOKENS_PER_THOUSAND
-    ? `${formatNumber(thousands)}K`
-    : `${formatNumber(Math.round(tokens / TOKENS_PER_MILLION))}M`
-}
-
-/** "200K context": a model's context window. */
-export function contextWindowLabel(tokens: number): string {
-  return fill(UI_TEXT.modelContextWindow, { tokens: formatTokenWindow(tokens) })
-}
-
-function contextSuffix(contextLimit: number | undefined): string {
-  return contextLimit === undefined ? '' : ` (${contextWindowLabel(contextLimit)})`
-}
-
-function modelValue(context: PaletteContext): string {
-  const { currentModel } = context
-  return currentModel === undefined
-    ? UI_TEXT.hostStarting
-    : `${currentModel.modelId}${contextSuffix(currentModel.contextLimit)}`
-}
-
-function usageValue(usage: UsageTotals | undefined): string {
-  return usage === undefined
-    ? '—'
-    : fill(UI_TEXT.sessionUsageValue, {
-        input: formatTokenWindow(usage.inputTokens),
-        output: formatTokenWindow(usage.outputTokens),
-      })
-}
-
-function continueLabel(source: SkillImportSource): string {
-  const labels: Readonly<Record<SkillImportSource, string>> = {
-    claude: UI_TEXT.continueClaudeItem,
-    codex: UI_TEXT.continueCodexItem,
-  }
-  return labels[source]
-}
-
-/** Muse Code's bundled `resume-claude` / `resume-codex`, where the session lists them (M30). */
-function continueItems(skills: readonly SkillOption[] | undefined): readonly PaletteItem[] {
-  return SKILL_IMPORT_SOURCES.flatMap((source) => {
-    const selector = RESUME_SKILL_SELECTORS[source]
-    return skills?.some((skill) => skill.selector === selector) === true
-      ? [
-          {
-            id: `continue:${source}`,
-            label: continueLabel(source),
-            detail: UI_TEXT.continueDetail,
-            action: { type: 'insertSkill', selector } as const,
-          },
-        ]
-      : []
-  })
-}
-
-/** The CLI's skill commands (M30); the Model API backend reads skill files itself (M10). */
-function skillManagementItems(backend: BackendKind | undefined): readonly PaletteItem[] {
-  return backend === 'museCode'
-    ? [
-        {
-          id: 'manageSkills',
-          label: UI_TEXT.manageSkillsItem,
-          detail: UI_TEXT.manageSkillsDetail,
-          action: { type: 'manageSkills' },
-        },
-        {
-          id: 'importSkills',
-          label: UI_TEXT.importSkillsItem,
-          detail: UI_TEXT.importSkillsDetail,
-          action: { type: 'importSkills' },
-        },
-      ]
-    : []
-}
-
-/**
- * What Muse Code loads from its own settings (M31). The Model API backend
- * runs the same MCP servers itself (M50) and may load reviewed hooks (M51).
- */
-function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem[] {
-  if (backend === undefined) {
-    return []
-  }
-  const mcp: PaletteItem = {
-    id: 'mcpServers',
-    label: UI_TEXT.mcpItem,
-    slashName: SLASH_COMMAND_NAMES.mcp,
-    detail: backend === 'museCode' ? UI_TEXT.mcpItemDetail : UI_TEXT.mcpItemDetailModelApi,
-    action: { type: 'showMcpServers' },
-  }
-  return [
-    mcp,
-    {
-      id: 'hooks',
-      label: UI_TEXT.hooksItem,
-      slashName: SLASH_COMMAND_NAMES.hooks,
-      detail: UI_TEXT.hooksItemDetail,
-      action: { type: 'showHooks' },
-    },
-  ]
-}
-
-/**
- * The paid features' toggles (M33, PLAN.md D30), where they can be used: all
- * on the Model API backend, and on Muse Code the key's images and voice when
- * a key is stored (M44). Each names its price, and turning one on asks the
- * host's confirmation first.
- */
-function paidItems(context: PaletteContext): readonly PaletteItem[] {
-  return usablePaidFeatures(context.backend, context.isKeyStored).map((feature) => {
-    const isOn = context.paidFeatures.includes(feature)
-    return {
-      id: `paid:${feature}`,
-      label: fill(UI_TEXT.paidToggleLabel, { feature: paidFeatureName(feature) }),
-      detail: paidFeaturePrice(feature),
-      widget: { kind: 'toggle', isOn },
-      action: { type: 'setPaidFeature', feature, isOn: !isOn },
-    }
-  })
-}
-
-/** "/export" on both backends; Muse Code's own JSON log where it runs (M30). */
-function exportItems(backend: BackendKind | undefined): readonly PaletteItem[] {
-  const markdown: PaletteItem = {
-    id: 'export',
-    label: UI_TEXT.exportItem,
-    detail: UI_TEXT.exportDetail,
-    action: { type: 'exportConversation', format: 'markdown' },
-  }
-  // Portable JSON (M84): importable and shareable from either backend; the
-  // import itself resumes on the Model API backend only.
-  const portable: PaletteItem = {
-    id: 'exportJson',
-    label: UI_TEXT.exportJsonItem,
-    detail: UI_TEXT.exportJsonDetail,
-    action: { type: 'exportConversation', format: 'json' },
-  }
-  const share: PaletteItem = {
-    id: 'openShare',
-    label: UI_TEXT.openShareItem,
-    detail: UI_TEXT.openShareDetail,
-    action: { type: 'openShareFile' },
-  }
-  // An import resumes on the Model API backend (M84), so only it lists the row.
-  const importRow: readonly PaletteItem[] =
-    backend === 'modelApi'
-      ? [
-          {
-            id: 'importSession',
-            label: UI_TEXT.importSessionItem,
-            detail: UI_TEXT.importSessionDetail,
-            action: { type: 'importSession' },
-          },
-        ]
-      : []
-  return backend === 'museCode'
-    ? [
-        markdown,
-        {
-          id: 'exportLog',
-          label: UI_TEXT.exportLogItem,
-          detail: UI_TEXT.exportLogDetail,
-          action: { type: 'exportConversation', format: 'sessionLog' },
-        },
-        portable,
-        share,
-      ]
-    : [markdown, portable, ...importRow, share]
-}
-
-/** Model API schedules are extension-owned; Muse Code's native cron has no MSP controls. */
-function scheduleItems(backend: BackendKind | undefined): readonly PaletteItem[] {
-  return backend === 'modelApi'
-    ? [
-        {
-          id: 'loop',
-          label: UI_TEXT.loopItem,
-          detail: UI_TEXT.loopItemDetail,
-          action: { type: 'startLoop' },
-        },
-      ]
-    : []
-}
-
-/**
- * Review (M70, PLAN.md D49), the same on both backends: `/review` for what
- * to look at, the git presets, the security preset and the review pane. The
- * presets that read git say why when Restricted Mode refuses them (the host
- * answers the request).
- */
-function reviewItems(): readonly PaletteItem[] {
-  return [
-    {
-      id: 'review',
-      label: UI_TEXT.reviewItem,
-      detail: UI_TEXT.reviewItemDetail,
-      action: { type: 'startReview' },
-    },
-    {
-      id: 'reviewUncommitted',
-      label: UI_TEXT.reviewUncommittedItem,
-      detail: UI_TEXT.reviewUncommittedDetail,
-      action: { type: 'review', request: { scope: 'uncommitted', focus: 'general' } },
-    },
-    {
-      id: 'reviewBranch',
-      label: UI_TEXT.reviewBranchItem,
-      detail: UI_TEXT.reviewBranchDetail,
-      action: { type: 'review', request: { scope: 'branch', focus: 'general' } },
-    },
-    {
-      id: 'reviewCommit',
-      label: UI_TEXT.reviewCommitItem,
-      detail: UI_TEXT.reviewCommitDetail,
-      action: { type: 'review', request: { scope: 'commit', focus: 'general' } },
-    },
-    {
-      id: 'reviewSecurity',
-      label: UI_TEXT.reviewSecurityItem,
-      slashName: SLASH_COMMAND_NAMES.securityReview,
-      detail: UI_TEXT.reviewSecurityDetail,
-      action: { type: 'review', request: { scope: 'uncommitted', focus: 'security' } },
-    },
-    {
-      id: 'reviewChanges',
-      label: UI_TEXT.reviewChangesItem,
-      slashName: SLASH_COMMAND_NAMES.changes,
-      detail: UI_TEXT.reviewChangesDetail,
-      action: { type: 'openReviewPane' },
-    },
-  ]
-}
-
-function skillItems(skills: readonly SkillOption[] | undefined): readonly PaletteItem[] {
-  if (skills === undefined) {
-    return [
-      {
-        id: 'skills:loading',
-        label: UI_TEXT.skillsLoading,
-        action: { type: 'none' },
-        isDisabled: true,
-      },
-    ]
-  }
-  if (skills.length === 0) {
-    return [
-      {
-        id: 'skills:empty',
-        label: UI_TEXT.skillsEmpty,
-        action: { type: 'none' },
-        isDisabled: true,
-      },
-    ]
-  }
-  return skills.map((skill) => ({
-    id: `skill:${skill.selector}`,
-    label: `/${skill.selector}`,
-    detail:
-      skill.argumentHint === undefined
-        ? skill.description
-        : `${skill.description} — ${skill.argumentHint}`,
-    action: { type: 'insertSkill', selector: skill.selector },
-  }))
-}
-
-export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
-  return [
-    {
-      id: 'context',
-      title: UI_TEXT.groupContext,
-      items: [
-        { id: 'attachFile', label: UI_TEXT.attachFile, action: { type: 'attachFile' } },
-        { id: 'mentionFile', label: UI_TEXT.mentionFile, action: { type: 'mentionFile' } },
-        { id: 'clear', label: UI_TEXT.clearConversation, action: { type: 'clearConversation' } },
-        {
-          id: 'resume',
-          label: UI_TEXT.resumeItem,
-          slashName: SLASH_COMMAND_NAMES.resume,
-          detail: UI_TEXT.resumeDetail,
-          action: { type: 'openHistory' },
-        },
-        ...continueItems(context.skills),
-        // Saved plans (M79): the same on both backends.
-        {
-          id: 'plans',
-          label: UI_TEXT.plansItem,
-          detail: UI_TEXT.plansItemDetail,
-          action: { type: 'showPlans' },
-        },
-        // git worktrees (M32): the same on both backends.
-        {
-          id: 'newWorktree',
-          label: UI_TEXT.newWorktreeItem,
-          detail: UI_TEXT.newWorktreeDetail,
-          action: { type: 'newWorktree' },
-        },
-        {
-          id: 'removeWorktree',
-          label: UI_TEXT.removeWorktreeItem,
-          detail: UI_TEXT.removeWorktreeDetail,
-          action: { type: 'removeWorktree' },
-        },
-      ],
-    },
-    {
-      id: 'model',
-      title: UI_TEXT.groupModel,
-      items: [
-        {
-          id: 'switchModel',
-          label: UI_TEXT.switchModel,
-          slashName: SLASH_COMMAND_NAMES.model,
-          widget: { kind: 'value', text: modelValue(context) },
-          action: { type: 'openModelPicker' },
-        },
-        {
-          id: 'effort',
-          label: `${UI_TEXT.effortItem} (${effortLabel(context.effort)})`,
-          widget: {
-            kind: 'slider',
-            levels: effortLevelsFor(context.currentModel?.modelId),
-            current: context.effort,
-          },
-          action: { type: 'setEffort', effort: context.effort },
-          isSlider: true,
-        },
-        {
-          id: 'thinking',
-          label: UI_TEXT.thinkingItem,
-          widget: { kind: 'toggle', isOn: context.isThinkingEnabled },
-          action: { type: 'toggleThinking' },
-        },
-      ],
-    },
-    {
-      id: 'customize',
-      title: UI_TEXT.groupCustomize,
-      items: [
-        {
-          id: 'permissionMode',
-          label: UI_TEXT.permissionModeItem,
-          slashName: SLASH_COMMAND_NAMES.permissions,
-          widget: { kind: 'value', text: UI_TEXT.permissionModes[context.permissionMode] },
-          action: { type: 'openPermissionModes' },
-        },
-        {
-          id: 'focusView',
-          label: UI_TEXT.focusViewItem,
-          widget: { kind: 'toggle', isOn: context.isFocusView },
-          action: { type: 'toggleFocusView' },
-        },
-        {
-          id: 'ctrlEnter',
-          label: UI_TEXT.ctrlEnterItem,
-          widget: { kind: 'toggle', isOn: context.useCtrlEnterToSend },
-          action: { type: 'toggleCtrlEnterToSend' },
-        },
-        ...museConfigItems(context.backend),
-        // From the other agents (M83): local files only, the same on both backends.
-        {
-          id: 'importFromAgents',
-          label: UI_TEXT.agentImportItem,
-          detail: UI_TEXT.agentImportDetail,
-          action: { type: 'importFromAgents' },
-        },
-        // Muse Code's memory (M49): the same notes on both backends.
-        {
-          id: 'memory',
-          label: UI_TEXT.memoryItem,
-          slashName: SLASH_COMMAND_NAMES.memory,
-          detail: UI_TEXT.memoryItemDetail,
-          action: { type: 'showMemory' },
-        },
-        {
-          id: 'settings',
-          label: UI_TEXT.openSettings,
-          slashName: SLASH_COMMAND_NAMES.config,
-          action: { type: 'openSettings' },
-        },
-        { id: 'keybindings', label: UI_TEXT.openKeybindings, action: { type: 'openKeybindings' } },
-      ],
-    },
-    {
-      id: 'account',
-      title: UI_TEXT.groupAccount,
-      items: [
-        {
-          id: 'accountUsage',
-          label: UI_TEXT.usageItem,
-          detail: UI_TEXT.usageItemDetail,
-          action: { type: 'openUsage' },
-        },
-        {
-          id: 'usage',
-          label: UI_TEXT.sessionUsage,
-          widget: { kind: 'value', text: usageValue(context.usage) },
-          action: { type: 'none' },
-          isDisabled: true,
-        },
-        {
-          id: 'backend',
-          label: UI_TEXT.backendItem,
-          detail: UI_TEXT.backendDetail,
-          widget: {
-            kind: 'value',
-            text: context.backend === undefined ? '—' : backendLabel(context.backend),
-          },
-          action: { type: 'openSettings' },
-        },
-        ...paidItems(context),
-        { id: 'signOut', label: UI_TEXT.signOutItem, action: { type: 'signOut' } },
-      ],
-    },
-    {
-      id: 'skills',
-      title: UI_TEXT.groupSkills,
-      items: [...skillManagementItems(context.backend), ...skillItems(context.skills)],
-    },
-    {
-      id: 'slash',
-      title: UI_TEXT.groupSlashCommands,
-      items: [
-        {
-          id: 'agents',
-          label: UI_TEXT.agentsCommand,
-          detail: UI_TEXT.agentsCommandDetail,
-          action: { type: 'openAgents' },
-        },
-        {
-          id: 'compact',
-          label: UI_TEXT.compactItem,
-          detail: UI_TEXT.compactDetail,
-          action: { type: 'compact' },
-        },
-        // A fresh conversation from this one's distilled brief (M74).
-        {
-          id: 'handoff',
-          label: UI_TEXT.handoffItem,
-          detail: UI_TEXT.handoffDetail,
-          action: { type: 'startHandoff' },
-        },
-        // The session goal (M45, PLAN.md D38), on both backends.
-        {
-          id: 'goal',
-          label: UI_TEXT.goalItem,
-          detail: UI_TEXT.goalItemDetail,
-          action: { type: 'startGoal' },
-        },
-        ...scheduleItems(context.backend),
-        ...exportItems(context.backend),
-        {
-          id: 'clearCommand',
-          label: UI_TEXT.clearItem,
-          detail: UI_TEXT.clearConversation,
-          action: { type: 'clearConversation' },
-        },
-        {
-          id: 'logout',
-          label: UI_TEXT.logoutItem,
-          detail: UI_TEXT.signOutItem,
-          action: { type: 'signOut' },
-        },
-        {
-          id: 'usageCommand',
-          label: UI_TEXT.usageCommand,
-          detail: UI_TEXT.usageCommandDetail,
-          action: { type: 'openUsage' },
-        },
-        {
-          id: 'costCommand',
-          label: UI_TEXT.costCommand,
-          detail: UI_TEXT.costCommandDetail,
-          action: { type: 'openUsage' },
-        },
-      ],
-    },
-    { id: 'review', title: UI_TEXT.groupReview, items: reviewItems() },
-    {
-      id: 'support',
-      title: UI_TEXT.groupSupport,
-      items: [
-        { id: 'log', label: UI_TEXT.openLog, action: { type: 'openLog' } },
-        { id: 'whatsNew', label: UI_TEXT.whatsNewOpen, action: { type: 'showWhatsNew' } },
-        {
-          id: 'issue',
-          label: UI_TEXT.reportIssue,
-          action: { type: 'openExternal', url: ISSUES_URL },
-        },
-        {
-          id: 'docs',
-          label: UI_TEXT.openDocs,
-          action: { type: 'openExternal', url: MUSE_DOCS_URL },
-        },
-      ],
-    },
-  ]
-}
-
-/** Case-insensitive substring filter over label and detail; empty groups drop. */
 export function filterPalette(
   groups: readonly PaletteGroup[],
   query: string,

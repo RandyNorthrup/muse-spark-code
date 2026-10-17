@@ -1,0 +1,400 @@
+[
+  {
+    "id": "copilot-sessionStart-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "sessionStart",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:269-275",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;      // Unix timestamp in milliseconds\n    cwd: string;\n    source: \"startup\" | \"resume\" | \"new\";\n    initialPrompt?: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-SessionStart-stdin-1",
+    "vendor": "copilot",
+    "flavor": "pascal",
+    "event": "SessionStart",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:281-288",
+    "raw": "{\n    hook_event_name: \"SessionStart\";\n    session_id: string;\n    timestamp: string;      // ISO 8601 timestamp\n    cwd: string;\n    source: \"startup\" | \"resume\" | \"new\";\n    initial_prompt?: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); \"VS Code compatible input\""
+  },
+  {
+    "id": "copilot-sessionStart-stdout-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "sessionStart",
+    "direction": "stdout",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:294-296",
+    "raw": "{\n    additionalContext?: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); output block sits under the shared heading \"sessionStart / SessionStart\" (:264), documented once for both flavors"
+  },
+  {
+    "id": "copilot-sessionEnd-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "sessionEnd",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:311-316",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    reason: \"complete\" | \"error\" | \"abort\" | \"timeout\" | \"user_exit\";\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-SessionEnd-stdin-1",
+    "vendor": "copilot",
+    "flavor": "pascal",
+    "event": "SessionEnd",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:322-328",
+    "raw": "{\n    hook_event_name: \"SessionEnd\";\n    session_id: string;\n    timestamp: string;      // ISO 8601 timestamp\n    cwd: string;\n    reason: \"complete\" | \"error\" | \"abort\" | \"timeout\" | \"user_exit\";\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); \"VS Code compatible input\""
+  },
+  {
+    "id": "copilot-userPromptSubmitted-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "userPromptSubmitted",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:336-341",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    prompt: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-UserPromptSubmit-stdin-1",
+    "vendor": "copilot",
+    "flavor": "pascal",
+    "event": "UserPromptSubmit",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:347-353",
+    "raw": "{\n    hook_event_name: \"UserPromptSubmit\";\n    session_id: string;\n    timestamp: string;      // ISO 8601 timestamp\n    cwd: string;\n    prompt: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); \"VS Code compatible input\""
+  },
+  {
+    "id": "copilot-userPromptSubmitted-stdout-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "userPromptSubmitted",
+    "direction": "stdout",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:359-361",
+    "raw": "{\n    modifiedPrompt?: string; // Replaces the prompt for the rest of the turn (SDK programmatic hooks only)\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); modifiedPrompt honoured only by SDK programmatic hooks, command/HTTP output dropped (:368)"
+  },
+  {
+    "id": "copilot-userPromptTransformed-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "userPromptTransformed",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:378-384",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;         // epoch-ms integer\n    cwd: string;\n    prompt: string;            // user prompt after userPromptSubmitted hooks have run\n    transformedPrompt: string; // runtime-transformed content the model will receive\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); camelCase only, no PascalCase variant documented"
+  },
+  {
+    "id": "copilot-userPromptTransformed-stdout-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "userPromptTransformed",
+    "direction": "stdout",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:390-392",
+    "raw": "{\n    modifiedTransformedPrompt?: string; // Replaces the model-facing content\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-preToolUse-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "preToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:402-408",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    toolName: string;\n    toolArgs: unknown;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-PreToolUse-stdin-1",
+    "vendor": "copilot",
+    "flavor": "pascal",
+    "event": "PreToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:416-423",
+    "raw": "{\n    hook_event_name: \"PreToolUse\";\n    session_id: string;\n    timestamp: string;      // ISO 8601 timestamp\n    cwd: string;\n    tool_name: string;\n    tool_input: unknown;    // Tool arguments (parsed from JSON string when possible)\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); tool_name is the Claude tool name, e.g. Bash (:432)"
+  },
+  {
+    "id": "copilot-postToolUse-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "postToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:458-468",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    toolName: string;\n    toolArgs: unknown;\n    toolResult: {\n        resultType: \"success\";\n        textResultForLlm: string;\n    }\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-PostToolUse-stdin-1",
+    "vendor": "copilot",
+    "flavor": "pascal",
+    "event": "PostToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:474-485",
+    "raw": "{\n    hook_event_name: \"PostToolUse\";\n    session_id: string;\n    timestamp: string;      // ISO 8601 timestamp\n    cwd: string;\n    tool_name: string;\n    tool_input: unknown;\n    tool_result: {\n        result_type: \"success\";\n        text_result_for_llm: string;\n    }\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); \"VS Code compatible input\""
+  },
+  {
+    "id": "copilot-postToolUseFailure-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "postToolUseFailure",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:493-500",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    toolName: string;\n    toolArgs: unknown;\n    error: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-PostToolUseFailure-stdin-1",
+    "vendor": "copilot",
+    "flavor": "pascal",
+    "event": "PostToolUseFailure",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:506-514",
+    "raw": "{\n    hook_event_name: \"PostToolUseFailure\";\n    session_id: string;\n    timestamp: string;      // ISO 8601 timestamp\n    cwd: string;\n    tool_name: string;\n    tool_input: unknown;\n    error: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); \"VS Code compatible input\""
+  },
+  {
+    "id": "copilot-agentStop-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "agentStop",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:522-529",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    transcriptPath: string;\n    stopReason: \"end_turn\";\n    stop_hook_active: boolean; // true when this turn was already forced to continue by a prior \"block\" decision from this hook\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); note the snake_case stop_hook_active inside the camelCase payload"
+  },
+  {
+    "id": "copilot-Stop-stdin-1",
+    "vendor": "copilot",
+    "flavor": "pascal",
+    "event": "Stop",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:535-543",
+    "raw": "{\n    hook_event_name: \"Stop\";\n    session_id: string;\n    timestamp: string;      // ISO 8601 timestamp\n    cwd: string;\n    transcript_path: string;\n    stop_reason: \"end_turn\";\n    stop_hook_active: boolean;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); \"VS Code compatible input\""
+  },
+  {
+    "id": "copilot-subagentStart-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "subagentStart",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:554-562",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    transcriptPath: string;\n    agentName: string;\n    agentDisplayName?: string;\n    agentDescription?: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); camelCase only, no PascalCase variant documented"
+  },
+  {
+    "id": "copilot-subagentStart-stdout-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "subagentStart",
+    "direction": "stdout",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:568-570",
+    "raw": "{\n    additionalContext?: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-subagentStop-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "subagentStop",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:586-597",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    transcriptPath: string;\n    agentId: string;\n    agentType: string;\n    agentName: string;\n    agentDisplayName?: string;\n    response: string;       // Full final subagent response text\n    stopReason: \"end_turn\";\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-SubagentStop-stdin-1",
+    "vendor": "copilot",
+    "flavor": "pascal",
+    "event": "SubagentStop",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:603-615",
+    "raw": "{\n    hook_event_name: \"SubagentStop\";\n    session_id: string;\n    timestamp: string;      // ISO 8601 timestamp\n    cwd: string;\n    transcript_path: string;\n    agent_id: string;\n    agent_type: string;\n    agent_name: string;\n    agent_display_name?: string;\n    last_assistant_message: string; // The `response` text\n    stop_reason: \"end_turn\";\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); \"VS Code compatible input\""
+  },
+  {
+    "id": "copilot-errorOccurred-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "errorOccurred",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:623-634",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    error: {\n        message: string;\n        name: string;\n        stack?: string;\n    };\n    errorContext: \"model_call\" | \"tool_execution\" | \"system\" | \"user_input\";\n    recoverable: boolean;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-ErrorOccurred-stdin-1",
+    "vendor": "copilot",
+    "flavor": "pascal",
+    "event": "ErrorOccurred",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:640-652",
+    "raw": "{\n    hook_event_name: \"ErrorOccurred\";\n    session_id: string;\n    timestamp: string;      // ISO 8601 timestamp\n    cwd: string;\n    error: {\n        message: string;\n        name: string;\n        stack?: string;\n    };\n    error_context: \"model_call\" | \"tool_execution\" | \"system\" | \"user_input\";\n    recoverable: boolean;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); \"VS Code compatible input\""
+  },
+  {
+    "id": "copilot-preCompact-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "preCompact",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:660-667",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    transcriptPath: string;\n    trigger: \"manual\" | \"auto\";\n    customInstructions: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-PreCompact-stdin-1",
+    "vendor": "copilot",
+    "flavor": "pascal",
+    "event": "PreCompact",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:673-681",
+    "raw": "{\n    hook_event_name: \"PreCompact\";\n    session_id: string;\n    timestamp: string;      // ISO 8601 timestamp\n    cwd: string;\n    transcript_path: string;\n    trigger: \"manual\" | \"auto\";\n    custom_instructions: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); \"VS Code compatible input\""
+  },
+  {
+    "id": "copilot-postToolUse-stdout-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "postToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:718-724",
+    "raw": "{\n    modifiedResult?: {\n        resultType: \"success\";\n        textResultForLlm: string;\n    };\n    additionalContext?: string;\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); honoured by SDK and command/HTTP config-file hooks (:735)"
+  },
+  {
+    "id": "copilot-notification-stdin-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "notification",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:783-791",
+    "raw": "{\n    sessionId: string;\n    timestamp: number;\n    cwd: string;\n    hook_event_name: \"Notification\";\n    message: string;           // Human-readable notification text\n    title?: string;            // Short title (e.g., \"Permission needed\", \"Shell completed\")\n    notification_type: string; // One of the types listed below\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc); mixed casing: camelCase sessionId plus snake_case hook_event_name/notification_type"
+  },
+  {
+    "id": "copilot-notification-stdout-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "notification",
+    "direction": "stdout",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:808-810",
+    "raw": "{\n    additionalContext?: string; // Injected into the session as a user message\n}",
+    "note": "not strict JSON (TypeScript type literal from the doc)"
+  },
+  {
+    "id": "copilot-permissionRequest-stdout-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "permissionRequest",
+    "direction": "stdout",
+    "exitCode": 2,
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:771-771",
+    "raw": "{\"behavior\":\"deny\"}",
+    "json": {
+      "behavior": "deny"
+    },
+    "note": "Embedded substring: inline code span; the decision the CLI merges in when a command hook exits 2 (:771). No permissionRequest input payload is documented."
+  },
+  {
+    "id": "copilot-preToolUse-stdout-1",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "preToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:138-140",
+    "raw": "echo '{\"type\": \"progress\", \"message\": \"Checking policy...\"}'\n# ... perform work ...\necho '{\"permissionDecision\": \"allow\"}'",
+    "note": "not strict JSON (shell block from the doc; its stdout is the echoed lines); progress line consumed, remaining {\"permissionDecision\": \"allow\"} is JSON.parse'd (:154)"
+  },
+  {
+    "id": "copilot-preToolUse-stdout-2",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "preToolUse",
+    "direction": "stdout",
+    "source": "hooks-parity/gh/copilot_reference_hooks-configuration.md:146-149",
+    "raw": "echo '{\"type\": \"progress\", \"message\": \"Routing...\", \"temporary\": true}'\necho '{\"type\": \"progress\", \"message\": \"Thinking...\", \"temporary\": true}'\n# ... perform work ...\necho '{\"permissionDecision\": \"allow\"}'",
+    "note": "not strict JSON (shell block from the doc; its stdout is the echoed lines); two transient (\"temporary\": true) progress lines then the decision (:143)"
+  },
+  {
+    "id": "copilot-preToolUse-stdin-2",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "preToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_how-tos_copilot-cli_customize-copilot_use-hooks.md:185-185",
+    "raw": "{\"timestamp\":1704614400000,\"cwd\":\"/tmp\",\"toolName\":\"bash\",\"toolArgs\":\"{\\\"command\\\":\\\"ls\\\"}\"}",
+    "json": {
+      "timestamp": 1704614400000,
+      "cwd": "/tmp",
+      "toolName": "bash",
+      "toolArgs": "{\"command\":\"ls\"}"
+    },
+    "note": "Embedded substring: payload between the single quotes of an echo in a shell block (use-hooks.md:183-192). Event not named in the doc; inferred from toolName/toolArgs. toolArgs is a JSON string. No sessionId."
+  },
+  {
+    "id": "copilot-userPromptSubmitted-stdin-2",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "userPromptSubmitted",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_tutorials_copilot-cli-hooks.md:298-298",
+    "raw": "{\"timestamp\":1704614500000,\"cwd\":\"/repo\",\"prompt\":\"List all branches\"}",
+    "json": {
+      "timestamp": 1704614500000,
+      "cwd": "/repo",
+      "prompt": "List all branches"
+    },
+    "note": "Embedded substring: payload between the single quotes of an echo in a shell block (tutorial:297-303, repeated at :301). No sessionId."
+  },
+  {
+    "id": "copilot-preToolUse-stdin-3",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "preToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_tutorials_copilot-cli-hooks.md:546-546",
+    "raw": "{\"toolName\":\"bash\",\"toolArgs\":\"{\\\"command\\\":\\\"git status\\\"}\"}",
+    "json": {
+      "toolName": "bash",
+      "toolArgs": "{\"command\":\"git status\"}"
+    },
+    "note": "Embedded substring: \"Allow example\" (tutorial:543-551, repeated at :549). toolArgs is a JSON string (:322). No sessionId/timestamp/cwd."
+  },
+  {
+    "id": "copilot-preToolUse-stdin-4",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "preToolUse",
+    "direction": "stdin",
+    "source": "hooks-parity/gh/copilot_tutorials_copilot-cli-hooks.md:556-556",
+    "raw": "{\"toolName\":\"bash\",\"toolArgs\":\"{\\\"command\\\":\\\"sudo rm -rf /\\\"}\"}",
+    "json": {
+      "toolName": "bash",
+      "toolArgs": "{\"command\":\"sudo rm -rf /\"}"
+    },
+    "note": "Embedded substring: \"Deny example\" (tutorial:553-561, repeated at :559). toolArgs is a JSON string (:322)."
+  },
+  {
+    "id": "copilot-preToolUse-stdout-3",
+    "vendor": "copilot",
+    "flavor": "camel",
+    "event": "preToolUse",
+    "direction": "stdout",
+    "exitCode": 0,
+    "source": "hooks-parity/gh/copilot_tutorials_copilot-cli-hooks.md:566-566",
+    "raw": "{\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Privilege escalation requires manual approval.\"}",
+    "json": {
+      "permissionDecision": "deny",
+      "permissionDecisionReason": "Privilege escalation requires manual approval."
+    },
+    "note": "Deny response for the \"Deny example\"; the script prints it and exits 0 (tutorial:411-415). The doc introduces it as an audit.jsonl entry (:563) but it is the stdout decision shape."
+  }
+]

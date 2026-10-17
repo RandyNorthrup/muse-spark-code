@@ -62,7 +62,7 @@ function Finding({
       {onOpenFile !== undefined && target.kind === 'file' ? (
         <button
           type="button"
-          className="tool-more review-finding-location"
+          className="tool-more review-finding-location chat-control"
           aria-label={fill(UI_TEXT.reviewOpenFinding, { location })}
           onClick={() => {
             onOpenFile(target.path, range ?? target.range)

@@ -3,6 +3,7 @@
 // the other arguments are our own tool interface. This is not an MSP parser.
 
 import * as z from 'zod/mini'
+import type { PanelPlaybookPort } from '../../orchestration/panelPlaybook'
 import {
   MODEL_API_SUBAGENT_TOOLS,
   REVIEWER_ROLE,
@@ -10,7 +11,30 @@ import {
   SUBAGENT_WAIT_DEFAULT_MS,
   SUBAGENT_WAIT_MAX_MS,
   SUBAGENT_WAIT_MIN_MS,
+  type PaidFeature,
 } from '../../../shared/constants'
+import type { PacingClass } from './pacing'
+
+/** Existing paid admission tags also identify background request owners (D86.6). */
+export function fanOutPacingClass(feature: PaidFeature | undefined): PacingClass {
+  switch (feature) {
+    case 'subagents': {
+      return 'subagent'
+    }
+    case 'bestOfN': {
+      return 'bestOfN'
+    }
+    case 'scheduledPrompts': {
+      return 'schedule'
+    }
+    case 'judge': {
+      return 'judge'
+    }
+    default: {
+      return 'foreground'
+    }
+  }
+}
 
 /** A child's state as the tools report it (Muse Code's snake_case vocabulary). */
 const SUBAGENT_STATES = ['queued', 'running', 'interrupted', 'result_ready', 'closed'] as const
@@ -152,4 +176,26 @@ export const targetArgs = z.object({
 export function isSubagentTool(name: string): boolean {
   const names: readonly string[] = Object.values(MODEL_API_SUBAGENT_TOOLS)
   return names.includes(name)
+}
+
+/**
+ * Which delegation family a conversation declares (M96, PLAN.md D75): a team
+ * conversation declares the team's five tools and none of M48's six; every
+ * other conversation declares exactly what it declares today. Never both.
+ */
+export function delegationFamily(teamMode: 'single-model' | 'team'): 'team' | 'subagents' {
+  return teamMode === 'team' ? 'team' : 'subagents'
+}
+
+/** M116: bind immediately before a new child/follow-up actually starts, after paid
+ * consent and ordinary tool admission. Idempotent spawn retries start no work.
+ * @unwired M116 playbook subagent dispatch
+ * Muse Code's native spawn owner binds this same port at its dispatch boundary. */
+export async function dispatchPlaybookSubagent<T>(
+  playbook: PanelPlaybookPort,
+  sessionId: string,
+  targetId: string | undefined,
+  start: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  return await playbook.dispatch('subagent', sessionId, targetId, start)
 }

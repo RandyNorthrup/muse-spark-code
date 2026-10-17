@@ -212,4 +212,84 @@ describe('the saved conversation (M25)', () => {
       transcript: [],
     })
   })
+  it('redacts a secret still being typed before persisting draft recovery (RVM92E P1)', () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const typed = uiReducer(shown, { type: 'draftChanged', draft: secret })
+    expect(JSON.stringify(webviewStateOf(typed, true)).includes(secret)).toBe(false)
+    expect(typed.draft === secret).toBe(true)
+  })
+
+  it('redacts a legacy stored user card and draft recovery on restore (RVM92E P1)', () => {
+    const secret = `mgst_${'A'.repeat(42)}A`
+    const saved = webviewStateOf(shown, true)
+    const snapshot = saved.snapshot
+    if (typeof snapshot !== 'object' || snapshot === null) throw new Error('snapshot missing')
+    const restored = restoredUiState({
+      ...saved,
+      snapshot: {
+        ...snapshot,
+        draft: secret,
+        pendingSendDraft: { localId: 'l9', text: secret, revision: 1 },
+        transcript: [
+          { kind: 'user', id: 'u1', seq: 1, text: secret, status: 'sent', attachments: [] },
+        ],
+      },
+    })
+    expect(JSON.stringify(restored).includes(secret)).toBe(false)
+    expect(restored.draft).toBe('[redacted]')
+    expect(restored.transcript[0]).toMatchObject({ text: '[redacted]' })
+  })
+})
+
+describe('the saved conversation keeps queued cards and message times (M87, PLAN.md D66)', () => {
+  const timed: UiState = {
+    ...shown,
+    transcript: [
+      {
+        kind: 'user',
+        id: 'l1',
+        seq: 1,
+        text: 'sent',
+        status: 'sent',
+        attachments: [],
+        turnId: 't1',
+        disposition: 'started',
+        atMs: 1_791_088_102_709,
+      },
+      {
+        kind: 'user',
+        id: 'l2',
+        seq: 2,
+        text: 'waiting',
+        status: 'queued',
+        attachments: [],
+        turnId: 't2',
+        disposition: 'queued',
+        atMs: 1_791_088_104_880,
+      },
+      { kind: 'assistant', id: 'm1', text: 'reply', isStreaming: false, atMs: 1_791_088_107_936 },
+    ],
+  }
+
+  it('comes back with each card’s status, disposition and time', () => {
+    const restored = restoredUiState(throughJson(webviewStateOf(timed, true)))
+    expect(restored.transcript).toEqual(timed.transcript)
+  })
+
+  it('still reads a conversation saved before M87, with no times', () => {
+    const restored = restoredUiState(throughJson(webviewStateOf(shown, true)))
+    expect(restored.transcript).toEqual(shown.transcript)
+    expect(restored.transcript.some((entry) => 'atMs' in entry)).toBe(false)
+  })
+
+  it('drops a card whose time is not a number, as any other shape it does not know', () => {
+    const saved = throughJson(webviewStateOf(timed, true)) as {
+      snapshot: { transcript: Record<string, unknown>[] }
+    }
+    const [first] = saved.snapshot.transcript
+    if (first !== undefined) {
+      first['atMs'] = 'yesterday'
+    }
+    expect(restoredUiState(saved).transcript).toEqual([])
+  })
 })

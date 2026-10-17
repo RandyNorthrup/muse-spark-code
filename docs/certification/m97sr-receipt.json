@@ -1,0 +1,2345 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-05",
+  "machine": "win11",
+  "branch": "m97/sr",
+  "base": "f170022e",
+  "productFixCommits": [
+    "40ade592522184974a99a4a98414fcaeec0ef37b",
+    "e0c8e4bae5ba6f1da1545ca59a625999607cf5a4"
+  ],
+  "platform": {
+    "windows": "11 25H2 26200.9457",
+    "vscode": "1.139.1",
+    "vscodeCommit": "04c0d99f4fb0d8afe6ce4f0c58e31e183ac3e4b1",
+    "nvda": "2026.2 AMD64",
+    "synthesizer": "eSpeak",
+    "language": "English",
+    "nvdaLogLevel": 12
+  },
+  "artifact": {
+    "file": "muse-spark-code-0.12.1.vsix",
+    "sha256": "1ffa67018ac702b17ed84baaa5f9d455c03302aeff1c6cd807325ebfefb44d52",
+    "bytes": 2110013,
+    "entries": 121,
+    "capBytes": 2252800,
+    "webviewSha256": "b086972bdc6613cc96e024d2cc5da3210eeccd74e6cb64f9a46d6e885a11c761",
+    "appSourceSha256": "5fb172e847d59580342e423058ff27604e91e96b182114c54173d0d999c5605b",
+    "reportSourceSha256": "cb5ca037580532f9fa087ad4c1d28b58c818e3edaa6e53d3e77fa0ce5009bc49"
+  },
+  "isolation": {
+    "root": "C:/lanes/M97SR-host",
+    "separateUserData": true,
+    "separateExtensions": true,
+    "separateHome": true,
+    "noStoredCredentials": true,
+    "credentialEnvironmentStripped": true,
+    "modelAttempts": 0,
+    "paidAttempts": 0,
+    "nvdaPortableRetained": "C:/lanes/M97SR-tools/nvda",
+    "scannerRegistryRequests": 0
+  },
+  "report": {
+    "findings": 7,
+    "severityGroups": {
+      "blocker": 1,
+      "shouldFix": 5,
+      "advice": 1
+    },
+    "controls": [
+      {
+        "name": "Close",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": true,
+        "offscreen": false,
+        "toggle": null,
+        "rect": "1008,26,30,27"
+      },
+      {
+        "name": "package-lock.json",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "toggle": null,
+        "rect": "710,621,104,20"
+      },
+      {
+        "name": "Fix compat/1/1",
+        "role": "ControlType.CheckBox",
+        "enabled": false,
+        "focusable": false,
+        "focused": false,
+        "offscreen": true,
+        "toggle": "Off",
+        "rect": "714,875,13,14"
+      },
+      {
+        "name": "package-lock.json",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "710,957,104,20"
+      },
+      {
+        "name": "Fix dependency/1/1",
+        "role": "ControlType.CheckBox",
+        "enabled": false,
+        "focusable": false,
+        "focused": false,
+        "offscreen": true,
+        "toggle": "Off",
+        "rect": "714,1184,13,14"
+      },
+      {
+        "name": "src/noheader.js:1",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "710,1243,99,20"
+      },
+      {
+        "name": "Fix header/1/1",
+        "role": "ControlType.CheckBox",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": "Off",
+        "rect": "714,1402,13,14"
+      },
+      {
+        "name": "src/custom.js:2",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "710,1461,88,20"
+      },
+      {
+        "name": "Fix header/1/2",
+        "role": "ControlType.CheckBox",
+        "enabled": false,
+        "focusable": false,
+        "focused": false,
+        "offscreen": true,
+        "toggle": "Off",
+        "rect": "714,1645,13,14"
+      },
+      {
+        "name": "src/noheader.js:1",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "710,1704,99,20"
+      },
+      {
+        "name": "Fix header/1/3",
+        "role": "ControlType.CheckBox",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": "Off",
+        "rect": "714,1863,13,14"
+      },
+      {
+        "name": "Fix notice/1/1",
+        "role": "ControlType.CheckBox",
+        "enabled": false,
+        "focusable": false,
+        "focused": false,
+        "offscreen": true,
+        "toggle": "Off",
+        "rect": "714,2058,13,14"
+      },
+      {
+        "name": "src/custom.js:2",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "710,2140,88,20"
+      },
+      {
+        "name": "Fix header/1/4",
+        "role": "ControlType.CheckBox",
+        "enabled": false,
+        "focusable": false,
+        "focused": false,
+        "offscreen": true,
+        "toggle": "Off",
+        "rect": "714,2324,13,14"
+      },
+      {
+        "name": "Fix all safe ones",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "701,2376,116,32"
+      },
+      {
+        "name": "Preview fixes",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "822,2376,100,32"
+      },
+      {
+        "name": "Explain findings (paid)",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "701,2415,153,32"
+      },
+      {
+        "name": "Export Markdown…",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "859,2415,138,32"
+      },
+      {
+        "name": "Scan again",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "701,2452,88,32"
+      },
+      {
+        "name": "Cancel",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": true,
+        "toggle": null,
+        "rect": "794,2452,65,32"
+      }
+    ],
+    "enabledFocusAt100": {
+      "controls": 15,
+      "oneFocusUtteranceEach": true,
+      "visualOrder": true,
+      "checked": [
+        {
+          "name": "package-lock.json",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Legal findings', 'region', 'Blocker: 1', 'region', 'list', 'with 1 item', 'package-lock.json', 'button']"
+        },
+        {
+          "name": "package-lock.json",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Should fix: 5', 'region', 'list', 'with 5 items', 'package-lock.json', 'button']"
+        },
+        {
+          "name": "src/noheader.js:1",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'src/noheader.js:1', 'button']"
+        },
+        {
+          "name": "Fix header/1/1",
+          "role": "ControlType.CheckBox",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Fix header/1/1', 'check box', 'not checked']"
+        },
+        {
+          "name": "src/custom.js:2",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'src/custom.js:2', 'button']"
+        },
+        {
+          "name": "src/noheader.js:1",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'src/noheader.js:1', 'button']"
+        },
+        {
+          "name": "Fix header/1/3",
+          "role": "ControlType.CheckBox",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Fix header/1/3', 'check box', 'not checked']"
+        },
+        {
+          "name": "src/custom.js:2",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Advice: 1', 'region', 'list', 'with 1 item', 'src/custom.js:2', 'button']"
+        },
+        {
+          "name": "Fix all safe ones",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Fix all safe ones', 'button']"
+        },
+        {
+          "name": "Preview fixes",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Preview fixes', 'button']"
+        },
+        {
+          "name": "Explain findings (paid)",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Explain findings (paid)', 'button']"
+        },
+        {
+          "name": "Export Markdown…",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Export Markdown…', 'button']"
+        },
+        {
+          "name": "Scan again",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Scan again', 'button']"
+        },
+        {
+          "name": "Cancel",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Cancel', 'button']"
+        },
+        {
+          "name": "Close",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'banner landmark', 'Close', 'button']"
+        }
+      ]
+    },
+    "enabledFocusAt207": {
+      "controls": 15,
+      "oneFocusUtteranceEach": true,
+      "visualOrder": true,
+      "checked": [
+        {
+          "name": "package-lock.json",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Legal findings', 'region', 'Blocker: 1', 'region', 'list', 'with 1 item', 'package-lock.json', 'button']"
+        },
+        {
+          "name": "package-lock.json",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Should fix: 5', 'region', 'list', 'with 5 items', 'package-lock.json', 'button']"
+        },
+        {
+          "name": "src/noheader.js:1",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'src/noheader.js:1', 'button']"
+        },
+        {
+          "name": "Fix header/1/1",
+          "role": "ControlType.CheckBox",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Fix header/1/1', 'check box', 'not checked']"
+        },
+        {
+          "name": "src/custom.js:2",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'src/custom.js:2', 'button']"
+        },
+        {
+          "name": "src/noheader.js:1",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'src/noheader.js:1', 'button']"
+        },
+        {
+          "name": "Fix header/1/3",
+          "role": "ControlType.CheckBox",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Fix header/1/3', 'check box', 'not checked']"
+        },
+        {
+          "name": "src/custom.js:2",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Advice: 1', 'region', 'list', 'with 1 item', 'src/custom.js:2', 'button']"
+        },
+        {
+          "name": "Fix all safe ones",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Fix all safe ones', 'button']"
+        },
+        {
+          "name": "Preview fixes",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Preview fixes', 'button']"
+        },
+        {
+          "name": "Explain findings (paid)",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Explain findings (paid)', 'button']"
+        },
+        {
+          "name": "Export Markdown…",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Export Markdown…', 'button']"
+        },
+        {
+          "name": "Scan again",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Scan again', 'button']"
+        },
+        {
+          "name": "Cancel",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'Cancel', 'button']"
+        },
+        {
+          "name": "Close",
+          "role": "ControlType.Button",
+          "speech": "Speaking [LangChangeCommand ('en_GB'), 'banner landmark', 'Close', 'button']"
+        }
+      ]
+    },
+    "wrapAt100": {
+      "backward": true,
+      "forward": true,
+      "controls": 15
+    },
+    "wrapAt207": {
+      "backward": true,
+      "forward": true,
+      "controls": 15
+    },
+    "evidenceLinks": [
+      {
+        "link": "package-lock.json",
+        "editor": "package-lock.json, preview, Editor Group 2",
+        "role": "ControlType.Edit",
+        "time": "2026-10-05T18:21:01.6181240-07:00",
+        "index": 1
+      },
+      {
+        "link": "package-lock.json",
+        "editor": "package-lock.json, preview, Editor Group 2",
+        "role": "ControlType.Edit",
+        "time": "2026-10-05T18:21:05.6656546-07:00",
+        "index": 2
+      },
+      {
+        "link": "src/noheader.js:1",
+        "editor": "noheader.js, preview, Editor Group 2",
+        "role": "ControlType.Edit",
+        "time": "2026-10-05T18:21:10.1634753-07:00",
+        "index": 3
+      },
+      {
+        "link": "src/custom.js:2",
+        "editor": "custom.js, preview, Editor Group 2",
+        "role": "ControlType.Edit",
+        "time": "2026-10-05T18:21:25.8615426-07:00",
+        "index": 5
+      },
+      {
+        "link": "src/noheader.js:1",
+        "editor": "noheader.js, preview, Editor Group 2",
+        "role": "ControlType.Edit",
+        "time": "2026-10-05T18:21:31.7028705-07:00",
+        "index": 6
+      },
+      {
+        "link": "src/custom.js:2",
+        "editor": "custom.js, preview, Editor Group 2",
+        "role": "ControlType.Edit",
+        "time": "2026-10-05T18:21:38.5149310-07:00",
+        "index": 8
+      }
+    ],
+    "checkbox": {
+      "space": true,
+      "time": "2026-10-05T18:23:13.4073145-07:00",
+      "states": ["Off", "On", "Off"],
+      "name": "Fix header/1/1",
+      "role": "ControlType.CheckBox"
+    },
+    "sourceFixtureUnchangedAfterDenial": true,
+    "visualCoordinatesAt100": [
+      {
+        "tag": "BUTTON",
+        "name": "Close",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 342,
+          "y": 47.90625,
+          "width": 30,
+          "height": 26,
+          "top": 47.90625,
+          "right": 372,
+          "bottom": 73.90625,
+          "left": 342
+        },
+        "contentY": 47.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "package-lock.json",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 44,
+          "y": 642.90625,
+          "width": 103.28125,
+          "height": 19,
+          "top": 642.90625,
+          "right": 147.28125,
+          "bottom": 661.90625,
+          "left": 44
+        },
+        "contentY": 642.90625
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": true,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 48,
+          "y": 896.90625,
+          "width": 13,
+          "height": 13,
+          "top": 896.90625,
+          "right": 61,
+          "bottom": 909.90625,
+          "left": 48
+        },
+        "contentY": 896.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "package-lock.json",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 44,
+          "y": 978.90625,
+          "width": 103.28125,
+          "height": 19,
+          "top": 978.90625,
+          "right": 147.28125,
+          "bottom": 997.90625,
+          "left": 44
+        },
+        "contentY": 978.90625
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": true,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 48,
+          "y": 1205.90625,
+          "width": 13,
+          "height": 13,
+          "top": 1205.90625,
+          "right": 61,
+          "bottom": 1218.90625,
+          "left": 48
+        },
+        "contentY": 1205.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "src/noheader.js:1",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 44,
+          "y": 1264.90625,
+          "width": 98.5625,
+          "height": 19,
+          "top": 1264.90625,
+          "right": 142.5625,
+          "bottom": 1283.90625,
+          "left": 44
+        },
+        "contentY": 1264.90625
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": false,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 48,
+          "y": 1423.90625,
+          "width": 13,
+          "height": 13,
+          "top": 1423.90625,
+          "right": 61,
+          "bottom": 1436.90625,
+          "left": 48
+        },
+        "contentY": 1423.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "src/custom.js:2",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 44,
+          "y": 1482.90625,
+          "width": 87.84375,
+          "height": 19,
+          "top": 1482.90625,
+          "right": 131.84375,
+          "bottom": 1501.90625,
+          "left": 44
+        },
+        "contentY": 1482.90625
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": true,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 48,
+          "y": 1666.90625,
+          "width": 13,
+          "height": 13,
+          "top": 1666.90625,
+          "right": 61,
+          "bottom": 1679.90625,
+          "left": 48
+        },
+        "contentY": 1666.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "src/noheader.js:1",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 44,
+          "y": 1725.90625,
+          "width": 98.5625,
+          "height": 19,
+          "top": 1725.90625,
+          "right": 142.5625,
+          "bottom": 1744.90625,
+          "left": 44
+        },
+        "contentY": 1725.90625
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": false,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 48,
+          "y": 1884.90625,
+          "width": 13,
+          "height": 13,
+          "top": 1884.90625,
+          "right": 61,
+          "bottom": 1897.90625,
+          "left": 48
+        },
+        "contentY": 1884.90625
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": true,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 48,
+          "y": 2079.90625,
+          "width": 13,
+          "height": 13,
+          "top": 2079.90625,
+          "right": 61,
+          "bottom": 2092.90625,
+          "left": 48
+        },
+        "contentY": 2079.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "src/custom.js:2",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 44,
+          "y": 2161.90625,
+          "width": 87.84375,
+          "height": 19,
+          "top": 2161.90625,
+          "right": 131.84375,
+          "bottom": 2180.90625,
+          "left": 44
+        },
+        "contentY": 2161.90625
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": true,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 48,
+          "y": 2345.90625,
+          "width": 13,
+          "height": 13,
+          "top": 2345.90625,
+          "right": 61,
+          "bottom": 2358.90625,
+          "left": 48
+        },
+        "contentY": 2345.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Fix all safe ones",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 35,
+          "y": 2397.90625,
+          "width": 115.34375,
+          "height": 31,
+          "top": 2397.90625,
+          "right": 150.34375,
+          "bottom": 2428.90625,
+          "left": 35
+        },
+        "contentY": 2397.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Preview fixes",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 156.34375,
+          "y": 2397.90625,
+          "width": 99.234375,
+          "height": 31,
+          "top": 2397.90625,
+          "right": 255.578125,
+          "bottom": 2428.90625,
+          "left": 156.34375
+        },
+        "contentY": 2397.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Explain findings (paid)",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 35,
+          "y": 2436.90625,
+          "width": 152.390625,
+          "height": 31,
+          "top": 2436.90625,
+          "right": 187.390625,
+          "bottom": 2467.90625,
+          "left": 35
+        },
+        "contentY": 2436.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Export Markdown…",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 193.390625,
+          "y": 2436.90625,
+          "width": 137.109375,
+          "height": 31,
+          "top": 2436.90625,
+          "right": 330.5,
+          "bottom": 2467.90625,
+          "left": 193.390625
+        },
+        "contentY": 2436.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Scan again",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 35,
+          "y": 2473.90625,
+          "width": 87.84375,
+          "height": 31,
+          "top": 2473.90625,
+          "right": 122.84375,
+          "bottom": 2504.90625,
+          "left": 35
+        },
+        "contentY": 2473.90625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Cancel",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 128.84375,
+          "y": 2473.90625,
+          "width": 63.984375,
+          "height": 31,
+          "top": 2473.90625,
+          "right": 192.828125,
+          "bottom": 2504.90625,
+          "left": 128.84375
+        },
+        "contentY": 2473.90625
+      }
+    ],
+    "visualCoordinatesAt207": [
+      {
+        "tag": "BUTTON",
+        "name": "Close",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 169.0297088623047,
+          "y": 24.587371826171875,
+          "width": 29.92229652404785,
+          "height": 25.9964542388916,
+          "top": 24.587371826171875,
+          "right": 198.95200538635254,
+          "bottom": 50.58382606506348,
+          "left": 169.0297088623047
+        },
+        "contentY": 24.587371826171875
+      },
+      {
+        "tag": "BUTTON",
+        "name": "package-lock.json",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 43.90763473510742,
+          "y": 1159.5247802734375,
+          "width": 103.2549057006836,
+          "height": 18.943504333496094,
+          "top": 1159.5247802734375,
+          "right": 147.16254043579102,
+          "bottom": 1178.4682846069336,
+          "left": 43.90763473510742
+        },
+        "contentY": 1159.5247802734375
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": true,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 47.90129470825195,
+          "y": 1619.2626953125,
+          "width": 12.9982271194458,
+          "height": 12.9982271194458,
+          "top": 1619.2626953125,
+          "right": 60.899521827697754,
+          "bottom": 1632.2609224319458,
+          "left": 47.90129470825195
+        },
+        "contentY": 1619.2626953125
+      },
+      {
+        "tag": "BUTTON",
+        "name": "package-lock.json",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 43.90763473510742,
+          "y": 1746.0802001953125,
+          "width": 103.2549057006836,
+          "height": 18.943504333496094,
+          "top": 1746.0802001953125,
+          "right": 147.16254043579102,
+          "bottom": 1765.0237045288086,
+          "left": 43.90763473510742
+        },
+        "contentY": 1746.0802001953125
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": true,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 47.90129470825195,
+          "y": 2175.99365234375,
+          "width": 12.9982271194458,
+          "height": 12.9982271194458,
+          "top": 2175.99365234375,
+          "right": 60.899521827697754,
+          "bottom": 2188.991879463196,
+          "left": 47.90129470825195
+        },
+        "contentY": 2175.99365234375
+      },
+      {
+        "tag": "BUTTON",
+        "name": "src/noheader.js:1",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 43.90763473510742,
+          "y": 2296.82080078125,
+          "width": 98.54540252685547,
+          "height": 18.943504333496094,
+          "top": 2296.82080078125,
+          "right": 142.4530372619629,
+          "bottom": 2315.764305114746,
+          "left": 43.90763473510742
+        },
+        "contentY": 2296.82080078125
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": false,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 47.90129470825195,
+          "y": 2576.1357421875,
+          "width": 12.9982271194458,
+          "height": 12.9982271194458,
+          "top": 2576.1357421875,
+          "right": 60.899521827697754,
+          "bottom": 2589.133969306946,
+          "left": 47.90129470825195
+        },
+        "contentY": 2576.1357421875
+      },
+      {
+        "tag": "BUTTON",
+        "name": "src/custom.js:2",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 43.90763473510742,
+          "y": 2679.6015625,
+          "width": 87.81526947021484,
+          "height": 18.943504333496094,
+          "top": 2679.6015625,
+          "right": 131.72290420532227,
+          "bottom": 2698.545066833496,
+          "left": 43.90763473510742
+        },
+        "contentY": 2679.6015625
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": true,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 47.90129470825195,
+          "y": 2966.55712890625,
+          "width": 12.9982271194458,
+          "height": 12.9982271194458,
+          "top": 2966.55712890625,
+          "right": 60.899521827697754,
+          "bottom": 2979.555356025696,
+          "left": 47.90129470825195
+        },
+        "contentY": 2966.55712890625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "src/noheader.js:1",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 43.90763473510742,
+          "y": 3070.023193359375,
+          "width": 98.54540252685547,
+          "height": 18.943504333496094,
+          "top": 3070.023193359375,
+          "right": 142.4530372619629,
+          "bottom": 3088.966697692871,
+          "left": 43.90763473510742
+        },
+        "contentY": 3070.023193359375
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": false,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 47.90129470825195,
+          "y": 3331.976806640625,
+          "width": 12.9982271194458,
+          "height": 12.9982271194458,
+          "top": 3331.976806640625,
+          "right": 60.899521827697754,
+          "bottom": 3344.975033760071,
+          "left": 47.90129470825195
+        },
+        "contentY": 3331.976806640625
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": true,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 47.90129470825195,
+          "y": 3653.51171875,
+          "width": 12.9982271194458,
+          "height": 12.9982271194458,
+          "top": 3653.51171875,
+          "right": 60.899521827697754,
+          "bottom": 3666.509945869446,
+          "left": 47.90129470825195
+        },
+        "contentY": 3653.51171875
+      },
+      {
+        "tag": "BUTTON",
+        "name": "src/custom.js:2",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 43.90763473510742,
+          "y": 3759.38134765625,
+          "width": 87.81526947021484,
+          "height": 18.943504333496094,
+          "top": 3759.38134765625,
+          "right": 131.72290420532227,
+          "bottom": 3778.324851989746,
+          "left": 43.90763473510742
+        },
+        "contentY": 3759.38134765625
+      },
+      {
+        "tag": "INPUT",
+        "name": "",
+        "disabled": true,
+        "checked": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 47.90129470825195,
+          "y": 4046.3369140625,
+          "width": 12.9982271194458,
+          "height": 12.9982271194458,
+          "top": 4046.3369140625,
+          "right": 60.899521827697754,
+          "bottom": 4059.335141181946,
+          "left": 47.90129470825195
+        },
+        "contentY": 4046.3369140625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Fix all safe ones",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 34.94827651977539,
+          "y": 4098.6162109375,
+          "width": 115.24341583251953,
+          "height": 31.286169052124023,
+          "top": 4098.6162109375,
+          "right": 150.19169235229492,
+          "bottom": 4129.902379989624,
+          "left": 34.94827651977539
+        },
+        "contentY": 4098.6162109375
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Preview fixes",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 34.94827651977539,
+          "y": 4135.900390625,
+          "width": 99.13314819335938,
+          "height": 31.286169052124023,
+          "top": 4135.900390625,
+          "right": 134.08142471313477,
+          "bottom": 4167.186559677124,
+          "left": 34.94827651977539
+        },
+        "contentY": 4135.900390625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Explain findings (paid)",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 34.94827651977539,
+          "y": 4175.18115234375,
+          "width": 142.7770538330078,
+          "height": 48.64727783203125,
+          "top": 4175.18115234375,
+          "right": 177.7253303527832,
+          "bottom": 4223.828430175781,
+          "left": 34.94827651977539
+        },
+        "contentY": 4175.18115234375
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Export Markdown…",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 34.94827651977539,
+          "y": 4229.82666015625,
+          "width": 137.0050811767578,
+          "height": 31.286169052124023,
+          "top": 4229.82666015625,
+          "right": 171.9533576965332,
+          "bottom": 4261.112829208374,
+          "left": 34.94827651977539
+        },
+        "contentY": 4229.82666015625
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Scan again",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 34.94827651977539,
+          "y": 4267.11083984375,
+          "width": 87.73992156982422,
+          "height": 31.286169052124023,
+          "top": 4267.11083984375,
+          "right": 122.68819808959961,
+          "bottom": 4298.397008895874,
+          "left": 34.94827651977539
+        },
+        "contentY": 4267.11083984375
+      },
+      {
+        "tag": "BUTTON",
+        "name": "Cancel",
+        "disabled": false,
+        "tabindex": 0,
+        "rect": {
+          "x": 34.94827651977539,
+          "y": 4304.39501953125,
+          "width": 63.883460998535156,
+          "height": 31.286169052124023,
+          "top": 4304.39501953125,
+          "right": 98.83173751831055,
+          "bottom": 4335.681188583374,
+          "left": 34.94827651977539
+        },
+        "contentY": 4304.39501953125
+      }
+    ]
+  },
+  "native": {
+    "ownershipUIA": [
+      {
+        "name": "MainInstructionIcon",
+        "role": "ControlType.Image",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "rect": "369,309,32,32"
+      },
+      {
+        "name": "Confirm that these files are project-owned and that the license and copyright in the preview apply to them: src/noheader.js",
+        "role": "ControlType.Text",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "rect": "411,314,494,30"
+      },
+      {
+        "name": "Apply fixes",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": true,
+        "focused": true,
+        "rect": "734,368,93,23"
+      },
+      {
+        "name": "Cancel",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "rect": "833,368,72,23"
+      }
+    ],
+    "ownershipFocus": [
+      {
+        "name": "Apply fixes",
+        "role": "ControlType.Pane",
+        "time": "2026-10-05T18:23:24.8163201-07:00"
+      },
+      {
+        "name": "Cancel",
+        "role": "ControlType.Pane",
+        "time": "2026-10-05T18:23:26.0792336-07:00"
+      },
+      {
+        "name": "Apply fixes",
+        "role": "ControlType.Pane",
+        "time": "2026-10-05T18:23:27.3216249-07:00"
+      }
+    ],
+    "saveAsUIA": [
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": true,
+        "offscreen": false,
+        "rect": "4,78,1192,534"
+      },
+      {
+        "name": "Command Module",
+        "role": "ControlType.ToolBar",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "4,78,1192,31"
+      },
+      {
+        "name": "&Help",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "1159,80,28,26"
+      },
+      {
+        "name": "Details",
+        "role": "ControlType.SplitButton",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "1096,80,55,26"
+      },
+      {
+        "name": "View Slider",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "1123,80,18,26"
+      },
+      {
+        "name": "Organize",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "7,80,91,26"
+      },
+      {
+        "name": "New folder",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "98,80,88,26"
+      },
+      {
+        "name": "Control Host",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "6,109,154,403"
+      },
+      {
+        "name": "Navigation Pane",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "6,109,154,403"
+      },
+      {
+        "name": "Shell Folder View",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "164,109,1032,403"
+      },
+      {
+        "name": "Items View",
+        "role": "ControlType.List",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "164,109,1032,403"
+      },
+      {
+        "name": "Header",
+        "role": "ControlType.Header",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "164,109,1032,23"
+      },
+      {
+        "name": "Name",
+        "role": "ControlType.SplitButton",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "164,109,272,23"
+      },
+      {
+        "name": "Filter dropdown",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "420,109,15,23"
+      },
+      {
+        "name": "Date modified",
+        "role": "ControlType.SplitButton",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "436,109,144,23"
+      },
+      {
+        "name": "Filter dropdown",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "564,109,15,23"
+      },
+      {
+        "name": "Type",
+        "role": "ControlType.SplitButton",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "580,109,120,23"
+      },
+      {
+        "name": "Filter dropdown",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "684,109,15,23"
+      },
+      {
+        "name": "Size",
+        "role": "ControlType.SplitButton",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "700,109,80,23"
+      },
+      {
+        "name": "Filter dropdown",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "764,109,15,23"
+      },
+      {
+        "name": "node_modules",
+        "role": "ControlType.ListItem",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "178,138,598,24"
+      },
+      {
+        "name": "Name",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "200,141,236,19"
+      },
+      {
+        "name": "Date modified",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "436,141,144,19"
+      },
+      {
+        "name": "Type",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "580,141,120,19"
+      },
+      {
+        "name": "Size",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "700,141,80,19"
+      },
+      {
+        "name": "notes",
+        "role": "ControlType.ListItem",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "178,166,598,24"
+      },
+      {
+        "name": "Name",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "200,169,236,19"
+      },
+      {
+        "name": "Date modified",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "436,169,144,19"
+      },
+      {
+        "name": "Type",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "580,169,120,19"
+      },
+      {
+        "name": "Size",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "700,169,80,19"
+      },
+      {
+        "name": "src",
+        "role": "ControlType.ListItem",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "178,194,598,24"
+      },
+      {
+        "name": "Name",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "200,197,236,19"
+      },
+      {
+        "name": "Date modified",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "436,197,144,19"
+      },
+      {
+        "name": "Type",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "580,197,120,19"
+      },
+      {
+        "name": "Size",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "700,197,80,19"
+      },
+      {
+        "name": "README.md",
+        "role": "ControlType.ListItem",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "178,222,598,24"
+      },
+      {
+        "name": "Name",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "200,225,236,19"
+      },
+      {
+        "name": "Date modified",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "436,225,144,19"
+      },
+      {
+        "name": "Type",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "580,225,120,19"
+      },
+      {
+        "name": "Size",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "700,225,80,19"
+      },
+      {
+        "name": "THIRD_PARTY_NOTICES.md",
+        "role": "ControlType.ListItem",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "178,250,598,24"
+      },
+      {
+        "name": "Name",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "200,253,236,19"
+      },
+      {
+        "name": "Date modified",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "436,253,144,19"
+      },
+      {
+        "name": "Type",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "580,253,120,19"
+      },
+      {
+        "name": "Size",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "700,253,80,19"
+      },
+      {
+        "name": "File name:",
+        "role": "ControlType.Text",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "14,523,115,23"
+      },
+      {
+        "name": "File name:",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "129,523,1062,23"
+      },
+      {
+        "name": "legal-report",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": true,
+        "offscreen": false,
+        "rect": "132,526,1040,17"
+      },
+      {
+        "name": "Save as type:",
+        "role": "ControlType.Text",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "14,548,115,23"
+      },
+      {
+        "name": "Save as type:",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "129,548,1062,23"
+      },
+      {
+        "name": "Save Fields",
+        "role": "ControlType.Tree",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "14,577,1172,30"
+      },
+      {
+        "name": "Application Controls",
+        "role": "ControlType.Tree",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": true,
+        "rect": "Empty"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "14,631,99,21"
+      },
+      {
+        "name": "Save",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "991,626,88,26"
+      },
+      {
+        "name": "Cancel",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "1091,626,88,26"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "1180,652,16,16"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "4,23,1192,55"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "4,23,1192,55"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "4,32,100,34"
+      },
+      {
+        "name": "Navigation buttons",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "8,34,96,32"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "104,31,36,36"
+      },
+      {
+        "name": "Up band",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "104,34,36,36"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "140,23,831,52"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "142,33,827,34"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "142,33,759,34"
+      },
+      {
+        "name": "Address: C:\\lanes\\M97SR-host\\workspace",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "148,33,753,34"
+      },
+      {
+        "name": "Address band",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "901,33,68,34"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "975,48,6,1"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "981,29,204,40"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "981,32,204,36"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "986,32,194,36"
+      },
+      {
+        "name": "Search Box",
+        "role": "ControlType.Edit",
+        "enabled": true,
+        "focusable": true,
+        "focused": false,
+        "offscreen": false,
+        "rect": "988,43,158,13"
+      },
+      {
+        "name": "Search",
+        "role": "ControlType.Button",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "1150,32,28,36"
+      },
+      {
+        "name": "",
+        "role": "ControlType.Pane",
+        "enabled": true,
+        "focusable": false,
+        "focused": false,
+        "offscreen": false,
+        "rect": "1189,48,7,1"
+      }
+    ],
+    "saveAsLogicalFocus": [
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 0,
+          "time": "2026-10-05T18:19:09.2093679-07:00",
+          "window": "Save As",
+          "name": "legal-report"
+        },
+        "logicalName": "File name:",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'File name:', 'combo box', 'collapsed', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 1,
+          "time": "2026-10-05T18:19:10.4659180-07:00",
+          "window": "Save As",
+          "name": "Save as type:"
+        },
+        "logicalName": "Save as type:",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Save as type:', 'combo box', 'Markdown', 'collapsed', 'Alt+', CharacterModeCommand(True), 't', CharacterModeCommand(False), CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 2,
+          "time": "2026-10-05T18:19:11.7167437-07:00",
+          "window": "Save As",
+          "name": ""
+        },
+        "logicalName": "Hide Folders",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Hide Folders', 'button', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 3,
+          "time": "2026-10-05T18:19:12.9751532-07:00",
+          "window": "Save As",
+          "name": "Save"
+        },
+        "logicalName": "Save",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Save', 'button', 'Alt+', CharacterModeCommand(True), 's', CharacterModeCommand(False), CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 4,
+          "time": "2026-10-05T18:19:14.2429926-07:00",
+          "window": "Save As",
+          "name": "Cancel"
+        },
+        "logicalName": "Cancel",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Cancel', 'button', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 5,
+          "time": "2026-10-05T18:19:15.7018616-07:00",
+          "window": "Save As",
+          "name": "Up band"
+        },
+        "logicalName": "Up to \"M97SR-host\" (Alt + Up Arrow)",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Up to \"M97SR-host\" (Alt + Up Arrow)', 'button', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 6,
+          "time": "2026-10-05T18:19:16.9490092-07:00",
+          "window": "Save As",
+          "name": "Address: C:\\lanes\\M97SR-host\\workspace"
+        },
+        "logicalName": "All locations",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'All locations', 'split button', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 7,
+          "time": "2026-10-05T18:19:18.2110308-07:00",
+          "window": "Save As",
+          "name": "Address band"
+        },
+        "logicalName": "Previous Locations",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Previous Locations', 'button', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Edit",
+          "enabled": true,
+          "step": 8,
+          "time": "2026-10-05T18:19:19.4826236-07:00",
+          "window": "Save As",
+          "name": "Search Box"
+        },
+        "logicalName": "Search Box",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Search Box', 'edit', ' Search workspace', CancellableSpeech (still valid), 'blank']"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Button",
+          "enabled": true,
+          "step": 9,
+          "time": "2026-10-05T18:19:20.7255812-07:00",
+          "window": "Save As",
+          "name": "Organize"
+        },
+        "logicalName": "Organize",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Organize', 'button', \"Organize this folder's contents.\", CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Edit",
+          "enabled": true,
+          "step": 10,
+          "time": "2026-10-05T18:19:22.0209466-07:00",
+          "window": "Save As",
+          "name": "Search Box"
+        },
+        "logicalName": "Search Box",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Search Box', 'edit', ' Search workspace', CancellableSpeech (still valid), 'blank']"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 11,
+          "time": "2026-10-05T18:19:23.3258055-07:00",
+          "window": "Save As",
+          "name": "Address band"
+        },
+        "logicalName": "Previous Locations",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Previous Locations', 'button', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 12,
+          "time": "2026-10-05T18:19:24.6261430-07:00",
+          "window": "Save As",
+          "name": "Address: C:\\lanes\\M97SR-host\\workspace"
+        },
+        "logicalName": "All locations",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'All locations', 'split button', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 13,
+          "time": "2026-10-05T18:19:25.9245089-07:00",
+          "window": "Save As",
+          "name": "Up band"
+        },
+        "logicalName": "Up to \"M97SR-host\" (Alt + Up Arrow)",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Up to \"M97SR-host\" (Alt + Up Arrow)', 'button', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 14,
+          "time": "2026-10-05T18:19:27.2238419-07:00",
+          "window": "Save As",
+          "name": "Cancel"
+        },
+        "logicalName": "Cancel",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Cancel', 'button', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 15,
+          "time": "2026-10-05T18:19:28.5060585-07:00",
+          "window": "Save As",
+          "name": "Save"
+        },
+        "logicalName": "Save",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Save', 'button', 'Alt+', CharacterModeCommand(True), 's', CharacterModeCommand(False), CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 16,
+          "time": "2026-10-05T18:19:29.7942198-07:00",
+          "window": "Save As",
+          "name": ""
+        },
+        "logicalName": "Hide Folders",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Hide Folders', 'button', CancellableSpeech (still valid)]"
+      },
+      {
+        "rawUIA": {
+          "role": "ControlType.Pane",
+          "enabled": true,
+          "step": 17,
+          "time": "2026-10-05T18:19:31.0936257-07:00",
+          "window": "Save As",
+          "name": "Save as type:"
+        },
+        "logicalName": "Save as type:",
+        "speech": "Speaking [LangChangeCommand ('en_GB'), 'Save as type:', 'combo box', 'Markdown', 'collapsed', 'Alt+', CharacterModeCommand(True), 't', CharacterModeCommand(False), CancellableSpeech (still valid)]"
+      }
+    ],
+    "cancelRestoration": {
+      "trapped": true,
+      "focus": "Export Markdown…",
+      "steps": 18
+    },
+    "rawBridgeLimit": "Win32 UIA wrappers include generic Pane roles and empty Hide Folders names; NVDA MSAA logical names and roles are captured separately.",
+    "ownershipReturnUIA": [
+      {
+        "name": "Fix preview",
+        "role": "ControlType.Text",
+        "enabled": true,
+        "focusable": true,
+        "focused": true,
+        "offscreen": false,
+        "automationId": "_r_8_",
+        "rect": "701,565,308,18"
+      }
+    ]
+  },
+  "flows": {
+    "slash": {
+      "time": "2026-10-05T18:24:13.4782730-07:00",
+      "noAuthWarning": true,
+      "focus": "Close",
+      "dialogSpeech": true
+    },
+    "emptyPreview": {
+      "refusal": true,
+      "focus": "Preview fixes",
+      "time": "2026-10-05T18:23:16.6000497-07:00"
+    },
+    "selectedPreview": {
+      "focus": "Fix preview",
+      "time": "2026-10-05T18:23:20.6284457-07:00",
+      "applyEnabled": true
+    },
+    "closeEscape": {
+      "time": "2026-10-05T18:24:01.4416117-07:00",
+      "focus": "Message Muse",
+      "method": "escape",
+      "role": "ControlType.Edit"
+    },
+    "closeButton": {
+      "time": "2026-10-05T18:24:08.9545248-07:00",
+      "focus": "Message Muse",
+      "method": "button",
+      "role": "ControlType.Edit"
+    },
+    "export": {
+      "time": "2026-10-05T18:32:06.8891436-07:00",
+      "exported": true,
+      "name": "legal-report-final.md, Editor Group 2",
+      "role": "ControlType.Edit"
+    },
+    "exportTextSha256": "4c47db7833a35ee157a7b86c2489c0e49950d82b3d2202c727572cb2317db023",
+    "notices": {
+      "enabled": true,
+      "focused": true,
+      "time": "2026-10-05T18:32:40.2967336-07:00",
+      "name": "THIRD_PARTY_NOTICES.txt, Editor Group 1",
+      "role": "ControlType.Edit"
+    },
+    "licenseInsideNotices": {
+      "line": 25,
+      "license": "MIT License",
+      "name": "THIRD_PARTY_NOTICES.txt",
+      "time": "2026-10-05T18:33:01.5503123-07:00"
+    },
+    "vendorLicense": {
+      "enabled": true,
+      "focused": true,
+      "time": "2026-10-05T18:33:34.7732846-07:00",
+      "name": "LICENSE, Editor Group 1",
+      "role": "ControlType.Edit"
+    },
+    "licenseClose": {
+      "closed": true,
+      "focus": "THIRD_PARTY_NOTICES.txt, Editor Group 1",
+      "time": "2026-10-05T18:33:37.3858573-07:00"
+    }
+  },
+  "zoom": {
+    "baseline": {
+      "width": 393,
+      "scale": 1,
+      "dialogWidth": 375,
+      "dialogScrollWidth": 375,
+      "right": 385,
+      "focusName": "Close"
+    },
+    "zoom": {
+      "width": 220,
+      "scale": 2.0736000537872314,
+      "dialogWidth": 202,
+      "dialogScrollWidth": 202,
+      "right": 211.91254568099976,
+      "focusName": "Close"
+    },
+    "ratio": 2.0736000537872314,
+    "nativeKeyboard": true,
+    "noHorizontalOverflow": true
+  },
+  "installed": {
+    "modelApi": {
+      "exit": 0,
+      "passed": 3,
+      "total": 3,
+      "installedIdentityAndSelectedBackend": true,
+      "bundledUIAndScannerBytesMatch": true
+    },
+    "museCode": {
+      "exit": 0,
+      "passed": 3,
+      "total": 3,
+      "installedIdentityAndSelectedBackend": true,
+      "bundledUIAndScannerBytesMatch": true
+    }
+  },
+  "drills": {
+    "skillsGuard": {
+      "original": "5fb172e847d59580342e423058ff27604e91e96b182114c54173d0d999c5605b",
+      "restored": "5fb172e847d59580342e423058ff27604e91e96b182114c54173d0d999c5605b",
+      "match": true,
+      "exit": 1
+    },
+    "exportFocus": {
+      "original": "cb5ca037580532f9fa087ad4c1d28b58c818e3edaa6e53d3e77fa0ce5009bc49",
+      "restored": "cb5ca037580532f9fa087ad4c1d28b58c818e3edaa6e53d3e77fa0ce5009bc49",
+      "match": true,
+      "exit": 1
+    },
+    "selectedBackend": {
+      "exit": 1,
+      "failed": 1,
+      "passed": 2,
+      "restoredGreen": {
+        "exit": 0,
+        "passed": 3,
+        "total": 3,
+        "installedIdentityAndSelectedBackend": true,
+        "bundledUIAndScannerBytesMatch": true
+      }
+    }
+  },
+  "checks": {
+    "typecheck": {
+      "exit": 0
+    },
+    "eslint": {
+      "exit": 0
+    },
+    "unit": {
+      "exit": 0
+    },
+    "deadcode": {
+      "exit": 0
+    },
+    "jscpd": {
+      "exit": 0
+    },
+    "l10n": {
+      "exit": 0
+    },
+    "host-api": {
+      "exit": 0
+    },
+    "package": {
+      "exit": 0
+    },
+    "vsix-size": {
+      "exit": 0
+    },
+    "a11y": {
+      "exit": 0
+    },
+    "prettier": {
+      "exit": 0,
+      "scope": "All seven changed source/test/documentation files"
+    }
+  },
+  "unitTests": {
+    "files": [
+      "test/unit/legalReport.test.tsx",
+      "test/unit/App.test.tsx",
+      "test/unit/Modal.test.tsx"
+    ],
+    "passed": 157,
+    "maxWorkers": 3,
+    "testTimeout": 120000
+  },
+  "accessibility": {
+    "headlessCases": 96,
+    "wcagPages": 24,
+    "englishAndPseudo": true,
+    "unchangedRules": true
+  },
+  "speechSnapshot": {
+    "localFile": "temp/m97sr/nvda-final-speech.log",
+    "sha256": "f5260396d9bbbfb8670ff9372512a91ccf1913cb94aca778c5f96566f2fe5cb3"
+  },
+  "firewallPrompt": {
+    "firewallAllowNotInvoked": true,
+    "action": "Clicked visible Cancel in Node firewall prompt",
+    "time": "2026-10-05T18:34:22.4901794-07:00"
+  },
+  "scopeLimits": [
+    "Paid explanation/consent and authenticated engine transports were not exercised.",
+    "Other-platform screen readers, other editors, hosted CI and final aggregate quality remain with the lead.",
+    "Raw native UIA internal Pane naming is not equivalent to NVDA logical MSAA control naming.",
+    "Automatic approval review blocked directory/junction deletion; the uninstalled inactive isolated profile remains."
+  ],
+  "cleanup": {
+    "portableRetained": true,
+    "reviewReason": "blocked by policy; no specific reason supplied",
+    "userProfileTouched": false,
+    "directoryRemoval": "blocked by automatic approval review",
+    "junctionsRetained": 4,
+    "scheduledTaskRemoved": true,
+    "nvdaProcesses": 0,
+    "root": "C:/lanes/M97SR-host",
+    "uninstalled": true,
+    "directoryRetained": true,
+    "time": "2026-10-05T18:44:46.1464496-07:00",
+    "remainingExtensions": 0,
+    "ownedCodeProcesses": 0
+  },
+  "hooks": {
+    "commitExit": 0,
+    "hookRestored": true,
+    "sha256": "B807CA4DCE86FC224B4B27B69E918BB7CCE5EFFD34EF43F2A67861BF45EB9AB9"
+  }
+}

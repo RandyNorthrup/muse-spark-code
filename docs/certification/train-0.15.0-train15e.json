@@ -1,0 +1,1910 @@
+{
+  "lane": "TRAIN15E",
+  "rig": "win11",
+  "branch": "release/train-0.15.0",
+  "input": "77dbd65d2",
+  "merged": "f07bf3e51",
+  "implementationCommit": "046ccb08f42552ce59d3b736b160c42b82988070",
+  "finishedAt": "2026-10-06T18:30:51.758Z",
+  "network": "No public network, live or paid model calls; named badge network-only skip. No installs or credential reads.",
+  "conflicts": [
+    ".vscodeignore",
+    "CHANGELOG.md",
+    "PLAN.md",
+    "README.md",
+    "THIRD_PARTY_NOTICES.txt",
+    "docs/PRIVACY.md",
+    "docs/acp.md",
+    "docs/certification/README.md",
+    "docs/ide-compatibility/host-api.md",
+    "knip.jsonc",
+    "l10n/ui.cs.json",
+    "l10n/ui.de.json",
+    "l10n/ui.es.json",
+    "l10n/ui.fr.json",
+    "l10n/ui.hu.json",
+    "l10n/ui.it.json",
+    "l10n/ui.ja.json",
+    "l10n/ui.ko.json",
+    "l10n/ui.pl.json",
+    "l10n/ui.pt-br.json",
+    "l10n/ui.ru.json",
+    "l10n/ui.tr.json",
+    "l10n/ui.zh-cn.json",
+    "l10n/ui.zh-tw.json",
+    "l10n/untranslated.json",
+    "package.json",
+    "package.nls.cs.json",
+    "package.nls.de.json",
+    "package.nls.es.json",
+    "package.nls.fr.json",
+    "package.nls.hu.json",
+    "package.nls.it.json",
+    "package.nls.ja.json",
+    "package.nls.json",
+    "package.nls.ko.json",
+    "package.nls.pl.json",
+    "package.nls.pt-br.json",
+    "package.nls.ru.json",
+    "package.nls.tr.json",
+    "package.nls.zh-cn.json",
+    "package.nls.zh-tw.json",
+    "scripts/build.mjs",
+    "scripts/check-bundle-size.mjs",
+    "scripts/check-bundle-split.mjs",
+    "scripts/lib/deferredBundles.mjs",
+    "scripts/lib/harnessServer.mjs",
+    "scripts/lib/webviewBundles.mjs",
+    "scripts/package-acp.mjs",
+    "scripts/package-vsix.mjs",
+    "scripts/third-party-notices.mjs",
+    "src/acp/agent.ts",
+    "src/core/backends/modelapi/ModelApiHost.ts",
+    "src/core/backends/modelapi/client.ts",
+    "src/core/backends/modelapi/codecs/anthropic.ts",
+    "src/core/backends/modelapi/codecs/chat.ts",
+    "src/core/backends/modelapi/codecs/gemini.ts",
+    "src/core/backends/modelapi/codecs/ollama.ts",
+    "src/core/backends/modelapi/codecs/responses.ts",
+    "src/core/providers/priceCard.ts",
+    "src/core/providers/providersFile.ts",
+    "src/extension.ts",
+    "src/host/backend/modelApiBackendManager.ts",
+    "src/host/backend/modelApiEntry.ts",
+    "src/host/conversation/conversationController.ts",
+    "src/host/settings.ts",
+    "src/runtime/backends.ts",
+    "src/runtime/cliArgs.ts",
+    "src/runtime/credentialVariables.ts",
+    "src/runtime/main.ts",
+    "src/shared/constants.ts",
+    "src/shared/paid.ts",
+    "src/shared/protocol.ts",
+    "src/shared/redact.ts",
+    "src/shared/validationEntry.ts",
+    "src/webview/App.tsx",
+    "src/webview/components/UsageDialog.tsx",
+    "src/webview/state/uiState.ts",
+    "test/e2e/execStdio.e2e.test.ts",
+    "test/harness/index.html",
+    "test/unit/UsageDialog.test.tsx",
+    "test/unit/acpAgent.test.ts",
+    "test/unit/acpRuntime.test.ts",
+    "test/unit/bundleSize.test.mjs",
+    "test/unit/conversationController.test.ts",
+    "test/unit/deferredBundles.test.ts",
+    "test/unit/execRun.test.ts",
+    "test/unit/geminiCodec.test.ts",
+    "test/unit/modelApiClient.test.ts",
+    "test/unit/modelApiPacking.test.ts",
+    "test/unit/paidDailyBudget.test.ts",
+    "test/unit/vsixPackaging.test.mjs",
+    "test/unit/webviewBundle.test.mjs"
+  ],
+  "invariants": {
+    "releasedChangelog": {
+      "before": "6ec0ee1bc4a97bee7afe6edef99aedf17a20f55e046c316b80cd63e242a3160d",
+      "after": "6ec0ee1bc4a97bee7afe6edef99aedf17a20f55e046c316b80cd63e242a3160d",
+      "unchanged": true
+    },
+    "goldens": [
+      {
+        "file": "test/fixtures/golden-requests/01-plain-turn.json",
+        "before": "b966dfd7a77f1494d8dfd0fc5a10f7cda83c46c6e1512a22e869f79c06687356",
+        "after": "b966dfd7a77f1494d8dfd0fc5a10f7cda83c46c6e1512a22e869f79c06687356",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/golden-requests/02-tool-call.json",
+        "before": "46d2723194e1c3e79d707fdc96d45c588c453c0da997dc5f4aba5c94681e8581",
+        "after": "46d2723194e1c3e79d707fdc96d45c588c453c0da997dc5f4aba5c94681e8581",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/golden-requests/03-edit-then-run.json",
+        "before": "7a3876f6f20d661972514897fdbc365c5df8d6511c8fe42a7af225dee6bd192b",
+        "after": "7a3876f6f20d661972514897fdbc365c5df8d6511c8fe42a7af225dee6bd192b",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/golden-requests/04-packed-output.json",
+        "before": "0026bdca0c0d2feeb4d5b42b4c3eda64d74cee40e532a83138b39b2259175477",
+        "after": "0026bdca0c0d2feeb4d5b42b4c3eda64d74cee40e532a83138b39b2259175477",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/golden-requests/05-manual-compaction.json",
+        "before": "161ef6ddb2af796bc1f2f2b23b0afece048a891699b2c4ac894ef3a52fc9563c",
+        "after": "161ef6ddb2af796bc1f2f2b23b0afece048a891699b2c4ac894ef3a52fc9563c",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/golden-requests/06-subagent-child.json",
+        "before": "0bf6a330e519d0a2e1d411a2af446249b6e4d618f677c6adf0b57e2524455329",
+        "after": "0bf6a330e519d0a2e1d411a2af446249b6e4d618f677c6adf0b57e2524455329",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/golden-requests/07-skills-and-rules.json",
+        "before": "6d3f6a83316a1c4c0ea482df6cd040510131730e80110e7465ef2ee968d25c42",
+        "after": "6d3f6a83316a1c4c0ea482df6cd040510131730e80110e7465ef2ee968d25c42",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/golden-requests/08-team-on.json",
+        "before": "ae5efe04e18c5a6e0d9aee9b725cebbd368727f7fde2ff7489a462cebdc6f71b",
+        "after": "ae5efe04e18c5a6e0d9aee9b725cebbd368727f7fde2ff7489a462cebdc6f71b",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/golden-requests/09-single-continuation.json",
+        "before": "cb32aa73bb211a7772bd989270a1a54102f75a61848b9091c33d3f39591fe82c",
+        "after": "cb32aa73bb211a7772bd989270a1a54102f75a61848b9091c33d3f39591fe82c",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/m95-int/meta/compaction.request.txt",
+        "before": "46b272d2f36c0950bc84b605e315a4b4b508f00636f20595def2657b17dd2264",
+        "after": "46b272d2f36c0950bc84b605e315a4b4b508f00636f20595def2657b17dd2264",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/m95-int/meta/first-turn.request.txt",
+        "before": "4b82ac6a4eee44ba2b5a6e57e01f090de8d4f28a4199360024d8d0ad682f282f",
+        "after": "4b82ac6a4eee44ba2b5a6e57e01f090de8d4f28a4199360024d8d0ad682f282f",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/m95-int/meta/image.request.txt",
+        "before": "c98bec13f654f1b2512f4e47a70540b6d808fdc149ba525430acf6ec3eacb400",
+        "after": "c98bec13f654f1b2512f4e47a70540b6d808fdc149ba525430acf6ec3eacb400",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/m95-int/meta/packed-output.request.txt",
+        "before": "46b703c88e22d9ee418f7869a2ea3d18b2da6af1787eea27b5b84b1caa9ac94f",
+        "after": "46b703c88e22d9ee418f7869a2ea3d18b2da6af1787eea27b5b84b1caa9ac94f",
+        "unchanged": true
+      },
+      {
+        "file": "test/fixtures/m95-int/meta/tool-loop.request.txt",
+        "before": "669291fff31d3d816a929d9532ccdc81490a785213bc691178f64cfc37eeddf4",
+        "after": "669291fff31d3d816a929d9532ccdc81490a785213bc691178f64cfc37eeddf4",
+        "unchanged": true
+      }
+    ],
+    "conflicts": [
+      ".vscodeignore",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "README.md",
+      "THIRD_PARTY_NOTICES.txt",
+      "docs/PRIVACY.md",
+      "docs/acp.md",
+      "docs/certification/README.md",
+      "docs/ide-compatibility/host-api.md",
+      "knip.jsonc",
+      "l10n/ui.cs.json",
+      "l10n/ui.de.json",
+      "l10n/ui.es.json",
+      "l10n/ui.fr.json",
+      "l10n/ui.hu.json",
+      "l10n/ui.it.json",
+      "l10n/ui.ja.json",
+      "l10n/ui.ko.json",
+      "l10n/ui.pl.json",
+      "l10n/ui.pt-br.json",
+      "l10n/ui.ru.json",
+      "l10n/ui.tr.json",
+      "l10n/ui.zh-cn.json",
+      "l10n/ui.zh-tw.json",
+      "l10n/untranslated.json",
+      "package.json",
+      "package.nls.cs.json",
+      "package.nls.de.json",
+      "package.nls.es.json",
+      "package.nls.fr.json",
+      "package.nls.hu.json",
+      "package.nls.it.json",
+      "package.nls.ja.json",
+      "package.nls.json",
+      "package.nls.ko.json",
+      "package.nls.pl.json",
+      "package.nls.pt-br.json",
+      "package.nls.ru.json",
+      "package.nls.tr.json",
+      "package.nls.zh-cn.json",
+      "package.nls.zh-tw.json",
+      "scripts/build.mjs",
+      "scripts/check-bundle-size.mjs",
+      "scripts/check-bundle-split.mjs",
+      "scripts/lib/deferredBundles.mjs",
+      "scripts/lib/harnessServer.mjs",
+      "scripts/lib/webviewBundles.mjs",
+      "scripts/package-acp.mjs",
+      "scripts/package-vsix.mjs",
+      "scripts/third-party-notices.mjs",
+      "src/acp/agent.ts",
+      "src/core/backends/modelapi/ModelApiHost.ts",
+      "src/core/backends/modelapi/client.ts",
+      "src/core/backends/modelapi/codecs/anthropic.ts",
+      "src/core/backends/modelapi/codecs/chat.ts",
+      "src/core/backends/modelapi/codecs/gemini.ts",
+      "src/core/backends/modelapi/codecs/ollama.ts",
+      "src/core/backends/modelapi/codecs/responses.ts",
+      "src/core/providers/priceCard.ts",
+      "src/core/providers/providersFile.ts",
+      "src/extension.ts",
+      "src/host/backend/modelApiBackendManager.ts",
+      "src/host/backend/modelApiEntry.ts",
+      "src/host/conversation/conversationController.ts",
+      "src/host/settings.ts",
+      "src/runtime/backends.ts",
+      "src/runtime/cliArgs.ts",
+      "src/runtime/credentialVariables.ts",
+      "src/runtime/main.ts",
+      "src/shared/constants.ts",
+      "src/shared/paid.ts",
+      "src/shared/protocol.ts",
+      "src/shared/redact.ts",
+      "src/shared/validationEntry.ts",
+      "src/webview/App.tsx",
+      "src/webview/components/UsageDialog.tsx",
+      "src/webview/state/uiState.ts",
+      "test/e2e/execStdio.e2e.test.ts",
+      "test/harness/index.html",
+      "test/unit/UsageDialog.test.tsx",
+      "test/unit/acpAgent.test.ts",
+      "test/unit/acpRuntime.test.ts",
+      "test/unit/bundleSize.test.mjs",
+      "test/unit/conversationController.test.ts",
+      "test/unit/deferredBundles.test.ts",
+      "test/unit/execRun.test.ts",
+      "test/unit/geminiCodec.test.ts",
+      "test/unit/modelApiClient.test.ts",
+      "test/unit/modelApiPacking.test.ts",
+      "test/unit/paidDailyBudget.test.ts",
+      "test/unit/vsixPackaging.test.mjs",
+      "test/unit/webviewBundle.test.mjs"
+    ]
+  },
+  "tests": [
+    {
+      "file": "test/e2e/acpStdio.e2e.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "stdio-final2.log"
+    },
+    {
+      "file": "test/e2e/execStdio.e2e.test.ts",
+      "tests": 42,
+      "detail": "1 stale locale fixture; 38 passed; 3 existing Windows exclusions",
+      "passed": false,
+      "log": "stdio-final2.log"
+    },
+    {
+      "file": "test/e2e/execTestLauncher.e2e.test.ts",
+      "tests": 6,
+      "detail": "6 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-1.log"
+    },
+    {
+      "file": "test/unit/acpAgent.test.ts",
+      "tests": 100,
+      "detail": "100 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-0.log"
+    },
+    {
+      "file": "test/unit/acpModelApi.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-2.log"
+    },
+    {
+      "file": "test/unit/acpRuntime.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-2.log"
+    },
+    {
+      "file": "test/unit/acpUsage.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-3.log"
+    },
+    {
+      "file": "test/unit/agentImport.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-3.log"
+    },
+    {
+      "file": "test/unit/aggregate.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-3.log"
+    },
+    {
+      "file": "test/unit/anthropicCodec.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-3.log"
+    },
+    {
+      "file": "test/unit/App.test.tsx",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-0.log"
+    },
+    {
+      "file": "test/unit/attachments.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-4.log"
+    },
+    {
+      "file": "test/unit/authService.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-4.log"
+    },
+    {
+      "file": "test/unit/authSource.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-4.log"
+    },
+    {
+      "file": "test/unit/bundleSize.test.mjs",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "fix3.log"
+    },
+    {
+      "file": "test/unit/capabilityRecord.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-1.log"
+    },
+    {
+      "file": "test/unit/chatgptResponsesCap.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-6.log"
+    },
+    {
+      "file": "test/unit/chatgptResponsesCodec.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-6.log"
+    },
+    {
+      "file": "test/unit/chatGptSignIn.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-1.log"
+    },
+    {
+      "file": "test/unit/chatGptVsCode.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-1.log"
+    },
+    {
+      "file": "test/unit/cliUsage.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-6.log"
+    },
+    {
+      "file": "test/unit/cliUsageProcess.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-2.log"
+    },
+    {
+      "file": "test/unit/companionBrowser.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-2.log"
+    },
+    {
+      "file": "test/unit/companionEvents.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-2.log"
+    },
+    {
+      "file": "test/unit/companionGuard.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-8.log"
+    },
+    {
+      "file": "test/unit/companionLifecycle.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-8.log"
+    },
+    {
+      "file": "test/unit/companionPage.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-8.log"
+    },
+    {
+      "file": "test/unit/companionServer.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-3.log"
+    },
+    {
+      "file": "test/unit/companionSessions.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-3.log"
+    },
+    {
+      "file": "test/unit/compressedEnglish.test.mjs",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-0.log"
+    },
+    {
+      "file": "test/unit/configuredProviders.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-3.log"
+    },
+    {
+      "file": "test/unit/conversationController.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-4.log"
+    },
+    {
+      "file": "test/unit/copilotClient.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-4.log"
+    },
+    {
+      "file": "test/unit/deferredBundles.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "loader-final.log"
+    },
+    {
+      "file": "test/unit/effort.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-4.log"
+    },
+    {
+      "file": "test/unit/execFetch.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "fix3.log"
+    },
+    {
+      "file": "test/unit/execProvider.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-6.log"
+    },
+    {
+      "file": "test/unit/execRun.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-2.log"
+    },
+    {
+      "file": "test/unit/geminiCodec.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "account-ledger-codec-final.log"
+    },
+    {
+      "file": "test/unit/handoffDialog.test.tsx",
+      "tests": 14,
+      "detail": "14 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-1.log"
+    },
+    {
+      "file": "test/unit/hostBridge.test.ts",
+      "tests": 4,
+      "detail": "4 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-1.log"
+    },
+    {
+      "file": "test/unit/insights.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-12.log"
+    },
+    {
+      "file": "test/unit/instructions.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-12.log"
+    },
+    {
+      "file": "test/unit/journalRecord.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-12.log"
+    },
+    {
+      "file": "test/unit/journalStore.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-13.log"
+    },
+    {
+      "file": "test/unit/legalDistribution.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-4.log"
+    },
+    {
+      "file": "test/unit/legalExplanation.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-4.log"
+    },
+    {
+      "file": "test/unit/legalScanTool.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-4.log"
+    },
+    {
+      "file": "test/unit/m95PlanMain.test.tsx",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-13.log"
+    },
+    {
+      "file": "test/unit/m95PlanUi.test.tsx",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-13.log"
+    },
+    {
+      "file": "test/unit/mapNotification.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-6.log"
+    },
+    {
+      "file": "test/unit/mcpPool.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "remaining-1.log"
+    },
+    {
+      "file": "test/unit/metaGolden.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-7.log"
+    },
+    {
+      "file": "test/unit/metaRequestGoldens.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-7.log"
+    },
+    {
+      "file": "test/unit/modelApiAttemptBudget.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-6.log"
+    },
+    {
+      "file": "test/unit/modelApiBackendManager.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-6.log"
+    },
+    {
+      "file": "test/unit/modelApiClient.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-7.log"
+    },
+    {
+      "file": "test/unit/modelApiGoldenRequests.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-7.log"
+    },
+    {
+      "file": "test/unit/modelApiHooks.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "remaining-1.log"
+    },
+    {
+      "file": "test/unit/modelApiHost.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "remaining-1.log"
+    },
+    {
+      "file": "test/unit/modelApiPacking.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-7.log"
+    },
+    {
+      "file": "test/unit/modelApiPrefix.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "prefix-final.log"
+    },
+    {
+      "file": "test/unit/modelApiProviders.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-7.log"
+    },
+    {
+      "file": "test/unit/modelApiReplayIdentity.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-8.log"
+    },
+    {
+      "file": "test/unit/modelApiSchemas.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-8.log"
+    },
+    {
+      "file": "test/unit/modelApiWireHosts.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-8.log"
+    },
+    {
+      "file": "test/unit/modelCallHooks.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-9.log"
+    },
+    {
+      "file": "test/unit/modelPolicy.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-9.log"
+    },
+    {
+      "file": "test/unit/modelsActivationBudget.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-9.log"
+    },
+    {
+      "file": "test/unit/modelsPanelBundle.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-3.log"
+    },
+    {
+      "file": "test/unit/modelsPanelSchemas.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-18.log"
+    },
+    {
+      "file": "test/unit/modelsPanelSections.test.tsx",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-18.log"
+    },
+    {
+      "file": "test/unit/modelTextCompression.test.mjs",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "loader-final.log"
+    },
+    {
+      "file": "test/unit/museUsageDeltas.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-18.log"
+    },
+    {
+      "file": "test/unit/ndjson.test.ts",
+      "tests": 8,
+      "detail": "8 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-0.log"
+    },
+    {
+      "file": "test/unit/observationPack.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "remaining-4.log"
+    },
+    {
+      "file": "test/unit/paidDailyBudget.test.ts",
+      "tests": 21,
+      "detail": "1 failed",
+      "passed": false,
+      "log": "rerun-10.log"
+    },
+    {
+      "file": "test/unit/paidHost.test.ts",
+      "tests": 34,
+      "detail": "34 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-0.log"
+    },
+    {
+      "file": "test/unit/paletteRegistry.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-20.log"
+    },
+    {
+      "file": "test/unit/planKeyPresets.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-20.log"
+    },
+    {
+      "file": "test/unit/planUsage.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-20.log"
+    },
+    {
+      "file": "test/unit/providerCatalog.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-11.log"
+    },
+    {
+      "file": "test/unit/providerProvidersHost.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-11.log"
+    },
+    {
+      "file": "test/unit/providersL10n.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-22.log"
+    },
+    {
+      "file": "test/unit/providersModel.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-22.log"
+    },
+    {
+      "file": "test/unit/providersPolicy.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-22.log"
+    },
+    {
+      "file": "test/unit/providersX.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-12.log"
+    },
+    {
+      "file": "test/unit/providersXFix.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-12.log"
+    },
+    {
+      "file": "test/unit/providerTransport.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-11.log"
+    },
+    {
+      "file": "test/unit/rateLimitHeaders.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-12.log"
+    },
+    {
+      "file": "test/unit/runLedger.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "account-ledger-codec-final.log"
+    },
+    {
+      "file": "test/unit/runtimeAccounting.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "account-ledger-codec-final.log"
+    },
+    {
+      "file": "test/unit/runtimeChatGpt.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-13.log"
+    },
+    {
+      "file": "test/unit/runtimeChatGptCallback.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-13.log"
+    },
+    {
+      "file": "test/unit/runtimeChatGptLock.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-13.log"
+    },
+    {
+      "file": "test/unit/runtimeChatGptPackage.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-1.log"
+    },
+    {
+      "file": "test/unit/runtimeManifest.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-6.log"
+    },
+    {
+      "file": "test/unit/sessionBudgetJournal.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "remaining-4.log"
+    },
+    {
+      "file": "test/unit/sse.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-14.log"
+    },
+    {
+      "file": "test/unit/subscriptionIntegration.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-14.log"
+    },
+    {
+      "file": "test/unit/tabLedger.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-26.log"
+    },
+    {
+      "file": "test/unit/teamEngineWorker.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-5.log"
+    },
+    {
+      "file": "test/unit/teamMeter.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-5.log"
+    },
+    {
+      "file": "test/unit/teamModelSettings.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-5.log"
+    },
+    {
+      "file": "test/unit/tokenFile.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-26.log"
+    },
+    {
+      "file": "test/unit/traceLogs.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-26.log"
+    },
+    {
+      "file": "test/unit/uiState.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-27.log"
+    },
+    {
+      "file": "test/unit/UsageApp.test.tsx",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-0.log"
+    },
+    {
+      "file": "test/unit/UsageCharts.test.tsx",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-0.log"
+    },
+    {
+      "file": "test/unit/usageCompanionBridge.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-27.log"
+    },
+    {
+      "file": "test/unit/usageContracts.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-6.log"
+    },
+    {
+      "file": "test/unit/UsageDialog.test.tsx",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-1.log"
+    },
+    {
+      "file": "test/unit/UsageEntry.test.tsx",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-1.log"
+    },
+    {
+      "file": "test/unit/usageExport.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-14.log"
+    },
+    {
+      "file": "test/unit/usageHostBridges.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-15.log"
+    },
+    {
+      "file": "test/unit/usageIntegration.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-15.log"
+    },
+    {
+      "file": "test/unit/usageL10nGate.test.mjs",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-15.log"
+    },
+    {
+      "file": "test/unit/usageL10nTables.test.mjs",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-16.log"
+    },
+    {
+      "file": "test/unit/UsageLimitsSection.test.tsx",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-1.log"
+    },
+    {
+      "file": "test/unit/usagePackaging.test.mjs",
+      "tests": 4,
+      "detail": "4 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-2.log"
+    },
+    {
+      "file": "test/unit/usagePanel.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-16.log"
+    },
+    {
+      "file": "test/unit/usagePerformance.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-16.log"
+    },
+    {
+      "file": "test/unit/usageRecording.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-17.log"
+    },
+    {
+      "file": "test/unit/usageRecordingAux.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "rerun-17.log"
+    },
+    {
+      "file": "test/unit/usageRollup.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-31.log"
+    },
+    {
+      "file": "test/unit/usageService.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-31.log"
+    },
+    {
+      "file": "test/unit/usageTable.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-31.log"
+    },
+    {
+      "file": "test/unit/usageText.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "sweep-32.log"
+    },
+    {
+      "file": "test/unit/vsixPackaging.test.mjs",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "final-unit-0.log"
+    },
+    {
+      "file": "test/unit/webFetchBundle.test.ts",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "loader-final.log"
+    },
+    {
+      "file": "test/unit/webviewBundle.test.mjs",
+      "tests": null,
+      "detail": null,
+      "passed": true,
+      "log": "fix3.log"
+    },
+    {
+      "file": "test/unit/webviewBundles.test.mjs",
+      "tests": 7,
+      "detail": "7 passed in final complete-file run",
+      "passed": true,
+      "log": "receipt-gap-2.log"
+    }
+  ],
+  "gateResults": [
+    {
+      "label": "typecheck",
+      "args": ["run", "typecheck"],
+      "code": 0
+    },
+    {
+      "label": "deadcode",
+      "args": ["run", "deadcode"],
+      "code": 0
+    },
+    {
+      "label": "cycles",
+      "args": ["run", "cycles"],
+      "code": 0
+    },
+    {
+      "label": "duplication",
+      "args": ["run", "duplication"],
+      "code": 0
+    },
+    {
+      "label": "lint-ps",
+      "args": ["run", "lint:ps"],
+      "code": 0
+    },
+    {
+      "label": "l10n",
+      "args": ["run", "check:l10n"],
+      "code": 0
+    },
+    {
+      "label": "host-api-write",
+      "args": ["run", "check:host-api", "--", "--write"],
+      "code": 0
+    },
+    {
+      "label": "host-api",
+      "args": ["run", "check:host-api"],
+      "code": 0
+    }
+  ],
+  "checks": {
+    "eslint": "changed files exit 0; final packaging edits checked separately",
+    "css": "exit 0",
+    "schema": "exit 0",
+    "typescript": "all five projects exit 0; host/unit repeated after final lint corrections",
+    "prettier": "changed-file write/check and normal hooks",
+    "quality": "explicitly excluded by rig brief"
+  },
+  "drills": [
+    {
+      "name": "dispatch cap recheck",
+      "file": "src/runtime/runtimeAccountingEntry.ts",
+      "test": "test/unit/runtimeAccounting.test.ts",
+      "redExit": 1,
+      "before": "51f031f48e4af13a923cbb66d5317db212b1b968d5e794bd171e569b3fc1562e",
+      "restored": "51f031f48e4af13a923cbb66d5317db212b1b968d5e794bd171e569b3fc1562e",
+      "byteExact": true
+    },
+    {
+      "name": "local day recheck",
+      "file": "src/runtime/runtimeAccountingEntry.ts",
+      "test": "test/unit/runtimeAccounting.test.ts",
+      "redExit": 1,
+      "before": "51f031f48e4af13a923cbb66d5317db212b1b968d5e794bd171e569b3fc1562e",
+      "restored": "51f031f48e4af13a923cbb66d5317db212b1b968d5e794bd171e569b3fc1562e",
+      "byteExact": true
+    },
+    {
+      "name": "daily admission",
+      "file": "src/host/backend/sessionBudgetJournal.ts",
+      "test": "test/unit/runtimeAccounting.test.ts",
+      "redExit": 1,
+      "before": "89fd9f7ff944887915156db603aa49ff108e02828783c18bb5a19e5cc0f971aa",
+      "restored": "89fd9f7ff944887915156db603aa49ff108e02828783c18bb5a19e5cc0f971aa",
+      "byteExact": true
+    },
+    {
+      "name": "exclusive lock path",
+      "file": "src/host/backend/sessionBudgetJournal.ts",
+      "test": "test/unit/runtimeAccounting.test.ts",
+      "redExit": 1,
+      "before": "89fd9f7ff944887915156db603aa49ff108e02828783c18bb5a19e5cc0f971aa",
+      "restored": "89fd9f7ff944887915156db603aa49ff108e02828783c18bb5a19e5cc0f971aa",
+      "byteExact": true
+    },
+    {
+      "name": "hard run admission",
+      "file": "src/runtime/runtimeAccountingEntry.ts",
+      "test": "test/unit/runtimeAccounting.test.ts",
+      "redExit": 1,
+      "before": "51f031f48e4af13a923cbb66d5317db212b1b968d5e794bd171e569b3fc1562e",
+      "restored": "51f031f48e4af13a923cbb66d5317db212b1b968d5e794bd171e569b3fc1562e",
+      "byteExact": true
+    },
+    {
+      "name": "transport preparation",
+      "file": "src/core/backends/modelapi/transport.ts",
+      "test": "test/unit/runtimeAccounting.test.ts",
+      "redExit": 1,
+      "before": "d15bb132ca2ef4f40d1010fa389deb5e42ee6cfa09fac4cb1dd23b3bad311c44",
+      "restored": "d15bb132ca2ef4f40d1010fa389deb5e42ee6cfa09fac4cb1dd23b3bad311c44",
+      "byteExact": true
+    },
+    {
+      "name": "Windows English encoding",
+      "file": "scripts/lib/compressedEnglish.mjs",
+      "test": "test/unit/compressedEnglish.test.mjs",
+      "redExit": 1,
+      "before": "86911dd1a16ec671516b63d46eb394cb4f321ec808cfd673beb02090ffc33222",
+      "restored": "86911dd1a16ec671516b63d46eb394cb4f321ec808cfd673beb02090ffc33222",
+      "byteExact": true
+    },
+    {
+      "name": "activation archive round trip",
+      "file": "scripts/lib/packageArchive.mjs",
+      "test": "test/unit/vsixPackaging.test.mjs",
+      "redExit": 1,
+      "before": "7231b857451ed728b8c07ab25a79667be61411c2b63828c2d0b8bfde6207fbf8",
+      "restored": "7231b857451ed728b8c07ab25a79667be61411c2b63828c2d0b8bfde6207fbf8",
+      "byteExact": true
+    },
+    {
+      "file": "dist/modelApiHooks.js",
+      "capKiB": 50,
+      "redExit": 1,
+      "before": "78341471741600ff5005658f54ab68b9a821f60d392b3d357cc305b0dfca28a2",
+      "restored": "78341471741600ff5005658f54ab68b9a821f60d392b3d357cc305b0dfca28a2",
+      "byteExact": true
+    },
+    {
+      "file": "dist/modelApiMcp.js",
+      "capKiB": 75,
+      "redExit": 1,
+      "before": "c67de3d0834853302d9bf7ceafa7d63b6329f54ebd2799f5ddb392ca9cd3b5d3",
+      "restored": "c67de3d0834853302d9bf7ceafa7d63b6329f54ebd2799f5ddb392ca9cd3b5d3",
+      "byteExact": true
+    },
+    {
+      "file": "dist/runtimeAccounting.js",
+      "capKiB": 50,
+      "redExit": 1,
+      "before": "bea246bb8ded6b52de6690a4c20013ace2fea22c05b344fb95be2d71f7038717",
+      "restored": "bea246bb8ded6b52de6690a4c20013ace2fea22c05b344fb95be2d71f7038717",
+      "byteExact": true
+    },
+    {
+      "file": "dist/providerPolicy.js",
+      "capKiB": 25,
+      "redExit": 1,
+      "before": "bfa251f70bf603a7fbcf7f4927aba97e3c23360bd4841d7d8a237d1ad4175742",
+      "restored": "bfa251f70bf603a7fbcf7f4927aba97e3c23360bd4841d7d8a237d1ad4175742",
+      "byteExact": true
+    },
+    {
+      "file": "dist/runtimeEngine.js",
+      "capKiB": 875,
+      "redExit": 1,
+      "before": "c8abba116a0d9106cbd8d95f0bb5b03cb9f15c5b14622c8faf75c5278f613377",
+      "restored": "c8abba116a0d9106cbd8d95f0bb5b03cb9f15c5b14622c8faf75c5278f613377",
+      "byteExact": true
+    },
+    {
+      "file": "dist/providers.js",
+      "capKiB": 150,
+      "redExit": 1,
+      "before": "af542a14df8c00fe51378d47b3f3d5c55ca1ed21b3fee4a166280aeb48df2a7f",
+      "restored": "af542a14df8c00fe51378d47b3f3d5c55ca1ed21b3fee4a166280aeb48df2a7f",
+      "byteExact": true
+    },
+    {
+      "file": "dist/subscriptions.js",
+      "capKiB": 50,
+      "redExit": 1,
+      "before": "536545cd33dd0da8dccba77ef612f1dfacfc447432879f661fa003324cc9c40d",
+      "restored": "536545cd33dd0da8dccba77ef612f1dfacfc447432879f661fa003324cc9c40d",
+      "byteExact": true
+    },
+    {
+      "file": "dist/configuredProviders.js",
+      "capKiB": 50,
+      "redExit": 1,
+      "before": "371ad07ea9b78a365aed2d1edb1d6ff0039fb652fc08476c1a2c9b1525b7488c",
+      "restored": "371ad07ea9b78a365aed2d1edb1d6ff0039fb652fc08476c1a2c9b1525b7488c",
+      "byteExact": true
+    },
+    {
+      "file": "dist/modelsPanel.js",
+      "capKiB": 125,
+      "redExit": 1,
+      "before": "ceb37c93e612e59dd3f2665cfcf81964fb1f1e9ab2e19c25b6d3ca4adbf6b11e",
+      "restored": "ceb37c93e612e59dd3f2665cfcf81964fb1f1e9ab2e19c25b6d3ca4adbf6b11e",
+      "byteExact": true
+    },
+    {
+      "file": "dist/usageService.js",
+      "capKiB": 100,
+      "redExit": 1,
+      "before": "317f807ae3c684fefc48de129fe4a9baeee978494d9f42e812554beee36e31d8",
+      "restored": "317f807ae3c684fefc48de129fe4a9baeee978494d9f42e812554beee36e31d8",
+      "byteExact": true
+    },
+    {
+      "file": "dist/usageCompanion.js",
+      "capKiB": 50,
+      "redExit": 1,
+      "before": "0a85ddb4d256d6ad427f629ace521cae2fb8635211b12c8aab4dfa402a02a666",
+      "restored": "0a85ddb4d256d6ad427f629ace521cae2fb8635211b12c8aab4dfa402a02a666",
+      "byteExact": true
+    },
+    {
+      "file": "dist/usagePanel.js",
+      "capKiB": 75,
+      "redExit": 1,
+      "before": "f6811ee9c967bd90c9fb5c24dbd2457f113806ae76090234f3d34cb1bdff6cf0",
+      "restored": "f6811ee9c967bd90c9fb5c24dbd2457f113806ae76090234f3d34cb1bdff6cf0",
+      "byteExact": true
+    },
+    {
+      "file": "dist/headless.js",
+      "capKiB": 100,
+      "redExit": 1,
+      "before": "a65d9f7758feebe26c1eff0f93cbd9dd149b2b7ae17faaa5e021fd8bc6c34732",
+      "restored": "a65d9f7758feebe26c1eff0f93cbd9dd149b2b7ae17faaa5e021fd8bc6c34732",
+      "byteExact": true
+    },
+    {
+      "file": "dist/webview/models.js",
+      "capKiB": 500,
+      "redExit": 1,
+      "before": "9fde1c614d3e451c8942986e9966fe2137a3832476ff5321f4d9c28791253779",
+      "restored": "9fde1c614d3e451c8942986e9966fe2137a3832476ff5321f4d9c28791253779",
+      "byteExact": true
+    },
+    {
+      "file": "dist/webview/usage.js",
+      "capKiB": 500,
+      "redExit": 1,
+      "before": "ae868fc35e6b63918e7899f8cef9bda85734726885b1b2892e146f4488f58e3e",
+      "restored": "ae868fc35e6b63918e7899f8cef9bda85734726885b1b2892e146f4488f58e3e",
+      "byteExact": true
+    },
+    {
+      "file": "dist/webview/usage.css",
+      "capKiB": 25,
+      "redExit": 1,
+      "before": "9fcf77bac5b89786a540d0fc5fabb0bbae6e3bbb8ef974d7cd6a716d27db87be",
+      "restored": "9fcf77bac5b89786a540d0fc5fabb0bbae6e3bbb8ef974d7cd6a716d27db87be",
+      "byteExact": true
+    },
+    {
+      "name": "moved web-fetch block forbidden in ACP launcher",
+      "file": "dist/acp.js",
+      "redExit": 1,
+      "before": "5e9a7299c1c53aecbab2563c55b233899e480f58750b880f62dce918d7fd7bfa",
+      "restored": "5e9a7299c1c53aecbab2563c55b233899e480f58750b880f62dce918d7fd7bfa",
+      "byteExact": true
+    },
+    {
+      "name": "runtime English must stay directly executable",
+      "file": "scripts/lib/packageArchive.mjs",
+      "redExit": 1,
+      "before": "8c6b089637a6068becf96e29f7e5533303f1010fa12364f701ed599c3a091457",
+      "restored": "8c6b089637a6068becf96e29f7e5533303f1010fa12364f701ed599c3a091457",
+      "byteExact": true
+    }
+  ],
+  "caps": [
+    {
+      "artifact": "dist/extension.js",
+      "beforeKiB": 457.6,
+      "bytes": 468986,
+      "capKiB": 600
+    },
+    {
+      "artifact": "dist/modelApi.js",
+      "beforeKiB": 500.2,
+      "bytes": 466286,
+      "capKiB": 475
+    },
+    {
+      "artifact": "dist/acp.js",
+      "beforeKiB": 839.9,
+      "bytes": 148782,
+      "capKiB": 850
+    },
+    {
+      "artifact": "dist/headless.js",
+      "beforeKiB": 801.7,
+      "bytes": 79785,
+      "capKiB": 100
+    },
+    {
+      "artifact": "dist/runtimeEngine.js",
+      "beforeKiB": null,
+      "bytes": 772869,
+      "capKiB": 875
+    },
+    {
+      "artifact": "dist/providerPolicy.js",
+      "beforeKiB": null,
+      "bytes": 7933,
+      "capKiB": 25
+    },
+    {
+      "artifact": "dist/modelApiHooks.js",
+      "beforeKiB": null,
+      "bytes": 28936,
+      "capKiB": 50
+    },
+    {
+      "artifact": "dist/modelApiMcp.js",
+      "beforeKiB": null,
+      "bytes": 50194,
+      "capKiB": 75
+    },
+    {
+      "artifact": "dist/runtimeAccounting.js",
+      "beforeKiB": null,
+      "bytes": 26676,
+      "capKiB": 50
+    },
+    {
+      "artifact": "dist/providers.js",
+      "beforeKiB": 128.4,
+      "bytes": 131494,
+      "capKiB": 150
+    },
+    {
+      "artifact": "dist/subscriptions.js",
+      "beforeKiB": 29.3,
+      "bytes": 29987,
+      "capKiB": 50
+    },
+    {
+      "artifact": "dist/configuredProviders.js",
+      "beforeKiB": 24.9,
+      "bytes": 25533,
+      "capKiB": 50
+    },
+    {
+      "artifact": "dist/modelsPanel.js",
+      "beforeKiB": 90.3,
+      "bytes": 92430,
+      "capKiB": 125
+    },
+    {
+      "artifact": "dist/usageService.js",
+      "beforeKiB": 77.2,
+      "bytes": 79095,
+      "capKiB": 100
+    },
+    {
+      "artifact": "dist/usageCompanion.js",
+      "beforeKiB": 38.1,
+      "bytes": 39020,
+      "capKiB": 50
+    },
+    {
+      "artifact": "dist/usagePanel.js",
+      "beforeKiB": 53.6,
+      "bytes": 55298,
+      "capKiB": 75
+    },
+    {
+      "artifact": "dist/webview/main.js + static imports",
+      "beforeKiB": null,
+      "bytes": 825489,
+      "capKiB": 900,
+      "outputs": [
+        "dist/webview/main.js",
+        "dist/webview/chunks/CAGZ33XW.js",
+        "dist/webview/chunks/X6ON2R2T.js",
+        "dist/webview/chunks/HPN2RRV2.js",
+        "dist/webview/chunks/FIJ3WDLK.js",
+        "dist/webview/chunks/ANQGBRV2.js",
+        "dist/webview/chunks/LMUV6TGN.js",
+        "dist/webview/chunks/NMG3SN4V.js",
+        "dist/webview/chunks/HNPR5EUS.js",
+        "dist/webview/chunks/J2JIWAYT.js",
+        "dist/webview/chunks/C4KWUHT7.js",
+        "dist/webview/chunks/OMGFRT2N.js",
+        "dist/webview/chunks/V6H5ZHIP.js",
+        "dist/webview/chunks/SKD3USOR.js",
+        "dist/webview/chunks/7FRNEEMZ.js",
+        "dist/webview/chunks/546DMFNU.js",
+        "dist/webview/chunks/HLP3ZYR4.js",
+        "dist/webview/chunks/IYLIYHJC.js",
+        "dist/webview/chunks/2TEO5AI5.js",
+        "dist/webview/chunks/MIIJHAPG.js",
+        "dist/webview/chunks/4RMM3L7L.js",
+        "dist/webview/chunks/B3UZFLH3.js",
+        "dist/webview/chunks/CRJQKXK6.js",
+        "dist/webview/chunks/4HJZ7PMG.js",
+        "dist/webview/chunks/VL6I3PVV.js",
+        "dist/webview/chunks/ZKVE3NGL.js",
+        "dist/webview/chunks/KOQWZAGR.js",
+        "dist/webview/chunks/BI2WMYDC.js",
+        "dist/webview/chunks/X5R4SLGA.js",
+        "dist/webview/chunks/MQEIEY3K.js",
+        "dist/webview/chunks/CGS4ZWJX.js"
+      ]
+    },
+    {
+      "artifact": "dist/webview/models.js + static imports",
+      "beforeKiB": null,
+      "bytes": 435085,
+      "capKiB": 500,
+      "outputs": [
+        "dist/webview/models.js",
+        "dist/webview/chunks/CRJQKXK6.js",
+        "dist/webview/chunks/KOQWZAGR.js",
+        "dist/webview/chunks/ANQGBRV2.js",
+        "dist/webview/chunks/LY3ATMIK.js",
+        "dist/webview/chunks/HLP3ZYR4.js",
+        "dist/webview/chunks/OMGFRT2N.js",
+        "dist/webview/chunks/BI2WMYDC.js",
+        "dist/webview/chunks/FIJ3WDLK.js",
+        "dist/webview/chunks/546DMFNU.js",
+        "dist/webview/chunks/C4KWUHT7.js",
+        "dist/webview/chunks/NMG3SN4V.js",
+        "dist/webview/chunks/MQEIEY3K.js",
+        "dist/webview/chunks/4RMM3L7L.js"
+      ]
+    },
+    {
+      "artifact": "dist/webview/usage.js + static imports",
+      "beforeKiB": null,
+      "bytes": 423328,
+      "capKiB": 500,
+      "outputs": [
+        "dist/webview/usage.js",
+        "dist/webview/chunks/J2JIWAYT.js",
+        "dist/webview/chunks/FIJ3WDLK.js",
+        "dist/webview/chunks/ANQGBRV2.js",
+        "dist/webview/chunks/LY3ATMIK.js",
+        "dist/webview/chunks/HLP3ZYR4.js",
+        "dist/webview/chunks/OMGFRT2N.js",
+        "dist/webview/chunks/BI2WMYDC.js",
+        "dist/webview/chunks/546DMFNU.js",
+        "dist/webview/chunks/C4KWUHT7.js",
+        "dist/webview/chunks/MQEIEY3K.js"
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "file": "muse-spark-code-0.14.1.vsix",
+      "bytes": 2505428,
+      "sha256": "e207bc3972b44a82ed6504eeeb1839623ee078bb0f716a74cd7d96b5a28d5f34",
+      "kind": "helperless",
+      "capBytes": 2534400,
+      "nativeProbes": 51
+    },
+    {
+      "file": "dist/muse-spark-code-acp-0.14.1.tgz",
+      "bytes": 1606947,
+      "sha256": "86e4c43fea3ea285a4ce63cd19e3215ecd7959302b0d45cfa9594ea9d7cc2d77",
+      "nativeProbes": 33
+    }
+  ],
+  "cold": {
+    "node": "v24.21.0",
+    "baselineCommit": "81a5ccfa7243a986a5a6901f934c89588b957bef",
+    "command": [
+      "exec",
+      "--backend",
+      "modelApi",
+      "--max-budget-usd",
+      "1",
+      "--key-stdin",
+      "--ephemeral",
+      "--cwd",
+      "C:\\lanes\\TRAIN15E\\test\\fixtures\\workspace",
+      "probe"
+    ],
+    "raw": [
+      {
+        "label": "0.14.1 raw",
+        "file": "temp/train15e/baseline-0141/dist/acp.js",
+        "node": "v24.21.0",
+        "args": [
+          "exec",
+          "--backend",
+          "modelApi",
+          "--max-budget-usd",
+          "1",
+          "--key-stdin",
+          "--ephemeral",
+          "--cwd",
+          "C:\\lanes\\TRAIN15E\\test\\fixtures\\workspace",
+          "probe"
+        ],
+        "runs": [
+          {
+            "ms": 1949.7284,
+            "status": 2
+          },
+          {
+            "ms": 318.0744000000002,
+            "status": 2
+          },
+          {
+            "ms": 323.5452,
+            "status": 2
+          },
+          {
+            "ms": 308.8312000000001,
+            "status": 2
+          },
+          {
+            "ms": 329.00880000000006,
+            "status": 2
+          }
+        ],
+        "medianMs": 323.5452
+      },
+      {
+        "label": "train raw",
+        "file": "dist/acp.js",
+        "node": "v24.21.0",
+        "args": [
+          "exec",
+          "--backend",
+          "modelApi",
+          "--max-budget-usd",
+          "1",
+          "--key-stdin",
+          "--ephemeral",
+          "--cwd",
+          "C:\\lanes\\TRAIN15E\\test\\fixtures\\workspace",
+          "probe"
+        ],
+        "runs": [
+          {
+            "ms": 307.3542000000002,
+            "status": 2
+          },
+          {
+            "ms": 278.92999999999984,
+            "status": 2
+          },
+          {
+            "ms": 281.77030000000013,
+            "status": 2
+          },
+          {
+            "ms": 283.27599999999984,
+            "status": 2
+          },
+          {
+            "ms": 282.28160000000025,
+            "status": 2
+          }
+        ],
+        "medianMs": 282.28160000000025
+      }
+    ],
+    "packed": [
+      {
+        "label": "0.14.1 packaged",
+        "file": "temp/train15e/baseline-0141/dist/acp-package/dist/acp.js",
+        "node": "v24.21.0",
+        "args": [
+          "exec",
+          "--backend",
+          "modelApi",
+          "--max-budget-usd",
+          "1",
+          "--key-stdin",
+          "--ephemeral",
+          "--cwd",
+          "C:\\lanes\\TRAIN15E\\test\\fixtures\\workspace",
+          "probe"
+        ],
+        "runs": [
+          {
+            "ms": 1920.2317,
+            "status": 2
+          },
+          {
+            "ms": 312.2165000000002,
+            "status": 2
+          },
+          {
+            "ms": 304.1441,
+            "status": 2
+          },
+          {
+            "ms": 308.12019999999984,
+            "status": 2
+          },
+          {
+            "ms": 324.35509999999977,
+            "status": 2
+          }
+        ],
+        "medianMs": 312.2165000000002
+      },
+      {
+        "label": "train packaged",
+        "file": "dist/acp-package/dist/acp.js",
+        "node": "v24.21.0",
+        "args": [
+          "exec",
+          "--backend",
+          "modelApi",
+          "--max-budget-usd",
+          "1",
+          "--key-stdin",
+          "--ephemeral",
+          "--cwd",
+          "C:\\lanes\\TRAIN15E\\test\\fixtures\\workspace",
+          "probe"
+        ],
+        "runs": [
+          {
+            "ms": 312.2769000000003,
+            "status": 2
+          },
+          {
+            "ms": 319.6680000000001,
+            "status": 2
+          },
+          {
+            "ms": 319.28890000000047,
+            "status": 2
+          },
+          {
+            "ms": 325.5655999999999,
+            "status": 2
+          },
+          {
+            "ms": 322.0066999999999,
+            "status": 2
+          }
+        ],
+        "medianMs": 319.6680000000001
+      }
+    ],
+    "timings": [
+      {
+        "form": "Raw",
+        "baseline": 323.5452,
+        "train": 282.28160000000025,
+        "changePercent": -12.753581261598
+      },
+      {
+        "form": "Packaged",
+        "baseline": 312.2165000000002,
+        "train": 319.6680000000001,
+        "changePercent": 2.386645164493184
+      }
+    ],
+    "probe": "Each fresh process receives empty stdin and returns exit 2 before keyring/model work. This measures offline preflight startup, not paid-turn latency.",
+    "preFix": "Initial raw +68.5%; a later idle raw repeat +22.2%; after launcher fix raw improved, but packaged +21.2%; direct runtime English removes archive decoding from preflight.",
+    "deadline": "Only ships exact committed schemas, keeps production bin, and never packs the test launcher gets 60 seconds; measured 41.466 seconds. All other 30-second deadlines unchanged."
+  },
+  "holds": [
+    {
+      "name": "D78 unused packing default",
+      "result": "1/21 assertions red; golden requests 89/89 pass. Preserve immutable fixture bytes; owner decision required."
+    },
+    {
+      "name": "Exec locale fixture",
+      "result": "Exec: 38 pass, 1 stale single-de expectation, 3 existing Windows exclusions. ACP stdio 10/10 pass. Two-fix stop honored."
+    },
+    {
+      "name": "Universal package",
+      "result": "Actual helper absent. Historical certified contribution 81327 compressed bytes.",
+      "projectedMinimumBytes": 2586755,
+      "projectedOverCapBytes": 52355
+    },
+    {
+      "name": "Reference gate",
+      "result": "sync/main still 964727e1; no featureCatalog/gen-reference/check:reference, so no unlisted merge."
+    },
+    {
+      "name": "Release certification",
+      "result": "Full quality, hosted/native/live receipts remain external; these local packages are unpublished."
+    }
+  ],
+  "implementationTree": "d512a75b80de859c5a5abf5714a975ced301c079",
+  "implementationParents": [
+    "77dbd65d29d5c007f08973afe0a300e4208b4707",
+    "f07bf3e513e4c0df47d44766608050bdbe2201ad"
+  ],
+  "commitHooks": {
+    "merge": "Normal lint-staged ESLint/Prettier/CSS and staged Gitleaks passed; no bypass.",
+    "scannerBytes": 4543852,
+    "result": "no leaks found"
+  }
+}

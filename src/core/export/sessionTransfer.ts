@@ -28,7 +28,7 @@ import { type ItemSnapshot, itemSnapshotFields } from '../../shared/agentEvents'
 import {
   DEFAULT_EFFORT,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
-  MODEL_TEXT,
+  CONVERSATION_MODEL_TEXT,
   REDACTED_MARK,
   SESSION_EXPORT_FIELD_PATH_MAX,
   SESSION_EXPORT_FORMAT,
@@ -42,6 +42,7 @@ import { fill, formatBytes } from '../../shared/l10n/text'
 import type { ApprovalMode } from '../../shared/permissionModes'
 import { BACKEND_KINDS, type BackendKind } from '../../shared/protocol'
 import { redactableSlices, redactSecrets } from '../redact'
+import type { SecretScrubPort } from '../../shared/redact'
 import type {
   StoredReplayItem,
   StoredSession,
@@ -252,6 +253,8 @@ export interface ScrubCounts {
 }
 
 export interface ExportRedaction {
+  /** Exact vault values are always removed, including a user-selected full export. */
+  readonly vaultScrub?: SecretScrubPort
   /** Redact account ids and paths; false only after the preview asked for the full file. */
   readonly redact: boolean
   /**
@@ -265,6 +268,14 @@ export interface ExportRedaction {
 /** The text with every known credential shape and key digest replaced by the mark. */
 function withoutCredentials(text: string): string {
   return redactSecrets(text).replaceAll(KEY_DIGEST, () => REDACTED_MARK)
+}
+
+/** M118 reuses M84's credential, digest and account scrub before path normalisation. */
+export function scrubTransferIdentifiers(text: string): string {
+  return withoutCredentials(text).replaceAll(
+    EMAIL_ADDRESS,
+    () => CONVERSATION_MODEL_TEXT.exportRedactedAccount,
+  )
 }
 
 /**
@@ -350,7 +361,7 @@ function redactLocalRoots(text: string, roots: readonly string[], counts: ScrubC
       while (end < result.length && !PATH_END.test(result.charAt(end))) {
         end += 1
       }
-      rebuilt += `${result.slice(from, start)}${MODEL_TEXT.exportRedactedPath}`
+      rebuilt += `${result.slice(from, start)}${CONVERSATION_MODEL_TEXT.exportRedactedPath}`
       from = end
       search = at + root.length
       while (search < haystack.text.length && (haystack.offsets[search] ?? end) < end) {
@@ -383,17 +394,24 @@ function scrubText(
   const withoutAccounts = clean.includes('@')
     ? clean.replaceAll(EMAIL_ADDRESS, () => {
         counts.accounts += 1
-        return MODEL_TEXT.exportRedactedAccount
+        return CONVERSATION_MODEL_TEXT.exportRedactedAccount
       })
     : clean
   let redacted = redactLocalRoots(withoutAccounts, roots, counts)
   for (const pattern of PATH_PATTERNS) {
     redacted = redacted.replaceAll(pattern, () => {
       counts.paths += 1
-      return MODEL_TEXT.exportRedactedPath
+      return CONVERSATION_MODEL_TEXT.exportRedactedPath
     })
   }
   return redacted
+}
+
+/** M113 uses the export's exact scrub for snapshots and each output format. */
+export function createExportTextScrubber(redaction: ExportRedaction): (text: string) => string {
+  const roots = foldedRoots(redaction.localRoots)
+  const counts: ScrubCounts = { secrets: 0, accounts: 0, paths: 0 }
+  return (text) => scrubText(text, redaction, roots, counts)
 }
 
 /** How much text has been scrubbed since the event loop last ran. */
@@ -506,14 +524,30 @@ export async function buildSessionExport(
     modelId: source.modelId,
     transcript: source.items.map((item) => portableItem(item)),
   }
-  const scrubbed = await scrubValue(document, (text) => scrubText(text, redaction, roots, counts), {
-    sinceYield: 0,
-    // Cut at a line break, a folder whose name holds one could be split:
-    // such a string is scrubbed whole.
-    sliceChars: roots.some((root) => root.includes(LINE_BREAK))
-      ? Infinity
-      : SESSION_EXPORT_SCRUB_SLICE_CHARS,
-  })
+  // Whole document before slicing or path/pattern edits: encoded secrets may
+  // span lines, and privacy edits must not leave a recognizable value's tail.
+  let safeDocument: unknown = document
+  if (redaction.vaultScrub !== undefined) {
+    const original = JSON.stringify(document)
+    const clean = await redaction.vaultScrub.scrub(original)
+    counts.secrets += Math.max(
+      0,
+      clean.split(REDACTED_MARK).length - original.split(REDACTED_MARK).length,
+    )
+    safeDocument = JSON.parse(clean)
+  }
+  const scrubbed = await scrubValue(
+    safeDocument,
+    (text) => scrubText(text, redaction, roots, counts),
+    {
+      sinceYield: 0,
+      // Cut at a line break, a folder whose name holds one could be split:
+      // such a string is scrubbed whole.
+      sliceChars: roots.some((root) => root.includes(LINE_BREAK))
+        ? Infinity
+        : SESSION_EXPORT_SCRUB_SLICE_CHARS,
+    },
+  )
   return { ...counts, doc: sessionExportSchema.parse(scrubbed) }
 }
 
@@ -574,7 +608,16 @@ function importedTurns(transcript: readonly ItemSnapshot[]): readonly ImportedTu
 }
 
 /** One imported turn as the model reads it: a lead that marks it untrusted, then its items as JSON. */
-function turnForTheModel(turn: ImportedTurn, isFirst: boolean): StoredReplayItem {
+type ImportModelText = Pick<
+  typeof CONVERSATION_MODEL_TEXT,
+  'importedHistoryNote' | 'importedTurnLead'
+>
+
+function turnForTheModel(
+  turn: ImportedTurn,
+  isFirst: boolean,
+  text: ImportModelText,
+): StoredReplayItem {
   const items = turn.items
     .filter((item) => !NOT_FOR_THE_MODEL.has(item.kind))
     .map((item) =>
@@ -583,8 +626,8 @@ function turnForTheModel(turn: ImportedTurn, isFirst: boolean): StoredReplayItem
       ),
     )
   const lead = isFirst
-    ? `${MODEL_TEXT.importedHistoryNote}\n\n${MODEL_TEXT.importedTurnLead}`
-    : MODEL_TEXT.importedTurnLead
+    ? `${text.importedHistoryNote}\n\n${text.importedTurnLead}`
+    : text.importedTurnLead
   return {
     turnId: turn.turnId,
     item: {
@@ -597,8 +640,8 @@ function turnForTheModel(turn: ImportedTurn, isFirst: boolean): StoredReplayItem
   }
 }
 
-function importedReplay(turns: readonly ImportedTurn[]): StoredReplayItem[] {
-  return turns.map((turn, index) => turnForTheModel(turn, index === 0))
+function importedReplay(turns: readonly ImportedTurn[], text: ImportModelText): StoredReplayItem[] {
+  return turns.map((turn, index) => turnForTheModel(turn, index === 0, text))
 }
 
 /** The UTF-8 bytes of the text `replay` hands the model. */
@@ -635,7 +678,9 @@ function oversizeReason(bytes: number): string | undefined {
  * a share file.
  */
 export function importRefusal(doc: SessionExport): string | undefined {
-  return oversizeReason(replayBytes(importedReplay(importedTurns(doc.transcript))))
+  return oversizeReason(
+    replayBytes(importedReplay(importedTurns(doc.transcript), CONVERSATION_MODEL_TEXT)),
+  )
 }
 
 /**
@@ -652,9 +697,10 @@ export function importRefusal(doc: SessionExport): string | undefined {
 export function sanitizeImportedSession(
   doc: SessionExport,
   options: SanitizeImportOptions,
+  text: ImportModelText,
 ): StoredSession {
   const turns = importedTurns(doc.transcript)
-  const replay = importedReplay(turns)
+  const replay = importedReplay(turns, text)
   const refusal = oversizeReason(replayBytes(replay))
   if (refusal !== undefined) {
     throw new Error(refusal)

@@ -1,0 +1,26 @@
+[
+  {
+    "theme": "light",
+    "violations": [],
+    "incomplete": [],
+    "passes": 20
+  },
+  {
+    "theme": "dark",
+    "violations": [],
+    "incomplete": [],
+    "passes": 20
+  },
+  {
+    "theme": "hc-dark",
+    "violations": [],
+    "incomplete": [],
+    "passes": 20
+  },
+  {
+    "theme": "hc-light",
+    "violations": [],
+    "incomplete": [],
+    "passes": 20
+  }
+]

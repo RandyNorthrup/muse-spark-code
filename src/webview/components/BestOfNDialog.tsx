@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // Best-of-N on the Model API (M77, PLAN.md D49): the same prompt in N
 // worktrees, their diff stats side by side, and "take this one". The form
 // validates the bounds before it sends; the host asks the one paid-use
@@ -257,7 +258,7 @@ export function BestOfNDialog(props: BestOfNDialogProps) {
   const right = completed.find((attempt) => attempt.attemptId === rightId) ?? completed[1]
 
   const onDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Escape') {
+    if (webviewKey('bestOfN.close', event) !== 'close') {
       return
     }
     event.preventDefault()

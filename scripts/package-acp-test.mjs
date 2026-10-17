@@ -23,10 +23,39 @@ if (
 }
 for (const file of [
   LAUNCHER,
-  ...['acp.js', 'modelApi.js', 'uiText.js'].map((name) => path.join(SOURCE, 'dist', name)),
-  ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json'].map((name) =>
-    path.join(SOURCE, 'schemas', name),
-  ),
+  ...(process.platform === 'linux'
+    ? [path.join(SOURCE, 'native', 'linux', process.arch, 'muse-created')]
+    : []),
+  ...[
+    'acp.js',
+    'mcpPool.js',
+    'exec.js',
+    'modelApiCodeIntel.js',
+    'structuredSchema.js',
+    'estimator.js',
+    'modelApi.js',
+    'recorder.js',
+    'uiText.js',
+    'uiTextRuntime.js',
+    'uiTextHooks.js',
+    'uiTextSurfaces.js',
+    'validation.js',
+    'wire.js',
+    'resourceGovernor.js',
+    'resourceProcess.js',
+    'resourceJournal.js',
+    'resourceAdmission.js',
+    'runtime.bundles.json.br',
+    'reporting.js',
+    'reportingNetwork.js',
+    'reportingDestinations.js',
+  ].map((name) => path.join(SOURCE, 'dist', name)),
+  ...[
+    'exec-result-v1.schema.json',
+    'exec-event-v1.schema.json',
+    'exec-result-v2.schema.json',
+    'exec-event-v2.schema.json',
+  ].map((name) => path.join(SOURCE, 'schemas', name)),
 ]) {
   if (!statSync(file).isFile()) {
     throw new Error('the test launcher and production bundles/schemas must be regular files')

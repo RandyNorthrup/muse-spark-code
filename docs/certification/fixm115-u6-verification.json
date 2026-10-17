@@ -1,0 +1,432 @@
+{
+  "rig": "Kubuntu",
+  "reviewedHead": "f4d1a969f4b02931af7411c62b14d501f40ce3c9",
+  "uniqueTests": 1382,
+  "completeFiles": 34,
+  "defaultTimeout": true,
+  "skipped": 0,
+  "suites": [
+    {
+      "command": "npx vitest run test/unit/unattendedBackends.test.ts test/unit/workspaceContext.test.ts test/unit/deferredBundles.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  128 passed (128)"],
+      "seconds": 8.65
+    },
+    {
+      "command": "npx vitest run test/unit/modelApiHost.test.ts test/unit/MuseCodeHost.test.ts test/unit/modelApiCodeIntel.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  736 passed (736)"],
+      "seconds": 33.94
+    },
+    {
+      "command": "npx vitest run test/unit/environment.test.ts test/unit/fileScheduleStore.test.ts test/unit/verifyLedger.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  30 passed (30)"],
+      "seconds": 1.82
+    },
+    {
+      "command": "npx vitest run test/unit/modelApiAttemptVerify.test.ts test/unit/modelApiAttemptFiles.test.ts test/unit/modelApiShellDirectory.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  51 passed (51)"],
+      "seconds": 4.0
+    },
+    {
+      "command": "npx vitest run test/unit/modelApiGoldenRequests.test.ts test/unit/modelApiPacking.test.ts test/unit/repoMap.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  47 passed (47)"],
+      "seconds": 3.35
+    },
+    {
+      "command": "npx vitest run test/unit/skills.test.ts test/unit/rules.test.ts test/unit/customAgents.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  68 passed (68)"],
+      "seconds": 1.66
+    },
+    {
+      "command": "npx vitest run test/unit/memoryStore.test.ts test/unit/memoryIndex.test.ts test/unit/memoryIo.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  57 passed (57)"],
+      "seconds": 1.77
+    },
+    {
+      "command": "npx vitest run test/unit/contextFiles.test.ts test/unit/unattended.test.ts test/unit/verifyLoop.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  104 passed (104)"],
+      "seconds": 6.67
+    },
+    {
+      "command": "npx vitest run test/unit/modelApiBundle.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  1 passed (1)", "Tests  13 passed (13)"],
+      "seconds": 4.24
+    },
+    {
+      "command": "npx vitest run test/unit/scheduleSessionOwner.test.ts test/unit/scheduleProvenance.test.ts test/unit/recordingReader.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  59 passed (59)"]
+    },
+    {
+      "command": "npx vitest run test/unit/modelApiClient.test.ts test/unit/schedulePaid.test.ts test/unit/scheduleGrant.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  55 passed (55)"]
+    },
+    {
+      "command": "npx vitest run test/unit/schedules.test.ts test/unit/scheduledRunConfirmation.test.ts test/unit/scheduleV2.test.ts --maxWorkers=3",
+      "exit": 0,
+      "summary": ["Test Files  3 passed (3)", "Tests  34 passed (34)"]
+    }
+  ],
+  "gates": [
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "exit": 0,
+      "seconds": 84.0
+    },
+    {
+      "name": "eslint",
+      "command": "npx eslint --max-warnings=0 eslint.config.mjs scripts/build.mjs scripts/check-bundle-size.mjs scripts/check-bundle-split.mjs scripts/check-host-globals.mjs scripts/lib/deferredBundles.mjs scripts/package-acp.mjs src/core/backends/modelapi/ModelApiHost.ts src/core/backends/modelapi/instructions.ts src/core/backends/modelapi/schedulesEntry.ts src/core/backends/modelapi/verifyLedger.ts src/core/context/recordingReader.ts src/core/context/workspaceContext.ts src/core/schedules/provenance.ts src/core/schedules/unattended.ts src/core/shellSidecar.ts src/host/backend/environment.ts src/host/backend/fileScheduleStore.ts test/unit/deferredBundles.test.ts test/unit/environment.test.ts test/unit/helpers/fakeMsp.ts test/unit/recordingReader.test.ts test/unit/scheduleProvenance.test.ts test/unit/unattended.test.ts test/unit/unattendedBackends.test.ts test/unit/workspaceContext.test.ts",
+      "exit": 0,
+      "seconds": 26.1
+    },
+    {
+      "name": "prettier",
+      "command": "npx prettier --check CHANGELOG.md PLAN.md docs/certification/fixm115-u6-drills.json docs/certification/m115-u.md eslint.config.mjs knip.jsonc package.json scripts/build.mjs scripts/check-bundle-size.mjs scripts/check-bundle-split.mjs scripts/check-host-globals.mjs scripts/lib/deferredBundles.mjs scripts/package-acp.mjs src/core/backends/modelapi/ModelApiHost.ts src/core/backends/modelapi/instructions.ts src/core/backends/modelapi/schedulesEntry.ts src/core/backends/modelapi/verifyLedger.ts src/core/context/recordingReader.ts src/core/context/workspaceContext.ts src/core/schedules/provenance.ts src/core/schedules/unattended.ts src/core/shellSidecar.ts src/host/backend/environment.ts src/host/backend/fileScheduleStore.ts test/unit/deferredBundles.test.ts test/unit/environment.test.ts test/unit/helpers/fakeMsp.ts test/unit/recordingReader.test.ts test/unit/scheduleProvenance.test.ts test/unit/unattended.test.ts test/unit/unattendedBackends.test.ts test/unit/workspaceContext.test.ts",
+      "exit": 0,
+      "seconds": 9.81
+    },
+    {
+      "name": "deadcode",
+      "command": "npm run deadcode",
+      "exit": 0,
+      "seconds": 3.53
+    },
+    {
+      "name": "duplication",
+      "command": "npx jscpd",
+      "exit": 0,
+      "seconds": 1.31
+    },
+    {
+      "name": "cycles",
+      "command": "npm run cycles",
+      "exit": 0,
+      "seconds": 6.76
+    },
+    {
+      "name": "l10n",
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "seconds": 2.94
+    },
+    {
+      "name": "host-api",
+      "command": "npm run check:host-api",
+      "exit": 0,
+      "seconds": 18.23
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "exit": 0,
+      "seconds": 5.65
+    },
+    {
+      "name": "diff",
+      "command": "git diff --check",
+      "exit": 0,
+      "seconds": 0.09
+    }
+  ],
+  "bundles": {
+    "extension": 472680,
+    "modelApi": 471626,
+    "schedules": 40196,
+    "checkpointStore": 78817,
+    "acp": 861753
+  },
+  "modelApiFreedBytes": 11553,
+  "sourceSha256": {
+    "eslint.config.mjs": [
+      "0fee6bac",
+      "1ee33df8",
+      "a882c702",
+      "3a8745ce",
+      "9e78d253",
+      "f456fd4a",
+      "594a007d",
+      "96a98648"
+    ],
+    "knip.jsonc": [
+      "e55dd84f",
+      "db15b727",
+      "c588331e",
+      "d72f737c",
+      "4db5f67a",
+      "54fe10fa",
+      "a55985af",
+      "9d501cd6"
+    ],
+    "scripts/build.mjs": [
+      "65642072",
+      "19b71694",
+      "dd13bc84",
+      "c63a337b",
+      "87b027dd",
+      "b1af8e97",
+      "027cae8e",
+      "e442cbd7"
+    ],
+    "scripts/check-bundle-size.mjs": [
+      "8c956bd6",
+      "700dfc50",
+      "775300ba",
+      "6eb93a3f",
+      "deb02748",
+      "dadf11e5",
+      "12296eed",
+      "1a7ce981"
+    ],
+    "scripts/check-bundle-split.mjs": [
+      "6515b76c",
+      "88682b49",
+      "82796c21",
+      "4e94f968",
+      "9dbb1c67",
+      "f9bc56ce",
+      "28775112",
+      "8b2b5fb1"
+    ],
+    "scripts/check-host-globals.mjs": [
+      "4f2d686a",
+      "524355de",
+      "9c99e41d",
+      "4d146602",
+      "66e2ea43",
+      "fd92d015",
+      "fe8c7318",
+      "97417b27"
+    ],
+    "scripts/lib/deferredBundles.mjs": [
+      "9209abf1",
+      "0fd8364a",
+      "2fc68357",
+      "5ef09576",
+      "8460a37c",
+      "d2c37628",
+      "142b93d6",
+      "9e6cd822"
+    ],
+    "scripts/package-acp.mjs": [
+      "7350878d",
+      "9134ec2d",
+      "dea9a8bb",
+      "83e2f5a5",
+      "b2b6189f",
+      "7f71201c",
+      "334dbb92",
+      "430ae682"
+    ],
+    "src/core/backends/modelapi/ModelApiHost.ts": [
+      "c822f1e0",
+      "ecedeeb4",
+      "7a166a04",
+      "a3d39e4b",
+      "89d8a9f3",
+      "839feb3e",
+      "3e7ab2e5",
+      "c6b4d950"
+    ],
+    "src/core/backends/modelapi/instructions.ts": [
+      "d3df17b8",
+      "4aa558c4",
+      "46b93b7e",
+      "dd8a9c68",
+      "eda46adb",
+      "95f51675",
+      "2f208960",
+      "6e98dcab"
+    ],
+    "src/core/backends/modelapi/schedulesEntry.ts": [
+      "c836591c",
+      "2045736a",
+      "c50a253b",
+      "c694032e",
+      "4eb89ffa",
+      "e8bba996",
+      "c5406a0f",
+      "61e9e692"
+    ],
+    "src/core/backends/modelapi/verifyLedger.ts": [
+      "528fc500",
+      "aa97e798",
+      "903ccbe4",
+      "2679efe9",
+      "332de701",
+      "d5cafe47",
+      "c9083768",
+      "29dd0775"
+    ],
+    "src/core/context/recordingReader.ts": [
+      "5cabfc38",
+      "d436f975",
+      "15cee59e",
+      "9c0d26fc",
+      "e09fa33e",
+      "827b2246",
+      "c4a6d51e",
+      "f4e6f794"
+    ],
+    "src/core/context/workspaceContext.ts": [
+      "14eed165",
+      "adc56606",
+      "c4e5b92e",
+      "8c254ffd",
+      "9746524c",
+      "ed68786f",
+      "33cc3345",
+      "563d0445"
+    ],
+    "src/core/schedules/provenance.ts": [
+      "b6cc3ad0",
+      "1a75aea9",
+      "1d50325d",
+      "0bb1ea08",
+      "d4abbf90",
+      "53ad85b0",
+      "8a6f06df",
+      "ffe827e3"
+    ],
+    "src/core/schedules/sessionOwner.ts": [
+      "9c4c111c",
+      "c18f2a3e",
+      "fd6f7e37",
+      "cb9b8090",
+      "380c37df",
+      "a83e25d4",
+      "f45d4533",
+      "dfdd594f"
+    ],
+    "src/core/schedules/unattended.ts": [
+      "ef8f1bad",
+      "7e240b51",
+      "dc695e92",
+      "4b5c37e0",
+      "6910dd0a",
+      "f1943759",
+      "d71ec7db",
+      "398452f6"
+    ],
+    "src/core/shellSidecar.ts": [
+      "faf590ee",
+      "e0705a0e",
+      "60ea0be9",
+      "14661bf4",
+      "612a7424",
+      "c9070bfe",
+      "adafb093",
+      "85571c49"
+    ],
+    "src/host/backend/environment.ts": [
+      "886deeec",
+      "5a6e435f",
+      "b09c22df",
+      "2f9c20e6",
+      "8c5ea30c",
+      "0b3ba373",
+      "392b5f23",
+      "3a051345"
+    ],
+    "src/host/backend/fileScheduleStore.ts": [
+      "768eaf15",
+      "2ea9b2e8",
+      "ba2f4996",
+      "9c237cea",
+      "501d38ac",
+      "db232780",
+      "d6a062bc",
+      "8e004757"
+    ],
+    "test/unit/deferredBundles.test.ts": [
+      "01557cdd",
+      "fbc8d247",
+      "90fbeef0",
+      "b3f033bb",
+      "7840a859",
+      "5c95a96e",
+      "fd8f8b54",
+      "a4391644"
+    ],
+    "test/unit/environment.test.ts": [
+      "c9b460bd",
+      "7386ff6d",
+      "42f36ff1",
+      "3bd65d9f",
+      "e301259c",
+      "04c13f9c",
+      "64081a91",
+      "2236325f"
+    ],
+    "test/unit/helpers/fakeMsp.ts": [
+      "d7ad660e",
+      "638e5756",
+      "8d2ace11",
+      "c0d6a8c9",
+      "4f5cc41c",
+      "5e65958c",
+      "db6051a0",
+      "eaef49c9"
+    ],
+    "test/unit/recordingReader.test.ts": [
+      "238b6b68",
+      "6bcaeb82",
+      "d8c9e03d",
+      "79bf1775",
+      "159a77c0",
+      "64416eca",
+      "a4c4df2a",
+      "6bf5572c"
+    ],
+    "test/unit/scheduleProvenance.test.ts": [
+      "7f724a21",
+      "1640a023",
+      "c33054b8",
+      "7ede423a",
+      "d83f05ff",
+      "412e3fc3",
+      "3cb81eae",
+      "7efd4d92"
+    ],
+    "test/unit/unattended.test.ts": [
+      "eb12a176",
+      "b76e3567",
+      "390a68a8",
+      "6a76b40e",
+      "1e5ea773",
+      "182d33e8",
+      "4698c574",
+      "3c1608f5"
+    ],
+    "test/unit/unattendedBackends.test.ts": [
+      "1da8cf49",
+      "37452f35",
+      "86216216",
+      "c259b9b6",
+      "0443b105",
+      "26abd4e6",
+      "e28d7ff4",
+      "fcb0cd42"
+    ],
+    "test/unit/workspaceContext.test.ts": [
+      "ab86c72d",
+      "cfa8d687",
+      "d0c378ae",
+      "e0d24943",
+      "eb838272",
+      "18086528",
+      "ee9080b1",
+      "6eb8e595"
+    ]
+  },
+  "sourceSha256Encoding": "Eight hexadecimal groups of eight characters; concatenate to recover each SHA-256 digest."
+}

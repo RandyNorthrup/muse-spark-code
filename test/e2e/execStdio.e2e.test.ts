@@ -12,29 +12,54 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { brotliDecompressSync } from 'node:zlib'
+import { pathToFileURL } from 'node:url'
+import * as z from 'zod/mini'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
-import { execEventSchema, validateResult } from '../../src/runtime/exec/execProtocol'
-import type { ExecResult } from '../../src/runtime/exec/execProtocol'
+import {
+  execEventV2Schema,
+  validateResult,
+  type ExecResult,
+} from '../../src/runtime/exec/execProtocol'
+
+import { PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
+import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
+import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
+import { layOutAcpNativeSources } from '../unit/helpers/acpPackageSources'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { buildCreatedHelper } from './createdHelperFixture'
+import {
+  PRODUCTION_BUILD_KEY,
+  buildProductionPackage,
+  packageImagePreload,
+} from '../unit/helpers/productionPackage'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
 mkdirSync(TEMP, { recursive: true })
 const WORK = mkdtempSync(path.join(TEMP, 'm80d-stdio-'))
+const BUILD_ROOT = path.join(WORK, 'build')
 const INSTALLED = process.env['MUSE_ACP_PACKAGE_DIR']
 const PACKAGE = INSTALLED ?? path.join(WORK, 'agent')
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
 const PRELOAD = path.join(WORK, 'preload.cjs')
+const PACKAGE_PRELOAD = path.join(WORK, 'package-preload.cjs')
+const PACKAGE_IMAGES = path.join(WORK, 'package-images.jsonl')
 const KEY = 'LLM|123456|fabricated%legacy.key-for-m80d'
+// The real cold archive and native API checks run once in beforeAll.
+// Each package guard gets an independent copy; ordinary operations keep 30 seconds.
+const COLD_PACKAGE_TIMEOUT_MS = 60_000
 const TIMEOUT = 30_000
-// The production build and pack before the built rows: about a minute on the
-// Windows 11 VM, past Vitest's 10 s hook default and a single row's budget.
+// Building the fake process launcher performs real compiler work once per suite.
 const BUILD_TIMEOUT = 300_000
 const BASH = bashForTests()
 // Node passes drive-letter absolute paths; GNU tar treats their colon as a
@@ -61,16 +86,63 @@ function bashForTests(): string {
   const fromPath = resolveExecutable('bash', probe)
   const candidates = process.platform === 'win32' ? [portable, besideGit, fromPath] : [fromPath]
   const bash = candidates.find((candidate) => candidate !== undefined && existsSync(candidate))
-  if (bash === undefined)
-    throw new Error('M80 D guards require installed Bash; no shell was started')
-  return bash
+  if (bash !== undefined) return bash
+  // MinGit can ship GNU Bash under its POSIX entry name only.
+  if (git !== undefined && process.platform === 'win32') {
+    const sh = path.resolve(path.dirname(git), '..', 'usr', 'bin', 'sh.exe')
+    const version = spawnSync(sh, ['--version'], { encoding: 'utf8', windowsHide: true })
+    if (version.status === 0 && version.stdout.startsWith('GNU bash,')) return sh
+  }
+  throw new Error('M80 D guards require installed Bash; no shell was started')
 }
 
 const children: ChildProcessWithoutNullStreams[] = []
 
 afterAll(async () => {
   for (const child of children) child.kill()
+  // Remove only the test-owned link before recursive cleanup of its tree.
+  rmSync(path.join(BUILD_ROOT, 'node_modules'), { force: true })
   await removeFolder(WORK)
+})
+
+beforeAll(() => {
+  // Packaging runs the real badge validator in a child. Its HTTP boundary
+  // needs a fake too: a PR's screenshots do not exist on public main yet.
+  // Only this package process tree receives the preload; CI's independent
+  // public badge gate and the agent's own transport are unchanged.
+  writeFileSync(
+    PACKAGE_PRELOAD,
+    String.raw`
+      const { appendFileSync, readFileSync, readdirSync } = require('node:fs');
+      const path = require('node:path');
+      const root = ${JSON.stringify(ROOT)};
+      const images = ${JSON.stringify(PACKAGE_IMAGES)};
+      globalThis.fetch = async input => {
+        const url = new URL(String(input));
+        appendFileSync(images, JSON.stringify(url.href) + '\n');
+        if (url.href === 'https://api.github.com/repos/RandyNorthrup/muse-spark-code/git/trees/main?recursive=1') {
+          const tree = readdirSync(path.join(root, 'media'), { recursive: true })
+            .filter(file => file.endsWith('.png'))
+            .map(file => ({ path: 'media/' + file.replaceAll('\\', '/'), type: 'blob' }));
+          return Response.json({ truncated: false, tree });
+        }
+        if (url.origin === 'https://raw.githubusercontent.com' &&
+            url.pathname.startsWith('/RandyNorthrup/muse-spark-code/main/media/')) {
+          const file = path.join(root, url.pathname.split('/main/')[1]);
+          return new Response(readFileSync(file), { headers: { 'content-type': 'image/png' } });
+        }
+        if (!['img.shields.io', 'badgen.net', 'github.com'].includes(url.hostname)) {
+          throw new Error('Unexpected package image: ' + url.href);
+        }
+        const text = url.pathname.startsWith('/badge/')
+          ? decodeURIComponent(url.pathname.slice('/badge/'.length)).replace(/-[^-]+$/, '')
+          : 'test-owned badge';
+        return new Response('<svg xmlns="http://www.w3.org/2000/svg"><text>' + text + '</text></svg>', {
+          headers: { 'content-type': 'image/svg+xml' },
+        });
+      };
+    `,
+  )
 })
 
 function command(
@@ -82,34 +154,141 @@ function command(
 ) {
   return spawnSync(process.execPath, [file, ...args], {
     cwd,
-    env: { ...process.env, LANG: 'C', LC_ALL: 'C', ...env },
+    env: {
+      ...process.env,
+      LANG: 'en_US.UTF-8',
+      LC_ALL: 'en_US.UTF-8',
+      BADGE_CHECK_SKIP_NETWORK: undefined,
+      ...(path.basename(file) === 'package-acp.mjs' && {
+        NODE_OPTIONS: `--require ${JSON.stringify(PACKAGE_PRELOAD)}`,
+      }),
+      ...env,
+    },
     encoding: 'utf8',
     timeout,
   })
 }
 
+function packedText(archive: string, member: string): string {
+  const extracted = spawnSync(TAR, ['-xOzf', archive, `package/${member}`], {
+    encoding: 'utf8',
+    timeout: TIMEOUT,
+  })
+  expect(extracted.status, extracted.stderr).toBe(0)
+  return extracted.stdout
+}
+
 function packagingFixture() {
   const dir = mkdtempSync(path.join(WORK, 'package space-'))
   for (const folder of [
-    'scripts',
+    'scripts/lib',
     'dist',
-    'native/windows',
+    'dist/webview',
+    'dist/meta',
+    'dist/native/darwin',
     'l10n',
     'docs/schemas',
     'test/action',
+    'test/packaging',
   ]) {
     mkdirSync(path.join(dir, folder), { recursive: true })
   }
+  // The fake-only membership guard needs its own native member; this is never
+  // used as a universal release artifact or executed as a macOS helper.
+  writeFileSync(path.join(dir, 'dist/native/darwin/muse-vault'), 'test-owned native fixture\n')
   for (const script of ['package-acp.mjs', 'package-acp-test.mjs']) {
     cpSync(path.join(ROOT, 'scripts', script), path.join(dir, 'scripts', script))
   }
+  const packer = path.join(dir, 'scripts/package-acp.mjs')
+  const exportCheck = path.join(dir, 'scripts/native-exports.cjs')
+  writeFileSync(
+    exportCheck,
+    `const { createHash } = require('node:crypto');
+const { execFileSync } = require('node:child_process');
+const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
+const path = require('node:path');
+const checker = ${JSON.stringify(path.join(ROOT, 'test/packaging/moduleExports.test.mjs'))};
+const hash = createHash('sha256').update(readFileSync(process.argv[3]))
+  .update(readFileSync(checker)).update(process.version).update(process.argv[2]).digest('hex');
+const cache = path.join(${JSON.stringify(WORK)}, 'native-export-cache');
+const marker = path.join(cache, hash);
+if (!existsSync(marker)) {
+  execFileSync(process.execPath, [checker, ...process.argv.slice(2)], { stdio: 'inherit' });
+  mkdirSync(cache, { recursive: true });
+  writeFileSync(marker, hash);
+}
+`,
+  )
+  writeFileSync(
+    packer,
+    readFileSync(packer, 'utf8')
+      .replace("'scripts/check-l10n.mjs'", () =>
+        JSON.stringify(path.join(ROOT, 'scripts/check-l10n.mjs')),
+      )
+      .replace("'./check-badges.mjs'", () =>
+        JSON.stringify(pathToFileURL(path.join(ROOT, 'scripts/check-badges.mjs')).href),
+      )
+      .replace("'test/packaging/moduleExports.test.mjs'", () => JSON.stringify(exportCheck)),
+  )
+  mkdirSync(path.join(dir, 'scripts/lib'), { recursive: true })
+  writeFileSync(
+    path.join(dir, 'scripts/lib/packageArchive.mjs'),
+    `import { packRuntimeArchive as pack } from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'scripts/lib/packageArchive.mjs')).href)};
+import { createHash } from 'node:crypto';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+export async function packRuntimeArchive(root, stage, files, tables) {
+  const hash = createHash('sha256').update(JSON.stringify(tables));
+  for (const file of files) hash.update(file).update(readFileSync(path.join(root, file)));
+  const cache = path.join(${JSON.stringify(WORK)}, 'archive-cache', hash.digest('hex'));
+  const members = [...files.filter(file => file !== 'dist/providerCatalog.json'), 'l10n/ui.tables.json.br', 'l10n/usage.tables.json.br', 'dist/runtime.bundles.json.br'];
+  if (!existsSync(path.join(cache, 'complete'))) {
+    await pack(root, stage, files, tables);
+    for (const file of members) {
+      mkdirSync(path.dirname(path.join(cache, file)), { recursive: true });
+      cpSync(path.join(stage, file), path.join(cache, file));
+    }
+    writeFileSync(path.join(cache, 'complete'), 'complete');
+  } else {
+    for (const file of members) {
+      mkdirSync(path.dirname(path.join(stage, file)), { recursive: true });
+      cpSync(path.join(cache, file), path.join(stage, file));
+    }
+  }
+}
+`,
+  )
+  cpSync(
+    path.join(ROOT, 'scripts/lib/packedL10n.mjs'),
+    path.join(dir, 'scripts/lib/packedL10n.mjs'),
+  )
   writeFileSync(
     path.join(dir, 'scripts', 'third-party-notices.mjs'),
     'import {writeFileSync} from "node:fs"; writeFileSync(process.argv.at(-1), "test fixture notices");',
   )
+  // The badge check has its own suite (checkBadges.test.mjs) and the fixture's
+  // landing page carries no badges: a test-owned renderer and a no-op check.
+  writeFileSync(
+    path.join(dir, 'scripts', 'check-badges.mjs'),
+    'export const renderPackageReadme = (markdown) => markdown\n',
+  )
+  writeFileSync(path.join(dir, 'scripts/check-l10n.mjs'), '// test-owned source gate\n')
+  // These inert bundles exercise package admission; the dedicated native API
+  // suite owns callable exports. Require this probe to receive the actual tar.
+  writeFileSync(
+    path.join(dir, 'test/packaging/moduleExports.test.mjs'),
+    String.raw`import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+assert.equal(process.argv[2], 'acp');
+const files = new Set(execFileSync(${JSON.stringify(TAR)}, ['-tzf', process.argv[3]], { encoding: 'utf8' }).split('\n'));
+for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js', 'teamScheduler.js', 'teamRunners.js', 'runtime.bundles.json.br'])
+  assert.ok(files.has('package/dist/' + file), file);
+`,
+  )
   writeFileSync(
     path.join(dir, 'package.json'),
     JSON.stringify({
+      ...JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')),
       name: 'test-fixture',
       version: '0.0.0',
       license: 'MIT',
@@ -118,17 +297,60 @@ function packagingFixture() {
       devDependencies: { '@napi-rs/keyring': '2.1.0' },
     }),
   )
-  for (const bundle of ['acp', 'modelApi', 'reviewer', 'uiText', 'searchWorker', 'pageWorker']) {
-    writeFileSync(path.join(dir, 'dist', `${bundle}.js`), '// test-owned inert bundle\n')
+  const productionFiles = readdirSync(path.join(BUILD_ROOT, 'dist'))
+  for (const file of productionFiles) {
+    if (file.endsWith('.js'))
+      cpSync(path.join(BUILD_ROOT, 'dist', file), path.join(dir, 'dist', file))
   }
-  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
-    writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
+  cpSync(
+    path.join(BUILD_ROOT, 'dist/providerCatalog.json'),
+    path.join(dir, 'dist/providerCatalog.json'),
+  )
+  cpSync(
+    path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
+    path.join(dir, 'dist/providerCatalog.js'),
+  )
+  layOutAcpNativeSources(dir, ROOT)
+  cpSync(path.join(ROOT, 'media'), path.join(dir, 'media'), { recursive: true })
+  cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
+  mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
+  cpSync(path.join(ROOT, 'src/core/judge/engine.ts'), path.join(dir, 'src/core/judge/engine.ts'))
+  mkdirSync(path.join(dir, 'src/runtime/estimator'), { recursive: true })
+  cpSync('src/runtime/estimator/options.ts', path.join(dir, 'src/runtime/estimator/options.ts'))
+  cpSync(path.join(ROOT, 'src/runtime/cliOptions.ts'), path.join(dir, 'src/runtime/cliOptions.ts'))
+  cpSync(path.join(ROOT, 'src/core/whatsNew'), path.join(dir, 'src/core/whatsNew'), {
+    recursive: true,
+  })
+  for (const name of readdirSync(ROOT)) {
+    if (/^package\.nls.*\.json$/.test(name)) cpSync(path.join(ROOT, name), path.join(dir, name))
   }
-  writeFileSync(path.join(dir, 'l10n', 'ui.de.json'), '{}\n')
+  const languageFiles = readdirSync(path.join(ROOT, 'l10n'))
+  for (const table of languageFiles) {
+    if (/^(?:ui|usage)\..+\.json$/.test(table))
+      cpSync(path.join(ROOT, 'l10n', table), path.join(dir, 'l10n', table))
+  }
+  cpSync(path.join(ROOT, 'l10n/untranslated.json'), path.join(dir, 'l10n/untranslated.json'))
+  cpSync(path.join(BUILD_ROOT, 'dist/webview'), path.join(dir, 'dist/webview'), { recursive: true })
+  cpSync(
+    path.join(BUILD_ROOT, 'dist/meta/usageWebview.json'),
+    path.join(dir, 'dist/meta/usageWebview.json'),
+  )
+  // M114 F: the packager stages the committed font manifest beside the
+  // runtime-only installer bundle; the fixture carries the real file, as
+  // it does the schemas, so a missing manifest still fails packaging.
+  mkdirSync(path.join(dir, 'design', 'fonts'), { recursive: true })
+  cpSync(
+    path.join(ROOT, 'design', 'fonts', 'manifest.json'),
+    path.join(dir, 'design', 'fonts', 'manifest.json'),
+  )
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
-  writeFileSync(path.join(dir, 'docs', 'npm-readme.md'), '# Test-owned npm page\n')
+  for (const file of ['README.md', 'docs/npm-readme.md', 'docs/marketplace-readme.md'])
+    cpSync(path.join(ROOT, file), path.join(dir, file))
   cpSync(path.join(ROOT, 'docs', 'schemas'), path.join(dir, 'docs', 'schemas'), { recursive: true })
+  cpSync(path.join(ROOT, 'src', 'core', 'legal', 'data'), path.join(dir, 'dist/legal-data'), {
+    recursive: true,
+  })
   writeFileSync(
     path.join(dir, 'test', 'action', 'exec-test-launcher.ts'),
     'console.log("TEST ONLY")\n',
@@ -136,36 +358,103 @@ function packagingFixture() {
   return dir
 }
 
+// Build immutable inputs once during file setup. The cold archive hook's
+// unchanged 60-second budget belongs to packaging, rather than build + pack.
+buildProductionPackage(ROOT, BUILD_ROOT, inject(PRODUCTION_BUILD_KEY))
+
 describe('M80 D package guards', { timeout: TIMEOUT }, () => {
-  it('ships exact committed schemas, keeps production bin, and never packs the test launcher', () => {
+  let preparedPackage: { dir: string; run: ReturnType<typeof command> } | undefined
+
+  function productionFixture(): string {
+    if (preparedPackage === undefined) throw new Error('Missing prepared production package')
+    if (preparedPackage.run.status !== 0)
+      throw new Error(preparedPackage.run.stdout + preparedPackage.run.stderr)
+    const dir = mkdtempSync(path.join(WORK, 'package space-'))
+    cpSync(preparedPackage.dir, dir, { recursive: true })
+    return dir
+  }
+
+  beforeAll(() => {
     const dir = packagingFixture()
-    const run = command(path.join(dir, 'scripts', 'package-acp.mjs'), dir)
-    expect(run.status, run.stderr).toBe(0)
-    const stage = path.join(dir, 'dist', 'acp-package')
-    const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
-    for (const schema of ['exec-result-v1.schema.json', 'exec-event-v1.schema.json']) {
-      expect(readFileSync(path.join(stage, 'schemas', schema))).toEqual(
-        readFileSync(path.join(ROOT, 'docs', 'schemas', schema)),
-      )
-      const extracted = spawnSync(TAR, ['-xOzf', packed, `package/schemas/${schema}`], {
-        encoding: 'utf8',
-        timeout: TIMEOUT,
-      })
-      expect(extracted.status, extracted.stderr).toBe(0)
-      expect(extracted.stdout).toBe(
-        readFileSync(path.join(ROOT, 'docs', 'schemas', schema), 'utf8'),
-      )
+    preparedPackage = {
+      dir,
+      run: command(
+        path.join(dir, 'scripts', 'package-acp.mjs'),
+        dir,
+        [],
+        {},
+        COLD_PACKAGE_TIMEOUT_MS,
+      ),
     }
-    const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
-    expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
-    expect(existsSync(path.join(stage, 'dist', 'exec-test-launcher.js'))).toBe(false)
-  })
+  }, COLD_PACKAGE_TIMEOUT_MS)
+  it(
+    'ships exact committed schemas, keeps production bin, and never packs the test launcher',
+    { timeout: COLD_PACKAGE_TIMEOUT_MS },
+    () => {
+      if (preparedPackage === undefined) throw new Error('Missing prepared production package')
+      const { dir, run } = preparedPackage
+      expect(run.status, run.stdout + run.stderr).toBe(0)
+      const stage = path.join(dir, 'dist', 'acp-package')
+      const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
+      for (const schema of [
+        'exec-result-v1.schema.json',
+        'exec-event-v1.schema.json',
+        'share-v1.schema.json',
+      ]) {
+        expect(readFileSync(path.join(stage, 'schemas', schema))).toEqual(
+          readFileSync(path.join(ROOT, 'docs', 'schemas', schema)),
+        )
+        expect(packedText(packed, `schemas/${schema}`)).toBe(
+          readFileSync(path.join(ROOT, 'docs', 'schemas', schema), 'utf8'),
+        )
+      }
+      const archived = brotliDecompressSync(
+        readFileSync(path.join(stage, 'l10n/ui.tables.json.br')),
+      ).toString('utf8')
+      const tables = z.object({ locales: z.array(z.string()) }).parse(JSON.parse(archived))
+      // The package ships every table, independently of the process locale.
+      // Inspect German explicitly through the installed reader: the archive is
+      // the packed (format 1) matrix, restored in English key order.
+      expect(tables.locales).toEqual(TABLE_LOCALES.toSorted((a, b) => a.localeCompare(b, 'en')))
+      expect(readArchivedUiTable(archived, 'de')).toBe(
+        JSON.stringify(JSON.parse(readFileSync(path.join(dir, 'l10n/ui.de.json'), 'utf8'))),
+      )
+      const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
+      expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
+      expect(existsSync(path.join(stage, 'dist', 'validation.js'))).toBe(true)
+      expect(existsSync(path.join(stage, 'dist', 'sharingRuntime.js'))).toBe(true)
+      expect(existsSync(path.join(stage, 'dist', 'providerCatalog.json'))).toBe(false)
+      expect(existsSync(path.join(stage, 'dist', 'providerCatalog.js'))).toBe(true)
+      expect(existsSync(path.join(stage, 'dist', 'exec-test-launcher.js'))).toBe(false)
+      for (const member of [
+        'dist/legalScan.js',
+        'dist/legal-data/NOTICE.md',
+        'dist/legal-data/provenance.json',
+      ]) {
+        const source = member.startsWith('dist/legal-data/')
+          ? path.join(ROOT, 'src/core/legal/data', path.basename(member))
+          : path.join(dir, member)
+        if (member === 'dist/legalScan.js') {
+          const runtime = z
+            .object({ bundles: z.record(z.string(), z.string()) })
+            .parse(
+              JSON.parse(
+                brotliDecompressSync(
+                  readFileSync(path.join(stage, 'dist/runtime.bundles.json.br')),
+                ).toString('utf8'),
+              ),
+            )
+          expect(runtime.bundles['legalScan.js']).toBe(readFileSync(source, 'utf8'))
+        } else expect(packedText(packed, member)).toBe(readFileSync(source, 'utf8'))
+      }
+    },
+  )
 
   it.each(['missing', 'directory', 'invalid-json'])(
     'refuses %s schema before replacing stage',
     (fault) => {
       const dir = packagingFixture()
-      const schema = path.join(dir, 'docs', 'schemas', 'exec-result-v1.schema.json')
+      const schema = path.join(dir, 'docs', 'schemas', 'exec-result-v2.schema.json')
       rmSync(schema)
       if (fault === 'directory') mkdirSync(schema)
       else if (fault === 'invalid-json') writeFileSync(schema, '{')
@@ -180,8 +469,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   )
 
   it('packs distinct private fake-only tarball without changing production stage or digest', () => {
-    const dir = packagingFixture()
-    expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+    const dir = productionFixture()
     const product = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
     const digest = () => createHash('sha256').update(readFileSync(product)).digest('hex')
     const before = digest()
@@ -198,68 +486,77 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     expect(
       readFileSync(path.join(dir, 'dist', 'acp-package', 'package.json'), 'utf8'),
     ).not.toContain('exec-test-launcher')
-    expect(readFileSync(path.join(testStage, 'schemas', 'exec-event-v1.schema.json'))).toEqual(
-      readFileSync(path.join(ROOT, 'docs', 'schemas', 'exec-event-v1.schema.json')),
+    expect(readFileSync(path.join(testStage, 'schemas', 'exec-event-v2.schema.json'))).toEqual(
+      readFileSync(path.join(ROOT, 'docs', 'schemas', 'exec-event-v2.schema.json')),
     )
   })
 
   it('refuses missing test launcher rather than emitting a product-like test success', () => {
-    const dir = packagingFixture()
-    expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+    const dir = productionFixture()
     rmSync(path.join(dir, 'test', 'action', 'exec-test-launcher.ts'))
     expect(command(path.join(dir, 'scripts', 'package-acp-test.mjs'), dir).status).not.toBe(0)
     expect(existsSync(path.join(dir, 'dist', 'acp-test-package'))).toBe(false)
     expect(existsSync(path.join(dir, 'dist', 'muse-spark-code-acp-test-0.0.0.tgz'))).toBe(false)
   })
 
-  it.each(['exec-result-v1.schema.json', 'exec-event-v1.schema.json'])(
-    'build tarball guard rejects missing %s',
-    (missing) => {
-      const dir = packagingFixture()
-      expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
-      const workflow = readFileSync(path.join(ROOT, '.github/workflows/build.yml'), 'utf8')
-      const step = workflow.split(
-        "- name: the agent's package carries its bundles, tables, notices and manifest",
-        2,
-      )[1]
-      const block = step?.split('run: |\n', 2)[1]?.split('\n      #', 1)[0]
-      if (block === undefined) throw new Error('missing build tarball verification step')
-      const script = block
-        .split('\n')
-        .map((line) => line.replace(/^ {10}/, ''))
-        .join('\n')
-      const check = () =>
-        spawnSync(BASH, ['-c', script], {
-          cwd: dir,
-          env: SHELL_ENV,
-          encoding: 'utf8',
-          timeout: TIMEOUT,
-        })
-      const valid = check()
-      expect(valid.error, valid.stderr).toBeUndefined()
-      expect(valid.status, valid.stderr).toBe(0)
-      const staging = path.join(dir, 'repack')
-      mkdirSync(staging)
-      cpSync(path.join(dir, 'dist', 'acp-package'), path.join(staging, 'package'), {
-        recursive: true,
+  it.each([
+    'schemas/exec-result-v1.schema.json',
+    'schemas/exec-event-v1.schema.json',
+    'l10n/ui.tables.json.br',
+    'dist/runtime.bundles.json.br',
+    'dist/providers.js',
+    'dist/subscriptions.js',
+    'dist/configuredProviders.js',
+    'dist/providerCatalog.js',
+    'schemas/share-v1.schema.json',
+    'dist/sharingRuntime.js',
+  ])('build tarball guard rejects missing %s', (missing) => {
+    const dir = productionFixture()
+    const workflow = readFileSync(path.join(ROOT, '.github/workflows/build.yml'), 'utf8')
+    const step = workflow.split(
+      "- name: the agent's package carries its bundles, tables, notices and manifest",
+      2,
+    )[1]
+    const block = step?.split('run: |\n', 2)[1]?.split('\n      #', 1)[0]
+    if (block === undefined) throw new Error('missing build tarball verification step')
+    const script = block
+      .split('\n')
+      .map((line) => line.replace(/^ {10}/, ''))
+      .join('\n')
+    const check = () =>
+      spawnSync(BASH, ['-c', script], {
+        cwd: dir,
+        env: SHELL_ENV,
+        encoding: 'utf8',
+        timeout: TIMEOUT,
       })
-      rmSync(path.join(staging, 'package', 'schemas', missing))
-      const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
-      expect(
-        spawnSync(TAR, ['-czf', packed, '-C', staging, 'package'], { timeout: TIMEOUT }).status,
-      ).toBe(0)
-      const refused = check()
-      expect(refused.error, refused.stderr).toBeUndefined()
-      expect(refused.status).toBe(1)
-      expect(refused.stderr).toContain(`package/schemas/${missing} is missing`)
-    },
-  )
+    const valid = check()
+    expect(valid.error, valid.stderr).toBeUndefined()
+    expect(valid.status, valid.stderr).toBe(0)
+    const staging = path.join(dir, 'repack')
+    mkdirSync(staging)
+    cpSync(path.join(dir, 'dist', 'acp-package'), path.join(staging, 'package'), {
+      recursive: true,
+    })
+    rmSync(path.join(staging, 'package', missing))
+    const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
+    expect(
+      spawnSync(TAR, ['-czf', packed, '-C', staging, 'package'], { timeout: TIMEOUT }).status,
+    ).toBe(0)
+    const refused = check()
+    expect(refused.error, refused.stderr).toBeUndefined()
+    expect(refused.status).toBe(1)
+    expect(refused.stderr).toContain(
+      missing === 'l10n/ui.tables.json.br'
+        ? 'runtime table archive is missing'
+        : `package/${missing} is missing`,
+    )
+  })
 
   it.each(['name', 'bin', 'version'])(
     'refuses wrong production %s before test staging',
     (fault) => {
-      const dir = packagingFixture()
-      expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+      const dir = productionFixture()
       const source = path.join(dir, 'dist', 'acp-package', 'package.json')
       const manifest: Record<string, unknown> = JSON.parse(readFileSync(source, 'utf8'))
       if (fault === 'name') manifest['name'] = 'wrong-package'
@@ -272,8 +569,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   )
 
   it('refuses a directory in place of a required test-package schema', () => {
-    const dir = packagingFixture()
-    expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+    const dir = productionFixture()
     const schema = path.join(dir, 'dist', 'acp-package', 'schemas', 'exec-result-v1.schema.json')
     rmSync(schema)
     mkdirSync(schema)
@@ -284,8 +580,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   it.each(['empty', 'path'])(
     'refuses %s npm pack output instead of renaming a directory',
     (fault) => {
-      const dir = packagingFixture()
-      expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+      const dir = productionFixture()
       const bin = path.join(dir, 'bin')
       mkdirSync(bin)
       const shim = path.join(bin, process.platform === 'win32' ? 'npm.cmd' : 'npm')
@@ -318,8 +613,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     'schema-required',
     'schema-empty',
   ])('host store guard/cleanup: %s', (state) => {
-    const dir = packagingFixture()
-    expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+    const dir = productionFixture()
     const stage = path.join(dir, 'dist', 'acp-package')
     const calls = path.join(dir, 'auth-calls')
     writeFileSync(path.join(stage, 'dist', 'uiText.js'), 'exports.EN={acpKeyAbsent:"absent"};')
@@ -346,18 +640,18 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     switch (state) {
       case 'schema-drift':
       case 'schema-required': {
-        const schema = path.join(stage, 'schemas', 'exec-result-v1.schema.json')
+        const schema = path.join(stage, 'schemas', 'exec-result-v2.schema.json')
         const original = readFileSync(schema, 'utf8')
         writeFileSync(
           schema,
           state === 'schema-drift'
-            ? original.replace('"const": 1', '"const": 2')
+            ? original.replace('"const": 2', '"const": 3')
             : original.replace('    "status",\n', ''),
         )
         break
       }
       case 'schema-empty': {
-        writeFileSync(path.join(stage, 'schemas', 'exec-event-v1.schema.json'), '{"anyOf":[]}')
+        writeFileSync(path.join(stage, 'schemas', 'exec-event-v2.schema.json'), '{"anyOf":[]}')
         break
       }
     }
@@ -458,7 +752,7 @@ function result(stdout: string): ExecResult {
   const events = stdout
     .trim()
     .split('\n')
-    .map((line) => execEventSchema.parse(JSON.parse(line)))
+    .map((line) => execEventV2Schema.parse(JSON.parse(line)))
   expect(events.map((event) => event.seq)).toEqual(events.map((_, index) => index + 1))
   const finals = events.filter((event) => event.type === 'result')
   expect(finals).toHaveLength(1)
@@ -467,35 +761,120 @@ function result(stdout: string): ExecResult {
   return validateResult(final.result)
 }
 
+// One plan-mode turn on a provider the user added (Mistral, its captured
+// models list and one captured answer), through whatever PACKAGE holds.
+async function providerTurn() {
+  const providers = path.join(WORK, '.config', PROVIDERS_CONFIG_DIR_NAME, PROVIDERS_FILE_NAME)
+  mkdirSync(path.dirname(providers), { recursive: true })
+  writeFileSync(
+    providers,
+    JSON.stringify({
+      v: 1,
+      defaultModel: 'mistral/ministral-3b-latest',
+      providers: [
+        {
+          id: 'mistral',
+          preset: 'mistral',
+          address: 'https://api.mistral.ai',
+          auth: 'apiKey',
+          models: ['ministral-3b-latest'],
+        },
+      ],
+    }),
+  )
+  try {
+    const output = await start(
+      [
+        'exec',
+        '--backend',
+        'modelApi',
+        '--provider',
+        'mistral',
+        '--model',
+        'ministral-3b-latest',
+        '--permission-mode',
+        'plan',
+        '--max-requests',
+        '1',
+        '--max-budget-usd',
+        '1.00',
+        '--ephemeral',
+        '--output',
+        'jsonl',
+        'Reply ok.',
+      ],
+      'provider',
+    ).closed
+    const report = z
+      .object({ provider: z.array(z.string()) })
+      .parse(JSON.parse(readFileSync(path.join(WORK, 'report.json'), 'utf8')))
+    const context = `${output.stderr}\n${output.stdout}\nprovider requests: ${report.provider.join(', ')}`
+    const sent = report.provider.filter((call) => call.endsWith('/chat/completions'))
+    return { output, context, sent }
+  } finally {
+    rmSync(providers, { force: true })
+  }
+}
+
 // E1-E7 and H2 use the actual production package and engine.
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
-      const built = command(
-        path.join(ROOT, 'scripts', 'build.mjs'),
-        ROOT,
-        ['--production'],
-        {},
-        BUILD_TIMEOUT,
-      )
-      expect(built.status, built.stderr).toBe(0)
+      const darwinHelper = path.join(BUILD_ROOT, 'native/darwin/muse-dictate')
+      if (process.platform === 'darwin' || process.platform === 'linux') {
+        const currentHelper =
+          process.platform === 'darwin'
+            ? darwinHelper
+            : path.join(BUILD_ROOT, 'native/linux', process.arch, 'muse-created')
+        if (!existsSync(currentHelper)) buildCreatedHelper(ROOT, BUILD_ROOT)
+      }
+      if (process.platform !== 'darwin') {
+        // Foreign helpers are inert fixture bytes; the current helper is real.
+        writeFileSync(darwinHelper, 'test-owned inert Darwin helper\n')
+      }
+      for (const arch of ['x64', 'arm64']) {
+        if (process.platform === 'linux' && process.arch === arch) continue
+        const folder = path.join(BUILD_ROOT, 'native/linux', arch)
+        mkdirSync(folder, { recursive: true })
+        writeFileSync(path.join(folder, 'muse-created'), 'test-owned inert Linux helper\n')
+      }
+      packageImagePreload(PACKAGE_PRELOAD, BUILD_ROOT, PACKAGE_IMAGES)
       const packed = command(
-        path.join(ROOT, 'scripts', 'package-acp.mjs'),
-        ROOT,
+        path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
+        BUILD_ROOT,
         [],
-        {},
+        {
+          NODE_OPTIONS: `--require ${JSON.stringify(PACKAGE_PRELOAD)}`,
+          BADGE_CHECK_SKIP_NETWORK: undefined,
+        },
         BUILD_TIMEOUT,
       )
       expect(packed.status, packed.stderr).toBe(0)
-      cpSync(path.join(ROOT, 'dist', 'acp-package'), PACKAGE, { recursive: true })
+      const images: unknown[] = readFileSync(PACKAGE_IMAGES, 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => {
+          const image: unknown = JSON.parse(line)
+          return image
+        })
+      expect(images).toContain(
+        'https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/banner.png',
+      )
+      expect(images).toEqual(
+        expect.arrayContaining([
+          expect.stringMatching(/^https:\/\/img\.shields\.io\/badge\/npm-v/),
+        ]),
+      )
+      cpSync(path.join(BUILD_ROOT, 'dist', 'acp-package'), PACKAGE, { recursive: true })
     }
     await build({
       stdin: {
-        contents: `
+        contents: String.raw`
           import Module from 'node:module';
           import { createHash } from 'node:crypto';
           import { writeFileSync } from 'node:fs';
           import fs from 'node:fs';
+          import dnsPromises from 'node:dns/promises';
           import { fakeModelApi, FAKE_MODEL_API_KEY } from ${JSON.stringify(path.join(ROOT, 'test/unit/helpers/fakeModelApi.ts'))};
           const key = ${JSON.stringify(KEY)};
           const mode = process.env.M80D_CASE;
@@ -518,22 +897,38 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
             },
             load(url, context, nextLoad) {
               if (url !== FAKE_KEYRING) return nextLoad(url, context);
-              if (mode !== 'store') throw new Error('keyring must not load on stdin path');
+              if (mode !== 'store' && mode !== 'provider') throw new Error('keyring must not load on stdin path');
               return {
                 format: 'module',
                 shortCircuit: true,
-                source: 'export class AsyncEntry { getPassword() { return Promise.resolve(' + JSON.stringify(key) + ') } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }',
+                // The configured-provider row stores one provider key and no Meta key.
+                source: mode === 'provider'
+                  ? 'export class AsyncEntry { constructor(service, account) { this.account = account } getPassword() { return Promise.resolve(this.account === "museSpark.provider.mistral" ? ' + JSON.stringify(JSON.stringify({ v: 1, auth: 'apiKey', origin: 'https://api.mistral.ai', secret: 'test-owned-key' })) + ' : null) } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }'
+                  : 'export class AsyncEntry { getPassword() { return Promise.resolve(' + JSON.stringify(key) + ') } setPassword() { return Promise.resolve() } deletePassword() { return Promise.resolve(true) } }',
               };
             },
           });
           const api = fakeModelApi();
           api.models = ['muse-spark-1.3-contributor'];
-          // The blocked reply stays inside exec's 32 MiB response cap: the fake
-          // streams text in five-character deltas, so 4 MiB of text would be cut
-          // short and withheld, and nothing large would reach stdout.
-          api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
+          // One large synthetic delta reaches the unread pipe without spending
+          // the signal test's deadline manufacturing 104,858 tiny SSE frames.
+          // The same 512 KiB write stays inside exec's 32 MiB response cap.
+          api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', isSingleTextDelta:mode === 'blocked', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
+          // The configured-provider row replays Mistral's captured models list
+          // and one captured answer; its name resolves to a public address
+          // without a DNS query, as the endpoint policy requires.
+          const providerCalls = [];
+          const captured = name => JSON.parse(fs.readFileSync(${JSON.stringify(path.join(ROOT, 'docs/certification/m95-captures/mistral'))} + '/' + name, 'utf8'));
+          if (mode === 'provider') dnsPromises.lookup = () => Promise.resolve([{ address: '93.184.216.34', family: 4 }]);
           globalThis.fetch = (url, init) => {
             if (mode === 'crash') throw new Error('startup ' + key);
+            if (mode === 'provider') {
+              const href = typeof url === 'string' ? url : url instanceof URL ? url.href : url.url;
+              providerCalls.push((init?.method ?? 'GET') + ' ' + new URL(href).pathname);
+              if (href.endsWith('/models')) return Promise.resolve(new Response(JSON.stringify({ data: captured('01-models-list.json').response.bodySummary.sample })));
+              if (href.endsWith('/chat/completions')) return Promise.resolve(new Response(captured('03-tool-result-stream.json').response.events.map(event => 'data: ' + JSON.stringify(event.data) + '\n\n').join('') + 'data: [DONE]\n\n'));
+              return Promise.resolve(Response.json({ error: 'unexpected provider path' }, { status: 404 }));
+            }
             if (String(url).endsWith('/responses')) writeFileSync(process.env.M80D_REQUEST_MARKER, 'dispatched');
             // The run's own key must arrive; the shared fake then sees its fixed key.
             const headers = new Headers(init?.headers);
@@ -546,7 +941,8 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
           const hash = value => createHash('sha256').update(value).digest('hex');
           process.on('exit', () => writeFileSync(process.env.M80D_REPORT, JSON.stringify({
             env: Object.fromEntries(Object.entries(process.env).map(([k,v]) => [k,hash(v ?? '')])),
-            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method}))
+            argv: process.argv.map(hash), requests: api.requests.map(r => ({path:r.path, method:r.method})),
+            provider: providerCalls
           })));
         `,
         resolveDir: ROOT,
@@ -566,16 +962,16 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
     expect(run.code).toBe(0)
     expect(run.stdout).toContain('exec')
     expect(run.stdout).toContain('scan-secrets')
-    for (const schema of ['exec-result-v1', 'exec-event-v1']) {
+    for (const schema of ['exec-result-v2', 'exec-event-v2']) {
       const parsed: unknown = JSON.parse(
         readFileSync(path.join(PACKAGE, 'schemas', `${schema}.schema.json`), 'utf8'),
       )
-      if (schema === 'exec-result-v1') expect(parsed).toHaveProperty('properties.v.const', 1)
+      if (schema === 'exec-result-v2') expect(parsed).toHaveProperty('properties.v.const', 2)
       else
         expect(parsed).toMatchObject({
           anyOf: expect.arrayContaining([
             expect.objectContaining({
-              properties: expect.objectContaining({ v: expect.objectContaining({ const: 1 }) }),
+              properties: expect.objectContaining({ v: expect.objectContaining({ const: 2 }) }),
             }),
           ]),
         })
@@ -607,6 +1003,45 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
       expect(report).not.toContain(createHash('sha256').update(KEY).digest('hex'))
     },
   )
+
+  // HOTFIX0181: the one row that sends a turn to a provider the user added,
+  // through the built bundles of the packed production package. 0.18.0 passed
+  // every row above and failed this path in every host before sending:
+  // dist/configuredProviders.js called two names dist/modelApi.js did not
+  // export. The provider is Mistral, with its captured models list and one
+  // captured answer (docs/certification/m95-captures/mistral), as in the unit
+  // suite's production BYO run; the preload answers them, so nothing leaves.
+  it('E8 completes one plan-mode turn on a configured provider through the built bundles', async () => {
+    const { output, context, sent } = await providerTurn()
+    expect(output.code, context).toBe(0)
+    expect(result(output.stdout), context).toMatchObject({
+      status: 'completed',
+      model: 'mistral/ministral-3b-latest',
+      usage: { requests: 1 },
+    })
+    expect(sent, context).toHaveLength(1)
+  })
+
+  // Review RVAPP-DIET0181 P3-3: the per-call helpers removed from the PACKED
+  // agent under their production name. The unit suite deletes the test
+  // build's name (modelApiToolsEntry.js); this is the file a damaged install
+  // is missing. The turn is refused in the agent's own words, nothing is
+  // sent to the provider, and the log names what was absent.
+  it('E9 refuses the turn in the agent’s words when the packed helpers bundle is gone', async () => {
+    const helpers = path.join(PACKAGE, 'dist', 'modelApiTools.js')
+    const kept = `${helpers}.kept`
+    renameSync(helpers, kept)
+    try {
+      const { output, context, sent } = await providerTurn()
+      expect(sent, context).toEqual([])
+      expect(output.code, context).not.toBe(0)
+      expect(output.stdout, context).toContain(EN.acpModelApiBundleUnavailable)
+      expect(output.stdout + output.stderr, context).not.toContain('reinstall the extension')
+      expect(output.stderr, context).toContain('modelApiTools.js failed (absent)')
+    } finally {
+      renameSync(kept, helpers)
+    }
+  })
 
   it.skipIf(process.platform === 'win32').each(['SIGINT', 'SIGTERM'] as const)(
     'E5 %s while streaming is bounded',

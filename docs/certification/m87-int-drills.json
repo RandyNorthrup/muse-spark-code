@@ -1,0 +1,289 @@
+[
+  {
+    "id": "port-io-forwarding",
+    "file": "src/host/editor/editReview.ts",
+    "defect": "the controller's guard is not forwarded to the conditional write/trash",
+    "expected": "held write/delete",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held delete admission (changesSession: false, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held delete admission (changesSession: true, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held write admission (changesSession: false, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held write admission (changesSession: true, M87)"
+    ],
+    "red_totals": "4 failed | 514 passed (518)",
+    "red_snapshot": "d7e1c172",
+    "sha256_before": "5d2a9061f08012ff97628c6efd764f6ec4c87bb8787048f82ef1d48071b2998c",
+    "sha256_restored": "5d2a9061f08012ff97628c6efd764f6ec4c87bb8787048f82ef1d48071b2998c",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "port-pre-read-guards",
+    "file": "src/host/editor/editReview.ts",
+    "defect": "no guard before the read: resolution, the per-file loop, the lane and the lease",
+    "expected": "held resolve and lease: the file is read",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held lease admission (changesSession: false, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held lease admission (changesSession: true, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held resolve admission (changesSession: false, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held resolve admission (changesSession: true, M87)"
+    ],
+    "red_totals": "4 failed | 514 passed (518)",
+    "red_snapshot": "3e946c2d",
+    "sha256_before": "5d2a9061f08012ff97628c6efd764f6ec4c87bb8787048f82ef1d48071b2998c",
+    "sha256_restored": "5d2a9061f08012ff97628c6efd764f6ec4c87bb8787048f82ef1d48071b2998c",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "port-lease-recheck",
+    "file": "src/host/editor/editReview.ts",
+    "defect": "no guard at the start of the admitted Revert, after the lease wait",
+    "expected": "held lease: the file is read",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held lease admission (changesSession: false, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held lease admission (changesSession: true, M87)"
+    ],
+    "red_totals": "2 failed | 516 passed (518)",
+    "red_snapshot": "ef8c254c",
+    "sha256_before": "5d2a9061f08012ff97628c6efd764f6ec4c87bb8787048f82ef1d48071b2998c",
+    "sha256_restored": "5d2a9061f08012ff97628c6efd764f6ec4c87bb8787048f82ef1d48071b2998c",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "port-post-read-guards",
+    "file": "src/host/editor/editReview.ts",
+    "defect": "no guard after the read, and none forwarded to the write",
+    "expected": "held read: the file is written",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held delete admission (changesSession: false, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held delete admission (changesSession: true, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held read admission (changesSession: false, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held read admission (changesSession: true, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held write admission (changesSession: false, M87)",
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held write admission (changesSession: true, M87)"
+    ],
+    "red_totals": "6 failed | 512 passed (518)",
+    "red_snapshot": "7d259a56",
+    "sha256_before": "5d2a9061f08012ff97628c6efd764f6ec4c87bb8787048f82ef1d48071b2998c",
+    "sha256_restored": "5d2a9061f08012ff97628c6efd764f6ec4c87bb8787048f82ef1d48071b2998c",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "lazy-adapter-drops-check",
+    "file": "src/host/review/reviewBundle.ts",
+    "defect": "the lazy review adapter drops Revert's guard",
+    "expected": "the bundle's Revert runs unguarded",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/reviewBundle.test.ts > the review bundle (M70) > hands Revert\u2019s guard to the bundle\u2019s edit review, which stops on it (M87)"
+    ],
+    "red_totals": "1 failed | 7 passed (8)",
+    "red_snapshot": "7e1a4978",
+    "sha256_before": "d4a6d312d07ee23ce7de49cc763f2b1ccba050e5e542ba5b00ec1f7eaa89d676",
+    "sha256_restored": "d4a6d312d07ee23ce7de49cc763f2b1ccba050e5e542ba5b00ec1f7eaa89d676",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "send-counted-before-review-barrier",
+    "file": "src/host/conversation/conversationController.ts",
+    "defect": "a send counts as pending while it waits behind a starting review",
+    "expected": "the review refuses as busy; the message becomes its own turn",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/conversationController.test.ts > ConversationController: review (M70) > holds a message sent while a review starts until the review turn has started, then steers it in"
+    ],
+    "red_totals": "1 failed | 517 passed (518)",
+    "red_snapshot": "3d9ba115",
+    "sha256_before": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "sha256_restored": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "pending-turn-admission",
+    "file": "src/host/conversation/conversationController.ts",
+    "defect": "isTurnRunning ignores pending submissions (M87 lane W's drill, rerun on the port)",
+    "expected": "Revert proceeds before the turn acknowledgement",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert while a submitted turn still awaits its acknowledgement (M87)"
+    ],
+    "red_totals": "1 failed | 517 passed (518)",
+    "red_snapshot": "68d3a1dc",
+    "sha256_before": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "sha256_restored": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "tally-review-unwired",
+    "file": "src/webview/App.tsx",
+    "defect": "the tally mounted without its Review",
+    "expected": "the tally test finds no Review",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/App.test.tsx > App: the M87 wiring (PLAN.md D66) > adds up the edits in a row above the goal and task panes, Review opening M70\u2019s pane"
+    ],
+    "red_totals": "1 failed | 137 passed (138)",
+    "red_snapshot": "c71bf74e",
+    "sha256_before": "009f3ed960f946a240f3010e610df2c431a01e681e5566fa2c2a387e88384f4b",
+    "sha256_restored": "009f3ed960f946a240f3010e610df2c431a01e681e5566fa2c2a387e88384f4b",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "review-row-tip-missing",
+    "file": "src/shared/l10n/en.ts",
+    "defect": "the review pane row's tip left out of the English table",
+    "expected": "the tips test names reviewChanges",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/paletteRegistry.test.ts > M87 palette tips > covers every registry row on every backend, except loading and empty notes"
+    ],
+    "red_totals": "1 failed | 33 passed (34)",
+    "red_snapshot": "506cc801",
+    "sha256_before": "95278c1ec421b22548a24ba793aa4bd5ee89894687aff94434a9ee76623365da",
+    "sha256_restored": "95278c1ec421b22548a24ba793aa4bd5ee89894687aff94434a9ee76623365da",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "fan-pill-width-dropped",
+    "file": "src/webview/components/GooeyMenu.tsx",
+    "defect": "the inline width left off, so each pill sizes to its label",
+    "expected": "the uniform-size tests",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/GooeyMenu.test.tsx > GooeyMenu > draws every pill one size in a 1024 px panel, a long pseudo-locale label included",
+      "test/unit/GooeyMenu.test.tsx > GooeyMenu > draws every pill one size in a 320 px panel, a long pseudo-locale label included",
+      "test/unit/rowMenus.test.tsx > M87 F2 row menus > keeps a row menu\u2019s pills inside a 320 px panel and apart, in both bursts"
+    ],
+    "red_totals": "3 failed | 39 passed (42)",
+    "red_snapshot": "32f1ee45",
+    "sha256_before": "623c03a426087cb5697871c4036a0da5d5a2c6227df817f88c0d36d4cc1b18e2",
+    "sha256_restored": "623c03a426087cb5697871c4036a0da5d5a2c6227df817f88c0d36d4cc1b18e2",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "fan-goo-filter-back",
+    "file": "src/webview/components/GooeyMenu.tsx",
+    "defect": "an SVG filter put back in the menu",
+    "expected": "the no-filter test",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/GooeyMenu.test.tsx > GooeyMenu > uses anchor element origin and a forced-colours hook, with no filter at all"
+    ],
+    "red_totals": "1 failed | 14 passed (15)",
+    "red_snapshot": "0d2752b1",
+    "sha256_before": "623c03a426087cb5697871c4036a0da5d5a2c6227df817f88c0d36d4cc1b18e2",
+    "sha256_restored": "623c03a426087cb5697871c4036a0da5d5a2c6227df817f88c0d36d4cc1b18e2",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "fan-no-stagger",
+    "file": "src/webview/components/GooeyMenu.tsx",
+    "defect": "every pill scales in at once",
+    "expected": "the stagger assertion",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/GooeyMenu.test.tsx > GooeyMenu > draws every pill one size in a 1024 px panel, a long pseudo-locale label included",
+      "test/unit/GooeyMenu.test.tsx > GooeyMenu > draws every pill one size in a 320 px panel, a long pseudo-locale label included"
+    ],
+    "red_totals": "2 failed | 13 passed (15)",
+    "red_snapshot": "8c521832",
+    "sha256_before": "623c03a426087cb5697871c4036a0da5d5a2c6227df817f88c0d36d4cc1b18e2",
+    "sha256_restored": "623c03a426087cb5697871c4036a0da5d5a2c6227df817f88c0d36d4cc1b18e2",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "fan-width-by-panel",
+    "file": "src/webview/gooeyLayout.ts",
+    "defect": "the pill width taken from the panel, not the 320 px fan",
+    "expected": "the one-width test",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > gives every pill one width: the widest that keeps the whole fan in 320 px",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > keeps the whole arc for 2 pills at 320 px, from any origin, moving it back whole",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > keeps the whole arc for 3 pills at 320 px, from any origin, moving it back whole",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > keeps the whole arc for 4 pills at 320 px, from any origin, moving it back whole",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > keeps the whole arc for 5 pills at 320 px, from any origin, moving it back whole",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > keeps the whole arc for 6 pills at 320 px, from any origin, moving it back whole",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > opens down from a top corner and up from a bottom one, curving back to the origin",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > reaches away from the nearer side edge from x = 10",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > reaches away from the nearer side edge from x = 344",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > reaches away from the nearer side edge from x = 346",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > reaches away from the nearer side edge from x = 682",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > stacks the pills 20 px apart, centred on the origin, on an arc that bows out",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > tightens the arc only in a panel too narrow for the whole fan"
+    ],
+    "red_totals": "13 failed | 2 passed (15)",
+    "red_snapshot": "97d98a84",
+    "sha256_before": "5973d9e66894d7bada7e42e8808a5cd2ef4e13c77d08537b50951590824dae16",
+    "sha256_restored": "5973d9e66894d7bada7e42e8808a5cd2ef4e13c77d08537b50951590824dae16",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "fan-clamped-per-pill",
+    "file": "src/webview/gooeyLayout.ts",
+    "defect": "each pill clamped on its own, as before: the arc breaks at the edge",
+    "expected": "the whole-arc test at 320 px",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > keeps the whole arc for 2 pills at 320 px, from any origin, moving it back whole",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > keeps the whole arc for 3 pills at 320 px, from any origin, moving it back whole",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > keeps the whole arc for 4 pills at 320 px, from any origin, moving it back whole",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > keeps the whole arc for 5 pills at 320 px, from any origin, moving it back whole",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > keeps the whole arc for 6 pills at 320 px, from any origin, moving it back whole",
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > tightens the arc only in a panel too narrow for the whole fan"
+    ],
+    "red_totals": "6 failed | 9 passed (15)",
+    "red_snapshot": "46dddcd4",
+    "sha256_before": "5973d9e66894d7bada7e42e8808a5cd2ef4e13c77d08537b50951590824dae16",
+    "sha256_restored": "5973d9e66894d7bada7e42e8808a5cd2ef4e13c77d08537b50951590824dae16",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "fan-never-tightens",
+    "file": "src/webview/gooeyLayout.ts",
+    "defect": "the full bow kept in a panel too narrow for it",
+    "expected": "the tightening test",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/gooeyLayout.test.ts > gooeyLayout (a fan of uniform pills, 2026-10-04) > tightens the arc only in a panel too narrow for the whole fan"
+    ],
+    "red_totals": "1 failed | 14 passed (15)",
+    "red_snapshot": "e00fe690",
+    "sha256_before": "5973d9e66894d7bada7e42e8808a5cd2ef4e13c77d08537b50951590824dae16",
+    "sha256_restored": "5973d9e66894d7bada7e42e8808a5cd2ef4e13c77d08537b50951590824dae16",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "review-during-revert-io",
+    "file": "src/host/conversation/conversationController.ts",
+    "defect": "a review starts while Revert's file I/O is in flight",
+    "expected": "the review's turn/start goes out",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/conversationController.test.ts > ConversationController: review (M70) > starts no review during Revert I/O, and no Revert while a review turn awaits its acknowledgement (M87)"
+    ],
+    "red_totals": "1 failed | 517 passed (518)",
+    "red_snapshot": "59a84395",
+    "sha256_before": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "sha256_restored": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "restored_byte_exact": true
+  },
+  {
+    "id": "revert-during-review-start",
+    "file": "src/host/conversation/conversationController.ts",
+    "defect": "Revert ignores a starting review",
+    "expected": "Revert asks for confirmation during the review's start",
+    "red_exit": 1,
+    "red_failed": [
+      "test/unit/conversationController.test.ts > ConversationController: review (M70) > starts no review during Revert I/O, and no Revert while a review turn awaits its acknowledgement (M87)"
+    ],
+    "red_totals": "1 failed | 517 passed (518)",
+    "red_snapshot": "7d8d7762",
+    "sha256_before": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "sha256_restored": "d2706e2f722118eb666d91d311094e5a44a2434cbc27056a86385682a31ed5da",
+    "restored_byte_exact": true
+  }
+]

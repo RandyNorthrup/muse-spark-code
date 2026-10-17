@@ -15,6 +15,12 @@ import { z } from 'zod'
 const require = createRequire(import.meta.url)
 const OVSX_CLI = require.resolve('ovsx/bin/ovsx')
 const BACKOFF_MS = [20_000, 60_000]
+// Registry visibility after a successful publish lags (npm took 19 minutes
+// for 0.16.0): poll the same fixed endpoints verifyPublished reads, backing
+// off, for 30 minutes in total. The publish jobs' timeout-minutes must cover it.
+const VISIBILITY_TIMEOUT_MS = 30 * 60_000
+const VISIBILITY_BASE_DELAY_MS = 30_000
+const VISIBILITY_MAX_DELAY_MS = 120_000
 // All registry hostnames are fixed and valid, so ENOTFOUND is transient DNS.
 const NETWORK_ERROR =
   /\b(?:ECONNRESET|ETIMEDOUT|EAI_AGAIN|ECONNREFUSED|ENETUNREACH|ENOTFOUND|E502|E503|E504|TimeoutError)\b|\b(?:HTTP|status(?:\s*code)?)\s*[:=]?\s*(?:502|503|504)\b|Failed request:\s*\((?:502|503|504)\)|socket hang up/i
@@ -122,6 +128,62 @@ export async function verifyPublished(channel, artifact, manifest, deps = {}) {
   }
 }
 
+/** Backoff between visibility polls: 30 s, 60 s, then 120 s. */
+export function visibilityDelay(attempt) {
+  return Math.min(VISIBILITY_BASE_DELAY_MS * 2 ** attempt, VISIBILITY_MAX_DELAY_MS)
+}
+
+// Live bytes that are not ours fail at once; anything else (not found, empty,
+// transient) is "not yet visible" and polls until the deadline.
+const MISMATCH_ERROR = /differs from the release|must use HTTPS/
+
+/**
+ * Poll verify() until the published artifact is visible with matching
+ * integrity. Resolves true when visible, false on timeout; an integrity
+ * mismatch rejects. The clock and sleep are injectable for tests.
+ */
+export async function pollVisible(verify, deps = {}) {
+  const sleep = deps.sleep ?? setTimeout
+  const now = deps.now ?? Date.now
+  const timeout = deps.timeoutMs ?? VISIBILITY_TIMEOUT_MS
+  const deadline = now() + timeout
+  // waitedMs backstops a clock that never advances (skew, suspension, fakes):
+  // the poll always ends after ~timeout of sleeping, whatever the clock says.
+  let waitedMs = 0
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await verify()
+      return true
+    } catch (error) {
+      if (MISMATCH_ERROR.test(error instanceof Error ? error.message : String(error))) {
+        throw error
+      }
+      if (now() >= deadline || waitedMs >= timeout) {
+        return false
+      }
+      const delay = visibilityDelay(attempt)
+      await sleep(delay)
+      waitedMs += delay
+    }
+  }
+}
+
+/** Report visibility to the console and, on Actions, the job summary. Never fails. */
+export function reportVisibility(channel, visibility, environment = process.env) {
+  if (visibility === 'visible') {
+    console.log(`${channel}: published and visible`)
+    return
+  }
+  console.log(`::warning::${channel}: published, not yet visible; see docs/RELEASING.md`)
+  if (environment.GITHUB_STEP_SUMMARY !== undefined) {
+    appendFileSync(
+      environment.GITHUB_STEP_SUMMARY,
+      `\n${channel}: **published, not yet visible** after the 30-minute registry check. ` +
+        `The release stays published; re-check the registry before announcing.\n`,
+    )
+  }
+}
+
 export async function publishRegistry(channel, artifact, manifest, deps = {}) {
   const execute = deps.run ?? run
   const sleep = deps.sleep ?? setTimeout
@@ -152,6 +214,9 @@ export async function publishRegistry(channel, artifact, manifest, deps = {}) {
       }
     }, sleep)
   }
+  // An existing version is verified at once; a fresh publish polls until the
+  // registry shows it. Resolves 'visible' or 'pending' (timeout warns, never fails).
+  let isFreshPublish = false
   await retryNetwork(async () => {
     try {
       execute(...command)
@@ -161,8 +226,14 @@ export async function publishRegistry(channel, artifact, manifest, deps = {}) {
       }
       // Only a matching artifact turns an existing-version refusal into success.
       await verify()
+      return
     }
+    isFreshPublish = true
   }, sleep)
+  if (!isFreshPublish) {
+    return 'visible'
+  }
+  return (await pollVisible(verify, deps)) ? 'visible' : 'pending'
 }
 
 if (
@@ -175,12 +246,12 @@ if (
       throw new Error('usage: publish-registry.mjs <marketplace|openvsx|npm> <one artifact>')
     }
     const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
-    await publishRegistry(channel, artifact, manifest)
+    const visibility = await publishRegistry(channel, artifact, manifest)
     // Outside Actions there is no step output to write; the publish still succeeded.
     if (process.env.GITHUB_OUTPUT !== undefined) {
       appendFileSync(process.env.GITHUB_OUTPUT, 'outcome=published\n')
     }
-    console.log(`${channel}: published (existing versions require matching integrity)`)
+    reportVisibility(channel, visibility)
   } catch (error) {
     // CLI diagnostics may contain credentials. Print a fixed label only.
     console.error(`${channel}: ${failureReason(error)}; see docs/RELEASING.md`)
