@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- The shared schedule store has one versioned root (`schedules/v1`); the
+  first start on it carries pre-version entries across once, idempotently.
+  The `/schedule` prompt mapping loads lazily on first use. Delivery remains
+  behind certification.
+
 - Closing a schedules runtime settles only its own delivered fires; another
   window or CLI invocation cannot consume a due Once admission. Delivery remains
   behind certification.

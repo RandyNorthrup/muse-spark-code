@@ -31388,6 +31388,25 @@ as their milestones merge (below), and none blocks the rest. **M115w**, the
 issue watchdog (D95.13), is a phase of its own with its own lanes, after the
 core (below).
 
+**Status 2026-10-17 (delivery lane MSM115): building.** The round-3 join
+tree merged with main; all nine earlier candidate branches are contained,
+nothing further to merge. Connected since: the versioned store root
+(`schedules/v1`) with a
+one-time idempotent carry of pre-version stores; M52 v1 migration at control
+creation; the ACP-side engine module installed by `main.ts` callers; the lazy
+`/schedule` prompt mapping; the per-schedule paid-consent question (rule 12's
+line). Still behind the `SCHEDULE_EDITOR_DELIVERY_CERTIFICATION` switch
+(off): automatic delivery in VS Code, ACP and the terminal, the gated v1
+migration, and the `schedule` commands the catalog hides until certification.
+The switch flips only on the lead's complete receipts (VS Code admission and
+safety acceptance on Windows, Linux and macOS; the installed native modal
+decline; independent Codex/Grok review; aggregate and artifact
+qualification). Waiting on other milestones: the report action's `reports`
+port (M113 lane Q's full-destination authority, leases, previews and scrub),
+the `schedule_report` agent tool (G's charter and destination enforcement),
+further event sources, targets and editor rows as their milestones merge, and
+M115w (needs M96c, M113 N and M109 T).
+
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron
   expression or on an event (a pull request merged, a milestone certified),
@@ -33379,6 +33398,20 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**MSM115-DELIVERY (2026-10-17, wslpc).** Delivery-lane scope: all nine
+`cand/MSM115/*` branches are contained in the lane head (verified with
+`git log <branch> --not HEAD`, empty for all nine), so no candidate merge is
+owed. The lane connects the versioned store root, the v1 migration, the
+ACP-side engine module, the lazy `/schedule` mapping and the per-schedule
+consent line; it removes only `@unwired` tags whose exports have a caller in
+the tree. It does not flip `SCHEDULE_EDITOR_DELIVERY_CERTIFICATION`: every v2
+fire still refuses in production by design until the lead's complete receipts
+exist, and flipping it here would weaken the gate. Still waiting: the report
+action's `reports` port and the `schedule_report` tool (M113 lane Q and G
+regions, not this lane's files), further sources/targets/editor rows (their
+milestones), and M115w (needs M96c). No cap, threshold, ignore or rule is
+weakened. See `docs/certification/msm115.md`.
 
 **SCHEDJOIN2-ASSEMBLY-GRANT (2026-10-11, kubuntu).** The native helper builds
 and fixture preparation fits the budget, but all three assembly families stay
