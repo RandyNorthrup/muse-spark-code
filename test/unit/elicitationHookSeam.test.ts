@@ -3,19 +3,21 @@
 // person's own hook code, as data); parsing, dispatch, answer protocol and
 // verdict mapping are the real production modules. The process cases run on
 // POSIX only; the payload builders run everywhere.
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  dispatchElicitationHooks,
+  dispatchElicitationResultHooks,
   dispatchExtensionHooks,
   elicitationFields,
   elicitationResultFields,
-  elicitationVerdictFromDispatch,
   extensionHookPayload,
   parseSparkHooksConfig,
   teammateIdleFields,
+  type ElicitationHookFire,
   type ExtensionHookDefinition,
   type ExtensionHookDispatch,
   type ExtensionHookEvent,
@@ -94,7 +96,7 @@ function writeHook(body: string): { readonly dir: string; readonly command: stri
 function parseHooks(
   event: string,
   command: string,
-  source: 'user' | 'project',
+  source: 'user' | 'project' | 'managed',
   matcher?: string,
 ): readonly ExtensionHookDefinition[] {
   const parsed = parseSparkHooksConfig(
@@ -108,12 +110,16 @@ function parseHooks(
         ],
       },
     }),
-    source,
+    // Managed definitions come from managed settings in production, not a
+    // spark-hooks file; the parsed definition is the same data relabelled.
+    source === 'managed' ? 'project' : source,
     'linux',
   )
   expect(parsed.warnings).toEqual([])
   expect(parsed.hooks).toHaveLength(1)
-  return parsed.hooks
+  return source === 'managed'
+    ? parsed.hooks.map((hook) => ({ ...hook, source: 'managed' as const }))
+    : parsed.hooks
 }
 
 /** One real dispatch: parsed hooks, the production envelope, a real child. */
@@ -137,6 +143,24 @@ async function dispatchFor(
       warnings.push(message)
     },
   })
+}
+
+/**
+ * The session's fire binding, as data: one scope group of the combined hook
+ * list through the real dispatch. The grouping itself — which scopes run,
+ * in which order, with which fields — is the production helper under test.
+ */
+function fireFor(
+  hooks: readonly ExtensionHookDefinition[],
+  dir: string,
+  warnings: string[],
+): ElicitationHookFire {
+  return async (event, fields, matcherValue, onlySources) => {
+    const selected = hooks.filter((hook) => onlySources.includes(hook.source))
+    return selected.length === 0
+      ? undefined
+      : await dispatchFor(selected, event, dir, fields, matcherValue, warnings)
+  }
 }
 
 /** A hook that records its stdin to a fresh file, for payload observation. */
@@ -209,10 +233,10 @@ describe.runIf(process.platform !== 'win32')('elicitation hooks through real pro
   interface VerdictCase {
     readonly name: string
     readonly policyScript?: string
+    readonly managedScript?: string
     readonly userScript?: string
     readonly matcher?: string
     readonly warningCount: number
-    readonly expectPolicyAnswer?: boolean
     readonly expected: ElicitationHookVerdict
   }
 
@@ -250,8 +274,14 @@ describe.runIf(process.platform !== 'win32')('elicitation hooks through real pro
       name: 'a project answer never reaches the caller',
       policyScript: 'echo \'{"answer": {"code": "1234"}}\'',
       warningCount: 0,
-      expectPolicyAnswer: true,
       expected: { decision: 'proceed' },
+    },
+    {
+      name: 'a managed refusal declines with the hook reason',
+      managedScript: 'echo "managed policy says no" >&2\nexit 2',
+      userScript: 'echo \'{"answer": {"code": "1234"}}\'',
+      warningCount: 0,
+      expected: { decision: 'decline', source: 'project', reason: 'managed policy says no' },
     },
     {
       name: 'a crashed hook does not block the form',
@@ -276,103 +306,134 @@ describe.runIf(process.platform !== 'win32')('elicitation hooks through real pro
   for (const kase of VERDICT_CASES) {
     it(kase.name, async () => {
       const warnings: string[] = []
-      const fields = elicitationFields(SERVER, 'Enter the code', ['code'], ['code'])
-      let policy: ExtensionHookDispatch | undefined
-      let personal: ExtensionHookDispatch | undefined
-      if (kase.policyScript !== undefined) {
-        const hook = writeHook(kase.policyScript)
-        policy = await dispatchFor(
-          parseHooks('Elicitation', hook.command, 'project', kase.matcher),
-          'Elicitation',
-          hook.dir,
-          fields,
-          SERVER,
-          warnings,
-        )
+      const dir = mkdtempSync(path.join(tmpdir(), 'm91-workspace-'))
+      const hooks: ExtensionHookDefinition[] = []
+      const scripts: readonly (readonly [string | undefined, 'project' | 'managed' | 'user'])[] = [
+        [kase.policyScript, 'project'],
+        [kase.managedScript, 'managed'],
+        [kase.userScript, 'user'],
+      ]
+      for (const [script, source] of scripts) {
+        if (script !== undefined) {
+          hooks.push(
+            ...parseHooks(
+              'Elicitation',
+              writeHook(script).command,
+              source,
+              source === 'project' ? kase.matcher : undefined,
+            ),
+          )
+        }
       }
-      if (kase.userScript !== undefined) {
-        const hook = writeHook(kase.userScript)
-        personal = await dispatchFor(
-          parseHooks('Elicitation', hook.command, 'user'),
-          'Elicitation',
-          hook.dir,
-          fields,
-          SERVER,
-          warnings,
-        )
-      }
+      const verdict = await dispatchElicitationHooks(fireFor(hooks, dir, warnings), {
+        server: SERVER,
+        message: 'Enter the code',
+        fieldNames: ['code'],
+        requiredNames: ['code'],
+      })
       expect(warnings).toHaveLength(kase.warningCount)
-      if (kase.expectPolicyAnswer === true) expect(policy?.hasAnswer).toBe(true)
-      expect(elicitationVerdictFromDispatch(policy, personal)).toEqual(kase.expected)
+      expect(verdict).toEqual(kase.expected)
     })
   }
 
-  interface ObservedCase {
+  it('a policy refusal settles it without running the user hook', async () => {
+    const user = recordingHook()
+    const dir = mkdtempSync(path.join(tmpdir(), 'm91-workspace-'))
+    const warnings: string[] = []
+    const hooks = [
+      ...parseHooks(
+        'Elicitation',
+        writeHook('echo "repo policy says no" >&2\nexit 2').command,
+        'project',
+      ),
+      ...parseHooks('Elicitation', user.command, 'user'),
+    ]
+    const verdict = await dispatchElicitationHooks(fireFor(hooks, dir, warnings), {
+      server: SERVER,
+      message: 'Enter the code',
+      fieldNames: ['code'],
+      requiredNames: ['code'],
+    })
+    expect(warnings).toEqual([])
+    expect(verdict).toEqual({
+      decision: 'decline',
+      source: 'project',
+      reason: 'repo policy says no',
+    })
+    expect(existsSync(user.seen)).toBe(false)
+  })
+
+  interface ResultCase {
     readonly name: string
-    readonly event: 'ElicitationResult' | 'TeammateIdle'
-    readonly scope: 'user' | 'project'
-    readonly fields: Readonly<Record<string, unknown>>
-    readonly matcherValue: string
-    readonly expected: Record<string, unknown>
-    readonly forbidden?: string
+    readonly action: 'accept' | 'decline'
+    readonly values?: Readonly<Record<string, unknown>>
+    readonly userValues: unknown
   }
 
-  const OBSERVED_CASES: readonly ObservedCase[] = [
+  const RESULT_CASES: readonly ResultCase[] = [
     {
-      name: 'ElicitationResult shows a project hook names and action only',
-      event: 'ElicitationResult',
-      scope: 'project',
-      fields: elicitationResultFields({ server: SERVER, action: 'accept', fieldNames: ['code'] }),
-      matcherValue: SERVER,
-      expected: {
-        hook_event_name: 'ElicitationResult',
-        server: SERVER,
-        action: 'accept',
-        fields: ['code'],
-      },
-      forbidden: '1234',
+      name: 'ElicitationResult gives accepted values to the user hook alone',
+      action: 'accept',
+      values: { code: '1234' },
+      userValues: { code: '1234' },
     },
     {
-      name: 'ElicitationResult shows a user hook the accepted values',
-      event: 'ElicitationResult',
-      scope: 'user',
-      fields: elicitationResultFields({
-        server: SERVER,
-        action: 'accept',
-        fieldNames: ['code'],
-        values: { code: '1234' },
-      }),
-      matcherValue: SERVER,
-      expected: { values: { code: '1234' } },
-    },
-    {
-      name: 'TeammateIdle reaches the hook with the idle task and sibling count',
-      event: 'TeammateIdle',
-      scope: 'user',
-      fields: teammateIdleFields({ name: 'task-7', siblingsRunning: 2 }),
-      matcherValue: 'task-7',
-      expected: { hook_event_name: 'TeammateIdle', name: 'task-7', siblings_running: 2 },
+      name: 'ElicitationResult on a decline sends values to nobody',
+      action: 'decline',
+      userValues: undefined,
     },
   ]
 
-  for (const kase of OBSERVED_CASES) {
+  for (const kase of RESULT_CASES) {
     it(kase.name, async () => {
-      const hook = recordingHook()
+      const dir = mkdtempSync(path.join(tmpdir(), 'm91-workspace-'))
       const warnings: string[] = []
-      await dispatchFor(
-        parseHooks(kase.event, hook.command, kase.scope),
-        kase.event,
-        hook.dir,
-        kase.fields,
-        kase.matcherValue,
-        warnings,
+      const scopes = (['project', 'managed', 'user'] as const).map((scope) => ({
+        scope,
+        hook: recordingHook(),
+      }))
+      const hooks = scopes.flatMap(({ scope, hook }) =>
+        parseHooks('ElicitationResult', hook.command, scope),
       )
+      await dispatchElicitationResultHooks(fireFor(hooks, dir, warnings), {
+        server: SERVER,
+        fieldNames: ['code'],
+        action: kase.action,
+        ...(kase.values !== undefined && { values: kase.values }),
+      })
       expect(warnings).toEqual([])
-      const seen = observedStdin(hook.seen)
-      expect(seen).toMatchObject(kase.expected)
-      if (kase.forbidden !== undefined) {
-        expect(JSON.stringify(seen)).not.toContain(kase.forbidden)
+      for (const { scope, hook } of scopes) {
+        const seen = observedStdin(hook.seen)
+        expect(seen).toMatchObject({
+          hook_event_name: 'ElicitationResult',
+          server: SERVER,
+          action: kase.action,
+          fields: ['code'],
+        })
+        expect(seen['values']).toEqual(scope === 'user' ? kase.userValues : undefined)
+        if (scope !== 'user') {
+          expect(JSON.stringify(seen)).not.toContain('1234')
+        }
       }
     })
   }
+
+  it('TeammateIdle reaches the hook with the idle task and sibling count', async () => {
+    const hook = recordingHook()
+    const warnings: string[] = []
+    await dispatchFor(
+      parseHooks('TeammateIdle', hook.command, 'user'),
+      'TeammateIdle',
+      hook.dir,
+      teammateIdleFields({ name: 'task-7', siblingsRunning: 2 }),
+      'task-7',
+      warnings,
+    )
+    expect(warnings).toEqual([])
+    expect(observedStdin(hook.seen)).toMatchObject({
+      hook_event_name: 'TeammateIdle',
+      name: 'task-7',
+      siblings_running: 2,
+    })
+  })
 })
