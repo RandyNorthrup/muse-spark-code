@@ -115,7 +115,9 @@ export class GitHubSignIn {
       try {
         login = await this.deps.login(credential, signal)
       } catch {
-        // The account line names the source alone; the call itself goes on.
+        // Cancel still stops the call; any other failure only leaves the
+        // account line naming the source alone, and the call goes on.
+        signal.throwIfAborted()
         this.deps.log.info('The GitHub account’s login could not be read')
         login = undefined
       }
@@ -184,6 +186,8 @@ export class GitHubSignIn {
       if (credential !== undefined) {
         this.issued.set(credential.source, credential)
         await this.noteAccount(credential, combined)
+        // Cancel during the login read still stops this call.
+        combined.throwIfAborted()
       }
       return credential
     } finally {
