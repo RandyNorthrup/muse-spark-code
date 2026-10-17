@@ -3265,19 +3265,32 @@ li:focus-within > .row-actions .row-actions-button,
   list-style: none;
 }
 
+/* A row is two grid columns that can never overlap (F59): the key keeps
+   the room its text needs, up to half the row (the all-platform shortcuts
+   wrap inside their half), and the description keeps the rest and wraps
+   beside it, at any sidebar width. A flex row could shrink the key below
+   its content, whose visible overflow then ran into the description
+   ("Shift+Tabcycles"); an uncapped auto column could instead take the
+   whole row for a long shortcut and starve the description. */
 .onboarding-list li {
-  display: flex;
+  display: grid;
+  grid-template-columns: fit-content(50%) minmax(0, 1fr);
   gap: var(--ms-gap);
   align-items: baseline;
 }
 
-/* A shortcut named for every platform wraps within half the row, so its
+/* A shortcut named for every platform wraps inside its own column, so its
    description keeps room for its longest word. */
 .onboarding-list kbd {
-  flex: 0 1 auto;
-  max-width: 50%;
   min-width: 2em;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   text-align: center;
+}
+
+.onboarding-list li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Visually hidden, read by assistive technology (the live announcer). */

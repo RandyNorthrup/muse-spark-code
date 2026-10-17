@@ -1,0 +1,55 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { CliAccount } from '../../src/host/auth/cliAccount'
+import type { Logger } from '../../src/host/logger'
+
+const log: Logger = {
+  trace: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+}
+
+const dirs: string[] = []
+afterEach(() => {
+  while (dirs.length > 0) {
+    rmSync(dirs.pop()!, { recursive: true, force: true })
+  }
+})
+
+function accountFor(file: string): CliAccount {
+  return new CliAccount({
+    platform: 'linux',
+    credentialFilePath: () => file,
+    probe: () => Promise.resolve(undefined),
+    log,
+  })
+}
+
+describe('credential file peek', () => {
+  it('reads signed-out where there is no file, without starting a process', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'peek-'))
+    dirs.push(dir)
+    expect(accountFor(path.join(dir, 'auth.json')).peekFile()).toBe('signedOut')
+  })
+
+  it('reads signed-in from a captured inline shape, without asking the CLI', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'peek-'))
+    dirs.push(dir)
+    // The parse keeps presence only (`0` stands in for the value, which the
+    // parse replaces; no credential ever lands in a test).
+    const file = path.join(dir, 'auth.json')
+    writeFileSync(file, '{"schema_version":1,"providers":{"meta":{"api_key":0}}}')
+    expect(accountFor(file).peekFile()).toBe('signedIn')
+  })
+
+  it('settles nothing the file cannot say', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'peek-'))
+    dirs.push(dir)
+    const file = path.join(dir, 'auth.json')
+    writeFileSync(file, 'not json at all')
+    expect(accountFor(file).peekFile()).toBeUndefined()
+  })
+})

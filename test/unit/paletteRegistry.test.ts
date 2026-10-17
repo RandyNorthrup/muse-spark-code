@@ -312,16 +312,16 @@ describe('buildPalette', () => {
       },
       {
         id: 'skill:fix-bug',
-        tip: 'Fixes a bug',
+        tip: 'Run the Fix bug skill.',
         label: '/fix-bug',
-        detail: 'Fixes a bug',
+        detail: 'Fix bug',
         action: { type: 'insertSkill', selector: 'fix-bug' },
       },
       {
         id: 'skill:acme:deploy',
-        tip: 'Deploys',
+        tip: 'Run the Deploy skill.',
         label: '/acme:deploy',
-        detail: 'Deploys — <env>',
+        detail: 'Deploy — <env>',
         action: { type: 'insertSkill', selector: 'acme:deploy' },
       },
     ])
@@ -875,16 +875,18 @@ describe('M87 palette tips', () => {
   })
 
   it.each(['', ' '.repeat(3), '  Own description.  '])(
-    'uses the skill description or a named fallback: %j',
+    'names the skill for people, never its model-facing description: %j',
     (description) => {
       const groups = pricedPalette({
         ...context,
         skills: [{ selector: 'review', displayName: 'Review code', description }],
       })
       const skill = groups.flatMap((group) => group.items).find((row) => row.id === 'skill:review')
-      const expected = description.trim() || 'Run the Review code skill.'
-      expect(skill?.tip).toBe(expected)
-      expect(slashCommandsOf(groups).find((row) => row.name === 'review')?.tip).toBe(expected)
+      expect(skill?.tip).toBe('Run the Review code skill.')
+      expect(skill?.detail).toBe('Review code')
+      expect(slashCommandsOf(groups).find((row) => row.name === 'review')?.tip).toBe(
+        'Run the Review code skill.',
+      )
     },
   )
 })
