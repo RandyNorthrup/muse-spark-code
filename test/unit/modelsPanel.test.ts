@@ -88,6 +88,15 @@ async function tickWizardModel(panel: FakeWebviewPanel, ref: string, model: stri
     expect(latestState(panel).drafts.wizard?.models).toEqual([model])
   })
 }
+async function untickWizardModel(
+  panel: FakeWebviewPanel,
+  ref: string,
+  remaining: readonly string[],
+): Promise<void> {
+  await send(panel, { type: 'models/tick', scope: { scope: 'wizard' }, ref, ticked: false }, () => {
+    expect(latestState(panel).drafts.wizard?.models).toEqual([...remaining])
+  })
+}
 describe('Models host contract', () => {
   it('keeps an OAuth credential bound to its issuer after an edited draft address', async () => {
     const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))
@@ -302,13 +311,7 @@ describe('Models host contract', () => {
         expect(latestState(panel).drafts.wizard?.modelLimits?.['m2']?.contextTokens).toBe(4096)
       },
     )
-    await send(
-      panel,
-      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'ollama/m1', ticked: false },
-      () => {
-        expect(latestState(panel).drafts.wizard?.models).toEqual(['m2'])
-      },
-    )
+    await untickWizardModel(panel, 'ollama/m1', ['m2'])
     expect(latestState(panel).drafts.wizard?.modelLimits?.['m1']).toBeUndefined()
     await send(
       panel,
@@ -318,13 +321,7 @@ describe('Models host contract', () => {
       },
     )
     expect(latestState(panel).drafts.wizard?.modelLimits?.['m1']).toBeUndefined()
-    await send(
-      panel,
-      { type: 'models/tick', scope: { scope: 'wizard' }, ref: 'ollama/m1', ticked: false },
-      () => {
-        expect(latestState(panel).drafts.wizard?.models).toEqual(['m2'])
-      },
-    )
+    await untickWizardModel(panel, 'ollama/m1', ['m2'])
     await send(panel, { type: 'providers/save', useNow: false }, () => {
       expect(latestState(panel).drafts.wizard).toBeUndefined()
     })

@@ -1,13 +1,14 @@
 import { Usd } from '../../src/shared/usd'
 // Offline composition over the owner's 2026-10-04 Mistral captures.
 // Tool name/arguments alone are adapted to the real harness read_file tool.
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createServer } from 'node:http'
 import * as z from 'zod/mini'
 import * as vscode from 'vscode'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { trackTempRoots } from './helpers/tempRoots'
 import {
   createConfiguredProviderServices,
   type ConfiguredProviderOptions,
@@ -38,11 +39,7 @@ import {
 } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 
-const roots: string[] = []
-afterEach(async () => {
-  vi.restoreAllMocks()
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
-})
+const { roots } = trackTempRoots()
 const ENTRY = providerEntrySchema.parse({
   id: 'mistral-plan',
   preset: 'mistral-plan',
@@ -210,6 +207,14 @@ const windowedLocalEntry = (contextTokens: number) =>
     models: ['Qwen3-0.6B-Q8_0'],
     modelLimits: { 'Qwen3-0.6B-Q8_0': { contextTokens, outputTokens: contextTokens } },
   })
+/** Services over a loopback fixture whose scans answer nothing. */
+function loopbackServices(f: Awaited<ReturnType<typeof fixture>>) {
+  return createConfiguredProviderServices(undefined, {
+    ...f,
+    resolve: () => Promise.resolve(['127.0.0.1']),
+    send: () => Promise.resolve(response(Buffer.from(''))),
+  })
+}
 const body = (): CreateResponseBody => ({
   model: REF,
   instructions: 'Test',
@@ -523,11 +528,7 @@ describe('configured provider production transport', () => {
       models: ['Qwen3-0.6B-Q8_0'],
     })
     await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [carried, bare] })
-    const services = createConfiguredProviderServices(undefined, {
-      ...f,
-      resolve: () => Promise.resolve(['127.0.0.1']),
-      send: () => Promise.resolve(response(Buffer.from(''))),
-    })
+    const services = loopbackServices(f)
     expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')).toEqual({
       format: 'chat',
       contextTokens: 4096,
@@ -546,11 +547,7 @@ describe('configured provider production transport', () => {
     // window, never from a snapshot or a cached cap.
     const f = await fixture()
     await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [windowedLocalEntry(4096)] })
-    const services = createConfiguredProviderServices(undefined, {
-      ...f,
-      resolve: () => Promise.resolve(['127.0.0.1']),
-      send: () => Promise.resolve(response(Buffer.from(''))),
-    })
+    const services = loopbackServices(f)
     await services.registry.resolve('llamacpp/Qwen3-0.6B-Q8_0')
     expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')?.contextTokens).toBe(4096)
     await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [windowedLocalEntry(8192)] })

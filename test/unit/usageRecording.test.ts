@@ -1,4 +1,4 @@
-import { Usd } from '../../src/shared/usd'
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { usageRecordSchema } from '../../src/shared/usageJournal'
@@ -80,6 +80,21 @@ async function hostRun(
   })
   const turns = watchSessionTurns(session)
   return { api, tap, host, session, turns, client }
+}
+
+/** One OpenRouter limit account, shared by the write and the read-back below. */
+function openRouterAccount(): {
+  usedUsd: UsdAmount
+  limitUsd: UsdAmount
+  remainingUsd: UsdAmount
+  period: 'month'
+} {
+  return {
+    usedUsd: Usd.from('0.3').toAmount(),
+    limitUsd: Usd.from(1).toAmount(),
+    remainingUsd: Usd.from('0.7').toAmount(),
+    period: 'month',
+  }
 }
 
 describe('recording taps', () => {
@@ -314,27 +329,14 @@ describe('recording taps', () => {
       source: 'openRouter',
       observedAt: 100,
       windows: [],
-      account: {
-        usedUsd: Usd.from('0.3').toAmount(),
-        limitUsd: Usd.from(1).toAmount(),
-        remainingUsd: Usd.from('0.7').toAmount(),
-        period: 'month',
-      },
+      account: openRouterAccount(),
     })
     await port.flush()
     expect(load).not.toHaveBeenCalled()
     expect(port.limits?.()).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ provider: 'museCode' }),
-        expect.objectContaining({
-          provider: 'openrouter',
-          account: {
-            usedUsd: Usd.from('0.3').toAmount(),
-            limitUsd: Usd.from(1).toAmount(),
-            remainingUsd: Usd.from('0.7').toAmount(),
-            period: 'month',
-          },
-        }),
+        expect.objectContaining({ provider: 'openrouter', account: openRouterAccount() }),
       ]),
     )
   })

@@ -3,10 +3,12 @@
 // store facades over one backing map and the real file lease. No model or
 // vendor call of any kind.
 import { spawn } from 'node:child_process'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { trackTempRoots } from './helpers/tempRoots'
+import { collectPrinted } from './helpers/collectPrinted'
 import {
   acquireCredentialLock,
   CredentialLockBusyError,
@@ -19,6 +21,7 @@ import { emptyProvidersFile } from '../../src/core/providers/providersFile'
 import { storedCredentialId } from '../../src/host/providers/credentialRecords'
 import { recoverOpenRouterConnect } from '../../src/host/models/modelsPanelBundle'
 import type { Logger } from '../../src/host/logger'
+import type { SecretStore } from '../../src/host/auth/credentialStore'
 import type { AuthCommandDeps } from '../../src/runtime/authCommands'
 import {
   runAuthClearProvider,
@@ -44,11 +47,7 @@ const PREVIOUS = formatStoredProviderSecret(
 const ROTATED_KEY = syntheticKey('rotated')
 const CONNECT_KEY = syntheticKey('connect')
 
-const roots: string[] = []
-afterEach(async () => {
-  vi.restoreAllMocks()
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
-})
+const { roots } = trackTempRoots()
 
 async function tempRoot(): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), 'cm952r5-'))
@@ -93,20 +92,15 @@ function connectDeps(
   lock: NonNullable<ProvidersDeps['withUserFileLock']>,
   parts: Partial<ProvidersDeps> = {},
 ): { deps: ProvidersDeps; printed: string[]; errors: string[] } {
-  const printed: string[] = []
-  const errors: string[] = []
+  const { printed, errors, print, printError } = collectPrinted()
   const deps: ProvidersDeps = {
     secrets,
     fetch: vi.fn(),
     resolveHost: () => Promise.resolve(['8.8.8.8']),
     readSecret: (prompt) =>
       Promise.resolve(prompt === UI_TEXT.providerConnectReplaceKey ? 'yes' : 'synthetic-code'),
-    print: (line) => {
-      printed.push(line)
-    },
-    printError: (line) => {
-      errors.push(line)
-    },
+    print,
+    printError,
     readUserFile: readEmptyUserFile,
     writeUserFile: () => Promise.resolve(true),
     withUserFileLock: lock,
@@ -352,19 +346,33 @@ describe('journal recovery comparison', () => {
   })
 })
 
+/** A connect paused at its journal write, with the lease held open. */
+async function beginConnectRace() {
+  const { a, b, backing } = twinSecrets()
+  await a.store(ACCOUNT, PREVIOUS)
+  const withLock = await tempLock()
+  const gate = exchangeGate()
+  const A = connectDeps(a, withLock)
+  const connecting = runOpenRouterConnect(A.deps, {
+    openRouterExchange: gate.exchange,
+    openRouterUsage: () => Promise.reject(new Error('unused')),
+  })
+  await waitForJournal(backing)
+  return { a, b, backing, withLock, gate, A, connecting }
+}
+
+/** A connect whose exchange answers at once and whose usage probe is unused. */
+function directConnectApi(): Parameters<typeof runOpenRouterConnect>[1] {
+  return {
+    openRouterExchange: () => Promise.resolve(CONNECT_KEY),
+    openRouterUsage: () => Promise.reject(new Error('unused')),
+  }
+}
+
 describe('one transaction across two facades', () => {
   it('a rotation attempted mid-connect is refused, never overwritten', async () => {
-    const { a, b, backing } = twinSecrets()
-    await a.store(ACCOUNT, PREVIOUS)
-    const withLock = await tempLock()
-    const gate = exchangeGate()
-    const A = connectDeps(a, withLock)
+    const { a, b, backing, withLock, gate, connecting } = await beginConnectRace()
     const B = authBase(b)
-    const connecting = runOpenRouterConnect(A.deps, {
-      openRouterExchange: gate.exchange,
-      openRouterUsage: () => Promise.reject(new Error('unused')),
-    })
-    await waitForJournal(backing)
     // The second writer runs the real command between the final read and
     // the primary write: the lease refuses it.
     expect(await runAuthSetProvider(B.deps, 'openrouter', readUserFile, withLock)).toBe(1)
@@ -380,17 +388,8 @@ describe('one transaction across two facades', () => {
   })
 
   it('a removal attempted mid-connect is refused, never resurrected', async () => {
-    const { a, b, backing } = twinSecrets()
-    await a.store(ACCOUNT, PREVIOUS)
-    const withLock = await tempLock()
-    const gate = exchangeGate()
-    const A = connectDeps(a, withLock)
+    const { a, b, backing, withLock, gate, connecting } = await beginConnectRace()
     const B = authBase(b)
-    const connecting = runOpenRouterConnect(A.deps, {
-      openRouterExchange: gate.exchange,
-      openRouterUsage: () => Promise.reject(new Error('unused')),
-    })
-    await waitForJournal(backing)
     expect(await runAuthClearProvider(B.deps, 'openrouter', withLock)).toBe(1)
     expect(backing.get(ACCOUNT)).toBe(PREVIOUS)
     gate.release(CONNECT_KEY)
@@ -406,26 +405,12 @@ describe('one transaction across two facades', () => {
           key === ACCOUNT ? Promise.reject(new Error('store-unavailable')) : a.store(key, value),
       },
     })
-    expect(
-      await runOpenRouterConnect(failing.deps, {
-        openRouterExchange: () => Promise.resolve(CONNECT_KEY),
-        openRouterUsage: () => Promise.reject(new Error('unused')),
-      }),
-    ).toBe(1)
+    expect(await runOpenRouterConnect(failing.deps, directConnectApi())).toBe(1)
     expect(backing.get(ACCOUNT)).toBeUndefined()
   })
 
   it('status during a live attempt reads through and leaves its journal alone', async () => {
-    const { a, b, backing } = twinSecrets()
-    await a.store(ACCOUNT, PREVIOUS)
-    const withLock = await tempLock()
-    const gate = exchangeGate()
-    const A = connectDeps(a, withLock)
-    const connecting = runOpenRouterConnect(A.deps, {
-      openRouterExchange: gate.exchange,
-      openRouterUsage: () => Promise.reject(new Error('unused')),
-    })
-    await waitForJournal(backing)
+    const { b, backing, withLock, gate, connecting } = await beginConnectRace()
     const journal = backing.get(STAGING)
     expect(journal).toBeDefined()
     const S = authBase(b)
@@ -462,12 +447,7 @@ describe('one transaction across two facades', () => {
       },
     }
     const A = connectDeps(secrets, withLock)
-    expect(
-      await runOpenRouterConnect(A.deps, {
-        openRouterExchange: () => Promise.resolve(CONNECT_KEY),
-        openRouterUsage: () => Promise.reject(new Error('unused')),
-      }),
-    ).toBe(1)
+    expect(await runOpenRouterConnect(A.deps, directConnectApi())).toBe(1)
     // The verified primary write stands; the only copy of the previous
     // record stays in the kept journal; the sentence says what is stored.
     expect(backing.get(ACCOUNT)).toContain(CONNECT_KEY)
@@ -547,6 +527,20 @@ describe('one transaction across two facades', () => {
   })
 })
 
+/** A crash-start recovery with its warning and information lines collected. */
+async function recoverWithReports(
+  secrets: SecretStore,
+  log: Logger,
+  lock: {
+    readonly withCredentialLock: <T>(operation: () => Promise<T>) => Promise<T>
+  },
+): Promise<{ warnings: string[]; infos: string[] }> {
+  const warnings: string[] = []
+  const infos: string[] = []
+  await recoverOpenRouterConnect(secrets, collect(warnings), collect(infos), log, lock)
+  return { warnings, infos }
+}
+
 describe('first start after the crash', () => {
   const freeLock = {
     withCredentialLock: async <T>(operation: () => Promise<T>): Promise<T> => await operation(),
@@ -559,10 +553,7 @@ describe('first start after the crash', () => {
       'crashed-synthetic-key',
     )
     await a.store(STAGING, formatTestJournal('staged', null, crashed))
-    const warnings: string[] = []
-    const infos: string[] = []
-    const log = silentLog()
-    await recoverOpenRouterConnect(a, collect(warnings), collect(infos), log, freeLock)
+    const { warnings, infos } = await recoverWithReports(a, silentLog(), freeLock)
     expect(warnings).toEqual([openRouterDiscardedKeyNotice()])
     expect(infos).toEqual([])
     expect(await a.get(STAGING)).toBeUndefined()
@@ -576,9 +567,7 @@ describe('first start after the crash', () => {
     )
     await a.store(ACCOUNT, next)
     await a.store(STAGING, formatTestJournal('staged', null, next))
-    const warnings: string[] = []
-    const infos: string[] = []
-    await recoverOpenRouterConnect(a, collect(warnings), collect(infos), silentLog(), freeLock)
+    const { warnings, infos } = await recoverWithReports(a, silentLog(), freeLock)
     expect(warnings).toEqual([])
     expect(infos).toEqual([UI_TEXT.providerConnectRecoveredStored])
     expect(await a.get(STAGING)).toBeUndefined()
@@ -586,10 +575,8 @@ describe('first start after the crash', () => {
 
   it('stays silent without a journal', async () => {
     const { a } = twinSecrets()
-    const warnings: string[] = []
-    const infos: string[] = []
     const log = silentLog()
-    await recoverOpenRouterConnect(a, collect(warnings), collect(infos), log, freeLock)
+    const { warnings, infos } = await recoverWithReports(a, log, freeLock)
     expect(warnings).toEqual([])
     expect(infos).toEqual([])
     expect(log.warn).not.toHaveBeenCalled()
