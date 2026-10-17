@@ -920,7 +920,6 @@
     "reportContent": "举报有害内容",
     "fastDetail": "{description}。默认关闭：它会消耗更多的套餐额度。",
     "requestFailed": "ChatGPT 套餐请求失败：{message}",
-    "streamTooLarge": "ChatGPT 的回复超出了此应用接受的大小。请要求更短的回答。",
     "requestNotBuilt": "此应用无法准备 ChatGPT 套餐请求({reason})。未发送任何内容。"
   },
   "untitledConversation": "未命名",

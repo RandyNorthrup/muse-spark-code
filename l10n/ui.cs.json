@@ -932,7 +932,6 @@
     "reportContent": "Nahlásit škodlivý obsah",
     "fastDetail": "{description}. Ve výchozím nastavení vypnuto: spotřebovává více z kvóty vašeho plánu.",
     "requestFailed": "Požadavek plánu ChatGPT se nezdařil: {message}",
-    "streamTooLarge": "Odpověď ChatGPT byla větší, než tato aplikace přijímá. Požádejte o kratší odpověď.",
     "requestNotBuilt": "Aplikace nemohla připravit požadavek na plán ChatGPT ({reason}). Nic nebylo odesláno."
   },
   "untitledConversation": "Bez názvu",

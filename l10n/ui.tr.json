@@ -924,7 +924,6 @@
     "reportContent": "Zararlı içeriği bildir",
     "fastDetail": "{description}. Varsayılan olarak kapalı: plan kotanızdan daha fazla kullanır.",
     "requestFailed": "ChatGPT plan isteği başarısız oldu: {message}",
-    "streamTooLarge": "ChatGPT yanıtı bu uygulamanın kabul ettiğinden büyüktü. Daha kısa bir yanıt isteyin.",
     "requestNotBuilt": "Bu uygulama ChatGPT planı isteğini hazırlayamadı ({reason}). Hiçbir şey gönderilmedi."
   },
   "untitledConversation": "Adsız",

@@ -24,7 +24,6 @@ import {
   responseSchema,
   type StreamEvent,
   streamEventSchema,
-  type Usage,
   usageSchema,
   webSearchCallItemSchema,
   withStrictTools,
@@ -73,7 +72,7 @@ export interface ResponsesEncodeOptions {
 /**
  * Technical diagnostics contain no provider-controlled text or schema errors.
  * `isLocal` marks a refusal of this app's own setup (a hosted tool it cannot
- * send, an output cap it was not given), not of what the provider streamed.
+ * send), not of what the provider streamed.
  */
 export class ResponsesDecodeError extends Error {
   public constructor(
@@ -98,37 +97,9 @@ export class ChatgptPlanLimitError extends Error {
   }
 }
 
-/** Cancellation is local; no output-cap parameter is sent to the plan endpoint. */
-export class ResponsesOutputCapError extends Error {
-  public constructor(
-    public readonly maxOutputTokens: number,
-    public readonly outputTokens: number,
-    /** Validated report for canonical failure settlement; never rejected output. */
-    public readonly usage?: Usage,
-  ) {
-    super('ResponsesOutputCapError: client output cap exceeded')
-    this.name = 'ResponsesOutputCapError'
-  }
-}
-
-/** Per-request host dependencies, kept out of the pure request encoder. */
-export interface ResponsesOutputCap {
-  readonly maxOutputTokens: number
-  /**
-   * Cumulative tokens after this validated event, including tool arguments
-   * and whole final items without double-counting earlier deltas. The host
-   * supplies its model's counter; the codec never guesses chars per token.
-   */
-  readonly countOutputTokens: (event: StreamEvent) => number
-  /** Abort only this request's active transport when the cap is crossed. */
-  readonly abort: () => void
-}
-
 /** xAI's reported cost reaches settlement before canonical consumers read usage. */
 export interface ResponsesDecodeSink {
   readonly settledCostUsd?: (costUsd: UsdAmount) => void
-  /** Mandatory for the ChatGPT profile, unused by the API-key profile. */
-  readonly outputCap?: ResponsesOutputCap
 }
 
 // Meta's canonical tools declare strict:false. This wire seam also accepts
@@ -396,27 +367,6 @@ function settledCostOf(usage: unknown): UsdAmount | undefined {
     : undefined
 }
 
-function withinOutputCap(event: StreamEvent, cap: ResponsesOutputCap | undefined): StreamEvent {
-  if (cap === undefined) return event
-  const counted = cap.countOutputTokens(event)
-  if (!Number.isSafeInteger(counted) || counted < 0) {
-    throw new ResponsesDecodeError('invalid output counter', 0, true)
-  }
-  // Encrypted reasoning is not observable in deltas. Reported output usage
-  // includes it; it can only stop the reply once that usage arrives.
-  const reported = 'response' in event ? (event.response.usage?.output_tokens ?? 0) : 0
-  const outputTokens = Math.max(counted, reported)
-  if (outputTokens > cap.maxOutputTokens) {
-    cap.abort()
-    throw new ResponsesOutputCapError(
-      cap.maxOutputTokens,
-      outputTokens,
-      'response' in event ? (event.response.usage ?? undefined) : undefined,
-    )
-  }
-  return event
-}
-
 export function createResponsesCodec(
   quirks: ResponsesCodecQuirks,
   capabilitiesForModel?: (modelId: string) => ModelCapabilities | undefined,
@@ -488,16 +438,6 @@ export function createResponsesCodec(
       chunks: AsyncIterable<Uint8Array>,
       sink?: ResponsesDecodeSink,
     ): AsyncGenerator<StreamEvent> {
-      const outputCap = quirks.profile === 'chatgpt' ? sink?.outputCap : undefined
-      if (outputCap === undefined && quirks.profile === 'chatgpt') {
-        throw new ResponsesDecodeError('missing ChatGPT output cap', 0, true)
-      }
-      if (
-        outputCap !== undefined &&
-        (!Number.isSafeInteger(outputCap.maxOutputTokens) || outputCap.maxOutputTokens <= 0)
-      ) {
-        throw new ResponsesDecodeError('invalid output cap', 0, true)
-      }
       let hasReportedCost = false
       // The ChatGPT plan streams each output item in its own
       // `response.output_item.done` frame and ends with `output: []` (measured
@@ -556,19 +496,13 @@ export function createResponsesCodec(
               sink?.settledCostUsd?.(costUsd)
             }
           }
-          // The output cap judges the frame as it arrived (an over-cap reply
-          // stops before any of its items is kept); only then is a plan
-          // response's output taken from its streamed items.
-          const capped = withinOutputCap(
-            { ...known.data, response: parsed.data.response },
-            outputCap,
-          )
+          // A plan response's output is taken from its streamed items.
           yield quirks.profile === 'chatgpt' && TERMINAL_WITH_USAGE.has(known.data.type)
             ? {
                 ...known.data,
                 response: withStreamedOutput(parsed.data.response, streamed, frame.data.length),
               }
-            : capped
+            : { ...known.data, response: parsed.data.response }
         } else if ('item' in known.data) {
           const parsed = itemFrameSchema.safeParse(json)
           if (!parsed.success) {
@@ -600,7 +534,7 @@ export function createResponsesCodec(
             }
             streamed.push({ index, item })
           }
-          yield withinOutputCap({ ...known.data, item: parsed.data.item }, outputCap)
+          yield { ...known.data, item: parsed.data.item }
         } else {
           if (
             quirks.profile === 'chatgpt' &&
@@ -609,7 +543,7 @@ export function createResponsesCodec(
           ) {
             throw new ChatgptPlanLimitError(known.data.message)
           }
-          yield withinOutputCap(known.data, outputCap)
+          yield known.data
         }
       }
     },

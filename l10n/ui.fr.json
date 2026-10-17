@@ -928,7 +928,6 @@
     "reportContent": "Signaler du contenu nuisible",
     "fastDetail": "{description}. Désactivé par défaut : cela utilise davantage votre quota de forfait.",
     "requestFailed": "La requête au forfait ChatGPT a échoué : {message}",
-    "streamTooLarge": "La réponse de ChatGPT était plus grande que ce que cette application accepte. Demandez une réponse plus courte.",
     "requestNotBuilt": "Cette application n’a pas pu préparer la requête du forfait ChatGPT ({reason}). Rien n’a été envoyé."
   },
   "untitledConversation": "Sans titre",

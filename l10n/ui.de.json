@@ -924,7 +924,6 @@
     "reportContent": "Schädliche Inhalte melden",
     "fastDetail": "{description}. Standardmäßig ausgeschaltet: Es verbraucht mehr von Ihrem Plan-Kontingent.",
     "requestFailed": "Die ChatGPT-Plananfrage ist fehlgeschlagen: {message}",
-    "streamTooLarge": "Die ChatGPT-Antwort war größer, als diese App annimmt. Bitten Sie um eine kürzere Antwort.",
     "requestNotBuilt": "Diese App konnte die ChatGPT-Tarifanfrage nicht vorbereiten ({reason}). Es wurde nichts gesendet."
   },
   "untitledConversation": "Unbenannt",

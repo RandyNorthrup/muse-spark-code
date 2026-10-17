@@ -6,30 +6,15 @@ function isPlanModel(model: string): boolean {
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
 import type { ProviderClient } from '../../backends/modelapi/client'
-import {
-  errorBodySchema,
-  isFunctionCallItem,
-  isMessageItem,
-  isReasoningItem,
-  messageText,
-  type OutputItem,
-  type StreamEvent,
-  type Usage,
-} from '../../backends/modelapi/schemas'
+import { errorBodySchema, type StreamEvent, type Usage } from '../../backends/modelapi/schemas'
 import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
-const {
-  ChatgptPlanLimitError,
-  createResponsesCodec,
-  ResponsesDecodeError,
-  ResponsesOutputCapError,
-} = responses
+const { ChatgptPlanLimitError, createResponsesCodec, ResponsesDecodeError } = responses
 const { parseModelRef } = modelRef
 import {
   CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
   MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
-  SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
 } from '../../../shared/constants'
 import {
@@ -196,32 +181,6 @@ export function chatGptPlanAccount(record: unknown) {
   return parsed?.accountIdHash === undefined || parsed.pendingRefresh !== undefined
     ? undefined
     : { providerId: 'chatgpt', accountIdHash: parsed.accountIdHash }
-}
-
-/** Byte counts conservatively bound text tokens until a model tokenizer is available. */
-function outputCounter(): (event: StreamEvent) => number {
-  const counts = new Map<string, number>()
-  const remember = (id: string, text: string) => {
-    counts.set(id, Math.max(counts.get(id) ?? 0, Buffer.byteLength(text)))
-  }
-  return (event) => {
-    if ('delta' in event) {
-      counts.set(event.item_id, (counts.get(event.item_id) ?? 0) + Buffer.byteLength(event.delta))
-    }
-    const items: OutputItem[] = []
-    if ('item' in event) items.push(event.item)
-    else if ('response' in event) items.push(...event.response.output)
-    for (const item of items) {
-      let text = ''
-      if (isFunctionCallItem(item)) text = item.arguments
-      else if (isMessageItem(item)) text = messageText(item)
-      else if (isReasoningItem(item)) text = (item.summary ?? []).map((part) => part.text).join('')
-      remember(item.id ?? String(counts.size), text)
-    }
-    let total = 0
-    for (const value of counts.values()) total += value
-    return total
-  }
 }
 
 export interface SubscriptionRegistryDeps {
@@ -457,18 +416,16 @@ export function createSubscriptionClient(
         if (!response.ok) throw await planRequestError(response)
         if (response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
+        // No size or output cap of this app's own: the plan route takes no
+        // `max_output_tokens` (SIWC preview limitations), so the reply ends
+        // where the model's own limit ends it.
         const reader = response.body.getReader()
         async function* bytes() {
-          let receivedBytes = 0
           try {
             for (;;) {
               const next = await withinIdle(reader.read())
               if (next.done) return
-              const chunk = z.instanceof(Uint8Array).parse(next.value)
-              receivedBytes += chunk.byteLength
-              if (receivedBytes > SUBSCRIPTION_STREAM_MAX_BYTES)
-                throw new ChatgptPlanRequestError(UI_TEXT.planUi.streamTooLarge)
-              yield chunk
+              yield z.instanceof(Uint8Array).parse(next.value)
             }
           } finally {
             try {
@@ -480,16 +437,7 @@ export function createSubscriptionClient(
           }
         }
         try {
-          const stream = codec.decodeStream(bytes(), {
-            outputCap: {
-              maxOutputTokens: body.max_output_tokens,
-              countOutputTokens: outputCounter(),
-              abort: () => {
-                stop.abort()
-              },
-            },
-          })
-          for await (const event of stream) {
+          for await (const event of codec.decodeStream(bytes())) {
             lastEventAt = Date.now()
             note(event)
             yield event
@@ -497,18 +445,6 @@ export function createSubscriptionClient(
         } catch (error) {
           if (error instanceof ChatgptPlanLimitError) {
             yield { type: 'error', code: error.code, message: UI_TEXT.planUi.limitDetail }
-          } else if (error instanceof ResponsesOutputCapError) {
-            usage = error.usage
-            yield {
-              type: 'response.failed',
-              response: {
-                id: 'client-output-cap',
-                status: 'failed',
-                output: [],
-                ...(usage !== undefined && { usage }),
-                error: { code: error.name, message: UI_TEXT.actionFailed },
-              },
-            }
           } else throw error
         }
       } catch (error) {
@@ -534,8 +470,8 @@ export function createSubscriptionClient(
           yield { type: 'error', code: 'request-failed', message: error.message }
           return
         }
-        // This app's own refusal to build or read the request (a tool it
-        // cannot send, an output cap it was not given) is said as that.
+        // This app's own refusal to build the request (a tool it cannot
+        // send) is said as that.
         if (error instanceof ResponsesDecodeError && error.isLocal) {
           yield {
             type: 'error',

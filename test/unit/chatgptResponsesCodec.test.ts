@@ -6,7 +6,6 @@ import * as z from 'zod/mini'
 import {
   createResponsesCodec,
   ResponsesDecodeError,
-  type ResponsesDecodeSink,
 } from '../../src/core/backends/modelapi/codecs/responses'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { CHATGPT_TOOL_NAMESPACE_DESCRIPTION } from '../../src/shared/constants'
@@ -17,12 +16,8 @@ const codec = createResponsesCodec({
   toolNamespace: 'functions',
   toolNamespaceDescription: CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
 })
-// The error/created fixtures produce no output tokens.
-const sink: ResponsesDecodeSink = {
-  outputCap: { maxOutputTokens: 512, countOutputTokens: () => 0, abort: () => undefined },
-}
 function decode(chunks: AsyncIterable<Uint8Array>) {
-  return codec.decodeStream(chunks, sink)
+  return codec.decodeStream(chunks)
 }
 const limitMessage =
   'The ChatGPT user has reached their Subscription Sharing usage limit. Ask the user to try again after their usage limit resets or use an API key instead.'

@@ -932,7 +932,6 @@
     "reportContent": "Zgłoś szkodliwe treści",
     "fastDetail": "{description}. Domyślnie wyłączone: zużywa więcej limitu Twojego planu.",
     "requestFailed": "Żądanie planu ChatGPT nie powiodło się: {message}",
-    "streamTooLarge": "Odpowiedź ChatGPT była większa, niż akceptuje ta aplikacja. Poproś o krótszą odpowiedź.",
     "requestNotBuilt": "Ta aplikacja nie mogła przygotować żądania planu ChatGPT ({reason}). Nic nie zostało wysłane."
   },
   "untitledConversation": "Bez tytułu",

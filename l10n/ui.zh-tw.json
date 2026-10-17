@@ -920,7 +920,6 @@
     "reportContent": "檢舉有害內容",
     "fastDetail": "{description}。預設為關閉：會消耗更多的方案額度。",
     "requestFailed": "ChatGPT 方案請求失敗：{message}",
-    "streamTooLarge": "ChatGPT 的回覆超出此應用程式接受的大小。請要求較短的回答。",
     "requestNotBuilt": "此應用程式無法準備 ChatGPT 方案要求({reason})。未傳送任何內容。"
   },
   "untitledConversation": "未命名",

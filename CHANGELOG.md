@@ -30,13 +30,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ChatGPT plan replies are no longer cut short by this app. The app stopped a
+  plan reply once its own count passed 32,768 output tokens (Meta's figure,
+  counted as bytes) or the stream passed 16 MiB, although OpenAI's plan route
+  takes no output cap and tells apps to omit `max_output_tokens`. A plan
+  reply now ends where the model itself ends it.
+
 - Review-only tests that fabricated ChatGPT/provider/editor/store behavior were removed or replaced with real native-store and pure-module checks; historical harness passes are no longer claimed as product proof.
 
 - Credential reads now reclaim a crashed writer's orphaned secret parts and generation record, even when the primary value is absent; recovery no longer waits for a later write or delete.
 
 - Credential-store verification now uses a separate random test service for every run. Its cleanup no longer enumerates the production service, whose native API returns passwords as well as account names.
 
-- ChatGPT sign-in and plan turns: several local problems were reported as "ChatGPT is temporarily unavailable. Try again.", which retrying cannot fix. Each now says what it is: another window or process holding the sign-in lock past the wait, a sign-in you cancelled, a browser that could not open the sign-in address, a providers file that cannot be read or saved (with the reason), an editor credential store that refuses, a failed local file step (with the operating system's code), a plan reply larger than this app accepts, and a plan request this app could not prepare. A failure that really is the network or OpenAI keeps the retry sentence. The Models panel now shows the same validated ChatGPT failure cause for a failed connect; unrelated exceptions keep the general sentence without leaking their text.
+- ChatGPT sign-in and plan turns: several local problems were reported as "ChatGPT is temporarily unavailable. Try again.", which retrying cannot fix. Each now says what it is: another window or process holding the sign-in lock past the wait, a sign-in you cancelled, a browser that could not open the sign-in address, a providers file that cannot be read or saved (with the reason), an editor credential store that refuses, a failed local file step (with the operating system's code), and a plan request this app could not prepare. A failure that really is the network or OpenAI keeps the retry sentence. The Models panel now shows the same validated ChatGPT failure cause for a failed connect; unrelated exceptions keep the general sentence without leaking their text.
 
 - Credential and runtime grant locks no longer invent an ownership-wait deadline. They wait for the owner unless the caller explicitly supplies cancellation or a deadline.
 
