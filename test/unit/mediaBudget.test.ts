@@ -99,6 +99,27 @@ describe('Model API replay media budget', () => {
     }).not.toThrow()
   })
 
+  it('counts already-queued slots beside fresh media, not fresh media alone', () => {
+    // RVNOLIMITS4: removing the aggregate character tally must not drop the
+    // queued slot count steered admission passes in. One fresh image fits
+    // alone and beside 49 queued slots, and refuses beside a full queue.
+    const image = {
+      type: 'input_image',
+      image_url: 'data:image/png;base64,AQ==',
+      detail: 'auto',
+    } as const
+    const budget = new MediaBudget()
+    expect(() => {
+      budget.assertMessageFits([image])
+    }).not.toThrow()
+    expect(() => {
+      budget.assertMessageFits([image], 49)
+    }).not.toThrow()
+    expect(() => {
+      budget.assertMessageFits([image], 50)
+    }).toThrow()
+  })
+
   it('weighs uploaded PDFs by known pages and reserves 50 slots when pages are unknown', () => {
     const known = { type: 'input_text', text: 'test-upload:file-pdf' } as const
     const unknown = { type: 'input_text', text: 'test-upload:file-opaque' } as const
