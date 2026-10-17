@@ -21,6 +21,14 @@ const BUDGET = 2
 const DELAY = 250
 const GEN = 5
 
+type ViewTransition = ReturnType<typeof applyVaultViewEvent>
+/** Every locked view names the state, shows it, and hides item rows. */
+function expectLockedView({ state: next, effects }: ViewTransition): void {
+  expect(next.kind).toBe('locked')
+  expect(effects.frame?.status.state).toBe('locked')
+  expect(effects.frame?.items).toHaveLength(0)
+}
+
 function unlockedSnapshot(): VaultPanelState {
   const snapshot = panel()
   snapshot.status.lockEpoch = 3
@@ -183,9 +191,7 @@ describe('RVCM1091F view state machine table', () => {
         BUDGET,
         DELAY,
       )
-      expect(next.kind).toBe('locked')
-      expect(effects.frame?.status.state).toBe('locked')
-      expect(effects.frame?.items).toHaveLength(0)
+      expectLockedView({ state: next, effects })
       expect(effects.frame?.grants).toHaveLength(0)
       expect(effects.frame?.audit).toHaveLength(0)
       expect(effects.frame?.pending).toHaveLength(0)
@@ -278,9 +284,7 @@ describe('RVCM1091F view state machine table', () => {
       BUDGET,
       DELAY,
     )
-    expect(next.kind).toBe('locked')
-    expect(effects.frame?.status.state).toBe('locked')
-    expect(effects.frame?.items).toHaveLength(0)
+    expectLockedView({ state: next, effects })
     expect(effects.toast).toBe(UI_TEXT.vault.operationFailed)
     expect(effects.reload).toBe(false)
   })
