@@ -18,10 +18,13 @@ share-title truncation in `src/host/prompts/promptCommands.ts`, fixed in
 
 STOP MAKING FAKE compliance: every proof test below runs the REAL module
 with real inputs (no mocks, no stand-ins, no invented provider/CLI data);
-no test merely asserts that text, a key or a file exists; the two
-behaviours that need a live run (65 real subagent spawns, a real
-multi-thousand-file PR checkout) are named as lead real-life checks,
-not stood in for.
+the behaviours that need a live run (65 real subagent spawns, a real
+multi-thousand-file PR checkout, a hook agent past 5 tool steps) are named
+as lead real-life checks, not stood in for. Review correction
+(RVNOLIMITS1): the lane's `hookAgentSteps.test.ts` only read source text
+for the removed constant's name — a reflex guard test, which the owner's
+rules forbid — so the review deleted it; A13's proof is the code (the
+unbounded loop in `hookModelEntry.ts`) plus the real-life check below.
 
 ## Per-row table
 
@@ -101,6 +104,9 @@ test; the big read carries the sanctioned named per-test timeout
 - Import a conversation near the replay bound, and one just over it: the
   first resumes and answers, the second refuses once at import (A29 kept).
 - Export a conversation past 16 MiB and open it back as a share file.
+- Run an agent-type hook whose model calls read-only tools more than five
+  times: it keeps going until the model stops (A13; no unit test can prove
+  this without a stand-in for the model, so it is a live check only).
 
 ## APP PROBLEMS
 
