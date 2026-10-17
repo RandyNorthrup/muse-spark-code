@@ -1,6 +1,6 @@
 import { spawnResourceProcess } from '../../../core/resources/launcher'
 import path from 'node:path'
-import { UI_TEXT, VAULT_APPROVAL_TTL_MS } from '../../../shared/constants'
+import { UI_TEXT, VAULT_TRANSPORT_TIMEOUT_MS } from '../../../shared/constants'
 import { macVaultFailure, type MacVaultTransport } from './macVaultProtocol'
 import { collectSlotChunk, drainSlotStderr, watchSlotChildErrors } from './slotChild'
 
@@ -49,7 +49,7 @@ export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaul
         const abort = () => {
           finish(false)
         }
-        const timer = setTimeout(abort, VAULT_APPROVAL_TTL_MS)
+        const timer = setTimeout(abort, VAULT_TRANSPORT_TIMEOUT_MS)
         watchSlotChildErrors(child, signal, abort)
         child.stdout.on('data', (chunk: Buffer) => {
           if (isSettled) {

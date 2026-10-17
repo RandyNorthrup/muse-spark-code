@@ -2,7 +2,7 @@ import { spawnResourceProcess } from '../../../core/resources/launcher'
 import path from 'node:path'
 import {
   UI_TEXT,
-  VAULT_APPROVAL_TTL_MS,
+  VAULT_TRANSPORT_TIMEOUT_MS,
   VAULT_KEY_BYTES,
   VAULT_LIMITS,
 } from '../../../shared/constants'
@@ -134,7 +134,8 @@ export function windowsVaultTransport(
         const abort = () => {
           finish(false)
         }
-        if (parsed.data.operation !== 'screenLock') timer = setTimeout(abort, VAULT_APPROVAL_TTL_MS)
+        if (parsed.data.operation !== 'screenLock')
+          timer = setTimeout(abort, VAULT_TRANSPORT_TIMEOUT_MS)
         watchSlotChildErrors(child, signal, abort)
         child.stdout.on('data', (chunk: Buffer) => {
           if (isSettled) {
