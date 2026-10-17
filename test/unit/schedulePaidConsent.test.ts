@@ -16,6 +16,7 @@ import {
   type SchedulePaidIdentity,
 } from '../../src/core/paid/paidConsent'
 import { scheduleV2Schema, type ScheduleV2 } from '../../src/shared/scheduleV2'
+import { canonicalUsd } from '../../src/shared/usdSchema'
 
 const NOW = 1_790_000_000_000
 const AT = 1_800_000_000_000
@@ -25,7 +26,7 @@ const identity: SchedulePaidIdentity = {
   accountId: 'test-account',
   priceTier: 'standard',
   price: '$1.00 per run',
-  sharedDailyBudgetUsd: '2',
+  sharedDailyBudgetUsd: canonicalUsd('2'),
 }
 
 function consentFor(modelId: string): ScheduleConsent {
@@ -34,7 +35,7 @@ function consentFor(modelId: string): ScheduleConsent {
     accountId: identity.accountId,
     priceTier: identity.priceTier,
     grantedAtMs: NOW,
-    dailyCapUsd: '1',
+    dailyCapUsd: canonicalUsd('1'),
     sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
     extras: [],
   }
@@ -54,8 +55,8 @@ function scheduleWith(consent: ScheduleConsent | undefined): ScheduleV2 {
     whenClosed: 'open',
     catchUp: 'runOnce',
     mode: 'manual',
-    grant: { rules: [], destinationIds: [], paidCapUsd: '1' },
-    paidCapUsd: '1',
+    grant: { rules: [], destinationIds: [], paidCapUsd: canonicalUsd('1') },
+    paidCapUsd: canonicalUsd('1'),
     ...(consent !== undefined && { paidConsent: consent }),
     parallel: false,
     creator: { kind: 'user' },
@@ -238,7 +239,7 @@ describe('account paid-use question names its own account (M58/D140)', () => {
       provider: 'test-provider',
       account: 'test-account',
       price: '$1.00 per run',
-      dailyBudgetUsd: '2',
+      dailyBudgetUsd: canonicalUsd('2'),
     })
     expect(question).toContain('test-provider')
     expect(question).toContain('test-account')
