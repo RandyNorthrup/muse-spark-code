@@ -160,7 +160,7 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'shared/constants.ts:modelApiSessionBudgetUsd': SETTING,
   'shared/constants.ts:minimumUsd': SETTING,
   'shared/constants.ts:maximumUsd': SETTING,
-  'runtime/runtimeAccountingEntry.ts:paidDailyBudgetUsd': SETTING,
+  'runtime/dailyBudgetSetting.ts:paidDailyBudgetUsd': SETTING,
 }
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url))
