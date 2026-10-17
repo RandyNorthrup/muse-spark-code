@@ -673,10 +673,29 @@ export function directoryAddedFields(relativePath: string): Readonly<Record<stri
 }
 
 /**
+ * What an Elicitation hook sees before the form shows: the requesting
+ * server, its bounded message and the field names (which are required).
+ * Values are never sent up front: a user hook answers through the `answer`
+ * field, which the caller validates against the server's schema.
+ */
+export function elicitationFields(
+  server: string,
+  message: string,
+  fieldNames: readonly string[],
+  requiredNames: readonly string[],
+): Readonly<Record<string, unknown>> {
+  return {
+    server,
+    message: boundedHookText(message, HOOK_DISPLAY_MESSAGE_MAX_CHARS),
+    fields: [...fieldNames],
+    required: [...requiredNames],
+  }
+}
+
+/**
  * What the user answered. A project hook sees the action and the field
  * names only; `values` are passed for user-scope hooks alone (the caller
  * decides the scope; lane M validates the answer against the schema).
- * @unwired M91 project hook elicitation fields
  */
 export function elicitationResultFields(options: {
   readonly server: string
@@ -692,7 +711,7 @@ export function elicitationResultFields(options: {
   }
 }
 
-/** @unwired M91 team hook idle field names */
+/** The fields a TeammateIdle hook sees: the idling task and its running siblings. */
 export function teammateIdleFields(options: {
   readonly name: string
   readonly siblingsRunning: number
