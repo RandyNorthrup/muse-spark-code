@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { foldName, heldTree } from '../../src/core/git/heldTree'
-import {
-  HELD_CHECKOUT_MAX_BYTES,
-  HELD_CHECKOUT_MAX_ENTRIES,
-  UI_TEXT,
-} from '../../src/shared/constants'
-import { fill, formatBytes } from '../../src/shared/l10n/text'
+import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 const BLOB = 'ce013625030ba8dba906f756967f9e9ca394464a'
 const COMMIT = '1111111111111111111111111111111111111111'
@@ -152,31 +148,20 @@ describe('heldTree (M71): what a held pull request writes', () => {
     },
   )
 
-  it('writes up to its limits and refuses one entry or one byte more', () => {
-    const tooLarge = {
-      ok: false,
-      reason: fill(UI_TEXT.openPullRequestTooLarge, {
-        files: HELD_CHECKOUT_MAX_ENTRIES,
-        size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
-      }),
-    }
-    const names = Array.from(
-      { length: HELD_CHECKOUT_MAX_ENTRIES + 1 },
-      (_, index) => `f${String(index)}`,
-    )
-    const most = heldTree(files(...names.slice(0, -1)), 'linux')
-    expect(most.ok ? most.entries.length : 0).toBe(HELD_CHECKOUT_MAX_ENTRIES)
-    expect(heldTree(files(...names), 'linux')).toEqual(tooLarge)
-    const half = Math.floor(HELD_CHECKOUT_MAX_BYTES / 2)
-    expect(heldTree(record('100644', 'a', half) + record('100644', 'b', half), 'linux').ok).toBe(
-      true,
-    )
+  it('writes past the old limits: entries and bytes at any size (D121)', () => {
+    const names = Array.from({ length: 20_001 }, (_, index) => `f${String(index)}`)
+    const many = heldTree(files(...names), 'linux')
+    expect(many.ok).toBe(true)
+    expect(many.ok ? many.entries.length : 0).toBe(20_001)
     expect(
-      heldTree(
-        record('100644', 'a', half) + record('100644', 'b', HELD_CHECKOUT_MAX_BYTES - half + 1),
-        'linux',
-      ),
-    ).toEqual(tooLarge)
+      heldTree(record('100644', 'a', 200_000_000) + record('100644', 'b', 100_000_000), 'linux'),
+    ).toEqual({
+      ok: true,
+      entries: [
+        { path: 'a', kind: 'file', oid: BLOB, size: 200_000_000 },
+        { path: 'b', kind: 'file', oid: BLOB, size: 100_000_000 },
+      ],
+    })
   })
 
   it('folds names as the platform’s usual file systems compare them', () => {

@@ -20,11 +20,9 @@ import {
   GIT_MODE_FILE,
   GIT_MODE_GITLINK,
   GIT_MODE_SYMLINK,
-  HELD_CHECKOUT_MAX_BYTES,
-  HELD_CHECKOUT_MAX_ENTRIES,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, formatBytes } from '../../shared/l10n/text'
+import { fill } from '../../shared/l10n/text'
 import { isWindowsDeviceLike, windowsPathProblem } from '../windowsPathSpelling'
 
 export type HeldEntryKind = 'file' | 'executable' | 'link' | 'submodule'
@@ -128,7 +126,6 @@ export function heldTree(listing: string, platform: NodeJS.Platform): HeldTree {
   // Every folder and file the paths name, folded: what is already there.
   const names = new Map<string, { readonly spelling: string; readonly isFolder: boolean }>()
   const entries: HeldEntry[] = []
-  let bytes = 0
   for (const record of listing.split(NUL)) {
     if (record === '') {
       continue
@@ -168,16 +165,10 @@ export function heldTree(listing: string, platform: NodeJS.Platform): HeldTree {
         )
       }
     }
-    bytes += size
+    // Entries and bytes at any size (D121: the removed 20,000-entry and
+    // 250 MB ceilings were invented); unsafe and colliding paths still
+    // refuse above.
     entries.push({ path: entryPath, kind, oid, size })
-    if (entries.length > HELD_CHECKOUT_MAX_ENTRIES || bytes > HELD_CHECKOUT_MAX_BYTES) {
-      return refused(
-        fill(UI_TEXT.openPullRequestTooLarge, {
-          files: HELD_CHECKOUT_MAX_ENTRIES,
-          size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
-        }),
-      )
-    }
   }
   return { ok: true, entries }
 }

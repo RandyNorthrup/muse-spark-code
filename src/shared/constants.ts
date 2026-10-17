@@ -1776,11 +1776,10 @@ export const GIT_PUSH_CREDENTIAL_VARIABLES = [
   'GH_ENTERPRISE_TOKEN',
   'GITHUB_ENTERPRISE_TOKEN',
 ] as const
-// The extension writes such a checkout itself (core/git/heldTree.ts): at
-// most this many files and folders, and this many bytes in all; a bigger
-// pull request is refused before anything is written.
-export const HELD_CHECKOUT_MAX_ENTRIES = 20_000
-export const HELD_CHECKOUT_MAX_BYTES = 250_000_000
+// The extension writes such a checkout itself (core/git/heldTree.ts) at any
+// size (D121: the removed 20,000-entry / 250 MB ceilings were invented); a
+// pull request is still refused before anything is written when a path is
+// unsafe or collides.
 // git's modes for a symbolic link and a submodule in a tree.
 export const GIT_MODE_SYMLINK = '120000'
 export const GIT_MODE_GITLINK = '160000'

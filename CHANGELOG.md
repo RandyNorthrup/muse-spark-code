@@ -31,7 +31,9 @@ happened, not what was planned; superseded entries are kept.
   hard ceiling (the provider's documented limits, live 429 adaptation and
   the machine bound the rest); exports and shares write and read back past
   16 MiB (the transcript item count still bounds them; the report reader
-  keeps its own 16 MiB bound under a new name).
+  keeps its own 16 MiB bound under a new name); a held pull request checks
+  out past 20000 entries and 250 MB (an unreadable listing still refuses;
+  unsafe and colliding paths still refuse before anything is written).
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

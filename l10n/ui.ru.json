@@ -1768,7 +1768,6 @@
   "openPullRequestFiltersUnavailable": "При этой версии или конфигурации Git безопасное извлечение pull request не может отключить программы репозитория. Требуется Git 2.36 или новее. Ничего не извлечено.",
   "openPullRequestUnsafePath": "В pull request есть путь, который удерживаемое извлечение не записывает: {path}. Ничего не извлечено.",
   "openPullRequestPathCollision": "{first} и {second} были бы здесь одним и тем же файлом или папкой. Ничего не извлечено.",
-  "openPullRequestTooLarge": "Pull request больше, чем записывает удерживаемое извлечение (не более {files} файлов и папок, всего {size}). Ничего не извлечено.",
   "openPullRequestUnreadable": "Git вернул файлы pull request не так, как их перечисляет его дерево.",
   "openPullRequestAction": "Открыть",
   "openPullRequestExisting": "Запрос на вытягивание #{number} уже извлечен. Открыть его на той фиксации, на которой он был извлечен?",

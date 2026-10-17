@@ -1684,7 +1684,6 @@
   "openPullRequestFiltersUnavailable": "此 Git 版本或設定無法停用儲存庫程式並安全簽出提取要求。需要 Git 2.36 或更新版本。未執行任何簽出。",
   "openPullRequestUnsafePath": "提取要求中有一個保留簽出不會寫入的路徑：{path}。未執行任何簽出。",
   "openPullRequestPathCollision": "{first} 和 {second} 在這裡會是同一個檔案或資料夾。未執行任何簽出。",
-  "openPullRequestTooLarge": "提取要求超出保留簽出可寫入的大小（最多 {files} 個檔案和資料夾，總計 {size}）。未執行任何簽出。",
   "openPullRequestUnreadable": "Git 傳回的提取要求檔案與其樹中列出的不一致。",
   "openPullRequestAction": "開啟",
   "openPullRequestExisting": "提取要求 #{number} 已簽出。要在其簽出時的認可開啟它嗎？",

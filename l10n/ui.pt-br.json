@@ -1740,7 +1740,6 @@
   "openPullRequestFiltersUnavailable": "O checkout seguro do pull request não pode desativar programas do repositório com esta versão ou configuração do Git. É necessário Git 2.36 ou posterior. Nenhum checkout foi feito.",
   "openPullRequestUnsafePath": "O pull request tem um caminho que um checkout retido não grava: {path}. Nenhum checkout foi feito.",
   "openPullRequestPathCollision": "{first} e {second} seriam aqui o mesmo arquivo ou pasta. Nenhum checkout foi feito.",
-  "openPullRequestTooLarge": "O pull request é maior do que um checkout retido grava (no máximo {files} arquivos e pastas, {size} no total). Nenhum checkout foi feito.",
   "openPullRequestUnreadable": "O Git não devolveu os arquivos do pull request como a árvore dele os lista.",
   "openPullRequestAction": "Abrir",
   "openPullRequestExisting": "A solicitação de pull #{number} já está com check-out. Abri-la no commit em que o check-out foi feito?",

@@ -1740,7 +1740,6 @@
   "openPullRequestFiltersUnavailable": "L’extraction sécurisée de la pull request ne peut pas désactiver les programmes du dépôt avec cette version ou configuration de Git. Git 2.36 ou ultérieur est requis. Rien n’a été extrait.",
   "openPullRequestUnsafePath": "La pull request contient un chemin qu’une extraction retenue n’écrit pas : {path}. Rien n’a été extrait.",
   "openPullRequestPathCollision": "{first} et {second} seraient ici le même fichier ou dossier. Rien n’a été extrait.",
-  "openPullRequestTooLarge": "La pull request dépasse ce qu’une extraction retenue écrit (au plus {files} fichiers et dossiers, {size} au total). Rien n’a été extrait.",
   "openPullRequestUnreadable": "Git n’a pas renvoyé les fichiers de la pull request tels que son arbre les liste.",
   "openPullRequestAction": "Ouvrir",
   "openPullRequestExisting": "La pull request #{number} est déjà extraite. L’ouvrir au commit auquel elle a été extraite ?",

@@ -41,8 +41,6 @@ import {
   GIT_BATCH_KILL_GRACE_MS,
   GIT_OUTPUT_MAX_BYTES,
   GIT_WORKTREE_TIMEOUT_MS,
-  HELD_CHECKOUT_MAX_BYTES,
-  HELD_CHECKOUT_MAX_ENTRIES,
   HELD_CLEANUP_REMOVE_RETRIES,
   HELD_CLEANUP_TIMEOUT_MS,
   HELD_EXECUTABLE_MODE,
@@ -53,7 +51,7 @@ import {
   UNTRUSTED_CHECKOUT_MIN_GIT_MINOR,
   WORKTREE_RECORD_SAVE_ATTEMPTS,
 } from '../../../shared/constants'
-import { fill, formatBytes } from '../../../shared/l10n/text'
+import { fill } from '../../../shared/l10n/text'
 import { GitHubClient, isCommitSha, type PullRequest } from '../../../core/git/github'
 import { repositoryLabel } from '../../../core/git/githubRemote'
 import {
@@ -532,15 +530,6 @@ async function heldDestinationOf(platform: NodeJS.Platform, folder: string, entr
   return resolution
 }
 
-function tooLarge(): Error {
-  return new PullRequestServiceError(
-    fill(UI_TEXT.openPullRequestTooLarge, {
-      files: HELD_CHECKOUT_MAX_ENTRIES,
-      size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
-    }),
-  )
-}
-
 function unreadable(): Error {
   return new PullRequestServiceError(UI_TEXT.openPullRequestUnreadable)
 }
@@ -830,7 +819,7 @@ export function createNodePullRequestCheckoutGit(
           'code' in error &&
           error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
         ) {
-          throw tooLarge()
+          throw unreadable()
         }
         throw error
       }

@@ -14431,6 +14431,11 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   picker reads them back whole (the transcript item count still bounds all
   three; the report reader keeps its 16 MiB bound as
   `REPORT_SOURCE_MAX_BYTES`).
+- A35 (NOLIMITS1): `HELD_CHECKOUT_MAX_ENTRIES` = 20000 and
+  `HELD_CHECKOUT_MAX_BYTES` = 250 MB removed — not about a model; the tree
+  parses and the checkout writes at any size (an ls-tree listing past the
+  git reader's buffer still refuses as unreadable; unsafe and colliding
+  paths still refuse before anything is written).
 
 ## 3. Open questions (need the owner)
 

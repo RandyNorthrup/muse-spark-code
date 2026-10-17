@@ -1712,7 +1712,6 @@
   "openPullRequestFiltersUnavailable": "Bu Git sürümü veya yapılandırmasıyla güvenli pull request checkout işlemi depo programlarını devre dışı bırakamaz. Git 2.36 veya sonrası gerekir. Hiçbir checkout yapılmadı.",
   "openPullRequestUnsafePath": "Pull request, bekletilen bir checkout’un yazmadığı bir yol içeriyor: {path}. Hiçbir checkout yapılmadı.",
   "openPullRequestPathCollision": "{first} ve {second} burada aynı dosya veya klasör olurdu. Hiçbir checkout yapılmadı.",
-  "openPullRequestTooLarge": "Pull request, bekletilen bir checkout’un yazdığından büyük (en çok {files} dosya ve klasör, toplam {size}). Hiçbir checkout yapılmadı.",
   "openPullRequestUnreadable": "Git, pull request’in dosyalarını ağacının listelediği gibi geri vermedi.",
   "openPullRequestAction": "Aç",
   "openPullRequestExisting": "#{number} numaralı çekme isteği zaten kullanıma alınmış. Kullanıma alındığı işlemede açılsın mı?",
