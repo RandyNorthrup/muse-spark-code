@@ -80,8 +80,12 @@ named only the context window.
 Fix (only facts the app has; nothing guessed): contributor-suffixed models
 show the `pickerContributorTier` mark ("1M context · Contributor"); other
 models are unmarked (their tier is the CLI's to report — see UPSTREAM).
-The controller marks `-contributor` ids `trainsOnContent: true`, the
-protocol field the contributor switch reads.
+The picker reads the `-contributor` suffix itself; the controller also
+forwards `trainsOnContent: true` for such ids in the model list, a
+protocol field no webview code reads today (corrected in review
+RVMSM114: the visible mark does not depend on that field, and the
+palette test's fixture no longer sets it, so the test proves the suffix
+path the code takes).
 Not done: per-model prices for CLI models — the app holds no subscription
 price facts and must not invent them (see UPSTREAM). Also unchanged for
 the measured case: CLI 1.4.7 lists plain ids (no `-contributor` suffix),
@@ -227,6 +231,16 @@ capability both backends already forward: `pricing`, `inputUsdPerMTokens`,
 .github/semgrep/requirements.txt` and exits 0. Not run.
 
 ## Suites run (repo default timeouts, `--maxWorkers=3`, one at a time)
+
+Review RVMSM114 note: the existing-suite counts below ran on this lane's
+0.18.2 base. Several named files (`authService`, `cliAccount`,
+`webviewSetup`, `App`, `conversationController`, `Composer`, `uiState`,
+`bundledSkillsInstall`, among others) were deleted on main by TESTCUT
+before MSM114 merged this lane, so they do not exist on the merged tree
+and their counts are history, not current coverage. On the merged tree
+the coverage is the new suites below plus the `vitest related` runs in
+`docs/certification/msm114.md` §3; the same caveat applies to the F60,
+F66 and F67 proof lines above that cite those deleted files.
 
 New: skillsOfferDecline (4), authFastSignIn (3), cliPeek (3),
 composerPlaceholder (2), startupWords (2), palettePanelText (4) — all passed.
