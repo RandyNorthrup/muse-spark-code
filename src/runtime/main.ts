@@ -928,6 +928,7 @@ async function main(): Promise<number> {
   await loadUiTable({
     language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
     readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+    surface: 'terminal',
     log: stderrLogger((line) => {
       writeLine(process.stderr, line)
     }, 'warn'),
@@ -1033,6 +1034,7 @@ async function main(): Promise<number> {
               new Intl.DateTimeFormat().resolvedOptions().locale,
             ),
             readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+            surface: 'terminal',
             log,
           }),
         )
@@ -1143,6 +1145,7 @@ async function main(): Promise<number> {
   await loadUiTable({
     language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
     readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+    surface: 'terminal',
     log,
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
