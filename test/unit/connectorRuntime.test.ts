@@ -2,6 +2,7 @@
 // the protocol's negotiation and cancellation, our approval page over the
 // real companion server, the owner-only store and the owner's commands.
 import { mkdtemp, readFile, rm, stat, writeFile, mkdir } from 'node:fs/promises'
+import { request, type IncomingHttpHeaders } from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { PassThrough, Writable } from 'node:stream'
@@ -20,7 +21,63 @@ import { serveStdio } from '../../src/runtime/connector/stdio'
 import { startApprovalPage } from '../../src/runtime/connector/approvalPage'
 import { ConnectorStore } from '../../src/runtime/connector/store'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
-import { call, headers, login } from './helpers/companion'
+/** Real loopback HTTP against the real approval server (main's test overhaul deleted `./helpers/companion`). */
+function headers(panel: { url: string }, token?: string): string[] {
+  const origin = new URL(panel.url).origin
+  return [
+    'Host',
+    new URL(origin).host,
+    'Origin',
+    origin,
+    'Sec-Fetch-Site',
+    'same-origin',
+    'X-Muse-Panel',
+    '1',
+    'Content-Type',
+    'application/json',
+    ...(token === undefined ? [] : ['Authorization', `Bearer ${token}`]),
+  ]
+}
+
+function call(
+  panel: { url: string },
+  path: string,
+  method = 'GET',
+  body?: string | Buffer,
+  supplied?: string[],
+): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
+  return new Promise((resolve, reject) => {
+    const outgoing = request(
+      new URL(path, panel.url),
+      { method, headers: supplied ?? headers(panel), setHost: false },
+      (response) => {
+        const chunks: Buffer[] = []
+        response.on('data', (chunk: Buffer) => {
+          chunks.push(chunk)
+        })
+        response.on('error', reject)
+        response.on('end', () => {
+          resolve({
+            status: response.statusCode ?? 0,
+            headers: response.headers,
+            body: Buffer.concat(chunks).toString('utf8'),
+          })
+        })
+      },
+    )
+    outgoing.on('error', reject)
+    outgoing.end(body)
+  })
+}
+
+async function login(panel: { url: string; launchUrl: () => string }): Promise<string> {
+  const code = new URLSearchParams(new URL(panel.launchUrl()).hash.slice(1)).get('k')
+  const result = await call(panel, '/session', 'POST', JSON.stringify({ code }))
+  if (result.status !== 200) throw new Error(`login failed: ${result.body}`)
+  const token = result.headers.authorization?.slice('Bearer '.length)
+  if (token === undefined) throw new Error('login token absent')
+  return token
+}
 
 /** The awaited result's field (the lint rule forbids member access on an await). */
 async function field<T extends object, K extends keyof T>(
