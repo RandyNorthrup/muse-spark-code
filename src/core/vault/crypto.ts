@@ -16,12 +16,32 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { vaultEncodedSchema, vaultMaterialSchema, type VaultItem } from '../../shared/vault'
+import type { VaultBrokerResponse } from '../../shared/vaultProtocol'
+import { fill, formatDateTime, formatNumber } from '../../shared/l10n/text'
 
 /** Safe codes for callers; exceptions never include a value or parser input. */
 export class VaultError extends Error {
   constructor(readonly code: 'invalid' | 'authentication' | 'rollback' | 'locked' | 'busy' | 'io') {
     super(code === 'rollback' ? UI_TEXT.vault.rollback : UI_TEXT.vault.noAccess)
     this.name = 'VaultError'
+  }
+}
+
+/** Typed, value-free writer refusal, also validated on the private management channel. */
+export class VaultWriterError extends VaultError {
+  constructor(
+    readonly writer: NonNullable<
+      Extract<VaultBrokerResponse['response'], { kind: 'refused' }>['writer']
+    >,
+  ) {
+    super('busy')
+    this.message =
+      writer.kind === 'ownerUnknown'
+        ? UI_TEXT.vault.ownerUnknown
+        : fill(writer.otherMachine ? UI_TEXT.vault.busyOtherMachine : UI_TEXT.vault.busyHolder, {
+            pid: formatNumber(writer.pid),
+            since: formatDateTime(writer.acquiredAt),
+          })
   }
 }
 

@@ -12,6 +12,7 @@ import type {
   VaultItemMetadata,
 } from '../../../shared/vault'
 import type { VaultBrokerEvent, VaultBrokerSnapshot } from '../../../shared/vaultProtocol'
+import { VaultWriterError } from '../crypto'
 import type { VaultBrokerClient } from './client'
 import type { VaultChannelResponse } from './frames'
 import type { VaultImportReport, VaultManagementRefusal } from './ports'
@@ -21,46 +22,27 @@ export type VaultBrokerConnection = Pick<VaultBrokerClient, 'send' | 'close' | '
 export type VaultConnect = () => Promise<VaultBrokerConnection>
 
 /** The message a person reads for each fixed refusal; never broker exception text. */
-export function vaultRefusalMessage(reason: VaultManagementRefusal): string {
-  switch (reason) {
-    case 'locked':
-    case 'busy':
-    case 'rollback':
-    case 'storeUnavailable': {
-      return UI_TEXT.vault[reason]
-    }
-    case 'uncreated': {
-      return UI_TEXT.vault.setupNeeded
-    }
-    case 'exists': {
-      return UI_TEXT.vault.setupExists
-    }
-    case 'conflict': {
-      return UI_TEXT.vault.itemConflict
-    }
-    case 'deleteConflict': {
-      return UI_TEXT.vault.deleteConflict
-    }
-    case 'sourceGone': {
-      return UI_TEXT.vault.sourceGone
-    }
-    case 'sourceUnreadable': {
-      return UI_TEXT.vault.sourceUnreadable
-    }
-    case 'sourceUnavailable': {
-      return UI_TEXT.vault.sourceUnavailable
-    }
-    case 'invalid':
-    case 'io': {
-      return UI_TEXT.vault.operationFailed
-    }
-  }
+export function vaultRefusalMessage(
+  reason: VaultManagementRefusal,
+  writer?: Extract<VaultChannelResponse['response'], { kind: 'refused' }>['writer'],
+): string {
+  if (reason === 'busy' && writer) return new VaultWriterError(writer).message
+  if (reason === 'uncreated') return UI_TEXT.vault.setupNeeded
+  if (reason === 'exists') return UI_TEXT.vault.setupExists
+  if (reason === 'conflict') return UI_TEXT.vault.itemConflict
+  return reason === 'invalid' || reason === 'io'
+    ? UI_TEXT.vault.operationFailed
+    : UI_TEXT.vault[reason]
 }
 
+function expectKind<K extends VaultChannelResponse['response']['kind']>(
+  response: VaultChannelResponse['response'],
+  kind: K,
+): asserts response is Extract<VaultChannelResponse['response'], { kind: K }> {
+  if (response.kind !== kind) throw new Error(UI_TEXT.vault.noAccess)
+}
 function expectOk(response: VaultChannelResponse['response']): void {
-  if (response.kind === 'ok') return
-  if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
-  throw new Error(UI_TEXT.vault.noAccess)
+  expectKind(response, 'ok')
 }
 
 export class VaultManageSession {
@@ -111,18 +93,20 @@ export class VaultManageSession {
       client.close()
     }
   }
-  private simple(
+  private async simple(
     request: Parameters<VaultBrokerConnection['send']>[0],
     authorize?: () => void,
     signal?: AbortSignal,
   ): Promise<VaultChannelResponse['response']> {
-    return this.call((client) => client.send(request), authorize, signal)
+    const response = await this.call((client) => client.send(request), authorize, signal)
+    if (response.kind === 'refused')
+      throw new Error(vaultRefusalMessage(response.reason, response.writer))
+    return response
   }
 
   async snapshot(): Promise<VaultBrokerSnapshot> {
     const response = await this.simple({ kind: 'snapshot' })
-    if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
-    if (response.kind !== 'snapshot') throw new Error(UI_TEXT.vault.noAccess)
+    expectKind(response, 'snapshot')
     return response.snapshot
   }
   async audit(): Promise<readonly VaultAuditRecord[]> {
@@ -132,7 +116,7 @@ export class VaultManageSession {
       requesterId: null,
       afterGeneration: 0,
     })
-    if (response.kind !== 'audit') throw new Error(UI_TEXT.vault.noAccess)
+    expectKind(response, 'audit')
     return response.records
   }
   async unlock(slotId: string | null, authorize?: () => void): Promise<void> {
@@ -189,8 +173,7 @@ export class VaultManageSession {
     signal?: AbortSignal,
   ): Promise<VaultImportReport> {
     const response = await this.simple({ kind: 'import', path }, authorize, signal)
-    if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
-    if (response.kind !== 'imported') throw new Error(UI_TEXT.vault.noAccess)
+    expectKind(response, 'imported')
     return { receipt: response.receipt, items: response.items }
   }
   async keepImport(receipt: string): Promise<void> {
@@ -201,8 +184,7 @@ export class VaultManageSession {
   }
   async resetBegin(): Promise<{ resetId: string; word: string }> {
     const response = await this.simple({ kind: 'resetBegin' })
-    if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
-    if (response.kind !== 'resetChallenge') throw new Error(UI_TEXT.vault.noAccess)
+    expectKind(response, 'resetChallenge')
     return { resetId: response.resetId, word: response.word }
   }
   async resetConfirm(resetId: string, word: string, authorize?: () => void): Promise<void> {
@@ -210,15 +192,13 @@ export class VaultManageSession {
   }
   async publicKey(itemId: string): Promise<string> {
     const response = await this.simple({ kind: 'publicKey', itemId })
-    if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
-    if (response.kind !== 'publicKey') throw new Error(UI_TEXT.vault.noAccess)
+    expectKind(response, 'publicKey')
     return response.publicKey
   }
   /** The one-time code as owned bytes; the caller shows it once and erases it. */
   async setup(): Promise<{ setupId: string; code: Buffer }> {
     const response = await this.simple({ kind: 'setup', protection: 'auto' })
-    if (response.kind === 'refused') throw new Error(vaultRefusalMessage(response.reason))
-    if (response.kind !== 'recoveryCode') throw new Error(UI_TEXT.vault.noAccess)
+    expectKind(response, 'recoveryCode')
     return { setupId: response.setupId, code: Buffer.from(response.code, 'ascii') }
   }
   async confirmSetup(setupId: string, authorize?: () => void): Promise<void> {

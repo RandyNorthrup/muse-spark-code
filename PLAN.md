@@ -33221,6 +33221,20 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**CM109LEASE (2026-10-11, lead design; supersedes timed vault takeover).**
+The vault writer permits takeover only after proven death on this machine,
+using exact OS birth evidence; a live, suspended, foreign-machine or unknown
+owner stays exclusive regardless of lease age. Acquisition refuses when its
+own exact birth cannot be established after bounded retries. Every local
+vault mutation is serialized and awaited before releasing ownership. Preserve
+protected-anchor regression detection and authenticated journal recovery;
+admit directory spellings by native identity while rejecting links. Other
+shared lease callers keep timed takeover. Qualify controlled late-dispatch
+schedules, real suspension beyond three lease periods, all eight kill cases,
+birth/foreign-machine/path tests and guard-removal drills in m109 certification.
+Scoped rig checks and all dependent suites are required; aggregate quality
+and Linux/macOS replay remain lead-owned. No gate or size cap changes.
+
 **CM109JOINA writer lease (2026-10-11, lead design).** Replace the bare
 writer.lock with the shared file lease: host, PID and OS birth identity,
 renewal while a transaction runs, and a synchronous fence before file

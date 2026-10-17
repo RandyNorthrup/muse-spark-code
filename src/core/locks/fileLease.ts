@@ -122,6 +122,8 @@ export type LeaseWatches = Map<string, LeaseWatch>
 const PROCESS_WATCHES: LeaseWatches = new Map()
 
 export interface FileLeaseEnv {
+  /** Vaults retain ownership until proven death; all other callers keep timed takeover. */
+  readonly takeover?: 'ownerDeathOnly'
   readonly port: LeasePort
   /** The wall clock: only written into the note for people. */
   readonly now: () => number
@@ -163,7 +165,10 @@ export interface FileLease {
 
 /** The lease was not taken: busy past the wait, or a moved instance could not go back. */
 export class LeaseBusyError extends Error {
-  public constructor(message = 'The lock is busy') {
+  public constructor(
+    message = 'The lock is busy',
+    readonly holder?: { owner: ProcessOwner; acquiredAt: number },
+  ) {
     super(message)
     this.name = 'LeaseBusyError'
   }
@@ -384,8 +389,9 @@ function isExpired(
   watch: LeaseWatch,
   note: LeaseNote | undefined,
   isOwnerGone: boolean,
-  env: Pick<FileLeaseEnv, 'monotonic' | 'honoredLeaseMs' | 'unreadableMs'>,
+  env: Pick<FileLeaseEnv, 'monotonic' | 'honoredLeaseMs' | 'unreadableMs' | 'takeover'>,
 ): boolean {
+  if (env.takeover === 'ownerDeathOnly') return note !== undefined && isOwnerGone
   const watchedFor = env.monotonic() - watch.since
   return note === undefined
     ? watchedFor >= env.unreadableMs
@@ -416,7 +422,8 @@ function heldLease(
   let isReleased = false
   let pending: LeaseInstance | undefined
   let isRewriting = false
-  const isRunning = (): boolean => !isReleased && env.monotonic() - heldSince < env.leaseMs
+  const isRunning = (): boolean =>
+    !isReleased && (env.takeover === 'ownerDeathOnly' || env.monotonic() - heldSince < env.leaseMs)
   const isOwnInstance = (seen: LeaseInstance): boolean =>
     isSameInstance(seen, instance) ||
     (pending !== undefined &&
@@ -591,7 +598,12 @@ export async function acquireFileLease(
       }
     }
     if (env.monotonic() >= deadline) {
-      throw new LeaseBusyError()
+      throw new LeaseBusyError(
+        undefined,
+        seen.kind === 'seen' && seen.note !== undefined
+          ? { owner: seen.note.owner, acquiredAt: seen.note.acquiredAt }
+          : undefined,
+      )
     }
     await env.sleep(env.pollMs)
   }

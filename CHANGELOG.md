@@ -232,6 +232,10 @@ happened, not what was planned; superseded entries are kept.
   past add's pre-check reports a collision; unopenable vaults name no
   protection; and setup confirmation broadcasts once, so its unlock no
   longer loses the writer to a mid-flight snapshot.
+- Vault takeover now requires proven process death on the same machine;
+  lease expiry never displaces a suspended or hung writer. Exact OS birth
+  evidence is mandatory at acquisition. Busy refusals name the process and
+  acquisition time, including foreign-machine ownership, in every language.
 - The vault README distinguishes qualified Windows damaged-document
   retention and writer recovery from pending installed/platform qualification.
 - Vault writers use the shared owner-bound, renewing file lease. A broker
