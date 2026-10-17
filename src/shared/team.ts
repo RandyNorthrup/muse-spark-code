@@ -1,6 +1,7 @@
 import { teamTreeSchema as teamViewTreeSchema } from './teamView'
 import {
   AGENT_FILE_MAX_BYTES,
+  AGENT_ID_PATTERN,
   MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_MODEL_PREFIX,
   TEAM_BRIEF_MAX_CHARS,
@@ -170,7 +171,7 @@ export type TeamReportShape = z.infer<typeof teamReportShapeSchema>
 
 /** One role of the workspace's team: its pool, policy and role keys. */
 export const teamRoleConfigSchema = /* @__PURE__ */ z.object({
-  role: z.string().check(z.minLength(1)),
+  role: z.string().check(z.minLength(1), z.regex(AGENT_ID_PATTERN)),
   purpose: z.optional(z.string().check(z.maxLength(TEAM_ROLE_WHEN_TO_USE_MAX_CHARS))),
   done: z.optional(z.string().check(z.maxLength(TEAM_ROLE_WHEN_TO_USE_MAX_CHARS))),
   guidance: z.optional(z.string().check(z.maxLength(AGENT_FILE_MAX_BYTES))),
