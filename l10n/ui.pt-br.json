@@ -608,6 +608,7 @@
       "afterRuns": "Encerrar após N execuções",
       "cost": "Custo",
       "grantHelp": "Uma entrada por linha. Os caminhos ficam neste espaço de trabalho; caminhos protegidos e ferramentas que exigem uma pessoa são sempre recusados.",
+      "paidCapHelp": "No spending cap applies unless you set one; zero means the schedule never spends.",
       "auditKinds": {
         "created": "Criado",
         "changed": "Alterado",

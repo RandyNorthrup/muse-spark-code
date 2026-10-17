@@ -608,6 +608,7 @@
       "afterRuns": "Terminer après N exécutions",
       "cost": "Coût",
       "grantHelp": "Une entrée par ligne. Les chemins restent dans cet espace de travail ; les chemins protégés et les outils nécessitant une personne sont toujours refusés.",
+      "paidCapHelp": "No spending cap applies unless you set one; zero means the schedule never spends.",
       "auditKinds": {
         "created": "Créé",
         "changed": "Modifié",

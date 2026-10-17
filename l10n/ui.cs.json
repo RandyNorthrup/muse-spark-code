@@ -609,6 +609,7 @@
       "afterRuns": "Ukončit po N spuštěních",
       "cost": "Cena",
       "grantHelp": "Jedna položka na řádek. Cesty zůstávají v tomto pracovním prostoru; chráněné cesty a nástroje vyžadující člověka jsou vždy odmítnuty.",
+      "paidCapHelp": "No spending cap applies unless you set one; zero means the schedule never spends.",
       "auditKinds": {
         "created": "Vytvořeno",
         "changed": "Změněno",
