@@ -202,7 +202,9 @@ export function hasGitProgramControls(output: string, minimumMinor: number): boo
 
 /**
  * A git runner; rejects when git is not on the absolute PATH. A call that
- * does real work (a worktree's checkout, M32) passes its own timeout.
+ * does real work (a worktree's checkout, M32) passes its own timeout;
+ * `Infinity` is no deadline of ours (M123: as in VS Code's own Git, only
+ * Cancel and the window's closing stop the call).
  */
 export function createGitRunner(
   deps: GitRunnerDeps,
@@ -225,7 +227,8 @@ export function createGitRunner(
       cwd,
       env,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
-      timeout: timeoutMs,
+      // Node's execFile reads a timeout of 0 as none.
+      timeout: timeoutMs === Infinity ? 0 : timeoutMs,
       windowsHide: true,
       ...(beforeRun?.signal !== undefined && { signal: beforeRun.signal }),
     }
@@ -308,7 +311,8 @@ export function processGitRunner(
       const result = await run(args, {
         cwd: options.cwd,
         env: options.env,
-        timeoutMs: options.timeout ?? GIT_TIMEOUT_MS,
+        // A timeout of 0 is the runner's "no deadline" (see createGitRunner).
+        timeoutMs: options.timeout === 0 ? undefined : (options.timeout ?? GIT_TIMEOUT_MS),
         ...(input !== undefined && { input }),
         ...(options.signal !== undefined && { signal: options.signal }),
         ...(beforeRun !== undefined && { beforeRun }),

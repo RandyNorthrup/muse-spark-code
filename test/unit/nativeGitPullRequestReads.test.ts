@@ -11,7 +11,7 @@
 // any other shape.
 
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -21,7 +21,7 @@ import {
   nativeBranchLogArgs,
 } from '../../src/core/git/diff'
 import { isGhLoginEnabled } from '../../src/core/git/tokenSource'
-import { processGitPath } from '../../src/host/git'
+import { processGitPath, processGitRunner } from '../../src/host/git'
 import { stderrLogger } from '../../src/runtime/stderrLog'
 import {
   assertNativeGitArgs,
@@ -164,6 +164,41 @@ describe('the pull request draft reads, against real repositories', () => {
     await expect(service.branchSince('-c', 'main')).rejects.toEqual(
       new NativeGitRefusalError('refused'),
     )
+  })
+})
+
+describe('no deadline of ours on a checkout’s git (M123)', () => {
+  it('lets a commit whose hook takes over a second finish under Infinity', async () => {
+    const folder = mkdtempSync(path.join(tmpdir(), 'm123-no-deadline-'))
+    try {
+      const env = {
+        ...process.env,
+        GIT_CONFIG_NOSYSTEM: '1',
+        HOME: folder,
+        USERPROFILE: folder,
+      }
+      const git = (args: readonly string[]) => {
+        execFileSync('git', [...args], { cwd: folder, env })
+      }
+      git(['init', '--initial-branch=main'])
+      git(['config', 'user.email', 'test@example.invalid'])
+      git(['config', 'user.name', 'Test'])
+      // A pre-commit hook that takes 1.2 s: past any small deadline, so a
+      // clamped Infinity (Node reads setTimeout(Infinity) as 1 ms) fails.
+      const hook = path.join(folder, '.git', 'hooks', 'pre-commit')
+      writeFileSync(
+        hook,
+        `#!/bin/sh\n"${process.execPath.replaceAll('\\', '/')}" -e "setTimeout(()=>{},1200)"\n`,
+      )
+      chmodSync(hook, 0o755)
+      writeFileSync(path.join(folder, 'a.txt'), 'a\n')
+      git(['add', 'a.txt'])
+      const started = Date.now()
+      await processGitRunner({ env })(['commit', '-m', 'slow hook'], folder, Infinity)
+      expect(Date.now() - started).toBeGreaterThanOrEqual(1100)
+    } finally {
+      rmSync(folder, { recursive: true, force: true })
+    }
   })
 })
 
