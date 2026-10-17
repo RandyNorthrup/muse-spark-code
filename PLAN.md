@@ -30872,6 +30872,15 @@ S) ships in a 0.16.x patch, after 0.16.0's M104 so that the companion page
 and the native webviews are polished in the same pass. D joins with M111, and
 N with M110a0.
 
+- **MSM114 panel-words landing (2026-10-17, lane MSM114,
+  `docs/certification/msm114.md`):** the real-life panel text and layout
+  faults F59–F71 (lane PANELTEXT, review RVPANELTEXT) are merged: F59 grid,
+  F60 wording + fast sign-in publish, F62 contributor-tier mark, F66 stray
+  decline, F67 composer invitation, F68 person-facing skill rows, F69 dedupe
+  and plain labels, F71 Share-as heading. Still waiting: N with M110a0, D
+  with M111; F62 per-model CLI prices (upstream: the CLI reports no tier);
+  F69 Session Usage real-life check with a signed-in CLI.
+
 - **Goal.** Every surface, in every editor and on Muse Desktop, looks modern
   and of a piece: it matches the user's theme, VS Code's own elements stay VS
   Code's, ours follow the Claude Code panel we model on, with rounded corners,
