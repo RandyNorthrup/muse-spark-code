@@ -185,13 +185,9 @@ export function usePriceOf(
       if (api === undefined) {
         return
       }
-      try {
-        return api.paidFeaturePrice(feature)
-      } catch (error: unknown) {
-        // An unpriced feature reads undefined: anything else keeps its kind.
-        if (!(error instanceof Error)) throw error
-        return
-      }
+      // A price failure keeps its kind to the error boundary; it is never
+      // read as unpriced.
+      return api.paidFeaturePrice(feature)
     },
     [api],
   )
