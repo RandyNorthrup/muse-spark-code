@@ -1,6 +1,6 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, readFile, readdir, unlink, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, realpath, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -79,9 +79,10 @@ try {
     await VaultStore.resetLost(files, vaultId, 'generated reset', () => {}, async (assertHeld) => {
       await hit('before-anchor'); assertHeld(); await writeFile(anchorPath, 'null');
     }, anchor, await anchor.minimum());
-  } else if (operation === 'restore') {
+  } else if (operation === 'restore' || operation === 'restore-recovery') {
     const store = await VaultStore.restore(options,
-      JSON.parse(await readFile(path.join(root, 'backup.json'), 'utf8')), undefined, true);
+      JSON.parse(await readFile(path.join(root, 'backup.json'), 'utf8')), undefined, true,
+      operation === 'restore-recovery' ? (await files.writerRecovery())?.token : undefined);
     store.lock();
   } else if (operation === 'open') {
     const store = await VaultStore.open(options, vaultId); store.lock();
@@ -119,7 +120,7 @@ describe('production vault writer across process death', () => {
   let entry: string
   const children: ChildProcess[] = []
   beforeAll(async () => {
-    root = await mkdtemp(path.join(tmpdir(), 'm109-writer-'))
+    root = await mkdtemp(path.join(await realpath(tmpdir()), 'm109-writer-'))
     entry = path.join(root, 'writer.cjs')
     await build({
       stdin: { contents: childSource, resolveDir: process.cwd(), loader: 'ts' },
@@ -194,6 +195,31 @@ describe('production vault writer across process death', () => {
       expect(await readFile(path.join(folder, 'anchor.json'), 'utf8')).toBe('null')
     else expect(await finish(folder, 'open')).toEqual({ done: true })
   })
+  it.each(['', '{', 'foreign'])('confirmed Restore recovers a %j writer note', async (kind) => {
+    const folder = await prepare()
+    await writeFile(
+      path.join(folder, 'writer.lock'),
+      kind === 'foreign'
+        ? JSON.stringify({
+            owner: {
+              host: 'foreign-host',
+              machineId: 'foreign',
+              bootId: 'boot',
+              pidNamespace: 'native',
+              pid: 123,
+              processStart: 0,
+              exactBirth: 'birth',
+            },
+            id: 'foreign',
+            acquiredAt: 1000,
+            leaseMs: 0,
+          })
+        : kind,
+    )
+    expect(await finish(folder, 'restore')).toEqual({ error: 'busy' })
+    expect(await finish(folder, 'restore-recovery')).toEqual({ done: true })
+    expect(await finish(folder, 'open')).toEqual({ done: true })
+  })
   it('never takes a live holder in a two-process writer race', async () => {
     const folder = await prepare()
     const holder = await run(folder, 'hold', 'holding')
@@ -208,7 +234,7 @@ describe('production vault writer across process death', () => {
   })
   // Real suspension must exceed three production leases; a named per-test bound covers that wait.
   const SUSPENSION_TEST_TIMEOUT_MS = VAULT_WRITER_LEASE_MS * 5
-  it.runIf(process.platform === 'win32')(
+  it(
     'a suspended real writer excludes every successor beyond three leases',
     async () => {
       const folder = await prepare()
@@ -216,21 +242,31 @@ describe('production vault writer across process death', () => {
       expect(holder.result).toEqual({ stage: 'before-anchor' })
       const pid = holder.child.pid
       const systemRoot = process.env['SystemRoot']
-      if (pid === undefined || systemRoot === undefined)
+      if (pid === undefined || (systemRoot === undefined && process.platform === 'win32'))
         throw new Error('fixture process unavailable')
       const command = `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class M109Suspend { [DllImport("ntdll.dll")] public static extern int NtSuspendProcess(IntPtr handle); }'; $held = Get-Process -Id ${String(pid)}; try { if ([M109Suspend]::NtSuspendProcess($held.Handle) -ne 0) { throw 'suspension failed' } } finally { $held.Dispose() }`
       try {
-        await new Promise<void>((resolve, reject) => {
-          execFile(
-            path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
-            ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command],
-            { windowsHide: true },
-            (error) => {
-              if (error instanceof Error) reject(error)
-              else resolve()
-            },
-          )
-        })
+        if (process.platform === 'win32') {
+          await new Promise<void>((resolve, reject) => {
+            execFile(
+              path.join(
+                systemRoot ?? '',
+                'System32',
+                'WindowsPowerShell',
+                'v1.0',
+                'powershell.exe',
+              ),
+              ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', command],
+              { windowsHide: true, timeout: 10_000 },
+              (error) => {
+                if (error instanceof Error) reject(error)
+                else resolve()
+              },
+            )
+          })
+        } else {
+          holder.child.kill('SIGSTOP')
+        }
         const contender = await run(folder, 'probe', 'first-probe')
         try {
           expect(contender.result).toEqual({ error: 'busy' })
@@ -429,16 +465,17 @@ describe('production vault writer across process death', () => {
       await settled
     }
   })
-  it('renews its owner-bound note while the production transaction is running', async () => {
+  it('checks ownership without rewriting its complete note during a running transaction', async () => {
     const { folder, files } = await nativeWriterFixture()
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     try {
-      await files.withWriter(async () => {
+      await files.withWriter(async (held) => {
+        const before = await readFile(path.join(folder, 'writer.lock'))
         await vi.advanceTimersByTimeAsync(VAULT_WRITER_RENEW_MS)
-        await vi.waitFor(async () => {
-          const note: unknown = JSON.parse(await readFile(path.join(folder, 'writer.lock'), 'utf8'))
-          expect(note).toMatchObject({ renewal: 1, owner: { pid: process.pid } })
-        })
+        held()
+        expect(await readFile(path.join(folder, 'writer.lock'))).toEqual(before)
+        const note: unknown = JSON.parse(before.toString('utf8'))
+        expect(note).toMatchObject({ renewal: 0, owner: { pid: process.pid } })
       })
     } finally {
       vi.useRealTimers()

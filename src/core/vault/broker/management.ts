@@ -25,6 +25,7 @@ import {
   type VaultBrokerEvent,
   type VaultBrokerSnapshot,
   type VaultStatus,
+  type VaultResetChallenge,
 } from '../../../shared/vaultProtocol'
 import { eraseVaultMaterial, randomVaultBytes, VaultError, VaultWriterError } from '../crypto'
 import { createRecoverySlot, unlockRecoverySlot } from '../keyslots'
@@ -65,8 +66,9 @@ export interface VaultManagementDeps {
 }
 interface PendingReset {
   readonly id: string
-  readonly vaultId: string
+  readonly vaultId: string | null
   readonly expiresAt: number
+  readonly recovery?: string
 }
 /** Receipts keep the file identity's bigints across the store's JSON. */
 function encodeReceipt(record: unknown): string {
@@ -342,6 +344,18 @@ export class VaultManagement implements VaultManagementPort {
   async snapshot(): Promise<VaultBrokerSnapshot> {
     const pending = this.current() ?? this.confirming
     const broker = await this.deps.broker.status()
+    if (
+      pending === null &&
+      broker.state !== 'unlocked' &&
+      (await this.deps.files.writerRecovery?.())
+    )
+      return {
+        status: { ...broker, state: 'unavailable', reason: 'vaultLost' },
+        setupId: null,
+        items: [],
+        grants: [],
+        pending: [],
+      }
     if (pending === null && broker.state !== 'unlocked') {
       const anchored = await this.anchoredId()
       if (
@@ -524,7 +538,7 @@ export class VaultManagement implements VaultManagementPort {
     }
   }
   /** Reset Vault step 1 (lead decision): refused unless the anchored vault is lost. */
-  async resetBegin(): Promise<{ resetId: string; word: string }> {
+  async resetBegin(): Promise<VaultResetChallenge> {
     return await this.serialize(async (generation) => {
       if (this.current() !== null || this.confirming !== null)
         throw new VaultManagementError('invalid')
@@ -532,9 +546,11 @@ export class VaultManagement implements VaultManagementPort {
       this.assertSameLock(generation)
       if (status.state === 'unlocked') throw new VaultManagementError('invalid')
       const anchored = await this.anchoredId()
+      const recovery = await this.deps.files.writerRecovery?.()
       if (
-        anchored === null ||
-        !(await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor))
+        !recovery &&
+        (anchored === null ||
+          !(await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor)))
       )
         throw new VaultManagementError('invalid')
       this.assertSameLock(generation)
@@ -543,8 +559,9 @@ export class VaultManagement implements VaultManagementPort {
         id: resetId,
         vaultId: anchored,
         expiresAt: this.deps.clock.now() + VAULT_APPROVAL_TTL_MS,
+        ...(recovery && { recovery: recovery.token }),
       }
-      return { resetId, word: VAULT_RESET_WORD }
+      return { resetId, word: VAULT_RESET_WORD, ...(recovery && { writer: recovery.writer }) }
     })
   }
   /**
@@ -568,9 +585,9 @@ export class VaultManagement implements VaultManagementPort {
       const anchored = await this.anchoredId()
       this.assertSameLock(generation)
       if (anchored !== pending.vaultId) throw new VaultManagementError('invalid')
-      const expected = await this.deps.anchor.minimum(anchored)
+      const expected = anchored === null ? null : await this.deps.anchor.minimum(anchored)
       this.assertSameLock(generation)
-      if (expected === null) throw new VaultManagementError('invalid')
+      if (expected === null && !pending.recovery) throw new VaultManagementError('invalid')
       const audit = JSON.stringify({
         v: 1,
         kind: 'vaultReset',
@@ -586,10 +603,12 @@ export class VaultManagement implements VaultManagementPort {
             this.assertSameLock(generation)
           },
           async (assertHeld) => {
-            await this.deps.anchor.reset(anchored, expected, assertHeld)
+            if (anchored !== null && expected !== null)
+              await this.deps.anchor.reset(anchored, expected, assertHeld)
           },
           this.deps.anchor,
           expected,
+          pending.recovery,
         )
       } catch (error: unknown) {
         if (error instanceof VaultWriterError) throw error

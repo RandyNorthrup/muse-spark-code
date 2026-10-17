@@ -342,7 +342,7 @@
     "seed": "--seed <seed>: 模拟种子"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
-  "referenceVault": "从终端使用按用户 credential 保管库：设置、恢复、重置、状态、解锁、锁定、列表、添加、授权、审计、导入和监视。值永远不会打印；由代理持有。",
+  "referenceVault": "从终端使用按用户 credential 保管库：设置、恢复、重置、状态、解锁、锁定、列表、添加、授权、审计、导入和监视。值永远不会打印；由代理持有。 明确确认后，重置也可替换所有者未知的写入锁。",
   "referenceVaultHelp": "显示按用户 credential 保管库命令的用法。",
   "referenceVaultPanel": "凭据保险库在此构建中已关闭，等待集成检查完成。",
   "referenceVaultLock": "立即锁定按用户划分的凭据保管库，结束每个窗口中的每次使用。",
@@ -5039,7 +5039,7 @@
     "resetWarning": "重置会永久清除此凭据库：所有已存储的机密都会消失；重新设置凭据库时，回滚保护将以新的锚点重新开始。",
     "resetTypeWord": "键入 {word} 以重置凭据库。",
     "resetDone": "凭据库已重置。请重新设置以存储机密。",
-    "vaultLost": "此凭据库已无法打开：其文件丢失或已损坏。请重置以重新开始。",
+    "vaultLost": "无法打开保险库：文件缺失或损坏，或者无法确定写入锁的所有者。请查看重置选项以重新开始。",
     "storeUnavailable": "操作系统的凭据存储不可用。在 Linux 上，请登录到密钥环（Secret Service）已解锁的桌面会话；在 macOS 上，请解锁登录钥匙串；在 Windows 上，请以交互方式登录。然后重试。",
     "remoteWarning": "只能向其他设备请求签名或一次性验证码。该设备的用户必须在当地批准每次使用。",
     "approvalExpired": "此批准已过期。请重新请求使用。",
@@ -5125,6 +5125,7 @@
     },
     "grantsCount": {
       "other": "{count} 个授权"
-    }
+    },
+    "writerRecoveryWarning": "{holder} 如果另一个程序仍在写入此保险库，重置或恢复将导致其更改丢失。请仅在明确确认后继续。"
   }
 }

@@ -342,7 +342,7 @@
     "seed": "--seed <seed>: Semilla de simulación"
   },
   "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave.",
-  "referenceVault": "Trabaja con el almacén de credenciales por usuario desde un terminal: configuración, recuperación, restablecimiento, estado, desbloqueo, bloqueo, lista, adición, concesiones, auditoría, importación y observación. Los valores nunca se imprimen; los guarda el intermediario.",
+  "referenceVault": "Trabaja con el almacén de credenciales por usuario desde un terminal: configuración, recuperación, restablecimiento, estado, desbloqueo, bloqueo, lista, adición, concesiones, auditoría, importación y observación. Los valores nunca se imprimen; los guarda el intermediario. Restablecer también puede sustituir un bloqueo de escritura de propietario desconocido tras una confirmación explícita.",
   "referenceVaultHelp": "Muestra el uso del comando del almacén de credenciales por usuario.",
   "referenceVaultPanel": "La bóveda de credenciales está desactivada en esta compilación hasta que se completen las comprobaciones de integración.",
   "referenceVaultLock": "Bloquear la bóveda de credenciales por usuario ahora; termina cada uso en cada ventana.",
@@ -5339,7 +5339,7 @@
     "resetWarning": "Restablecer borra esta bóveda para siempre: todos los secretos guardados desaparecen y la protección contra reversión se reinicia con un ancla nueva cuando vuelva a configurar la bóveda.",
     "resetTypeWord": "Escriba {word} para restablecer la bóveda.",
     "resetDone": "Se restableció la bóveda. Vuelva a configurarla para guardar secretos.",
-    "vaultLost": "Esta bóveda ya no se puede abrir: sus archivos faltan o están dañados. Restablézcala para empezar de nuevo.",
+    "vaultLost": "No se puede abrir la bóveda: faltan archivos, están dañados o no se puede determinar quién tiene el bloqueo de escritura. Revise Restablecer para empezar de nuevo.",
     "storeUnavailable": "El almacén de credenciales del sistema operativo no está disponible. En Linux, inicie una sesión de escritorio con el llavero desbloqueado (Secret Service); en macOS, desbloquee el llavero de inicio de sesión; en Windows, inicie sesión de forma interactiva. Luego vuelva a intentarlo.",
     "remoteWarning": "Solo se puede solicitar una firma o un código de un solo uso desde otro dispositivo. Su usuario debe aprobar allí cada uso.",
     "approvalExpired": "Esta aprobación ha caducado. Solicite el uso de nuevo.",
@@ -5431,6 +5431,7 @@
       "one": "{count} autorización",
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
-    }
+    },
+    "writerRecoveryWarning": "{holder} Si otro programa sigue escribiendo en esta bóveda, al restablecerla o restaurarla se perderán sus cambios. Continúe solo con confirmación explícita."
   }
 }

@@ -11,7 +11,12 @@ import type {
   VaultItem,
   VaultItemMetadata,
 } from '../../../shared/vault'
-import type { VaultBrokerEvent, VaultBrokerSnapshot } from '../../../shared/vaultProtocol'
+import type {
+  VaultBrokerEvent,
+  VaultBrokerSnapshot,
+  VaultResetChallenge,
+} from '../../../shared/vaultProtocol'
+import { fill } from '../../../shared/l10n/text'
 import { VaultWriterError } from '../crypto'
 import type { VaultBrokerClient } from './client'
 import type { VaultChannelResponse } from './frames'
@@ -27,12 +32,18 @@ export function vaultRefusalMessage(
   writer?: Extract<VaultChannelResponse['response'], { kind: 'refused' }>['writer'],
 ): string {
   if (reason === 'busy' && writer) return new VaultWriterError(writer).message
-  if (reason === 'uncreated') return UI_TEXT.vault.setupNeeded
-  if (reason === 'exists') return UI_TEXT.vault.setupExists
-  if (reason === 'conflict') return UI_TEXT.vault.itemConflict
-  return reason === 'invalid' || reason === 'io'
-    ? UI_TEXT.vault.operationFailed
-    : UI_TEXT.vault[reason]
+  const text = UI_TEXT.vault
+  if (reason === 'uncreated') return text.setupNeeded
+  if (reason === 'exists') return text.setupExists
+  if (reason === 'conflict') return text.itemConflict
+  return reason === 'invalid' || reason === 'io' ? text.operationFailed : text[reason]
+}
+
+/** Value-free owner facts and the explicit loss warning, shared by every host. */
+export function vaultWriterRecoveryMessage(writer: VaultResetChallenge['writer']): string {
+  return writer
+    ? fill(UI_TEXT.vault.writerRecoveryWarning, { holder: new VaultWriterError(writer).message })
+    : ''
 }
 
 function expectKind<K extends VaultChannelResponse['response']['kind']>(
@@ -104,6 +115,14 @@ export class VaultManageSession {
     return response
   }
 
+  private async ok(
+    request: Parameters<VaultBrokerConnection['send']>[0],
+    authorize?: () => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    expectOk(await this.simple(request, authorize, signal))
+  }
+
   async snapshot(): Promise<VaultBrokerSnapshot> {
     const response = await this.simple({ kind: 'snapshot' })
     expectKind(response, 'snapshot')
@@ -119,11 +138,11 @@ export class VaultManageSession {
     expectKind(response, 'audit')
     return response.records
   }
-  async unlock(slotId: string | null, authorize?: () => void): Promise<void> {
-    expectOk(await this.simple({ kind: 'unlock', slotId }, authorize))
+  unlock(slotId: string | null, authorize?: () => void): Promise<void> {
+    return this.ok({ kind: 'unlock', slotId }, authorize)
   }
-  async lock(): Promise<void> {
-    expectOk(await this.simple({ kind: 'lock' }))
+  lock(): Promise<void> {
+    return this.ok({ kind: 'lock' })
   }
   /** add when the id is new, edit otherwise; the encoded material is erased after sending. */
   async write(item: VaultItem, isEdit: boolean, authorize?: () => void): Promise<void> {
@@ -148,17 +167,17 @@ export class VaultManageSession {
       encoded.fill(0)
     }
   }
-  async editMetadata(metadata: VaultItemMetadata, authorize?: () => void): Promise<void> {
-    expectOk(await this.simple({ kind: 'editMetadata', metadata }, authorize))
+  editMetadata(metadata: VaultItemMetadata, authorize?: () => void): Promise<void> {
+    return this.ok({ kind: 'editMetadata', metadata }, authorize)
   }
-  async remove(itemId: string, authorize?: () => void): Promise<void> {
-    expectOk(await this.simple({ kind: 'remove', itemId }, authorize))
+  remove(itemId: string, authorize?: () => void): Promise<void> {
+    return this.ok({ kind: 'remove', itemId }, authorize)
   }
-  async grant(grant: VaultGrant, authorize?: () => void): Promise<void> {
-    expectOk(await this.simple({ kind: 'grant', grant }, authorize))
+  grant(grant: VaultGrant, authorize?: () => void): Promise<void> {
+    return this.ok({ kind: 'grant', grant }, authorize)
   }
-  async revoke(grantId: string): Promise<void> {
-    expectOk(await this.simple({ kind: 'revoke', grantId }))
+  revoke(grantId: string): Promise<void> {
+    return this.ok({ kind: 'revoke', grantId })
   }
   async answer(
     answer: VaultApprovalAnswer,
@@ -176,19 +195,19 @@ export class VaultManageSession {
     expectKind(response, 'imported')
     return { receipt: response.receipt, items: response.items }
   }
-  async keepImport(receipt: string): Promise<void> {
-    expectOk(await this.simple({ kind: 'importKeep', receipt }))
+  keepImport(receipt: string): Promise<void> {
+    return this.ok({ kind: 'importKeep', receipt })
   }
-  async deleteImport(receipt: string, authorize?: () => void, signal?: AbortSignal): Promise<void> {
-    expectOk(await this.simple({ kind: 'importDelete', receipt }, authorize, signal))
+  deleteImport(receipt: string, authorize?: () => void, signal?: AbortSignal): Promise<void> {
+    return this.ok({ kind: 'importDelete', receipt }, authorize, signal)
   }
-  async resetBegin(): Promise<{ resetId: string; word: string }> {
+  async resetBegin(): Promise<VaultResetChallenge> {
     const response = await this.simple({ kind: 'resetBegin' })
     expectKind(response, 'resetChallenge')
-    return { resetId: response.resetId, word: response.word }
+    return response
   }
-  async resetConfirm(resetId: string, word: string, authorize?: () => void): Promise<void> {
-    expectOk(await this.simple({ kind: 'resetConfirm', resetId, word }, authorize))
+  resetConfirm(resetId: string, word: string, authorize?: () => void): Promise<void> {
+    return this.ok({ kind: 'resetConfirm', resetId, word }, authorize)
   }
   async publicKey(itemId: string): Promise<string> {
     const response = await this.simple({ kind: 'publicKey', itemId })
@@ -201,11 +220,11 @@ export class VaultManageSession {
     expectKind(response, 'recoveryCode')
     return { setupId: response.setupId, code: Buffer.from(response.code, 'ascii') }
   }
-  async confirmSetup(setupId: string, authorize?: () => void): Promise<void> {
-    expectOk(await this.simple({ kind: 'confirmSetup', setupId }, authorize))
+  confirmSetup(setupId: string, authorize?: () => void): Promise<void> {
+    return this.ok({ kind: 'confirmSetup', setupId }, authorize)
   }
-  async cancelSetup(setupId: string): Promise<void> {
-    expectOk(await this.simple({ kind: 'cancelSetup', setupId }))
+  cancelSetup(setupId: string): Promise<void> {
+    return this.ok({ kind: 'cancelSetup', setupId })
   }
   async recover(code: Uint8Array): Promise<void> {
     expectOk(

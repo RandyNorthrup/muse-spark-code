@@ -342,7 +342,7 @@
     "seed": "--seed <seed>: Graine de simulation"
   },
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
-  "referenceVault": "Utilisez le coffre d’identifiants par utilisateur depuis un terminal : configuration, récupération, réinitialisation, état, déverrouillage, verrouillage, liste, ajout, autorisations, audit, import et surveillance. Les valeurs ne s’impriment jamais ; le courtier les détient.",
+  "referenceVault": "Utilisez le coffre d’identifiants par utilisateur depuis un terminal : configuration, récupération, réinitialisation, état, déverrouillage, verrouillage, liste, ajout, autorisations, audit, import et surveillance. Les valeurs ne s’impriment jamais ; le courtier les détient. Après confirmation explicite, la réinitialisation peut aussi remplacer un verrou d’écriture dont le propriétaire est inconnu.",
   "referenceVaultHelp": "Affiche l’utilisation de la commande du coffre d’identifiants par utilisateur.",
   "referenceVaultPanel": "Le coffre d’identifiants est désactivé dans cette version en attendant les vérifications d’intégration.",
   "referenceVaultLock": "Verrouiller le coffre d’identifiants par utilisateur maintenant ; met fin à chaque utilisation dans chaque fenêtre.",
@@ -5339,7 +5339,7 @@
     "resetWarning": "La réinitialisation efface définitivement ce coffre-fort : tous les secrets enregistrés disparaissent, et la protection contre le retour arrière repart avec une nouvelle ancre lorsque vous reconfigurez le coffre-fort.",
     "resetTypeWord": "Saisissez {word} pour réinitialiser le coffre-fort.",
     "resetDone": "Le coffre-fort a été réinitialisé. Configurez-le à nouveau pour enregistrer des secrets.",
-    "vaultLost": "Ce coffre-fort ne peut plus être ouvert : ses fichiers sont absents ou endommagés. Réinitialisez-le pour recommencer.",
+    "vaultLost": "Le coffre ne peut pas être ouvert : des fichiers manquent ou sont endommagés, ou le propriétaire du verrou d’écriture est inconnu. Consultez Réinitialiser pour recommencer.",
     "storeUnavailable": "Le magasin d’identifiants du système d’exploitation n’est pas disponible. Sous Linux, ouvrez une session de bureau avec un trousseau déverrouillé (Secret Service) ; sous macOS, déverrouillez le trousseau de session ; sous Windows, connectez-vous de manière interactive. Puis réessayez.",
     "remoteWarning": "Seuls une signature ou un code à usage unique peuvent être demandés à un autre appareil. Son utilisateur doit approuver chaque usage sur place.",
     "approvalExpired": "Cette approbation a expiré. Demandez à nouveau cette utilisation.",
@@ -5431,6 +5431,7 @@
       "one": "{count} autorisation",
       "other": "{count} autorisations",
       "many": "{count} autorisations"
-    }
+    },
+    "writerRecoveryWarning": "{holder} Si un autre programme écrit encore dans ce coffre, la réinitialisation ou la restauration fera perdre ses modifications. Continuez uniquement après confirmation explicite."
   }
 }

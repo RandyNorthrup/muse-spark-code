@@ -342,7 +342,7 @@
     "seed": "--seed <seed>: Startwert der Simulation"
   },
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
-  "referenceVault": "Arbeite im Terminal mit dem benutzereigenen Anmeldeinformations-Tresor: Einrichtung, Wiederherstellung, Zurücksetzen, Status, Entsperren, Sperren, Auflisten, Hinzufügen, Freigaben, Prüfung, Import und Beobachtung. Werte werden nie ausgegeben; der Broker hält sie.",
+  "referenceVault": "Arbeite im Terminal mit dem benutzereigenen Anmeldeinformations-Tresor: Einrichtung, Wiederherstellung, Zurücksetzen, Status, Entsperren, Sperren, Auflisten, Hinzufügen, Freigaben, Prüfung, Import und Beobachtung. Werte werden nie ausgegeben; der Broker hält sie. Nach ausdrücklicher Bestätigung kann Zurücksetzen auch eine unbekannte Schreibersperre ersetzen.",
   "referenceVaultHelp": "Verwendung des Befehls für den benutzereigenen Anmeldeinformations-Tresor anzeigen.",
   "referenceVaultPanel": "Der Zugangsdaten-Tresor ist in diesem Build bis zum Abschluss der Integrationsprüfungen ausgeschaltet.",
   "referenceVaultLock": "Den benutzereigenen Anmeldeinformations-Tresor jetzt sperren; beendet jede Verwendung in jedem Fenster.",
@@ -5189,7 +5189,7 @@
     "resetWarning": "Das Zurücksetzen löscht diesen Tresor endgültig: Alle gespeicherten Geheimnisse sind weg, und der Rollback-Schutz beginnt mit einem neuen Anker neu, wenn Sie den Tresor wieder einrichten.",
     "resetTypeWord": "Geben Sie {word} ein, um den Tresor zurückzusetzen.",
     "resetDone": "Der Tresor wurde zurückgesetzt. Richten Sie ihn erneut ein, um Geheimnisse zu speichern.",
-    "vaultLost": "Dieser Tresor lässt sich nicht mehr öffnen: Seine Dateien fehlen oder sind beschädigt. Setzen Sie ihn zurück, um neu zu beginnen.",
+    "vaultLost": "Der Tresor lässt sich nicht öffnen: Dateien fehlen oder sind beschädigt, oder die Schreibersperre lässt sich keinem Eigentümer zuordnen. Prüfen Sie Zurücksetzen, um neu zu beginnen.",
     "storeUnavailable": "Der Anmeldeinformationsspeicher des Betriebssystems ist nicht verfügbar. Melden Sie sich unter Linux in einer Desktopsitzung mit entsperrtem Schlüsselbund (Secret Service) an, entsperren Sie unter macOS den Anmeldeschlüsselbund und melden Sie sich unter Windows interaktiv an. Versuchen Sie es dann erneut.",
     "remoteWarning": "Von einem anderen Gerät können nur Signaturen oder Einmalcodes angefordert werden. Dort muss der Benutzer jeder Nutzung zustimmen.",
     "approvalExpired": "Diese Zustimmung ist abgelaufen. Fordern Sie die Nutzung erneut an.",
@@ -5278,6 +5278,7 @@
     "grantsCount": {
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
-    }
+    },
+    "writerRecoveryWarning": "{holder} Wenn ein anderes Programm noch in diesen Tresor schreibt, gehen seine Änderungen beim Zurücksetzen oder Wiederherstellen verloren. Fahren Sie nur nach ausdrücklicher Bestätigung fort."
   }
 }

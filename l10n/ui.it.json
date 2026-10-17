@@ -342,7 +342,7 @@
     "seed": "--seed <seed>: Seme della simulazione"
   },
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
-  "referenceVault": "Lavora con il vault delle credenziali per utente da un terminale: configurazione, recupero, reimpostazione, stato, sblocco, blocco, elenco, aggiunta, concessioni, audit, importazione e osservazione. I valori non vengono mai stampati; li detiene il broker.",
+  "referenceVault": "Lavora con il vault delle credenziali per utente da un terminale: configurazione, recupero, reimpostazione, stato, sblocco, blocco, elenco, aggiunta, concessioni, audit, importazione e osservazione. I valori non vengono mai stampati; li detiene il broker. Dopo una conferma esplicita, il ripristino può anche sostituire un blocco di scrittura di proprietario sconosciuto.",
   "referenceVaultHelp": "Mostra l’uso del comando del vault delle credenziali per utente.",
   "referenceVaultPanel": "La cassaforte delle credenziali è disattivata in questa build in attesa delle verifiche di integrazione.",
   "referenceVaultLock": "Bloccare ora la cassaforte di credenziali per utente; termina ogni uso in ogni finestra.",
@@ -5339,7 +5339,7 @@
     "resetWarning": "La reimpostazione cancella questa cassaforte per sempre: tutti i segreti salvati spariscono e la protezione dal rollback riparte con una nuova ancora quando configuri di nuovo la cassaforte.",
     "resetTypeWord": "Digita {word} per reimpostare la cassaforte.",
     "resetDone": "La cassaforte è stata reimpostata. Configurala di nuovo per salvare segreti.",
-    "vaultLost": "Questa cassaforte non si può più aprire: i suoi file mancano o sono danneggiati. Reimpostala per ricominciare.",
+    "vaultLost": "La cassaforte non può essere aperta: i file sono mancanti o danneggiati, oppure il proprietario del blocco di scrittura è sconosciuto. Esaminare il ripristino per ricominciare.",
     "storeUnavailable": "L’archivio delle credenziali del sistema operativo non è disponibile. Su Linux, accedi a una sessione desktop con il portachiavi sbloccato (Secret Service); su macOS, sblocca il portachiavi di login; su Windows, accedi in modo interattivo. Poi riprova.",
     "remoteWarning": "Da un altro dispositivo si può richiedere solo una firma o un codice monouso. Il suo utente deve approvare ogni uso su quel dispositivo.",
     "approvalExpired": "Questa approvazione è scaduta. Richiedi di nuovo l’utilizzo.",
@@ -5431,6 +5431,7 @@
       "one": "{count} autorizzazione",
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
-    }
+    },
+    "writerRecoveryWarning": "{holder} Se un altro programma sta ancora scrivendo in questa cassaforte, il ripristino o il ripristino da backup farà perdere le sue modifiche. Continuare solo dopo conferma esplicita."
   }
 }

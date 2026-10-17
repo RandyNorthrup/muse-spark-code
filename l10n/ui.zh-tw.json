@@ -342,7 +342,7 @@
     "seed": "--seed <seed>: 模擬種子"
   },
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
-  "referenceVault": "從終端機使用按使用者 credential 保管庫：設定、復原、重設、狀態、解鎖、鎖定、清單、新增、授權、稽核、匯入和監視。值永遠不會列印；由代理持有。",
+  "referenceVault": "從終端機使用按使用者 credential 保管庫：設定、復原、重設、狀態、解鎖、鎖定、清單、新增、授權、稽核、匯入和監視。值永遠不會列印；由代理持有。 明確確認後，重設也可替換擁有者未知的寫入鎖。",
   "referenceVaultHelp": "顯示按使用者 credential 保管庫命令的用法。",
   "referenceVaultPanel": "憑證保管庫在此版本中已關閉，等待整合檢查完成。",
   "referenceVaultLock": "立即鎖定按使用者劃分的認證保管庫，結束每個視窗中的每次使用。",
@@ -5039,7 +5039,7 @@
     "resetWarning": "重設會永久清除此憑證庫：所有已儲存的機密都會消失；重新設定憑證庫時，回復保護將以新的錨點重新開始。",
     "resetTypeWord": "輸入 {word} 以重設憑證庫。",
     "resetDone": "憑證庫已重設。請重新設定以儲存機密。",
-    "vaultLost": "此憑證庫已無法開啟：其檔案遺失或已損毀。請重設以重新開始。",
+    "vaultLost": "無法開啟保險庫：檔案遺失或損毀，或無法確認寫入鎖的擁有者。請檢視重設選項以重新開始。",
     "storeUnavailable": "作業系統的憑證儲存區無法使用。在 Linux 上，請登入金鑰圈（Secret Service）已解鎖的桌面工作階段；在 macOS 上，請解鎖登入鑰匙圈；在 Windows 上，請以互動方式登入。然後再試一次。",
     "remoteWarning": "只能向其他裝置要求簽章或一次性驗證碼。該裝置的使用者必須在當地核准每次使用。",
     "approvalExpired": "此核准已過期。請重新要求使用。",
@@ -5125,6 +5125,7 @@
     },
     "grantsCount": {
       "other": "{count} 個授權"
-    }
+    },
+    "writerRecoveryWarning": "{holder} 如果另一個程式仍在寫入此保險庫，重設或還原將導致其變更遺失。請僅在明確確認後繼續。"
   }
 }

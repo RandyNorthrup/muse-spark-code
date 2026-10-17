@@ -24,6 +24,7 @@ const NO_SUCH_PROCESS = 'ESRCH'
 const LINUX_START_FIELD = 19
 const LINUX_BOOT_ID = '/proc/sys/kernel/random/boot_id'
 const DECIMAL = /^\d+$/u
+const BOOT_UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu
 
 export const processOwnerSchema = z.object({
   host: z.string(),
@@ -222,7 +223,8 @@ interface ExactEvidence {
   readonly boot: string
   readonly namespace: string
 }
-const exactReadings = new Map<number, { evidence?: ExactEvidence; retryAt: number }>()
+const exactReadings = new Map<number, { evidence: ExactEvidence | undefined; retryAt: number }>()
+const pendingReadings = new Map<number, Promise<ExactEvidence | undefined>>()
 const darwinBoot: { value?: string } = {}
 async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined> {
   try {
@@ -262,11 +264,11 @@ async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined
             '-Command',
             '$ErrorActionPreference = "Stop"; $birth = (Get-Process -Id ' +
               String(pid) +
-              ').StartTime.ToFileTimeUtc(); $boot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToFileTimeUtc(); Write-Output ($birth.ToString()+":"+$boot.ToString())',
+              ').StartTime.ToFileTimeUtc(); Add-Type -TypeDefinition \'using System; using System.Runtime.InteropServices; public static class MuseLeaseBoot { [StructLayout(LayoutKind.Sequential)] public struct Info { public Guid Id; public uint Firmware; public ulong Flags; } [DllImport("ntdll.dll")] static extern int NtQuerySystemInformation(int kind, out Info value, int size, out int returned); public static string Read() { Info value; int returned; if (NtQuerySystemInformation(90, out value, Marshal.SizeOf(typeof(Info)), out returned) != 0 || value.Id == Guid.Empty) throw new InvalidOperationException(); return value.Id.ToString(); } }\'; Write-Output ($birth.ToString()+":"+[MuseLeaseBoot]::Read())',
           ],
         )
         const [birth, boot] = output.trim().split(':', 2)
-        if (birth && boot && DECIMAL.test(birth) && DECIMAL.test(boot))
+        if (birth && boot && DECIMAL.test(birth) && /^[a-f0-9-]{36}$/iu.test(boot))
           return {
             birth,
             started: Number(
@@ -290,7 +292,16 @@ async function exactEvidence(pid: number): Promise<ExactEvidence | undefined> {
   if (!Number.isSafeInteger(pid) || pid <= 0) return undefined
   const cached = exactReadings.get(pid)
   if (cached && performance.now() < cached.retryAt) return cached.evidence
-  const evidence = await readExactEvidence(pid)
+  const pending = pendingReadings.get(pid)
+  if (pending) return await pending
+  const reading = readExactEvidence(pid)
+  pendingReadings.set(pid, reading)
+  let evidence
+  try {
+    evidence = await reading
+  } finally {
+    pendingReadings.delete(pid)
+  }
   // Only this process's successful birth is immutable. Never cache another
   // PID's successful reading: it may have been reused on the next attempt.
   if (!evidence || pid === process.pid)
@@ -305,18 +316,11 @@ export async function exactProcessBirth(pid: number): Promise<string | undefined
   const evidence = await exactEvidence(pid)
   return evidence?.birth
 }
-const exactSelf = new Map<string, { owner?: ProcessOwner; retryAt: number }>()
+const exactSelf = new Map<string, { owner: ProcessOwner | undefined; retryAt: number }>()
 /** Read this process once, with the installation identity shared by all hosts. */
 export async function exactCurrentProcessOwner(
-  birthOf: (pid: number) => Promise<string | undefined> = exactProcessBirth,
   dataDir = agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
 ): Promise<ProcessOwner | undefined> {
-  if (birthOf !== exactProcessBirth) {
-    // The injected failure seam never reads or creates machine state.
-    for (let attempt = 0; attempt < 2; attempt += 1)
-      if ((await birthOf(process.pid)) !== undefined) break
-    return undefined
-  }
   const cached = exactSelf.get(dataDir)
   if (cached && performance.now() < cached.retryAt) return cached.owner
   let owner: ProcessOwner | undefined
@@ -328,7 +332,7 @@ export async function exactCurrentProcessOwner(
         pid: process.pid,
         processStart: evidence.started,
         machineId: await loadDeveloperMachineId(dataDir),
-        bootId: evidence.boot,
+        bootId: evidence.boot.toLowerCase(),
         pidNamespace: evidence.namespace,
         exactBirth: evidence.birth,
       }
@@ -363,7 +367,10 @@ export async function isProcessOwnerGone(
       !me.bootId
     )
       return false
-    if (owner.bootId !== me.bootId) return true
+    // A former Windows boot timestamp is not a kernel boot identity.
+    // Incomparable legacy evidence cannot prove a reboot or a PID's absence.
+    if (BOOT_UUID.test(me.bootId) && !BOOT_UUID.test(owner.bootId)) return false
+    if (owner.bootId.toLowerCase() !== me.bootId.toLowerCase()) return true
     if (
       !owner.pidNamespace ||
       !me.pidNamespace ||
@@ -372,14 +379,18 @@ export async function isProcessOwnerGone(
       owner.pid <= 0
     )
       return false
-    const alive = (probe.isAlive ?? isProcessAlive)(owner.pid)
-    if (alive === false) return true
-    if (alive === undefined || !owner.exactBirth) return false
-    const birth =
-      owner.pid === me.pid && probe.exactBirthOf === undefined
-        ? me.exactBirth
-        : await (probe.exactBirthOf ?? exactProcessBirth)(owner.pid)
-    return birth !== undefined && birth !== owner.exactBirth
+    try {
+      const alive = (probe.isAlive ?? isProcessAlive)(owner.pid)
+      if (alive === false) return true
+      if (alive === undefined || !owner.exactBirth) return false
+      const birth =
+        owner.pid === me.pid && probe.exactBirthOf === undefined
+          ? me.exactBirth
+          : await (probe.exactBirthOf ?? exactProcessBirth)(owner.pid)
+      return birth !== undefined && birth !== owner.exactBirth
+    } catch {
+      return false
+    }
   }
   if (owner.host !== me.host) {
     return false

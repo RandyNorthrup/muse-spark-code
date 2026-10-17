@@ -342,7 +342,7 @@
     "seed": "--seed <seed>: Szimulációs kezdőérték"
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
-  "referenceVault": "Dolgozzon a terminálból a felhasználónkénti hitelesítőadat-tárolóval: beállítás, helyreállítás, alaphelyzetbe állítás, állapot, feloldás, zárolás, lista, hozzáadás, engedélyek, naplózás, importálás és figyelés. Az értékek soha nem jelennek meg; a közvetítő őrzi őket.",
+  "referenceVault": "Dolgozzon a terminálból a felhasználónkénti hitelesítőadat-tárolóval: beállítás, helyreállítás, alaphelyzetbe állítás, állapot, feloldás, zárolás, lista, hozzáadás, engedélyek, naplózás, importálás és figyelés. Az értékek soha nem jelennek meg; a közvetítő őrzi őket. Kifejezett megerősítés után az alaphelyzetbe állítás az ismeretlen tulajdonosú írási zárolást is lecserélheti.",
   "referenceVaultHelp": "Megjeleníti a felhasználónkénti hitelesítőadat-tároló parancsának használatát.",
   "referenceVaultPanel": "A hitelesítőadat-tároló ebben a buildben az integrációs ellenőrzések befejezéséig ki van kapcsolva.",
   "referenceVaultLock": "A felhasználónkénti hitelesítőadat-tároló zárolása most; minden ablakban minden használatot befejez.",
@@ -5189,7 +5189,7 @@
     "resetWarning": "Az alaphelyzetbe állítás véglegesen törli ezt a tárolót: minden tárolt titok elvész, és a visszaállítás elleni védelem új horgonnyal indul újra, amikor újra beállítja a tárolót.",
     "resetTypeWord": "Írja be: {word} a tároló alaphelyzetbe állításához.",
     "resetDone": "A tároló alaphelyzetbe állt. Titkok tárolásához állítsa be újra.",
-    "vaultLost": "Ez a tároló már nem nyitható meg: a fájljai hiányoznak vagy sérültek. Állítsa alaphelyzetbe az újrakezdéshez.",
+    "vaultLost": "A tároló nem nyitható meg: fájlok hiányoznak vagy sérültek, vagy az írási zárolás tulajdonosa nem állapítható meg. Az újrakezdéshez tekintse át az alaphelyzetbe állítást.",
     "storeUnavailable": "Az operációs rendszer hitelesítőadat-tárolója nem érhető el. Linuxon jelentkezzen be egy feloldott kulcstartójú (Secret Service) asztali munkamenetbe; macOS-en oldja fel a bejelentkezési kulcskarikát; Windowson jelentkezzen be interaktívan. Ezután próbálja újra.",
     "remoteWarning": "Más eszköztől csak aláírás vagy egyszer használatos kód kérhető. Az ottani felhasználónak minden használatot ott kell jóváhagynia.",
     "approvalExpired": "Ez a jóváhagyás lejárt. Kérje újra a használatot.",
@@ -5278,6 +5278,7 @@
     "grantsCount": {
       "one": "{count} engedély",
       "other": "{count} engedély"
-    }
+    },
+    "writerRecoveryWarning": "{holder} Ha egy másik program még ír ebbe a tárolóba, az alaphelyzetbe állítás vagy visszaállítás elveszíti a módosításait. Csak kifejezett megerősítés után folytassa."
   }
 }
