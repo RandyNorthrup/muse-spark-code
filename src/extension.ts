@@ -30,7 +30,7 @@ import {
   CHAT_VIEW_ID,
   COMMAND_IDS,
   SCHEDULE_EDITOR_DELIVERY_CERTIFICATION,
-  SCHEDULE_BACKGROUND_TITLES_KEPT,
+  SCHEDULE_MAX_PER_WORKSPACE,
   OPTIONAL_RUNTIME_AVAILABILITY,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
@@ -3551,7 +3551,7 @@ async function activateWindow(
                 Object.entries({
                   ...parsed,
                   [`${details.backend}:${agent.sessionId}`]: details.title,
-                }).slice(-SCHEDULE_BACKGROUND_TITLES_KEPT),
+                }).slice(-SCHEDULE_MAX_PER_WORKSPACE),
               ),
             )
             const entry: {
