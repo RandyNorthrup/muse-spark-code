@@ -67,6 +67,32 @@ m9-linux (`1437fc9c5`), m35-mic (`05a5636b6`).
 - `4a8279e10` — every UI table's key order matches EN recursively
   (companion block, `muse-voice` cli option, museVoice block); the archive
   restores in EN order, so the vsix round-trip failed until this.
+- RVMSM9M35FIX activation attribution (2026-10-17, linuxlt): the budget
+  test builds `src/extension.ts` with the test's own externals, so only
+  modules reachable from activation count. Rebuilding that bundle with
+  each lane-changed activation file reverted to `main-now` `3d30a7321`
+  (minified bytes, `temp/attr-*.mjs`, scratch only) attributes the lane's
+  4,351 B exactly (reverted tree builds 564,215 B, the recorded main-now
+  number; lane tree 568,566 B). Single-file revert savings:
+  `src/host/voice/dictationHost.ts` 1,507 (source 8,005 B:
+  `createDictationSetup` with the Linux disabled-model cleanup and
+  `canDownloadLinuxModel` consent card, plus `createMuseVoiceSetup`);
+  `src/extension.ts` 1,364 (M35 paid-scope wiring: `museVoiceSetup`,
+  `ownedVoiceBudgetScope`/`voiceAccountId` closures, dictation setup
+  call); `src/core/voice/helperLocation.ts` 298 (source 10,203 B: Linux
+  probe additions); `src/host/settings.ts` 81; `src/core/paid/paidFeatures.ts` 21. `src/host/voice/voiceBundle.ts` (source 5,650 B: `voiceLinuxLoader`,
+  `ownedMetaVoiceBudgetScope`), `src/shared/constants.ts` (lane adds the
+  `LINUX_DICTATION` block, `VOICE_LINUX_BUNDLE_FILE`, `MUSE_VOICE_FRAME_*`
+  /`MAX_*` tunables, two `linuxDictationModel` settings rows) and
+  `src/shared/paid.ts` are structurally coupled to the others and cannot
+  revert alone; they hold the ~1,080 B remainder. Already off the
+  activation path (verified absent from the bundle metafile): the
+  `dist/voice.js` drivers, the `dist/voiceLinux.js` driver/acquisition/
+  pins (`linuxHelperPins.ts` included), `companionVoice.ts`/`companionWav.ts`
+  (companion/ACP side only), and all `en.ts` strings (externalised to
+  `dist/uiText.js` by the test). The 3,072 B cap is a project rule
+  (PLAN.md lane-K budget, Q-M78b the revisit precedent), not an
+  owner-set limit.
 
 ## What was finished (connections, file:line)
 
