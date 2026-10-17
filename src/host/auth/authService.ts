@@ -12,6 +12,7 @@ import { isCliSignInConsulted, selectBackend } from '../../core/backendSelection
 import type { BackendKind } from '../../core/agent/agentBackend'
 import type { CliSignIn } from '../../core/backends/musecode/credentialFile'
 import { wireWordForLog } from '../../core/logging'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { unlessAborted } from '../../core/timeouts'
 import {
   type BackendMode,
@@ -644,7 +645,9 @@ export class AuthService {
       await this.restartHosts(flow.initial.status === 'signedIn')
     } catch (error: unknown) {
       if (this.publishedTicket !== published) {
-        this.deps.log.warn('The backend did not restart after sign-in; a newer state stands')
+        this.deps.log.warn(
+          `The backend did not restart after sign-in; a newer state stands: ${failureForLog(error)}`,
+        )
         return this.snapshot
       }
       throw error

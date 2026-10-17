@@ -61,6 +61,17 @@ function isPreviousMachine(stored: string, previous: readonly string[] | undefin
   return (previous ?? []).some((id) => id.toLowerCase() === normalized)
 }
 
+/** Best-effort disable after a failed start: the start refusal dominates, so
+ * a disable failure is attempted and dropped, never replacing the refusal
+ * the person must hear (a refused providers file among them). */
+const disableMultipleQuietly = async (owner: DeveloperOptions): Promise<void> => {
+  try {
+    await owner.setMultiple(false, 'lifecycle')
+  } catch {
+    /* The original refusal below stands. */
+  }
+}
+
 /** One parent-owned service across windows, editor bridges and terminal clients.
  * Serialized ownership starts before I/O; Reset/disable fence it synchronously. */
 export class DeveloperOptions {
@@ -124,11 +135,7 @@ export class DeveloperOptions {
         // multiple accounts off must not replace it with its own failure (a
         // refused providers file would otherwise escape as a raw stack or a
         // different typed failure). The disable is still attempted first.
-        try {
-          await owner.setMultiple(false, 'lifecycle')
-        } catch {
-          /* The original refusal below stands. */
-        }
+        await disableMultipleQuietly(owner)
         throw error
       }
     }
@@ -270,6 +277,20 @@ export class DeveloperOptions {
       throw new DeveloperOptionsError('unavailable')
   }
 
+  /** Best-effort stop after a failed start: the start refusal dominates, so
+   * a stop failure is attempted and dropped, while the disable below still
+   * runs before the refusal travels. */
+  private async stopProfilesQuietly(): Promise<void> {
+    try {
+      await this.stopAll()
+    } catch {
+      // The start refusal below stands; stopping already-stopped
+      // profiles must not replace it.
+    } finally {
+      await this.save({ ...this.state, isMultipleAccountsOn: false }, 'disable', 'lifecycle')
+    }
+  }
+
   public isMultipleAccountsOn(): boolean {
     return this.isUnlocked() && this.state.isMultipleAccountsOn
   }
@@ -354,18 +375,7 @@ export class DeveloperOptions {
             }
           } catch (error) {
             this.invalidate()
-            try {
-              await this.stopAll()
-            } catch {
-              // The start refusal below stands; stopping already-stopped
-              // profiles must not replace it.
-            } finally {
-              await this.save(
-                { ...this.state, isMultipleAccountsOn: false },
-                'disable',
-                'lifecycle',
-              )
-            }
+            await this.stopProfilesQuietly()
             throw error
           }
         }

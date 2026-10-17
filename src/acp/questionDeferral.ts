@@ -402,6 +402,8 @@ export class AcpQuestionDeferral {
         this.deps.failed()
       }
     } catch {
+      // A withdrawn answer settles the form closed: the failed marker is
+      // the record, and the best-effort cancel below owns its own failures.
       if (this.closed(form)) return
       // Withdrawal can reject the form promise; an open question stays answerable.
       if (form.deferral !== undefined) await form.deferral
