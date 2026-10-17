@@ -4,10 +4,13 @@ import { createHash, randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   HTTP_STATUS,
+  MEDIA_CANCEL_INTENT_WRITE_ATTEMPTS,
+  MEDIA_CANCEL_INTENT_WRITE_DELAY_MS,
   MEDIA_PENDING_DELETE_RETRY_BASE_MS,
   MEDIA_PENDING_DELETE_RETRY_MAX_MS,
   MEDIA_PENDING_DELETE_RETRY_MAX_SHIFT,
   MEDIA_SHA256_PATTERN,
+  MEDIA_UPLOAD_DELETE_NOTICE_ATTEMPTS,
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../shared/constants'
@@ -20,7 +23,7 @@ import {
   type UploadedMediaRef,
 } from '../../shared/media'
 import { isModelApiError } from '../backends/modelapi/client'
-import type { UploadSource } from '../backends/modelapi/files'
+import { UploadCleanupPendingError, type UploadSource } from '../backends/modelapi/files'
 
 // USE BEATS INTENT (round 4, P1-1): every ledger entry carries a use
 // generation that rises on each session (re)use. A delete intent records
@@ -32,7 +35,13 @@ const pendingDeleteIntentSchema = z.strictObject({ fileId: z.string(), useGen: z
 // request that carries a file holds one reference (owner = process birth
 // plus request id). The file is unpinned only when the count reaches zero.
 const pinRefSchema = z.strictObject({ fileId: z.string(), owner: z.string() })
-const pendingDeleteAttemptSchema = z.strictObject({ fails: z.number(), nextRetry: z.number() })
+const pendingDeleteAttemptSchema = z.strictObject({
+  fails: z.number(),
+  nextRetry: z.number(),
+  // The once-only backlog notice went out for this entry (ported
+  // RVAPP-PORTM105R4 P2-B): set by consumeDeleteNotice, cleared with the row.
+  notified: z.optional(z.boolean()),
+})
 const ledgerSchema = z.strictObject({
   version: z.literal(1),
   accountId: z.string().check(z.regex(MEDIA_SHA256_PATTERN)),
@@ -65,6 +74,21 @@ export interface DeleteIntent {
 export interface PinRef {
   readonly fileId: string
   readonly owner: string
+}
+
+/**
+ * An explicit provider deletion failed without deleting (ported
+ * RVAPP-PORTM105R4 P3-4). Carries the file's display name (never its id);
+ * the dialog text uses the fixed `uploadDeleteProviderRefused` reason,
+ * never the provider's message (which echoes the id).
+ */
+export class UploadDeleteFailedError extends Error {
+  public readonly fileName: string
+  public constructor(fileName: string) {
+    super('Upload deletion failed')
+    this.name = 'UploadDeleteFailedError'
+    this.fileName = fileName
+  }
 }
 
 /** Owner of rows written before counted references existed: released by any plain unpin. */
@@ -122,11 +146,43 @@ function pinCountOf(state: UploadLedgerState, fileId: string): number {
   return pinsOf(state).filter((pin) => pin.fileId === fileId).length
 }
 
+/** The two refusals an explicit delete keeps unwrapped (sessions, pins). */
+function isInUseRefusal(error: Error): boolean {
+  return (
+    error.message === UI_TEXT.media.filesInUse || error.message === UI_TEXT.media.filesInUseRequest
+  )
+}
+
 /** Atomic writes under a cross-process lock; a read boundary is always validated. */
 export interface UploadLedgerStorage {
   read(): Promise<unknown>
   write(state: UploadLedgerState): Promise<void>
   withLock<T>(operation: () => Promise<T>): Promise<T>
+}
+
+/** The default pause between cancel-intent write retries, honouring cancel. */
+function defaultLedgerSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    const onAbort = (): void => {
+      clearTimeout(timer)
+      try {
+        signal?.throwIfAborted()
+      } catch (error: unknown) {
+        reject(error instanceof Error ? error : new Error('Aborted'))
+        return
+      }
+      reject(new Error('Aborted'))
+    }
+    if (signal?.aborted === true) {
+      onAbort()
+      return
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
 }
 /** Captured provider adapters normalize metadata; this ledger has no vendor wire. */
 interface FilesForLedger {
@@ -136,6 +192,7 @@ interface FilesForLedger {
     signal: AbortSignal,
     onProgress?: (uploaded: number, total: number) => void,
     expectedSha256?: string,
+    onReceipt?: (fileId: string) => Promise<void>,
   ): Promise<UploadedMediaRef>
   retrieve(fileId: string, signal?: AbortSignal): Promise<unknown>
   accountFiles(): Promise<readonly z.infer<typeof accountFileSchema>[]>
@@ -149,6 +206,8 @@ export interface UploadLedgerDeps {
   readonly poolBytes: number
   readonly currentAccountId: () => Promise<string | undefined>
   readonly now: () => number
+  /** Pause between cancel-intent write retries; honours the signal. */
+  readonly sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
 }
 
 /** Bind to FileSessionStoreDeps.uploads; M2 also uses it for fork/rewind snapshots. */
@@ -378,7 +437,12 @@ export class UploadLedger implements SessionUploadLifecycle {
     source: UploadSource,
     signal: AbortSignal,
     onProgress?: (uploaded: number, total: number) => void,
-  ): Promise<{ readonly ref: UploadedMediaRef; readonly uploadedFileId?: string }> {
+  ): Promise<{
+    readonly ref: UploadedMediaRef
+    readonly uploadedFileId?: string
+    /** The entry the fresh upload displaced (a re-upload): restored when publication fails. */
+    readonly replaced?: UploadLedgerState['entries'][number]
+  }> {
     await this.requireAccount()
     if (!MEDIA_SHA256_PATTERN.test(sha256)) throw new Error('Invalid source digest')
     const existing = state.entries.find(({ file }) => file.sha256 === sha256)
@@ -416,12 +480,52 @@ export class UploadLedger implements SessionUploadLifecycle {
         throw new Error(fill(UI_TEXT.media.sourceChanged, { name: source.name }))
     }
     await this.requireAccount()
-    const file = await this.files.upload(source, signal, onProgress, sha256)
+    // The provider's receipt is recorded durably before the upload returns
+    // (ported RVM105 1): a crash between the provider's answer and the
+    // publication write still leaves a delete intent for the next read,
+    // instead of an orphan the expiry sweep alone would own.
+    let file: UploadedMediaRef
+    try {
+      file = await this.files.upload(source, signal, onProgress, sha256, async (fileId) => {
+        this.recordIntentLocked(state, fileId)
+        await this.deps.storage.write(state)
+      })
+    } catch (error: unknown) {
+      if (!(error instanceof UploadCleanupPendingError)) throw error
+      // The upload failed after the provider answered with an id, and the
+      // bounded clean-up DELETE could not remove it: the id is recorded
+      // durably under this same lock before anything reaches the caller, so
+      // the next read deletes it instead of orphaning it. The caller still
+      // sees the original upload failure.
+      this.recordIntentLocked(state, error.fileId)
+      await this.deps.storage.write(state)
+      // The original failure keeps its identity (an abort stays an abort);
+      // only its provider receipt stays behind as the intent.
+      if (error.cause instanceof Error) throw error.cause
+      throw error
+    }
     const sessions = [...(existing?.sessions ?? [])]
     if (!sessions.includes(sessionId)) sessions.push(sessionId)
     state.entries = state.entries.filter((entry) => entry !== existing)
     state.entries.push({ file, sessions, useGen: (existing?.useGen ?? 0) + 1 })
-    return { ref: file, uploadedFileId: file.fileId }
+    this.clearIntentLocked(state, file.fileId)
+    return {
+      ref: file,
+      uploadedFileId: file.fileId,
+      ...(existing !== undefined && { replaced: existing }),
+    }
+  }
+
+  /** Records a delete intent this lock owns (idempotent): the next account read retries it. */
+  private recordIntentLocked(state: UploadLedgerState, fileId: string): void {
+    if (intentsOf(state).some((intent) => intent.fileId === fileId)) return
+    state.pendingDeletes = [...intentsOf(state), { fileId, useGen: 0 }]
+  }
+
+  /** Drops the intent for a file the ledger now owns (uploaded and entered). */
+  private clearIntentLocked(state: UploadLedgerState, fileId: string): void {
+    if (intentsOf(state).every((intent) => intent.fileId !== fileId)) return
+    state.pendingDeletes = intentsOf(state).filter((intent) => intent.fileId !== fileId)
   }
 
   private pinLocked(state: UploadLedgerState, fileIds: readonly string[], owner: string): boolean {
@@ -439,8 +543,9 @@ export class UploadLedger implements SessionUploadLifecycle {
   /**
    * The one upload write: runs the shared body under the caller's lock and
    * persists once. With an owner the pin lands in the same write (P2-3), so
-   * no stale save lands between upload and pin. A crash before the write is
-   * bounded by expiry; a caught write failure cleans up a fresh upload.
+   * no stale save lands between upload and pin. A receipt-time intent bounds
+   * a crash before the write; a failed or cancelled publication removes the
+   * fresh upload through the intent-first path below.
    */
   private async writeEnsuredUpload(
     sessionId: string,
@@ -452,7 +557,7 @@ export class UploadLedger implements SessionUploadLifecycle {
   ): Promise<UploadedMediaRef> {
     return await this.deps.storage.withLock(async () => {
       const state = await this.read()
-      const { ref, uploadedFileId } = await this.ensureLocked(
+      const { ref, uploadedFileId, replaced } = await this.ensureLocked(
         state,
         sessionId,
         sha256,
@@ -462,13 +567,122 @@ export class UploadLedger implements SessionUploadLifecycle {
       )
       if (owner !== undefined) this.pinLocked(state, [ref.fileId], owner)
       try {
+        signal.throwIfAborted()
         await this.deps.storage.write(state)
+        // A cancel that landed during the commit still rolls the fresh
+        // upload back (ported RVM105B P2-2): the committed row is filtered
+        // below exactly like an uncommitted one, so a cancelled upload is
+        // never left referenced.
+        signal.throwIfAborted()
       } catch (error: unknown) {
-        if (uploadedFileId !== undefined) await this.files.delete(uploadedFileId)
+        // A cancel that landed before the publication commit deletes the
+        // fresh upload instead of owning it (ported RVM105B P2-2). The pin
+        // this call just took is released first, or the intent below could
+        // never fire while the pin row outlives the failed request.
+        if (owner !== undefined && uploadedFileId !== undefined)
+          this.unpinLocked(state, [uploadedFileId], owner)
+        if (uploadedFileId !== undefined)
+          await this.deleteUnpublished(state, uploadedFileId, signal, replaced)
         throw error
       }
       return ref
     })
+  }
+
+  /** Releases this lock's rows for one owner: the publication path's own rollback. */
+  private unpinLocked(state: UploadLedgerState, fileIds: readonly string[], owner: string): void {
+    if (pinsOf(state).every((pin) => !(pin.owner === owner && fileIds.includes(pin.fileId)))) return
+    state.pinned = pinsOf(state).filter(
+      (pin) => !(pin.owner === owner && fileIds.includes(pin.fileId)),
+    )
+  }
+
+  /**
+   * Persists a cancel/delete intent with bounded backoff waits (ported
+   * RVM105B P2-2): the wait doubles from the named delay and only the waits
+   * honour cancellation — a cancel while waiting skips the pause, and the
+   * remaining attempts (bounded, local, fast) still land the intent. Only
+   * a persistently failing store gives up, and the caller then deletes
+   * best-effort instead.
+   */
+  private async writeCancelIntent(state: UploadLedgerState, signal: AbortSignal): Promise<void> {
+    const sleep = this.deps.sleep ?? defaultLedgerSleep
+    let failure: unknown
+    for (let attempt = 0; attempt < MEDIA_CANCEL_INTENT_WRITE_ATTEMPTS; attempt += 1) {
+      try {
+        await this.deps.storage.write(state)
+        return
+      } catch (error: unknown) {
+        failure = error
+      }
+      if (attempt + 1 < MEDIA_CANCEL_INTENT_WRITE_ATTEMPTS) {
+        try {
+          await sleep(MEDIA_CANCEL_INTENT_WRITE_DELAY_MS * 2 ** attempt, signal)
+        } catch {
+          // Cancelled while waiting: skip the pause. The remaining attempts
+          // are bounded, local and fast, and the intent must still land.
+        }
+      }
+    }
+    throw failure
+  }
+
+  /**
+   * Removes a fresh upload whose publication write failed or was cancelled
+   * (ported RVM105B P2-2, RVAPP-PORTM105R4 P2-A). The delete intent lands
+   * BEFORE the remote DELETE, so a failed DELETE can never strand the file
+   * without an intent the next read retries; a re-upload's replaced entry
+   * is restored, so the other sessions that use it can still save and only
+   * the pending upload is forgotten. The caller keeps the original failure,
+   * never a cleanup write error. The rollback runs on the ledger's own
+   * authority, not the caller's signal: the failed or cancelled publication
+   * left provider bytes no session owns, and this delete is the cancel's
+   * own cleanup, so it is attempted however the caller ended.
+   */
+  private async deleteUnpublished(
+    state: UploadLedgerState,
+    fileId: string,
+    signal: AbortSignal,
+    replaced?: UploadLedgerState['entries'][number],
+  ): Promise<void> {
+    // The fresh row goes, committed or not, and the entry it tried to
+    // replace is restored when one was displaced — the other sessions that
+    // use it can still save, and only the pending upload is forgotten
+    // (ported RVAPP-PORTM105R4 P2-A).
+    state.entries = state.entries.filter((entry) => entry.file.fileId !== fileId)
+    if (
+      replaced !== undefined &&
+      state.entries.every((entry) => entry.file.fileId !== replaced.file.fileId)
+    )
+      state.entries.push(replaced)
+    this.recordIntentLocked(state, fileId)
+    try {
+      await this.writeCancelIntent(state, signal)
+    } catch {
+      // The intent would not land: delete best-effort so nothing remote is
+      // left without trying, then report the original failure.
+      try {
+        await this.files.delete(fileId)
+      } catch {
+        // A persistently failing store strands the ownership; a later
+        // ownership release or provider expiry still resolves it.
+      }
+      return
+    }
+    try {
+      await this.files.delete(fileId)
+    } catch {
+      // The intent stays durable for the next read; the caller keeps the
+      // original publication failure.
+      return
+    }
+    this.clearIntentLocked(state, fileId)
+    try {
+      await this.deps.storage.write(state)
+    } catch {
+      // The remote copy is gone; the retained intent makes the next read
+      // forget it (a missing file deletes as found). Keep the original.
+    }
   }
 
   /**
@@ -593,6 +807,13 @@ export class UploadLedger implements SessionUploadLifecycle {
             .map((entry) => entry.file.fileId),
         )
         await this.cleanup(state, isCurrent, 'release', undefined, released)
+        // Due durable delete intents retry on every ownership write, not
+        // only on account reads (ported RVAPP-PORTM105R4 P2-B): a failed
+        // remove's intent cleans on the next save or listing once its
+        // backoff is due. Only under the current account, as in the read
+        // path; the cleanup above already reported this sync's own failure
+        // honestly, so a throw there still skips this retry.
+        if (await this.isCurrentAccount()) await this.retryPending(state)
         if (isCurrent()) return
         // A newer save may arrive during the write or account checks. Restore
         // still-existing owners before another account operation can clean them.
@@ -671,7 +892,11 @@ export class UploadLedger implements SessionUploadLifecycle {
 
   /**
    * Account cleanup never deletes a file still shared by a session. A
-   * provider 404 means gone here too, through the one normalising path.
+   * provider 404 means gone here too, through the one normalising path. A
+   * provider refusal reaches the direct caller as the typed error carrying
+   * the file's display name (never its id), so the dialog names the file
+   * with a fixed reason instead of the provider's id-echoing message
+   * (ported RVAPP-PORTM105R4 P3-4).
    */
   public async deleteFile(
     fileId: string,
@@ -688,12 +913,49 @@ export class UploadLedger implements SessionUploadLifecycle {
       // RULE 1: an explicit delete never takes a file an active request
       // carries, even after its session reference went stale.
       if (pinCountOf(state, fileId) > 0) throw new Error(UI_TEXT.media.filesInUseRequest)
-      if (ours === undefined) {
-        const file = state.cachedFiles.find((entry) => entry.fileId === fileId)
-        if (file === undefined || !(await isForeignDeletionConfirmed(file.name))) return
-      }
+      const known =
+        ours?.file ?? state.cachedFiles.find((entry) => entry.fileId === fileId) ?? undefined
+      if (
+        ours === undefined &&
+        (known === undefined || !(await isForeignDeletionConfirmed(known.name)))
+      )
+        return
       await this.requireAccount()
-      await this.removeEntry(state, fileId, { signal })
+      try {
+        await this.removeEntry(state, fileId, { signal })
+      } catch (error: unknown) {
+        // A cancel and the two in-use refusals keep their identity; a
+        // provider refusal becomes the typed display-name error instead.
+        if (signal?.aborted === true) throw error
+        if (error instanceof Error && isInUseRefusal(error)) throw error
+        throw new UploadDeleteFailedError(known?.name ?? UI_TEXT.media.uploadedFiles)
+      }
+    })
+  }
+
+  /**
+   * The account surface's once-only backlog notice (ported
+   * RVAPP-PORTM105R4 P2-B): entries whose delete keeps failing past the
+   * named attempts are told once, as a count only — no file name and no
+   * file id ever reaches this notice. A recovered entry's row is gone, so
+   * nothing is told for it.
+   */
+  public async consumeDeleteNotice(): Promise<{ provider: string; count: number } | undefined> {
+    return await this.deps.storage.withLock(async () => {
+      const state = await this.read()
+      const due = Object.entries(state.pendingAttempts ?? {}).filter(
+        ([, attempt]) =>
+          attempt.fails >= MEDIA_UPLOAD_DELETE_NOTICE_ATTEMPTS && attempt.notified !== true,
+      )
+      if (due.length === 0) return
+      state.pendingAttempts = {
+        ...state.pendingAttempts,
+        ...Object.fromEntries(
+          due.map(([fileId, attempt]) => [fileId, { ...attempt, notified: true }]),
+        ),
+      }
+      await this.deps.storage.write(state)
+      return { provider: this.deps.provider, count: due.length }
     })
   }
 

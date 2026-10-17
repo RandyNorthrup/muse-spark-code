@@ -1,4 +1,5 @@
-import { vi } from 'vitest'
+import { Usd, type UsdAmount } from '../../../../src/shared/usd'
+import { expect, vi } from 'vitest'
 import { MediaCostEstimator } from '../../../../src/core/media/mediaCost'
 import type {
   MediaModelCapabilities,
@@ -208,4 +209,23 @@ export function replayRig(
     encodeUploaded,
     deps,
   }
+}
+
+export function mediaByteSource(name: string, mime: string, bytes: Uint8Array) {
+  const chunk = Promise.resolve(bytes)
+  return {
+    name,
+    mime,
+    bytes: bytes.length,
+    open: async function* () {
+      yield await chunk
+    },
+  }
+}
+
+export function boundedMediaSettlement(amount: UsdAmount) {
+  return vi.fn((cost: UsdAmount, isUnknown?: boolean) => {
+    expect(Usd.from(cost).compare(Usd.from(amount))).toBeLessThanOrEqual(0)
+    return Promise.resolve({ spentUsd: cost, hasUnknownHistoricalFees: isUnknown === true })
+  })
 }

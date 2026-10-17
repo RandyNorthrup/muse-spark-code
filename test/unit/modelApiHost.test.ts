@@ -56,8 +56,10 @@ import type { PermissionSettings } from '../../src/core/permissionSettings'
 import {
   ModelApiHost,
   ModelApiSession,
+  incompleteReasonForLog,
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
+import { wireWordForLog } from '../../src/core/logging'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import type { MediaReplayPort } from '../../src/core/media/replayMedia'
 import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
@@ -2937,6 +2939,16 @@ describe('ModelApiSession: per-reply usage (M82)', () => {
   })
 })
 
+async function expectBudgetRefusal(t: ReturnType<typeof setup>) {
+  const watched = await startSession(t)
+  await budgetTurn(t, watched, 'hi', { text: 'never sent' })
+  expect(t.api.responseBodies()).toEqual([])
+  expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+    terminal: 'failed',
+  })
+  expect(lastReason(watched.events)).toContain('It was not sent.')
+}
+
 describe('ModelApiSession: session budget (M82)', () => {
   it('estimates the first request from its bytes and fits its output to what is left', async () => {
     setUiText(EN, BASE_LOCALE)
@@ -3008,13 +3020,7 @@ describe('ModelApiSession: session budget (M82)', () => {
   it('never sends a request the cap cannot fit, and the turn says why', async () => {
     setUiText(EN, BASE_LOCALE)
     const t = setup({ sessionBudgetUsd: Usd.from(0.000001).toAmount() })
-    const watched = await startSession(t)
-    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
-    expect(t.api.responseBodies()).toEqual([])
-    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-      terminal: 'failed',
-    })
-    expect(lastReason(watched.events)).toContain('It was not sent.')
+    await expectBudgetRefusal(t)
   })
 
   it('stops with the budget message when the cap affords fewer than sixteen output tokens', async () => {
@@ -3031,13 +3037,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       .add(Usd.from('4.25').times(10).divide(1_000_000))
       .toAmount()
     const t = setup({ sessionBudgetUsd: capUsd })
-    const watched = await startSession(t)
-    await budgetTurn(t, watched, 'hi', { text: 'never sent' })
-    expect(t.api.responseBodies()).toEqual([])
-    expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-      terminal: 'failed',
-    })
-    expect(lastReason(watched.events)).toContain('It was not sent.')
+    await expectBudgetRefusal(t)
   })
 
   it('stops a turn at the request that no longer fits, after the ones that did', async () => {
@@ -4794,7 +4794,76 @@ describe('ModelApiSession: turns', () => {
       terminal: 'failed',
       reason: 'the model failed',
     })
-    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('failed: bad key'))
+    // RVM105 4: the log carries the reason code; the turn above still reports
+    // the detailed reason to the user.
+    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('failed: authRequired'))
+    expect(JSON.stringify(t.log.warn.mock.calls)).not.toContain('bad key')
+  })
+
+  // RVM105B P2-1: the incomplete-response warnings use fixed log words. A
+  // provider reason carrying an attachment name and a secret-looking token
+  // maps to `other`; a word-shaped response id passes wireWordForLog,
+  // anything else becomes a fixed phrase. The turn shows its partial text;
+  // the raw reason is model-visible only, never user-visible.
+  it('logs a hostile incomplete reason in fixed words on an ordinary turn', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t)
+    const hostile = 'clip-sk-live-9f8e7d6c5b4a.wav'
+    t.api.script({ text: 'partial', incomplete: { reason: hostile } })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    expect(events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+    // The user still sees the partial text the provider sent, not the reason.
+    const history = JSON.stringify(session.history().items)
+    expect(history).toContain('partial')
+    expect(history).not.toContain(hostile)
+    const warnings = t.log.warn.mock.calls.map((call) => String(call[0]))
+    expect(warnings.some((line) => line.includes('incomplete: other'))).toBe(true)
+    expect(warnings.join('\n')).not.toContain(hostile)
+    expect(warnings.join('\n')).not.toContain('sk-live-')
+  })
+
+  it('logs a hostile incomplete reason in fixed words on compaction', async () => {
+    const t = setup()
+    const { session, turnDone } = await startSession(t)
+    await beginBudgetGoal(t, session, turnDone)
+    const hostile = 'clip-sk-live-9f8e7d6c5b4a.wav'
+    t.api.script({ text: 'PARTIAL SUMMARY', incomplete: { reason: hostile } })
+    await expect(session.compact()).rejects.toThrow('response.incomplete')
+    const warnings = t.log.warn.mock.calls.map((call) => String(call[0]))
+    expect(
+      warnings.some(
+        (line) => line.includes('compaction response') && line.includes('incomplete: other'),
+      ),
+    ).toBe(true)
+    expect(warnings.join('\n')).not.toContain(hostile)
+    expect(warnings.join('\n')).not.toContain('sk-live-')
+  })
+
+  it('maps incomplete reasons to a closed log vocabulary', () => {
+    expect(incompleteReasonForLog(undefined)).toBe('no reason')
+    for (const known of [
+      'max_output_tokens',
+      'content_filter',
+      'length',
+      'max_tokens',
+      'refusal',
+      'pause_turn',
+      'missing_stop_reason',
+      'stream_ended',
+      'stream_ended_without_finish_reason',
+    ]) {
+      expect(incompleteReasonForLog(known)).toBe(known)
+    }
+    // Every other provider text — an attachment name, a secret-looking token,
+    // a forged id-shaped reason — is the word `other`.
+    expect(incompleteReasonForLog('clip-sk-live-9f8e7d6c5b4a.wav')).toBe('other')
+    expect(incompleteReasonForLog('resp_abc123')).toBe('other')
+    expect(incompleteReasonForLog('')).toBe('other')
+    // A hostile response id is not word-shaped, so the log names the fixed
+    // phrase instead of the id.
+    expect(wireWordForLog('resp_abc123')).toBe('resp_abc123')
+    expect(wireWordForLog('clip-sk-live-9f8e7d6c5b4a.wav')).toBe('an unrecognized value')
   })
 
   it('compacts by summarising, then replays only the summary', async () => {
@@ -7840,7 +7909,8 @@ describe('ModelApiHost: sessions between windows (M11)', () => {
     await session.sendTurn([{ type: 'text', text: 'hello' }])
     await turnDone()
     await t.host.close()
-    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('was not saved: disk full'))
+    // RVM105 4: the save log carries fixed words; the waiter keeps the error.
+    expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('was not saved: save_failed'))
     expect(store.saved.has(session.sessionId)).toBe(true)
     const page = await t.host.listSessions({ workspaceRoot: ROOT, limit: 10 })
     expect(page.sessions.map((record) => record.sessionId)).toEqual([session.sessionId])

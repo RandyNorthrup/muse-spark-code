@@ -898,6 +898,13 @@
     "uploadsUsage": "Использование: /uploads [delete <file> | delete-all]",
     "uploadNotFound": "Загруженный файл {id} отсутствует в списке.",
     "uploadForeignKept": "Файл {name} сохранен: его может использовать другое приложение.",
+    "uploadDeleteProviderRefused": "провайдер отклонил удаление",
+    "uploadDeleteBacklog": {
+      "one": "{count} загруженный файл не удалось удалить из {provider}. Удаление будет повторено.",
+      "other": "{count} загруженного файла не удалось удалить из {provider}. Удаление будет повторено.",
+      "few": "{count} загруженных файла не удалось удалить из {provider}. Удаление будет повторено.",
+      "many": "{count} загруженных файлов не удалось удалить из {provider}. Удаление будет повторено."
+    },
     "conversionFailed": "Не удалось преобразовать: {reason}",
     "replayMetadata": "Медиа: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Медиа: {name} ({size})"

@@ -24,6 +24,13 @@ function riffEnd(bytes: Buffer, sizeBytes: number): number | undefined {
   return end < RIFF_HEADER_BYTES || end > sizeBytes ? undefined : end
 }
 
+function riffChunk(bytes: Buffer, cursor: number) {
+  const type = bytes.toString('latin1', cursor, cursor + UINT32_BYTES)
+  const length = bytes.readUInt32LE(cursor + UINT32_BYTES)
+  const body = cursor + CHUNK_HEADER_BYTES
+  return { type, length, body, next: body + length + (length % 2) }
+}
+
 /** The `fmt ` facts a last-mile contract check needs (format, channels, rate, depth). */
 export interface WavFormat {
   readonly format: number
@@ -44,10 +51,7 @@ export function readWavFormat(
   while (cursor < end) {
     if (cursor + CHUNK_HEADER_BYTES > end) return undefined
     if (cursor + CHUNK_HEADER_BYTES > bytes.length) return undefined
-    const type = bytes.toString('latin1', cursor, cursor + UINT32_BYTES)
-    const length = bytes.readUInt32LE(cursor + UINT32_BYTES)
-    const body = cursor + CHUNK_HEADER_BYTES
-    const next = body + length + (length % 2)
+    const { type, length, body, next } = riffChunk(bytes, cursor)
     if (next > end) return undefined
     if (type === 'fmt ') {
       if (length < FMT_MIN_BYTES || body + FMT_MIN_BYTES > bytes.length) return undefined
@@ -78,10 +82,7 @@ export function sniffRiff(
   while (cursor < end) {
     if (cursor + CHUNK_HEADER_BYTES > end) return undefined
     if (cursor + CHUNK_HEADER_BYTES > bytes.length) break
-    const type = bytes.toString('latin1', cursor, cursor + UINT32_BYTES)
-    const length = bytes.readUInt32LE(cursor + UINT32_BYTES)
-    const body = cursor + CHUNK_HEADER_BYTES
-    const next = body + length + (length % 2)
+    const { type, length, body, next } = riffChunk(bytes, cursor)
     if (next > end) return undefined
     if (type === 'fmt ') {
       if (length < FMT_MIN_BYTES) return undefined

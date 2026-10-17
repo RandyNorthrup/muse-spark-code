@@ -7,7 +7,12 @@
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { lstat, open, type FileHandle } from 'node:fs/promises'
-import { BYTES_PER_MIB, MAX_DOCUMENT_BYTES, MAX_IMAGE_BYTES } from '../../shared/constants'
+import {
+  BYTES_PER_MIB,
+  MAX_DOCUMENT_BYTES,
+  MAX_IMAGE_BYTES,
+  type MEDIA_AUDIO_ACTION_OPTIONS,
+} from '../../shared/constants'
 import type { MediaModelCapabilities } from '../../core/media/modalityGate'
 import { reopeningSource, type AttachedMedia } from '../../core/media/attachedMedia'
 import { MediaContributorConsent } from '../../core/media/contributorConsent'
@@ -20,6 +25,7 @@ import { isRecordingTempPath } from './recordingLatest'
 export interface MediaHostSettings {
   readonly mediaMaxUploadMiB: number
   readonly screenRecordingMaxSeconds: number
+  readonly mediaAudioAction: (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]
 }
 
 export function mediaLimitsFromSettings(settings: MediaHostSettings): MediaLimits {

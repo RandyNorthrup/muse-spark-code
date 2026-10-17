@@ -1,3 +1,6 @@
+import { mediaByteSource } from './helpers/media/replay'
+import { emptyStoredSession } from './helpers/fakeSessionStore'
+import { scratchDirectories } from './helpers/media/scratch'
 // MEDIAW: the upload ledger and the calibration store share the
 // repository's cross-process mutex (core/fileLock, the session-budget
 // design); ledgers are per account; settlements merge under the lock.
@@ -5,12 +8,11 @@
 // absent there, and sequential settlements lose one observation (24 of 25).
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { mkdir, readdir, readFile, stat } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { withMkdirLock } from '../../src/core/fileLock'
 import { MediaCostEstimator } from '../../src/core/media/mediaCost'
 import {
@@ -19,12 +21,19 @@ import {
 } from '../../src/core/media/productionMedia'
 import {
   accountLedgerDirectory,
+  fileUploadLedgerStorage,
   readLastAccountId,
   writeLastAccountId,
 } from '../../src/core/media/uploadLedgerStorage'
+import { UploadLedger } from '../../src/core/media/uploadLedger'
 import { fileCalibrationStore } from '../../src/core/media/productionMedia'
-import { MEDIA_ESTIMATE_SAFETY_FACTOR } from '../../src/shared/constants'
+import {
+  MEDIA_ESTIMATE_SAFETY_FACTOR,
+  MEDIA_PROVIDER_POOL_BYTES,
+  MEDIA_UPLOAD_DELETE_RETRY_BASE_DELAY_MS,
+} from '../../src/shared/constants'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { FilesApi } from '../../src/core/backends/modelapi/files'
 import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
 import { createSessionUploads } from '../../src/host/backend/sessionUploads'
 import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
@@ -47,16 +56,7 @@ const MODEL = 'muse-spark-1.3-contributor'
 const KEY_B = 'mediaw-second-account-key'
 const ACCOUNT_B = createHash('sha256').update(KEY_B).digest('hex')
 
-const folders: string[] = []
-afterAll(() => {
-  for (const folder of folders) rmSync(folder, { recursive: true, force: true })
-})
-
-function scratchDir(): string {
-  const folder = mkdtempSync(path.join(tmpdir(), 'muse-upload-stores-'))
-  folders.push(folder)
-  return folder
-}
+const scratchDir = scratchDirectories('muse-upload-stores-')
 
 /** One lock contender as a real OS process, importing the real mutex. */
 function contenderScript(lockFile: string, orderFile: string, id: string, holdMs: number): string {
@@ -234,7 +234,6 @@ async function uploadedRef(
   const bytes = new Uint8Array(2048)
   for (let index = 0; index < bytes.length; index++) bytes[index] = (index * 7) % 251
   const sha256 = createHash('sha256').update(bytes).digest('hex')
-  const chunk = Promise.resolve(bytes)
   return await replay.upload(
     {
       name: 'clip.mp4',
@@ -248,14 +247,7 @@ async function uploadedRef(
         height: 240,
       },
       sha256,
-      source: {
-        name: 'clip.mp4',
-        mime: 'video/mp4',
-        bytes: bytes.length,
-        open: async function* () {
-          yield await chunk
-        },
-      },
+      source: mediaByteSource('clip.mp4', 'video/mp4', bytes),
     },
     MODEL,
     AbortSignal.timeout(10_000),
@@ -264,31 +256,19 @@ async function uploadedRef(
 
 describe('session store ownership over the real ledger', () => {
   const LAST_ACTIVITY = '2026-09-22T10:00:00.000Z'
-  const stored = (sessionId: string): StoredSession => ({
-    version: 1,
-    sessionId,
-    workspaceRoot: '/ws',
-    modelId: 'muse-spark-1.3',
-    approvalMode: 'allowAll',
-    effort: 'high',
-    createdAt: '2026-09-22T09:00:00.000Z',
-    lastActivityAt: LAST_ACTIVITY,
-    turnIds: [],
-    todos: [],
-    replay: [],
-    transcript: [],
-    outputs: {},
-    usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
-  })
+  const stored = (sessionId: string, name?: string): StoredSession =>
+    emptyStoredSession(sessionId, LAST_ACTIVITY, name)
 
   function boundStore(options?: {
     readonly failDeletes?: boolean
     readonly retentionDays?: number
     readonly now?: number
+    readonly clock?: { now: number }
   }) {
     const api = fakeModelApi()
     const files = fakeFilesApi(api.fetch)
     const log = new FakeLogOutputChannel()
+    let shouldFailDeletes = options?.failDeletes ?? false
     const refusingFetch = async (
       input: string | URL | Request,
       init?: RequestInit,
@@ -296,12 +276,11 @@ describe('session store ownership over the real ledger', () => {
       const href = requestHref(input)
       const isDelete =
         (init?.method ?? 'GET') === 'DELETE' && new URL(href).pathname.includes('/files/')
-      return isDelete
+      return isDelete && shouldFailDeletes
         ? Response.json({ error: { message: 'provider exploded' } }, { status: 500 })
         : await files.fetch(input, init)
     }
-    const fetch: typeof globalThis.fetch =
-      options?.failDeletes === true ? refusingFetch : files.fetch
+    const fetch: typeof globalThis.fetch = refusingFetch
     const keyClient = () =>
       new ModelApiClient({
         ...fakeModelApiClientSettings(log),
@@ -310,16 +289,18 @@ describe('session store ownership over the real ledger', () => {
       })
     // The replay and the store share one uploads root, as in the hosts.
     const uploadLedgerDir = scratchDir()
+    const clock = options?.clock
     const uploads = createSessionUploads({
       uploadLedgerDir,
       currentAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       filesClient: keyClient,
+      ...(clock !== undefined && { now: () => clock.now }),
     })
     const store = createFileSessionStore({
       directory: scratchDir(),
       log,
       retentionDays: () => options?.retentionDays ?? 30,
-      now: () => options?.now ?? Date.parse(LAST_ACTIVITY),
+      now: () => options?.clock?.now ?? options?.now ?? Date.parse(LAST_ACTIVITY),
       sleep: () => Promise.resolve(),
       uploads,
     })
@@ -334,19 +315,34 @@ describe('session store ownership over the real ledger', () => {
       isClosed: () => false,
       source: () => Promise.resolve(undefined),
     })
-    return { store, replay, files }
+    return {
+      store,
+      replay,
+      files,
+      setFailDeletes: (shouldFail: boolean) => {
+        shouldFailDeletes = shouldFail
+      },
+    }
+  }
+
+  /** Upload once through the replay and save the owning media turn. */
+  async function saveMediaTurn(
+    t: ReturnType<typeof boundStore>,
+    sessionId = 'media-turn',
+  ): Promise<UploadedRef> {
+    const ref = await uploadedRef(t.replay)
+    await t.store.save({
+      ...stored(sessionId),
+      accountId: FAKE_MODEL_API_ACCOUNT_ID,
+      fileRefs: [ref],
+    })
+    return ref
   }
 
   it('saves and reopens a media turn through the real file session store', async () => {
     const t = boundStore()
     // The replay and the store share one uploads root, as in the hosts.
-    const ref = await uploadedRef(t.replay)
-    const session = {
-      ...stored('media-turn'),
-      accountId: FAKE_MODEL_API_ACCOUNT_ID,
-      fileRefs: [ref],
-    }
-    await t.store.save(session)
+    const ref = await saveMediaTurn(t)
     // A media turn survives reopening with its file references intact.
     await expect(t.store.load('media-turn')).resolves.toMatchObject({ fileRefs: [ref] })
     const headers = await t.store.list()
@@ -355,12 +351,7 @@ describe('session store ownership over the real ledger', () => {
 
   it('releases the session provider uploads on delete, confirmed by the provider', async () => {
     const t = boundStore()
-    const ref = await uploadedRef(t.replay)
-    await t.store.save({
-      ...stored('media-turn'),
-      accountId: FAKE_MODEL_API_ACCOUNT_ID,
-      fileRefs: [ref],
-    })
+    const ref = await saveMediaTurn(t)
     await t.store.remove('media-turn')
     await expect(t.store.load('media-turn')).resolves.toBeUndefined()
     // The provider deletion ran: the fake records it, and nothing is retained.
@@ -372,27 +363,34 @@ describe('session store ownership over the real ledger', () => {
       retentionDays: 30,
       now: Date.parse(LAST_ACTIVITY) + 31 * 24 * 3_600_000,
     })
-    const ref = await uploadedRef(t.replay)
-    await t.store.save({
-      ...stored('media-turn'),
-      accountId: FAKE_MODEL_API_ACCOUNT_ID,
-      fileRefs: [ref],
-    })
+    const ref = await saveMediaTurn(t)
     expect(await t.store.list()).toEqual([])
     expect(t.files.deletes).toEqual([ref.fileId])
   })
 
-  it('reports a provider deletion failure honestly and retains the session', async () => {
-    const t = boundStore({ failDeletes: true })
-    const ref = await uploadedRef(t.replay)
-    await t.store.save({
-      ...stored('media-turn'),
-      accountId: FAKE_MODEL_API_ACCOUNT_ID,
-      fileRefs: [ref],
-    })
+  it('reports a failed provider deletion honestly, and the next sweep cleans it', async () => {
+    const clock = { now: Date.parse('2026-09-22T10:00:00.000Z') }
+    const t = boundStore({ failDeletes: true, clock })
+    await saveMediaTurn(t)
+    // The removal reports the provider failure honestly (the session is
+    // retained with its remove intent), but the provider still holds the
+    // bytes: the ledger keeps the unowned entry with its recorded failure
+    // instead of orphaning it (RVAPP-PORTM105R4 P2-B).
     await expect(t.store.remove('media-turn')).rejects.toThrow()
-    // Nothing was silently dropped: the session still reopens.
-    await expect(t.store.load('media-turn')).resolves.toMatchObject({ fileRefs: [ref] })
+    await expect(t.store.load('media-turn')).resolves.toMatchObject({ sessionId: 'media-turn' })
+    expect(t.files.files.size).toBe(1)
+    // Another entry's failed delete never fails a save: this session carries
+    // no files, yet its save runs the same sweep under the same account.
+    await t.store.save({ ...stored('other-turn'), accountId: FAKE_MODEL_API_ACCOUNT_ID })
+    await expect(t.store.load('other-turn')).resolves.toMatchObject({ sessionId: 'other-turn' })
+    expect(t.files.files.size).toBe(1)
+    // The provider is back and the backoff is due: the next listing replays
+    // the retained remove intent, drops the session and deletes the file.
+    t.setFailDeletes(false)
+    clock.now += MEDIA_UPLOAD_DELETE_RETRY_BASE_DELAY_MS
+    await t.store.list()
+    await expect(t.store.load('media-turn')).resolves.toBeUndefined()
+    expect(t.files.files.size).toBe(0)
   })
 })
 describe('per-account upload ledgers', () => {
@@ -420,15 +418,7 @@ describe('per-account upload ledgers', () => {
     const bytes = new Uint8Array(4096)
     for (let index = 0; index < bytes.length; index++) bytes[index] = index % 251
     const sha256 = createHash('sha256').update(bytes).digest('hex')
-    const chunk = Promise.resolve(bytes)
-    const source = () => ({
-      name: 'clip.mp4',
-      mime: 'video/mp4',
-      bytes: bytes.length,
-      open: async function* () {
-        yield await chunk
-      },
-    })
+    const source = () => mediaByteSource('clip.mp4', 'video/mp4', bytes)
     const media = (digest: string) => ({
       name: 'clip.mp4',
       info: {
@@ -515,15 +505,19 @@ describe('per-account upload ledgers', () => {
   })
 })
 
+function calibrationStore(folder: string, log: FakeLogOutputChannel) {
+  return fileCalibrationStore(folder, log, {
+    sleep: () => Promise.resolve(),
+    attempts: 50,
+    waitMs: 1,
+  })
+}
+
 describe('calibration settlement merge', () => {
   it('keeps both sessions settlements: 25 points, not 24', async () => {
     const folder = scratchDir()
     const log = new FakeLogOutputChannel()
-    const store = fileCalibrationStore(folder, log, {
-      sleep: () => Promise.resolve(),
-      attempts: 50,
-      waitMs: 1,
-    })
+    const store = calibrationStore(folder, log)
     const estimatorFor = () =>
       new MediaCostEstimator({
         read: store.read,
@@ -550,11 +544,7 @@ describe('calibration settlement merge', () => {
   it('writes staging files with unique names per writer', async () => {
     const folder = scratchDir()
     const log = new FakeLogOutputChannel()
-    const store = fileCalibrationStore(folder, log, {
-      sleep: () => Promise.resolve(),
-      attempts: 50,
-      waitMs: 1,
-    })
+    const store = calibrationStore(folder, log)
     const estimator = new MediaCostEstimator({
       read: store.read,
       write: store.write,
@@ -576,5 +566,410 @@ describe('calibration settlement merge', () => {
     expect(leftovers).toEqual([])
     await mkdir(folder, { recursive: true })
     expect(readFileSync(path.join(folder, 'calibration.json'), 'utf8')).toContain('cap-x')
+  })
+})
+
+/**
+ * RVM105 1: an upload that reached the provider is never orphaned. The real
+ * FilesApi and the real per-account ledger run over the fake provider; the
+ * fetch wrapper cancels the caller just after the provider answers with its
+ * receipt (the review's confirmed scenario), or refuses the clean-up DELETE.
+ * VS Code, ACP and exec share this FilesApi and ledger: only their transports
+ * differ, and the exec transport's bounded clean-up route is covered in
+ * execFetch.test.ts.
+ */
+function unpublishedRig(options?: {
+  readonly failDeletes?: boolean
+  readonly failWrites?: number
+  readonly abortAfterReceipt?: boolean
+  readonly interruptAt?: 'json' | 'intent' | 'publication'
+  readonly failPublication?: boolean
+  /** Fail post-publication cancel-intent writes (RVM105B P2-2). */
+  readonly failCancelIntentWrites?: number
+  /** Fail the forget write after a successful cancel DELETE (RVM105B P2-2). */
+  readonly failForgetWrites?: number
+}) {
+  const api = fakeModelApi()
+  const files = fakeFilesApi(api.fetch)
+  let shouldFailDeletes = options?.failDeletes ?? false
+  let failWrites = options?.failWrites ?? 0
+  let failCancelIntentWrites = options?.failCancelIntentWrites ?? 0
+  let failForgetWrites = options?.failForgetWrites ?? 0
+  let hasCommittedPublication = false
+  let deletesAttempted = 0
+  const shouldAbortAfterReceipt = options?.abortAfterReceipt ?? true
+  const caller = new AbortController()
+  const cleanupIntents: unknown[] = []
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const pathname = new URL(requestHref(input)).pathname
+    const method = init?.method ?? 'GET'
+    if (method === 'DELETE') {
+      deletesAttempted += 1
+      cleanupIntents.push(await storage.read())
+    }
+    if (method === 'DELETE' && shouldFailDeletes && pathname.includes('/files/'))
+      return Response.json(
+        { error: { message: 'delete failed', type: 'server_error' } },
+        { status: 500 },
+      )
+    const response = await files.fetch(input, init)
+    if (method === 'POST' && options?.interruptAt === 'json') {
+      const json = response.json.bind(response)
+      vi.spyOn(response, 'json').mockImplementation(async () => {
+        const receipt: unknown = await json()
+        caller.abort(new Error('cancelled after receipt'))
+        return receipt
+      })
+    }
+    // Cancellation lands after the provider answered with its receipt.
+    if (shouldAbortAfterReceipt && method === 'POST' && pathname.endsWith('/files'))
+      caller.abort(new Error('cancelled after receipt'))
+    return response
+  }
+  const log = new FakeLogOutputChannel()
+  const client = () =>
+    new ModelApiClient({
+      ...fakeModelApiClientSettings(log),
+      apiKey: () => Promise.resolve(FAKE_MODEL_API_KEY),
+      fetch,
+    })
+  const accountId = FAKE_MODEL_API_ACCOUNT_ID
+  const inner = fileUploadLedgerStorage(accountLedgerDirectory(scratchDir(), accountId), {
+    sleep: () => Promise.resolve(),
+  })
+  const storage = {
+    ...inner,
+    write: async (state: Parameters<typeof inner.write>[0]) => {
+      if (failWrites > 0) {
+        failWrites -= 1
+        throw new Error('Disk full')
+      }
+      if (options?.failPublication && state.entries.length > 0) throw new Error('Disk full')
+      // After the publication commit, an entry-free write that still names a
+      // delete intent is the cancel intent; an entry-free write with no
+      // intent after a DELETE is the forget write. The intent-shaped write
+      // fails whatever the DELETE count (RVAPP-PORTM105R4 P3-1), so the rig
+      // also reproduces the old DELETE-first bug: a failed DELETE followed
+      // by a failed intent write.
+      if (hasCommittedPublication && state.entries.length === 0) {
+        if ((state.pendingDeletes ?? []).length > 0 && failCancelIntentWrites > 0) {
+          failCancelIntentWrites -= 1
+          throw new Error('Disk full')
+        }
+        if (
+          (state.pendingDeletes ?? []).length === 0 &&
+          deletesAttempted > 0 &&
+          failForgetWrites > 0
+        ) {
+          failForgetWrites -= 1
+          throw new Error('Disk full')
+        }
+      }
+      await inner.write(state)
+      if (state.entries.length > 0) hasCommittedPublication = true
+      if (
+        (options?.interruptAt === 'intent' && (state.pendingDeletes ?? []).length > 0) ||
+        (options?.interruptAt === 'publication' && state.entries.length > 0)
+      )
+        caller.abort(new Error('cancelled after receipt'))
+    },
+  }
+  const ledger = () =>
+    new UploadLedger({
+      storage,
+      files: new FilesApi({
+        client: client(),
+        provider: 'meta',
+        authorizeUpload: () => Promise.resolve(),
+      }),
+      accountId,
+      provider: 'meta',
+      poolBytes: MEDIA_PROVIDER_POOL_BYTES,
+      currentAccountId: () => Promise.resolve(accountId),
+      now: () => Date.now(),
+    })
+  const bytes = new Uint8Array(2048)
+  for (let index = 0; index < bytes.length; index++) bytes[index] = (index * 7) % 251
+  const sha256 = createHash('sha256').update(bytes).digest('hex')
+  const source = mediaByteSource('clip.mp4', 'video/mp4', bytes)
+  return {
+    files,
+    cleanupIntents,
+    caller,
+    storage,
+    ledger,
+    setFailDeletes: (shouldFail: boolean) => {
+      shouldFailDeletes = shouldFail
+    },
+    setFailWrites: (count: number) => {
+      failWrites = count
+    },
+    ensure: (signal: AbortSignal) => ledger().ensure('session-1', sha256, source, signal),
+    state: async () => await storage.read(),
+  }
+}
+
+function hasIteratorReturn(
+  target: object | null,
+): target is { return(...args: unknown[]): unknown } {
+  return target !== null && 'return' in target && typeof target.return === 'function'
+}
+
+function spyIteratorClose() {
+  const value = Promise.resolve(1)
+  const iterator = (async function* () {
+    yield await value
+  })()
+  const prototype = Reflect.getPrototypeOf(Reflect.getPrototypeOf(iterator) ?? iterator)
+  if (!hasIteratorReturn(prototype)) throw new Error('Async generator return is unavailable')
+  return vi.spyOn(prototype, 'return')
+}
+
+describe('an upload that reached the provider is never orphaned', () => {
+  it('has durable cleanup intent before the iterator-close await and upload publication', async () => {
+    const t = unpublishedRig({ abortAfterReceipt: false })
+    const close = spyIteratorClose().mockImplementationOnce(async () => {
+      expect(await t.state()).toMatchObject({
+        entries: [],
+        pendingDeletes: [{ fileId: t.files.uploads[0]?.fileId }],
+      })
+      return { done: true, value: undefined }
+    })
+    try {
+      await t.ensure(t.caller.signal)
+      expect(close).toHaveBeenCalled()
+    } finally {
+      close.mockRestore()
+    }
+  })
+
+  it('deletes the known receipt when the final iterator-close await fails', async () => {
+    const close = spyIteratorClose().mockRejectedValueOnce(new Error('close failed'))
+    const t = unpublishedRig({ abortAfterReceipt: false })
+    try {
+      await expect(t.ensure(t.caller.signal)).rejects.toThrow('close failed')
+      expect(t.files.uploads).toHaveLength(1)
+      expect(t.files.deletes).toEqual([t.files.uploads[0]?.fileId])
+      expect(t.files.files.size).toBe(0)
+    } finally {
+      close.mockRestore()
+    }
+  })
+
+  it.each(['json', 'intent', 'publication'] as const)(
+    'keeps provider cleanup ownership when interrupted during %s',
+    async (interruptAt) => {
+      const t = unpublishedRig({ abortAfterReceipt: false, interruptAt })
+      // Publication is durable before its await resolves; cancellation there
+      // cannot remove ownership. Every earlier interruption deletes the file.
+      try {
+        await t.ensure(t.caller.signal)
+      } catch {
+        expect(t.caller.signal.aborted).toBe(true)
+      }
+      const id = t.files.uploads[0]?.fileId
+      expect(id).toBeDefined()
+      const state = await t.state()
+      expect(t.files.deletes.includes(id ?? '') || JSON.stringify(state).includes(id ?? '')).toBe(
+        true,
+      )
+    },
+  )
+
+  it.each([
+    {
+      name: 'retains the pre-publication intent when publication and provider deletion fail',
+      isWriteFailure: true,
+    },
+    {
+      name: 'records deletion after cancellation during a committed publication and a failed DELETE',
+      isWriteFailure: false,
+    },
+  ])('$name', async ({ isWriteFailure }) => {
+    const t = unpublishedRig({
+      abortAfterReceipt: false,
+      failDeletes: true,
+      ...(isWriteFailure ? { failPublication: true } : { interruptAt: 'publication' }),
+    })
+    await expect(t.ensure(t.caller.signal)).rejects.toThrow(
+      isWriteFailure ? 'Disk full' : 'cancelled after receipt',
+    )
+    expect(await t.state()).toMatchObject({
+      entries: [],
+      pendingDeletes: [{ fileId: t.files.uploads[0]?.fileId }],
+    })
+    t.setFailDeletes(false)
+    await t.ledger().accountReport()
+    expect(t.files.files.size).toBe(0)
+  })
+  it('cancels before any receipt without a clean-up: no DELETE, no intent', async () => {
+    const t = unpublishedRig()
+    t.caller.abort(new Error('cancelled before upload'))
+    await expect(t.ensure(t.caller.signal)).rejects.toThrow('cancelled before upload')
+    expect(t.files.uploads).toEqual([])
+    expect(t.files.deletes).toEqual([])
+    expect(await t.state()).toBeUndefined()
+  })
+
+  it('deletes at the provider when cancellation lands after the receipt', async () => {
+    const t = unpublishedRig()
+    await expect(t.ensure(t.caller.signal)).rejects.toThrow('cancelled after receipt')
+    const uploaded = t.files.uploads[0]
+    expect(uploaded).toBeDefined()
+    // The intent was durable before the detached DELETE started.
+    expect(t.files.deletes).toEqual([uploaded?.fileId])
+    expect(t.files.files.size).toBe(0)
+    expect(t.cleanupIntents[0]).toMatchObject({
+      entries: [],
+      pendingDeletes: [{ fileId: uploaded?.fileId }],
+    })
+    await t.ledger().accountReport()
+    expect(await t.state()).toMatchObject({ entries: [], pendingDeletes: [] })
+  })
+
+  it.each([false, true])(
+    'records a clean-up intent when DELETE fails (first write fails: %s)',
+    async (failWrite) => {
+      const t = unpublishedRig({
+        failDeletes: true,
+        failWrites: failWrite ? 1 : 0,
+        abortAfterReceipt: !failWrite,
+      })
+      // The caller still sees the original upload failure, not the clean-up.
+      await expect(t.ensure(t.caller.signal)).rejects.toThrow(
+        failWrite ? 'Disk full' : 'cancelled after receipt',
+      )
+      const uploaded = t.files.uploads[0]
+      expect(uploaded).toBeDefined()
+      expect(t.files.deletes).toEqual([])
+      expect(await t.state()).toMatchObject({
+        entries: [],
+        pendingDeletes: [{ fileId: uploaded?.fileId }],
+      })
+      // A fresh ledger over the same directory proves the intent is durable:
+      // the next sweep deletes the provider file and clears the intent.
+      t.setFailDeletes(false)
+      await t.ledger().accountReport()
+      expect(t.files.deletes).toEqual([uploaded?.fileId])
+      expect(t.files.files.size).toBe(0)
+      expect(await t.state()).toMatchObject({ entries: [], pendingDeletes: [] })
+    },
+  )
+
+  it('deletes at the provider when the ledger write after a good upload fails', async () => {
+    const t = unpublishedRig({ failWrites: 1, abortAfterReceipt: false })
+    await expect(t.ensure(t.caller.signal)).rejects.toThrow('Disk full')
+    expect(t.files.uploads).toHaveLength(1)
+    // The write-failure path removed the receipt it could not record.
+    expect(t.files.deletes).toEqual(t.files.uploads.map((file) => file.fileId))
+    expect(t.files.files.size).toBe(0)
+    expect(await t.state()).toBeUndefined()
+  })
+})
+
+/**
+ * RVM105B P2-2: a cancelled upload is never left referenced. The ledger
+ * records the deletion intent BEFORE the remote DELETE, so the write-failure
+ * table below always resolves: nothing remote is left forever (the next sweep
+ * deletes it) and nothing in use is deleted (referenced entries are skipped).
+ * Shared preparation and intent assertions keep the zero-clone gate green.
+ */
+async function cancelAfterPublication(options?: Parameters<typeof unpublishedRig>[0]) {
+  const rig = unpublishedRig({ abortAfterReceipt: false, interruptAt: 'publication', ...options })
+  // The caller keeps the original cancellation, never a cleanup write error.
+  await expect(rig.ensure(rig.caller.signal)).rejects.toThrow('cancelled after receipt')
+  const uploaded = rig.files.uploads[0]
+  expect(uploaded).toBeDefined()
+  if (uploaded === undefined) throw new Error('expected an upload')
+  return { rig, uploaded }
+}
+
+async function expectDurableIntent(
+  rig: ReturnType<typeof unpublishedRig>,
+  uploaded: { readonly fileId: string },
+) {
+  expect(await rig.state()).toMatchObject({
+    entries: [],
+    pendingDeletes: [{ fileId: uploaded.fileId }],
+  })
+}
+
+async function expectSweepCleans(
+  rig: ReturnType<typeof unpublishedRig>,
+  expectedDeletes: readonly string[],
+) {
+  // A fresh ledger proves the intent is durable: the next sweep deletes the
+  // provider file and forgets it.
+  rig.setFailDeletes(false)
+  await rig.ledger().accountReport()
+  expect(rig.files.deletes).toEqual(expectedDeletes)
+  expect(rig.files.files.size).toBe(0)
+  expect(await rig.state()).toMatchObject({ entries: [], pendingDeletes: [] })
+}
+
+describe('a cancelled upload is never left referenced', () => {
+  it('resolves cancel after a committed publication when DELETE and the first intent write fail', async () => {
+    const { rig, uploaded } = await cancelAfterPublication({
+      failDeletes: true,
+      failCancelIntentWrites: 1,
+    })
+    // Owned, cancel requested, intent unwritten never reaches durable state:
+    // the retried intent replaced the ownership.
+    await expectDurableIntent(rig, uploaded)
+    // The intent was durable before the first DELETE started: under the old
+    // DELETE-first order this read still names the uncommitted ownership.
+    expect(rig.cleanupIntents[0]).toMatchObject({
+      entries: [],
+      pendingDeletes: [{ fileId: uploaded.fileId }],
+    })
+    await expectSweepCleans(rig, [uploaded.fileId])
+  })
+
+  it('forgets a cancelled upload whose remote copy is already gone when the forget write fails', async () => {
+    const { rig, uploaded } = await cancelAfterPublication({ failForgetWrites: 1 })
+    expect(rig.files.deletes).toEqual([uploaded.fileId])
+    expect(rig.files.files.size).toBe(0)
+    // The forget write failed, so the intent stays; the next sweep meets a
+    // missing file, deletes as found, and forgets it.
+    await expectDurableIntent(rig, uploaded)
+    await rig.ledger().accountReport()
+    expect(rig.files.files.size).toBe(0)
+    expect(await rig.state()).toMatchObject({ entries: [], pendingDeletes: [] })
+  })
+
+  it('forgets a deleted file even when its sweep write fails once', async () => {
+    const { rig, uploaded } = await cancelAfterPublication({ failDeletes: true })
+    await expectDurableIntent(rig, uploaded)
+    // The provider is back but the sweep's clearing write fails: the listing
+    // isolates the failure, and the pass's later write seals the
+    // already-deleted file — the delete is never attempted twice.
+    rig.setFailDeletes(false)
+    rig.setFailWrites(1)
+    await rig.ledger().accountReport()
+    expect(rig.files.files.size).toBe(0)
+    expect(rig.files.deletes).toEqual([uploaded.fileId])
+    // The next sweep finds nothing left to do.
+    await rig.ledger().accountReport()
+    expect(rig.files.deletes).toEqual([uploaded.fileId])
+    expect(await rig.state()).toMatchObject({ entries: [], pendingDeletes: [] })
+  })
+
+  it('never deletes a referenced upload during a failing sweep', async () => {
+    const t = unpublishedRig({ abortAfterReceipt: false })
+    await t.ensure(t.caller.signal)
+    const uploaded = t.files.uploads[0]
+    expect(uploaded).toBeDefined()
+    expect(await t.state()).toMatchObject({
+      entries: [{ sessions: ['session-1'] }],
+      pendingDeletes: [],
+    })
+    t.setFailDeletes(true)
+    await t.ledger().accountReport()
+    expect(t.files.deletes).toEqual([])
+    expect(t.files.files.size).toBe(1)
+    expect(await t.state()).toMatchObject({
+      entries: [{ sessions: ['session-1'] }],
+      pendingDeletes: [],
+    })
   })
 })

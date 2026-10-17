@@ -74,6 +74,7 @@ import * as keyInput from '../../src/runtime/exec/keyInput'
 import { AcpMedia } from '../../src/acp/media'
 import { acpMediaIo } from './helpers/acpMediaIo'
 import { videoFixture } from './helpers/media/fixtures'
+import { fakeFilesApi } from './helpers/fakeFiles'
 import { mediaModel } from './helpers/media/replay'
 import * as chatCodec from '../../src/core/backends/modelapi/codecs/chat'
 import type { ChatPresetQuirks } from '../../src/core/backends/modelapi/codecs/chat'
@@ -82,6 +83,16 @@ import { queuedAnswerBackend } from './helpers/questions/queuedAnswerBackend'
 import { isChatCodecError } from '../../src/core/backends/modelapi/codecs/shared'
 
 const actualMemoryStore = keyInput.memorySecretStore
+
+function refusingMedia(reason: string): NonNullable<ExecDeps['media']> {
+  return () =>
+    Promise.resolve({
+      block: () => Promise.resolve(reason),
+      attach: () => Promise.reject(new Error('unused')),
+      record: () => Promise.reject(new Error('unused')),
+      release: () => undefined,
+    })
+}
 
 function notification(method: string, params: Record<string, unknown>) {
   return { jsonrpc: '2.0', method, params }
@@ -206,6 +217,9 @@ async function harness(
   if (parsed.command !== 'exec') throw new Error(JSON.stringify(parsed))
   const api = fakeModelApi()
   api.script(...replies)
+  // Lane V seam 5: the transport forwards existing-file uploads to Files,
+  // so the fixture answers the captured Files wire and delegates the rest.
+  const files = fakeFilesApi(api.fetch)
   const store = memorySecrets()
   await store.store(SECRET_KEYS.modelApiKey, FAKE_MODEL_API_KEY)
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
@@ -240,7 +254,7 @@ async function harness(
     stderr: err,
     storeSecrets: store,
     runGit: vi.fn(() => Promise.resolve('')),
-    fetch: api.fetch,
+    fetch: files.fetch,
     sleep: () => Promise.resolve(),
     now,
     readFile: async (file, max) => {
@@ -271,7 +285,7 @@ async function harness(
       life.dispose()
     }
   }
-  return { api, deps, cwd, homeDir, out, err, life, store, run, clock }
+  return { api, files, deps, cwd, homeDir, out, err, life, store, run, clock }
 }
 
 function recordBodies(deps: ExecDeps): string[] {
@@ -1738,13 +1752,7 @@ it.each(['1', '0.000001'])(
 describe('M105 headless attachment entry', () => {
   it('returns usage/2 for unsupported attached media and headless /record without inference', async () => {
     const h = await harness(['--attach', 'clip.mp4'], [], {
-      media: () =>
-        Promise.resolve({
-          block: () => Promise.resolve(UI_TEXT.media.cappedRateUnknown),
-          attach: () => Promise.reject(new Error('unused')),
-          record: () => Promise.reject(new Error('unused')),
-          release: () => undefined,
-        }),
+      media: refusingMedia(UI_TEXT.media.cappedRateUnknown),
     })
     writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())
     const refused = await h.run()
@@ -1778,17 +1786,45 @@ describe('M105 headless attachment entry', () => {
     expect(h.err.chunks.join('')).toContain(UI_TEXT.textFilePrivate)
   })
 
+  it('shows a detailed attachment refusal without its name in any exec log line', async () => {
+    const canary = 'canary-exec.mp4'
+    const h = await harness(['--attach', canary], undefined, {
+      media: refusingMedia(canary),
+    })
+    writeFileSync(path.join(h.cwd, canary), videoFixture({ soundtrack: false }))
+    const done = await h.run()
+    expect(done.code).toBe(2)
+    const lines = h.err.chunks.join('').split('\n')
+    expect(lines.some((line) => !line.startsWith('[') && line.includes(canary))).toBe(true)
+    const logs = lines.filter((line) => /^\[(?:trace|info|warn|error)\]/u.test(line))
+    expect(logs.some((line) => line.includes('usage_error'))).toBe(true)
+    expect(logs.join('\n')).not.toContain(canary)
+  })
+
   it('binds --attach to the runtime media port, priced against the hard budget (lane V seam 5)', async () => {
     // Before lane V the runtime had no port and this refused as unbound.
-    // Now the video is admitted, priced at its seeded bound, and a budget
-    // too small for it stops the run before any response request.
+    // Now the video uploads through Files and the turn delivers it by file
+    // id; the $1 hard budget admits the seeded bound, so the run completes.
     const h = await harness(['--attach', 'clip.mp4'])
-    writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture({ soundtrack: false }))
+    const bytes = videoFixture({ soundtrack: false })
+    writeFileSync(path.join(h.cwd, 'clip.mp4'), bytes)
     const done = await h.run()
     expect(h.err.chunks.join('')).not.toContain(UI_TEXT.media.uploadUnavailable)
-    expect(h.api.requests.some((request) => request.path === '/responses')).toBe(false)
-    expect(h.api.requests.some((request) => request.path.startsWith('/files'))).toBe(false)
-    expect(done.code).toBe(5)
+    expect(h.files.uploads).toHaveLength(1)
+    expect(h.files.uploads[0]).toMatchObject({
+      name: 'clip.mp4',
+      mime: 'video/mp4',
+      bytes: bytes.length,
+    })
+    expect(h.api.requests.some((request) => request.path === '/responses')).toBe(true)
+    const bodies = h.api.responseBodies()
+    expect(bodies).toHaveLength(1)
+    const uploadedId = h.files.uploads[0]?.fileId
+    expect(uploadedId).toBeDefined()
+    expect(JSON.stringify(bodies[0]?.['input'])).toContain(
+      `{"type":"input_video","file_id":"${uploadedId ?? ''}"}`,
+    )
+    expect(done.code).toBe(0)
   })
 
   it('hands repeatable confined links to a noninteractive media port and keeps bytes out of exec output', async () => {

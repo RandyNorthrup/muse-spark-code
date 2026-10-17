@@ -890,6 +890,11 @@
     "uploadsUsage": "Használat: /uploads [delete <file> | delete-all]",
     "uploadNotFound": "A feltöltött {id} fájl nem szerepel a listában.",
     "uploadForeignKept": "{name} megmaradt: lehet, hogy egy másik alkalmazás még használja.",
+    "uploadDeleteProviderRefused": "a szolgáltató megtagadta a törlést",
+    "uploadDeleteBacklog": {
+      "one": "{count} feltöltött fájl nem törölhető innen: {provider}. A törlést újra megkíséreljük.",
+      "other": "{count} feltöltött fájl nem törölhető innen: {provider}. A törlést újra megkíséreljük."
+    },
     "conversionFailed": "A konvertálás sikertelen: {reason}",
     "replayMetadata": "Média: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Média: {name} ({size})"

@@ -1081,6 +1081,12 @@ export const EN = {
     uploadsUsage: '/uploads [delete <file> | delete-all]',
     uploadNotFound: 'No uploaded file {id} is listed.',
     uploadForeignKept: 'Kept {name}: another app may still use it.',
+    uploadDeleteProviderRefused: 'the provider refused the deletion',
+    uploadDeleteBacklog: forms({
+      one: '{count} uploaded file could not be deleted from {provider}. Deletion will be retried.',
+      other:
+        '{count} uploaded files could not be deleted from {provider}. Deletion will be retried.',
+    }),
     conversionFailed: 'Conversion failed: {reason}',
     replayMetadata: 'Media: {name} ({duration}, {size})',
     replayMetadataNoDuration: 'Media: {name} ({size})',

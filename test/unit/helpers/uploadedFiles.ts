@@ -55,6 +55,8 @@ export interface FakeUploadedFilesLedger extends AcpUploadsPort, UploadedFilesLe
       generation: number
     }>
   >
+  readonly deleteNotice: Mock<() => Promise<{ provider: string; count: number } | undefined>>
+  readonly consumeDeleteNotice: Mock<() => Promise<{ provider: string; count: number } | undefined>>
 }
 
 /** A counting ledger double over the shared report, for port-level suites. */
@@ -67,5 +69,7 @@ export function fakeUploadedFilesLedger(report: UploadedFilesReport): FakeUpload
     deleteAllOurs: vi.fn(() => Promise.resolve()),
     confirmForeign: vi.fn(() => Promise.resolve(false)),
     readStamped: vi.fn(() => Promise.resolve({ report, accountId: undefined, generation: 0 })),
+    deleteNotice: vi.fn(() => Promise.resolve(undefined)),
+    consumeDeleteNotice: vi.fn(() => Promise.resolve(undefined)),
   }
 }

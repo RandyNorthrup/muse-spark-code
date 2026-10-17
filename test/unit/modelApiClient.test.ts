@@ -1555,7 +1555,8 @@ describe('ModelApiClient', () => {
     await streamRetryThenSucceed(client, sleeps, [2500, 2500, 4500])
     expect(log.warn).toHaveBeenCalledTimes(3)
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('429')
-    expect(String(log.warn.mock.calls[0]?.[0])).toContain('slow down')
+    // RVM105 4: provider refusal prose never reaches the log; the status does.
+    expect(String(log.warn.mock.calls[0]?.[0])).not.toContain('slow down')
 
     api.script({ httpError: { status: 503 } })
     await expect(
@@ -1794,11 +1795,10 @@ describe('ModelApiClient', () => {
     })
     expect(sleeps).toHaveLength(MODEL_API_MAX_RETRIES)
     expect(notices[0]?.reason).toContain(UI_TEXT.networkUntrustedCertificate)
-    expect(log.warn).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'failed to send (fetch failed: self-signed certificate in certificate chain (SELF_SIGNED_CERT_IN_CHAIN))',
-      ),
-    )
+    // RVM105 4: the retry log carries fixed words only. The thrown error and
+    // the retry notice above still name the store to check.
+    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('transport_error'))
+    expect(JSON.stringify(log.warn.mock.calls)).not.toContain('SELF_SIGNED_CERT_IN_CHAIN')
     // A billed request is not sent again, and says the same (M34).
     const once = setup('LLM|1|secret', untrusted)
     await expect(

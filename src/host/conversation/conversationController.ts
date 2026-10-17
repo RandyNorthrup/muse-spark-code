@@ -33,6 +33,7 @@ import type { EstimateSection } from '../../shared/estimate'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
+import { UploadDeleteFailedError } from '../../core/media/uploadLedger'
 import type { MediaAttachmentPort } from '../media/mediaAttach'
 import type { RecordingCommandDeps } from '../media/screenRecordBundle'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
@@ -708,7 +709,8 @@ export interface ConversationDeps {
 /**
  * The conversation's uploaded-files port (M105 lane F): one core shape over
  * the account ledger, bound per host. Lane W supplies the validated
- * webview/MHP messages and the account-scoped ledger.
+ * webview/MHP messages and the account-scoped ledger. The once-only backlog
+ * notice rides on the core port's optional `deleteNotice`.
  */
 export type ConversationUploadedFilesPort = StampedUploadedFilesPort
 
@@ -10614,6 +10616,17 @@ export class ConversationController {
       const report = uploadedFilesReportSchema.parse(stamped.report)
       if (await isCurrent())
         port.post(report, { accountId: stamped.accountId, generation: stamped.generation })
+      // Provider deletions that keep failing are told once, here, as a count
+      // only: no file name and no file id ever reaches this notice
+      // (ported RVAPP-PORTM105R4 P2-B).
+      const notice = await port.deleteNotice?.()
+      if (notice !== undefined && (await isCurrent()))
+        this.say(
+          'warning',
+          plural(UI_TEXT.media.uploadDeleteBacklog, notice.count, {
+            provider: notice.provider,
+          }),
+        )
     } catch (error: unknown) {
       if (await isCurrent()) this.say('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
     }
@@ -10642,12 +10655,20 @@ export class ConversationController {
       // The listing after the delete carries the signal too (P2-4).
       await this.readUploadedFiles(signal)
     } catch (error: unknown) {
+      // The notice names the file's display name, never its id, with a fixed
+      // reason: the provider's message echoes the id (RVAPP-PORTM105R4 P3-4).
       if (this.canPostUploadedFiles())
         this.say(
           'error',
           fill(UI_TEXT.media.uploadDeleteFailed, {
-            name: fileId ?? UI_TEXT.media.uploadedFiles,
-            reason: describe(error),
+            name:
+              error instanceof UploadDeleteFailedError
+                ? error.fileName
+                : (fileId ?? UI_TEXT.media.uploadedFiles),
+            reason:
+              error instanceof UploadDeleteFailedError
+                ? UI_TEXT.media.uploadDeleteProviderRefused
+                : describe(error),
           }),
         )
     }

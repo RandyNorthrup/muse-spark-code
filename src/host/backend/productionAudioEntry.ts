@@ -106,6 +106,7 @@ export function productionAudioFor(
     postTranscription: (post) =>
       transcription(post.route, post.signal, post, accountId, post.dispatch),
     converterPath: () => host.mediaConverterPath?.(),
+    audioAction: host.mediaAudioAction,
     conversionOptions: () => conversionBindings(host.mediaJobExecutable, privateRoot),
     session: {
       capUsd: host.sessionBudgetUsd,

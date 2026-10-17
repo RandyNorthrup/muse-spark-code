@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Attached existing video and audio now have production-composition receipts
+  for VS Code, ACP and headless exec. The machine's `mediaAudioAction` choice
+  is honored: transcription asks paid consent first, and unsupported direct
+  audio returns its translated refusal.
+- Uploaded-file cleanup no longer blocks saving when the provider refuses a
+  deletion: the failure is recorded with backoff and retried by a later
+  sweep, and repeated failures are reported once in Account & usage as a
+  count. A cancelled re-upload keeps the shared entry, and an explicit
+  delete names the file with a fixed reason.
+
+
 ### Pending
 
 - M105 lane F (C-M105-8): Delete Uploaded Files is bound. Uploads carry
@@ -21,6 +32,9 @@ happened, not what was planned; superseded entries are kept.
   VS Code command lists the account ledger and deletes the chosen files,
   the usage dialog lists and deletes them too, and ACP `/uploads` lists,
   deletes one file, or deletes all ours. No live provider receipt certified yet.
+- PORTM105 round 2: remove all 29 inherited duplication clones through shared
+  media fixtures, receipt builders and RIFF chunk parsing, preserving existing
+  behavior and the unchanged zero-clone gate.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
@@ -194,6 +208,12 @@ happened, not what was planned; superseded entries are kept.
     again asks you to attach it again.
 
 ### Fixed
+
+- RVPORTM105: cancellation after a Files receipt permits bounded provider
+  cleanup, with durable retry intent when deletion fails. Audio-action changes
+  during preparation refuse before transcription. Exec attachment tests use a
+  Files-capable provider fixture. Media refusal logs retain reason codes while
+  detailed attachment names stay in the user-facing error only.
 
 - Muse Voice transcription of an attached file (RVMEDIAV):
   - It sends only the bytes that were attached. They are read through the

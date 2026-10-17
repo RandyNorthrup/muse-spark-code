@@ -1,3 +1,4 @@
+import { emptyStoredSession } from './helpers/fakeSessionStore'
 import { FakeQuestionStore } from './helpers/questions/store'
 import { questionFixture } from './helpers/questions/fixtures'
 import { mkdtempSync } from 'node:fs'
@@ -41,23 +42,8 @@ const uploadedFile = {
   mime: 'video/mp4',
 }
 
-const stored = (sessionId: string, name?: string): StoredSession => ({
-  version: 1,
-  sessionId,
-  workspaceRoot: '/ws',
-  modelId: 'muse-spark-1.3',
-  approvalMode: 'allowAll',
-  effort: 'high',
-  ...(name !== undefined && { name }),
-  createdAt: '2026-09-22T09:00:00.000Z',
-  lastActivityAt: LAST_ACTIVITY,
-  turnIds: [],
-  todos: [],
-  replay: [],
-  transcript: [],
-  outputs: {},
-  usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
-})
+const stored = (sessionId: string, name?: string): StoredSession =>
+  emptyStoredSession(sessionId, LAST_ACTIVITY, name)
 
 /** A file-system error with its code, as Node raises one. */
 function busy(code: string): Error {
@@ -571,8 +557,8 @@ describe('createFileSessionStore', () => {
     await writeFile(path.join(directory, 'notes.txt'), 'ignored', 'utf8')
     await expect(store.list()).resolves.toEqual([headerOf(stored('good'))])
     expect(log.warn).toHaveBeenCalledTimes(2)
-    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('broken.json skipped'))
-    expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('wrong.json skipped'))
+    expect(log.warn).toHaveBeenCalledWith('Session file skipped: read_failed')
+    expect(log.warn).toHaveBeenCalledWith('Session file skipped: its header does not read')
     expect(JSON.parse(await readFile(path.join(directory, 'good.json'), 'utf8'))).toEqual(
       stored('good'),
     )
@@ -700,4 +686,63 @@ it('keeps an expired session visible when question cleanup fails', async () => {
   questions.remove.mockRejectedValueOnce(new Error('cleanup refused'))
   expect(await expiring.store.list()).toHaveLength(1)
   expect(await store.load('session-1')).toBeDefined()
+})
+
+/**
+ * RVM105 4: no attachment file name reaches a log. The ledger's ownership
+ * refusals name the file for the user; the save caller still sees that
+ * sentence, but the store and the host's save queue log fixed words only.
+ * The canary stands in for a real attachment name in each refusal kind.
+ */
+describe('attachment names stay out of the media save logs', () => {
+  const canary = 'canary-save.mp4'
+  const unknownRef = {
+    ...uploadedFile,
+    sha256: 'c'.repeat(64),
+    name: canary,
+  }
+
+  it('keeps names and corrupt media content out of file-read diagnostics', async () => {
+    const directory = path.join(root, 'canary-corrupt')
+    const { store, log } = storeIn(directory)
+    await store.save(stored('good'))
+    await writeFile(path.join(directory, 'canary-corrupt.json'), `{${canary}`, 'utf8')
+    await store.list()
+    expect(log.warn).toHaveBeenCalledWith('Session file skipped: read_failed')
+    expect(log.lines().join('\n')).not.toContain(canary)
+    expect(log.lines().join('\n')).not.toContain('canary-corrupt.json')
+  })
+
+  it('tells the save caller the file name without logging it', async () => {
+    const t = await ledgerFor('canary-save-refusal')
+    const { store, log } = storeIn(t.directory, { uploads: t.uploads })
+    await expect(
+      store.save({ ...stored('canary'), accountId: t.accountId, fileRefs: [unknownRef] }),
+    ).rejects.toThrow(canary)
+    expect(log.lines().some((line) => line.includes(canary))).toBe(false)
+  })
+
+  it('defers a recovery whose ownership expired without logging the file name', async () => {
+    const t = await ledgerFor('canary-recover-deferral')
+    // The crash state: a session file and its save intent are both durable,
+    // but the ledger no longer knows the file.
+    await writeFile(
+      path.join(t.directory, 'canary.json'),
+      JSON.stringify({ ...stored('canary'), accountId: t.accountId, fileRefs: [unknownRef] }),
+    )
+    await writeFile(
+      path.join(t.directory, 'canary.uploads'),
+      JSON.stringify({ version: 1, accountId: t.accountId, operation: 'save' }),
+    )
+    const recovered = storeIn(t.directory, { uploads: t.uploads })
+    const headers = await recovered.store.list()
+    expect(
+      headers.map((header) => header.sessionId).toSorted((a, b) => a.localeCompare(b, 'en')),
+    ).toEqual(['canary', 'saved'])
+    const warns = recovered.log.warn.mock.calls.map((call) => JSON.stringify(call))
+    expect(warns.some((line) => line.includes('deferred'))).toBe(true)
+    expect(recovered.log.lines().some((line) => line.includes(canary))).toBe(false)
+    // Deferred, not dropped: the session is retained for the next sweep.
+    expect(await recovered.store.load('canary')).toMatchObject({ fileRefs: [unknownRef] })
+  })
 })

@@ -886,6 +886,10 @@
     "uploadsUsage": "用法：/uploads [delete <file> | delete-all]",
     "uploadNotFound": "清單中沒有已上傳的檔案 {id}。",
     "uploadForeignKept": "已保留 {name}：其他應用程式可能仍在使用它。",
+    "uploadDeleteProviderRefused": "提供者拒絕了刪除",
+    "uploadDeleteBacklog": {
+      "other": "無法從 {provider} 刪除 {count} 個已上傳的檔案。將重試刪除。"
+    },
     "conversionFailed": "轉換失敗：{reason}",
     "replayMetadata": "媒體：{name}（{duration}、{size}）",
     "replayMetadataNoDuration": "媒體：{name}（{size}）"
