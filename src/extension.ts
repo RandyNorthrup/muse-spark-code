@@ -149,7 +149,7 @@ import {
 import { memoryDataRoot } from './core/memory/memoryLocation'
 import { isSamePath } from './core/paths'
 import { terminalArgument } from './core/shellQuote'
-import { renderSupportReport, sandboxReadinessLine } from './core/support/report'
+import type * as ReportBundle from './host/support/reportEntry'
 import { isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
 import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry, diagnosticsTool } from './core/diagnostics'
 import type { EditorContext } from './core/editorContext'
@@ -4613,8 +4613,11 @@ async function activateWindow(
               backend.workspaceActionGuard(nativeStarts.signal),
             )
           : undefined
+      // The report's text loads with the report dialog's bundle
+      // (dist/report.js, PLAN.md D6) on the first run, not at activation.
+      const report: typeof ReportBundle = await import('./host/support/reportEntry')
       log.info(
-        renderSupportReport({
+        report.renderSupportReport({
           extensionVersion: version,
           vscodeVersion: vscode.version,
           nodeVersion: process.versions.node,
@@ -4628,7 +4631,9 @@ async function activateWindow(
           shellSandboxPosture: `${posture.isSandboxed ? 'sandboxed' : 'disabled'} (${posture.reason})`,
           // F91: the health line for the sandbox (posture and this check);
           // a fresh probe when no host has started yet.
-          shellSandboxReadiness: sandboxReadinessLine(await backend.readShellSandboxReadiness()),
+          shellSandboxReadiness: report.sandboxReadinessLine(
+            await backend.readShellSandboxReadiness(),
+          ),
           isShellSandboxed: posture.isSandboxed,
           sandboxNetworkSetting: settings.sandboxNetwork,
           isSandboxNetworkApplied: isSandboxNetworkApplied(settings.sandboxNetwork, posture),
