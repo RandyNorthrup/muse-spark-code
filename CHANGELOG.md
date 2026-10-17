@@ -28,6 +28,11 @@ happened, not what was planned; superseded entries are kept.
 - Session, editor daily and terminal daily spend admission uses one atomic
   versioned ledger. Refused requests publish no hold; dead locks recover by
   process identity, and each ambiguous attempt retains its full reservation.
+- Concurrent spend checks inside one process queue instead of refusing each
+  other as busy, a model whose context equals its output limit no longer ends
+  a full answer as over budget (including media requests' daily reservation),
+  and an invalid `--max-output-tokens`, `--timeout` or `--max-requests` value
+  names that flag instead of the USD budget's decimal places.
 - Anthropic token estimates reserve a 25% margin; Gemini uses the size bound
   until its complete count shape is verified. Overages are recorded before
   another request, and refusal remedies stay within accepted flag limits.
