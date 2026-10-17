@@ -609,6 +609,7 @@
       "afterRuns": "Завершить после N запусков",
       "cost": "Стоимость",
       "grantHelp": "По одной записи на строку. Пути ограничены этой рабочей областью; защищённые пути и инструменты, требующие участия человека, всегда отклоняются.",
+      "paidCapHelp": "No spending cap applies unless you set one; zero means the schedule never spends.",
       "auditKinds": {
         "created": "Создано",
         "changed": "Изменено",

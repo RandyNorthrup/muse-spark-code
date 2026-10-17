@@ -4318,8 +4318,6 @@ export const SCHEDULE_NATIVE_MAX_OUTPUT_BYTES = 64 * 1024
  */
 export const SCHEDULE_COLLISION_WINDOW_MS = SCHEDULE_MIN_INTERVAL_MS
 export const SCHEDULE_PAUSE_AFTER_FAILURES = 3
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
-export const SCHEDULE_PAID_CAP_DEFAULT_USD = 1
 /** Lead flips after the complete VS Code/OS/review receipts, never per-path enablement. */
 export const SCHEDULE_EDITOR_DELIVERY_CERTIFICATION: Readonly<{ isReady: boolean }> = {
   isReady: false,

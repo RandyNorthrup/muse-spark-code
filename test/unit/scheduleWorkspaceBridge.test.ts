@@ -39,6 +39,18 @@ describe('schedule workspace bridge without certified delivery', () => {
     expect(bridge.defaultDraft(Date.now(), undefined, 'modelApi').paidCapUsd).toBe('0')
   })
 
+  it.each(['museCode', 'modelApi'] as const)(
+    'starts %s drafts with no spending cap until the person sets one',
+    (backend) => {
+      const bridge = idleBridge()
+      const session = { sessionId: 'session', backend, label: 'Conversation' }
+      const draft = bridge.defaultDraft(Date.now(), session, backend)
+      expect(scheduleDraftSchema.safeParse(draft).success).toBe(true)
+      expect(draft.paidCapUsd).toBe('0')
+      expect(draft.grant.paidCapUsd).toBe('0')
+    },
+  )
+
   it.each([true, false])(
     'does not hold a workspace without certified delivery, enabled=%s',
     async (enabled) => {
