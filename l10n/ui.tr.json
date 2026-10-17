@@ -755,6 +755,7 @@
     "messages": {
       "targetUnavailable": "Bu zamanlamanın hedefi bu ana makinede kullanılamıyor.",
       "targetClosed": "Hedef kapatıldı veya bekleyen bu çalıştırma atlandı.",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "Kaçırılan çalıştırma, bu zamanlamanın telafi ilkesine göre atlandı.",
       "backgroundNotice": "{name} zamanlaması arka planda bir konuşma açtı.",
       "conversationTitle": "Zamanlama {name} · {date}",

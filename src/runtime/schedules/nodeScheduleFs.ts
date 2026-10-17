@@ -39,20 +39,29 @@ import {
   type ScheduleQueuePort,
 } from '../../core/schedules/store'
 
-function hasCode(error: unknown, code: string): boolean {
+export function isErrorCode(error: unknown, code: string): boolean {
   return error instanceof Error && 'code' in error && error.code === code
+}
+/** A held Windows handle fails a file operation transiently: below the
+ * attempt budget the retry, not the caller, owns a transient-coded failure. */
+export function isTransientStoreError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    ['EPERM', 'EBUSY', 'EACCES'].includes(error.code)
+  )
 }
 async function retry<T>(work: () => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt += 1) {
     try {
       return await work()
     } catch (error: unknown) {
-      if (
-        attempt + 1 >= SCHEDULE_FS_RETRY_ATTEMPTS ||
-        ['EPERM', 'EBUSY', 'EACCES'].every((code) => !hasCode(error, code))
-      )
+      if (attempt + 1 < SCHEDULE_FS_RETRY_ATTEMPTS && isTransientStoreError(error)) {
+        await delay(SCHEDULE_FS_RETRY_BACKOFF_MS * (attempt + 1))
+      } else {
         throw error
-      await delay(SCHEDULE_FS_RETRY_BACKOFF_MS * (attempt + 1))
+      }
     }
   }
 }
@@ -95,7 +104,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       try {
         await mkdir(current, { mode: CHECKPOINT_STORAGE_MODE })
       } catch (error: unknown) {
-        if (!hasCode(error, 'EEXIST')) throw error
+        if (!isErrorCode(error, 'EEXIST')) throw error
       }
       const info = await lstat(current)
       if (current.length >= root.length && (!info.isDirectory() || info.isSymbolicLink()))
@@ -109,8 +118,11 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       })
       cleanup.delete(file)
     } catch (error: unknown) {
-      if (hasCode(error, 'ENOENT')) cleanup.delete(file)
-      else cleanup.add(file)
+      if (isErrorCode(error, 'ENOENT')) cleanup.delete(file)
+      // A transient miss stays queued for the next write; a persistent one
+      // is a real storage failure and keeps its kind.
+      else if (isTransientStoreError(error)) cleanup.add(file)
+      else throw error
     }
   }
   const write = async (
@@ -126,7 +138,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       const info = await lstat(file)
       if (info.isSymbolicLink()) throw new Error('scheduleStorageLinkRefused')
     } catch (error: unknown) {
-      if (!hasCode(error, 'ENOENT')) throw error
+      if (!isErrorCode(error, 'ENOENT')) throw error
     }
     for (const owed of cleanup) await retireTemporary(owed)
     const temporary = `${file}.${randomUUID()}.tmp`
@@ -145,7 +157,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
           else await rename(temporary, file)
         } catch (error: unknown) {
           // Our unique temporary bytes identify a publication already committed.
-          if (isExclusive && hasCode(error, 'EEXIST')) {
+          if (isExclusive && isErrorCode(error, 'EEXIST')) {
             try {
               const [destination, staged] = await Promise.all([
                 lstatIdentity(file),
@@ -155,7 +167,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
             } catch (identityError: unknown) {
               // A competing lease release may remove the destination between
               // EEXIST and lstat. No publication of ours remains to acquire.
-              if (hasCode(identityError, 'ENOENT')) return false
+              if (isErrorCode(identityError, 'ENOENT')) return false
               throw identityError
             }
           }
@@ -189,7 +201,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
           return await readFile(file, 'utf8')
         })
       } catch (error: unknown) {
-        if (hasCode(error, 'ENOENT')) return
+        if (isErrorCode(error, 'ENOENT')) return
         throw error
       }
     },
@@ -199,7 +211,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         await checkParents(path.join(folder, 'entry'))
         return await readdir(folder)
       } catch (error: unknown) {
-        if (hasCode(error, 'ENOENT')) return []
+        if (isErrorCode(error, 'ENOENT')) return []
         throw error
       }
     },
@@ -223,7 +235,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         if (canRetryTransient) await retry(remove)
         else await remove()
       } catch (error: unknown) {
-        if (!hasCode(error, 'ENOENT')) throw error
+        if (!isErrorCode(error, 'ENOENT')) throw error
       }
     },
     async lock(key, work) {

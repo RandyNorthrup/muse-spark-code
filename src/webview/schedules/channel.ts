@@ -75,12 +75,13 @@ export function scheduleChannel(
         try {
           post(parsed.message)
         } catch (error: unknown) {
-          // An unposted request settles load-failed: only a non-error keeps
-          // its kind past the channel.
+          // An unposted request settles load-failed, keeping the send
+          // failure as its cause: only a non-error keeps its kind past the
+          // channel any other way.
           clearTimeout(timer)
           pending.delete(requestId)
           if (!(error instanceof Error)) throw error
-          reject(new Error(UI_TEXT.scheduleV2.editor.loadFailed))
+          throw new Error(UI_TEXT.scheduleV2.editor.loadFailed, { cause: error })
         }
       }),
     dispose: () => {

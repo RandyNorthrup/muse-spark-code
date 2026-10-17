@@ -924,6 +924,7 @@ export const EN = {
     messages: {
       targetUnavailable: 'This schedule’s target is unavailable in this host.',
       targetClosed: 'The target closed or this held fire was skipped.',
+      deliveryFailed: 'Delivery failed: {reason}',
       catchUpSkipped: 'Missed fire skipped by this schedule’s catch-up policy.',
       backgroundNotice: 'Schedule {name} opened a conversation in the background.',
       conversationTitle: 'Schedule {name} · {date}',

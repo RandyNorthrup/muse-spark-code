@@ -754,6 +754,7 @@
     "messages": {
       "targetUnavailable": "このスケジュールの対象は、このホストでは利用できません。",
       "targetClosed": "対象が閉じられたか、待機中の実行がスキップされました。",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "このスケジュールの追いつき実行ポリシーに従って、未実行分をスキップしました。",
       "backgroundNotice": "スケジュール {name} がバックグラウンドで会話を開きました。",
       "conversationTitle": "スケジュール {name} · {date}",

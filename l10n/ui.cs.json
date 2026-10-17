@@ -757,6 +757,7 @@
     "messages": {
       "targetUnavailable": "Cíl tohoto plánu není v tomto hostiteli dostupný.",
       "targetClosed": "Cíl se zavřel nebo bylo toto čekající spuštění přeskočeno.",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "Zmeškané spuštění bylo přeskočeno podle pravidel tohoto plánu.",
       "backgroundNotice": "Plán {name} otevřel konverzaci na pozadí.",
       "conversationTitle": "Plán {name} · {date}",

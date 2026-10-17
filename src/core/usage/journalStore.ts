@@ -612,7 +612,7 @@ export class UsageJournalStore {
           // so it never returns. A held lock means the read itself failed,
           // which keeps its kind.
           if (await lock.isHeld()) throw error
-          throw new UsageLockRacedError({ cause: error })
+          throw new UsageLockRacedError('usageLockRaced', { cause: error })
         } finally {
           await lock.release()
         }

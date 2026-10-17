@@ -8,7 +8,19 @@ import process from 'node:process'
 import { homedir } from 'node:os'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import { storeErrorCode } from '../../host/backend/storeErrors'
+import { isStoreErrorCode } from '../../host/backend/storeErrors'
+
+/** A spawned helper that ran and exited carries its own stdio: a numeric
+ * code with string stdio is the expected completed-run shape, not a crash. */
+const isExecFailure = (error: unknown): error is { code: number; stdout: string; stderr: string } =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  typeof error.code === 'number' &&
+  'stdout' in error &&
+  typeof error.stdout === 'string' &&
+  'stderr' in error &&
+  typeof error.stderr === 'string'
 import {
   CHECKPOINT_STORAGE_MODE,
   REPORT_STORAGE_FILE_MODE,
@@ -83,7 +95,7 @@ export async function waitForScheduleWake(
     try {
       entries = await readdir(directory)
     } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return
+      if (isStoreErrorCode(error, 'ENOENT')) return
       throw error
     }
     let isActive = false
@@ -182,8 +194,8 @@ export async function trustedBackgroundPath(
       try {
         await lstat(candidate)
       } catch (error: unknown) {
-        if (storeErrorCode(error) === 'ENOENT') continue
-        throw unsafeScheduleLauncher(candidate)
+        if (isStoreErrorCode(error, 'ENOENT')) continue
+        throw unsafeScheduleLauncher(candidate, error)
       }
       target = candidate
       break
@@ -311,16 +323,7 @@ export function backgroundProcessRunner(
       })
       return { exitCode: 0, stdout: result.stdout, stderr: result.stderr }
     } catch (error: unknown) {
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        typeof error.code === 'number' &&
-        'stdout' in error &&
-        typeof error.stdout === 'string' &&
-        'stderr' in error &&
-        typeof error.stderr === 'string'
-      )
+      if (isExecFailure(error))
         return { exitCode: error.code, stdout: error.stdout, stderr: error.stderr }
       throw new Error(UI_TEXT.scheduleV2.runtime.unavailable, { cause: error })
     }
@@ -333,7 +336,7 @@ async function backgroundBytes(file: string): Promise<Buffer | undefined> {
   try {
     handle = await open(file, 'r')
   } catch (error: unknown) {
-    if (storeErrorCode(error) === 'ENOENT') return
+    if (isStoreErrorCode(error, 'ENOENT')) return
     throw error
   }
   try {
@@ -373,7 +376,7 @@ export function nodeBackgroundFiles(verifier?: TrustedPathVerifier): BackgroundF
         try {
           await lstat(directory)
         } catch (error: unknown) {
-          if (storeErrorCode(error) !== 'ENOENT') throw unsafeScheduleLauncher(directory)
+          if (!isStoreErrorCode(error, 'ENOENT')) throw unsafeScheduleLauncher(directory, error)
           missing.push(directory)
           continue
         }
@@ -389,8 +392,8 @@ export function nodeBackgroundFiles(verifier?: TrustedPathVerifier): BackgroundF
       try {
         await lstat(file)
       } catch (error: unknown) {
-        if (storeErrorCode(error) === 'ENOENT') return
-        throw unsafeScheduleLauncher(file)
+        if (isStoreErrorCode(error, 'ENOENT')) return
+        throw unsafeScheduleLauncher(file, error)
       }
       await trustedPath(file, platform, uid, 'definition')
     },

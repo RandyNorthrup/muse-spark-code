@@ -210,6 +210,9 @@ export function createScheduler(deps: SchedulerDeps) {
     } catch (error: unknown) {
       // A bad settlement is a contract failure: its accounting is not discarded
       // into a free success. The delivery owner provides conservative facts.
+      // Every failed round is journaled before it travels: the authoritative
+      // settlement lands first, then the failure reaches the poll record. Only
+      // a proven settlement resolves quietly; an ambiguous one still reports.
       const after = scheduleDeliveryStateSchema.parse(await deps.host.lookupRun(intent.runId))
       // Absence is a proof of no admission/send: leave the retained intent for
       // the next poll instead of burning this occurrence or guessing a bill.
@@ -228,8 +231,18 @@ export function createScheduler(deps: SchedulerDeps) {
           )
         } catch (error_: unknown) {
           result = await deps.failureSettlement(delivery, error_)
+          await settle(intent, result)
+          throw error_
         }
-      } else result = await deps.failureSettlement(delivery, error)
+        if (after.status === 'uncertain') {
+          await settle(intent, result)
+          throw error
+        }
+      } else {
+        result = await deps.failureSettlement(delivery, error)
+        await settle(intent, result)
+        throw error
+      }
     }
     await settle(intent, result)
   }
@@ -468,7 +481,7 @@ export function createScheduler(deps: SchedulerDeps) {
       if (!deps.host.holds(workspaceKey)) return
       await drain([workspaceKey])
     },
-    start(workspaces: () => readonly string[], onError: (error: unknown) => void) {
+    start(workspaces: () => readonly string[], report: (error: unknown) => void) {
       let isDisposed = false
       const tick = () => {
         if (isDisposed) return
@@ -477,13 +490,13 @@ export function createScheduler(deps: SchedulerDeps) {
           void scheduler
             .recover(workspace)
             .catch((error: unknown) => {
-              onError(error)
+              report(error)
             })
             .then(async () => {
               if (!isDisposed) await scheduler.poll(workspace)
             })
             .catch((error: unknown) => {
-              onError(error)
+              report(error)
             })
         }
       }

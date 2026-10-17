@@ -754,6 +754,7 @@
     "messages": {
       "targetUnavailable": "此计划的目标在当前主机上不可用。",
       "targetClosed": "目标已关闭，或此等待中的执行已跳过。",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "根据此计划的补执行策略，已跳过错过的执行。",
       "backgroundNotice": "计划 {name} 已在后台打开对话。",
       "conversationTitle": "计划 {name} · {date}",

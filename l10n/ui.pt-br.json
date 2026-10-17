@@ -756,6 +756,7 @@
     "messages": {
       "targetUnavailable": "O destino deste agendamento não está disponível neste host.",
       "targetClosed": "O destino foi fechado ou esta execução pendente foi ignorada.",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "A execução perdida foi ignorada conforme a política de recuperação deste agendamento.",
       "backgroundNotice": "O agendamento {name} abriu uma conversa em segundo plano.",
       "conversationTitle": "Agendamento {name} · {date}",
