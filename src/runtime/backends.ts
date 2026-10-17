@@ -381,7 +381,18 @@ function modelApiManager(
       // has proven the store dead, a step that needs the stored key throws
       // the store failure instead, so it names the store rather than
       // claiming no key is stored. Unprobed sessions keep absent-key reads.
-      if (metaKeyProbe.state === 'storeDown') throw new StoreUnavailableError()
+      // The prompt turn runs no readiness check of its own, so the probe
+      // may predate an unlocked store: re-read once before refusing, and
+      // heal the probe when the store answers again.
+      if (metaKeyProbe.state === 'storeDown') {
+        try {
+          const reread = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+          metaKeyProbe.state = reread !== undefined && reread !== '' ? 'key' : 'absent'
+        } catch (error: unknown) {
+          if (!isStoreUnavailable(error)) throw error
+        }
+        if (metaKeyProbe.state === 'storeDown') throw new StoreUnavailableError()
+      }
       return
     },
     // No Meta key on record means no catalogue dial: the model list comes
