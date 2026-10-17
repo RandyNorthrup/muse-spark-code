@@ -274,6 +274,16 @@ export const DEFERRED = [
     files: ['src/runtime/usage/usageCompanionEntry.ts', 'src/runtime/companion/server.ts'],
   },
   {
+    output: 'dist/voiceCompanion.js',
+    metafile: 'dist/meta/voiceCompanion.json',
+    files: [
+      'src/runtime/companion/voiceEntry.ts',
+      'src/runtime/companion/voiceHandler.ts',
+      'src/runtime/companion/voicePaid.ts',
+      'src/runtime/companion/voiceSystem.ts',
+    ],
+  },
+  {
     output: 'dist/usagePanel.js',
     metafile: 'dist/meta/usagePanel.json',
     files: [

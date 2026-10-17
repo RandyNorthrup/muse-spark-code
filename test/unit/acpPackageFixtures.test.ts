@@ -9,7 +9,13 @@ import { mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { JOB_SOURCES, RUNNER_HELPERS } from '../../scripts/lib/acpNativeSources.mjs'
+import {
+  JOB_SOURCES,
+  RUNNER_HELPERS,
+  VOICE_WINDOWS_HELPERS,
+} from '../../scripts/lib/acpNativeSources.mjs'
+import * as nativeSources from '../../scripts/lib/acpNativeSources.mjs'
+import { DICTATION_HELPER_DIR, DICTATION_WINDOWS_SCRIPT_SEGMENTS } from '../../src/shared/constants'
 import { ACP_NATIVE_FILES, layOutAcpNativeSources } from './helpers/acpPackageSources'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -75,9 +81,26 @@ describe('ACP packaging fixtures', () => {
   it('the packager takes its native files from the shared list only', () => {
     const packager = read('scripts/package-acp.mjs')
     expect(packager).toContain("from './lib/acpNativeSources.mjs'")
+    // A list the copy loop never names ships nothing: every one-by-one
+    // export must reach the loop, so a newly required helper cannot be
+    // listed yet unpackaged (RVCMICCOMP finding 1).
+    const loop = packager.split('\n').find((line) => line.includes('for (const source of ['))
+    expect(loop).toBeDefined()
+    for (const name of Object.keys(nativeSources))
+      if (name === 'RUNNER_HELPERS') expect(packager, name).toContain(`cpSync(${name}`)
+      else expect(loop ?? '', name).toContain(name)
     expect(packager).not.toMatch(/\.cs['"]/u)
     expect(packager).not.toContain("'muse-created'")
     expect(packager).not.toContain("'runner'")
+  })
+
+  it('the shared list covers the Windows script the packaged free engine locates', () => {
+    // `src/runtime/companion/voiceEntry.ts` selects this script through
+    // `locateDictationHelper`; an installed Windows agent without it fails
+    // the certified route instead of transcribing (RVCMICCOMP finding 1).
+    const located = path.join(DICTATION_HELPER_DIR, ...DICTATION_WINDOWS_SCRIPT_SEGMENTS)
+    expect(VOICE_WINDOWS_HELPERS).toContain(located)
+    expect(ACP_NATIVE_FILES).toContain(located)
   })
 
   it('every packaging fixture uses the shared layout and keeps no list of its own', () => {

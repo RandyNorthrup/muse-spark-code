@@ -1,8 +1,30 @@
 // Public runtime command table. The localized usage table owns descriptions.
-import { ACP_AGENT_NAME, REFERENCE_DOCS_URL, UI_TEXT, SLASH_COMMAND_NAMES } from './constants'
+import {
+  ACP_AGENT_NAME,
+  REFERENCE_DOCS_URL,
+  UI_TEXT,
+  SLASH_COMMAND_NAMES,
+  COMPANION_VOICE_RELEASE,
+} from './constants'
 
-export function cliCommands() {
+export function cliCommands(shouldIncludeHeld = false) {
   return [
+    ...(shouldIncludeHeld || COMPANION_VOICE_RELEASE.isReady
+      ? [
+          {
+            route: 'dictate',
+            name: 'dictate [--muse-voice] [--trust-workspace]',
+            description: UI_TEXT.companionVoiceReference,
+            text: { ui: 'companionVoiceReference' },
+          },
+          {
+            route: 'acp',
+            name: '/dictate',
+            description: UI_TEXT.companionVoiceReference,
+            text: { ui: 'companionVoiceReference' },
+          },
+        ]
+      : []),
     {
       route: 'usage',
       name: 'usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json',

@@ -24,6 +24,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Companion microphone implementation held for certification** (M9/M35,
+  CMICCOMP). Adds an authenticated, bounded browser capture and reviewed
+  ACP/terminal prompt handoff, Windows/macOS file recognition, and captured
+  paid batch transcription with consent, daily admission and usage accounting.
+  Stereo is mixed before PCM rounding to avoid signed sample overflow.
+  New entry points stay hidden until all platform/editor receipts pass; no new
+  supported command or editor capability is announced.
+
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

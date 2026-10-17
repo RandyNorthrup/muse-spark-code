@@ -1,4 +1,13 @@
 {
+  "companionVoiceTitle": "音声入力",
+  "companionVoiceCancel": "キャンセル",
+  "companionVoiceFailed": "音声入力に失敗したか拒否されました。マイクの権限、選択したエンジン、1日の予算を確認し、再録音してください。送信済みの有料リクエストには料金が発生する場合があります。",
+  "companionVoiceFree": "OS（無料）",
+  "companionVoiceReview": "送信前に文字起こしを確認",
+  "companionVoiceLimit": "最大{seconds}秒。文字起こし後に音声を削除します。",
+  "companionVoicePaidSummary": "有料音声：{duration}。",
+  "companionVoiceOpen": "音声入力の連携ページを開く",
+  "companionVoiceReference": "ブラウザーで音声入力し、自分のACPセッションまたは端末へ送信する前にテキストを確認します。WindowsとmacOSのOS音声認識は無料です。Muse Voiceは有料で、同意を求め、共通の日次予算を使用します。",
   "resourceTitle": "リソース",
   "resourceHarnessInTree": "停止を保留しました。制御プロセスがまだこのツリー内にあります。管理は保持されます。停止を再試行してください。",
   "resourceCgroupChanged": "停止を拒否しました。このツリーの cgroup が削除または置換されました。管理は保持されます。",
@@ -342,7 +351,8 @@
     "estimate-by": "--by <date>: 期限",
     "fleet": "--fleet current|minimum|optimum: 現在のマシン群 / 最小構成 / 最適構成",
     "estimate-format": "--format md|html|json|text: 出力形式",
-    "seed": "--seed <seed>: シミュレーションのシード"
+    "seed": "--seed <seed>: シミュレーションのシード",
+    "muse-voice": "--muse-voice: 音声入力ページで有料のMuse Voiceを許可します。初回課金前に同意を求め、共通の日次予算を使用します。"
   },
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "referenceVault": "進行中.",

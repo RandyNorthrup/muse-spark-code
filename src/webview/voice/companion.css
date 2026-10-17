@@ -1,0 +1,71 @@
+@import url('../../../design/tokens/generated/muse.css');
+
+body {
+  margin: 0;
+  padding: var(--ms-space-16);
+  color: var(--ms-text);
+  background: var(--ms-surface);
+  font-family: var(--ms-font-ui);
+  font-size: var(--ms-font-size);
+}
+
+main {
+  max-width: 100%;
+}
+
+label {
+  display: block;
+  margin-block: var(--ms-space-8);
+}
+
+select,
+textarea {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+textarea {
+  min-height: calc(var(--ms-space-48) * 2);
+  resize: vertical;
+}
+
+button,
+select,
+textarea,
+dialog {
+  color: var(--ms-text);
+  background: var(--ms-raised);
+  border: var(--ms-focus-width) solid var(--ms-boundary);
+  border-radius: var(--ms-radius-md);
+  padding: var(--ms-space-8);
+  font: inherit;
+}
+
+button {
+  min-height: calc(var(--ms-space-48) - var(--ms-space-4));
+  margin-block: var(--ms-space-8);
+}
+
+button:disabled {
+  color: var(--ms-disabled);
+}
+
+:focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-focus);
+  outline-offset: var(--ms-space-4);
+}
+
+dialog {
+  max-width: calc(100% - var(--ms-space-8));
+}
+
+.consent-detail {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  gap: var(--ms-space-8);
+  flex-wrap: wrap;
+}

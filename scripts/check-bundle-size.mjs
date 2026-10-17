@@ -97,6 +97,10 @@ const BUDGETS = [
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },
+  // CMICCOMP: independent first-use voice page, no chat startup imports.
+  { path: 'dist/voiceCompanion.js', budgetKiB: 125 },
+  { path: 'dist/webview/voiceCompanion.js', budgetKiB: 100 },
+  { path: 'dist/webview/voiceCompanion.css', budgetKiB: 25 },
   { path: 'dist/usagePanel.js', budgetKiB: 75 },
   { path: 'dist/webview/usage.js', budgetKiB: 500 },
   { path: 'dist/webview/usage.css', budgetKiB: 25 },
