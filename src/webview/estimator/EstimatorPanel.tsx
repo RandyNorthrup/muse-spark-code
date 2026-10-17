@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import {
+  estimateRefusalDetail,
   estimateRequestSchema,
   estimateSectionSchema,
+  isEstimateRefusal,
   parseEstimateGoal,
   type CatalogPrice,
   type EstimateRequest,
@@ -212,13 +214,19 @@ export default function EstimatorPanel({
           : (next.setups[0]?.kind ?? 'current'),
       )
     } catch (error: unknown) {
-      // A cancelled run stays silent (an abort throws past Error): a
-      // stillborn run reads failed, and a non-error keeps its kind past the
-      // panel.
+      // A cancelled run stays silent: a stillborn run reads failed. The
+      // estimator's own refusal keeps its detail in words; anything else
+      // reads failed, and keeps its kind past the panel for the host log
+      // (D119).
       if (controller.signal.aborted) return
       if (error instanceof DOMException && error.name === 'AbortError') return
-      if (!(error instanceof Error)) throw error
+      if (isEstimateRefusal(error)) {
+        const refusal = estimateRefusalDetail(error)
+        setError(fill(UI_TEXT.estimateFailed, { detail: refusal ?? 'estimate-unavailable' }))
+        return
+      }
       setError(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
+      throw error
     } finally {
       if (pending.current === controller && !controller.signal.aborted) setBusy(false)
     }
@@ -243,11 +251,18 @@ export default function EstimatorPanel({
         await port.startExisting(section, setup)
       else if (port.provision.state === 'ready') await port.provision.spinUp(section, setup)
     } catch (error: unknown) {
-      // An unstarted run reads failed: only a non-error keeps its kind past
-      // the panel.
-      if (!(error instanceof Error)) throw error
+      // An unstarted run reads failed in its own refusal's words; anything
+      // else reads failed, and keeps its kind past the panel for the host
+      // log (D119).
+      if (isEstimateRefusal(error)) {
+        const refusal = estimateRefusalDetail(error)
+        if (cycle === spinCycle.current)
+          setError(fill(UI_TEXT.estimateFailed, { detail: refusal ?? 'start-unavailable' }))
+        return
+      }
       if (cycle === spinCycle.current)
         setError(fill(UI_TEXT.estimateFailed, { detail: 'start-unavailable' }))
+      throw error
     } finally {
       if (cycle === spinCycle.current) setSpinning(false)
     }

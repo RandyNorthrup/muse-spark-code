@@ -9,6 +9,7 @@ import {
 import machineClasses from '../../shared/machineClasses.json'
 import { ESTIMATE_MAX_ITEMS } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
+import { isStoreErrorCode } from '../../host/backend/storeErrors'
 import { compareEstimateIds } from './goal'
 
 const priceSchema =
@@ -128,9 +129,10 @@ export async function lookupEstimatePrices(
     try {
       rawCache = await port.cached(catalogUrl)
     } catch (error: unknown) {
-      // A store failure leaves the reason 'unavailable' while the refresh
-      // below retries over the network; anything else keeps its kind.
-      if (!(error instanceof Error)) throw error
+      // A missing cache entry is a cold cache: the reason stays
+      // 'unavailable' while the refresh below retries over the network. Any
+      // other store failure keeps its kind for the caller (D119).
+      if (!isStoreErrorCode(error, 'ENOENT')) throw error
       wasCacheUnavailable = true
     }
     const parsed = documentSchema.safeParse(rawCache)

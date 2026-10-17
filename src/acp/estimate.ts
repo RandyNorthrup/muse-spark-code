@@ -1,3 +1,4 @@
+import { estimateRefusalDetail, isEstimateRefusal } from '../shared/estimate'
 import { fill, UI_TEXT } from '../shared/l10n/text'
 import {
   collectEstimate,
@@ -35,11 +36,15 @@ export function createAcpEstimate(deps: {
         )
         return renderEstimate(section, parsed.options.format, deps.money)
       } catch (error: unknown) {
-        signal.throwIfAborted()
-        // A failed estimate stays the fixed sentence: only a non-error keeps
-        // its kind past the boundary.
-        if (!(error instanceof Error)) throw error
-        return fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' })
+        // Cancellation stays cancellation (an abort throws past Error). The
+        // estimator's own refusal stays its sentence for the agent; anything
+        // else keeps its kind past the boundary (D119).
+        if (signal.aborted) signal.throwIfAborted()
+        if (isEstimateRefusal(error)) {
+          const refusal = estimateRefusalDetail(error)
+          return fill(UI_TEXT.estimateFailed, { detail: refusal ?? 'estimate-unavailable' })
+        }
+        throw error
       }
     },
   }
