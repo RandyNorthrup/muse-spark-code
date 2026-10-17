@@ -15,6 +15,9 @@ import {
   type HelperInvocation,
 } from '../../core/voice/dictation'
 import type { CaptureLocation } from '../../core/voice/helperLocation'
+import { LinuxDictation, type LinuxDictationDeps } from '../../core/voice/linuxDictation'
+import { LinuxDictationHelper } from '../../core/voice/linuxHelper'
+import { LinuxDictationModel } from '../../core/voice/linuxModel'
 import { MuseVoiceDictation } from '../../core/voice/museVoice'
 import { recorderHelper } from '../../core/voice/recorderHelper'
 import { MUSE_VOICE_REALTIME_URL } from '../../shared/constants'
@@ -82,4 +85,39 @@ export function createMuseVoice(
     },
     listener,
   )
+}
+
+const linuxDrivers = new Set<LinuxDictation>()
+export function createLinuxDictation(
+  deps: Omit<LinuxDictationDeps, 'spawn'>,
+  table: UiText,
+  locale: string,
+): DictationHandle {
+  setUiText(table, locale)
+  const driver = new LinuxDictation({ ...deps, spawn: spawnHelper })
+  linuxDrivers.add(driver)
+  return {
+    start: () => {
+      driver.start()
+    },
+    stop: () => {
+      driver.stop()
+    },
+    dispose: () => {
+      driver.dispose()
+      linuxDrivers.delete(driver)
+    },
+  }
+}
+
+export async function removeLinuxDictationModel(directory: string): Promise<void> {
+  await Promise.all(
+    [...linuxDrivers].map(async (driver) => {
+      await driver.reset()
+    }),
+  )
+  const never = (): Promise<boolean> => Promise.resolve(false)
+  // OFF removes the helper and the model with their partial downloads alike.
+  await new LinuxDictationHelper({ directory, fetch, consent: never, arch: process.arch }).remove()
+  await new LinuxDictationModel({ directory, fetch, consent: never }).remove()
 }

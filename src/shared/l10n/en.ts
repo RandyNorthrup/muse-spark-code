@@ -480,7 +480,7 @@ export const EN = {
   referenceSetup: 'Run Setup hooks for init from spark-hooks.json in a trusted workspace.',
   referenceSkills: "SKILL.md. museCode: Turn Muse Code's skills on or off. modelApi: SKILL.md.",
   referenceDictation:
-    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine. Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.',
+    'Free dictation uses the OS engine on Windows and macOS. Local Linux x64/arm64 uses offline English Whisper tiny.en after consent to download its model; linuxDictationModel=false removes it. Remote workspace hosts cannot hear the local microphone.',
   referenceVoice:
     'Paid Muse Voice works on both backends in a local window with a stored Model API key; Muse Code requires explicit opt-in. Recordings stop at three minutes and reserve the daily budget and any conversation cap before connecting. Linux needs arecord or parec. Final reported seconds determine the estimate; the provider’s bill cannot be read back.',
   referenceBestOfN:
@@ -2978,6 +2978,25 @@ export const EN = {
   announceQuestion: 'Muse asked a question',
   announceResumed: 'Conversation resumed',
   // Voice dictation (M9).
+  linuxDictationDownloadTitle:
+    'Download the offline English dictation helper ({helperSize}) and model ({size})?',
+  linuxDictationDownloadDetail:
+    'Whisper tiny.en is free and recognizes English on this computer, using only the CPU. Download the helper from the extension release assets and the model from huggingface.co into {location}. Audio stays in memory. Turn linuxDictationModel off to stop dictation and remove the helper and model.',
+  linuxDictationIntegrity:
+    'The dictation helper or model failed its size or SHA-256 check. No recognition started.',
+  linuxDictationBusy:
+    'Another window is using the dictation helper or model. Stop its recording or download and try again.',
+  linuxDictationRemoved:
+    'Linux dictation is off and its helper and model are removed. Turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationRemovalPending:
+    'Linux dictation is off and its helper and model are being removed. Reload the window to retry removal, or turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationDisabled:
+    'Linux dictation is off. Turn linuxDictationModel on and reload the window to enable it.',
+  linuxDictationRemoveFailed:
+    'The offline dictation helper or model could not be removed. Check storage permissions and stop downloads in other windows, then reload this window to retry.',
+  linuxDictationFailed: 'Linux dictation failed',
+  linuxDictationDownloadFailed:
+    'The dictation helper or model could not be downloaded. Press the microphone to retry; an interrupted download can resume.',
   dictationTitle: 'Tap or hold to record (Ctrl+D)',
   dictationStopTitle: 'Stop recording (Ctrl+D)',
   dictationLabel: 'Record Voice',
@@ -2986,7 +3005,7 @@ export const EN = {
   dictationFailed: 'Voice dictation failed',
   dictationUnavailable: 'Voice dictation is not available on this platform.',
   dictationUnavailableLinux:
-    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine.',
+    'Linux dictation needs an x64 or arm64 computer with PulseAudio or PipeWire running.',
   dictationUnavailableWindows:
     'Voice dictation needs Windows PowerShell, which was not found (SystemRoot is not set).',
   dictationUnavailableDarwin:

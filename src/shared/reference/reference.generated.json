@@ -825,13 +825,13 @@
         "conditions": [{ "when": "platform&localWindow", "text": { "ui": "referenceDictation" } }]
       },
       "commands": [],
-      "settings": [],
+      "settings": ["museSpark.linuxDictationModel"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#voice-dictation",
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
       "details": [],
-      "facts": { "platforms": ["win32", "darwin"], "remote": false },
+      "facts": { "platforms": ["win32", "darwin", "linux"], "remote": false },
       "editors": ["vscode"]
     },
     {
@@ -3403,7 +3403,7 @@
     {
       "id": "museSpark.dictationEngine",
       "name": "museSpark.dictationEngine",
-      "description": "Dictation engine on Model API. Free OS recognizer is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.",
+      "description": "Dictation engine on Model API. Free dictation is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.",
       "descriptionKey": "config.dictationEngine.description",
       "type": "string",
       "default": "system",
@@ -4094,6 +4094,17 @@
       "name": "museSpark.vault.agentFence",
       "description": "Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.",
       "descriptionKey": "config.vault.agentFence.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.linuxDictationModel",
+      "name": "museSpark.linuxDictationModel",
+      "description": "Enable free offline English dictation on local Linux x64/arm64. First use asks before downloading the 74 MiB model. Turning this off stops dictation and removes the model and partial download; turn it on and reload the window to enable it again. Windows/macOS are unchanged.",
+      "descriptionKey": "config.linuxDictationModel.description",
       "type": "boolean",
       "default": true,
       "scope": "machine",

@@ -614,18 +614,18 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Record Voice
 
-platform&localWindow: Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine. Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.
+platform&localWindow: Free dictation uses the OS engine on Windows and macOS. Local Linux x64/arm64 uses offline English Whisper tiny.en after consent to download its model; linuxDictationModel=false removes it. Remote workspace hosts cannot hear the local microphone.
 
 ```json
 {
-  "platforms": ["win32", "darwin"],
+  "platforms": ["win32", "darwin", "linux"],
   "remote": false
 }
 ```
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#voice-dictation)
+Commands: —. Settings: `museSpark.linuxDictationModel`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#voice-dictation)
 
 ### Conversation
 
@@ -2770,7 +2770,7 @@ Type: `"number"`. Default: `5`. Scope: `machine`.
 
 ### museSpark.dictationEngine
 
-Dictation engine on Model API. Free OS recognizer is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.
+Dictation engine on Model API. Free dictation is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.
 
 Type: `"string"`. Default: `"system"`. Scope: `machine`.
 
@@ -3340,6 +3340,19 @@ Type: `"string"`. Default: `"transcribe"`. Scope: `machine`.
 ### museSpark.vault.agentFence
 
 shellOrigin=interactive&agentFence: Controls the credential fence for interactive Model API shell commands. Verification, schedules, workers and hooks remain fenced.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.linuxDictationModel
+
+Enable free offline English dictation on local Linux x64/arm64. First use asks before downloading the 74 MiB model. Turning this off stops dictation and removes the model and partial download; turn it on and reload the window to enable it again. Windows/macOS are unchanged.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 

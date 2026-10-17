@@ -529,16 +529,18 @@ describe('packaging (M26)', () => {
     expect(reuse).toContain('actions: read')
     expect(count(release, /^ {6}actions: read$/gm)).toBe(5)
     expect(reuse).toContain('FORCE_REBUILD: ${{ vars.RELEASE_FORCE_REBUILD }}')
-    expect(count(reuse, /run-id: \$\{\{ steps.lookup.outputs.run-id \}\}/g)).toBe(4)
-    expect(count(reuse, /github-token: \$\{\{ github.token \}\}/g)).toBe(4)
-    expect(count(reuse, /uses: actions\/download-artifact@[a-f\d]{40}/g)).toBe(4)
-    for (const id of ['receipt', 'vsix', 'acp', 'sboms']) {
+    // D106 adds the two Linux helper builds (helpers-x64, helpers-arm64) to
+    // the reused artifacts; the counts below inventory every download.
+    expect(count(reuse, /run-id: \$\{\{ steps.lookup.outputs.run-id \}\}/g)).toBe(6)
+    expect(count(reuse, /github-token: \$\{\{ github.token \}\}/g)).toBe(6)
+    expect(count(reuse, /uses: actions\/download-artifact@[a-f\d]{40}/g)).toBe(6)
+    for (const id of ['receipt', 'vsix', 'acp', 'sboms', 'helpers-x64', 'helpers-arm64']) {
       expect(reuse).toContain(`steps.${id}.outcome == 'success'`)
     }
     expect(reuse).toContain('node scripts/release-reuse.mjs verify reused')
     expect(reuse).toContain("echo 'reused=false'")
     expect(reuse).toContain('Full rebuild: a CI artifact download failed.')
-    expect(count(reuse, /if: steps.check.outputs.reused == 'true'/g)).toBe(3)
+    expect(count(reuse, /if: steps.check.outputs.reused == 'true'/g)).toBe(5)
     expect(build).toContain('needs: [verify, reuse]')
     expect(build).toContain("github.event_name == 'push' && needs.reuse.outputs.reused != 'true'")
     expect(build).toContain('uses: ./.github/workflows/build.yml')
@@ -569,8 +571,9 @@ describe('packaging (M26)', () => {
     expect(reuse).toContain(
       "echo '::error::Recovery download failed; preserve the original bytes.' >&2\n              exit 1",
     )
-    expect(count(publishers, /run-id: \$\{\{ github.run_id \}\}/g)).toBe(6)
-    expect(count(publishers, /github-token: \$\{\{ github.token \}\}/g)).toBe(6)
+    // D106: the release job also stages the two Linux helper builds.
+    expect(count(publishers, /run-id: \$\{\{ github.run_id \}\}/g)).toBe(8)
+    expect(count(publishers, /github-token: \$\{\{ github.token \}\}/g)).toBe(8)
     expect(publishers).not.toContain('inputs.artifacts_run_id')
   })
   it('blocks every release publisher and tag mover after cancellation (RELFAST2)', () => {

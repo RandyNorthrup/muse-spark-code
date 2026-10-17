@@ -421,7 +421,14 @@ so it does not claim deletion or forget ownership without its resource owner.
   audio never leaves it. On macOS, Apple's Speech framework recognises on the device when its
   on-device model is installed (Apple silicon with Dictation on);
   otherwise Apple's servers transcribe the audio under Apple's privacy
-  terms, and Apple decides which applies. The microphone is only
+  terms, and Apple decides which applies. On Linux x64/arm64, the bundled
+  CPU-only Whisper tiny.en helper recognizes English offline using PulseAudio
+  or PipeWire's PulseAudio service. Audio exists only in bounded memory. The
+  first use asks before fetching the pinned model from Hugging Face; the
+  model's size and SHA-256 are checked before recognition, and download
+  redirects must remain HTTPS. The download sends no microphone audio or
+  credentials. `linuxDictationModel=false` stops recording and removes the
+  model and partial download from extension global storage. The microphone is only
   open while the button is held or on ("Listening…"), and the recognised
   words go into the composer, where you can edit or delete them before
   anything is sent. The words are not logged (the log records only a
