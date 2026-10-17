@@ -4282,11 +4282,11 @@ export const EN = {
   providerRefusalCredit:
     '{provider} refused the request: its account is out of credit. Add credit at {provider}; nothing reached a model and nothing was charged for this request. {provider} said: {detail}',
   providerRefusalAuthentication:
-    '{provider} refused the request: the stored key was rejected. Store a new {provider} key from Models & Agents; nothing was sent and nothing was charged. {provider} said: {detail}',
+    '{provider} refused the request: the stored key was rejected. Store a new {provider} key from Models & Agents; nothing reached a model and nothing was charged. {provider} said: {detail}',
   providerRefusalPermission:
-    '{provider} refused the request: the key has no permission for this. Check the key’s permissions at {provider}; nothing was sent and nothing was charged. {provider} said: {detail}',
+    '{provider} refused the request: the key has no permission for this. Check the key’s permissions at {provider}; nothing reached a model and nothing was charged. {provider} said: {detail}',
   providerRefusalNotFound:
-    '{provider} refused the request: it has no such model. Pick a model {provider} lists; nothing was sent and nothing was charged. {provider} said: {detail}',
+    '{provider} refused the request: it has no such model. Pick a model {provider} lists; nothing reached a model and nothing was charged. {provider} said: {detail}',
   providerRefusalContentFilter:
     '{provider} refused the request: its content filter blocked it. Rephrase without the flagged content and try again; nothing reached a model and nothing was charged for this request. {provider} said: {detail}',
   providerRefusalRateLimited:
