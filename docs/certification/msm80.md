@@ -52,7 +52,8 @@ check:plan` exit 0.
 
 ## 3. Gates (final tree, exit codes)
 
-Intermediate (merged tree `5f940132b`, macmini, repo timeouts):
+Intermediate (merged tree `5f940132b`, macmini, repo timeouts; every
+`EXIT` below is the tool's own status captured without a pipe):
 
 | Gate                                          | Result                                                             |
 | --------------------------------------------- | ------------------------------------------------------------------ |
@@ -62,25 +63,33 @@ Intermediate (merged tree `5f940132b`, macmini, repo timeouts):
 | `check:l10n`                                  | exit 0 — 14 UI + 14 usage tables, 252 manifest strings, 0 problems |
 | `check:host-api`                              | exit 0 — 0 problems                                                |
 | knip                                          | exit 0 (3 pre-existing configuration hints)                        |
+| typecheck (all 5 projects)                    | exit 0                                                             |
+| eslint main (`temp/` scratch excluded; §5)    | exit 0, zero warnings                                              |
+| eslint unit                                   | exit 0, zero warnings                                              |
+| eslint tests (non-unit)                       | exit 0, zero warnings                                              |
+| cycles (dpdm)                                 | exit 0 — no circular dependencies                                  |
+| duplication (jscpd)                           | exit 0 — 0 clones                                                  |
+| `format:check`                                | exit 0                                                             |
+| `npm run build`                               | exit 0 — size/split/globals/notices intact (Model API 507.2 KiB)   |
+| `security:sast`                               | BLOCKED — semgrep binary crashes before scanning (§5)              |
 | `sh -n`/`bash -n` `ci-templates/bootstrap.sh` | ok                                                                 |
 | `git diff --check`                            | clean                                                              |
-| prettier                                      | new files pass after `--write`                                     |
 
 Tests (merged tree, `npx vitest run <files> --maxWorkers=3`, repo timeouts):
 
-| Files                                | Result                                   |
-| ------------------------------------ | ---------------------------------------- |
-| execArgs/execOutput/execSchema       | 128/128 pass                             |
-| runLedger/scanSecrets/untrustedInput | 53/53 pass                               |
-| redact/execKeyInput                  | 167/167 pass                             |
-| ciTemplates                          | 31/31 pass                               |
-| ciReference (new)                    | 1/1 pass                                 |
-| ciRun                                | (running)                                |
-| ciTemplatesRun                       | 18 failed — under investigation (see §5) |
+| Files                                | Result                                              |
+| ------------------------------------ | --------------------------------------------------- |
+| execArgs/execOutput/execSchema       | 128/128 pass                                        |
+| runLedger/scanSecrets/untrustedInput | 53/53 pass                                          |
+| redact/execKeyInput                  | 167/167 pass                                        |
+| ciTemplates                          | 31/31 pass                                          |
+| ciReference (new)                    | 1/1 pass                                            |
+| ciRun                                | 13 pass; 11 time out, all environmental (see §5)    |
+| ciTemplatesRun                       | 18 failed under load — under investigation (see §5) |
 
-Still to run: eslint on changed files (zero warnings), typecheck (all
-projects), cycles, duplication, `npm run build`, `SEMGREP_ENABLE_VERSION_CHECK=0
-npm run security:sast`, full `npm run quality`.
+Still to run: `ciRun` and `ciTemplatesRun` to green in a quiet window;
+the W rehearsal (`test/e2e/execTestLauncher.e2e.test.ts`) through the packed
+product after `npm run package:acp`.
 
 ## 4. Real-life steps for the lead
 
@@ -96,6 +105,28 @@ npm run security:sast`, full `npm run quality`.
 4. Not done here: hosted vendor runs, LR (registry provenance after release),
    full aggregate quality — lead-owned per the rig brief.
 
-## 5. App problems
+## 5. App problems and rig events
 
-(TODO.)
+1. **Rig overload, 2026-10-17 ~08:30–09:30 (macmini, load 4–13).** The
+   process suites (`ciRun`, `ciTemplatesRun`) spawn real shells, git, tar and
+   npm installs. On this loaded rig their per-test times inflate past the
+   suites' own named 60 s timeout (end-to-end cases take 66–87 s) and even a
+   no-install refusal case took 28 s against the 5 s repo default; `afterEach`
+   cleanup hit the 10 s hook timeout (`ENOTEMPTY` races). All 10 pure-logic
+   `ciRun` cases (adapters, key intake, deadline) pass; every failure is a
+   timeout, none an assertion. Kubuntu certified the same suites green.
+   Re-run off-peak before closing; the timeouts themselves are unchanged.
+2. **170 tracked test files deleted from the worktree at ~08:41 by an
+   unknown process** (no delete command from this lane; `ps` is sandbox
+   blocked). Restored byte-exact with `git checkout -- test/` (status clean,
+   tripwire 1184 files). Lead: check host audit for the 08:41 writer.
+3. **Whole-tree `lint:js:main` fails only on `temp/l10n-builds-*/` scratch**
+   (71,500 errors, zero elsewhere): gitignored bundles from an earlier lane,
+   not deliverable code, left in place per workspace rules. Local proof runs
+   the unchanged gate plus `--ignore-pattern "temp/**"` (exit 0, zero
+   warnings); CI's clean checkout runs the gate as-is.
+4. **`security:sast` is unrunnable on this rig.** The semgrep binary itself
+   crashes before scanning (`Failure: ca-certs: empty trust anchors`; even
+   `semgrep --version` fails). No proxy/cert env vars are set. Per
+   sandbox-limits rules no workaround was built; the lead runs SAST outside
+   the sandbox.
