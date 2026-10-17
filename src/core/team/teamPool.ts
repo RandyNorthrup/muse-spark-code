@@ -86,7 +86,7 @@ export function isDefaultEntry(agent: TeamPoolEntry['agent']): agent is TeamDefa
  * resolves through it when each task starts, never from a snapshot, so a
  * picker change applies to the next delegation and a running task keeps
  * what it started on.
- * @unwired M96 lane T orchestrator slot
+ * Lane T orchestrator slot
  */
 export interface TeamOrchestratorSlot {
   resolve(): TeamAgentProfile
@@ -132,7 +132,7 @@ export interface TeamAgentSwitchPayload {
 }
 
 /** The payload for a switch, with both agent profiles' models.
- * @unwired M96 agent switch hook payload
+ * Agent switch hook payload
  */
 export function switchHookPayload(
   change: TeamSwitch,
@@ -573,7 +573,7 @@ function refuseEntry(
  * transcript row's data. Returning to an entry after a reset or a new day
  * is a switch too. Callers pass the last entry's refusal so the row names
  * why the role moved.
- * @unwired M96 agent switch recorder
+ * Agent switch recorder
  */
 export function recordTeamSwitch(
   pool: TeamRolePool,

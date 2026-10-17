@@ -248,7 +248,7 @@ async function revParse(runGit: TeamGit, repo: string, rev: string): Promise<str
  * parent (`git commit-tree` through a private index, which writes no user ref), so the
  * worker sees the uncommitted work. Nothing is committed to the user's
  * branch either way.
- * @unwired M96 team base commit resolver
+ * Team base commit resolver
  */
 export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string): Promise<string> {
   const status = await runGit(
@@ -356,7 +356,7 @@ async function removeRemote(runGit: TeamGit, folder: string): Promise<void> {
  * Every `read-only` worker gets a scratch copy instead (detached, no
  * `agents/` ref: there is nothing to merge). `in-place` runs in the user's
  * tree; its lock is lane T's.
- * @unwired M96 team workspace starter
+ * Team workspace starter
  */
 export async function startTeamWorkspace(
   runGit: TeamGit,
@@ -413,7 +413,7 @@ export function teamCommitSubject(role: string, taskId: string, entryId: string)
  * as one commit naming the role, the entry and the task. The worker never
  * commits; the extension does. Returns the branch head (the base when
  * nothing changed, without an empty commit).
- * @unwired M96 task branch committer
+ * Task branch committer
  */
 export async function commitTaskBranch(
   runGit: TeamGit,
@@ -454,7 +454,7 @@ async function readAgentsRef(
 }
 
 /** Import objects without updating a ref, then publish with Git's atomic CAS.
- * @unwired M96 task ref publisher
+ * Task ref publisher
  */
 export async function publishTaskRef(
   runGit: TeamGit,
@@ -628,7 +628,7 @@ export function parseScratchStatus(porcelain: Uint8Array): readonly string[] {
 /**
  * A read-only worker's change found in its scratch copy fails the task:
  * any change or new file there is a breach of its role.
- * @unwired M96 scratch-copy breach scanner
+ * Scratch-copy breach scanner
  */
 export async function scratchBreach(runGit: TeamGit, folder: string): Promise<readonly string[]> {
   runGit = teamProgramFreeGit(runGit)
