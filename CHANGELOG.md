@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Best-of-N shows each attempt's reported tokens and reported cost in the
+  side-by-side comparison, and the take notice names the taken attempt's
+  reported use and complete reported cost. Responses still missing a
+  reported cost say more is pending; unknown requests stay unknown and the
+  aggregate Account & usage row is unchanged, so nothing is counted twice
+  (M77 C-M77-2).
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

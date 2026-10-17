@@ -16,6 +16,7 @@ import { admitResource, inResourceClass } from '../resources/admission'
 import type { ResourceLease } from '../resources/launch'
 import type { ResourceClass } from '../../shared/resources'
 import type { BestOfNCoordinator } from './bestOfNCoordinator'
+import { accumulateAttemptUsage } from './attemptUsage'
 import type { ResponseAttemptGuard } from '../backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../backends/modelapi/sessionBudget'
 import type {
@@ -455,13 +456,20 @@ export class BestOfNRunner {
             budgetScope: run.budgetScope,
             noteUsage: (modelId, usage) => {
               if (
-                this.run === run &&
-                !run.controller.signal.aborted &&
-                run.isCurrent() &&
-                modelId === run.modelId
+                this.run !== run ||
+                run.controller.signal.aborted ||
+                !run.isCurrent() ||
+                modelId !== run.modelId
               ) {
-                this.deps.noteAttemptUsage?.(modelId, usage)
+                return
               }
+              // The attempt keeps its own reported spend (C-M77-2) with
+              // the same refusal contract as the window tally: an invalid
+              // delta throws before either side records it.
+              const reported = accumulateAttemptUsage(entry.attempt, modelId, usage)
+              entry.attempt = { ...entry.attempt, ...reported }
+              this.publish(run)
+              this.deps.noteAttemptUsage?.(modelId, usage)
             },
             admitRequest: Object.assign(
               (keyDigest: string | undefined) => {

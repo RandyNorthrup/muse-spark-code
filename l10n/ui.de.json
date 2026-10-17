@@ -3822,6 +3822,8 @@
     "one": "{count} abgelehnte Genehmigung",
     "other": "{count} abgelehnte Genehmigungen"
   },
+  "bestOfNAttemptCost": "gemeldete Ausgaben {cost}",
+  "bestOfNAttemptCostPartial": "{cost} gemeldet, weitere ausstehend",
   "bestOfNAttemptFailed": "Fehlgeschlagen: {reason}",
   "bestOfNTakenMark": "Übernommen: {branch}",
   "bestOfNDiffClipped": "Diff gekürzt.",
@@ -3842,6 +3844,8 @@
   "bestOfNAttemptNotDone": "Nur ein abgeschlossener Versuch kann übernommen werden.",
   "bestOfNWorktreeFailed": "Die Worktrees für die Versuche konnten nicht erstellt werden: {reason}",
   "bestOfNTaken": "Vorschau von {branch} angewendet und gestagt.",
+  "bestOfNTakenSpend": "Vorschau von {branch} angewendet und gestagt. Gemeldete Nutzung: {tokens}.",
+  "bestOfNTakenSpendCost": "Vorschau von {branch} angewendet und gestagt. Gemeldete Nutzung: {tokens}, gemeldete Ausgaben {cost}.",
   "bestOfNTakeFailed": "{branch} konnte nicht angewendet und gestagt werden. Prüfen Sie die Arbeitskopie vor dem nächsten Versuch: {reason}",
   "paidConfirmAccept": "Einschalten",
   "paidBadge": "Kostenpflichtig: {features}",

@@ -24,6 +24,7 @@ import {
   type BestOfNValidationError,
 } from '../../shared/bestOfN'
 import { fill, formatNumber, plural } from '../../shared/l10n/text'
+import { formatUsd } from '../../core/usage/insights'
 import { ListBody } from './ListBody'
 
 export interface BestOfNDialogProps {
@@ -104,6 +105,23 @@ function fieldError(
 
 function attemptMeta(attempt: BestOfNAttempt): string {
   const parts = [plural(UI_TEXT.bestOfNRequests, attempt.requestsMade)]
+  // The attempt's own reported spend (C-M77-2): reported tokens always,
+  // reported cost only when the provider reported one. A partial total
+  // says more is pending instead of stating a floor as the price.
+  if (attempt.reportedInputTokens !== undefined) {
+    const tokens = attempt.reportedInputTokens + (attempt.reportedOutputTokens ?? 0)
+    parts.push(fill(UI_TEXT.agentTokens, { tokens: formatNumber(tokens) }))
+    if (attempt.reportedCostUsd !== undefined) {
+      parts.push(
+        fill(
+          attempt.hasUnreportedCost === true
+            ? UI_TEXT.bestOfNAttemptCostPartial
+            : UI_TEXT.bestOfNAttemptCost,
+          { cost: formatUsd(attempt.reportedCostUsd) },
+        ),
+      )
+    }
+  }
   if (attempt.ceilingReached) {
     parts.push(UI_TEXT.bestOfNCeilingReached)
   }

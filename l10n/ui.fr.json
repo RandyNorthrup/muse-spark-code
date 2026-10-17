@@ -3912,6 +3912,8 @@
     "other": "{count} approbations refusées",
     "many": "{count} d’approbations refusées"
   },
+  "bestOfNAttemptCost": "dépenses déclarées {cost}",
+  "bestOfNAttemptCostPartial": "{cost} déclarés, plus en attente",
   "bestOfNAttemptFailed": "Échec : {reason}",
   "bestOfNTakenMark": "Retenue : {branch}",
   "bestOfNDiffClipped": "Diff abrégé.",
@@ -3932,6 +3934,8 @@
   "bestOfNAttemptNotDone": "Seule une tentative terminée peut être retenue.",
   "bestOfNWorktreeFailed": "Impossible de créer les arborescences de travail des tentatives : {reason}",
   "bestOfNTaken": "Aperçu de {branch} appliqué et indexé.",
+  "bestOfNTakenSpend": "Aperçu de {branch} appliqué et indexé. Utilisation déclarée : {tokens}.",
+  "bestOfNTakenSpendCost": "Aperçu de {branch} appliqué et indexé. Utilisation déclarée : {tokens}, dépenses déclarées {cost}.",
   "bestOfNTakeFailed": "Impossible d’appliquer et d’indexer {branch}. Vérifiez la copie de travail avant de réessayer : {reason}",
   "paidConfirmAccept": "Activer",
   "paidBadge": "Payant : {features}",

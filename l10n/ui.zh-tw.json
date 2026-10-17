@@ -3732,6 +3732,8 @@
   "bestOfNApprovalsDenied": {
     "other": "{count}項被拒核准"
   },
+  "bestOfNAttemptCost": "已報告支出{cost}",
+  "bestOfNAttemptCostPartial": "已報告{cost}，其餘待定",
   "bestOfNAttemptFailed": "失敗：{reason}",
   "bestOfNTakenMark": "已採用：{branch}",
   "bestOfNDiffClipped": "差異已被截斷。",
@@ -3752,6 +3754,8 @@
   "bestOfNAttemptNotDone": "只能採用已完成的嘗試。",
   "bestOfNWorktreeFailed": "無法建立嘗試的工作樹：{reason}",
   "bestOfNTaken": "已套用並暫存 {branch} 的預覽。",
+  "bestOfNTakenSpend": "已套用並暫存 {branch} 的預覽。已報告用量：{tokens}。",
+  "bestOfNTakenSpendCost": "已套用並暫存 {branch} 的預覽。已報告用量：{tokens}，已報告支出{cost}。",
   "bestOfNTakeFailed": "無法套用並暫存 {branch}。重試前請檢查工作副本：{reason}",
   "paidConfirmAccept": "開啟",
   "paidBadge": "付費：{features}",

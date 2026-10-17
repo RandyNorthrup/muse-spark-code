@@ -18447,9 +18447,13 @@ extension's own storage, never the workspace's `.git`.
 
 ### M77 — Session board and best-of-N (D49)
 
-**Status 2026-10-10: building.** VS Code certification closure has local
-evidence; cost folding, other editor bindings, qualification and lead-run
-gates remain. Status evidence: `docs/certification/m77.md`.
+**Status 2026-10-17: finishing (MSM77 lane).** C-M77-1's VS Code proof
+stands (`docs/certification/m77.md`); this lane merges current main,
+folds each attempt's reported spend into the run, the comparison and the
+take notice (C-M77-2), records the per-editor bindings (C-M77-3) and the
+Muse Code scope ruling, and leaves hosted three-OS CI, independent Grok
+review and Windows/macOS qualification to the lead (C-M77-4).
+Status evidence: `docs/certification/msm77.md`.
 
 **C-M77-1 certification scope, 2026-10-10.** Close the VS Code proof gaps:
 the seven queued ownership/account/terminal/HTTP/snapshot/apply/target
@@ -18462,6 +18466,10 @@ C-M77-2 owns parent cost folding. C-M77-3 owns board/best-of-N bindings
 for JetBrains, Visual Studio, Eclipse, Zed, Xcode, Neovim, Emacs, Sublime
 and ACP/headless; C-M77-4 owns their F24 qualification. Hosted three-OS
 CI and independent Grok review remain lead-run acceptance gates.
+(2026-10-17, MSM77 finish lane: C-M77-2 lands as the per-attempt reported
+spend fold, C-M77-3 as the per-editor record in `docs/certification/msm77.md`
+with best-of-N staying VS Code-only by scope ruling; Windows/macOS
+qualification, hosted CI and Grok review stay lead-run under C-M77-4.)
 
 **RV78 review fixes, 2026-10-02.** The board's git status ran through the
 ordinary runner, so opening it could start a repository's configured
@@ -18593,9 +18601,11 @@ JSON ledger format; converting the project plan is outside this lane.
   chosen tree, through ordinary Git apply with no force/three-way fallback.
   The attempt index is pinned to its original absolute Git directory.
 - **Status.** C-M77-1 closes the queued local VS Code proof gaps and verifies
-  the integrated M82 parent-budget binding. The scope and later lanes are
-  recorded above; M77 remains building until those lanes and lead-run gates
-  pass. No live or paid model call was made for this certification.
+  the integrated M82 parent-budget binding. The MSM77 finish lane (2026-10-17)
+  adds the C-M77-2 spend fold, the C-M77-3 per-editor record and the
+  Model API-only scope ruling; M77 leaves hosted three-OS CI, independent
+  Grok review and Windows/macOS qualification to the lead (C-M77-4).
+  No live or paid model call was made for either certification.
 
 ### M78 — Auto, made safe (D49)
 

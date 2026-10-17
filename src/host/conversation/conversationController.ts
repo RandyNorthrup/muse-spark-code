@@ -192,7 +192,8 @@ import {
   type ItemSnapshot,
   type TodoItem,
 } from '../../shared/agentEvents'
-import { fill, plural, uiLocale } from '../../shared/l10n/text'
+import { fill, formatNumber, plural, uiLocale } from '../../shared/l10n/text'
+import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
 import { backendLabel } from '../../shared/paletteFormatting'
@@ -4668,7 +4669,34 @@ export class ConversationController {
         return
       }
       if (run.takenBranch !== undefined) {
-        this.notice('info', fill(UI_TEXT.bestOfNTaken, { branch: run.takenBranch }))
+        // The taken attempt's reported spend folds into the originating
+        // conversation's view (C-M77-2): tokens always, cost only when the
+        // provider reported a complete one. A partial or missing cost keeps
+        // the cost-free notice instead of stating a floor as the price.
+        const taken = run.runAttempts.find((attempt) => attempt.branch === run.takenBranch)
+        const tokens =
+          taken?.reportedInputTokens === undefined
+            ? undefined
+            : taken.reportedInputTokens + (taken.reportedOutputTokens ?? 0)
+        const cost =
+          taken?.reportedCostUsd !== undefined && taken.hasUnreportedCost !== true
+            ? taken.reportedCostUsd
+            : undefined
+        let takenNotice = fill(UI_TEXT.bestOfNTaken, { branch: run.takenBranch })
+        if (tokens !== undefined) {
+          takenNotice = fill(UI_TEXT.bestOfNTakenSpend, {
+            branch: run.takenBranch,
+            tokens: formatNumber(tokens),
+          })
+          if (cost !== undefined) {
+            takenNotice = fill(UI_TEXT.bestOfNTakenSpendCost, {
+              branch: run.takenBranch,
+              tokens: formatNumber(tokens),
+              cost: formatUsd(cost),
+            })
+          }
+        }
+        this.notice('info', takenNotice)
       }
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
