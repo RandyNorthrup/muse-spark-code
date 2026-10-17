@@ -1063,9 +1063,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
             )
           : ['-c', command]
       resource = await prepareResourceJob(resource, job)
-      // Lane K: one production process cap shared by every session and the
+      // Lane K: the hook-process start shared by every session and the
       // lazy window/Tab bundles, held in the lazily loaded hook runtime so
-      // the hook implementation stays out of activation.
+      // the hook implementation stays out of activation (NOLIMITS4 C8: no
+      // host-wide count gates it).
       let release: () => void
       try {
         const runtime = await import('../../core/backends/modelapi/hookRuntimeEntry.js')
