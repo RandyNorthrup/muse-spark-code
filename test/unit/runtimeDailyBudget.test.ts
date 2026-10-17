@@ -1,5 +1,6 @@
 // The agent's daily limit (PLAN.md D121) over its real settings file and data
-// folder: with none set nothing is read or written for a request; with one,
+// folder: with none set nothing is written and no spend record is read for a
+// request; with one,
 // a request whose estimate would pass what is left is refused in plain words,
 // and only reported costs are counted, never an estimate.
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -44,12 +45,26 @@ function spentFile(folder: string): unknown {
 }
 
 describe('the agent daily limit', () => {
-  it('with no limit set, reads and writes nothing for a request', () => {
+  it('with no limit set, writes nothing and holds nothing for a request', () => {
     const folder = dataFolder('none')
     const daily = createRuntimeDailyBudget({ dataFolder: folder, now: Date.now, sleep })
     expect(daily.capUsd()).toBe('0')
     expect(daily.admit(Usd.from(5).toAmount(), new AbortController().signal)).toBeUndefined()
     expect(readdirSync(folder)).toEqual([])
+  })
+
+  it('with no limit set, never reads the spend records', () => {
+    const folder = dataFolder('unread')
+    const records = path.join(folder, PAID_DAILY_BUDGET.directory, today(), DAILY_SPEND_FOLDER)
+    mkdirSync(records, { recursive: true })
+    writeFileSync(path.join(records, 'damaged.json'), '{')
+    const daily = createRuntimeDailyBudget({ dataFolder: folder, now: Date.now, sleep })
+    // A damaged record refuses any read of the day's total; no limit reads none.
+    expect(daily.admit(Usd.from(5).toAmount(), new AbortController().signal)).toBeUndefined()
+    writeFileSync(path.join(folder, RUNTIME_SETTINGS_FILE), '{"paidDailyBudgetUsd":10}')
+    expect(() => daily.admit(Usd.from(5).toAmount(), new AbortController().signal)).toThrow(
+      expect.objectContaining({ name: 'SpendLedgerError', kind: 'damaged' }),
+    )
   })
 
   it('a limit of zero in the settings file is no limit', () => {

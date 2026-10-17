@@ -62,11 +62,12 @@ same amount was kept as "unresolved" liability, still blocking requests.
   `paidDailyBudgetUsd` default to none (`src/shared/constants.ts:703`,
   `package.json` default 0, no maximum). With none set,
   `createRuntimeDailyBudget().admit` returns at
-  `src/runtime/runtimeAccountingEntry.ts:145` before any read or write.
+  `src/runtime/runtimeAccountingEntry.ts:147` after reading only the
+  settings file: no spend record is read and nothing is written.
 - A reservation is never spend; a response without usage is cost unknown and
   adds nothing (`src/core/backends/modelapi/ModelApiHost.ts:4066-4101`).
 - The agent's daily stop says "daily budget" and names
-  `paidDailyBudgetUsd` (`src/runtime/runtimeAccountingEntry.ts:155-160`).
+  `paidDailyBudgetUsd` (`src/runtime/runtimeAccountingEntry.ts:157-162`).
 - The old ledger files are not read, so a day's total restarts from what
   calls report under the new files.
 - **Not changed:** the `120` in that settings file. The code cannot tell an
@@ -80,8 +81,11 @@ same amount was kept as "unresolved" liability, still blocking requests.
 - **No limit, no check.** `ModelApiSession.assertEstimateFits`
   (`ModelApiHost.ts:3986`) returns at once without a cap; the daily paths
   return `undefined` (`src/host/paid/paidDailyBudget.ts:194`, `:319`;
-  `src/runtime/runtimeAccountingEntry.ts:145`). Nothing is reserved, locked,
-  read or written for spending before a send.
+  `src/runtime/runtimeAccountingEntry.ts:147`). Nothing is reserved, locked
+  or written, and no spend record is read, before a send. What is still
+  read is where a person's limit lives: the agent's `settings.json`, and in
+  the editor its setting plus the day's raise or stop files
+  (`paidDailyBudget.ts:67-94`).
 - **Session running total** in the owning session
   (`ModelApiHost.ts:4015-4032`), added after each call from reported usage,
   saved as `StoredSession.budgetSpentUsd`, restored on resume.
@@ -134,8 +138,9 @@ New, real code only (real files, real processes, the real clock):
 - `test/unit/dailySpend.test.ts`: three real processes add 20 priced and 2
   unknown-cost calls each; the day's total is the sum, one file per
   process, no lock or journal; a zero-cost call writes nothing.
-- `test/unit/runtimeDailyBudget.test.ts`: with no limit nothing is read or
-  written; a limit of 0 is none; a request whose estimate would pass the
+- `test/unit/runtimeDailyBudget.test.ts`: with no limit nothing is written,
+  and a damaged spend record is never read (with a limit the same record
+  refuses); a limit of 0 is none; a request whose estimate would pass the
   limit is refused with the daily sentence; cost unknown counts nothing; a
   settled call counts once.
 - `test/unit/sessionBudgetFit.test.ts`: the output allowance is lowered to
@@ -143,4 +148,21 @@ New, real code only (real files, real processes, the real clock):
   refused with the session sentence.
 
 Changed: `test/unit/paidMoneyStructure.test.ts` drops the removed minimum
-and maximum from its allow-list.
+and maximum from its allow-list. The daily files' call counter is named
+`unknownChargeCalls`, so the guard reads it as a count.
+
+## Red drills (each break made, the failure seen, the code restored)
+
+Restored state checked with `git diff -- src` (comment edits only) and a
+green rerun: 4 files, 58 tests, exit 0.
+
+| Break                                                                                          | Suite                        | Result while broken                                                                                    |
+| ---------------------------------------------------------------------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `dailySpend.ts` `read`: other processes' files add 0                                           | `dailySpend.test.ts`         | exit 1: "sums every process file" `expected '0' to be '0.6'`                                           |
+| `dailySpend.ts` `add`: zero-cost early return removed                                          | `dailySpend.test.ts`         | exit 1: "writes nothing for a call that cost nothing" `expected true to be false`                      |
+| `runtimeAccountingEntry.ts` `admit`: no-limit return removed                                   | `runtimeDailyBudget.test.ts` | exit 1: both no-limit tests and "a limit of zero" get a claim instead of `undefined`                   |
+| `runtimeAccountingEntry.ts` `settle`: unknown cost counted as the estimate                     | `runtimeDailyBudget.test.ts` | exit 1: "counts a call that reported no usage" `{ spentUsd: '0.9' }`                                   |
+| `runtimeAccountingEntry.ts` `check`: the estimate left out of the comparison                   | `runtimeDailyBudget.test.ts` | exit 1: "stops a request whose estimate would pass" `expected undefined to be an instance of Error`    |
+| `runtimeAccountingEntry.ts` `settle`: the settled-once guard removed                           | `runtimeDailyBudget.test.ts` | exit 1: "counts a settled call once" `{ spentUsd: '0.6' }`                                             |
+| `sessionBudget.ts` `fitRequest`: what was spent left out of what is left                       | `sessionBudgetFit.test.ts`   | exit 1: "lowers the output allowance" and "refuses a request whose smallest estimate passes the limit" |
+| `paidMoneyStructure.test.ts` before its change (stale minimum/maximum, counter named `…Cost…`) | `paidMoneyStructure.test.ts` | exit 1 in the touched-suite run: two stale entries and one unexpected money name                       |

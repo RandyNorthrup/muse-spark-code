@@ -86,8 +86,9 @@ async function countExactInput(
 
 /**
  * The agent's daily spending limit (PLAN.md D121): `paidDailyBudgetUsd` in
- * its settings file, set by the person; none by default. With no limit
- * nothing is read or written on the request path. With one, a request whose
+ * its settings file, set by the person; none by default. With no limit the
+ * request path reads only that file: no spend record is read and nothing is
+ * reserved, locked or written. With one, a request whose
  * estimate would pass what is left of today is not sent, and each request's
  * reported cost joins today's running total after it ends; nothing is held
  * for a request in flight, and a request that reported no usage is counted
@@ -138,7 +139,7 @@ export function createRuntimeDailyBudget(deps: {
     capUsd,
     /**
      * One request about to be sent: `undefined` when the person set no daily
-     * limit (nothing is read or written); otherwise its claim, refused with
+     * limit (only the settings file is read); otherwise its claim, refused with
      * the stop sentence when its estimate would pass what is left of today.
      */
     admit(estimateUsd: UsdAmount, signal: AbortSignal): SpendClaim | undefined {
