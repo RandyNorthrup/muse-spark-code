@@ -2908,7 +2908,9 @@ are left to the system store, so the extension never sets `SSL_CERT_FILE`.
 offered. `prompt_cache_retention` is `in_memory` by default, with `24h` only
 when the user chooses it. As amended on 2026-09-27, VS Code patches
 `WebSocket` only from 1.112.0, so on 1.101 to 1.111 Muse Voice's socket goes
-to Meta without VS Code's proxy and certificate handling. Full record:
+to Meta without VS Code's proxy and certificate handling; while `http.proxy`
+is set there the microphone stays unavailable with the reason instead of
+recording audio that cannot be sent (MSM56, 2026-10-17). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D45 — Subagents on both backends (M48, 2026-09-25)
@@ -17740,7 +17742,7 @@ owner commands; accepted control shapes remain uncaptured.
   1.111, or an editor built on it that routes neither global), the Muse
   Voice microphone stays unavailable with the reason instead of recording
   audio that cannot be sent (`src/core/voice/voiceNetwork.ts`,
-  `museVoiceNoProxy`, `docs/certification/msm56.md`).
+  `museVoiceNoProxy`, `docs/certification/m56.md`).
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
