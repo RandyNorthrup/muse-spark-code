@@ -191,6 +191,9 @@
   "estimateSeed": "シミュレーションのシード",
   "estimateAsOf": "スナップショット時刻",
   "estimateMarginal": "このマシンの追加で短縮される時間",
+  "estimateMissingMore": {
+    "other": "あと {count} 件"
+  },
   "estimateHourly": "時間当たりの価格",
   "estimateCatalog": "{date} 時点のカタログ価格であり、見積価格ではありません。",
   "estimateNoPrice": "公開カタログ価格はありません。",
@@ -341,6 +344,7 @@
     "estimate-by": "--by <date>: 期限",
     "fleet": "--fleet current|minimum|optimum: 現在のマシン群 / 最小構成 / 最適構成",
     "estimate-format": "--format md|html|json|text: 出力形式",
+    "estimate-check-plan": "--check-plan: 見積もりの代わりに計画のすべての問題を一覧表示",
     "seed": "--seed <seed>: シミュレーションのシード"
   },
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
@@ -441,7 +445,8 @@
   "referenceDiagnostics": "ローカルのバックエンドと拡張機能の診断を表示します。",
   "referenceReport": "保存または送信する前に、機密情報を除去した問題レポートを確認します。",
   "referenceInProgress": "進行中.",
-  "referenceEstimate": "進行中.",
+  "estimateDiagnosticHelp": "計画とエンジンによる拒否は、パネル、CLI、ACPで同じ名前付き診断を表示します。外部エラーでは個人情報を含む詳細を非表示にします。 見積もり、更新、開始が拒否されると、以前の予測はその診断に置き換わります。",
+  "referenceEstimate": "現在のフリートで目標がいつ出荷できるか、または期限に必要な構成を見積もります。",
   "referenceTerminal": "エディターのターミナルで Muse Code CLI を開きます。",
   "referenceRules": "ワークスペースのルートに AGENTS.md を作成または開きます。",
   "referenceWalkthrough": "入門ガイドを開きます。",

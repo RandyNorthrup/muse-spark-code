@@ -364,10 +364,10 @@ describe('M115 durable shared store', () => {
     // Millisecond stamps can tie inside one critical section, so the
     // well-formedness rows allow equality; the cross-process rows below stay
     // strict (a second apart) except the lock-ordered handoff itself.
-    expect(enters[0]).toBeLessThan(leaves[0])
-    expect(enters[1]).toBeLessThanOrEqual(leaves[1])
-    expect(attempts[1]).toBeLessThan(leaves[0])
-    expect(leaves[0]).toBeLessThanOrEqual(enters[1])
+    expect(enters[0]!).toBeLessThan(leaves[0]!)
+    expect(enters[1]!).toBeLessThanOrEqual(leaves[1]!)
+    expect(attempts[1]!).toBeLessThan(leaves[0]!)
+    expect(leaves[0]!).toBeLessThanOrEqual(enters[1]!)
     const queue = createNodeScheduleQueue(directory)
     await expect(
       queue.serialize('workspace:session', () => Promise.reject(new Error('failed'))),

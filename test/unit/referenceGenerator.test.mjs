@@ -1219,7 +1219,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
           else if (name === 'output-schema-outside')
             args.push('--output-schema', '/tmp/answer.json')
         }
-        if (route === 'estimate' && name !== 'help') args.push('M117')
+        if (route === 'estimate' && name !== 'help' && name !== 'check-plan') args.push('M117')
         args.push(...flag)
         if (route === 'exec' && name !== 'prompt-file') args.push('prompt')
         if (route === 'scan-secrets') args.push('/tmp/patch')
@@ -1231,8 +1231,10 @@ describe('RVHELPREF2 runtime truth regressions', () => {
         expect(parsed.command, `${route}: --${name}: ${parsed.reason ?? ''}`).toBe(expected)
         if (route === 'estimate') {
           // The outer dispatcher delegates this route; its own parser validates all flags.
+          // `--check-plan` is a mode, not a goal modifier: it takes no goal.
+          const estimateKind = { help: 'help', 'check-plan': 'check-plan' }[name] ?? 'estimate'
           expect(parsed.argv).toEqual(args.slice(1))
-          expect(parseEstimateOptions(parsed.argv).kind).toBe(name === 'help' ? 'help' : 'estimate')
+          expect(parseEstimateOptions(parsed.argv).kind).toBe(estimateKind)
           expect(parseEstimateOptions([...parsed.argv, '--unknown', 'ignored']).kind).toBe(
             'invalid',
           )

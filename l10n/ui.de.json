@@ -191,6 +191,10 @@
   "estimateSeed": "Startwert der Simulation",
   "estimateAsOf": "Zeitpunkt der Bestandsaufnahme",
   "estimateMarginal": "Durch diesen zusätzlichen Rechner eingesparte Zeit",
+  "estimateMissingMore": {
+    "one": "und {count} weitere",
+    "other": "und {count} weitere"
+  },
   "estimateHourly": "Stundenpreis",
   "estimateCatalog": "Ein Katalogpreis vom {date}, kein Angebot.",
   "estimateNoPrice": "Kein öffentlicher Katalogpreis verfügbar.",
@@ -341,6 +345,7 @@
     "estimate-by": "--by <date>: Frist",
     "fleet": "--fleet current|minimum|optimum: Aktueller Gerätebestand / Minimale Ausstattung / Optimale Ausstattung",
     "estimate-format": "--format md|html|json|text: Ausgabeformat",
+    "estimate-check-plan": "--check-plan: Alle Planprobleme auflisten statt eine Schätzung zu erstellen",
     "seed": "--seed <seed>: Startwert der Simulation"
   },
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
@@ -441,7 +446,8 @@
   "referenceDiagnostics": "Lokale Backend- und Erweiterungsdiagnose anzeigen.",
   "referenceReport": "Bereinigten Problembericht vor dem Speichern oder Senden prüfen.",
   "referenceInProgress": "In Arbeit.",
-  "referenceEstimate": "In Arbeit.",
+  "estimateDiagnosticHelp": "Ablehnungen des Plans und der Berechnung zeigen dieselbe benannte Diagnose im Panel, in der CLI und in ACP; externe Fehler verbergen private Details. Eine abgelehnte Schätzung, Aktualisierung oder Ausführung ersetzt die vorherige Prognose durch diese Diagnose.",
+  "referenceEstimate": "Schätzt, wann ein Ziel mit der aktuellen Flotte fertig wird, oder welches Setup ein Termin braucht.",
   "referenceTerminal": "Muse Code CLI im Terminal des Editors öffnen.",
   "referenceRules": "AGENTS.md im Arbeitsbereich erstellen oder öffnen.",
   "referenceWalkthrough": "Einführungsanleitung öffnen.",

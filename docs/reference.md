@@ -51,7 +51,7 @@ Generate a deterministic report from named sources, without a model call.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.showReport`. Settings: `museSpark.reports.network`, `museSpark.reports.keepHistory`, `museSpark.reports.agentSources`, `museSpark.usageHistory`, `museSpark.usageHistoryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
+Commands: `museSpark.showReport`. Settings: `museSpark.reports.keepHistory`, `museSpark.reports.agentSources`, `museSpark.usageHistory`, `museSpark.usageHistoryDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
 
 ### Prompt Library
 
@@ -3204,24 +3204,6 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
   "default": false
 }
 ```
-
-### museSpark.reports.network
-
-reportsNetwork&githubSignIn: Choose when reports may read GitHub. Terminal reports use the network only with --network.
-
-Type: `"string"`. Default: `"whenSignedIn"`. Scope: `machine`.
-
-```json
-{
-  "type": "string",
-  "enum": ["whenSignedIn", "always", "off"],
-  "default": "whenSignedIn"
-}
-```
-
-- `"whenSignedIn"`: reportsNetwork&githubSignIn: Read GitHub while signed in to GitHub.
-- `"always"`: Allow network sources for reports.
-- `"off"`: Read local sources only.
 
 ### museSpark.reports.keepHistory
 

@@ -1,7 +1,7 @@
+import { EstimateDiagnosticError } from './diagnostic'
 import { type EstimateLane, type EstimateSection, type FleetSnapshot } from '../../shared/estimate'
 import { prepareEstimateSchedule, type EstimateRelaxation } from './schedule'
 import { type EstimateDurationEvidence } from './dag'
-import { UI_TEXT, fill } from '../../shared/l10n/text'
 
 /** Remove one resource class at a time, using the same duration samples.
  * Unbounded machines means identical compatible replicas with their same
@@ -35,6 +35,6 @@ export function findEstimateBottleneck(
   }
   const epsilon = Number.EPSILON * Math.max(1, baseline.finishHours) * Math.max(1, lanes.length)
   if (result.kind === 'criticalPath' && baseline.finishHours > baseline.criticalPathHours + epsilon)
-    throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'coupled-resources' }))
+    throw new EstimateDiagnosticError('coupled-resources')
   return result
 }

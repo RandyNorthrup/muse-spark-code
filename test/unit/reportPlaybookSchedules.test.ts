@@ -40,6 +40,7 @@ async function dir(prefix: string): Promise<string> {
 
 const moduleLine = { kind: 'module', value: { module: playbookModuleFixture(), at: 1000 } }
 const context = (kind: 'playbook' | 'schedules') => ({
+  reportText: EN,
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: {

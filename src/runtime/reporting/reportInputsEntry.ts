@@ -2,6 +2,7 @@
 import {
   createAccountsReportReader as accountsReader,
   createSecurityReportReader as securityReader,
+  createEstimateReportReader as estimateReader,
   createSessionReportReader as sessionReader,
   createUsageReportReader as usageReader,
 } from './reportInputs'
@@ -18,6 +19,14 @@ export {
   type SecurityVaultSnapshot,
   type SessionHistoryInput,
 } from './reportInputs'
+export function createEstimateReportReader(
+  input: Parameters<typeof estimateReader>[0],
+  table: UiText,
+  locale: string,
+) {
+  setUiText(table, locale)
+  return estimateReader(input, table, locale)
+}
 export function createSessionReportReader(
   input: Parameters<typeof sessionReader>[0],
   table: UiText,

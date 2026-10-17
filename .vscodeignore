@@ -130,6 +130,7 @@
 !dist/vaultBoundaries.js
 !dist/estimator.js
 !dist/estimateContracts.js
+!dist/planSnapshot.js
 !dist/native/darwin/muse-vault
 !native/windows/MuseSparkVault.cs
 !native/windows/MuseSparkVaultCng.cs

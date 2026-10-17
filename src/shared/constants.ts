@@ -3921,6 +3921,9 @@ export const REVIEW_BUNDLE_FILE = 'review.js'
 // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded the first
 // time an estimate runs.
 export const ESTIMATOR_BUNDLE_FILE = 'estimator.js'
+// The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded the
+// first time an estimate needs a plan snapshot.
+export const PLAN_SNAPSHOT_BUNDLE_FILE = 'planSnapshot.js'
 // Checkpoint implementation, synchronously loaded at activation's store construction (M72, D6).
 export const CHECKPOINT_STORE_BUNDLE_FILE = 'checkpointStore.js'
 // Code intelligence's answers for Muse Code's `ide` server (M67, D6), loaded
@@ -7280,6 +7283,23 @@ export const ESTIMATE_LOCAL_BUDGET_MS = 2000
 export const ESTIMATE_LOCAL_BUDGET_LANES = 40
 // Bounds on our own documents, not provider wire shapes.
 export const ESTIMATE_MAX_ITEMS = 512
+// M117 C-M117-1: the plan snapshot's assumed per-lane demands. The plan
+// carries hours, deps, rigs and files, never metered demand, yet the
+// schedule refuses unknown demand (schedule.ts): these assumptions let a
+// forecast run, marked assumption with zero samples so the estimate
+// discloses them and calibration (C-M117-2) replaces them per kind. The
+// scale follows the engine fixtures' own assumed lane
+// (test/fixtures/estimator/dags.json): one slot, one request and ten tokens
+// an hour, no CI, a 4 GiB peak over a 2 GiB steady workspace.
+export const ESTIMATE_ASSUMED_TOKENS_PER_HOUR = 10
+export const ESTIMATE_ASSUMED_PEAK_BYTES = 4 * 1024 ** 3
+export const ESTIMATE_ASSUMED_STEADY_BYTES = 2 * 1024 ** 3
+// M117 C-M117-1: the snapshot binding's git and `gh` evidence reads share
+// this bound, like M113's report sources share theirs.
+export const ESTIMATE_SOURCE_TIMEOUT_MS = 5000
+// M117 C-M117-1: how many unestimated lanes a refused snapshot names before
+// counting the rest, so the detail stays a short technical label.
+export const ESTIMATE_MISSING_DETAIL_LIMIT = 10
 export const ESTIMATE_ID_MAX_CHARS = 128
 export const ESTIMATE_LABEL_MAX_CHARS = 256
 // M117 W (PLAN.md D100, gotcha G4): a lane whose base is this many days old

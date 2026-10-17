@@ -313,6 +313,7 @@ export const textKeys = [
   'estimate-by',
   'fleet',
   'estimate-format',
+  'estimate-check-plan',
   'seed',
 ] as const
 
@@ -383,6 +384,7 @@ const plainTextSchema = z.union([
       textKeys[309],
       textKeys[310],
       textKeys[311],
+      textKeys[312],
     ]),
   }),
   z.object({

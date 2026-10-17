@@ -1,3 +1,4 @@
+import { parseEstimate, EstimateDiagnosticError } from '../diagnostic'
 import * as z from 'zod/mini'
 import {
   HTTP_SUCCESS_MIN,
@@ -94,7 +95,10 @@ function hasPaymentField(body: unknown): boolean {
 }
 
 function refused(operation: string): never {
-  throw new Error(fill(UI_TEXT.estimateEndpointRefused, { operation }))
+  throw new EstimateDiagnosticError(
+    `endpoint-refused: ${operation}`,
+    fill(UI_TEXT.estimateEndpointRefused, { operation }),
+  )
 }
 
 function isSafePath(endpoint: EstimateProviderEndpoint): boolean {
@@ -122,7 +126,7 @@ export function brokeredEstimateProvider(
   broker: EstimateProviderBroker,
   codec: EstimateProviderCodec,
 ): EstimateProviderPort {
-  const parsed = bindingSchema.parse({
+  const parsed = parseEstimate(bindingSchema, {
     id: binding.id,
     apiOrigin: binding.apiOrigin,
     endpoints: binding.endpoints,
@@ -144,11 +148,12 @@ export function brokeredEstimateProvider(
     const endpoint = endpoints.find((endpoint) => endpoint.operation === operation)
     if (!endpoint) refused(operation)
     const path = endpoint.path.replace('{id}', () =>
-      id === undefined ? '' : serverIdSchema.parse(id),
+      id === undefined ? '' : parseEstimate(serverIdSchema, id),
     )
     const url = `${origin.origin}${path}`
     try {
-      const receipt = receiptSchema.parse(
+      const receipt = parseEstimate(
+        receiptSchema,
         await broker.request({
           providerId: parsed.id,
           operation,
@@ -188,47 +193,50 @@ export function brokeredEstimateProvider(
     endpoints,
     sizes() {
       return guarded('sizes', async () =>
-        z
-          .array(providerSizeSchema)
-          .check(
+        parseEstimate(
+          z.array(providerSizeSchema).check(
             z.maxLength(ESTIMATE_MAX_ITEMS),
             z.refine((sizes) => new Set(sizes.map((size) => size.id)).size === sizes.length),
-          )
-          .parse(await dispatch('sizes')),
+          ),
+          await dispatch('sizes'),
+        ),
       )
     },
     images() {
       return guarded('images', async () =>
-        z
-          .array(providerImageSchema)
-          .check(
+        parseEstimate(
+          z.array(providerImageSchema).check(
             z.maxLength(ESTIMATE_MAX_ITEMS),
             z.refine((images) => new Set(images.map((image) => image.id)).size === images.length),
-          )
-          .parse(await dispatch('images')),
+          ),
+          await dispatch('images'),
+        ),
       )
     },
     create(size, image, cloudInit) {
       return guarded('create', async () => {
-        const selectedSize = providerSizeSchema.parse(size)
-        const selectedImage = providerImageSchema.parse(image)
+        const selectedSize = parseEstimate(providerSizeSchema, size)
+        const selectedImage = parseEstimate(providerImageSchema, image)
         if (cloudInit.trim().length === 0) refused('create')
         const body = codec.createBody(selectedSize, selectedImage, cloudInit)
         if (hasPaymentField(body)) refused('create')
-        const server = provisionedServerSchema.parse(await dispatch('create', undefined, body))
+        const server = parseEstimate(
+          provisionedServerSchema,
+          await dispatch('create', undefined, body),
+        )
         if (
           server.sizeId !== selectedSize.id ||
           server.imageId !== selectedImage.id ||
           (server.state !== 'creating' && server.state !== 'running')
         )
           refused('create')
-        serverIdSchema.parse(server.id)
+        parseEstimate(serverIdSchema, server.id)
         return server
       })
     },
     status(id) {
       return guarded('status', async () => {
-        const server = provisionedServerSchema.parse(await dispatch('status', id))
+        const server = parseEstimate(provisionedServerSchema, await dispatch('status', id))
         if (server.id !== id) refused('status')
         return server
       })
@@ -238,7 +246,7 @@ export function brokeredEstimateProvider(
         // The captured codec must validate the provider's deletion response.
         // A subsequent status receipt proves deletion; no empty-success parser.
         const response = await dispatch('delete', id)
-        z.strictObject({ accepted: z.literal(true) }).parse(response)
+        parseEstimate(z.strictObject({ accepted: z.literal(true) }), response)
       })
     },
   }

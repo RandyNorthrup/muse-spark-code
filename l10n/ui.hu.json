@@ -191,6 +191,10 @@
   "estimateSeed": "Szimulációs kezdőérték",
   "estimateAsOf": "Pillanatkép ideje",
   "estimateMarginal": "Az új gép által megtakarított idő",
+  "estimateMissingMore": {
+    "one": "és további {count}",
+    "other": "és további {count}"
+  },
   "estimateHourly": "Óránkénti ár",
   "estimateCatalog": "A {date} dátumú katalógusár, nem árajánlat.",
   "estimateNoPrice": "Nem érhető el nyilvános katalógusár.",
@@ -341,6 +345,7 @@
     "estimate-by": "--by <date>: Határidő",
     "fleet": "--fleet current|minimum|optimum: Jelenlegi géppark / Minimális összeállítás / Optimális összeállítás",
     "estimate-format": "--format md|html|json|text: Kimeneti formátum",
+    "estimate-check-plan": "--check-plan: A terv összes problémájának felsorolása becslés helyett",
     "seed": "--seed <seed>: Szimulációs kezdőérték"
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
@@ -441,7 +446,8 @@
   "referenceDiagnostics": "A helyi háttérrendszer és bővítmény diagnosztikájának megjelenítése.",
   "referenceReport": "A megtisztított hibajelentés előnézete mentés vagy küldés előtt.",
   "referenceInProgress": "Folyamatban.",
-  "referenceEstimate": "Folyamatban.",
+  "estimateDiagnosticHelp": "A terv és a számítás elutasításai ugyanazt a névvel ellátott diagnosztikát mutatják a panelen, a CLI-ben és az ACP-ben; a külső hibák elrejtik a privát adatokat. Az elutasított becslés, frissítés vagy indítás a korábbi előrejelzést ezzel a diagnosztikával váltja fel.",
+  "referenceEstimate": "Megbecsüli, mikor készül el egy cél a jelenlegi flottával, vagy milyen összeállítás kell egy határidőhöz.",
   "referenceTerminal": "A Muse Code CLI megnyitása a szerkesztő termináljában.",
   "referenceRules": "AGENTS.md létrehozása vagy megnyitása a munkaterület gyökerében.",
   "referenceWalkthrough": "Az első lépések útmutató megnyitása.",

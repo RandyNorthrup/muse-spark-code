@@ -15,8 +15,27 @@ import {
   type ProviderSize,
   type ProvisionedServer,
 } from '../../../../src/shared/estimate'
+import type { PlanSnapshotSourceIo } from '../../../../src/host/estimator/planSnapshotSource'
 
 export const ESTIMATOR_AS_OF = '2026-10-06T12:00:00.000Z'
+
+/** PLAN.md plus git and `gh` outputs for plan-source tests. */
+export function fakePlanSourceIo(
+  plan: string,
+  pulls: string,
+  mergedBranches: string,
+  overrides: Partial<PlanSnapshotSourceIo> = {},
+): PlanSnapshotSourceIo {
+  return {
+    readPlanFile: () => Promise.resolve(plan),
+    runGit: (args) => {
+      if (args.includes('symbolic-ref')) return Promise.resolve('refs/remotes/origin/main\n')
+      return Promise.resolve(args.includes('--merged') ? mergedBranches : 'm112/0\nm112/q\n')
+    },
+    runGh: () => Promise.resolve(pulls),
+    ...overrides,
+  }
+}
 
 /** Fictional aliases and capacities: no host inspection, secrets, or network. */
 export function fakeFleet(): FleetSnapshot {

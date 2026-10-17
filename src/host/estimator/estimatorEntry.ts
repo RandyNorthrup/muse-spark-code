@@ -1,3 +1,9 @@
+import {
+  parseEstimate,
+  EstimateDiagnosticError,
+  asEstimateDiagnostic,
+} from '../../core/estimator/diagnostic'
+import { parseEstimateComposer, type EstimateContext } from '../../runtime/estimator/command'
 // The capacity estimator's lazy bundle (M117, PLAN.md D6, D97): esbuild
 // builds this file into dist/estimator.js, which the extension, the CLI and
 // the ACP agent require the first time an estimate runs, so the engine stays
@@ -20,7 +26,7 @@
 // the review time observed in history, and hours per round would count it
 // twice (docs/estimator/prior.md).
 import * as z from 'zod/mini'
-import { setUiText, fill } from '../../shared/l10n/text'
+import { setUiText } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { UiText } from '../../shared/l10n/en'
 import { ESTIMATE_ENGINES, UI_TEXT } from '../../shared/constants'
@@ -57,16 +63,18 @@ import type { EstimateStartPort } from '../../shared/estimate'
 
 /** The milestone bindings, injected: each refuses with its handoff until it merges. */
 export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
-  /** This estimate's lanes ride along so the fleet can offer them capacity. */
-  fleet(lanes: readonly EstimateLane[]): Promise<unknown>
+  /** This estimate's lanes ride along so the fleet can offer them capacity.
+   * The fleet is stamped with the request's asOf, never a second clock. */
+  fleet(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   history(): Promise<unknown>
-  candidatePool(lanes: readonly EstimateLane[]): Promise<unknown>
+  candidatePool(lanes: readonly EstimateLane[], asOf: string): Promise<unknown>
   board(): EstimateStartPort
   prices(): EstimatePricePort
   priceLookup(): Omit<EstimatePriceLookup, 'asOf'>
 }
 
 export interface EstimatorRun {
+  parseCommand?(text: string, context: EstimateContext): EstimateRequest
   estimate(request: EstimateRequest, signal: AbortSignal): Promise<EstimateSection>
   startWave(input: EstimateInputs): Promise<readonly string[]>
   price(price: CatalogPrice): string
@@ -109,7 +117,7 @@ function isEvidence(value: unknown): value is Omit<Disclosure, 'path'> {
 }
 
 function refuse(detail: string): never {
-  throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
+  throw new EstimateDiagnosticError(detail)
 }
 
 /** The estimate's run, assembled from the lanes with their evidence. */
@@ -122,26 +130,30 @@ export function createEstimatorRun(
   const board = ports.board()
   const starter = new EstimateWaveStarter(board)
   return {
+    parseCommand: parseEstimateComposer,
     provisionWaiting: 'M117-P-M109-provider',
     price: (price) => formatUsd(displayUsdNanos(usdNanos(price.hourlyUsd)), 2),
     startWave: (input) => starter.start(input),
     estimate: async (request, signal) => {
-      const parsed = estimateRequestSchema.parse(request)
+      const parsed = parseEstimate(estimateRequestSchema, request)
       signal.throwIfAborted()
       const lanes = await resolveEstimateGoal(parsed.goal, parsed.asOf, {
-        snapshot: (goal, asOf) => ports.snapshot(goal, asOf),
+        snapshot: (goal, asOf) => ports.snapshot(goal, asOf, signal),
       })
       signal.throwIfAborted()
-      const fleet = fleetSnapshotSchema.parse(await ports.fleet(lanes))
-      const history = z.array(historyRecordSchema).parse(await ports.history())
+      const fleet = parseEstimate(fleetSnapshotSchema, await ports.fleet(lanes, parsed.asOf))
+      const history = parseEstimate(z.array(historyRecordSchema), await ports.history())
       signal.throwIfAborted()
-      const inputs = estimateInputsSchema.parse({
+      const inputs = parseEstimate(estimateInputsSchema, {
         request: parsed,
         lanes,
         fleet,
         history,
       })
-      const pool = fleetSnapshotSchema.parse(await ports.candidatePool(inputs.lanes))
+      const pool = parseEstimate(
+        fleetSnapshotSchema,
+        await ports.candidatePool(inputs.lanes, parsed.asOf),
+      )
       signal.throwIfAborted()
       const pairs: { kind: string; machineClassId: string }[] = []
       for (const lane of inputs.lanes)
@@ -156,7 +168,7 @@ export function createEstimatorRun(
         }
       for (const lane of inputs.lanes)
         if (pairs.every((pair) => pair.kind !== lane.kind))
-          throw new Error(UI_TEXT.estimateNoCapacity)
+          throw new EstimateDiagnosticError('no-capacity', UI_TEXT.estimateNoCapacity)
       const fits = new Map<string, CalibrationFit>()
       const calibration: EstimateSection['calibration'] = []
       for (const pair of pairs)
@@ -201,7 +213,7 @@ export function createEstimatorRun(
         } catch (error: unknown) {
           if (error instanceof EstimateSchedulingError)
             return { status: 'infeasible' as const, reason: error.reason }
-          throw error
+          throw asEstimateDiagnostic(error, 'invalid-input')
         }
       }
       signal.throwIfAborted()
@@ -380,7 +392,7 @@ export function createEstimatorRun(
         }
         disclosures.push({ ...assumed, path })
       }
-      return estimateSectionSchema.parse({ ...draft, disclosures })
+      return parseEstimate(estimateSectionSchema, { ...draft, disclosures })
     },
   }
 }

@@ -855,8 +855,9 @@
     {
       "id": "M117",
       "title": "Capacity estimator",
-      "summary": "Capacity estimator is in progress.",
-      "area": "agents"
+      "summary": "Forecast goal completion with explicit prerequisite grammar and closure-scoped validation; check every plan row with --check-plan, preserve typed refusal diagnostics and replace stale forecasts across all surfaces, and honor the current Reports network policy.",
+      "area": "agents",
+      "release": "0.17.0"
     },
     {
       "id": "M118",

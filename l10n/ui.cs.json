@@ -191,6 +191,12 @@
   "estimateSeed": "Počáteční hodnota simulace",
   "estimateAsOf": "Čas snímku",
   "estimateMarginal": "Čas ušetřený tímto přidaným strojem",
+  "estimateMissingMore": {
+    "one": "a {count} další",
+    "few": "a {count} další",
+    "many": "a {count} dalšího",
+    "other": "a {count} dalších"
+  },
   "estimateHourly": "Hodinová cena",
   "estimateCatalog": "Katalogová cena ze dne {date}, nikoli nabídka.",
   "estimateNoPrice": "Není k dispozici veřejná katalogová cena.",
@@ -341,6 +347,7 @@
     "estimate-by": "--by <date>: Termín",
     "fleet": "--fleet current|minimum|optimum: Aktuální flotila / Minimální sestava / Optimální sestava",
     "estimate-format": "--format md|html|json|text: Výstupní formát",
+    "estimate-check-plan": "--check-plan: Vypsat všechny problémy plánu místo odhadu",
     "seed": "--seed <seed>: Počáteční hodnota simulace"
   },
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
@@ -441,7 +448,8 @@
   "referenceDiagnostics": "Zobrazit místní diagnostiku backendu a rozšíření.",
   "referenceReport": "Před uložením nebo odesláním zobrazit očištěné hlášení problému.",
   "referenceInProgress": "Probíhá.",
-  "referenceEstimate": "Probíhá.",
+  "estimateDiagnosticHelp": "Odmítnutí plánu a výpočtu zobrazují stejnou pojmenovanou diagnostiku v panelu, CLI i ACP; externí chyby skrývají soukromé údaje. Odmítnutý odhad, obnovení nebo spuštění nahradí předchozí prognózu touto diagnostikou.",
+  "referenceEstimate": "Odhadne, kdy bude cíl hotový se stávající flotilou, nebo jaké nastavení vyžaduje datum.",
   "referenceTerminal": "Otevřít Muse Code CLI v terminálu editoru.",
   "referenceRules": "Vytvořit nebo otevřít AGENTS.md v kořenu pracovního prostoru.",
   "referenceWalkthrough": "Otevřít průvodce prvními kroky.",

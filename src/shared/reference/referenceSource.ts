@@ -257,6 +257,7 @@ export const REFERENCE_ACTION_FEATURES = {
   decideApproval: 'chat',
   cancelQuestion: 'questions',
   estimateRun: 'estimator',
+  estimateCommand: 'estimator',
   estimateSpinUp: 'estimator',
   elicitationAnswer: 'mcp-elicitation',
   answerQuestion: 'questions',

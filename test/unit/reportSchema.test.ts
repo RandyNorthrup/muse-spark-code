@@ -14,6 +14,7 @@ import {
   FIXTURE_WORKSPACE_KEY,
 } from './helpers/reporting/reportKindFixtures'
 import { scheduleFireRecordSchema } from '../../src/shared/scheduleV2'
+import { EN } from '../../src/shared/l10n/en'
 import { describe, expect, it } from 'vitest'
 import entry from '../../docs/schemas/report-v1.entry.json'
 import { reportDocumentSchema, reportSectionSchema } from '../../src/shared/reportSchema'
@@ -106,6 +107,7 @@ describe('report-v1 schema handoff to lane R', () => {
     for (const kind of ['playbook', 'schedules'] as const) {
       const options = { ...reportOptions(kind), full: true }
       const context = {
+        reportText: EN,
         options,
         asOf: options.asOf,
         workspaceKey: FIXTURE_WORKSPACE_KEY,

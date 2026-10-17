@@ -17,6 +17,7 @@ import {
 } from '../../src/runtime/schedules/nodeScheduleFs'
 import * as nodeSchedules from '../../src/runtime/schedules/nodeScheduleFs'
 import { SCHEDULE_LEASE_EXPIRES_MS } from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
 import { createSchedulesReportReader } from '../../src/runtime/reporting/playbookSchedulesInputs'
 import { localFailureOf } from '../../src/core/reporting/sources/local'
 import { FIXTURE_WORKSPACE_KEY } from './helpers/reporting/reportKindFixtures'
@@ -339,6 +340,7 @@ describe.each(ports)('$name structural lease lifecycle', ({ name, make }) => {
             storeRoot: 'matrix',
             workspaceKey: FIXTURE_WORKSPACE_KEY,
           }).read({
+            reportText: EN,
             asOf: REPORT_FIXTURE_AS_OF,
             workspaceKey: FIXTURE_WORKSPACE_KEY,
             options: reportOptions('schedules'),
