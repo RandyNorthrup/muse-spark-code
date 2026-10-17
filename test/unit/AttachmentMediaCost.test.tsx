@@ -89,8 +89,8 @@ describe('lazy media chip cost', () => {
       },
     }
     render(<AttachmentChips attachments={[unknown]} onRemove={vi.fn()} />)
-    expect(await screen.findByText(/Duration unknown/)).toHaveTextContent(
-      'Duration unknown · 38 MB · Sound unknown',
+    expect(await screen.findByText(/Duration Unknown/)).toHaveTextContent(
+      'Duration Unknown · 38 MB · Sound Unknown',
     )
     expect(screen.queryByText(/tokens|Standard|Contributor/)).not.toBeInTheDocument()
   })

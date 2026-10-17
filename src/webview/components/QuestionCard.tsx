@@ -5,7 +5,7 @@
 // question has an answer) beside Cancel (which declines the prompt). Either
 // locks the card until the host settles the question, as an approval card
 // locks on a decision (M25): a second click cannot post a second answer.
-// "Explain instead" (M46, MSP `userInput/clarify`) answers with a short text
+// "Explain Instead" (M46, MSP `userInput/clarify`) answers with a short text
 // in place of the options; the model reads it and decides again.
 
 import { useEffect, useId, useState } from 'react'
@@ -514,7 +514,7 @@ export function QuestionCard({
         ) : null}
       </div>
       {isDockCard ? (
-        <div hidden={!isFull} inert={menu.isOpen}>
+        <div className="question-body" hidden={!isFull} inert={menu.isOpen}>
           {state === 'waiting' && question.deadlineAt !== undefined ? (
             <Countdown deadlineAt={question.deadlineAt} />
           ) : null}

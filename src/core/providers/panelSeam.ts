@@ -5,11 +5,18 @@ function unavailable(): never {
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import type { ModelsPanelSeam, ProviderEntry, PresetInfo } from '../../host/providers/providerPorts'
-import { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } from './providersFile'
+import {
+  emptyProvidersFile,
+  providerEntrySchema,
+  readProvidersFile,
+  writeProvidersFileAtomic,
+} from './providersFile'
 import { listedPresets, PRESETS, PLAN_KEY_PRESETS, isKeyShape } from './presets'
 import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
+import { parseModelRef } from './modelRef'
 
 export function createModelsPanelSeam(options: {
   readonly configFile: string
@@ -42,13 +49,22 @@ export function createModelsPanelSeam(options: {
   }
   const save = async (file: unknown) => {
     const result = await writeProvidersFileAtomic(options.configFile, file)
-    if (!result.ok) throw new Error(UI_TEXT.actionFailed)
+    if (!result.ok) {
+      // Result details can contain file contents; publish only the fixed reason.
+      throw new Error(fill(UI_TEXT.providerSaveFailed, { reason: result.reason }))
+    }
   }
   const entry = (row: Awaited<ReturnType<typeof read>>['providers'][number]): ProviderEntry => {
     if (row.address === undefined) throw new Error(UI_TEXT.actionFailed)
     return { ...row, address: row.address }
   }
   const store: ModelsPanelSeam['store'] = {
+    validate: (row, ref) => {
+      if (!providerEntrySchema.safeParse(row).success)
+        throw new Error(fill(UI_TEXT.providerSaveFailed, { reason: 'invalid' }))
+      if (ref !== undefined && parseModelRef(ref) === undefined)
+        throw new Error(UI_TEXT.providerText.schema.modelRef)
+    },
     list: async () => {
       const file = await read()
       return file.providers.map((row) => entry(row))
@@ -57,8 +73,11 @@ export function createModelsPanelSeam(options: {
       const file = await read()
       return file.defaultModel
     },
-    setDefaultModel: (ref) =>
+    setDefaultModel: (ref, expected) =>
       mutate(async (file) => {
+        if (expected !== undefined && file.defaultModel !== expected.value) {
+          throw new Error(UI_TEXT.providerEditConflict)
+        }
         const { defaultModel: _old, ...rest } = file
         await save({ ...rest, ...(ref !== undefined && { defaultModel: ref }) })
       }),
@@ -87,20 +106,27 @@ export function createModelsPanelSeam(options: {
       }),
     replaceAll: (rows, replacement) =>
       mutate(async (file) => {
+        const previous = file.providers.map((row) => entry(row))
+        const next = typeof rows === 'function' ? rows(previous) : rows
+        if (replacement === undefined && JSON.stringify(next) === JSON.stringify(previous)) {
+          return previous
+        }
         const { defaultModel, ...rest } = file
         const nextDefault = replacement === undefined ? defaultModel : replacement.defaultModel
         await save({
           ...rest,
-          providers: rows,
+          providers: next,
           ...(nextDefault !== undefined && { defaultModel: nextDefault }),
         })
-        return file.providers.map((row) => entry(row))
+        return previous
       }),
   }
   const catalog = new Map<string, PresetInfo>()
+  // Local servers and the Custom server are the user's own, so they are
+  // listed without a capture of their own (the transport admits them too).
   for (const preset of [
     ...listedPresets(),
-    ...PRESETS.filter((row) => row.category === 'local'),
+    ...PRESETS.filter((row) => row.category === 'local' || row.category === 'custom'),
     ...PLAN_KEY_PRESETS,
   ]) {
     const origin = preset.origin.kind === 'fixed' ? preset.origin.origin : ''
@@ -132,8 +158,8 @@ export function createModelsPanelSeam(options: {
     catalog.set(id, {
       id,
       name: id === 'chatgpt' ? 'ChatGPT' : 'Copilot',
-      description: id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.aiContent,
-      kind: 'cloud',
+      description: id === 'chatgpt' ? UI_TEXT.acpChatGpt.notice : UI_TEXT.planUi.copilotNotice,
+      kind: 'subscription',
       origin: address,
       format,
       auth: 'subscription',

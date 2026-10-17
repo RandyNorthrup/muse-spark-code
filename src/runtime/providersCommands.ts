@@ -287,9 +287,7 @@ function attributionHeaders(preset: ProviderPreset): Record<string, string> {
     : {}
 }
 
-export type ProbeOutcome =
-  | { readonly ok: true; readonly modelCount: number | undefined }
-  | { readonly ok: false; readonly paid: boolean; readonly reason: string }
+export type ProbeOutcome = presets.KeyProbeOutcome
 
 /** Model ids from a list body: OpenAI's `{data: [{id}]}` or Gemini's `{models: [{name}]}`. */
 const modelId = z.string().check(z.minLength(1))
@@ -435,43 +433,36 @@ export async function probeProvider(
       return { status: result.response.status, body: undefined }
     }
   }
-  if (test.kind === 'provider-key') {
-    const base = test.origin ?? provider.origin
-    const keyFetch =
-      base === provider.origin
-        ? pinned
-        : pinProviderFetch(
-            fetch,
-            { ...provider, origin: base, network: 'public', request: undefined },
-            [{ kind: 'exact', path: test.path }],
-            resolveHost,
-          )
-    const checked = await get(`${base}${test.path}`, keyFetch)
-    if (checked === undefined) {
-      return { ok: false, paid: false, reason: failureReason }
-    }
-    if (checked.status !== HTTP_STATUS.ok) {
-      return { ok: false, paid: false, reason: `HTTP ${String(checked.status)}` }
-    }
-  }
-  const listUrl =
-    test.kind === 'provider-key' && test.origin !== undefined && test.origin !== provider.origin
-      ? undefined
-      : `${provider.origin}${providerModelsPath(provider)}`
-  if (listUrl === undefined) {
-    return { ok: true, modelCount: undefined }
-  }
-  const listed = await get(listUrl)
-  if (listed === undefined) {
-    return { ok: false, paid: false, reason: failureReason }
-  }
-  if (listed.status !== HTTP_STATUS.ok) {
-    return { ok: false, paid: false, reason: `HTTP ${String(listed.status)}` }
-  }
-  const ids = listModelIds(listed.body, provider.preset)
-  return ids === undefined
-    ? { ok: false, paid: false, reason: 'unparseable' }
-    : { ok: true, modelCount: ids.length }
+  return await presets.runProviderKeyTest(
+    test,
+    provider.origin,
+    async (base, path) => {
+      const keyFetch =
+        base === provider.origin
+          ? pinned
+          : pinProviderFetch(
+              fetch,
+              { ...provider, origin: base, network: 'public', request: undefined },
+              [{ kind: 'exact', path }],
+              resolveHost,
+            )
+      const checked = await get(`${base}${path}`, keyFetch)
+      if (checked === undefined) return { ok: false, paid: false, reason: failureReason }
+      return checked.status === HTTP_STATUS.ok
+        ? { ok: true, modelCount: undefined }
+        : { ok: false, paid: false, reason: `HTTP ${String(checked.status)}` }
+    },
+    async () => {
+      const listed = await get(`${provider.origin}${providerModelsPath(provider)}`)
+      if (listed === undefined) return { ok: false, paid: false, reason: failureReason }
+      if (listed.status !== HTTP_STATUS.ok)
+        return { ok: false, paid: false, reason: `HTTP ${String(listed.status)}` }
+      const ids = listModelIds(listed.body, provider.preset)
+      return ids === undefined
+        ? { ok: false, paid: false, reason: 'unparseable' }
+        : { ok: true, modelCount: ids.length }
+    },
+  )
 }
 
 /** A `providers add` address before the policy sees it. */

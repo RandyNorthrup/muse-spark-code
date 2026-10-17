@@ -107,7 +107,10 @@ export function lazyRuntimeResources(
     }
   }
   const disposeAdmission = configureResources({
-    registryFile: path.join(options.machineDir, 'resource-created.json'),
+    // The registry refuses a group- or world-writable parent, and the data folder
+    // takes the user's umask (002 on Ubuntu desktops), so it keeps a folder of
+    // its own that it creates private.
+    registryFile: path.join(options.machineDir, 'resource-created', 'registry.json'),
     inspect: () => ({}),
     onError: () => {
       options.log.warn(UI_TEXT.resourceUnavailable)

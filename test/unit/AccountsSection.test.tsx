@@ -34,7 +34,7 @@ describe('M108 J shared account section', () => {
       for (const line of accountUsageRowText(row))
         expect(within(account).getByText(line)).toBeVisible()
     }
-    const events = within(screen.getByRole('region', { name: 'Account events' })).getAllByRole(
+    const events = within(screen.getByRole('region', { name: 'Account Events' })).getAllByRole(
       'listitem',
     )
     expect(events).toHaveLength(3)

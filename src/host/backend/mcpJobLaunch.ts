@@ -177,6 +177,12 @@ export interface McpJobLaunch {
   readonly jobMemoryLimit?: number | undefined
   /** SPAWN017C portable launches: an unnamed job that attests its own tree. */
   readonly attestation?: JobAttestationLimits | undefined
+  /**
+   * The payload's own last check (M123, RVM123G2 R1): run synchronously
+   * when the helper is READY, before GO lets it create the payload process.
+   * A throw withholds GO and closes the pipe, so the payload never starts.
+   */
+  readonly authorize?: (() => void) | undefined
 }
 
 /** The SDK and our process adapters share the same suspended native launch boundary. */
@@ -210,6 +216,13 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
         socket.destroy()
         return
       }
+      if (!isPayloadAuthorized()) {
+        // No GO: the helper reads the closed pipe as a refusal and never
+        // creates the payload.
+        socket.destroy()
+        closeControl()
+        return
+      }
       isAuthorized = true
       if (attested === undefined) socket.end(`GO ${controlNonce}\n`)
       else {
@@ -222,6 +235,15 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
   const closeControl = () => {
     isClosed = true
     if (control.listening) control.close()
+  }
+  const isPayloadAuthorized = (): boolean => {
+    try {
+      launch.authorize?.()
+      return true
+    } catch {
+      launch.log('the payload was not authorized at its launch')
+      return false
+    }
   }
   control.maxConnections = 1
   control.on('listening', () => {

@@ -3,7 +3,7 @@
 // (test/harness/l10n/ui.pseudo.json and test/harness/l10n/usage.pseudo.json,
 // git-ignored) from the English ones (PLAN.md D33); see scripts/lib/harnessLang.mjs.
 // Open the harness with `?lang=pseudo`, or pass `--lang=pseudo` to
-// scripts/harness-shots.mjs or scripts/a11y.mjs, which write them themselves.
+// scripts/ui-look.mjs or scripts/a11y.mjs, which write them themselves.
 //
 //   node scripts/pseudo-l10n.mjs
 

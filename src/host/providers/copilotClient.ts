@@ -12,6 +12,11 @@ import type {
   RetryBudget,
   RetryNotice,
 } from '../../core/backends/modelapi/client'
+import {
+  assertConfirmedAllowed,
+  isStaleConfirmedError,
+  noteConfirmedRequestStarted,
+} from '../../core/backends/modelapi/transport'
 import type {
   CreateResponseBody,
   FunctionOutputPart,
@@ -128,6 +133,18 @@ function failureCode(error: unknown): CopilotFailure {
 
 class CopilotFailureError extends Error {}
 
+/**
+ * Copilot's model tolerance for the shared confirmed-dispatch gate: the
+ * session stores `copilot/<id>` while a request may carry the catalogue
+ * `<id>`, and both name this adapter's model.
+ */
+function withoutCopilotPrefix(id: string): string {
+  return id.startsWith('copilot/') ? id.slice('copilot/'.length) : id
+}
+function isSameCopilotModel(confirmedModelId: string, requestModel: string): boolean {
+  return withoutCopilotPrefix(confirmedModelId) === withoutCopilotPrefix(requestModel)
+}
+
 class CopilotClient implements ProviderClient {
   public readonly providerId = 'copilot'
   public readonly reduced = true
@@ -143,6 +160,23 @@ class CopilotClient implements ProviderClient {
 
   private fail(code: CopilotFailure): Error {
     return new CopilotFailureError(this.deps.failureText(code))
+  }
+  /**
+   * The pre-dispatch gate with Copilot's model tolerance: the session stores
+   * `copilot/<id>` while a request may carry the catalogue `<id>`, and both
+   * name this adapter's model. A lapse here keeps the adapter's refusal,
+   * like every direct call before it.
+   */
+  private assertConfirmed(
+    body: CreateResponseBody,
+    confirmed: ConfirmedModelRequest | undefined,
+  ): void {
+    if (confirmed === undefined) return
+    try {
+      assertConfirmedAllowed(body.model, confirmed, isSameCopilotModel)
+    } catch {
+      throw this.fail('confirmation-expired')
+    }
   }
   private check(): void {
     if (this.deps.isConfidential()) throw this.fail('confidential')
@@ -283,7 +317,10 @@ class CopilotClient implements ProviderClient {
     if (body.model !== this.model.id && body.model !== `copilot/${this.model.id}`)
       throw this.fail('unavailable')
     this.checkConsent()
-    if (confirmed !== undefined) throw this.fail('confirmation-expired')
+    // The registry forwards a confirmation for a confirmed plan run, and a
+    // direct caller may: like the other clients, run while still allowed and
+    // refuse only a lapsed or mismatched confirmation before dispatch.
+    this.assertConfirmed(body, confirmed)
     const cancellation = this.api.cancellation()
     const abort = (): void => {
       cancellation.cancel()
@@ -315,7 +352,10 @@ class CopilotClient implements ProviderClient {
         justification: this.deps.justification(),
       }
       admitAttempt?.(undefined)
-      admitAttempt?.onRequestStarted?.()
+      // A paid-gate lapse during token counting still refuses with the run's
+      // own guidance, like the other clients' re-check.
+      assertConfirmedAllowed(body.model, confirmed, isSameCopilotModel)
+      noteConfirmedRequestStarted(confirmed, admitAttempt)
       isDispatched = true
       const response = await this.model.sendRequest(messages, options, cancellation.token)
       const id = randomUUID()
@@ -388,7 +428,9 @@ class CopilotClient implements ProviderClient {
       else yield { type: 'response.completed', response: final }
     } catch (error) {
       if (isAborted(signal)) throw this.fail('cancelled')
-      if (error instanceof CopilotFailureError) throw error
+      // A mid-flight gate lapse keeps the run's own guidance instead of the
+      // adapter's failure text, like the registry's plan branches.
+      if (error instanceof CopilotFailureError || isStaleConfirmedError(error)) throw error
       throw this.fail(failureCode(error))
     } finally {
       signal.removeEventListener('abort', abort)

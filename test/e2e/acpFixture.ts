@@ -4,9 +4,10 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { build } from 'esbuild'
+import { build, type BuildOptions } from 'esbuild'
 import { JOB_SOURCE_FILES } from '../../src/host/backend/jobSource'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { buildCreatedHelper } from './createdHelperFixture'
 
 export async function buildAcpFixture(
   root: string,
@@ -15,14 +16,14 @@ export async function buildAcpFixture(
 ): Promise<void> {
   const agent = path.join(packageRoot, 'dist', 'acp.js')
   mkdirSync(path.dirname(agent), { recursive: true })
-  const options = {
+  const options: BuildOptions = {
     bundle: true,
     platform: 'node',
     format: 'cjs',
     target: 'node22',
     external: ['@napi-rs/keyring'],
     logLevel: 'silent',
-  } as const
+  }
   await build({
     ...options,
     entryPoints: [path.join(root, 'src', 'runtime', 'main.ts')],
@@ -42,6 +43,7 @@ export async function buildAcpFixture(
   // package ships under native/windows/ (jobSource.ts) before `muse serve`.
   for (const file of Object.values(JOB_SOURCE_FILES))
     cpSync(path.join(root, file), path.join(packageRoot, file))
+  buildCreatedHelper(root, packageRoot)
 }
 
 export async function removeAcpFixture(

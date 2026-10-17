@@ -12,6 +12,8 @@
   );
   --ms-text: #e4e7ed;
   --ms-muted: #aeb6c4;
+  --ms-brand-mark: #3d8bff;
+  --ms-brand-mark-light: #0a5cff;
   --ms-accent: #0a5cff;
   --ms-on-accent: #fff;
   --ms-focus: #7fb2ff;
@@ -29,11 +31,6 @@
   --ms-diff-added: #2ea04333;
   --ms-diff-removed: #f8514933;
   --ms-shadow: #0000004d;
-  --ms-meta-start: #0064e1;
-  --ms-meta-middle: #0073ee;
-  --ms-meta-end: #0082fb;
-  --ms-meta-return: #0064e0;
-  --ms-meta-fill: #0081fb;
   --ms-status-low: oklch(11.86% 0.0248 260.66deg / 100%);
   --ms-status-mid: oklch(31.33% 0.1419 260.73deg / 100%);
   --ms-status-high: oklch(60.61% 0.2122 260.66deg / 100%);
@@ -147,6 +144,8 @@
   );
   --ms-text: #252932;
   --ms-muted: #575d68;
+  --ms-brand-mark: var(--ms-brand-mark-light);
+  --ms-brand-mark-light: #0a5cff;
   --ms-accent: #0a5cff;
   --ms-on-accent: #fff;
   --ms-focus: #0a5cff;
@@ -164,11 +163,6 @@
   --ms-diff-added: #2ea04333;
   --ms-diff-removed: #f8514933;
   --ms-shadow: #0000004d;
-  --ms-meta-start: #0064e1;
-  --ms-meta-middle: #0073ee;
-  --ms-meta-end: #0082fb;
-  --ms-meta-return: #0064e0;
-  --ms-meta-fill: #0081fb;
   --ms-status-low: oklch(11.86% 0.0248 260.66deg / 100%);
   --ms-status-mid: oklch(31.33% 0.1419 260.73deg / 100%);
   --ms-status-high: oklch(60.61% 0.2122 260.66deg / 100%);
@@ -282,6 +276,8 @@
   );
   --ms-text: #000;
   --ms-muted: #292929;
+  --ms-brand-mark: var(--ms-text);
+  --ms-brand-mark-light: var(--ms-text);
   --ms-accent: #000;
   --ms-on-accent: #fff;
   --ms-focus: #000;
@@ -299,11 +295,6 @@
   --ms-diff-added: #2ea04333;
   --ms-diff-removed: #f8514933;
   --ms-shadow: #0000004d;
-  --ms-meta-start: #0064e1;
-  --ms-meta-middle: #0073ee;
-  --ms-meta-end: #0082fb;
-  --ms-meta-return: #0064e0;
-  --ms-meta-fill: #0081fb;
   --ms-status-low: oklch(11.86% 0.0248 260.66deg / 100%);
   --ms-status-mid: oklch(31.33% 0.1419 260.73deg / 100%);
   --ms-status-high: oklch(60.61% 0.2122 260.66deg / 100%);
@@ -413,6 +404,8 @@
   );
   --ms-text: #fff;
   --ms-muted: #fff;
+  --ms-brand-mark: var(--ms-text);
+  --ms-brand-mark-light: var(--ms-text);
   --ms-accent: #fff;
   --ms-on-accent: #000;
   --ms-focus: #fff;
@@ -430,11 +423,6 @@
   --ms-diff-added: #2ea04333;
   --ms-diff-removed: #f8514933;
   --ms-shadow: #0000004d;
-  --ms-meta-start: #0064e1;
-  --ms-meta-middle: #0073ee;
-  --ms-meta-end: #0082fb;
-  --ms-meta-return: #0064e0;
-  --ms-meta-fill: #0081fb;
   --ms-status-low: oklch(11.86% 0.0248 260.66deg / 100%);
   --ms-status-mid: oklch(31.33% 0.1419 260.73deg / 100%);
   --ms-status-high: oklch(60.61% 0.2122 260.66deg / 100%);

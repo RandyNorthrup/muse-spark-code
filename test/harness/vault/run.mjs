@@ -69,7 +69,7 @@ try {
             globalThis.document.documentElement.style.setProperty(key, value)
         }, table.variables)
         if (scenario === 'grant')
-          await page.getByRole('button', { name: 'Create grant', exact: true }).click()
+          await page.getByRole('button', { name: 'Create Grant', exact: true }).click()
         else if (scenario === 'panel')
           await page.locator('details').evaluateAll((details) => {
             for (const element of details) element.open = true
