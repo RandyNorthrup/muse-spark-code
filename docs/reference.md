@@ -681,8 +681,8 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Choose how Muse asks before it acts.
 
-backend&permissionMode&autoReviewer: museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking
-museCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands
+backend&permissionMode&autoReviewer: museCode:manual: Muse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without asking
+museCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it
 museCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking
 museCode:bypassPermissions: Muse will edit files and run commands without asking
 modelApi:manual: Muse will ask for approval before each edit and each command
@@ -1874,9 +1874,9 @@ Type: `"string"`. Default: `"manual"`. Scope: `machine`.
 }
 ```
 
-- `"manual"`: museCode: Muse will ask before running commands; Muse Code edits workspace files without asking
+- `"manual"`: museCode: Muse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without asking
   modelApi: Muse will ask for approval before each edit and each command
-- `"acceptEdits"`: museCode: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands
+- `"acceptEdits"`: museCode: On Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it
   modelApi: Muse will edit files without asking and ask before running commands
 - `"plan"`: museCode: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking
   modelApi: Muse will explore the code and present a plan before editing
