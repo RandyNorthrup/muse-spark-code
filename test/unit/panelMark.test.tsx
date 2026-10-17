@@ -8,7 +8,7 @@ import { EmptyState } from '../../src/webview/components/EmptyState'
 
 // The panel's empty state shows the extension's own mark beside the product
 // name: never another company's logo, never a sparkle (lane PANELMARK, the
-// sibling of the activity-bar icon lane and its activityIcon.test.mjs).
+// sibling of the activity-bar icon lane).
 const ROOT = process.cwd()
 
 function pathRatio(d: string): number {
