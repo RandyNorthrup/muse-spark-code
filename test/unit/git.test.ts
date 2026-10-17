@@ -1,8 +1,13 @@
 import type { ExecFileOptions } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
-import { UI_TEXT } from '../../src/shared/constants'
+import { BEST_OF_N_MIN_GIT_MINOR, UI_TEXT } from '../../src/shared/constants'
 import { worktreeAddHeldArgs } from '../../src/core/worktrees'
-import { createGitRunner, GitExitError, gitExitCode } from '../../src/host/git'
+import {
+  createGitRunner,
+  GitExitError,
+  gitExitCode,
+  hasGitProgramControls,
+} from '../../src/host/git'
 import { UNTRUSTED_CHECKOUT_OPTIONS, untrustedCheckoutArgs } from '../../src/host/git/untrustedGit'
 
 function runner(env: NodeJS.ProcessEnv, installed: ReadonlySet<string>) {
@@ -302,16 +307,20 @@ describe('createGitRunner (D24)', () => {
     expect(exec).toHaveBeenCalledTimes(1)
   })
 
+  // The 2.36 floor itself is pure: read it through the real exported check
+  // with version strings as data, not through a git stand-in (RVMSM77 F6).
   it.each(['2.36.0', '2.36.0.windows.1', '2.55.0', '3.0.0'])(
-    'accepts automatic Git %s with repository program controls',
-    async (version) => {
-      const { exec, run } = automaticRunner((args) =>
-        Promise.resolve(args[0] === '--version' ? `git version ${version}\n` : ''),
-      )
-      await expect(run(['status'], '/ws')).resolves.toBe('')
-      const actual = exec.mock.calls.find(([, args]) => args.includes('status'))?.[1]
-      expect(actual).toContain('core.fsmonitor=false')
-      expect(actual).toContain('core.hooksPath=/dev/null')
+    'accepts git %s at the automatic-program floor',
+    (version) => {
+      expect(hasGitProgramControls(`git version ${version}\n`, BEST_OF_N_MIN_GIT_MINOR)).toBe(true)
+    },
+  )
+
+  it.each(['2.35.1', '2.9.0', 'not a version', ''])(
+    'refuses %j at the automatic-program floor',
+    (output) => {
+      const text = output.startsWith('2.') ? `git version ${output}\n` : output
+      expect(hasGitProgramControls(text, BEST_OF_N_MIN_GIT_MINOR)).toBe(false)
     },
   )
 
