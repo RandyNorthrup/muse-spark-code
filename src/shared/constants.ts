@@ -698,7 +698,9 @@ export const SETTING_DEFAULTS = {
   // by default (D78). Muse Code reports no per-reply totals on its protocol
   // (PLAN.md D26), so its replies never carry one. Display only.
   modelApiReplyUsage: true,
-  paidDailyBudgetUsd: 5,
+  // D78, D121: the shared daily limit for paid extras (and the agent's daily limit),
+  // set by the person; 0 is none, the default. No limit is hard-coded.
+  paidDailyBudgetUsd: 0,
   usageHistory: true,
   usageHistoryDays: 365,
   dictationEngine: 'system' as 'system' | 'museVoice',
@@ -766,21 +768,16 @@ export const SETTING_DEFAULTS = {
   'estimator.priceLookup': false,
 } as const
 export const PAID_DAILY_BUDGET = {
-  minimumUsd: 0.5,
-  maximumUsd: 500,
+  // One machine-wide folder, independent of the selected key and workspace.
   directory: 'paid-daily',
-  // One machine-wide scope, independent of the selected key and workspace.
-  accountId: '0000000000000000000000000000000000000000000000000000000000000000',
   overrideFile: 'limit.json',
   // Monotonic for this day: a delayed numeric override cannot clear Stop.
   stopDirectory: 'stopped',
 } as const
 export const RUNTIME_SETTINGS_FILE = 'settings.json'
-export const SPEND_LEDGER_VERSION = 3
-export const SPEND_LEDGER_LOCK_TIMEOUT_MS = 2000
-export const SPEND_LEDGER_ADMISSION_BOUND_MS = 100
+// D121: each process's running total for a day lives in this folder of the day's scope.
+export const DAILY_SPEND_FOLDER = 'spent'
 export const SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT = 25
-export const DAILY_BUDGET_LOCK_WAIT_MS = 10
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md

@@ -1,9 +1,10 @@
-import { Usd, legacyUsdSchema, type UsdAmount } from '../shared/usd'
-// Durable daily admission for the standalone runtime; no VS Code imports.
-import { readFileSync, statSync } from 'node:fs'
+import { Usd, isPositiveUsd, type UsdAmount } from '../shared/usd'
+import { canonicalUsd } from '../shared/usdSchema'
+// The standalone runtime's daily limit and per-run accounting; no VS Code imports.
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'
+import { createDailySpend } from '../host/paid/dailySpend'
 import {
   isModelApiError,
   type ProviderClient,
@@ -18,8 +19,9 @@ import {
   type ModelClient,
   type ResolvedModel,
 } from '../core/backends/modelapi/modelPolicy'
-import { type SessionBudgetClaim } from '../core/backends/modelapi/sessionBudget'
+import { SessionBudgetExceededError } from '../core/backends/modelapi/sessionBudget'
 import { assertConfirmedAllowed } from '../core/backends/modelapi/transport'
+import type { SpendClaim } from '../core/paid/spendClaim'
 import { SpendLedgerError, isSpendLedgerError } from '../core/paid/spendLedgerError'
 import { UserRefusalError, isPaidStop, isRequestNotSent } from '../core/refusal'
 import type { ResponseObject } from '../core/backends/modelapi/schemas'
@@ -45,17 +47,12 @@ import {
   type SettlementResult,
 } from './exec/runLedger'
 import type { ExecBudgetRefusal, LastResponse, Refusal, LedgerTotals } from './exec/execProtocol'
-import { fill, plural } from '../shared/l10n/text'
+import { fill, formatDateTime, plural } from '../shared/l10n/text'
 import { formatUsd } from '../shared/l10n/exactUsd'
 
 const settingsSchema = z.strictObject({
-  paidDailyBudgetUsd: z.optional(
-    z
-      .number()
-      .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
-  ),
+  paidDailyBudgetUsd: z.optional(z.number().check(z.nonnegative())),
 })
-const dailyLimitSchema = z.object({ limitUsd: legacyUsdSchema, stopped: z.boolean() })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 
 /**
@@ -87,122 +84,93 @@ async function countExactInput(
   }
 }
 
+/**
+ * The agent's daily spending limit (PLAN.md D121): `paidDailyBudgetUsd` in
+ * its settings file, set by the person; none by default. With no limit
+ * nothing is read or written on the request path. With one, a request whose
+ * estimate would pass what is left of today is not sent, and each request's
+ * reported cost joins today's running total after it ends; nothing is held
+ * for a request in flight, and a request that reported no usage is counted
+ * as cost unknown, never as its estimate.
+ */
 export function createRuntimeDailyBudget(deps: {
   readonly dataFolder: string
   readonly now: () => number
   readonly sleep: (ms: number) => Promise<void>
 }) {
-  const journal = createSessionBudgetJournal({
+  const spend = createDailySpend({
     directory: path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory),
     sleep: deps.sleep,
-    // D1: the daily refusal carries its numbers, never a generic sentence.
-    dailyStop: { setting: 'paidDailyBudgetUsd', nowMs: deps.now },
-    initialBudget: () =>
-      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
   const day = () => {
     const date = new Date(deps.now())
     return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
   }
-  const capUsd = () => {
+  const capUsd = (): UsdAmount => {
+    let text: string
     try {
-      return (
-        settingsSchema.parse(
-          JSON.parse(readFileSync(path.join(deps.dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')),
-        ).paidDailyBudgetUsd ?? SETTING_DEFAULTS.paidDailyBudgetUsd
-      )
+      text = readFileSync(path.join(deps.dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')
     } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return SETTING_DEFAULTS.paidDailyBudgetUsd
-      if (isSpendLedgerError(error)) throw error
+      if (storeErrorCode(error) === 'ENOENT')
+        return canonicalUsd(SETTING_DEFAULTS.paidDailyBudgetUsd)
       throw new SpendLedgerError(
-        storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
+        'unreadable',
         { scope: 'daily', file: 'settings', errno: storeErrorCode(error) },
         error,
       )
+    }
+    try {
+      return canonicalUsd(
+        settingsSchema.parse(JSON.parse(text)).paidDailyBudgetUsd ??
+          SETTING_DEFAULTS.paidDailyBudgetUsd,
+      )
+    } catch (error: unknown) {
+      throw new SpendLedgerError('damaged', { scope: 'daily', file: 'settings' }, error)
     }
   }
-  const dailyCapUsd = (scope: string) => {
-    const directory = path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory, scope)
-    let isStopped = true
-    try {
-      statSync(path.join(directory, PAID_DAILY_BUDGET.stopDirectory))
-    } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT') {
-        throw new SpendLedgerError(
-          storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
-          { scope: 'daily', file: 'settings', errno: storeErrorCode(error) },
-          error,
-        )
-      }
-      isStopped = false
-    }
-    if (isStopped) throw new UserRefusalError(UI_TEXT.paidDailyStopped, 'daily_stopped')
-    let limit: z.infer<typeof dailyLimitSchema>
-    try {
-      limit = dailyLimitSchema.parse(
-        JSON.parse(readFileSync(path.join(directory, PAID_DAILY_BUDGET.overrideFile), 'utf8')),
-      )
-    } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return Usd.from(capUsd()).toAmount()
-      if (isSpendLedgerError(error)) throw error
-      throw new SpendLedgerError(
-        storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
-        { scope: 'daily', file: 'settings', errno: storeErrorCode(error) },
-        error,
-      )
-    }
-    if (limit.stopped) throw new UserRefusalError(UI_TEXT.paidDailyStopped, 'daily_stopped')
-    const amount = Usd.from(limit.limitUsd)
-    if (
-      amount.compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) < 0 ||
-      amount.compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) > 0
-    )
-      throw new SpendLedgerError('damaged', { scope: 'daily', file: 'settings' })
-    return amount.toAmount()
+  const nextMidnight = (): number => {
+    const date = new Date(deps.now())
+    date.setDate(date.getDate() + 1)
+    date.setHours(0, 0, 0, 0)
+    return date.getTime()
   }
   return {
-    async precheck(signal: AbortSignal, minimumBound: UsdAmount = Usd.from(0).toAmount()) {
+    capUsd,
+    /**
+     * One request about to be sent: `undefined` when the person set no daily
+     * limit (nothing is read or written); otherwise its claim, refused with
+     * the stop sentence when its estimate would pass what is left of today.
+     */
+    admit(estimateUsd: UsdAmount, signal: AbortSignal): SpendClaim | undefined {
       signal.throwIfAborted()
+      if (!isPositiveUsd(capUsd())) return undefined
       const scope = day()
-      const cap = dailyCapUsd(scope)
-      const total = await journal.readExisting(scope, PAID_DAILY_BUDGET.accountId)
-      if (total?.hasUnknownHistoricalFees === true)
-        throw new SpendLedgerError('legacy', { scope, total: total.spentUsd })
-      if (
-        total !== undefined &&
-        Usd.from(total.spentUsd).add(Usd.from(minimumBound)).compare(Usd.from(cap)) > 0
-      )
-        throw await journal.describeStop(scope, PAID_DAILY_BUDGET.accountId, cap)
-      signal.throwIfAborted()
-    },
-    capUsd: () => dailyCapUsd(day()),
-    async reserve(costUsd: UsdAmount, signal: AbortSignal): Promise<SessionBudgetClaim> {
-      signal.throwIfAborted()
-      const scope = day()
-      const claim = await journal.reserveAdmitted(
-        scope,
-        PAID_DAILY_BUDGET.accountId,
-        ceilUsd(costUsd),
-        dailyCapUsd(scope),
-      )
-      try {
+      const check = () => {
         signal.throwIfAborted()
         if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
-      } catch (error: unknown) {
-        try {
-          await claim.settle(Usd.from(0).toAmount())
-        } catch {
-          /* The ledger retains the queued refund and retries at its next operation. */
-        }
-
-        throw error
+        const limitUsd = capUsd()
+        if (!isPositiveUsd(limitUsd)) return
+        const { spentUsd } = spend.read(scope)
+        if (Usd.from(spentUsd).add(Usd.from(estimateUsd)).compare(Usd.from(limitUsd)) > 0)
+          throw new SessionBudgetExceededError(
+            fill(UI_TEXT.execPaidDailyStopped, {
+              estimate: formatUsd(estimateUsd),
+              cap: formatUsd(limitUsd),
+              spent: formatUsd(spentUsd),
+              reset: formatDateTime(nextMidnight()),
+              setting: 'paidDailyBudgetUsd',
+            }),
+          )
       }
+      check()
+      let isSettled = false
       return {
-        ...claim,
-        check: () => {
-          signal.throwIfAborted()
-          if (scope !== day()) throw new UserRefusalError(UI_TEXT.spendLedgerMidnight, 'midnight')
-          return claim.check(dailyCapUsd(scope))
+        estimateUsd,
+        check,
+        settle: async (costUsd) => {
+          if (isSettled) return
+          isSettled = true
+          await spend.add(scope, costUsd === undefined ? undefined : ceilUsd(costUsd))
         },
       }
     },
@@ -309,12 +277,7 @@ export function withRuntimeAccounting(
           signal.throwIfAborted()
           if (!model.isCurrent()) throw new UserRefusalError(UI_TEXT.requestStaleRun, 'stale_run')
           assertConfirmedAllowed(body.model, confirmed)
-          await daily.precheck(signal, outputOnly ?? Usd.from(0).toAmount())
-          signal.throwIfAborted()
-          if (!model.isCurrent()) throw new UserRefusalError(UI_TEXT.requestStaleRun, 'stale_run')
-          assertConfirmedAllowed(body.model, confirmed)
           await guard?.prepare?.()
-          await daily.precheck(signal, outputOnly ?? Usd.from(0).toAmount())
           signal.throwIfAborted()
           if (!model.isCurrent()) throw new UserRefusalError(UI_TEXT.requestStaleRun, 'stale_run')
           // EXECPROV round 7: where the client documents an exact same-body
@@ -402,7 +365,7 @@ export function withRuntimeAccounting(
           countCostUsd === undefined
             ? dailyAmount
             : Usd.from(dailyAmount).add(Usd.from(countCostUsd)).toAmount()
-        let claim: SessionBudgetClaim | undefined
+        let claim: SpendClaim | undefined
         let ticket: ResponseTicket | undefined
         let wasSent = false
         let response: ResponseObject | undefined
@@ -410,9 +373,14 @@ export function withRuntimeAccounting(
         let hasEof = false
         let hasTerminalUsage = false
         let hasResponseFrame = false
+        // One attempt is open from its preparation until it settles; with no
+        // daily limit it has no claim, and only the run's ledger settles.
+        let isAttemptOpen = false
         const settle = async () => {
-          if (claim === undefined) return
+          if (!isAttemptOpen) return
+          isAttemptOpen = false
           const owned = claim
+          claim = undefined
           const actual =
             hasTerminalUsage && response?.usage != null
               ? model.price.settle(modelPricedUsage(response.usage), {
@@ -464,11 +432,9 @@ export function withRuntimeAccounting(
           }
           const isUncertainEstimate =
             wasSent && cost === undefined && counted?.accuracy === 'estimate'
-          await owned.settle(
-            wasSent ? (cost ?? owned.reservedUsd) : Usd.from(0).toAmount(),
-            wasSent ? (cost === undefined ? 'uncertain' : 'settled') : 'released',
-          )
-          claim = undefined
+          // After the call: its reported cost, or cost unknown when it went out
+          // and reported no usage; never its estimate (D121).
+          await owned?.settle(wasSent ? cost : Usd.from(0).toAmount())
           wasSent = false
           response = undefined
           hasEof = false
@@ -484,16 +450,15 @@ export function withRuntimeAccounting(
           throw new UserRefusalError(UI_TEXT.execAccountingInvalid, 'estimate_uncertain')
         }
         const started = () => {
-          claim?.check(Usd.from(0).toAmount())
+          claim?.check()
           if (ticket !== undefined) accounting?.started(ticket.n, ticket)
-          claim?.markSent?.()
           wasSent = true
         }
         let isFirstPreparation = true
         const attempt: ResponseAttemptGuard = Object.assign(
           (digest: string | undefined) => {
             if (!model.isCurrent()) throw new UserRefusalError(UI_TEXT.requestStaleRun, 'stale_run')
-            claim?.check(Usd.from(0).toAmount())
+            claim?.check()
             guard?.(digest)
           },
           {
@@ -507,11 +472,12 @@ export function withRuntimeAccounting(
               if (isFirstPreparation) isFirstPreparation = false
               else await guard?.prepare?.()
               try {
-                claim = await daily.reserve(dailyReserveUsd, signal)
+                claim = daily.admit(dailyReserveUsd, signal)
               } catch (error: unknown) {
                 forwardRefusal(error)
                 throw error
               }
+              isAttemptOpen = true
               if (accounting === undefined) return
               const pricing = model.policy.pricing
               const price =
@@ -642,7 +608,6 @@ export function withRuntimeAccounting(
           if (isModelApiError(error) && error.status > 0) httpStatus = error.status
           if (isRequestNotSent(error)) {
             wasSent = false
-            claim?.markUnsent?.()
           }
           throw error
         } finally {
@@ -823,5 +788,3 @@ export function responseReservationMessage(
     maxTokens: String(details.maxOutputTokens),
   })}`
 }
-
-export { createSessionBudgetJournal } from '../host/backend/sessionBudgetJournal'

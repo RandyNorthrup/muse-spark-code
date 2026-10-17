@@ -1,22 +1,23 @@
-import { SpendLedgerError } from '../../paid/spendLedgerError'
-// The Model API session budget (M82, PLAN.md M82): a dollar cap per
-// conversation, kept by reservation, since a request's cost is incurred
-// once it is sent.
+// The Model API session budget (M82; PLAN.md D121): a dollar limit per
+// conversation that the person sets, none by default.
 //
-// Before each request its input is estimated high: the last reported
-// request's input tokens, as Meta counted them, plus every part of this
-// request that the reported one did not carry, counted at one token per
-// UTF-8 byte. A byte-level tokenizer never makes a token of less than one
-// byte, and the parts are counted with their JSON around them, so for text
-// the estimate is above the real count. M105 media parts instead carry a
-// calibrated upper bound: encoded size is never their token count. A part
-// the reported request carried and this one does not (a compaction, older
-// media left out) is never subtracted, so a removal can only raise the
-// estimate. `max_output_tokens`
-// is then set so that input plus output at list price fits what is left; a
-// request that cannot fit is not sent.
+// With no limit there is no spending check at all on the request path. With
+// one, the conversation keeps a running total in memory, added to after each
+// call from the usage the provider reported, and saved with the session
+// after the call, so a resume continues from it. Before a request is sent its
+// cost is estimated, and a request whose estimate would pass the limit is
+// not sent. Nothing is held for a request in flight: a call that went out and
+// reported no usage is recorded as cost unknown and adds nothing.
 //
-// Pure: the session owns the spend and the base, this module the arithmetic.
+// The estimate: the request's input is counted high, at one token per UTF-8
+// byte of each part (a byte-level tokenizer never makes a token of less than
+// one byte, and the parts are counted with their JSON around them), plus the
+// calibrated upper bound of each M105 media part, at list price with no cache
+// discount; `max_output_tokens` is then lowered so that input plus output at
+// list price fits what is left of the limit. When even the provider's minimum
+// output does not fit, the request is not sent.
+//
+// Pure: the session owns the running total, this module the arithmetic.
 
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
@@ -32,6 +33,7 @@ import {
 import { fill } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
 import { Usd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
+import { SpendLedgerError } from '../../paid/spendLedgerError'
 import { formatUsd, estimateCostUsd } from '../../usage/insights'
 import { type ModelPricePolicy, modelPricedUsage } from './modelPolicy'
 
@@ -62,129 +64,38 @@ export interface InputEstimate {
   readonly parts: ReadonlyMap<string, number>
 }
 
-/** A request the cap still fits. */
-export interface BudgetReservation {
+/** A request the limit still fits. */
+export interface BudgetFit {
   readonly estimatedInputTokens: number
   /** The `max_output_tokens` the request is sent with. */
   readonly maxOutputTokens: number
   /** The estimated input and the whole output allowance at list price: at most what was left. */
-  readonly costUsd: UsdAmount
+  readonly estimateUsd: UsdAmount
 }
 
-/** Authoritative shared spend, including requests whose result is still unknown. */
-export interface SessionBudgetTotal {
-  readonly spentUsd: UsdAmount
-  readonly heldUsd?: UsdAmount
-  readonly uncertainUsd?: UsdAmount
-  /**
-   * EXECPROV round 7 (R0): money may have been spent that no record bounds
-   * (history written without fees; an open claim whose final cost is still
-   * unbounded). Only this refuses a capped run. Unknown cost that is
-   * bounded and counted as spent arrives in `hasBoundedUnknownCost`
-   * instead and never refuses: the cap can still be guaranteed.
-   */
-  readonly hasUnknownHistoricalFees: boolean
-  /**
-   * EXECPROV round 7 (R0): the true cost of some counted claim is not
-   * known, but it IS bounded and the bound is inside `spentUsd` (a hold
-   * closed at its full reservation; a sent request whose answer was lost,
-   * kept at its reservation). Reports say "upper bound" for these; cap
-   * checks ignore this flag. Optional so older readers treat it as absent.
-   */
-  readonly hasBoundedUnknownCost?: boolean
-}
-
-/** One request owns its liability until its verified actual cost or a nonsent refund. */
-export type SpendState = 'reserved' | 'settled' | 'uncertain' | 'released'
-
-export interface SessionBudgetClaim {
-  readonly claimId: string
-  readonly reservedUsd: UsdAmount
-  /** Durable send intent before dispatch; unsent claims alone can recover after owner exit. */
-  readonly markSent?: () => void
-  readonly markUnsent?: () => void
-  /** Synchronous final admission after key retrieval; refuses an incomplete or over-cap ledger. */
-  check(capUsd: UsdAmount): SessionBudgetTotal
-  /** Only this claim's owner settles it. Entries remain visible, including a zero refund. */
-  settle(actualCostUsd: UsdAmount, state?: SpendState): Promise<SessionBudgetTotal>
-}
-
-/** P binds the selected account and M102's owned-claim exclusion once.
- * The returned guard rereads thresholds/limits synchronously at every send.
- * The caller refunds this claim when initial admission throws. */
-export type AccountBudgetAdmission = (claim: SessionBudgetClaim) => () => void
-
-/** The session store's scoped spend journal; all callers share the same account-owned history. */
-export interface SessionBudgetJournal {
-  /** Display-only read: never seeds or reserves an unopened scope. */
-  readonly readExisting?: (
-    sessionId: string,
-    accountId: string,
-  ) => Promise<(SessionBudgetTotal & { readonly uncertainUsd?: UsdAmount }) | undefined>
-  read(sessionId: string, accountId: string): Promise<SessionBudgetTotal>
-  reserve(
-    sessionId: string,
-    accountId: string,
-    costUsd: UsdAmount,
-    capUsd?: UsdAmount,
-    tariff?: 'known' | 'unknown',
-  ): Promise<SessionBudgetClaim>
-  record(
-    sessionId: string,
-    accountId: string,
-    costUsd: UsdAmount,
-    state?: Exclude<SpendState, 'reserved'>,
-  ): Promise<SessionBudgetTotal>
-}
-
-/** Parent-owned spend for extension calls with independent temporary transcripts. */
+/**
+ * The owner conversation's running total, for calls made outside its own
+ * transcript (a review, a hook model, a best-of-N attempt): they are checked
+ * against the owner's limit and charged to the owner's total.
+ */
 export interface OwnedSessionBudgetScope {
   readonly sessionId: string
   readonly accountId: string
-  readonly journal: SessionBudgetJournal
-  /** Machine setting stays live through async work and final admission. */
+  /** The person's limit, read live; zero is none. */
   readonly capUsd: () => UsdAmount
+  /** What the conversation spent so far, from the usage each of its calls reported. */
+  readonly spentUsd: () => UsdAmount
+  /** One finished call: its cost, or `undefined` when it went out and reported no usage. */
+  readonly charge: (costUsd: UsdAmount | undefined) => void
   /** Caller supplies the digest of the actual key about to send, never the key itself. */
   readonly isStillAllowed: (keyDigest: string | undefined) => boolean
 }
 
-/** A request the budget refused: it is not sent, and the turn stops with this reason. */
+/** A request a spending limit refused: it is not sent, and the turn stops with this reason. */
 export class SessionBudgetExceededError extends Error {
   public readonly code = 'budget'
-  public constructor(
-    message: string,
-    public readonly budget: 'session' | 'daily' = 'session',
-  ) {
+  public constructor(message: string) {
     super(message)
-    this.name = 'SessionBudgetExceededError'
-  }
-}
-
-/**
- * What a person needs when a paid stop refuses (D1): the limit, what is
- * spent, what open requests still hold (and how many), when the day resets,
- * and the setting that raises it.
- */
-export interface PaidStopDetails {
-  readonly limitUsd: UsdAmount
-  readonly spentUsd: UsdAmount
-  readonly heldUsd: UsdAmount
-  readonly openClaims: number
-  readonly resetsAtMs: number
-  readonly setting: string
-}
-
-/**
- * A paid stop that carries its numbers. The name stays
- * `SessionBudgetExceededError` so every existing name-based catch
- * (refusals, turn outcomes, provider wrappers) recognises it untouched.
- */
-export class PaidBudgetStopError extends SessionBudgetExceededError {
-  public constructor(
-    message: string,
-    public readonly details: PaidStopDetails,
-  ) {
-    super(message, 'daily')
     this.name = 'SessionBudgetExceededError'
   }
 }
@@ -222,7 +133,7 @@ export function estimateInput(
       if (!Number.isSafeInteger(media.upperBoundInputTokens) || media.upperBoundInputTokens < 0)
         throw new Error('Media budget needs a validated calibrated upper bound')
       // Reported input may include old media, but the count route does not.
-      // Keep the base whole and reserve media on every round, including replay.
+      // Keep the base whole and estimate media on every round, including replay.
       mediaTokens += media.upperBoundInputTokens
     }
     const serialized = typeof part === 'string' ? part : part.mediaIdentity
@@ -252,30 +163,29 @@ export function estimateInput(
 }
 
 /**
- * The reservation for a request whose input is estimated at
- * `estimatedInputTokens`, at the model's list price with no cache discount
- * assumed. Throws when the model has no verified price (the cap could not
- * be kept) or when the provider's minimum output (`minOutputTokens`, 1 when
- * no minimum was captured) does not fit on top of the input: the request is
- * not sent, and the turn stops with the budget reason instead of a provider
- * rejection. The cap is never rounded up past what the budget affords.
+ * Fits a request whose input is estimated at `estimatedInputTokens` into
+ * what is left of the limit, at the model's list price with no cache
+ * discount assumed. Throws when the model has no verified price (the limit
+ * could not be kept) or when the provider's minimum output
+ * (`minOutputTokens`, 1 when no minimum was captured) does not fit on top of
+ * the input: the request is not sent, and the turn stops with the budget
+ * reason instead of a provider rejection.
  */
-export function reserveRequest(request: {
+export function fitRequest(request: {
   readonly capUsd: UsdAmount
   readonly spentUsd: UsdAmount
   readonly estimatedInputTokens: number
   readonly modelId: string
   readonly maxToolCalls?: number
   readonly searchPriceUsd?: UsdAmount | undefined
-  /** Selected model's output allowance. Omitted callers retain their legacy limit. */
+  /** Selected model's output allowance. Omitted callers keep the Model API maximum. */
   readonly maxOutputTokens?: number
   /** The selected provider's smallest accepted output cap; unknown keeps 1. */
   readonly minOutputTokens?: number | undefined
   readonly price?: ModelPricePolicy | undefined
   readonly images?: number | undefined
-}): BudgetReservation {
-  if (request.price !== undefined)
-    return reserveProviderRequest({ ...request, price: request.price })
+}): BudgetFit {
+  if (request.price !== undefined) return fitProviderRequest({ ...request, price: request.price })
   const searchCostUsd = searchAllowanceUsd(request.maxToolCalls, request.searchPriceUsd)
   const tier = modelApiPaidTier(request.modelId)
   if (tier === undefined) {
@@ -300,7 +210,9 @@ export function reserveRequest(request: {
   if (affordableOutputTokens < BigInt(floor)) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
-        estimate: formatUsd(inputCost.add(Usd.from(searchCostUsd)).toAmount()),
+        estimate: formatUsd(
+          inputCost.add(outputPrice.times(floor)).add(Usd.from(searchCostUsd)).toAmount(),
+        ),
         cap: formatUsd(request.capUsd),
         spent: formatUsd(request.spentUsd),
       }),
@@ -315,14 +227,14 @@ export function reserveRequest(request: {
   return {
     estimatedInputTokens: request.estimatedInputTokens,
     maxOutputTokens,
-    costUsd: inputCost
+    estimateUsd: inputCost
       .add(outputPrice.times(maxOutputTokens))
       .add(Usd.from(searchCostUsd))
       .toAmount(),
   }
 }
 
-/** The hosted fee held alongside tokens, from a verified bound and tariff. */
+/** The hosted fee estimated alongside tokens, from a verified bound and tariff. */
 export function searchAllowanceUsd(
   bound: number | undefined,
   priceUsd: UsdAmount | undefined,
@@ -341,42 +253,37 @@ export function searchAllowanceUsd(
   return multiplyUsd(priceUsd ?? Usd.from(0).toAmount(), bound ?? 0)
 }
 
-/** A hidden paid request's known charge, or its retained uncertain reservation. */
-export function helperRequestSettlement(
+/**
+ * A hidden paid request's cost (a review, a hook model): zero when it was not
+ * sent or was refused before any response; its price from the reported usage;
+ * `undefined` (cost unknown) when it went out and no usable usage or price
+ * came back. Never its estimate.
+ */
+export function helperRequestCost(
   modelId: string,
   usage: Usage | null | undefined,
   isCountedUsage: (usage: Usage) => boolean,
   wasSent: boolean,
   wasRefused: boolean,
-  reservedUsd: UsdAmount,
   price?: ModelPricePolicy,
-) {
-  const hasUsage = usage !== null && usage !== undefined && isCountedUsage(usage)
-  let costUsd = Usd.from(wasSent && !wasRefused ? reservedUsd : 0).toAmount()
-  let hasKnownCost = price === undefined
-  if (usage !== null && usage !== undefined && isCountedUsage(usage)) {
-    const settled = price?.settle(modelPricedUsage(usage), { cost: usage.provider_cost_usd })
-    hasKnownCost = price === undefined || settled !== undefined
-    // An unpriced model's spend cannot be settled: the ledger fails closed.
-    if (price === undefined && modelApiPaidTier(modelId) === undefined)
-      throw new SpendLedgerError('integrity', { scope: 'session', file: 'claim or amount' })
-    costUsd =
-      price === undefined
-        ? estimateCostUsd(
-            {
-              inputTokens: usage.input_tokens,
-              outputTokens: usage.output_tokens,
-              cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-            },
-            modelId,
-          )
-        : (settled ?? reservedUsd)
-  }
-  return { costUsd, isUnknown: wasSent && !wasRefused && (!hasUsage || !hasKnownCost) }
+): UsdAmount | undefined {
+  if (!wasSent || wasRefused) return Usd.from(0).toAmount()
+  if (usage === null || usage === undefined || !isCountedUsage(usage)) return undefined
+  if (price !== undefined)
+    return price.settle(modelPricedUsage(usage), { cost: usage.provider_cost_usd })
+  if (modelApiPaidTier(modelId) === undefined) return undefined
+  return estimateCostUsd(
+    {
+      inputTokens: usage.input_tokens,
+      outputTokens: usage.output_tokens,
+      cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
+    },
+    modelId,
+  )
 }
 
-/** A provider's public price-card reservation bounds every potentially written input token. */
-function reserveProviderRequest(request: {
+/** A provider's public price card bounds every potentially written input token. */
+function fitProviderRequest(request: {
   readonly capUsd: UsdAmount
   readonly spentUsd: UsdAmount
   readonly estimatedInputTokens: number
@@ -385,7 +292,7 @@ function reserveProviderRequest(request: {
   readonly maxOutputTokens?: number | undefined
   readonly minOutputTokens?: number | undefined
   readonly images?: number | undefined
-}): BudgetReservation {
+}): BudgetFit {
   const usage = {
     inputTokens: request.estimatedInputTokens,
     outputTokens: 0,
@@ -420,13 +327,15 @@ function reserveProviderRequest(request: {
   if (low < floor) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
-        estimate: formatUsd(inputCostUsd),
+        estimate: formatUsd(
+          request.price.reserve({ ...usage, outputTokens: floor }) ?? inputCostUsd,
+        ),
         cap: formatUsd(request.capUsd),
         spent: formatUsd(request.spentUsd),
       }),
     )
   }
-  const costUsd = request.price.reserve({ ...usage, outputTokens: low })
-  if (costUsd === undefined) throw new SessionBudgetExceededError(UI_TEXT.subagentTariffUnknown)
-  return { estimatedInputTokens: usage.inputTokens, maxOutputTokens: low, costUsd }
+  const estimateUsd = request.price.reserve({ ...usage, outputTokens: low })
+  if (estimateUsd === undefined) throw new SessionBudgetExceededError(UI_TEXT.subagentTariffUnknown)
+  return { estimatedInputTokens: usage.inputTokens, maxOutputTokens: low, estimateUsd }
 }

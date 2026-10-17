@@ -1,4 +1,5 @@
 import type { UsdAmount } from '../../../shared/usd'
+import type { SpendClaim } from '../../paid/spendClaim'
 // The M91 hook handler types (PLAN.md D70, lane H): `http`, `mcp_tool`,
 // `prompt` and `agent`. `command` stays in hooks.ts, exactly as today.
 //
@@ -115,14 +116,7 @@ export interface HookModelDailyBudget {
     inputTokens: number,
     outputTokens: number,
     signal: AbortSignal,
-  ) => Promise<{
-    readonly check: () => void
-    readonly markSent?: () => void
-    readonly settle: (
-      costUsd: UsdAmount,
-      state: 'settled' | 'uncertain' | 'released',
-    ) => Promise<void>
-  }>
+  ) => Promise<SpendClaim>
 }
 
 /**

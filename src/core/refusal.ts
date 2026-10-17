@@ -2,15 +2,14 @@ import { isSpendLedgerError } from './paid/spendLedgerError'
 import { NON_BILLABLE_HTTP_REJECTIONS, UI_TEXT } from '../shared/constants'
 
 /**
- * A paid stop (daily, run, session or account cap) is never retried as a
+ * A paid stop (a daily, run, session or account limit) is never retried as a
  * send failure and never replaced by a generic error. Name-based so the
  * identity survives lazy bundles and every provider wrapper (D1, P2-3).
  */
 export function isPaidStop(error: unknown): boolean {
   return (
     error instanceof Error &&
-    ((isSpendLedgerError(error) && error.kind === 'budget') ||
-      error.name === 'SessionBudgetExceededError' ||
+    (error.name === 'SessionBudgetExceededError' ||
       (error.name === 'UserRefusalError' && 'code' in error && error.code === 'daily_stopped'))
   )
 }

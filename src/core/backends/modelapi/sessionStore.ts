@@ -33,7 +33,6 @@ import type { AgentRuntime } from '../../context/customAgents'
 import type { SessionRecord } from '../../agent/agentBackend'
 import { type GoalRecord, goalRecordSchema } from './goalRecord'
 import type { TeamCommandRecord } from '../../team/teamTools'
-import type { SessionBudgetJournal } from './sessionBudget'
 import {
   functionCallItemSchema,
   type InputItem,
@@ -142,10 +141,8 @@ export interface StoredSession {
   /** Patch documents by output reference (`tool_patch-<itemId>`). */
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
-  /** Dollars the session's own requests spent (M82); absent when none. */
+  /** The conversation's running total (M82, D121): what its calls reported, saved after each; absent when none. */
   readonly budgetSpentUsd?: UsdAmount
-  /** Controlled first fork snapshot: copied history predates this conversation's zero spend. */
-  readonly budgetIsFreshFork?: true
   /**
    * Observation packing's ledger (M73): the estimated tokens packed sends
    * left out. Absent where the session never packed, and in a file saved
@@ -192,8 +189,6 @@ export interface StoredSessionHeader {
 
 /** Where sessions live between windows; the host supplies the files. */
 export interface SessionStore {
-  /** Shared request liabilities and spend; required for a finite cap. */
-  readonly budget?: SessionBudgetJournal
   /** Every readable session's header; a corrupt file is skipped (and logged), never fatal. */
   list(): Promise<readonly StoredSessionHeader[]>
   /** One session in full; undefined when it is gone or no longer reads. */
@@ -353,7 +348,6 @@ const storedSessionFields = {
   // Optional, so a session saved before M82 still reads; never below zero,
   // which would give the cap room it does not have.
   budgetSpentUsd: z.optional(legacyUsdSchema),
-  budgetIsFreshFork: z.optional(z.literal(true)),
   // Optional, so a session saved before M73 kept its ledger still reads; a
   // corrupt value is dropped before validation (withoutCorruptEstimate).
   packedTokensAvoided: z.optional(z.int().check(z.nonnegative())),
@@ -461,7 +455,6 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
     teamRoster,
     teamCommands,
     budgetSpentUsd,
-    budgetIsFreshFork,
     agent,
     packedTokensAvoided,
     hookTokensAdded,
@@ -510,7 +503,6 @@ export function parseStoredSession(raw: unknown): StoredSessionParse {
       ...(compactedThroughTurnId !== undefined && { compactedThroughTurnId }),
       ...(goal !== undefined && { goal }),
       ...(budgetSpentUsd !== undefined && { budgetSpentUsd }),
-      ...(budgetIsFreshFork === true && { budgetIsFreshFork }),
       ...(sideChat === true && { sideChat: true }),
       ...(imported === true && { imported: true }),
       ...(children !== undefined && { children: restoredChildren }),

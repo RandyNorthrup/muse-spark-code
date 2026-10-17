@@ -34,7 +34,7 @@ import {
   WORKSPACE_STATE_KEYS,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { formatDailyBudget } from '../../shared/l10n/exactUsd'
 
 import type { Logger } from '../logger'
 import {
@@ -126,11 +126,11 @@ function confirmationDetail(feature: PaidFeature): string {
     const budget = dailyBudgetSchema.safeParse(
       vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
     )
-    // The shared D78 setting arrives with FIXDEF. Until then (or for an
-    // invalid hand edit), show zero; no charge is enabled by this formatter.
+    // The person's D78 limit, or that none is set (D121); an invalid hand edit
+    // reads as none, and no charge is enabled by this formatter.
     return fill(details.judge, {
       price: paidFeaturePrice(feature),
-      budget: formatUsd(budget.success ? budget.data : 0, 2),
+      budget: formatDailyBudget(budget.success ? budget.data : 0),
     })
   }
   return fill(details[feature], { price: paidFeaturePrice(feature) })
@@ -196,7 +196,7 @@ export async function askPaidUse(
       detail:
         dailyBudgetUsd === undefined
           ? detail
-          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatUsd(dailyBudgetUsd, 2) })}`,
+          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatDailyBudget(dailyBudgetUsd) })}`,
     },
     ...(canRemember ? [once, always, deny] : [once, deny]),
   )

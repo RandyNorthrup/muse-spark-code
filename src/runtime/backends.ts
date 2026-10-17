@@ -441,7 +441,7 @@ function modelApiManager(
     ) => {
       if ('input' in body) return
       const budget = await dailyBudget()
-      return await budget.reserve(PAID_PRICES_USD.imageGeneration, signal)
+      return budget.admit(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount(), signal)
     },
     ...(deps.exec === undefined && {
       getProviderAccountId: async () => {
@@ -521,7 +521,7 @@ function modelApiManager(
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
-    // The wrapped runtime transport owns one daily claim per HTTP attempt.
+    // The wrapped runtime transport checks a person-set daily limit per HTTP attempt.
     autoCompactionAccounting: 'transport',
     paidDailyBudgetUsd: async () => {
       const budget = await dailyBudget()

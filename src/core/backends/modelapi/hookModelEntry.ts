@@ -6,20 +6,16 @@ import { Usd, isPositiveUsd } from '../../../shared/usd'
 // conversation. `prompt` asks with no tools; `agent` loops over read-only
 // tools (read, grep, list, code intelligence) at most HOOK_AGENT_MAX_STEPS
 // requests per answer attempt. Invalid structured answers get one repair,
-// then the existing text path. Every request is admitted and settled.
-// Session-owned fences and journal observers are passed through unchanged.
+// then the existing text path. Under a person-set limit each request is
+// checked against it before the send and charged after it (D121).
+// Session-owned fences are passed through unchanged.
 import * as z from 'zod/mini'
 import type { ModelApiHostDeps, DirectResponseBudget } from './ModelApiHost'
 import type { reviewPaidCall } from './reviewerEntry'
 import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 import { isFunctionCallItem } from './schemas'
 import type { FunctionCallItem, InputItem, StreamEvent, ToolDefinition, Usage } from './schemas'
-import {
-  helperRequestSettlement,
-  reserveRequest,
-  type OwnedSessionBudgetScope,
-  type SessionBudgetClaim,
-} from './sessionBudget'
+import { fitRequest, helperRequestCost, type OwnedSessionBudgetScope } from './sessionBudget'
 import { estimateCostUsd } from '../../usage/insights'
 import type { SubagentUsage } from '../../../shared/paid'
 import type { ItemSnapshot } from '../../../shared/agentEvents'
@@ -288,9 +284,7 @@ async function requestHookStep(
       context.deps.forceSideCallTool,
     ),
   )
-  let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
-  let reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
   let usage: Usage | null | undefined
   let dailyClaim:
@@ -300,48 +294,41 @@ async function requestHookStep(
   let hasCompleted = false
   let hasResponseFrame = false
   try {
-    if (budgetScope !== undefined) {
-      const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
-      const capUsd = budgetScope.capUsd()
-      const estimated = Buffer.byteLength(JSON.stringify(body), 'utf8')
-      if (isPositiveUsd(capUsd)) {
-        const reservation = reserveRequest({
-          capUsd,
-          spentUsd: total.spentUsd,
-          estimatedInputTokens: estimated,
-          modelId,
-          minOutputTokens: minOutputTokensForPolicy(modelPolicyFor(modelId)),
-        })
-        body = {
-          ...body,
-          max_output_tokens: Math.min(body.max_output_tokens, reservation.maxOutputTokens),
-        }
-      }
-      reservedUsd = estimateCostUsd(
-        { inputTokens: estimated, outputTokens: body.max_output_tokens, cachedTokens: 0 },
-        modelId,
-      )
-      claim = await budgetScope.journal.reserve(
-        budgetScope.sessionId,
-        budgetScope.accountId,
-        reservedUsd,
+    // Under the conversation's limit the request is fitted into what is left
+    // (D121); its estimate is compared again before the send, never held.
+    const capUsd = budgetScope?.capUsd() ?? Usd.from(0).toAmount()
+    if (budgetScope !== undefined && isPositiveUsd(capUsd)) {
+      const fit = fitRequest({
         capUsd,
-      )
+        spentUsd: budgetScope.spentUsd(),
+        estimatedInputTokens: Buffer.byteLength(JSON.stringify(body), 'utf8'),
+        modelId,
+        minOutputTokens: minOutputTokensForPolicy(modelPolicyFor(modelId)),
+      })
+      body = {
+        ...body,
+        max_output_tokens: Math.min(body.max_output_tokens, fit.maxOutputTokens),
+      }
     }
     const estimatedInputTokens = Buffer.byteLength(JSON.stringify(body), 'utf8')
-    const reservationUsd = estimateCostUsd(
-      { inputTokens: estimatedInputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
-      modelId,
-    )
-    reservedUsd =
-      Usd.from(reservedUsd).compare(Usd.from(reservationUsd)) > 0 ? reservedUsd : reservationUsd
     dailyClaim = await context.deps.hookModelDailyBudget?.reserve(
       modelId,
       estimatedInputTokens,
       body.max_output_tokens,
       signal,
     )
-    directBudget = { scope: budgetScope, claim, isSent: false }
+    directBudget = {
+      scope: budgetScope,
+      estimateUsd: estimateCostUsd(
+        {
+          inputTokens: estimatedInputTokens,
+          outputTokens: body.max_output_tokens,
+          cachedTokens: 0,
+        },
+        modelId,
+      ),
+      isSent: false,
+    }
     const required = context.guard(body, directBudget)
     const admission: ResponseAttemptGuard = Object.assign(
       (actualKeyDigest: string | undefined) => {
@@ -351,7 +338,6 @@ async function requestHookStep(
       {
         onRequestStarted: () => {
           dailyClaim?.check()
-          dailyClaim?.markSent?.()
           required.onRequestStarted?.()
           confirmed.onRequestStarted()
         },
@@ -403,19 +389,16 @@ async function requestHookStep(
     context.deps.log.warn('The hook model call failed')
     throw error
   } finally {
-    const settlement = helperRequestSettlement(
+    // After the call, its reported cost (or cost unknown) joins the running totals (D121).
+    const costUsd = helperRequestCost(
       modelId,
       usage,
       context.isCountedUsage,
       directBudget?.isSent === true,
       wasRefused,
-      reservedUsd,
     )
-    try {
-      await claim?.settle(settlement.costUsd, settlement.isUnknown ? 'uncertain' : 'settled')
-    } finally {
-      await dailyClaim?.settle(settlement.costUsd, settlement.isUnknown ? 'uncertain' : 'settled')
-    }
+    budgetScope?.charge(costUsd)
+    await dailyClaim?.settle(costUsd)
   }
   return calls
 }

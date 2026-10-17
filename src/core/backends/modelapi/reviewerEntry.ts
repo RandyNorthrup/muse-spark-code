@@ -19,12 +19,7 @@ import {
   isFunctionCallItem,
 } from './schemas'
 
-import {
-  reserveRequest,
-  type OwnedSessionBudgetScope,
-  type SessionBudgetClaim,
-  helperRequestSettlement,
-} from './sessionBudget'
+import { fitRequest, type OwnedSessionBudgetScope, helperRequestCost } from './sessionBudget'
 import {
   effortForPolicy,
   minOutputTokensForPolicy,
@@ -252,49 +247,41 @@ async function requestReviewer(
   let hasCompleted = false
   let hasResponseFrame = false
   let usage: Usage | null | undefined
-  let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
-  let reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
   const startedAt = context.deps.now()
   let observation: ResponseObservation = {}
   let outcome: 'completed' | 'incomplete' | 'failed' | 'cancelled' = 'failed'
   let served: string | undefined
   try {
-    if (budgetScope !== undefined) {
-      const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
-      const capUsd = budgetScope.capUsd()
-      const input = Buffer.byteLength(JSON.stringify(body), 'utf8')
-      if (isPositiveUsd(capUsd)) {
-        const reservation = reserveRequest({
-          capUsd,
-          spentUsd: total.spentUsd,
-          estimatedInputTokens: input,
-          modelId,
-          maxOutputTokens: body.max_output_tokens,
-          minOutputTokens: minOutputTokensForPolicy(context.resolved.policy),
-          ...(modelId.includes('/') && { price: context.resolved.price }),
-        })
-        body = {
-          ...body,
-          max_output_tokens: Math.min(body.max_output_tokens, reservation.maxOutputTokens),
-        }
-      }
-      reservedUsd =
-        context.resolved.price.reserve({
-          inputTokens: input,
-          outputTokens: body.max_output_tokens,
-          cachedTokens: 0,
-        }) ?? Usd.from(0).toAmount()
-      claim = await budgetScope.journal.reserve(
-        budgetScope.sessionId,
-        budgetScope.accountId,
-        reservedUsd,
+    // Under the conversation's limit the review is fitted into what is left
+    // (D121); its estimate is compared again before the send, never held.
+    const input = Buffer.byteLength(JSON.stringify(body), 'utf8')
+    const capUsd = budgetScope?.capUsd() ?? Usd.from(0).toAmount()
+    if (budgetScope !== undefined && isPositiveUsd(capUsd)) {
+      const fit = fitRequest({
         capUsd,
-        context.resolved.policy.pricing.kind === 'unpriced' ? 'unknown' : 'known',
-      )
+        spentUsd: budgetScope.spentUsd(),
+        estimatedInputTokens: input,
+        modelId,
+        maxOutputTokens: body.max_output_tokens,
+        minOutputTokens: minOutputTokensForPolicy(context.resolved.policy),
+        ...(modelId.includes('/') && { price: context.resolved.price }),
+      })
+      body = {
+        ...body,
+        max_output_tokens: Math.min(body.max_output_tokens, fit.maxOutputTokens),
+      }
     }
-    directBudget = { scope: budgetScope, claim, isSent: false }
+    directBudget = {
+      scope: budgetScope,
+      estimateUsd: context.resolved.price.reserve({
+        inputTokens: input,
+        outputTokens: body.max_output_tokens,
+        cachedTokens: 0,
+      }),
+      isSent: false,
+    }
     const required = context.guard(body, directBudget)
     const admission: ResponseAttemptGuard = Object.assign(
       (actualKeyDigest: string | undefined) => {
@@ -404,7 +391,6 @@ async function requestReviewer(
           ? undefined
           : Usd.from(usage.provider_cost_usd).toAmount(),
       uncertain: directBudget?.isSent === true && !wasRefused && usage == null,
-      retainedLiabilityUsd: reservedUsd,
     })
     if (usage !== null && usage !== undefined && context.isCountedUsage(usage)) {
       try {
@@ -426,18 +412,18 @@ async function requestReviewer(
         context.deps.log.warn('Auto review usage observer failed; its paid tally remains unknown')
       }
     }
-    if (claim !== undefined) {
-      const settlement = helperRequestSettlement(
+    // After the call, its reported cost (or cost unknown) joins the
+    // conversation's running total (D121).
+    budgetScope?.charge(
+      helperRequestCost(
         modelId,
         usage,
         context.isCountedUsage,
         directBudget?.isSent === true,
         wasRefused,
-        reservedUsd,
         context.resolved.price,
-      )
-      await claim.settle(settlement.costUsd, settlement.isUnknown ? 'uncertain' : 'settled')
-    }
+      ),
+    )
   }
   return text
 }

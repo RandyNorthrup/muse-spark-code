@@ -1,11 +1,11 @@
-// Portable typed spend failures: no filesystem or process dependency.
+// Portable typed spend-store failures: no filesystem or process dependency.
+// A daily running total that cannot be read or saved, a damaged file, or
+// conflicting amounts refuse the next paid request whose limit needs it
+// (PLAN.md D121); with no limit set, no store is read at all.
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
-import type { UsdAmount } from '../../shared/usd'
 
-export type LedgerFailureKind =
-  'budget' | 'busy' | 'damaged' | 'unreadable' | 'recovery' | 'integrity' | 'legacy'
+export type LedgerFailureKind = 'damaged' | 'unreadable' | 'integrity'
 export class SpendLedgerError extends Error {
   public constructor(
     public readonly kind: LedgerFailureKind,
@@ -13,43 +13,17 @@ export class SpendLedgerError extends Error {
       readonly scope: string
       readonly file?: string
       readonly errno?: string | undefined
-      readonly bound?: UsdAmount
-      readonly total?: UsdAmount
-      readonly cap?: UsdAmount
     },
     cause?: unknown,
   ) {
     let sentence: string
     switch (kind) {
-      case 'budget': {
-        sentence = fill(UI_TEXT.spendLedgerBudget, {
-          total: formatUsd(facts.total ?? 0),
-          bound: formatUsd(facts.bound ?? 0),
-          cap: formatUsd(facts.cap ?? 0),
-        })
-        break
-      }
-      case 'busy': {
-        sentence = UI_TEXT.spendLedgerBusy
-        break
-      }
       case 'damaged': {
         sentence = UI_TEXT.spendLedgerDamaged
         break
       }
       case 'unreadable': {
         sentence = UI_TEXT.spendLedgerUnreadable
-        break
-      }
-      case 'legacy': {
-        sentence = fill(UI_TEXT.sessionBudgetLegacyFeesUnknown, {
-          scope: facts.scope,
-          spent: formatUsd(facts.total ?? 0),
-        })
-        break
-      }
-      case 'recovery': {
-        sentence = UI_TEXT.spendLedgerRecovery
         break
       }
       default: {
