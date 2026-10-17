@@ -886,6 +886,10 @@
     "uploadsUsage": "使い方: /uploads [delete <file> | delete-all]",
     "uploadNotFound": "アップロード済みファイル {id} は一覧にありません。",
     "uploadForeignKept": "{name} を保持しました: 他のアプリが使用中の可能性があります。",
+    "uploadDeleteProviderRefused": "プロバイダーが削除を拒否しました",
+    "uploadDeleteBacklog": {
+      "other": "{count} 件のアップロード済みファイルを {provider} から削除できませんでした。削除は再試行されます。"
+    },
     "conversionFailed": "変換失敗: {reason}",
     "replayMetadata": "メディア: {name}（{duration}、{size}）",
     "replayMetadataNoDuration": "メディア: {name}（{size}）"

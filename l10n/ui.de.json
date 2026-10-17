@@ -890,6 +890,11 @@
     "uploadsUsage": "Verwendung: /uploads [delete <file> | delete-all]",
     "uploadNotFound": "Die hochgeladene Datei {id} ist nicht aufgeführt.",
     "uploadForeignKept": "{name} wurde behalten: Eine andere App verwendet sie möglicherweise noch.",
+    "uploadDeleteProviderRefused": "der Anbieter hat das Löschen abgelehnt",
+    "uploadDeleteBacklog": {
+      "one": "{count} hochgeladene Datei konnte von {provider} nicht gelöscht werden. Das Löschen wird wiederholt.",
+      "other": "{count} hochgeladene Dateien konnten von {provider} nicht gelöscht werden. Das Löschen wird wiederholt."
+    },
     "conversionFailed": "Umwandlung fehlgeschlagen: {reason}",
     "replayMetadata": "Medien: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Medien: {name} ({size})"

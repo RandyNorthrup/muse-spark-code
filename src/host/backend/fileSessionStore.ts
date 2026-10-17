@@ -412,8 +412,11 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
               await recover(sessionId, session, uploads, intent, isCurrent)
             },
           )
-        } catch (error: unknown) {
-          deps.log.warn(`Upload cleanup ${name} deferred: ${storeErrorForLog(error)}`)
+        } catch {
+          // Fixed words only: recovery replays the session's upload
+          // ownership, whose refusal names the attachment (RVM105 4). The
+          // next sweep retries; only its outcome is recorded here.
+          deps.log.warn('Upload cleanup deferred: cleanup_failed')
         }
       }
       for (const name of sorted) {

@@ -78,6 +78,7 @@ import {
   MODEL_API_PRICES_PER_MILLION,
   TOKENS_PER_MILLION,
   SETTING_DEFAULTS,
+  type MEDIA_AUDIO_ACTION_OPTIONS,
   AUTH_REQUIRED_ERROR_KIND,
   CHATGPT_PLAN_LIMIT_ERROR_KIND,
   AUTO_REVIEW_ROW_TOOL,
@@ -254,7 +255,7 @@ import {
   skillBodyForModel,
 } from '../../context/skills'
 import { WorkspaceContext } from '../../context/workspaceContext'
-import type { CoreLogger } from '../../logging'
+import { wireWordForLog, type CoreLogger } from '../../logging'
 import type { ModelRow } from '../../providers/modelFilters'
 import { textFileInput } from '../../textAttachment'
 import { withDeadline } from '../../timeouts'
@@ -806,6 +807,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    * Empty or absent: documented installs only (lane V seam 3B).
    */
   readonly mediaConverterPath?: (() => string | undefined) | undefined
+  readonly mediaAudioAction?: (() => (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]) | undefined
   /**
    * Windows: M50's kill-on-close job launcher, prepared on first use, that
    * runs the converter under a kernel memory cap (lanes V and VB). Absent or
@@ -1676,6 +1678,31 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+// Incomplete reasons the wire may carry, as the log names them (RVM105B
+// P2-1): the provider's free text never reaches the log. The Responses API
+// documents `max_output_tokens` and `content_filter`; the bundled codecs map
+// their own cut-short stops to the rest. Anything else is `other`, and a
+// missing reason stays `no reason`. The raw reason is used only in
+// model-visible skip text and exec records; the turn shows its partial text.
+// Only the log uses these words.
+const INCOMPLETE_REASONS_FOR_LOG: ReadonlySet<string> = new Set([
+  'max_output_tokens',
+  'content_filter',
+  'length',
+  'max_tokens',
+  'refusal',
+  'pause_turn',
+  'missing_stop_reason',
+  'stream_ended',
+  'stream_ended_without_finish_reason',
+])
+
+/** A provider incomplete reason as the log names it; never the raw text. */
+export function incompleteReasonForLog(reason: string | undefined): string {
+  if (reason === undefined) return 'no reason'
+  return INCOMPLETE_REASONS_FOR_LOG.has(reason) ? reason : 'other'
+}
+
 function isAuthFailure(error: unknown): boolean {
   return (
     error instanceof MissingApiKeyError ||
@@ -2407,6 +2434,9 @@ function modelOutputPage(content: string, request: OutputPageRequest): Promise<O
     eof: end >= bytes.length,
   })
 }
+
+// Exact zero is immutable; share it across the admission/refund path.
+const ZERO_BUDGET_COST = Usd.from(0)
 
 export class ModelApiSession implements ScheduledAgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
@@ -3732,7 +3762,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.openReservation = undefined
     if (this.isSubagent || this.deps.client.isPlanModel?.(body.model) === true) return body
     const capUsd = this.currentBudgetCap()
-    if (Usd.from(capUsd).compare(Usd.from(0)) <= 0 && this.budgetJournal() === undefined) {
+    if (Usd.from(capUsd).compare(ZERO_BUDGET_COST) <= 0 && this.budgetJournal() === undefined) {
       return body
     }
     const estimate = estimateInput(
@@ -3742,7 +3772,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const maxOutputTokens = body.max_output_tokens
     const selected = this.selectedModel(body.model)
     const reservation =
-      Usd.from(capUsd).compare(Usd.from(0)) > 0
+      Usd.from(capUsd).compare(ZERO_BUDGET_COST) > 0
         ? reserveRequest({
             capUsd,
             spentUsd: this.budgetSpentUsd,
@@ -3770,16 +3800,16 @@ export class ModelApiSession implements ScheduledAgentSession {
                 }) ?? 0,
               ).toAmount(),
               multiplyUsd(
-                this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
+                this.approvedSearchQuote?.tariffUsd ?? ZERO_BUDGET_COST.toAmount(),
                 body.max_tool_calls ?? 0,
               ),
             ),
           }
     this.openReservation = {
       ...reservation,
-      searchSpentUsd: Usd.from(0).toAmount(),
+      searchSpentUsd: ZERO_BUDGET_COST.toAmount(),
       searchReservedUsd: multiplyUsd(
-        this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
+        this.approvedSearchQuote?.tariffUsd ?? ZERO_BUDGET_COST.toAmount(),
         body.max_tool_calls ?? 0,
       ),
       hasTerminalSearchCount: false,
@@ -3788,7 +3818,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       goalRevision: this.goalCommandRevision,
       isWorkspaceTrusted: this.deps.isWorkspaceTrusted(),
       paidFeatures: PAID_FEATURES.filter((feature) => this.deps.isPaidFeatureOn(feature)),
-      hasCap: Usd.from(capUsd).compare(Usd.from(0)) > 0,
+      hasCap: Usd.from(capUsd).compare(ZERO_BUDGET_COST) > 0,
       hasUnknownCost:
         selected.policy.pricing.kind === 'unpriced' || selected.policy.pricing.kind === 'plan',
       hasAmbiguousAttempt: false,
@@ -3800,7 +3830,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       isSent: false,
       isRefused: false,
     }
-    return Usd.from(capUsd).compare(Usd.from(0)) > 0
+    return Usd.from(capUsd).compare(ZERO_BUDGET_COST) > 0
       ? { ...body, max_output_tokens: reservation.maxOutputTokens }
       : body
   }
@@ -4095,10 +4125,10 @@ export class ModelApiSession implements ScheduledAgentSession {
   ): Promise<void> {
     try {
       await work
-    } catch (error: unknown) {
+    } catch {
       // A turn reports its own failures, so one that reaches here is a fault.
       if (!isFailureCallers) {
-        this.deps.log.error(`A Model API turn failed unexpectedly: ${describe(error)}`)
+        this.deps.log.error('A Model API turn failed unexpectedly: failed')
       }
     } finally {
       this.unsettled.delete(id)
@@ -5726,7 +5756,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (event.response.incomplete_details?.reason === 'max_output_tokens')
           this.outcomeStopReason = 'budget'
         this.deps.log.warn(
-          `Model API response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
+          `Model API response ${wireWordForLog(event.response.id)} incomplete: ${incompleteReasonForLog(event.response.incomplete_details?.reason)}`,
         )
         return event.response
       }
@@ -13930,6 +13960,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.deps.prepareAudioMessage !== undefined
       ) {
         const revision = this.modelRevision
+        const assertCurrent = () => {
+          if (revision !== this.modelRevision) throw new AbortedError()
+        }
+        // The first transcription can spend before the chat request seeds
+        // this conversation's journal. Seed its owned budget before that use.
+        if (parts.some((part) => part.type === 'media') && this.isMediaCapped())
+          await this.refreshBudgetSpend()
         const prepared = await this.deps.prepareAudioMessage({
           sessionId: this.sessionId,
           turnId: turn.turnId,
@@ -13938,12 +13975,10 @@ export class ModelApiSession implements ScheduledAgentSession {
           signal: turn.abort.signal,
           // A model change during consent or conversion refuses before the
           // transcription spends, not after (RVMEDIAV 4).
-          assertCurrent: () => {
-            if (revision !== this.modelRevision) throw new AbortedError()
-          },
+          assertCurrent,
         })
         turn.abort.signal.throwIfAborted()
-        if (revision !== this.modelRevision) throw new AbortedError()
+        assertCurrent()
         if (prepared !== undefined) {
           prepared.assertCurrent()
           const acceptedBytes =
@@ -13954,7 +13989,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           turn.audioMessage = {
             ...prepared,
             assertCurrent: () => {
-              if (revision !== this.modelRevision) throw new AbortedError()
+              assertCurrent()
               prepared.assertCurrent()
             },
           }
@@ -14082,10 +14117,13 @@ export class ModelApiSession implements ScheduledAgentSession {
             errorKind = CHATGPT_PLAN_LIMIT_ERROR_KIND
           else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
+        // Fixed words and a reason code only: the user-facing reason can
+        // carry an attachment's file name (RVM105 4), which never reaches a
+        // log. The detailed sentence still reaches the user with the turn.
         this.deps.log.warn(
           error instanceof HookStoppedError
             ? `Model API turn ${turn.turnId} stopped by a hook`
-            : `Model API turn ${turn.turnId} failed: ${reason}`,
+            : `Model API turn ${turn.turnId} failed: ${errorKind}`,
         )
         if (turn.modelFailure !== undefined && !(error instanceof ChildTaskRefusedError)) {
           const lastAssistantMessage = this.transcript.findLast(
@@ -14238,7 +14276,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       case 'response.incomplete': {
         this.noteUsage(event.response.usage, chargedGoalId, 'incomplete', event.response.model)
         this.deps.log.warn(
-          `Model API compaction response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
+          `Model API compaction response ${wireWordForLog(event.response.id)} incomplete: ${incompleteReasonForLog(event.response.incomplete_details?.reason)}`,
         )
         throw new ModelApiError('response.incomplete', 0, undefined, 'response_incomplete')
       }
@@ -17112,7 +17150,9 @@ export class ModelApiHost implements AgentHost {
           this.stored.set(sessionId, pending.header)
         }
       } catch (error: unknown) {
-        this.deps.log.warn(`Session ${sessionId} was not saved: ${describe(error)}`)
+        // Fixed words only: a save can fail on an upload-ownership refusal
+        // that names the attachment (RVM105 4). The waiter keeps the detail.
+        this.deps.log.warn(`Session ${sessionId} was not saved: save_failed`)
         this.settleSaveWaiters(state, coveredThrough, error)
         continue
       }

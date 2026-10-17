@@ -894,6 +894,12 @@
     "uploadsUsage": "Uso: /uploads [delete <file> | delete-all]",
     "uploadNotFound": "O arquivo enviado {id} não está na lista.",
     "uploadForeignKept": "{name} foi mantido: outro aplicativo ainda pode usá-lo.",
+    "uploadDeleteProviderRefused": "o provedor recusou a exclusão",
+    "uploadDeleteBacklog": {
+      "one": "{count} arquivo enviado não pôde ser excluído de {provider}. A exclusão será repetida.",
+      "other": "{count} arquivos enviados não puderam ser excluídos de {provider}. A exclusão será repetida.",
+      "many": "{count} arquivos enviados não puderam ser excluídos de {provider}. A exclusão será repetida."
+    },
     "conversionFailed": "Falha na conversão: {reason}",
     "replayMetadata": "Mídia: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Mídia: {name} ({size})"

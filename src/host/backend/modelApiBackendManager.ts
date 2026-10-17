@@ -115,6 +115,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly reservePaidExtra?: ModelApiHostDeps['reservePaidExtra']
   /** The machine-scoped converter path, read per use (lane V seam 3B). */
   readonly mediaConverterPath?: ModelApiHostDeps['mediaConverterPath']
+  readonly mediaAudioAction?: ModelApiHostDeps['mediaAudioAction']
   /** Windows: the converter's job launcher (lanes V and VB). */
   readonly mediaJobExecutable?: ModelApiHostDeps['mediaJobExecutable']
   /** The host's private media root (lane VB). */
@@ -383,6 +384,9 @@ export class ModelApiBackendManager {
         }),
         ...(this.deps.mediaConverterPath !== undefined && {
           mediaConverterPath: this.deps.mediaConverterPath,
+        }),
+        ...(this.deps.mediaAudioAction !== undefined && {
+          mediaAudioAction: this.deps.mediaAudioAction,
         }),
         ...(this.deps.mediaJobExecutable !== undefined && {
           mediaJobExecutable: this.deps.mediaJobExecutable,

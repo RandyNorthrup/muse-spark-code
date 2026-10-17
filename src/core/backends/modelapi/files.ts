@@ -61,6 +61,21 @@ export function uploadExpirySeconds(days: unknown): number {
       )
 }
 
+/**
+ * A provider receipt the cleanup DELETE could not remove (RVM105 1): the
+ * upload failed after the provider answered with this id, and the bounded
+ * clean-up route was closed or failed too. The owner records it durably as
+ * a clean-up intent; the ledger's next sweep deletes it. The cause is the
+ * original upload failure the caller sees.
+ */
+export class UploadCleanupPendingError extends Error {
+  public readonly fileId: string
+  public constructor(fileId: string, options?: ErrorOptions) {
+    super('Upload cleanup pending', options)
+    this.fileId = fileId
+  }
+}
+
 /** Open a fresh bounded disk stream each time, after confinement and approval. */
 export interface UploadSource {
   readonly name: string
@@ -96,6 +111,7 @@ export class FilesApi {
     signal: AbortSignal,
     onProgress?: (uploaded: number, total: number) => void,
     expectedSha256?: string,
+    onReceipt?: (fileId: string) => Promise<void>,
   ): Promise<UploadedMediaRef> {
     signal.throwIfAborted()
     const configured =
@@ -185,7 +201,12 @@ export class FilesApi {
       )
       const raw: unknown = await response.json()
       const identity = z.object({ id: fileId }).safeParse(raw)
-      if (identity.success) createdId = identity.data.id
+      if (identity.success) {
+        createdId = identity.data.id
+        // Ownership precedes validation/abort cleanup, which can outlast
+        // headless shutdown. An interrupted DELETE must leave a durable id.
+        await onReceipt?.(createdId)
+      }
       const created = fileSchema.parse(raw)
       active.throwIfAborted()
       if (
@@ -197,6 +218,9 @@ export class FilesApi {
       ) {
         throw new Error('Invalid upload receipt')
       }
+      // The final stream-close await stays inside the receipt cleanup guard.
+      await iterator.return()
+      active.throwIfAborted()
       return uploadedMediaRefSchema.parse({
         fileId: created.id,
         provider: this.deps.provider,
@@ -208,10 +232,24 @@ export class FilesApi {
       })
     } catch (error: unknown) {
       // A known receipt is attributable; a lost receipt is bounded by expiry.
-      if (createdId !== undefined) await this.delete(createdId)
+      if (createdId !== undefined) {
+        try {
+          await this.delete(createdId)
+        } catch {
+          // The clean-up DELETE runs on a detached deadline so caller
+          // cancellation does not close it, but a closed transport or a
+          // failed request still can: the id travels with the failure so
+          // the ledger records it durably instead of losing it (RVM105 1).
+          throw new UploadCleanupPendingError(createdId, { cause: error })
+        }
+      }
       throw error
     } finally {
-      await iterator.return()
+      try {
+        await iterator.return()
+      } catch {
+        /* The guarded close above owns receipt cleanup; preserve its failure. */
+      }
     }
   }
 

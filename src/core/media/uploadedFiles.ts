@@ -12,7 +12,7 @@ import type { UploadLedger } from './uploadLedger'
 /** The ledger surface the uploaded-files port reads and deletes through. */
 export type UploadedFilesLedger = Pick<
   UploadLedger,
-  'accountReport' | 'deleteFile' | 'deleteAllOurs'
+  'accountReport' | 'deleteFile' | 'deleteAllOurs' | 'consumeDeleteNotice'
 >
 
 export interface UploadedFilesPortDeps {
@@ -36,6 +36,8 @@ export interface UploadedFilesPort {
   ): Promise<void>
   deleteAllOurs(signal?: AbortSignal): Promise<void>
   confirmForeign(question: string): Promise<boolean>
+  /** Once-only backlog notice (a count only); absent where the ledger predates it. */
+  deleteNotice?: () => Promise<{ provider: string; count: number } | undefined>
 }
 
 /** One file's expiry in words, shared by every surface listing the ledger. */
@@ -100,6 +102,12 @@ export function createUploadedFilesPort(deps: UploadedFilesPortDeps): UploadedFi
     },
     async confirmForeign(question: string): Promise<boolean> {
       return (await deps.confirmForeign?.(question)) === true
+    },
+    async deleteNotice(): Promise<{ provider: string; count: number } | undefined> {
+      // The current ledger only, never the retained read-only one: the
+      // notice marks rows, so it must not write another account's ledger.
+      const ledger = await deps.ledger()
+      return await ledger?.consumeDeleteNotice()
     },
   }
 }

@@ -17,6 +17,19 @@ export interface FakeUploadedFile {
 
 const CREATED_AT = 2_000_000_000
 
+function fileReceipt(file: FakeUploadedFile) {
+  return {
+    id: file.fileId,
+    object: 'file',
+    bytes: file.bytes,
+    created_at: file.createdAt,
+    expires_at: file.createdAt + file.expirySeconds,
+    filename: file.name,
+    purpose: 'user_data',
+    status: 'processed',
+  }
+}
+
 function notFound(fileId: string): Response {
   return Response.json(
     {
@@ -122,32 +135,14 @@ export function fakeFilesApi(delegate: typeof fetch): FakeFilesApi {
         }
         uploads.push(file)
         files.set(file.fileId, file)
-        return Response.json({
-          id: file.fileId,
-          object: 'file',
-          bytes: file.bytes,
-          created_at: createdAt,
-          expires_at: createdAt + expirySeconds,
-          filename,
-          purpose: 'user_data',
-          status: 'processed',
-        })
+        return Response.json(fileReceipt(file))
       }
       const id = /^\/files\/(file-[A-Za-z0-9_-]+)$/u.exec(path)?.[1]
       if (id === undefined) {
         if (method === 'GET' && path === '/files')
           return Response.json({
             object: 'list',
-            data: Array.from(files.values(), (file) => ({
-              id: file.fileId,
-              object: 'file',
-              bytes: file.bytes,
-              created_at: file.createdAt,
-              expires_at: file.createdAt + file.expirySeconds,
-              filename: file.name,
-              purpose: 'user_data',
-              status: 'processed',
-            })),
+            data: Array.from(files.values(), fileReceipt),
             has_more: false,
           })
         return Response.json({ error: { message: 'unknown files route' } }, { status: 404 })
@@ -155,17 +150,7 @@ export function fakeFilesApi(delegate: typeof fetch): FakeFilesApi {
       if (method === 'GET') {
         retrieves.push(id)
         const file = files.get(id)
-        if (file === undefined) return notFound(id)
-        return Response.json({
-          id: file.fileId,
-          object: 'file',
-          bytes: file.bytes,
-          created_at: file.createdAt,
-          expires_at: file.createdAt + file.expirySeconds,
-          filename: file.name,
-          purpose: 'user_data',
-          status: 'processed',
-        })
+        return file === undefined ? notFound(id) : Response.json(fileReceipt(file))
       }
       if (method === 'DELETE') {
         deletes.push(id)

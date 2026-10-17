@@ -890,6 +890,11 @@
     "uploadsUsage": "Kullanım: /uploads [delete <file> | delete-all]",
     "uploadNotFound": "Yüklenen {id} dosyası listede yok.",
     "uploadForeignKept": "{name} tutuldu: başka bir uygulama hâlâ kullanıyor olabilir.",
+    "uploadDeleteProviderRefused": "sağlayıcı silmeyi reddetti",
+    "uploadDeleteBacklog": {
+      "one": "{count} yüklenen dosya {provider} hizmetinden silinemedi. Silme işlemi yeniden denenecek.",
+      "other": "{count} yüklenen dosya {provider} hizmetinden silinemedi. Silme işlemi yeniden denenecek."
+    },
     "conversionFailed": "Dönüştürme başarısız: {reason}",
     "replayMetadata": "Medya: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Medya: {name} ({size})"

@@ -4,6 +4,7 @@
 // which every Model API session of the runtime resolves through.
 import { AttachedMedia } from '../core/media/attachedMedia'
 
+export { forwardExecFile } from './exec/filesTransport'
 export { runtimeMediaPort } from '../acp/mediaPort'
 export { setUiText } from '../shared/l10n/text'
 

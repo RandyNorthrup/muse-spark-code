@@ -10,20 +10,25 @@ import {
   dialogFiltersOption,
   mediaLimitsFromSettings,
   projectMediaCapabilities,
+  type MediaHostSettings,
 } from '../../src/host/media/mediaProviders'
 import { videoFixture, wavFixture } from './helpers/media/fixtures'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 
 /** The attach limits a host's settings supply. */
-function settings() {
-  return { mediaMaxUploadMiB: 25, screenRecordingMaxSeconds: 120 }
+function settings(): MediaHostSettings {
+  return { mediaMaxUploadMiB: 25, screenRecordingMaxSeconds: 120, mediaAudioAction: 'transcribe' }
 }
 
 describe('M105 W host media providers', () => {
   it('reads upload and recording limits from settings', () => {
     expect(
-      mediaLimitsFromSettings({ mediaMaxUploadMiB: 25, screenRecordingMaxSeconds: 120 }),
+      mediaLimitsFromSettings({
+        mediaMaxUploadMiB: 25,
+        screenRecordingMaxSeconds: 120,
+        mediaAudioAction: 'transcribe',
+      }),
     ).toEqual({ maxUploadBytes: 25 * 1024 * 1024, maxDurationSeconds: 120 })
   })
 
@@ -74,7 +79,11 @@ describe('M105 W host media providers', () => {
     )
     const attached = new AttachedMedia()
     const deps = createMediaAttachDeps(
-      () => ({ mediaMaxUploadMiB: 25, screenRecordingMaxSeconds: 120 }),
+      () => ({
+        mediaMaxUploadMiB: 25,
+        screenRecordingMaxSeconds: 120,
+        mediaAudioAction: 'transcribe',
+      }),
       open,
       { attached },
     )
@@ -181,7 +190,11 @@ describe('M105 W host media providers', () => {
     })
     const port = createMediaAttachments({
       ...createMediaAttachDeps(
-        () => ({ mediaMaxUploadMiB: 25, screenRecordingMaxSeconds: 120 }),
+        () => ({
+          mediaMaxUploadMiB: 25,
+          screenRecordingMaxSeconds: 120,
+          mediaAudioAction: 'transcribe',
+        }),
         open,
         { attached: new AttachedMedia() },
       ),

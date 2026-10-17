@@ -1,5 +1,37 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PORTM105 review round 3 (2026-10-11, MacBook).** Fix all four RVPORTM105
+findings and their sibling paths: cancelled uploads must be deleted or durably
+queued for cleanup; audio-action changes during preparation refuse before ASR;
+the exec attachment fixture must exercise real Files delivery; attachment names
+and content stay out of logs while detailed refusals remain visible to users.
+Continue the four existing fix commits, audit every post-receipt await across
+VS Code/ACP/exec, and certify failing regressions with byte-exact red drills in
+`docs/certification/m105-port.md`. Run complete owning/dependent suites in
+sequential batches of three at repository deadlines, all five typechecks,
+unchanged zero-clone duplication and production budgets. No browser/loopback
+suites here, aggregate quality, new dependency, merge, push or paid/live call.
+Visibility and device/vendor qualification holds remain lead-owned.
+
+**PORTM105 round 2 (2026-10-11, macmini).** Remove all 29 inherited
+duplication clones through shared helpers without changing behavior; the
+section 7 duplication deferral is withdrawn. Then prove existing-file video
+and audio attachment delivery through production VS Code, ACP and exec
+composition, including distinct transcribe/sendAudio routing, admission and
+exact reservation/settlement. Repair any missing binding, with failing
+regressions and byte-exact red drills. Keep every visibility hold and recorder
+unchanged; inventory switches and precise missing vendor/platform receipts in
+`docs/certification/m105-port.md`, round 2. No new dependency, raised cap,
+merge, push, paid/live call, browser or GUI. Scoped rig gates only; aggregate
+quality remains lead-owned under the explicit common rules.
+Production composition also covers the first-turn session-journal seed before
+paid transcription on a capped conversation; bind the existing host budget
+initialization if that path lacks it.
+Bind U6's exact Files routes to headless egress for existing-video delivery,
+with bounded multipart streams and the existing origin, redirect and lifetime
+fences. U6c's selected not-billed storage policy applies; transcription stays
+unavailable in exec.
+
 **PORTM105 release-base port (2026-10-11, MacBook).** Merge accepted
 M105 V/VB/redesign tip `eda2fdfe6` with release base
 `35d7b6f54280e6b6235ae4b90e079b865c3e4ff4`, keeping both features and
@@ -11832,11 +11864,15 @@ The owner's standing rulings apply:
      names each file's expiry.
 
 3. **History keeps ids and metadata, never bytes.** Session files, rewind,
-   fork, export and share (M84), the problem report (M93), the usage journal
-   (M102) and the logs hold only the file id, SHA-256, name, mime type, size,
-   duration, soundtrack flag, dimensions, expiry and provider. Exports and
-   shares carry the metadata line and no file id. Inline parts keep D47's
-   after-first-delivery replacement.
+   fork, export and share (M84), the problem report (M93) and the usage journal
+   (M102) hold only the file id, SHA-256, name, mime type, size,
+   duration, soundtrack flag, dimensions, expiry and provider. The logs hold
+   none of that: every log line uses fixed words (a provider reason maps to
+   one of the known kinds, anything else is `other`; a response id reaches
+   the log only in word shape, anything else as a fixed phrase, through
+   `wireWordForLog`), so a file id or an attachment name reaches a log only
+   if it is already word-shaped. Exports and shares carry the metadata line
+   and no file id. Inline parts keep D47's after-first-delivery replacement.
 
 4. **Sniff the bytes, never trust the name.** Ours, with no dependency and
    no frame decoding, bounded by `MEDIA_SNIFF_MAX_BYTES` from the head and a
@@ -38441,17 +38477,6 @@ lane A's first step.
 
 ## 7. Gates
 
-**PORTM105 inherited duplication deferral (2026-10-11, MacBook).** All
-assigned type/lint/format/media/localization/reference/roadmap/plan/knip/build
-gates pass. The extra full-tree jscpd exits 1 at its unchanged zero threshold:
-29 clones. Fresh read-only source archives reproduce 27 on accepted
-`eda2fdfe6` and two on release `35d7b6f54`; 29 equals their combined count.
-Cleaning up the accepted multi-suite media fixtures and the unrelated base
-host/loop fixtures exceeds this bounded release-base port's semantic scope.
-The lead owns that integration cleanup before aggregate quality; no threshold,
-ignore or test is weakened. Exact comparison and failing output tail:
-`docs/certification/m105-port.md`. Temporary source archives were removed.
-
 **PORTM105 gate boundary (2026-10-11, MacBook).** The authorized rig brief
 and common rules prohibit aggregate quality/full tests and all browser, GUI,
 microphone and capture launches. Run all five typecheck projects, scoped
@@ -45657,9 +45682,11 @@ FIXM107DK4 qualification below supersedes that earlier claim.
     conversion refuses on macOS.
   - `exec` has no Muse Voice: its run ledger does not admit transcription
     spend.
-  - Embedded ACP audio cannot be transcribed, because there is no file to
-    convert.
-  - `mediaAudioAction` is not read yet.
+  - (Closed PORTM105R2.) Embedded contract WAV is transcribed from the
+    runtime registry, without needing a filesystem path; composition proved
+    the session/prompt route. Other embedded formats still need conversion.
+  - (Closed PORTM105R2.) `mediaAudioAction` is bound at VS Code attach and
+    production preparation; an unsupported explicit action refuses.
   - Attach-chip UI for the sound choices (Use 1.2, Send without sound) is
     still not wired: the router's default applies, and declining
     transcription sends a video without its sound.

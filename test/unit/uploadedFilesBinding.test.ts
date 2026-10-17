@@ -10,12 +10,16 @@ import { type FakeUploadedFilesLedger, uploadedFilesReportFixture } from './help
 const report = uploadedFilesReportFixture()
 
 function setup(options?: { missingAccount?: boolean }) {
-  const ledger: Pick<FakeUploadedFilesLedger, 'accountReport' | 'deleteFile' | 'deleteAllOurs'> = {
+  const ledger: Pick<
+    FakeUploadedFilesLedger,
+    'accountReport' | 'deleteFile' | 'deleteAllOurs' | 'consumeDeleteNotice'
+  > = {
     accountReport: vi.fn(() => Promise.resolve(report)),
     deleteFile: vi.fn((_id: string, _isConfirmed: (name: string) => Promise<boolean>) =>
       Promise.resolve(),
     ),
     deleteAllOurs: vi.fn(() => Promise.resolve()),
+    consumeDeleteNotice: vi.fn(() => Promise.resolve(undefined)),
   }
   const uploads = vi.fn(() => Promise.resolve(ledger))
   const post = vi.fn()
@@ -237,19 +241,22 @@ describe('uploaded-files host binding', () => {
     const accountA = 'a'.repeat(64)
     const accountB = 'b'.repeat(64)
     let resolutions = 0
-    const ledger: Pick<FakeUploadedFilesLedger, 'accountReport' | 'deleteFile' | 'deleteAllOurs'> =
-      {
-        accountReport: vi.fn(
-          () =>
-            new Promise<typeof report>((resolve) => {
-              setTimeout(() => {
-                resolve(report)
-              }, 20)
-            }),
-        ),
-        deleteFile: vi.fn(() => Promise.resolve()),
-        deleteAllOurs: vi.fn(() => Promise.resolve()),
-      }
+    const ledger: Pick<
+      FakeUploadedFilesLedger,
+      'accountReport' | 'deleteFile' | 'deleteAllOurs' | 'consumeDeleteNotice'
+    > = {
+      accountReport: vi.fn(
+        () =>
+          new Promise<typeof report>((resolve) => {
+            setTimeout(() => {
+              resolve(report)
+            }, 20)
+          }),
+      ),
+      deleteFile: vi.fn(() => Promise.resolve()),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      consumeDeleteNotice: vi.fn(() => Promise.resolve(undefined)),
+    }
     const binding = createUploadedFilesBinding({
       uploads: vi.fn(() => Promise.resolve(ledger)),
       getAccountId: () => {
@@ -266,12 +273,15 @@ describe('uploaded-files host binding', () => {
   it('recovers the last account ledger once the key is gone', async () => {
     // Finding 6: the opener serves the persisted last account when no key
     // backs the ledger, instead of reading empty.
-    const ledger: Pick<FakeUploadedFilesLedger, 'accountReport' | 'deleteFile' | 'deleteAllOurs'> =
-      {
-        accountReport: vi.fn(() => Promise.resolve({ ...report, isReadOnly: true })),
-        deleteFile: vi.fn(() => Promise.resolve()),
-        deleteAllOurs: vi.fn(() => Promise.resolve()),
-      }
+    const ledger: Pick<
+      FakeUploadedFilesLedger,
+      'accountReport' | 'deleteFile' | 'deleteAllOurs' | 'consumeDeleteNotice'
+    > = {
+      accountReport: vi.fn(() => Promise.resolve({ ...report, isReadOnly: true })),
+      deleteFile: vi.fn(() => Promise.resolve()),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      consumeDeleteNotice: vi.fn(() => Promise.resolve(undefined)),
+    }
     const uploads = vi.fn(() => Promise.resolve(ledger))
     const openLastUploads = vi.fn(() => Promise.resolve(ledger))
     const binding = createUploadedFilesBinding({

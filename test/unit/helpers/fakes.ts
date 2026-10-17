@@ -116,6 +116,12 @@ export class FakeLogOutputChannel implements vscode.LogOutputChannel {
   public readonly show = vi.fn()
   public readonly hide = vi.fn()
   public readonly dispose = vi.fn()
+
+  public lines(): string[] {
+    return [this.trace, this.debug, this.info, this.warn, this.error].flatMap((method) =>
+      method.mock.calls.map((call) => JSON.stringify(call)),
+    )
+  }
 }
 
 /** A `SettingsSource` backed by a plain object (absent keys read as undefined). */

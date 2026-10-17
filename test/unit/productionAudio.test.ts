@@ -84,6 +84,7 @@ function partFor(source: AudioSource): TurnPart {
 function audio(options: {
   readonly sources: readonly AudioSource[]
   readonly converterPath?: string
+  readonly audioAction?: 'transcribe' | 'sendAudio'
   readonly located?: { readonly ok: false; readonly reason: string }
 }) {
   const postTranscription = vi.fn(() => Promise.reject(new Error('must not post')))
@@ -104,6 +105,9 @@ function audio(options: {
     },
     postTranscription,
     converterPath: () => options.converterPath,
+    ...(options.audioAction !== undefined && {
+      audioAction: () => options.audioAction ?? 'transcribe',
+    }),
     locateConverter,
     ...voiceSeamDeps(),
   })
@@ -131,6 +135,14 @@ describe('production audio binding (M105 lane V seam 3B)', () => {
   it('says why standalone audio cannot be transcribed when no converter is found', async () => {
     const t = audio({ sources: [mp3] })
     await expect(t.run([partFor(mp3)])).rejects.toThrow(UI_TEXT.media.converterUnavailable)
+    expect(t.postTranscription).not.toHaveBeenCalled()
+  })
+
+  it('sendAudio refuses unsupported MP3 audio instead of a transcription converter error', async () => {
+    const t = audio({ sources: [mp3], audioAction: 'sendAudio' })
+    await expect(t.run([partFor(mp3)])).rejects.toThrow(
+      fill(UI_TEXT.media.audioUnsupported, { model: 'muse-spark-1.3-contributor' }),
+    )
     expect(t.postTranscription).not.toHaveBeenCalled()
   })
 
@@ -184,6 +196,8 @@ function probe(options: {
   readonly allowsPaidUse?: () => Promise<boolean>
   readonly assertCurrent?: () => void
   readonly isDailyOpen?: () => boolean
+  readonly audioAction?: () => 'transcribe' | 'sendAudio'
+  readonly onAwait?: (stage: string) => void
 }) {
   const file = path.join(mkdtempSync(path.join(root, 'attached-')), 'clip.wav')
   const attachedBytes = contractWav(2)
@@ -203,18 +217,24 @@ function probe(options: {
     },
     reopeningSource(async () => {
       const handle = await open(file, 'r')
+      options.onAwait?.('source-open')
       const { size } = await handle.stat()
+      options.onAwait?.('source-stat')
       return {
         source: {
           sizeBytes: size,
           read: async (offset, length) => {
             const chunk = Buffer.alloc(length)
             const { bytesRead } = await handle.read(chunk, 0, length, offset)
+            options.onAwait?.('source-read')
             return new Uint8Array(chunk.subarray(0, bytesRead))
           },
         },
         path: file,
-        close: () => handle.close(),
+        close: async () => {
+          await handle.close()
+          options.onAwait?.('source-close')
+        },
       }
     }),
   )
@@ -235,6 +255,7 @@ function probe(options: {
       isPaidFeatureOn: options.isVoiceOn ?? (() => true),
       allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
       reservePaidExtra: (amount) => {
+        options.onAwait?.('daily-reservation')
         reserved.push(amount)
         return Promise.resolve({
           reservedUsd: amount,
@@ -251,9 +272,16 @@ function probe(options: {
     attached: registry,
     postTranscription: (post) =>
       client.requestTranscription(post.route, post.signal, post, undefined, post.dispatch),
+    ...(options.audioAction !== undefined && { audioAction: options.audioAction }),
+    conversionOptions: () => {
+      options.onAwait?.('conversion-options')
+      return Promise.resolve({})
+    },
     converterPath: () => undefined,
-    locateConverter: () =>
-      Promise.resolve({ ok: false as const, reason: UI_TEXT.media.converterUnavailable }),
+    locateConverter: () => {
+      options.onAwait?.('converter-discovery')
+      return Promise.resolve({ ok: false as const, reason: UI_TEXT.media.converterUnavailable })
+    },
   })
   return {
     file,
@@ -274,6 +302,34 @@ function probe(options: {
 }
 
 describe('RVMEDIAV probes over the real registry, production audio and Meta client', () => {
+  it.each([
+    'conversion-options',
+    'converter-discovery',
+    'daily-reservation',
+    'source-open',
+    'source-stat',
+    'source-read',
+    'source-close',
+  ])('refuses an audio-action change during %s before dispatch', async (stage) => {
+    let action: 'transcribe' | 'sendAudio' = 'transcribe'
+    let hasReached = false
+    const t = probe({
+      audioAction: () => action,
+      onAwait: (current) => {
+        if (current !== stage) return
+        hasReached = true
+        action = 'sendAudio'
+      },
+    })
+    await expect(t.run()).rejects.toThrow(
+      fill(UI_TEXT.media.audioUnsupported, { model: 'muse-spark-1.3-contributor' }),
+    )
+    expect(hasReached).toBe(true)
+    expect(t.fetches).not.toHaveBeenCalled()
+    expect(t.notePaidUse).not.toHaveBeenCalled()
+    expect(t.settled).toEqual(t.reserved.length > 0 ? ['0'] : [])
+  })
+
   it('transcribes the attached bytes, reserved and settled on their duration', async () => {
     const t = probe({})
     t.fetches.mockResolvedValueOnce(
@@ -331,6 +387,38 @@ describe('RVMEDIAV probes over the real registry, production audio and Meta clie
     await expect(t.run()).rejects.toThrow(UI_TEXT.museVoiceRefused)
     expect(t.reserved).toEqual([])
     expect(t.fetches).not.toHaveBeenCalled()
+  })
+
+  it('refuses a sendAudio change during consent with its reason, before reserving (RVM105 2)', async () => {
+    const action = { value: 'transcribe' as 'transcribe' | 'sendAudio' }
+    const t = probe({
+      audioAction: () => action.value,
+      allowsPaidUse: () => {
+        action.value = 'sendAudio'
+        return Promise.resolve(true)
+      },
+    })
+    await expect(t.run()).rejects.toThrow(
+      fill(UI_TEXT.media.audioUnsupported, { model: 'muse-spark-1.3-contributor' }),
+    )
+    expect(t.reserved).toEqual([])
+    expect(t.fetches).not.toHaveBeenCalled()
+    expect(t.notePaidUse).not.toHaveBeenCalled()
+  })
+
+  it('refuses a sendAudio change during the key read with its reason, sending nothing (RVM105 2)', async () => {
+    const action = { value: 'transcribe' as 'transcribe' | 'sendAudio' }
+    const t = probe({
+      audioAction: () => action.value,
+      apiKey: () => {
+        action.value = 'sendAudio'
+        return Promise.resolve('fixture-transcription-key')
+      },
+    })
+    await expect(t.run()).rejects.toThrow(
+      fill(UI_TEXT.media.audioUnsupported, { model: 'muse-spark-1.3-contributor' }),
+    )
+    expectNothingSpent(t)
   })
 
   it('refunds a known local non-send and counts no usage: no key stored (finding 3)', async () => {

@@ -206,7 +206,11 @@ export const DEFERRED = [
     // attached-media registry, loaded on the first media prompt.
     output: 'dist/runtimeMedia.js',
     metafile: 'dist/meta/runtimeMedia.json',
-    files: ['src/runtime/runtimeMediaEntry.ts', 'src/acp/mediaPort.ts'],
+    files: [
+      'src/runtime/runtimeMediaEntry.ts',
+      'src/acp/mediaPort.ts',
+      'src/runtime/exec/filesTransport.ts',
+    ],
   },
   {
     output: 'dist/modelApiMcp.js',

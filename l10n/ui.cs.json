@@ -898,6 +898,13 @@
     "uploadsUsage": "Použití: /uploads [delete <file> | delete-all]",
     "uploadNotFound": "Nahraný soubor {id} není v seznamu.",
     "uploadForeignKept": "Soubor {name} byl ponechán: jiná aplikace jej možná stále používá.",
+    "uploadDeleteProviderRefused": "poskytovatel odmítl smazání",
+    "uploadDeleteBacklog": {
+      "one": "{count} nahraný soubor se nepodařilo smazat z {provider}. Smazání se zopakuje.",
+      "other": "{count} nahraných souborů se nepodařilo smazat z {provider}. Smazání se zopakuje.",
+      "few": "{count} nahrané soubory se nepodařilo smazat z {provider}. Smazání se zopakuje.",
+      "many": "{count} nahraného souboru se nepodařilo smazat z {provider}. Smazání se zopakuje."
+    },
     "conversionFailed": "Převod selhal: {reason}",
     "replayMetadata": "Média: {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Média: {name} ({size})"

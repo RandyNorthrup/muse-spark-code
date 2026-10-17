@@ -12,6 +12,7 @@ import {
   EXEC_RESPONSE_MAX_BYTES,
   EXEC_SSE_FRAME_MAX_BYTES,
   MODEL_API_BASE_URL,
+  MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_IMAGE_MODEL,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
@@ -84,6 +85,19 @@ export function execFetch(input: {
     if (reason !== 'closed') input.onLatch({ kind: reason })
     throw new Error(message)
   }
+  const forward = async (url: string, init?: RequestInit) => {
+    if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
+    return await input.lifecycle.race(
+      input.fetch(url, {
+        ...init,
+        redirect: 'error',
+        signal: AbortSignal.any([
+          input.lifecycle.signal,
+          ...(init?.signal == null ? [] : [init.signal]),
+        ]),
+      }),
+    )
+  }
   const transport: typeof fetch = async (url, init) => {
     if (typeof url !== 'string') return refuse('request_shape')
     let parsed: URL
@@ -99,22 +113,40 @@ export function execFetch(input: {
       parsed.username !== '' ||
       parsed.password !== '' ||
       parsed.hash !== '' ||
-      parsed.search !== ''
+      (parsed.search !== '' && parsed.pathname !== EXEC_ENDPOINTS.files)
     )
       return refuse('request_shape')
     const method = init?.method ?? 'GET'
-    if (method === 'GET' && parsed.pathname === EXEC_ENDPOINTS.models) {
-      if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
-      return await input.lifecycle.race(
-        input.fetch(url, {
+    if (method === 'GET' && parsed.pathname === EXEC_ENDPOINTS.models)
+      return await forward(url, init)
+    if (
+      parsed.pathname === EXEC_ENDPOINTS.files ||
+      /^\/v1\/files\/file-[A-Za-z0-9_-]+$/u.test(parsed.pathname)
+    ) {
+      // An upload that reached the provider is never orphaned (RVM105 1):
+      // when cancellation arrives after the provider answered with a file
+      // id, the owner's clean-up DELETE still goes, once, on its own short
+      // deadline to the bound provider origin only. Cancellation and close
+      // shut every other Files route, and the clean-up never enters the
+      // lazily loaded media owner.
+      const isCleanupDelete =
+        method === 'DELETE' &&
+        init?.body == null &&
+        /^\/v1\/files\/file-[A-Za-z0-9_-]+$/u.test(parsed.pathname)
+      if (isCleanupDelete) {
+        return await input.fetch(url, {
           ...init,
           redirect: 'error',
-          signal: AbortSignal.any([
-            input.lifecycle.signal,
-            ...(init?.signal == null ? [] : [init.signal]),
-          ]),
-        }),
-      )
+          signal: AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+        })
+      }
+      if (isClosed || input.lifecycle.signal.aborted) return refuse('closed')
+      const media = await import('../runtimeMediaEntry.js')
+      return await media.forwardExecFile(parsed, init, {
+        forward,
+        refuse: () => refuse('request_shape'),
+        signal: input.lifecycle.signal,
+      })
     }
     const isResponse = parsed.pathname === EXEC_ENDPOINTS.responses
     const endpoint =

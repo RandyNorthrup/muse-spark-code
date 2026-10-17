@@ -4,19 +4,30 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { execFetch } from '../../src/runtime/exec/execFetch'
+import { FilesApi } from '../../src/core/backends/modelapi/files'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import * as runtimeMedia from '../../src/runtime/runtimeMediaEntry'
 import { createRunLedger } from '../../src/runtime/exec/runLedger'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import type { AgentEvent } from '../../src/shared/agentEvents'
-import { MODEL_API_BASE_URL, SECRET_KEYS } from '../../src/shared/constants'
+import {
+  MODEL_API_BASE_URL,
+  SECRET_KEYS,
+  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
+  BYTES_PER_MIB,
+} from '../../src/shared/constants'
 import type { ExecEventBody, LastResponse } from '../../src/runtime/exec/execProtocol'
 import {
   fakeModelApi,
+  fakeModelApiClientSettings,
   FAKE_MODEL_API_KEY,
   streamFor,
   type ScriptedReply,
 } from './helpers/fakeModelApi'
-import { memorySecrets } from './helpers/fakes'
+import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
+import { fakeFilesApi } from './helpers/fakeFiles'
+import { mediaByteSource } from './helpers/media/replay'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -115,6 +126,46 @@ async function checkOversize(h: ReturnType<typeof harness>): Promise<void> {
 }
 
 describe('M80 streaming transport boundary', () => {
+  it('deletes a real Files receipt when caller and exec cancel after parsing it', async () => {
+    const provider = fakeFilesApi(fakeModelApi().fetch)
+    const caller = new AbortController()
+    const h = harness(1, async (url, init) => {
+      const response = await provider.fetch(url, init)
+      if (init?.method === 'POST') {
+        const json = response.json.bind(response)
+        vi.spyOn(response, 'json').mockImplementation(async () => {
+          const receipt: unknown = await json()
+          caller.abort(new Error('cancelled after receipt'))
+          h.life.latch({ kind: 'timeout' })
+          return receipt
+        })
+      }
+      return response
+    })
+    try {
+      const files = new FilesApi({
+        provider: 'meta',
+        authorizeUpload: () => Promise.resolve(),
+        client: new ModelApiClient({
+          ...fakeModelApiClientSettings(new FakeLogOutputChannel()),
+          baseUrl: MODEL_API_BASE_URL,
+          fetch: h.transport.fetch,
+        }),
+      })
+      await expect(
+        files.upload(
+          mediaByteSource('clip.mp4', 'video/mp4', new Uint8Array([1, 2])),
+          caller.signal,
+        ),
+      ).rejects.toThrow('cancelled after receipt')
+      expect(provider.uploads).toHaveLength(1)
+      expect(provider.deletes).toEqual([provider.uploads[0]?.fileId])
+      expect(provider.files.size).toBe(0)
+    } finally {
+      h.close()
+    }
+  })
+
   it('names the minimum for a headless request cap below sixteen without dispatch or reservation', async () => {
     for (const cap of [0, 1, 15]) {
       const h = harness()
@@ -193,6 +244,226 @@ describe('M80 streaming transport boundary', () => {
     try {
       await expect(h.transport.fetch(url, post)).rejects.toThrow()
       expect(h.forwarded).not.toHaveBeenCalled()
+      expect(h.ledger.totals().requests).toBe(0)
+    } finally {
+      h.close()
+    }
+  })
+  it.each([
+    { path: '/files?unexpected=1', method: 'GET' },
+    { path: '/files?after=file-ok&after=file-other', method: 'GET' },
+    { path: '/files?after=../private', method: 'GET' },
+    { path: '/files/file-ok/other', method: 'GET' },
+    { path: '/files/file-ok?after=file-other', method: 'GET' },
+    { path: '/files', method: 'DELETE' },
+    { path: '/files/file-ok', method: 'POST' },
+    { path: '/files', method: 'PATCH' },
+  ])(
+    'M105 Files refuses unexpected route or verb $path $method',
+    async ({ path: route, method }) => {
+      const h = harness()
+      try {
+        await expect(h.transport.fetch(MODEL_API_BASE_URL + route, { method })).rejects.toThrow()
+        expect(h.forwarded).not.toHaveBeenCalled()
+      } finally {
+        h.close()
+      }
+    },
+  )
+  it.each(['/files', '/files?after=file-next', '/files/file-owned'])(
+    'M105 admits captured Files metadata %s with redirect and lifetime fences',
+    async (route) => {
+      const h = harness(1, () =>
+        Promise.resolve(Response.json({ object: 'list', data: [], has_more: false })),
+      )
+      try {
+        await h.transport.fetch(MODEL_API_BASE_URL + route, { method: 'GET' })
+        expect(h.forwarded).toHaveBeenCalledWith(
+          MODEL_API_BASE_URL + route,
+          expect.objectContaining({ redirect: 'error', signal: expect.any(AbortSignal) }),
+        )
+        expect(h.ledger.totals().requests).toBe(0)
+        h.transport.close()
+        await expect(
+          h.transport.fetch(MODEL_API_BASE_URL + route, { method: 'GET' }),
+        ).rejects.toThrow()
+        expect(h.forwarded).toHaveBeenCalledTimes(1)
+      } finally {
+        h.close()
+      }
+    },
+  )
+  it('M105 closed Files transport refuses before entering its first-use owner', async () => {
+    const firstUse = vi.spyOn(runtimeMedia, 'forwardExecFile')
+    const h = harness()
+    try {
+      h.transport.close()
+      await expect(
+        h.transport.fetch(MODEL_API_BASE_URL + '/files', { method: 'GET' }),
+      ).rejects.toThrow()
+      expect(firstUse).not.toHaveBeenCalled()
+      expect(h.forwarded).not.toHaveBeenCalled()
+    } finally {
+      firstUse.mockRestore()
+      h.close()
+    }
+  })
+  it('RVM105 1 lets a bounded clean-up DELETE through after cancellation closes Files', async () => {
+    const h = harness()
+    try {
+      h.life.latch({ kind: 'timeout' })
+      const cleanup = `${MODEL_API_BASE_URL}/files/file-cleanup-1`
+      const response = await h.transport.fetch(cleanup, { method: 'DELETE', headers })
+      expect(response.status).toBe(200)
+      expect(h.forwarded).toHaveBeenCalledTimes(1)
+      const init = h.forwarded.mock.calls[0]?.[1]
+      expect(init).toMatchObject({ redirect: 'error' })
+      expect(init?.body).toBeUndefined()
+      expect(init?.signal?.aborted).toBe(false)
+      // One attempt only: the clean-up reuses no caller signal and retries nothing.
+      // Every other Files route stays closed after cancellation.
+      await expect(
+        h.transport.fetch(`${MODEL_API_BASE_URL}/files`, { method: 'GET' }),
+      ).rejects.toThrow()
+      await expect(
+        h.transport.fetch(cleanup, {
+          method: 'DELETE',
+          headers,
+          body: new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.close()
+            },
+          }),
+        }),
+      ).rejects.toThrow()
+      await expect(
+        h.transport.fetch(`${MODEL_API_BASE_URL}/files`, { method: 'DELETE' }),
+      ).rejects.toThrow()
+      expect(h.forwarded).toHaveBeenCalledTimes(1)
+    } finally {
+      h.close()
+    }
+  })
+  it('RVM105 1 lets a bounded clean-up DELETE through after the transport closes', async () => {
+    const h = harness()
+    try {
+      h.transport.close()
+      const response = await h.transport.fetch(`${MODEL_API_BASE_URL}/files/file-cleanup-9`, {
+        method: 'DELETE',
+        headers,
+      })
+      expect(response.status).toBe(200)
+      expect(h.forwarded).toHaveBeenCalledTimes(1)
+      await expect(
+        h.transport.fetch(`${MODEL_API_BASE_URL}/files`, { method: 'GET' }),
+      ).rejects.toThrow()
+      expect(h.forwarded).toHaveBeenCalledTimes(1)
+    } finally {
+      h.close()
+    }
+  })
+  it('M105 streamed Files bytes stop when cancellation reaches the dispatched body', async () => {
+    const stop = new AbortController()
+    await expect(
+      runtimeMedia.forwardExecFile(
+        new URL(MODEL_API_BASE_URL + '/files'),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'multipart/form-data; boundary=m105-test' },
+          body: new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new Uint8Array([1]))
+              controller.close()
+            },
+          }),
+        },
+        {
+          signal: stop.signal,
+          refuse: () => {
+            throw new Error('unexpected refusal')
+          },
+          forward: async (_url, init) => {
+            stop.abort(new Error('stopped upload'))
+            return new Response(await new Response(init?.body).arrayBuffer())
+          },
+        },
+      ),
+    ).rejects.toThrow('stopped upload')
+  })
+  it.each(['text/plain', 'multipart/form-data; boundary=bad!', ''])(
+    'M105 refuses streamed Files body with uncaptured content type %s',
+    async (contentType) => {
+      const h = harness()
+      try {
+        await expect(
+          h.transport.fetch(MODEL_API_BASE_URL + '/files', {
+            method: 'POST',
+            body: new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.close()
+              },
+            }),
+            headers: { 'Content-Type': contentType },
+          }),
+        ).rejects.toThrow()
+        expect(h.forwarded).not.toHaveBeenCalled()
+      } finally {
+        h.close()
+      }
+    },
+  )
+  it('M105 refuses non-byte upload chunks before they reach the provider', async () => {
+    const h = harness(1, async (_url, init) => {
+      if (!(init?.body instanceof ReadableStream)) throw new Error('expected stream')
+      for await (const _chunk of init.body) throw new Error('non-byte escaped the boundary')
+      return Response.json({})
+    })
+    try {
+      await expect(
+        h.transport.fetch(MODEL_API_BASE_URL + '/files', {
+          method: 'POST',
+          body: new ReadableStream<string>({
+            start(controller) {
+              controller.enqueue('foreign')
+              controller.close()
+            },
+          }),
+          headers: { 'Content-Type': 'multipart/form-data; boundary=m105-test' },
+        }),
+      ).rejects.toThrow()
+      expect(h.life.cause).toEqual({ kind: 'request_shape' })
+    } finally {
+      h.close()
+    }
+  })
+  it('M105 bounds a multipart upload even when a faulty trusted source keeps streaming', async () => {
+    const h = harness(1, async (_url, init) => {
+      if (!(init?.body instanceof ReadableStream)) throw new Error('expected stream')
+      for await (const chunk of init.body) {
+        expect(chunk).toBeInstanceOf(Uint8Array)
+      }
+      return Response.json({})
+    })
+    const chunk = new Uint8Array(BYTES_PER_MIB)
+    let sent = 0
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (sent > MEDIA_MAX_UPLOAD_DEFAULT_MIB) controller.close()
+        else {
+          sent += 1
+          controller.enqueue(chunk)
+        }
+      },
+    })
+    try {
+      await expect(
+        h.transport.fetch(MODEL_API_BASE_URL + '/files', {
+          method: 'POST',
+          body,
+          headers: { 'Content-Type': 'multipart/form-data; boundary=m105-test' },
+        }),
+      ).rejects.toThrow()
+      expect(h.life.cause).toEqual({ kind: 'request_shape' })
       expect(h.ledger.totals().requests).toBe(0)
     } finally {
       h.close()

@@ -13,6 +13,7 @@ import {
   SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
 } from '../../src/shared/constants'
 import { AttachedMedia } from '../../src/core/media/attachedMedia'
+import { UploadDeleteFailedError } from '../../src/core/media/uploadLedger'
 import { conversationGitFactory } from '../../src/host/git/conversationGitBundle'
 import * as gitEntry from '../../src/host/git/conversationGitEntry'
 import { Usd } from '../../src/shared/usd'
@@ -4840,6 +4841,46 @@ describe('ConversationController: account & usage (M8)', () => {
     port.readStamped.mockClear()
     await t.controller.readUploadedFiles()
     expect(port.readStamped).not.toHaveBeenCalled()
+  })
+
+  it('names the file, not its id, with a fixed reason when the provider refuses a delete', async () => {
+    const port = fakeUploadedFilesLedger(uploadedFilesReportFixture())
+    port.deleteFile.mockRejectedValueOnce(new UploadDeleteFailedError('clip.mp4'))
+    const t = setup({ status: 'signedOut', uploadedFiles: port })
+    await t.controller.deleteUploadedFiles('file-abc123')
+    const notices = t.surface.posted.filter((message) => message.type === 'notice')
+    expect(notices).toContainEqual(
+      expect.objectContaining({
+        level: 'error',
+        text: 'Could not delete clip.mp4: the provider refused the deletion',
+      }),
+    )
+    // Neither the id under deletion nor the provider's id-echoing message
+    // reaches the person.
+    expect(JSON.stringify(notices)).not.toContain('file-abc123')
+  })
+
+  it('tells a repeated provider-delete backlog once, as a count only', async () => {
+    const report = uploadedFilesReportFixture()
+    const port = fakeUploadedFilesLedger(report)
+    let reads = 0
+    port.deleteNotice.mockImplementation(() => {
+      reads += 1
+      return Promise.resolve(reads === 1 ? { provider: 'meta', count: 2 } : undefined)
+    })
+    const t = setup({ status: 'signedOut', uploadedFiles: port })
+    const notices = () => t.surface.posted.filter((message) => message.type === 'notice')
+    await t.controller.readUploadedFiles()
+    expect(notices()).toContainEqual(
+      expect.objectContaining({
+        level: 'warning',
+        text: '2 uploaded files could not be deleted from meta. Deletion will be retried.',
+      }),
+    )
+    // Told once: the next read says nothing more.
+    const said = notices().length
+    await t.controller.readUploadedFiles()
+    expect(notices()).toHaveLength(said)
   })
 
   it('reports a host failure as a notice', async () => {

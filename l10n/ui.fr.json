@@ -894,6 +894,12 @@
     "uploadsUsage": "Utilisation : /uploads [delete <file> | delete-all]",
     "uploadNotFound": "Le fichier téléversé {id} ne figure pas dans la liste.",
     "uploadForeignKept": "{name} a été conservé : une autre application l’utilise peut-être encore.",
+    "uploadDeleteProviderRefused": "le fournisseur a refusé la suppression",
+    "uploadDeleteBacklog": {
+      "one": "{count} fichier téléversé n’a pas pu être supprimé de {provider}. La suppression sera réessayée.",
+      "other": "{count} fichiers téléversés n’ont pas pu être supprimés de {provider}. La suppression sera réessayée.",
+      "many": "{count} fichiers téléversés n’ont pas pu être supprimés de {provider}. La suppression sera réessayée."
+    },
     "conversionFailed": "Échec de la conversion : {reason}",
     "replayMetadata": "Média : {name} ({duration}, {size})",
     "replayMetadataNoDuration": "Média : {name} ({size})"

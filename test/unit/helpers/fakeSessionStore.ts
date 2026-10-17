@@ -186,3 +186,27 @@ export function memorySessionStore(): MemorySessionStore {
   }
   return store
 }
+
+export function emptyStoredSession(
+  sessionId: string,
+  lastActivityAt: string,
+  name?: string,
+): StoredSession {
+  return {
+    version: 1,
+    sessionId,
+    workspaceRoot: '/ws',
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+    effort: 'high',
+    ...(name !== undefined && { name }),
+    createdAt: '2026-09-22T09:00:00.000Z',
+    lastActivityAt,
+    turnIds: [],
+    todos: [],
+    replay: [],
+    transcript: [],
+    outputs: {},
+    usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
+  }
+}

@@ -132,6 +132,7 @@ async function packageTree(): Promise<void> {
       exec: path.join(ROOT, 'src/runtime/exec/execEntry.ts'),
       mcpPool: path.join(ROOT, 'src/core/backends/modelapi/mcpPoolEntry.ts'),
       modelApiCodeIntel: path.join(ROOT, 'src/core/backends/modelapi/codeIntelEntry.ts'),
+      modelApiSessions: path.join(ROOT, 'src/host/backend/fileSessionStoreEntry.ts'),
       structuredSchema: path.join(ROOT, 'src/shared/structuredSchemaEntry.ts'),
       reporting: path.join(ROOT, 'src/runtime/reporting/reportsEntry.ts'),
       reportingNetwork: path.join(ROOT, 'src/runtime/reporting/network.ts'),
