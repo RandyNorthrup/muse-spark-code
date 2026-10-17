@@ -6268,6 +6268,7 @@ export const EN = {
     grantNeedsTerminal:
       'Run this in your own terminal: a grant needs you to type the confirmation.',
     grantInvalid: 'The grant could not be made: {reason}',
+    notConfirmed: 'Nothing was changed.',
     revoked: 'Connection {connection} is revoked.',
     killOn: 'The connector is switched off. New effects are refused; Stop still works.',
     killOff: 'The connector is switched on again.',

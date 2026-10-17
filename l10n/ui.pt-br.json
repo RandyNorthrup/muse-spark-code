@@ -5322,6 +5322,7 @@
     "grantSaved": "Permissão concedida à conexão {connection}. Seus espaços de trabalho: {workspaces}",
     "grantNeedsTerminal": "Execute isto no seu próprio terminal: para conceder uma permissão, você mesmo precisa digitar a confirmação.",
     "grantInvalid": "Não foi possível conceder a permissão: {reason}",
+    "notConfirmed": "Nada foi alterado.",
     "revoked": "A permissão da conexão {connection} foi revogada.",
     "killOn": "O conector está desativado. Novas ações são recusadas; Parar continua funcionando.",
     "killOff": "O conector foi ativado novamente.",

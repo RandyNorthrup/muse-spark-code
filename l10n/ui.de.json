@@ -5171,6 +5171,7 @@
     "grantSaved": "Die Berechtigung für Verbindung {connection} ist erteilt. Ihre Arbeitsbereiche: {workspaces}",
     "grantNeedsTerminal": "Führen Sie dies in Ihrem eigenen Terminal aus: Für eine Berechtigung müssen Sie die Bestätigung selbst eintippen.",
     "grantInvalid": "Die Berechtigung konnte nicht erteilt werden: {reason}",
+    "notConfirmed": "Es wurde nichts geändert.",
     "revoked": "Die Berechtigung für Verbindung {connection} wurde widerrufen.",
     "killOn": "Der Konnektor ist ausgeschaltet. Neue Änderungen werden abgelehnt; „Anhalten“ funktioniert weiterhin.",
     "killOff": "Der Konnektor ist wieder eingeschaltet.",

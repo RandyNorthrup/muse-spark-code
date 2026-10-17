@@ -5171,6 +5171,7 @@
     "grantSaved": "A(z) {connection} kapcsolat engedélyt kapott. Munkaterületei: {workspaces}",
     "grantNeedsTerminal": "Futtassa ezt a saját termináljában: az engedély megadásához Önnek kell begépelnie a megerősítést.",
     "grantInvalid": "Az engedélyt nem sikerült megadni: {reason}",
+    "notConfirmed": "Nem változott semmi.",
     "revoked": "A(z) {connection} kapcsolat engedélye visszavonva.",
     "killOn": "Az összekötő ki van kapcsolva. Az új műveleteket elutasítja; a Leállítás továbbra is működik.",
     "killOff": "Az összekötő újra be van kapcsolva.",

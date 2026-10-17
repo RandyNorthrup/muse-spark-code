@@ -74,6 +74,8 @@ const DEFAULT_SCOPES: readonly ConnectorScope[] = [
 ]
 
 export function parseConnectorCommand(argv: readonly string[]): ConnectorCommand | undefined {
+  // Asking for help is never a usage error, wherever the word sits.
+  if (argv.includes('--help') || argv.includes('-h')) return { kind: 'usage' }
   const [first, ...rest] = argv
   const action = first === undefined || first.startsWith('--') ? 'serve' : first
   const args = action === 'serve' ? argv : rest
@@ -218,7 +220,10 @@ async function grant(
     connection: command.connectionId,
     summary: summary(next.data),
   })
-  if (!(await io.confirm(question))) return EXIT_FAILED
+  if (!(await io.confirm(question))) {
+    io.printError(UI_TEXT.acpConnector.notConfirmed)
+    return EXIT_FAILED
+  }
   await store.saveGrant(next.data)
   await controlReceipt(store, io, command.connectionId, 'grant', next.data.generation)
   io.print(
@@ -258,8 +263,12 @@ export async function runConnectorCommand(
       return 0
     }
     case 'resume': {
-      if (!io.isInteractive || !(await io.confirm(`${UI_TEXT.acpConnector.killOff} (y/N)`))) {
+      if (!io.isInteractive) {
         io.printError(UI_TEXT.acpConnector.grantNeedsTerminal)
+        return EXIT_FAILED
+      }
+      if (!(await io.confirm(`${UI_TEXT.acpConnector.killOff} (y/N)`))) {
+        io.printError(UI_TEXT.acpConnector.notConfirmed)
         return EXIT_FAILED
       }
       await store.setKilled(false, new Date(io.now()).toISOString())

@@ -5322,6 +5322,7 @@
     "grantSaved": "La connexion {connection} est autorisée. Ses espaces de travail : {workspaces}",
     "grantNeedsTerminal": "Exécutez cette commande dans votre propre terminal : une autorisation exige que vous tapiez vous-même la confirmation.",
     "grantInvalid": "Impossible d’accorder l’autorisation : {reason}",
+    "notConfirmed": "Rien n'a été modifié.",
     "revoked": "L’autorisation de la connexion {connection} est révoquée.",
     "killOn": "Le connecteur est désactivé. Les nouvelles actions sont refusées ; Arrêter fonctionne toujours.",
     "killOff": "Le connecteur est de nouveau activé.",

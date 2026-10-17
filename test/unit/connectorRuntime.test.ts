@@ -463,6 +463,8 @@ describe('M124 owner-only store and commands', () => {
     expect(parseConnectorCommand(['--workspace', '.'])).toBeUndefined()
     expect(parseConnectorCommand(['grant'])).toBeUndefined()
     expect(parseConnectorCommand(['kill', '--key', 'sk-secret'])).toBeUndefined()
+    expect(parseConnectorCommand(['--help'])).toEqual({ kind: 'usage' })
+    expect(parseConnectorCommand(['grant', '--help'])).toEqual({ kind: 'usage' })
     // The connection name becomes store file paths: a traversal name never parses.
     expect(parseConnectorCommand(['--connection', '../evil'])).toBeUndefined()
     expect(parseConnectorCommand(['revoke', '--connection', String.raw`..\evil`])).toBeUndefined()

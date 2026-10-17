@@ -5020,6 +5020,7 @@
     "grantSaved": "已授权连接 {connection}。其工作区：{workspaces}",
     "grantNeedsTerminal": "请在您自己的终端中运行：授权需要您亲自输入确认。",
     "grantInvalid": "无法创建授权：{reason}",
+    "notConfirmed": "未做任何更改。",
     "revoked": "已撤销连接 {connection} 的授权。",
     "killOn": "连接器已关闭。新的操作会被拒绝；“停止”仍然可用。",
     "killOff": "连接器已重新开启。",
