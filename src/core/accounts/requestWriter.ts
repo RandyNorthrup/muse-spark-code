@@ -337,7 +337,7 @@ export class AccountRequestWriter implements AccountRequestPort {
               if (event.done) break
               // The settlement comes from whichever terminal event carries usage:
               // completed, incomplete or failed. Only truly unknown cost stays an
-              // upper bound. Reported at once, so a later throw still settles it.
+              // upper bound. Reported at once, so a later failure still settles it.
               if (isTerminalResponseEvent(event.value) && event.value.response.usage != null) {
                 const counted = event.value.response.usage
                 const priced = modelPricedUsage(counted)

@@ -50,6 +50,11 @@ const ALLOWLIST: readonly AllowEntry[] = [
   },
   {
     file: 'src/core/backends/modelapi/ModelApiHost.ts',
+    match: /UI_TEXT\.accounts\.unavailable/,
+    why: 'account-lease admission on a non-default account attempt (no billable paid request, refused account consent, or a mismatched child-task grant); the confirmed request threads through untouched below and the helper still gates dispatch',
+  },
+  {
+    file: 'src/core/backends/modelapi/ModelApiHost.ts',
     match: /TURN_NOT_RUNNING/,
     why: 'steer admission on turn identity; the confirmation factory is only threaded',
   },
@@ -113,6 +118,16 @@ const ALLOWLIST: readonly AllowEntry[] = [
     file: 'src/core/backends/modelapi/transport.ts',
     match: /throw new ModelApiError\($/,
     why: 'transport failure mapping after dispatch; the confirmation gate already passed',
+  },
+  {
+    file: 'src/core/backends/modelapi/transport.ts',
+    match: /isCredentialCurrent/,
+    why: 'paying-credential revision fence before the confirmation gate; a rotated credential refuses before dispatch and the helper still decides the confirmation below',
+  },
+  {
+    file: 'src/core/accounts/requestWriter.ts',
+    match: /execModelUnpriced/,
+    why: 'exec pricing fence for the account lease; the confirmation is forwarded untouched',
   },
   {
     file: 'src/core/providers/configured.ts',
@@ -179,6 +194,7 @@ const ALLOWLIST: readonly AllowEntry[] = [
 // The candidate files known today. A new file that names ConfirmedModelRequest
 // or threads a confirmed dispatch parameter fails this test first.
 const KNOWN_CANDIDATES: readonly string[] = [
+  'src/core/accounts/requestWriter.ts',
   'src/core/backends/modelapi/ModelApiHost.ts',
   'src/core/backends/modelapi/client.ts',
   'src/core/backends/modelapi/hookModelEntry.ts',
