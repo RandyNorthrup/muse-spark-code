@@ -440,6 +440,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'autoCompactionAdmission',
         side: ['acp', 'vscode'],
       },
+      { importer: 'src/host/schedules/paidBinding.ts', symbol: 'quote', side: ['acp', 'vscode'] },
       { importer: 'src/runtime/authCommands.ts', symbol: 'authSetProvider', side: ['acp'] },
       { importer: 'src/runtime/exec/keyInput.ts', symbol: 'readProviderKeyLine', side: ['acp'] },
     ],
@@ -577,6 +578,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
       {
+        importer: 'src/runtime/schedules/runtimeEntry.ts',
+        symbol: 'loadBilling',
+        side: ['acp', 'vscode'],
+      },
+      {
         importer: 'src/shared/constants.ts',
         symbol: 'LEGAL_EXPLANATION_BUNDLE_FILE',
         side: ['vscode'],
@@ -595,6 +601,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'acp',
     requestedBy: [
       { importer: 'src/runtime/backends.ts', symbol: 'accountingEntry', side: ['acp'] },
+      { importer: 'src/runtime/backends.ts', symbol: 'createRuntimeBackend', side: ['acp'] },
     ],
   },
   {
@@ -613,6 +620,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'acp',
     requestedBy: [
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
+      { importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'runtimeFor', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
     ],

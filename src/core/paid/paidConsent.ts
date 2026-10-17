@@ -190,7 +190,7 @@ export async function askSchedulePaidConsent(deps: {
 }
 
 /** The run's paid port: live identity/gates plus a hard, noninteractive reservation.
- * @unwired M58 schedule paid scope
+ * Called from the host schedule paid binding's run step.
  */
 export function createSchedulePaidScope(deps: {
   readonly runId?: string
