@@ -2639,6 +2639,8 @@
   "vaultSessionLogUnavailable": "Eksport dziennika sesji bezpiecznego dla sejfu jest niedostępny.",
   "turnUnqueued": "Nie wysłano: wiadomość z kolejki została wycofana",
   "turnRetracted": "Inny klient Muse Code wycofał wiadomość z tej rozmowy; otwórz ją ponownie z Historii, aby zobaczyć ją w zapisanej postaci.",
+  "turnRetractDeclined": "Wycofanie wiadomości zostało odrzucone, więc tura jest kontynuowana z nią na miejscu.",
+  "approvalReviewing": "Kontrola bezpieczeństwa sprawdza tę zgodę.",
   "modelRouteUnserved": "Zalogowane konto nie może obsłużyć modelu tej rozmowy; wybierz inny model z menu modeli.",
   "viewGapReloaded": "Część aktualizacji z Muse Code została pominięta, więc rozmowa została załadowana ponownie.",
   "viewGapReloadFailed": "Część aktualizacji z Muse Code została pominięta i nie można ponownie załadować rozmowy",

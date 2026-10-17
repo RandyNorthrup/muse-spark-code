@@ -254,6 +254,8 @@ export interface ModelSummary {
   readonly modelId: string
   readonly displayLabel: string
   readonly contextLimit: number | undefined
+  /** The row's `outputLimit` (M126): `null` on the wire reads as absent. */
+  readonly outputLimit?: number | undefined
   readonly isDefault: boolean
   readonly isActive: boolean
   /**
@@ -276,6 +278,8 @@ export interface ModelSummary {
 export interface SkillSummary {
   readonly selector: string
   readonly displayName: string
+  /** The skill's declared human-readable name (1.4.7 `metadata.display-name`); absent when undeclared. */
+  readonly title?: string | undefined
   readonly description: string
   readonly argumentHint: string | undefined
 }
@@ -303,6 +307,12 @@ export interface StartSessionOptions {
   readonly mcpServers?: Readonly<Record<string, SessionMcpServer>>
   /** A new conversation kept in a side-chat surface (M53). */
   readonly sideChat?: boolean
+  /**
+   * The launch permission-profile pick (1.4.6): a profile id the host
+   * catalog already admits; select, never create. Omitted keeps the host's
+   * configured default.
+   */
+  readonly permissionProfile?: string | undefined
 }
 
 /**
@@ -629,7 +639,7 @@ export interface AgentHost {
     sessionId: string,
     modelId: string,
     mcpServers?: Readonly<Record<string, SessionMcpServer>>,
-    options?: { readonly requireSideChat?: boolean },
+    options?: { readonly requireSideChat?: boolean; readonly permissionProfile?: string },
   ): Promise<LoadedSession>
   forkSession(
     sessionId: string,

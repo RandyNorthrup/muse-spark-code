@@ -41,7 +41,6 @@ import {
   TEAM_META_STANDARD_TPM,
   TEAM_MIN_REQUEST_TOKENS,
   TEAM_MODEL_TEXT,
-  TEAM_MUSE_CODE_HOST_CEILING,
   TEAM_ORCHESTRATOR_HEADROOM,
   TEAM_PROCESS_WORKERS_CPU_HEADROOM,
   TEAM_PROCESS_WORKERS_MEM_PER_WORKER_BYTES,
@@ -80,6 +79,7 @@ import {
   type TeamRubricReason,
   type TeamToolGroup,
 } from '../../src/shared/constants'
+import { museCodeLoadedSessionCeiling } from '../../src/shared/constants'
 import { tableProblems } from '../../src/shared/l10n/check'
 import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES, tableFileName } from '../../src/shared/l10n/locales'
@@ -236,10 +236,11 @@ describe('team caps, intensity and machine values', () => {
     expect(TEAM_ORCHESTRATOR_HEADROOM).toBe(0.8)
     expect(TEAM_META_STANDARD_RPM).toBe(3000)
     expect(TEAM_META_STANDARD_TPM).toBe(4_000_000)
-    expect(TEAM_META_CONTRIBUTOR_RPM).toBe(100)
+    expect(TEAM_META_CONTRIBUTOR_RPM).toBe(150)
     expect(TEAM_META_CONTRIBUTOR_TPM).toBe(3_000_000)
     expect(TEAM_ENGINE_HARD_CEILING).toBe(20)
-    expect(TEAM_MUSE_CODE_HOST_CEILING).toBe(4)
+    expect(museCodeLoadedSessionCeiling('1.4.4-R5419.1')).toBe(32)
+    expect(museCodeLoadedSessionCeiling('1.4.9-R6297.1')).toBe(256)
     expect(TEAM_EXTERNAL_AGENT_CEILING).toBe(4)
     expect(TEAM_EXTERNAL_AGENT_DEFAULT).toBe(2)
   })

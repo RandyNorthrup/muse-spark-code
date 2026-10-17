@@ -1,0 +1,89 @@
+{
+  "skills": [
+    {
+      "description": "Create and validate a new native Muse plugin package in the current workspace. Use ONLY when the user explicitly asks to create a Muse plugin or invokes the create-plugin skill. Do NOT use for application/library plugin classes, third-party plugin systems, or ordinary code changes.",
+      "displayName": "create-plugin",
+      "selector": "create-plugin",
+      "source": "bundled"
+    },
+    {
+      "description": "Create and validate a new Muse skill — project-local in the current workspace by default, or a personal skill staged for `muse skills install` into the managed personal root. Use ONLY when the user explicitly asks to create a Muse skill or invokes the create-skill skill. Do NOT use for ordinary skill usage, code changes, benchmark tasks, or third-party skill/plugin systems.",
+      "displayName": "create-skill",
+      "selector": "create-skill",
+      "source": "bundled"
+    },
+    {
+      "description": "Diagnose Muse Code product/runtime issues from installed binary evidence. Use ONLY when the user explicitly invokes the doctor skill, asks to debug/troubleshoot Muse Code itself, asks what happened earlier in the current Muse Code session, or explicitly selects an earlier Muse Code session. Do NOT use for ordinary repository code failures or history, benchmark tasks, implementation debugging, build/test hangs, or third-party project issues.",
+      "displayName": "doctor",
+      "selector": "doctor",
+      "source": "bundled"
+    },
+    {
+      "description": "Run an explicitly requested decision interview and record each settled decision in durable project documentation.",
+      "displayName": "grill",
+      "selector": "grill",
+      "source": "bundled"
+    },
+    {
+      "argumentHint": "<session-id-or-path>",
+      "description": "Import a Claude Code, Codex, or Grok session",
+      "displayName": "import",
+      "selector": "import",
+      "source": "bundled"
+    },
+    {
+      "description": "Any explicit Muse Code setting question or change (model, reasoning effort, /settings) requires a silent read_skill call for bundled:manage-settings as FIRST ACTION—no assistant text or other tool first. Never use for repository, app, eval, or other non-Muse configuration.",
+      "displayName": "manage-settings",
+      "selector": "manage-settings",
+      "source": "bundled"
+    },
+    {
+      "argumentHint": "[memory|mcp] [claude|codex]",
+      "description": "Migrate Claude Code / Codex memory and MCP servers into Muse",
+      "displayName": "migrate",
+      "selector": "migrate",
+      "source": "bundled"
+    },
+    {
+      "description": "On an explicit planning request, always call `read_skill` for this skill before answering. Research first, then return one concise inline plan; do not create a plan file unless the user explicitly asks or a governing workflow requires one. Start and end the reply by saying this is not a special mode and `go` executes the plan; do not implement in the planning turn. For ordinary implement, build, fix, debug, or refactor requests, work directly. When an explicit plan divides work into separate diffs, commits, or PRs and the user asks to publish, preserve that split and tell the user before deviating.",
+      "displayName": "plan",
+      "selector": "plan",
+      "source": "bundled"
+    },
+    {
+      "argumentHint": "[session-id-or-log-path]",
+      "description": "Continue a Claude Code session here",
+      "displayName": "resume-claude",
+      "selector": "resume-claude",
+      "source": "bundled"
+    },
+    {
+      "argumentHint": "[session-id-or-log-path]",
+      "description": "Continue a Codex session here",
+      "displayName": "resume-codex",
+      "selector": "resume-codex",
+      "source": "bundled"
+    },
+    {
+      "description": "Three.js 3D reference hub. Use when working with Three.js: pick the topic below and read its file for patterns and API guidance.",
+      "displayName": "threejs",
+      "pluginId": "threejs",
+      "selector": "threejs",
+      "source": "plugin"
+    },
+    {
+      "description": "Three.js 3D reference hub. Use when working with Three.js: pick the topic below and read its file for patterns and API guidance.",
+      "displayName": "threejs",
+      "pluginId": "threejs",
+      "selector": "threejs:threejs",
+      "source": "plugin"
+    },
+    {
+      "description": "A skill with a display name for capture.",
+      "displayName": "titled-skill",
+      "selector": "titled-skill",
+      "source": "user",
+      "title": "Titled Skill"
+    }
+  ]
+}

@@ -2585,6 +2585,8 @@
   "vaultSessionLogUnavailable": "A exportação do registro de sessão segura do cofre está indisponível.",
   "turnUnqueued": "Não enviada: a mensagem da fila foi retirada",
   "turnRetracted": "Outro cliente do Muse Code retirou uma mensagem desta conversa; reabra-a no Histórico para vê-la como está armazenada.",
+  "turnRetractDeclined": "A retirada da mensagem foi recusada, então o turno continua com ela em vigor.",
+  "approvalReviewing": "A verificação de segurança está revisando esta aprovação.",
   "modelRouteUnserved": "A conta conectada não pode atender ao modelo desta conversa; escolha outro modelo no menu de modelos.",
   "viewGapReloaded": "Algumas atualizações do Muse Code foram perdidas, então a conversa foi recarregada.",
   "viewGapReloadFailed": "Algumas atualizações do Muse Code foram perdidas e não foi possível recarregar a conversa",

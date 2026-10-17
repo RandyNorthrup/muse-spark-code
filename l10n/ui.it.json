@@ -2585,6 +2585,8 @@
   "vaultSessionLogUnavailable": "L'esportazione del registro di sessione sicura per il vault non è disponibile.",
   "turnUnqueued": "Non inviato: il messaggio in coda è stato ritirato",
   "turnRetracted": "Un altro client di Muse Code ha ritirato un messaggio da questa conversazione; riaprila dalla Cronologia per vederla come è archiviata.",
+  "turnRetractDeclined": "Il ritiro del messaggio è stato rifiutato, quindi il turno continua con il messaggio al suo posto.",
+  "approvalReviewing": "Il controllo di sicurezza sta esaminando questa approvazione.",
   "modelRouteUnserved": "L’account connesso non può servire il modello di questa conversazione; scegli un altro modello dal menu dei modelli.",
   "viewGapReloaded": "Alcuni aggiornamenti di Muse Code sono andati persi, quindi la conversazione è stata ricaricata.",
   "viewGapReloadFailed": "Alcuni aggiornamenti di Muse Code sono andati persi e non è stato possibile ricaricare la conversazione",

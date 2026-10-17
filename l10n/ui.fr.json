@@ -2585,6 +2585,8 @@
   "vaultSessionLogUnavailable": "L'exportation du journal de session sécurisé pour le coffre est indisponible.",
   "turnUnqueued": "Non envoyé : le message en file d’attente a été retiré",
   "turnRetracted": "Un autre client Muse Code a retiré un message de cette conversation ; rouvrez-la depuis l’Historique pour la voir telle qu’elle est enregistrée.",
+  "turnRetractDeclined": "Le retrait du message a été refusé, donc le tour continue avec lui en place.",
+  "approvalReviewing": "Le contrôle de sécurité examine cette approbation.",
   "modelRouteUnserved": "Le compte connecté ne peut pas servir le modèle de cette conversation ; choisissez un autre modèle dans le menu des modèles.",
   "viewGapReloaded": "Des mises à jour de Muse Code ont été manquées ; la conversation a donc été rechargée.",
   "viewGapReloadFailed": "Des mises à jour de Muse Code ont été manquées et la conversation n’a pas pu être rechargée",

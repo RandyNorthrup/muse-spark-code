@@ -1,0 +1,16 @@
+{
+  "commandId": "01a14b18-a743-7345-9e0d-b7946e36d1a2",
+  "counts": {
+    "failed": 0,
+    "installed": 0,
+    "quarantined": 0,
+    "skipped": 0
+  },
+  "dryRun": true,
+  "failed": [],
+  "installed": [],
+  "quarantined": [],
+  "skipped": [],
+  "source": "codex",
+  "status": "accepted"
+}

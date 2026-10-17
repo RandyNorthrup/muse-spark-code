@@ -66,6 +66,10 @@ export const HOOK_EVENTS = [
   'Notification',
   'Interrupt',
   'SessionFork',
+  // ToolUseStart (MSP `toolUseStart`, D-HOOKREF: observe-only, no block, no
+  // context, no stop) parses but fires nothing until the runner gains a
+  // tool-start firing point, like SessionFork above.
+  'ToolUseStart',
 ] as const
 
 export type HookEvent = (typeof HOOK_EVENTS)[number]
@@ -423,6 +427,7 @@ const WIRED_EVENTS = new Set<HookEvent>([
   'Notification',
   'Interrupt',
   'SessionFork',
+  'ToolUseStart',
 ])
 
 function isRecord(value: unknown): value is HookRecord {
