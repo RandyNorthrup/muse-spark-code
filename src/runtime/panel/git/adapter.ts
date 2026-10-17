@@ -826,9 +826,15 @@ export class RuntimeGit implements ConversationGitPort {
       await this.refreshStatus('ask')
       return
     }
-    if (await this.signedIn('ask', this.lifetime.signal, askWith)) {
-      await this.refreshStatus('silent')
+    if (!(await this.signedIn('ask', this.lifetime.signal, askWith))) {
+      return
     }
+    // Which sign-in GitHub calls now use (D104's order).
+    const account = this.deps.github.accountText()
+    if (account !== undefined && this.canPost()) {
+      this.surface.notice('info', account)
+    }
+    await this.refreshStatus('silent')
   }
 
   /**

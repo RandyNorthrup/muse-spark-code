@@ -673,6 +673,12 @@ export class ConversationGit implements ConversationGitPort {
       }
       return
     }
+    // Which sign-in GitHub calls now use: the one just made, or the
+    // editor's own when it already had one (D104's order).
+    const account = this.window.githubSignIn?.accountText()
+    if (account !== undefined && this.canPost()) {
+      this.surface.notice('info', account)
+    }
     if (this.link !== undefined) {
       await this.refreshStatus('silent')
     }

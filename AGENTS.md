@@ -348,6 +348,14 @@ src/runtime/reporting/** deterministic report engine and portable facade
                       destination contracts (dist/reportingDestinations.js),
                       editor adapter (dist/reportingPanel.js) and shared page
                       (dist/webview/reportingPage.js), loaded on first use
+src/runtime/panel/git/** M123's native Git route (D104): the service, its
+                      allowlisted git and repository lease, the adapter with
+                      its pull request half (dist/nativeGit.js, loaded only in
+                      a host without `vscode.git`); pullRequests/ the runtime's
+                      pull requests and its held checkout
+src/runtime/github/** D104's GitHub sign-in sources (b) device flow and (c)
+                      `gh`, shared by the panel's window sign-in
+                      (core/git/githubSignIn.ts) and `auth github`
 src/runtime/exec/**   headless arguments/protocol/egress (dist/exec.js, loaded
                       only by the exec command), stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
