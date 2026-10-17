@@ -4729,6 +4729,7 @@
   "legalConfidenceLabel": "Verlässlichkeit: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Verwendung: /legal [Pfad relativ zum Arbeitsbereich …]. Optionen werden nicht unterstützt.",
+  "legalScanReceiptHelp": "Lokale Lizenzprüfung; optionale Nachweise in licence-review.json binden eine geprüfte SPDX-Lizenz mit Begründung an das Paket, die genaue Version und SHA-256. Geänderte Bytes oder Versionen erfordern eine erneute Prüfung.",
   "legalScanItemDetail": "Den Arbeitsbereich auf Lizenzen, Zuschreibungen und Header-Funde prüfen",
   "legalScanBusy": "Ein Legal-Scan beginnt, sobald der aktuelle Durchgang beendet ist.",
   "legalScanUntrusted": "Der Legal-Scan liest den Arbeitsbereich, was der eingeschränkte Modus nicht erlaubt. Vertrauen Sie dem Arbeitsbereich, um ihn zu nutzen.",
@@ -4936,7 +4937,6 @@
     "m138": "Nicht geprüft: {v0} ist ein Link oder entkommenes Verzeichnis.",
     "m139": "Prüfung an Grenze gestoppt: Verzeichniseintragsbudget erreicht; Rest nicht aufgezählt.",
     "m140": "Nicht geprüft: {v0} änderte sich während der Aufzählung.",
-    "m141": "Nicht geprüft: {v0} ist Repository-intern.",
     "m142": "Nicht geprüft: {v0} ist ein Link.",
     "m143": "Nicht geprüft: {v0} ist eine Sonderdatei.",
     "m144": "Nicht geprüft: {v0} konnte nicht zugelassen werden.",
@@ -4999,10 +4999,6 @@
     "m171": "Nicht geprüft: {v0} enthält unlesbare npm-Sperrmetadaten.",
     "m172": "Nicht geprüft: {v0} nutzt eine nicht unterstützte npm-Sperrversion.",
     "m173": "Nicht geprüft: {v0} überschreitet die Verschachtelungsgrenze für npm-Sperrdateien.",
-    "m174": {
-      "one": "Nicht geprüft: {count} npm-Sperreinträge in {v1} haben weder Lizenzmetadaten noch passende installierte Paketdaten.",
-      "other": "Nicht geprüft: {count} npm-Sperreinträge in {v1} haben weder Lizenzmetadaten noch passende installierte Paketdaten."
-    },
     "m175": "Nicht geprüft: {v0} hat keine lesbaren Yarn-Paketeinträge.",
     "m176": {
       "one": "Nicht geprüft: {v0} erfasst Versionen, aber keine Lizenzen für {count} Pakete; installierte Daten könnten helfen.",
@@ -5049,6 +5045,28 @@
       "other": "Nicht geprüft: {count} Python-Anforderungen haben keine aufgelöste Version; transitive Lizenzen unbekannt."
     },
     "m196": "Nicht geprüft: Python-Manifeste, Sperrdateien und Distributionsmetadaten fehlen.",
+    "m198": "Nicht geprüft: {v0} nennt einen fehlerhaften Lizenzausdruck ({v1}); seine Bedingungen brauchen menschliche Prüfung.",
+    "m199": "Nicht geprüft: Lizenztext für {v0} bei {v1} weicht vom kanonischen Wortlaut ab.",
+    "m200": "{v0} weicht bei „{v2}“ von der SPDX-Vorlage {v1} ab, wo die Vorlage mit „{v3}“ fortfährt; die geänderten Bedingungen brauchen menschliche Prüfung",
+    "m201": "{v0} weicht von der SPDX-Vorlage {v1} ab: „{v2}“ gehört nicht dazu; die geänderten Bedingungen brauchen menschliche Prüfung",
+    "m202": "Nicht geprüft: Bundle {v0} nennt {v1}, das außerhalb des Arbeitsbereichs liegt und nicht geprüft werden kann",
+    "m203": "Nicht geprüft: Build-Aufzeichnungen widersprechen sich beim Inhalt von {v0}",
+    "m204": "Nicht geprüft: Ausgabe {v1} von Bundle {v0} fehlt oder weicht von ihrer Build-Aufzeichnung ab",
+    "m205": "Nicht geprüft: die festgelegten SPDX-Vorlagendaten haben die Prüfung nicht bestanden ({v0}); der exakte Lizenztextabgleich ist dafür aus",
+    "m206": "Nicht geprüft: Eingabe {v1} von Bundle {v0} hat keinen beim Build erfassten Hash oder passt nicht mehr dazu",
+    "m207": {
+      "one": "Nicht weitergegebene Abhängigkeiten ({count}) haben Lizenztexte, die von ihrer SPDX-Vorlage abweichen oder nicht erkannt werden ({v0}); sie werden nicht weitergegeben und schränken diese Prüfung nicht ein.",
+      "other": "Nicht weitergegebene Abhängigkeiten ({count}) haben Lizenztexte, die von ihrer SPDX-Vorlage abweichen oder nicht erkannt werden ({v0}); sie werden nicht weitergegeben und schränken diese Prüfung nicht ein."
+    },
+    "m208": "Wird eine dieser Abhängigkeiten künftig weitergegeben, prüfen Sie ihren Lizenztext.",
+    "m209": {
+      "one": "Weitere Hinweise für {v0} ({count}) sind nicht aufgeführt; sonst wurde nichts ausgelassen.",
+      "other": "Weitere Hinweise für {v0} ({count}) sind nicht aufgeführt; sonst wurde nichts ausgelassen."
+    },
+    "m210": "Prüfen Sie eine kleinere Auswahl von Pfaden, um sie aufzulisten.",
+    "reviewedReceipt": "Durch Prüfnachweis geprüft: {reason}",
+    "receiptRenew": "Eine neue Version oder geänderte Lizenzbytes erfordern eine neue Prüfung und einen neuen Nachweis.",
+    "invalidReceipt": "nicht geprüft: {file} ist keine gültige Datei mit Lizenzprüfnachweisen",
     "unknown": "unbekannt",
     "unresolved": "nicht aufgelöst",
     "noLicense": "keine Lizenz",

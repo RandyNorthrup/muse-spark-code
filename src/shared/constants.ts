@@ -7885,9 +7885,14 @@ export const LEGAL_FILES_SCANNED_MAX = 20_000
 // should-fix findings first and says the report is truncated.
 export const LEGAL_FINDINGS_MAX = 500
 // Independent admission budgets: UTF-8 bytes, directory entries and findings per rule.
+// The text budget covers a distributed workspace's sources (CM971-R3).
 export const LEGAL_FILE_MAX_BYTES = 1_000_000
-export const LEGAL_TOTAL_MAX_BYTES = 10_000_000
+export const LEGAL_TOTAL_MAX_BYTES = 64_000_000
 export const LEGAL_DIRECTORY_ENTRIES_MAX = 20_000
+// Hash-only reads (M97 CM971-R3: build evidence for every bundle input and
+// output, text or binary) keep no bytes, so they get their own bounds.
+export const LEGAL_HASH_FILE_MAX_BYTES = 64_000_000
+export const LEGAL_HASH_TOTAL_MAX_BYTES = 512_000_000
 export const LEGAL_FINDINGS_PER_RULE_MAX = 100
 // The only raw file content a finding may carry: a short excerpt around the
 // evidence (a header block, a license line), never a whole file, so a report
@@ -7909,6 +7914,13 @@ export const LEGAL_PATH_MAX_CHARS = 1024
 export const LEGAL_TEXT_MAX_CHARS = 2000
 // Rule/data versions (`2026-10-04`, a dataset tag): a tag, not prose.
 export const LEGAL_VERSION_MAX_CHARS = 64
+/** Optional workspace-root reviewed licence receipts (M97). */
+export const LEGAL_REVIEW_FILE = 'licence-review.json'
+/** Original holder restriction vocabulary, byte-pinned and loaded with legal templates. */
+export const LEGAL_TEMPLATE_SLOT_WORDS = {
+  path: 'slot-words.txt',
+  sha256: '33d392c38b9dc51013097abd1bedacbec14174933fbe4d05d4b267fb9056b292',
+}
 // Explicit file subset a tool call may name: small enough to stay a subset,
 // not a second whole scan past the file bound by another name.
 export const LEGAL_SCAN_PATHS_MAX = 100
@@ -7916,13 +7928,48 @@ export const LEGAL_SCAN_PATHS_MAX = 100
 // workspace's ignore story, bounded so the envelope stays small.
 export const LEGAL_EXCLUSIONS_MAX = 200
 export const LEGAL_INCOMPLETE_MAX = 100
+// SPDX template matching (M97 CM971-R3): the longest text one template
+// variable may stand for, the SPDX copyright variable's own bound
+// (`.{0,5000}`), applied to every open variable so `.+` stays bounded.
+export const LEGAL_TEMPLATE_VARIABLE_MAX_CHARS = 5000
+// A text that does not match any template exactly still reads as the
+// closest template when this share of its words agrees (Dice over word
+// counts): close enough to name the differing span for human review,
+// never close enough to count as a match.
+export const LEGAL_TEMPLATE_SIMILARITY_MIN = 0.8
+// Templates below this share are not aligned at all: a text this far
+// from a template cannot match it exactly.
+export const LEGAL_TEMPLATE_ALIGN_MIN = 0.5
+// The differing span a report quotes, and how much of the template's
+// continuation it shows beside it.
+export const LEGAL_TEMPLATE_SPAN_MAX_CHARS = 160
+export const LEGAL_TEMPLATE_EXPECTED_TOKENS = 12
+// Capitals-only words in a row, outside a variable's own wording, that
+// read as a clause rather than a name (`NO COMMERCIAL USE`).
+export const LEGAL_TEMPLATE_CAPITALS_RUN_MAX = 3
+// Holder and party names are short; longer text stays quoted for review.
+export const LEGAL_TEMPLATE_NAME_TOKENS_MAX = 8
+// Characters of slack when comparing variable text with the template's
+// original value, before tokenizing it: past this it cannot be equal.
+export const LEGAL_TEMPLATE_ORIGINAL_SLACK_CHARS = 16
+// Leading lines searched for a title-only line (a license's name, which
+// the SPDX guidelines ignore), before or after the copyright line.
+export const LEGAL_TEMPLATE_TITLE_LINES_MAX = 3
+// Words before a copyright marker that may only name the covered work
+// (`pngjs original work Copyright …`).
+export const WORK_LEAD_IN_WORDS_MAX = 5
+// Names of non-shipping dependencies listed in the one informational line.
+export const LEGAL_UNSHIPPED_NAMES_SHOWN = 20
+// Dependency records one scan keeps (locks list every package, including
+// development-only ones); separate from the findings bound.
+export const LEGAL_DEPENDENCIES_MAX = 10_000
 
 // --- The headless `legal` command (M97 lane R, PLAN.md D76) ---
 //
 // Exit codes (D76): 0 is a complete scan with no blockers, 1 a complete scan
 // with blockers, 2 incomplete coverage, bad input or an operational failure.
-// Advice alone never fails CI: only `blocker` and `should-fix` findings take
-// exit 1, and anything the scan could not cover takes exit 2.
+// Advice and should-fix findings alone exit 0; only blockers take exit 1.
+// Anything the scan could not cover takes exit 2.
 export const LEGAL_EXIT = {
   ok: 0,
   findings: 1,

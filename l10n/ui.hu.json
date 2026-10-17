@@ -4729,6 +4729,7 @@
   "legalConfidenceLabel": "Megbízhatóság: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Használat: /legal [munkaterülethez viszonyított útvonal …]. A kapcsolók nem támogatottak.",
+  "legalScanReceiptHelp": "Helyi licencvizsgálat; a licence-review.json választható bizonylatai indoklással kötik a felülvizsgált SPDX-licencet a csomaghoz, a pontos verzióhoz és a SHA-256 értékhez. Megváltozott bájtok vagy verziók új felülvizsgálatot igényelnek.",
   "legalScanItemDetail": "A munkaterület átvizsgálása licencelési, szerzőfeltüntetési és fejléc-megállapítások után",
   "legalScanBusy": "A jogi ellenőrzés az aktuális kör befejeződése után indul.",
   "legalScanUntrusted": "A jogi ellenőrzés a munkaterületet olvassa, amit a korlátozott mód nem engedélyez. A használatához jelölje megbízhatónak a munkaterületet.",
@@ -4936,7 +4937,6 @@
     "m138": "Nem ellenőrzött: {v0} hivatkozás vagy kilépő könyvtár.",
     "m139": "Vizsgálat korlátnál leállt: könyvtárbejegyzés-keret kimerült; a többi nincs felsorolva.",
     "m140": "Nem ellenőrzött: {v0} megváltozott a felsorolás során.",
-    "m141": "Nem ellenőrzött: {v0} belső tárolóadat.",
     "m142": "Nem ellenőrzött: {v0} hivatkozás.",
     "m143": "Nem ellenőrzött: {v0} különleges fájl.",
     "m144": "Nem ellenőrzött: {v0} nem engedhető be.",
@@ -4999,10 +4999,6 @@
     "m171": "Nem ellenőrzött: {v0} npm-zármetaadatai olvashatatlanok.",
     "m172": "Nem ellenőrzött: {v0} nem támogatott npm-zárverziót használ.",
     "m173": "Nem ellenőrzött: {v0} meghaladja az npm-zár beágyazási mélységét.",
-    "m174": {
-      "one": "Nem ellenőrzött: {count} npm-zárbejegyzéshez {v1} fájlban nincs licenc vagy telepített adat.",
-      "other": "Nem ellenőrzött: {count} npm-zárbejegyzéshez {v1} fájlban nincs licenc vagy telepített adat."
-    },
     "m175": "Nem ellenőrzött: {v0} nem tartalmaz olvasható Yarn-bejegyzést.",
     "m176": {
       "one": "Nem ellenőrzött: {v0} verziókat rögzít licenc nélkül {count} csomaghoz; telepített adatok segíthetnének.",
@@ -5049,6 +5045,28 @@
       "other": "Nem ellenőrzött: {count} Python-követelményhez nincs feloldott verzió; tranzitív licencek ismeretlenek."
     },
     "m196": "Nem ellenőrzött: nincs Python-jegyzék, zár vagy terjesztési metaadat.",
+    "m198": "Nem ellenőrzött: {v0} hibás licenckifejezést ad meg ({v1}); feltételei emberi ellenőrzést igényelnek.",
+    "m199": "Nem ellenőrzött: {v0} licencszövege itt eltér a kanonikus szövegtől: {v1}.",
+    "m200": "{v0} eltér a(z) {v1} SPDX-sablontól itt: „{v2}”, ahol a sablon így folytatódik: „{v3}”; a módosított feltételeket embernek kell átnéznie",
+    "m201": "{v0} eltér a(z) {v1} SPDX-sablontól: „{v2}” nem része annak; a módosított feltételeket embernek kell átnéznie",
+    "m202": "Nincs ellenőrizve: a(z) {v0} csomag ezt sorolja fel: {v1}, amely a munkaterületen kívül van, és nem ellenőrizhető",
+    "m203": "Nincs ellenőrizve: a buildrekordok eltérnek a(z) {v0} tartalmát illetően",
+    "m204": "Nincs ellenőrizve: a(z) {v0} csomag {v1} kimenete hiányzik, vagy eltér a buildrekordjától",
+    "m205": "Nincs ellenőrizve: a rögzített SPDX-sablonadatok nem mentek át az ellenőrzésen ({v0}); a pontos licencszöveg-egyeztetés ki van kapcsolva rájuk",
+    "m206": "Nincs ellenőrizve: a(z) {v0} csomag {v1} bemenetének nincs buildkor rögzített hash-e, vagy már nem egyezik vele",
+    "m207": {
+      "one": "Nem terjesztett függőségek ({count}), amelyek licencszövege eltér az SPDX-sablontól vagy ismeretlen ({v0}); nem terjesztik őket, így nem korlátozzák ezt az ellenőrzést.",
+      "other": "Nem terjesztett függőségek ({count}), amelyek licencszövege eltér az SPDX-sablontól vagy ismeretlen ({v0}); nem terjesztik őket, így nem korlátozzák ezt az ellenőrzést."
+    },
+    "m208": "Ha valamelyik függőséget terjeszteni kezdik, nézze át a licencszövegét.",
+    "m209": {
+      "one": "További tanácsok ({count}) ehhez nincsenek felsorolva: {v0}; más nem maradt ki.",
+      "other": "További tanácsok ({count}) ehhez nincsenek felsorolva: {v0}; más nem maradt ki."
+    },
+    "m210": "A felsoroláshoz vizsgáljon kisebb útvonalkészletet.",
+    "reviewedReceipt": "Felülvizsgálati bizonylattal ellenőrizve: {reason}",
+    "receiptRenew": "Új verzió vagy megváltozott licencbájtok esetén új felülvizsgálat és bizonylat szükséges.",
+    "invalidReceipt": "nincs ellenőrizve: {file} nem érvényes licencfelülvizsgálati bizonylatfájl",
     "unknown": "ismeretlen",
     "unresolved": "feloldatlan",
     "noLicense": "nincs licenc",

@@ -4850,6 +4850,7 @@
   "legalConfidenceLabel": "Confiance : {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Utilisation : /legal [chemin relatif à l’espace de travail …]. Les options ne sont pas prises en charge.",
+  "legalScanReceiptHelp": "Analyse locale des licences ; les justificatifs facultatifs de licence-review.json associent une licence SPDX examinée à son paquet, sa version exacte et son SHA-256, avec un motif. Tout changement d’octets ou de version nécessite un nouvel examen.",
   "legalScanItemDetail": "Analyser l’espace de travail à la recherche de constats de licence, d’attribution et d’en-tête",
   "legalScanBusy": "L’analyse juridique démarrera une fois le tour en cours terminé.",
   "legalScanUntrusted": "L’analyse juridique lit l’espace de travail, ce que le mode restreint ne permet pas. Faites confiance à l’espace de travail pour l’utiliser.",
@@ -5065,7 +5066,6 @@
     "m138": "Non vérifié : {v0} est un lien ou un répertoire sorti du périmètre.",
     "m139": "Analyse arrêtée à la limite : budget d’entrées atteint ; reste non énuméré.",
     "m140": "Non vérifié : {v0} a changé pendant l’énumération.",
-    "m141": "Non vérifié : {v0} appartient aux données internes du dépôt.",
     "m142": "Non vérifié : {v0} est un lien.",
     "m143": "Non vérifié : {v0} est un fichier spécial.",
     "m144": "Non vérifié : {v0} n’a pas pu être admis.",
@@ -5138,11 +5138,6 @@
     "m171": "Non vérifié : métadonnées de verrou npm illisibles dans {v0}.",
     "m172": "Non vérifié : version de verrou npm non prise en charge dans {v0}.",
     "m173": "Non vérifié : {v0} dépasse la profondeur d’imbrication npm.",
-    "m174": {
-      "one": "Non vérifié : {count} entrée npm dans {v1} sans licence ni données installées correspondantes.",
-      "other": "Non vérifié : {count} entrées npm dans {v1} sans licence ni données installées correspondantes.",
-      "many": "Non vérifié : {count} entrées npm dans {v1} sans licence ni données installées correspondantes."
-    },
     "m175": "Non vérifié : aucune entrée Yarn lisible dans {v0}.",
     "m176": {
       "one": "Non vérifié : {v0} fournit des versions sans licences pour {count} paquets ; les données installées pourraient aider.",
@@ -5197,6 +5192,30 @@
       "many": "Non vérifié : {count} exigences Python sans version résolue ; licences transitives inconnues."
     },
     "m196": "Non vérifié : aucun manifeste Python, verrou ou métadonnée de distribution.",
+    "m198": "Non vérifié : {v0} déclare une expression de licence mal formée ({v1}) ; ses termes exigent une révision humaine.",
+    "m199": "Non vérifié : la licence de {v0} à {v1} diffère de sa formulation canonique.",
+    "m200": "{v0} diffère du modèle SPDX {v1} à « {v2} », là où le modèle continue par « {v3} » ; ses conditions modifiées nécessitent un examen humain",
+    "m201": "{v0} diffère du modèle SPDX {v1} : « {v2} » n’en fait pas partie ; ses conditions modifiées nécessitent un examen humain",
+    "m202": "Non vérifié : le bundle {v0} mentionne {v1}, situé hors de l’espace de travail et invérifiable",
+    "m203": "Non vérifié : les enregistrements de build divergent sur le contenu de {v0}",
+    "m204": "Non vérifié : la sortie {v1} du bundle {v0} est absente ou diffère de son enregistrement de build",
+    "m205": "Non vérifié : les données de modèles SPDX épinglées ont échoué à la vérification ({v0}) ; la correspondance exacte du texte de licence est désactivée pour elles",
+    "m206": "Non vérifié : l’entrée {v1} du bundle {v0} n’a pas d’empreinte capturée au build ou ne lui correspond plus",
+    "m207": {
+      "one": "Dépendances non distribuées ({count}) dont le texte de licence diffère de son modèle SPDX ou n’est pas reconnu ({v0}) ; non distribuées, elles ne limitent pas cette analyse.",
+      "other": "Dépendances non distribuées ({count}) dont le texte de licence diffère de son modèle SPDX ou n’est pas reconnu ({v0}) ; non distribuées, elles ne limitent pas cette analyse.",
+      "many": "Dépendances non distribuées ({count}) dont le texte de licence diffère de son modèle SPDX ou n’est pas reconnu ({v0}) ; non distribuées, elles ne limitent pas cette analyse."
+    },
+    "m208": "Si l’une de ces dépendances est un jour distribuée, examinez son texte de licence.",
+    "m209": {
+      "one": "D’autres conseils pour {v0} ({count}) ne sont pas listés ; rien d’autre n’a été omis.",
+      "other": "D’autres conseils pour {v0} ({count}) ne sont pas listés ; rien d’autre n’a été omis.",
+      "many": "D’autres conseils pour {v0} ({count}) ne sont pas listés ; rien d’autre n’a été omis."
+    },
+    "m210": "Analysez un ensemble de chemins plus réduit pour les lister.",
+    "reviewedReceipt": "Examiné sur justificatif : {reason}",
+    "receiptRenew": "Une nouvelle version ou des octets de licence modifiés nécessitent un nouvel examen et un nouveau justificatif.",
+    "invalidReceipt": "non vérifié : {file} n’est pas un fichier valide de justificatifs d’examen des licences",
     "unknown": "inconnu",
     "unresolved": "non résolu",
     "noLicense": "aucune licence",

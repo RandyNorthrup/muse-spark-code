@@ -3,13 +3,18 @@
 // the vendored lists, and malformed text comes back as one quotable
 // error, never a guess.
 
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   canonicalExceptionId,
   canonicalLicenseId,
   isDeprecatedLicenseId,
+  SPDX_DATA_VERSION,
+  spdxProvenance,
 } from '../../src/core/legal/data'
 import { orAlternatives, parseSpdxExpression } from '../../src/core/legal/spdx'
+import { LEGAL_VERSION_MAX_CHARS } from '../../src/shared/constants'
 
 function okExpression(text: string) {
   const parsed = parseSpdxExpression(text)
@@ -151,5 +156,30 @@ describe('pinned SPDX data', () => {
     expect(isDeprecatedLicenseId('MIT')).toBe(false)
     expect(canonicalExceptionId('classpath-exception-2.0')).toBe('Classpath-exception-2.0')
     expect(canonicalExceptionId('Made-Up-exception')).toBeUndefined()
+  })
+
+  it('versions the dataset inside the shared bound with provenance', () => {
+    expect(SPDX_DATA_VERSION.length).toBeLessThanOrEqual(LEGAL_VERSION_MAX_CHARS)
+    const provenance = spdxProvenance()
+    expect(provenance.dataVersion).toBe(SPDX_DATA_VERSION)
+    const listed2 = provenance.datasets
+    for (const dataset of listed2) {
+      expect(dataset.sourceUrl).toMatch(/^https:\/\//)
+      expect(dataset.vendoredOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+      expect(dataset.license).not.toBe('')
+      expect(dataset.attribution).not.toBe('')
+      const listed3 = dataset.files
+      for (const file of listed3) {
+        // The templates and holder vocabulary ship beside the scanner.
+        const folder =
+          dataset.name === 'spdx-license-templates' || dataset.name === 'holder-slot-words'
+            ? 'legal-data'
+            : 'data'
+        const bytes = readFileSync(
+          new URL(`../../src/core/legal/${folder}/${file.path}`, import.meta.url),
+        )
+        expect(createHash('sha256').update(bytes).digest('hex')).toBe(file.sha256)
+      }
+    }
   })
 })

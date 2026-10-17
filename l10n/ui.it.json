@@ -4850,6 +4850,7 @@
   "legalConfidenceLabel": "Affidabilità: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Uso: /legal [percorso relativo all’area di lavoro …]. Le opzioni non sono supportate.",
+  "legalScanReceiptHelp": "Analisi locale delle licenze; le attestazioni facoltative di licence-review.json collegano una licenza SPDX esaminata al pacchetto, alla versione esatta e allo SHA-256, con una motivazione. Modifiche ai byte o alle versioni richiedono un nuovo esame.",
   "legalScanItemDetail": "Analizza l’area di lavoro alla ricerca di risultati su licenze, attribuzioni e intestazioni",
   "legalScanBusy": "L’analisi legale inizia al termine del turno corrente.",
   "legalScanUntrusted": "L’analisi legale legge l’area di lavoro, cosa che la modalità con restrizioni non consente. Considera attendibile l’area di lavoro per usarla.",
@@ -5065,7 +5066,6 @@
     "m138": "Non verificato: {v0} è un collegamento o directory fuori dal perimetro.",
     "m139": "Analisi fermata al limite: budget di voci raggiunto; resto non enumerato.",
     "m140": "Non verificato: {v0} è cambiato durante l’enumerazione.",
-    "m141": "Non verificato: {v0} è interno al repository.",
     "m142": "Non verificato: {v0} è un collegamento.",
     "m143": "Non verificato: {v0} è un file speciale.",
     "m144": "Non verificato: impossibile ammettere {v0}.",
@@ -5138,11 +5138,6 @@
     "m171": "Non verificato: metadati di blocco npm illeggibili in {v0}.",
     "m172": "Non verificato: versione di blocco npm non supportata in {v0}.",
     "m173": "Non verificato: {v0} supera la profondità di blocco npm.",
-    "m174": {
-      "one": "Non verificato: {count} voce npm in {v1} senza licenza né dati installati corrispondenti.",
-      "other": "Non verificato: {count} voci npm in {v1} senza licenza né dati installati corrispondenti.",
-      "many": "Non verificato: {count} voci npm in {v1} senza licenza né dati installati corrispondenti."
-    },
     "m175": "Non verificato: nessuna voce Yarn leggibile in {v0}.",
     "m176": {
       "one": "Non verificato: {v0} registra versioni senza licenze per {count} pacchetti; i dati installati potrebbero aiutare.",
@@ -5197,6 +5192,30 @@
       "many": "Non verificato: {count} requisiti Python senza versione risolta; licenze transitive ignote."
     },
     "m196": "Non verificato: mancano manifesti Python, blocchi e metadati di distribuzione.",
+    "m198": "Non verificato: {v0} dichiara un’espressione di licenza malformata ({v1}); i suoi termini richiedono una revisione umana.",
+    "m199": "Non verificato: la licenza di {v0} in {v1} differisce dalla formulazione canonica.",
+    "m200": "{v0} differisce dal modello SPDX {v1} in «{v2}», dove il modello prosegue con «{v3}»; i termini modificati richiedono una revisione umana",
+    "m201": "{v0} differisce dal modello SPDX {v1}: «{v2}» non ne fa parte; i termini modificati richiedono una revisione umana",
+    "m202": "Non verificato: il bundle {v0} elenca {v1}, che si trova fuori dall’area di lavoro e non può essere verificato",
+    "m203": "Non verificato: i record di build non concordano sul contenuto di {v0}",
+    "m204": "Non verificato: l’output {v1} del bundle {v0} manca o differisce dal suo record di build",
+    "m205": "Non verificato: i dati fissati dei modelli SPDX non hanno superato la verifica ({v0}); il confronto esatto del testo di licenza è disattivato per essi",
+    "m206": "Non verificato: l’input {v1} del bundle {v0} non ha un hash acquisito in fase di build o non vi corrisponde più",
+    "m207": {
+      "one": "Dipendenze non distribuite ({count}) con testi di licenza diversi dal modello SPDX o non riconosciuti ({v0}); non sono distribuite, quindi non limitano questa analisi.",
+      "other": "Dipendenze non distribuite ({count}) con testi di licenza diversi dal modello SPDX o non riconosciuti ({v0}); non sono distribuite, quindi non limitano questa analisi.",
+      "many": "Dipendenze non distribuite ({count}) con testi di licenza diversi dal modello SPDX o non riconosciuti ({v0}); non sono distribuite, quindi non limitano questa analisi."
+    },
+    "m208": "Se una di queste dipendenze inizia a essere distribuita, esaminane il testo di licenza.",
+    "m209": {
+      "one": "Altri avvisi per {v0} ({count}) non sono elencati; nient’altro è stato omesso.",
+      "other": "Altri avvisi per {v0} ({count}) non sono elencati; nient’altro è stato omesso.",
+      "many": "Altri avvisi per {v0} ({count}) non sono elencati; nient’altro è stato omesso."
+    },
+    "m210": "Analizza un insieme più piccolo di percorsi per elencarli.",
+    "reviewedReceipt": "Esaminato tramite attestazione: {reason}",
+    "receiptRenew": "Una nuova versione o modifiche ai byte della licenza richiedono un nuovo esame e una nuova attestazione.",
+    "invalidReceipt": "non verificato: {file} non è un file valido di attestazioni di esame delle licenze",
     "unknown": "sconosciuto",
     "unresolved": "non risolto",
     "noLicense": "nessuna licenza",

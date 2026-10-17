@@ -4729,6 +4729,7 @@
   "legalConfidenceLabel": "Güven: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Kullanım: /legal [çalışma alanına göre yol …]. Seçenekler desteklenmez.",
+  "legalScanReceiptHelp": "Yerel lisans taraması; isteğe bağlı licence-review.json kayıtları, incelenen SPDX lisansını gerekçesiyle birlikte pakete, tam sürüme ve SHA-256 değerine bağlar. Baytlar veya sürümler değişirse yeniden inceleme gerekir.",
   "legalScanItemDetail": "Çalışma alanını lisans, atıf ve başlık bulguları için tarayın",
   "legalScanBusy": "Yasal tarama, mevcut tur bittiğinde başlar.",
   "legalScanUntrusted": "Yasal tarama çalışma alanını okur, ancak Kısıtlı Mod buna izin vermez. Kullanmak için çalışma alanına güvenin.",
@@ -4936,7 +4937,6 @@
     "m138": "İncelenmedi: {v0} bağlantı veya sınır dışı dizin.",
     "m139": "Tarama sınırda durdu: dizin kaydı bütçesi doldu; kalan ağaç listelenmedi.",
     "m140": "İncelenmedi: {v0} listeleme sırasında değişti.",
-    "m141": "İncelenmedi: {v0} depo iç verisi.",
     "m142": "İncelenmedi: {v0} bağlantı.",
     "m143": "İncelenmedi: {v0} özel dosya.",
     "m144": "İncelenmedi: {v0} kabul edilemedi.",
@@ -4999,10 +4999,6 @@
     "m171": "İncelenmedi: {v0} npm kilit meta verileri okunamıyor.",
     "m172": "İncelenmedi: {v0} desteklenmeyen npm kilit sürümü kullanıyor.",
     "m173": "İncelenmedi: {v0} npm kilit derinliği sınırını aşıyor.",
-    "m174": {
-      "one": "İncelenmedi: {v1} içindeki {count} npm kaydında lisans veya eşleşen kurulu veri yok.",
-      "other": "İncelenmedi: {v1} içindeki {count} npm kaydında lisans veya eşleşen kurulu veri yok."
-    },
     "m175": "İncelenmedi: {v0} okunabilir Yarn paket kaydı içermiyor.",
     "m176": {
       "one": "İncelenmedi: {v0} sürüm kaydeder, ancak {count} paket için lisans yok; kurulu veriler boşluğu kapatabilir.",
@@ -5049,6 +5045,28 @@
       "other": "İncelenmedi: {count} Python gereksiniminde çözümlenmiş sürüm yok; geçişli lisanslar bilinmiyor."
     },
     "m196": "İncelenmedi: Python bildirgesi, kilit veya dağıtım meta verisi yok.",
+    "m198": "İncelenmedi: {v0} bozuk bir lisans ifadesi ({v1}) bildirir; koşulları insan incelemesi gerektirir.",
+    "m199": "İncelenmedi: {v1} konumundaki {v0} lisans metni standart metinden farklıdır.",
+    "m200": "{v0}, SPDX {v1} şablonundan “{v2}” noktasında ayrılıyor; şablon orada “{v3}” ile devam ediyor; değiştirilmiş koşulları bir insanın incelemesi gerekir",
+    "m201": "{v0}, SPDX {v1} şablonundan ayrılıyor: “{v2}” şablonun parçası değil; değiştirilmiş koşulları bir insanın incelemesi gerekir",
+    "m202": "Denetlenmedi: {v0} paketi çalışma alanı dışındaki {v1} öğesini listeliyor ve bu doğrulanamıyor",
+    "m203": "Denetlenmedi: derleme kayıtları {v0} içeriği konusunda çelişiyor",
+    "m204": "Denetlenmedi: {v0} paketinin {v1} çıktısı eksik ya da derleme kaydından farklı",
+    "m205": "Denetlenmedi: sabitlenmiş SPDX şablon verileri doğrulamayı geçemedi ({v0}); bunlar için tam lisans metni eşleştirmesi kapalı",
+    "m206": "Denetlenmedi: {v0} paketinin {v1} girdisinin derlemede alınmış bir özeti yok ya da artık onunla eşleşmiyor",
+    "m207": {
+      "one": "Dağıtılmayan bağımlılıkların ({count}) lisans metni SPDX şablonundan farklı ya da tanınmıyor ({v0}); dağıtılmadıkları için bu taramayı sınırlamıyorlar.",
+      "other": "Dağıtılmayan bağımlılıkların ({count}) lisans metni SPDX şablonundan farklı ya da tanınmıyor ({v0}); dağıtılmadıkları için bu taramayı sınırlamıyorlar."
+    },
+    "m208": "Bu bağımlılıklardan biri dağıtılmaya başlarsa lisans metnini inceleyin.",
+    "m209": {
+      "one": "{v0} için diğer öneriler ({count}) listelenmedi; başka hiçbir şey atlanmadı.",
+      "other": "{v0} için diğer öneriler ({count}) listelenmedi; başka hiçbir şey atlanmadı."
+    },
+    "m210": "Listelemek için daha küçük bir yol kümesini tarayın.",
+    "reviewedReceipt": "İnceleme kaydıyla doğrulandı: {reason}",
+    "receiptRenew": "Yeni bir sürüm veya değişen lisans baytları yeni inceleme ve kayıt gerektirir.",
+    "invalidReceipt": "kontrol edilmedi: {file} geçerli bir lisans inceleme kaydı dosyası değil",
     "unknown": "bilinmiyor",
     "unresolved": "çözümlenmemiş",
     "noLicense": "lisans yok",

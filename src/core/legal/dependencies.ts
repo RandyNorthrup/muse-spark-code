@@ -24,6 +24,12 @@ export interface LegalDependency {
   readonly evidenceFile: string
   /** The scanner's own words for the lane 0 finding field. */
   readonly evidenceSource: string
+  /**
+   * A licence text the reader identified the licence from (Cargo's
+   * `license-file`, a vendored Go licence), so the scan checks its
+   * exactness even when the file name is not a standard one.
+   */
+  readonly licenseTextFile?: string
 }
 
 /** A manifest's license declaration, for the project-license comparison. */
@@ -59,6 +65,7 @@ export function dependency(
     readonly version?: string | undefined
     readonly scope?: LegalDependencyScope
     readonly licenseRaw?: string | undefined
+    readonly licenseTextFile?: string | undefined
   } = {},
 ): LegalDependency {
   const built: LegalDependency = {
@@ -69,6 +76,7 @@ export function dependency(
     licenseRaw: init.licenseRaw,
     evidenceFile,
     evidenceSource: fill(UI_TEXT.legalScanner.m034, { v0: ecosystem, v1: evidenceFile }),
+    ...(init.licenseTextFile !== undefined && { licenseTextFile: init.licenseTextFile }),
   }
   return built
 }
@@ -89,4 +97,16 @@ export function parseJson(text: string): unknown {
   } catch {
     return undefined
   }
+}
+
+/** Admission shared by ecosystem readers when distribution is known. */
+export type LegalDependencyAdmission = (dep: LegalDependency) => boolean
+
+/** Count evidence gaps only within the admitted dependency set. */
+export function countIncludedDependencies(
+  dependencies: readonly LegalDependency[],
+  isIncluded: LegalDependencyAdmission,
+  hasGap: LegalDependencyAdmission,
+): number {
+  return dependencies.filter((dep) => isIncluded(dep) && hasGap(dep)).length
 }

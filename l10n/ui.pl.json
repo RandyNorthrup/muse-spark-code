@@ -4971,6 +4971,7 @@
   "legalConfidenceLabel": "Pewność: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Użycie: /legal [ścieżka względem obszaru roboczego …]. Opcje nie są obsługiwane.",
+  "legalScanReceiptHelp": "Lokalna analiza licencji; opcjonalne potwierdzenia w licence-review.json wiążą sprawdzoną licencję SPDX z pakietem, dokładną wersją i SHA-256 wraz z uzasadnieniem. Zmiana bajtów lub wersji wymaga ponownego przeglądu.",
   "legalScanItemDetail": "Sprawdź obszar roboczy pod kątem ustaleń licencyjnych, dotyczących autorstwa i nagłówków",
   "legalScanBusy": "Kontrola prawna rozpocznie się po zakończeniu bieżącej tury.",
   "legalScanUntrusted": "Kontrola prawna odczytuje obszar roboczy, na co tryb ograniczony nie zezwala. Aby jej użyć, uznaj obszar roboczy za zaufany.",
@@ -5194,7 +5195,6 @@
     "m138": "Nie sprawdzono: {v0} jest dowiązaniem lub katalogiem poza granicami.",
     "m139": "Skan zatrzymany na limicie: budżet wpisów katalogu; reszty nie wyliczono.",
     "m140": "Nie sprawdzono: {v0} zmienił się podczas wyliczania.",
-    "m141": "Nie sprawdzono: {v0} jest wewnętrzną częścią repozytorium.",
     "m142": "Nie sprawdzono: {v0} jest dowiązaniem.",
     "m143": "Nie sprawdzono: {v0} jest plikiem specjalnym.",
     "m144": "Nie sprawdzono: nie można dopuścić {v0}.",
@@ -5277,12 +5277,6 @@
     "m171": "Nie sprawdzono: nieczytelne metadane blokady npm w {v0}.",
     "m172": "Nie sprawdzono: nieobsługiwana wersja blokady npm w {v0}.",
     "m173": "Nie sprawdzono: {v0} przekracza głębokość blokady npm.",
-    "m174": {
-      "one": "Nie sprawdzono: {count} wpis npm w {v1} bez licencji lub pasujących danych instalacji.",
-      "other": "Nie sprawdzono: {count} wpisów npm w {v1} bez licencji lub pasujących danych instalacji.",
-      "few": "Nie sprawdzono: {count} wpisy npm w {v1} bez licencji lub pasujących danych instalacji.",
-      "many": "Nie sprawdzono: {count} wpisów npm w {v1} bez licencji lub pasujących danych instalacji."
-    },
     "m175": "Nie sprawdzono: brak czytelnych wpisów Yarn w {v0}.",
     "m176": {
       "one": "Nie sprawdzono: {v0} podaje wersje bez licencji dla {count} pakietów; dane instalacji mogłyby pomóc.",
@@ -5345,6 +5339,32 @@
       "many": "Nie sprawdzono: {count} wymagań Python bez rozwiązanej wersji; licencje przechodnie nieznane."
     },
     "m196": "Nie sprawdzono: brak manifestów Python, blokad i metadanych dystrybucji.",
+    "m198": "Nie sprawdzono: {v0} deklaruje wadliwe wyrażenie licencji ({v1}); jego warunki wymagają przeglądu przez człowieka.",
+    "m199": "Nie sprawdzono: licencja {v0} w {v1} różni się od brzmienia kanonicznego.",
+    "m200": "{v0} różni się od szablonu SPDX {v1} w miejscu „{v2}”, gdzie szablon kontynuuje „{v3}”; zmienione warunki wymagają przeglądu przez człowieka",
+    "m201": "{v0} różni się od szablonu SPDX {v1}: „{v2}” nie jest jego częścią; zmienione warunki wymagają przeglądu przez człowieka",
+    "m202": "Nie sprawdzono: pakiet {v0} wymienia {v1}, który leży poza obszarem roboczym i nie można go zweryfikować",
+    "m203": "Nie sprawdzono: zapisy kompilacji nie zgadzają się co do zawartości {v0}",
+    "m204": "Nie sprawdzono: wynik {v1} pakietu {v0} nie istnieje lub różni się od zapisu kompilacji",
+    "m205": "Nie sprawdzono: przypięte dane szablonów SPDX nie przeszły weryfikacji ({v0}); dokładne dopasowanie tekstu licencji jest dla nich wyłączone",
+    "m206": "Nie sprawdzono: wejście {v1} pakietu {v0} nie ma skrótu zapisanego podczas kompilacji lub już mu nie odpowiada",
+    "m207": {
+      "one": "Zależności, które nie są dystrybuowane ({count}), mają tekst licencji różny od szablonu SPDX lub nierozpoznany ({v0}); nie są dystrybuowane, więc nie ograniczają tego skanu.",
+      "other": "Zależności, które nie są dystrybuowane ({count}), mają tekst licencji różny od szablonu SPDX lub nierozpoznany ({v0}); nie są dystrybuowane, więc nie ograniczają tego skanu.",
+      "few": "Zależności, które nie są dystrybuowane ({count}), mają tekst licencji różny od szablonu SPDX lub nierozpoznany ({v0}); nie są dystrybuowane, więc nie ograniczają tego skanu.",
+      "many": "Zależności, które nie są dystrybuowane ({count}), mają tekst licencji różny od szablonu SPDX lub nierozpoznany ({v0}); nie są dystrybuowane, więc nie ograniczają tego skanu."
+    },
+    "m208": "Jeśli któraś z tych zależności zacznie być dystrybuowana, przejrzyj jej tekst licencji.",
+    "m209": {
+      "one": "Kolejne porady dla {v0} ({count}) nie są wymienione; nic innego nie pominięto.",
+      "other": "Kolejne porady dla {v0} ({count}) nie są wymienione; nic innego nie pominięto.",
+      "few": "Kolejne porady dla {v0} ({count}) nie są wymienione; nic innego nie pominięto.",
+      "many": "Kolejne porady dla {v0} ({count}) nie są wymienione; nic innego nie pominięto."
+    },
+    "m210": "Aby je wymienić, przeskanuj mniejszy zestaw ścieżek.",
+    "reviewedReceipt": "Sprawdzono na podstawie potwierdzenia: {reason}",
+    "receiptRenew": "Nowa wersja lub zmienione bajty licencji wymagają ponownego przeglądu i potwierdzenia.",
+    "invalidReceipt": "nie sprawdzono: {file} nie jest prawidłowym plikiem potwierdzeń przeglądu licencji",
     "unknown": "nieznane",
     "unresolved": "nierozwiązane",
     "noLicense": "brak licencji",

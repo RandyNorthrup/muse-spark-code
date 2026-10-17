@@ -1,6 +1,6 @@
 import { fill, plural } from '../../../shared/l10n/text'
 import { UI_TEXT } from '../../../shared/constants'
-import type { InstalledLicenseMetadata } from '../dependencies'
+
 import { compareLegalText } from '../files'
 // pip, uv and Poetry evidence (M97, PLAN.md D76): `pyproject.toml`,
 // requirements files, `uv.lock`, `poetry.lock`, and present
@@ -14,7 +14,12 @@ import type {
   LegalDependencyScope,
   ManifestLicenseDeclaration,
 } from '../dependencies'
-import { dependency } from '../dependencies'
+import {
+  dependency,
+  countIncludedDependencies,
+  type InstalledLicenseMetadata,
+  type LegalDependencyAdmission,
+} from '../dependencies'
 import type { LegalFileSnapshot } from '../files'
 import { baseNameOf, dirNameOf } from '../files'
 import type { TomlValue } from './toml'
@@ -141,7 +146,11 @@ function requirementDependency(
  * no license fields, so per-package licenses come from present METADATA
  * or stay unknown; requirements without pins have unresolved versions.
  */
-export function readPython(snapshot: LegalFileSnapshot): EcosystemResult {
+export function readPython(
+  snapshot: LegalFileSnapshot,
+  isDependencyIncluded?: LegalDependencyAdmission,
+): EcosystemResult {
+  const isIncluded = isDependencyIncluded ?? (() => true)
   const incomplete: string[] = []
   const dependencies: LegalDependency[] = []
   const projectLicenses: ManifestLicenseDeclaration[] = []
@@ -243,9 +252,15 @@ export function readPython(snapshot: LegalFileSnapshot): EcosystemResult {
       }
     }
     if (packages.length === 0) incomplete.push(fill(UI_TEXT.legalScanner.m190, { v0: file }))
-    if (packages.length > 0) {
+    const reviewedPackages = packages.filter((entry) =>
+      isIncluded(requirementDependency(file, entry.name, entry.version, 'production')),
+    )
+    if (isDependencyIncluded === undefined && reviewedPackages.length > 0) {
       incomplete.push(
-        plural(UI_TEXT.legalScanner.m191, packages.length, { v0: file, v1: packages.length }),
+        plural(UI_TEXT.legalScanner.m191, reviewedPackages.length, {
+          v0: file,
+          v1: reviewedPackages.length,
+        }),
       )
     }
   }
@@ -257,7 +272,7 @@ export function readPython(snapshot: LegalFileSnapshot): EcosystemResult {
     )?.[1]
     const present =
       dep.version === undefined || candidate?.version === dep.version ? candidate : undefined
-    if (candidate !== undefined && present === undefined)
+    if (candidate !== undefined && present === undefined && isIncluded(dep))
       incomplete.push(fill(UI_TEXT.legalScanner.m192, { v0: dep.name }))
     if (present !== undefined && dep.licenseRaw === undefined && present.licenseRaw !== undefined) {
       return dependency('pip', present.file, dep.name, {
@@ -281,14 +296,23 @@ export function readPython(snapshot: LegalFileSnapshot): EcosystemResult {
   }
 
   if (
+    isDependencyIncluded === undefined &&
     snapshot.files.some((file) => /(?:pyproject\.toml|requirements.*\.txt|setup\.py)$/.test(file))
   ) {
     incomplete.push(UI_TEXT.legalScanner.m193)
   }
-  const withoutLicense = merged.filter((dep) => dep.licenseRaw === undefined).length
+  const withoutLicense = countIncludedDependencies(
+    merged,
+    isIncluded,
+    (dep) => dep.licenseRaw === undefined,
+  )
   if (withoutLicense > 0)
     incomplete.push(plural(UI_TEXT.legalScanner.m194, withoutLicense, { v0: withoutLicense }))
-  const unresolved = merged.filter((dep) => dep.version === undefined).length
+  const unresolved = countIncludedDependencies(
+    merged,
+    isIncluded,
+    (dep) => dep.version === undefined,
+  )
   if (unresolved > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m195, unresolved, { v0: unresolved }))
   }

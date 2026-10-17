@@ -723,7 +723,7 @@
     {
       "id": "M97",
       "title": "Legal and licence scan",
-      "summary": "Run /legal to scan licences, copyright headers and source provenance without a model call, export the report and apply only the header fixes you confirm, without any claim that a project is legally compliant.",
+      "summary": "Run /legal to scan shipped licences, headers and provenance without a model call, recognize benign notices, record reviewed package versions and licence hashes by receipt, export reports and confirm header fixes, without claiming legal compliance.",
       "area": "platform",
       "release": "0.15.0"
     },

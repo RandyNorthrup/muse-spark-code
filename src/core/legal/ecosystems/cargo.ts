@@ -1,18 +1,7 @@
 import { fill, plural } from '../../../shared/l10n/text'
 import { UI_TEXT } from '../../../shared/constants'
 import { compareLegalText } from '../files'
-// Cargo evidence (M97, PLAN.md D76): `Cargo.toml` manifests, `Cargo.lock`
-// and present vendored crate manifests. `license` is already an SPDX
-// expression; `license-file` points at a text the reader identifies.
-// Nothing is built and no `build.rs` runs: path dependencies are
-// first-party code and stay out of the dependency set.
-
-import type {
-  EcosystemResult,
-  LegalDependencyScope,
-  ManifestLicenseDeclaration,
-} from '../dependencies'
-import { dependency } from '../dependencies'
+import * as cargoDependencies from '../dependencies'
 import type { LegalFileSnapshot } from '../files'
 import { baseNameOf, hasBinaryContent, dirNameOf } from '../files'
 import { identifyLicenseText } from '../projectLicense'
@@ -26,13 +15,13 @@ import {
 interface CargoDep {
   readonly name: string
   readonly version: string | undefined
-  readonly scope: LegalDependencyScope
+  readonly scope: cargoDependencies.LegalDependencyScope
 }
 
 function dependencySpec(
   name: string,
   value: string,
-  scope: LegalDependencyScope,
+  scope: cargoDependencies.LegalDependencyScope,
 ): CargoDep | undefined {
   if (!value.startsWith('{')) {
     return { name, version: value, scope }
@@ -50,10 +39,10 @@ function readManifestDeps(
   file: string,
 ): {
   readonly dependencies: readonly CargoDep[]
-  readonly projectLicense: ManifestLicenseDeclaration | undefined
+  readonly projectLicense: cargoDependencies.ManifestLicenseDeclaration | undefined
 } {
   const found: CargoDep[] = []
-  const push = (section: string, scope: LegalDependencyScope): void => {
+  const push = (section: string, scope: cargoDependencies.LegalDependencyScope): void => {
     const table = parseTomlSection(text, section)
     for (const [name, value] of table) {
       if (typeof value !== 'string') {
@@ -93,7 +82,11 @@ function readVendored(
   snapshot: LegalFileSnapshot,
   name: string,
   version: string,
-): { readonly licenseRaw: string | undefined; readonly file: string | undefined } {
+): {
+  readonly licenseRaw: string | undefined
+  readonly file: string | undefined
+  readonly textFile?: string
+} {
   const registrySuffix = `/${name}-${version}/Cargo.toml`
   const vendorSuffix = `/vendor/${name}/Cargo.toml`
   const candidate = snapshot.files
@@ -123,7 +116,11 @@ function readVendored(
     const dir = dirNameOf(candidate)
     const licenseText = snapshot.readFile(`${dir}/${licenseFile}`)
     if (licenseText !== undefined && !hasBinaryContent(licenseText)) {
-      return { licenseRaw: identifyLicenseText(licenseText)?.id, file: `${dir}/${licenseFile}` }
+      return {
+        licenseRaw: identifyLicenseText(licenseText)?.id,
+        file: `${dir}/${licenseFile}`,
+        textFile: `${dir}/${licenseFile}`,
+      }
     }
   }
   return { licenseRaw: undefined, file: candidate }
@@ -134,9 +131,13 @@ function readVendored(
  * the workspace itself, not dependencies. Lock entries without vendored
  * metadata, and manifest requirements no lock resolves, stay unknown.
  */
-export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
+export function readCargo(
+  snapshot: LegalFileSnapshot,
+  isDependencyIncluded?: cargoDependencies.LegalDependencyAdmission,
+): cargoDependencies.EcosystemResult {
+  const isIncluded = isDependencyIncluded ?? (() => true)
   const incomplete: string[] = []
-  const projectLicenses: ManifestLicenseDeclaration[] = []
+  const projectLicenses: cargoDependencies.ManifestLicenseDeclaration[] = []
   const manifestDeps: (CargoDep & { readonly file: string })[] = []
   const manifestFiles: string[] = []
 
@@ -189,21 +190,22 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
   const lockedNames = new Set(Array.from(locked.values(), (entry) => entry.name))
   const dependencies = Array.from(locked.values(), (entry) => {
     const name = entry.name
-    const vendored =
+    const vendored: ReturnType<typeof readVendored> =
       entry.version === undefined
         ? { licenseRaw: undefined, file: undefined }
         : readVendored(snapshot, name, entry.version)
     const manifest = manifestDeps.find((dep) => dep.name === name)
-    return dependency('cargo', vendored.file ?? entry.file, name, {
+    return cargoDependencies.dependency('cargo', vendored.file ?? entry.file, name, {
       version: entry.version,
       scope: manifest?.scope ?? 'production',
       licenseRaw: vendored.licenseRaw,
+      licenseTextFile: vendored.textFile,
     })
   })
   for (const manifestDep of manifestDeps) {
     if (!lockedNames.has(manifestDep.name)) {
       dependencies.push(
-        dependency('cargo', manifestDep.file, manifestDep.name, {
+        cargoDependencies.dependency('cargo', manifestDep.file, manifestDep.name, {
           version: undefined,
           scope: manifestDep.scope,
         }),
@@ -211,13 +213,19 @@ export function readCargo(snapshot: LegalFileSnapshot): EcosystemResult {
     }
   }
 
-  const withoutLicense = dependencies.filter(
+  const withoutLicense = cargoDependencies.countIncludedDependencies(
+    dependencies,
+    isIncluded,
     (dep) => dep.version !== undefined && dep.licenseRaw === undefined,
-  ).length
+  )
   if (withoutLicense > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m147, withoutLicense, { v0: withoutLicense }))
   }
-  const unresolved = manifestDeps.filter((dep) => !lockedNames.has(dep.name)).length
+  const unresolved = cargoDependencies.countIncludedDependencies(
+    dependencies,
+    isIncluded,
+    (dep) => dep.version === undefined,
+  )
   if (unresolved > 0) {
     incomplete.push(plural(UI_TEXT.legalScanner.m148, unresolved, { v0: unresolved }))
   }

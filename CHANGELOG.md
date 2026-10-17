@@ -78,6 +78,24 @@ happened, not what was planned; superseded entries are kept.
   commands in the README have not been run against a real client. See
   `docs/mcp.md`.
 
+### Changed
+
+- Legal scans recognize the literal affiliate and `et al.` notice suffixes,
+  terminal periods after holder names, and paired email/URL contacts found in
+  shipped vendor licences, while keeping restrictive holder text under review.
+  Optional workspace-root `licence-review.json` receipts bind a reviewed text
+  to its package, exact version, SHA-256 and SPDX id and appear visibly as
+  **Reviewed by receipt** in all formats; changed bytes or versions need review
+  again. The restriction vocabulary moves unchanged beside the pinned templates,
+  preserving the legal bundle cap.
+
+- Legal scans reject restrictive holder/party text in pinned SPDX templates,
+  including Title Case, camelCase and multilingual variants, while recognizing
+  ordinary names such as Profit Inc. Coverage follows shipped dependencies,
+  exact license-text disagreements remain conflicts, build evidence survives
+  alphabetically earlier file-cap noise, and package versions remain visible
+  after email scrubbing. Exit documentation now agrees with blocker-only exit 1.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
@@ -153,6 +171,53 @@ happened, not what was planned; superseded entries are kept.
   as blind, never 0; no tight polling of a security product's status), with
   D100 amendments for M96c and M107 that M109 and M120 also bind. The
   playbook placement chapter gains lessons 28–31 covering the same failures,
+
+- A fully evidenced `/legal` scan now exits 0 (or 1 with a blocker) instead
+  of always exiting 2 (M97 C-M97-1). An ecosystem with no manifests at all
+  is a complete observation, not a gap; missing locks, stale artifacts,
+  assets without provenance and proprietary terms keep named incomplete
+  reasons.
+
+- The `/legal` scanner matches license texts against the official SPDX
+  License List 3.28.0 templates under the SPDX matching guidelines (M97
+  CM971-R3, reviews RVCM971 and RVCM971B). A text is an exact match only
+  when every fixed word of a template is present in order and only the
+  template's variable and optional parts vary, each variable holding just
+  what it stands for (a copyright notice, a list marker, a name); a
+  sentence, a condition or prose in any language never vanishes into a
+  match. Anything else is reported as differing from the template at a
+  quoted span, for human review. The 21 templates ship beside the scanner,
+  byte-identical and verified by SHA-256 before use. GPL-family texts match
+  their version stem; `-only`/`-or-later` comes only from the project's own
+  grant (manifest, README, source `SPDX-License-Identifier` headers, GNU
+  "any later version" notices, a trailing `+`). Every licence text a
+  dependency names (Cargo `license-file`, `SEE LICENSE IN`, Python
+  `License-File`) and every vendored licence below the root keeps its
+  human-review limitation unless it matches exactly. Artifact freshness is
+  proven per bundle from SHA-256 hashes the production build captures from
+  the exact bytes it compiles; every listed output must exist and match,
+  conflicting records fail, and inputs outside the workspace are named.
+  Plugin-generated modules, binary inputs and esbuild's disabled stand-ins
+  are hashed where the build hands them over, and `npm run build` now ends
+  by scanning this repository's own build records with the production
+  scanner (`scripts/check-legal-build-records.mjs`), failing on any
+  unverified input. Restriction words (noncommercial, nonprofit,
+  educational, only, personal, no, …) are never read as part of a
+  copyright holder's name, so such a notice keeps human review.
+
+- A `/legal` scan now judges what the workspace distributes (M97 scan-scope
+  ruling). Distribution is read from the build records first (inputs the
+  bundler shook out do not count), or from the package's files list;
+  `node_modules` is never walked for it, and `.git` and `node_modules` are
+  skipped as expected. Only dependencies that ship can make the scan
+  incomplete; development-only dependencies and test fixtures are listed
+  as information. The matcher applies more of the SPDX guidelines (quote
+  styles, Markdown emphasis such as `*AS IS*`, list markers, titles and
+  copyright lines outside the template's slot, an Apache appendix given
+  from its applied notice) and pins the MIT-0 template. A long report
+  summarizes the advice it leaves out instead of reporting itself
+  incomplete. This repository's own scan now completes (exit 0), and
+  `npm run build` checks that it does.
 
 ### Release infrastructure
 

@@ -1795,7 +1795,7 @@
   },
   "scripts": {
     "clean": "rimraf dist coverage",
-    "build": "node scripts/check-tokens.mjs && node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/gen-lazy-registry.mjs --check && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs",
+    "build": "node scripts/check-tokens.mjs && node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/gen-lazy-registry.mjs --check && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs && node scripts/check-legal-build-records.mjs",
     "notices": "node scripts/build.mjs --production && node scripts/third-party-notices.mjs --write",
     "build:dev": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",

@@ -1,7 +1,7 @@
 // The pinned TypeScript grammar embeds JavaScript's complete implementation.
 // Share the identical function already in the browser graph, without changing
 // either grammar or writing to node_modules. A changed vendor shape refuses.
-import { readFileSync } from 'node:fs'
+import { readCompiledSource } from './compiledSources.mjs'
 import path from 'node:path'
 import ts from 'typescript'
 
@@ -19,9 +19,9 @@ export const sharedHighlightGrammar = {
   name: 'shared-highlight-grammar',
   setup(build) {
     build.onLoad({ filter: /highlight\.js[/\\]es[/\\]languages[/\\]typescript\.js$/ }, (args) => {
-      const text = readFileSync(args.path, 'utf8')
+      const text = readCompiledSource(args.path)
       const otherPath = path.join(path.dirname(args.path), 'javascript.js')
-      const otherText = readFileSync(otherPath, 'utf8')
+      const otherText = readCompiledSource(otherPath)
       const { source, declaration } = javascriptFunction(args.path, text)
       const other = javascriptFunction(otherPath, otherText)
       if (declaration.getText(source) !== other.declaration.getText(other.source))

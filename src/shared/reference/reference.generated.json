@@ -144,8 +144,8 @@
     {
       "id": "legal",
       "name": { "ui": "legalScanTitle" },
-      "summary": { "ui": "legalScanItemDetail" },
-      "description": { "ui": "legalScanItemDetail" },
+      "summary": { "ui": "legalScanReceiptHelp" },
+      "description": { "ui": "legalScanReceiptHelp" },
       "commands": ["museSpark.legalScan"],
       "settings": ["museSpark.legalHeaderPolicy", "museSpark.legalRegistryLookups"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#legal-scan-m97",
