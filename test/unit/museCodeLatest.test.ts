@@ -391,6 +391,66 @@ describe('hook running commands setting', () => {
   it('keeps the extension-host fallback cap without the setting', async () => {
     expect(await peakRunning()).toBe(4)
   })
+
+  it('holds a lowered cap for queued handlers instead of handing them freed slots', async () => {
+    // One host-wide gate, two dispatches: the first runs four of five at
+    // cap 4, the second queues its one handler at cap 1 (the setting
+    // lowered between dispatches). The cap-1 handler may start only when
+    // it would be the sole command running.
+    const parsed = parseHookConfig(
+      JSON.stringify({ hooks: { SessionStart: [{ hooks: [...FIVE] }] } }),
+      'user',
+      'linux',
+    )
+    const solo = parseHookConfig(
+      JSON.stringify({ hooks: { SessionStart: [{ hooks: [{ type: 'command', command: 'z' }] }] } }),
+      'user',
+      'linux',
+    )
+    let running = 0
+    let soloStartedAt = -1
+    const releases: (() => void)[] = []
+    const runHook = async (command: string): Promise<ShellResult> => {
+      running += 1
+      if (command === 'z') {
+        soloStartedAt = running
+      }
+      await new Promise<void>((resolve) => {
+        releases.push(() => {
+          running -= 1
+          resolve()
+        })
+      })
+      return { stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }
+    }
+    const dispatch = (hooks: typeof parsed.hooks, maxRunningCommands: number) =>
+      dispatchHooks(
+        hooks,
+        'SessionStart',
+        { cwd: '/ws' },
+        undefined,
+        { runHook },
+        undefined,
+        () => undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        { maxRunningCommands },
+      )
+    const first = dispatch(parsed.hooks, 4)
+    const second = dispatch(solo.hooks, 1)
+    for (let round = 0; round < 10 && releases.length < 4; round += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    expect(releases).toHaveLength(4)
+    while (releases.length > 0) {
+      releases.shift()?.()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+    await Promise.all([first, second])
+    expect(soloStartedAt).toBe(1)
+  })
 })
 
 describe('session inventories (task/hook/plugin)', () => {
