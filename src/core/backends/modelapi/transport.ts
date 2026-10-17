@@ -1140,7 +1140,7 @@ export class RequestTransport {
         retryAfterMs: waitMs,
       })
       if (!decision.retry && decision.reason === 'retry-after-cap') {
-        throw new ModelApiError(
+        const capped = new ModelApiError(
           fill(UI_TEXT.modelApiRetryAfterTooLong, {
             wait: Math.ceil((waitMs ?? 0) / MILLISECONDS_PER_SECOND),
             cap: retryTable.retryAfterCapMs / MILLISECONDS_PER_SECOND,
@@ -1149,6 +1149,11 @@ export class RequestTransport {
           failure.kind,
           failure.code,
         )
+        // The refusal keeps its request id and wait (lane PROVERR), as
+        // `redactModelApiError` already does across the privacy boundary.
+        capped.requestId = failure.requestId
+        capped.retryAfterMs = failure.retryAfterMs
+        throw capped
       }
       const isRetryable =
         !this.deps.isTerminalError?.(failure) &&
