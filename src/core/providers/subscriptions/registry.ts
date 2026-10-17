@@ -19,8 +19,8 @@ import { responses, modelRef, recordPlanUsage } from '../../../host/backend/prov
 const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
 const { parseModelRef } = modelRef
 import {
+  CHATGPT_TOKEN_MIN_VALIDITY_MS,
   MILLISECONDS_PER_SECOND,
-  MODEL_API_REQUEST_TIMEOUT_MS,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -54,7 +54,7 @@ export async function chatGptModels(
   signIn: ChatGptSignIn,
   fetcher: typeof fetch,
 ): Promise<string[]> {
-  const token = await signIn.accessToken(MODELS_URL, MODEL_API_REQUEST_TIMEOUT_MS)
+  const token = await signIn.accessToken(MODELS_URL, CHATGPT_TOKEN_MIN_VALIDITY_MS)
   // No deadline of our own (owner 2026-10-16): the catalogue read ends at
   // the provider's answer or a network failure.
   const response = await fetcher(MODELS_URL, {
@@ -270,7 +270,7 @@ export function createSubscriptionClient(
           return
         }
         const signIn = await deps.chatgpt()
-        const token = await signIn.accessToken(RESPONSES_URL, MODEL_API_REQUEST_TIMEOUT_MS)
+        const token = await signIn.accessToken(RESPONSES_URL, CHATGPT_TOKEN_MIN_VALIDITY_MS)
         const stop = new AbortController()
         // No limit on the stream's total time (owner 2026-10-16). A provider
         // that names its own idle through `streamIdleMs` still ends silence

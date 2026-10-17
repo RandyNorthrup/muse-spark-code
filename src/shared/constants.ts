@@ -2325,7 +2325,7 @@ export const MODEL_API_STATUS_READ_TIMEOUT_MS = 3000
 // The ChatGPT sign-in's token-freshness bound (minimum validity), not a
 // request kill: a staler token is refreshed, never refused. (NOLIMITS2 C1:
 // no request names a deadline of its own any more.)
-export const MODEL_API_REQUEST_TIMEOUT_MS = 30_000
+export const CHATGPT_TOKEN_MIN_VALIDITY_MS = 30_000
 // The file tools load a file whole (read_file shows a window of it,
 // edit_file changes it): one larger than this is refused unread (M39).
 export const BYTES_PER_MIB = 1024 * 1024
