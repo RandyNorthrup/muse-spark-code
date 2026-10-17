@@ -1,5 +1,11 @@
 # M106 capture receipt — lane 0 (Kubuntu, 2026-10-05)
 
+The later [C-M106-1 receipt](m106-completion-captures.md) adds Muse Code
+1.4.4 wire frames and a fake-tested Meta recapture collector. Its
+[completion manifest](../../test/fixtures/m106/completion-manifest.json)
+counts those new probes separately. The historical Meta source and its
+missing raw U9 frames described below remain unchanged.
+
 This rig made **zero live or paid calls** and read no credential. Fixtures
 come from the supplied scrubbed `meta-coverage/captures/` records, not from
 new requests. The source run is `2026-10-06T00-30-19-038Z`, beginning

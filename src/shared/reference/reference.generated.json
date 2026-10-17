@@ -204,10 +204,10 @@
     {
       "id": "compaction",
       "name": { "ui": "compactItem" },
-      "summary": { "tip": "compact" },
-      "description": { "tip": "compact" },
+      "summary": { "ui": "referenceManualCompaction" },
+      "description": { "ui": "referenceManualCompaction" },
       "commands": [],
-      "settings": ["museSpark.modelApiAutoCompaction"],
+      "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#observation-packing-model-api",
       "backends": ["modelApi"],
       "paid": false,
@@ -446,6 +446,21 @@
       },
       "commands": [],
       "settings": ["museSpark.modelApiParallelReads"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "argument-preview",
+      "name": { "ui": "toolArgumentPreviewLabel" },
+      "summary": { "ui": "toolArgumentPreviewDescription" },
+      "description": { "ui": "toolArgumentPreviewDescription" },
+      "commands": [],
+      "settings": [],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
       "backends": ["modelApi"],
       "paid": false,
@@ -882,6 +897,21 @@
       ],
       "facts": {},
       "editors": ["vscode"]
+    },
+    {
+      "id": "accounts",
+      "name": { "ui": "referenceAccountsTitle" },
+      "summary": { "ui": "referenceAccounts" },
+      "description": { "ui": "referenceAccounts" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["acp:modelApi"],
+      "details": [{ "ui": "referenceDeveloper" }],
+      "facts": {},
+      "editors": ["acp"]
     },
     {
       "id": "permissions",
@@ -2508,8 +2538,8 @@
       "default": "manual",
       "enum": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
       "enumDescriptions": [
-        "museCode: Muse will ask before running commands; Muse Code edits workspace files without asking\nmodelApi: Muse will ask for approval before each edit and each command",
-        "museCode: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands\nmodelApi: Muse will edit files without asking and ask before running commands",
+        "museCode: Muse asks before running each command, unless a permission rule allows it; Muse Code edits workspace files without asking\nmodelApi: Muse will ask for approval before each edit and each command",
+        "museCode: On Muse Code, the same as Manual: Muse Code edits workspace files without asking, and asks before running each command, unless a permission rule allows it\nmodelApi: Muse will edit files without asking and ask before running commands",
         "museCode: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmodelApi: Muse will explore the code and present a plan before editing",
         "museCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.",
         "Bypass permissions: edits and commands run without asking, but paid uses still ask and forbid rules still refuse (use only in sandboxes)."
@@ -4472,6 +4502,12 @@
       "text": { "ui": "referenceScanSecrets" }
     },
     {
+      "route": "accounts",
+      "name": "providers accounts",
+      "description": "Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.",
+      "text": { "ui": "referenceAccounts" }
+    },
+    {
       "route": "developer",
       "name": "developer",
       "description": "Show or unlock machine-local developer options. Profile operations require a connected resource owner.",
@@ -4899,6 +4935,15 @@
     },
     {
       "route": "serve",
+      "name": "serve: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
       "name": "serve: --web-search",
       "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
       "text": { "cli": "web-search" },
@@ -5109,6 +5154,20 @@
       "name": "login: --allow-contributor-models",
       "description": "--allow-contributor-models       List contributor-tier models (Meta may train on their content)",
       "text": { "cli": "allow-contributor-models" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
+      "name": "login: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
       "contract": {
         "type": "boolean",
         "repeatable": false,
@@ -5331,6 +5390,20 @@
     },
     {
       "route": "setup",
+      "name": "setup: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "setup",
       "name": "setup: --web-search",
       "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
       "text": { "cli": "web-search" },
@@ -5483,6 +5556,13 @@
     },
     {
       "route": "authSet",
+      "name": "authSet: --account <value>",
+      "description": "--account <id>                    The account to use (auth set, exec).",
+      "text": { "cli": "account" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
+    },
+    {
+      "route": "authSet",
       "name": "authSet: --trust-workspace",
       "description": "--trust-workspace                Load the folder’s rules, skills and memory",
       "text": { "cli": "trust-workspace" },
@@ -5543,6 +5623,20 @@
       "name": "authSet: --allow-contributor-models",
       "description": "--allow-contributor-models       List contributor-tier models (Meta may train on their content)",
       "text": { "cli": "allow-contributor-models" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
       "contract": {
         "type": "boolean",
         "repeatable": false,
@@ -5778,6 +5872,20 @@
     },
     {
       "route": "authStatus",
+      "name": "authStatus: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authStatus",
       "name": "authStatus: --web-search",
       "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
       "text": { "cli": "web-search" },
@@ -6004,6 +6112,20 @@
     },
     {
       "route": "authClear",
+      "name": "authClear: --auto-compaction",
+      "description": "autoCompactionEvaluation: Offer paid automatic compaction; ask once before its first charge, with model rates and the daily budget. Inactive until evaluation passes.",
+      "text": {
+        "conditions": [{ "when": "autoCompactionEvaluation", "text": { "cli": "auto-compaction" } }]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authClear",
       "name": "authClear: --web-search",
       "description": "--web-search                     Offer paid web search (Model API backend; its price is asked first)",
       "text": { "cli": "web-search" },
@@ -6170,6 +6292,13 @@
       "description": "Choose the model for this run.",
       "text": { "cli": "model" },
       "contract": { "type": "string", "repeatable": false, "purpose": "model" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --account <value>",
+      "description": "--account <id>                    The account to use (auth set, exec).",
+      "text": { "cli": "account" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "account" }
     },
     {
       "route": "exec",
