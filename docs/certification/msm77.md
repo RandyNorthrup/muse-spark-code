@@ -117,7 +117,57 @@ aggregate best-of-N row is unchanged, so nothing is counted twice.
 
 ## 6. Gates and product proof (Linux rig `linuxlt`)
 
-(TBD — final runs recorded here before the lane ends.)
+Final tree (after `2317f99c1` plus the lint-fix follow-ups):
+
+- `npm run typecheck` (all five projects): exit 0.
+- `npx eslint --max-warnings=0` on the 7 changed source/test files:
+  exit 0 (4 own findings fixed: boolean name, nested ternaries,
+  early return).
+- `npx prettier --check` on every changed file: clean after one
+  `--write` on `BestOfNDialog.tsx`.
+- `npm run deadcode` (knip): exit 0.
+- `npm run cycles` (dpdm): no circular dependencies, exit 0.
+- `npm run duplication` (jscpd): 0 clones, exit 0.
+- `npm run check:l10n`: 0 problems; new keys sit at the English index
+  (2368, 2369, 2390, 2391) in all 14 tables.
+- `npm run check:reference`: current, exit 0 (no catalog change: the
+  fold displays existing data under the existing `best-of-n` entry).
+- `npm run check:host-api`: 0 problems, exit 0.
+- `npm run check:plan`: 218 milestones, 0 drift, exit 0 (one own
+  status-phrase fix: the note goes in parentheses after the date).
+- `npm run check:roadmap`: current after regeneration, exit 0.
+- `npm run build`: exit 0; activation 551.0/600 KiB, Model API
+  507.2/525 KiB, checkpoint store within budget.
+- `SEMGREP_ENABLE_VERSION_CHECK=0 npm run security:sast`: 533 rules
+  on 3243 files, 0 findings, exit 0.
+- `npm run security:audit`: exit 0 (2 advisories covered by the
+  existing exception file).
+- `npm run check:badges`: exit 0.
+- Tests, repo default timeout: `bestOfNAttemptUsage` 4/4 (incl. the
+  red drill); `bestOfN` + `sessionBoard` 21/21; both dialogs 14/14;
+  `worktreeConversations` 16/16; dependents (`vitest related` over the
+  6 changed non-hub sources): 50 files, 695 passed, 29 skipped — the
+  skips are pre-existing live-model e2e self-skips (no key) and
+  macOS/bun capability skips in `pluginDispatch`, none touched here.
+- Full `npm run quality` / `test:unit` stay lead-run per the shared
+  lane rules (forbidden to lanes on a shared rig).
+
+Packed-product probes (no credential, no model call, no fixture):
+
+- `npm run package:acp` cannot complete on this Linux rig:
+  `scripts/package-acp.mjs` requires the CI-built Darwin helper
+  `native/darwin/muse-dictate` (gitignored, macOS-only). Exact error
+  recorded; the tarball step stays lead-run. The built `dist/acp.js`
+  from `npm run build` is the same packed code and was driven directly.
+- Throwaway probe `temp/msm77-acp-probe.mjs` (kept in gitignored
+  `temp/` for review) spoke ACP stdio to `dist/acp.js` with a scratch
+  data dir and workspace: `initialize` ok with
+  `sessionCapabilities {list, resume, close}`; `session/list` ok with
+  `{"sessions":[],"nextCursor":null}`; `session/new` ok with a real
+  session id (no prompt sent, so no model turn); `session/list` again
+  shows that session with its folder and last activity. Scratch dirs
+  removed; no probe process left running. This is the ACP board
+  binding working on the packed product.
 
 ## 7. Real-life steps for the lead
 
