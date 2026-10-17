@@ -5178,8 +5178,8 @@ sends no private bytes, and returns its PID/start time for the lock check.
 Late close or reply frames for
 retired clients preserve other connections. Credential Manager results are
 validated, copied into owned byte buffers and erased. File checks refuse
-widened DACLs and linked paths. The new native
-paths remain unbound pending the broker/editor bindings and the Windows
+widened DACLs and linked paths. The POSIX native paths are bound behind the reviewed availability switch;
+the Windows pipe helper still waits on lane C-M109-1c and the Windows
 installed-build checks in [the M109 record](docs/certification/m109.md).
 Windows also adopts protocol v2's import receipts and two-step reset, with
 typed Credential Manager repair reasons and anchor removal under the exclusive writer.
@@ -5207,8 +5207,8 @@ refuses the regression. Linked directory components remain refused.
 
 Windows damaged-document retention is repaired and qualified; production
 Reset/Restore process-death recovery also passes on Win11. The installed
-broker/panel bindings and remaining OS qualification stay pending; these
-checks do not enable an installed vault.
+broker/panel bindings are connected; macOS replay and the Windows pipe
+helper stay pending as named in the record.
 
 One encrypted vault per user holds API keys, OAuth tokens, SSH keys, sudo and
 other passwords, website logins with their TOTP seeds, session cookies and any
@@ -5222,11 +5222,12 @@ The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
 now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
 use in every window. The panel host and the native editor ship in
 `dist/vault.js`, loaded on the first vault command; activation reads no vault
-and starts no broker. The installed POSIX client and broker factory are bound behind an off
-availability switch. Until the shared writer lease, Windows binding, panel mount
-and reviews join ([the POSIX receipt](docs/certification/cm109-join-posix.md)),
-both commands report that the installed broker is switched off pending integration checks and refuse access. No value is ever logged, and no handle is substituted into a command,
-a file or the model's text.
+and starts no broker. The installed POSIX client and broker factory are bound
+behind the reviewed availability switch, and the Models & Agents panel mounts
+the vault section around the same broker-backed service. Every broker use
+still refuses while the broker itself is unavailable, and every destructive
+step keeps its explicit confirmation. No value is ever logged, and no handle
+is substituted into a command, a file or the model's text.
 
 Settings (all machine-scoped, so no workspace can change them):
 `museSpark.vault.enabled` (on; an explicitly stored legacy `museSpark.vault`

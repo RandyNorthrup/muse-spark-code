@@ -246,8 +246,8 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: false },
   // Import completions reconcile changes on failure too; Lock cancels sent imports.
   // Reset detects impossible public framing/anchor state, needs a terminal, and retires the exact anchor.
-  vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
-  lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
+  vault: { description: { ui: 'referenceVaultPanel' }, canRun: true },
+  lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: true },
 }
 
 function feature(
@@ -284,7 +284,6 @@ function feature(
 // a model whose record verifies streamed arguments.
 export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
   'team-workers',
-  'vault',
   'estimator',
   'auto-compaction',
 ]
@@ -1086,7 +1085,8 @@ export function featureCatalog(): readonly Feature[] {
       ['showWhatsNewOnUpdate'],
       'help-and-reference',
     ),
-    // CM109JOINB binds installed POSIX broker ports; availability stays off pending the reviewed join.
+    // MSM109 connects the broker-backed panel and commands on the reviewed
+    // availability switch; the Windows pipe helper still waits on lane C-M109-1c.
     feature(
       'vault',
       { command: COMMAND_IDS.vault },
