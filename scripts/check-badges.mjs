@@ -13,7 +13,7 @@ import { z } from 'zod'
 import { PNG } from 'pngjs'
 
 const VERSION = z.string().regex(/^\d+\.\d+\.\d+$/)
-const REQUEST_MS = 10_000
+const REQUEST_MS = 15_000
 const RASTER = /\.(?:png|jpe?g|gif|webp|avif)$/i
 const STATIC_VERSION = /^\/badge\/(Marketplace|Open%20VSX|npm|GitHub%20release)-v(.+)-[^/]+$/
 const DYNAMIC_VERSION =
@@ -27,17 +27,83 @@ const MAIN_TREE = z.object({
   tree: z.array(z.object({ path: z.string(), type: z.enum(['blob', 'tree', 'commit']) })),
 })
 
+// Hosted runners got no answer from one of these URLs for more than half a
+// minute at a time (five jobs in three runs of PR #147), and the failure did
+// not say which. A request that gets no answer (its deadline passes, the
+// connection fails) is made again: four attempts of REQUEST_MS each, with
+// these pauses before the second, third and fourth. One dead URL fails the
+// check after about a minute and a half (60 s of attempts, 33 s of pauses),
+// and the failure names the URL, the attempts and the time waited. An answer
+// is never asked for twice: an HTTP error, a redirect away from HTTPS, a
+// wrong type or wrong content fails the check at once.
+const RETRY_PAUSES_MS = [3000, 10_000, 20_000]
+
+/** No answer came: the request's own deadline, or Node's fetch failing to connect. */
+function isNetworkFailure(error) {
+  return (
+    error instanceof Error &&
+    (error.name === 'TimeoutError' ||
+      error.name === 'AbortError' ||
+      (error instanceof TypeError && error.message === 'fetch failed'))
+  )
+}
+
+function pause(milliseconds) {
+  return new Promise((resolve) => {
+    globalThis.setTimeout(resolve, milliseconds)
+  })
+}
+
+/** What the last attempt reported, with fetch's own reason when it gave one. */
+function networkFailureText(error) {
+  const cause = error.cause instanceof Error ? error.cause : undefined
+  const reason = cause === undefined ? undefined : (cause.code ?? cause.message)
+  return reason === undefined ? error.message : `${error.message} (${String(reason)})`
+}
+
+/**
+ * One request and `read`'s use of its reply, under one deadline per attempt
+ * (reading a body can time out as well). Whatever `read` throws about an
+ * answer ends the check; only a network failure is tried again.
+ */
+async function request(fetcher, url, headers, read) {
+  const started = Date.now()
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const reply = await fetcher(url, {
+        cache: 'no-store',
+        signal: globalThis.AbortSignal.timeout(REQUEST_MS),
+        ...(headers !== undefined && { headers }),
+      })
+      return await read(reply)
+    } catch (error) {
+      if (!isNetworkFailure(error)) throw error
+      const wait = RETRY_PAUSES_MS[attempt - 1]
+      if (wait === undefined) {
+        const seconds = Math.round((Date.now() - started) / 1000)
+        throw new Error(
+          `No answer from ${url} after ${attempt} attempts in ${seconds} s: ${networkFailureText(error)}`,
+          { cause: error },
+        )
+      }
+      await pause(wait)
+    }
+  }
+}
+
 // Hosted runners share an IP's unauthenticated API quota (HTTP 403 when spent),
 // so CI passes its job token; it goes to this GitHub API request only, never to
 // an image host.
 async function publicMainFiles(fetcher, githubToken) {
-  const reply = await fetcher(PUBLIC_MAIN_TREE, {
-    cache: 'no-store',
-    signal: globalThis.AbortSignal.timeout(REQUEST_MS),
-    ...(githubToken && { headers: { authorization: `Bearer ${githubToken}` } }),
-  })
-  if (!reply.ok) throw new Error(`Public main tree HTTP ${reply.status}`)
-  const tree = MAIN_TREE.parse(await reply.json())
+  const tree = await request(
+    fetcher,
+    PUBLIC_MAIN_TREE,
+    githubToken ? { authorization: `Bearer ${githubToken}` } : undefined,
+    async (reply) => {
+      if (!reply.ok) throw new Error(`Public main tree HTTP ${reply.status}`)
+      return MAIN_TREE.parse(await reply.json())
+    },
+  )
   return new Set(tree.tree.filter((entry) => entry.type === 'blob').map((entry) => entry.path))
 }
 
@@ -173,25 +239,26 @@ export async function checkReadmeBadges(documents, version, options = {}) {
       localImages += 1
       continue
     }
-    const reply = await fetcher(url, {
-      cache: 'no-store',
-      signal: globalThis.AbortSignal.timeout(REQUEST_MS),
-    })
-    if (!reply.ok) throw new Error(`Badge image HTTP ${reply.status}: ${url}`)
-    if (reply.url && new URL(reply.url).protocol !== 'https:') {
-      throw new Error(`Badge image redirected away from HTTPS: ${url}`)
-    }
-    if (!isBadgeUrl(url)) {
-      if (!/^image\//i.test(reply.headers.get('content-type') ?? '')) {
-        throw new Error(`Content image did not return an image: ${url}`)
+    // A badge's SVG text, read inside the attempt so its deadline covers the
+    // body; undefined for a content image, whose bytes are not inspected.
+    const body = await request(fetcher, url, undefined, async (reply) => {
+      if (!reply.ok) throw new Error(`Badge image HTTP ${reply.status}: ${url}`)
+      if (reply.url && new URL(reply.url).protocol !== 'https:') {
+        throw new Error(`Badge image redirected away from HTTPS: ${url}`)
       }
-      await reply.body?.cancel()
-      continue
-    }
-    if (!/^image\/svg\+xml\b/i.test(reply.headers.get('content-type') ?? '')) {
-      throw new Error(`Badge did not return SVG: ${url}`)
-    }
-    const body = await reply.text()
+      if (!isBadgeUrl(url)) {
+        if (!/^image\//i.test(reply.headers.get('content-type') ?? '')) {
+          throw new Error(`Content image did not return an image: ${url}`)
+        }
+        await reply.body?.cancel()
+        return
+      }
+      if (!/^image\/svg\+xml\b/i.test(reply.headers.get('content-type') ?? '')) {
+        throw new Error(`Badge did not return SVG: ${url}`)
+      }
+      return await reply.text()
+    })
+    if (body === undefined) continue
     if (/<!DOCTYPE/i.test(body)) throw new Error(`Badge SVG contains a doctype: ${url}`)
     const dom = new JSDOM(body, { contentType: 'image/svg+xml' })
     try {

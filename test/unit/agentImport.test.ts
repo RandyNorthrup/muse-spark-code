@@ -857,7 +857,7 @@ describe('scanAgentImports: every agent’s hooks', () => {
       'hook codex project PostToolUseFailure -> none:unmapped',
       'hook cursor user preToolUse -> hook:sparkUser',
       'hook cursor user subagentStart -> none:weaker',
-      'hook cursor user beforeTabFileRead -> none:keptWaiting',
+      'hook cursor user beforeTabFileRead -> hook:sparkUser',
       'hook gemini user BeforeTool -> hook:sparkUser',
       'hook gemini user BeforeToolSelection -> none:weaker',
       'hook copilot user SessionStart -> hook:sparkUser',

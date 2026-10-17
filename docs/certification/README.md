@@ -1,5 +1,7 @@
 # Certification records
 
+- [MUSE143](muse143.md): live Windows 1.4.3 approval/rename/fork/sandbox
+  receipts, version-aware update guidance and retained upstream limitations.
 - [FIXCYCLES](fixcycles.md): complete cycle-root inventory, worker environment dependency fix, red/restored drills and fresh-clone gates.
 
 - [SDK142](sdk142.md): Muse Code 1.4.1/1.4.2 fingerprints, CLI documentation corrections and regression drill; SDK stays 1.3.0.

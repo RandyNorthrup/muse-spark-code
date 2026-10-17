@@ -6,6 +6,7 @@ import path from 'node:path'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
+import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 
 const directory = mkdtempSync(path.join(os.tmpdir(), 'm115-schedule-cli-'))
 const agent = path.join(directory, 'dist', 'acp.js')
@@ -23,7 +24,7 @@ beforeAll(async () => {
   })
   await writeFile(path.join(directory, 'package.json'), JSON.stringify({ version: '0.0.0-test' }))
   await cp(path.resolve('l10n'), path.join(directory, 'l10n'), { recursive: true })
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 afterAll(async () => {
   expect(path.dirname(path.resolve(directory))).toBe(path.resolve(os.tmpdir()))
   await rm(directory, { recursive: true, force: true })
@@ -37,12 +38,14 @@ function run(args: readonly string[]) {
 }
 
 describe('schedule CLI process boundary', () => {
-  it('prints runnable draft and global wake syntax in help', () => {
+  it('keeps dormant v2 grammar out of compact help and retains ordinary ACP usage', () => {
     const result = run(['--help'])
     expect(result.status).toBe(0)
-    expect(result.stdout).toContain(UI_TEXT.scheduleV2.runtime.usage)
-    expect(result.stdout).toContain('--draft')
-    expect(result.stdout).toContain('run-due')
+    expect(result.stdout).toContain('muse-spark-code-acp')
+    expect(result.stdout).toContain('auth')
+    expect(result.stdout).not.toContain(UI_TEXT.scheduleV2.runtime.usage)
+    for (const grammar of ['--draft', '--scheduled-prompts', 'run-due'])
+      expect(result.stdout).not.toContain(grammar)
   })
   it('returns a stable JSON refusal when the real scheduler bundle is absent', () => {
     for (const args of [

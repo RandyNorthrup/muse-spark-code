@@ -1,6 +1,6 @@
 // The getting-started tips under the empty state (M8), as the Claude Code
 // panel shows its onboarding checklist: the default keybindings and the
-// composer's tricks, with "Hide these tips" writing museSpark.hideOnboarding
+// composer's tricks, with "Hide These Tips" writing museSpark.hideOnboarding
 // so they stay hidden across windows.
 
 import { UI_TEXT } from '../../shared/constants'

@@ -1,0 +1,5401 @@
+{
+  "lane": "REL0181 (the landing mark; released as 0.18.2)",
+  "date": "2026-10-11",
+  "review": "REL0181-baseline-2026-10-11",
+  "revision": "111afdfa1d72b980999ac3f63b059a3caebb4049",
+  "rendered": {
+    "snapshot": "eddaa1e483bb67466ef6f49452ac57d282ce9f1a",
+    "tree": "fe1bef99d10b",
+    "note": "The render ran on the rig snapshot of the worktree at 111afdfa1d; both commits have this tree, so the manifest names the branch commit.",
+    "started": "11:08 PM PT",
+    "ended": "12:05 AM PT",
+    "seconds": 3437,
+    "rig": "linuxlt"
+  },
+  "browser": "153.0.8010.52",
+  "platform": "linux",
+  "rasterization": "a8de1ddfb6e62687899116825ad89f19166af18efdb086980f1c0e365c739033",
+  "archive": "/var/tmp/l-REL0171C/visual-rel0181-111afdf",
+  "captures": 9864,
+  "totalBytes": 446077919,
+  "manifestSha256": "c7a408469cea2443d2fb828ab4200588cd76054c1a8e08bf313f1b0b732e78d0",
+  "previous": {
+    "review": "REL0180-baseline-2026-10-11",
+    "archive": "/var/tmp/l-REL0171C/visual-rel0180-f04ce52",
+    "captures": 9864,
+    "sameBrowser": true,
+    "sameRasterization": true
+  },
+  "policy": {
+    "threshold": 0.1,
+    "includeAA": false,
+    "maxChangedPixelRatio": 0.0001,
+    "maxChangedPixels": 12
+  },
+  "comparison": {
+    "counts": {
+      "identical": 8580,
+      "within": 300,
+      "over": 984,
+      "new": 0,
+      "removed": 0
+    },
+    "withinMaxChangedPixels": 1,
+    "recordChanged": 0,
+    "movedByScene": {
+      "context-meter-full": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 172,
+        "maxChanged": 201
+      },
+      "context-meter-warning": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 172,
+        "maxChanged": 201
+      },
+      "empty": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 172,
+        "maxChanged": 201
+      },
+      "goal-edit": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 175,
+        "maxChanged": 200
+      },
+      "handoff": {
+        "frames": 24,
+        "widths": {
+          "320": 24
+        },
+        "themes": {
+          "light": 6,
+          "dark": 6,
+          "one-dark-pro": 6,
+          "dracula": 6
+        },
+        "minChanged": 162,
+        "maxChanged": 172
+      },
+      "icons": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 3634,
+        "maxChanged": 5556
+      },
+      "mention": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 172,
+        "maxChanged": 201
+      },
+      "models": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 172,
+        "maxChanged": 201
+      },
+      "modes": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 172,
+        "maxChanged": 201
+      },
+      "palette": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 173,
+        "maxChanged": 209
+      },
+      "prompt-library": {
+        "frames": 24,
+        "widths": {
+          "320": 24
+        },
+        "themes": {
+          "light": 6,
+          "dark": 6,
+          "one-dark-pro": 6,
+          "dracula": 6
+        },
+        "minChanged": 159,
+        "maxChanged": 195
+      },
+      "questions-chip": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 171,
+        "maxChanged": 205
+      },
+      "slash-commands": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 172,
+        "maxChanged": 201
+      },
+      "stop-running": {
+        "frames": 72,
+        "widths": {
+          "320": 36,
+          "690": 36
+        },
+        "themes": {
+          "light": 12,
+          "dark": 12,
+          "hc-dark": 12,
+          "hc-light": 12,
+          "one-dark-pro": 12,
+          "dracula": 12
+        },
+        "minChanged": 172,
+        "maxChanged": 201
+      },
+      "git-pr-narrow": {
+        "frames": 36,
+        "widths": {
+          "690": 36
+        },
+        "themes": {
+          "light": 6,
+          "dark": 6,
+          "hc-dark": 6,
+          "hc-light": 6,
+          "one-dark-pro": 6,
+          "dracula": 6
+        },
+        "minChanged": 110,
+        "maxChanged": 127
+      },
+      "schedules-narrow": {
+        "frames": 36,
+        "widths": {
+          "690": 36
+        },
+        "themes": {
+          "light": 6,
+          "dark": 6,
+          "hc-dark": 6,
+          "hc-light": 6,
+          "one-dark-pro": 6,
+          "dracula": 6
+        },
+        "minChanged": 173,
+        "maxChanged": 198
+      }
+    },
+    "listedByTheLane": [
+      "empty",
+      "context-meter-full",
+      "context-meter-warning",
+      "goal-edit",
+      "handoff",
+      "mention",
+      "models",
+      "modes",
+      "palette",
+      "prompt-library",
+      "questions-chip",
+      "slash-commands",
+      "stop-running",
+      "icons"
+    ],
+    "listedAndMovedInAll72": [
+      "empty",
+      "context-meter-full",
+      "context-meter-warning",
+      "goal-edit",
+      "mention",
+      "models",
+      "modes",
+      "palette",
+      "questions-chip",
+      "slash-commands",
+      "stop-running",
+      "icons"
+    ],
+    "listedAndMovedInFewer": ["handoff", "prompt-library"],
+    "listedAndUnmoved": [],
+    "movedAndNotListed": ["git-pr-narrow", "schedules-narrow"]
+  },
+  "inspected": [
+    "empty at 320 px, default state, all six themes; at 690 px in light and hc-dark",
+    "empty, git-pr-narrow, schedules-narrow, icons and prompt-library, before beside after, in light"
+  ],
+  "readmeImages": [
+    {
+      "name": "agents.png",
+      "status": "over",
+      "changed": 101,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [63713, 63785]
+    },
+    {
+      "name": "approval.png",
+      "status": "over",
+      "changed": 41,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [55219, 55374]
+    },
+    {
+      "name": "deterministic-report.png",
+      "status": "identical"
+    },
+    {
+      "name": "help.png",
+      "status": "identical"
+    },
+    {
+      "name": "history.png",
+      "status": "over",
+      "changed": 367,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [69973, 70670]
+    },
+    {
+      "name": "languages.png",
+      "status": "identical"
+    },
+    {
+      "name": "modes.png",
+      "status": "over",
+      "changed": 172,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [84268, 83907]
+    },
+    {
+      "name": "open-question.png",
+      "status": "within",
+      "changed": 0,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [47307, 47299]
+    },
+    {
+      "name": "paid-always.png",
+      "status": "identical"
+    },
+    {
+      "name": "paid.png",
+      "status": "within",
+      "changed": 0,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [34317, 34317]
+    },
+    {
+      "name": "palette.png",
+      "status": "over",
+      "changed": 177,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [51960, 51621]
+    },
+    {
+      "name": "question.png",
+      "status": "over",
+      "changed": 39,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [49612, 49446]
+    },
+    {
+      "name": "quote.png",
+      "status": "identical"
+    },
+    {
+      "name": "resources.png",
+      "status": "over",
+      "changed": 19,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [36323, 36410]
+    },
+    {
+      "name": "rewind.png",
+      "status": "over",
+      "changed": 33,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [43705, 43724]
+    },
+    {
+      "name": "slash-commands.png",
+      "status": "over",
+      "changed": 172,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [76823, 76455]
+    },
+    {
+      "name": "turn.png",
+      "status": "over",
+      "changed": 33,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [52666, 53014]
+    },
+    {
+      "name": "usage.png",
+      "status": "identical"
+    },
+    {
+      "name": "voice.png",
+      "status": "over",
+      "changed": 172,
+      "allowed": 12,
+      "size": [690, 760],
+      "bytes": [56904, 56463]
+    }
+  ],
+  "overFrames": [
+    {
+      "key": "panel/context-meter-full/default/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/default/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/hover/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/focus-visible/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/pressed/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/disabled/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/selected/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/light/320",
+      "changed": 5046,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/light/320",
+      "changed": 5046,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/light/320",
+      "changed": 5046,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/light/320",
+      "changed": 5046,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/light/320",
+      "changed": 5046,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/light/320",
+      "changed": 5046,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/light/320",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/default/light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/hover/light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/focus-visible/light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/pressed/light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/disabled/light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/selected/light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/light/320",
+      "changed": 176,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/light/320",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/default/light/690",
+      "changed": 110,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/hover/light/690",
+      "changed": 110,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/focus-visible/light/690",
+      "changed": 110,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/pressed/light/690",
+      "changed": 110,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/disabled/light/690",
+      "changed": 110,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/selected/light/690",
+      "changed": 110,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/light/690",
+      "changed": 175,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/light/690",
+      "changed": 175,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/light/690",
+      "changed": 175,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/light/690",
+      "changed": 175,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/light/690",
+      "changed": 175,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/light/690",
+      "changed": 175,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/light/690",
+      "changed": 3636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/light/690",
+      "changed": 3636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/light/690",
+      "changed": 3636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/light/690",
+      "changed": 3636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/light/690",
+      "changed": 3636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/light/690",
+      "changed": 3636,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/light/690",
+      "changed": 190,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/light/690",
+      "changed": 190,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/light/690",
+      "changed": 190,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/light/690",
+      "changed": 190,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/light/690",
+      "changed": 190,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/light/690",
+      "changed": 190,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/light/690",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/light/690",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/light/690",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/light/690",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/light/690",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/light/690",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/default/light/690",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/hover/light/690",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/focus-visible/light/690",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/pressed/light/690",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/disabled/light/690",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/selected/light/690",
+      "changed": 173,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/light/690",
+      "changed": 172,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/default/dark/320",
+      "changed": 162,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/hover/dark/320",
+      "changed": 162,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/focus-visible/dark/320",
+      "changed": 162,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/pressed/dark/320",
+      "changed": 162,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/disabled/dark/320",
+      "changed": 162,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/selected/dark/320",
+      "changed": 162,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/dark/320",
+      "changed": 5128,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/dark/320",
+      "changed": 5128,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/dark/320",
+      "changed": 5128,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/dark/320",
+      "changed": 5128,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/dark/320",
+      "changed": 5128,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/dark/320",
+      "changed": 5128,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/dark/320",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/default/dark/320",
+      "changed": 159,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/hover/dark/320",
+      "changed": 159,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/focus-visible/dark/320",
+      "changed": 159,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/pressed/dark/320",
+      "changed": 159,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/disabled/dark/320",
+      "changed": 159,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/selected/dark/320",
+      "changed": 159,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/dark/320",
+      "changed": 205,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/dark/320",
+      "changed": 205,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/dark/320",
+      "changed": 205,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/dark/320",
+      "changed": 205,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/dark/320",
+      "changed": 205,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/dark/320",
+      "changed": 205,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/dark/320",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/default/dark/690",
+      "changed": 124,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/hover/dark/690",
+      "changed": 124,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/focus-visible/dark/690",
+      "changed": 124,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/pressed/dark/690",
+      "changed": 124,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/disabled/dark/690",
+      "changed": 124,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/selected/dark/690",
+      "changed": 124,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/dark/690",
+      "changed": 3673,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/dark/690",
+      "changed": 3673,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/dark/690",
+      "changed": 3673,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/dark/690",
+      "changed": 3673,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/dark/690",
+      "changed": 3673,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/dark/690",
+      "changed": 3673,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/dark/690",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/dark/690",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/dark/690",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/dark/690",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/dark/690",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/dark/690",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/dark/690",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/dark/690",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/dark/690",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/dark/690",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/dark/690",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/dark/690",
+      "changed": 200,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/default/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/hover/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/focus-visible/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/pressed/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/disabled/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/selected/dark/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/dark/690",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/hc-dark/320",
+      "changed": 5556,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/hc-dark/320",
+      "changed": 5556,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/hc-dark/320",
+      "changed": 5556,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/hc-dark/320",
+      "changed": 5556,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/hc-dark/320",
+      "changed": 5556,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/hc-dark/320",
+      "changed": 5556,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/hc-dark/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/hc-dark/320",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/hc-dark/320",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/hc-dark/320",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/hc-dark/320",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/hc-dark/320",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/hc-dark/320",
+      "changed": 201,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/hc-dark/320",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/default/hc-dark/690",
+      "changed": 125,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/hover/hc-dark/690",
+      "changed": 125,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/focus-visible/hc-dark/690",
+      "changed": 125,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/pressed/hc-dark/690",
+      "changed": 125,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/disabled/hc-dark/690",
+      "changed": 125,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/selected/hc-dark/690",
+      "changed": 125,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/hc-dark/690",
+      "changed": 3953,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/hc-dark/690",
+      "changed": 3953,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/hc-dark/690",
+      "changed": 3953,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/hc-dark/690",
+      "changed": 3953,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/hc-dark/690",
+      "changed": 3953,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/hc-dark/690",
+      "changed": 3953,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/hc-dark/690",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/hc-dark/690",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/hc-dark/690",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/hc-dark/690",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/hc-dark/690",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/hc-dark/690",
+      "changed": 196,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/default/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/hover/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/focus-visible/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/pressed/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/disabled/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/selected/hc-dark/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/hc-dark/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/hc-light/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/hc-light/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/hc-light/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/hc-light/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/hc-light/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/hc-light/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/hc-light/320",
+      "changed": 5157,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/hc-light/320",
+      "changed": 5157,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/hc-light/320",
+      "changed": 5157,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/hc-light/320",
+      "changed": 5157,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/hc-light/320",
+      "changed": 5157,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/hc-light/320",
+      "changed": 5157,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/hc-light/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/hc-light/320",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/hc-light/320",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/hc-light/320",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/hc-light/320",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/hc-light/320",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/hc-light/320",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/hc-light/320",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/default/hc-light/690",
+      "changed": 127,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/hover/hc-light/690",
+      "changed": 127,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/focus-visible/hc-light/690",
+      "changed": 127,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/pressed/hc-light/690",
+      "changed": 127,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/disabled/hc-light/690",
+      "changed": 127,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/selected/hc-light/690",
+      "changed": 127,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/hc-light/690",
+      "changed": 3698,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/hc-light/690",
+      "changed": 3698,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/hc-light/690",
+      "changed": 3698,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/hc-light/690",
+      "changed": 3698,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/hc-light/690",
+      "changed": 3698,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/hc-light/690",
+      "changed": 3698,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/hc-light/690",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/hc-light/690",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/hc-light/690",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/hc-light/690",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/hc-light/690",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/hc-light/690",
+      "changed": 193,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/default/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/hover/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/focus-visible/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/pressed/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/disabled/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/selected/hc-light/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/hc-light/690",
+      "changed": 194,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/default/one-dark-pro/320",
+      "changed": 166,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/hover/one-dark-pro/320",
+      "changed": 166,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/focus-visible/one-dark-pro/320",
+      "changed": 166,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/pressed/one-dark-pro/320",
+      "changed": 166,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/disabled/one-dark-pro/320",
+      "changed": 166,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/selected/one-dark-pro/320",
+      "changed": 166,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/one-dark-pro/320",
+      "changed": 5049,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/one-dark-pro/320",
+      "changed": 5049,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/one-dark-pro/320",
+      "changed": 5049,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/one-dark-pro/320",
+      "changed": 5049,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/one-dark-pro/320",
+      "changed": 5049,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/one-dark-pro/320",
+      "changed": 5049,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/one-dark-pro/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/default/one-dark-pro/320",
+      "changed": 184,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/hover/one-dark-pro/320",
+      "changed": 184,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/focus-visible/one-dark-pro/320",
+      "changed": 184,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/pressed/one-dark-pro/320",
+      "changed": 184,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/disabled/one-dark-pro/320",
+      "changed": 184,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/selected/one-dark-pro/320",
+      "changed": 184,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/one-dark-pro/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/one-dark-pro/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/one-dark-pro/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/one-dark-pro/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/one-dark-pro/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/one-dark-pro/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/one-dark-pro/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/default/one-dark-pro/690",
+      "changed": 123,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/hover/one-dark-pro/690",
+      "changed": 123,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/focus-visible/one-dark-pro/690",
+      "changed": 123,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/pressed/one-dark-pro/690",
+      "changed": 123,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/disabled/one-dark-pro/690",
+      "changed": 123,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/selected/one-dark-pro/690",
+      "changed": 123,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/one-dark-pro/690",
+      "changed": 3634,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/one-dark-pro/690",
+      "changed": 3634,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/one-dark-pro/690",
+      "changed": 3634,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/one-dark-pro/690",
+      "changed": 3634,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/one-dark-pro/690",
+      "changed": 3634,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/one-dark-pro/690",
+      "changed": 3634,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/one-dark-pro/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/one-dark-pro/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/one-dark-pro/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/one-dark-pro/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/one-dark-pro/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/one-dark-pro/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/one-dark-pro/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/one-dark-pro/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/one-dark-pro/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/one-dark-pro/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/one-dark-pro/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/one-dark-pro/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/default/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/hover/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/focus-visible/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/pressed/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/disabled/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/selected/one-dark-pro/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/one-dark-pro/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/default/dracula/320",
+      "changed": 164,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/hover/dracula/320",
+      "changed": 164,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/focus-visible/dracula/320",
+      "changed": 164,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/pressed/dracula/320",
+      "changed": 164,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/disabled/dracula/320",
+      "changed": 164,
+      "allowed": 12
+    },
+    {
+      "key": "panel/handoff/selected/dracula/320",
+      "changed": 164,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/dracula/320",
+      "changed": 5408,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/dracula/320",
+      "changed": 5408,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/dracula/320",
+      "changed": 5408,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/dracula/320",
+      "changed": 5408,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/dracula/320",
+      "changed": 5408,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/dracula/320",
+      "changed": 5408,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/dracula/320",
+      "changed": 195,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/default/dracula/320",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/hover/dracula/320",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/focus-visible/dracula/320",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/pressed/dracula/320",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/disabled/dracula/320",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/prompt-library/selected/dracula/320",
+      "changed": 171,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/dracula/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/dracula/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/dracula/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/dracula/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/dracula/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/dracula/320",
+      "changed": 203,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/dracula/320",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/default/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/hover/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/focus-visible/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/pressed/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/disabled/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-full/selected/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/default/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/hover/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/focus-visible/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/pressed/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/disabled/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/context-meter-warning/selected/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/default/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/hover/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/focus-visible/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/pressed/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/disabled/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/empty/selected/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/default/dracula/690",
+      "changed": 126,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/hover/dracula/690",
+      "changed": 126,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/focus-visible/dracula/690",
+      "changed": 126,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/pressed/dracula/690",
+      "changed": 126,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/disabled/dracula/690",
+      "changed": 126,
+      "allowed": 12
+    },
+    {
+      "key": "panel/git-pr-narrow/selected/dracula/690",
+      "changed": 126,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/default/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/hover/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/focus-visible/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/pressed/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/disabled/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/goal-edit/selected/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/default/dracula/690",
+      "changed": 3849,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/hover/dracula/690",
+      "changed": 3849,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/focus-visible/dracula/690",
+      "changed": 3849,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/pressed/dracula/690",
+      "changed": 3849,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/disabled/dracula/690",
+      "changed": 3849,
+      "allowed": 12
+    },
+    {
+      "key": "panel/icons/selected/dracula/690",
+      "changed": 3849,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/default/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/hover/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/focus-visible/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/pressed/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/disabled/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/mention/selected/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/default/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/hover/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/focus-visible/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/pressed/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/disabled/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/models/selected/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/default/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/hover/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/focus-visible/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/pressed/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/disabled/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/modes/selected/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/default/dracula/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/hover/dracula/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/focus-visible/dracula/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/pressed/dracula/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/disabled/dracula/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/palette/selected/dracula/690",
+      "changed": 209,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/default/dracula/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/hover/dracula/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/focus-visible/dracula/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/pressed/dracula/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/disabled/dracula/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/questions-chip/selected/dracula/690",
+      "changed": 198,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/default/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/hover/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/focus-visible/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/pressed/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/disabled/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/schedules-narrow/selected/dracula/690",
+      "changed": 197,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/default/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/hover/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/focus-visible/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/pressed/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/disabled/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/slash-commands/selected/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/default/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/hover/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/focus-visible/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/pressed/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/disabled/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    },
+    {
+      "key": "panel/stop-running/selected/dracula/690",
+      "changed": 199,
+      "allowed": 12
+    }
+  ]
+}

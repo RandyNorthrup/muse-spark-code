@@ -19,8 +19,8 @@ export interface PanelUiState {
   /**
    * The wizard draft's generation (STARTUP017): each open starts a new one
    * (a provider pick or a save opens the wizard on a new draft), and a
-   * closed wizard has none current, so work begun for one draft (a budget
-   * change waiting for the money chunk) never lands on another.
+   * closed wizard has none current, so work begun for one draft never
+   * lands on another.
    */
   readonly wizardGeneration: number
   readonly importOpen: boolean

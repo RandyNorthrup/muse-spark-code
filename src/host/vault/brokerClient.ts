@@ -38,4 +38,5 @@ export class BrokerSecretStore implements SecretStore {
   }
 }
 
+/** @unwired M109 host vault broker client */
 export { VaultFirstPartyReader as HostVaultBrokerClient } from '../../core/vault/broker/firstParty'

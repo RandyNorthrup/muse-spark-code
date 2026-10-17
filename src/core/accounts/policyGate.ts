@@ -13,7 +13,9 @@ export type AccountPolicyDecision =
     }
   | { readonly kind: 'recovery'; readonly recovery: 'chatgptPlan' | 'museCodeSubscription' }
 
-/** The UI port displays these words plus the original sources, URL and page date. */
+/** The UI port displays these words plus the original sources, URL and page date.
+ * @unwired M108 accounts policy question for the panel
+ */
 export function accountPolicyQuestion(row: AccountPolicy): {
   readonly warning: string
   readonly legitimate: string

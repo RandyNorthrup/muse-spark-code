@@ -70,14 +70,17 @@ export function AccountsSection({
       const next = modelsAccountsSliceSchema.safeParse(reply)
       if (!next.success || next.data.provider !== slice.provider) {
         const problem = accountsReplySchema.safeParse(reply)
+        const code =
+          problem.success && problem.data.type === 'accounts/error' ? problem.data.code : undefined
+        // Fixed bridge codes render their honest copy; anything else stays
+        // a generic failure, never raw error text.
+        const honest: Record<string, string> = {
+          invalidAccount: UI_TEXT.accounts.invalidAccount,
+          providersInvalid: UI_TEXT.accounts.providersInvalid,
+        }
         setError({
           value,
-          message:
-            problem.success &&
-            problem.data.type === 'accounts/error' &&
-            problem.data.code === 'invalidAccount'
-              ? UI_TEXT.accounts.invalidAccount
-              : UI_TEXT.actionFailed,
+          message: (code === undefined ? undefined : honest[code]) ?? UI_TEXT.actionFailed,
         })
         return
       }
