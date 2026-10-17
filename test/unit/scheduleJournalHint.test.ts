@@ -1,10 +1,8 @@
 // Read-only takeover tolerates exactly the blocked-hint shape (PLAN.md
 // D119): a lock-coded pointer replace in read-only mode re-checks fencing
 // and succeeds, while any other failure keeps its kind and fails the read.
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { usingTempDir } from './helpers/temporaryFolders'
 import {
   createScheduleJournal,
   isHintBlockedError,
@@ -27,8 +25,7 @@ function hintBlocked(code: string): Error {
   return Object.assign(new Error('hint blocked'), { code })
 }
 
-async function sealedDirectory(): Promise<{ directory: string; fs: ScheduleFsPort }> {
-  const directory = await mkdtemp(path.join(tmpdir(), 'muse-schedule-journal-'))
+async function sealedStore(directory: string): Promise<ScheduleFsPort> {
   const fs = createNodeScheduleFs(directory)
   const journal = createScheduleJournal(fs, 'journal', parse, {})
   await journal.transact(() => ({ value: { n: { v: 1 } }, result: undefined }))
@@ -42,7 +39,7 @@ async function sealedDirectory(): Promise<{ directory: string; fs: ScheduleFsPor
     JSON.stringify({ revision: current.revision + 1, changes: [], sealed: true }),
   )
   if (!isPublished) throw new Error('journalSeedFailed')
-  return { directory, fs }
+  return fs
 }
 
 describe('schedule journal read-only fencing', () => {
@@ -57,8 +54,8 @@ describe('schedule journal read-only fencing', () => {
   })
 
   it('fails a read-only takeover when the hint replace fails any other way', async () => {
-    const { directory, fs } = await sealedDirectory()
-    try {
+    await usingTempDir('muse-schedule-journal-', async (directory) => {
+      const fs = await sealedStore(directory)
       const blocked = hintBlocked('ENOSPC')
       const journal = createScheduleJournal(blockedReplace(fs, blocked), 'journal', parse, {})
       let failure: unknown
@@ -68,14 +65,12 @@ describe('schedule journal read-only fencing', () => {
         failure = error
       }
       expect(failure).toBe(blocked)
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
+    })
   })
 
   it('keeps the committed value when a blocked hint re-checks fencing', async () => {
-    const { directory, fs } = await sealedDirectory()
-    try {
+    await usingTempDir('muse-schedule-journal-', async (directory) => {
+      const fs = await sealedStore(directory)
       const journal = createScheduleJournal(
         blockedReplace(fs, hintBlocked('EPERM')),
         'journal',
@@ -85,8 +80,6 @@ describe('schedule journal read-only fencing', () => {
       const current = await journal.read()
       expect(current.generation).not.toBeUndefined()
       expect(current.value).toEqual({ n: { v: 1 } })
-    } finally {
-      await rm(directory, { recursive: true, force: true })
-    }
+    })
   })
 })

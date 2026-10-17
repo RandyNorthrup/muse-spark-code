@@ -10,6 +10,7 @@ import { createScheduler, type SchedulerDeps } from '../../src/core/schedules/sc
 import { scheduleFailedSettlement } from '../../src/runtime/schedules/engine'
 import type { ScheduleRunIntent } from '../../src/core/schedules/store'
 import { scheduleEventRunId } from '../../src/shared/scheduleEvents'
+import { Usd } from '../../src/shared/usd'
 import {
   scheduleFireRecordSchema,
   type ScheduleDeliveryResult,
@@ -29,14 +30,14 @@ function job(): ScheduleV2 {
     id: scheduleId,
     name: 'Check the build',
     action: { kind: 'prompt', prompt: 'Read the build result and report any failures.' },
-    trigger: { kind: 'interval', everyMs: 3_600_000 },
+    trigger: { kind: 'interval', everyMs: 3_600_000, anchorMs: nowMs },
     target: { kind: 'conversation', sessionId: 'build-session', backend: 'modelApi' },
     delivery: 'interrupt',
     whenClosed: 'open',
     catchUp: 'runOnce',
     mode: 'manual',
-    grant: { rules: [], destinationIds: [], paidCapUsd: 1 },
-    paidCapUsd: 1,
+    grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(1).toAmount() },
+    paidCapUsd: Usd.from(1).toAmount(),
     parallel: true,
     zone: 'America/Los_Angeles',
     pinned: false,
@@ -52,7 +53,7 @@ function job(): ScheduleV2 {
     depth: 0,
     allowAgentReschedule: false,
     creator: { kind: 'agent', agentId: 'lead', sessionId: 'planning', orchestratorId: 'orch' },
-  } as ScheduleV2
+  }
 }
 
 function setup(state: {

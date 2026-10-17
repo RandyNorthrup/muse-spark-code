@@ -132,5 +132,6 @@ try {
   // The failure reaches the host's record with its cause.
   if (!(error instanceof Error)) throw error
   host?.post(webviewErrorReport('hostMessage', error))
-  root.render(<Unavailable code={isInvalidTable ? 'invalidMessage' : undefined} />)
+  const unavailable: { code?: 'invalidMessage' } = isInvalidTable ? { code: 'invalidMessage' } : {}
+  root.render(<Unavailable {...unavailable} />)
 }

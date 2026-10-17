@@ -2,9 +2,7 @@
 // estimator's own refusal keeps its detail in words, anything else reads
 // failed without its raw text, and a superseded failure stays silent.
 import { describe, expect, it } from 'vitest'
-import { lookupEstimatePrices } from '../../src/core/estimator/prices'
-import { estimatorSourcePorts } from '../../src/host/estimator/localFleet'
-import { estimateSectionSchema } from '../../src/shared/estimate'
+import { catalogOptionsRefusal, estimateContractFailure } from './helpers/estimateFailures'
 import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
 import { EN } from '../../src/shared/l10n/en'
 import type { EstimateRunPort } from '../../src/runtime/estimator/command'
@@ -12,42 +10,6 @@ import { EstimateViewSession } from '../../src/runtime/estimator/session'
 
 const AS_OF_1 = '2026-10-17T00:00:01.000Z'
 const AS_OF_2 = '2026-10-17T00:00:02.000Z'
-
-function pricePorts() {
-  return estimatorSourcePorts(() => ({
-    enabled: true,
-    networkAllowed: false,
-    maxAgeMs: 60_000,
-    catalogUrls: [],
-  })).prices()
-}
-
-async function catalogOptionsRefusal(): Promise<Error> {
-  try {
-    await lookupEstimatePrices(
-      {
-        asOf: AS_OF_1,
-        enabled: true,
-        networkAllowed: false,
-        maxAgeMs: 60_000,
-        catalogUrls: ['https://example.com/a.json', 'https://example.com/a.json'],
-      },
-      pricePorts(),
-    )
-  } catch (error) {
-    if (error instanceof Error) return error
-  }
-  throw new Error('lookup did not refuse duplicate catalogs')
-}
-
-function contractFailure(): Error {
-  try {
-    estimateSectionSchema.parse({})
-  } catch (error) {
-    if (error instanceof Error) return error
-  }
-  throw new Error('section schema accepted an empty object')
-}
 
 function makeSession(runner: EstimateRunPort): {
   session: EstimateViewSession
@@ -85,7 +47,7 @@ function makeSession(runner: EstimateRunPort): {
 describe('estimate view session failures', () => {
   it('says the estimator’s own refusal in its own words', async () => {
     setUiText(EN, BASE_LOCALE)
-    const refusal = await catalogOptionsRefusal()
+    const refusal = await catalogOptionsRefusal(AS_OF_1)
     const { session, texts } = makeSession({ estimate: () => Promise.reject(refusal) })
     await session.refresh()
     expect(texts).toEqual([fill(UI_TEXT.estimateFailed, { detail: 'catalog-options' })])
@@ -93,15 +55,17 @@ describe('estimate view session failures', () => {
 
   it('reads a foreign failure as failed, without its raw text', async () => {
     setUiText(EN, BASE_LOCALE)
-    const { session, texts } = makeSession({ estimate: () => Promise.reject(contractFailure()) })
+    const { session, texts } = makeSession({
+      estimate: () => Promise.reject(estimateContractFailure()),
+    })
     await session.refresh()
     expect(texts).toEqual([fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' })])
   })
 
   it('keeps a superseded failure silent while the current run reports', async () => {
     setUiText(EN, BASE_LOCALE)
-    const refusal = await catalogOptionsRefusal()
-    const foreign = contractFailure()
+    const refusal = await catalogOptionsRefusal(AS_OF_1)
+    const foreign = estimateContractFailure()
     let calls = 0
     const { session, texts } = makeSession({
       estimate: () => {

@@ -1,5 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -14,7 +13,7 @@ import {
 } from '../../src/core/backends/modelapi/sessionBudget'
 import type { ModelPricePolicy } from '../../src/core/backends/modelapi/modelPolicy'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
-import { removeFolder } from './helpers/temporaryFolders'
+import { usingTempDir } from './helpers/temporaryFolders'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { formatUsd } from '../../src/core/usage/insights'
 import {
@@ -528,14 +527,8 @@ describe('M108 T account budget admission', () => {
   })
 
   it('does not let an account swap reset M82 settled spend or outstanding liability', async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), 'muse-account-session-'))
-    try {
-      const journal = createSessionBudgetJournal({
-        directory,
-        sleep: () => Promise.resolve(),
-        initialBudget: () =>
-          Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
-      })
+    await usingTempDir('muse-account-session-', async (directory) => {
+      const journal = unspentJournal(directory)
       const owner = 'a'.repeat(64)
       await journal.record('conversation', owner, Usd.from(0.8).toAmount())
       const open = await journal.reserve('conversation', owner, Usd.from(0.1).toAmount())
@@ -560,68 +553,62 @@ describe('M108 T account budget admission', () => {
       expect(Number(total.spentUsd)).toBeCloseTo(1)
       // The old account's unresolved request remains owed after the swap.
       expect(open.reservedUsd).toBe(Usd.from(0.1).toAmount())
-    } finally {
-      await removeFolder(directory)
-    }
+    })
   })
 })
+
+function unspentJournal(directory: string) {
+  return createSessionBudgetJournal({
+    directory,
+    sleep: () => Promise.resolve(),
+    initialBudget: () =>
+      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+  })
+}
+
+async function refusesSeedStore(damage: () => Promise<void>, read: () => Promise<unknown>) {
+  await damage()
+  let failure: unknown
+  try {
+    await read()
+  } catch (error: unknown) {
+    failure = error
+  }
+  if (!(failure instanceof Error)) throw new Error('seed damage read as success')
+  expect(failure.message).toBe(UI_TEXT.sessionBudgetStoreUnavailable)
+  expect(failure.cause).toBeInstanceOf(Error)
+}
 
 describe('session budget journal failures', () => {
   const owner = 'a'.repeat(64)
   async function seeded(directory: string) {
-    const journal = createSessionBudgetJournal({
-      directory,
-      sleep: () => Promise.resolve(),
-      initialBudget: () =>
-        Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
-    })
+    const journal = unspentJournal(directory)
     await journal.reserve('conversation', owner, Usd.from(0.1).toAmount())
     return journal
   }
   function seedFile(directory: string): string {
     return path.join(directory, 'budget-journal', owner, 'conversation', 'seed.json')
   }
-
   it('refuses a damaged seed with the store sentence and keeps the cause', async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), 'muse-budget-seed-'))
-    try {
+    await usingTempDir('muse-budget-seed-', async (directory) => {
       const journal = await seeded(directory)
-      await writeFile(seedFile(directory), 'not json', 'utf8')
-      let failure: unknown
-      try {
-        await journal.read('conversation', owner)
-      } catch (error: unknown) {
-        failure = error
-      }
-      expect(failure).toBeInstanceOf(Error)
-      expect(failure instanceof Error && failure.message).toBe(
-        UI_TEXT.sessionBudgetStoreUnavailable,
+      await refusesSeedStore(
+        () => writeFile(seedFile(directory), 'not json', 'utf8'),
+        () => journal.read('conversation', owner),
       )
-      expect(failure instanceof Error && failure.cause instanceof Error).toBe(true)
-    } finally {
-      await removeFolder(directory)
-    }
+    })
   })
 
   it('refuses an unreadable seed with the store sentence and keeps the cause', async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), 'muse-budget-seed-'))
-    try {
+    await usingTempDir('muse-budget-seed-', async (directory) => {
       const journal = await seeded(directory)
-      await rm(seedFile(directory))
-      await mkdir(seedFile(directory))
-      let failure: unknown
-      try {
-        await journal.read('conversation', owner)
-      } catch (error: unknown) {
-        failure = error
-      }
-      expect(failure).toBeInstanceOf(Error)
-      expect(failure instanceof Error && failure.message).toBe(
-        UI_TEXT.sessionBudgetStoreUnavailable,
+      await refusesSeedStore(
+        async () => {
+          await rm(seedFile(directory))
+          await mkdir(seedFile(directory))
+        },
+        () => journal.read('conversation', owner),
       )
-      expect(failure instanceof Error && failure.cause instanceof Error).toBe(true)
-    } finally {
-      await removeFolder(directory)
-    }
+    })
   })
 })
