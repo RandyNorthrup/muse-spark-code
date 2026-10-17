@@ -4966,6 +4966,16 @@ export class ModelApiSession implements ScheduledAgentSession {
     mediaAccounting?: MediaRequestAccounting,
   ): ResponseAttemptGuard {
     const token = this.owner.token()
+    const active = this.active
+    const compacting = this.compacting
+    const isLive = () =>
+      this.owner.matches(token) &&
+      this.active === active &&
+      this.compacting === compacting &&
+      active?.abort.signal.aborted !== true &&
+      compacting?.signal.aborted !== true &&
+      !this.isHostClosing() &&
+      !this.isDisposed
     const instructionMaterial = this.instructionMaterial()
     const reservation = directBudget === undefined ? this.openReservation : undefined
     const expectedKeyDigest = this.modelKeyDigests.get(body.model)
@@ -5093,7 +5103,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       prepare: async () => {
         // Finish the previous retry/rebuild before admitting a fresh maximum.
         await this.endRequest(true)
+        if (!isLive()) throw new AbortedError()
         await this.deps.admitResponseAttempt?.prepare?.()
+        if (!isLive()) throw new AbortedError()
         const reserve = this.deps.admitResponseAttempt?.reserveUsage
         if (reserve === undefined) return
         // M82's same upper bound: one token per serialized UTF-8 byte;
@@ -5105,6 +5117,11 @@ export class ModelApiSession implements ScheduledAgentSession {
         const outputTokens = body.max_output_tokens
         const costUsd = resolved.price.reserve({ inputTokens, outputTokens })
         const claim = await reserve({ inputTokens, outputTokens, costUsd })
+        if (!isLive()) {
+          // Stop can finish cleanup while this admission still awaits persistence.
+          if (typeof claim === 'function') await claim({ kind: 'released' })
+          throw new AbortedError()
+        }
         if (typeof claim === 'function')
           this.workerAttempt = { settle: claim, isSent: false, isRefused: false, hasStarted: false }
       },
