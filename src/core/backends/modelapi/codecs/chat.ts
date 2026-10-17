@@ -30,7 +30,14 @@ import {
   UI_TEXT,
 } from '../../../../shared/constants'
 import { resolveReasoning } from '../../../../shared/effort'
-import { cleanWireText, isBlankWireText, nativeCallId, type CallIdFormat } from './shared'
+import { fill } from '../../../../shared/l10n/text'
+import {
+  ChatCodecError,
+  cleanWireText,
+  isBlankWireText,
+  nativeCallId,
+  type CallIdFormat,
+} from './shared'
 export { parseNativeModelsList as parseChatModelsList } from '../../../providers/modelMetadata'
 import type {
   CreateResponseBody,
@@ -309,13 +316,19 @@ const chatReasoningEnvelopeSchema = z.object({
 
 // --- encode: canonical body to a native request ---
 
-function textOfParts(parts: readonly InputContentPart[]): string {
+function textOfParts(parts: readonly InputContentPart[], model: string): string {
   // M101 lane P1 (BYO items 1, 13): blank text is dropped and lone
   // surrogates are removed (Pi `transform-messages.ts`).
   return parts
     .flatMap((part) => {
       if (part.type === 'input_text' || part.type === 'output_text') {
         return isBlankWireText(part.text) ? [] : [cleanWireText(part.text)]
+      }
+      // M105 lane V R2 (RVCM1054 finding 1, same class): a video part in a
+      // non-user message refuses with its own typed reason, not the generic
+      // unknown-model error.
+      if (part.type === 'input_video') {
+        throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
       }
       throw new Error(UI_TEXT.execUnknownModel)
     })
@@ -325,18 +338,25 @@ function textOfParts(parts: readonly InputContentPart[]): string {
 function contentOfParts(
   parts: readonly InputContentPart[],
   vision: boolean | undefined,
+  model: string,
 ): ChatUserMessage['content'] {
-  if (parts.every((part) => part.type !== 'input_image')) {
-    return textOfParts(parts)
+  if (parts.every((part) => part.type !== 'input_image' && part.type !== 'input_video')) {
+    return textOfParts(parts, model)
   }
-  if (vision === undefined) {
+  // M105 lane V R2 (RVCM1054 finding 1, same class): the vision check skips
+  // a video part, so `chatBlockFor` below refuses it with its own typed
+  // reason instead of the generic unknown-model error.
+  if (vision === undefined && parts.every((part) => part.type !== 'input_video')) {
     throw new Error(UI_TEXT.execUnknownModel)
   }
-  // M101 lane P1 (BYO item 1): media rides as the image-omitted placeholder
-  // where the model takes no images, so the turn keeps its shape.
+  const hasVision = vision ?? false
+  // M101 lane P1 (BYO item 1): images ride as the image-omitted placeholder
+  // where the model takes no images, so the turn keeps its shape. M105 lane
+  // V: video has no Chat shape without a vendor capture behind it, so it is
+  // refused with the model's own reason instead of a placeholder.
   const blocks: (ChatTextPart | ChatImagePart)[] = []
   for (const part of parts) {
-    const block = chatBlockFor(part, vision)
+    const block = chatBlockFor(part, hasVision, model)
     if (block !== undefined) blocks.push(block)
   }
   return blocks
@@ -346,6 +366,7 @@ function contentOfParts(
 function chatBlockFor(
   part: InputContentPart,
   hasVision: boolean,
+  model: string,
 ): ChatTextPart | ChatImagePart | undefined {
   switch (part.type) {
     case 'input_image': {
@@ -356,7 +377,7 @@ function chatBlockFor(
         : { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION }
     }
     case 'input_video': {
-      return { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION }
+      throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
     }
     case 'input_text':
     case 'output_text': {
@@ -444,18 +465,18 @@ export function encodeChatRequest(
       case 'message': {
         if (item.role === 'developer') {
           flushAssistant()
-          messages.push({ role: 'system', content: textOfParts(item.content) })
+          messages.push({ role: 'system', content: textOfParts(item.content, model) })
         } else if (item.role === 'assistant') {
           if (pending === undefined) {
-            pendingText += textOfParts(item.content)
+            pendingText += textOfParts(item.content, model)
           } else {
-            pending.text = `${pending.text ?? ''}${textOfParts(item.content)}`
+            pending.text = `${pending.text ?? ''}${textOfParts(item.content, model)}`
           }
         } else {
           flushAssistant()
           messages.push({
             role: 'user',
-            content: contentOfParts(item.content, options?.capabilities?.vision),
+            content: contentOfParts(item.content, options?.capabilities?.vision, model),
           })
         }
 
@@ -505,7 +526,7 @@ export function encodeChatRequest(
         if (images.length > 0) {
           pendingImages.push({
             role: 'user',
-            content: contentOfParts(images, options?.capabilities?.vision),
+            content: contentOfParts(images, options?.capabilities?.vision, model),
           })
         }
 
@@ -642,18 +663,12 @@ function nativeRouting(routing: ChatRouting): NonNullable<ChatCompletionRequest[
   }
 }
 
-class ChatCodecError extends Error {
-  override readonly name = 'ChatCodecError'
-}
-
 /**
- * The configured client rethrows these instead of its generic unavailable
- * error, so the typed refusal and its localized reason reach the caller.
- * Matched by name so a second copy of this module cannot mask it.
+ * Re-exported from `./shared` (M105 lane V R3, RVCM1054B P2): the one
+ * decision point lives there so no client keeps its own list. Kept here so
+ * existing `chat.isChatCodecError` callers keep working.
  */
-export function isChatCodecError(error: unknown): boolean {
-  return error instanceof Error && error.name === 'ChatCodecError'
-}
+export { isChatCodecError } from './shared'
 
 function nativeReasoning(
   body: CreateResponseBody,

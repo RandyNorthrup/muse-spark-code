@@ -75,6 +75,11 @@ import { AcpMedia } from '../../src/acp/media'
 import { acpMediaIo } from './helpers/acpMediaIo'
 import { videoFixture } from './helpers/media/fixtures'
 import { mediaModel } from './helpers/media/replay'
+import * as chatCodec from '../../src/core/backends/modelapi/codecs/chat'
+import type { ChatPresetQuirks } from '../../src/core/backends/modelapi/codecs/chat'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { queuedAnswerBackend } from './helpers/questions/queuedAnswerBackend'
+import { isChatCodecError } from '../../src/core/backends/modelapi/codecs/shared'
 
 const actualMemoryStore = keyInput.memorySecretStore
 
@@ -1729,6 +1734,7 @@ it.each(['1', '0.000001'])(
     }
   },
 )
+
 describe('M105 headless attachment entry', () => {
   it('returns usage/2 for unsupported attached media and headless /record without inference', async () => {
     const h = await harness(['--attach', 'clip.mp4'], [], {
@@ -1865,6 +1871,104 @@ describe('M105 headless attachment entry', () => {
       expect(result(done).stopReason).toBe('end_turn')
     } finally {
       create.mockRestore()
+    }
+  })
+
+  it('reports a codec refusal with the sentence, exit 4 and zero requests', async () => {
+    // The sentence comes from the REAL chat encoder over no transport.
+    let refusal: unknown
+    try {
+      chatCodec.encodeChatRequest(
+        {
+          model: 'muse-spark-1.3-contributor',
+          instructions: 'be brief',
+          input: [
+            {
+              type: 'message',
+              role: 'user',
+              content: [
+                { type: 'input_text', text: 'what is in this clip?' },
+                { type: 'input_video', file_id: 'file-abc123' },
+              ],
+            },
+          ],
+          tools: [],
+          tool_choice: 'auto',
+          reasoning: { effort: 'low', summary: 'auto' },
+          stream: true,
+          store: false,
+          include: [],
+          max_output_tokens: 1024,
+          prompt_cache_key: 'test',
+          prompt_cache_retention: '24h',
+        },
+        'muse-spark-1.3-contributor',
+        {
+          presetId: 'openrouter',
+          outputCap: 'max_tokens',
+          reasoningParam: 'effort-object',
+          sendCacheKey: false,
+          includeUsage: true,
+          toolStream: false,
+          toolResultName: false,
+          replayField: 'details',
+        } satisfies ChatPresetQuirks,
+      )
+    } catch (error) {
+      refusal = error
+    }
+    if (!isChatCodecError(refusal)) throw new Error('the real encoder must refuse the held video')
+    const sentence = refusal.message
+    expect(sentence).toBe('muse-spark-1.3-contributor is not known to take video.')
+    // RVCM1054D P3: everything below is real — runExec, the in-process ACP
+    // agent, a real Model API host over a fake transport, the tap and the
+    // ledger — with only the client request boundary doubled. The
+    // production backend loads from a separately required built bundle that
+    // no in-process spy reaches, so the run is pointed at a real
+    // source-registry host (same ModelApiHost code the bundle carries);
+    // the refusal above is built by the real encoder, and the spy raises
+    // that same instance where the session requests the turn, before any
+    // transport attempt settles. The real error-to-reason mapping
+    // (reason = describe(error)) is what fails the turn with the sentence
+    // as its reason: if that mapping stops preserving the refusal, this
+    // test fails.
+    const h = await harness()
+    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    const backend = queuedAnswerBackend(h.cwd, log)
+    const stream = vi.spyOn(ModelApiClient.prototype, 'streamResponse').mockImplementation(() => {
+      throw refusal
+    })
+    const create = vi
+      .spyOn(runtimeBackends, 'createRuntimeBackend')
+      .mockImplementationOnce((input) => {
+        const runtime = actualRuntime(input)
+        return {
+          ...runtime,
+          backend: {
+            ...runtime.backend,
+            hostFor: () => Promise.resolve(backend.host),
+          },
+        }
+      })
+    try {
+      const r = await h.run()
+      expect(r.code).toBe(EXEC_EXIT.failed)
+      expect(result(r)).toMatchObject({
+        status: 'failed',
+        terminal: 'failed',
+        incompleteReason: sentence,
+        error: { kind: 'failed', message: `Internal error: ${sentence}` },
+      })
+      expect(result(r).usage.requests).toBe(0)
+      // Zero turn dispatches: the only fetch is the catalogue lookup at
+      // session setup, never a model request for the refused turn.
+      expect(backend.api.requests.map((request) => request.path)).toEqual(['/models'])
+      expect(backend.api.responseBodies()).toHaveLength(0)
+      expect(h.api.requests).toHaveLength(0)
+    } finally {
+      stream.mockRestore()
+      create.mockRestore()
+      await backend.host.close()
     }
   })
 })

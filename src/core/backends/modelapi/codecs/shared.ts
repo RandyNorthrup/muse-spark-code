@@ -162,3 +162,14 @@ export function nativeCallId(callId: string, format: CallIdFormat): string {
     }
   }
 }
+
+/**
+ * M105 lane V (RVCM1054 finding 1): the one refusal path for uncaptured
+ * media at the codec stage. Every request encoder throws this (never a
+ * plain Error) for a video part with no vendor capture behind it, and the
+ * configured production client rethrows it by name, so the sentence the
+ * user reads is the refusal's own translated reason. Re-exported from the
+ * leaf module so bundles that must not carry the codecs (the Models panel,
+ * the subscriptions bundle) import it there instead (RVCM1054D P2).
+ */
+export { ChatCodecError, isChatCodecError } from '../../../media/codecRefusal'

@@ -1,4 +1,9 @@
 import { Usd } from '../../src/shared/usd'
+import {
+  encodeChatRequest,
+  type ChatPresetQuirks,
+} from '../../src/core/backends/modelapi/codecs/chat'
+import { isChatCodecError } from '../../src/core/backends/modelapi/codecs/shared'
 import { fill } from '../../src/shared/l10n/text'
 import type { PlaybookSurfacePort } from '../../src/runtime/playbook/command'
 import { surfacePort } from './playbookSurfaceFixtures'
@@ -25,6 +30,7 @@ import * as z from 'zod/mini'
 import { FakeQuestionClock } from './helpers/questions/clock'
 import { hookResult } from './helpers/fakeToolIo'
 import { queuedAnswerBackend } from './helpers/questions/queuedAnswerBackend'
+import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -3356,6 +3362,81 @@ describe('M105 ACP attachment commands', () => {
     expect(factory).not.toHaveBeenCalled()
     expect(port.record).not.toHaveBeenCalled()
     expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+
+  it('reports a provider codec refusal by its own sentence without replacing it', async () => {
+    // M105 lane V R5 (RVCM1054D P3): a real agent over a real Model API
+    // session (fake transport). Its sendTurn never rejects with a codec
+    // refusal: submitTurn starts the turn detached and resolves, and the
+    // refusal fails the turn as turnCompleted with the sentence as reason
+    // (ModelApiHost.ts: reason = describe(error)), settled at settle. The
+    // refusal below is built by the REAL chat encoder, not constructed by
+    // hand; the spy raises that same instance where the session requests
+    // the turn, so the real error-to-reason mapping is what fails it. If
+    // that mapping stops preserving the refusal, this test fails. The
+    // prompt rejects with the sentence under the SDK's fixed
+    // "Internal error: " prefix, today's shape for every failed turn here.
+    let refusal: unknown
+    try {
+      encodeChatRequest(
+        {
+          model: 'gpt-6-astra',
+          instructions: 'be brief',
+          input: [
+            {
+              type: 'message',
+              role: 'user',
+              content: [
+                { type: 'input_text', text: 'what is in this clip?' },
+                { type: 'input_video', file_id: 'file-abc123' },
+              ],
+            },
+          ],
+          tools: [],
+          tool_choice: 'auto',
+          reasoning: { effort: 'low', summary: 'auto' },
+          stream: true,
+          store: false,
+          include: [],
+          max_output_tokens: 1024,
+          prompt_cache_key: 'test',
+          prompt_cache_retention: '24h',
+        },
+        'gpt-6-astra',
+        {
+          presetId: 'openrouter',
+          outputCap: 'max_tokens',
+          reasoningParam: 'effort-object',
+          sendCacheKey: false,
+          includeUsage: true,
+          toolStream: false,
+          toolResultName: false,
+          replayField: 'details',
+        } satisfies ChatPresetQuirks,
+      )
+    } catch (error) {
+      refusal = error
+    }
+    if (!isChatCodecError(refusal)) throw new Error('the real encoder must refuse the held video')
+    expect(refusal.message).toBe('gpt-6-astra is not known to take video.')
+    const sentence = refusal.message
+    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    const { api, host } = queuedAnswerBackend(CWD, log)
+    const stream = vi.spyOn(ModelApiClient.prototype, 'streamResponse').mockImplementation(() => {
+      throw refusal
+    })
+    const h = harness({ kind: 'modelApi', backendHost: host })
+    try {
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        await expect(prompt(client, sessionId)).rejects.toThrow(`Internal error: ${sentence}`)
+      })
+    } finally {
+      stream.mockRestore()
+      await host.close()
+    }
+    // No model request ever dispatched: the refusal fails the turn first.
+    expect(api.responseBodies()).toHaveLength(0)
   })
 
   it('refuses a headless /attach instead of queueing a file no turn sends', async () => {

@@ -2042,6 +2042,12 @@ class AcpSession {
         }
         return outcome.reason
       }
+      // M105 lane V R4 (RVCM1054C P3): no codec branch here. The real
+      // Model API session never rejects sendTurn with a codec refusal:
+      // submitTurn starts the turn detached and resolves, and the refusal
+      // fails the turn as turnCompleted with the sentence as reason
+      // (ModelApiHost.ts: reason = describe(error)), settled above at
+      // settle. A raw error here keeps the SDK's shape unchanged.
       throw error
     } finally {
       this.starting = undefined
