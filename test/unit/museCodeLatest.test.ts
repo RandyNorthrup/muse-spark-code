@@ -1,6 +1,6 @@
-// M126: Muse Code at its latest release. Every frame below is a recorded
+// M127: Muse Code at its latest release. Every frame below is a recorded
 // exchange with Muse Code 1.4.9 (1.4.9-R6297.1) over `muse serve --provider
-// echo --no-session-log` on 2026-10-17 (test/fixtures/m126/provenance.json);
+// echo --no-session-log` on 2026-10-17 (test/fixtures/m127/provenance.json);
 // no model call, no sign-in. Notification params the echo host cannot emit
 // (a provider backoff, an Auto-review hold, a plugin install) follow the
 // CLI's own schema export captured the same day
@@ -36,7 +36,7 @@ import { UI_TEXT } from '../../src/shared/constants'
 import type { ShellResult } from '../../src/core/shellResult'
 
 function fixture(name: string): unknown {
-  return JSON.parse(readFileSync(new URL(`../fixtures/m126/${name}`, import.meta.url), 'utf8'))
+  return JSON.parse(readFileSync(new URL(`../fixtures/m127/${name}`, import.meta.url), 'utf8'))
 }
 
 const sessionId = 's1'

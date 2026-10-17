@@ -1329,7 +1329,7 @@
       "note": "package size budget"
     },
     {
-      "id": "M126",
+      "id": "M127",
       "title": "Muse Code at its latest release",
       "summary": "The Muse Code backend tracks the latest CLI and SDK: new session-protocol methods, notifications and error kinds, per-model output limits, and Muse Code's own session and hook settings read from Muse Code instead of fixed numbers.",
       "area": "models-providers"

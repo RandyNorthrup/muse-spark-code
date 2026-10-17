@@ -297,14 +297,14 @@ function unqueueRefusal(error: unknown): string | undefined {
   return typeof reason === 'string' ? reason : undefined
 }
 
-/** Exported for the M126 capture tests: parses the recorded `model/list` result. */
+/** Exported for the M127 capture tests: parses the recorded `model/list` result. */
 export const modelListResultSchema = z.object({
   models: z.array(
     z.looseObject({
       modelId: z.string(),
       displayLabel: z.string(),
       contextLimit: z.nullable(z.number()),
-      // The row's `outputLimit` (M126): `null` when the catalog source
+      // The row's `outputLimit` (M127): `null` when the catalog source
       // declared nothing; absent on older hosts. Served 2026-10-17 by
       // 1.4.9-R6297.1 (`muse schema generate-json-schema`).
       outputLimit: z.optional(z.nullable(z.number())),
@@ -315,7 +315,7 @@ export const modelListResultSchema = z.object({
 })
 
 /**
- * One recorded `model/list` row as the summary the picker reads (M126):
+ * One recorded `model/list` row as the summary the picker reads (M127):
  * `null` limits read as absent. Exported for the capture tests.
  */
 export function toModelSummary(
@@ -334,7 +334,7 @@ export function toModelSummary(
 }
 
 /**
- * One recorded `skill/list` row as the summary the palette reads (M126):
+ * One recorded `skill/list` row as the summary the palette reads (M127):
  * the declared `title` rides along only when the skill sets one.
  */
 export function toSkillSummary(
@@ -355,7 +355,7 @@ export interface ForeignSkillEntry {
   readonly reason?: string | undefined
 }
 
-/** A `skill/import` receipt: per-skill ids plus counts (M126). */
+/** A `skill/import` receipt: per-skill ids plus counts (M127). */
 export interface ForeignSkillImport {
   readonly source: string
   readonly dryRun: boolean
@@ -372,7 +372,7 @@ export interface ForeignSkillImport {
   readonly failed: readonly ForeignSkillEntry[]
 }
 
-/** A settled `recap/completed` (M126): outcome is an open vocabulary. */
+/** A settled `recap/completed` (M127): outcome is an open vocabulary. */
 export interface SessionRecap {
   readonly outcome: string
   readonly title?: string | undefined
@@ -383,7 +383,7 @@ export interface SessionRecap {
 /** One macOS grant as setup last saw it (open, like the phase). */
 export type ComputerUsePermission = string
 
-/** The host's computer-use setup state (M126, `computerUseSetup/check`). */
+/** The host's computer-use setup state (M127, `computerUseSetup/check`). */
 export interface ComputerUseSetup {
   readonly accessibility: ComputerUsePermission
   readonly inputMonitoring: ComputerUsePermission
@@ -393,7 +393,7 @@ export interface ComputerUseSetup {
   readonly refused?: string | undefined
 }
 
-/** Exported for the M126 capture tests. */
+/** Exported for the M127 capture tests. */
 export const backgroundTaskListResultSchema = z.object({
   tasks: z.array(
     z.object({
@@ -417,7 +417,7 @@ export function toBackgroundTaskSummary(
   }
 }
 
-/** Exported for the M126 capture tests. */
+/** Exported for the M127 capture tests. */
 export const hookListResultSchema = z.object({
   hooks: z.array(
     z.object({
@@ -436,7 +436,7 @@ export function toSessionHookRow(
   return { key: hook.key, event: hook.event, handlerKind: hook.handlerKind, enabled: hook.enabled }
 }
 
-/** Exported for the M126 capture tests. */
+/** Exported for the M127 capture tests. */
 export const pluginListResultSchema = z.object({
   plugins: z.array(
     z.object({
@@ -460,7 +460,7 @@ const foreignSkillEntrySchema = z.object({
   reason: z.optional(z.string()),
 })
 
-/** Exported for the M126 capture tests. */
+/** Exported for the M127 capture tests. */
 export const skillImportResultSchema = z.object({
   source: z.string(),
   dryRun: z.boolean(),
@@ -506,7 +506,7 @@ const recapRequestResultSchema = z.object({
 
 /**
  * Claims a `recap/completed` settlement for its waiter by the request's
- * commandId (M126): removes the waiter and answers the recap, or answers
+ * commandId (M127): removes the waiter and answers the recap, or answers
  * undefined when nobody asked (a late settlement past the wait). Exported
  * for the capture tests.
  */
@@ -557,7 +557,7 @@ const workflowResumeResultSchema = z.object({
   turnId: z.string(),
 })
 
-/** Exported for the M126 capture tests: parses the recorded `skill/list` result. */
+/** Exported for the M127 capture tests: parses the recorded `skill/list` result. */
 export const skillListResultSchema = z.object({
   skills: z.array(
     z.object({
@@ -2196,7 +2196,7 @@ export class MuseSession implements ScheduledAgentSession {
     return skillListResultSchema.parse(result).skills.map((skill) => toSkillSummary(skill))
   }
 
-  /** The session's live background-task inventory, oldest first (M126, `task/list` query). */
+  /** The session's live background-task inventory, oldest first (M127, `task/list` query). */
   public async listBackgroundTasks(): Promise<readonly BackgroundTaskSummary[]> {
     const result = await this.command('task/list', {})
     return backgroundTaskListResultSchema
@@ -2204,20 +2204,20 @@ export class MuseSession implements ScheduledAgentSession {
       .tasks.map((task) => toBackgroundTaskSummary(task))
   }
 
-  /** The session's installed hook rows (M126, `hook/list` query). */
+  /** The session's installed hook rows (M127, `hook/list` query). */
   public async listSessionHooks(): Promise<readonly SessionHookRow[]> {
     const result = await this.command('hook/list', {})
     return hookListResultSchema.parse(result).hooks.map((hook) => toSessionHookRow(hook))
   }
 
-  /** The installed plugin records (M126, `plugin/list` query). */
+  /** The installed plugin records (M127, `plugin/list` query). */
   public async listSessionPlugins(): Promise<readonly SessionPluginRow[]> {
     const result = await this.command('plugin/list', {})
     return pluginListResultSchema.parse(result).plugins.map((plugin) => toSessionPluginRow(plugin))
   }
 
   /**
-   * Import foreign skills through the host seam (M126, `skill/import`):
+   * Import foreign skills through the host seam (M127, `skill/import`):
    * `source` is `claude` or `codex`; `dryRun` previews without writing.
    * The receipt answers per-skill ids plus counts, commandId-idempotent.
    */
@@ -2239,7 +2239,7 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   /**
-   * Resume a paused workflow run (M126, `workflow/resume`): host-driven,
+   * Resume a paused workflow run (M127, `workflow/resume`): host-driven,
    * the reply names the driven turn. The read-only Tasks surface shows
    * runs; resuming one from it is an owner UI decision (certification).
    */
@@ -2292,7 +2292,7 @@ export class MuseCodeHost implements AgentHost {
   private readonly lifecycleListeners = new Set<(event: MuseCodeLifecycleEvent) => void>()
   private readonly deletionTerminalListeners = new Set<(event: MuseCodeLifecycleEvent) => void>()
   private readonly deletionStopped = new AbortController()
-  /** In-flight `recap/request` settlements by request commandId (M126). */
+  /** In-flight `recap/request` settlements by request commandId (M127). */
   private readonly pendingRecaps = new Map<
     string,
     { readonly sessionId: string; readonly settle: (recap: SessionRecap) => void }
@@ -2829,7 +2829,7 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * A "while you were away" recap (M126): the ack admits, then the request
+   * A "while you were away" recap (M127): the ack admits, then the request
    * settles exactly once on `recap/completed` matched by commandId. Past
    * `RECAP_SETTLE_TIMEOUT_MS` the wait ends and a late settlement becomes
    * a notice instead of a hang. One in flight per session, host-enforced.
@@ -2872,7 +2872,7 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * Cancel the session's in-flight recap (M126): it settles `cancelled`;
+   * Cancel the session's in-flight recap (M127): it settles `cancelled`;
    * idle is an accepted no-op. Answers the cancel's admission status.
    */
   public async cancelSessionRecap(sessionId: string): Promise<string> {
@@ -2890,7 +2890,7 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /**
-   * The host's computer-use setup state (M126, `computerUseSetup/check`):
+   * The host's computer-use setup state (M127, `computerUseSetup/check`):
    * the three macOS grants with no prompt, never requesting one. Refusals
    * (a Linux host answers `computerUseUnavailable`) flow as the MSP error.
    */

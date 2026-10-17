@@ -157,11 +157,11 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiStrictTools: boolean
   readonly modelApiParallelReads: boolean
   readonly webSearchMaxPerRequest: number
-  /** Stop-hook continuations in a row (M126, Muse Code's default 8). */
+  /** Stop-hook continuations in a row (M127, Muse Code's default 8). */
   readonly hooksMaxStopContinuations: number
-  /** Running hook commands at once; 0 starts them all (M126, as Muse Code). */
+  /** Running hook commands at once; 0 starts them all (M127, as Muse Code). */
   readonly hooksMaxRunningCommands: number
-  /** Concurrent subagents (M126, Muse Code's 1–64 range, default 8). */
+  /** Concurrent subagents (M127, Muse Code's 1–64 range, default 8). */
   readonly subagentMaxConcurrent: number
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean

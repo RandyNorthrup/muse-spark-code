@@ -51,7 +51,7 @@ const COMMAND_ID = {
 }
 
 /**
- * The spawn tool's description for this many concurrent subagents (M126):
+ * The spawn tool's description for this many concurrent subagents (M127):
  * the setting's live value, defaulting to Muse Code's own default 8.
  */
 export function subagentSpawnDescription(capacity: number = SUBAGENT_CAPACITY): string {
