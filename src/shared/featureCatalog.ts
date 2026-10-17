@@ -776,6 +776,17 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature(
+      'windows-paths',
+      { ui: 'referenceWindowsPaths' },
+      { ui: 'referenceWindowsPathsDetail' },
+      [],
+      [],
+      'safer-windows-paths',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'context',
       { ui: 'mentionFile' },
       { tip: 'mentionFile' },

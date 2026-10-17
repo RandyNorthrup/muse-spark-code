@@ -268,6 +268,8 @@
   "referenceAgentControls": "Contrôles de l’agent; Interrompre; Arrêter; Reprendre; Fermer l’agent; Rouvrir l’agent; Marquer le résultat comme lu; Envoyer un message; Tâche de suivi",
   "referenceBestOfNRequirements": "Les candidats exigent Model API, la fonction payante activée, un espace Git approuvé, Git 2.36 ou ultérieur et aucun programme de filtre ou hook Git configuré. Un budget de session limité exige un périmètre budgétaire appartenant à la session parente et partagé par les candidats. Fixer les limites de tentatives et requêtes, comparer ou annuler, puis appliquer les changements sélectionnés et les indexer sans commit.",
   "referenceWindowsSessions": "Muse Code ne peut ni renommer ni dupliquer des sessions sous Windows (meta-models/muse-code-sdk#30, #31).",
+  "referenceWindowsPaths": "Safer Windows paths",
+  "referenceWindowsPathsDetail": "On Windows, ambiguous spellings — device paths and namespaces, alternate streams, drive-relative paths, trailing dots or spaces, and reserved names — are refused at admission, or need a one-time manual answer for flagged writes. Ordinary workspaces on any drive keep working; schedules, helpers, and vault paths verify against the folder their caller owns.",
   "referencePaletteKeys": "Parcourir les éléments, choisir ou compléter une sélection, ou fermer la liste. Choisissez l’effort que Muse consacre à chaque réponse.",
   "referenceServe": "{command} [options]              Servir l’Agent Client Protocol sur stdin et stdout",
   "referenceTabSnooze": "Mettre en veille 15 minutes; Mettre en veille une heure; Mettre en veille jusqu’au redémarrage.",

@@ -696,6 +696,14 @@ Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model
 
 Commands: —. Settings: `museSpark.archiveInactiveSessions`, `museSpark.cleanupPeriodDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
 
+### Safer Windows paths
+
+On Windows, ambiguous spellings — device paths and namespaces, alternate streams, drive-relative paths, trailing dots or spaces, and reserved names — are refused at admission, or need a one-time manual answer for flagged writes. Ordinary workspaces on any drive keep working; schedules, helpers, and vault paths verify against the folder their caller owns.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#safer-windows-paths)
+
 ### Mention File From This Project…
 
 Mention a file from this project in your message.

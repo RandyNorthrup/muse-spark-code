@@ -74,7 +74,9 @@
       "legalUsage",
       "referenceScreenRecording",
       "referenceLatestRecording",
-      "referenceUploadedFiles"
+      "referenceUploadedFiles",
+      "referenceWindowsPaths",
+      "referenceWindowsPathsDetail"
     ],
     "cs": [
       "groupModel",
