@@ -68,9 +68,10 @@ this file or in PLAN.md that disagrees loses.
   cocked hairbrained plan". This covers everything in the project, what exists
   as much as what is new: "this includes **ALL** of the current code, plans,
   milestones, etc."
-- **"etc" means everything left out (2026-10-17).** When the owner writes
-  "etc", it means every case not named, with no exceptions. Never read it as a
-  short list.
+- **"etc" means everything else (2026-10-17).** The owner: "etc means
+  everything else i have not mentioned or thought of". It covers every case
+  the owner did not name and every case nobody has thought of yet. Never read
+  it as a short list.
 
 ## Working rules
 
