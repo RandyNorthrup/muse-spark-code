@@ -300,3 +300,38 @@ green (30 passed, 3 live-provider skips). `security:sast` not re-run
 Real-life scenario 1 gains one step: start a SECOND conversation in the
 same panel — the warning shows again and the new session's first turn
 carries the model note (item 3).
+
+## Merge with main 821566c0f: activation budget (2026-10-17, wslpc)
+
+`test/unit/modelsActivationBudget.test.ts` (not picked up by
+`vitest related`: it imports no `src` module) failed on the merged tree:
+baseline 561,352, current 565,881, growth 4,529 bytes against 3,072
+(exit 1). Main alone grows 2,643 bytes (429 of room); this branch adds
+1,886 at activation (esbuild metafile with the test's own plugins:
+sandbox.ts +682, museCodeBackendManager.ts +617, report.ts +352,
+constants.ts +121, extension.ts +114). Its probe runs at every Muse Code
+host start, so it stays where it is.
+
+Fix, following main's ACTROOM precedent (move the next on-demand body):
+the Diagnostics command's report text, `src/core/support/report.ts`
+(fixed words that read no language table), now loads with the report
+dialog's bundle, dist/report.js, on the command's first run
+(`await import('./host/support/reportEntry')`, the same dynamic import the
+conversation controller makes); `reportEntry.ts` re-exports
+`renderSupportReport` and `sandboxReadinessLine`. Nothing else at
+activation used that module's values.
+
+- After: growth 760 bytes (`modelsActivationBudget` 1 passed,
+  `supportReport` 12 passed); dist/report.js 23.3 KiB (budget 75 KiB);
+  `npm run build` exit 0 after `node scripts/gen-lazy-registry.mjs`
+  added the activation bundle as a requester of report.js.
+- New split guard row: `scripts/lib/deferredBundles.mjs` lists
+  `src/core/support/report.ts` among dist/report.js's files. Red drill:
+  `src/extension.ts` rendering through a static import of the module →
+  `check-bundle-split` exit 1 ("dist/extension.js carries
+  src/core/support/report.ts, which loads only on the first report
+  dialog"); reverted byte-exact (SHA-256 checked), rebuild exit 0.
+- The built dist/report.js loads in Node and its `sandboxReadinessLine`
+  answers ("not checked (the shell sandbox is off or this is not Linux)").
+- Real-life step for the lead: run "Muse Spark: Diagnostics" in the packed
+  product; the log shows the full report, the readiness line included.
