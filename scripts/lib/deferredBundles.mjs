@@ -75,7 +75,7 @@ export const SCHEDULES_CORE = [
   'events/registry.ts',
   'events/signals.ts',
 ]
-export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
+export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts', 'repairAttempt.ts']
 
 export const FOREIGN_HOOKS_ONLY = [
   'foreignHooksEntry.ts',
