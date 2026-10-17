@@ -13,7 +13,7 @@
 // (`confirmWorktreeTrust`), whatever VS Code's trust says. The user's own
 // pull request goes beside the repository like any worktree (M32).
 
-import { GIT_WORKTREE_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { type GitHubClient, isCommitSha, type PullRequest } from '../../core/git/github'
 import { pullRequestCheckoutConfirmation } from '../../core/git/heldCheckoutCore'
@@ -291,7 +291,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
     const fetched = await deps.runGit(
       ['rev-parse', '--verify', `FETCH_HEAD${COMMIT_PEEL}`],
       cwd,
-      undefined,
+      Infinity,
       undefined,
       check,
     )
@@ -336,7 +336,7 @@ async function checkOut(deps: PullRequestCheckoutDeps, plan: CheckoutPlan): Prom
               ...worktreeAddDetachedArgs(folder, pullRequest.headSha),
             ],
             cwd,
-            GIT_WORKTREE_TIMEOUT_MS,
+            Infinity,
             undefined,
             check,
           )
