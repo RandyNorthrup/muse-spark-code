@@ -67,6 +67,8 @@ export interface PullRequestCheckoutDeps {
   /** Fetch helpers and checkout filters may write: use the window's checkpoint process admission. */
   readonly admit: <T>(start: () => Promise<T>) => Promise<T>
   readonly githubToken: (mode: 'ask' | 'silent') => Promise<string | undefined>
+  /** GitHub refused `token` (401): the source that issued it drops it, so the user signs in again. */
+  readonly dropRejectedGitHubToken: (token: string, error: unknown) => void
   readonly github: GitHubClient
   readonly registry: WorktreeRegistry
   /** An input box; `validate` answers undefined for a good value. */
@@ -205,6 +207,7 @@ export async function openPullRequestInConversation(deps: PullRequestCheckoutDep
       pullRequest = found
       isOwn = found.author.id === user.id
     } catch (error: unknown) {
+      deps.dropRejectedGitHubToken(token, error)
       deps.showFailure(UI_TEXT.gitHubFailed, failureText(error))
       return
     }

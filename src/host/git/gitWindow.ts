@@ -18,7 +18,7 @@ import {
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { fill, plural } from '../../shared/l10n/text'
 import { signInFailureText } from '../../core/git/deviceFlow'
-import { GitHubClient, type GitHubClientDeps } from '../../core/git/github'
+import { GitHubClient, GitHubError, type GitHubClientDeps } from '../../core/git/github'
 import type { GitHubSignIn } from '../../core/git/githubSignIn'
 import { newFileDiff } from '../../core/git/gitText'
 import type { RuntimeGitDeps } from '../../core/git/runtimeGit'
@@ -425,6 +425,15 @@ export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
     checkOutHeld: deps.checkOutHeld,
     admit: deps.admit,
     githubToken,
+    // A 401 drops the refused credential at its source, as every other
+    // GitHub call of the window does (conversationGit.ts `dropRejected`).
+    dropRejectedGitHubToken: (token, error) => {
+      if (error instanceof GitHubError && error.kind === 'signIn') {
+        void deps.githubSignIn.rejectedBearer(token).catch(() => {
+          deps.log.warn('A refused GitHub sign-in could not be dropped')
+        })
+      }
+    },
     github: deps.github,
     registry: deps.registry,
     askPullRequest: async (validate) =>
