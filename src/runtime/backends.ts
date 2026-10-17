@@ -528,6 +528,12 @@ function modelApiManager(
     ...(deps.exec === undefined && { contextWindowFullText: UI_TEXT.contextWindowFullAcp }),
     // The wrapped runtime transport owns one daily claim per HTTP attempt.
     autoCompactionAccounting: 'transport',
+    // Compaction spending here is authorized by the editor's per-use paid
+    // question (serve) or exec's explicit flag under its run budget, never
+    // by workspace trust: exec refuses trust outright, so the editor's
+    // trust fence would make the headless flag a no-op (RVMSM101).
+    // Workspace trust still gates hooks, grants and tools as before.
+    autoCompactionTrusted: () => true,
     paidDailyBudgetUsd: async () => {
       const budget = await dailyBudget()
       return budget.capUsd()
