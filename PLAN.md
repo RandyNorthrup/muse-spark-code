@@ -14466,8 +14466,9 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   reader was not this lane's row). None is a provider's documented limit or
   a person's setting; each needs the lead's keep-or-remove decision.
   NOLIMITS1FIX (this lane's brief): the prompt file bound is REMOVED (see
-  A23 above) and so is the transcript item count (see A30 above); the
-  report reader bound follows in this same lane.
+  A23 above), so is the transcript item count (see A30 above), and so is
+  the report reader's 16 MiB bound — report sources read at any size
+  (row and text bounds elsewhere still refuse what they bound).
 
 ## 3. Open questions (need the owner)
 

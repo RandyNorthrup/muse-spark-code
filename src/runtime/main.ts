@@ -46,7 +46,7 @@ import {
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
   REFERENCE_BUNDLE_FILE,
-  REPORT_SOURCE_MAX_BYTES,
+  BOUNDED_FILE_READ_CHUNK_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
@@ -282,7 +282,12 @@ const secrets: SecretStore = {
   },
 }
 
-/** A held regular-file descriptor bounds both stat size and growth while reading. */
+/**
+ * A held regular-file descriptor bounds both stat size and growth while
+ * reading. NOLIMITS1FIX: an infinite `maxBytes` reads to end-of-file —
+ * the removed 16 MiB report-source bound was invented. Finite callers
+ * (exec's own file bounds) behave exactly as before.
+ */
 async function readBoundedFile(
   file: string,
   maxBytes: number,
@@ -294,6 +299,17 @@ async function readBoundedFile(
     const info = await handle.stat()
     if (!info.isFile()) throw new Error(UI_TEXT.execFileUnreadable)
     if (info.size > maxBytes) throw new Error(UI_TEXT.execFileTooLarge)
+    if (!Number.isFinite(maxBytes)) {
+      const parts: Buffer[] = []
+      for (;;) {
+        signal.throwIfAborted()
+        const chunk = Buffer.alloc(BOUNDED_FILE_READ_CHUNK_BYTES)
+        const { bytesRead } = await handle.read(chunk, 0, chunk.length, null)
+        if (bytesRead === 0) break
+        parts.push(chunk.subarray(0, bytesRead))
+      }
+      return Buffer.concat(parts)
+    }
     const bytes = new Uint8Array(maxBytes + 1)
     let offset = 0
     for (;;) {
@@ -509,9 +525,11 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
         return await realpath(target)
       },
       readSaved: async (cwd, file) => {
+        // NOLIMITS1FIX: a saved report reads whole at any size — the
+        // removed 16 MiB bound was invented.
         const bytes = await readBoundedFile(
           path.resolve(cwd, file),
-          REPORT_SOURCE_MAX_BYTES,
+          Infinity,
           AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
         )
         const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))

@@ -37,6 +37,17 @@ which refuses nothing. Proof tests: `sessionTransfer.test.ts` parses a
 20,001-item transcript; `chatShareRange.test.ts` shares 20,001 items.
 Real-use proof with the built product: see §N6.
 
+### §N3 — report source byte bound removed (A30fix)
+
+`REPORT_SOURCE_MAX_BYTES` (16 MiB) deleted from `src/shared/constants.ts`;
+`reportFileIo` reads at any size by default, chunk by chunk, and a saved
+report (`readSaved`) reads whole at any size. The finite `maxBytes` path
+stays for the one caller that passes its own untrusted-file bound
+(`EXEC_UNTRUSTED_FILE_MAX_BYTES`, exec's own, untouched); row and text
+bounds (`REPORT_MAX_ROWS`, `REPORT_MAX_TEXT_CHARS`) still refuse what they
+bound, so `reportSourceReasons.limit` stays. No refusal string is removed
+for this piece. Real-use proof with the built product: see §N6.
+
 ## Correction review (2026-10-16 continuation)
 
 The first nine commits (A7, A8, A11, A13, A21–A25) were re-checked against
@@ -158,8 +169,8 @@ and the report reader's 16 MiB bound renamed `REPORT_SOURCE_MAX_BYTES`
 (pre-existing under the removed constant's name, not a new cap).
 
 NOLIMITS1FIX removes all three plus A29 in this lane's brief: the prompt
-file bound (§N1) and the transcript item count (§N2) are already gone; the
-report reader bound and A29 follow (§N3, §N4).
+file bound (§N1), the transcript item count (§N2) and the report reader
+bound (§N3) are already gone; A29 follows (§N4).
 
 ## APP PROBLEMS
 

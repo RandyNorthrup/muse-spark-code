@@ -5311,9 +5311,10 @@ export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
 export const REPORT_NETWORK_MAX_PAGES = 3
 export const REPORT_NETWORK_CACHE_ENTRIES = 100
 export const REPORT_SOURCE_TIMEOUT_MS = 5000
-// Report sources read bounded (D121: this keeps the 16 MiB bound the removed
-// session-export cap used to lend them; the report reader is not this lane's row).
-export const REPORT_SOURCE_MAX_BYTES = 16 * 1024 * 1024
+// NOLIMITS1FIX: report source files read at any size — the removed 16 MiB
+// bound (which A30 had renamed from the session-export cap) was invented.
+// Row and text bounds elsewhere (`REPORT_MAX_ROWS`, `REPORT_MAX_TEXT_CHARS`)
+// still refuse what they bound.
 export const REPORT_GITHUB_RATE_FLOOR = 10
 export const REPORT_CHECK_RUNS_MAX = 500
 export const REPORT_HISTORY_MAX_PER_KIND = 50
