@@ -41,7 +41,11 @@ import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { identityOf, sameFile, fileIdentityKey, type FileIdentity } from '../fs/fileIdentity'
-import { FILE_LEASE_FENCES_KEPT, FILE_LEASE_RELEASE_ATTEMPTS } from '../../shared/constants'
+import {
+  FILE_LEASE_FENCES_KEPT,
+  FILE_LEASE_RELEASE_ATTEMPTS,
+  FILE_LEASE_RELEASE_RETRY_MS,
+} from '../../shared/constants'
 import { processOwnerSchema, type ProcessOwner } from './processOwner'
 
 const RETIRED_SUFFIX = '.retired'
@@ -167,6 +171,28 @@ export interface FileLease {
   renew(): Promise<boolean>
   /** Removes this instance only, once proven; a lock taken over stays its taker's. Never throws. */
   release(): Promise<void>
+}
+
+/**
+ * Atomic publication is impossible here: the filesystem refused the
+ * exclusive link (FAT/exFAT, some SMB or sync folders). Never a generic
+ * I/O failure: the caller names the cause instead of retrying blindly.
+ */
+export class LeaseLinkUnsupportedError extends Error {
+  public constructor() {
+    super('The filesystem cannot publish the lock')
+    this.name = 'LeaseLinkUnsupportedError'
+  }
+}
+
+/** Link refusals that mean hard links are unavailable, never a held lock. */
+function isLinkUnsupported(error: unknown): boolean {
+  return (
+    errorCode(error) === 'EPERM' ||
+    errorCode(error) === 'ENOTSUP' ||
+    errorCode(error) === 'EROFS' ||
+    errorCode(error) === 'EXDEV'
+  )
 }
 
 /** The lease was not taken: busy past the wait, or a moved instance could not go back. */
@@ -620,6 +646,9 @@ function heldLease(
         } catch {
           // A remaining own note is adopted on this process's next acquisition.
         }
+        // A scanner holding the file defeats back-to-back retries alike:
+        // pause before the next attempt (RVAPP-LEASE2 P3-4).
+        if (attempt + 1 < FILE_LEASE_RELEASE_ATTEMPTS) await env.sleep(FILE_LEASE_RELEASE_RETRY_MS)
       }
     },
   }
@@ -658,7 +687,15 @@ export async function acquireFileLease(
         const stage = `${lockPath}.${note.id}${STAGE_SUFFIX}`
         try {
           await env.port.createExclusive(stage, JSON.stringify(note), 'flushed')
-          await env.port.link(stage, lockPath)
+          try {
+            await env.port.link(stage, lockPath)
+          } catch (error: unknown) {
+            // A filesystem without hard links fails every write the same
+            // way: refuse with the cause, never a generic error
+            // (RVAPP-LEASE2 P2-5).
+            if (isLinkUnsupported(error)) throw new LeaseLinkUnsupportedError()
+            throw error
+          }
         } finally {
           try {
             await env.port.unlink(stage)

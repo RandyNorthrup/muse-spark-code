@@ -5181,6 +5181,7 @@
     "busyOtherMachine": "A tárolót egy másik gépen a(z) {pid} folyamat tartja zárolva {since} óta. A folyamat megszűnése itt nem állapítható meg.",
     "ownerUnknown": "A tároló nem szerezhet írási jogosultságot, mert nem állapítható meg e folyamat operációs rendszer szerinti pontos indulási ideje. Próbálja újra.",
     "unreadable": "Az írózár olvashatatlan, és magától nem szabadul fel. Állítsa alaphelyzetbe a tárolót az újrakezdéshez.",
+    "filesystemUnsupported": "Ennek a mappának a fájlrendszere nem tudja közzétenni a tároló frissítéseit: a merev hivatkozások itt nem támogatottak. Helyezze át a tárolót egy azokat támogató fájlrendszerbe, majd próbálja újra.",
     "importedLabel": "Importált {source}-hitelesítőadat {number}",
     "importedSummary": "A tárolóba importálva: {names}",
     "importKeepOrDelete": "Megtartja az eredeti fájlt, vagy törli, mivel a hitelesítő adatai már a tárolóban vannak?",

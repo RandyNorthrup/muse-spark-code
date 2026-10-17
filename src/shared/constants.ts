@@ -1737,6 +1737,8 @@ export const PROCESS_OWNER_FAILURE_CACHE_MS = 2000
 export const WINDOWS_FILETIME_TICKS_PER_MS = 10_000n
 export const WINDOWS_FILETIME_EPOCH_MS = 11_644_473_600_000n
 export const FILE_LEASE_RELEASE_ATTEMPTS = 3
+/** A lease release pauses this long between attempts: a scanner holding the file defeats back-to-back retries alike (RVAPP-LEASE2 P3-4). */
+export const FILE_LEASE_RELEASE_RETRY_MS = 100
 // A pending checkout whose folder never appeared is someone's crash after
 // this long, even while its process id looks alive (a reused id whose
 // start time cannot be read): every step before the folder exists is

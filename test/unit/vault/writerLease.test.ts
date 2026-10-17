@@ -18,6 +18,8 @@ import { createRecoverySlot } from '../../../src/core/vault/keyslots'
 import { VaultWriterError } from '../../../src/core/vault/crypto'
 import { createEncryptedBackup, restoreEncryptedBackup } from '../../../src/core/vault/backup'
 import { exactCurrentProcessOwner } from '../../../src/core/locks/processOwner'
+import { VaultManagementError } from '../../../src/core/vault/broker/ports'
+import { vaultRefusalMessage } from '../../../src/core/vault/broker/manageClient'
 import {
   VAULT_WRITER_LEASE_MS,
   VAULT_WRITER_RENEW_MS,
@@ -129,6 +131,36 @@ function stageNote(owner: unknown, id: string) {
   return JSON.stringify({ owner, id, renewal: 0, acquiredAt: Date.now(), leaseMs: 1000 })
 }
 
+/** A lock note as the lease reads it: owner facts, never paths or values. */
+async function writeLockNote(folder: string, owner: Record<string, unknown>, id: string) {
+  await writeFile(
+    path.join(folder, 'writer.lock'),
+    JSON.stringify({ owner, id, renewal: 0, acquiredAt: 1000, leaseMs: 1000 }),
+  )
+}
+
+/** Runs with every platform identity folder under a file, so self readings fail. */
+async function withBlockedIdentity<T>(blocking: string, run: () => Promise<T>): Promise<T> {
+  const saved = {
+    xdg: process.env['XDG_DATA_HOME'],
+    local: process.env['LOCALAPPDATA'],
+    home: process.env['HOME'],
+  }
+  process.env['XDG_DATA_HOME'] = blocking
+  process.env['LOCALAPPDATA'] = blocking
+  process.env['HOME'] = blocking
+  try {
+    return await run()
+  } finally {
+    if (saved.xdg === undefined) delete process.env['XDG_DATA_HOME']
+    else process.env['XDG_DATA_HOME'] = saved.xdg
+    if (saved.local === undefined) delete process.env['LOCALAPPDATA']
+    else process.env['LOCALAPPDATA'] = saved.local
+    if (saved.home === undefined) delete process.env['HOME']
+    else process.env['HOME'] = saved.home
+  }
+}
+
 describe('production vault writer across process death', () => {
   let root: string
   let entry: string
@@ -188,6 +220,26 @@ describe('production vault writer across process death', () => {
     const folder = await mkdtemp(path.join(root, 'vault-'))
     expect(await finish(folder, 'prepare')).toEqual({ done: true })
     return folder
+  }
+  /** A vault folder with a production writer, created but never opened. */
+  async function writerFolder(prefix: string) {
+    const folder = await mkdtemp(path.join(root, prefix))
+    const files = new NodeVaultFiles(folder, 1024 * 1024, {
+      protect: () => Promise.resolve(),
+      verify: () => Promise.resolve(),
+    })
+    return { folder, files }
+  }
+  /** An openable generated vault: created and locked, never written after. */
+  async function openableVault(prefix: string, id: string) {
+    const { folder, files } = await writerFolder(prefix)
+    const anchor = new MemoryVaultAnchor()
+    const key = Buffer.alloc(32, 7)
+    const vaultId = id.repeat(32)
+    const options = { files, anchor, key }
+    const { slot } = createRecoverySlot(key, vaultId, { now: () => 0 })
+    const created = await VaultStore.create(options, vaultId, [slot])
+    return { folder, files, anchor, key, options, vaultId, created, slot }
   }
   it.each(
     ['reset', 'restore'].flatMap((operation) =>
@@ -510,18 +562,11 @@ describe('production vault writer across process death', () => {
     expect(refusal.message).not.toBe(UI_TEXT.vault.busy)
   })
   it('confirmed encrypted-backup restore replaces an unreadable writer through the real entry point', async () => {
-    const folder = await mkdtemp(path.join(root, 'backup-'))
-    const files = new NodeVaultFiles(folder, 1024 * 1024, {
-      protect: () => Promise.resolve(),
-      verify: () => Promise.resolve(),
-    })
-    const anchor = new MemoryVaultAnchor()
-    const key = Buffer.alloc(32, 7)
-    const vaultId = 'b'.repeat(32)
-    const options = { files, anchor, key }
+    const { folder, files, key, options, vaultId, created, slot } = await openableVault(
+      'backup-',
+      'b',
+    )
     try {
-      const { slot } = createRecoverySlot(key, vaultId, { now: () => 0 })
-      const created = await VaultStore.create(options, vaultId, [slot])
       const secret = item()
       await created.write(secret)
       const backup = await createEncryptedBackup(created, key, slot)
@@ -549,11 +594,7 @@ describe('production vault writer across process death', () => {
     }
   })
   it('sweeps abandoned writer stages of gone owners while keeping a live one', async () => {
-    const folder = await mkdtemp(path.join(root, 'stages-'))
-    const files = new NodeVaultFiles(folder, 1024 * 1024, {
-      protect: () => Promise.resolve(),
-      verify: () => Promise.resolve(),
-    })
+    const { folder, files } = await writerFolder('stages-')
     const self = await exactCurrentProcessOwner()
     if (!self?.machineId || !self.bootId || !self.pidNamespace || !self.exactBirth)
       throw new Error('exact owner evidence unavailable')
@@ -571,5 +612,192 @@ describe('production vault writer across process death', () => {
     expect(names).toContain('writer.lock.live-note.stage')
     expect(names).toContain('writer.lock.torn.stage')
     expect(names).toContain('vault.v1.decoy.stage')
+  })
+  it('a Lock during confirmed recovery refuses locked, never a generic error', async () => {
+    const { folder, files } = await writerFolder('locked-')
+    await writeFile(path.join(folder, 'writer.lock'), 'truncated')
+    const recovery = await files.writerRecovery()
+    if (!recovery) throw new Error('unreadable writer offered no recovery')
+    await expect(
+      VaultStore.resetLost(
+        files,
+        null,
+        'generated reset',
+        () => {
+          throw new VaultManagementError('locked')
+        },
+        () => Promise.resolve(),
+        new MemoryVaultAnchor(),
+        null,
+        recovery.token,
+      ),
+    ).rejects.toMatchObject({ name: 'VaultManagementError', reason: 'locked' })
+  })
+  it('strips directional controls from a lock note host label before display', async () => {
+    const { folder, files } = await writerFolder('label-')
+    await writeLockNote(
+      folder,
+      {
+        host: 'evil\u{202E}machine\u{200F}a',
+        pid: 12_345,
+        processStart: 0,
+        machineId: 'some-installation',
+        bootId: 'some-boot',
+        pidNamespace: 'pid:[7]',
+        exactBirth: 'some-birth',
+      },
+      'some-note',
+    )
+    const recovery = await files.writerRecovery()
+    expect(recovery?.writer).toMatchObject({ kind: 'held', machineLabel: 'evilmachinea' })
+  })
+  it('reports unknown ownership, never a holder, when its own evidence is unavailable', async () => {
+    const { folder, files } = await writerFolder('evidence-')
+    await writeLockNote(
+      folder,
+      {
+        host: 'some-host',
+        pid: 12_345,
+        processStart: 0,
+        machineId: 'some-installation',
+        bootId: 'some-boot',
+        pidNamespace: 'pid:[7]',
+        exactBirth: 'some-birth',
+      },
+      'some-note',
+    )
+    const blocking = path.join(folder, 'not-a-directory')
+    await writeFile(blocking, 'evidence')
+    await withBlockedIdentity(blocking, async () => {
+      const recovery = await files.writerRecovery()
+      expect(recovery?.writer).toEqual({ kind: 'ownerUnknown' })
+    })
+  })
+  it('a live foreign writer beside an openable vault is stuck, never lost', async () => {
+    // RVAPP-LEASE2 P1-2 scenario C: another machine legitimately using the
+    // vault must not read as lost, and confirmed Reset must not erase it.
+    const { folder, files, anchor, key, vaultId, created } = await openableVault('foreign-', 'c')
+    try {
+      created.lock()
+      await writeLockNote(
+        folder,
+        {
+          host: 'foreign-host',
+          pid: 12_345,
+          processStart: 0,
+          machineId: 'foreign-installation',
+          bootId: 'foreign-boot',
+          pidNamespace: 'pid:[7]',
+          exactBirth: 'foreign-birth',
+        },
+        'foreign-note',
+      )
+      const recovery = await files.writerRecovery()
+      expect(recovery?.writer).toMatchObject({ kind: 'held', otherMachine: true })
+      expect(await VaultStore.isLost(files, vaultId, anchor)).toBe(false)
+      await expect(
+        VaultStore.resetLost(
+          files,
+          vaultId,
+          'generated reset',
+          () => {
+            // Authorize: nothing to check outside the writer in this fixture.
+          },
+          () => Promise.resolve(),
+          anchor,
+          await anchor.minimum(vaultId),
+          recovery?.token,
+        ),
+      ).rejects.toMatchObject({ code: 'invalid' })
+      expect(await files.read('vault.v1')).not.toBeNull()
+    } finally {
+      key.fill(0)
+    }
+  })
+  it('failed self evidence beside an openable vault is stuck, never lost', async () => {
+    // RVAPP-LEASE2 P1-2 scenario A: when this process cannot read its own
+    // identity, the vault it cannot judge is not lost.
+    const { folder, files, anchor, key, vaultId, created } = await openableVault(
+      'self-evidence-',
+      'd',
+    )
+    try {
+      created.lock()
+      const blocking = path.join(folder, 'not-a-directory')
+      await writeFile(blocking, 'evidence')
+      await withBlockedIdentity(blocking, async () => {
+        const recovery = await files.writerRecovery()
+        expect(recovery).toEqual({ token: 'absent', writer: { kind: 'ownerUnknown' } })
+        expect(await VaultStore.isLost(files, vaultId, anchor)).toBe(false)
+      })
+    } finally {
+      key.fill(0)
+    }
+  })
+  it('an unsupported filesystem refuses with its cause, never a generic error', async () => {
+    // RVAPP-LEASE2 P2-5: the link refusal keeps its name through the real
+    // writer entry point, and the managed refusal tells the person why.
+    const { files } = await writerFolder('filesystem-')
+    const link = vi
+      .spyOn(nodeLeasePort, 'link')
+      .mockRejectedValueOnce(
+        Object.assign(new Error('EPERM: hard links unsupported'), { code: 'EPERM' }),
+      )
+    try {
+      await expect(files.withWriter(() => Promise.resolve())).rejects.toMatchObject({
+        name: 'VaultError',
+        code: 'filesystemUnsupported',
+      })
+    } finally {
+      link.mockRestore()
+    }
+    expect(vaultRefusalMessage('filesystemUnsupported')).toBe(UI_TEXT.vault.filesystemUnsupported)
+  })
+  it('two module copies in one process share one serialized writer queue', async () => {
+    // RVAPP-LEASE2 P2-1: the queue is process-wide, not per bundle copy, so
+    // a second copy never adopts the first copy's live hold. The registry is
+    // cleared between the imports so the copies are really two evaluations.
+    vi.resetModules()
+    const first = await import('../../../src/core/vault/store')
+    vi.resetModules()
+    const second = await import('../../../src/core/vault/store')
+    try {
+      const folder = await mkdtemp(path.join(root, 'queue-'))
+      const security = {
+        protect: () => Promise.resolve(),
+        verify: () => Promise.resolve(),
+      }
+      const filesA = new first.NodeVaultFiles(folder, 1024 * 1024, security)
+      const filesB = new second.NodeVaultFiles(folder, 1024 * 1024, security)
+      const gate = Promise.withResolvers<undefined>()
+      const entered = Promise.withResolvers<undefined>()
+      const aDone = filesA.withWriter(async (held) => {
+        entered.resolve(undefined)
+        await gate.promise
+        held()
+      })
+      // The second copy starts only after the first holds the writer: any
+      // completion before the release is an adoption, not serialization.
+      await entered.promise
+      const bDone = filesB.withWriter((held) => {
+        held()
+        return Promise.resolve()
+      })
+      const bFinished = (async () => {
+        await bDone
+        return true
+      })()
+      const timedOut = (async () => {
+        await delay(100)
+        return false
+      })()
+      const didFinishEarly = await Promise.race([bFinished, timedOut])
+      expect(didFinishEarly).toBe(false)
+      gate.resolve(undefined)
+      await aDone
+      await bDone
+    } finally {
+      vi.resetModules()
+    }
   })
 })

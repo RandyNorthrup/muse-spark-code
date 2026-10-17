@@ -6263,6 +6263,8 @@ export const EN = {
     ownerUnknown:
       'The vault cannot acquire a writer because this process’s exact operating-system birth could not be established. Try again.',
     unreadable: 'The writer lock is unreadable and will not clear. Reset the vault to start again.',
+    filesystemUnsupported:
+      'This folder’s filesystem cannot publish vault updates: hard links are not supported here. Move the vault to a filesystem that supports them and try again.',
     // C-M109-1: import and Reset Vault (lead decisions, 2026-10-10).
     importedLabel: 'Imported {source} credential {number}',
     importedSummary: 'Imported into the vault: {names}',

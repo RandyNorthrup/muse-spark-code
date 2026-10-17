@@ -5331,6 +5331,7 @@
     "busyOtherMachine": "La cassaforte è detenuta su un altro computer dal processo {pid} da {since}. Qui non è possibile accertarne la terminazione.",
     "ownerUnknown": "La cassaforte non può ottenere accesso in scrittura perché non è stato possibile accertare l’istante esatto di creazione di questo processo nel sistema operativo. Riprova.",
     "unreadable": "Il blocco scrittura è illeggibile e non si libererà da solo. Reimposta la cassaforte per ricominciare.",
+    "filesystemUnsupported": "Il filesystem di questa cartella non può pubblicare gli aggiornamenti della cassaforte: i collegamenti fisici non sono supportati qui. Sposta la cassaforte in un filesystem che li supporta e riprova.",
     "importedLabel": "Credenziale {source} importata {number}",
     "importedSummary": "Importato nella cassaforte: {names}",
     "importKeepOrDelete": "Mantenere il file originale o eliminarlo, ora che le sue credenziali sono nella cassaforte?",

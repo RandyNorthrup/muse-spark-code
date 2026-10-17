@@ -5481,6 +5481,7 @@
     "busyOtherMachine": "Trezor drží na jiném počítači proces {pid} od {since}. Jeho ukončení zde nelze ověřit.",
     "ownerUnknown": "Trezor nemůže získat oprávnění k zápisu, protože nelze zjistit přesný čas vzniku tohoto procesu v operačním systému. Zkuste to znovu.",
     "unreadable": "Zámek pro zápis je nečitelný a sám se neuvolní. Obnovte trezor do výchozího stavu a začněte znovu.",
+    "filesystemUnsupported": "Systém souborů této složky neumí publikovat aktualizace trezoru: pevné odkazy zde nejsou podporovány. Přesuňte trezor do systému souborů, který je podporuje, a zkuste to znovu.",
     "importedLabel": "Importovaný údaj {source} č. {number}",
     "importedSummary": "Importováno do trezoru: {names}",
     "importKeepOrDelete": "Ponechat původní soubor, nebo ho smazat, když jsou jeho údaje v trezoru?",

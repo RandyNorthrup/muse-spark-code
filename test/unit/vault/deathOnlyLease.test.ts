@@ -23,6 +23,14 @@ import { managementFixture, lockedVault } from './managementFixture'
 import { inspectFileLease } from '../../../src/core/locks/fileLease'
 
 const roots: string[] = []
+// The adoption, recovery and Reset cases go through the real installation
+// identity: every platform's folder resolves under a test-owned directory,
+// never the developer's real data folder.
+const machineScope = await mkdtemp(path.join(await realpath(tmpdir()), 'm109-machine-'))
+roots.push(machineScope)
+process.env['XDG_DATA_HOME'] = machineScope
+process.env['LOCALAPPDATA'] = machineScope
+process.env['HOME'] = machineScope
 afterEach(async () => {
   vi.restoreAllMocks()
   for (const root of roots.splice(0)) await removeFolder(root)
@@ -132,6 +140,32 @@ describe('vault takeover requires proven death', () => {
       ).toBe(isExpected)
     },
   )
+  it('a different boot on another host sharing the installation file never proves death', async () => {
+    const self = {
+      host: 'same-name',
+      pid: 1,
+      processStart: 0,
+      machineId: 'installation',
+      bootId: 'boot',
+      pidNamespace: 'pid:[42]',
+      exactBirth: 'birth',
+    }
+    const owner = { ...self, pid: 2, host: 'another-host', bootId: 'old-boot' }
+    expect(
+      await isProcessOwnerGone(owner, {
+        self,
+        exactOnly: true,
+        isAlive: () => false,
+        exactBirthOf: () => Promise.resolve('other-birth'),
+      }),
+    ).toBe(false)
+    expect(
+      await isProcessOwnerGone(
+        { ...owner, host: 'same-name' },
+        { self, exactOnly: true, isAlive: () => false },
+      ),
+    ).toBe(true)
+  })
   it('failed liveness and birth queries are unknown evidence', async () => {
     const f = await fixture()
     expect(
@@ -344,6 +378,17 @@ describe('vault takeover requires proven death', () => {
       vi.spyOn(management.files, 'remove').mockImplementation(files.remove.bind(files))
       vi.spyOn(management.files, 'quarantine').mockImplementation(files.quarantine.bind(files))
       await writeFile(f.file, '')
+      if (anchored) {
+        // RVAPP-LEASE2 P1-2: a stuck lock beside an openable vault is
+        // stuck, never lost: Reset stays refused, token or not.
+        const snapshot = await management.management.snapshot()
+        expect(snapshot.status.reason).not.toBe('vaultLost')
+        await expect(management.management.resetBegin()).rejects.toMatchObject({
+          reason: 'invalid',
+        })
+        expect(await files.read('vault.v1')).not.toBeNull()
+        return
+      }
       const snapshot = await management.management.snapshot()
       expect(snapshot.status.reason).toBe('vaultLost')
       const challenge = await management.management.resetBegin()
