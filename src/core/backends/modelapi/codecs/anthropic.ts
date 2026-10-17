@@ -57,6 +57,7 @@ import {
   CODEC_IMAGE_WITHOUT_VISION,
   THINKING_OFF_EFFORT,
   PROVIDER_MANUAL_THINKING_BUDGET,
+  PROVIDER_RETRY_HTTP_STATUS,
 } from '../../../../shared/constants'
 import { UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
@@ -1291,15 +1292,28 @@ function emptyResponse(
  * https://platform.claude.com/docs/en/api/rate-limits#reaching-your-spend-cap,
  * read 2026-10-13 — a tier spend-cap 429 carries
  * `enforced_spend_limit_reached` there while its `type` stays
- * `rate_limit_error`, and retrying it keeps failing). The prose match this
- * replaces could never fire: the documented message never contains the code
- * word. Anything unenveloped carries `parsed: false` with the status and the
+ * `rate_limit_error`, and retrying it keeps failing). Where no documented
+ * code rides along, a 429 whose prose names that exact code word still
+ * carries it as the code (the base parser's rule, research §1.5 [A-rl],
+ * restored by RVPROVERR: removing it made such a 429 retryable again).
+ * Anything unenveloped carries `parsed: false` with the status and the
  * first bounded line of the body (lane PROVERR): still the provider's
  * refusal, never a product sentence.
  */
+const SPEND_CAP_REASON = 'enforced_spend_limit_reached'
 export function parseAnthropicError(status: number, body: unknown): ModelApiError {
   const refusal = parseRefusalError(status, body)
-  return new ModelApiError(refusal.message, status, refusal.kind, refusal.errorCode ?? refusal.code)
+  const proseCode =
+    status === PROVIDER_RETRY_HTTP_STATUS.tooManyRequests &&
+    refusal.message.includes(SPEND_CAP_REASON)
+      ? SPEND_CAP_REASON
+      : undefined
+  return new ModelApiError(
+    refusal.message,
+    status,
+    refusal.kind,
+    refusal.errorCode ?? refusal.code ?? proseCode,
+  )
 }
 
 // --- models list: `GET /v1/models` (capture 01; the scan lives in lane P) ---
