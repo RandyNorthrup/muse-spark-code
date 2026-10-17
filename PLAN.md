@@ -24626,7 +24626,7 @@ Certification and current generated freeze: `docs/certification/m101-eval-arms.m
 The production latch remains false; this fake certification does not certify
 live compaction effectiveness or the aggregate quality gates.
 
-**Status 2026-10-17 (automatic compaction evaluated, connected on every surface and shipped; lane record `docs/certification/msm101.md`; the remaining upstream port items stay open): shipped.**
+**Status 2026-10-17 (automatic compaction evaluated, connected on every surface; lane record `docs/certification/msm101.md`; the remaining upstream port items stay open): certified.**
 
 **CM1013R9 binding run and latch flip (2026-10-12; the lead's run on the Windows host, the flip lane on the macbook rig).** The
 lead's counted run at `3c68efb2e` (`node scripts/m101-e.mjs --live-m75`,
