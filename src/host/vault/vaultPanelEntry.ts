@@ -15,8 +15,6 @@ import { VaultBrokerProcess } from './brokerProcess'
 import { VaultPanelHost, type VaultPanelHostDeps, type VaultPanelService } from './vaultPanelHost'
 import { vaultPanelService } from './vaultPanelService'
 import { type VaultActionsBundle, vaultActionsLoader } from './vaultActionsBundle'
-import type { VaultNativeInput } from './vaultNativeEditor'
-
 import { VAULT_COMMANDS, type VaultWindowControls } from './vaultPanelBundle'
 
 export interface VaultPanelEntryDeps extends Omit<
@@ -34,7 +32,6 @@ export interface VaultPanelEntryDeps extends Omit<
   /** dist/ beside the running bundle (the broker and its native helpers). */
   readonly distDir: string
   readonly openPanel: () => Promise<void>
-  readonly sshKey: VaultNativeInput['sshKey']
   /** A test's service; the window's own is the broker-backed one built here. */
   readonly service?: VaultPanelService
   /** Names the actions bundle in the log when it cannot be loaded. */
@@ -100,13 +97,14 @@ function brokerService(
 /** The native prompts and error channel every vault host shares. */
 function nativeHostDeps(deps: {
   readonly now: () => number
-  readonly sshKey: VaultNativeInput['sshKey']
   /** The second lazy bundle; required only when an action needs it. */
   readonly actions: () => VaultActionsBundle
 }): Omit<VaultPanelHostDeps, 'service' | 'publish' | 'status'> {
   // The Reset, Setup/recovery-code, Import and Add/Edit dialogs live in the
   // actions bundle and load on first use; each call below requires it then.
-  const dialogs = () => deps.actions().vaultActionDialogs({ now: deps.now, sshKey: deps.sshKey })
+  // SSH key generation and import compose inside the dialogs (S owns the key
+  // formats; the dialogs own the VS Code source picker).
+  const dialogs = () => deps.actions().vaultActionDialogs({ now: deps.now })
   return {
     now: deps.now,
     importDone: (names) => dialogs().importDone(names),
@@ -132,7 +130,6 @@ export interface ModelsVaultBindingDeps {
   /** dist/ beside the running bundle (the broker and its native helpers). */
   readonly distDir: string
   readonly now: () => number
-  readonly sshKey: VaultNativeInput['sshKey']
   /** Into the Models & Agents panel's webview (an already parsed host message). */
   readonly publish: (message: VaultHostMessage) => void
   /** A test's service; the window's own is the broker-backed one built here. */
@@ -161,7 +158,7 @@ function lockStatusItem(): vscode.StatusBarItem {
 /**
  * What both factories resolve the same way: the broker-backed service (or
  * a test's), the lock item and its writer. The broker connection stays
- * lazy; without a bound platform every use refuses with
+ * lazy; without a reachable broker every use refuses with
  * `vault.brokerBlocked`.
  */
 function serviceAndStatus(deps: {
@@ -198,9 +195,9 @@ function serviceAndStatus(deps: {
  * the same broker-backed host the window uses, publishing into the panel's
  * webview instead. The panel owns it while its tab lives; the lock status
  * item behaves as the window's does. The broker connection stays lazy, so
- * until lanes (b) and (c) bind `vaultClientPlatform` every broker use
- * refuses with `vault.brokerBlocked` (surfaced as the host's operation
- * failure); the panel hides the section because it is given no factory.
+ * without a reachable broker every use refuses with `vault.brokerBlocked`
+ * (surfaced as the host's operation failure); the panel hides the section
+ * because it is given no factory.
  */
 export function createModelsVaultBinding(
   deps: ModelsVaultBindingDeps,
@@ -215,7 +212,7 @@ export function createModelsVaultBinding(
   })
   const { service, statusItem, status, disposeBroker } = serviceAndStatus({ ...deps, actions })
   const host = new VaultPanelHost({
-    ...nativeHostDeps({ now: deps.now, sshKey: deps.sshKey, actions }),
+    ...nativeHostDeps({ now: deps.now, actions }),
     service,
     publish: deps.publish,
     status,
@@ -249,7 +246,7 @@ export function createVaultPanelHost(
   })
   const host = new VaultPanelHost({
     ...deps,
-    ...nativeHostDeps({ now: deps.now, sshKey: deps.sshKey, actions }),
+    ...nativeHostDeps({ now: deps.now, actions }),
     service,
     status,
   })

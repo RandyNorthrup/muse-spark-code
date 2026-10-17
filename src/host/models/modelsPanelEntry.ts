@@ -70,8 +70,8 @@ export interface ModelsPanelHostDeps {
   readonly onKeyUsage?: Parameters<typeof createProvidersHost>[0]['onKeyUsage']
   /**
    * The vault binding factory (C-M109-1 P1): dist/vault.js builds the
-   * broker-backed binding around this panel's publisher. Undefined until
-   * lanes (b) and (c) bind the broker; the section stays hidden without it.
+   * broker-backed binding around this panel's publisher. Without it the
+   * section stays hidden.
    */
   readonly createVault?: ModelsVaultFactory | undefined
 }

@@ -343,7 +343,12 @@ import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRe
 import { createLinuxLatestPort } from './host/media/recordingLatest'
 import { latestLinuxRecording } from './core/media/record/linux'
 import type { ScreenRecordingPreview } from './core/media/record/driver'
-import { loadVaultControls, registerVaultCommands } from './host/vault/vaultPanelBundle'
+import {
+  loadVaultControls,
+  registerVaultCommands,
+  vaultBundleLoader,
+} from './host/vault/vaultPanelBundle'
+import { type VaultHostMessage } from './shared/hostApi/vaultMessages'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
@@ -2113,28 +2118,12 @@ async function activateWindow(
   const isIdeBrowserCheckOffered = (): boolean =>
     browserChecks.isOffered() &&
     isIdeWebFetchOffered(vscode.workspace.isTrusted, currentSettings().sandboxNetwork)
-  // The credential vault (M109, PLAN.md D89): the commands and the lazy
-  // loader only. dist/vault.js builds its broker-backed service itself
-  // (C-M109-1). Until lanes (b) and (c) bind the broker, both commands
-  // refuse closed with the broker-blocked reason instead of opening an
-  // empty vault; the Models & Agents panel's vault section (C-M109-1 P1)
-  // stays hidden behind the same gate.
+  // The vault commands register with the Models & Agents panel features
+  // below, once the broker-backed section factory is bound.
   context.subscriptions.push(
     vscode.commands.registerCommand(COMMAND_IDS.downloadBrowserCheckRuntime, async () => {
       await downloadBrowserRuntime(browserChecks, isIdeBrowserCheckOffered)
     }),
-    registerVaultCommands(
-      (id, run) => registerLoggedCommand(log, id, run),
-      () =>
-        loadVaultControls(
-          {
-            bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VAULT_BUNDLE_FILE).fsPath,
-            distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
-            log,
-          },
-          undefined,
-        ),
-    ),
   )
   const askBrowserCheck = oneQuestionPerUrl(isBrowserCheckAllowed, browserScopeKey)
   // Code intelligence over VS Code's language services (M67, PLAN.md D49):
@@ -4103,6 +4092,19 @@ async function activateWindow(
       .get('suggestedProvider')
     return typeof raw === 'string' ? raw : ''
   }
+  // The credential vault (M109, PLAN.md D89): dist/vault.js builds its
+  // broker-backed service itself (C-M109-1) on first use. The window host
+  // publishes into the mounted panel section; before the first mount its
+  // frames have nowhere to go, and every broker use refuses while the
+  // broker is unavailable instead of opening an empty vault.
+  const vaultDistDir = vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath
+  const vaultBundlePath = vscode.Uri.joinPath(
+    context.extensionUri,
+    'dist',
+    VAULT_BUNDLE_FILE,
+  ).fsPath
+  const vaultBundle = vaultBundleLoader({ bundlePath: vaultBundlePath, log })
+  let vaultPublish: ((message: VaultHostMessage) => void) | undefined
   let modelsFeatures: ModelsPanelFeatures | undefined
   const ensureModelsFeatures = (): ModelsPanelFeatures => {
     if (modelsFeatures === undefined) {
@@ -4122,11 +4124,18 @@ async function activateWindow(
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
-          // The vault section's gate (C-M109-1 P1): no factory until lanes
-          // (b) and (c) bind `vaultClientPlatform` and compose the broker.
-          // While undefined the section stays hidden and the vault keeps
-          // refusing with `vault.brokerBlocked`, as 0.17.0 does.
-          createVault: undefined,
+          // The vault section (C-M109-1 P1): the broker-backed binding
+          // around this panel's publisher, built in dist/vault.js on first
+          // mount. Without it the section stays hidden; a factory that
+          // throws leaves the panel without the section too.
+          createVault: (publish) => {
+            vaultPublish = publish
+            return vaultBundle().createModelsVaultBinding(
+              { distDir: vaultDistDir, now: () => Date.now(), publish, log },
+              UI_TEXT,
+              uiLocale(),
+            )
+          },
           onKeyUsage: (snapshot) => {
             usageRecording.limit({
               backend: 'modelApi',
@@ -4160,6 +4169,26 @@ async function activateWindow(
     }
     return modelsFeatures
   }
+
+  // The vault window commands: opening reveals the panel's vault section
+  // (which mounts the binding above); locking works without the panel.
+  context.subscriptions.push(
+    registerVaultCommands(
+      (id, run) => registerLoggedCommand(log, id, run),
+      () =>
+        loadVaultControls({ bundlePath: vaultBundlePath, distDir: vaultDistDir, log }, () => ({
+          now: () => Date.now(),
+          publish: (message) => {
+            vaultPublish?.(message)
+          },
+          openPanel: () => {
+            ensureModelsFeatures().openPanel({ section: 'vault' })
+            return Promise.resolve()
+          },
+          log,
+        })),
+    ),
+  )
 
   // Lane E's editor command adapter; lane S supplies the lazy shared service.
   const usageBundle = usagePanelLoader({

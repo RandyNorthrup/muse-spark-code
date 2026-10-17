@@ -130,9 +130,7 @@ function privateItem(request: Extract<VaultPrivateRequest, { kind: 'add' | 'edit
     bytes.fill(0)
   }
 }
-/** NDJSON with a byte limit and validation before dispatch; one sequential stream per pinned peer.
- * @unwired M109 vault broker channel server
- */
+/** NDJSON with a byte limit and validation before dispatch; one sequential stream per pinned peer. Served by the broker entry. */
 export class VaultChannelServer {
   private server: Server | null = null
   private isClosed = false

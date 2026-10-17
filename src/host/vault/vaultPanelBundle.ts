@@ -15,7 +15,7 @@ import type {
 import type { VaultPanelHost } from './vaultPanelHost'
 
 export const VAULT_COMMANDS = { open: 'museSpark.vault', lock: 'museSpark.lockVault' } as const
-/** @unwired M109 vault lock keybinding */
+/** Vault lock keybinding, registered in package.json. */
 export const VAULT_LOCK_KEYBINDING = {
   command: VAULT_COMMANDS.lock,
   key: 'ctrl+alt+shift+l',
