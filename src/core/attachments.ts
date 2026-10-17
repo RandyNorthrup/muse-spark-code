@@ -89,6 +89,18 @@ function imageWeight(summary: AttachmentSummary): number {
     : 1
 }
 
+/**
+ * The record's byte limit when it names one, else Meta's published number
+ * while no record reached attach, else none (the platform refuses the rest).
+ */
+function recordByteLimit(
+  recordBytes: number | undefined,
+  isMeta: boolean,
+  metaBytes: number,
+): number | undefined {
+  return recordBytes ?? (isMeta ? metaBytes : undefined)
+}
+
 export class AttachmentStore {
   private readonly entries = new Map<string, StoredAttachment>()
 
@@ -129,8 +141,11 @@ export class AttachmentStore {
     const isMeta = record === undefined || record.identity.provider === 'meta'
     // The record decides: Meta's own policy (its published inline limits),
     // another provider's, or Meta's numbers while no record reached attach.
-    const maxBytes =
-      policy?.state === 'yes' ? policy.value.maxBytes : isMeta ? MAX_DOCUMENT_BYTES : undefined
+    const maxBytes = recordByteLimit(
+      policy?.state === 'yes' ? policy.value.maxBytes : undefined,
+      isMeta,
+      MAX_DOCUMENT_BYTES,
+    )
     if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
       return {
         ok: false,
@@ -176,8 +191,11 @@ export class AttachmentStore {
     if (policy !== undefined && policy.state !== 'yes')
       return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
     const isMeta = record === undefined || record.identity.provider === 'meta'
-    const maxBytes =
-      policy?.state === 'yes' ? policy.value.maxBytes : isMeta ? MAX_IMAGE_BYTES : undefined
+    const maxBytes = recordByteLimit(
+      policy?.state === 'yes' ? policy.value.maxBytes : undefined,
+      isMeta,
+      MAX_IMAGE_BYTES,
+    )
     if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
       return {
         ok: false,

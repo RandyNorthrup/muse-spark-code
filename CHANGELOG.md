@@ -15,6 +15,20 @@ happened, not what was planned; superseded entries are kept.
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
 
+- Removed the invented clipping, dropping and queue limits on output and
+  data (NOLIMITS4): the sent selection is no longer cut at 64 KiB, every MCP
+  tool is offered with every tools-list page followed, every output document
+  is kept, every checkpoint unit is kept with every file copied (idle
+  conversations still prune by the person's cleanup age), every code intel
+  location is shown with every listed file ranked, every FileChanged hook
+  run fires, ACP tool output travels whole with every session reachable by
+  paging, the legal scan reads every file and keeps every finding, media
+  follows the provider's per-request record with no aggregate budget and no
+  upload ceiling of ours, GitHub checks page through every check run and
+  status, hook commands start with no host-wide count, and delegated team
+  work waits for headroom with no task or time bound. The provider's own
+  refusals, and the person's own settings, decide what fits.
+
 ### Pending
 
 - Activation budget: the Create AGENTS.md command, its rules template and
