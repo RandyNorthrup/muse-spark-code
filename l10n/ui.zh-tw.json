@@ -2473,6 +2473,7 @@
   "museCodeUnresponsiveTurn": "Muse Code 在回合執行時停止回應。重新啟動會停止該回合；對話會在你傳送下一則訊息時繼續。",
   "museCodeRestarted": "Muse Code 已重新啟動。你的下一則訊息會繼續此對話。",
   "sessionLogDamaged": "此對話的 Muse Code 記錄檔已損毀（Muse Code 的故障），因此無法接收新訊息。請開始新對話；此對話會保留在歷程記錄中。",
+  "museSignInLostOnRestart": "Muse Code {exit}，而且已不再登入，因此本輪無法執行（{detail}）。請在終端機中使用「muse login」重新登入，或為 CLI 設定 META_API_KEY，然後重新傳送。",
   "vaultScrubUnavailable": "保管庫清理服務無法使用。",
   "vaultSessionLogUnavailable": "保管庫安全的作業階段記錄匯出無法使用。",
   "turnUnqueued": "未傳送：排入佇列的訊息已撤回",

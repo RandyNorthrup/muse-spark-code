@@ -1994,6 +1994,7 @@ export class MuseCodeHost implements AgentHost {
     private readonly features: MuseCodeFeaturePorts = {},
     private readonly usageRecording = MuseCodeHost.usageRecording,
     private readonly accountHome?: MuseCodeAccountHome,
+    private restartCause?: string | undefined,
   ) {
     if (
       accountHome !== undefined &&
@@ -2439,6 +2440,18 @@ export class MuseCodeHost implements AgentHost {
     return () => {
       this.exitListeners.delete(listener)
     }
+  }
+
+  /**
+   * Why the host this one replaced went away (`AgentHost.takeRestartCause`):
+   * read once, so only the first turn that fails for a lost sign-in names
+   * the restart. Set at construction by the backend manager, never over the
+   * wire: a restart cause is local process knowledge.
+   */
+  public takeRestartCause(): string | undefined {
+    const cause = this.restartCause
+    this.restartCause = undefined
+    return cause
   }
 
   /**

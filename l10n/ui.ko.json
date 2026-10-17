@@ -2473,6 +2473,7 @@
   "museCodeUnresponsiveTurn": "턴이 실행되는 동안 Muse Code가 응답을 멈췄습니다. 다시 시작하면 그 턴이 중지되며, 대화는 다음 메시지로 계속됩니다.",
   "museCodeRestarted": "Muse Code가 다시 시작되었습니다. 다음 메시지로 이 대화가 계속됩니다.",
   "sessionLogDamaged": "이 대화의 Muse Code 로그가 손상되어(Muse Code의 결함) 새 메시지를 받을 수 없습니다. 새 대화를 시작하세요. 이 대화는 기록에 남습니다.",
+  "museSignInLostOnRestart": "Muse Code {exit} 상태이며 더 이상 로그인되어 있지 않아 이 턴을 실행할 수 없었습니다({detail}). 터미널에서 “muse login”으로 다시 로그인하거나 CLI용 META_API_KEY를 설정한 뒤 다시 보내세요.",
   "vaultScrubUnavailable": "Vault 스크럽 서비스를 사용할 수 없습니다.",
   "vaultSessionLogUnavailable": "Vault-안전 세션 로그 내보내기를 사용할 수 없습니다.",
   "turnUnqueued": "전송되지 않음: 대기 중인 메시지가 철회되었습니다",
