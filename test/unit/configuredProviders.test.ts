@@ -416,22 +416,26 @@ describe('configured provider production transport', () => {
     // GPT-5.4 Nano on 2026-10-17), never by the deployment name. No capture
     // yet, so resolving a client refuses before send, like rule 13's locals.
     const f = await fixture()
-    const entry = providerEntrySchema.parse({
-      id: 'az',
-      preset: 'azure',
-      address: 'https://myres.openai.azure.com/openai/v1',
-      auth: 'apiKey',
-      models: ['gpt-5.4-nano'],
-      deployment: 'my-gpt-deploy',
+    await writeProvidersFileAtomic(f.configFile, {
+      v: 1,
+      providers: [
+        providerEntrySchema.parse({
+          id: 'az',
+          preset: 'azure',
+          address: 'https://myres.openai.azure.com/openai/v1',
+          auth: 'apiKey',
+          models: ['gpt-5.4-nano'],
+          deployment: 'my-gpt-deploy',
+        }),
+      ],
     })
-    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
     const send = vi.fn<NonNullable<ConfiguredProviderOptions['send']>>(() =>
       Promise.resolve(response(Buffer.from(''))),
     )
     const services = createConfiguredProviderServices(undefined, {
       ...f,
-      resolve: () => Promise.resolve(['1.2.3.4']),
       send,
+      resolve: () => Promise.resolve(['93.184.216.34']),
     })
     const rows = await services.registry.list()
     expect(rows.find((row) => row.modelId === 'az/gpt-5.4-nano')).toMatchObject({

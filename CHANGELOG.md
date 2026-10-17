@@ -7,6 +7,22 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Provider records, rate limits, media and Azure work per provider (PROVM95).
+  The provider catalogue is the live models.dev list of 2026-10-17, not the
+  2026-10-05 snapshot, and Fireworks `supports_tools`/`supports_image_input`
+  plus DeepSeek `max_output_tokens`/`effort.supported_levels` from the
+  providers' own captured lists now land in records. Rate-limit headers read
+  with their real meaning: OpenAI/Groq `x-ratelimit-*` with duration resets,
+  xAI limits without resets, Anthropic `anthropic-ratelimit-*` with absolute
+  resets, and Azure `retry-after-ms` wherever `retry-after` is honored.
+  Fresh attachments on a listed provider model no longer meet Meta's 50-slot
+  budget before send. Azure entries persist the deployment, send
+  `model: <deployment>` to `{resource}.openai.azure.com/openai/v1/responses`
+  with the list below the same root, and resolve records by the model
+  family; dispatch still refuses until Azure's own capture lands.
+
 ### Added
 
 - Local models accept a validated manual context window in the provider

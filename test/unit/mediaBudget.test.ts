@@ -5,17 +5,20 @@ import { resolveModelCapabilities } from '../../src/core/providers/capabilities'
 import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { pdfFixture } from './helpers/pdfFixture'
 
+const requiredImages = (count: number) =>
+  Array.from(
+    { length: count },
+    () =>
+      ({
+        type: 'input_image',
+        image_url: 'data:image/png;base64,AQ==',
+        detail: 'auto',
+      }) as const,
+  )
+
 describe('Model API replay media budget', () => {
   it('refuses overfull required media instead of fitting it as delivered history', () => {
-    const required = Array.from(
-      { length: 51 },
-      () =>
-        ({
-          type: 'input_image',
-          image_url: 'data:image/png;base64,AQ==',
-          detail: 'auto',
-        }) as const,
-    )
+    const required = requiredImages(51)
     const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
     expect(() => new MediaBudget().fit(input, undefined, required)).toThrow()
   })
@@ -261,15 +264,7 @@ describe('Model API replay media budget', () => {
       { provider: 'fireworks', nativeModel: 'm', format: 'chat' },
       [],
     )
-    const required = Array.from(
-      { length: 51 },
-      () =>
-        ({
-          type: 'input_image',
-          image_url: 'data:image/png;base64,AQ==',
-          detail: 'auto',
-        }) as const,
-    )
+    const required = requiredImages(51)
     const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
     const budget = new MediaBudget()
     // Fresh media fits whole: with no Meta budget in the way the required
