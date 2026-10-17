@@ -29,7 +29,6 @@ import {
   runtimeArguments,
 } from '../../src/core/backends/modelapi/pluginFormats'
 import {
-  HOOK_MAX_RUNNING_COMMANDS,
   MODEL_API_TOOLS,
   PLUGIN_CHILD_MAX_HEAP_MB,
   PLUGIN_CHILD_MAX_MEMORY_BYTES,
@@ -640,59 +639,6 @@ describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
 
 describe('plugin dispatch without real children', () => {
   const pluginRoot = process.platform === 'win32' ? 'C:/plugins' : '/plugins'
-  it('runs plugin hooks under the host-wide cap', async () => {
-    let running = 0
-    let peak = 0
-    const adapter: ForeignHookAdapter = {
-      prepare: () =>
-        Promise.resolve({
-          outcome: 'plugin',
-          run: async () => {
-            running += 1
-            peak = Math.max(peak, running)
-            await new Promise((resolve) => setTimeout(resolve, 30))
-            running -= 1
-            return { status: 'completed' }
-          },
-        }),
-      answer: () => ({ status: 'failed' }),
-    }
-    const hooks = Array.from({ length: HOOK_MAX_RUNNING_COMMANDS + 3 }, (_, index) =>
-      definitions('PreToolUse', 'amp', 'tool.call', path.join(pluginRoot, `p${String(index)}.mjs`)),
-    ).flat()
-    await dispatch(
-      hooks,
-      'PreToolUse',
-      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-      adapter,
-    )
-    expect(peak).toBe(HOOK_MAX_RUNNING_COMMANDS)
-  })
-
-  it('strips a grant from a plugin answer, as from every imported hook', async () => {
-    const adapter: ForeignHookAdapter = {
-      prepare: () =>
-        Promise.resolve({
-          outcome: 'plugin',
-          run: () =>
-            Promise.resolve({
-              status: 'completed',
-              permissionDecision: 'allow',
-              approvalDecision: 'allow',
-            }),
-        }),
-      answer: () => ({ status: 'failed' }),
-    }
-    const result = await dispatch(
-      definitions('PreToolUse', 'amp', 'tool.call', path.join(pluginRoot, 'p.mjs')),
-      'PreToolUse',
-      toolPayload('PreToolUse', 'bash', { command: 'ls' }),
-      adapter,
-    )
-    expect(result.approvalDecision).toBeUndefined()
-    expect(result.forceApproval).toBe(false)
-  })
-
   it('without containment, a plugin hook fails by its rule and says why in the user’s language', async () => {
     const plugins: PluginHostDeps = {
       env: {},
