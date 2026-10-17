@@ -916,16 +916,6 @@ function pageOf(document: ParentNode, pageUrl: URL, maxChars: number): MarkdownP
 }
 
 /**
- * The page as Markdown; links and images made absolute against its base
- * URL. The conversion stops once the Markdown passes `maxChars` (a hostile
- * page can expand, a relative link into a long absolute one), and says so.
- * @unwired M69 web-fetch page conversion
- */
-export function htmlToMarkdown(html: string, pageUrl: URL, maxChars: number): MarkdownPage {
-  return pageOf(parse(html), pageUrl, maxChars)
-}
-
-/**
  * The encoding the first `<meta>` in the tree declares (its `charset`, or
  * an `http-equiv="content-type"` content's charset), as the parser meets it.
  */
