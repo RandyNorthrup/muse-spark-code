@@ -8,7 +8,7 @@ import { scrubShareText } from '../../shared/share'
 import { redactSecrets } from '../../shared/redact'
 
 export interface ConnectorScrub {
-  /** Every string leaf of a projection, keys included. */
+  /** Every string value of a projection; its keys are our own fixed names and stay. */
   readonly leaves: (value: unknown) => unknown
   /** The final whole-text pass; undefined when it found something the leaves missed. */
   readonly whole: (serialized: string) => string | undefined
