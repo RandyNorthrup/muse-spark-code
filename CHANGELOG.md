@@ -20,6 +20,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A spending limit exists only when you set one (D121). The editor's
+  `museSpark.paidDailyBudgetUsd` and the agent's `paidDailyBudgetUsd` in its
+  `settings.json` are none by default, so the ACP agent no longer stops a job
+  on a daily budget it was never given. With no limit there is no spending
+  check on the request path: nothing is reserved, locked or written before a
+  send.
+- Under a limit you set, the session and daily budgets keep running totals
+  from the usage each call reported, saved after the call, so a resume
+  continues from them. A request whose estimate would pass the limit is not
+  sent and the reason says so; one warning comes when what is left no longer
+  fits a request like the last one. A response that ended without its usage
+  counts as cost unknown instead of its whole reservation: one job's thirteen
+  failed responses had counted $352.66 of reservations as spent.
+- The atomic claim ledger is gone: its journal files, cross-process lock, the
+  100 ms admission bound and its benchmark.
 - Initial provider rejections release their holds; incomplete responses with final
   usage settle at the reported cost. Unresolved liability is shown separately
   from spend, and terminal startup prices each real request instead of the
