@@ -18593,6 +18593,10 @@ JSON ledger format; converting the project plan is outside this lane.
   pass in four themes, including 320 px captures with no horizontal page
   overflow. Full `npm run quality`, hosted three-OS CI and independent Grok
   review remain lead-owned; this rig lane is forbidden to run full quality.
+  (RVMSM77, 2026-10-17: the journal, Windows-alias and snapshot suites behind
+  those sentences were deleted by main's test overhaul and stay deleted;
+  they are 2026-10-10 receipts, not current-tree proof — see the review note
+  in `docs/certification/m77.md`.)
 - **Docs.** README (Session board and best-of-N, Paid features, settings
   table), CHANGELOG, the 14 UI and manifest tables.
 - **Security.** Attempts run worktree-confined on the Model API backend
