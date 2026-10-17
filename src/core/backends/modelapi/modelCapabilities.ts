@@ -1,5 +1,7 @@
 import type { SideCallFormats } from './structuredOutput'
 import type { ModelApiHostDeps } from './ModelApiHost'
+import type { ArgumentPreviewCapabilities } from './argumentPreview'
+import { modelPolicyFor } from './modelPolicy'
 import {
   MODEL_API_LEGACY_CONTEXT_MODELS,
   M106_CAPTURED_META_MODEL,
@@ -46,4 +48,29 @@ export function metaHostedCapabilities(
         },
       }
     : undefined
+}
+
+/**
+ * U9's delta/done sequence on the captured contributor model
+ * (`test/fixtures/m106/u9-strict-stream.json` shows two
+ * `response.function_call_arguments.delta` frames then `.done`): only that
+ * model streams tool arguments. Unobserved models keep today's stream.
+ */
+export function metaArgumentPreviewCapabilities(
+  modelId: string,
+): ArgumentPreviewCapabilities | undefined {
+  return modelId === M106_CAPTURED_META_MODEL
+    ? { tools: { streamingArguments: { state: 'yes', value: true } } }
+    : undefined
+}
+
+/**
+ * The selected model's output cap (PLAN.md D86.5, acceptance 8): M95's own
+ * policy reads the same record the host's clamp does, so the request and the
+ * clamp agree without this lane naming any model id. Bare Muse Spark models
+ * share the documented 131,072-token maximum; anything without a record keeps
+ * the legacy request cap until its own capture.
+ */
+export function metaOutputMaxTokens(modelId: string): number | undefined {
+  return modelPolicyFor(modelId).output.maxTokens
 }

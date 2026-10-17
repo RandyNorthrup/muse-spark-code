@@ -8,6 +8,7 @@
 // dropped (D36): unknown item kinds keep today's `item` row.
 
 import * as z from 'zod/mini'
+import { legacyUsdSchema } from './usdSchema'
 
 /** How the entry's model bills: a key (paid), a plan, or nothing (D75). */
 export const teamPayKindSchema = z.enum(['key', 'subscription', 'local'])
@@ -30,7 +31,7 @@ export const teamWorkerSchema = z.object({
   elapsedMs: z.optional(z.number()),
   inputTokens: z.optional(z.number()),
   outputTokens: z.optional(z.number()),
-  costUsd: z.optional(z.number()),
+  costUsd: z.optional(legacyUsdSchema),
   estimated: z.optional(z.boolean()),
 })
 export type TeamWorker = z.infer<typeof teamWorkerSchema>
@@ -79,8 +80,8 @@ export const teamOrchestratorSchema = z.object({
 export const teamTreeSchema = z.object({
   orchestrator: teamOrchestratorSchema,
   roles: z.readonly(z.array(teamRoleSchema)),
-  spentUsdToday: z.optional(z.number()),
-  budgetUsdToday: z.optional(z.number()),
+  spentUsdToday: z.optional(legacyUsdSchema),
+  budgetUsdToday: z.optional(legacyUsdSchema),
 })
 export type TeamTreeData = z.infer<typeof teamTreeSchema>
 
@@ -89,7 +90,7 @@ export const teamUsageFiguresSchema = z.object({
   tasks: z.number(),
   inputTokens: z.number(),
   outputTokens: z.number(),
-  costUsd: z.number(),
+  costUsd: legacyUsdSchema,
   estimated: z.boolean(),
 })
 export type TeamUsageFigures = z.infer<typeof teamUsageFiguresSchema>

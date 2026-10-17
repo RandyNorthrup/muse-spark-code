@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { Usd } from '../../src/shared/usd'
 import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { USAGE_HISTOGRAM_EDGES_MS } from '../../src/shared/constants'
 import {
@@ -35,7 +36,7 @@ const identity: Pick<
   UsageRecord,
   'v' | 'id' | 'at' | 'day' | 'timezoneOffsetMins' | 'client' | 'backend' | 'provider'
 > = {
-  v: 1,
+  v: 2,
   id: 'record-1',
   at: 1_791_234_567_890,
   day: '2026-10-05',
@@ -65,7 +66,7 @@ const totals: UsageTotals = {
   rateLimited: 0,
 }
 const state: UsagePageState = {
-  v: 1,
+  v: 2,
   query,
   generatedAt: 1_791_234_567_890,
   history: {
@@ -76,6 +77,7 @@ const state: UsagePageState = {
     recordCount: 0,
     newerVersionRecords: 1,
     tornLines: 0,
+    inexactRecords: 0,
   },
   totals,
   previousTotals: totals,
@@ -128,7 +130,7 @@ describe('usage journal v1', () => {
       ...record,
       tokens,
       units: { images: 0, searches: 2, audioSeconds: 1.5 },
-      cost: { usd: 0, certainty: 'local' },
+      cost: { usd: Usd.from('0').toAmount(), certainty: 'local' },
       durationMs: 90,
       firstTokenMs: 10,
       retries: 2,
@@ -164,7 +166,10 @@ describe('usage journal v1', () => {
 
   it('rejects invalid versions, dates, ids and counters and strips control characters', () => {
     for (const change of [
-      { v: 2 },
+      { v: 1 },
+      { v: 3 },
+      // Version 2 stores dollars as decimal text, never as a JSON number (M121).
+      { cost: { certainty: 'computed', usd: 0.5 } },
       { day: '2026-02-30' },
       { id: '../outside' },
       { session: '/private/file' },
@@ -234,7 +239,7 @@ describe('usage journal v1', () => {
       source: 'museCode',
       observedAt: identity.at,
       windows: [{ id: 'weekly', usedPercent: 125, resetsAt: identity.at }],
-      account: { period: 'daily', remainingUsd: 0 },
+      account: { period: 'daily', remainingUsd: Usd.from('0').toAmount() },
       raw: { 'retry-after': '10' },
     }
     expect(usageLimitSnapshotSchema.parse(snapshot)).toEqual(snapshot)

@@ -42,23 +42,30 @@ import { isCredentialVariable } from './credentialEnvironment'
 // data they carry is here, so both surfaces read one shape.
 
 import * as z from 'zod/mini'
+import { legacyUsdSchema } from './usdSchema'
+
+// Schema builders below are pure construction (no global writes, no I/O),
+// so every `z.` call carries /* @__PURE__ */. A bundle that reads one schema
+// still carries the schemas it references, but ones nothing references drop
+// out instead of riding along. Nested builders need the IIFE form (as in
+// usdSchema.ts): a bare annotation cannot drop arguments that call `z.*`.
 
 // An agent is a model the user can run, by who runs the tools (D75): the
 // extension (`engine`, on the Model API or an M95 provider), a hidden
 // session in the window's `muse serve` (`museCode`, on the subscription),
 // or an agent CLI over ACP (`external`, paid however that CLI is paid).
 export const teamAgentKinds = ['engine', 'museCode', 'external'] as const
-export const teamAgentKindSchema = z.enum(teamAgentKinds)
+export const teamAgentKindSchema = /* @__PURE__ */ z.enum(teamAgentKinds)
 export type TeamAgentKind = z.infer<typeof teamAgentKindSchema>
 
 // Who pays sets the meters (D75): a key bills dollars (a paid use, rule
 // 12), a subscription spends a plan's limits, a local model is free.
 export const teamAgentPays = ['key', 'subscription', 'local'] as const
-export const teamAgentPaysSchema = z.enum(teamAgentPays)
+export const teamAgentPaysSchema = /* @__PURE__ */ z.enum(teamAgentPays)
 export type TeamAgentPays = z.infer<typeof teamAgentPaysSchema>
 
 /** One agent a pool entry runs on: its kind, the user's agent, and its model. */
-export const teamAgentRefSchema = z.object({
+export const teamAgentRefSchema = /* @__PURE__ */ z.object({
   kind: teamAgentKindSchema,
   agentId: z.string().check(z.minLength(1)),
   model: z.string().check(z.minLength(1)),
@@ -87,17 +94,17 @@ export const teamCapMeasures = [
   'spendUsd',
   'tasks',
 ] as const
-export const teamCapMeasureSchema = z.enum(teamCapMeasures)
+export const teamCapMeasureSchema = /* @__PURE__ */ z.enum(teamCapMeasures)
 export type TeamCapMeasure = z.infer<typeof teamCapMeasureSchema>
 
 // A cap's windows (D75): one task, the local day, or the workspace's
 // lifetime until reset.
 export const teamCapWindows = ['task', 'day', 'lifetime'] as const
-export const teamCapWindowSchema = z.enum(teamCapWindows)
+export const teamCapWindowSchema = /* @__PURE__ */ z.enum(teamCapWindows)
 export type TeamCapWindow = z.infer<typeof teamCapWindowSchema>
 
 /** One cap of a pool entry: a measure, an amount, and a window. */
-export const teamCapSchema = z.object({
+export const teamCapSchema = /* @__PURE__ */ z.object({
   measure: teamCapMeasureSchema,
   window: teamCapWindowSchema,
   amount: z.number().check(z.nonnegative()),
@@ -105,7 +112,7 @@ export const teamCapSchema = z.object({
 export type TeamCap = z.infer<typeof teamCapSchema>
 
 /** The settings an entry carries that its model supports (D75). */
-export const teamModelSettingsSchema = z.object({
+export const teamModelSettingsSchema = /* @__PURE__ */ z.object({
   effort: z.optional(z.string()),
   thinking: z.optional(z.boolean()),
   thinkingBudget: z.optional(z.int().check(z.gte(1))),
@@ -124,7 +131,7 @@ export type TeamModelSettings = z.infer<typeof teamModelSettingsSchema>
  * is Default: whatever the orchestrator slot resolves to when the task
  * starts. Default alone never turns the team on (acceptance 47).
  */
-export const teamPoolEntrySchema = z
+export const teamPoolEntrySchema = /* @__PURE__ */ z
   .object({
     id: z.string().check(z.minLength(1)),
     agent: z.optional(teamAgentRefSchema),
@@ -149,17 +156,17 @@ export type TeamPoolEntry = z.infer<typeof teamPoolEntrySchema>
 
 // A role's workspace mode (D75), held by the harness, never by a prompt.
 export const teamWorkspaceModes = ['read-only', 'own-branch', 'in-place'] as const
-export const teamWorkspaceModeSchema = z.enum(teamWorkspaceModes)
+export const teamWorkspaceModeSchema = /* @__PURE__ */ z.enum(teamWorkspaceModes)
 export type TeamWorkspaceMode = z.infer<typeof teamWorkspaceModeSchema>
 
 // A role's report shape (D75): `summary` by default, `review` for code
 // review, `qa` for test runs.
 export const teamReportShapes = ['summary', 'review', 'qa'] as const
-export const teamReportShapeSchema = z.enum(teamReportShapes)
+export const teamReportShapeSchema = /* @__PURE__ */ z.enum(teamReportShapes)
 export type TeamReportShape = z.infer<typeof teamReportShapeSchema>
 
 /** One role of the workspace's team: its pool, policy and role keys. */
-export const teamRoleConfigSchema = z.object({
+export const teamRoleConfigSchema = /* @__PURE__ */ z.object({
   role: z.string().check(z.minLength(1)),
   workspace: z.optional(teamWorkspaceModeSchema),
   tools: z.optional(z.array(z.enum(TEAM_TOOL_GROUPS))),
@@ -178,11 +185,11 @@ export type TeamRoleConfig = z.infer<typeof teamRoleConfigSchema>
 
 // The intensity control, from Minimal to Max (D75).
 export const teamIntensityLevels = ['minimal', 'light', 'balanced', 'heavy', 'max'] as const
-export const teamIntensitySchema = z.enum(teamIntensityLevels)
+export const teamIntensitySchema = /* @__PURE__ */ z.enum(teamIntensityLevels)
 export type TeamIntensity = z.infer<typeof teamIntensitySchema>
 
 /** The rubric's reason codes (D75): one per delegated task and kept item. */
-export const teamRubricReasonSchema = z.enum(TEAM_RUBRIC_REASON_CODES)
+export const teamRubricReasonSchema = /* @__PURE__ */ z.enum(TEAM_RUBRIC_REASON_CODES)
 export type TeamRubricReason = z.infer<typeof teamRubricReasonSchema>
 
 // A worker's report status (D75). `unstructured` is assigned by the parser
@@ -195,11 +202,11 @@ export const teamReportStatuses = [
   'capped',
   'unstructured',
 ] as const
-export const teamReportStatusSchema = z.enum(teamReportStatuses)
+export const teamReportStatusSchema = /* @__PURE__ */ z.enum(teamReportStatuses)
 export type TeamReportStatus = z.infer<typeof teamReportStatusSchema>
 
 /** A report in its fenced block, parsed with zod as M70's `muse-review` is. */
-export const teamReportSchema = z.object({
+export const teamReportSchema = /* @__PURE__ */ z.object({
   status: teamReportStatusSchema,
   summary: z.string().check(z.minLength(1)),
   files: z.optional(z.array(z.string())),
@@ -227,7 +234,7 @@ export const teamTaskStates = [
   'exhausted',
   'interrupted',
 ] as const
-export const teamTaskStateSchema = z.enum(teamTaskStates)
+export const teamTaskStateSchema = /* @__PURE__ */ z.enum(teamTaskStates)
 export type TeamTaskState = z.infer<typeof teamTaskStateSchema>
 
 // What the ledger records a task's end as (D75). Only the orchestrator's
@@ -242,11 +249,11 @@ export const teamLedgerOutcomes = [
   'cancelled',
   'interrupted',
 ] as const
-export const teamLedgerOutcomeSchema = z.enum(teamLedgerOutcomes)
+export const teamLedgerOutcomeSchema = /* @__PURE__ */ z.enum(teamLedgerOutcomes)
 export type TeamLedgerOutcome = z.infer<typeof teamLedgerOutcomeSchema>
 
 /** One delegation: a role, the entry chosen, a brief, and its worker. */
-export const teamTaskSchema = z.object({
+export const teamTaskSchema = /* @__PURE__ */ z.object({
   id: z.string().check(z.minLength(1)),
   role: z.string().check(z.minLength(1)),
   entryId: z.string().check(z.minLength(1)),
@@ -268,11 +275,11 @@ export const teamSwitchReasons = [
   'unavailable',
   'reset',
 ] as const
-export const teamSwitchReasonSchema = z.enum(teamSwitchReasons)
+export const teamSwitchReasonSchema = /* @__PURE__ */ z.enum(teamSwitchReasons)
 export type TeamSwitchReason = z.infer<typeof teamSwitchReasonSchema>
 
 /** `TeamAgentSwitch` (D75): one switch, with the cap it moved on. */
-export const teamAgentSwitchSchema = z.object({
+export const teamAgentSwitchSchema = /* @__PURE__ */ z.object({
   roleId: z.string().check(z.minLength(1)),
   fromEntryId: z.string().check(z.minLength(1)),
   toEntryId: z.string().check(z.minLength(1)),
@@ -289,13 +296,14 @@ export const teamAgentSwitchSchema = z.object({
 export type TeamAgentSwitch = z.infer<typeof teamAgentSwitchSchema>
 
 /** Tokens by kind, each marked reported or estimated where it shows. */
-export const teamUsageSchema = z.object({
+export const teamUsageSchema = /* @__PURE__ */ z.object({
   input: z.int().check(z.nonnegative()),
   cachedInput: z.int().check(z.nonnegative()),
   output: z.int().check(z.nonnegative()),
   reasoning: z.int().check(z.nonnegative()),
   modelCalls: z.int().check(z.nonnegative()),
-  costUsd: z.optional(z.number().check(z.nonnegative())),
+  // Older rows held a number; it reads as the same exact decimal (M121).
+  costUsd: z.optional(legacyUsdSchema),
   estimated: z.boolean(),
 })
 export type TeamUsage = z.infer<typeof teamUsageSchema>
@@ -307,7 +315,7 @@ export type TeamUsage = z.infer<typeof teamUsageSchema>
  * rows of their own, so a spent `lifetime` cap never refills when old task
  * rows age out.
  */
-export const teamLedgerTaskRowSchema = z.object({
+export const teamLedgerTaskRowSchema = /* @__PURE__ */ z.object({
   kind: z.literal('task'),
   taskId: z.string().check(z.minLength(1)),
   role: z.string().check(z.minLength(1)),
@@ -333,7 +341,7 @@ export const teamLedgerTaskRowSchema = z.object({
 export type TeamLedgerTaskRow = z.infer<typeof teamLedgerTaskRowSchema>
 
 /** An entry's meter totals per window: kept until Reset, never pruned. */
-export const teamLedgerTotalsRowSchema = z.object({
+export const teamLedgerTotalsRowSchema = /* @__PURE__ */ z.object({
   kind: z.literal('totals'),
   entryId: z.string().check(z.minLength(1)),
   window: teamCapWindowSchema,
@@ -343,7 +351,7 @@ export const teamLedgerTotalsRowSchema = z.object({
 export type TeamLedgerTotalsRow = z.infer<typeof teamLedgerTotalsRowSchema>
 
 /** A reset, kept with its time and what it cleared. */
-export const teamLedgerResetRowSchema = z.object({
+export const teamLedgerResetRowSchema = /* @__PURE__ */ z.object({
   kind: z.literal('reset'),
   window: teamCapWindowSchema,
   entryId: z.optional(z.string()),
@@ -352,7 +360,7 @@ export const teamLedgerResetRowSchema = z.object({
 export type TeamLedgerResetRow = z.infer<typeof teamLedgerResetRowSchema>
 
 /** A worker as the tree shows it: brief, branch, status, time and cost. */
-export const teamTreeWorkerSchema = z.object({
+export const teamTreeWorkerSchema = /* @__PURE__ */ z.object({
   taskId: z.string().check(z.minLength(1)),
   role: z.string().check(z.minLength(1)),
   entryId: z.string().check(z.minLength(1)),
@@ -365,7 +373,7 @@ export const teamTreeWorkerSchema = z.object({
 export type TeamTreeWorker = z.infer<typeof teamTreeWorkerSchema>
 
 /** One pool entry as the tree shows it, with its running workers. */
-export const teamTreeEntrySchema = z.object({
+export const teamTreeEntrySchema = /* @__PURE__ */ z.object({
   entryId: z.string().check(z.minLength(1)),
   agent: z.optional(teamAgentRefSchema),
   running: z.int().check(z.nonnegative()),
@@ -376,7 +384,7 @@ export const teamTreeEntrySchema = z.object({
 export type TeamTreeEntry = z.infer<typeof teamTreeEntrySchema>
 
 /** One role as the tree shows it, with its pool in order. */
-export const teamTreeRoleSchema = z.object({
+export const teamTreeRoleSchema = /* @__PURE__ */ z.object({
   role: z.string().check(z.minLength(1)),
   mode: z.optional(teamWorkspaceModeSchema),
   tools: z.array(z.string()),
@@ -390,7 +398,7 @@ export type TeamTreeRole = z.infer<typeof teamTreeRoleSchema>
  * have nodes of their own. In single-model mode the panel shows today's
  * map instead: no role node, no pool, no Traffic tab.
  */
-export const teamTreeSchema = z.object({
+export const teamTreeSchema = /* @__PURE__ */ z.object({
   orchestrator: z.object({
     model: z.string().check(z.minLength(1)),
     backend: z.string().check(z.minLength(1)),
@@ -404,7 +412,7 @@ export const teamTreeSchema = z.object({
 export type TeamTree = z.infer<typeof teamTreeSchema>
 
 /** The whole workspace team as the Roles section edits it. */
-export const teamSnapshotSchema = z
+export const teamSnapshotSchema = /* @__PURE__ */ z
   .object({
     roles: z.array(teamRoleConfigSchema),
     intensity: teamIntensitySchema,
@@ -466,20 +474,20 @@ export type TeamSnapshot = z.infer<typeof teamSnapshotSchema>
 // The panel's messages (M96, lane 0 seam for lane U1's `roles/*` and
 // `agents/*` region of `src/shared/modelsPanel.ts`): the host pushes state,
 // the panel saves drafts back.
-export const teamRolesUpdateSchema = z.object({
+export const teamRolesUpdateSchema = /* @__PURE__ */ z.object({
   type: z.literal('teamRolesUpdate'),
   snapshot: teamSnapshotSchema,
 })
 export type TeamRolesUpdate = z.infer<typeof teamRolesUpdateSchema>
 
-export const teamRolesSaveSchema = z.object({
+export const teamRolesSaveSchema = /* @__PURE__ */ z.object({
   type: z.literal('teamRolesSave'),
   requestId: z.string().check(z.minLength(1)),
   snapshot: teamSnapshotSchema,
 })
 export type TeamRolesSave = z.infer<typeof teamRolesSaveSchema>
 
-export const teamAgentsUpdateSchema = z.object({
+export const teamAgentsUpdateSchema = /* @__PURE__ */ z.object({
   type: z.literal('teamAgentsUpdate'),
   tree: teamTreeSchema,
 })
@@ -500,7 +508,7 @@ export const teamTreeActions = [
   'takeBack',
   'moveToBridge',
 ] as const
-export const teamTreeActionSchema = z.object({
+export const teamTreeActionSchema = /* @__PURE__ */ z.object({
   type: z.literal('teamTreeAction'),
   action: z.enum(teamTreeActions),
   taskId: z.optional(z.string()),
@@ -510,26 +518,26 @@ export const teamTreeActionSchema = z.object({
 export type TeamTreeAction = z.infer<typeof teamTreeActionSchema>
 
 // The tree pushed to the chat panel (lane U2): the ledger's live view.
-export const teamTreeUpdateSchema = z.object({
+export const teamTreeUpdateSchema = /* @__PURE__ */ z.object({
   type: z.literal('teamTree'),
   tree: teamViewTreeSchema,
 })
 export type TeamTreeUpdate = z.infer<typeof teamTreeUpdateSchema>
 
 // The built-in role ids, for lanes that switch on them.
-export const teamBuiltInRoleSchema = z.enum(TEAM_ROLE_IDS)
+export const teamBuiltInRoleSchema = /* @__PURE__ */ z.enum(TEAM_ROLE_IDS)
 export type TeamBuiltInRole = z.infer<typeof teamBuiltInRoleSchema>
 
 // The tool groups a role checklist may offer (the type lives beside the
 // table as `TeamToolGroup` in constants.ts).
-export const teamToolGroupSchema = z.enum(TEAM_TOOL_GROUPS)
+export const teamToolGroupSchema = /* @__PURE__ */ z.enum(TEAM_TOOL_GROUPS)
 
 // M96c scheduler contracts, owned by the extension (PLAN.md D75). These are
 // not native MSP/ACP frames. M96's agents/pools/ledger schemas have their own
 // region; scheduler fields compose with them at admission. No host imports.
 
 // --- Team scheduler region (lane 0c). ---
-const id = z
+const id = /* @__PURE__ */ z
   .string()
   .check(
     z.trim(),
@@ -537,18 +545,20 @@ const id = z
     z.maxLength(TEAM_SCHED_ID_MAX_CHARS),
     z.regex(/^[A-Za-z0-9][A-Za-z0-9_.:/-]*$/),
   )
-const text = z.string().check(z.minLength(1), z.maxLength(TEAM_SCHED_TEXT_MAX_CHARS))
-const path = z.string().check(
+const text = /* @__PURE__ */ z
+  .string()
+  .check(z.minLength(1), z.maxLength(TEAM_SCHED_TEXT_MAX_CHARS))
+const path = /* @__PURE__ */ z.string().check(
   z.minLength(1),
   z.maxLength(GIT_PATH_MAX_DEFAULT),
   z.refine((value) => !value.includes('\0')),
 )
-const count = z.int().check(z.nonnegative())
-const amount = z.number().check(z.nonnegative())
-const attemptNumber = z.int().check(z.gte(1))
-const paths = z.array(path).check(z.maxLength(TEAM_WRITE_SET_MAX))
+const count = /* @__PURE__ */ z.int().check(z.nonnegative())
+const amount = /* @__PURE__ */ z.number().check(z.nonnegative())
+const attemptNumber = /* @__PURE__ */ z.int().check(z.gte(1))
+const paths = /* @__PURE__ */ z.array(path).check(z.maxLength(TEAM_WRITE_SET_MAX))
 
-export const teamBoardTaskStateSchema = z.enum([
+export const teamBoardTaskStateSchema = /* @__PURE__ */ z.enum([
   'queued',
   'ready',
   'running',
@@ -563,9 +573,9 @@ export const teamBoardTaskStateSchema = z.enum([
   'redesign',
 ])
 export type TeamBoardTaskState = z.infer<typeof teamBoardTaskStateSchema>
-export const teamPrioritySchema = z.enum(['urgent', 'high', 'normal', 'low'])
-export const teamSizeSchema = z.enum(['S', 'M', 'L', 'XL'])
-export const teamStallReasonSchema = z.enum([
+export const teamPrioritySchema = /* @__PURE__ */ z.enum(['urgent', 'high', 'normal', 'low'])
+export const teamSizeSchema = /* @__PURE__ */ z.enum(['S', 'M', 'L', 'XL'])
+export const teamStallReasonSchema = /* @__PURE__ */ z.enum([
   'noProgress',
   'outOfSteps',
   'rateLimited',
@@ -573,20 +583,24 @@ export const teamStallReasonSchema = z.enum([
   'providerDown',
   'crashed',
 ])
-export const teamIntegrationFlowSchema = z.enum(['full', 'reviewAutomatically', 'manual'])
-export const teamOnStallSchema = z.enum(['reassign', 'ask', 'stop'])
-export const teamSharedFileSchema = z.strictObject({
+export const teamIntegrationFlowSchema = /* @__PURE__ */ z.enum([
+  'full',
+  'reviewAutomatically',
+  'manual',
+])
+export const teamOnStallSchema = /* @__PURE__ */ z.enum(['reassign', 'ask', 'stop'])
+export const teamSharedFileSchema = /* @__PURE__ */ z.strictObject({
   pattern: path,
   kind: z.enum(['text', 'json-table', 'changelog']),
 })
 
 // Missing `on` is resolved from the dependency's workspace mode by the board,
 // never guessed as `merged` for every task by the boundary parser.
-export const teamDependencySchema = z.strictObject({
+export const teamDependencySchema = /* @__PURE__ */ z.strictObject({
   task: id,
   on: z.optional(z.enum(['merged', 'done'])),
 })
-export const teamSchedulerFieldsSchema = z.strictObject({
+export const teamSchedulerFieldsSchema = /* @__PURE__ */ z.strictObject({
   key: z.optional(id),
   depends_on: z.optional(z.array(teamDependencySchema).check(z.maxLength(TEAM_BOARD_MAX))),
   priority: z._default(teamPrioritySchema, 'normal'),
@@ -596,8 +610,11 @@ export const teamSchedulerFieldsSchema = z.strictObject({
 })
 export type TeamSchedulerFields = z.infer<typeof teamSchedulerFieldsSchema>
 
-export const teamAttemptRefSchema = z.strictObject({ taskId: id, attempt: attemptNumber })
-export const teamWriteSetLeaseSchema = z.strictObject({
+export const teamAttemptRefSchema = /* @__PURE__ */ z.strictObject({
+  taskId: id,
+  attempt: attemptNumber,
+})
+export const teamWriteSetLeaseSchema = /* @__PURE__ */ z.strictObject({
   workspaceId: id,
   holder: teamAttemptRefSchema,
   paths,
@@ -608,20 +625,20 @@ export type TeamWriteSetLease = z.infer<typeof teamWriteSetLeaseSchema>
 
 // Separate proof from the user's decision; child/group exit is no proof that
 // every descendant ended. No cross-window endpoint or hint is evidence here.
-export const teamRetirementSchema = z.discriminatedUnion('kind', [
+export const teamRetirementSchema = /* @__PURE__ */ z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('proved'), method: z.enum(['windowsJob', 'linuxCgroup']) }),
   z.strictObject({ kind: z.literal('userDecision') }),
 ])
-export const teamAttemptUsageSchema = z.strictObject({
+export const teamAttemptUsageSchema = /* @__PURE__ */ z.strictObject({
   inputTokens: count,
   cachedInputTokens: count,
   outputTokens: count,
   reasoningTokens: count,
   modelCalls: count,
-  costUsd: amount,
+  costUsd: legacyUsdSchema,
   accuracy: z.enum(['reported', 'estimated']),
 })
-export const teamAttemptSchema = z
+export const teamAttemptSchema = /* @__PURE__ */ z
   .strictObject({
     number: attemptNumber,
     entryId: id,
@@ -646,7 +663,7 @@ export const teamAttemptSchema = z
   )
 export type TeamAttempt = z.infer<typeof teamAttemptSchema>
 
-export const teamBoardTaskSchema = z
+export const teamBoardTaskSchema = /* @__PURE__ */ z
   .strictObject({
     ...teamSchedulerFieldsSchema.shape,
     id,
@@ -683,7 +700,7 @@ const terminalStates: ReadonlySet<string> = new Set([
   'redesign',
 ])
 // Bound open tasks separately from retained terminal rows.
-export const teamBoardSchema = z
+export const teamBoardSchema = /* @__PURE__ */ z
   .strictObject({
     workspaceId: id,
     windowInstanceId: id,
@@ -703,7 +720,7 @@ export type TeamBoard = z.infer<typeof teamBoardSchema>
 // The scheduler checks attempt identity before mutation. Even a stale usage
 // event is charged to its original attempt. Events contain data, not prompts.
 const eventBase = { workspaceId: id, taskId: id, attempt: attemptNumber, at: count }
-export const teamSchedulerEventSchema = z.discriminatedUnion('kind', [
+export const teamSchedulerEventSchema = /* @__PURE__ */ z.discriminatedUnion('kind', [
   z.strictObject({ ...eventBase, kind: z.enum(['ready', 'started', 'diverging', 'landed']) }),
   z.strictObject({
     ...eventBase,
@@ -724,18 +741,18 @@ export const teamSchedulerEventSchema = z.discriminatedUnion('kind', [
 ])
 export type TeamSchedulerEvent = z.infer<typeof teamSchedulerEventSchema>
 
-export const teamRescheduleSchema = z.strictObject({
+export const teamRescheduleSchema = /* @__PURE__ */ z.strictObject({
   task_ids: z.array(id).check(z.minLength(1), z.maxLength(TEAM_BOARD_MAX)),
   priority: z.optional(teamPrioritySchema),
   hold: z.optional(z.boolean()),
   depends_on: z.optional(z.array(teamDependencySchema).check(z.maxLength(TEAM_BOARD_MAX))),
 })
-export const teamMergeOptionsSchema = z.strictObject({
+export const teamMergeOptionsSchema = /* @__PURE__ */ z.strictObject({
   task_id: id,
   on_conflict: z._default(z.enum(['rework', 'markers']), 'rework'),
 })
 
-export const teamTrafficMetricsSchema = z
+export const teamTrafficMetricsSchema = /* @__PURE__ */ z
   .strictObject({
     period: z.enum(['today', 'week', 'allTime']),
     roleId: z.optional(id),
@@ -756,8 +773,8 @@ export const teamTrafficMetricsSchema = z
     reassignments: count,
     candidatesReturned: count,
     mergedChanges: count,
-    reportedCostUsd: amount,
-    estimatedCostUsd: amount,
+    reportedCostUsd: legacyUsdSchema,
+    estimatedCostUsd: legacyUsdSchema,
     reportedTokens: count,
     estimatedTokens: count,
     timeToMergeMedianMs: z.nullable(amount),
@@ -769,7 +786,7 @@ const forbiddenEnvironmentNames: ReadonlySet<string> = new Set([
   ...HOOK_FORBIDDEN_ENV_NAMES,
   ...EXEC_CHILD_ENV_DROP,
 ])
-const environmentName = z.string().check(
+const environmentName = /* @__PURE__ */ z.string().check(
   z.maxLength(HOOK_MANAGED_ENV_NAME_MAX_CHARS),
   z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
   z.refine(
@@ -777,7 +794,7 @@ const environmentName = z.string().check(
     { error: () => UI_TEXT.teamRunners.environmentNotice },
   ),
 )
-export const runnerSchema = z.strictObject({
+export const runnerSchema = /* @__PURE__ */ z.strictObject({
   id,
   // SSH alias or user@host, never an option, whitespace or a shell fragment.
   destination: z
@@ -802,7 +819,7 @@ export const runnerSchema = z.strictObject({
   ),
 })
 export type Runner = z.infer<typeof runnerSchema>
-export const runnersSchema = z.array(runnerSchema).check(
+export const runnersSchema = /* @__PURE__ */ z.array(runnerSchema).check(
   z.maxLength(RUNNER_CONFIG_MAX),
   z.refine((runners) => new Set(runners.map((runner) => runner.id)).size === runners.length),
 )

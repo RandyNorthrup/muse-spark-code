@@ -12,9 +12,15 @@ import { ACP_CONFIG_IDS, UI_TEXT } from '../shared/constants'
 import { fill, formatNumber } from '../shared/l10n/text'
 import { slashCommandText } from '../shared/mentions'
 import { formatUsd, parseUsd } from '../shared/accountUsd'
-import { accountStopText, accountUsageUrl, type AccountUsagePort } from './accountText'
+import {
+  accountStopText,
+  accountUsageUrl,
+  isAccountSwitchRefusedError,
+  isInvalidProvidersFileError,
+  type AccountUsagePort,
+} from './accountText'
 
-export { accountErrorText } from './accountText'
+export { accountErrorText, isAccountSwitchRefusedError } from './accountText'
 
 type AccountsState = Extract<AccountsReply, { type: 'accounts/state' }>
 export interface AccountsSessionPort extends AccountUsagePort {
@@ -28,11 +34,14 @@ export interface AccountsSessionPort extends AccountUsagePort {
 }
 
 /** U's panel dispatcher, also used by the authenticated companion bridge.
- * M104 owns origin/permission/envelope checks; this is the inner payload port. */
+ * M104 owns origin/permission/envelope checks; this is the inner payload port.
+ * @unwired M104 companion bridge for accounts */
 export interface AccountsPanelPort {
   dispatch(request: AccountsRequest): Promise<AccountsReply>
   subscribe(listener: (reply: AccountsReply) => void): () => void
 }
+/** The companion's validated panel skin over the inner payload port.
+ * @unwired M104 companion bridge for accounts */
 export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPort {
   return {
     async dispatch(request) {
@@ -41,8 +50,11 @@ export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPo
       try {
         const reply = accountsReplySchema.safeParse(await port.dispatch(parsed.data))
         return reply.success ? reply.data : { type: 'accounts/error', code: 'unavailable' }
-      } catch {
-        return { type: 'accounts/error', code: 'unavailable' }
+      } catch (error: unknown) {
+        return {
+          type: 'accounts/error',
+          code: isInvalidProvidersFileError(error) ? 'providersInvalid' : 'unavailable',
+        }
       }
     },
     subscribe(listener) {
@@ -121,8 +133,14 @@ export class AcpAccounts {
     }
     if (event.type === 'spread')
       return `${UI_TEXT.accounts.spreadEvent}: ${event.provider} · ${this.label(event.account)}`
-    const url = accountUsageUrl(this.port, event.provider)
-    return `${accountStopText(event)} ${url}`
+    // The runtime owner has no bundled usage page (D88.5): the stop still
+    // names the blocked account and its reset instead of becoming a failure.
+    try {
+      const url = accountUsageUrl(this.port, event.provider)
+      return `${accountStopText(event, this.label(event.account))} ${url}`
+    } catch {
+      return accountStopText(event, this.label(event.account))
+    }
   }
 
   private current(): string {
@@ -136,8 +154,11 @@ export class AcpAccounts {
     let state: AccountsState
     try {
       state = parseState(await this.port.read(this.sessionId))
-    } catch {
-      throw new Error(UI_TEXT.accounts.unavailable)
+    } catch (error: unknown) {
+      // A refused providers file keeps its brand through the refresh: the
+      // agent maps it to the honest sentence at the request boundary.
+      if (isInvalidProvidersFileError(error)) throw error
+      throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
     }
     if (!isCurrent() || (this.state !== undefined && state.provider !== this.state.provider))
       throw new Error(UI_TEXT.accounts.unavailable)
@@ -196,8 +217,12 @@ export class AcpAccounts {
         await this.refresh(isCurrent)
         for (const notice of this.earlyNotices.splice(0)) receive(notice)
       })
-    } catch {
-      throw new Error(UI_TEXT.accounts.unavailable)
+    } catch (error: unknown) {
+      // The branded providers-file refusal still drops the session's
+      // accounts here and continues, like any other failed adoption:
+      // ordinary sessions never depend on accounts.
+      if (isInvalidProvidersFileError(error)) throw error
+      throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
     }
   }
 
@@ -233,8 +258,15 @@ export class AcpAccounts {
       let state: AccountsState
       try {
         state = parseState(await this.port.use(this.sessionId, account, canAdopt))
-      } catch {
-        throw new Error(UI_TEXT.accounts.unavailable)
+      } catch (error: unknown) {
+        // The owner refused adoption with the session's stay-put text; a
+        // refused providers file keeps its brand for the honest sentence.
+        // Any other failure stays a generic unavailable, never raw error
+        // text. The brand (not `instanceof`) survives the bundle boundary
+        // between the runtime producer and this consumer.
+        if (isAccountSwitchRefusedError(error)) throw error
+        if (isInvalidProvidersFileError(error)) throw error
+        throw new Error(UI_TEXT.accounts.unavailable, { cause: error })
       }
       if (!isCurrent() || !canCommit()) throw new Error(UI_TEXT.accounts.unavailable)
       if (state.provider !== this.state.provider || state.currentAccount !== account)

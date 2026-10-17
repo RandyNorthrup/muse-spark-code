@@ -1381,9 +1381,13 @@ export function publishedReference(model, source) {
         (id) => !['museSpark.modelApiAutoCompaction', 'museSpark.vault.agentFence'].includes(id),
       ),
     'museSpark.scheduleAgentCreation',
+    // CM108ACC published the accounts feature; its three settings stay
+    // compatibility-only until swapping, pooling and placement are bound.
+    'museSpark.accountSwap',
+    'museSpark.accountParallel',
+    'museSpark.accounts.severalOnThisDevice',
   ])
-  // CX1R4 F1: the accounts route is dormant; CM108ACC re-adds it with the runtime.
-  const hiddenRoutes = new Set(['estimate', 'schedule', 'vault', 'vaultHelp', 'accounts'])
+  const hiddenRoutes = new Set(['estimate', 'schedule', 'vault', 'vaultHelp'])
 
   return {
     ...model,
@@ -1402,7 +1406,8 @@ export function publishedReference(model, source) {
     cli: model.cli.filter(
       (command) =>
         !hiddenRoutes.has(command.route) &&
-        !/(?:^|\s)--(?:scheduled-prompts|vault|no-auto-compaction|account(?:-pool)?)(?:\s|$)/.test(
+        // `--account` is served (CM108ACC); pooling is refused until its owner is bound.
+        !/(?:^|\s)--(?:scheduled-prompts|vault|no-auto-compaction|account-pool)(?:\s|$)/.test(
           command.name,
         ),
     ),

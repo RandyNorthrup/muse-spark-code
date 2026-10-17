@@ -1,5 +1,6 @@
 import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
+import type { ModelPolicy } from '../../core/backends/modelapi/modelPolicy'
 import {
   EXEC_MAX_BUDGET_USD,
   EXEC_MAX_REQUESTS,
@@ -60,7 +61,17 @@ export interface SettlementResult {
   chargedUsd: UsdAmount
   latch?: 'accounting_invalid' | 'breach'
 }
+/** Exec reserves the worst case before sending; its ceiling is a money policy. */
+export function resolveExecOutputCap(policy?: Pick<ModelPolicy, 'output'>): number {
+  const maximum = policy?.output.maxTokens
+  const cap = Math.min(MODEL_API_MAX_OUTPUT_TOKENS, maximum ?? MODEL_API_MAX_OUTPUT_TOKENS)
+  if (!Number.isSafeInteger(maximum ?? cap) || cap < EXEC_MIN_OUTPUT_TOKENS)
+    throw new RangeError(UI_TEXT.execRequestShape)
+  return cap
+}
+
 export interface RunLedger {
+  readonly outputCap: number
   admitResponse(input: {
     model: string
     maxOutputTokens: number
@@ -78,6 +89,21 @@ export interface RunLedger {
   close(): void
   readonly lastResponse: LastResponse | null
   totals(): LedgerTotals
+}
+
+/** Quote start admission without spending or consuming this run's request count. */
+export function previewResponseReservation(
+  ledger: RunLedger,
+  model: string,
+  price: TierPrice,
+): ResponseTicket {
+  const preview = createRunLedger({
+    capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
+    maxRequests: 1,
+    outputCap: () => ledger.outputCap,
+  }).admitResponse({ model, maxOutputTokens: ledger.outputCap, price })
+  if ('refused' in preview) throw new Error(UI_TEXT.execModelUnpriced)
+  return preview
 }
 
 const ZERO = 0n
@@ -114,7 +140,12 @@ function charge(price: TierPrice, input: number, output: number, cached = 0): bi
   )
 }
 
-export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number }): RunLedger {
+export function createRunLedger(input: {
+  capUsd: UsdAmount
+  maxRequests: number
+  outputCap?: () => number
+}): RunLedger {
+  const outputCap = input.outputCap ?? (() => resolveExecOutputCap())
   const cap = units(input.capUsd)
   if (
     cap <= ZERO ||
@@ -183,9 +214,12 @@ export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number 
     }
   }
   return {
+    get outputCap() {
+      return outputCap()
+    },
     admitResponse(request) {
       const { maxOutputTokens: m, price } = request
-      if (!Number.isSafeInteger(m) || m < EXEC_MIN_OUTPUT_TOKENS || m > MODEL_API_MAX_OUTPUT_TOKENS)
+      if (!Number.isSafeInteger(m) || m < EXEC_MIN_OUTPUT_TOKENS || m > outputCap())
         return refuse('request_shape')
       let amount: bigint
       try {

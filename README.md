@@ -37,10 +37,11 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
-**Contents:** [What's new](#whats-new-in-0171) · [Roadmap](ROADMAP.md) ·
+**Contents:** [What's new](#whats-new-in-0182) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
+[Several accounts](#several-accounts-per-provider) ·
 [Developer options](#developer-options) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
@@ -56,7 +57,50 @@ built, what is planned and what each release shipped.
 Saved reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
-## What's new in 0.17.1
+## What's new in 0.18.2
+
+- **The landing screen shows the extension's own mark.** The empty chat panel
+  showed the Meta logo beside the product name; it now shows the product's
+  own squiggled "m", blue in dark and light themes and in the theme's text
+  colour in high-contrast themes.
+
+### Earlier in 0.18.1
+
+- **Your own providers, a ChatGPT plan and Copilot work again.** In 0.18.0
+  a turn on any of them stopped before it was sent, with an internal error.
+  Sorry for the broken release; Meta's own models were not affected.
+- **Usage from earlier versions is counted again.** 0.18.0 left those records
+  out as not exact; nothing was deleted.
+- **Report a Problem opens again** if you had changed a setting with a second
+  dot in its name; it used to answer "That did not work".
+
+### Earlier in 0.18.0
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
+  provider's accounts and sets their thresholds; `auth set --provider <id>
+--account <id>` stores a key for one account; `exec --account <id>` runs on
+  the account you name. In an ACP editor on a Model API key, `/accounts`
+  shows the list and the current account. Changing account inside a session,
+  pooled runs and an Accounts page in the editor are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete; content and edits stay hidden and nothing runs until the call
+  is complete. Other models keep the finished-call row for now.
+- **Reviewing Git changes works without a Git filter.** Without Git LFS or
+  another filter configured, every native review was refused since 0.15.0.
+- **The activity-bar icon is the extension's own mark**, the squiggled "m".
+
+### Earlier in 0.17.2
+
+- **Long replies from your own providers and a ChatGPT plan finish.**
+  Since 0.15.0 a reply from a provider you added in Models & Agents, or
+  from a ChatGPT plan sign-in, was cut off 30 seconds after the request
+  started. A reply now has no limit on its total time; one that goes
+  silent ends after 5 minutes, and the message says so.
+
+### Earlier in 0.17.1
 
 - **The provider picker works again.** Models & Agents lists every provider
   again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
@@ -535,6 +579,17 @@ and sends nothing. Before the first charge in a window, it asks with the
 model's rates and your budget: **Allow Once** covers that window until it
 closes, **Allow Always in This Workspace** remembers revocable consent, and
 **Deny** snoozes Tab in that window. Closing the question denies it too.
+The question names the model the request will use, and your answer covers
+that model at its price only: a request for another model asks again, even
+under **Allow always**, and **Allow once** never reaches another window. An
+**Allow always** kept by an earlier version asks a migration question. Only
+answering **Allow always in this workspace** saves the model and price;
+answering **Allow once** saves nothing and the next window asks again.
+Accepting another paid feature's price or turning voice off preserves Tab's
+**Allow once**. **Ask again** and Tab's own price acceptance changes end its
+consent; a changed model or price asks again for its own key. A request whose
+model, consent or hook configuration changes before it goes out sends
+nothing; the last check runs immediately before the request is sent.
 
 The hard daily budget defaults to **$1.00 across every window on this
 machine**, reserved before each request. The status shows today's spend;
@@ -580,10 +635,40 @@ request. Snooze offers 15 minutes, an hour or until this window restarts.
 Copilot's sign-in state cannot be detected, so an installed active Copilot
 can cause yielding even when signed out.
 
-Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks remain planned for
-lane K after M91; this build has their host bridge but does not run those
-hook configurations yet. The probe receipts and current limits are in
-[the M94 record](docs/certification/m94.md).
+Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks run from the project
+`.muse/spark-hooks.json` or your `spark-hooks.json` beside Muse Code's settings,
+when hooks are enabled and the workspace is trusted, on either chat backend.
+Imported Cursor groups keep their format and source event; their matchers are
+`TabRead` and `TabWrite`. Before a file enters a request, each matching guard
+must exit 0 with `permission: allow`; denial, invalid output, a crash, a
+1,500 ms timeout or an oversized payload refuses that read. Verdicts are
+cached by path and content and cleared when the configuration changes.
+Accepted full and inferred partial edits carry real line text and a 1-based
+range; typing alone fires nothing. Edit hooks observe asynchronously and
+cannot veto an accepted edit. With no configured hook, completion text and
+command arguments remain unchanged.
+
+These hooks are local processes you configure, and they see your code as it
+is: a `beforeTabFileRead` hook receives the file's absolute path and its
+**full, unredacted text**, the workspace folders, the Tab model and the
+request id, for the current file and for every context file. An
+`afterTabFileEdit` hook receives the path, the accepted text and the line
+before and after it (512 characters each at most) and the range. The
+extension sends neither payload anywhere else; the command decides what it
+does with it. Hook processes get a scrubbed environment and never the Model
+API key.
+
+A `spark-hooks.json` that exists but does not load in full (invalid JSON,
+an unreadable or oversized file, or any reported problem, such as an unknown
+event name or a `beforeTabFileRead` matcher that never names `TabRead`)
+stops Tab reading any file, and the status bar says **Tab paused: hook file
+has errors** until you fix it; the Muse Spark log names the problem. Only a
+scope with no hook file reads without a guard. Each request is bound to the
+trust, Tab settings, `files.exclude`, ignore files and hook configuration in
+force when it starts: if any of them change before it is sent or before its
+answer shows, it is dropped. The fake-hook receipts and current release
+blockers are in [the M94 record](docs/certification/m94.md) and
+[the hook wiring record](docs/certification/m94-k.md).
 
 ## Backends
 
@@ -744,6 +829,12 @@ JupyterLab (Jupyter AI) with the agent.
 
 Subscription sign-in is being integrated under M95b; installed-editor and live
 success certification is still pending ([record](docs/certification/m95b.md)).
+
+The Models & Agents panel keeps the current section visible while another
+section loads. A pending tab indicates loading after 150 ms. Reloads reserve
+the section's last measured height; the first visit estimates from the host's
+rows and can adjust once when the section arrives.
+
 In **Models & Agents → Providers**, choose **Continue With ChatGPT** or
 **Use My Copilot Models**. The same actions are available in the command palette.
 Connecting selects the shared in-process harness and the account's first
@@ -883,6 +974,40 @@ Headless `exec` still declines questions immediately, reports
 conversations and the evaluation keep their immediate cancellation or
 clarification. Scheduled/unattended prompts defer at once and keep the
 question open, even when interactive deferral is disabled.
+
+## Several accounts per provider
+
+Accounts keep separate credentials, labels, order, limit groups and thresholds.
+The terminal manages their metadata and pins a headless run to one account,
+and an ACP session on the Model API backend lists them. Automatic swapping,
+pooled runs, placement on other devices and the editor's Accounts and usage
+pages are not part of this yet; the [roadmap](ROADMAP.md#in-progress) tracks
+them.
+
+The installed CLI, ACP agent and headless runs share one account service
+over the runtime's providers file and the OS credential store. Meta's Model
+API entry is built in, so listing, adding, ordering, thresholds and
+per-account credentials work with no pre-existing file; a corrupt file is
+reported, never clobbered. Any other provider needs its stored metadata row.
+Display order never selects a backend credential.
+
+Manage metadata through the agent (credentials only from standard input,
+never an argument or a file):
+
+- `muse-spark-code-acp providers accounts list --provider <id>`
+- `muse-spark-code-acp providers accounts add --provider <id> --account <id> --label <label>`
+- `muse-spark-code-acp providers accounts thresholds --provider <id> --account <id> --thresholds <JSON>`
+- `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
+- `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
+
+ACP's `/accounts` (list, current, thresholds) and the `account` picker read
+the same live metadata on the Model API backend; the Muse Code backend runs
+on its subscription with no account picker. Choosing another account stays
+refused: moving a session credential needs the pooled owner, so the session
+keeps its current account and says so. A pooled headless run stays refused
+until that owner lands too. A vendor limit stops only its own account, and
+the stop names the blocked account and its reset even with no usage page
+bundled.
 
 ## Developer options
 
@@ -1944,6 +2069,48 @@ or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
 
 <!-- Marketplace listing (draft, pending GitHub review): https://github.com/marketplace/muse-spark-code-u
      Turn this into a link in the release that follows approval. -->
+
+<!-- reference: streamed-argument-previews -->
+
+## Streamed argument previews
+
+On the Model API backend, a selected model with verified streamed-argument
+support shows an **Argument preview** in its tool row, in the shared panel
+and in ACP. The preview shows only declared top-level string fields after
+their closing quote validates: file paths, shell commands, search patterns
+and fetch URLs. These values pass through the existing credential scrubber
+before display. File content, edits, nested values and other fields stay
+hidden. An offered IDE or MCP tool declares its own string fields the same
+way; a tool the request never offered shows a received byte count only.
+
+One model has that verified record today: `muse-spark-1.3-contributor`.
+Every other model keeps the completed-call row until its own stream is
+captured.
+
+An unfinished string never appears. Malformed JSON, duplicate keys,
+non-string values for declared fields or excessive nesting freeze the last
+safe display with **Preparing arguments…** until valid complete arguments
+arrive. Retained input and display text are bounded at 16,000 characters;
+the byte count continues after that bound. Updates coalesce every 100 ms,
+with a final safe flush before interruption. A preview does not execute a
+tool, request approval or run a hook; only the existing completed-response
+path admits execution. Previews never enter model replay.
+
+Completion, promotion and interruption clear a call's preview. Reloading
+the panel clears saved previews even while the same turn continues, because
+a turn ID cannot prove a tool is still pending. A fresh update restores an
+active preview to its original call row. Recognized credential patterns
+and registered literals are scrubbed; arbitrary unregistered secrets in a
+declared field remain outside that scrubber's contract.
+
+VS Code and interactive ACP use the selected record’s documented output
+maximum (131,072 tokens for Muse Spark), clamped by their budget. Headless
+`exec` requests at most 32,768 output tokens, or the record’s smaller maximum:
+its run ledger reserves the worst case before dispatch, so raising that cap
+would change what existing headless money budgets can run. Headless exec
+records completed tools and does not display live argument previews.
+
+<!-- /reference: streamed-argument-previews -->
 
 ## Code intelligence
 
@@ -3236,8 +3403,8 @@ rest of the file still shows. A file is refused whole if it is over 16 MiB, is a
 format or a newer version, or holds any field this version does not know.
 At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
 with the theme's focus border; Escape closes the view and focuses the composer.
-For a local visual check, `node scripts/harness-shots.mjs share share-narrow`
-captures both widths; `share-narrow` also runs in all four accessibility themes.
+For a local visual check, `npm run ui:look -- share` renders the scene
+from the built webview into `temp/ui-look/`.
 The picker reads a local `file:` URI on the extension host through one
 checked descriptor, stopping at the size cap even if the file grows.
 Other file providers are explicitly refused because this reader cannot
@@ -4915,12 +5082,21 @@ schedules, workers and hooks always remain fenced.
 
 The unbound features include:
 
-- <a id="several-accounts-per-provider"></a>Several accounts per provider
-- <a id="streamed-argument-previews"></a>Tool argument previews
 - <a id="estimates"></a>Capacity estimates
 - <a id="the-vault"></a>Credential vault
 
 ## Development
+
+The internal B1 confinement build is `npm run build:confine` on Linux.
+It writes the native helper, generated privacy policy and portable inspect
+API to `temp/confine/`; these artifacts are excluded from product packages.
+The internal runner checks protected/private paths on canonical operands,
+rejects noncanonical helper input, and lets a cancelled caller detach from
+the shared self-test while session disposal still waits for its cleanup.
+The runner is unbound from editor approvals. Its certification record is
+[`docs/certification/m125-f1a.md`](docs/certification/m125-f1a.md), including
+the Windows exception and the macOS capture requirement. F1b owns approval
+integration; the shared runner adds no editor-specific behavior.
 
 Resource admission and the lazy launch shims are shared through
 `dist/resourceAdmission.js`; sampler, queue, tree accounting and disk policy
@@ -5021,11 +5197,6 @@ What's New browser pages and their metafiles with production options and
 stale-chunk cleanup; it omits the Node
 bundles so browser tests stay within their default setup deadline.
 
-After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI
-surfaces in Chrome against a fake host: no startup requests, first-use loading
-under the shared CSP, and recovery from actual failed entry/static-dependency
-fetches. Retry reloads the panel with its saved conversation and draft. Cold
-menus remain dismissible and cannot take focus after dismissal.
 The generated [feature reference](docs/reference.md) takes its entries from
 `src/shared/featureCatalog.ts` and the marked README sections. Run
 `node scripts/gen-reference.mjs` after updating an entry, and
@@ -5107,7 +5278,7 @@ The delivery helpers require Python 3.12 or newer. See the
   `npm run security:secrets`.
 - semgrep for `npm run security:sast`, at CI's version:
   `pip install -r .github/semgrep/requirements.txt`.
-- Google Chrome (or `CHROME_PATH`) for `test:a11y`, `harness:shots` and
+- Google Chrome (or `CHROME_PATH`) for `test:a11y`, `ui:look` and
   `images`.
 - On Windows, PSScriptAnalyzer 1.25.0 for `npm run lint`
   (`Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser`).
@@ -5158,12 +5329,10 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run build:dev`                       | Dev bundles for the extension, the Model API backend, the review, the search worker, web fetch's page converter worker, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `npm run watch`                           | Rebuild the extension, the Model API backend, the search worker, the page converter worker and the webview on change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev`. `--theme=dark`, `light`, `hc-dark`, `hc-light`, `one-dark-pro` or `dracula` uses a captured theme; `chat-menu-narrow` uses a true 320 px viewport. The README's screenshots refresh with `npm run readme:shots` (the mapping in `scripts/readme-shots.json`), captured at the mapped viewport size after the harness readiness scan into `media/readme/`: `tools-open` (as `turn.png`), `agents`, `slash-palette` (as `palette.png`), `slash-commands`, `approval`, `question`, `quote-menu` (as `quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation` (as `voice.png`), `paid` and `paid-always`, the Languages section's is `usage --lang=de` (as `languages.png`), `readme-open-question` (as `open-question.png`), `readme-help` (as `help.png`) and `resources-throttle` (as `resources.png`); the walkthrough's are `empty`, `tools`, `slash-palette` and `signin` (as `open.png`, `welcome.png`, `chat.png` and `sign-in.png` in `resources/walkthrough/`); `--lang=<id>` renders them in a table from `l10n/` (`--lang=pseudo` in the pseudo-locale)           |
+| `npm run ui:look -- <scene>`              | Renders one webview scene from the built webview into `temp/ui-look/` for a person to look at after a UI change; no baseline, no comparison, no CI. `--theme=light` or `dark` renders one theme (both by default); needs `build:dev`.row`uses a true 320 px viewport. The README's screenshots refresh with`npm run readme:shots`(the mapping in`scripts/readme-shots.json`), captured at the mapped viewport size after the harness readiness scan into `media/readme/`: `tools-open`(as`turn.png`), `agents`, `slash-palette`(as`palette.png`), `slash-commands`, `approval`, `question`, `quote-menu`(as`quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation`(as`voice.png`), `paid`and`paid-always`, the Languages section's is `usage --lang=de`(as`languages.png`), `readme-open-question`(as`open-question.png`), `readme-help`(as`help.png`) and `resources-throttle`(as`resources.png`); the walkthrough's are `empty`, `tools`, `slash-palette`and`signin`(as`open.png`, `welcome.png`, `chat.png`and`sign-in.png`in`resources/walkthrough/`); `--lang=<id>`renders them in a table from`l10n/` (`--lang=pseudo` in the pseudo-locale)                                                                    |
 | `npm run build:tokens`                    | Regenerate shared CSS and native/desktop/TUI token inputs from `design/tokens/muse.tokens.json`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run check:tokens`                    | Reject stale generated outputs, missing contrast coverage and pairs below AA in all four Muse palettes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run check:visual`                    | Compare every audited component scene, six control states, six captured themes and 320/690 px widths with pixelmatch (colour threshold 0.1, AA detection, per-image allowance at most 0.01% or 12 pixels). Full PNG baselines stay outside git under a 512 MiB budget. An absent archive reconstructs the manifest's Git revision with the current browser/fonts. Both CI tiers require six deterministic shards and their complete receipt merge. Use `-- --shard=1/6` to rerun one batch and `-- --merge-shards=<receipt-directory>` to require all batches and the combined budget. Each shard reconstructs the reviewed source on the runner; see [S's certification](docs/certification/m114-s-screenshots,-visual-regression-and-docs.md). A reviewed update uses `-- --update --review=<reference> --archive=<new-external-directory>`; commit the changed manifest only after reviewing the images. See [the visual contract](test/harness/goldens/README.md).                                                                                                                                                                                                                                                         |
-| `npm run check:visual:a11y`               | Record scoped axe findings for every audited component in six themes at true 320/690 px; retain incomplete findings and fail on violations. The full `test:a11y` gate remains separate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `harness:shots --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `ui:look -- <scene> --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `npm run test:a11y`                       | The accessibility gate: axe-core checks every harness scenario in VS Code's four default themes against WCAG 2.2 AA and fails on any violation, on anything axe leaves undecided (except the contrast of text it could not see and of glyph-only content, which it counts), and on a page without a result or whose scenario threw; needs a build. `node scripts/capture-themes.mjs` refreshes the theme colours from a real VS Code; `--lang=<id>` checks the scenarios in a table from `l10n/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `npm run build`                           | Minified production bundles with chat, Models and What’s New sharing one browser splitting build, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if the Model API backend's files, the review's, or web fetch's page converter (parse5 and its parts), are in the activation bundle, or an English fallback is in any Node bundle except its shared `dist/uiText.js` (`scripts/check-bundle-split.mjs`), or a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages. The provider catalogue keeps its exact JSON values in a CommonJS data module, staged through the existing verified Brotli runtime loader                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -5175,7 +5344,7 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run deadcode`                        | `knip`: unused files, exports (including namespace values and types), dependencies (no `--strict`; see `knip.jsonc`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `npm run cycles`                          | `dpdm` circular-import check (`scripts/cycles.mjs` over the roots in `scripts/cycles.json`) covering every build entry, runtime lazy import target, entry-named module and knip entry; `cyclesRoots.test.ts` guards coverage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `npm run test:unit`                       | vitest with no coverage gate (the number measured tests of fake code; removed with the 2026-10-14 test overhaul); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `npm run test:e2e:live`                   | Two real turns on the installed Muse Code CLI (a reply-only turn and M70's review turn held in Plan mode), opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (25 to 45 model attempts measured for a reply-only turn: one for the answer, the rest for Muse Code's bundled reminder agents, which loop a varying number of times; budget 60 per turn, counted from the CLI's trace log); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `npm run test:e2e:live:modelapi`          | The Model API sweep: the production backend against Meta's real API in empty temporary workspaces, one case per feature (`-- -t case07` runs one); opt-in with `MUSE_LIVE_MODEL_API=1` and a key already stored by `muse-spark-code-acp auth set` in the OS credential store; key environment variables are rejected, contributor tier only; bills the key (about $0.03 a full run, $0.02 of it two images; it stops sending past $0.50); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `npm run test:e2e:live:eval`              | The M75 paired efficiency evaluation: the twelve fixture tasks (seven accept, five held-out; two with a tool output long enough to pack) on the baseline and the observation packing arm (M73), on the extension's own Model API harness against Meta's real API, each in an empty temporary workspace, judged by a verifier that runs the fixed code; attempts counted from the requests sent, tokens, cost and pass rate per task, and the capability floors (0.75 per split); a packing run also fails unless it packed on every long-output task, and its report says so. Opt-in with `MUSE_LIVE_MODEL_API=1` and a key already stored by `muse-spark-code-acp auth set` in the OS credential store; key environment variables are rejected, the model's shell commands get no credential variable, the arms take turns going first, contributor model only; `MUSE_EVAL_TASKS` picks tasks, `MUSE_EVAL_REPORT=<path>` writes `<path>.json` and `.md`; run `npm run build:dev` first. Bills the key (the ten-task baseline measured 39 model calls and $0.0041; both arms on all twelve tasks measured 111 model calls and $0.0156 for M73; it stops sending past $0.50 or when a sent call has unknown usage); never in CI |
@@ -5278,6 +5447,18 @@ bundle declarations and callable split guard in
 rejected, then restored byte-exact and accepted. See the
 [timing and gate-fire record](docs/certification/deflake4.md).
 
+**Lazy-bundle registry.** `src/shared/lazyBundles.generated.ts` names every
+dist bundle loaded by file name, the function or constant that names it,
+which process loads it and which package carries it.
+`npm run lazy-registry:generate` writes it from the production build;
+`node scripts/gen-lazy-registry.mjs --check` runs in `npm run build` and
+fails when the file is stale, when a source loads a file the build does not
+emit, when a package lacks a bundle its side can load, when a load's file
+name is worked out at run time and is not listed with its reason
+(`scripts/lib/lazyRegistry.mjs`), and when the build's metafiles are
+missing. The command is tested as a child process over a real production
+build (`test/unit/packagedBundles.test.mjs`).
+
 **Project structure.**
 
 ```
@@ -5292,13 +5473,13 @@ src/webview/                React app (own tsconfig, browser libs)
 native/windows/             dictate.ps1 (dictation, System.Speech) and capture.ps1 (Muse Voice's recorder); MuseSparkJob.cs, MuseSparkMcpLauncher.cs, MuseSparkMcpJob.cs: the Windows job helpers' C#, compiled on first use
 native/darwin/              Dictation.swift, Info.plist, build.sh, check-disclaim.sh: the macOS helper (built and checked in CI)
 resources/walkthrough/      the Get Started walkthrough
-test/unit/                  vitest tests, vscode mock, fakes
-test/e2e/                   the fake Muse Code CLI and the tests that drive the real backend through it; the opt-in live suites
+test/unit/                  vitest tests over real code only: no mocks, fakes, stand-ins or screenshot comparisons
+test/e2e/                   the live drills, kept listed for the real-life run
 test/integration/           @vscode/test-cli suites
 test/fixtures/workspace/    the workspace the integration tests open
-test/harness/               the webview behind a fake host, for screenshots and the accessibility gate; themes/ holds four VS Code themes and captured One Dark Pro/Dracula colours; goldens/ holds the visual manifest, with PNGs outside git
+test/harness/               the webview behind a scripted host, for the local look, the README pictures and the accessibility gate; themes/ holds four captured VS Code themes
 test/hosts/                 the extension and the ACP agent in other editors (VSCodium, code-server, Theia, JupyterLab, Emacs, Neovim), one script per host
-scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, harness screenshots, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
+scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, the local UI look, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
 docs/                       PRIVACY.md, and certification/: per-milestone gate-fire records
 media/                      icons, banner, social preview, README screenshots
 .github/                    workflows (ci, build, release, hosts, forks, action-check), issue and pull-request templates, audit exceptions, pinned semgrep, CODEOWNERS, Dependabot, FUNDING
@@ -5379,6 +5560,24 @@ without rebuilding.
   another machine.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
+
+#### M106 wire captures
+
+`node scripts/capture-m106-meta.mjs --help` explains the developer capture
+tool; `node scripts/capture-m106-meta.mjs --plan` prints its six requests
+without network access. Live collection requires an explicit paid-capture
+opt-in and a key on standard input. It runs two status GETs and four
+contributor-model POST attempts without retries, including a request with
+the recommended 131,072-token output cap. It writes counted, scrubbed
+receipts into a new directory and exits unsuccessfully if a required wire
+contract is refused or missing. The lead supplies the key and reviews the
+receipts before installing fixtures or enabling a capability.
+
+The [C-M106-1 capture record](docs/certification/m106-completion-captures.md)
+contains Muse Code 1.4.4's observed effort, feedback and lifecycle frames,
+the missing credential or local runtime for every provider, and the remaining
+live checks. The collector is a developer tool shared across Windows,
+macOS and Linux; editor bindings belong to the later completion lanes.
 
 PNG/JPEG images are resized before entering Model API replay when the selected
 model record supplies vision support and documented pixel limits. The portable
@@ -5538,7 +5737,8 @@ Always remains revocable. Unknown prices cannot spend under a dollar cap.
 Charges and durable claims use exact decimal USD, and uncertain dispatches
 retain liability.
 
-Structured side calls prefer a captured
+Argument previews use a separate lazy chunk and are available only with
+recorded streaming-argument support. Structured side calls prefer a captured
 schema format, allow one repair and retain the text fallback. Git commit and
 pull-request drafts apply this contract to the user's own turn, with repairs
 under the session's hooks and budget. Judge uses the selected model's captured
