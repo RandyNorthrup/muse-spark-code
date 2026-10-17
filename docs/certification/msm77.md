@@ -30,8 +30,9 @@ covers the finish lane; the C-M77-1 VS Code proof stays in
 ## 2. What was already connected (verified on the merged tree)
 
 - Board: header board button → `SessionBoardDialog` (lazy, `App.tsx:264`),
-  both backends, keyboard/focus behaviour; 13 M77 tests pass
-  (`bestOfN`, `sessionBoard`, dialogs, `worktreeConversations`).
+  both backends, keyboard/focus behaviour; the M77 suites this tree runs
+  pass with the counts in §6 (`bestOfN`, `sessionBoard`, both dialogs,
+  `worktreeConversations`).
 - Best-of-N: `Best of N…` action → `BestOfNDialog` (lazy, `App.tsx:224`),
   Model API only, one D48 popup, ceiling admission, immutable
   `add`/`write-tree` capture, ordinary `git apply --index` take, no
