@@ -242,8 +242,10 @@ export function playbookRecordText(
 }
 
 function settingsText(settings: PlaybookSettings): string {
+  // The heading names the surface, never the journal's internal team id:
+  // the terminal reuses the panel's team, and "(panel)" means nothing there.
   return [
-    `${UI_TEXT.playbookSettings} (${settings.teamId})`,
+    UI_TEXT.playbookSettings,
     ...PLAYBOOK_CONFIGURABLE_RULES.map((rule) => {
       const detail = disabledPlaybookDetail(settings.rules[rule])
       return `${UI_TEXT.playbookRules[rule]} (${rule}): ${settings.rules[rule].enabled ? UI_TEXT.playbookEnabled : UI_TEXT.playbookDisabled}${detail === undefined ? '' : ` · ${detail}`}`

@@ -88,6 +88,7 @@ import {
   SLASH_COMMAND_NAMES,
   WHATS_NEW_CONTENT_FILE,
 } from '../shared/constants'
+import { isCredentialStoreDown } from '../host/auth/credentialStore'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
 import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
@@ -144,14 +145,23 @@ const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
 /** Whether the backend can start a session now, and what the user must do if not. */
 export type BackendReadiness =
   | { readonly state: 'ready' }
-  | { readonly state: 'signedOut'; readonly message: string }
+  | {
+      readonly state: 'signedOut'
+      readonly message: string
+      /**
+       * The credential store itself cannot be read, so no stored key could
+       * be checked. A session may still open: only a step that needs a
+       * stored key refuses, in this message's words.
+       */
+      readonly storeDown?: true
+    }
   | { readonly state: 'unavailable'; readonly message: string }
 
 /** The backend the agent was started on (the runtime builds it, D62). */
 export interface AcpBackend {
   readonly kind: AcpBackendKind
   /** `isRecheck`: the user says they signed in, so nothing said before counts (`authenticate`). */
-  readonly readiness: (isRecheck: boolean) => Promise<BackendReadiness>
+  readonly readiness: (isRecheck: boolean, modelHint?: string) => Promise<BackendReadiness>
   /** The host for a folder, started on first use. */
   readonly hostFor: (cwd: string) => Promise<AgentHost>
 }
@@ -326,6 +336,37 @@ function startingModel(models: readonly ModelSummary[]): string {
 function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
   const levels = effortLevelsFor(modelId)
   return levels.includes(wanted) ? wanted : (levels.at(-1) ?? DEFAULT_EFFORT)
+}
+
+/**
+ * One announced command per skill. The CLI lists a plugin's lone skill
+ * twice (the bare plugin name and the self-qualified `name:name` selector
+ * with the same text), and may repeat a selector. Keep the first entry
+ * for each exact selector; collapse a self-qualified alias only when its
+ * bare form reads the same. Distinct selectors with different text stay.
+ */
+export function dedupeSkillSelectors(skills: readonly SkillSummary[]): readonly SkillSummary[] {
+  const kept: SkillSummary[] = []
+  const seen = new Set<string>()
+  for (const skill of skills) {
+    if (seen.has(skill.selector)) continue
+    seen.add(skill.selector)
+    kept.push(skill)
+  }
+  return kept.filter((skill) => {
+    const separator = skill.selector.indexOf(':')
+    if (separator === -1) return true
+    const plugin = skill.selector.slice(0, separator)
+    if (skill.selector.slice(separator + 1) !== plugin) return true
+    // A self-qualified pair reads once when its bare form reads the same.
+    return kept.every(
+      (other) =>
+        other === skill ||
+        other.selector !== plugin ||
+        other.description !== skill.description ||
+        (other.argumentHint ?? '') !== (skill.argumentHint ?? ''),
+    )
+  })
 }
 
 /** One ACP session over one AgentSession. */
@@ -628,7 +669,7 @@ class AcpSession {
               input: { hint: UI_TEXT.estimateUsage },
             },
           ]),
-      ...this.skills
+      ...dedupeSkillSelectors(this.skills)
         .filter(
           (skill) =>
             skill.selector !== SLASH_COMMAND_NAMES.help &&
@@ -2349,14 +2390,18 @@ class AgentState {
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
   }
 
-  private async requireReady(isRecheck = false): Promise<void> {
+  private async requireReady(
+    isRecheck = false,
+    isStoreDownAllowed = false,
+  ): Promise<BackendReadiness> {
     const readiness = await this.deps.backend.readiness(isRecheck)
-    if (readiness.state === 'signedOut') {
+    if (readiness.state === 'signedOut' && !(isStoreDownAllowed && readiness.storeDown === true)) {
       throw RequestError.authRequired(undefined, readiness.message)
     }
     if (readiness.state === 'unavailable') {
       throw RequestError.internalError(undefined, readiness.message)
     }
+    return readiness
   }
 
   private async openHost(
@@ -2365,10 +2410,22 @@ class AgentState {
     if (!path.isAbsolute(cwd)) {
       throw RequestError.invalidParams(undefined, cwd)
     }
-    await this.requireReady()
+    // A dead credential store does not stop the session from opening: only
+    // a step that needs a stored key refuses, in the store-down words.
+    const readiness = await this.requireReady(false, true)
     const host = await this.deps.backend.hostFor(cwd)
     this.watch(host)
-    const listed = await host.listModels()
+    let listed: readonly ModelSummary[]
+    try {
+      listed = await host.listModels()
+    } catch (error: unknown) {
+      if (!isCredentialStoreDown(error)) throw error
+      throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
+    }
+    // No models without a readable store or key: the catalogue, the grant
+    // and the key all need the store. Say so instead of offering no model.
+    if (listed.length === 0 && readiness.state === 'signedOut' && readiness.storeDown === true)
+      throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
     const models = this.deps.options.allowsContributorModels
       ? listed
       : listed.filter((model) => !isContributorModel(model.modelId))
@@ -2588,6 +2645,8 @@ class AgentState {
     const { host, models } = await this.openHost(cwd)
     const modelId = startingModel(models)
     const mcpServers = this.forwardedMcp(host, requestedMcp)
+    // The start carries no account identity: a step that needs a stored key
+    // refuses then, in the one store sentence, never at the open.
     const session = await host.startSession({
       workspaceRoot: cwd,
       modelId,

@@ -203,7 +203,8 @@ pinned request factory as VS Code, reading the user-level `providers.json`
 and origin-bound records from this agent's OS credential store. Mistral's
 captured plan-key preset is marked **plan**, links its limits, and records
 request/token tallies outside USD caps. No Meta key is needed for its
-inference. General `providers list|add|test|remove` commands and
+inference. General `providers list|add|test|remove` commands,
+`providers models <entry> [--add <model>] [--remove <model>]` and
 `auth set|status|clear --provider <id>` use the same origin-bound records.
 Free probes use the shared request transport. `exec --provider` validates its
 configuration and key, but refuses before dispatch: its production runner
@@ -781,10 +782,15 @@ workspace refuses; the standalone policy reads `.vscode/settings.json`, and
 malformed or unreadable policy refuses. Settings with JSON comments currently
 refuse rather than guessing. Full mode never disables privacy.
 
-A noninteractive share prints exact scrubbed content and a JSON cancelled
-preview, with exit 7. Review it, then repeat the identical command with an
-explicit `--destination`, the same `--exported-at`, `--out`, and
-`--confirm PREVIEW_ID`. The digest binds cwd, path/root, options, time and
+A noninteractive share prints exact scrubbed content and, with `--json`,
+a JSON cancelled preview, with exit 7. Review it, then repeat the identical
+command with an explicit `--destination`, the same `--exported-at`, `--out`,
+and `--confirm PREVIEW_ID`. Without `--json` no result JSON is printed;
+`prompts save`, `prompts list` and `prompts use` take the same `--json`
+flag for their machine-readable result. Without it, save prints the saved title
+and id, list prints the matching titles and ids, and use prints prepared text
+without inserting it into an editor or sending it to a model. Cancellation
+reasons go to stderr. The digest binds cwd, path/root, options, time and
 bytes. Any change needs a new preview; there is no blanket `--yes`. Interactive
 sharing asks for a final confirmation. No file/clipboard/browser operation
 occurs during preview. Private atomic writes recheck live policy and abort. Sharing also scrubs the

@@ -183,6 +183,7 @@ export const EN = {
   promptUntrusted:
     'Imported prompt: untrusted text. Review the text and variables before inserting.',
   promptInsert: 'Insert Into Chat',
+  promptPrintConfirm: 'Print prepared text',
   promptFileInvalid: 'The prompt file is invalid or unsupported.',
   shareChat: 'Share Chat…',
   sharePrompt: 'Share Prompt…',
@@ -405,6 +406,11 @@ export const EN = {
     record: 'Refused for headless runs: nobody is there to preview a recording.',
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
+    add: '--add <model>: Offer this model on the entry; repeat the option for more models.',
+    remove:
+      '--remove <model>: Stop offering this model on the entry; repeat the option for more models.',
+    force:
+      '--force <reason>: Add a model the provider does not list; the reason is stored on the entry.',
     provider:
       '--provider <id>                   The provider the account belongs to (auth set/status/clear).',
     account: '--account <id>                    The account to use (auth set, exec).',
@@ -435,6 +441,26 @@ export const EN = {
     fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
     'estimate-format': '--format md|html|json|text: Output format',
     seed: '--seed <seed>: Simulation seed',
+    mode: '--mode full|conversation: Share the full session or the conversation only.',
+    destination:
+      '--destination copy|file|browser: Copy to the clipboard, write a file, or open a browser.',
+    scope: '--scope user|workspace: Save the prompt for this user or this workspace.',
+    search: '--search <text>: List only prompts matching this text.',
+    tag: '--tag <tag>: Filter by tag, or tag the saved prompt.',
+    title: '--title <title>: Title for the saved prompt.',
+    var: '--var <name=value>: Set a prompt variable; repeat for more.',
+    chat: '--chat active|new: Use the prompt in the active chat or a new one.',
+    confirm: '--confirm: Confirm without asking.',
+    diffs: '--diffs: Include the session diff in the shared text.',
+    'no-code-blocks': '--no-code-blocks: Omit code blocks from the shared text.',
+    'no-attachment-names': '--no-attachment-names: Omit attachment names from the shared text.',
+    'attachment-content':
+      '--attachment-content <kind>: Include attachment contents; repeat for more.',
+    'exported-at': '--exported-at <time>: Timestamp of the confirmed export.',
+    'share-from': '--from <message>: First message to include.',
+    'share-to': '--to <message>: Last message to include.',
+    'share-out': '--out <file>: Write the shared text to a file instead of stdout.',
+    'sharing-json': '--json: Print the machine-readable result instead of the human preview.',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
@@ -466,7 +492,7 @@ export const EN = {
   referenceExecContract:
     'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
   referenceBriefHelp:
-    'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
+    'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceKeyStdin:
     'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
   referenceModalKeys: 'Close the dialog or move focus within it.',
@@ -1093,6 +1119,13 @@ export const EN = {
     copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
     // Said when a confidential workspace refuses Copilot sign-in.
     copilotConfidential: 'Copilot is unavailable while this workspace is confidential.',
+    // Said where the Copilot dispatch adapter cannot be reached (the
+    // terminal): the grant lives in VS Code, so no terminal can use it.
+    copilotTerminalGrant:
+      'Copilot models run only in VS Code, through the Copilot extension; this terminal cannot reach that grant.',
+    // Said where the adapter is absent on a non-terminal host: same source.
+    copilotHostGrant:
+      'Copilot models run only in VS Code, through the Copilot extension, which this host cannot reach.',
     // What Copilot uses and who bills it: VS Code's granted models, the Copilot plan.
     copilotNotice: 'Copilot models granted to VS Code, billed to your Copilot plan or AI credits.',
     expired: 'ChatGPT granted too little time to finish this request. Sign in again.',
@@ -4166,6 +4199,9 @@ export const EN = {
   acpKeyNotStored: 'No key was entered, so nothing was stored.',
   acpKeyPresent: 'A Meta Model API key is stored in {store}.',
   acpKeyAbsent: 'No Meta Model API key is stored.',
+  // An unavailable store cannot prove whether it contains a key (F43/F47).
+  acpStoreDown:
+    'This computer’s credential store is unavailable, so stored keys cannot be checked.',
   acpKeyCleared: 'The Meta Model API key was removed from this computer’s credential store.',
   // {reason}: the operating system's own error.
   acpStoreUnavailable:
@@ -4200,7 +4236,7 @@ export const EN = {
     '  {command} auth set|status|clear --provider <id>  Store, check or remove a provider key (read from stdin)',
     '  {command} providers list|add|test|remove  Manage model providers',
     '  {command} exec [options] <prompt>  Run one headless turn',
-    '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
+    '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number; exits 0 when clean, 10 when a secret is found, 2 for misuse)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
     '  {command} legal [options]  Run the read-only legal scan (no backend, no sign-in)',
     '  {command} fonts install [--from <directory>]  Install the optional fonts for standalone surfaces',
@@ -4233,9 +4269,82 @@ export const EN = {
     '  --no-facts           Leave the support facts out',
     '  --no-events          Leave the recent events out',
   ].join('\n'),
+  // The terminal agent's own help (PLAN.md D117): one topic per command,
+  // generated from the parser's option table, so help cannot drift from
+  // what the parser accepts. {command}: the executable's name; {cmd} and
+  // {topic}: the command as typed. Option names and values stay as typed.
+  cliHelp: {
+    usage: 'Usage:',
+    options: 'Options:',
+    examples: 'Examples:',
+    exits: 'Exits:',
+    commands: 'Commands:',
+    // {command}: the executable's name.
+    topHint: "Run '{command} help <command>' for one command's own options and examples.",
+    // {command}: the executable's name.
+    allHint: "'{command} help --all' prints the full Help & Reference.",
+    // {value}: the default, as typed.
+    defaultIs: 'default {value}',
+    // {value}: the bound with its unit, as typed.
+    atMost: 'at most {value}',
+    // {values}: the accepted values, as typed.
+    accepts: 'accepts {values}',
+    repeatable: 'repeatable',
+    // {option}: the option as typed; {cmd}: the command; {accepted}: its options.
+    unknownOption: "Unknown option {option} for '{cmd}': {cmd} accepts {accepted}.",
+    // {cmd}: the command; {accepted}: its options. A secret-looking name is
+    // never repeated: the refusal says only what the command accepts.
+    unknownOptionHidden: "Unknown option for '{cmd}': {cmd} accepts {accepted}.",
+    // {nearest}: the closest valid option, as typed.
+    suggestOption: "Did you mean '{nearest}'?",
+    // {command}: the executable's name; {topic}: the command.
+    seeHelp: "See '{command} {topic} --help'.",
+    // {topic}: the unknown command; {command}: the executable's name.
+    unknownTopic: "Unknown command '{topic}': run '{command} help' for the command list.",
+    purposeServe: 'Serve the Agent Client Protocol on stdin and stdout.',
+    purposeLogin: 'Sign in to Muse Code in this terminal.',
+    purposeAuth: 'Store, check or remove keys in this computer’s credential store.',
+    authSetNote:
+      'auth set reads the key from standard input (your terminal, or a pipe); auth status prints whether a key is stored, never the key itself.',
+    purposeProviders: 'Manage model providers and their model lists.',
+    purposeExec: 'Run one headless turn.',
+    purposeScanSecrets: 'Count likely secrets in one file (prints only the number).',
+    purposeReport: 'Print a scrubbed problem report.',
+    purposeLegal: 'Run the read-only legal scan.',
+    purposeFonts: 'Install the optional fonts for standalone surfaces.',
+    purposePlaybook: 'Show or change the orchestrator playbook.',
+    purposeSetup: 'Run the Setup hooks and exit.',
+    purposeUsage: 'Show usage and cost across models.',
+    purposeResources: 'Show machine pressure and recent history.',
+    purposeShare: 'Share a conversation: copy it, save it to a file, or open it in a browser.',
+    purposePrompts: 'Save, list, use and share reusable prompt templates.',
+    // {entry}: the provider entry id.
+    modelsList: 'Models for {entry}:',
+    // {reason}: the user's one-line reason for forcing the model.
+    modelsForced: 'forced: {reason}',
+    modelsExtra: 'On the provider but not in the entry:',
+    modelsUnreadable: 'The provider list could not be read; showing the entry only.',
+    // {models}: the model ids; {entry}: the provider entry id.
+    modelsAdded: 'Added {models} to {entry}.',
+    // {models}: the model ids; {entry}: the provider entry id.
+    modelsRemoved: 'Removed {models} from {entry}.',
+    // {model}: the unknown id; {entry}: the entry; {closest}: the closest ids.
+    modelsUnknown: "Unknown model '{model}' for {entry}; the closest matches are: {closest}.",
+    // {entry}: the unknown id; {closest}: the configured entry ids.
+    modelsUnknownEntry: "Unknown provider entry '{entry}'; configured entries are: {closest}.",
+    modelsNeedsForce: "Use --force '<reason>' to add a model the provider does not list.",
+    modelsForceNeedsAdd: '--force needs --add: only added models can carry a reason.',
+    modelsCustomReadOnly:
+      'Custom provider model lists are read-only here; use the Models panel to set each model’s context window and output cap.',
+    // {command}: the executable's name.
+    modelsUsage:
+      'Usage: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]',
+  },
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
+  execValueInvalid:
+    'Invalid value for {option}; run exec --help for the accepted values and bounds.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',
@@ -4288,10 +4397,6 @@ export const EN = {
   execRequestCapReached: forms({
     one: 'The request cap of {count} attempt was reached.',
     other: 'The request cap of {count} attempts was reached.',
-  }),
-  execScanMatches: forms({
-    one: '{count} secret match',
-    other: '{count} secret matches',
   }),
   // M95 lane X (PLAN.md D74): the ACP agent's provider commands. Every key
   // below also lives in all 14 `l10n/ui.*.json` tables.
@@ -4360,6 +4465,18 @@ export const EN = {
     'Provider runs need the provider transport lane; request validation passed for {provider}.',
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
   execScanUsage: 'scan-secrets <file> [--key-stdin]',
+  scanSecretsExits: 'Exits 0 when clean, 10 when a secret is found, 2 for misuse.',
+  execExits:
+    'Exits 0 completed, 1 internal, 2 usage, 3 sign-in or backend unavailable, 4 failed, 5 budget or request limit, 6 timeout, 7 denied, 8 incomplete, 9 accounting unverified, 10 output schema mismatch, 130 on SIGINT, 143 on SIGTERM.',
+  reportExits: 'Exits 0 when the report is written, 1 on failure, 2 for misuse.',
+  // From LEGAL_EXIT (D76): 0 a complete scan with no blockers, 1 a complete
+  // scan with blockers, 2 incomplete coverage, bad input or failure.
+  legalExits:
+    'Exits 0 when the scan completes with no blockers, 1 when blockers are found, 2 for incomplete coverage or misuse.',
+  // The CLI-wide convention (CLI_EXIT) for commands with no exit table.
+  genericExits: 'Exits 0 on success, 1 on failure, 2 for misuse.',
+  // share/prompts: a cancelled or refused share is EXEC_EXIT.denied (7).
+  sharingExits: 'Exits 0 on success, 7 when cancelled or refused, 2 for misuse, 1 on failure.',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
   execSummaryUpperBound:
@@ -5281,8 +5398,6 @@ export const EN = {
     },
     callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
     failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
-    storeUnavailable:
-      'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
   },
   // GitHub sign-in outside VS Code (M123 lane A, PLAN.md D104): the device
   // flow's code, shown by the CLI, the ACP notice and the panel alike.
@@ -6201,6 +6316,7 @@ export const EN = {
       'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
+    providerUnavailable: 'Accounts for {provider} are not available in this terminal yet.',
     providersInvalid:
       'The providers file is invalid, so its entries were refused and the file was left unchanged.',
     poolUnavailable:

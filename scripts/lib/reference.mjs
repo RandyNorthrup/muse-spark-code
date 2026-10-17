@@ -129,7 +129,7 @@ export async function referenceSources(root) {
   const result = await esbuild.build({
     stdin: {
       contents:
-        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { readResourceSettings, resourceSettingsSchema } from './src/shared/resources'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'",
+        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { readResourceSettings, resourceSettingsSchema } from './src/shared/resources'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'; export { CLI_HELP_TOPICS } from './src/runtime/cliHelp'",
       resolveDir: root,
       sourcefile: 'reference-tooling.ts',
     },
@@ -867,6 +867,14 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       unit: 'USD',
     },
   }
+  // Share's --from/--to are message markers (the ShareRequest range), not the
+  // usage dates the bare names describe: the date format must not follow them.
+  const factsFor = (route, name) =>
+    route === 'share' && (name === 'from' || name === 'to')
+      ? Object.fromEntries(
+          Object.entries(optionFacts[name] ?? {}).filter(([facet]) => facet !== 'format'),
+        )
+      : optionFacts[name]
   for (const option of parserOptions(runtimeSource, source)) {
     if (source.CLI_OPTION_TEXT[option.name] === undefined)
       errors.push(`CLI option lacks contract: --${option.name}`)
@@ -906,7 +914,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
           type: option.type,
           ...(option.name === 'maintenance' && route !== 'setup' && { refused: true }),
           repeatable: option.multiple === true,
-          ...optionFacts[option.name],
+          ...factsFor(route, option.name),
           ...(['serve', 'login'].includes(route) &&
             [
               'provider',
@@ -1116,8 +1124,37 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     })
   })
   const names = new Set(cli.map((c) => c.route))
+  for (const feature of source.featureCatalog()) {
+    const routes = feature.cliRoutes ?? []
+    for (const route of routes) {
+      if (!names.has(route)) errors.push(`Feature CLI route is not parsed: ${feature.id}/${route}`)
+    }
+  }
   for (const name of runtimeNames) {
     if (name !== 'invalid' && !names.has(name)) errors.push(`CLI command lacks entry: ${name}`)
+  }
+  // The terminal help table (D117) is the parser's own inventory: every
+  // topic's routes come from the option registry, and the README's terminal
+  // section names the route plus every topic it documents.
+  const helpTopics = source.CLI_HELP_TOPICS.map((topic) => topic.name)
+  const helpRoutes = new Set(source.CLI_HELP_TOPICS.flatMap((topic) => topic.routes))
+  for (const route of Object.keys(source.CLI_OPTION_REGISTRY)) {
+    if (route !== 'estimate' && !helpRoutes.has(route))
+      errors.push(`CLI help lacks route: ${route}`)
+  }
+  for (const topic of source.CLI_HELP_TOPICS) {
+    for (const route of topic.routes) {
+      if (source.CLI_OPTION_REGISTRY[route] === undefined)
+        errors.push(`CLI help route is not parsed: ${String(route)}`)
+    }
+  }
+  const helpSection =
+    /^## Help and reference\r?\n([\s\S]*?)(?=^## |$(?![\s\S]))/m.exec(readme)?.[1] ?? ''
+  const terminal = /In a terminal,[\s\S]*?(?=\r?\n\r?\n|$)/.exec(helpSection)?.[0] ?? ''
+  if (!terminal.includes('help <command>'))
+    errors.push('README terminal section lacks help <command>')
+  for (const name of helpTopics) {
+    if (!terminal.includes(`\`${name}\``)) errors.push(`README terminal section lacks ${name}`)
   }
   for (const row of slash.values())
     row.syntax = source.SLASH_REFERENCE[row.name]?.syntax ?? [`/${row.name}`]
@@ -1450,7 +1487,7 @@ export async function generateReference(root, isCheck = false) {
     const textSchema = z.union([plainTextSchema, z.object({ conditions: z.array(z.object({ when: z.string().check(z.regex(/^[A-Za-z0-9_.=:&|!-]+$/)), text: plainTextSchema })).check(z.minLength(1)) })])
     const strings = z.array(z.string())
     const schema = z.object({ executable: z.string(),
-      features: z.array(z.object({ id: z.string(), name: textSchema, summary: textSchema, description: textSchema, commands: strings, settings: strings, docs: z.string(), editors: z.array(z.enum(['vscode', 'acp'])), backends: z.array(z.enum(['museCode', 'modelApi'])), paid: z.boolean(), surfaces: z.array(z.enum(['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'])), details: z.array(textSchema), facts: z.record(z.string(), z.unknown()) })),
+      features: z.array(z.object({ id: z.string(), name: textSchema, summary: textSchema, description: textSchema, commands: strings, cliRoutes: z.optional(strings), settings: strings, docs: z.string(), editors: z.array(z.enum(['vscode', 'acp'])), backends: z.array(z.enum(['museCode', 'modelApi'])), paid: z.boolean(), surfaces: z.array(z.enum(['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'])), details: z.array(textSchema), facts: z.record(z.string(), z.unknown()) })),
       commands: z.array(z.object({ id: z.string(), name: z.string(), nameKey: z.optional(z.string()), category: z.string(), categoryKey: z.optional(z.string()), description: z.string(), text: textSchema, enablement: z.optional(z.string()), canRun: z.boolean() })),
       settings: z.array(z.object({ text: z.optional(textSchema), id: z.string(), name: z.string(), nameKey: z.optional(z.string()), description: z.string(), descriptionKey: z.optional(z.string()), type: z.union([z.string(), strings]), default: z.unknown(), enum: z.optional(z.array(z.unknown())), enumDescriptions: z.optional(strings), enumTexts: z.optional(z.record(z.string(), textSchema)), enumDescriptionKeys: z.optional(z.array(z.nullable(z.string()))), scope: z.string(), refinements: strings, schema: z.record(z.string(), z.unknown()) })),
       slash: z.array(z.object({ name: z.string(), description: z.string(), descriptions: z.record(z.string(), textSchema), backends: strings, syntax: strings })),

@@ -309,6 +309,7 @@ import type {
 } from './foreignHooksEntry'
 import type * as HookRuntime from './hookRuntimeEntry'
 import type * as ModelHooksRuntime from './modelApiHooksEntry'
+import { isCredentialStoreDown } from '../../../host/auth/credentialStore'
 import {
   type ConfirmedModelRequest,
   MissingApiKeyError,
@@ -633,6 +634,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
+  /** The gate's Meta-key probe says the credential store itself is dead. */
+  readonly isCredentialStoreDown?: (() => boolean) | undefined
   readonly autoCompaction?: (() => boolean) | undefined
   /** Lane E's bounded evaluation override; production uses the certified latch. */
   readonly autoCompactionEvaluated?: (() => boolean) | undefined
@@ -14233,7 +14236,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         ) {
           this.outcomeStopReason = 'budget'
         }
-        reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
+        // A step that needs a stored key names the dead store instead of
+        // claiming no key is stored; anything else reads as it came.
+        if (isCredentialStoreDown(error)) reason = UI_TEXT.acpStoreDown
+        else reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
         if (this.isSubagent && this.outcomeStopReason === 'budget') terminal = COMPLETED
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
@@ -17371,6 +17377,12 @@ export class ModelApiHost implements AgentHost {
     if (store === undefined) {
       return isStrict ? Promise.reject(new Error(UI_TEXT.historyUnavailable)) : Promise.resolve()
     }
+    // No account identity yet: nothing has been attributed to anyone, so a
+    // touch writes nothing durable. The next touch after identity resolves
+    // saves as usual. A strict save without an owner refuses as unsigned in.
+    if (this.accountIdValue === undefined) {
+      return isStrict ? Promise.reject(new Error(UI_TEXT.notSignedInReason)) : Promise.resolve()
+    }
     const snapshot = this.ownedSnapshot(session.snapshot())
     // A turn-start user message can be saved, but a function call without
     // its output cannot be replayed after a crash. Goal/settings touches
@@ -17724,6 +17736,10 @@ export class ModelApiHost implements AgentHost {
 
   /** Reads the store once; this window's sessions then include the stored ones. */
   public async load(): Promise<void> {
+    // A dead store attributes no stored turn to anyone: the host builds
+    // without history instead of refusing to build. An absent key (store
+    // alive) still refuses below, as before.
+    if (this.deps.isCredentialStoreDown?.() === true) return
     const accountId = await this.requireAccountId()
     const { store } = this.deps
     if (store === undefined) {
@@ -17803,8 +17819,10 @@ export class ModelApiHost implements AgentHost {
     }
     const hooks = options.sideChat === true ? [] : await this.sessionHooks()
     const extensionHooks = options.sideChat === true ? [] : await this.sessionExtensionHooks()
-    // Loading the hooks may outlast a sign-out or the host closing.
-    await this.requireAccountId()
+    // A new session opens with no key and no account identity: identity is
+    // resolved at the first step that needs a provider, and spend is
+    // attributed to the identity resolved at that moment. Loading the hooks
+    // may outlast a sign-out or the host closing.
     this.refuseWhileClosing()
     const session = this.create(
       options.modelId,
@@ -17817,7 +17835,6 @@ export class ModelApiHost implements AgentHost {
     )
     try {
       await session.startHooks()
-      await this.requireAccountId()
       this.refuseWhileClosing()
     } catch (error: unknown) {
       session.dispose()

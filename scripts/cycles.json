@@ -105,6 +105,7 @@
     "src/runtime/exec/execEntry.ts",
     "src/runtime/exec/providerExec.ts",
     "src/runtime/providersCommands.ts",
+    "src/runtime/providersModelsCommand.ts",
     "src/runtime/resources/entry.ts",
     "src/runtime/usage/usageAcp.ts",
     "src/shared/featureCatalog.ts",

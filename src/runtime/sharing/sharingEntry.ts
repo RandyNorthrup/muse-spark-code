@@ -15,7 +15,12 @@ import { writeFileAtomically } from '../../host/fsAtomic'
 import { agentDataFolder, type DataFolderInput } from '../dataFolder'
 import { SharingCommands, runSharingCommand, type SharePreview, type SharingUi } from './commands'
 import type { SharingCommand } from './args'
-import { createAcpSharing, acpSharingCommands, type AcpSharingPort } from '../../acp/sharing'
+import {
+  createAcpSharing,
+  acpSharingCommands,
+  sharingResultText,
+  type AcpSharingPort,
+} from '../../acp/sharing'
 import {
   UI_TEXT,
   PROMPT_LIMITS,
@@ -161,10 +166,24 @@ async function question(title: string, signal: AbortSignal) {
     return await input.question(`${title}: `, { signal })
   } finally {
     input.close()
+    // A TTY stdin left flowing keeps the event loop alive after the answer,
+    // so the process would never exit. Pause it deterministically here; the
+    // next question's interface resumes it.
+    process.stdin.pause()
   }
 }
 
-function terminalUi(): SharingUi {
+/** A terminal `(y/N)` answer: y or yes in any case, with surrounding space ignored. */
+export function isAffirmativeAnswer(answer: string | undefined): boolean {
+  if (answer === undefined) return false
+  const normalized = answer.trim().toLowerCase()
+  return normalized === 'y' || normalized === 'yes'
+}
+
+function terminalUi(scripted?: {
+  readonly vars: ReadonlyMap<string, string>
+  readonly confirmed: boolean
+}): SharingUi {
   return {
     showPreview: (preview, signal) => {
       signal.throwIfAborted()
@@ -173,22 +192,40 @@ function terminalUi(): SharingUi {
     },
     ...(process.stdin.isTTY && {
       confirmShare: async (preview: SharePreview, signal: AbortSignal) =>
-        (await question(`${UI_TEXT.shareConfirm} (y/N)`, signal)) === 'y'
+        isAffirmativeAnswer(await question(`${UI_TEXT.shareConfirm} (y/N)`, signal))
           ? { step: 'confirmed', previewId: preview.previewId, request: preview.request }
           : undefined,
     }),
     preparePrompt: async (prompt, signal) => {
+      // Only an imported prompt is untrusted; a prompt the person saved
+      // themselves must not be called imported. The single confirmation
+      // happens after the variables, at the review below.
+      if (prompt.untrusted) process.stdout.write(`${UI_TEXT.promptUntrusted}\n`)
       process.stdout.write(
-        `${UI_TEXT.promptUntrusted}\n${prompt.body}\n${UI_TEXT.promptVariables}: ${prompt.variables.map((variable) => variable.name).join(', ')}\n`,
+        `${prompt.body}\n${UI_TEXT.promptVariables}: ${prompt.variables.map((variable) => variable.name).join(', ')}\n`,
       )
-      if ((await question(`${UI_TEXT.promptInsert} (y/N)`, signal)) !== 'y') return
       let prepared: string | undefined
       await usePrompt(prompt, {
-        valueFor: (variable) => question(`${UI_TEXT.promptVariables}: ${variable.name}`, signal),
+        valueFor: (variable) => {
+          // A script's --var answers without a keyboard; anything else
+          // still asks the terminal, and a script without the value stops
+          // at the cancelled review below instead of hanging.
+          const scriptedValue = scripted?.vars.get(variable.name)
+          return scriptedValue === undefined
+            ? question(`${UI_TEXT.promptVariables}: ${variable.name}`, signal)
+            : Promise.resolve(scriptedValue)
+        },
         review: async (text) => {
           signal.throwIfAborted()
           process.stdout.write(`${text}\n`)
-          return (await question(`${UI_TEXT.promptInsert} (y/N)`, signal)) === 'y'
+          // The terminal prints the prepared text: nothing is inserted
+          // into an editor, so the review says print, not insert. A
+          // script confirms explicitly with --confirm after previewing
+          // the same text in an earlier run without it.
+          return (
+            scripted?.confirmed === true ||
+            isAffirmativeAnswer(await question(`${UI_TEXT.promptPrintConfirm} (y/N)`, signal))
+          )
         },
         insert: (text) => {
           signal.throwIfAborted()
@@ -223,7 +260,11 @@ export async function runRuntimeSharing(
       cwd: process.cwd(),
       isActive: () => !controller.signal.aborted,
       signal: controller.signal,
-      ui: terminalUi(),
+      ui: terminalUi(
+        command.command === 'prompts' && command.action === 'use'
+          ? { vars: command.vars, confirmed: command.confirmed }
+          : undefined,
+      ),
       readBody: async () => {
         controller.signal.addEventListener('abort', cancelRead, { once: true })
         const deadline = setTimeout(stop, PROMPT_STDIN_TIMEOUT_MS)
@@ -245,7 +286,14 @@ export async function runRuntimeSharing(
         }
       },
     })
-    process.stdout.write(`${JSON.stringify(result)}\n`)
+    // Scripts opt into JSON; people still need the saved id, list, prepared
+    // text and cancellation reason. A preview is not a command result.
+    if (command.json) process.stdout.write(`${JSON.stringify(result)}\n`)
+    else {
+      const text = result.kind === 'prepared' ? result.text : sharingResultText(result)
+      const output = result.kind === 'cancelled' ? process.stderr : process.stdout
+      output.write(`${text}\n`)
+    }
     return result.exitCode
   } catch (error: unknown) {
     if (isResourcePaused(error)) {
