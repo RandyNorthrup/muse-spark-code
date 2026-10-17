@@ -82,8 +82,9 @@ describe('one bootstrap, generated from one source into every template', () => {
       expect(body.indexOf('tar -xzf')).toBeGreaterThan(digest)
       expect(body).toContain('trap - EXIT HUP INT TERM')
       expect(body).toContain(
-        `exec node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" ${system}`,
+        `node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" ${system}`,
       )
+      expect(body).not.toContain('exec node')
     },
   )
 
