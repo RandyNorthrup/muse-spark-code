@@ -1,5 +1,27 @@
 import * as z from 'zod/mini'
-import { COMPANION_VOICE_MAX_BASE64, MAX_TEXT_ATTACHMENT_BYTES } from './constants'
+import { MAX_TEXT_ATTACHMENT_BYTES, MUSE_VOICE_BYTES_PER_SECOND } from './constants'
+
+// CMICCOMP: held off until Windows/macOS companion and helper receipts pass.
+// These live beside the companion's protocol (not in constants.ts) so the
+// activation bundle, which never speaks it, does not carry them (D6).
+export const COMPANION_VOICE_RELEASE = { isReady: false }
+export const COMPANION_VOICE_MAX_SECONDS = 60
+export const COMPANION_VOICE_WAV_HEADER_BYTES = 44
+export const COMPANION_VOICE_MAX_BYTES =
+  COMPANION_VOICE_MAX_SECONDS * MUSE_VOICE_BYTES_PER_SECOND + COMPANION_VOICE_WAV_HEADER_BYTES
+const BASE64_INPUT_QUANTUM_BYTES = 3
+const BASE64_OUTPUT_QUANTUM_CHARS = 4
+const COMPANION_VOICE_REQUEST_SLACK_BYTES = 1024
+export const COMPANION_VOICE_MAX_BASE64 =
+  /* @__PURE__ */ Math.ceil(COMPANION_VOICE_MAX_BYTES / BASE64_INPUT_QUANTUM_BYTES) *
+  BASE64_OUTPUT_QUANTUM_CHARS
+export const COMPANION_VOICE_BODY_BYTES =
+  COMPANION_VOICE_MAX_BASE64 + COMPANION_VOICE_REQUEST_SLACK_BYTES
+export const COMPANION_VOICE_REQUEST_MS = 120_000
+export const COMPANION_VOICE_TICKET_MS = 90_000
+export const COMPANION_VOICE_RECORDER_BPS = 32_000
+export const COMPANION_VOICE_PCM_MAX = 32_767
+export const COMPANION_VOICE_PCM_MIN = -32_768
 
 export const companionVoiceEngineSchema = z.enum(['system', 'museVoice'])
 const ticket = z.uuid()

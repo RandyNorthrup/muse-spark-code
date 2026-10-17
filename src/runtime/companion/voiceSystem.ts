@@ -8,12 +8,12 @@ import {
   type HelperInvocation,
 } from '../../core/voice/dictation'
 import {
-  COMPANION_VOICE_REQUEST_MS,
   DICTATION_QUIT_GRACE_MS,
   MEMORY_STAGE_FILE_MODE,
   MAX_TEXT_ATTACHMENT_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
+import { COMPANION_VOICE_REQUEST_MS } from '../../shared/companionVoice'
 import { withDeadline } from '../../core/timeouts'
 import { secure } from '../tokenFile'
 

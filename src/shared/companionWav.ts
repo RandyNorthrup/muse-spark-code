@@ -1,11 +1,10 @@
+import { MUSE_VOICE_BYTES_PER_SECOND, MUSE_VOICE_SAMPLE_RATE } from './constants'
 import {
   COMPANION_VOICE_MAX_BYTES,
-  COMPANION_VOICE_WAV_HEADER_BYTES,
-  MUSE_VOICE_BYTES_PER_SECOND,
-  MUSE_VOICE_SAMPLE_RATE,
   COMPANION_VOICE_PCM_MAX,
   COMPANION_VOICE_PCM_MIN,
-} from './constants'
+  COMPANION_VOICE_WAV_HEADER_BYTES,
+} from './companionVoice'
 
 // Fixed RIFF field offsets and geometry, not tunables.
 const WAV = {

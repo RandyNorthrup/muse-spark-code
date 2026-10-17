@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { COMPANION_VOICE_WAV_HEADER_BYTES } from '../../src/shared/constants'
+import { COMPANION_VOICE_WAV_HEADER_BYTES } from '../../src/shared/companionVoice'
 import { companionPcm, companionWav, companionWavSeconds } from '../../src/shared/companionWav'
 
 it('mixes stereo in float precision before clipping, so full-scale sums never wrap', () => {

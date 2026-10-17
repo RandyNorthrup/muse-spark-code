@@ -1,4 +1,4 @@
-import { COMPANION_VOICE_RELEASE } from '../constants'
+import { COMPANION_VOICE_RELEASE } from '../companionVoice'
 // The generator's build entry: its imports are visible to the dead-code gate.
 export {
   featureCatalog,
