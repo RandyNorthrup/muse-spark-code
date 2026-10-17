@@ -72,18 +72,6 @@ export function resetDurationMs(header: string | null): number | undefined {
   return consumed !== '' && consumed === body && Number.isFinite(total) ? total : undefined
 }
 
-/**
- * An absolute reset timestamp in milliseconds: Anthropic sends RFC 3339
- * (`2026-10-04T22:45:06Z`, captured 2026-10-04 in
- * `docs/certification/m95-captures/anthropic/03-tool-call-stream.json`).
- * Anything else is not a reset: undefined.
- */
-export function resetTimestampMs(header: string | null): number | undefined {
-  if (header === null || header.trim() === '') return undefined
-  const at = Date.parse(header)
-  return Number.isNaN(at) ? undefined : at
-}
-
 function pacingLimits(
   requests: { readonly limit: number; readonly remaining: number },
   tokens: { readonly limit: number; readonly remaining: number },
@@ -106,9 +94,28 @@ function pacingLimits(
 }
 
 /**
- * OpenAI and Groq (captured 2026-10-04): per-minute request/token buckets
- * with Go-duration resets. The window is the longest reset still running;
- * a missing or unreadable reset keeps the default window.
+ * A bucket's window from its reset: the reset is the time until the bucket
+ * is full again, so a continuously refilling bucket gives
+ * window = reset * limit / (limit - remaining). The captures pin this
+ * down exactly (Groq requests 1m26.4s at 999/1000 is one day, its tokens
+ * 15.254s at 5966/8000 one minute; OpenAI 120ms at 499/500 one minute).
+ * A full bucket or a missing reset says nothing: undefined.
+ */
+function derivedWindowMs(
+  pair: { readonly limit: number; readonly remaining: number } | undefined,
+  resetMs: number | undefined,
+): number | undefined {
+  if (pair === undefined || resetMs === undefined || resetMs <= 0) return undefined
+  const used = pair.limit - pair.remaining
+  return used > 0 ? (resetMs * pair.limit) / used : undefined
+}
+
+/**
+ * OpenAI and Groq (captured 2026-10-04): request/token buckets with
+ * Go-duration resets until each bucket is full again. The one shared
+ * window takes the slower bucket's derived window (Groq's requests are
+ * per day, its tokens per minute), so pacing never outruns either; no
+ * derivable window keeps the default.
  */
 export function openaiPacingLimits(headers: Headers): PacingLimits | undefined {
   const requests = limitPair(
@@ -118,8 +125,8 @@ export function openaiPacingLimits(headers: Headers): PacingLimits | undefined {
   )
   const tokens = limitPair(headers, 'x-ratelimit-limit-tokens', 'x-ratelimit-remaining-tokens')
   const windows = [
-    resetDurationMs(headers.get('x-ratelimit-reset-requests')),
-    resetDurationMs(headers.get('x-ratelimit-reset-tokens')),
+    derivedWindowMs(requests, resetDurationMs(headers.get('x-ratelimit-reset-requests'))),
+    derivedWindowMs(tokens, resetDurationMs(headers.get('x-ratelimit-reset-tokens'))),
   ].filter((window) => window !== undefined)
   return requests === undefined || tokens === undefined
     ? undefined
@@ -146,7 +153,9 @@ export function xaiPacingLimits(headers: Headers): PacingLimits | undefined {
  * Anthropic (captured 2026-10-04): request and total-token buckets across
  * four limit families, with absolute RFC 3339 resets. The token bucket is
  * the all-tokens total; the input/output splits ride the usage headers.
- * A reset already past keeps the default window instead of failing closed.
+ * Every captured bucket resets at the same instant (a fixed window
+ * boundary), so a reset names when the window ends, never its length:
+ * the default window stands rather than shrinking to the time left in it.
  */
 export function anthropicPacingLimits(headers: Headers): PacingLimits | undefined {
   const requests = limitPair(
@@ -159,21 +168,9 @@ export function anthropicPacingLimits(headers: Headers): PacingLimits | undefine
     'anthropic-ratelimit-tokens-limit',
     'anthropic-ratelimit-tokens-remaining',
   )
-  const now = Date.now()
-  const windows = [
-    'anthropic-ratelimit-requests-reset',
-    'anthropic-ratelimit-tokens-reset',
-    'anthropic-ratelimit-input-tokens-reset',
-    'anthropic-ratelimit-output-tokens-reset',
-  ]
-    .map((name) => resetTimestampMs(headers.get(name)))
-    .filter((at) => at !== undefined)
-    .map((at) => at - now)
-    .filter((ms) => ms > 0)
-  const windowMs = windows.length > 0 ? Math.max(...windows) : undefined
   return requests === undefined || tokens === undefined
     ? undefined
-    : pacingLimits(requests, tokens, windowMs)
+    : pacingLimits(requests, tokens, undefined)
 }
 
 /**
