@@ -157,6 +157,11 @@ const BUDGETS = [
   // drivers, loaded on the first recording command: 30.2 KiB when split
   // out. Measured size plus 15%, rounded up to 25 KiB.
   { path: 'dist/screenRecord.js', budgetKiB: 50 },
+  // LIMITSINT2: the host side of byte-range file reads and edits (A9,
+  // limits-output), moved out of activation and loaded on the first range
+  // addressed call: measured size when split out plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/toolRange.js', budgetKiB: 25 },
   // M83: the import from other agents (the scan, the converters, the file
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).

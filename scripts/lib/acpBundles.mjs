@@ -94,6 +94,7 @@ export const ACP_BUNDLES = [
   'foreignHooks.js',
   'hookRuntime.js',
   'modelApiTools.js',
+  'toolRange.js',
   'recorder.js',
   'reporting.js',
   'reportingNetwork.js',

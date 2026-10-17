@@ -183,6 +183,10 @@ const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
 // limits and modality gate), loaded on first use.
 const MEDIA_ENTRY = 'src/host/media/mediaEntry.ts'
 const MEDIA_OUTFILE = 'dist/media.js'
+// The host side of byte-range file reads and edits (A9, limits-output),
+// loaded on the first range addressed call.
+const TOOL_RANGE_ENTRY = 'src/host/backend/toolRangeEntry.ts'
+const TOOL_RANGE_OUTFILE = 'dist/toolRange.js'
 // M105 lane W: the screen-recording command with the R1-R3 platform drivers,
 // loaded the first time a recording command runs.
 const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
@@ -855,6 +859,17 @@ const mediaOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const toolRangeOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [TOOL_RANGE_ENTRY],
+  outfile: TOOL_RANGE_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const screenRecordOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, sharedWire],
@@ -1266,6 +1281,7 @@ if (isWatch) {
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(mediaOptions),
+    esbuild.context(toolRangeOptions),
     esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
@@ -1383,6 +1399,7 @@ if (isWatch) {
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     media: esbuild.build(mediaOptions),
+    toolRange: esbuild.build(toolRangeOptions),
     screenRecord: esbuild.build(screenRecordOptions),
     agentImport: esbuild.build(agentImportOptions),
     conversationGit: esbuild.build(conversationGitOptions),

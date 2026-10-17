@@ -1451,6 +1451,7 @@
   "extensionHooksUnavailable": "無法載入擴充功能鉤子，因此未執行任何鉤子；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
   "modelApiToolsUnavailable": "無法載入模型呼叫小幫手，因此鉤子呼叫欄位無法使用；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
   "modelApiToolsPreviewUnavailable": "無法載入模型呼叫小幫手，因此引數預覽無法使用；請重新安裝擴充功能並重新載入視窗。記錄中有詳細資訊。",
+  "toolRangeUnavailable": "無法載入檔案範圍小幫手，因此無法按位元組範圍讀取或編輯檔案；請重新安裝擴充功能並重新載入視窗。詳細資訊請見記錄。",
   "shellDirectory": "位於 {path}",
   "shellDirectoryReset": "shell 已返回工作區根目錄：{path} 位於工作區之外。",
   "elicitationTitle": "{server} 要求提供資訊",
