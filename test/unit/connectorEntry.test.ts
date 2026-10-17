@@ -5,7 +5,6 @@
 // a browser afterwards. With operations still draining it must stop them
 // first and finish only once they have (registry.drained, held here).
 import { mkdtemp } from 'node:fs/promises'
-import { request, type IncomingHttpHeaders } from 'node:http'
 import { createConnection } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
@@ -21,55 +20,7 @@ import { runConnector, type ConnectorRuntimeDeps } from '../../src/runtime/conne
 import { ConnectorStore } from '../../src/runtime/connector/store'
 import { ConnectorRegistry } from '../../src/core/connector/registry'
 import { removeFolder } from './helpers/temporaryFolders'
-
-/** Real loopback HTTP against the real approval server (main's test overhaul deleted `./helpers/companion`). */
-function headers(panel: { url: string }, token?: string): string[] {
-  const origin = new URL(panel.url).origin
-  return [
-    'Host',
-    new URL(origin).host,
-    'Origin',
-    origin,
-    'Sec-Fetch-Site',
-    'same-origin',
-    'X-Muse-Panel',
-    '1',
-    'Content-Type',
-    'application/json',
-    ...(token === undefined ? [] : ['Authorization', `Bearer ${token}`]),
-  ]
-}
-
-function call(
-  panel: { url: string },
-  path: string,
-  method = 'GET',
-  body?: string | Buffer,
-  supplied?: string[],
-): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
-  return new Promise((resolve, reject) => {
-    const outgoing = request(
-      new URL(path, panel.url),
-      { method, headers: supplied ?? headers(panel), setHost: false },
-      (response) => {
-        const chunks: Buffer[] = []
-        response.on('data', (chunk: Buffer) => {
-          chunks.push(chunk)
-        })
-        response.on('error', reject)
-        response.on('end', () => {
-          resolve({
-            status: response.statusCode ?? 0,
-            headers: response.headers,
-            body: Buffer.concat(chunks).toString('utf8'),
-          })
-        })
-      },
-    )
-    outgoing.on('error', reject)
-    outgoing.end(body)
-  })
-}
+import { connectorCall } from './helpers/connectorLoopback'
 
 vi.mock('../../src/runtime/connector/approvalPage', () => ({ startApprovalPage: vi.fn() }))
 
@@ -236,7 +187,7 @@ async function recoverAfterIdle(data: string, isFirstOpenerRejected: boolean): P
     const second = servers[1]
     if (second === undefined) throw new Error('replacement approval server absent')
     expect(urls[1]).toContain(second.url)
-    expect(await call(second, '/')).toHaveProperty('status', 200)
+    expect(await connectorCall(second, '/')).toHaveProperty('status', 200)
     stdin.end()
     expect(await running).toBe(0)
     await second.closed
