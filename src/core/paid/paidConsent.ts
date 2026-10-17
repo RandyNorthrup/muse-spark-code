@@ -42,7 +42,7 @@ import {
 } from '../../shared/paid'
 import { Usd, minUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
-import type { SessionBudgetClaim } from '../backends/modelapi/sessionBudget'
+import type { SessionBudgetClaim, SpendState } from '../backends/modelapi/sessionBudget'
 
 // zod/mini, which the Node bundles read from dist/validation.js: classic zod
 // carried 444 KiB and its `navigator` sniff into dist/extension.js (INT0170).
@@ -235,17 +235,18 @@ export function createSchedulePaidScope(deps: {
         if (!canUse(feature)) throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
         return claim.check(Usd.from(0).toAmount())
       }
-      const settle = async (actualCostUsd: UsdAmount, hasUnknownCost = false) => {
+      const settle = async (actualCostUsd: UsdAmount, state: SpendState = 'settled') => {
         // D95.3: a hard cap never accepts spend beyond the admitted claim.
         if (Usd.from(actualCostUsd).compare(Usd.from(claim.reservedUsd)) > 0)
           throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
-        const total = await claim.settle(actualCostUsd, hasUnknownCost)
+        const total = await claim.settle(actualCostUsd, state)
         const own = claims.get(claim.claimId)
         if (own !== undefined && !own.settled) {
-          own.settled = !hasUnknownCost
+          const isKnownFinal = state === 'settled' || state === 'released'
+          own.settled = isKnownFinal
           own.usd = actualCostUsd
-          if (!hasUnknownCost) settledUsd = settledUsd.add(Usd.from(actualCostUsd))
-          hasUnknown ||= hasUnknownCost
+          if (state === 'settled') settledUsd = settledUsd.add(Usd.from(actualCostUsd))
+          hasUnknown ||= state === 'uncertain'
         }
         return total
       }
