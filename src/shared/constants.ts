@@ -4679,15 +4679,14 @@ export const MSP_USER_SHELL_CAPABILITY = 'userShell'
 // is waited on until Muse Code answers or the wait is stopped, saying so
 // out loud on the log while it waits (owner 2026-10-16: no arbitrary
 // limits, no silent hangs). A test may still name a command wait through
-// CommandTimeouts. The two handshake bounds below are not the serve
+// CommandTimeouts. The handshake bound below is not the serve
 // handshake's any more (NOLIMITS2 C12): the device sign-in, the account
-// host and the team process lifetime name them for their own waits.
-export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
-// A slow start on a CPU-starved machine (0.10.0, an activation that took
-// 211 s): the serve handshake outlasts it, saying so each minute, and a
+// host and the team process lifetime name it for their own waits. A slow
+// serve start on a CPU-starved machine (0.10.0, an activation that took
+// 211 s) is outlasted by the wait itself, saying so each minute, and a
 // healthy start still connects in a second or two (the log's
-// "Connected ... in N ms"). Only these named waits still end one.
-export const MSP_SLOW_HANDSHAKE_TIMEOUT_MS = 120_000
+// "Connected ... in N ms").
+export const MSP_HANDSHAKE_TIMEOUT_MS = 30_000
 // A command the host refused without admitting it (the SDK's own rule, D26):
 // sent again with the same id up to this many times in all.
 export const MSP_COMMAND_ATTEMPTS = 3
