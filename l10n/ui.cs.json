@@ -1003,6 +1003,7 @@
   "sessionResumesOnSend": "Další zpráva ji obnoví.",
   "sessionContinued": "Konverzace po restartu pokračuje.",
   "sessionNotContinued": "V konverzaci nebylo možné po restartu pokračovat, takže tato zpráva zahájí novou",
+  "modelNotKeptAfterRestart": "Muse Code hlásí, že tato konverzace běží na {active} místo {wanted}, takže zpráva nebyla odeslána. Znovu vyberte model a zprávu odešlete znovu.",
   "surfaceClosed": "Panel byl zavřen",
   "hostStartFailed": "Back-end se nepodařilo spustit",
   "decisionErrorNotice": "Muse Code u tohoto rozhodnutí ohlásil chybu (nástroj se možná přesto spustil)",

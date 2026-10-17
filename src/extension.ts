@@ -47,6 +47,7 @@ import {
   BROWSER_RUNTIME_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   MODELS_PANEL_BUNDLE_FILE,
+  MODELS_SUBSCRIPTIONS_BUNDLE_FILE,
   LEGAL_SCAN_BUNDLE_FILE,
   EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
@@ -77,6 +78,7 @@ import {
   MUSE_INIT_ARGS,
   MUSE_INIT_TIMEOUT_MS,
   MUSE_INSTALL_COMMANDS,
+  RULES_FILE_BUNDLE_FILE,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
   PROMPT_BUNDLE_FILE,
@@ -200,7 +202,8 @@ import { createRevertIo } from './host/editor/revertIo'
 import { createVerifyEditor } from './host/editor/verifyEditor'
 import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
-import { createRulesFile } from './host/commands/createRulesFile'
+import type { CreateRulesFileDeps } from './host/commands/createRulesFile'
+import { loadRulesFileBundle } from './host/commands/rulesFileBundle'
 import { insertMentionReference } from './host/commands/insertMention'
 import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/openInTerminal'
 import { toggleInputFocus } from './host/commands/focusInput'
@@ -349,6 +352,7 @@ import {
   providerCredentials,
   recoverProviderRemovals,
 } from './host/models/modelsPanelBundle'
+import { modelsSubscriptionsLoader } from './host/models/modelsSubscriptionsBundle'
 import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 
@@ -863,6 +867,10 @@ async function activateWindow(
     },
   })
   let isInputFocused = false
+  // The file the toggle hands the keyboard back to: focusing the editor
+  // group keeps a chat tab active when the chat shares the group, so Focus
+  // Input with the composer focused reopens the file the person was in.
+  let lastTextDocumentUri: vscode.Uri | undefined
   // Ctrl+B belongs to the panel only while the conversation in view runs a
   // command it can move to the background (M46); VS Code's sidebar toggle
   // keeps it otherwise.
@@ -1047,6 +1055,11 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
     log,
   })
+  const modelsSubscriptionsBundle = modelsSubscriptionsLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_SUBSCRIPTIONS_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
   const providerConfigFile = path.join(
     process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
     PROVIDERS_CONFIG_DIR_NAME,
@@ -1054,9 +1067,10 @@ async function activateWindow(
   )
   let isSubscriptionConnecting = false
   let subscriptions:
-    ReturnType<ReturnType<typeof modelsPanelBundle>['createSubscriptionFeatures']> | undefined
+    | ReturnType<ReturnType<typeof modelsSubscriptionsBundle>['createSubscriptionFeatures']>
+    | undefined
   const subscriptionFeatures = () =>
-    (subscriptions ??= modelsPanelBundle().createSubscriptionFeatures({
+    (subscriptions ??= modelsSubscriptionsBundle().createSubscriptionFeatures({
       log,
       secrets: context.secrets,
       globalStorageUri: context.globalStorageUri,
@@ -4257,8 +4271,13 @@ async function activateWindow(
         ideServer.close()
       },
     },
-    vscode.window.onDidChangeActiveTextEditor(() => {
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
       editorContext.update(editorSnapshot)
+      // A webview becoming active clears the active text editor; only a real
+      // text editor moves the toggle's target.
+      if (editor !== undefined) {
+        lastTextDocumentUri = editor.document.uri
+      }
       // Tab's language-off and snooze states follow the active editor (M94).
       tab.refreshStatus()
     }),
@@ -4472,8 +4491,13 @@ async function activateWindow(
       })
     }),
     registerLoggedCommand(log, COMMAND_IDS.createRulesFile, async () => {
+      // The command loads on first use (PLAN.md D6); a missing or damaged
+      // bundle refuses the run with its cause and the next run tries again.
+      const rulesFile = loadRulesFileBundle(
+        vscode.Uri.joinPath(context.extensionUri, 'dist', RULES_FILE_BUNDLE_FILE).fsPath,
+      )
       const check = backend.workspaceActionGuard(nativeStarts.signal)
-      await createRulesFile({
+      const deps: CreateRulesFileDeps = {
         workspaceRoot,
         // `muse init` reads the project: not while the window is held (M71).
         isWorkspaceTrusted: isProjectTrusted,
@@ -4506,7 +4530,8 @@ async function activateWindow(
           void vscode.window.showWarningMessage(message)
         },
         log,
-      })
+      }
+      await rulesFile.createRulesFile(deps, UI_TEXT, uiLocale())
     }),
     registerLoggedCommand(log, COMMAND_IDS.openWalkthrough, async () => {
       await vscode.commands.executeCommand(
@@ -4646,7 +4671,32 @@ async function activateWindow(
       await toggleInputFocus({
         isInputFocused: () => isInputFocused,
         activeSurface: () => registry.active,
-        focusEditor: () => vscode.commands.executeCommand(VSCODE_COMMANDS.focusActiveEditorGroup),
+        focusEditor: async () => {
+          // The group focus is a no-op while a chat tab is the group's
+          // active tab, so the toggle returns to the file itself while a tab
+          // still holds it; a file the person closed is not reopened, and
+          // without one the toggle falls back to the group, which is still
+          // the sidebar toggle's way back.
+          const target = lastTextDocumentUri
+          const isStillOpen =
+            target !== undefined &&
+            vscode.window.tabGroups.all.some((group) =>
+              group.tabs.some(
+                (tab) =>
+                  tab.input instanceof vscode.TabInputText &&
+                  tab.input.uri.toString() === target.toString(),
+              ),
+            )
+          if (isStillOpen) {
+            try {
+              await vscode.window.showTextDocument(target)
+              return
+            } catch {
+              lastTextDocumentUri = undefined
+            }
+          }
+          await vscode.commands.executeCommand(VSCODE_COMMANDS.focusActiveEditorGroup)
+        },
         openSidebar,
       })
     }),

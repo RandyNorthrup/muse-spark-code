@@ -999,6 +999,7 @@
   "sessionResumesOnSend": "Il prossimo messaggio la riprende.",
   "sessionContinued": "Conversazione proseguita dopo il riavvio.",
   "sessionNotContinued": "Non è stato possibile proseguire la conversazione dopo il riavvio, quindi questo messaggio ne avvia una nuova",
+  "modelNotKeptAfterRestart": "Muse Code segnala che questa conversazione usa {active} invece di {wanted}, quindi il messaggio non è stato inviato. Scegli di nuovo il modello e invia di nuovo il messaggio per continuare.",
   "surfaceClosed": "Il pannello è stato chiuso",
   "hostStartFailed": "Non è stato possibile avviare il back-end",
   "decisionErrorNotice": "Muse Code ha segnalato un errore per la decisione (lo strumento potrebbe essere stato eseguito comunque)",

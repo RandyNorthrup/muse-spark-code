@@ -159,6 +159,7 @@ export type WorkerShellSpawn = (input: {
  * copy) as its directory and the credential-free environment. Containment
  * of the tree itself is lane K's launcher behind `spawn` (M27's job object
  * on Windows); this runner's contract is never to run elsewhere.
+ * @unwired M96 worker shell runner
  */
 export function createWorkerShellRunner(input: {
   readonly root: string
@@ -221,6 +222,7 @@ export interface ReportCapture {
   readonly take: () => string | undefined
 }
 
+/** @unwired M96 worker report capture */
 export function createReportCapture(): ReportCapture {
   let text: string | undefined
   return {
@@ -317,6 +319,7 @@ export interface EngineWorkerResult {
  * confines every path to the task's folder; approvals and questions are
  * declined (no surface can ask); and a limit error marks the agent before
  * the failure reaches the caller.
+ * @unwired M96 engine worker runner
  */
 export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWorkerResult> {
   if (!deps.isTrusted) {
@@ -376,7 +379,9 @@ export async function runEngineWorker(deps: EngineWorkerDeps): Promise<EngineWor
   }
 }
 
-/** Guards M48's child loop shape: depth past `delegates` never starts. */
+/** Guards M48's child loop shape: depth past `delegates` never starts.
+ * @unwired M96 worker child-loop depth guard
+ */
 export function checkWorkerDepth(depth: number, role: WorkerRolePolicy): void {
   if (depth > WORKER_MAX_DEPTH || (depth > 1 && (role.delegates ?? []).length === 0)) {
     throw new WorkerDepthError()

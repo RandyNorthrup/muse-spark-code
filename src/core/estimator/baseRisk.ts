@@ -46,7 +46,9 @@ export function baseRisks(
     .map((lane) => ({ laneId: lane.id, kind: 'staleBase' as const }))
 }
 
-/** Read at render time so changing the installed language changes the label. */
+/** Read at render time so changing the installed language changes the label.
+ * @unwired M117 stale-baseline label
+ */
 export function staleBaseText(lanes: readonly { laneId: string }[]): string {
   return fill(UI_TEXT.estimateStaleBase, {
     lanes: lanes.map((lane) => lane.laneId).join(', '),
