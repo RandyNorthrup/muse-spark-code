@@ -408,6 +408,7 @@ import {
   reviewerInstructionsFor,
   reviewerToolRefusal,
 } from './reviewer'
+import { playbackInstructionsFor, playbackToolRefusal } from './playback'
 import { MediaBudget } from './mediaBudget'
 import { classifyContextOverflow } from '../../context/overflow'
 import {
@@ -1101,6 +1102,8 @@ interface QueuedTurn {
   readonly goalCommandRevision?: number
   /** A `/review` (M70): the turn runs as the Reviewer, its prompt and read-only tools. */
   readonly isReview?: boolean
+  /** A `/playback` (D203): the turn answers from working memory, with no tools. */
+  readonly isPlayback?: boolean
 }
 
 // MSP's words for a goal refusal (captured live 2026-09-25), in the error's text.
@@ -1151,6 +1154,8 @@ export interface ActiveTurn {
   isWebSearchAllowed: boolean
   /** Run as the Reviewer (M70): its prompt, and only the tools that read. */
   readonly isReview: boolean
+  /** A playback turn (D203): its prompt, and no tools at all. */
+  readonly isPlayback: boolean
   /** Whether it is recorded (M86), and what its tools then write through; set once admitted. */
   checkpoint?: TurnCheckpoint | undefined
   /** It started a process, or one of the conversation's ran in the background (M86, spec 8). */
@@ -3833,6 +3838,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     return (this.isReviewerChild && this.agent === undefined) || this.active?.isReview === true
   }
 
+  /** A playback turn (D203): its prompt, and no tools at all. */
+  private isPlaybackTurn(): boolean {
+    return this.active?.isPlayback === true
+  }
+
   /**
    * The body as the session budget lets it be sent (M82): with a cap, its
    * input estimated high from the last reported request and
@@ -4302,7 +4312,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     return this.teamRosterStable
   }
 
-  /** The agent's own instructions and tools, or the Reviewer's. */
+  /** The agent's own instructions and tools, the Reviewer's, or a playback's (no tools). */
   private promptAndTools(
     today: string,
     resolved: ResolvedModel,
@@ -4340,11 +4350,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       inputs.push({ bytes, source, ...(isFullyShown !== undefined && { isFullyShown }) })
     }
     const isReview = this.isReviewing()
+    const isPlayback = this.isPlaybackTurn()
+    // Neither restricted turn invites tool use: no agent catalogue, no
+    // memory tools, no skills.
+    const isUntooled = isReview || isPlayback
     const context = this.context.sections(
       inputs,
-      !isReview && this.isAgentCatalogueOffered(),
-      !isReview && this.toolFlags().hasMemory,
-      !isReview,
+      !isUntooled && this.isAgentCatalogueOffered(),
+      !isUntooled && this.toolFlags().hasMemory,
+      !isUntooled,
     )
     const environment = this.environment ?? NO_ENVIRONMENT
     if (environment.git !== undefined)
@@ -4352,6 +4366,22 @@ export class ModelApiSession implements ScheduledAgentSession {
         kind: 'harness',
         operation: 'git-facts',
       })
+    // A playback answers from working memory, with no tools at all: the
+    // goal and rules stay (they are what it reports), and every tool call
+    // is refused in code where the turn runs.
+    if (isPlayback) {
+      return {
+        instructions: playbackInstructionsFor({
+          workspaceRoot: this.deps.workspaceRoot,
+          platform: this.deps.platform,
+          today,
+          environment,
+          goalSection: goalInstructions(this.goal),
+          rules: context.rules,
+        }),
+        tools: [],
+      }
+    }
     if (this.isReviewing()) {
       const tools = resolved.policy.tools.calling.state === 'yes' ? this.reviewerTools() : []
       return {
@@ -4481,8 +4511,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         )
         // Packing projects per request only: the replay keeps the originals, so
         // a later request (or a restore) packs from the full outputs again.
-        // Reviewer tools cannot recall packed output: retain the full observations.
-        return this.isReviewing() || !this.canPack()
+        // Reviewer tools cannot recall packed output, and a playback reports
+        // it: retain the full observations.
+        return this.isReviewing() || this.isPlaybackTurn() || !this.canPack()
           ? fitted
           : (this.packing?.project(fitted) ?? fitted)
       },
@@ -4867,7 +4898,7 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   private async prepareMcp(signal: AbortSignal): Promise<void> {
     const servers = this.deps.mcpServers
-    if (servers === undefined || this.isReviewing()) {
+    if (servers === undefined || this.isReviewing() || this.isPlaybackTurn()) {
       return
     }
     await unlessStopped(servers.start(), signal)
@@ -4886,8 +4917,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private requiredMcpFailure(snapshot: McpPoolSnapshot | undefined): Error | undefined {
-    // The Reviewer deliberately offers no external MCP tool (M70).
-    if (this.isReviewing()) {
+    // The Reviewer deliberately offers no external MCP tool (M70), and a playback offers none at all.
+    if (this.isReviewing() || this.isPlaybackTurn()) {
       return undefined
     }
     const required = snapshot?.servers.find(
@@ -11838,6 +11869,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         isRejected: false,
       }
     }
+    // A playback names no tool (D203): every call is refused, offered or
+    // not, in every mode, Bypass included, and answered to the model.
+    if (this.isPlaybackTurn()) {
+      return {
+        outcome: toolFailure(playbackToolRefusal(call.name)),
+        isRejected: true,
+      }
+    }
     // The Reviewer only reads (M70): a tool it names that is not one of its
     // own is refused, offered or not, in every mode, Bypass included.
     if (this.isReviewing() && !isReviewerTool(call.name)) {
@@ -13976,6 +14015,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       goalWakePending: false,
       isWebSearchAllowed: false,
       isReview: queued.isReview === true,
+      isPlayback: queued.isPlayback === true,
       ...(queued.draft !== undefined && { draft: queued.draft }),
       ranProcesses: this.hasLiveCommands(),
       ...(queued.confirmedRequest !== undefined && {
@@ -14065,6 +14105,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         !queued.isGoalWake &&
         queued.isHookContinuation !== true &&
         queued.isReview !== true &&
+        queued.isPlayback !== true &&
         queued.confirmedRequest === undefined &&
         !this.isSubagent &&
         this.deps.prepareAudioMessage !== undefined
@@ -14157,7 +14198,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       // The Reviewer never searches (M70): nothing to ask about.
       if (this.modelId.includes('/')) await this.resolveModel()
       turn.isWebSearchAllowed =
-        !this.isReviewing() && (await this.webSearchConsent(turn.abort.signal))
+        !this.isReviewing() &&
+        !this.isPlaybackTurn() &&
+        (await this.webSearchConsent(turn.abort.signal))
       if (
         this.deps.autoCompaction?.() === true &&
         !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) &&
@@ -14761,6 +14804,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) ||
       this.active !== turn ||
       this.isReviewing() ||
+      this.isPlaybackTurn() ||
       this.isSubagent ||
       isAbortRequested(turn.abort.signal) ||
       !this.hasCompactableHistory()
@@ -15333,6 +15377,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     isHookContinuation = false,
     draft?: PreparedGitDraft,
     scheduleRun?: UnattendedRun,
+    isPlayback = false,
   ): Promise<TurnSubmission> {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
@@ -15375,6 +15420,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(draft !== undefined && { draft }),
       ...(isHookContinuation && { isHookContinuation: true }),
       ...(isReview && { isReview }),
+      ...(isPlayback && { isPlayback }),
       ...(confirmedRequest !== undefined && { confirmedRequest }),
     }
     // A compaction is a turn too (D26): a message sent during one waits for it.
@@ -15906,6 +15952,16 @@ export class ModelApiSession implements ScheduledAgentSession {
    */
   public review(parts: readonly TurnPart[], displayText: string): Promise<TurnSubmission> {
     return this.submitTurn(parts, displayText, true)
+  }
+
+  /**
+   * A `/playback` the user asked for (D203): a turn of this conversation
+   * that answers from working memory only, with no tools at all. Every
+   * tool call is refused in code, answered to the model. It is part of the
+   * user's own turn, so it asks for no payment.
+   */
+  public playback(parts: readonly TurnPart[], displayText: string): Promise<TurnSubmission> {
+    return this.submitTurn(parts, displayText, false, undefined, false, undefined, undefined, true)
   }
 
   /**

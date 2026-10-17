@@ -843,6 +843,17 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature('review', { ui: 'groupReview' }, { tip: 'review' }, [], [], 'review'),
+    feature(
+      'playback',
+      { ui: 'playbackItem' },
+      { ui: 'playbackDetail' },
+      [],
+      [],
+      'playback',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
     feature('plans', { ui: 'plansItem' }, { tip: 'plans' }, [], [], 'plans-as-files'),
     feature('goals', { ui: 'goalItem' }, { tip: 'goal' }, [], [], 'session-goals'),
     feature(

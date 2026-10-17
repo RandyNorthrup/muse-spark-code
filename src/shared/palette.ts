@@ -88,6 +88,8 @@ export type PaletteAction =
   | { readonly type: 'setPaidFeature'; readonly feature: PaidFeature; readonly isOn: boolean }
   /** `/review ` in the prompt, for what to review (M70). */
   | { readonly type: 'startReview' }
+  /** `/playback` in the prompt: the agent's own understanding, from memory only (D203). */
+  | { readonly type: 'startPlayback' }
   /** `/legal ` in the prompt, for the read-only legal scan (M97). */
   | { readonly type: 'startLegalScan' }
   /** A review preset (M70): the request as the host takes it. */

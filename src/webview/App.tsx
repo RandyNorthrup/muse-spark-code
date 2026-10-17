@@ -50,6 +50,7 @@ import { editorContextLabel } from '../shared/editorContext'
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
+import { parsePlaybackPrompt } from '../shared/playbackCommand'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
 import type { EstimateRequest, EstimateSection } from '../shared/estimate'
@@ -1114,6 +1115,17 @@ export function App({
     },
     [dispatch, newLocalId, postMessage],
   )
+  // `/playback` and the palette's playback row (D203): the card first, then
+  // the host's word on it, as for a message. The turn answers from working
+  // memory only, with no tools.
+  const onPlayback = useCallback((): boolean => {
+    const text = `/${SLASH_COMMAND_NAMES.playback}`
+    const localId = newLocalId()
+    dispatch({ type: 'cardSubmitted', localId, text })
+    postMessage({ type: 'startPlayback', localId, text })
+    setIsPinnedToEnd(true)
+    return true
+  }, [dispatch, newLocalId, postMessage])
   // `/legal …` and the palette's legal row (M97): the host runs the
   // deterministic scan and answers with the report (lane W renders it), so
   // no card is submitted. The parse is total over the schema, so the input
@@ -1180,6 +1192,19 @@ export function App({
     if (review !== undefined) {
       if (onReview(review, text)) {
         dispatch({ type: 'draftChanged', draft: '' })
+      }
+      return
+    }
+    // `/playback` (D203): a memory-only turn, its card what was typed. With
+    // anything after it, usage instead: a playback takes no arguments.
+    const playback = parsePlaybackPrompt(text)
+    if (playback !== undefined) {
+      if (playback.kind === 'run') {
+        if (onPlayback()) {
+          dispatch({ type: 'draftChanged', draft: '' })
+        }
+      } else {
+        dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.playbackUsage })
       }
       return
     }
@@ -1411,6 +1436,7 @@ export function App({
     postMessage,
     onGoalCommand,
     onReview,
+    onPlayback,
     onLegalScan,
     onHandoff,
     postEstimateRun,
@@ -2503,6 +2529,12 @@ export function App({
           closeOverlay()
           break
         }
+        case 'startPlayback': {
+          // `/playback` takes no arguments, so the row runs at once (D203).
+          onPlayback()
+          closeOverlay()
+          break
+        }
         case 'startLegalScan': {
           // The prompt becomes `/legal ` for a file subset (M97).
           dispatch({ type: 'draftChanged', draft: LEGAL_PROMPT_START })
@@ -2547,6 +2579,7 @@ export function App({
       openOverlay,
       onNewConversation,
       onReview,
+      onPlayback,
       openReviewPane,
       sharingAction,
     ],

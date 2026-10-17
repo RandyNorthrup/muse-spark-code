@@ -308,6 +308,7 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
       (skill) =>
         skill.selector !== SLASH_COMMAND_NAMES.help &&
         skill.selector !== SLASH_COMMAND_NAMES.estimate &&
+        skill.selector !== SLASH_COMMAND_NAMES.playback &&
         skill.selector !== 'schedule',
     )
     .map((skill) => ({
@@ -603,6 +604,13 @@ export function buildPalette(
           label: UI_TEXT.goalItem,
           detail: UI_TEXT.goalItemDetail,
           action: { type: 'startGoal' },
+        },
+        // The agent's own understanding, from memory only (D203), on both backends.
+        {
+          id: 'playback',
+          label: UI_TEXT.playbackItem,
+          detail: UI_TEXT.playbackDetail,
+          action: { type: 'startPlayback' },
         },
         // The read-only legal scan (M97, PLAN.md D76), on both backends.
         {

@@ -32,6 +32,8 @@ export interface ReviewFeatures {
   readonly newMarker: () => string
   /** The hold that keeps a Muse Code review in Plan mode and puts the user's mode back. */
   readonly createHold: (deps: PlanModeHoldDeps) => PlanModeHold
+  /** The playback turn's text (D203): the report, from memory only, with no tools. */
+  readonly playbackText: () => string
   /**
    * Edit review (M5) and the review pane's hunks (M70): they share one read,
    * rebuild and write lane per file, so one instance serves both.
@@ -138,6 +140,7 @@ export function lazyReview(deps: LazyReviewDeps): ReviewFeatures {
     turnText: (input) => loaded().turnText(input),
     newMarker: () => loaded().newMarker(),
     createHold: (holdDeps) => loaded().createHold(holdDeps),
+    playbackText: () => loaded().playbackText(),
     editReview: {
       openDiff: async (itemId, patchJson) => await loaded().editReview.openDiff(itemId, patchJson),
       revert: async (itemId, patchJson, check) =>

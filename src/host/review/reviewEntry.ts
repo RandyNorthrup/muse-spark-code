@@ -3,13 +3,15 @@
 // so git's material (the collector, its filter and root checks, the diff
 // readers), the review turn's text and the Plan-mode hold, together about a
 // fifth of the activation bundle's budget, stay out of the bundle VS Code
-// loads at activation. Like the Model API bundle it carries its own copy of
-// every module it shares with dist/extension.js, the display language's table
-// among them, so the factory installs the activation bundle's table before it
-// builds anything.
+// loads at activation. A `/playback` (D203) loads the same bundle for its
+// turn's text and the Plan-mode hold. Like the Model API bundle it carries
+// its own copy of every module it shares with dist/extension.js, the display
+// language's table among them, so the factory installs the activation
+// bundle's table before it builds anything.
 
 import { PlanModeHold } from '../../core/review/planModeHold'
 import { reviewTurnText } from '../../core/review/reviewPrompt'
+import { playbackTurnText } from '../../core/playback/playbackPrompt'
 import { setUiText } from '../../shared/l10n/text'
 import { EditReview } from '../editor/editReview'
 import type { ReviewBundleDeps, ReviewFeatures } from './reviewBundle'
@@ -23,6 +25,7 @@ export function createReviewFeatures(deps: ReviewBundleDeps): ReviewFeatures {
     turnText: reviewTurnText,
     newMarker: reviewMarker,
     createHold: (holdDeps) => new PlanModeHold(holdDeps),
+    playbackText: playbackTurnText,
     editReview: new EditReview(deps.editReview),
   }
 }

@@ -5330,6 +5330,8 @@ export const SLASH_COMMAND_NAMES = {
   securityReview: 'security-review',
   changes: 'changes',
   report: 'report',
+  // D203: the agent plays back its understanding from working memory only.
+  playback: 'playback',
 } as const
 
 // M113 / D93: deterministic reports, independent of M93's problem reports.
@@ -7068,6 +7070,28 @@ export const REVIEW_MODEL_TEXT = {
   reviewPrivateLeftOut:
     'Changed files left out because they may hold secrets (environment files, keys, credentials); do not read them:',
   reviewListCut: '… and {count} more',
+} as const
+
+// The playback turn's text (D203): the agent states its current
+// understanding of the goal and instructions from its working memory only,
+// with no tools for the turn. The same on every backend and surface; the
+// Model API backend offers no tools and refuses every call in code, while
+// Muse Code holds the turn in Plan mode and the surface stops it at the
+// first tool use. Model text: English whatever the display language.
+export const PLAYBACK_MODEL_TEXT = {
+  playbackRole:
+    'You are playing back your current understanding of this task, from your working memory only.',
+  playbackWorkspace: 'The workspace root is {root} on {platform}.',
+  playbackEnvironment: "# Environment\n\n- Today's date: {today}",
+  playbackNoTools:
+    'No tools are available for this turn: do not call any tool. Answer only from what you already hold in this conversation\u{2019}s context. Do not scan, read files, or look anything up.',
+  playbackMarker: 'My playback \u{2014} my own understanding, from memory only:',
+  playbackSections:
+    'Report under each heading: the goal, and the instructions and constraints you are following; what you have done and what you are doing now; what you will do next; what you are unsure of or assumed; anything else that shapes how you will act.',
+  playbackAnswer:
+    'Begin your answer with exactly the marker line above, so the person reading knows this is your own understanding to compare against what they asked, and can correct it in their next message.',
+  playbackToolRefused:
+    'is not available on this playback turn, which answers from working memory only',
 } as const
 
 // M116 K: only dist/bundledSkills.js reads this charter, on an orchestrated

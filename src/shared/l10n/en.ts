@@ -540,7 +540,7 @@ export const EN = {
   referencePaidContexts:
     'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceWebFetchTitle: 'Web Fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',
@@ -1333,6 +1333,7 @@ export const EN = {
     reviewCommit: 'Muse reviews one recent commit you pick.',
     reviewSecurity: 'Muse checks your uncommitted changes for security problems.',
     reviewChanges: 'Accept or revert each edit this conversation made.',
+    playback: 'Muse states its own understanding of the goal, from memory only, with no tools.',
     // Scheduled prompts v2 (M115): the reference reuses these; the palette
     // rows keep their translated editor tips until these are translated.
     schedule: 'Review schedules and their standing grants in this workspace.',
@@ -4858,6 +4859,17 @@ export const EN = {
   },
   // {location}: a file and line, such as src/a.ts:12.
   reviewOpenFinding: 'Open {location}',
+  // D203: /playback. The agent states its own understanding of the goal and
+  // instructions from its working memory, with no tools for the turn.
+  playbackItem: '/playback',
+  playbackDetail: 'Muse states its own understanding of the goal, from memory only, with no tools',
+  playbackUsage: '/playback takes no arguments: send it bare.',
+  // Why a playback did not start, on its card.
+  playbackBusy: 'A playback starts once the current turn has ended.',
+  playbackStoppedTools:
+    'The playback stopped: the agent reached for a tool, and a playback answers from memory only, with no tools.',
+  playbackPlanModeNotice:
+    'This playback runs in Plan mode, and the permission mode you had comes back when it ends. Muse Code applies its own allow rules in Plan mode, so reads there can still run; the playback stops at the first tool use.',
   // M78 (PLAN.md D49): command rules, permission profiles and the Auto
   // reviewer on the Model API backend. Why a card asks beyond the mode:
   approvalProfileNote: 'A permission profile is on. Calls outside its file rules ask.',

@@ -2323,6 +2323,25 @@ Review what the agent did before it lands, on both backends.
   A review reply arriving after you clear or switch conversations cannot mark
   the current conversation running or accept the old turn checkpoint.
 
+## Playback
+
+`/playback` asks the agent to state its own understanding of the goal and
+instructions, from its working memory only, with no tools for the turn: the
+goal and the constraints it follows, what it has done and is doing, what it
+will do next, what it is unsure of or assumed, and anything else shaping how
+it will act. The reply opens with `My playback — my own understanding, from
+memory only:`, so you can compare it with what you asked and correct it in
+your next message. It takes no arguments: `/playback` with anything after it
+answers with its usage instead.
+
+It runs on every surface (the panel, the terminal, ACP editors) and every
+backend. On the Model API backend the turn is offered no tools, and any tool
+call is refused in code and answered to the model. On Muse Code the turn runs
+in Plan mode and your permission mode comes back when it ends; Plan mode is
+not strictly tool-free there, so the turn is stopped at the first tool use
+and says why. A message you send while a playback is starting waits for it,
+and only one playback starts at a time.
+
 ## Scheduled prompts (Model API)
 
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the
@@ -3041,7 +3060,7 @@ palette with a filter box of its own. Its groups:
 Type a letter after the `/` and the palette gives way to a flat list of slash
 commands narrowed as you type: `/agents`, `/changes`, `/clear`, `/compact`,
 `/config`, `/cost`, `/export`, `/goal`, `/handoff`, `/hooks`, `/logout`, `/mcp`,
-`/legal`, `/memory`, `/model`, `/permissions`, `/resume`, `/review`,
+`/legal`, `/memory`, `/model`, `/permissions`, `/playback`, `/resume`, `/review`,
 `/security-review`, `/usage`, `/loop` (Model API backend),
 and the session's skills. Names that start with your letters come first. Up
 and Down move, `Enter` runs a command (a skill, `/goal`, `/review` or `/handoff`
