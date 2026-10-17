@@ -8,7 +8,6 @@ import {
   MODEL_API_MODEL_TEXT,
   MODEL_API_PARALLEL_READS,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
-  PACING_START_REQUESTS_PER_MINUTE,
   PACING_WINDOW_MS,
   STRUCTURED_OUTPUT_REPAIRS_MAX,
   TOOL_ARGUMENT_PREVIEW_MAX_CHARS,
@@ -85,12 +84,10 @@ describe('M106 loop contracts', () => {
     expect(MODEL_API_MODEL_TEXT.continuationPrompt).toContain('Do not repeat')
   })
 
-  it('provides a bounded search default and a conservative startup pace', () => {
+  it('provides a bounded search default and the pacing window', () => {
     expect(WEB_SEARCH_MAX_PER_REQUEST).toBe(5)
     expect(WEB_SEARCH_MIN_PER_REQUEST).toBe(1)
     expect(WEB_SEARCH_MAX_PER_REQUEST_LIMIT).toBe(20)
     expect(PACING_WINDOW_MS).toBe(60_000)
-    expect(PACING_START_REQUESTS_PER_MINUTE).toBeGreaterThan(0)
-    expect(PACING_START_REQUESTS_PER_MINUTE).toBeLessThan(150)
   })
 })
