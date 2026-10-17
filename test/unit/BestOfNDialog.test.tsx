@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { BestOfNDialog, type BestOfNDialogProps } from '../../src/webview/components/BestOfNDialog'
 import type { BestOfNAttempt, BestOfNRun } from '../../src/shared/bestOfN'
+import { Usd } from '../../src/shared/usd'
 
 function attempt(
   overrides: Partial<BestOfNAttempt> & { readonly attemptId: string },
@@ -148,7 +149,7 @@ describe('BestOfNDialog', () => {
             requestsMade: 2,
             reportedInputTokens: 300,
             reportedOutputTokens: 75,
-            reportedCostUsd: '1.5',
+            reportedCostUsd: Usd.from('1.5').toAmount(),
             hasUnreportedCost: false,
           }),
           attempt({
@@ -157,7 +158,7 @@ describe('BestOfNDialog', () => {
             requestsMade: 1,
             reportedInputTokens: 100,
             reportedOutputTokens: 0,
-            reportedCostUsd: '0.25',
+            reportedCostUsd: Usd.from('0.25').toAmount(),
             hasUnreportedCost: true,
           }),
         ],
