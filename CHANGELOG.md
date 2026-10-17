@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- On VS Code 1.101 to 1.111 with `http.proxy` set, Muse Voice recorded audio
+  and then failed, because those versions do not route an extension's
+  WebSocket through the proxy. The microphone now stays unavailable with the
+  reason while a proxy is set there, instead of recording audio that cannot
+  be sent.
+
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

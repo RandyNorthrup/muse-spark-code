@@ -3814,6 +3814,7 @@
   "museVoiceRateLimited": "このキーは Muse Voice のレート制限に達しています。しばらく待ってから、もう一度お試しください。",
   "museVoiceClosed": "Muse Voice が接続を閉じました (コード {code})",
   "museVoiceNoWebSocket": "Muse Voice には VS Code の拡張機能ホストでの WebSocket のサポートが必要ですが、このバージョンにはありません。",
+  "museVoiceNoProxy": "Muse Voice はこのバージョンの VS Code では設定されたプロキシを使用できません。プロキシ環境では VS Code 1.112 以降が必要です。",
   "museVoiceNoRecorder": "Linux の Muse Voice は arecord (ALSA) または parec (PulseAudio) で録音しますが、どちらも PATH に見つかりませんでした。",
   "networkUntrustedCertificate": "サーバーの証明書は信頼されていません。ネットワークが HTTPS を検査している場合は、そのルート証明書をオペレーティング システムの証明書ストアにインストールするか (http.systemCertificates がオンのときに VS Code が読み取ります)、http.systemCertificates をオフにして、VS Code の起動前にルート証明書のファイルを NODE_EXTRA_CA_CERTS で指定してください。",
   "networkProxyCredentials": "プロキシが資格情報を要求し、受け取った資格情報を受け入れませんでした。http.proxy と http.proxyAuthorization、または VS Code から求められた資格情報を確認してください。",

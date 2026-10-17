@@ -412,7 +412,7 @@
     {
       "id": "M56",
       "title": "Corporate networks and proxies",
-      "summary": "Model API requests follow VS Code's proxy and certificate settings on every supported version, Muse Voice's connection does so only from VS Code 1.112, Diagnostics shows what your editor routes, and a request that cannot reach Meta says why.",
+      "summary": "Model API requests follow VS Code's proxy and certificate settings, Muse Voice's connection only from 1.112; Diagnostics shows what your editor routes, an unreachable request says why, and a microphone blocked by a proxy says so instead of recording.",
       "area": "platform",
       "release": "0.9.0"
     },
