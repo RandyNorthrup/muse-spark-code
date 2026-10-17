@@ -33,6 +33,7 @@ import {
   type PlaybookRequester,
   type PlaybookReviewAgents,
   type PlaybookRound,
+  type PlaybookRule,
   type PlaybookSettings,
   type PlaybookWhyNote,
 } from '../../../shared/playbook'
@@ -146,7 +147,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   }
 
   private note(
-    rule: PlaybookWhyNote['rule'],
+    rule: PlaybookRule,
     code: PlaybookWhyNote['code'],
     fields: Partial<PlaybookWhyNote> = {},
   ): PlaybookWhyNote {
@@ -161,7 +162,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
 
   private decide(
     kind: PlaybookDecision['kind'],
-    rule: PlaybookWhyNote['rule'],
+    rule: PlaybookRule,
     code: PlaybookWhyNote['code'] = 'checksPassed',
     fields: Partial<PlaybookWhyNote> = {},
   ): PlaybookDecision {

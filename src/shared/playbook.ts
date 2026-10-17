@@ -16,7 +16,7 @@ import { reviewResolutionSchema, type ReviewBlock, type ReviewResolution } from 
 
 export type PlaybookFindingClass = (typeof PLAYBOOK_FINDING_CLASSES)[number]
 export type PlaybookConfigurableRule = (typeof PLAYBOOK_CONFIGURABLE_RULES)[number]
-/** @unwired M116 playbook rule type */
+/** A playbook rule, configurable or the safety rule (M116). */
 export type PlaybookRule = PlaybookConfigurableRule | typeof PLAYBOOK_SAFETY_RULE
 
 const id = z.string().check(z.trim(), z.minLength(1), z.maxLength(PLAYBOOK_ID_MAX_CHARS))

@@ -37,12 +37,6 @@ import {
 } from './helpers/playbook/panelRepository'
 import { removeFolder } from './helpers/temporaryFolders'
 
-// The job type compiles under the bootstrap runner; only its admission is a fixture.
-vi.mock('../../src/core/resources/admission', async (original) => {
-  const { withFixtureBootstrap } = await import('./helpers/resources/fixtureLaunch')
-  return withFixtureBootstrap(await original())
-})
-
 const IS_WINDOWS = process.platform === 'win32'
 const SESSION = 'conversation-1'
 const CHILD: PanelChild = {
