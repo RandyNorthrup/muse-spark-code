@@ -12,8 +12,8 @@
 # gives it to its run step alone, whose launcher deletes the variable before
 # any child starts (D65), and GitHub masks it in every log. No other step
 # receives it and nothing here prints it. Every checkout persists no
-# credentials. The startup traps and the token sentinel are W's
-# (action-check.yml); test/action/la-check.mjs judges the run.
+# credentials. The startup traps and the token sentinel are planted below;
+# test/action/la-check.mjs judges the run.
 name: Action live receipt
 
 on:

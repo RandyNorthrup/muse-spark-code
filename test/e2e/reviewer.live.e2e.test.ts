@@ -20,8 +20,7 @@ import { failureForLog } from '../../src/core/backends/musecode/logText'
 import { museCodeReviewerPort } from '../../src/host/review/museCodeReviewerBundle'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { MUSE_CODE_REVIEWER_BUNDLE_FILE } from '../../src/shared/constants'
-import { FakeLogOutputChannel } from '../unit/helpers/fakes'
-import { logLines } from '../unit/helpers/logText'
+import { stderrLogger } from '../../src/runtime/stderrLog'
 import { countAttempts, LIVE_MODEL_ID, liveBackend, sessionLog } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_REVIEWER'] === '1'
@@ -71,7 +70,11 @@ interface DrillRecord {
 }
 
 async function runDrill(workspaceRoot: string, reviewerRoot: string): Promise<DrillRecord> {
-  const log = new FakeLogOutputChannel()
+  // The agent's own logger (src/runtime/stderrLog.ts), its lines kept here.
+  const logged: string[] = []
+  const log = stderrLogger((line) => {
+    logged.push(line)
+  }, 'trace')
   const backend = liveBackend(workspaceRoot, '0.0.0-live-m90', log)
   const port = museCodeReviewerPort({
     bundlePath: path.resolve('dist', MUSE_CODE_REVIEWER_BUNDLE_FILE),
@@ -190,7 +193,7 @@ async function runDrill(workspaceRoot: string, reviewerRoot: string): Promise<Dr
       cards,
       resolutions,
       notices,
-      reviewerLog: logLines(log).filter((line) => line.includes('Auto reviewer')),
+      reviewerLog: logged.filter((line) => line.includes('Auto reviewer')),
     }
   } finally {
     port.dispose()
