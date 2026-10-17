@@ -23,6 +23,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import {
   MODEL_API_TOOLS,
+  MODEL_API_WEB_SEARCH_TOOL,
   OBS_PACK_PAGE_CHARS,
   OBS_PACK_THRESHOLD_CHARS,
   OBS_PACK_WHOLE_SENDS,
@@ -37,6 +38,7 @@ import {
   type InstructionFacts,
 } from '../../src/core/backends/modelapi/instructions'
 import { builtinAgents } from '../../src/core/context/customAgents'
+import { renderRules } from '../../src/core/context/rules'
 import { parseSkillFile, type SkillDefinition } from '../../src/core/context/skills'
 import { buildStableRosterSection } from '../../src/core/team/roster'
 import { TEAM_TOOL_DEFINITIONS } from '../../src/core/team/teamTools'
@@ -815,12 +817,17 @@ function shoutSkill(): SkillDefinition {
 
 function skillsRulesFacts(base: InstructionFacts): InstructionFacts {
   // The harness workspace's AGENTS.md (`End every reply with PINEAPPLE.`,
-  // as the deleted M91-G harness wrote it) under the product's own rules
-  // preamble (`RULES_PREAMBLE`).
+  // as the deleted M91-G harness wrote it), rendered by the real
+  // `renderRules` under the product's own rules preamble (`RULES_PREAMBLE`,
+  // joined as `WorkspaceContext` joins it) — never hand-assembled, so a
+  // rendering change fails against the recorded bytes.
+  const rendered = renderRules([
+    { path: 'AGENTS.md', directory: '', text: 'End every reply with PINEAPPLE.' },
+  ])
   return {
     ...base,
     context: {
-      rules: `${RULES_PREAMBLE}\n\n## Rules from AGENTS.md\n\nEnd every reply with PINEAPPLE.`,
+      rules: `${RULES_PREAMBLE}\n\n${rendered.text}`,
       skills: [shoutSkill()],
       agents: [],
       memory: [],
@@ -899,8 +906,11 @@ const GOLDEN_SCENARIOS: readonly GoldenScenario[] = [
 
 function prefixTools(prefix: GoldenPrefix) {
   const tools = toolDefinitions('linux', prefix.options)
-  // The hosted-search tool's wire bytes, as the host appends them.
-  return prefix.hostedSearch === true ? [...tools, { type: 'web_search' as const }] : tools
+  // The hosted-search tool the host appends, under the host's own constant
+  // (`ModelApiHost` appends `{ type: MODEL_API_WEB_SEARCH_TOOL }`): using
+  // the constant means renaming the wire type fails against the fixtures,
+  // where a hand-written literal here would keep passing.
+  return prefix.hostedSearch === true ? [...tools, { type: MODEL_API_WEB_SEARCH_TOOL }] : tools
 }
 
 /** Rebuilds a recorded turn's body with the real builders and returns the
