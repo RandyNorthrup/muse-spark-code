@@ -9,7 +9,11 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
+  HOOK_RUNNING_COMMANDS_MIN,
+  HOOK_STOP_CONTINUATIONS_MIN,
   PAID_DAILY_BUDGET,
+  SUBAGENT_CONCURRENT_MAX,
+  SUBAGENT_CONCURRENT_MIN,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   type BackendMode,
   VAULT_PROTECTION_MODES,
@@ -153,6 +157,12 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiStrictTools: boolean
   readonly modelApiParallelReads: boolean
   readonly webSearchMaxPerRequest: number
+  /** Stop-hook continuations in a row (M126, Muse Code's default 8). */
+  readonly hooksMaxStopContinuations: number
+  /** Running hook commands at once; 0 starts them all (M126, as Muse Code). */
+  readonly hooksMaxRunningCommands: number
+  /** Concurrent subagents (M126, Muse Code's 1–64 range, default 8). */
+  readonly subagentMaxConcurrent: number
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
   /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
@@ -282,6 +292,11 @@ const settingSchemas = {
   webSearchMaxPerRequest: z
     .number()
     .check(z.int(), z.gte(1), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
+  hooksMaxStopContinuations: z.number().check(z.int(), z.gte(HOOK_STOP_CONTINUATIONS_MIN)),
+  hooksMaxRunningCommands: z.number().check(z.int(), z.gte(HOOK_RUNNING_COMMANDS_MIN)),
+  subagentMaxConcurrent: z
+    .number()
+    .check(z.int(), z.gte(SUBAGENT_CONCURRENT_MIN), z.lte(SUBAGENT_CONCURRENT_MAX)),
   turnCheckpoints: z.boolean(),
   // Each entry a plain host name or IP address (no port, path or wildcard):
   // one that is not refuses the whole list, so a typo warns rather than
@@ -423,6 +438,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiStrictTools: readSetting(config, 'modelApiStrictTools', log),
     modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),
     webSearchMaxPerRequest: readSetting(config, 'webSearchMaxPerRequest', log),
+    hooksMaxStopContinuations: readSetting(config, 'hooksMaxStopContinuations', log),
+    hooksMaxRunningCommands: readSetting(config, 'hooksMaxRunningCommands', log),
+    subagentMaxConcurrent: readSetting(config, 'subagentMaxConcurrent', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
     browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),

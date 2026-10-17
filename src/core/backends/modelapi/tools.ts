@@ -92,7 +92,7 @@ import { type FunctionOutputPart, type FunctionToolDefinition, withStrictTools }
 
 import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
-import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
+import { SUBAGENT_TOOL_DEFINITIONS, subagentSpawnDescription } from './subagentTools'
 import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
@@ -668,6 +668,8 @@ export interface ToolDefinitionOptions {
   readonly hasImageGeneration?: boolean
   /** Child sessions cannot spawn again (M48, PLAN.md D45). */
   readonly hasSubagents?: boolean
+  /** Concurrent subagents for the spawn description (M126 setting). */
+  readonly subagentCapacity?: number
   /** A team conversation declares the team's five tools instead (M96, PLAN.md D75). */
   readonly teamTools?: typeof TEAM_TOOL_DEFINITIONS
   /** Child sessions cannot ask the panel or set its task list. */
@@ -917,7 +919,14 @@ export function toolDefinitions(
         )),
     ...(options.hasSubagents === true
       ? SUBAGENT_TOOL_DEFINITIONS.map((tool) =>
-          define(tool.name, tool.description, tool.properties, tool.required),
+          define(
+            tool.name,
+            tool.name === MODEL_API_SUBAGENT_TOOLS.spawn && options.subagentCapacity !== undefined
+              ? subagentSpawnDescription(options.subagentCapacity)
+              : tool.description,
+            tool.properties,
+            tool.required,
+          ),
         )
       : []),
     // M96 (PLAN.md D75): the orchestrator's five, never beside M48's six.

@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- The Muse Code backend tracks the latest CLI and SDK (1.4.10): per-model
+  output limits and skill titles from Muse Code, the launch
+  permission-profile pick, the sandbox posture of each host, and new
+  session-protocol notifications (model retries, Auto-review holds, plugin
+  changes, declined retracts). Three machine settings replace fixed numbers
+  with Muse Code's own defaults: `museSpark.hooksMaxStopContinuations` (8),
+  `museSpark.hooksMaxRunningCommands` (0, starts them all at once, as Muse
+  Code does), and `museSpark.subagentMaxConcurrent` (8, within 1–64).
+
 ### Fixed
 
 - On Windows, two requests that reserve session spend at the same moment
