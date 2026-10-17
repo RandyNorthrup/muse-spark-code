@@ -890,16 +890,22 @@
       "note": "this roadmap's generator and gate (project documentation tooling)"
     },
     {
-      "id": "M125",
-      "title": "A faster, more accurate agent through a fast judge",
-      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
-      "area": "agents"
-    },
-    {
       "id": "M123",
       "title": "Git and pull requests in every editor",
       "summary": "Commit drafts, confirmed pushes, pull requests and held checkouts of other people's pull requests in every supported editor, signing in to GitHub through your editor, a one-time code or your gh login.",
       "area": "editors"
+    },
+    {
+      "id": "M124",
+      "title": "MCP connector for other agents",
+      "summary": "Codex, Claude Code and Gemini CLI can read fleet evidence, reports, schedules and prompts and request actions you approve in Muse Spark Code, with approval pages restarting after idle or failed openers and disconnects closing their local server.",
+      "area": "agents"
+    },
+    {
+      "id": "M125",
+      "title": "A faster, more accurate agent through a fast judge",
+      "summary": "A fast judge checks the agent's work and small decisions, with setup and command confinement, including protected paths and cancellation, being certified internally for Linux and macOS before reviewer skips are enabled; Windows keeps its existing reviewer.",
+      "area": "agents"
     },
     {
       "id": "BADGEFIX",

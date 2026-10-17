@@ -149,6 +149,8 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M124: the MCP connector is a runtime command, the same for every editor.
+  ['mcp-connector', ['acp:museCode', 'acp:modelApi']],
   // M116: CLI/ACP journal commands work; the VS Code panel has no mount.
   ['orchestrator-playbook', ['acp:museCode', 'acp:modelApi']],
   // M108 (CM108ACC): the terminal and ACP on the Model API backend list
@@ -159,6 +161,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['vault', []],
   // M117: the production plan snapshot port refuses on every surface.
   ['estimator', []],
+
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],

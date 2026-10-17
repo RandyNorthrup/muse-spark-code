@@ -1,11 +1,9 @@
-import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { userInfo } from 'node:os'
 import { createInterface } from 'node:readline/promises'
 import { handoffResourceFile } from '../../core/resources/launcher'
 import { isResourcePaused } from '../../core/resources/launch'
-import * as z from 'zod/mini'
 import { PromptStore } from '../../core/prompts/promptStore'
 import { usePrompt } from '../../core/prompts/promptLibrary'
 import { createChatSharePrivacy } from '../../core/sharing/privacy'
@@ -23,7 +21,6 @@ import {
   PROMPT_LIMITS,
   PROMPT_FILE_MODE,
   PROMPT_STDIN_TIMEOUT_MS,
-  SETTING_DEFAULTS,
   EXEC_EXIT,
 } from '../../shared/constants'
 import { redactSecrets } from '../../shared/redact'
@@ -36,21 +33,7 @@ export interface RuntimeSharingPorts {
   readonly registeredSecrets?: () => Promise<readonly string[]>
   readonly read: (cwd: string, sessionId: string, exportedAt: string) => Promise<ChatShareSource>
 }
-const policySchema = z.object({ 'museSpark.confidentialWorkspace': z.optional(z.boolean()) })
-/** Read the existing workspace setting afresh at each admission; unavailable policy refuses. */
-export function runtimeSharingConfidential(cwd: string): boolean | undefined {
-  try {
-    return (
-      policySchema.parse(
-        JSON.parse(readFileSync(path.join(cwd, '.vscode', 'settings.json'), 'utf8')),
-      )['museSpark.confidentialWorkspace'] ?? SETTING_DEFAULTS.confidentialWorkspace
-    )
-  } catch (error: unknown) {
-    return error instanceof Error && 'code' in error && error.code === 'ENOENT'
-      ? SETTING_DEFAULTS.confidentialWorkspace
-      : undefined
-  }
-}
+import { runtimeSharingConfidential } from './confidential'
 
 function markers(content: string) {
   return Array.from(
@@ -314,3 +297,5 @@ export function runtimeAcpSharing(
     },
   }
 }
+
+export { runtimeSharingConfidential } from './confidential'

@@ -1013,6 +1013,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       description: source.EN.referencePlaybookCommand,
       text: { ui: 'referencePlaybookCommand' },
     },
+    // M124: the MCP connector parses its own words in its lazy bundle.
+    {
+      route: 'mcp',
+      name: 'mcp [--connection ID] | mcp <grant|revoke|kill|resume|status ...>',
+      description: source.EN.referenceMcpCommand,
+      text: { ui: 'referenceMcpCommand' },
+    },
   )
 
   const exec = (options) =>

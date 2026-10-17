@@ -1805,6 +1805,21 @@
       "editors": ["acp"]
     },
     {
+      "id": "mcp-connector",
+      "name": { "ui": "mcpConnectorTitle" },
+      "summary": { "ui": "referenceMcpCommand" },
+      "description": { "ui": "referenceMcpCommand" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#mcp-connector-for-other-agents-m124",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["acp"]
+    },
+    {
       "id": "support",
       "name": { "ui": "groupSupport" },
       "summary": { "tip": "issue" },
@@ -6657,6 +6672,12 @@
       "name": "playbook <status|record|settings ...>",
       "description": "Show or change the orchestrator playbook journal for this workspace (starts no backend).",
       "text": { "ui": "referencePlaybookCommand" }
+    },
+    {
+      "route": "mcp",
+      "name": "mcp [--connection ID] | mcp <grant|revoke|kill|resume|status ...>",
+      "description": "Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.",
+      "text": { "ui": "referenceMcpCommand" }
     }
   ],
   "executable": "muse-spark-code-acp",

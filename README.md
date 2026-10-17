@@ -826,6 +826,47 @@ Theia, Cursor, Devin Desktop (formerly Windsurf), Kiro and Positron with
 the extension, and Zed, Emacs (agent-shell), Neovim (CodeCompanion) and
 JupyterLab (Jupyter AI) with the agent.
 
+## MCP connector for other agents (M124)
+
+**In progress: the local phase.** `muse-spark-code-acp mcp` serves Muse
+Spark Code's tools to another agent on your machine over MCP on stdio:
+Codex, Claude Code and Gemini CLI can list and read your saved prompts,
+preview a prompt share, list schedules and pause one, and generate a
+deterministic report, within what you grant. A write (for now, saving a new
+prompt) waits for **you** to approve it on Muse Spark Code's own approval
+page in your browser; the other agent's Allow, Auto or Bypass cannot
+approve it. Stop never asks. Fleet status, agent outcomes, lanes, teams and
+new schedules answer `unavailable` until their owners expose them. The
+hosted connector for ChatGPT and claude.ai is not built.
+
+If the approval page closes on idle, the next save request opens a fresh
+page. A browser opener failure refuses that request and closes its page;
+after the opener recovers, a new save request can ask for approval again.
+
+Grant a connection in your own terminal, and control it from there:
+
+```sh
+muse-spark-code-acp mcp grant --workspace ~/code/my-project
+muse-spark-code-acp mcp status
+muse-spark-code-acp mcp revoke
+muse-spark-code-acp mcp kill
+muse-spark-code-acp mcp resume
+```
+
+Then add it to your agent. These client commands follow each vendor's
+documentation (read 2026-10-09) and **have not been run against a real
+client**: they write your global client configuration, which this project's
+checks never do, and no client is qualified against this server yet.
+
+```sh
+codex mcp add muse-spark-code -- muse-spark-code-acp mcp
+claude mcp add --transport stdio --scope user muse-spark-code -- muse-spark-code-acp mcp
+gemini mcp add -s user muse-spark-code muse-spark-code-acp mcp
+```
+
+[docs/mcp.md](docs/mcp.md) has every tool and its availability, the grant
+families, the client configuration, the limits and what is recorded.
+
 ## Subscriptions
 
 Subscription sign-in is being integrated under M95b; installed-editor and live

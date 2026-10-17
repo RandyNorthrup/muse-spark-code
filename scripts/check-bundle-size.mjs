@@ -63,6 +63,8 @@ const BUDGETS = [
   { path: 'dist/prompts.js', budgetKiB: 200 },
   // M118: local CLI/ACP stores, renderer and destinations: 152.1 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/sharingRuntime.js', budgetKiB: 175 },
+  // M124 (D106): the MCP connector, loaded only by `mcp`: 85.8 KiB measured + 15%, rounded to 25 KiB.
+  { path: 'dist/connector.js', budgetKiB: 100 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
   { path: 'dist/modelApi.js', budgetKiB: 525 },

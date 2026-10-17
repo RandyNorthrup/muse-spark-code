@@ -50,6 +50,34 @@ happened, not what was planned; superseded entries are kept.
   `/whatsnew` reads this version's release highlights and full notes as
   text, answered locally with no model turn.
 
+- **MCP connector for other agents, local phase (in progress)** (M124,
+  D106). `muse-spark-code-acp mcp` serves Muse Spark Code's tools over MCP
+  on stdio to Codex, Claude Code or Gemini CLI on the same machine. Built
+  so far: saved prompt list, read, fill and share preview; schedule list
+  and pause; deterministic reports in Markdown; operation status; Stop for
+  connector operations; and saving a new prompt, which waits for your
+  approval on Muse Spark Code's own loopback approval page and cannot be
+  approved by the other agent. Fleet status, agent outcomes, receipts,
+  lanes, teams, playbook advice, estimates, new or edited schedules and
+  share publishing answer `unavailable`, with their reason. Connections
+  are granted in your own terminal (`mcp grant`, with workspaces, families
+  and an optional content flag) and stopped with `mcp revoke` or `mcp
+  kill`; paid authority stays zero. Revoking, narrowing, switching off or
+  disconnecting stops at once every call that has not started its effect,
+  an approved save included; the connector notices those changes as they
+  happen and reads them again right before every effect. Results are
+  scrubbed; every call leaves one audit line per step, written before the
+  step, and exactly one that says how it ended, refused
+  frames and your own grant, revoke, kill and resume commands leave theirs
+  too; frames, results, rates, polls and pending approvals are bounded,
+  and the limits are shared by every process of a connection. The
+  connector loads from its own `connector.js` (99.9 KiB, budget 100 KiB);
+  activation is unchanged and `acp.js` gains only the 1.3 KiB loader. The
+  hosted connector for ChatGPT and claude.ai (OAuth over HTTPS) is planned,
+  not built; no client has been qualified yet, and the client setup
+  commands in the README have not been run against a real client. See
+  `docs/mcp.md`.
+
 ### Fixed
 
 - Web fetch no longer ships a dead second HTML-to-Markdown entry point:
@@ -99,6 +127,32 @@ happened, not what was planned; superseded entries are kept.
   user hooks are not run for that request (they still see the outcome in
   `ElicitationResult`). Previously these hooks were accepted by the
   configuration but never ran.
+
+- The local MCP connector refuses a `--connection` name that is not a plain
+  file name (it became grant, audit and limits paths unvalidated, so
+  `--connection ../x` wrote its audit journal outside `connector/audit/`).
+  `mcp --help` now prints the usage and exits 0; declining or interrupting a
+  grant or resume confirmation says "Nothing was changed." instead of nothing,
+  the wrong sentence, or a stack trace. The approval page's embedded
+  language table is escaped for its script block. (Review RVMSM124.)
+
+- The local MCP connector restarts an approval page that closed on idle and
+  retries a recovered browser opener on the next save request. Failed openers
+  close their page immediately; disconnect still closes any open or starting
+  page before the runtime returns.
+
+- The local MCP connector closes its approval page's listener and idle timer
+  when the client disconnects after the browser opener failed. The requested
+  action still refuses with `approval_unavailable`.
+
+
+- Four orchestration gotcha rows G79–G82 (tests reap every process tree they
+  start, even after a timeout, with a leak check when a lane ends; a lead
+  session handoff ends or hands over every background job the old session
+  started; a sampler that cannot see a protected process reports the reading
+  as blind, never 0; no tight polling of a security product's status), with
+  D100 amendments for M96c and M107 that M109 and M120 also bind. The
+  playbook placement chapter gains lessons 28–31 covering the same failures,
 
 ### Release infrastructure
 

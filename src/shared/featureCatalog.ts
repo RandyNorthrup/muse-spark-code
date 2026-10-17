@@ -1087,6 +1087,19 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // M124 (D106): the local MCP connector, a runtime command for every editor.
+    // Its approval page restarts after idle or a failed opener; our UI still decides every write.
+    feature(
+      'mcp-connector',
+      { ui: 'mcpConnectorTitle' },
+      { ui: 'referenceMcpCommand' },
+      [],
+      [],
+      'mcp-connector-for-other-agents-m124',
+      ['museCode', 'modelApi'],
+      false,
+      ['acp'],
+    ),
     feature(
       'support',
       { ui: 'groupSupport' },

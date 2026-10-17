@@ -715,6 +715,12 @@ the extension. It waits for `.npmrc`'s seven-day release-age rule until
 Deprecated and avoided: `@vscode/webview-ui-toolkit` (archived; npm marks it
 deprecated). Webview controls are hand-built on VS Code CSS theme variables.
 
+Not added, M124 (2026-10-09): no new dependency. `@modelcontextprotocol/sdk`
+is not added for the MCP connector (D106): the existing pure MCP server core
+(`src/core/mcp.ts`, protocol 2025-06-18) and a 64 KiB-bounded NDJSON framer
+of our own cover stdio. A later phase that needs a package records it here
+first, after the peer, pin and audit checks of AGENTS.md rule 9.
+
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
 typescript-eslint 8.71.0. Their exact registry peers accept the existing
@@ -14053,6 +14059,106 @@ schedule data directory). Evidence: `test/unit/windowsTrustedPath.test.ts`
 in-tree junctions below it, drive-letter spelling) and
 `docs/certification/trustroot.md`.
 
+### D106 — Muse Spark Code as an MCP connector for other agents (M124, 2026-10-07)
+
+The owner, 2026-10-07: "is there a way to add this in some capacity also as a
+connector for openai, anthropic, meta, gemini etc so it can add the functionality
+to those agents directly?" **Yes: expose the harness's functions as MCP tools.**
+The other agent keeps its own model and conversation; Muse Spark Code
+(Unofficial) supplies orchestration, evidence, advice, reports, schedules and
+prompt sharing under the user's own permissions. This grants no access to a
+vendor's subscription, private agent state or credentials.
+
+The dated primary-source matrix, proposed input schemas, scopes, approval
+state machine, safety rules and qualification plan are in
+[`docs/design/mcp-connector.md`](docs/design/mcp-connector.md). Research was
+read on 2026-10-07; product availability is documented, not tested here.
+**The owner, 2026-10-09: the local phase starts now; the hosted phase
+(ChatGPT/claude.ai OAuth over HTTPS) waits for M110, the orchestrator-link
+contract and a domain/OAuth choice.** M124 is in progress on the local stdio
+phase; nothing here claims that a connector ships.
+
+1. **One local entry.** Add `muse-spark-code-acp mcp` to the existing
+   standalone runtime, serving MCP over stdio in a lazy bundle. ACP remains
+   its own protocol mode. Configuration contains no key. An owner-created
+   local connection grant binds workspaces and tool families; launching the
+   process or trusting a repository never grants write authority. No general
+   shell, file-system, credential, OAuth-admin or approval-answer tool.
+2. **Useful, bounded tools.** Fleet and Agent map status; D101/M119's
+   outcomes and receipts; start, continue and Stop for lanes and teams; M116's
+   deterministic placement advice; M117's capacity estimate; M113's
+   deterministic `/report`; M115's schedule list/create/update/cancel; M118's
+   prompt library and previewed sharing. Read tools never start checks,
+   provision servers, refresh paid data, save exports or run prompts. Missing
+   dependencies say `unavailable`, never return empty success. No guessed
+   provider frame or outcome field. D101/M119's portable outcome mapping and
+   receipts shipped in 0.16.0, but they live inside the running session (the
+   Agent map, ACP `/agents`): no cross-process outcome store exists that the
+   connector's separate process can read, so those tools say `unavailable`
+   until their owner exports one.
+3. **Remote on the home node.** M110 serves the same registry over HTTPS
+   Streamable HTTP. That phase needs three things, none of which exists yet:
+   (a) M110's home node (D90; planned, nothing implemented); (b) the
+   paired-node link of D90.8, D80.3's bounded, versioned session protocol over
+   pinned mutual TLS 1.3 (M100; planned); and (c) an orchestrator-link command
+   contract: how a home node forwards a connector intent, its approval (D90.3,
+   through D90.10's approval forwarding), identities, epochs, ownership and
+   revocation to the orchestrator. No PLAN decision or source defines (c). It
+   is a dependency owned by M110 lane 0's threat model and contracts, not
+   something M124 invents; M124 adds neither a second scheduler nor a guessed
+   link wire shape.
+4. **OAuth for hosted chats.** ChatGPT and claude.ai get OAuth 2.1 discovery,
+   authorization code plus PKCE, audience-bound tokens, scoped grants and
+   revocation. Support published client metadata (CIMD), static registrations
+   and DCR for clients needing it; DCR is not universally required and the
+   current MCP spec deprecates it in favor of CIMD. Scope each connection to
+   named workspaces and target devices; consent to linking, disclosure and
+   each action are separate. OAuth tokens never become Model API keys or
+   paired-node credentials and never reach tools or child environments.
+5. **Our UI decides.** Every write, run, paid or physical operation requires
+   the user's approval in **our host UI**, including when the calling client
+   uses Always allow, Auto or Bypass. Arguments, MCP elicitation, remote chat
+   confirmations and tool annotations cannot answer it. The shared host
+   bridge carries a one-use decision bound to the principal, payload, target,
+   generation, price and expiry; changes or missing UI refuse. Paid uses keep
+   D30/D48's price, budget, consent and tally; connector paid grants default
+   off. No approval-answer tool exists.
+6. **Stop never asks.** Authorized Stop and schedule cancellation have a
+   reserved path independent of the approval queue, ordinary call limits,
+   spending and kill switch. Ownership/authentication still apply; Stop never
+   means stopping another user's work. An unreachable worker remains unknown
+   until its receipt arrives. D83's fixed machine Stop may join when its owner
+   certifies it; no machine payload or other physical tool joins M124.
+7. **D83 survives delegation.** No physical connect, program or actuate in
+   remote lanes, teams, schedules, headless or CI; refused operations stay
+   refused in every mode. A parent run approval never approves a nested
+   physical or paid action. Stop remains D83's fixed out-of-band sequence.
+8. **Disclosure and audit.** Return allow-listed projections through the
+   existing shared redaction owner, including registered values, account/path
+   scrub and a final whole-result scrub. Never return raw logs, environments,
+   credentials or unrestricted artifacts. Every call, rejection and outcome
+   has a scrubbed audit receipt. Tool output and imported prompts are untrusted
+   data. Bound frames, results, polls, pending approvals, run capacity and
+   budgets; fail closed on audit failure except Stop. A local kill switch
+   rejects new effects, invalidates pending approvals/grants and cancels
+   connector-owned work, keeping authenticated Stop available.
+9. **All editors equal.** Shared core/runtime, shared React approval UI and
+   M104's host bridge, with the authenticated companion page when an editor
+   cannot display it. VS Code/VSCodium/Theia/code-server, Cursor/Windsurf, Zed,
+   JetBrains, Visual Studio, Eclipse, Xcode, Neovim/Emacs/Sublime and ACP/TUI
+   hosts get the same registry and host authority. Native MCP support varies;
+   a host without it uses an MCP-capable external agent plus our companion UI.
+   A missing UI denies effects explicitly, never grants lesser protection.
+10. **Qualification by product.** Local stdio first; hosted HTTP after
+    decision 3's three dependencies. OpenAI's Apps SDK/connector docs now
+    route to plugin docs; optional embedded UI is not an approval authority.
+    Gemini CLI, Gemini Apps and Gemini Enterprise/ADK are separate rows. Meta
+    AI connectors are early access with unspecified public transport/limits,
+    so qualification waits for access and docs. No vendor endorsement,
+    account registration, paid call or publication is authorized by this
+    decision. M124's delivery updates README, CHANGELOG, PRIVACY, SECURITY,
+    ACP docs and the generated Help reference.
+
 ### D107 — The Judge: our own Jev, for speed and accuracy (M125, 2026-10-09)
 
 **Owner (2026-10-09).** "the judge is currently enabled by default but it
@@ -14451,6 +14557,31 @@ resolved against the plan's user-visible promise, not against the tag:
   no behaviour change for it.
 
 ## 3. Open questions (need the owner)
+
+<a id="q-m124"></a>
+
+- **Q-M124 — MCP connector defaults (2026-10-07; reviewed 2026-10-09).**
+  These questions do not block contracts, fake-only qualification or the
+  local stdio phase. The owner did not change the defaults on 2026-10-09, so
+  the four defaults stand as the working answers; they are not consent to
+  expose data, register accounts or spend money. Only question 1 still needs
+  the owner, and it blocks only the hosted phase.
+  1. **Remote domain and OAuth operator (still needs the owner; blocks only
+     the hosted phase):** which HTTPS domain and identity provider should the
+     home node use? **Working default:** an owner-operated endpoint on M110's
+     home node and an established OAuth implementation; no new paid service.
+  2. **Initial clients:** which platforms should qualify first? **Working
+     answer:** Codex/Claude Code/Gemini CLI locally first, then
+     ChatGPT/claude.ai remotely; Gemini Apps/Enterprise next, Meta AI after
+     early-access documentation.
+  3. **Disclosure:** may a connection read prompt/chat/report bodies, or only
+     fleet metadata? **Working answer:** metadata only; content needs a
+     separate, explicit grant per workspace, and confidential workspaces share
+     nothing.
+  4. **Paid runs:** what cap should a connector connection be allowed?
+     **Working answer:** zero paid authority until enabled in our UI, then the
+     lower of the connection's approved cap and the existing shared daily
+     budget.
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
 explicitly approves the 116 Title Case scenes, `models-errors` with the
@@ -15877,6 +16008,292 @@ committed raw files in round 2).
   - [ ] Acceptance 1–17, each with its failing drill and passing receipt.
   - [ ] Per-decision M75 wins and live receipts on each backend before any
         decision is on by default.
+
+### M124 — MCP connector for other agents (D106)
+
+**Status 2026-10-09 (local stdio phase): building.** In progress on the
+local stdio phase. The owner, 2026-10-09: the local phase starts now; the
+hosted phase (ChatGPT/claude.ai OAuth over HTTPS) waits for M110, the
+orchestrator-link contract and a domain/OAuth choice.
+
+**MSM124 finish record (2026-10-17): local phase built, merged
+with main, awaiting integration.** Round 7 (`e1ecb32e1`) merged with
+`main-now` (`821566c0f`); the merged tree builds with
+`dist/connector.js` at 99.6 KiB of 100 KiB and passes typecheck, lint,
+format, knip, cycles, duplication, l10n, reference, host-api, plan,
+roadmap, lazy-registry, audit and the registry/entry/runtime suites;
+the built `dist/acp.js mcp` was driven over real stdio (negotiation,
+empty tool list and scrubbed refusals without a grant, parse error,
+per-event audit). Still with the lead: hosted phase (blocked above),
+RVM124 finding 15, shared approval UI, real-client qualification, the
+SAST run (sandbox CA crash), and reruns of `connectorLimitsLock` and
+`connectorStdio.e2e`, which fail on the macmini sandbox exactly as on
+the untouched base (slow TMPDIR, 5 s timeouts under load). Record:
+`docs/certification/msm124.md`.
+
+**Provenance.** The documentation-only M119PLAN lane planned this on
+2026-10-07 under the numbers D102/M119 (commits `b27ad09a9`, `00e825dfa` and
+`ebcefbb1a` on `plan/m119-connector`, from base `ccce6e6ac`). Main has since
+given those numbers to contributor vetting (D102) and agent outcomes
+(D101/M119), so the record was ported as D106/M124 on 2026-10-09, onto
+`d0b88d09a`. The 2026-10-07 text routed the remote phase over a link its
+brief numbered D101, a decision its base did not have; the port names the
+actual dependencies instead (D106.3 and **Depends on** below).
+
+**Local phase receipt (2026-10-09, branch `feature/m124-connector`).**
+Built: `muse-spark-code-acp mcp` (stdio, lazy `dist/connector.js`, 86.3 KiB
+of a new 100 KiB budget: 85.8 KiB measured + 15%, rounded to 25 KiB);
+owner grants (`mcp grant|revoke|kill|resume|status`; widening needs a typed
+terminal confirmation); the registry of design §3 with ten backed tools
+(`muse_prompt_list/get/prepare/save`, `muse_share_preview` for saved
+prompts, `muse_schedule_list`, `muse_schedule_cancel` as a pause,
+`muse_report` in Markdown for nine local kinds, `muse_operation_get`,
+`muse_stop` for connector operations) and twelve that answer `unavailable`
+with a reason (fleet/outcomes/receipts: no cross-process store; lanes and
+teams: no runtime start port; playbook advice and estimate: adapters not
+built; schedule create/update: M115's grant consent not carried; share
+publish: M104's final-action UI); one-use approvals on a loopback page on
+M104 C's companion server; Stop's reserved path; scrub through M118's share
+privacy plus a whole-result pass; keyed-digest audit JSONL; the §6 limits;
+the kill switch. No dependency added (§2 D3 note). Activation is unchanged
+(`dist/extension.js` 563,348 bytes before and after, `dist/uiText.js` +91
+bytes for the region accessor and the two Help strings); `dist/acp.js` grows 1,334 bytes (240,920 →
+242,254) for the loader and the `mcp` dispatch; the connector's English is
+in the runtime region (`dist/uiTextRuntime.js` +788 bytes). Deviations, all
+open: the approval surface is a plain page, not M104's shared React dialog,
+and has no axe/four-theme qualification yet; the page opens in the default
+browser through the existing fixed opener; no MCP client was installed or
+qualified (no account calls), and the README's client commands were checked
+against the vendors' docs (2026-10-09) but not run, because they write the
+owner's global client configuration. Record:
+[`docs/certification/m124-local.md`](docs/certification/m124-local.md).
+
+**RVM124 review fixes (2026-10-09, branch `feature/m124-fix`).** The
+review's P1 and P2 findings 2–14 are fixed with a regression test each
+(failing on `20a67df05`) and a red drill: report bodies need the content
+grant; Stop and dispatch are ordered (no write after a reported Stop);
+cancelled or disconnected calls open nothing; closing stdout disconnects;
+transport admission and backpressure; settled intents drop their payload;
+limits per grant in a locked file shared across processes and restarts;
+one whole-call deadline; the 64 KiB bound on the complete result; a
+receipt for every refusal; report subjects in M113's grammar; Stop for
+user-library operations; failed owner reads settle; retries tell the real
+state. Open: finding 15 (grant/key storage ownership, Windows DACL) and
+finding 16 (setup-doc wording). `dist/connector.js` 92,519 bytes of 100
+KiB; `dist/extension.js` unchanged.
+
+**M124R3 redesign (2026-10-09, branch `feature/m124-r3`).** The second
+review (RVM124B: 1 P1, 4 P2) was the third round on this module, so the
+registry was redesigned rather than patched (design §3a). Every call is one
+operation on one transition table under one synchronous authority (the
+call's cancellation and deadline, disconnect, the kill switch, and the
+grant's generation, scopes, workspace or user library and confidential
+policy), checked by one gate immediately before each effect and again before
+a result is delivered, with no await between gate and effect; every
+transition writes one receipt. Closed: the P1 (an approved write after
+revocation, kill or disconnect during the dispatch receipt wait), P2-2
+(leases after cancellation), P2-3 (the limits lock now follows M123's
+`storeLock` protocol with a generation fence; age never counts), P2-4 (one
+receipt for every refusal, transport and control receipts) and P2-5 (Stop
+follows the operation's scope), plus RVM124 finding 16 (setup docs). 29
+regression cases fail on `2fa594639`; 26 red drills. Open: RVM124 finding 15
+(storage ownership, Windows DACL). `dist/connector.js` 99,825 bytes of 100
+KiB; `dist/extension.js` unchanged. Record:
+[`docs/certification/m124-local.md`](docs/certification/m124-local.md).
+
+| From → to                                                      | When                                                                                                                                                                                    |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `received` → `admitted` / `refused` / `cancelled`              | Admission (kill switch, rate token, strict input, grant, scope, confidential policy, durable admitted receipt) or not                                                                   |
+| `admitted` → `dispatching`                                     | A read, retry, status or Stop: the gate passed; its lease or owner port starts in that tick                                                                                             |
+| `admitted` → `awaitingApproval`                                | A write: durable intent receipt, pending lease, our page holds the exact intent                                                                                                         |
+| `admitted` → `refused` / `cancelled` / `failed`                | Reused request id, stale target, no room, receipt failure / the authority stopped it / an owner read failed                                                                             |
+| `awaitingApproval` → `approved`                                | Our page approved the shown digest and the approved receipt is durable                                                                                                                  |
+| `awaitingApproval` → `cancelled` / `refused` / `failed`        | Denied, expired, Stop, disconnect, revocation, kill switch, client cancel / no approval surface / receipt or owner failure                                                              |
+| `approved` → `dispatching`                                     | Dispatch receipt written ahead, target re-read, then the authority re-read as the last wait; final gate and CAS: the write starts                                                       |
+| `approved` → `cancelled` / `failed`                            | The final gate refused / the receipt or the target re-read failed                                                                                                                       |
+| `dispatching` → `settled` / `refused` / `cancelled` / `failed` | A read past its delivery gate with a durable settled receipt, or a returned write / result over 64 KiB or withheld / a read before its delivery gate / owner or settled-receipt failure |
+
+`settled`, `refused`, `cancelled` and `failed` are terminal; a started write
+or a committed read result is never cancelled (Stop answers
+`stopRequested`).
+
+**M124 round 4 (2026-10-09, same branch).** The review of the redesign
+(RVM124R3: 1 P1, 4 P2) found the defect class one level down: acting on
+authority captured before a wait. Closed: the final gate reads a live
+authority (`AuthorityPort`: the store's is updated on a file-system notice
+for the grant or kill-switch file and re-read as the last wait before every
+final gate; an older reading never overwrites a newer one), after the
+target re-read, so revocation, the kill switch, a replaced scope or a
+removed workspace or user library during that re-read writes nothing (P1);
+admitted, awaiting-approval, approved, dispatching and a read's settled
+receipts are written ahead and fail closed, and `move` refuses those
+transitions without them (P2-2); the whole call, delivery included, races
+its operation's end and the connection's close (P2-3); the transport never
+waits for the journal, whose best-effort receipts are tallied with a
+`count` under a full backlog, so Stop is never queued behind receipts
+(P2-4); only an edge of the table is journaled (finding 5). 20 regression
+cases fail on `ddd7d8da3`; 37 red drills. RVM124 finding 15 stays open
+(what remains is in the record). `dist/connector.js` 101,671 bytes of 100
+KiB; `dist/extension.js` unchanged.
+
+**M124 round 5 (2026-10-09, same branch).** The review of round 4
+(RVM124R4: 0 P1, 3 P2). Closed: the final gate is the operation's
+synchronous `gate`, called by the effect's own caller after its last
+await, with the move into `dispatching` and the effect's start in the same
+synchronous block; a failed move aborts the effect and ends the call
+`failed` (P2-1); a committed read keeps its receipt, but a cancellation,
+the deadline or a disconnect answers the call at once while the receipt
+finishes in the background under the journal's timeout, and the read's
+slot is freed when the owner read returns (P2-2); the runtime stops the
+calls at disconnect, then finishes only after its pending operations have
+ended (at most one call deadline) and the approval page's start-up has
+settled, closing the page and opening no browser late (P2-3). 9 new
+regression cases, 8 failing on `50962f773`; 50 red drills, all restored
+byte-exact (two that first stayed green led to two snapshot-authority read
+cases and the removal of a redundant runtime disconnect). RVM124 finding 15
+stays open (unchanged list in the record). `dist/connector.js` 102,321
+bytes of 100 KiB (79 bytes left; no cap raised); `dist/extension.js`
+unchanged.
+
+**M124 round 6 (2026-10-09, same branch; RVM124R5 P2-1).** Closed: an
+opener rejection still refuses the call with `approval_unavailable`, but
+the runtime keeps the successfully started approval page's promise and
+closes its listener and idle timer on stdin end before returning. The
+regression uses the real entry, registry, store and approval server;
+103 connector tests pass natively on Windows, and a deliberate removal
+of the ownership guard fails the new case, restored byte-exact.
+`dist/connector.js` is 102,335 bytes of 100 KiB (65 bytes left; no cap
+raised); `dist/extension.js` is unchanged. Storage ownership and Windows
+DACL (RVM124 finding 15) remain deferred. Record:
+[`docs/certification/m124-local.md`](docs/certification/m124-local.md).
+Aggregate quality remains with the lead under the rig/common brief.
+
+**M124 round 7 (2026-10-09, same branch; RVM124R6C P2-1).** Closed: the
+approval page has one runtime-owned lifecycle: `none` → `starting` →
+`open` → `closed`, with `closed` → `starting` on the next request. Idle
+expiry, `EPANEL_CLOSED` and an opener failure after startup retire the page;
+shutdown closes an open or starting page and still waits for registry drain.
+Two recovery regressions use the real entry, grant/store, registry and
+companion server, shortening only the first page's idle delay in the test;
+both fail on `2786f64ec`. Round 6's rejected-opener shutdown case now proves
+immediate listener retirement too. All 105 connector tests pass natively on
+Windows at repository deadlines; three red drills fail their intended
+assertions and restore byte-exact. Remove only the embedded page script's
+392 indentation bytes to make room; its minified executable hash is unchanged.
+Storage ownership/Windows DACL (finding 15), shared approval UI, real-client
+qualification and hosted transport remain deferred; aggregate quality stays
+with the lead. Receipts: `docs/certification/m124-local.md`, round 7.
+
+- **Goal.** Other agents can inspect the user's fleet and evidence, request
+  bounded orchestration, ask for deterministic advice/reports, and manage
+  schedules/prompts/shares through one connector. Every effect goes through
+  Muse Spark Code's own approval UI; every result and audit record is scrubbed.
+- **Depends on.** M96/M96c's board, runtime dispatch and Agent map;
+  D101/M119's outcome mapping and receipts (released in 0.16.0), which live
+  inside the running session (Agent map, ACP `/agents`): no cross-process
+  outcome store exists that a separate connector process can read, so the
+  outcome and receipt tools say `unavailable` until their owner exports one;
+  M116's placement/playbook; M117's estimator; M113's reporting; M115's
+  schedule grants; M118's prompt/share engine; M104's MHP and companion
+  approvals; D61/D89's secret ownership and D89.5's child fence. **Remote
+  (the hosted phase):** (a) M110's home node (D90; planned, nothing
+  implemented); (b) the paired-node link of D90.8 on D80.3's session protocol
+  (M100; planned); and (c) an orchestrator-link command contract: how a home
+  node forwards a connector intent, its approval (D90.3, through D90.10's
+  approval forwarding), identities, epochs, ownership and revocation to the
+  orchestrator. No PLAN decision or source defines (c) yet; it is owned by
+  M110 lane 0's threat model and contracts, and M124 does not invent it.
+  M103/D83 only for optional fixed machine Stop. No unmerged dependency is
+  silently emulated.
+- **Scope.** D106 and design §§2–8. Contracts/fakes can start first;
+  adapters join only as their owners certify their seams. Local MVP is
+  read-only, then approved controls; remote follows with OAuth, per-device
+  grants, audit and kill switch. Meta AI stays waiting for early access.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m124-connector`, under M87's region rules. Lane 0 freezes
+  contracts and owns shared schemas/strings. Other lanes edit only their listed
+  files and coordinated regions; the lead integrates and owns final quality.
+  The local stdio phase (lanes 0, S, T, A and J, with H's client setup) is
+  under way on that branch; R, O and the hosted qualification rows wait for
+  D106.3's three dependencies.
+
+| Lane                               | Items                                                                                                                                                                                                    | Files it owns                                                                                                                                                                                                                                                   | Its regions in shared files                                                                                                                                                    | Starts                                                                             | Rig      | Hours |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- | -------- | ----: |
+| 0 Contracts, strings, fakes (lead) | Strict tool inputs/results, annotations/scopes, connection grants, one-use approvals, operations, audit schema, constants and all failure states; fake host/node/clock/ledger                            | new `src/shared/connector.ts`, `src/shared/connectorTools.ts`, `test/unit/helpers/connector/**`, `docs/certification/m124-contracts.md`, `docs/certification/m124-local.md` (the local stdio phase's record)                                                    | `constants.ts` (`CONNECTOR_*`, separately guarded lazy model text if needed); `en.ts` and all 14 tables; `src/shared/hostApi/**` (`connector/*`, with M104's owner)            | day 0; prerequisite audit                                                          | Kubuntu  |     8 |
+| S Local stdio                      | Lazy `mcp` mode, protocol negotiation/framing (the existing MCP server core and a 64 KiB-bounded NDJSON framer), grants, stdout purity, credential-variable stripping, bounded lifecycle and disconnects | new `src/core/connector/protocol.ts`, `src/runtime/connector/stdio.ts`, `src/runtime/connector/entry.ts`, `src/runtime/connector/connectorBundle.ts`, `src/runtime/connector/command.ts`, `test/unit/connectorStdio.test.ts`, `test/e2e/connectorStdio.test.ts` | `src/runtime/cliArgs.ts`, `src/runtime/main.ts` (dispatch/loaders only, with runtime owner); `src/core/mcp.ts` (the existing server core, reused; changes with its owner)      | after 0; production exposure after A/J                                             | Kubuntu  |    10 |
+| T Tools and projections            | Registry and M96c/outcomes, M116, M117, M113, M115, M118 adapters; idempotency, provenance, unavailable states and scrubbed pagination                                                                   | new `src/core/connector/registry.ts`, `src/core/connector/tools/**`, `src/core/connector/operations.ts`, `test/unit/connectorTools*.test.ts`                                                                                                                    | Existing owners' narrow read/dispatch ports, by agreement; no second board, scheduler, estimator or redactor                                                                   | after 0; each real adapter after its dependency                                    | Mac mini |    18 |
+| A Approval bridge                  | Our UI's bound one-use decisions (our own approval page in the local phase), expiry/CAS/revocation; paid admission; Stop priority; shared panel/companion surfaces                                       | new `src/core/connector/approval.ts`, `src/runtime/connector/approvalPage.ts`, `src/host/connector/approvalAdapter.ts`, `src/webview/connector/**`, `test/unit/connectorApproval*.test.ts`                                                                      | M104 host bridge and companion regions; D48 consent/ledger ports with paid owner; loaders only in `extension.ts`                                                               | after 0 and M104 approval contract                                                 | Mac mini |    16 |
+| J Audit, limits, kill switch       | Durable scrubbed call receipts, shared redaction-owner binding, limits/budgets, confidential refusal, privileged local shutdown                                                                          | new `src/core/connector/audit.ts`, `src/core/connector/policy.ts`, `src/core/connector/redaction.ts`, `src/runtime/connector/store.ts`, `test/unit/connectorPolicy.test.ts`, `test/unit/connectorAudit.test.ts`                                                 | Existing redaction/export owner API and D89 credential broker, coordinated; no independent regex table                                                                         | after 0; before any production endpoint                                            | Kubuntu  |    12 |
+| R Remote transport                 | Home-node HTTPS Streamable HTTP, authenticated forwarding, reconnects, stale epoch refusal, Origin checks and bounded sessions                                                                           | new `src/runtime/connector/http.ts`, `src/runtime/connector/nodeAdapter.ts`, `test/unit/connectorHttp.test.ts`                                                                                                                                                  | M110 node listener/lazy loader and the orchestrator-link command regions (D106.3), with their owners                                                                           | after S/T/A/J, M110's home node, the D90.8 link and the orchestrator-link contract | Kubuntu  |    14 |
+| O OAuth and grants                 | Discovery, PKCE, audience/scopes, CIMD/static/DCR clients, per-device consent, token rotation and revocation                                                                                             | new `src/runtime/connector/oauth/**`, `test/unit/connectorOAuth*.test.ts`                                                                                                                                                                                       | M110 identity/vault and the orchestrator link's revocation ports, with owners                                                                                                  | after 0 and M110 identity contract; joins R before exposure                        | Win11 VM |    18 |
+| H Docs and Help reference          | Setup per platform, disclosure/approval/cost/Stop guidance, lazy budgets and generated feature/CLI rows                                                                                                  | `docs/mcp.md` (client setup), `docs/design/mcp-connector.md`, `docs/certification/m124.md`                                                                                                                                                                      | README, CHANGELOG, PRIVACY, SECURITY, `docs/acp.md`, `src/shared/featureCatalog.ts`, reference generator CLI table, `docs/ide-compatibility/**`, build/split/size owners, PLAN | after registry and runtime command freeze                                          | Mac mini |     6 |
+| Q Platform qualification (lead)    | Same fake-only call/approval/Stop/revoke suite per named product; installed OS/editor captures; hosted access recorded separately                                                                        | new `test/hosts/connector/**`, `docs/certification/m124-platforms.md`                                                                                                                                                                                           | Existing host harness and CI matrix regions, by owner; no live billing in fake tests                                                                                           | local after S/T/A/J; remote after R/O; access-dependent rows wait                  | All rigs |    16 |
+
+Total: about 118 lane-hours, a planning estimate with platform/account waits
+excluded. Order: 0; S/T/A/J and O against frozen fakes; integrated local
+read-only then approved controls; R/O after D106.3's three dependencies; H/Q
+and the full gate.
+
+- **Acceptance** (details and platform rows in design §8):
+  1. Same strict schemas and tool policies on stdio/HTTP; malformed/oversized
+     input, unknown fields, unauthorized handles and unavailable dependencies
+     cause explicit errors with no effect. Client hints never decide a class.
+  2. Fleet/outcome/receipt projections distinguish running, completed,
+     verified, failed and unknown; an exit code or turn completion alone is not
+     successful work. Reads are deterministic, paged, scoped and scrubbed.
+  3. Every write/run is inert before our UI approves; Bypass, Allow always,
+     elicitation and model-supplied `confirm` cannot approve. Expiry, disconnect,
+     target/payload/epoch changes and revocation deny; duplicate request keys
+     cannot dispatch twice. Missing UI returns `approval_unavailable`.
+  4. Stop passes while approval queues, ordinary limits/budgets and the kill
+     switch block other effects, and reports unreachable/uncertain truthfully.
+     Cross-owner Stop is refused. D83's nested physical refusals hold.
+  5. Paid authority defaults off; rates, per-use consent and both caps precede
+     dispatch; reservations retain uncertainty. A schedule gets its own M115
+     grant in our UI, never manufactures consent for subsequent connector calls.
+  6. OAuth discovery/login/refresh works in separately captured ChatGPT and
+     claude.ai flows. Wrong issuer/audience/scope/device, PKCE replay, revoked
+     grant and malicious registration/metadata redirects fail before dispatch.
+  7. Audit covers all calls and outcomes; planted secrets, registered literals,
+     private paths/accounts and raw stderr are absent from every output channel.
+     Audit failure stops new effects; Stop still attempts safely.
+  8. Each editor reaches the same core through MHP/companion, with accessible
+     loading/failure/retry; unsupported native MCP and missing prerequisite
+     surfaces are named waiting. Each product's qualification row names version,
+     OS, transport, OAuth method, result cap and approval/Stop/revocation evidence.
+- **Red drills** (restore source byte-exact and record each failure in
+  `docs/certification/m124-<lane>.md`): drop strictness; skip host approval;
+  reuse an approval or request after epoch change; authorize from an argument;
+  mark a run read-only; duplicate dispatch on retry; turn unknown into success;
+  bypass paid reserve/consent; pass a physical child action; bypass audience or
+  grant revocation; emit a planted key through result/error/audit; disable audit
+  before a write; throttle Stop behind a full queue; disconnect during approval;
+  drop a native host's companion path; omit the command's Help row/lazy split.
+- **Gates.** Delivery requires unweakened `npm run quality`, reference/l10n,
+  host API, production bundle/split budgets, accessible UI, secret/SAST checks
+  and OS/editor qualification. Tests use repository timeouts; slow fixture
+  setup is shared, not excused with a command-line timeout. The local phase
+  adds no npm dependency (§2 D3, 2026-10-09); a later phase that needs one
+  checks peer ranges, exact pins and audit first.
+- **Bundles.** Runtime-only `dist/connector.js` and remote/OAuth chunks load on
+  use; own initial budget proposal 120 KiB aggregate connector Node
+  code and 20 KiB approval UI, finalized by lane 0's measurements. Existing
+  startup/deferred caps never rise; Node English fallback and lazy installed
+  language propagation follow D6. No new activation import of connector code.
+- **Certification checklist** (§6.0, plus):
+  - [x] Dated primary-source research, proposed schemas/classes/scopes,
+        local/remote architecture, editor parity, file ownership and red drills
+  - [x] Owner questions in §3; missing orchestrator-link and outcome-contract
+        dependencies named; docs-only formatting/hook receipts recorded in §7
+  - [x] Local stdio phase (2026-10-09): contracts, lazy `mcp` entry, local
+        grant, registry with unavailable states, our approval page, Stop path,
+        scrub, audit, bounds, kill switch; client setup docs; tests and red
+        drills
+  - [ ] Contracts, adapters, local stdio, our approval UI, audit and limits
+  - [ ] M110 home-node remote binding over the D90.8 link and the
+        orchestrator-link contract, OAuth and per-device revocation
+  - [ ] Every platform row qualified or named waiting with reason
+  - [ ] Red drills, generated Help/docs, measured budgets, full quality green
 
 ### M123 — Git and pull requests in every editor (D104)
 
@@ -35002,6 +35419,50 @@ assertion, coverage threshold, ignore, deadline or rule is relaxed.
 ### QPIN lane verification (2026-10-07)
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
+
+**M124 round 7 lane verification (2026-10-09, Windows 11).** Native connector
+tests (105) and companion tests (67) pass at repository deadlines; three
+deliberate lifecycle failures restore byte-exact. The production build passes
+with `connector.js` 102,260/102,400 bytes (140 free) and byte-identical
+activation. One new test-setup clone was removed; the complete duplication
+gate still reports only round 6's two existing clones, in files unchanged
+from `2786f64ec`. Their repair and aggregate quality stay with integration;
+no threshold changes. Scoped lint/format, the unit-project typecheck,
+localization, reference, host API, plan, regenerated roadmap and plain knip
+are the lane checks. Storage ownership/Windows DACL and the other existing
+qualification deferrals remain open. Receipts: `docs/certification/m124-local.md`,
+round 7.
+
+**M124 round 6 lane verification (2026-10-09, Windows 11).** The rig/common
+brief reserves aggregate `npm run quality` for the lead and requires native
+connector suites, scoped lint/format, one typecheck and unchanged bundle caps.
+The full duplication check still exits 1 for the two previously recorded
+clones (`connectorStdio.e2e`/`schedulesStdio.e2e` and `windowsTrustedPath`);
+all three files are unchanged from `76b4bf180`, and this fix adds no clone.
+Their repair remains with integration, without changing the zero threshold.
+Storage ownership/Windows DACL, real-client and shared approval UI
+qualification remain open as before. Receipts:
+`docs/certification/m124-local.md`, round 6.
+
+**M119PLAN documentation-only certification (2026-10-07, Kubuntu; planned
+under the numbers D102/M119, ported as D106/M124 on 2026-10-09).** The
+lane brief limits changes to PLAN and `docs/design/mcp-connector.md`, requires
+changed-file `npx prettier --check` and a local hooks-on commit, and forbids
+source changes, pushes and unlisted merges. Shared `codex/common.md` reserves
+aggregate quality for the lead; `npm run quality` is deferred here without
+changing any gate. No runtime tests, new gates, red drills, builds, installed
+client qualification or model calls are claimed by the planning lane. The
+implementation acceptance and deliberate red drills remain M124's unchecked
+delivery work. `npx prettier --check PLAN.md docs/design/mcp-connector.md`
+exited 0; staged `git diff --check` passed. The document review checked unique
+D102/M119 headings (now D106/M124), 23 unique proposed tools, all nine design
+sections, every requested platform, local file links and explicit
+dependency/unrun status; the design cites 28 distinct primary-source URLs.
+Local commit `b27ad09a9` passed the unchanged hooks: lint-staged formatted
+both Markdown files and gitleaks' staged scan reported no leaks. Only the two
+authorized docs changed; no new gate or runtime test needs a planning-lane red
+drill. The follow-up receipt commit also uses these hooks; final verification
+repeats changed-file formatting after recording this receipt.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 

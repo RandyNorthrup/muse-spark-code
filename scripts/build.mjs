@@ -109,6 +109,9 @@ const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // mutable installed-language state. The browser keeps its fallback bundled.
 const SHARING_RUNTIME_ENTRY = 'src/runtime/sharing/sharingEntry.ts'
 const SHARING_RUNTIME_OUTFILE = 'dist/sharingRuntime.js'
+// M124 (D106): the MCP connector, loaded only by `muse-spark-code-acp mcp`.
+const CONNECTOR_ENTRY = 'src/runtime/connector/entry.ts'
+const CONNECTOR_OUTFILE = 'dist/connector.js'
 const PROMPTS_ENTRY = 'src/host/prompts/promptEntry.ts'
 const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
@@ -314,6 +317,12 @@ const sharingRuntimeOptions = {
   platform: 'node',
   format: 'cjs',
   target: AGENT_NODE_TARGET,
+}
+/** @type {import('esbuild').BuildOptions} */
+const connectorOptions = {
+  ...sharingRuntimeOptions,
+  entryPoints: [CONNECTOR_ENTRY],
+  outfile: CONNECTOR_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1231,6 +1240,7 @@ if (isWatch) {
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
+    esbuild.context(connectorOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
     esbuild.context(resourceProcessOptions),
@@ -1345,6 +1355,7 @@ if (isWatch) {
     tab: esbuild.build(tabOptions),
     prompts: esbuild.build(promptsOptions),
     sharingRuntime: esbuild.build(sharingRuntimeOptions),
+    connector: esbuild.build(connectorOptions),
     modelApi: esbuild.build(modelApiOptions),
     resourceGovernor: esbuild.build(resourceGovernorOptions),
     resourceProcess: esbuild.build(resourceProcessOptions),
@@ -1511,6 +1522,7 @@ if (isWatch) {
   reportSize(TAB_OUTFILE)
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)
+  reportSize(CONNECTOR_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(RESOURCE_OUTFILE)
   reportSize(RESOURCE_ADMISSION_OUTFILE)

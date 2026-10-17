@@ -786,6 +786,18 @@ the companion page. The TUI waits for M110a0 lane T. See the
 [M118 record](certification/m118.md) for exact actions and editor rows. Gist
 publishing, hosted links, team destinations and email remain phase 2/3.
 
+## MCP connector for other agents (M124, in progress)
+
+`muse-spark-code-acp mcp` is a separate mode: it speaks MCP, not ACP, on
+stdio, so an MCP client such as Codex, Claude Code or Gemini CLI can use
+Muse Spark Code's prompt library, share previews, schedules, reports and
+Stop within a grant you make with `muse-spark-code-acp mcp grant` in your
+own terminal. Writes wait for your approval on Muse Spark Code's loopback
+approval page; the client cannot approve them. The connector loads from
+`connector.js` only for this command. Setup per client, tools, limits and
+records:
+[docs/mcp.md](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/mcp.md).
+
 ## Help and reference
 
 Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.
