@@ -6,10 +6,11 @@
 //
 //   node scripts/build-linux-helper-pins.mjs native/linux/x64 native/linux/arm64
 //
-// Only the bytes/sha256 fields between the GENERATED PINS markers move;
-// asset names, file names, order and executable flags stay exactly as
-// committed. `node scripts/check-linux-helper-pins.mjs` verifies the
-// result, including against the uploaded assets.
+// Only the bytes/sha256 fields between the GENERATED PINS markers and the
+// release tag between the GENERATED RELEASE TAG markers move; asset names,
+// file names, order and executable flags stay exactly as committed.
+// `node scripts/check-linux-helper-pins.mjs` verifies the result,
+// including against the uploaded assets.
 import { createHash } from 'node:crypto'
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -37,9 +38,12 @@ export function hashHelperFile(file) {
 
 const ARCHES = ['x64', 'arm64']
 const PIN_LINE = /^[ \t]*filePin\('([^']+)', '([^']+)', \d+, '[0-9a-f]*', (?:true|false)\)/gm
+const TAG_LINE = /^const RELEASE_TAG = '[^']*'$/m
 
-/** Rewrite only the bytes/sha256 of the committed pins for both arches. */
-export function writePinsModule(text, measured) {
+/** Rewrite only the bytes/sha256 of the committed pins and the release tag. */
+export function writePinsModule(text, measured, tag) {
+  if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new Error(`Not a release tag: ${tag}`)
+  if (!TAG_LINE.test(text)) throw new Error('Committed pins lack the RELEASE_TAG line')
   const seen = { x64: new Set(), arm64: new Set() }
   const rewritten = text.replaceAll(PIN_LINE, (whole, asset, file) => {
     let arch
@@ -57,7 +61,7 @@ export function writePinsModule(text, measured) {
       if (!seen[arch].has(file)) throw new Error(`Committed pins lack ${arch}/${file}`)
     }
   }
-  return rewritten
+  return rewritten.replace(TAG_LINE, () => `const RELEASE_TAG = '${tag}'`)
 }
 
 function measure(directory, arch) {
@@ -78,10 +82,15 @@ if (
     if (x64dir === undefined || arm64dir === undefined || process.argv.length !== 4)
       throw new Error('Usage: node scripts/build-linux-helper-pins.mjs <x64dir> <arm64dir>')
     const text = readFileSync(PINS_MODULE, 'utf8')
-    const rewritten = writePinsModule(text, {
-      x64: measure(x64dir, 'x64'),
-      arm64: measure(arm64dir, 'arm64'),
-    })
+    const version = JSON.parse(readFileSync('package.json', 'utf8')).version
+    const rewritten = writePinsModule(
+      text,
+      {
+        x64: measure(x64dir, 'x64'),
+        arm64: measure(arm64dir, 'arm64'),
+      },
+      `v${String(version)}`,
+    )
     if (rewritten === text) console.log('Helper pins already match the built helpers')
     else {
       writeFileSync(PINS_MODULE, rewritten)

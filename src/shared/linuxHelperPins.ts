@@ -8,11 +8,11 @@
 // download. `node scripts/check-linux-helper-pins.mjs` refuses a build
 // whose pins do not match the uploaded assets.
 //
-// Committed values are UNSET (bytes 0, sha256 ''): a build without the
-// release helpers refuses every helper download instead of trusting
-// anything, and the consent card never appears for it. Only this module
-// (read by dist/voice.js on the first recording) carries the pins, so the
-// activation bundle does not (PLAN.md D6).
+// Committed values are UNSET (bytes 0, sha256 '', release tag ''): a build
+// without the release helpers refuses every helper download instead of
+// trusting anything, and the consent card never appears for it. Only this
+// module (read by dist/voiceLinux.js on the first recording) carries the
+// pins, so the activation bundle does not (PLAN.md D6).
 
 export interface LinuxHelperFilePin {
   /** The release asset's file name, stable across releases (no version). */
@@ -29,7 +29,13 @@ export interface LinuxHelperFilePin {
 
 export type LinuxHelperArch = 'x64' | 'arm64'
 
-const RELEASE_BASE_URL = 'https://github.com/RandyNorthrup/muse-spark-code/releases/latest/download'
+// BEGIN GENERATED RELEASE TAG (scripts/build-linux-helper-pins.mjs stamps
+// the release's v<version> tag here, beside the pins measured from that
+// release's helpers; '' while unset).
+const RELEASE_TAG = ''
+// END GENERATED RELEASE TAG
+
+const RELEASE_BASE_URL = `https://github.com/RandyNorthrup/muse-spark-code/releases/download/${RELEASE_TAG}`
 
 function filePin(
   asset: string,
