@@ -18447,7 +18447,7 @@ extension's own storage, never the workspace's `.git`.
 
 ### M77 — Session board and best-of-N (D49)
 
-**Status 2026-10-17: finishing (MSM77 lane).** C-M77-1's VS Code proof
+**Status 2026-10-17 (MSM77 lane): building.** C-M77-1's VS Code proof
 stands (`docs/certification/m77.md`); this lane merges current main,
 folds each attempt's reported spend into the run, the comparison and the
 take notice (C-M77-2), records the per-editor bindings (C-M77-3) and the
