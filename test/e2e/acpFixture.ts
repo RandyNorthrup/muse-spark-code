@@ -2,8 +2,10 @@
 // An installed package skips this layout; its own files remain untouched.
 
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
-import { cpSync, mkdirSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { build, type BuildOptions } from 'esbuild'
 import { JOB_SOURCE_FILES } from '../../src/host/backend/jobSource'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
@@ -39,6 +41,27 @@ export async function buildAcpFixture(
   })
   writeFileSync(path.join(packageRoot, 'package.json'), JSON.stringify({ version }))
   cpSync(path.join(root, 'l10n'), path.join(packageRoot, 'l10n'), { recursive: true })
+  // What's New's release notes beside acp.js, as the published package ships
+  // them (scripts/package-acp.mjs through ACP_BUNDLES): ACP's /whatsnew (M99)
+  // reads this file, answered locally with no model turn. Generated with the
+  // build's own writer when no build has laid it out yet.
+  const contentFile = path.join(root, 'dist', 'whatsNew.json')
+  if (!existsSync(contentFile)) {
+    const generator = path.join(root, 'scripts', 'lib', 'whatsNewContent.mjs')
+    execFileSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '--eval',
+        [
+          `import { writeWhatsNewContent } from ${JSON.stringify(pathToFileURL(generator).href)};`,
+          `writeWhatsNewContent(${JSON.stringify(root)});`,
+        ].join('\n'),
+      ],
+      { cwd: root, stdio: 'pipe' },
+    )
+  }
+  cpSync(contentFile, path.join(packageRoot, 'dist', 'whatsNew.json'))
   // On Windows the governed launch compiles its job helpers from the C# the
   // package ships under native/windows/ (jobSource.ts) before `muse serve`.
   for (const file of Object.values(JOB_SOURCE_FILES))
