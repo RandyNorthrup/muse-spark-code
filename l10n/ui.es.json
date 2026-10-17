@@ -3726,6 +3726,7 @@
   "reportExits": "Termina con 0 cuando el informe está escrito, 1 si falla, 2 por uso incorrecto.",
   "legalExits": "Termina con 0 cuando el análisis termina sin bloqueadores, 1 si se encuentran bloqueadores, 2 por cobertura incompleta o uso incorrecto.",
   "genericExits": "Termina con 0 si tiene éxito, 1 si falla, 2 por uso incorrecto.",
+  "sharingExits": "Termina con 0 si tiene éxito, 7 si se cancela o se rechaza, 2 por uso incorrecto, 1 si falla.",
   "execSummary": "{status}; solicitudes {requests}; liquidado {settled}; incierto {uncertain}; intentos de imagen {imageAttempts}; devueltas {imagesReturned}; imágenes inciertas {imagesUncertain}",
   "execSummaryUpperBound": "{status}; solicitudes {requests}; liquidado {settled}; incierto {uncertain}; intentos de imagen {imageAttempts}; devueltas {imagesReturned}; imágenes inciertas {imagesUncertain}; El coste es un límite superior.",
   "exportSessionLine": "Sesión: `{id}`",

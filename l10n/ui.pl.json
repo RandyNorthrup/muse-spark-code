@@ -3802,6 +3802,7 @@
   "reportExits": "Kończy się: 0 po zapisaniu raportu, 1 przy niepowodzeniu, 2 przy błędnym użyciu.",
   "legalExits": "Kończy się: 0 gdy skanowanie zakończy się bez blokerów, 1 gdy znaleziono blokery, 2 przy niepełnym pokryciu lub błędnym użyciu.",
   "genericExits": "Kończy się: 0 przy powodzeniu, 1 przy niepowodzeniu, 2 przy błędnym użyciu.",
+  "sharingExits": "Kończy się: 0 przy powodzeniu, 7 przy anulowaniu lub odmowie, 2 przy błędnym użyciu, 1 przy niepowodzeniu.",
   "execSummary": "{status}; żądania {requests}; rozliczone {settled}; niepewne {uncertain}; próby obrazów {imageAttempts}; zwrócone {imagesReturned}; niepewne obrazy {imagesUncertain}",
   "execSummaryUpperBound": "{status}; żądania {requests}; rozliczone {settled}; niepewne {uncertain}; próby obrazów {imageAttempts}; zwrócone {imagesReturned}; niepewne obrazy {imagesUncertain}; Koszt jest górną granicą.",
   "exportSessionLine": "Sesja: `{id}`",

@@ -43,6 +43,9 @@ happened, not what was planned; superseded entries are kept.
   resolve at the first step that needs a provider, and a step that needs
   a stored key refuses in the one store sentence; grant-backed dispatch
   still needs the owner's real-life run.
+- Review (RVCLIFLOWS2): `share --help` and `prompts --help` name exit 7 for
+  a cancelled or refused share, from the sharing handler's own codes; a key
+  step whose credential store has recovered returns the key it re-read.
 - Terminal commands (CLIFLOWS2): `share --help` and `prompts --help` list
   every parsed option with its accepted values and defaults from the
   sharing parser's own tables, and the CLI reference grows 23 rows without

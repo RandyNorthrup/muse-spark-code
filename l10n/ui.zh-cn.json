@@ -3574,6 +3574,7 @@
   "reportExits": "退出码:报告写入为 0,失败为 1,用法错误为 2。",
   "legalExits": "退出码:扫描无阻断完成为 0,发现阻断为 1,覆盖不完整或用法错误为 2。",
   "genericExits": "退出码:成功为 0,失败为 1,用法错误为 2。",
+  "sharingExits": "退出码:成功为 0,取消或被拒绝为 7,用法错误为 2,失败为 1。",
   "execSummary": "{status}；请求 {requests}；已结算 {settled}；不确定 {uncertain}；图像尝试 {imageAttempts}；已返回 {imagesReturned}；不确定图像 {imagesUncertain}",
   "execSummaryUpperBound": "{status}；请求 {requests}；已结算 {settled}；不确定 {uncertain}；图像尝试 {imageAttempts}；已返回 {imagesReturned}；不确定图像 {imagesUncertain}; 费用为上限值。",
   "exportSessionLine": "会话：`{id}`",

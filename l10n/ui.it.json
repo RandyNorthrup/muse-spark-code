@@ -3726,6 +3726,7 @@
   "reportExits": "Termina con 0 quando il rapporto è scritto, 1 se fallisce, 2 per uso scorretto.",
   "legalExits": "Termina con 0 quando la scansione si completa senza bloccanti, 1 se vengono trovati bloccanti, 2 per copertura incompleta o uso scorretto.",
   "genericExits": "Termina con 0 in caso di successo, 1 in caso di fallimento, 2 per uso scorretto.",
+  "sharingExits": "Termina con 0 in caso di successo, 7 in caso di annullamento o rifiuto, 2 per uso scorretto, 1 in caso di fallimento.",
   "execSummary": "{status}; richieste {requests}; liquidato {settled}; incerto {uncertain}; tentativi di immagine {imageAttempts}; restituite {imagesReturned}; immagini incerte {imagesUncertain}",
   "execSummaryUpperBound": "{status}; richieste {requests}; liquidato {settled}; incerto {uncertain}; tentativi di immagine {imageAttempts}; restituite {imagesReturned}; immagini incerte {imagesUncertain}; Il costo è un limite superiore.",
   "exportSessionLine": "Sessione: `{id}`",

@@ -202,6 +202,15 @@ const GENERIC_EXITS = {
   exitCodes: [CLI_EXIT.ok, CLI_EXIT.failure, CLI_EXIT.usage],
 } as const
 
+/**
+ * share/prompts exit on their handler's own codes: the CLI-wide row plus
+ * EXEC_EXIT.denied for a cancelled or refused share (sharing/commands.ts).
+ */
+const SHARING_EXITS = {
+  exits: (table: UiText) => table.sharingExits,
+  exitCodes: [CLI_EXIT.ok, EXEC_EXIT.denied, CLI_EXIT.usage, CLI_EXIT.failure],
+} as const
+
 /** The one table behind parsing and help: topic names, in help order. */
 export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
   {
@@ -505,7 +514,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} share chat --mode conversation`,
       (command) => `${command} share chat --destination file --out chat.md`,
     ],
-    ...GENERIC_EXITS,
+    ...SHARING_EXITS,
   },
   {
     name: 'prompts',
@@ -531,7 +540,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} prompts list --search deploy`,
       (command) => `${command} prompts use standup --var name=Ana --confirm`,
     ],
-    ...GENERIC_EXITS,
+    ...SHARING_EXITS,
   },
 ]
 
