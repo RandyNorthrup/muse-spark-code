@@ -911,6 +911,56 @@ describe('resolveProvider (user file only)', () => {
     ).toContainEqual({ kind: 'exact', path: '/api/v1/models' })
   })
 
+  it('resolves Azure below its /openai/v1 root with a research request path', async () => {
+    // PROVM95, research §1.2 [AZ1, AZ3, AZ6]: no capture yet, so the path
+    // is research-sourced; the list and request both sit below the
+    // address root, and the pin lets exactly those through.
+    const azure: ProvidersFile = {
+      ...emptyProvidersFile(),
+      providers: [
+        {
+          id: 'azure',
+          preset: 'azure',
+          address: 'https://myres.openai.azure.com/openai/v1',
+          auth: 'apiKey',
+          models: ['gpt-5.4-nano'],
+          deployment: 'my-gpt-deploy',
+        },
+      ],
+    }
+    const resolved = await resolveProvider(azure, 'azure', presetById, publicHost)
+    expect(resolved.ok).toBe(true)
+    if (!resolved.ok) throw new Error('unresolved')
+    expect(resolved.provider.origin).toBe('https://myres.openai.azure.com')
+    expect(resolved.provider.network).toBe('public')
+    expect(resolved.provider.request).toMatchObject({
+      rule: { kind: 'exact', path: '/openai/v1/responses' },
+      source: 'research',
+    })
+    expect(
+      allowedProviderPaths(resolved.provider).filter((rule) => rule.kind === 'exact'),
+    ).toContainEqual({ kind: 'exact', path: '/openai/v1/models' })
+    const sent: string[] = []
+    const fetch = pinProviderFetch(
+      scriptedFetch((target) => {
+        sent.push(target)
+        return new Response('ok')
+      }),
+      resolved.provider,
+      allowedProviderPaths(resolved.provider),
+      publicHost,
+    )
+    await fetch('https://myres.openai.azure.com/openai/v1/responses', {
+      method: 'POST',
+      body: '{}',
+    })
+    await fetch('https://myres.openai.azure.com/openai/v1/models')
+    await expect(
+      fetch('https://myres.openai.azure.com/v1/responses', { method: 'POST', body: '{}' }),
+    ).rejects.toThrow()
+    expect(sent).toHaveLength(2)
+  })
+
   it('refuses unknown ids, meta and moved origins', async () => {
     const groq = await resolveProvider(file, 'groq', presetById, publicHost)
     expect(groq.ok).toBe(false)

@@ -71,6 +71,8 @@ export interface ProviderEntry {
       }
     | undefined
   readonly numCtx?: Readonly<Record<string, number>> | undefined
+  /** An Azure entry's deployment name, sent as the wire `model` (PROVM95). */
+  readonly deployment?: string | undefined
   /** A private-network address the user confirmed once (D74). */
   readonly privateNetwork?: boolean | undefined
 }

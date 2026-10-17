@@ -19,6 +19,7 @@ import {
   quirksOf,
   replayFieldFor,
   isKeyShape,
+  wireModelFor,
   FORMAT_QUIRKS,
   type ProviderPreset,
 } from '../../src/core/providers/presets'
@@ -208,6 +209,19 @@ describe('the preset table', () => {
     expect(azureOrigin('has space')).toBeUndefined()
     expect(azureOrigin('ab')).toBeUndefined()
     expect(azureOrigin('has.dot')).toBeUndefined()
+  })
+
+  it('sends the Azure deployment as the wire model, never the family', () => {
+    // PROVM95, research §1.2 [AZ1, AZ6]: `model` is the deployment name;
+    // records resolve by the family, so the deployment never leaks into one.
+    expect(wireModelFor({ preset: 'azure', deployment: 'my-gpt-deploy' }, 'gpt-5.4-nano')).toBe(
+      'my-gpt-deploy',
+    )
+    expect(wireModelFor({ preset: 'openai', deployment: 'my-gpt-deploy' }, 'gpt-5.6-luna')).toBe(
+      'gpt-5.6-luna',
+    )
+    expect(() => wireModelFor({ preset: 'azure' }, 'gpt-5.4-nano')).toThrow()
+    expect(() => wireModelFor({ preset: 'azure', deployment: '' }, 'gpt-5.4-nano')).toThrow()
   })
 
   it('never replays thinking to an unversioned local server (fail closed)', () => {

@@ -742,7 +742,9 @@ export function createConfiguredProviderServices(
     const codec: WireCodec = {
       format,
       models: {
-        path: preset.modelsList.path,
+        // Joined with the address root, so an Azure entry lists below its
+        // `/openai/v1` root instead of the bare origin (PROVM95).
+        path: baseAndPath(entry, preset.modelsList.path).path,
         parse: (value) =>
           modelMetadata.parseNativeModelsList(value).map((row) => ({
             id: z.string().parse(row['id']),
@@ -816,12 +818,18 @@ export function createConfiguredProviderServices(
             break
           }
           default: {
+            // Azure's v1 API is Responses as OpenAI's, rooted at the
+            // entry's `/openai/v1` address with the deployment name as the
+            // model (research §1.2 [AZ1, AZ3, AZ6]); the record above stays
+            // keyed by the model family, never the deployment name.
+            const isAzure = preset.id === 'azure'
             wire = responses
               .createResponsesCodec({
                 sendPromptCacheKey: record.cache.acceptsKey,
                 sendPromptCacheRetention: record.cache.retention.length > 0,
               })
-              .encodeRequest({ ...body, model: native })
+              .encodeRequest({ ...body, model: presets.wireModelFor(entry, native) })
+            if (isAzure) path = '/responses'
           }
         }
 
