@@ -14439,9 +14439,14 @@ admission bound and its benchmark.
   estimate; the next request is then the one stopped.
 - **A reservation is never spend.** A response that ended without its usage
   counts as cost unknown, with what is known, and adds nothing to the total.
-- **Kept as they were:** the exec run ledger (`--max-budget-usd`, its
-  published v2 schema), the Tab ledger, the team meter and account
-  thresholds. Record, the $120.00 origin and every removal:
+- **A refusal books nothing.** A request the provider refused before
+  generating anything (`NON_BILLABLE_HTTP_REJECTIONS`) is withdrawn from the
+  run ledger with its request count and adds nothing to any total, even when
+  a provider adapter rethrows the error without its status: the transport
+  tells the attempt guard first (`onRefused`).
+- **Kept as they were:** the exec run ledger's own rules otherwise
+  (`--max-budget-usd`, its published v2 schema), the Tab ledger, the team
+  meter and account thresholds. Record, the $120.00 origin and every removal:
   `docs/certification/spend-simple.md`.
 
 ## 3. Open questions (need the owner)
