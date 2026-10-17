@@ -3387,10 +3387,9 @@ is untrusted as a plan file is: **Implement in a Fresh Conversation** starts
 it in Manual (or Plan) too. It drops session rules, goals,
 schedules, todos and patches, and the model reads each imported turn as
 untrusted data in a message of yours, never as its own replies or tool calls.
-A file whose turns are more text than a conversation can start with (counted
-high, one token per UTF-8 byte: 786.4 kB, the allowance named text
-attachments have) is refused before the import is confirmed, with both sizes
-named; it can still be opened as a share file.
+A file whose turns hold more text than the model's documented context window
+(counted high, one token per UTF-8 byte) is refused before the import is
+confirmed, with both sizes named; it can still be opened as a share file.
 The panel offers Copy only on such a conversation's code blocks, never
 Insert or Apply, as in a share file.
 The ACP agent also applies this safe start to stored sessions marked imported

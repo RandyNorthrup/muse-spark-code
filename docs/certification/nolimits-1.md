@@ -48,6 +48,19 @@ bounds (`REPORT_MAX_ROWS`, `REPORT_MAX_TEXT_CHARS`) still refuse what they
 bound, so `reportSourceReasons.limit` stays. No refusal string is removed
 for this piece. Real-use proof with the built product: see §N6.
 
+### §N4 — A29 repointed at the provider's window
+
+`MODEL_API_IMPORT_MAX_REPLAY_BYTES` (window minus our 256 KiB reserve,
+about 768 KiB) deleted from `src/shared/constants.ts`. An import is
+refused only past the provider's own documented window
+(`MODEL_API_CONTEXT_WINDOW`, 1 MiB, dev.meta.ai/docs/models), counted high
+as one token per UTF-8 byte; the refusal still names both sizes through
+the unchanged `importReplayTooLarge` string, which now carries the
+provider's number instead of ours. Rewiring the window to the per-model
+capability record stays lane L2's. Proof test: `sessionTransfer.test.ts`
+imports half a window and refuses a replay past the full window, naming
+both sizes. Real-use proof with the built product: see §N6.
+
 ## Correction review (2026-10-16 continuation)
 
 The first nine commits (A7, A8, A11, A13, A21–A25) were re-checked against
@@ -86,6 +99,7 @@ unbounded loop in `hookModelEntry.ts`) plus the real-life check below.
 | A27    | Subagents ≤64/conversation                                     | removed                                 | A child count, not about a model; paid consent still asks per spawn; the 8-at-once queue (C6) untouched                                                                                           | `47361c8` + README `971419e`     |
 | A28    | Team ≤6 tasks per `delegate`, engine ceiling 20                | removed                                 | Ours, not the platform's; engines are bounded by the documented Meta per-team limits, live 429 adaptation and the machine                                                                         | `f345149`                        |
 | A29    | Import replay ≈768 KiB                                         | SAFETY RULE — kept, listed for the lead | Window-minus-reserve against the model's documented 1 MiB window (dev.meta.ai/docs/models); removing it breaks every later message past the window instead of refusing once at import — see below | none (no change)                 |
+| A29fix | Import replay window-minus-reserve (≈768 KiB)                  | provider's window (NOLIMITS1FIX §N4)    | The reserve was ours; an import now refuses only past the provider's documented 1 MiB window (dev.meta.ai/docs/models), naming both sizes; per-model record wiring stays lane L2's                | see §N4                          |
 | A30    | Export/share ≤16 MiB                                           | removed                                 | A file size, not about a model; write and read back at any byte size; the transcript item count still bounds all three paths; the report reader keeps its bound as `REPORT_SOURCE_MAX_BYTES`      | `8fe5418`                        |
 | A30fix | Export/share/import ≤20,000 items (`SESSION_EXPORT_MAX_ITEMS`) | removed (NOLIMITS1FIX §N2)              | A count, not about a model; files write, render and parse at any item count; the `tooLarge` outcome and `shareTooLarge`/`exportTooLarge` are gone                                                 | see §N2                          |
 | A35    | Held PR checkout ≤20000 entries / ≤250 MB                      | removed                                 | Not about a model; tree parses and checkout writes at any size; unreadable listings, unsafe and colliding paths still refuse                                                                      | `1f9c0f5`                        |
@@ -106,6 +120,12 @@ per-model capability record (`record.limits.contextTokens`,
 `src/core/providers/configured.ts`) is lane L2's migration ("The legacy
 cap above stays until lane L2 applies each model's record"). So: kept
 unchanged for the lead to decide — rewire via L2, or accept the guard.
+
+NOLIMITS1FIX (§N4): the formula is gone. The 256 KiB reserve was ours, not
+the provider's, so the import now refuses only past the provider's own
+documented window (`MODEL_API_CONTEXT_WINDOW`, dev.meta.ai/docs/models),
+still naming both sizes through `importReplayTooLarge`. Rewiring that
+window to the per-model capability record stays lane L2's.
 
 ## L10n
 
@@ -153,6 +173,11 @@ test; the big read carries the sanctioned named per-test timeout
   unsafe/colliding paths still refuse before anything is written.
 - Import a conversation near the replay bound, and one just over it: the
   first resumes and answers, the second refuses once at import (A29 kept).
+- NOLIMITS1FIX lead checks: save, import and share a prompt file past
+  128 KiB; export, share and import a transcript past 20,000 items; read a
+  report source past 16 MiB; import a conversation between the old
+  ≈768 KiB formula and the 1 MiB provider window (it now imports) and one
+  past the window (it still refuses once at import, naming both sizes).
 - Export a conversation past 16 MiB and open it back as a share file.
 - Run an agent-type hook whose model calls read-only tools more than five
   times: it keeps going until the model stops (A13; no unit test can prove

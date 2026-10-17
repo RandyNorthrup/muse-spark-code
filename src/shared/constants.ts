@@ -5603,13 +5603,14 @@ export const SESSION_EXPORT_SCRUB_SLICE_CHARS = 64 * 1024
 // file at once took 18 s in jsdom (about 0.9 ms an item), and the panel
 // cannot answer while it renders.
 export const SHARE_VIEW_PAGE_ITEMS = 200
-// The most text an imported conversation may hand the model (RV84 #10),
-// counted high as named text attachments are: one token per UTF-8 byte, so
-// the same reserve stays for the instructions, the tools and the replies. A
+// How much text an imported conversation may hand the model (RV84 #10):
+// NOLIMITS1FIX removed our window-minus-reserve formula
+// (`MODEL_API_IMPORT_MAX_REPLAY_BYTES`, about 768 KiB) — the reserve was
+// ours, not the provider's. An import is refused only past the provider's
+// own documented window (`MODEL_API_CONTEXT_WINDOW`, dev.meta.ai/docs/models),
+// counted high as named text attachments are (one token per UTF-8 byte). A
 // file over it is refused at import, naming both sizes, rather than accepted
-// for every later message to fail.
-export const MODEL_API_IMPORT_MAX_REPLAY_BYTES =
-  MODEL_API_CONTEXT_WINDOW - MODEL_API_TEXT_CONTEXT_RESERVE_TOKENS
+// for every later message to fail past the model's window.
 // A refused file's unknown field is named by its path, cut to this many
 // characters: the key is the file's own text and reaches the notice and the log.
 export const SESSION_EXPORT_FIELD_PATH_MAX = 120
