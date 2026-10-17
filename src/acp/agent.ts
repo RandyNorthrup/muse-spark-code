@@ -1918,7 +1918,10 @@ class AcpSession {
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
-      if (parsed.parts.length === 1 && part?.type === 'text' && part.text.trim() === '/whatsnew') {
+      // A reserved command, decided on the one typed text like the others:
+      // anything after the name stays a local answer, never a skill or a
+      // model turn (the reserved-command rule below).
+      if (parsed.parts.length === 1 && part?.type === 'text' && /^\/whatsnew(?:\s|$)/.test(typed)) {
         await this.announceCommands()
         if ('error' in preparing) throw preparing.error
         if (!preparing.isCancelled)

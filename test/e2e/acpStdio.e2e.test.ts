@@ -429,6 +429,12 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       expect(said).toMatch(/^## \d+\.\d+\.\d+/m)
       expect(said).toContain(WHATS_NEW_CHANGELOG_URL)
       expect(agent.updates.filter((update) => update.sessionUpdate === 'tool_call')).toHaveLength(0)
+      // Trailing words after the reserved command stay local: a reserved
+      // command never becomes a skill or a model turn, valid syntax or not.
+      const beforeAgain = agent.updates.length
+      expect(await ask('/whatsnew please')).toEqual({ stopReason: 'end_turn' })
+      expect(text(agent.updates.slice(beforeAgain))).toContain(UI_TEXT.whatsNewTitle)
+      expect(agent.updates.filter((update) => update.sessionUpdate === 'tool_call')).toHaveLength(0)
     })
   })
 
