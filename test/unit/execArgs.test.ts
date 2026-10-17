@@ -28,16 +28,35 @@ describe('M80 args (A1–A10, F1)', () => {
     if (!plain.ok) throw new Error(plain.reason)
     expect(plain.options.paidFeatures).toEqual([])
     expect(plain.options.autoCompaction).toBe(false)
-    const flagged = parseExec({ 'auto-compaction': true }, ['hi'])
+    // Automatic compaction is a Model API engine feature: the default
+    // Muse Code backend refuses the flag instead of accepting a no-op.
+    expect(parseExec({ 'auto-compaction': true }, ['hi'])).toEqual({
+      ok: false,
+      reason: UI_TEXT.execModelApiOnly,
+    })
+    const modelApi = { backend: 'modelApi', 'max-budget-usd': '1' }
+    const flagged = parseExec({ ...modelApi, 'auto-compaction': true }, ['hi'])
     if (!flagged.ok) throw new Error(flagged.reason)
     expect(flagged.options.paidFeatures).toEqual(['autoCompaction'])
     expect(flagged.options.autoCompaction).toBe(true)
     expect(serveOptionsFor(flagged.options).autoCompaction).toBe(true)
-    const off = parseExec({ 'auto-compaction': true, 'no-auto-compaction': true }, ['hi'])
+    const off = parseExec({ ...modelApi, 'auto-compaction': true, 'no-auto-compaction': true }, [
+      'hi',
+    ])
     if (!off.ok) throw new Error(off.reason)
     expect(off.options.paidFeatures).toEqual(['autoCompaction'])
     expect(off.options.autoCompaction).toBe(false)
-    expect(parseCommandLine(['exec', '--auto-compaction', 'hi'])).toMatchObject({
+    expect(
+      parseCommandLine([
+        'exec',
+        '--backend',
+        'modelApi',
+        '--max-budget-usd',
+        '1',
+        '--auto-compaction',
+        'hi',
+      ]),
+    ).toMatchObject({
       command: 'exec',
       options: { autoCompaction: true, paidFeatures: ['autoCompaction'] },
     })
