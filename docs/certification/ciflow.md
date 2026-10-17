@@ -290,7 +290,8 @@ from run 38915744271), so macOS queued in three waves and pull requests
 waited behind each other. The owner opened the free organization
 `scnetsolutions` for capacity only; the repository stays on his account.
 
-**What.** `ci.yml` gains `route` (picks the part from the event, the
+**What (the first design, 2026-10-16; replaced 2026-10-17, below).**
+`ci.yml` gains `route` (picks the part from the event, the
 repository and `ORG_CI`) and a `push` trigger on `ci/head-*` that runs only
 in the capacity repository. `build.yml` takes `part` (`all` by default):
 `home` keeps the Ubuntu shards, `org` runs only the Windows and macOS
@@ -301,7 +302,8 @@ two accounts with the maintainer's `gh` sign-in. A first design with two
 stored tokens was dropped: minting them needed the owner's passkey and a
 copy of each value, and the relay needs neither.
 
-**Tests.** The one new test runs `route`'s own step from `ci.yml` in bash
+**Tests (the first design; the file went with PR #183's deletion of
+`test/unit/manifest.test.ts`).** The one new test runs `route`'s own step from `ci.yml` in bash
 for eight events, with the values GitHub sets (no made-up data):
 `npx vitest run test/unit/manifest.test.ts` 41 passed, exit 0 (this PC,
 2026-10-17). `actionlint` on both workflows, ESLint (zero warnings),
@@ -309,3 +311,120 @@ typecheck and `knip`: exit 0. Deliberate break (2026-10-17, on this route step):
 same-repository condition from the route step made the test fail, exit 1;
 restored, it passed. The proof that the split works is its first real pull
 request run in both accounts, recorded below once it has run.
+
+### Review and redesign (2026-10-17)
+
+**What was weak or broken in the first design.** Read with
+`gh api repos/RandyNorthrup/muse-spark-code/rules/branches/main`
+(2026-10-17): ruleset 23896617 requires the seven names and not
+`build / org part`, with no expected source. In a `home` run the `required`
+aggregate's `quality (windows-latest)` and `quality (macos-latest)` passed
+with no Windows or macOS unit shard run, so a pull request could merge while
+those shards failed or never ran. The relay ran on the maintainer's
+computer: when it was not running, every home pull request waited; it found
+home runs by downloading the `route` job's log. Dependabot's branches are in
+this repository, so `SAME_REPO` sent its pull requests `home` (the route
+test had no Dependabot case). `scripts/release-reuse.mjs` accepts a
+successful `pull_request` run of `ci.yml`, and a home run's conclusion did
+not include the shards. The variables were not set and the capacity
+repository had no run (`gh variable list`; `gh api
+repos/scnetsolutions/muse-spark-code-ci/actions/runs`: 0), so nothing ran
+on the first design. The capacity repository is public, on the free
+organization plan, with Actions on and every action allowed; secret
+scanning push protection is off there and here (`security_and_analysis`,
+read 2026-10-17). Turned on in the capacity repository alone, it would scan
+the whole history on the first push.
+
+**Research (read 2026-10-17).**
+
+- Limits: [actions/reference/limits](https://docs.github.com/en/actions/reference/limits):
+  Free 20 concurrent jobs, Pro 40, macOS 5 on both; a job runs at most 6
+  hours; `GITHUB_TOKEN` makes at most 1,000 requests an hour per repository.
+- Writing across accounts needs a credential of its own: events made with
+  `GITHUB_TOKEN` start no workflow run, and an App installation token or a
+  personal token does
+  ([trigger a workflow](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)).
+- An installation token lasts one hour and reaches only the installation's
+  repositories and the permissions asked for
+  ([generating an installation access token](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app)).
+  `actions/create-github-app-token` v3.3.0 (released 2026-10-12, commit
+  `64ab729a6294000f5aa4a4bc0b73d1f32bc45510`) takes `client-id`, `owner`,
+  `repositories` and `permission-*`, revokes the token in its post step and
+  skips that once it has expired (`lib/post.js` at v3.3.0).
+- Editing files under `.github/workflows` needs the App's **Workflows**
+  permission
+  ([choosing permissions](https://docs.github.com/en/apps/creating-github-apps/registering-a-github-app/choosing-permissions-for-a-github-app));
+  `actions: write` does not cover it
+  ([create-github-app-token#301](https://github.com/actions/create-github-app-token/issues/301)).
+- Secrets: none reach a fork's run, none of the Actions secrets reach a
+  Dependabot run, and a secret cannot stand in `if:`; test it through `env`
+  ([use secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets),
+  [Dependabot on Actions](https://docs.github.com/en/code-security/dependabot/troubleshooting-dependabot/troubleshooting-dependabot-on-github-actions)).
+- Required checks: any person or integration with write access can set any
+  status, and a rule can name the app it expects
+  ([available rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets)).
+- Billing: standard runners are free in public repositories; a free
+  organization includes 2,000 minutes a month for private ones
+  ([Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions)).
+- A job token reads another account's public repository through the API:
+  `actions/setup-node`, in every job here, reads `actions/node-versions` with
+  its default `github.token` ("When running this action on github.com, the
+  default value is sufficient", its `action.yml`), and the run and job
+  endpoints say "Anyone with read access to the repository can use this
+  endpoint" (GitHub's OpenAPI description, read 2026-10-17). No page states
+  it for these two endpoints with a job token whose `actions` permission is
+  none, so the first hosted run is that proof; until then the wait step
+  prints each failed read and fails ten minutes after the push.
+
+**The design now.** PLAN.md D122 has the rule and the alternatives weighed.
+One GitHub App owned by the organization, installed on the capacity
+repository alone, with Contents and Workflows write; its key is a secret of
+this repository only. build.yml's `org` job pushes the merge commit and waits
+for the run there; the `required` aggregate folds the result into the seven
+names. The relay script and its npm script are gone.
+
+**Proofs (this PC, 2026-10-17).**
+
+- `actionlint` 1.7.12, the latest release, on every workflow: exit 0.
+  shellcheck is not installed here, so actionlint checked no `run:` script:
+  NOT RUN.
+- `zizmor` 1.25.2 `--offline` on `ci.yml` and `build.yml`: no findings
+  (exit 0). With `--persona=pedantic`, one low finding, on main's unchanged
+  `npx run-s ${{ matrix.part.gates }}` line.
+- `route`'s step, read out of `ci.yml` and run with GitHub's
+  `bash --noprofile --norc -eo pipefail`, for nine cases: capacity push
+  `ci/pr-185` → `org`; push `ci/head-abc` → exit 1; own pull request with
+  `ORG_CI` on and the key → `home`; `ORG_CI` off, no key (Dependabot or an
+  unset secret), fork, fast tier, merge group and manual run → `all`.
+- The push step, read out of `build.yml` and run against a local bare
+  repository standing for the capacity repository (git's `url.insteadOf`),
+  with a merge commit made as GitHub makes it (first parent main): exit 0,
+  `ci/base` at the first parent and `ci/pr-185` at the merge. After main and
+  the pull request each gained a commit, the second push sent 8 objects (3
+  commits, 3 trees, 2 blobs), not the history again.
+- The credential helper of that step: `git credential fill` answered
+  `username=x-access-token` and the step's `TOKEN` (a dummy value).
+- The wait step, read out of `build.yml` and run against real runs on
+  GitHub, with `CAPACITY` pointed at a public repository that has push runs
+  of a `ci.yml`: vitest-dev/vitest run 38750089126 (success) → exit 0, a
+  28-line summary with every job linked; run 38930830264 (failure) → exit 1.
+  Against `scnetsolutions/muse-spark-code-ci` and a commit with no run there:
+  exit 1 after ten minutes, "no CI run on 59fce97aaa… appeared". Against a
+  repository that does not exist: a warning each minute
+  (`gh: Not Found (HTTP 404)`), then exit 1.
+- The `required` step, read out of `build.yml`, with `PART=home`: `org`
+  success → exit 0; failure, cancelled or skipped → exit 1; `PART=all` with
+  `org` skipped → exit 0. Deliberate break: with the three lines that check
+  `org` removed (a copy of `build.yml`), `PART=home` and a failed `org` gave
+  exit 0, the first design's fault; restored, exit 1.
+
+**No new test file.** main deleted `test/unit/manifest.test.ts` (PR #183),
+and a unit test of `route` would feed it event values written in the test.
+The runs above drove the steps themselves; the hosted runs are the proof.
+
+**Still open.** The owner's five steps (CONTRIBUTING.md, "The capacity
+repository (D122)"), then the first same-repository pull request: its run
+here and the capacity repository's run, linked, with wall times against a
+part `all` run. Optional hardening of something older than this change: the
+main ruleset's seven checks name no expected source, so any writer's status
+could satisfy them; naming GitHub Actions as their source closes that.
