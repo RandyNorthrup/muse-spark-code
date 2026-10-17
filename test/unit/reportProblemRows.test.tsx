@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Report a problem, lane W (M93, PLAN.md D72): the entry points. A recorded
-// failure's error row or notice offers "Report this", which hands the row's
+// Report a Problem, lane W (M93, PLAN.md D72): the entry points. A recorded
+// failure's error row or notice offers "Report This", which hands the row's
 // sanitized event reference to the report workflow — never its text. Rows
 // without a reference offer nothing, and the crash screen offers the same
 // way on. The reducer keeps the reference on the row and the dialog's
@@ -25,7 +25,7 @@ function Bomb(): ReactNode {
 }
 
 describe('report entry points', () => {
-  it('offers "Report this" on an error row that carries a reference, with the reference only', () => {
+  it('offers "Report This" on an error row that carries a reference, with the reference only', () => {
     setUiText(EN, 'en')
     const onReportProblem = vi.fn()
     const entries: readonly TranscriptEntry[] = [
@@ -33,7 +33,7 @@ describe('report entry points', () => {
       { kind: 'error', id: 'e2', text: 'An unrecorded failure.' },
     ]
     renderTranscript(entries, { onReportProblem })
-    const buttons = screen.getAllByRole('button', { name: 'Report this' })
+    const buttons = screen.getAllByRole('button', { name: 'Report This' })
     expect(buttons).toHaveLength(1)
     fireEvent.click(buttons[0]!)
     expect(onReportProblem).toHaveBeenCalledTimes(1)
@@ -42,7 +42,7 @@ describe('report entry points', () => {
     expect(onReportProblem.mock.calls[0]?.[1]).toEqual({ kind: 'backendExit', entryIndex: 3 })
   })
 
-  it('offers "Report this" on a recorded notice without spending its actions', () => {
+  it('offers "Report This" on a recorded notice without spending its actions', () => {
     setUiText(EN, 'en')
     const onReportProblem = vi.fn()
     const onNoticeAction = vi.fn()
@@ -87,13 +87,13 @@ describe('report entry points', () => {
         showReplyUsage={false}
       />,
     )
-    expect(screen.getAllByRole('button', { name: 'Report this' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'Report This' })).toHaveLength(2)
     // The recovery action still spends; reporting never does.
-    fireEvent.click(screen.getByRole('button', { name: 'Restart now' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Restart Now' }))
     expect(onNoticeAction).toHaveBeenCalledWith('n1', 'restartMuseCode')
-    expect(screen.getByRole('button', { name: 'Restart now' })).toBeDisabled()
-    fireEvent.click(screen.getAllByRole('button', { name: 'Report this' })[0]!)
-    fireEvent.click(screen.getAllByRole('button', { name: 'Report this' })[0]!)
+    expect(screen.getByRole('button', { name: 'Restart Now' })).toBeDisabled()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Report This' })[0]!)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Report This' })[0]!)
     expect(onReportProblem).toHaveBeenCalledTimes(2)
   })
 
@@ -106,44 +106,34 @@ describe('report entry points', () => {
       ],
       {},
     )
-    expect(screen.queryByRole('button', { name: 'Report this' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Report This' })).not.toBeInTheDocument()
   })
 })
 
 describe('report on the crash screen', () => {
   it('keeps only the reload without a report handler', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    try {
-      render(
-        <ErrorBoundary onReload={() => undefined} onError={() => undefined}>
-          <Bomb />
-        </ErrorBoundary>,
-      )
-      expect(screen.getByRole('button', { name: /Reload/ })).toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: 'Report a problem' })).not.toBeInTheDocument()
-    } finally {
-      consoleError.mockRestore()
-    }
+    render(
+      <ErrorBoundary onReload={() => undefined} onError={() => undefined}>
+        <Bomb />
+      </ErrorBoundary>,
+    )
+    expect(screen.getByRole('button', { name: /Reload/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Report a Problem' })).not.toBeInTheDocument()
   })
 
   it('hands the render failure to the report workflow with no row text', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    try {
-      const onReportProblem = vi.fn()
-      render(
-        <ErrorBoundary
-          onReload={() => undefined}
-          onError={() => undefined}
-          onReportProblem={onReportProblem}
-        >
-          <Bomb />
-        </ErrorBoundary>,
-      )
-      fireEvent.click(screen.getByRole('button', { name: 'Report a problem' }))
-      expect(onReportProblem).toHaveBeenCalledTimes(1)
-    } finally {
-      consoleError.mockRestore()
-    }
+    const onReportProblem = vi.fn()
+    render(
+      <ErrorBoundary
+        onReload={() => undefined}
+        onError={() => undefined}
+        onReportProblem={onReportProblem}
+      >
+        <Bomb />
+      </ErrorBoundary>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Report a Problem' }))
+    expect(onReportProblem).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -159,7 +149,7 @@ describe('report dialog state', () => {
       description: '',
       includeFacts: true,
       includeEvents: true,
-      items: [{ kind: 'facts', label: 'Support facts' }],
+      items: [{ kind: 'facts', label: 'Support Facts' }],
       title: 'Problem report',
       text: 'Muse Spark problem report',
       hash: HASH,

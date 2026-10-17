@@ -1,28 +1,48 @@
 import { USAGE_TEXT } from '../../../shared/l10n/usageTable'
 import { fill } from '../../../shared/l10n/text'
 import type { UsagePageState } from '../../../shared/usagePage'
-import { groupLabel, knownSum, metricLabel, metricText, metricValue } from '../display'
+import {
+  billedCost,
+  costLabel,
+  groupLabel,
+  knownSum,
+  metricLabel,
+  metricText,
+  metricValue,
+  money,
+  usdSum,
+} from '../display'
 import { ChartFrame, CHART_PALETTE } from './ChartFrame'
 import { chartSummary, groupedChart } from './StackedColumns'
 
 export function ShareBar({ state }: { readonly state: UsagePageState }) {
   const { series: groups, points: buckets } = groupedChart(state)
+  // Cost labels show the original amounts (M121 P2-2); geometry is unchanged.
+  const isCost = state.query.metric === 'cost'
+  const rest = state.breakdown
+    .toSorted((a, b) => a.id.localeCompare(b.id))
+    .slice(CHART_PALETTE.length)
   const points = groups.map((item) => ({
     id: item.id,
     label: item.label,
     values: [
       item.sourceId === undefined
-        ? knownSum(
-            state.breakdown
-              .toSorted((a, b) => a.id.localeCompare(b.id))
-              .slice(CHART_PALETTE.length)
-              .map((row) => metricValue(row.totals, state.query.metric)),
-          )
+        ? knownSum(rest.map((row) => metricValue(row.totals, state.query.metric)))
         : (() => {
             const row = state.breakdown.find((group) => group.id === item.sourceId)
             return row === undefined ? undefined : metricValue(row.totals, state.query.metric)
           })(),
     ],
+    ...(isCost && {
+      texts: [
+        item.sourceId === undefined
+          ? money(usdSum(rest.map((row) => billedCost(row.totals))))
+          : (() => {
+              const row = state.breakdown.find((group) => group.id === item.sourceId)
+              return row === undefined ? USAGE_TEXT.unknown : costLabel(row.totals)
+            })(),
+      ],
+    }),
   }))
   const total = knownSum(points.flatMap((point) => point.values)) ?? 0
   const denominator = total > 0 ? total : 1
