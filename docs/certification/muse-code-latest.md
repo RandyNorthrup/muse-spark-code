@@ -241,3 +241,28 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
 - `security:sast` still skips on this rig (semgrep not installable:
   read-only FS blocks pip, scratch venv has no wheel support); the gate
   runs in hosted CI.
+
+## PR206 budget probe (2026-10-17, rig linuxlt, lane PR206BUDGET)
+
+- `test/unit/modelsActivationBudget.test.ts`: baseline 561,352 B,
+  current 572,418 B, growth +11,066 B vs the 3,072 B cap — must shed
+  at least 7,994 B. Cap stays; the Muse Code backend moves off the
+  activation path into a lazy bundle (M57's `dist/modelApi.js` precedent).
+- `@muse-code/sdk` is the only `node_modules` package in the activation
+  bundle (18 files, 227,831 source bytes, identical in both builds —
+  not the growth, but dead weight). It is pulled in by `MuseCodeHost.ts`
+  (`ChildStdioTransport`, SDK values) and, separately, by
+  `host/resources/museResourceLaunch.ts` (`spawnMspConnection`), which stays.
+- `src/core/backends/musecode/` inputs: 139,246 B at baseline vs
+  211,274 B current (+72,028 source bytes), including this branch's
+  `MuseCodeHost.ts` +91 lines and `mapNotification.ts` +109 lines.
+- Stub probe (temp-only esbuild run, tree untouched): replacing
+  `MuseCodeHost.ts` with an empty class drops 5 modules and 76,489
+  minified bytes (572,418 → 495,929). Source bytes of the dropped five:
+  `MuseCodeHost.ts` 119,887, `mapNotification.ts` 23,211,
+  `promptLedger.ts` 8,948, `sessionRecords.ts` 6,811, `feedback.ts` 2,704.
+  `host/resources/museResourceLaunch.ts` stays on the activation path, so
+  the SDK stays; `host/team/processLifetime.ts` is not in the activation
+  bundle and is out of scope.
+- Fix: new `dist/museCode.js` entry (`museCodeEntry.ts`) carrying the five,
+  loaded by `MuseCodeBackendManager` on first spawn; no behaviour change.
