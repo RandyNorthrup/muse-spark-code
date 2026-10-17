@@ -41,6 +41,20 @@ check:plan` exit 0.
   generated `docs/reference.md` ("Other CI systems"), README
   `README.md:4939` ("Other CI systems"), guide `docs/ci-other-systems.md`.
 - No `@unwired M80` tag remains in the tree.
+- macOS-sh bootstrap fix (`ed8e7dcaa`): macOS `sh` (bash 3.2) cannot parse a
+  multiline `case` inside `$( )`, so all four templates' end-to-end runs died
+  with `syntax error near unexpected token 'newline'` plus a knock-on
+  `muse_alias: unbound variable` under `set -u` — a failure kubuntu/dash
+  never shows and the first macOS run of the full e2e. The alias shape check
+  already runs in the reserved-prefix loop before the subshell (it subsumes
+  the removed inner one), so only the value removals stay inside
+  (`ci-templates/bootstrap.sh:18-21`, synced into all four templates),
+  keeping the download children blind exactly as before. Fast static guard
+  (`ciTemplates.test.ts`, "no case statement inside the setup command
+  substitution") refuses any `case` there on every platform; drilled red on
+  all four systems against the old inner `case "$muse_alias"` line (1–10 ms),
+  green on the fix. A `sh -n` variant was tried first and does not fire:
+  bash 3.2 parses the substitution body only at run time.
 - The merge took main's test-overhaul deletion of
   `test/unit/referenceGenerator.test.mjs` (verdict GO: fake session-store
   import). Its R5-P3 regression used real modules only, so it was re-homed as
@@ -107,25 +121,27 @@ product after `npm run package:acp`.
 
 ## 5. App problems and rig events
 
-1. **Rig overload, 2026-10-17 ~08:30–09:30 (macmini, load 4–13).** The
-   process suites (`ciRun`, `ciTemplatesRun`) spawn real shells, git, tar and
-   npm installs. On this loaded rig their per-test times inflate past the
-   suites' own named 60 s timeout (end-to-end cases take 66–87 s) and even a
-   no-install refusal case took 28 s against the 5 s repo default; `afterEach`
-   cleanup hit the 10 s hook timeout (`ENOTEMPTY` races). All 10 pure-logic
-   `ciRun` cases (adapters, key intake, deadline) pass; every failure is a
-   timeout, none an assertion. Kubuntu certified the same suites green.
-   Re-run off-peak before closing; the timeouts themselves are unchanged.
-2. **170 tracked test files deleted from the worktree at ~08:41 by an
+1. **Rig overload, 2026-10-17 ~08:30–09:30 (macmini, load 4–13).**
+   `ciRun`'s end-to-end cases take 66–87 s here against the suites' named
+   60 s timeout, and even a no-install refusal case took 28 s against the
+   5 s repo default; `afterEach` cleanup hit the 10 s hook timeout
+   (`ENOTEMPTY` races). All 10 pure-logic `ciRun` cases (adapters, key
+   intake, deadline) pass; every `ciRun` failure is a timeout, none an
+   assertion. Kubuntu certified the same suites green. Re-run off-peak
+   before closing; the timeouts themselves are unchanged.
+2. **`ciTemplatesRun`'s 18 failures were a real bug, not load** (found
+   2026-10-17 ~10:30): the macOS-sh `case`-in-`$()` parse failure above,
+   fixed in `ed8e7dcaa`. Full re-run after the fix is in flight.
+3. **170 tracked test files deleted from the worktree at ~08:41 by an
    unknown process** (no delete command from this lane; `ps` is sandbox
    blocked). Restored byte-exact with `git checkout -- test/` (status clean,
    tripwire 1184 files). Lead: check host audit for the 08:41 writer.
-3. **Whole-tree `lint:js:main` fails only on `temp/l10n-builds-*/` scratch**
+4. **Whole-tree `lint:js:main` fails only on `temp/l10n-builds-*/` scratch**
    (71,500 errors, zero elsewhere): gitignored bundles from an earlier lane,
    not deliverable code, left in place per workspace rules. Local proof runs
    the unchanged gate plus `--ignore-pattern "temp/**"` (exit 0, zero
    warnings); CI's clean checkout runs the gate as-is.
-4. **`security:sast` is unrunnable on this rig.** The semgrep binary itself
+5. **`security:sast` is unrunnable on this rig.** The semgrep binary itself
    crashes before scanning (`Failure: ca-certs: empty trust anchors`; even
    `semgrep --version` fails). No proxy/cert env vars are set. Per
    sandbox-limits rules no workaround was built; the lead runs SAST outside

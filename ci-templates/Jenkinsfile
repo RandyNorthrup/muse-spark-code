@@ -99,10 +99,12 @@ pipeline {
             )"
             muse_ci_internal_start_ms="${muse_ci_internal_setup%%:*}"
             muse_ci_internal_dir="${muse_ci_internal_setup#*:}"
-            # An exec failure still belongs to this shell; successful exec belongs to
-            # ci-entry. The reserved holders survive both generated and alias unsets.
+            # A launch failure still belongs to this shell: plain invocation (not exec)
+            # keeps every shell's exit status, because macOS sh (bash 3.2) reports a
+            # failed bare exec as success once an EXIT trap runs. The reserved holders
+            # survive both generated and alias unsets.
             trap '(muse_ci_internal_rm_dir="$muse_ci_internal_dir"; unset MUSE_MODEL_API_KEY MUSE_SPARK_MODEL_API_KEY META_API_KEY MUSE_MODEL_API_KEY_FILE muse_key muse_key_file muse_setup muse_dir muse_start_ms muse_sum muse_alias; for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done; timeout -s KILL 5 rm -rf "$muse_ci_internal_rm_dir" 2>/dev/null || rm -rf "$muse_ci_internal_rm_dir")' EXIT HUP INT TERM
-            MUSE_CI_TEMP="$muse_ci_internal_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_ci_internal_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_ci_internal_dir/agent.tgz" exec node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" jenkins
+            MUSE_CI_TEMP="$muse_ci_internal_dir" MUSE_CI_BOOTSTRAP_START_MS="$muse_ci_internal_start_ms" MUSE_INPUT_AGENT_PACKAGE="$muse_ci_internal_dir/agent.tgz" node "$muse_ci_internal_dir/launcher/package/ci/lib/ci-entry.mjs" jenkins
             # END MUSE BOOTSTRAP
           '''
         }

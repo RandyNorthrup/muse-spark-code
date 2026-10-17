@@ -378,7 +378,7 @@ describe.runIf(isPosix)('the exact template scripts', PROCESS_SUITE, () => {
               'set -eu',
               `${setupName}="1700000000000:${dir}"`,
               parent,
-              'exec muse-spark-exec-probe-missing-binary',
+              'muse-spark-exec-probe-missing-binary',
             ].join('\n'),
           ],
           {
