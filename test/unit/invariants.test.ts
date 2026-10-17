@@ -13,7 +13,7 @@
 // approval answers), documented where they are used. No mocks, no fakes, no
 // timers, no loopback provider.
 
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { removeFolder } from './helpers/temporaryFolders'
 import { tmpdir } from 'node:os'
@@ -48,7 +48,9 @@ import {
   estimatePackTokens,
 } from '../../src/core/backends/modelapi/observationPack'
 import {
+  functionCallItemSchema,
   withStrictTools,
+  type FunctionCallItem,
   type InputItem,
   type ToolDefinition,
 } from '../../src/core/backends/modelapi/schemas'
@@ -194,23 +196,19 @@ describe('invariant 1: earlier request bytes never change, extras append at the 
 })
 
 describe('invariant 2: observation packing keeps what the model saw', () => {
-  const CALL_ID = 'call_big_output'
-  // The oversized tool output is recorded, not generated: the read_file
-  // result the M91-G harness run carried in scenario 04 (13,407 characters;
-  // the `N|line M ...` rendering is the product's own read_file result
-  // format, the file content was the harness's big.txt). Packing mechanics
-  // depend only on the length, so this recorded long output drives them;
-  // the request ids below stay the test's own (a renamed or dropped call
-  // must fail loudly, as the golden harness's own normalisation holds).
-  const BIG = recordedToolOutput('04-packed-output.json', 1)
+  // The oversized tool output is recorded, not generated — and so is its
+  // call: the read_file call and result the M91-G harness run carried in
+  // scenario 04 (call `c1` on big.txt, 13,407 characters; the
+  // `N|line M ...` rendering is the product's own read_file result
+  // format, the file content was the harness's big.txt). The recorded call
+  // names the tool, which recall reports back as the source, so the pair
+  // is taken whole from the fixture rather than re-wrapped by hand.
+  const RECORDED = recordedCallAndOutput('04-packed-output.json', 1)
+  const CALL_ID = RECORDED.call.call_id
+  const BIG = RECORDED.output
 
   function send(pack: ObservationPack, output: string): InputItem[] {
-    const call: InputItem = {
-      type: 'function_call',
-      call_id: CALL_ID,
-      name: 'search',
-      arguments: '{}',
-    }
+    const call: InputItem = { ...RECORDED.call }
     const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output }
     const projected = pack.project([call, result])
     pack.noteSent(projected)
@@ -258,12 +256,7 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
 
   it('does not count a retried send of the same request twice', () => {
     const pack = new ObservationPack()
-    const call: InputItem = {
-      type: 'function_call',
-      call_id: CALL_ID,
-      name: 'search',
-      arguments: '{}',
-    }
+    const call: InputItem = { ...RECORDED.call }
     const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output: BIG }
     const projected = pack.project([call, result])
     pack.noteSent(projected)
@@ -273,12 +266,7 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
   })
 
   it('keeps the swap sticky across a resume and forgets it after a reset', () => {
-    const call: InputItem = {
-      type: 'function_call',
-      call_id: CALL_ID,
-      name: 'search',
-      arguments: '{}',
-    }
+    const call: InputItem = { ...RECORDED.call }
     const result: InputItem = { type: 'function_call_output', call_id: CALL_ID, output: BIG }
     const resumed = new ObservationPack()
     resumed.restorePackedCallIds([CALL_ID], [call, result])
@@ -314,22 +302,18 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
 // muse-spark-1.3 and muse-spark-1.2) at the product's own listed web-search
 // tariff (`PAID_PRICES_USD.webSearchPerThousand`, verified 2026-09-24,
 // `PAID_PRICES_VERIFIED_ON`), read through the real `webSearchPriceUsd`.
-// The ids stay the test's own distinct request ids (production mints a
-// randomUUID per request) and capturedAt is the real clock, as production
-// sets it (`paidConsent.ts`); neither reaches an assertion.
+// The id is minted and capturedAt taken exactly as production does them
+// (`paidConsent.ts`: a randomUUID per request, the real clock); neither
+// reaches an assertion.
 function searchTariff(model: string): UsdAmount {
   const tariff = webSearchPriceUsd(model)
   if (tariff === undefined) throw new Error(`no listed web-search tariff for ${model}`)
   return tariff
 }
 
-function searchQuote(
-  id: string,
-  model: string,
-  tariff: UsdAmount = searchTariff(model),
-): PaidQuote {
+function searchQuote(model: string, tariff: UsdAmount = searchTariff(model)): PaidQuote {
   return {
-    id,
+    id: randomUUID(),
     feature: 'webSearch',
     provider: 'meta',
     model,
@@ -342,8 +326,8 @@ function searchQuote(
 
 describe('invariant 3: paid calls share one gate and tally separately', () => {
   it('asks per key through one reducer while each claim settles its own tally', () => {
-    const searchA = searchQuote('q-a', 'muse-spark-1.3')
-    const searchB = searchQuote('q-b', 'muse-spark-1.2')
+    const searchA = searchQuote('muse-spark-1.3')
+    const searchB = searchQuote('muse-spark-1.2')
     const tariff = searchTariff('muse-spark-1.3')
     // Literal anchor on the listed tariff (2.5 per thousand searches): a
     // provider-side price change must fail here and be re-verified, exactly
@@ -472,7 +456,7 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
   })
 
   it('asks again when the price rises under a saved grant for the same key', () => {
-    const cheap = searchQuote('q-cheap', 'muse-spark-1.3')
+    const cheap = searchQuote('muse-spark-1.3')
     let state = initialPaidAuthorityState()
     state = step(state, { type: 'quote', quote: cheap, generation: 'g1', ask: true }).state
     state = step(state, {
@@ -487,7 +471,7 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
     }).state
 
     // Same key, same price: the saved grant answers, no question.
-    const samePrice = searchQuote('q-same', 'muse-spark-1.3')
+    const samePrice = searchQuote('muse-spark-1.3')
     const quiet = step(state, {
       type: 'quote',
       quote: samePrice,
@@ -503,7 +487,7 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
     // current `searchPriceUsd`), so a provider-side rise arrives as a new
     // quote at a higher tariff under the same key.
     const risen = multiplyUsd(searchTariff('muse-spark-1.3'), 2)
-    const dearer = searchQuote('q-dearer', 'muse-spark-1.3', risen)
+    const dearer = searchQuote('muse-spark-1.3', risen)
     expect(paidAuthorityKey(dearer)).toBe(paidAuthorityKey(cheap))
     const asked = step(quiet.state, {
       type: 'quote',
@@ -775,17 +759,34 @@ const fixtureItemSchema = z.object({
   output: z.unknown().optional(),
 })
 
-/** One recorded tool output from a golden fixture: the output string of the
- * first function_call_output in the request, narrowed by a typeof guard. */
-function recordedToolOutput(relativePath: string, requestIndex: number): string {
+/** One recorded tool call and its output from a golden fixture: the first
+ * function_call (parsed under the product's own item schema) and the
+ * string output of its function_call_output, narrowed by a typeof guard. */
+function recordedCallAndOutput(
+  relativePath: string,
+  requestIndex: number,
+): { readonly call: FunctionCallItem; readonly output: string } {
   const raw: unknown = JSON.parse(goldenRequests(relativePath)[requestIndex]!)
-  const parsed = z.object({ input: z.array(fixtureItemSchema) }).parse(raw)
-  const output = parsed.input.find((item) => item.type === 'function_call_output')?.output
+  const parsed = z.object({ input: z.array(z.unknown()) }).parse(raw)
+  const callItem = parsed.input
+    .map((item) => functionCallItemSchema.safeParse(item))
+    .find((result) => result.success)
+  if (!callItem?.success)
+    throw new Error(`no recorded function call in ${relativePath} request ${String(requestIndex)}`)
+  const call = callItem.data
+  const output = parsed.input
+    .map((item) => fixtureItemSchema.safeParse(item))
+    .find(
+      (result) =>
+        result.success &&
+        result.data.type === 'function_call_output' &&
+        result.data.call_id === call.call_id,
+    )?.data.output
   if (typeof output !== 'string')
     throw new Error(
       `no recorded string tool output in ${relativePath} request ${String(requestIndex)}`,
     )
-  return output
+  return { call, output }
 }
 
 interface GoldenPrefix {
