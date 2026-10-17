@@ -30,6 +30,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- ChatGPT sign-in no longer registers a new app with OpenAI every time.
+  OpenAI asks apps to save the client it issues at the first sign-in and
+  reuse it for later sign-ins to the same account; the app re-registered on
+  every sign-in, after a sign-out and after an expired sign-in alike. It now
+  keeps that registration (the issued client and a hash of the account, no
+  token) beside the sign-in, keeps it when you remove ChatGPT, and signs the
+  same account in again with it. A sign-in that comes back for another account
+  is refused before anything is replaced. To register a different ChatGPT
+  account, choose **Use a Different ChatGPT Account** in the Models panel or
+  the editor's sign-in methods, or run `providers add chatgpt --new-account`.
+  Every refresh answer OpenAI documents as an unusable sign-in now asks you to
+  sign in again instead of "temporarily unavailable", and a registration
+  OpenAI no longer accepts says so and names the way out.
+
 - ChatGPT plan refusals are handled as OpenAI documents them. A usage limit
   answered before the reply starts (HTTP 429) now opens the same plan-limit
   card, with Manage Usage, as one that arrives mid-reply; it was a generic

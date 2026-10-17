@@ -4274,14 +4274,17 @@
   "acpProviderAdded": "{id} szolgáltató hozzáadva.",
   "acpProviderRemoved": "{id} szolgáltató eltávolítva.",
   "acpChatGpt": {
-    "usage": "Használat: muse-spark-code-acp providers add|remove|status chatgpt",
+    "usage": "Használat: muse-spark-code-acp providers add|remove|status chatgpt [--new-account]",
     "actions": {
       "add": "Folytatás ChatGPT-vel",
+      "add-new-account": "Másik ChatGPT-fiók használata",
       "remove": "ChatGPT-bejelentkezés eltávolítása",
       "status": "ChatGPT-bejelentkezés ellenőrzése"
     },
     "notice": "ChatGPT Plus vagy Pro szükséges. A kérések az előfizetés keretét használják; az OpenAI további krediteket is felhasználhat, ha engedélyezte őket a ChatGPT-ben. Jelentkezzen be a böngészőben.",
     "alreadyAdded": "A ChatGPT már hozzá van adva. Új bejelentkezés előtt távolítsa el.",
+    "accountMismatch": "Ez nem az a ChatGPT-fiók, amelyet ez az alkalmazás itt regisztrált. Jelentkezzen be azzal a fiókkal, vagy válassza a „Másik ChatGPT-fiók használata” lehetőséget.",
+    "clientRefused": "Az OpenAI már nem fogadja el az alkalmazás mentett ChatGPT-regisztrációját. Ha a ChatGPT hozzá van adva, távolítsa el, majd válassza a „Másik ChatGPT-fiók használata” lehetőséget.",
     "states": {
       "signed-in": "A ChatGPT be van jelentkezve.",
       "expired": "A ChatGPT-bejelentkezés lejárt; használatkor megújul, vagy távolítsa el, és jelentkezzen be újra.",

@@ -4112,7 +4112,7 @@ async function activateWindow(
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
         {
-          connectChatGpt: () => subscriptionFeatures().connectChatGpt(),
+          connectChatGpt: (isNewAccount) => subscriptionFeatures().connectChatGpt(isNewAccount),
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),
           isConfidential: () => currentSettings().confidentialWorkspace,

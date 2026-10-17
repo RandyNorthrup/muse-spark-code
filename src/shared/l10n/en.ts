@@ -5227,15 +5227,23 @@ export const EN = {
   acpProviderAdded: 'Added provider {id}.',
   acpProviderRemoved: 'Removed provider {id}.',
   acpChatGpt: {
-    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt',
+    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt [--new-account]',
     actions: {
       add: 'Continue With ChatGPT',
+      // A new registration for another ChatGPT account (`providers add chatgpt --new-account`).
+      'add-new-account': 'Use a Different ChatGPT Account',
       remove: 'Remove ChatGPT Sign-In',
       status: 'Check ChatGPT Sign-In',
     },
     notice:
       'ChatGPT Plus or Pro is required. Requests use your plan allowance; OpenAI may spend additional credits if you enabled them in ChatGPT. Continue in your browser to sign in.',
     alreadyAdded: 'ChatGPT is already added. Remove it before signing in again.',
+    // The browser signed in to another account than the saved registration's.
+    accountMismatch:
+      'This is not the ChatGPT account this app registered here. Sign in with that account, or choose “Use a Different ChatGPT Account”.',
+    // OpenAI answered invalid_client for the saved registration.
+    clientRefused:
+      'OpenAI no longer accepts this app’s saved ChatGPT registration. Remove ChatGPT if it is added, then choose “Use a Different ChatGPT Account”.',
     states: {
       'signed-in': 'ChatGPT is signed in.',
       expired:

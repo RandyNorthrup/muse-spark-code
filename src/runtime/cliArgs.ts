@@ -15,6 +15,7 @@ import {
   ACP_PAID_FLAGS,
   type AcpBackendKind,
   type AcpPaidFeature,
+  CHATGPT_NEW_ACCOUNT_FLAG,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
@@ -181,7 +182,13 @@ export function parseChatGptProviderAction(
   argv: readonly string[],
 ): ChatGptProviderAction | undefined {
   const [command, action, provider, ...rest] = argv
-  if (command !== 'providers' || provider !== 'chatgpt' || rest.length > 0) return
+  if (command !== 'providers' || provider !== 'chatgpt') return
+  // `--new-account` registers a different ChatGPT account instead of
+  // reusing the saved registration; only `add` takes it.
+  if (action === 'add' && rest.length === 1 && rest[0] === CHATGPT_NEW_ACCOUNT_FLAG) {
+    return 'add-new-account'
+  }
+  if (rest.length > 0) return
   switch (action) {
     case 'add':
     case 'remove':

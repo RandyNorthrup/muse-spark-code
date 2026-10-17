@@ -307,6 +307,16 @@ export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
  * string with `invalid_authorize_request` for `ext_agent_host_id`.
  */
 export const CHATGPT_HOST_ID_URN_PREFIX = 'urn:uuid:'
+/**
+ * The ChatGPT account's registration (the issued `client_id` and the hashed
+ * account it was issued for), kept beside the grant and across sign-out:
+ * "Retain its account/client mapping and this host's ID for a later
+ * sign-in" (developers.openai.com/siwc/token-sharing-open-source/
+ * profiles-and-sessions, read 2026-10-17). No token is stored under it.
+ */
+export const CHATGPT_REGISTRATION_SECRET_KEY = `${PROVIDER_SECRET_PREFIX}chatgpt.registration`
+/** `providers add chatgpt --new-account`: "Use a different ChatGPT account" (a new registration). */
+export const CHATGPT_NEW_ACCOUNT_FLAG = '--new-account'
 export const CHATGPT_GRANT_LOCK_PIPE = 'muse-spark-chatgpt-grant'
 /**
  * POSIX locks use the short platform root /tmp, independent of TMPDIR.

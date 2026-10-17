@@ -29,6 +29,8 @@ export class ChatGptSignInError extends Error {
       | 'providers-file-unreadable'
       | 'providers-file-unwritable'
       | 'already-added'
+      | 'account-mismatch'
+      | 'client-refused'
       | 'request-failed',
     /**
      * The operating system's own code for a `lock-unavailable` or

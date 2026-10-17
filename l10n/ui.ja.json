@@ -4161,14 +4161,17 @@
   "acpProviderAdded": "プロバイダー {id} を追加しました。",
   "acpProviderRemoved": "プロバイダー {id} を削除しました。",
   "acpChatGpt": {
-    "usage": "使い方: muse-spark-code-acp providers add|remove|status chatgpt",
+    "usage": "使い方: muse-spark-code-acp providers add|remove|status chatgpt [--new-account]",
     "actions": {
       "add": "ChatGPT で続行",
+      "add-new-account": "別の ChatGPT アカウントを使用",
       "remove": "ChatGPT のサインインを削除",
       "status": "ChatGPT のサインインを確認"
     },
     "notice": "ChatGPT Plus または Pro が必要です。リクエストはプランの利用枠を使います。ChatGPT で追加クレジットを有効にしている場合、OpenAI がそれを消費することがあります。ブラウザーでサインインしてください。",
     "alreadyAdded": "ChatGPT は既に追加されています。再度サインインする前に削除してください。",
+    "accountMismatch": "これは、このアプリがここで登録した ChatGPT アカウントではありません。そのアカウントでサインインするか、「別の ChatGPT アカウントを使用」を選択してください。",
+    "clientRefused": "OpenAI は、このアプリに保存された ChatGPT の登録を受け付けなくなりました。ChatGPT が追加されている場合は削除してから、「別の ChatGPT アカウントを使用」を選択してください。",
     "states": {
       "signed-in": "ChatGPT にサインインしています。",
       "expired": "ChatGPT のサインインの有効期限が切れました。使用時に更新されます。または削除して再度サインインしてください。",

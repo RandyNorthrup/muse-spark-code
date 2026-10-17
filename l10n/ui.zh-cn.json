@@ -4161,14 +4161,17 @@
   "acpProviderAdded": "已添加提供方 {id}。",
   "acpProviderRemoved": "已移除提供方 {id}。",
   "acpChatGpt": {
-    "usage": "用法: muse-spark-code-acp providers add|remove|status chatgpt",
+    "usage": "用法: muse-spark-code-acp providers add|remove|status chatgpt [--new-account]",
     "actions": {
       "add": "使用 ChatGPT 继续",
+      "add-new-account": "使用其他 ChatGPT 账户",
       "remove": "移除 ChatGPT 登录",
       "status": "检查 ChatGPT 登录"
     },
     "notice": "需要 ChatGPT Plus 或 Pro。请求会使用您的套餐额度；如果您在 ChatGPT 中启用了额外点数，OpenAI 可能会消耗这些点数。请在浏览器中登录。",
     "alreadyAdded": "已添加 ChatGPT。请先移除，再重新登录。",
+    "accountMismatch": "这不是此应用在此处注册的 ChatGPT 账户。请使用该账户登录，或选择“使用其他 ChatGPT 账户”。",
+    "clientRefused": "OpenAI 不再接受此应用保存的 ChatGPT 注册。如已添加 ChatGPT，请先移除，然后选择“使用其他 ChatGPT 账户”。",
     "states": {
       "signed-in": "已登录 ChatGPT。",
       "expired": "ChatGPT 登录已过期；使用时会刷新，您也可以移除后重新登录。",

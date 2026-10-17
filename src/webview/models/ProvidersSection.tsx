@@ -483,6 +483,18 @@ export function ProvidersSection(props: SectionProps) {
           >
             {UI_TEXT.acpChatGpt.actions.add}
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              post({
+                type: 'providers/connectSubscription',
+                providerId: 'chatgpt',
+                isNewAccount: true,
+              })
+            }}
+          >
+            {UI_TEXT.acpChatGpt.actions['add-new-account']}
+          </button>
           <p>{UI_TEXT.acpChatGpt.notice}</p>
           {panelState.copilotAvailable === true && (
             <>

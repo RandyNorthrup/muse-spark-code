@@ -38,7 +38,8 @@ export interface ModelsPanelMemento {
 }
 
 export interface ModelsPanelHostDeps {
-  readonly connectChatGpt?: () => Promise<void>
+  /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
+  readonly connectChatGpt?: (isNewAccount: boolean) => Promise<void>
   readonly connectCopilot?: () => Promise<void>
   readonly removeSubscription?: (id: string) => Promise<void>
   readonly isConfidential?: () => boolean

@@ -19,6 +19,8 @@ export async function startChatGptCallback(
   timeoutMs: number,
   pageText: () => string,
   signal?: AbortSignal,
+  /** The saved issued client a reauthorization's callback may omit. */
+  clientId?: string,
 ): Promise<Callback> {
   if (
     !isPkceState(state) ||
@@ -97,7 +99,7 @@ export async function startChatGptCallback(
       return
     }
     try {
-      parseChatGptCallback(url.href, redirectUri, state)
+      parseChatGptCallback(url.href, redirectUri, state, clientId)
       answer(response, HTTP_STATUS.ok)
       finish(url.href, true)
     } catch (error) {

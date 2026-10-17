@@ -457,9 +457,12 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('providers/connect'),
     providerId: z.optional(z.string()),
   }),
+  // `isNewAccount` (ChatGPT only) registers a different account instead of
+  // reusing the saved registration.
   z.strictObject({
     type: z.literal('providers/connectSubscription'),
     providerId: z.enum(['chatgpt', 'copilot']),
+    isNewAccount: z.optional(z.literal(true)),
   }),
   // Without a provider it tests the wizard's draft; with one it tests
   // that saved provider. Where no free check exists the host answers
