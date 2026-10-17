@@ -3644,6 +3644,7 @@
   "execBudgetQuote": "Vstup {inputTokens} ({inputCost}) + limit výstupu {outputTokens} ({outputCost}) = {estimate}; limit běhu {cap}, využito {spent}. Požadavek nebyl odeslán.",
   "execBudgetRequired": "Model API vyžaduje --max-budget-usd.",
   "execNumberInvalid": "Neplatné číslo nebo limit; rozpočet v USD přijímá nejvýše šest desetinných míst.",
+  "execLimitInvalid": "Neplatné číslo nebo limit pro {flag}.",
   "execTrustRefused": "Běhy bez rozhraní odmítají důvěru v pracovní prostor a obcházení oprávnění.",
   "execModeRefused": "Bez rozhraní jsou povoleny jen plan nebo acceptEdits.",
   "execWebSearchUnbounded": "Hostované vyhledávání na webu nemá zaručený limit a je odmítnuto.",

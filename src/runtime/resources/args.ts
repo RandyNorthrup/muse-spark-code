@@ -27,6 +27,6 @@ export function resourceFlagOverrides(
     overrides.enabled = toggle === 'on'
   }
   if (!resourceSettingsSchema.safeParse(overrides).success)
-    throw new Error(UI_TEXT.execNumberInvalid)
+    throw new Error(fill(UI_TEXT.execLimitInvalid, { flag: '--cpu-max/--memory-max' }))
   return overrides
 }

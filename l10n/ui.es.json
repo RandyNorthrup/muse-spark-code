@@ -3569,6 +3569,7 @@
   "execBudgetQuote": "Entrada de {inputTokens} ({inputCost}) + límite de salida de {outputTokens} ({outputCost}) = {estimate}; presupuesto de ejecución {cap}, {spent} gastados. Solicitud no enviada.",
   "execBudgetRequired": "La Model API requiere --max-budget-usd.",
   "execNumberInvalid": "Número o límite no válido; el presupuesto en USD admite como máximo seis decimales.",
+  "execLimitInvalid": "Número o límite no válido para {flag}.",
   "execTrustRefused": "Las ejecuciones sin interfaz rechazan la confianza en el espacio de trabajo y la omisión de permisos.",
   "execModeRefused": "Sin interfaz solo se permite plan o acceptEdits.",
   "execWebSearchUnbounded": "La búsqueda web alojada no tiene un límite garantizado y se rechaza.",

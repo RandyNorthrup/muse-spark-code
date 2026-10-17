@@ -158,7 +158,10 @@ describe('M80 args (A1–A10, F1)', () => {
       reason: fill(UI_TEXT.execOutputCapExceeded, { cap: '32768' }),
     })
     for (const bad of ['0', '15', '1.5', 'many'])
-      expect(parseExec({ ...base, 'max-output-tokens': bad }, ['hi']).ok).toBe(false)
+      expect(parseExec({ ...base, 'max-output-tokens': bad }, ['hi'])).toEqual({
+        ok: false,
+        reason: fill(UI_TEXT.execLimitInvalid, { flag: '--max-output-tokens' }),
+      })
     expect(parseExec({ backend: 'museCode', 'max-output-tokens': '2000' }, ['hi'])).toEqual({
       ok: false,
       reason: UI_TEXT.execModelApiOnly,
