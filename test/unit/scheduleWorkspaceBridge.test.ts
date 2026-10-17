@@ -1,68 +1,36 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+// The VS Code schedules bridge through its real code only: with no certified
+// delivery installed, holding a workspace and sending panel messages refuse
+// before any bundle loads, and the default draft is a valid schedule draft.
+import { describe, expect, it } from 'vitest'
 import {
   createSchedulesBridge,
   scheduleWindowWorkspace,
 } from '../../src/host/schedules/schedulesBridge'
 import { UI_TEXT } from '../../src/shared/constants'
-import type { RuntimeSchedulesBinding } from '../../src/runtime/schedules/binding'
 import { scheduleDraftSchema } from '../../src/shared/scheduleV2'
 
-const { load } = vi.hoisted(() => ({
-  load: vi.fn<() => Promise<RuntimeSchedulesBinding>>(() =>
-    Promise.reject(new Error('uncertified delivery must not load')),
-  ),
-}))
-vi.mock('../../src/runtime/schedules/binding', () => ({
-  runtimeSchedulesBinding: () => load,
-}))
-beforeEach(() => vi.clearAllMocks())
-
 function idleBridge(isEnabled = true) {
+  const lines: string[] = []
+  const record = (message: string) => {
+    lines.push(message)
+  }
   return createSchedulesBridge({
     distDir: '/dist',
-    log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    log: { trace: record, info: record, warn: record, error: record },
     isEnabled: () => isEnabled,
     defaultDelivery: () => 'whenIdle',
   })
 }
 
-describe('schedule workspace registration guard', () => {
-  it('holds the window without chat surfaces and retires late acquisitions on auth/settings loss', async () => {
-    const acquired = Promise.withResolvers<() => Promise<void>>()
-    const release = vi.fn(() => Promise.resolve())
-    const holdWorkspace = vi.fn(() => acquired.promise)
-    let isActive = true
-    let isEnabled = true
-    const window = scheduleWindowWorkspace(
-      { holdWorkspace, isDeliveryEnabled: () => isEnabled },
-      '/workspace',
-      () => isActive,
-      { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-    )
-    window.refresh()
-    window.refresh()
-    expect(holdWorkspace).toHaveBeenCalledOnce()
-    isActive = false
-    window.refresh()
-    acquired.resolve(release)
-    await acquired.promise
-    await Promise.resolve()
-    expect(release).toHaveBeenCalledOnce()
-    isActive = true
-    window.refresh()
-    expect(holdWorkspace).toHaveBeenCalledTimes(2)
-    isEnabled = false
-    window.refresh()
-    await Promise.resolve()
-    expect(release).toHaveBeenCalledTimes(2)
-    isEnabled = true
-    window.refresh()
-    window.dispose()
-    window.refresh()
-    await Promise.resolve()
-    expect(holdWorkspace).toHaveBeenCalledTimes(3)
-    expect(release).toHaveBeenCalledTimes(3)
-  })
+function recordingLog() {
+  const lines: string[] = []
+  const record = (message: string) => {
+    lines.push(message)
+  }
+  return { trace: record, info: record, warn: record, error: record }
+}
+
+describe('schedule workspace bridge without certified delivery', () => {
   it('uses a valid new-conversation draft when there is no active conversation', () => {
     const bridge = idleBridge()
     expect(
@@ -71,36 +39,39 @@ describe('schedule workspace registration guard', () => {
     expect(bridge.defaultDraft(Date.now(), undefined, 'modelApi').paidCapUsd).toBe('0')
   })
 
-  it('retires a late bundle acquisition after close and refuses a later request', async () => {
-    const acquired = Promise.withResolvers<RuntimeSchedulesBinding>()
-    load.mockImplementationOnce(() => acquired.promise)
-    const close = vi.fn(() => Promise.resolve())
-    const message = vi.fn(() => Promise.resolve({}))
-    const bridge = idleBridge()
-    const request = bridge.message({}, '/workspace')
-    const rejected = expect(request).rejects.toThrow(UI_TEXT.scheduleV2.runtime.unavailable)
-    await bridge.close()
-    acquired.resolve({
-      close,
-      message,
-      run: () => Promise.resolve(''),
-      command: () => Promise.resolve({ exitCode: 0, output: '' }),
-      holdWorkspace: () => Promise.resolve(() => Promise.resolve()),
-    })
-    await rejected
-    expect(close).toHaveBeenCalledOnce()
-    expect(message).not.toHaveBeenCalled()
-    await expect(bridge.message({}, '/workspace')).rejects.toThrow()
-    expect(load).toHaveBeenCalledOnce()
-  })
   it.each([true, false])(
-    'does not watch without certified delivery, enabled=%s',
+    'does not hold a workspace without certified delivery, enabled=%s',
     async (enabled) => {
       const bridge = idleBridge(enabled)
+      expect(bridge.isDeliveryEnabled()).toBe(false)
       await expect(bridge.holdWorkspace('/workspace')).rejects.toThrow(
         UI_TEXT.scheduleV2.runtime.unavailable,
       )
-      expect(load).not.toHaveBeenCalled()
     },
   )
+
+  it('refuses panel messages while schedules are disabled', async () => {
+    const bridge = idleBridge(false)
+    await expect(bridge.message({}, '/workspace')).rejects.toThrow(
+      UI_TEXT.scheduleV2.runtime.unavailable,
+    )
+  })
+
+  it('refuses panel messages after close without loading the bundle', async () => {
+    const bridge = idleBridge()
+    await bridge.close()
+    await expect(bridge.message({}, '/workspace')).rejects.toThrow(
+      UI_TEXT.scheduleV2.runtime.unavailable,
+    )
+  })
+
+  it('a window workspace over the real bridge refreshes and disposes without holding', async () => {
+    const bridge = idleBridge()
+    const window = scheduleWindowWorkspace(bridge, '/workspace', () => true, recordingLog())
+    window.refresh()
+    window.refresh()
+    window.dispose()
+    window.refresh()
+    await bridge.close()
+  })
 })

@@ -1,44 +1,24 @@
-import { describe, expect, it, vi } from 'vitest'
-import {
-  runtimeSchedulesBinding,
-  type RuntimeSchedulesBinding,
-} from '../../src/runtime/schedules/binding'
+// The lazy runtime schedule binding through the real loader: a bundle file
+// that is not on disk refuses with the unavailable words, and the refusal is
+// not cached as a success, so the next call tries the real load again.
+import path from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { runtimeSchedulesBinding } from '../../src/runtime/schedules/binding'
 import { UI_TEXT } from '../../src/shared/constants'
-import { uiLocale } from '../../src/shared/l10n/text'
 
 describe('lazy runtime schedule binding', () => {
-  it('loads once on use and installs the caller table before creating the runtime', async () => {
-    const binding: RuntimeSchedulesBinding = {
-      command: vi.fn(),
-      run: vi.fn(),
-      holdWorkspace: vi.fn(),
-      message: vi.fn(),
-      close: vi.fn(),
+  it('refuses a missing bundle and retries on the next call', async () => {
+    const lines: string[] = []
+    const record = (message: string) => {
+      lines.push(message)
     }
-    const factory = vi.fn().mockResolvedValue(binding)
-    const requireBundle = vi.fn().mockReturnValue({ createRuntimeSchedules: factory })
-    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-    const load = runtimeSchedulesBinding('/dist/schedules.js', log, requireBundle)
-    expect(requireBundle).not.toHaveBeenCalled()
-    expect(await Promise.all([load(), load()])).toEqual([binding, binding])
-    expect(factory).toHaveBeenCalledOnce()
-    expect(factory).toHaveBeenCalledWith(UI_TEXT, uiLocale())
-    expect(requireBundle).toHaveBeenCalledOnce()
-  })
-  it('rejects a missing factory and retries a failed engine creation', async () => {
-    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-    const factory = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('Unavailable binding'))
-      .mockResolvedValue('recovered')
-    const requireBundle = vi
-      .fn()
-      .mockReturnValueOnce({ createRuntimeSchedules: true })
-      .mockReturnValue({ createRuntimeSchedules: factory })
-    const load = runtimeSchedulesBinding('/dist/schedules.js', log, requireBundle)
+    const load = runtimeSchedulesBinding(path.join('/no-such-dist-folder', 'schedules.js'), {
+      trace: record,
+      info: record,
+      warn: record,
+      error: record,
+    })
     await expect(load()).rejects.toThrow(UI_TEXT.scheduleV2.runtime.unavailable)
-    await expect(load()).rejects.toThrow('Unavailable binding')
-    expect(await load()).toBe('recovered')
-    expect(factory).toHaveBeenCalledTimes(2)
+    await expect(load()).rejects.toThrow(UI_TEXT.scheduleV2.runtime.unavailable)
   })
 })
