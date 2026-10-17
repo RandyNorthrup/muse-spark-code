@@ -71,10 +71,16 @@ export function remoteBaseRef(remote: string, base: string): string {
 /**
  * Whether `name` may stand in a pull request's base range: a plain ref
  * name (no option, force mark, `:` or whitespace) that git cannot read as
- * a range or a reflog step either.
+ * a range or a reflog step either, each `/` segment a name git takes as
+ * one (not empty, not starting with `-` or `.`).
  */
 export function isRangeSafeRefName(name: string): boolean {
-  return isPlainRefName(name) && !name.includes('..') && !name.includes('@{')
+  return (
+    isPlainRefName(name) &&
+    !name.includes('..') &&
+    !name.includes('@{') &&
+    name.split('/').every((segment) => segment !== '' && !/^[-.]/.test(segment))
+  )
 }
 
 /**

@@ -423,7 +423,7 @@ describe('buildPalette', () => {
     }
   })
 
-  it('offers commit, push and pull requests on both backends (M71)', () => {
+  it('offers commit, push, pull requests and the GitHub sign-in on both backends (M71, M123)', () => {
     for (const backend of ['museCode', 'modelApi', undefined] as const) {
       const rows = pricedPalette({ ...context, backend })
         .find((group) => group.id === 'git')
@@ -433,6 +433,8 @@ describe('buildPalette', () => {
         { type: 'gitAction', action: 'push' },
         { type: 'gitAction', action: 'openPullRequest' },
         { type: 'openPullRequestInConversation' },
+        { type: 'gitAction', action: 'signInGitHubWithCode' },
+        { type: 'gitAction', action: 'signOutGitHub' },
       ])
     }
   })

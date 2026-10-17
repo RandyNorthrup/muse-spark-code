@@ -125,7 +125,7 @@ function refused(reason: string): PullRequestServiceError {
   return new PullRequestServiceError(reason)
 }
 
-/** @unwired M123 runtime pull requests */
+/** The runtime's pull requests: M123's native route (dist/nativeGit.js) runs them. */
 export class RuntimePullRequests {
   public constructor(private readonly deps: RuntimePullRequestDeps) {}
 

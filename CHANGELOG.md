@@ -7,6 +7,46 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **GitHub sign-in from three sources, and the GitHub card in the panel**
+  (PLAN.md D104). Every GitHub call (a pull request, its status and checks,
+  someone else's pull request) takes its sign-in from, in order: your
+  editor's own GitHub sign-in (VS Code and the forks that ship it,
+  unchanged); Muse Spark's own sign-in with GitHub's device flow through the
+  project's OAuth App "Muse Spark Code (Unofficial)" (public client id, no
+  secret, `repo` scope only); and your `gh` login, only after you turn on
+  the new machine-scoped setting `museSpark.github.useGhLogin` (off; a
+  repository's value is ignored), read for one call at a time. Where the
+  editor has no GitHub sign-in of its own (Arduino IDE 2, some forks),
+  **Sign In to GitHub** starts the device flow; anywhere, the palette's
+  **Sign In to GitHub With a Code** (`/github-login`) does. A card above the
+  composer shows the code with **Copy Code**, **Open GitHub** (only
+  github.com/login/device is ever opened) and **Cancel**; then a line names
+  the account and the sign-in in use, with **Sign Out** for Muse Spark's
+  own (`/github-logout`): the token is deleted from the editor's secret
+  storage and the app's page on GitHub opens, where you revoke the grant.
+  A token GitHub refuses is dropped, and you sign in again.
+- **In a terminal: `muse-spark-code-acp auth github login | logout | status`.**
+  `login` prints the code and GitHub's address and keeps the token in this
+  computer's credential store, renewing it before it expires; `status`
+  says whether one is stored (never the token); `logout` deletes it and
+  prints the app's page on GitHub. Signing out in one window also ends
+  sign-ins and renewals still running in others: once the sign-out has
+  written its new sign-in generation, none that began before it keeps or
+  returns a token (a call already overlapping the sign-out may still return
+  its earlier token).
+- **Git and pull requests without VS Code's Git extension.** An editor built
+  on VS Code that does not ship it (Arduino IDE 2, some forks) now gets
+  commit, push, pull requests and Write with Muse for both, through your own
+  `git` on PATH: the same forms and confirmations, the same refusals (never
+  a force-push), the push confirmation naming every URL Git will push to,
+  and each change checked again after every wait under one lock per
+  repository shared by every window. Creating a pull request signs in
+  first, pushes the branch after its confirmation, then asks once more
+  with what goes out before opening it. This route ships in its own bundle
+  (`dist/nativeGit.js`), so VS Code with its Git extension never loads it.
+
 ### Fixed
 
 - On Windows, two requests that reserve session spend at the same moment
@@ -152,30 +192,14 @@ happened, not what was planned; superseded entries are kept.
   revocation, own-machine Reset included, is still published after an audit
   failure, and the caller still gets the persistence error.
 
-- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
-  and P are merged and switched off until the milestone is complete, so
-  nothing changes for users yet. No GitHub setting is offered, and an
-  editor built on VS Code without its Git extension (Arduino IDE 2, some
-  forks) keeps its earlier behaviour. Merged: the GitHub token-source
-  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
-  (lane 0); the runtime's native Git service (status, the commit form,
-  commit, a push confirmed with every URL Git will use and the same
-  refusals as VS Code, never a force-push, commit-message drafts),
-  revalidated after every wait and serialized per repository across
-  windows by one fenced lease (LOCKLIB) that renews every third of its
-  30-second lease, is checked synchronously at each Git dispatch and is
-  never re-created once lost (lane G, with M123G4 and M123G4C); pull
-  requests in the runtime (draft, open and link, status and checks, a
-  fork onto its parent) and checkouts of other people's pull requests
-  held under the runtime data folder, whose records take that lease with
-  fenced compare-and-swap generations, so at most one window gets a
-  checkout and no folder is left without its record (lane P, with
-  M123P9's logged sweep failures and translated uncertain writes). Still
-  to land: the GitHub sign-in (lane A, accepted on its branch), the
-  editors' leases (lane L), the panel and its strings (lane U) and each
-  editor's qualification (lane Q). The pull-request checkout's own git
-  launches are not yet under the resource governor; nothing in this release
-  can start them, and the process inventory fails the day something could.
+- M123 (Git and pull requests in every editor, PLAN.md D104): the
+  checkout of someone else's pull request outside VS Code's Git (the
+  runtime's held checkout) is built and not connected: its own git
+  launches are not yet under the resource governor, so nothing in this
+  build can start them, and the process inventory fails the day something
+  could. JetBrains IDEs, Visual Studio, Eclipse and the editor-protocol
+  editors get the Git panel with their M104 bridges, which are not in this
+  build.
 
 ## [0.18.2] - 2026-10-12
 
