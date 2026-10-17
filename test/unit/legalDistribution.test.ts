@@ -10,6 +10,7 @@ import { dependency } from '../../src/core/legal/dependencies'
 import {
   checkNotices,
   computeShipped,
+  materialInSnapshot,
   type BundleEvidence,
 } from '../../src/core/legal/distribution'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -233,6 +234,31 @@ describe('computeShipped', () => {
     expect(shipped.incomplete.some((entry) => entry.includes('distribution set unknown'))).toBe(
       true,
     )
+  })
+})
+
+describe('materialInSnapshot', () => {
+  it('never borrows material across installed copies for a versionless dependency', () => {
+    const snapshot = snapshotFrom({
+      'node_modules/dup/package.json': JSON.stringify({ version: '1.0.0' }),
+      'node_modules/dup/LICENSE': 'one\n',
+      'node_modules/other/node_modules/dup/package.json': JSON.stringify({ version: '2.0.0' }),
+      'node_modules/other/node_modules/dup/LICENSE': 'two\n',
+    })
+    const dep = dependency('npm', 'package.json', 'dup', {})
+    expect(materialInSnapshot(snapshot, dep)).toEqual([])
+  })
+
+  it('locates the lone installed copy for a versionless dependency', () => {
+    const snapshot = snapshotFrom({
+      'node_modules/dup/package.json': JSON.stringify({ version: '1.0.0' }),
+      'node_modules/dup/LICENSE': 'one\n',
+    })
+    const dep = dependency('npm', 'package.json', 'dup', {})
+    expect(materialInSnapshot(snapshot, dep)).toEqual([
+      'node_modules/dup/LICENSE',
+      'node_modules/dup/package.json',
+    ])
   })
 })
 
