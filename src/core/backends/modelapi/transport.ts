@@ -475,6 +475,13 @@ export interface ResponseAttemptGuard {
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
   readonly observe?: (observation: ResponseObservation) => void
+  /**
+   * The provider refused this attempt before generating anything (a status
+   * in `NON_BILLABLE_HTTP_REJECTIONS`), told before the error is thrown, so a
+   * caller still knows nothing was billed when a wrapper rethrows the error
+   * without its status (D121).
+   */
+  readonly onRefused?: (status: number) => void
 }
 
 function isAborted(signal: AbortSignal | undefined): boolean {
@@ -1112,8 +1119,10 @@ export class RequestTransport {
         }
       }
       const failure = await describeFailure(response, this.deps.parseError, credentials.redact)
-      if (NON_BILLABLE_HTTP_REJECTIONS.has(response.status))
+      if (NON_BILLABLE_HTTP_REJECTIONS.has(response.status)) {
         admitAttempt?.mediaAccounting?.refused()
+        admitAttempt?.onRefused?.(response.status)
+      }
       if (init.paid !== undefined && NON_BILLABLE_HTTP_REJECTIONS.has(response.status)) {
         init.paid.isSent = false
       }
