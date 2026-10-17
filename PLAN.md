@@ -35181,30 +35181,7 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
-**TOOLROUNDS duplication record (2026-10-12 round 7; re-measured
-2026-10-13, macmini).** The zero-clone jscpd gate fails on this branch
-with 42 pairs and passes on main `38ef148f19` with 0 pairs (both
-measured with `npx jscpd --reporters json` on a scratch worktree under
-`$TMPDIR`, since removed): every pair on this branch sits inside
-fake-harness unit suites — 29 self-pairs in
-`test/unit/toolRounds.test.ts`, 3 with `test/unit/toolRoundsCodecs.test.ts`,
-1 with `test/unit/modelApiAutoCompact.test.ts`, 1 with
-`test/unit/toolRoundsXaiRefusal.test.ts`, 2 in
-`test/unit/modelApiHost.test.ts`, 2 in
-`test/unit/scheduleBackgroundTarget.test.ts`, 1 each in
-`bestOfNManager`/`museCodeHookModels`/`museCodeReviewer`, 1 self-pair
-in `toolRoundsCodecs.test.ts`. No pair touches `src/` or `scripts/`:
-the product code this lane ships is clone-free. The pairs are not
-fixed here because the owner's 2026-10-12 testing rules forbid adding
-to, repairing or extending fake-harness suites, and the TESTCUT lane
-(branch `chore/test-overhaul`) owns their deletion; refactoring them
-into parametrised tables here would both break that rule and collide
-with that lane. The round-7 shared-home fixes stand (guard-drill
-harnesses share `test/unit/helpers/guardProcess.ts`; the two Git
-drafts share `replyIfUsable`). No gate file, threshold or ignore is
-changed. The gate turns green when TESTCUT's deletion lands; until
-then the lead owns the green-or-accepted decision. Receipts are in
-`docs/certification/toolrounds.md` (Round 8, P2-4).
+**TOOLROUNDS duplication, resolved (2026-10-17, review merge).** The 42 jscpd pairs recorded in round 8 all sat in fake-harness suites; main's test overhaul (D108) deleted those suites and the review deleted the lane's three stranded ones. `npm run duplication` on the merged tree reports 0 clones, so the deferral this paragraph carried is closed.
 
 ## 8. Escape hatches register
 
