@@ -386,7 +386,7 @@
     {
       "id": "M53",
       "title": "Conversation rewind and side chat",
-      "summary": "Rewind a conversation to an earlier message and branch from it, or open a Plan-mode side chat in its own panel, except with Muse Code on Windows.",
+      "summary": "Rewind a conversation to an earlier message and branch from it, or open a Plan-mode side chat in its own panel, except with Muse Code on Windows, where the fork still fails on version 1.4.4.",
       "area": "chat",
       "release": "0.9.0"
     },

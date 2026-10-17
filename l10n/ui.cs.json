@@ -2681,6 +2681,8 @@
   "rewindConversationFailed": "Konverzaci se nepodařilo vrátit",
   "sideChatFailed": "Vedlejší chat se nepodařilo otevřít",
   "sideChatPlanOnly": "Vedlejší chaty zůstávají v režimu plánování.",
+  "sideChatWriteRefused": "Vedlejší chaty jsou jen pro čtení, takže tento požadavek byl odmítnut.",
+  "sideChatResolver": "Vedlejší chat",
   "planActionsLabel": "Akce plánu",
   "savePlan": "Uložit plán",
   "implementPlan": "Provést v nové konverzaci",

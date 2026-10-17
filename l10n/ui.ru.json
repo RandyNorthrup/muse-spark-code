@@ -2681,6 +2681,8 @@
   "rewindConversationFailed": "Не удалось откатить беседу",
   "sideChatFailed": "Не удалось открыть побочный чат",
   "sideChatPlanOnly": "Побочные чаты остаются в режиме планирования.",
+  "sideChatWriteRefused": "Побочные чаты доступны только для чтения, поэтому этот запрос был отклонён.",
+  "sideChatResolver": "Побочный чат",
   "planActionsLabel": "Действия с планом",
   "savePlan": "Сохранить план",
   "implementPlan": "Выполнить в новом разговоре",

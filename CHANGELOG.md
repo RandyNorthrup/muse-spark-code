@@ -43,6 +43,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- M53 follow-up (C-M53-3): a Muse Code side chat is read-only at the panel.
+  Every approval its branch raises is refused with the card's own rejection,
+  including a staged approval's later stages, and an approving click on a
+  card the host left standing is refused too, so the branch cannot approve a
+  write. Refusals are labelled `Side Chat` with the reason. Writes the CLI's
+  own allow rules already cover still run without asking; that residual is
+  recorded for the upstream report (sdk#86).
+
 - All fourteen translated settings tables now say Muse Code asks before a
   command unless a permission rule allows it, matching the English modes.
 

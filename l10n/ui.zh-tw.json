@@ -2519,6 +2519,8 @@
   "rewindConversationFailed": "無法回退對話",
   "sideChatFailed": "無法開啟旁聊",
   "sideChatPlanOnly": "旁聊會維持在規劃模式。",
+  "sideChatWriteRefused": "旁聊為唯讀，因此此請求被拒絕。",
+  "sideChatResolver": "旁聊",
   "planActionsLabel": "計畫動作",
   "savePlan": "儲存計畫",
   "implementPlan": "在新對話中實作",
