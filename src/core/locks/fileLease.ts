@@ -46,6 +46,7 @@ import { processOwnerSchema, type ProcessOwner } from './processOwner'
 
 const RETIRED_SUFFIX = '.retired'
 const FENCES_SUFFIX = '.fences'
+const STAGE_SUFFIX = '.stage'
 const FENCE_DIGITS = 16
 const FENCE_NAME = /^\d+$/u
 const FENCE_CREATE_ATTEMPTS = 8
@@ -373,6 +374,44 @@ async function sweepFences(port: LeasePort, fences: string, current: number): Pr
   }
 }
 
+/**
+ * Removes abandoned publication stages (`<lock>.<note id>.stage`) whose
+ * owner is provably gone, judged by the same evidence as a takeover. A
+ * crash between the stage write and its cleanup leaves one behind; a
+ * stage whose note is unreadable, or whose owner may still live, stays.
+ * Best effort.
+ */
+async function sweepStages(
+  port: LeasePort,
+  lockPath: string,
+  isOwnerGone: (owner: ProcessOwner) => Promise<boolean>,
+): Promise<void> {
+  const folder = path.dirname(lockPath)
+  const base = path.basename(lockPath)
+  let names: readonly string[]
+  try {
+    names = await port.readdir(folder)
+  } catch {
+    return
+  }
+  for (const name of names) {
+    if (!name.startsWith(`${base}.`) || !name.endsWith(STAGE_SUFFIX)) continue
+    const file = path.join(folder, name)
+    let note: LeaseNote | undefined
+    try {
+      note = parseNote(await port.readFile(file))
+    } catch {
+      continue
+    }
+    if (!note) continue
+    try {
+      if (await isOwnerGone(note.owner)) await port.unlink(file)
+    } catch {
+      // The next acquisition sweeps again.
+    }
+  }
+}
+
 /** The instance now at `file` (moved aside), read whole; undefined when it cannot be. */
 async function instanceAt(
   port: LeasePort,
@@ -616,7 +655,7 @@ export async function acquireFileLease(
     let isCreated = false
     try {
       if (env.takeover === 'ownerDeathOnly') {
-        const stage = `${lockPath}.${note.id}.stage`
+        const stage = `${lockPath}.${note.id}${STAGE_SUFFIX}`
         try {
           await env.port.createExclusive(stage, JSON.stringify(note), 'flushed')
           await env.port.link(stage, lockPath)
@@ -655,6 +694,7 @@ export async function acquireFileLease(
       })
       if (await lease.isHeld()) {
         await sweepFences(env.port, fences, lease.fence)
+        await sweepStages(env.port, lockPath, env.isOwnerGone)
         return lease
       }
       // Lost while taking the fence (a long pause): try again.

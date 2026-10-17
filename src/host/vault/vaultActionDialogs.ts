@@ -32,11 +32,8 @@ export function vaultActionDialogs(
     confirmReset: async (word, signal, warning) => {
       // Step 1: what a reset erases, stated plainly; step 2: the typed word.
       // An unknown writer's holder facts ride beside the warning when the
-      // broker names one (the lease line's confirmed-recovery warning).
-      const detail =
-        warning === undefined
-          ? UI_TEXT.vault.resetWarning
-          : [UI_TEXT.vault.resetWarning, warning].join('\n\n')
+      // broker names one; no trailing blank line without one (RVCM109LEASEB).
+      const detail = UI_TEXT.vault.resetWarning + (warning ? '\n\n' + warning : '')
       const proceed = await vscode.window.showWarningMessage(
         UI_TEXT.vault.resetVault,
         { modal: true, detail },

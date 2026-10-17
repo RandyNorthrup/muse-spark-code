@@ -42,7 +42,7 @@ export class VaultWriterError extends VaultError {
         since: formatDateTime(writer.acquiredAt),
       })
       this.message = writer.machineLabel ? writer.machineLabel + ': ' + detail : detail
-    } else this.message = writer.kind === 'ownerUnknown' ? text.ownerUnknown : text.busy
+    } else this.message = writer.kind === 'ownerUnknown' ? text.ownerUnknown : text.unreadable
   }
 }
 

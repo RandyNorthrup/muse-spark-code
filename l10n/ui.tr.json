@@ -5180,6 +5180,7 @@
     "busyHolder": "Kasa {since} tarihinden beri {pid} işlemi tarafından tutuluyor. İşlem sona erdikten sonra yeniden deneyin.",
     "busyOtherMachine": "Kasa başka bir makinede {since} tarihinden beri {pid} işlemi tarafından tutuluyor. İşlemin sona erdiği buradan doğrulanamaz.",
     "ownerUnknown": "Bu işlemin işletim sistemindeki kesin oluşturulma zamanı belirlenemediği için kasa yazma erişimi alamıyor. Yeniden deneyin.",
+    "unreadable": "Yazma kilidi okunamıyor ve kendiliğinden boşalmayacak. Yeniden başlamak için kasayı sıfırlayın.",
     "importedLabel": "İçe aktarılan {source} kimlik bilgisi {number}",
     "importedSummary": "Kasaya aktarıldı: {names}",
     "importKeepOrDelete": "Özgün dosya saklansın mı, yoksa kimlik bilgileri kasada olduğuna göre silinsin mi?",
