@@ -410,6 +410,41 @@ describe('configured provider production transport', () => {
     },
   )
 
+  it('resolves an Azure record by model family while dispatch stays refused', async () => {
+    // PROVM95: the entry carries the deployment, but the record resolves by
+    // the ticked family against the live catalogue (gpt-5.4-nano: 400000,
+    // GPT-5.4 Nano on 2026-10-17), never by the deployment name. No capture
+    // yet, so resolving a client refuses before send, like rule 13's locals.
+    const f = await fixture()
+    const entry = providerEntrySchema.parse({
+      id: 'az',
+      preset: 'azure',
+      address: 'https://myres.openai.azure.com/openai/v1',
+      auth: 'apiKey',
+      models: ['gpt-5.4-nano'],
+      deployment: 'my-gpt-deploy',
+    })
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+    const send = vi.fn<NonNullable<ConfiguredProviderOptions['send']>>(() =>
+      Promise.resolve(response(Buffer.from(''))),
+    )
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['1.2.3.4']),
+      send,
+    })
+    const rows = await services.registry.list()
+    expect(rows.find((row) => row.modelId === 'az/gpt-5.4-nano')).toMatchObject({
+      contextLimit: 400_000,
+      displayLabel: 'GPT-5.4 Nano',
+    })
+    expect(rows.some((row) => row.modelId.includes('my-gpt-deploy'))).toBe(false)
+    await expect(services.registry.resolve('az/gpt-5.4-nano')).rejects.toThrow(
+      UI_TEXT.modelsPanelUnavailable,
+    )
+    expect(send).not.toHaveBeenCalled()
+  })
+
   it('refuses uncaptured local presets even when keyless (rule 13)', async () => {
     // C-M95-4 R2: the wire-capture refusal skipped `auth === 'none'`, so a
     // picked vLLM or Ollama entry sent chat with no capture behind it.

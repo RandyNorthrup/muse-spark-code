@@ -85,6 +85,9 @@ export const providerEntrySchema = z
     routing: z.optional(openRouterRoutingSchema),
     // The context each Ollama model runs with (only on an `ollama` entry).
     numCtx: z.optional(z.record(z.string(), z.number())),
+    // The deployment name Azure sends as `model` (only on an `azure`
+    // entry); capability records resolve by the model family in `models`.
+    deployment: z.optional(z.string()),
     // Set once the user answers the private-network question for this entry.
     privateNetwork: z.optional(z.boolean()),
   })
@@ -111,6 +114,11 @@ export const providerEntrySchema = z
           (modelId) => entry.modelLimits !== undefined && Object.hasOwn(entry.modelLimits, modelId),
         ),
       { error: () => UI_TEXT.providerText.schema.customLimits },
+    ),
+    z.refine(
+      (entry) =>
+        entry.preset !== 'azure' || (entry.deployment !== undefined && entry.deployment !== ''),
+      { error: () => UI_TEXT.actionFailed },
     ),
   )
   .check(

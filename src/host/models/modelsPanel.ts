@@ -114,6 +114,8 @@ function newDraft(preset?: PresetInfo, entry?: ProviderEntry): PanelDraft {
         : `http://${loopbackProbe.host}:${String(loopbackProbe.port)}`),
     ...(loopbackProbe !== undefined && { loopbackPort: loopbackProbe.port }),
     auth: entry?.auth ?? preset?.auth ?? 'apiKey',
+    // An Azure edit reopens with its deployment; the resource stays in the address.
+    ...(entry?.deployment !== undefined && { deployment: entry.deployment }),
     keyPresent: false,
     keyShapeOk: false,
     connected: false,
@@ -336,6 +338,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         ...(JSON.stringify(draft.modelLimits) !== JSON.stringify(initial.modelLimits) && {
           modelLimits: { ...base.modelLimits, ...editedLimits },
         }),
+        ...(base.preset === 'azure' &&
+          draft.deployment !== initial.deployment && { deployment: draft.deployment }),
         ...(preset.id === 'openrouter' &&
           (isPrivacyChanged || isOrderChanged || isFallbacksChanged) && {
             routing: {
@@ -357,6 +361,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       address: draft.address ?? preset.origin,
       auth: draft.auth,
       models: draft.models,
+      // The deployment rides the entry, never the models: records resolve
+      // by the model family the user ticked (PROVM95).
+      ...(preset.id === 'azure' &&
+        draft.deployment !== undefined && { deployment: draft.deployment }),
       ...(modelLimits !== undefined && { modelLimits }),
       ...(draft.customFormat !== undefined && { format: draft.customFormat }),
       ...(preset.id === 'openrouter' && {

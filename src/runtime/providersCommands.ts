@@ -532,7 +532,7 @@ async function checkAddAddress(
     ok: true,
     origin: verdict.origin,
     address:
-      preset.id === 'custom'
+      preset.id === 'custom' || preset.origin.kind === 'azure-resource'
         ? `${verdict.origin}${url.pathname.replace(/\/+$/u, '')}`
         : verdict.origin,
     privateNetwork: verdict.kind === 'confirm-private',

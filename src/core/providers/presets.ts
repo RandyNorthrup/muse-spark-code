@@ -371,7 +371,9 @@ const AZURE_PRESET: ProviderPreset = {
     return UI_TEXT.providerText.hints.azure
   },
   keyTest: { kind: 'paid-token' },
-  modelsList: { path: '/openai/v1/models', priceSource: 'catalogue' },
+  // The address root is `/openai/v1`, so list and request paths below are
+  // relative to it (research §1.2 [AZ1, AZ6]).
+  modelsList: { path: '/models', priceSource: 'catalogue' },
   quirks: {
     // Azure OpenAI's constrained decoding takes strict tool schemas.
     supportsStrictTools: true,
@@ -895,6 +897,22 @@ export function azureOrigin(resource: string): string | undefined {
   return AZURE_RESOURCE_PATTERN.test(name)
     ? `https://${name}${AZURE_ORIGIN_SUFFIX}${AZURE_API_PATH}`
     : undefined
+}
+
+/**
+ * The model name on the wire for an entry (research §1.2 [AZ1, AZ6]):
+ * Azure's v1 API takes the deployment name, every other preset the listed
+ * model. Records stay keyed by the model family in the entry's models, so
+ * a deployment name never becomes a record lookup.
+ */
+export function wireModelFor(
+  entry: { readonly preset: string; readonly deployment?: string | undefined },
+  nativeModel: string,
+): string {
+  if (entry.preset !== 'azure') return nativeModel
+  const deployment = entry.deployment
+  if (deployment === undefined || deployment === '') throw new Error(UI_TEXT.actionFailed)
+  return deployment
 }
 
 // --- OpenRouter as a first-class provider (D74) ---
