@@ -61,7 +61,9 @@ const CAPTURED_STDERR: readonly {
   // (captured 2026-10-17, F94): the path is never logged, and the reason
   // only when it is a schema word in a safe shape.
   {
-    pattern: /malformed auth file at .*?: ([A-Za-z0-9_`. ]{1,80})/u,
+    // Greedy to the last ": ": a POSIX path may itself contain one, and
+    // the reason (schema words, no colon) follows the path's.
+    pattern: /malformed auth file at .*: ([A-Za-z0-9_`. ]{1,80})/u,
     logged: (match) => `the credential file is malformed (${match[1] ?? 'no reason given'})`,
   },
 ]
