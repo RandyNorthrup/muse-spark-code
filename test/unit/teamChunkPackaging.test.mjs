@@ -9,6 +9,7 @@ import {
   sharedValidation,
   sharedWire,
 } from '../../scripts/lib/deferredBundles.mjs'
+import { ACP_BUNDLES } from '../../scripts/lib/acpBundles.mjs'
 
 // An installed VS Code must load every chunk its team code can load, and the
 // ACP package must carry nothing no shipped entry can reach. Both package
@@ -20,6 +21,7 @@ const TEAM_ENTRIES = {
   'dist/teamHost.js': 'src/host/team/teamHostEntry.ts',
   'dist/teamScheduler.js': 'src/core/team/teamSchedulerEntry.ts',
   'dist/teamWorkerOps.js': 'src/core/team/workers/workerOpsEntry.ts',
+  'dist/teamEngine.js': 'src/host/team/teamEngineEntry.ts',
 }
 // The VSIX and the ACP package ship these team entries; their lazy chunks
 // must follow from reachability, never from a list kept here.
@@ -30,7 +32,7 @@ const VSIX_TEAM_ENTRIES = [
   'dist/teamScheduler.js',
 ]
 const ACP_TEAM_ENTRIES = ['dist/team.js', 'dist/teamRunners.js', 'dist/teamScheduler.js']
-// Four separate production-shaped builds, once: each entry on its own, so a
+// Six separate production-shaped builds, once: each entry on its own, so a
 // shared chunk cannot hide which entry loads it.
 const BUILD_TIMEOUT_MS = 60_000
 
@@ -47,10 +49,7 @@ function vsixShipped() {
 }
 
 function acpShipped() {
-  const source = readFileSync('scripts/package-acp.mjs', 'utf8')
-  const start = source.indexOf('const BUNDLES = [')
-  const block = source.slice(start, source.indexOf(']', start))
-  return new Set(block.matchAll(/'([\w-]+\.js)'/g).map((match) => `dist/${match[1]}`))
+  return new Set(ACP_BUNDLES.filter((name) => name.endsWith('.js')).map((name) => `dist/${name}`))
 }
 
 function closure(entries, reachable) {

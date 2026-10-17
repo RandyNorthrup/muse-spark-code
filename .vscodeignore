@@ -27,6 +27,7 @@
 !dist/team.js
 !dist/teamRunners.js
 !dist/teamHost.js
+!dist/teamEngine.js
 !dist/teamFileIo.js
 !dist/teamCreate.js
 !dist/teamWorkerOps.js
