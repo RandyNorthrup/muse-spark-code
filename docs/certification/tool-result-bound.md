@@ -45,7 +45,10 @@ when a refusal still arrives (§4).
 - Guarantee: the window share. Measured in UTF-8 bytes against tokens
   (`windowShareBytes`: a quarter of the remaining window). A token is at
   least one byte, so a result of at most N bytes is at most N tokens whatever
-  the text's density (hex, base64, minified JSON, CJK). Pure test: 62,061
+  the text's density (hex, base64, minified JSON, CJK). The guarantee covers
+  the kept result text; the harness's own one-line cut notice (a fixed
+  template plus the spill path and recall id, a few hundred bytes) rides on
+  top of it and is not part of the measured result (review, 2026-10-17). Pure test: 62,061
   ASCII characters pass the character estimate but are cut under a 60k window
   (`keptBytes <= 15,000` asserted); 20,000 CJK characters (60,000 bytes,
   inside the character estimate) are cut to the same byte bound.
@@ -252,3 +255,41 @@ response did not complete`, and `[info] Authentication Required; requests
   sentence), `package.nls.json` (setting description). Integration run per
   the dependents rule.
 - What TOOLCAP needs from `fix/provider-refusals`: §4 names it; nothing copied.
+
+## 10. Review fixes (RVTOOLCAP, 2026-10-14 and 2026-10-17)
+
+An independent review of this lane fixed, each with its proof:
+
+- A raised byte guard now raises what one result may keep
+  (`limitsForByteGuard`): before, the fixed 16,000-token estimate silently
+  stayed in charge, so raising the setting changed nothing. Pure test keeps
+  a 99,999-character result whole at a 128,000 guard that is cut at 64,000.
+- The above-window refusal is judged against the model's whole window, not
+  the room left: before, a cap that fits the window could be refused
+  mid-session as the conversation grew, naming a window size that was not
+  the model's.
+- Recovery trims before it compacts for every proven overflow kind, and a
+  trim-resend that is still too long falls through to compaction (at most
+  three sends, as §4 states); before, count-based kinds skipped the trim and
+  a failed trim-resend ended the turn.
+- `headLines`/`tailLines` count whole lines only: before, a fragment the cut
+  made inside a line counted as a kept line, so one line could be reported
+  as two.
+- `keptChars` counts original characters, not the `…` markers the cut adds
+  (red drill: one 200,000-character line reported 8,000 kept where 7,999
+  original characters are carried; CRLF case 16,001 for 15,999). A middle
+  cut now marks where head meets tail with the same `…`, counted against
+  the byte guarantee, so two fragments never read as one line the tool
+  never printed. The notice says "about N tokens" (the estimate), counts
+  whole lines as such, and no longer claims everything omitted was "in the
+  middle" when only lines were cut. The person's preview no longer reads
+  the original total as the amount kept.
+- A spill write that fails (a read-only workspace) no longer ends the turn
+  or reports a cap refusal that never happened: before, `writeSpill` emitted
+  the cap-refusal sentence with an untranslated English reason and then
+  threw out of the tool-call commit. Now the person gets a true translated
+  sentence, the model gets the cut text with a notice naming no file
+  (`toolResultCutNoSpill`), and the turn continues. The synchronous spill
+  sites (sub-agent and restore notes) still name their deterministic path
+  before the write lands; a failed write there is said to the person the
+  same way, and a recall then keeps the packer's own failure.
