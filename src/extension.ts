@@ -52,6 +52,7 @@ import {
   EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
   VOICE_BUNDLE_FILE,
+  VOICE_LINUX_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   JUDGE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
@@ -333,7 +334,7 @@ import type { WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable, readUiTableFile } from './host/l10n'
 import type { InsightsReader } from './runtime/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
-import { ownedMetaVoiceBudgetScope, voiceLoader } from './host/voice/voiceBundle'
+import { ownedMetaVoiceBudgetScope, voiceLinuxLoader, voiceLoader } from './host/voice/voiceBundle'
 import {
   createMediaAttachDeps,
   createMediaSourceOpen,
@@ -1256,6 +1257,12 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_BUNDLE_FILE).fsPath,
     log,
   })
+  // Linux's offline driver is dist/voiceLinux.js (D6, D140), required on the
+  // first Linux recording, so the download machinery stays out of voice.js.
+  const voiceLinux = voiceLinuxLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', VOICE_LINUX_BUNDLE_FILE).fsPath,
+    log,
+  })
   // Muse Voice (M35): the paid engine's recorder, used only while it is
   // on, its price accepted, and the window runs on the Model API key.
   const museVoiceSetup = createMuseVoiceSetup(
@@ -1530,6 +1537,7 @@ async function activateWindow(
     },
     log,
     voice,
+    voiceLinux,
     {
       storageRoot: context.globalStorageUri.fsPath,
       register: (disposable) => {

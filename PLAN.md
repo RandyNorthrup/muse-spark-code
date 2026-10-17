@@ -2116,6 +2116,8 @@ Reports share the existing 50 KiB mini-parser; every runtime API read is guarded
 
 **`dist/voice.js` budget rationale.** (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)
 
+**`dist/voiceLinux.js` budget rationale.** (MSM9M35: Linux's offline voice driver, its helper/model acquisition and pins, loaded on the first Linux recording; split out of `dist/voice.js`, which the combined drivers pushed 1.1 KiB over its unchanged 50 KiB cap; measured 35,907 B plus 15%, rounded up to the next 25 KiB multiple = 50 KiB; no existing cap changes)
+
 **`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
 
 **`dist/modelsSubscriptions.js` budget rationale.** (PANELBUDGET: the subscriptions half of the Models panel host, the ChatGPT and Copilot sign-in flows, loaded on the first subscription action; measured 22,917 B plus 15%, rounded up to the next 25 KiB multiple = 50 KiB)
@@ -14488,8 +14490,8 @@ helpers.
 
 **Mechanism (this lane).** `src/shared/linuxHelperPins.ts` carries the ten
 pins (stable asset names under `releases/latest/download`, exact bytes and
-SHA-256); it is read only by `dist/voice.js` on the first recording, never
-at activation. The release workflow regenerates it with
+SHA-256); it is read only by `dist/voiceLinux.js` on the first Linux
+recording, never at activation. The release workflow regenerates it with
 `node scripts/build-linux-helper-pins.mjs` from both built architectures
 before packaging; committed values are UNSET (bytes 0, empty digest), and an
 unset build refuses every helper download before any consent card, instead

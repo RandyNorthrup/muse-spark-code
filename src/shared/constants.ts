@@ -3928,6 +3928,9 @@ export const CODE_INTEL_BUNDLE_FILE = 'codeIntel.js'
 // Voice's drivers (M9, M35, D6): the dictation driver, Muse Voice's stream,
 // the helper process and the socket, loaded on the first recording.
 export const VOICE_BUNDLE_FILE = 'voice.js'
+// Linux's offline voice driver (M9, D6, D140): the offline driver's glue and
+// its helper/model acquisition, loaded on the first Linux recording.
+export const VOICE_LINUX_BUNDLE_FILE = 'voiceLinux.js'
 // The window's web fetch (M69, D6 2026-10-04): resolving, checking and
 // pinning each hop, the pinned transport and the failures' words, loaded on
 // the first fetch or the first URL Muse Code's `webFetch` checks.
@@ -5962,6 +5965,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/checkpointStore.js',
   'dist/codeIntel.js',
   'dist/voice.js',
+  'dist/voiceLinux.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
   'dist/searchWorker.js',

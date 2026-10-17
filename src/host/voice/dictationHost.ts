@@ -4,7 +4,9 @@ import type { MuseVoiceDeps } from '../../core/voice/museVoice'
 // setup per window; each conversation creates its own driver from it on
 // first use. Muse Voice (M35) adds its capture helper, the Linux recorders
 // and the WebSocket to Meta. The drivers themselves, with the processes and
-// the socket, are dist/voice.js (PLAN.md D6), loaded on the first recording.
+// the socket, are dist/voice.js (PLAN.md D6), loaded on the first recording;
+// Linux's offline driver and its helper/model acquisition are
+// dist/voiceLinux.js, loaded on the first Linux recording.
 
 import { existsSync } from 'node:fs'
 import path from 'node:path'
@@ -26,7 +28,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatBytes, uiLocale } from '../../shared/l10n/text'
-import { deferredDriver, type VoiceBundle } from './voiceBundle'
+import { deferredDriver, type VoiceBundle, type VoiceLinuxBundle } from './voiceBundle'
 
 /**
  * The remote this extension host runs on, or undefined on the user's own
@@ -45,6 +47,7 @@ export function createDictationSetup(
   probe: Omit<HelperProbe, 'fileExists' | 'programFiles' | 'remoteName' | 'appName'>,
   log: CoreLogger,
   voice: () => VoiceBundle,
+  voiceLinux: () => VoiceLinuxBundle,
   linux?: { readonly storageRoot: string; readonly register: (disposable: Disposable) => void },
 ): DictationSetup {
   const directory =
@@ -56,7 +59,7 @@ export function createDictationSetup(
   if (directory !== undefined && linux !== undefined && probe.platform === 'linux') {
     const remove = async (): Promise<void> => {
       try {
-        await voice().removeLinuxDictationModel(directory)
+        await voiceLinux().removeLinuxDictationModel(directory)
       } catch (error: unknown) {
         log.warn('Linux dictation model removal failed')
         // The reason is technical (permissions, a live download lock), so it
@@ -105,7 +108,7 @@ export function createDictationSetup(
     create: (listener) =>
       deferredDriver(listener, () =>
         directory !== undefined && probe.platform === 'linux'
-          ? voice().createLinuxDictation(
+          ? voiceLinux().createLinuxDictation(
               {
                 invocation: location.invocation,
                 listener,
