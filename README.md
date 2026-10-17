@@ -987,8 +987,6 @@ The terminal can manage their metadata and choose a fixed account for a
 headless run. Automatic swapping, parallel admission, device placement and
 the editor panel/usage mounts await the provider, journal and shared-owner
 integration listed in [M108's certification](docs/certification/m108.md).
-`museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
-and default on; they do not enable those missing integrations by themselves.
 
 The installed CLI, ACP agent and headless runs share one account service
 over the runtime's providers file and the OS credential store. Meta's Model
@@ -1010,8 +1008,7 @@ ACP's `/accounts` (list, current, thresholds) and the `account` picker read
 the same live metadata on the Model API backend; the Muse Code backend runs
 on its subscription with no account picker. Choosing another account stays
 refused: moving a session credential needs the pooled owner, so the session
-keeps its current account and says so. `exec --account-pool` also stays
-refused until that owner lands. A vendor limit stops only its own account,
+keeps its current account and says so. A vendor limit stops only its own account,
 and the stop names the blocked account and its reset even with no usage
 page bundled.
 Second Muse Code accounts and cross-account native replay/cache evidence
