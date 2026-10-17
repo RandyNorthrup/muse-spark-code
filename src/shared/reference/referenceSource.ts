@@ -149,8 +149,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
-  // M116: CLI/ACP journal commands work; the VS Code panel has no mount.
-  ['orchestrator-playbook', ['acp:museCode', 'acp:modelApi']],
+  // M116: the CLI, ACP and the VS Code composer answer /playbook from the
+  // journal; the panel's Agent map opens its status, record and settings.
+  ['orchestrator-playbook', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M108 (CM108ACC): the terminal and ACP on the Model API backend list
   // accounts, show the current one and its thresholds, and hold per-account
   // keys; the editor's page, swapping and pooling are not bound.
@@ -245,6 +246,8 @@ export const REFERENCE_ACTION_FEATURES = {
   scheduleCancel: 'schedules',
   scheduleRun: 'schedules',
   schedulesRequest: 'schedules',
+  playbook: 'orchestrator-playbook',
+  openPlaybook: 'orchestrator-playbook',
   openSchedules: 'schedules',
   exportConversation: 'conversation-actions',
   importSession: 'conversation-actions',
