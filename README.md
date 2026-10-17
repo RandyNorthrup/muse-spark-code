@@ -556,8 +556,10 @@ stopped typing, and does not take the keyboard. After a fixes-only patch a
 quiet notification offers it instead. A fresh install shows nothing. **Muse
 Spark: What's New** (or **What's New** in the panel's palette) opens it any
 time; `museSpark.showWhatsNewOnUpdate` or the page's **Don't show on
-updates** box turns it off. The page's words follow your display language;
-the release notes are in English.
+updates** box turns it off. In an ACP editor (Zed, Neovim, Emacs and the
+others in [Muse Spark in other editors](docs/acp.md)) `/whatsnew` reads the
+same release notes as text, with no model turn. The page's words follow your
+display language; the release notes are in English.
 
 Each panel is its own conversation, started on the first message with the
 standard `muse-spark-1.3` model (never a contributor-tier model by default).

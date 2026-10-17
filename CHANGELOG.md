@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- In an ACP editor (Zed, Neovim, Emacs and the other ACP clients),
+  `/whatsnew` reads this version's release highlights and full notes as
+  text, answered locally with no model turn.
+
 ### Fixed
 
 - On Windows, two requests that reserve session spend at the same moment
