@@ -10,6 +10,7 @@
 // channel that runs them.
 
 import type { Block, Highlight, Inline, ReleaseNotes, WhatsNewContent } from './whatsNewContent'
+import { releasesToShow } from './whatsNewVersions'
 import { UI_TEXT, WHATS_NEW_CHANGELOG_URL } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 
@@ -143,10 +144,15 @@ export function formatWhatsNewText(options: WhatsNewTextOptions): string {
   return `${lines.join('\n').trimEnd()}\n`
 }
 
-/** The shipped content file's text, checked and rendered for the installed version. */
+/**
+ * The shipped content file's text, checked and rendered for the installed
+ * version: the same selection the page makes for a manual open
+ * (`releasesToShow` with no upgrade-from version), never every release the
+ * content file ships.
+ */
 export function whatsNewTextForContent(content: WhatsNewContent, current: string): string {
   return formatWhatsNewText({
-    releases: content.releases,
+    releases: releasesToShow(content.releases, undefined, current),
     isShortened: content.shortened,
     from: undefined,
     current,
