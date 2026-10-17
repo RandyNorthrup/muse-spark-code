@@ -2519,6 +2519,8 @@
   "rewindConversationFailed": "会話を巻き戻せませんでした",
   "sideChatFailed": "サイドチャットを開けませんでした",
   "sideChatPlanOnly": "サイドチャットはプランモードのままです。",
+  "sideChatWriteRefused": "サイドチャットは読み取り専用のため、このリクエストは拒否されました。",
+  "sideChatResolver": "サイドチャット",
   "planActionsLabel": "プランの操作",
   "savePlan": "プランを保存",
   "implementPlan": "新しい会話で実装",

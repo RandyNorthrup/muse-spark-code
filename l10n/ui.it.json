@@ -2627,6 +2627,8 @@
   "rewindConversationFailed": "Impossibile riavvolgere la conversazione",
   "sideChatFailed": "Impossibile aprire una chat laterale",
   "sideChatPlanOnly": "Le chat laterali restano in modalità Piano.",
+  "sideChatWriteRefused": "Le chat laterali sono di sola lettura, quindi questa richiesta è stata rifiutata.",
+  "sideChatResolver": "Chat laterale",
   "planActionsLabel": "Azioni del piano",
   "savePlan": "Salva piano",
   "implementPlan": "Attua in una nuova conversazione",

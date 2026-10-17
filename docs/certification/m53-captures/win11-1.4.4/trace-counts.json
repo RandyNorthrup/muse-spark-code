@@ -1,0 +1,70 @@
+{
+  "cli": "1.4.4-R5419.1",
+  "provider": "echo",
+  "paidOrRemoteModelAttempts": 0,
+  "rawMspCaptureSha256": "8c68bf87f2aad48eace549896cdd56fabc5f6d2a722cfae5056b77e7791646cc",
+  "probeDriverSha256": "3341e749fa2ca2610c9f05928266c0a2fcbb01e289543218874e9eaafcc5ca18",
+  "traces": [
+    {
+      "kind": "msp",
+      "name": "cli-1f98e968-3571-4657-a9ad-331f54bffa07.log",
+      "sha256": "17de860df732f56f6a33faba6fd6e9ebedeb04885fa276c92e92c49406bc75d3",
+      "admissions": 0,
+      "admissionLines": [],
+      "namingFailureLines": []
+    },
+    {
+      "kind": "msp",
+      "name": "cli-a31c5dbb-68b8-4aaa-9813-64ed42294292.log",
+      "sha256": "d79d47277ee4749a9fa322b71f72fa6fa6bb005cd3455dd7372cb1c740de7275",
+      "admissions": 0,
+      "admissionLines": [],
+      "namingFailureLines": []
+    },
+    {
+      "kind": "msp",
+      "name": "cli-b297057b-5cd9-4a26-957f-24ba6817f130.log",
+      "sha256": "62356ed30cac89febe040a1698d8717693328f311e098d664ffea074cb0760f1",
+      "admissions": 5,
+      "admissionLines": [
+        "2026-10-10T17:02:50.710834Z INFO tbh.local.model fbcode/musecode/build/src/crates/agent/src/model_stream_effect/diagnostic.rs:82 event=\"model.attempt.lifecycle\" run_id=\"01a126c4-70bf-7000-9103-3429d316ab0d\" attempt_id=\"01a126c4-70bf-7000-9103-3429d316ab0d:0:1\" task_id=\"01a126c4-7148-77a3-ace0-88388c684b2a\" provider=\"unknown\" model=\"unknown\" step=0 attempt=1 turn_retry_max_attempts=10 phase=\"admission\" outcome=\"accepted\" reason=\"none\" next_attempt=0 retry_delay_ms=0 duration_ms=0",
+        "2026-10-10T17:02:50.770295Z INFO tbh.local.model fbcode/musecode/build/src/crates/agent/src/model_stream_effect/diagnostic.rs:82 event=\"model.attempt.lifecycle\" run_id=\"ec99ac5e-2ff8-46f3-ab69-dd29d1bdc944\" attempt_id=\"ec99ac5e-2ff8-46f3-ab69-dd29d1bdc944:0:1\" task_id=\"018f0000-0000-7000-8000-000000002710\" provider=\"unknown\" model=\"unknown\" step=0 attempt=1 turn_retry_max_attempts=10 phase=\"admission\" outcome=\"accepted\" reason=\"none\" next_attempt=0 retry_delay_ms=0 duration_ms=0",
+        "2026-10-10T17:02:50.778632Z INFO tbh.local.model fbcode/musecode/build/src/crates/agent/src/model_stream_effect/diagnostic.rs:82 event=\"model.attempt.lifecycle\" run_id=\"ec99ac5e-2ff8-46f3-ab69-dd29d1bdc944\" attempt_id=\"ec99ac5e-2ff8-46f3-ab69-dd29d1bdc944:1:1\" task_id=\"018f0000-0000-7000-8000-000000002711\" provider=\"unknown\" model=\"unknown\" step=1 attempt=1 turn_retry_max_attempts=10 phase=\"admission\" outcome=\"accepted\" reason=\"none\" next_attempt=0 retry_delay_ms=0 duration_ms=0",
+        "2026-10-10T17:02:50.787620Z INFO tbh.local.model fbcode/musecode/build/src/crates/agent/src/model_stream_effect/diagnostic.rs:82 event=\"model.attempt.lifecycle\" run_id=\"ec99ac5e-2ff8-46f3-ab69-dd29d1bdc944\" attempt_id=\"ec99ac5e-2ff8-46f3-ab69-dd29d1bdc944:2:1\" task_id=\"018f0000-0000-7000-8000-000000002712\" provider=\"unknown\" model=\"unknown\" step=2 attempt=1 turn_retry_max_attempts=10 phase=\"admission\" outcome=\"accepted\" reason=\"none\" next_attempt=0 retry_delay_ms=0 duration_ms=0",
+        "2026-10-10T17:02:50.798435Z INFO tbh.local.model fbcode/musecode/build/src/crates/agent/src/model_stream_effect/diagnostic.rs:82 event=\"model.attempt.lifecycle\" run_id=\"ec99ac5e-2ff8-46f3-ab69-dd29d1bdc944\" attempt_id=\"ec99ac5e-2ff8-46f3-ab69-dd29d1bdc944:3:1\" task_id=\"018f0000-0000-7000-8000-000000002713\" provider=\"unknown\" model=\"unknown\" step=3 attempt=1 turn_retry_max_attempts=10 phase=\"admission\" outcome=\"accepted\" reason=\"none\" next_attempt=0 retry_delay_ms=0 duration_ms=0"
+      ],
+      "namingFailureLines": [
+        "2026-10-10T17:02:50.361802Z INFO tbh.local.session fbcode/musecode/build/src/crates/agent/src/runtime/session_name/diagnostic.rs:133 event=\"session.name.authority_open\" operation=\"open\" outcome=\"failed\" stage=\"resolve\" reason=\"unsupported_platform\" component=\"\" path=\"\" path_truncated=false mode=\"\" expected_mode=\"\"",
+        "2026-10-10T17:02:50.517039Z INFO tbh.local.session fbcode/musecode/build/src/crates/agent/src/runtime/session_name/diagnostic.rs:133 event=\"session.name.command\" operation=\"rename\" outcome=\"failed\" stage=\"resolve\" reason=\"unsupported_platform\" component=\"\" path=\"\" path_truncated=false mode=\"\" expected_mode=\"\"",
+        "2026-10-10T17:02:51.537669Z INFO tbh.local.session fbcode/musecode/build/src/crates/agent/src/runtime/session_name/diagnostic.rs:133 event=\"session.name.command\" operation=\"rename\" outcome=\"failed\" stage=\"resolve\" reason=\"unsupported_platform\" component=\"\" path=\"\" path_truncated=false mode=\"\" expected_mode=\"\""
+      ]
+    },
+    {
+      "kind": "msp",
+      "name": "cli-b7ecd834-1f5a-4a6b-a90c-98f1d803276c.log",
+      "sha256": "b553f969d413c7266ebdf0f81ff8b643e7e9ca2dd8d662ae1645987702480aff",
+      "admissions": 0,
+      "admissionLines": [],
+      "namingFailureLines": [
+        "2026-10-10T17:02:55.981835Z INFO tbh.local.session fbcode/musecode/build/src/crates/agent/src/runtime/session_name/diagnostic.rs:133 event=\"session.name.authority_open\" operation=\"open\" outcome=\"failed\" stage=\"resolve\" reason=\"unsupported_platform\" component=\"\" path=\"\" path_truncated=false mode=\"\" expected_mode=\"\"",
+        "2026-10-10T17:02:56.874058Z INFO tbh.local.session fbcode/musecode/build/src/crates/agent/src/runtime/session_name/diagnostic.rs:133 event=\"session.name.command\" operation=\"rename\" outcome=\"failed\" stage=\"resolve\" reason=\"unsupported_platform\" component=\"\" path=\"\" path_truncated=false mode=\"\" expected_mode=\"\""
+      ]
+    },
+    {
+      "kind": "tui",
+      "name": "cli-c572c9b6-5cbe-44c3-a33d-0bbf5e6a4b85.log",
+      "sha256": "18d73e0f967011934a96094adf2fadabe3dd74b6e47e4a339cf31d40bed5627d",
+      "admissions": 5,
+      "admissionLines": [
+        "2026-10-10T17:04:23.631755Z INFO tbh.local.model fbcode/musecode/build/src/crates/agent/src/model_stream_effect/diagnostic.rs:82 event=\"model.attempt.lifecycle\" run_id=\"311e9cc0-b19b-46f5-a78a-b08a642be785\" attempt_id=\"311e9cc0-b19b-46f5-a78a-b08a642be785:0:1\" task_id=\"01a126c5-dc3a-7ed3-9e61-ffbdf42dd83c\" provider=\"unknown\" model=\"unknown\" step=0 attempt=1 turn_retry_max_attempts=10 phase=\"admission\" outcome=\"accepted\" reason=\"none\" next_attempt=0 retry_delay_ms=0 duration_ms=0",
+        "2026-10-10T17:04:23.731487Z INFO tbh.local.model fbcode/musecode/build/src/crates/agent/src/model_stream_effect/diagnostic.rs:82 event=\"model.attempt.lifecycle\" run_id=\"9d9b89d2-2443-4f7b-95ff-658455b359f5\" attempt_id=\"9d9b89d2-2443-4f7b-95ff-658455b359f5:0:1\" task_id=\"018f0000-0000-7000-8000-000000002710\" provider=\"unknown\" model=\"unknown\" step=0 attempt=1 turn_retry_max_attempts=10 phase=\"admission\" outcome=\"accepted\" reason=\"none\" next_attempt=0 retry_delay_ms=0 duration_ms=0",
+        "2026-10-10T17:04:23.739974Z INFO tbh.local.model fbcode/musecode/build/src/crates/agent/src/model_stream_effect/diagnostic.rs:82 event=\"model.attempt.lifecycle\" run_id=\"9d9b89d2-2443-4f7b-95ff-658455b359f5\" attempt_id=\"9d9b89d2-2443-4f7b-95ff-658455b359f5:1:1\" task_id=\"018f0000-0000-7000-8000-000000002711\" provider=\"unknown\" model=\"unknown\" step=1 attempt=1 turn_retry_max_attempts=10 phase=\"admission\" outcome=\"accepted\" reason=\"none\" next_attempt=0 retry_delay_ms=0 duration_ms=0",
+        "2026-10-10T17:04:23.749588Z INFO tbh.local.model fbcode/musecode/build/src/crates/agent/src/model_stream_effect/diagnostic.rs:82 event=\"model.attempt.lifecycle\" run_id=\"9d9b89d2-2443-4f7b-95ff-658455b359f5\" attempt_id=\"9d9b89d2-2443-4f7b-95ff-658455b359f5:2:1\" task_id=\"018f0000-0000-7000-8000-000000002712\" provider=\"unknown\" model=\"unknown\" step=2 attempt=1 turn_retry_max_attempts=10 phase=\"admission\" outcome=\"accepted\" reason=\"none\" next_attempt=0 retry_delay_ms=0 duration_ms=0",
+        "2026-10-10T17:04:23.766011Z INFO tbh.local.model fbcode/musecode/build/src/crates/agent/src/model_stream_effect/diagnostic.rs:82 event=\"model.attempt.lifecycle\" run_id=\"9d9b89d2-2443-4f7b-95ff-658455b359f5\" attempt_id=\"9d9b89d2-2443-4f7b-95ff-658455b359f5:3:1\" task_id=\"018f0000-0000-7000-8000-000000002713\" provider=\"unknown\" model=\"unknown\" step=3 attempt=1 turn_retry_max_attempts=10 phase=\"admission\" outcome=\"accepted\" reason=\"none\" next_attempt=0 retry_delay_ms=0 duration_ms=0"
+      ],
+      "namingFailureLines": [
+        "2026-10-10T17:03:16.294558Z INFO tbh.local.session fbcode/musecode/build/src/crates/agent/src/runtime/session_name/diagnostic.rs:133 event=\"session.name.authority_open\" operation=\"open\" outcome=\"failed\" stage=\"resolve\" reason=\"unsupported_platform\" component=\"\" path=\"\" path_truncated=false mode=\"\" expected_mode=\"\""
+      ]
+    }
+  ]
+}

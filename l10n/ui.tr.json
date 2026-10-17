@@ -2573,6 +2573,8 @@
   "rewindConversationFailed": "Sohbet geri sarılamadı",
   "sideChatFailed": "Yan sohbet açılamadı",
   "sideChatPlanOnly": "Yan sohbetler Plan modunda kalır.",
+  "sideChatWriteRefused": "Yan sohbetler salt okunurdur, bu nedenle bu istek reddedildi.",
+  "sideChatResolver": "Yan sohbet",
   "planActionsLabel": "Plan eylemleri",
   "savePlan": "Planı kaydet",
   "implementPlan": "Yeni bir konuşmada uygula",

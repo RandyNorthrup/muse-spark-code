@@ -2573,6 +2573,8 @@
   "rewindConversationFailed": "Nem sikerült visszaállítani a beszélgetést",
   "sideChatFailed": "Nem sikerült megnyitni a mellékbeszélgetést",
   "sideChatPlanOnly": "A mellékbeszélgetések Tervezés módban maradnak.",
+  "sideChatWriteRefused": "A mellékbeszélgetések csak olvashatók, ezért ez a kérés el lett utasítva.",
+  "sideChatResolver": "Mellékbeszélgetés",
   "planActionsLabel": "Tervműveletek",
   "savePlan": "Terv mentése",
   "implementPlan": "Megvalósítás új beszélgetésben",

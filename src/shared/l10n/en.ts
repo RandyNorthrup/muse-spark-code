@@ -3116,6 +3116,8 @@ export const EN = {
   rewindConversationFailed: 'Could not rewind the conversation',
   sideChatFailed: 'Could not open a side chat',
   sideChatPlanOnly: 'Side chats stay in Plan mode.',
+  sideChatWriteRefused: 'Side chats are read-only, so this request was refused.',
+  sideChatResolver: 'Side Chat',
   // M79 (PLAN.md D49): plans as files. {path} is the plan's workspace path.
   planActionsLabel: 'Plan Actions',
   savePlan: 'Save Plan',

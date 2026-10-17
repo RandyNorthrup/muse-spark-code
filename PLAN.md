@@ -2446,6 +2446,12 @@ source and the upstream issue (`docs/certification/sdk144.md` has the table).
 - The handshake facts are dropped: re-checked against 1.4.4, still needed.
   Rename and fork on Windows (#30, #31, both open) were not retested (no
   Windows CLI in this lane); the limits stay on every version.
+  C-M53-1 subsequently retested 1.4.4-R5419.1 on Win11 (2026-10-10):
+  rename reports naming unavailable (`unsupported_platform` in the trace),
+  and forks still return `forkBoundaryInvalid` / `WriteFailed`, with and
+  without a cut, across concurrent hosts and after close/resume. TUI
+  `/fork` fails too. The all-version Windows limit therefore stays;
+  captures and the counted token-free echo runs are in `m53.md`.
 - The 10 MiB frame cap: re-checked against 1.4.4, still needed. The SDK
   limits inbound frames only; an oversized outbound command is still
   written and never answered.
@@ -17768,6 +17774,19 @@ owner commands; accepted control shapes remain uncaptured.
 
 **Status 2026-09-27: merged.**
 
+- **C-M53-1 Windows retest (2026-10-10, probes complete).** Captured Muse Code
+  1.4.4-R5419.1 rename and forks with/without a completed-turn cut, after
+  host close and from a second host, plus TUI `/fork`, in an empty Win11
+  workspace with an isolated credential-free home. All nine MSP forks
+  and both TUI `/fork` probes fail; owning-host rename fails too. The
+  all-version Windows guard stays. Record captures in
+  `docs/certification/m53.md` and `docs/certification/m53-captures/win11-1.4.4/`.
+- **C-M53-3 read-only side fork (2026-10-11, merged here).** A Muse Code side
+  chat is read-only at the panel: every approval its branch raises is refused
+  with the card's own rejection, and an approving click on a card the host
+  left standing is refused too. Writes the CLI's own allow rules already cover
+  still run without asking (upstream sdk#86). Record in
+  `docs/certification/cm53-3.md` and `docs/certification/msm53.md`.
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M54 — PDFs and other files as input (D47)

@@ -2627,6 +2627,8 @@
   "rewindConversationFailed": "No se pudo retroceder la conversación",
   "sideChatFailed": "No se pudo abrir un chat paralelo",
   "sideChatPlanOnly": "Los chats paralelos permanecen en modo Plan.",
+  "sideChatWriteRefused": "Los chats paralelos son de solo lectura, por lo que esta solicitud fue rechazada.",
+  "sideChatResolver": "Chat paralelo",
   "planActionsLabel": "Acciones del plan",
   "savePlan": "Guardar plan",
   "implementPlan": "Implementar en una conversación nueva",

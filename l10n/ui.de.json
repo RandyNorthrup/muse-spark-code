@@ -2573,6 +2573,8 @@
   "rewindConversationFailed": "Die Unterhaltung konnte nicht zurückgespult werden",
   "sideChatFailed": "Der Nebenchat konnte nicht geöffnet werden",
   "sideChatPlanOnly": "Nebenchats bleiben im Planungsmodus.",
+  "sideChatWriteRefused": "Nebenchats sind schreibgeschützt, daher wurde diese Anfrage abgelehnt.",
+  "sideChatResolver": "Nebenchat",
   "planActionsLabel": "Planaktionen",
   "savePlan": "Plan speichern",
   "implementPlan": "In einer neuen Unterhaltung umsetzen",

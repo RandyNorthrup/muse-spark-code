@@ -2627,6 +2627,8 @@
   "rewindConversationFailed": "Impossible de revenir à ce point de la conversation",
   "sideChatFailed": "Impossible d’ouvrir une discussion parallèle",
   "sideChatPlanOnly": "Les discussions parallèles restent en mode Plan.",
+  "sideChatWriteRefused": "Les discussions parallèles sont en lecture seule, cette demande a donc été refusée.",
+  "sideChatResolver": "Discussion parallèle",
   "planActionsLabel": "Actions du plan",
   "savePlan": "Enregistrer le plan",
   "implementPlan": "Mettre en œuvre dans une nouvelle conversation",
