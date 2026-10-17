@@ -89,14 +89,24 @@ export interface RunLedger {
   totals(): LedgerTotals
 }
 
-/** Quote start admission without spending or consuming this run's request count. */
+/**
+ * Quote start admission without spending or consuming this run's request
+ * count. The preview measures one response, so its cap is the most one
+ * response can cost at this tier's prices — a full context window of input
+ * plus the output cap, from the platform's own numbers, never a number of
+ * ours (D121: capping it at the run's budget starves the minimum below).
+ * It refuses nothing the person sees.
+ */
 export function previewResponseReservation(
   ledger: RunLedger,
   model: string,
   price: TierPrice,
 ): ResponseTicket {
   const preview = createRunLedger({
-    capUsd: ledger.totals().capUsd,
+    capUsd: Usd.fromUnits(
+      charge(price, MODEL_API_CONTEXT_WINDOW, ledger.outputCap),
+      EXEC_USD_DECIMALS,
+    ).toAmount(),
     maxRequests: 1,
     outputCap: () => ledger.outputCap,
   }).admitResponse({ model, maxOutputTokens: ledger.outputCap, price })
