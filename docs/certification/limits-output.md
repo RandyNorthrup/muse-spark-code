@@ -465,15 +465,16 @@ No provider call, no stand-in, no limit or gate changed.
 - **Recall fence.** The repeat policy never re-issues a call; a refused
   `recall_output` repeated with the same refusal warns at 3 and stops at 5
   like any tool, matching `packRecallWithheld`'s "do not retry" wording.
-- **Red drills** (`test/unit/repeatGuard.test.ts`, real module, 11 tests):
-  (1) `observeContinuation` made to ignore its text: 1 failed ("never calls
-  changing continued text a repeat…": the eight changing texts gave ok,
-  warn and stuck instead of only ok); (2) continuations never counted: 1
-  failed ("warns at the third identical continued text…": five times ok
-  instead of ok, ok, warn, warn, stuck). Source restored byte-exact both
-  times, SHA-256
-  `42a8b02a657bd3d5a8e82f71ce6914d2c2d6707bd2e2f215ac4c3d8328e837eb` before
-  and after; restored run 11 passed.
+- **Tests: none.** Two `repeatGuard.test.ts` cases for `observeContinuation`
+  were written and red-drilled at merge time (2026-10-16: text ignored, and
+  continuations never counted, each made 1 case fail; source restored
+  byte-exact, SHA-256
+  `42a8b02a657bd3d5a8e82f71ce6914d2c2d6707bd2e2f215ac4c3d8328e837eb`). They
+  were deleted on 2026-10-17 under the owner's rule against invented data:
+  they fed made-up model text where a model's real reply belongs. The
+  continuation repeat therefore has no automated proof on this branch. The
+  file's remaining cases (from fix/limits-final) feed made-up tool results
+  the same way and are left for the lead to judge under that rule.
 - **Not proven here.** The loop wiring needs a real turn whose answer is cut
   by the output limit and keeps returning the same text: the model is warned
   at the 3rd and 4th continuation and the turn stops at the 5th with "The
