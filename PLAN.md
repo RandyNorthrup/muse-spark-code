@@ -13818,6 +13818,9 @@ owns it.
      the existing bounded Git runner (`createGitProcess`) under M107's spawn
      admission (`admitResource`, whole-tree stop; D87, SPAWN017's
      inventory): explicit argument arrays, output caps and deadlines.
+     Amended 2026-10-16 (the owner: no caps of ours on a job): the native
+     route's git has no deadline of ours; Cancel and the window's closing
+     stop it, as VS Code's own Git behaves.
    - VS Code keeps the Git extension path (its credential helpers, sign-in
      prompts and SCM view). A VS Code-family host without the `vscode.git`
      extension (Arduino IDE 2, some forks) takes the native path in-process.
@@ -15808,9 +15811,64 @@ committed raw files in round 2).
 
 ### M123 — Git and pull requests in every editor (D104)
 
-**Status 2026-10-10: building.** Lanes 0, G and P are integrated on
-`int/m123` and switched off; lanes A, L, U and Q are not integrated.
-Record: `docs/certification/m123.md`, INTM123.
+**Status 2026-10-16: building.** Lanes 0, G, P and A are merged and on in
+every VS Code-family editor and the terminal (MSM71M123, branch
+`ms/msm71m123`): D104's three sign-in sources with the panel's GitHub card,
+the native Git route with its pull request half, held worktrees and pull
+request checkout there, and the CLI's `auth github`. JetBrains, Visual
+Studio, Eclipse, the companion page and the editor-protocol editors wait
+for M104's bridges (lanes L, the runtime panel route and Q), which are not
+on main. Record: `docs/certification/msm71m123.md`.
+
+- **MSM71M123 (2026-10-16 and 17, host Claude, `ms/msm71m123`).** Main
+  already held lanes 0, G and P (merged through `int/train-1011` and
+  rewritten by the identity rewrite), so the lane joined main and then
+  lane A's last accepted round (`m123/a5`, `373e8fe66`), without its
+  fake-server end-to-end file (the owner's testing rules, 2026-10-12).
+  Built on top:
+  - **One window sign-in** (`src/core/git/githubSignIn.ts`) over D104's
+    sources for both routes and the panel: (a) VS Code's session where
+    the host ships `vscode.github-authentication`, (b) the device flow
+    over VS Code's secret storage, (c) `gh` behind
+    `museSpark.github.useGhLogin` (contributed again, machine scope),
+    read through the governed probe runner. The panel's GitHub card
+    (`GitPanel.tsx`) shows the code with Copy Code, Open GitHub (only
+    `https://github.com/login/device`) and Cancel, then the source and
+    the account (`GET /user`, captured) with Sign Out for (b). Palette
+    rows and `/github-login`, `/github-logout`. A 401 drops the refused
+    credential at its source.
+  - **The native route is on** (`M123_RELEASE` gone): commit, push, pull
+    requests (`RuntimePullRequests`: form, link of an open one, Create
+    after sign-in and the push's confirmation, then the confirmation of
+    what goes out; status and checks; Write with Muse from the branch's
+    commit subjects and changed files through new fixed `log` and `diff
+--name-only` reads in the service's allowlist), the hold card and
+    Trust This Worktree… (the window's), and "Open a Pull Request in a
+    Conversation…" with the user's own git for the repository reads and
+    the `pull/<n>/head` fetch (`src/host/git/nativeRepository.ts`). The
+    route ships in `dist/nativeGit.js` (88.0 KiB, budget 125 KiB by D6),
+    so `dist/conversationGit.js` stays at 107.6 of its 150 KiB.
+  - **No deadline of ours on the native route's git** (the owner,
+    2026-10-16): a push, a fetch or a commit's hooks run as long as they
+    take; Cancel and the window's closing stop them.
+- **Not yet shipped (2026-10-17).**
+  - Lane L (editor leases in JetBrains and Visual Studio), the runtime
+    panel route (`panel --stdio`, `--companion`), the editor-protocol
+    panel and lane Q's per-editor receipts: they need M104's MHP methods
+    (`src/shared/hostApi/methods.ts`), plugins and bridges, none of which
+    is on main. `githubLeaseResultSchema`, `leaseExpiresAt`,
+    `runtimeGitUserEnvironment` and the runtime's own held checkout
+    (`src/runtime/panel/pullRequests/checkout.ts`) stay `@unwired` for
+    them.
+  - The missing-scope check before a write (`missingScopes`): GitHub's
+    `X-OAuth-Scopes` header has not been captured (AGENTS.md rule 13).
+  - M123 ships whole or not at all (the owner, 2026-10-10): whether this
+    branch merges before M104's editors is the lead's call to put to the
+    owner.
+
+On 2026-10-10 lanes 0, G and P were integrated on `int/m123` and switched
+off; lanes A, L, U and Q were not integrated. Record:
+`docs/certification/m123.md`, INTM123.
 
 - **Integration (INTM123, 2026-10-10, host Claude).** `int/m123` is
   `origin/main` (0.17.0, `82d50d5e4`) with lane G at `3c76add1f` (which
@@ -17991,7 +18049,10 @@ owner commands; accepted control shapes remain uncaptured.
 ### M71 — Git and pull requests (D49)
 
 **Every editor (2026-10-08):** D104 and M123 bring these features to every
-editor. This section stays the record for VS Code.
+editor. This section stays the record for VS Code. Since MSM71M123
+(2026-10-16) every GitHub call takes D104's three sign-in sources, and a VS
+Code-family host without `vscode.git` runs these features through the
+user's own git (PLAN.md M123).
 
 **FIX78W browser budget repair (2026-10-04, bounded rig proof complete;
 lead gates open).** Compare production metafiles for `main-sync` and this

@@ -14,8 +14,9 @@
 //   Only `bad_refresh_token` is a refusal of the pair; a 5xx or 429 reply
 //   (whatever its body) is `network`, as a lost connection is.
 //
-// The reply shapes are GitHub's documented examples (not a capture; see
-// docs/certification/m123.md). Fields GitHub adds are let through, unread.
+// The reply shapes are GitHub's documented examples ("Authorizing OAuth
+// apps", device flow, read 2026-10-17; not a capture, see
+// docs/certification/msm71m123.md). Fields GitHub adds are let through, unread.
 // A token is never put in an error, a log or the returned failure.
 
 import * as z from 'zod/mini'
@@ -117,8 +118,11 @@ const HTTP_SERVER_ERROR = 500
 // access tokens"); any other refresh error leaves the pair as it is.
 const BAD_REFRESH_TOKEN = 'bad_refresh_token'
 
+// GitHub's "Authorizing OAuth apps" (read 2026-10-17) names the expiry both
+// ways: `expired_token` in its error table, `token_expired` in its text.
 const ERROR_REASONS: Readonly<Record<string, DeviceFlowFailureReason>> = {
   expired_token: 'expired',
+  token_expired: 'expired',
   access_denied: 'denied',
   device_flow_disabled: 'disabled',
   incorrect_client_credentials: 'incorrectClient',

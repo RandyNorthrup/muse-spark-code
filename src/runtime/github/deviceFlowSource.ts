@@ -333,7 +333,18 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
   return {
     kind: 'deviceFlow',
     async credential(mode, signal) {
-      const issued = (await usable(signal)) ?? (mode === 'ask' ? await signIn(signal) : undefined)
+      let stored: Issued | undefined
+      try {
+        stored = await usable(signal)
+      } catch (error: unknown) {
+        // A stored pair that could not be renewed (its access token gone and
+        // GitHub's answer one we cannot read or do not know) never keeps the
+        // user from signing in again: `ask` starts a new sign-in. A silent
+        // read still fails, and Cancel still stops.
+        if (mode !== 'ask' || signal.aborted) throw error
+        stored = undefined
+      }
+      const issued = stored ?? (mode === 'ask' ? await signIn(signal) : undefined)
       // Serve: whichever path gave the pair (a shared run, a cached pair
       // during an outage), only while its generation is current, while no
       // Sign out of this source has come since its operation began, and
