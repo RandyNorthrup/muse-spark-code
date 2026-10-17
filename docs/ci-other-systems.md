@@ -35,8 +35,10 @@ with `node scripts/sync-ci-bootstrap.mjs`; tests reject drift.
    failure cleanup (`timeout -s KILL 5 rm` with a plain-`rm` fallback where
    `timeout` is missing or cannot run, so cleanup failure never changes the
    exit status); no key file is created.
-3. The parent receives only a timestamp and directory path, then execs
-   `node ci/lib/ci-entry.mjs <system>` with the vendor's original environment.
+3. The parent receives only a timestamp and directory path, then runs
+   `node ci/lib/ci-entry.mjs <system>` with the vendor's original environment
+   (plain invocation, not `exec`, so a missing Node keeps its 127 status on
+   every shell).
    The entry registers cleanup before loading the proposal module, covering
    module-load, facts, workspace and input failures. No key is in argv/stdin.
 4. Node reads the vendor source first: GitLab's File-variable file directly,

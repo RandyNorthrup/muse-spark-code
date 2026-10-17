@@ -346,6 +346,14 @@ happened, not what was planned; superseded entries are kept.
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
 
+- The other-CI shared bootstrap no longer runs a `case` statement inside its
+  download command substitution. macOS `sh` (bash 3.2) parses that only at
+  run time and then fails, which broke every template's run there with a
+  syntax error and a knock-on unbound-variable failure; Linux shells never
+  showed it. Alias names were already validated by the reserved-prefix loop
+  before the subshell, so only the value removals stay inside and the
+  download children stay blind exactly as before.
+
 ### Pending
 
 - After Muse Code restarted, a conversation could continue on a different
