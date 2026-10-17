@@ -14394,6 +14394,12 @@ and thats it." A thousand-test suite kept shipping broken code as
   request-shape and savings invariants with real modules only (certification:
   `docs/certification/invariants.md`); the full loopback golden stays listed
   for the lead until recorded exchanges exist per golden scenario.
+- PR184FIX (review findings): quotes name real priced models at the listed
+  tariff, packing drives the recorded 04 output, every golden scenario's
+  tools/instructions/keys reproduce through the real builders with
+  byte-exact 01 turns, and the eval pins a digest of the complete task
+  definitions. Unit-test residual: the host's scalar assembly (a new body
+  field would still pass); the lead's loopback run covers it.
 
 ## 3. Open questions (need the owner)
 
