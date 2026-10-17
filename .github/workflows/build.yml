@@ -329,7 +329,7 @@ jobs:
             native/darwin/muse-dictate-screen.tgz
           if-no-files-found: error
 
-  # The Linux dictation helper release assets (D106): built here for both
+  # The Linux dictation helper release assets (D140): built here for both
   # architectures, published by release.yml, never packed in the .vsix.
   linux-native-build:
     name: compile native helpers (linux ${{ matrix.arch }})
@@ -397,7 +397,7 @@ jobs:
       - run: chmod +x dist/native/darwin/muse-vault
       - run: chmod +x native/darwin/muse-dictate
       - run: tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin
-      # D106: the Linux dictation helper ships as same-tag release assets,
+      # D140: the Linux dictation helper ships as same-tag release assets,
       # never in the VSIX. Regenerate its pins from these built helpers so
       # the packaged extension embeds their exact digests; unset pins fail.
       - run: node scripts/build-linux-helper-pins.mjs native/linux/x64 native/linux/arm64
@@ -409,7 +409,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
       - name: the universal VSIX stays within its measured budget
         run: node scripts/check-vsix-size.mjs ./*.vsix
-      # D106: prove the VSIX embeds the pins of exactly these helper files;
+      # D140: prove the VSIX embeds the pins of exactly these helper files;
       # a VSIX whose digests do not match the uploaded assets fails here.
       - name: the VSIX pins match the helper release assets
         run: |
@@ -464,7 +464,7 @@ jobs:
               exit 1
             fi
           done
-          # D106: the Linux dictation helper ships as release assets, never
+          # D140: the Linux dictation helper ships as release assets, never
           # in the VSIX; any bundled binary fails the package.
           for entry in extension/native/linux/x64/muse-dictate extension/native/linux/arm64/muse-dictate \
             extension/native/linux/x64/libwhisper.so.1 extension/native/linux/arm64/libwhisper.so.1 \

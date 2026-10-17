@@ -17748,7 +17748,9 @@ Full record: `docs/certification/msm9m35.md`.
 - Cap: three minutes plus 80 ms reservation headroom; reported-duration tariff
   settlement and window consent. See [CM352 certification](docs/certification/cm352.md).
 - Physical microphone/editor receipts and external Grok review remain with
-  C-M35-3/the lead; this lane uses captured-frame replay without live calls.
+  C-M35-3/the lead; no live calls in this lane, and no captured-frame
+  replay suite is in this tree (candidate fake suites stayed out under the
+  owner's testing rules; RVMSM9M35).
 
 **CMICCOMP completion lane, 2026-10-10 (implemented; Linux-certified; hidden).** Extend M9/M35
 to the authenticated loopback companion for ACP and terminal users. D34's
@@ -17782,10 +17784,12 @@ Lane plan (keep current):
 
 - [x] Guarded WAV protocol and authenticated capture lifecycle, refusal tests.
 - [x] Captured batch adapter, consent, durable budget and tally, failure tests.
-- [x] Free Windows/macOS file engines, bounded child lifecycle and fake cleanup tests.
+- [x] Free Windows/macOS file engines and bounded child lifecycle (the
+      candidate lanes' fake cleanup suites are not in this tree; RVMSM9M35).
       Native macOS compilation and actual OS recognition remain in the release hold.
 - [x] Accessible/responsive companion, explicit ACP/CLI prompt handoff.
-- [x] Fake-mic Chrome e2e, 49 red drills with byte-exact SHA-256 restoration.
+- [ ] Browser microphone e2e on a real rig (the candidate lanes' fake-mic
+      drills are records only, not suites in this tree; RVMSM9M35).
 - [x] Localization, Help/docs and focused gates; local hooked commit at handoff.
 - [ ] Windows/macOS browser and native-helper receipts on lead rigs.
 
