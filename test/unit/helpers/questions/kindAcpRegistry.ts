@@ -6,7 +6,6 @@ import type {
   AcpQuestionRegistry,
   AcpQuestionRegistryFactory,
 } from '../../../../src/acp/questionDeferral'
-import type { AgentEvent } from '../../../../src/shared/agentEvents'
 import { QUESTION_DELIVERY_MODEL_TEXT } from '../../../../src/shared/constants'
 import { fill } from '../../../../src/shared/l10n/text'
 import type { OpenQuestion, QuestionDelivery } from '../../../../src/shared/questions'
@@ -121,27 +120,5 @@ export class FakeAcpQuestionRegistry implements AcpQuestionRegistry {
     const record = this.records.get(id)
     if (record === undefined || !['answered', 'cancelled', 'clarified'].includes(outcome)) return
     this.records.delete(id)
-  }
-}
-
-/** Existing ACP tests use a test-only shim until Q binds full fake sessions. */
-export function fakeAcpQuestions(
-  input: Parameters<AcpQuestionRegistryFactory>[0],
-): AcpQuestionRegistry {
-  if (typeof input.session.deferQuestions !== 'function') {
-    Object.defineProperty(input.session, 'deferQuestions', {
-      value: vi.fn(() => Promise.resolve()),
-    })
-  }
-  return new FakeAcpQuestionRegistry(input)
-}
-
-export function acpQuestionEvent(id = 'q-1'): Extract<AgentEvent, { type: 'questionRequested' }> {
-  const record = questionFixture({ userInputId: id })
-  return {
-    type: 'questionRequested',
-    userInputId: id,
-    itemId: record.itemId,
-    questions: record.questions,
   }
 }

@@ -2,11 +2,8 @@ import dags from '../../../fixtures/estimator/dags.json'
 import {
   estimateLaneSchema,
   estimateSectionSchema,
-  type EstimateLane,
   type EstimateSection,
-  type HistoryRecord,
 } from '../../../../src/shared/estimate'
-import type { EstimateGoalSnapshot } from '../../../../src/core/estimator/goal'
 import { ESTIMATE_RUNS } from '../../../../src/shared/constants'
 import { ESTIMATOR_AS_OF, fakeFleet } from './kindFakes'
 
@@ -41,57 +38,6 @@ export function fakeDisclosures(value: unknown, pointer = ''): EstimateSection['
           ? []
           : fakeDisclosures(child, `${pointer}/${key.replaceAll('~', '~0').replaceAll('/', '~1')}`),
       )
-}
-
-/** The `chain` dag with M117 lane ids, contracts first: one copy for every suite. */
-export function chainLanes(): EstimateLane[] {
-  const chain = dags.find((fixture) => fixture.name === 'chain')
-  if (chain === undefined) throw new Error('missing chain fixture')
-  return chain.lanes.map((input, index) =>
-    estimateLaneSchema.parse({
-      ...input,
-      id: `M117:${input.id}`,
-      kind: index === 0 ? 'contracts' : input.kind,
-      dependencies: input.dependencies.map((id) => `M117:${id}`),
-    }),
-  )
-}
-
-/** The chain lanes as a goal snapshot for the M117 milestone. */
-export function chainSnapshot(asOf = ESTIMATOR_AS_OF): EstimateGoalSnapshot {
-  const lanes = chainLanes().map((lane) => ({ lane }))
-  return {
-    asOf,
-    lanes,
-    milestones: [{ id: 'M117', laneIds: lanes.map(({ lane }) => lane.id) }],
-    pullRequests: [],
-    issues: [],
-    releases: [],
-    rigs: [],
-  }
-}
-
-export function fakeHistoryRecord(laneId = 'M117:core'): HistoryRecord {
-  return {
-    laneId,
-    kind: 'core',
-    machineClassId: 'linux-x64-builder',
-    estimatedHours: 2,
-    actualHours: 3,
-    review: {
-      status: 'known',
-      rounds: 1,
-      modules: [
-        { familyId: 'core', strikes: 1, classes: [{ class: 'validationSecurity', strikes: 1 }] },
-      ],
-      redesigns: [],
-    },
-    ciHours: 0.1,
-    startedAt: '2026-10-05T10:00:00.000Z',
-    finishedAt: '2026-10-05T13:00:00.000Z',
-    durationBasis: 'agentTime',
-    source: 'board',
-  }
 }
 
 export function fakeEstimate(): EstimateSection {

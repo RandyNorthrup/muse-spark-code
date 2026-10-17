@@ -263,33 +263,3 @@ export function bindStoresNetwork(input: {
     input.project,
   )
 }
-
-export function pauseNetworkAdmission(
-  rig: ReturnType<typeof networkRig>,
-  stage: 'cache' | 'egress',
-) {
-  const gate = {
-    entered: Promise.withResolvers<undefined>(),
-    release: Promise.withResolvers<undefined>(),
-  }
-  const pause = async (): Promise<void> => {
-    gate.entered.resolve(undefined)
-    await gate.release.promise
-  }
-  if (stage === 'cache')
-    rig.storage.read.mockImplementationOnce(async () => {
-      await pause()
-      return undefined
-    })
-  else
-    vi.spyOn(rig.deps.policy, 'allowEgress').mockImplementationOnce(async () => {
-      await pause()
-      return true
-    })
-  return {
-    entered: gate.entered.promise,
-    release: () => {
-      gate.release.resolve(undefined)
-    },
-  }
-}

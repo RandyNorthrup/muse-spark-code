@@ -1,6 +1,3 @@
-import { randomUUID } from 'node:crypto'
-import { setTimeout as delay } from 'node:timers/promises'
-import * as z from 'zod/mini'
 import {
   createScheduleLeaseLock,
   scheduleFsOperation,
@@ -10,10 +7,6 @@ import type {
   ScheduleLeaseGuard,
   ScheduleLockOptions,
 } from '../../../../src/core/schedules/journal'
-import type { ScheduleQueuePort } from '../../../../src/core/schedules/store'
-import type { ScheduleV2 } from '../../../../src/shared/scheduleV2'
-import { scheduleStorageHash } from '../../../../src/core/schedules/store'
-import { SCHEDULE_JOURNAL_MAX_OPS } from '../../../../src/shared/constants'
 
 /** Fault-injectable disk with real serialized bytes, shared by production clients. */
 export class MemoryScheduleFs implements ScheduleFsPort {
@@ -188,55 +181,4 @@ export class MemoryScheduleFs implements ScheduleFsPort {
       .filter(([file]) => file.startsWith(prefix))
       .reduce((total, [, content]) => total + Buffer.byteLength(content), 0)
   }
-}
-
-/** The scheduler queue over the fake fs lease, shared by the store tests. */
-export function memoryScheduleQueue(fs: MemoryScheduleFs): ScheduleQueuePort {
-  return {
-    serialize: async (key: string, work: () => Promise<void>) => {
-      await delay(0)
-      await fs.lock(key, async () => {
-        await work()
-      })
-    },
-  }
-}
-
-export async function scheduleStateFile(fs: ScheduleFsPort, workspace = 'workspace-1') {
-  const pointer = z
-    .object({ generation: z.string() })
-    .parse(JSON.parse((await fs.read(`${workspace}/index/current.json`)) ?? 'null'))
-  return `${workspace}/index/${pointer.generation}/state.json`
-}
-export async function seedScheduleIndex(
-  fs: ScheduleFsPort,
-  jobs: readonly ScheduleV2[],
-  revision = 0,
-) {
-  const generation = randomUUID()
-  await fs.publish(
-    `workspace-1/index/${generation}/state.json`,
-    JSON.stringify({
-      revision,
-      value: {
-        schedules: Object.fromEntries(jobs.map((job) => [job.id, job])),
-        pending: {},
-        timeCursors: {},
-        migrations: {},
-        retirements: {},
-      },
-    }),
-  )
-  const activation = JSON.stringify({ generation, revision, epoch: 0 })
-  await fs.replace('workspace-1/index/current.json', activation)
-  await fs.publish(
-    `generationFences/${scheduleStorageHash('workspace-1/index')}/0/0.json`,
-    activation,
-  )
-}
-export async function schedulePointerFence(fs: ScheduleFsPort) {
-  const pointer = z
-    .object({ epoch: z.number() })
-    .parse(JSON.parse((await fs.read('workspace-1/index/current.json')) ?? 'null'))
-  return `generationFences/${scheduleStorageHash('workspace-1/index')}/${String(Math.floor(pointer.epoch / SCHEDULE_JOURNAL_MAX_OPS))}/${String(pointer.epoch)}.json`
 }

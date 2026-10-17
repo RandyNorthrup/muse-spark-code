@@ -38,16 +38,6 @@ export function reportTestCollector(
 /** The production collector with unavailable selections (session/usage kinds use none). */
 export const renderTestCollector = reportTestCollector()
 
-/** Every order of three records, shared so permutation suites stay identical. */
-export const threeIndexOrders = [
-  [0, 1, 2],
-  [0, 2, 1],
-  [1, 0, 2],
-  [1, 2, 0],
-  [2, 0, 1],
-  [2, 1, 0],
-] as const
-
 export type RenderedReport = Record<'md' | 'html' | 'json' | 'text', string>
 
 /** Render a finalized document in every format the engine supports. */

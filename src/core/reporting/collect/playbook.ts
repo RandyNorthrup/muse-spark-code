@@ -71,6 +71,9 @@ export function isModuleMatch(key: string, glob: string): boolean {
     .join('/')
     .replaceAll('**/[^/]*', '(?:.*/)?[^/]*')
     .replaceAll('**', '.*')
+  // Every glob segment passes escapeGlob before fixed character classes and
+  // anchors are added; user text cannot introduce regex operators or groups.
+  // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
   return new RegExp(`^(?:${pattern})$`, 'u').test(normalized)
 }
 

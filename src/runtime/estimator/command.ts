@@ -367,5 +367,3 @@ export async function runEstimateCommand(
     return 1
   }
 }
-
-export { estimateDeadline } from '../../shared/estimate'
