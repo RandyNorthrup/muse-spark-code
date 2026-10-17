@@ -2,7 +2,6 @@
 // the protocol's negotiation and cancellation, our approval page over the
 // real companion server, the owner-only store and the owner's commands.
 import { mkdtemp, readFile, rm, stat, writeFile, mkdir } from 'node:fs/promises'
-import { request, type IncomingHttpHeaders } from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import { PassThrough, Writable } from 'node:stream'
@@ -21,63 +20,7 @@ import { serveStdio } from '../../src/runtime/connector/stdio'
 import { startApprovalPage } from '../../src/runtime/connector/approvalPage'
 import { ConnectorStore } from '../../src/runtime/connector/store'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
-/** Real loopback HTTP against the real approval server (main's test overhaul deleted `./helpers/companion`). */
-function headers(panel: { url: string }, token?: string): string[] {
-  const origin = new URL(panel.url).origin
-  return [
-    'Host',
-    new URL(origin).host,
-    'Origin',
-    origin,
-    'Sec-Fetch-Site',
-    'same-origin',
-    'X-Muse-Panel',
-    '1',
-    'Content-Type',
-    'application/json',
-    ...(token === undefined ? [] : ['Authorization', `Bearer ${token}`]),
-  ]
-}
-
-function call(
-  panel: { url: string },
-  path: string,
-  method = 'GET',
-  body?: string | Buffer,
-  supplied?: string[],
-): Promise<{ status: number; headers: IncomingHttpHeaders; body: string }> {
-  return new Promise((resolve, reject) => {
-    const outgoing = request(
-      new URL(path, panel.url),
-      { method, headers: supplied ?? headers(panel), setHost: false },
-      (response) => {
-        const chunks: Buffer[] = []
-        response.on('data', (chunk: Buffer) => {
-          chunks.push(chunk)
-        })
-        response.on('error', reject)
-        response.on('end', () => {
-          resolve({
-            status: response.statusCode ?? 0,
-            headers: response.headers,
-            body: Buffer.concat(chunks).toString('utf8'),
-          })
-        })
-      },
-    )
-    outgoing.on('error', reject)
-    outgoing.end(body)
-  })
-}
-
-async function login(panel: { url: string; launchUrl: () => string }): Promise<string> {
-  const code = new URLSearchParams(new URL(panel.launchUrl()).hash.slice(1)).get('k')
-  const result = await call(panel, '/session', 'POST', JSON.stringify({ code }))
-  if (result.status !== 200) throw new Error(`login failed: ${result.body}`)
-  const token = result.headers.authorization?.slice('Bearer '.length)
-  if (token === undefined) throw new Error('login token absent')
-  return token
-}
+import { connectorCall, connectorHeaders, connectorLogin } from './helpers/connectorLoopback'
 
 /** The awaited result's field (the lint rule forbids member access on an await). */
 async function field<T extends object, K extends keyof T>(
@@ -372,16 +315,19 @@ describe('M124 approval page', () => {
         approve: true,
       })
       // No bearer: refused before any decision.
-      expect(await field(call(panel, '/post', 'POST', body), 'status')).toBe(401)
+      expect(await field(connectorCall(panel, '/post', 'POST', body), 'status')).toBe(401)
       expect(decide).not.toHaveBeenCalled()
-      const token = await login(panel)
-      const html = await call(panel, '/', 'GET', undefined, headers(panel, token))
+      const token = await connectorLogin(panel)
+      const html = await connectorCall(panel, '/', 'GET', undefined, connectorHeaders(panel, token))
       expect(html.body).toContain(UI_TEXT.acpConnector.title)
       // Request text reaches the page only through the event stream, as data.
       expect(html.body).not.toContain('<script>alert(1)</script>')
-      expect(await field(call(panel, '/post', 'POST', body, headers(panel, token)), 'status')).toBe(
-        202,
-      )
+      expect(
+        await field(
+          connectorCall(panel, '/post', 'POST', body, connectorHeaders(panel, token)),
+          'status',
+        ),
+      ).toBe(202)
       expect(decide).toHaveBeenCalledWith('i1', 'a'.repeat(64), true)
       const wrong = JSON.stringify({
         type: 'decide',
@@ -390,7 +336,10 @@ describe('M124 approval page', () => {
         approve: true,
       })
       expect(
-        await field(call(panel, '/post', 'POST', wrong, headers(panel, token)), 'status'),
+        await field(
+          connectorCall(panel, '/post', 'POST', wrong, connectorHeaders(panel, token)),
+          'status',
+        ),
       ).toBe(500)
       const extra = JSON.stringify({
         type: 'decide',
@@ -400,7 +349,10 @@ describe('M124 approval page', () => {
         always: true,
       })
       expect(
-        await field(call(panel, '/post', 'POST', extra, headers(panel, token)), 'status'),
+        await field(
+          connectorCall(panel, '/post', 'POST', extra, connectorHeaders(panel, token)),
+          'status',
+        ),
       ).toBe(400)
     } finally {
       await page.close()
