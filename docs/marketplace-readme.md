@@ -22,10 +22,53 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0171) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0182) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.17.1
+## What's new in 0.18.2
+
+- **The landing screen shows the extension's own mark.** The empty chat panel
+  showed the Meta logo beside the product name; it now shows the product's
+  own squiggled "m", blue in dark and light themes and in the theme's text
+  colour in high-contrast themes.
+
+### Earlier in 0.18.1
+
+- **Your own providers, a ChatGPT plan and Copilot work again.** In 0.18.0
+  a turn on any of them stopped before it was sent, with an internal error.
+  Sorry for the broken release; Meta's own models were not affected.
+- **Usage from earlier versions is counted again.** 0.18.0 left those records
+  out as not exact; nothing was deleted.
+- **Report a Problem opens again** if you had changed a setting with a second
+  dot in its name; it used to answer "That did not work".
+
+### Earlier in 0.18.0
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
+  provider's accounts and sets their thresholds; `auth set --provider <id>
+--account <id>` stores a key for one account; `exec --account <id>` runs on
+  the account you name. In an ACP editor on a Model API key, `/accounts`
+  shows the list and the current account. Changing account inside a session,
+  pooled runs and an Accounts page in the editor are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete; content and edits stay hidden and nothing runs until the call
+  is complete. Other models keep the finished-call row for now.
+- **Reviewing Git changes works without a Git filter.** Without Git LFS or
+  another filter configured, every native review was refused since 0.15.0.
+- **The activity-bar icon is the extension's own mark**, the squiggled "m".
+
+### Earlier in 0.17.2
+
+- **Long replies from your own providers and a ChatGPT plan finish.**
+  Since 0.15.0 a reply from a provider you added in Models & Agents, or
+  from a ChatGPT plan sign-in, was cut off 30 seconds after the request
+  started. A reply now has no limit on its total time; one that goes
+  silent ends after 5 minutes, and the message says so.
+
+### Earlier in 0.17.1
 
 - **The provider picker works again.** Models & Agents lists every provider
   again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
@@ -40,39 +83,36 @@ Code” are Meta trademarks. You bring your own credentials.
   every major word; sentences and messages keep sentence case.
 - **Smaller fixes.** Chat action menus fan close around the row's **…**
   button, highlighted-text actions included; a question's own-answer field no
-  longer overlaps the options and buttons around it, DeepSeek's Thinking off
-  sends DeepSeek's own switch, a nearly spent budget stops with the budget
-  message instead of a Meta error, and a Muse Code older than 1.4.3 that hits
-  its approval-record fault now gets the update command.
+  longer overlaps the options and buttons around it, sharing a chat from an
+  ACP editor or the terminal shows its preview, an ACP session on a Model API
+  key starts without account details, DeepSeek's Thinking off sends
+  DeepSeek's own switch, a nearly spent budget stops with the budget message
+  instead of a Meta error, a Muse Code older than 1.4.3 that hits its
+  approval-record fault now gets the update command, and Help and these notes
+  describe only what works today and name the features still being built.
 
 ### Earlier in 0.17.0
 
 - **Deterministic reports.** `/report` builds project, quality, milestone,
   release and change reports from local facts, in Markdown, HTML, JSON or text,
   with saved history and comparisons; nothing is sent to a model.
-- **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
-  place and verified with test data. Real forecasts need the plan reader that
-  comes later; until then they say so instead of guessing.
-- **Several accounts per provider.** List provider accounts, see the current
-  one and its thresholds; a vendor limit blocks only the affected account.
 - **Orchestrator playbook.** The nine orchestration rules ship as a first-party
   skill. In the ACP agent and the CLI, `/playbook status`, `record` and
-  `settings` answer locally; the VS Code panel follows.
+  `settings` answer locally without a model call.
 - **Refreshed design.** Shared design tokens and generated palettes style every
   panel surface; an optional pinned OFL font pack serves standalone installs.
 
 ### Earlier in 0.16.0
 
-- **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
-  argument previews help you follow Model API tool calls. Independent reads can
+- **Loop guarantees.** Strict tool contracts and bounded hosted search
+  govern Model API tool calls. Independent reads can
   run concurrently while their results keep call order. The loop bounds
   continuations, refuses cut-short tool execution and stops repeated unchanged
   calls. Structured side calls validate answers; headless runs can require a
   bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
   for capability gates and remaining native-reader qualifications.
 - **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
-  pause, new background work. Relocation needs a paired device or runner route
-  and is not available yet, so work stays on this machine.
+  pause, new background work. Work stays on this machine.
 - **Disk floors.** Disk-heavy launches wait below the free-space floor and
   critical-volume writes refuse with a reason. Temporary cleanup requires
   recorded ownership and proved tree exit. See
@@ -85,16 +125,12 @@ Code” are Meta trademarks. You bring your own credentials.
   models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
   preview for eligible Plus/Pro accounts; Copilot uses a compatible VS Code
   host's models. Features follow each selected model's capabilities.
-- **Agent roles and teams.** Configure role pools, task limits and worker
-  review. Paid workers require consent and share the daily budget.
 - **/legal.** Scan licensing, copyright and source evidence without a model
   call, export the report, and confirm supported header repairs. The report
   states its coverage limits; it is not a legal certificate.
-- **Automatic compaction and Pi/SoL-Pi sync.** The shared engine preserves
-  packed output, literal recall and cache-stable prompts. Automatic compaction
-  is implemented and its setting defaults on, but production remains inactive
-  pending the paired evaluation.
-- **Usage & Cost.** Open the local page for provider and team totals, token
+- **Pi/SoL-Pi context improvements.** The shared engine preserves
+  packed output, literal recall and cache-stable prompts.
+- **Usage & Cost.** Open the local page for provider totals, token
   counts, budgets and exports. Reported, estimated and unknown costs stay distinct.
 
 ### Earlier in 0.14.5

@@ -7,10 +7,13 @@ import {
   UI_TEXT,
 } from '../../../shared/l10n/text'
 import { formatUsd } from '../../../shared/l10n/exactUsd'
+import { Usd, type UsdAmount } from '../../../shared/usd'
 import { TrafficSection, type TrafficProps } from './TrafficParts'
 
 const ratio = (numerator: number, denominator: number) =>
   denominator === 0 ? '—' : formatNumber(numerator / denominator)
+// One merge's share, rounded up to the nano-dollar: display never under-reports.
+const perMerge = (total: UsdAmount, merges: number) => Usd.from(total).divideIntegerCeiling(merges)
 const duration = (ms: number | null) =>
   ms === null ? '—' : formatUnit(ms / MILLISECONDS_PER_SECOND, 'second')
 export function TrafficMetrics({ state }: TrafficProps) {
@@ -71,7 +74,7 @@ export function TrafficMetrics({ state }: TrafficProps) {
             <dd>
               {metrics.mergedChanges === 0
                 ? '—'
-                : formatUsd(metrics.reportedCostUsd / metrics.mergedChanges, 2)}{' '}
+                : formatUsd(perMerge(metrics.reportedCostUsd, metrics.mergedChanges), 2)}{' '}
               · {UI_TEXT.goalTokens}: {ratio(metrics.reportedTokens, metrics.mergedChanges)}
             </dd>
             <dt>
@@ -80,7 +83,7 @@ export function TrafficMetrics({ state }: TrafficProps) {
             <dd>
               {metrics.mergedChanges === 0
                 ? '—'
-                : formatUsd(metrics.estimatedCostUsd / metrics.mergedChanges, 2)}{' '}
+                : formatUsd(perMerge(metrics.estimatedCostUsd, metrics.mergedChanges), 2)}{' '}
               · {UI_TEXT.goalTokens}: {ratio(metrics.estimatedTokens, metrics.mergedChanges)}
             </dd>
             <dt>{UI_TEXT.teamTrafficMetrics.timeToMerge}</dt>

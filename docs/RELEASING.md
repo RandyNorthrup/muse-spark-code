@@ -9,12 +9,24 @@ lanes do not push, tag, release, or call paid services.
 ## Writing the Highlights block
 
 Users see each release in What's New (PLAN.md D79, M99): after an update the
-extension opens a page with every new release's Highlights and full notes,
-built from `CHANGELOG.md` at build time. Before the release PR bumps
+extension opens a page built from `CHANGELOG.md` at build time. The newest
+release stays full; older notes ship in full, as Highlights with a full-notes
+link, or are omitted, according to the final decoded and encoded budgets.
+Only a typed size overflow permits a smaller plan. Any other encoder or
+schema failure stops the build, naming the candidate releases and the cause;
+fix that failure rather than trimming notes. HTTP/HTTPS link schemes are
+normalized to lowercase for the artifact; the rest of each URL is preserved.
+Generated full-notes links use the same URL rule, including in packaged
+notes. A repository URL outside HTTP/HTTPS stops selection with a named
+repository error before any plan is tried; fix the repository URL first.
+Before the release PR bumps
 `package.json`:
 
 1. Rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD` (and start a new,
-   empty `## [Unreleased]` above it).
+   empty `## [Unreleased]` above it). Release headings must be ATX in that
+   exact form, terminated by LF or CRLF. One to three leading spaces are
+   accepted by Markdown; fenced and four-space indented examples stay code.
+   CR-only files and Setext release headings are refused with named errors.
 2. Give the section a `### Highlights` list first, before `### Added`: 3 to
    5 bullets (at most 5), each one sentence or two a user can act on, in the
    form `- **What it is.** What it does for you.`
@@ -30,6 +42,23 @@ built from `CHANGELOG.md` at build time. Before the release PR bumps
    as does a release with more than 5.
 
 The notes stay English; the page's own words are translated.
+
+## Release notes and the screenshots
+
+A release does not need new screenshots for its notes. The What's New scenes
+of the visual gate render a fixed fixture,
+`test/harness/whats-new/CHANGELOG.fixture.md`, never `CHANGELOG.md`, and a
+fixed version, so a new section, a changed entry or a version bump moves no
+frame, and `CHANGELOG.md` is not a capture input
+(`scripts/lib/captureInputs.mjs`). What the real notes say is checked as text
+(the changelog, version and truth tests).
+
+One thing can still ask for a render: notes that use a kind of Markdown the
+fixture does not show (a first table, a first quote).
+`test/unit/whatsNewFixture.test.mjs` then fails and names the kind. Add an
+example of it to the fixture, re-render with a reviewed update
+(CONTRIBUTING.md), look at the What's New frames in the light, dark and both
+high-contrast themes at 320 px, and commit the manifest with the fixture.
 
 ## Keeping the roadmap's release sections right
 

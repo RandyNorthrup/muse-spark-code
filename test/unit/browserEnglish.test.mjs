@@ -27,7 +27,14 @@ const embedded = (table) => ({
 it('keeps account, developer and help values out of startup and loads them exactly on demand', async () => {
   expect(built.bundle.UI_TEXT.sendTitle).toBe(EN.sendTitle)
   expect(() => built.bundle.UI_TEXT.referenceIntro).toThrow('English surface is not loaded')
+  // C-X-1: Help does not list the vault and no installed surface reads its
+  // group, so the installed table does not carry it. CM108ACC: Help lists
+  // accounts again, so that group is installed and waits for its surface, as
+  // developer English does; browserUiText mounts the accounts and vault
+  // surfaces and pins their on-demand loading.
   expect(() => built.bundle.UI_TEXT.accounts).toThrow('English surface is not loaded')
+  expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
+  expect(() => built.bundle.UI_TEXT.developer).toThrow('English surface is not loaded')
   expect(() => built.bundle.EN.providerText).toThrow('English surface is not loaded')
   expect(() => built.bundle.EN.acpChatGpt).toThrow('English surface is not loaded')
   // STARTUP017: a restored settlement row's words paint with startup; the
@@ -63,9 +70,11 @@ it('keeps account, developer and help values out of startup and loads them exact
   expect(built.bundle.UI_TEXT).toEqual(german)
   expect(built.bundle.EN.providerText).toEqual(EN.providerText)
   expect(built.bundle.EN.acpChatGpt).toEqual(EN.acpChatGpt)
-  // The vault group's English loads with the vault surface alone (CAPS017).
+  // The vault group's English loads with the vault surface alone (CAPS017);
+  // with no vault surface installed, its installer adds no key to this table.
   expect(() => built.bundle.EN.vault).toThrow('English surface is not loaded: vault')
   built.bundle.installVaultEnglish()
+  expect(Object.hasOwn(built.bundle.EN, 'vault')).toBe(false)
   // M107 U-C1: English read only by the resource chip and pages loads with
   // those surfaces (their modules import it), never with the other deferred groups.
   const resourceOnly = Object.keys(built.bundle.EN).filter((key) => {

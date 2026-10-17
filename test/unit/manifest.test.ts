@@ -7,6 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import manifest from '../../package.json'
+import nls from '../../package.nls.json'
 import {
   ARCHIVE_DAY_CHOICES,
   CHAT_PANEL_VIEW_TYPE,
@@ -20,6 +21,7 @@ import {
   QUESTION_DEFER_DEFAULT_SECONDS,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
+  isAutoCompactionEvaluated,
   WALKTHROUGH_ID,
   WHATS_NEW_CHANGELOG_URL,
   WHATS_NEW_README_URL,
@@ -45,6 +47,31 @@ const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || foc
 const nlsKeyOf = (reference: string | undefined) => reference?.replace(/^%(.+)%$/, '$1') ?? ''
 
 describe('package.json manifest', () => {
+  // 0.17.1's truth pass (CX1R5) words the setting by the one thing it does
+  // while the feature is inactive, in every manifest table, and takes the
+  // inactive feature's description out of the README.
+  it('describes the visible automatic compaction setting by what it does while inactive', () => {
+    expect(isAutoCompactionEvaluated()).toBe(false)
+    const setting =
+      manifest.contributes.configuration.properties['museSpark.modelApiAutoCompaction']
+    expect(setting.default).toBe(true)
+    expect(setting.scope).toBe('machine')
+    expect(setting.description).toBe('%config.modelApiAutoCompaction.description%')
+    const description = nls['config.modelApiAutoCompaction.description']
+    expect(description).toContain('first-turn notice')
+    expect(description).toContain('Automatic compaction remains inactive')
+    const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8').replaceAll(
+      /\s+/g,
+      ' ',
+    )
+    expect(readme).toContain(
+      '`modelApiAutoCompaction` controls the first-turn awaiting-evaluation notice',
+    )
+    expect(readme).not.toContain('inactive preference')
+    expect(readme).not.toContain('automatic feature is absent from Settings')
+    expect(readme).not.toContain('The hidden `museSpark.modelApiAutoCompaction`')
+  })
+
   it('never puts settings below a scalar setting that VS Code would ignore', () => {
     const properties = manifest.contributes.configuration.properties
     const keys = Object.keys(properties)
@@ -362,6 +389,14 @@ describe('package.json manifest', () => {
       [COMMAND_IDS.attachLatestScreenRecording]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
       // Deletes the conversation in front of the user's uploaded media (M105).
       [COMMAND_IDS.deleteUploadedFiles]: `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || view.${CHAT_VIEW_ID}.visible`,
+      // C-X-1: no runtime owner is bound for these yet, so the palette never
+      // lists them; each command's shim refuses when it is run another way.
+      [COMMAND_IDS.schedulePrompt]: 'false',
+      [COMMAND_IDS.showSchedules]: 'false',
+      [COMMAND_IDS.showScheduleTimeline]: 'false',
+      [COMMAND_IDS.vault]: 'false',
+      [COMMAND_IDS.lockVault]: 'false',
+      [COMMAND_IDS.estimate]: 'false',
     })
     const registered: readonly string[] = Object.values(COMMAND_IDS)
     for (const command of palette.keys()) {
@@ -516,9 +551,8 @@ describe('packaging (M26)', () => {
     const ci = read('.github', 'workflows', 'build.yml')
     expect(ci).toContain('run: node scripts/release-reuse.mjs record')
     expect(ci).toContain('name: source-tree-${{ steps.source.outputs.tree }}')
-    // Four package artifacts plus M114 S's visual-shards and visual jobs,
-    // every one on the same 30-day retention.
-    expect(count(ci, /retention-days: 30/g)).toBe(6)
+    // The four package artifacts, every one on the same 30-day retention.
+    expect(count(ci, /retention-days: 30/g)).toBe(4)
   })
   it('keeps manual recovery on the shared verified staging path and never rebuilds it (RELFAST2)', () => {
     const release = read('.github', 'workflows', 'release.yml')
@@ -609,7 +643,7 @@ describe('tiered CI (CIFLOW)', () => {
       expect(job(id)).toContain('inputs.fast && \'["ubuntu-latest"]\'')
       expect(job(id)).toContain('["ubuntu-latest","windows-latest","macos-latest"]')
     }
-    // Exactly quality:gates without tests and pixels, which have required jobs: a
+    // Exactly quality:gates without the tests, which have a required job: a
     // gate added to quality:gates and not to CI fails here. The static gates run
     // in parts (CIFIX017R3): each script quality:gates reaches through run-s
     // runs in exactly one part, none twice and none dropped.
@@ -628,24 +662,19 @@ describe('tiered CI (CIFLOW)', () => {
     )
     expect(parts).toHaveLength(3)
     expect(leaves(parts.flat()).toSorted((a, b) => a.localeCompare(b))).toEqual(
-      leaves(
-        gates.slice(1).filter((gate) => gate !== 'test:unit' && gate !== 'check:visual'),
-      ).toSorted((a, b) => a.localeCompare(b)),
+      leaves(gates.slice(1).filter((gate) => gate !== 'test:unit')).toSorted((a, b) =>
+        a.localeCompare(b),
+      ),
     )
     expect(job('checks')).toContain('      - run: npx run-s ${{ matrix.part.gates }}\n')
     expect(job('unit')).toContain('npx vitest run\n')
-    for (const id of [
-      'coverage',
-      'accessibility',
-      'integration',
-      'native-build',
-      'linux-native-build',
-      'packages',
-    ]) {
+    for (const id of ['integration', 'native-build', 'linux-native-build', 'packages']) {
       expect(job(id)).toContain('if: ${{ !inputs.fast }}')
     }
-    // M114 S's visual gate runs on every tier, like the static checks.
-    expect(job('visual')).toContain('if: always()')
+    // Accessibility additionally leaves the pull-request path.
+    expect(job('accessibility')).toContain(
+      "if: ${{ !inputs.fast && github.event_name != 'pull_request' }}",
+    )
     expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
     expect(job('accessibility')).toContain('run: npm run test:a11y\n')
     expect(job('accessibility')).toContain('run: npm run test:legal-a11y\n')
@@ -658,6 +687,10 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('packages')).toContain('name: muse-spark-code-vsix')
     expect(job('packages')).toContain('name: muse-spark-code-acp')
     expect(job('packages')).toContain('name: muse-spark-code-sboms')
+    // The roadmap gate stays wired: genRoadmap's own suite went with the
+    // gate-mirror deletions, and this is the tripwire that keeps check:roadmap
+    // in the gate (the leaves comparison above drops both sides together).
+    expect(gates).toContain('check:roadmap')
   })
 
   it('carries the whole production dist, not a hand list, to the accessibility job', () => {
@@ -667,49 +700,32 @@ describe('tiered CI (CIFLOW)', () => {
     )
     expect(job('checks')).not.toMatch(/^ {12}dist\/[A-Za-z]+\.js$/m)
     expect(job('accessibility')).toContain('name: production-webview\n          path: dist\n')
-    expect(read('test/harness/reporting/verify.mjs')).toContain(
-      "statSync(path.join(root, 'dist/reportingPanel.js'))",
-    )
+    // The reporting verifier that pinned the production bundle went with
+    // the process-test deletions; the dist block above is the remaining pin.
   })
 
-  it('replays visual pixels only in required shards with the recorded Git source available', () => {
-    expect(job('checks')).not.toContain('check:visual')
-    expect(job('visual-shards')).toContain('fetch-depth: 0')
-    expect(job('visual-shards')).toContain('git fetch --no-tags origin "$revision"')
-    expect(job('visual-shards')).toContain('npm run check:visual -- --shard=${{ matrix.shard }}/6')
-    expect(job('visual')).toContain('needs: visual-shards')
-  })
-
-  it('collects every shard per OS (eight on Windows, six on macOS) and gates merged coverage with unchanged thresholds', () => {
+  it('runs every shard per OS (eight on Windows and macOS, four on Ubuntu) with no coverage gate', () => {
     expect(job('unit')).toContain(
       "shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}",
     )
     expect(job('unit')).toContain(
-      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8},{"os":"macos-latest","shard":7},{"os":"macos-latest","shard":8}]') }}`,
+      `exclude: \${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}`,
     )
-    expect(job('unit')).toContain(
-      "SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}",
-    )
-    expect(job('unit')).toContain('--shard="$SHARD/$SHARDS" --reporter=default --reporter=blob')
-    expect(job('unit')).toContain('--outputFile="blob-reports/shard-$SHARD.json"')
-    expect(job('coverage')).toContain('os: [ubuntu-latest, windows-latest, macos-latest]')
-    expect(job('coverage')).toContain('pattern: coverage-${{ matrix.os }}-*')
-    expect(job('coverage')).toContain('merge-multiple: true')
-    expect(job('coverage')).toContain(
-      "SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || matrix.os == 'macos-latest' && 6 || 8 }}",
-    )
-    expect(job('coverage')).toContain('for shard in $(seq 1 "$SHARDS"); do')
-    expect(job('coverage')).toContain('test -s "blob-reports/shard-$shard.json"')
-    expect(job('coverage')).toContain('npx vitest run --merge-reports=blob-reports --coverage')
+    expect(job('unit')).toContain("SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 8 }}")
+    expect(job('unit')).toContain('--shard="$SHARD/$SHARDS" --reporter=default')
+    expect(job('unit')).not.toContain('--coverage')
+    expect(job('unit')).not.toContain('blob-reports')
+    expect(build).not.toMatch(/^ {2}coverage:\n/m)
+    expect(build).not.toContain('merge-reports')
     const config = read('vitest.config.ts')
-    expect(config).toContain('statements: 90,\n  branches: 85,\n  functions: 90,\n  lines: 90,')
-    expect(config).toContain("arg !== '--shard' && !arg.startsWith('--shard=')")
-    expect(config).toContain('...(process.argv.every')
-    expect(config).toContain('thresholds: COVERAGE_THRESHOLDS,')
+    // The coverage number measured fake-driven tests: no gate, no thresholds.
+    expect(config).not.toContain('COVERAGE_THRESHOLDS')
+    expect(config).not.toContain('thresholds:')
     expect(config).toContain("fileParallelism: process.platform !== 'win32' && !IS_HOSTED_MAC")
     expect(config).toContain(
       "process.platform === 'darwin' && process.env['GITHUB_ACTIONS'] === 'true'",
     )
+    expect(manifest.scripts['test:unit']).toBe('vitest run')
   })
 
   it('keeps all required names and wires fail-closed checks for each selected-tier dependency', () => {
@@ -732,9 +748,7 @@ describe('tiered CI (CIFLOW)', () => {
         .filter(Boolean),
     ).toEqual([
       'checks',
-      'visual',
       'unit',
-      'coverage',
       'accessibility',
       'integration',
       'native-build',
@@ -744,20 +758,18 @@ describe('tiered CI (CIFLOW)', () => {
       'sast',
     ])
     expect(job(id)).toContain('if: always()')
-    for (const key of ['CHECKS', 'VISUAL', 'UNIT', 'SECRETS', 'SAST']) {
+    for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
       expect(job(id)).toContain(`          test "$${key}" = success\n`)
     }
     expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
-    for (const key of [
-      'COVERAGE',
-      'ACCESSIBILITY',
-      'INTEGRATION',
-      'HELPER',
-      'LINUX_HELPER',
-      'PACKAGES',
-    ]) {
+    for (const key of ['INTEGRATION', 'HELPER', 'LINUX_HELPER', 'PACKAGES']) {
       expect(job(id)).toContain(`            test "$${key}" = success\n`)
     }
+    // Accessibility left the pull-request path: on that event it is skipped,
+    // elsewhere it must succeed.
+    expect(job(id)).toContain('          EVENT: ${{ github.event_name }}\n')
+    expect(job(id)).toContain('          if [ "$EVENT" != pull_request ]; then\n')
+    expect(job(id)).toContain('            test "$ACCESSIBILITY" = success\n')
     expect(job(id)).not.toContain('continue-on-error')
     expect(job('secrets')).toContain('name: gitleaks')
     expect(job('sast')).toContain('name: semgrep')
@@ -795,7 +807,7 @@ describe('tiered CI (CIFLOW)', () => {
     () => {
       const required = job('required')
       // Each step variable and the expression it reads: FAST from the input,
-      // the rest from one needed job's result.
+      // EVENT from the caller event, the rest from one needed job's result.
       const pairs = Array.from(
         required.matchAll(/^ {10}([A-Z_]+): \$\{\{ (\S+) \}\}$/gm),
         (match) => [match[2] ?? '', match[1] ?? ''] as const,
@@ -807,9 +819,8 @@ describe('tiered CI (CIFLOW)', () => {
           ?.split(',')
           .map((value) => value.trim())
           .filter(Boolean) ?? []
-      const always = ['checks', 'visual', 'unit', 'secrets', 'sast']
+      const always = ['checks', 'unit', 'secrets', 'sast']
       const fullOnly = [
-        'coverage',
         'accessibility',
         'integration',
         'native-build',
@@ -818,7 +829,9 @@ describe('tiered CI (CIFLOW)', () => {
       ]
       expect(ids.toSorted(byText)).toEqual([...always, ...fullOnly].toSorted(byText))
       expect(pairs.map(([expression]) => expression).toSorted(byText)).toEqual(
-        ['inputs.fast', ...ids.map((id) => `needs.${id}.result`)].toSorted(byText),
+        ['github.event_name', 'inputs.fast', ...ids.map((id) => `needs.${id}.result`)].toSorted(
+          byText,
+        ),
       )
       const key = (id: string) => env.get(`needs.${id}.result`) ?? ''
       const lines = required.split('\n')
@@ -828,27 +841,68 @@ describe('tiered CI (CIFLOW)', () => {
         if (line !== '' && !line.startsWith(' '.repeat(10))) break
         body.push(line.slice(10))
       }
-      const results = (isFast: boolean, overrides: Readonly<Record<string, string>> = {}) => ({
-        [env.get('inputs.fast') ?? '']: String(isFast),
-        ...Object.fromEntries(
-          ids.map((id) => [key(id), isFast && fullOnly.includes(id) ? 'skipped' : 'success']),
-        ),
-        ...overrides,
-      })
+      // Full-tier cases run on merge_group (every selected job runs);
+      // pull_request cases prove the PR path accepts skipped accessibility.
+      const results = (
+        isFast: boolean,
+        event: string,
+        overrides: Readonly<Record<string, string>> = {},
+      ) => {
+        const verdictFor = (id: string): string => {
+          const isSkippedForTier = isFast && fullOnly.includes(id)
+          const isSkippedForPath = id === 'accessibility' && event === 'pull_request'
+          return isSkippedForTier || isSkippedForPath ? 'skipped' : 'success'
+        }
+        return {
+          [env.get('inputs.fast') ?? '']: String(isFast),
+          [env.get('github.event_name') ?? '']: event,
+          ...Object.fromEntries(ids.map((id) => [key(id), verdictFor(id)])),
+          ...overrides,
+        }
+      }
       const cases: readonly (readonly [string, Record<string, string>, boolean])[] = [
-        ['full tier, every job green', results(false), true],
+        ['full tier, every job green', results(false, 'merge_group'), true],
         ...ids.map(
-          (id) => [`full, ${id} failed`, results(false, { [key(id)]: 'failure' }), false] as const,
+          (id) =>
+            [
+              `full, ${id} failed`,
+              results(false, 'merge_group', { [key(id)]: 'failure' }),
+              false,
+            ] as const,
         ),
         ...fullOnly.map(
-          (id) => [`full, ${id} skipped`, results(false, { [key(id)]: 'skipped' }), false] as const,
+          (id) =>
+            [
+              `full, ${id} skipped`,
+              results(false, 'merge_group', { [key(id)]: 'skipped' }),
+              false,
+            ] as const,
         ),
-        ['full, helper cancelled', results(false, { [key('native-build')]: 'cancelled' }), false],
-        ['fast tier, its jobs green, the rest skipped', results(true), true],
+        [
+          'full, helper cancelled',
+          results(false, 'merge_group', { [key('native-build')]: 'cancelled' }),
+          false,
+        ],
+        ['full pull request, accessibility skipped', results(false, 'pull_request'), true],
+        [
+          'full pull request, checks failed',
+          results(false, 'pull_request', { [key('checks')]: 'failure' }),
+          false,
+        ],
+        ['fast tier, its jobs green, the rest skipped', results(true, 'pull_request'), true],
         ...always.map(
-          (id) => [`fast, ${id} skipped`, results(true, { [key(id)]: 'skipped' }), false] as const,
+          (id) =>
+            [
+              `fast, ${id} skipped`,
+              results(true, 'pull_request', { [key(id)]: 'skipped' }),
+              false,
+            ] as const,
         ),
-        ['fast, semgrep cancelled', results(true, { [key('sast')]: 'cancelled' }), false],
+        [
+          'fast, semgrep cancelled',
+          results(true, 'pull_request', { [key('sast')]: 'cancelled' }),
+          false,
+        ],
       ]
       // One shell for every case (Windows starts each process slowly); each
       // case runs in its own subshell as a plain statement, so -e applies.

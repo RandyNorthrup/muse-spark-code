@@ -920,6 +920,19 @@ describe('M115 bound schedule palette', () => {
       expect(rows.find((row) => row.id === 'schedulePrompt')?.action).toEqual(schedules.create)
       expect(rows.find((row) => row.id === 'scheduleTimeline')?.action).toEqual(schedules.timeline)
       expect(rows.find((row) => row.id === 'loop')?.action).toEqual({ type: 'startLoop' })
+      const dormant = pricedPalette({
+        ...context,
+        backend,
+        schedules: { ...schedules, isAvailable: false },
+      })
+      const dormantCommands = slashCommandsOf(dormant).map((command) => command.name)
+      expect(dormantCommands).toContain('loop')
+      expect(dormantCommands).not.toContain('schedule')
+      expect(
+        dormant
+          .flatMap((group) => group.items)
+          .filter((row) => ['schedule', 'schedulePrompt', 'scheduleTimeline'].includes(row.id)),
+      ).toEqual([])
       for (const id of ['schedule', 'schedulePrompt', 'scheduleTimeline']) {
         expect(rows.find((row) => row.id === id)?.tip?.trim(), id).toBeTruthy()
       }

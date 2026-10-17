@@ -1,5 +1,5 @@
 import { PRODUCT_NAME } from '../../shared/constants'
-import { MetaLogo } from './icons'
+import { ProductMark } from './icons'
 import { Onboarding } from './Onboarding'
 
 export interface EmptyStateProps {
@@ -13,7 +13,7 @@ export function EmptyState({ hint, isOnboardingShown, onHideOnboarding }: EmptyS
   return (
     <div className="empty-state">
       <div className="brand">
-        <MetaLogo />
+        <ProductMark />
         <span>{PRODUCT_NAME}</span>
       </div>
       <p className="hint">{hint}</p>

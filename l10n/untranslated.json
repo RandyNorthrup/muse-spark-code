@@ -182,7 +182,8 @@
       "devices.grantRepository",
       "devices.cpuPressure",
       "gitPullRequestFormLabel",
-      "agentsCount.one"
+      "agentsCount.one",
+      "openPullRequestRepository"
     ],
     "es": [
       "hooksItem",
@@ -266,7 +267,8 @@
       "teamUsageTitle",
       "devices.grantRepository",
       "devices.grantQuota",
-      "devices.cpuPressure"
+      "devices.cpuPressure",
+      "openPullRequestRepository"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],
