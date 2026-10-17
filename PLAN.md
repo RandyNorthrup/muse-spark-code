@@ -14422,6 +14422,10 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
 - A27 (NOLIMITS1): `SUBAGENT_MAX_PER_CONVERSATION` = 64 removed — not about
   a model; a conversation spawns without a count of ours (paid consent
   still asks per spawn; the 8-at-once queue is C6, untouched).
+- A28 (NOLIMITS1): `TEAM_DELEGATE_MAX` = 6 and `TEAM_ENGINE_HARD_CEILING` =
+  20 removed — ours, not the platform's; a `delegate` starts any number of
+  tasks and engines are bounded by the provider's documented limits, live
+  429 adaptation and the machine, never a number of ours.
 
 ## 3. Open questions (need the owner)
 

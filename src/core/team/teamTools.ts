@@ -2,7 +2,6 @@ import {
   TEAM_MODEL_TEXT,
   TEAM_BOOTSTRAP_MODEL_TEXT,
   TEAM_COLLECT_WAIT_MAX_SECONDS,
-  TEAM_DELEGATE_MAX,
   TEAM_BRIEF_MAX_CHARS,
   TEAM_REASON_CODES,
   TEAM_IDENTIFIER_MAX_CHARS,
@@ -167,14 +166,11 @@ export const TEAM_TOOL_SCHEMAS: Record<TeamToolName, TeamToolSchema> = {
     annotations: { readOnlyHint: true },
   },
   delegate: {
-    description: fill(TEAM_MODEL_TEXT.toolStartOneToTasksBehindOne, {
-      value1: String(TEAM_DELEGATE_MAX),
-    }),
+    description: TEAM_MODEL_TEXT.toolStartOneToTasksBehindOne,
     properties: {
       tasks: {
         type: 'array',
         minItems: 1,
-        maxItems: TEAM_DELEGATE_MAX,
         items: TASK_SCHEMA,
       },
       plan: {
@@ -314,7 +310,7 @@ export const delegateArgs = z.object({
         continue: z.optional(identifierSchema),
       }),
     )
-    .check(z.minLength(1), z.maxLength(TEAM_DELEGATE_MAX)),
+    .check(z.minLength(1)),
   plan: z.optional(
     z
       .array(

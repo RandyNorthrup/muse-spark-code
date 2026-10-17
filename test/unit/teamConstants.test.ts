@@ -13,8 +13,6 @@ import {
   TEAM_CONTINUE_ON_NEXT_DEFAULT,
   TEAM_DAILY_BUDGET_TOKENS,
   TEAM_DAILY_BUDGET_USD,
-  TEAM_DELEGATE_MAX,
-  TEAM_ENGINE_HARD_CEILING,
   TEAM_EXHAUSTED_DEFAULT,
   TEAM_EXHAUSTED_POLICIES,
   TEAM_EXTERNAL_AGENT_CEILING,
@@ -238,7 +236,6 @@ describe('team caps, intensity and machine values', () => {
     expect(TEAM_META_STANDARD_TPM).toBe(4_000_000)
     expect(TEAM_META_CONTRIBUTOR_RPM).toBe(100)
     expect(TEAM_META_CONTRIBUTOR_TPM).toBe(3_000_000)
-    expect(TEAM_ENGINE_HARD_CEILING).toBe(20)
     expect(TEAM_MUSE_CODE_HOST_CEILING).toBe(4)
     expect(TEAM_EXTERNAL_AGENT_CEILING).toBe(4)
     expect(TEAM_EXTERNAL_AGENT_DEFAULT).toBe(2)
@@ -250,9 +247,8 @@ describe('team caps, intensity and machine values', () => {
     expect(TEAM_USAGE_LIMIT_COOLDOWN_MS).toBe(1_800_000)
   })
 
-  it('bounds delegation depth, call size and per-role defaults', () => {
+  it('bounds delegation depth and per-role defaults (D121: no delegate count)', () => {
     expect(TEAM_MAX_DEPTH).toBe(2)
-    expect(TEAM_DELEGATE_MAX).toBe(6)
     expect(TEAM_TASKS_PER_TURN_DEFAULT).toBe(6)
     expect(TEAM_TASK_MINUTES_DEFAULT).toBe(30)
     const policies: readonly TeamExhaustedPolicy[] = TEAM_EXHAUSTED_POLICIES
