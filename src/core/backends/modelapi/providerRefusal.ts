@@ -101,7 +101,13 @@ const QUOTA_KINDS = new Set([
 // Where Z.ai names a reset (`next_flush_time`) it is inside the message,
 // which the sentence quotes; the page documents no format for it, so it is
 // shown as Z.ai wrote it, never parsed.
+// OpenRouter's budget limits (`metadata.limit_source` on its 403 budget
+// errors, each with `resets_at`; https://openrouter.ai/docs/api-reference/errors,
+// read 2026-10-17) are the same fact.
 const USAGE_LIMIT_CODES = new Set([
+  'openrouter_guardrail_budget',
+  'openrouter_workspace_budget',
+  'openrouter_key_limit',
   '1308',
   '1309',
   '1310',
@@ -152,9 +158,21 @@ const NOT_FOUND_KINDS = new Set([
 // the chat codec already carries it from `finish_reason: "content_filter"`.
 // Z.ai's '1301' (unsafe or sensitive content, HTTP 400; same page).
 const CONTENT_FILTER_CODES = new Set(['content_filter', '1301'])
-// Z.ai's '1305' ("The service may be temporarily overloaded", HTTP 429).
-const OVERLOAD_KINDS = new Set(['overloaded_error', 'overloaded', 'server_overloaded', '1305'])
+// Z.ai's '1305' ("The service may be temporarily overloaded", HTTP 429);
+// OpenRouter's typed `provider_overloaded` (its errors page, read 2026-10-17).
+const OVERLOAD_KINDS = new Set([
+  'overloaded_error',
+  'overloaded',
+  'server_overloaded',
+  'provider_overloaded',
+  '1305',
+])
 const RATE_KINDS = new Set(['rate_limit_error', 'rate_limit_exceeded', 'rate_limited'])
+// OpenRouter's in-flight budget: a 402 that carries a `Retry-After` and is
+// the one 402 to wait out and ask again ("for the in-flight budget case
+// catch the error, read `Retry-After`, and retry explicitly"; errors page,
+// read 2026-10-17; research openrouter.md ORB2/ORB3).
+const WAIT_AND_RETRY_REASONS = new Set(['openrouter_in_flight_budget'])
 // Z.ai's '1261' ("Prompt too long", HTTP 400).
 const TOO_LARGE_KINDS = new Set(['request_too_large', 'too_large', 'payload_too_large', '1261'])
 const INVALID_KINDS = new Set([
@@ -210,6 +228,7 @@ export function classifyRefusalKind(signals: RefusalSignals): ProviderRefusalKin
   const type = norm(signals.type)
   const code = norm(signals.code)
   const reason = norm(signals.reason)
+  if (WAIT_AND_RETRY_REASONS.has(reason) || WAIT_AND_RETRY_REASONS.has(code)) return 'rateLimited'
   const errorCode = norm(signals.errorCode)
   const message = signals.message ?? ''
   if (
@@ -221,7 +240,8 @@ export function classifyRefusalKind(signals: RefusalSignals): ProviderRefusalKin
     phraseKind(status, message) === 'credit'
   )
     return 'credit'
-  if (USAGE_LIMIT_CODES.has(code) || USAGE_LIMIT_CODES.has(type)) return 'usageLimit'
+  if (USAGE_LIMIT_CODES.has(code) || USAGE_LIMIT_CODES.has(type) || USAGE_LIMIT_CODES.has(reason))
+    return 'usageLimit'
   if (
     status === HTTP_STATUS.unauthorized ||
     AUTH_KINDS.has(type) ||
@@ -435,13 +455,21 @@ const anthropicErrorCodeOf = (error: Record<string, unknown>): string | undefine
   return typeof code === 'string' && code !== '' ? code : undefined
 }
 
+/** A field of the error's `metadata` object (OpenRouter's `error_type` and
+ * `limit_source`; https://openrouter.ai/docs/api-reference/errors, read
+ * 2026-10-17). */
+const metadataTextOf = (error: Record<string, unknown>, field: string): string | undefined =>
+  textOf(recordOf(error['metadata'])?.[field])
+
 /**
  * One extractor that reads an error body by what it IS, used by every wire
  * format and never chosen by a vendor's name (round 2, finding 2):
  * an `error` object with a message; an `error` string (xAI's flat envelope,
  * Ollama); a top-level `message` with `type` and `code` beside it (Mistral's
  * unknown-model answer); a `detail` string (Mistral's bad-key answer);
- * Google's `status` and `details[].reason` ride along when present. A shape
+ * Google's `status` and `details[].reason` ride along when present, as do a
+ * `metadata.error_type` (the type, where no other is given) and a
+ * `metadata.limit_source` (the reason, where no other is given). A shape
  * none of them matches is `undefined`: unrecognised, with the status and the
  * first bounded line.
  */
@@ -453,14 +481,16 @@ export function extractRefusalEnvelope(body: unknown): RefusalEnvelope | undefin
     if (nested !== undefined) {
       const message = textOf(nested['message'])
       if (message !== undefined) {
-        const type = typeof nested['type'] === 'string' ? nested['type'] : undefined
-        const status = typeof nested['status'] === 'string' ? nested['status'] : undefined
+        const type =
+          (typeof nested['type'] === 'string' ? nested['type'] : undefined) ??
+          (typeof nested['status'] === 'string' ? nested['status'] : undefined) ??
+          metadataTextOf(nested, 'error_type')
+        const reason = googleReasonOf(nested) ?? metadataTextOf(nested, 'limit_source')
         return {
           message,
           ...(type !== undefined && { type }),
-          ...(type === undefined && status !== undefined && { type: status }),
           ...(codeOf(nested['code']) !== undefined && { code: codeOf(nested['code']) }),
-          ...(googleReasonOf(nested) !== undefined && { reason: googleReasonOf(nested) }),
+          ...(reason !== undefined && { reason }),
           ...(anthropicErrorCodeOf(nested) !== undefined && {
             errorCode: anthropicErrorCodeOf(nested),
           }),
