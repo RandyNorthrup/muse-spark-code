@@ -5643,6 +5643,16 @@
       "many": "{count} oprávnění"
     }
   },
+  "teamFileHelperMissing": "Ověřený nativní pomocník pro soubory pracovníků není dostupný.",
+  "teamFileNativeFailed": "Nativní ověření souboru pracovníka selhalo; nebyl zapsán žádný obsah souboru.",
+  "teamFileHelperFailed": "Nativní pomocník souboru pracovníka selhal ({kind}); nebyl zapsán žádný obsah souboru.",
+  "teamFileOutside": "Soubor je mimo schválenou pracovní kopii.",
+  "teamFileRoleDenied": "Role nepovoluje zápis do této cesty.",
+  "teamFileExists": "Cesta nového souboru je již obsazena.",
+  "teamFileChanged": "Rezervovaný soubor nebo jeho nadřazená složka se změnily.",
+  "teamFileCannotCreate": "Soubor {path} nelze vytvořit v pracovní kopii.",
+  "referenceTeamFiles": "Týmy zůstávají nedostupné do dokončení integrace a certifikace. Pracovníci enginu a ACP mohou vytvářet soubory prostřednictvím ověřeného nativního pomocníka v rámci pracovní kopie a cest povolených jejich rolí.",
+  "teamFileLinked": "Cesta souboru obsahuje odkaz nebo jinak interpretovanou část.",
   "teamEditor": {
     "purpose": "Účel",
     "done": "Kritéria dokončení",

@@ -5423,6 +5423,20 @@ export const EN = {
   }),
   pricePerMillion: 'Prices per million tokens.',
   modelsNotScanned: 'Refresh to list this provider’s models.',
+  teamFileHelperMissing: 'The verified native worker file helper is unavailable.',
+  teamFileNativeFailed: 'The native worker file proof failed; no file contents were written.',
+  // {kind}: the helper exception's type name, fixed vocabulary, never a path.
+  teamFileHelperFailed:
+    'The worker file helper itself failed ({kind}); no file contents were written.',
+  teamFileLinked: 'The file path contains a link or a reinterpreted component.',
+  teamFileOutside: 'The file is outside the admitted working copy.',
+  teamFileRoleDenied: 'The role does not allow writing this path.',
+  teamFileExists: 'The new file path is already occupied.',
+  teamFileChanged: 'The reserved file or its parent changed.',
+  // {path}: the working-copy-relative path that cannot be created.
+  teamFileCannotCreate: 'The file {path} cannot be created inside the working copy.',
+  referenceTeamFiles:
+    'Teams remain unavailable pending integration and certification. Engine and ACP workers can create files through the verified native helper, within their working copy and role write paths.',
   // Native Ollama codec failures (M95).
   ollamaModelRequired: 'Ollama needs a model id.',
   ollamaContextRequired: 'Ollama needs a positive integer num_ctx.',

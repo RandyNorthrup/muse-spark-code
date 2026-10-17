@@ -142,6 +142,35 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "team-configuration",
+      "name": { "ui": "teamRolesTitle" },
+      "summary": {
+        "conditions": [
+          {
+            "when": "teamWorkerBinding=engine|teamConfigurationBinding=captured|teamPreview=paid",
+            "text": { "ui": "referenceTeamConfiguration" }
+          }
+        ]
+      },
+      "description": {
+        "conditions": [
+          {
+            "when": "teamWorkerBinding=engine|teamConfigurationBinding=captured|teamPreview=paid",
+            "text": { "ui": "referenceTeamConfiguration" }
+          }
+        ]
+      },
+      "commands": ["museSpark.modelsAndAgents"],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#team-configuration",
+      "backends": ["modelApi", "museCode"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "vscode:museCode"],
+      "details": [{ "ui": "referenceTeamPoolKeys" }],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
       "id": "legal",
       "name": { "ui": "legalScanTitle" },
       "summary": { "ui": "legalScanItemDetail" },
@@ -6668,6 +6697,12 @@
       "key": "ctrl+alt+shift+j",
       "mac": "cmd+alt+shift+j",
       "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
+    },
+    {
+      "command": "team.pool",
+      "key": "ArrowUp / ArrowDown",
+      "when": "team.pool",
+      "text": { "ui": "referenceTeamPoolKeys" }
     },
     {
       "command": "models.table",

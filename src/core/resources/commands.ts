@@ -142,3 +142,78 @@ export async function execResourceFile(
     })
   })
 }
+
+/**
+ * Binary-safe bounded helper commands through the same governed boundary:
+ * stdout stays a Buffer (git reads blobs and arbitrary filenames), stderr is
+ * text for the typed failure. Same admission, deadline and combined cap.
+ */
+export async function execResourceFileBytes(
+  profile: 'contained' | 'probe',
+  command: string,
+  args: readonly string[],
+  options: ExecFileOptionsWithStringEncoding & { readonly input?: string | undefined },
+): Promise<{ stdout: Buffer; stderr: string }> {
+  const file = resolveCommand(command, options.env ?? process.env)
+  return await new Promise((resolve, reject) => {
+    void (async () => {
+      const { input, ...spawnOptions } = options
+      const launched = await spawnResourceProcess(profile, file, args, spawnOptions)
+      const { child, stop } = launched
+      child.stdin.end(input)
+      const out: Buffer[] = []
+      const err: Buffer[] = []
+      const cap = options.maxBuffer ?? CLI_OUTPUT_MAX_BYTES
+      let bytes = 0
+      let isFailed = false
+      let stopping: Promise<void> | undefined
+      const abort = (): void => {
+        if (isFailed) return
+        isFailed = true
+        stopping ??= stop()
+        void stopping.catch(() => {
+          reject(new Error('Governed command tree stop failed'))
+        })
+      }
+      const push = (chunk: Buffer, to: Buffer[]): void => {
+        bytes += chunk.length
+        if (bytes > cap) abort()
+        else to.push(chunk)
+      }
+      child.stdout.on('data', (chunk: Buffer) => {
+        push(chunk, out)
+      })
+      child.stderr.on('data', (chunk: Buffer) => {
+        push(chunk, err)
+      })
+      child.once('error', abort)
+      child.once('close', (code) => {
+        void (async () => {
+          await stopping
+          let report: Awaited<ReturnType<typeof launched.outcome>> | undefined
+          try {
+            report = await launched.outcome()
+          } catch {
+            report = undefined
+          }
+          const memory = report?.limits.find((limit) => limit !== 'activeProcess')
+          if (memory !== undefined) throw new ResourceMemoryLimitError(memory)
+          if (report !== undefined && report.capRefusals > 0)
+            throw new ResourceCapRefusedError(report.capRefusals)
+          const result = {
+            stdout: Buffer.concat(out),
+            stderr: Buffer.concat(err).toString('utf8'),
+          }
+          if (code === 0 && !isFailed) resolve(result)
+          else
+            reject(
+              Object.assign(new Error('Governed command failed'), {
+                ...result,
+                code,
+              }),
+            )
+        })().catch(reject)
+      })
+    })().catch(reject)
+  })
+}

@@ -5181,6 +5181,16 @@
       "other": "{count} 件の許可"
     }
   },
+  "teamFileHelperMissing": "検証済みのワーカーファイル用ネイティブヘルパーを利用できません。",
+  "teamFileNativeFailed": "ワーカーファイルのネイティブ検証に失敗しました。ファイルの内容は書き込まれていません。",
+  "teamFileHelperFailed": "ワーカーファイルのネイティブヘルパー自体が失敗しました（{kind}）。ファイルの内容は書き込まれていません。",
+  "teamFileOutside": "ファイルは承認された作業コピーの外にあります。",
+  "teamFileRoleDenied": "このロールでは、このパスへの書き込みは許可されていません。",
+  "teamFileExists": "新しいファイルのパスはすでに使用されています。",
+  "teamFileChanged": "予約したファイルまたは親フォルダーが変更されました。",
+  "teamFileCannotCreate": "ファイル{path}は作業コピー内に作成できません。",
+  "referenceTeamFiles": "統合と認証が完了するまで、チームは利用できません。エンジンとACPのワーカーは、検証済みのネイティブヘルパーを通じて、作業コピー内のロールで許可された書き込みパスにファイルを作成できます。",
+  "teamFileLinked": "ファイルパスにリンクまたは別の意味で解釈される要素が含まれています。",
   "teamEditor": {
     "purpose": "目的",
     "done": "完了条件",

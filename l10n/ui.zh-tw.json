@@ -5181,6 +5181,16 @@
       "other": "{count} 個授權"
     }
   },
+  "teamFileHelperMissing": "無法使用經過驗證的工作代理檔案原生輔助程式。",
+  "teamFileNativeFailed": "工作代理檔案的原生驗證失敗；未寫入檔案內容。",
+  "teamFileHelperFailed": "工作代理檔案原生助手本身失敗（{kind}）；未寫入檔案內容。",
+  "teamFileOutside": "檔案位於獲准的工作副本之外。",
+  "teamFileRoleDenied": "此角色不允許寫入這個路徑。",
+  "teamFileExists": "新檔案路徑已被佔用。",
+  "teamFileChanged": "預留檔案或其父資料夾已變更。",
+  "teamFileCannotCreate": "無法在工作複本中建立檔案{path}。",
+  "referenceTeamFiles": "團隊在完成整合與認證前仍不可用。引擎與ACP工作代理可透過經過驗證的原生輔助程式，在工作副本內及角色允許的寫入路徑中建立檔案。",
+  "teamFileLinked": "檔案路徑包含連結或被重新解釋的路徑部分。",
   "teamEditor": {
     "purpose": "目的",
     "done": "完成標準",

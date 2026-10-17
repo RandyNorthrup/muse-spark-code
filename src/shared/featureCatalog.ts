@@ -27,6 +27,7 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceScreenRecording: 'nativeRecorder=absent',
+  referenceTeamFiles: 'teamIntegration=incomplete&workerNativeHelper=available',
   referenceVaultPanel: 'vaultBroker=absent',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
@@ -404,7 +405,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'team-workers',
       { ui: 'paidTeamWorkersName' },
-      { setting: 'modelApiTeamWorkers' },
+      { ui: 'referenceTeamFiles' },
       [],
       ['modelApiTeamWorkers'],
       'the-panel',

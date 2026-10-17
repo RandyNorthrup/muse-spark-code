@@ -128,7 +128,7 @@ function openingFence(
 }
 
 describe("an engine worker's fenced file tools", () => {
-  it('writes existing files through a handle and refuses path-based creation', async () => {
+  it('writes existing files through a handle and refuses creation without the packaged helper', async () => {
     const { copy, io } = await setup()
     await io.writeFile(path.join(copy, 'src', 'a.ts'), 'changed\n')
     await expect(io.writeFile(path.join(copy, 'src', 'deep', 'new.ts'), 'new\n')).rejects.toThrow()
@@ -361,7 +361,7 @@ describe('RVCM963E write admission', () => {
     expect(await readFile(protectedFile, 'utf8')).toBe('before')
   })
 
-  it('R5-3: portable native writes never create even an allowed new target', async () => {
+  it('R5-3: without the helper an allowed new target stays absent; the pathname opener never creates', async () => {
     const { copy, io } = await setup()
     const target = path.join(copy, 'src', 'new.ts')
     await expect(io.writeFile(target, 'new')).rejects.toThrow()

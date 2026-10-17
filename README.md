@@ -3823,9 +3823,13 @@ release their claims, including when cancellation or close wins during a durable
 admission. Late claims close at zero and never attach to an ended or replacement
 request; completed outcomes leave no reservation open. Raise can
 lift entry caps for one task; it cannot lift concurrent worker limits. Worker
-file writes check the role before opening and use verified existing-file
-handles. Portable new-file creation is unavailable until a native operation
-can bind creation to a verified parent handle.
+file writes check the role before opening and use verified file handles.
+The engine and ACP writers can create new files through the packaged native
+helper: it proves the admitted root and parent, walks without following links,
+and creates exclusively. The opened file is checked again before writing.
+Reservations fill binary bytes or release an unchanged empty file through the
+same authority; an unavailable helper refuses creation. These operations load
+on first use; teams still await the remaining integration and certification.
 
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed, its price and the shared daily budget,

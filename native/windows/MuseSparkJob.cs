@@ -608,13 +608,23 @@ public static class MuseSparkCreated {
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetFileInformationByHandle(SafeFileHandle file, out Info info);
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetFileInformationByHandleEx(SafeFileHandle file, int kind, IntPtr buffer, uint length);
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool SetFileInformationByHandle(SafeFileHandle file, int kind, IntPtr buffer, uint length);
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern uint GetFinalPathNameByHandleW(SafeFileHandle file, StringBuilder name, uint length, uint flags);
   [DllImport("advapi32.dll")] static extern uint GetSecurityInfo(SafeFileHandle file, int kind, uint requested, out IntPtr owner, out IntPtr group, out IntPtr dacl, out IntPtr sacl, out IntPtr descriptor);
   [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr pointer);
   static void Refuse() { throw new IOException("created directory helper refused"); }
-  static Info Sample(SafeFileHandle h) { Info s; if (!GetFileInformationByHandle(h, out s)) Refuse(); return s; }
+  // Worker file refusals carry the shared refusal vocabulary the TypeScript
+  // mapper types (src/core/team/workers/workerOps.ts WORKER_REFUSALS): the
+  // reason is a short code, never a sentence and never a path.
+  static void RefuseReason(string reason) { throw new IOException("worker file helper refused: " + reason); }
+  static Info Sample(SafeFileHandle h) { return Sample(h, null); }
+  // Worker paths name their own reason (one literal per site); the null
+  // reason keeps the directory protocol's bare refusal for the other
+  // operations, which their own lane types.
+  static Info Sample(SafeFileHandle h, string reason) { Info s; if (!GetFileInformationByHandle(h, out s)) { if (reason == null) Refuse(); else RefuseReason(reason); } return s; }
   static ulong Id(Info s) { return ((ulong)s.IndexHigh << 32) | s.IndexLow; }
   static string Key(Info s) { return s.Volume.ToString() + ":" + Id(s).ToString(); }
   static void Match(Info s, string expected) { if (Id(s) == 0 || Key(s) != expected) Refuse(); }
+  static void Match(Info s, string expected, string reason) { if (Id(s) == 0 || Key(s) != expected) RefuseReason(reason); }
   static void Private(SafeFileHandle h) {
     Info s = Sample(h); if ((s.Attributes & (DIRECTORY | REPARSE)) != DIRECTORY) Refuse();
     Owned(h);
@@ -626,8 +636,69 @@ public static class MuseSparkCreated {
       if (current.User == null || new SecurityIdentifier(owner).Value != current.User.Value) Refuse();
     }} finally { LocalFree(descriptor); }
   }
-  static SafeFileHandle Open(SafeFileHandle parent, string name, bool directory, bool create, bool allowMissing = false) {
-    if (String.IsNullOrEmpty(name) || name.IndexOfAny(new char[] {'/', '\\', ':'}) >= 0 || name == "." || name == "..") Refuse();
+  // Win32-forbidden file characters: never valid in a name, refused before NtCreateFile.
+  static readonly char[] WorkerForbidden = new char[] {'*', '?', '<', '>', '|', '"'};
+  // Reserved device stems, with or without an extension: NTFS names them, Win32 cannot open them.
+  static bool WorkerReserved(string name) {
+    int dot = name.IndexOf('.');
+    string stem = (dot < 0 ? name : name.Substring(0, dot)).ToUpperInvariant();
+    if (stem == "CON" || stem == "PRN" || stem == "AUX" || stem == "NUL") return true;
+    return stem.Length == 4 && stem[3] >= '1' && stem[3] <= '9' &&
+      (stem.StartsWith("COM") || stem.StartsWith("LPT"));
+  }
+  static void WorkerName(string name, string reason) {
+    if (name.Length == 0 || name[name.Length - 1] == '.' || name[name.Length - 1] == ' ' ||
+        name.IndexOfAny(WorkerForbidden) >= 0 || WorkerReserved(name)) RefuseReason(reason);
+    // Win32 names never carry control characters; NtCreateFile would keep
+    // them as real names Win32 tools cannot address. Streams (':') are
+    // refused with the separators in Open above.
+    foreach (char c in name) if (c < ' ') RefuseReason(reason);
+  }
+  // On the .NET Framework every System.IO.Path member revalidates its input
+  // and throws ArgumentException on '"', '<', '>', '|' and control
+  // characters: a hostile name would die inside Path.IsPathRooted before
+  // WorkerName ever judged it, and the product would report the helper
+  // itself failed instead of the typed cannot-create sentence ('*' and '?'
+  // are not in the framework's invalid-path set, which is why those two
+  // already reached the helper's own check). Every caller-supplied path
+  // component is judged by the helper's own rules first, with the same
+  // reason the later open would give it; no framework call sees an
+  // unvalidated value. C# 5: no string interpolation below.
+  static void WorkerValidateComponents(string relative, bool file) {
+    if (relative == "") return;
+    string[] parts = relative.Split('/');
+    for (int index = 0; index < parts.Length; index++) {
+      string part = parts[index];
+      string reason = (file && index == parts.Length - 1) ? "invalid filename" : "invalid component";
+      if (String.IsNullOrEmpty(part) || part.IndexOfAny(new char[] {'/', '\\', ':'}) >= 0 ||
+          part == "." || part == "..") RefuseReason(reason);
+      WorkerName(part, reason);
+    }
+  }
+  // The framework's own invalid-path set (GetInvalidPathChars): the four
+  // punctuation marks above plus the control characters. A root holding one
+  // is not a usable path, refused before Path touches it.
+  static bool WorkerPathHasInvalid(string path) {
+    if (String.IsNullOrEmpty(path)) return false;
+    foreach (char c in path)
+      if (c < ' ' || c == '"' || c == '<' || c == '>' || c == '|') return true;
+    return false;
+  }
+  // Path.IsPathRooted's two conditions without its input revalidation, so a
+  // rootedness answer never throws: a leading separator, or a drive letter.
+  static bool WorkerIsRooted(string path) {
+    if (String.IsNullOrEmpty(path)) return false;
+    if (path[0] == '/' || path[0] == '\\') return true;
+    return path.Length >= 2 && path[1] == ':';
+  }
+  static SafeFileHandle Open(SafeFileHandle parent, string name, bool directory, bool create, bool allowMissing = false, bool worker = false) {
+    if (String.IsNullOrEmpty(name) || name.IndexOfAny(new char[] {'/', '\\', ':'}) >= 0 || name == "." || name == "..") {
+      if (!worker) Refuse();
+      RefuseReason(directory ? "invalid component" : "invalid filename");
+    }
+    // The worker path refuses reserved devices, trailing dots/spaces, streams
+    // (above) and forbidden characters here as well, never only in TypeScript.
+    if (worker) WorkerName(name, directory ? "invalid component" : "invalid filename");
     IntPtr chars = Marshal.StringToHGlobalUni(name), unicode = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Unicode)));
     GCHandle security = new GCHandle();
     try {
@@ -638,7 +709,7 @@ public static class MuseSparkCreated {
         // An elevated token's default owner can be Administrators. Our own new
         // objects must still belong to the user whose ownership Private proves.
         using (WindowsIdentity current = WindowsIdentity.GetCurrent()) {
-          if (current.User == null) Refuse();
+          if (current.User == null) RefuseReason("owner unavailable");
           var descriptor = new System.Security.AccessControl.RawSecurityDescriptor("O:" + current.User.Value);
           byte[] bytes = new byte[descriptor.BinaryLength]; descriptor.GetBinaryForm(bytes, 0);
           security = GCHandle.Alloc(bytes, GCHandleType.Pinned);
@@ -646,13 +717,49 @@ public static class MuseSparkCreated {
         }
       }
       SafeFileHandle result; IoStatus status;
-      int error = NtCreateFile(out result, create && !directory ? ACCESS | 2u : ACCESS, ref attributes, out status, IntPtr.Zero, directory ? DIRECTORY : 0u, 7, create ? 2u : 1u, FILE_OPEN_REPARSE_POINT | 0x20u | (directory ? 1u : 0u), IntPtr.Zero, 0);
+      uint access = worker && directory ? 0x100081u : create && !directory ? ACCESS | 2u : ACCESS;
+      int error = NtCreateFile(out result, access, ref attributes, out status, IntPtr.Zero, directory ? DIRECTORY : 0u, worker ? 3u : 7u, create ? 2u : 1u, FILE_OPEN_REPARSE_POINT | 0x20u | (directory ? 1u : worker ? 0x40u : 0u), IntPtr.Zero, 0);
       if (error < 0 || result.IsInvalid) {
         result.Dispose();
+        if (worker && create && !directory && error == unchecked((int)0xc0000035))
+          throw new IOException("worker file helper refused: target exists");
         if (allowMissing && (error == unchecked((int)0xc0000034) || error == unchecked((int)0xc000003a))) return null;
-        Refuse();
+        if (!worker) Refuse();
+        // A refused folder creation names itself; any other refused worker
+        // open names the link or file, as the POSIX helper does.
+        if (directory && create) RefuseReason("directory create failed");
+        // A parent that exists as a plain file is not a link: it carries its
+        // own reason, mapped to cannot-create as POSIX maps ENOTDIR. A
+        // reparse point stays linked; anything absent keeps the reason below.
+        if (directory && WorkerParentIsFile(parent, name)) RefuseReason("parent is not a directory");
+        if (directory) RefuseReason("parent unavailable or linked");
+        RefuseReason("file unavailable or linked");
       } return result;
     } finally { if (security.IsAllocated) security.Free(); Marshal.FreeHGlobal(unicode); Marshal.FreeHGlobal(chars); }
+  }
+  // True when the named entry exists under the held parent as a plain
+  // non-directory, non-link object: opened without the directory flag but
+  // still without traversing a reparse point, then judged by attributes. A
+  // reparse point, an actual directory, or anything absent answers false,
+  // keeping the caller's existing reason. Runs only on a refused directory
+  // open, never on the happy path. C# 5: no string interpolation below.
+  static bool WorkerParentIsFile(SafeFileHandle parent, string name) {
+    IntPtr chars = Marshal.StringToHGlobalUni(name), unicode = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Unicode)));
+    try {
+      Unicode text = new Unicode { Length=checked((ushort)(name.Length*2)), MaximumLength=checked((ushort)(name.Length*2)), Buffer=chars };
+      Marshal.StructureToPtr(text, unicode, false);
+      Attributes attributes = new Attributes { Length=Marshal.SizeOf(typeof(Attributes)), Root=parent.DangerousGetHandle(), Name=unicode, Flags=0x40 };
+      SafeFileHandle probe; IoStatus status;
+      // SYNCHRONIZE plus read-attributes only: no delete or data access, so
+      // the probe succeeds wherever the entry can be statted at all.
+      int error = NtCreateFile(out probe, 0x100080u, ref attributes, out status, IntPtr.Zero, 0u, 7u, 1u, FILE_OPEN_REPARSE_POINT | 0x20u, IntPtr.Zero, 0);
+      if (error < 0 || probe == null || probe.IsInvalid) return false;
+      try {
+        Info sample; if (!GetFileInformationByHandle(probe, out sample)) return false;
+        if ((sample.Attributes & REPARSE) != 0) return false;
+        return (sample.Attributes & DIRECTORY) == 0;
+      } finally { probe.Dispose(); }
+    } finally { Marshal.FreeHGlobal(unicode); Marshal.FreeHGlobal(chars); }
   }
   sealed class Entry { public string Name; public ulong Id; public uint Flags; }
   static List<Entry> Entries(SafeFileHandle directory) {
@@ -674,8 +781,11 @@ public static class MuseSparkCreated {
     } finally { Marshal.FreeHGlobal(buffer); }
   }
   static void DisposeEntry(SafeFileHandle file) {
+    DisposeEntry(file, null);
+  }
+  static void DisposeEntry(SafeFileHandle file, string reason) {
     IntPtr flags = Marshal.AllocHGlobal(4);
-    try { Marshal.WriteInt32(flags, 1 | 2 | 0x10); if (!SetFileInformationByHandle(file, 21, flags, 4)) Refuse(); }
+    try { Marshal.WriteInt32(flags, 1 | 2 | 0x10); if (!SetFileInformationByHandle(file, 21, flags, 4)) { if (reason == null) Refuse(); else RefuseReason(reason); } }
     finally { Marshal.FreeHGlobal(flags); }
   }
   static void Rename(SafeFileHandle source, SafeFileHandle parent, string trash, bool link = false) {
@@ -715,7 +825,89 @@ public static class MuseSparkCreated {
       DisposeEntry(child); // Reparse points are disposed themselves; directories must be empty.
     }
   }
+  static string WorkerFinal(SafeFileHandle file) {
+    var name = new StringBuilder(32768);
+    uint length = GetFinalPathNameByHandleW(file, name, (uint)name.Capacity, 0);
+    if (length == 0 || length >= name.Capacity) RefuseReason("handle path unavailable");
+    string result = name.ToString();
+    if (result.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase)) return @"\\" + result.Substring(8);
+    return result.StartsWith(@"\\?\", StringComparison.Ordinal) ? result.Substring(4) : result;
+  }
+  // The null reason keeps the directory protocol's bare refusal for any
+  // future non-worker caller; every current caller names its own reason.
+  static void WorkerDirectory(SafeFileHandle file, string reason) {
+    if ((Sample(file, reason).Attributes & (DIRECTORY | REPARSE)) != DIRECTORY) { if (reason == null) Refuse(); else RefuseReason(reason); }
+  }
+  static SafeFileHandle WorkerWalk(SafeFileHandle start, string relative, bool create,
+    List<SafeFileHandle> held, ref int made) {
+    SafeFileHandle current = start;
+    if (relative == "") return current;
+    foreach (string part in relative.Split('/')) {
+      if (String.IsNullOrEmpty(part) || part.EndsWith(".") || part.EndsWith(" ")) RefuseReason("invalid component");
+      SafeFileHandle next = Open(current, part, true, false, true, true);
+      if (next == null) {
+        if (!create) RefuseReason("parent unavailable or linked");
+        next = Open(current, part, true, true, false, true); ++made;
+      }
+      held.Add(next); WorkerDirectory(next, "parent unavailable or linked");
+      if (Sample(next, "directory unavailable").Volume != Sample(start, "directory unavailable").Volume) RefuseReason("different device");
+      current = next;
+    }
+    return current;
+  }
+  // Same protocol as the POSIX helper. No FILE_SHARE_DELETE on the retained
+  // root, component or file handles: their names cannot move during the operation.
+  static string WorkerExecute(string[] args) {
+    if (args.Length != 7) RefuseReason("invalid request");
+    if (String.IsNullOrEmpty(args[5])) RefuseReason("invalid path");
+    // Rootedness is answered by the helper's own non-throwing check, which
+    // matches Path.IsPathRooted exactly: it only indexes, so hostile
+    // characters cannot throw here. Own character and name rules then judge
+    // every caller-supplied component before any System.IO.Path call sees
+    // it: the ancestor's parts as components, the remaining path's inner
+    // parts as components and its last part as the file name. The root is
+    // scanned for the framework's invalid set before Path.Combine below.
+    if (!WorkerIsRooted(args[1]) || WorkerIsRooted(args[3]) ||
+      WorkerIsRooted(args[5])) RefuseReason("invalid path");
+    WorkerValidateComponents(args[3], false);
+    WorkerValidateComponents(args[5], true);
+    if (WorkerPathHasInvalid(args[1])) RefuseReason("invalid path");
+    string op = args[0];
+    if (op != "worker-create" && op != "worker-prepare" && op != "worker-check" && op != "worker-release") RefuseReason("unknown operation");
+    var held = new List<SafeFileHandle>();
+    try {
+      SafeFileHandle root = CreateFileW(args[1], 0x100081, 3, IntPtr.Zero, 3,
+        0x02000000 | FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero);
+      held.Add(root); if (root.IsInvalid) RefuseReason("root unavailable"); WorkerDirectory(root, "root unavailable"); Match(Sample(root, "root unavailable"), args[2], "identity changed");
+      if (!String.Equals(WorkerFinal(root), args[1], StringComparison.OrdinalIgnoreCase)) RefuseReason("root moved");
+      int made = 0;
+      SafeFileHandle ancestor = WorkerWalk(root, args[3], false, held, ref made);
+      Match(Sample(ancestor, "ancestor unavailable"), args[4], "identity changed");
+      int slash = args[5].LastIndexOf('/');
+      string parents = slash < 0 ? "" : args[5].Substring(0, slash);
+      string name = slash < 0 ? args[5] : args[5].Substring(slash + 1);
+      if (name.EndsWith(".") || name.EndsWith(" ")) RefuseReason("invalid filename");
+      SafeFileHandle parent = WorkerWalk(ancestor, parents, op == "worker-create" || op == "worker-prepare", held, ref made);
+      string expectedParent = Path.Combine(args[1], args[3].Replace('/', '\\'), parents.Replace('/', '\\'));
+      if (!String.Equals(WorkerFinal(parent), expectedParent, StringComparison.OrdinalIgnoreCase)) RefuseReason("parent moved");
+      if (op == "worker-prepare")
+        return "{\"identity\":\"" + Key(Sample(parent, "parent unavailable")) + "\",\"createdFolders\":" + made + "}";
+      SafeFileHandle file = Open(parent, name, false, op == "worker-create", false, true);
+      held.Add(file); Info sample = Sample(file, "file unavailable");
+      if ((sample.Attributes & (DIRECTORY | REPARSE)) != 0 || sample.Links != 1) RefuseReason("file is not single-link regular");
+      if (op != "worker-create") Match(sample, args[6], "identity changed");
+      string expectedFile = Path.Combine(expectedParent, name);
+      if (!String.Equals(WorkerFinal(file), expectedFile, StringComparison.OrdinalIgnoreCase)) RefuseReason("file name changed");
+      if (!String.Equals(WorkerFinal(root), args[1], StringComparison.OrdinalIgnoreCase)) RefuseReason("root moved");
+      if (op == "worker-release") {
+        if (sample.SizeHigh != 0 || sample.SizeLow != 0) RefuseReason("reserved file changed");
+        DisposeEntry(file, "release failed"); // Delete the held file, never a name that can be replaced.
+      }
+      return "{\"identity\":\"" + Key(sample) + "\",\"createdFolders\":" + made + "}";
+    } finally { for (int index = held.Count - 1; index >= 0; --index) held[index].Dispose(); }
+  }
   public static string Execute(string[] args) {
+    if (args.Length > 0 && args[0].StartsWith("worker-", StringComparison.Ordinal)) return WorkerExecute(args);
     if (args.Length != 7) Refuse();
     if (args[0] == "publish") {
       using (SafeFileHandle parent = CreateFileW(args[1], ACCESS, 7, IntPtr.Zero, 3, 0x02000000 | FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero)) {
