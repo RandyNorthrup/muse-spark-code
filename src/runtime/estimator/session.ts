@@ -1,7 +1,9 @@
 import { z } from 'zod/mini'
 import {
   estimateLaneSchema,
+  estimateRefusalDetail,
   estimateRequestSchema,
+  isEstimateRefusal,
   type EstimateSection,
 } from '../../shared/estimate'
 import { UI_TEXT, fill } from '../../shared/l10n/text'
@@ -94,9 +96,20 @@ export class EstimateViewSession {
       const result = this.current === undefined ? section : estimateDrift(section, this.current)
       this.current = result
       this.publish(result)
-    } catch {
-      if (this.isCurrent(generation, controller))
-        this.error(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
+    } catch (error: unknown) {
+      // A cancelled run stays silent. Supersede aborts the previous run
+      // before starting its own, so the abort check covers a stale failure
+      // too: only the current run reports. The estimator's own refusal keeps
+      // its detail in words; anything else reads failed without its raw text
+      // (D119). The refresh stays settled: this view reports through its
+      // error port, never with an unsettled rejection.
+      if (controller.signal.aborted) return
+      if (isEstimateRefusal(error)) {
+        const refusal = estimateRefusalDetail(error)
+        this.error(fill(UI_TEXT.estimateFailed, { detail: refusal ?? 'estimate-unavailable' }))
+        return
+      }
+      this.error(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
     } finally {
       if (this.isCurrent(generation, controller)) this.pending = undefined
     }
