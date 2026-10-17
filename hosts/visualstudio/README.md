@@ -77,6 +77,22 @@ qualify the complete 1.3 capability groups.
 
 Native editing and undo, ghost text, Error List integration, rendering,
 accessibility and reload qualification require a VS experimental instance.
-The declared VS 17/18 and x64/arm64 range is build metadata, not a qualification
+The declared VS 17/18 and x64 range is build metadata, not a qualification
 claim. The certification lists all F1–F56 statuses and their follow-ups. The
 prototype must not be published as Supported before those receipts exist.
+
+## Marketplace listing
+
+The manifest (`source.extension.vsixmanifest`) carries the listing fields:
+`DisplayName`, a `Description` of what the extension does (it names no build
+label or protocol version), `MoreInfo` (the repository URL), `License`
+(`LICENSE.txt`), `ReleaseNotes` (the changelog URL), `Icon` and
+`PreviewImage` (`icon.png`), and `Tags`. The icon is the product's own mark,
+linked from `media/icon.png` (128 by 128 px) by the project file; no image
+file was added to the repository. The ARM64 installation target was removed
+on 2026-10-11 because no Windows ARM64 machine exists to qualify it; it
+returns with one. A 200 by 200 px preview image (the schema's recommended
+size for `<PreviewImage>`) is still owed, rendered from
+`media/marketplace-icon.svg` by a lane that can run
+`scripts/render-images.mjs` (it needs Chrome). Nothing is uploaded before an
+installed run in Visual Studio passes.

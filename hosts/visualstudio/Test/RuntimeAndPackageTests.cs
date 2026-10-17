@@ -101,7 +101,7 @@ namespace MuseSpark.VisualStudio.Test
       using (var archive = ZipFile.OpenRead(Path.Combine(root, "bin", "Release", "net48", "MuseSpark.VisualStudio.vsix")))
       {
         var names = archive.Entries.Select(e => e.FullName).ToArray();
-        foreach (var required in new[] { "MuseSpark.VisualStudio.dll", "MuseSpark.VisualStudio.pkgdef", "assets/webview/portable/main.js", "assets/webview/portable/main.css", "assets/runtime/muse-panel-job.exe", "assets/mhp-v1.1.schema.json", "LICENSE", "assets/licenses/microsoft.web.webview2/1.0.4258.31/LICENSE.txt", "assets/licenses/system.text.encodings.web/9.0.0/LICENSE.TXT" })
+        foreach (var required in new[] { "MuseSpark.VisualStudio.dll", "MuseSpark.VisualStudio.pkgdef", "assets/webview/portable/main.js", "assets/webview/portable/main.css", "assets/runtime/muse-panel-job.exe", "assets/mhp-v1.1.schema.json", "LICENSE.txt", "icon.png", "assets/licenses/microsoft.web.webview2/1.0.4258.31/LICENSE.txt", "assets/licenses/system.text.encodings.web/9.0.0/LICENSE.TXT" })
           Assert.IsTrue(names.Contains(required), required);
         Assert.IsTrue(names.Any(n => n.EndsWith("WebView2Loader.dll", StringComparison.Ordinal)));
         Assert.IsFalse(names.Any(n => n.Contains("fake-runtime") || n.Contains("Test.dll")));
