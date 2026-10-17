@@ -1028,6 +1028,10 @@ export class AuthService {
   private publishFastSignIn(ticket: number): void {
     if (
       this.snapshot.status !== 'checking' ||
+      // Conversations already run on a backend: `checking` then is a backend
+      // switch ending them first (`publishSelection`), which this direct
+      // `set` would jump ahead of. The fast path is for first start only.
+      this.liveBackend !== undefined ||
       this.isSigningOut ||
       this.isDeviceFlowWaiting ||
       this.isLogoutHeld

@@ -119,6 +119,89 @@ describe('sign-in fast path', () => {
     await expect(run.pending).resolves.toMatchObject({ status: 'signedIn', backend: 'museCode' })
   })
 
+  it('never jumps ahead while a backend switch is ending conversations', async () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'fast-signin-'))
+    scratchDirs.add(dir)
+    const file = path.join(dir, 'auth.json')
+    writeFileSync(file, SIGNED_OUT)
+    const account = new CliAccount({
+      platform: 'linux',
+      credentialFilePath: () => file,
+      probe: () => Promise.resolve(undefined),
+      log,
+    })
+    const restart = Promise.withResolvers<undefined>()
+    let isRestartHeld = false
+    const backend: AuthBackendFacts = {
+      resolveCli: () => ({ ok: true, cliPath: '/bin/muse' }),
+      cliSignIn: (isUserAction) => account.signIn(isUserAction),
+      peekCliSignIn: () => account.peekFile(),
+      abandonCliProbe: () => {
+        account.abandonProbe()
+      },
+      forgetCliAnswers: () => {
+        account.forgetAnswers()
+      },
+      credentialFilePath: () => file,
+      credentialFileModifiedAt: () => undefined,
+      hasEnvironmentKey: () => false,
+      getBackendMode: () => 'auto',
+      restartBackend: () => (isRestartHeld ? restart.promise : Promise.resolve()),
+      logOutCli: () => Promise.resolve(false),
+    }
+    const secrets: SecretStore = {
+      get: () => Promise.resolve('key'),
+      store: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+    }
+    const messages: HostToWebviewMessage[] = []
+    const svc = new AuthService({
+      backend,
+      credentials: new CredentialStore(secrets, silent),
+      logoutHold: { get: () => false, set: () => Promise.resolve() },
+      runInTerminal: silent,
+      installCommand: 'install',
+      runInstallerInTerminal: silent,
+      runDeviceSignIn: () => Promise.resolve('timedOut'),
+      promptForApiKey: () => Promise.resolve(undefined),
+      broadcast: (message: HostToWebviewMessage) => {
+        messages.push(message)
+      },
+      sleep: () => Promise.resolve(),
+      now: () => Date.now(),
+      log,
+    })
+    // Signed in on the Model API (stored key, no CLI session): conversations
+    // now run on that backend (`liveBackend`).
+    await expect(svc.refresh()).resolves.toMatchObject({
+      status: 'signedIn',
+      backend: 'modelApi',
+    })
+    // The CLI signs in too, so the next refresh switches backends: the
+    // switch publishes `checking` while the old backend's conversations end.
+    writeFileSync(file, INLINE)
+    isRestartHeld = true
+    const switching = svc.refresh()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const before = authStates(messages).length
+    // A refresh during the switch must not publish Muse Code signed-in
+    // ahead of the switch: `publishSelection` ends the old conversations
+    // first, and the fast path publishes through `set` directly.
+    const during = svc.refresh()
+    const jumped = authStates(messages)
+      .slice(before)
+      .filter(
+        (message) =>
+          message.type === 'authState' &&
+          message.status === 'signedIn' &&
+          message.backend === 'museCode',
+      )
+    expect(jumped).toHaveLength(0)
+    restart.resolve(undefined)
+    await expect(switching).resolves.toMatchObject({ status: 'signedIn' })
+    await expect(during).resolves.toMatchObject({ status: 'signedIn', backend: 'museCode' })
+  })
+
   it('never jumps ahead with a signed-out file', async () => {
     const run = start(SIGNED_OUT, () => Promise.resolve(undefined))
     expect(authStates(run.messages)).toHaveLength(0)
