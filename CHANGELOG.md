@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Linux voice loads on first use: the offline driver, its helper/model
+  acquisition and pins ship as `dist/voiceLinux.js` on the first Linux
+  recording, keeping `dist/voice.js` inside its unchanged 50 KiB cap
+  (measured 35,907 B, 50 KiB budget; no existing cap changes).
 - Linux free dictation: a prebuilt CPU-only whisper.cpp helper for local x64/arm64
   recognizes English offline. First use asks before a pinned 74 MiB tiny.en
   model download; downloads resume, corrupt weights refuse recognition, and
