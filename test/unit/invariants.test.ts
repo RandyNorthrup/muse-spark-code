@@ -774,14 +774,15 @@ function recordedCallAndOutput(
   if (!callItem?.success)
     throw new Error(`no recorded function call in ${relativePath} request ${String(requestIndex)}`)
   const call = callItem.data
-  const output = parsed.input
+  const outputItem = parsed.input
     .map((item) => fixtureItemSchema.safeParse(item))
     .find(
       (result) =>
         result.success &&
         result.data.type === 'function_call_output' &&
         result.data.call_id === call.call_id,
-    )?.data.output
+    )
+  const output = outputItem?.success === true ? outputItem.data.output : undefined
   if (typeof output !== 'string')
     throw new Error(
       `no recorded string tool output in ${relativePath} request ${String(requestIndex)}`,
@@ -905,7 +906,7 @@ const GOLDEN_SCENARIOS: readonly GoldenScenario[] = [
   },
 ]
 
-function prefixTools(prefix: GoldenPrefix) {
+function prefixTools(prefix: GoldenPrefix): readonly ToolDefinition[] {
   const tools = toolDefinitions('linux', prefix.options)
   // The hosted-search tool the host appends, under the host's own constant
   // (`ModelApiHost` appends `{ type: MODEL_API_WEB_SEARCH_TOOL }`): using
