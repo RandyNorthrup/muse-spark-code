@@ -73,6 +73,16 @@ happened, not what was planned; superseded entries are kept.
   the keyboard back to the file you were in (it used to focus the editor
   group, which keeps a chat tab active).
 
+- Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
+  request-shape and savings invariants through real modules with real inputs
+  (literal tool names and bytes, instruction tail appending, packing's
+  sticky swap, retry counting and recall, one paid gate with per-claim
+  tallies and a re-ask when the price rises, `then_run` parsing, hook
+  aliases and authorize-then-guard ordering, overflow compaction bypass and
+  failure reopening, the eval's literal task sets, and the plain and strict
+  golden turns reproduced from the real modules). The full loopback golden
+  stays with the lead pending recorded exchanges.
+
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
   propagation and sub-cent search-price disclosure checks.
