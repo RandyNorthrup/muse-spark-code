@@ -59,7 +59,8 @@ export function scrubPlanStrings(value: object): void {
     for (const key of keys) {
       const item: unknown = values[index]
       index += 1
-      const cleanKey = scrub(key)
+      // Keys repeat on every record: read a known key's result without the call.
+      const cleanKey = cache.get(key) ?? scrub(key)
       if (cleanKey !== key) Reflect.deleteProperty(object, key)
       if (typeof item === 'string') {
         const clean = scrub(item)
@@ -76,11 +77,13 @@ export function scrubPlanStrings(value: object): void {
 /** Mask fenced examples while preserving their original line numbers. */
 export function planLines(text: string): PlanLine[] {
   let fence: { marker: string; length: number } | undefined
+  // One scan answers for a plan without fences; then no line needs the per-line match.
+  const hasFence = /^ {0,3}(?:`{3}|~{3})/m.test(text)
   return text
     .replaceAll('\r\n', '\n')
     .split('\n')
     .map((text, index) => {
-      const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(text)
+      const marker = hasFence ? /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(text) : null
       if (fence) {
         if (
           marker &&
@@ -118,6 +121,8 @@ export function milestoneHeading(text: string): { id: string; title: string } | 
 }
 
 export function milestoneIds(text: string, knownIds: ReadonlyMap<string, string>): string[] {
+  // Most milestones have no such field: skip the match, set and copy.
+  if (text === '') return []
   const matches =
     text.match(/\b(?:m\d+[a-z\d]*(?:-follow-up)?|[a-z][a-z\d]*)(?:[/:][a-z\d]+)?\b/gi) ?? []
   const result: string[] = []
@@ -237,7 +242,8 @@ export function planTables(
 }
 
 export function field(body: readonly PlanLine[], name: string): string {
-  const start = body.findIndex(({ text }) => text.startsWith(`- **${name}.**`))
+  const label = `- **${name}.**`
+  const start = body.findIndex(({ text }) => text.startsWith(label))
   if (start === -1) return ''
   const end = body.findIndex(
     ({ text }, index) => index > start && /^(?:- \*\*|#{2,4} |\| Lane)/.test(text),
@@ -247,11 +253,12 @@ export function field(body: readonly PlanLine[], name: string): string {
       .slice(start, end === -1 ? undefined : end)
       .map(({ text }) => text)
       .join('\n')
-      .replace(`- **${name}.**`, ''),
+      .replace(label, ''),
   )
 }
 
 export function requiredGates(text: string): string[] {
+  if (text === '') return []
   const names =
     text.match(
       /\b(?:quality(?::[\w-]+)?|check:[\w-]+|test:[\w:-]+|schema:[\w-]+|typecheck(?::[\w-]+)?|build|deadcode|cycles|duplication|security:[\w-]+)\b/g,

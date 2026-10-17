@@ -3,11 +3,12 @@ import { usageLocalDay } from '../../../src/core/usage/aggregate'
 import type { UsageServiceDeps } from '../../../src/core/usage/usageService'
 import { USAGE_EN } from '../../../src/shared/l10n/usageEn'
 import { usageRecordSchema, type UsageRecord } from '../../../src/shared/usageJournal'
+import { Usd } from '../../../src/shared/usd'
 
 export const usageNow = new Date(2026, 9, 5, 12).getTime()
 export function usageFixtureRecord(extra: Partial<UsageRecord> = {}): UsageRecord {
   return usageRecordSchema.parse({
-    v: 1,
+    v: 2,
     type: 'usage',
     id: 'fixture',
     at: usageNow,
@@ -21,7 +22,7 @@ export function usageFixtureRecord(extra: Partial<UsageRecord> = {}): UsageRecor
     kind: 'turn',
     tokens: { input: 100, cached: 20, output: 10 },
     durationMs: 1000,
-    cost: { certainty: 'computed', usd: 0.01 },
+    cost: { certainty: 'computed', usd: Usd.from('0.01').toAmount() },
     outcome: 'completed',
     ...extra,
   })
@@ -61,9 +62,9 @@ export function usageFixtureDeps(records: readonly UsageRecord[] = [usageFixture
           budget: {
             id: 'paid',
             kind: 'paidDaily',
-            spentUsd: 2,
-            capUsd: 5,
-            uncertainUsd: 1,
+            spentUsd: Usd.from('2').toAmount(),
+            capUsd: Usd.from('5').toAmount(),
+            uncertainUsd: Usd.from('1').toAmount(),
             stopped: true,
             raisedToday: true,
             resetsAt: usageNow + 1_800_000,
@@ -75,7 +76,7 @@ export function usageFixtureDeps(records: readonly UsageRecord[] = [usageFixture
     readLiveLimits: vi.fn((): ReturnType<UsageServiceDeps['readLiveLimits']> =>
       Promise.resolve([
         {
-          v: 1,
+          v: 2,
           id: 'limit',
           type: 'limit',
           at: usageNow,

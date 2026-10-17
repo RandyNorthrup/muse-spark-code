@@ -72,6 +72,10 @@
     "one": "Kihagyott {count} hiányos sor",
     "other": "Kihagyott {count} hiányos sor"
   },
+  "inexactRecords": {
+    "one": "{count} régebbi rekord nincs beszámítva: az összege nem olvasható be pontosan",
+    "other": "{count} régebbi rekord nincs beszámítva: az összegük nem olvasható be pontosan"
+  },
   "recordCount": {
     "one": "{count} rekord",
     "other": "{count} rekord"
@@ -93,7 +97,7 @@
   "apiEquivalentNote": "Egyenértékű API-ár, további előfizetési díj nélkül.",
   "totalTime": "Kérések teljes ideje",
   "latencyP50": "Medián késleltetés (p50)",
-  "latencyP95": "p95 késleltetés",
+  "latencyP95": "P95 késleltetés",
   "firstToken": "Első tokenig eltelt idő",
   "tokensPerSecond": "Tokenek másodpercenként",
   "cacheHit": "Gyorsítótár-találati arány",

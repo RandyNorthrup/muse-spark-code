@@ -29,91 +29,16 @@ import path from 'node:path'
 import process from 'node:process'
 import { promisify } from 'node:util'
 import { renderPackageReadme } from './check-badges.mjs'
+import {
+  DARWIN_HELPER,
+  JOB_SOURCES,
+  LINUX_HELPERS,
+  RUNNER_HELPERS,
+} from './lib/acpNativeSources.mjs'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
+import { ACP_BUNDLES as BUNDLES, acpUsageAssets } from './lib/acpBundles.mjs'
 
 const STAGE = path.join('dist', 'acp-package')
-const BUNDLES = [
-  'acp.js',
-  'estimator.js',
-  'headless.js',
-  'sharingRuntime.js',
-  'connector.js',
-  'acpQuestions.js',
-  'acpPlaybook.js',
-  'runtimeQuestions.js',
-  'runtimeAccounts.js',
-  'questionNotes.js',
-  'mcpPool.js',
-  'exec.js',
-  'modelApiCodeIntel.js',
-  'structuredSchema.js',
-  'fontsInstall.js',
-  'scheduleBackground.js',
-  'modelApi.js',
-  'resourceAdmission.js',
-  'resourceGovernor.js',
-  'resourceProcess.js',
-  'resourceJournal.js',
-  'modelApiHooks.js',
-  'modelApiMcp.js',
-  'runtimeAccounting.js',
-  'providerPolicy.js',
-  'runtimeEngine.js',
-  'modelApiBoundaries.js',
-  'vault.js',
-  'vaultBoundaries.js',
-  'estimateContracts.js',
-  'legalScan.js',
-  'providers.js',
-  'subscriptions.js',
-  'configuredProviders.js',
-  'providerCatalog.json',
-  'providerCatalog.js',
-  'media.js',
-  'reviewer.js',
-  'team.js',
-  'teamRunners.js',
-  'teamScheduler.js',
-  'schedules.js',
-  'foreignHooks.js',
-  'hookRuntime.js',
-  'recorder.js',
-  'reporting.js',
-  'reportingNetwork.js',
-  'reportingDestinations.js',
-  'reference.js',
-  'uiText.js',
-  'uiTextRuntime.js',
-  'uiTextHooks.js',
-  'uiTextSurfaces.js',
-  'uiTextMedia.js',
-  'extensionHooks.js',
-  'validation.js',
-  'wire.js',
-  'searchWorker.js',
-  'pageWorker.js',
-  'imageResizeWorker.js',
-  'usageService.js',
-  'usageCompanion.js',
-]
-// The C# of the shell tool's Windows job (M27), compiled on first use, as
-// the extension ships it (PLAN.md D6): its own file and the half it shares.
-// No MuseSparkMcpLauncher.cs: ACP forwards MCP servers to Muse Code's own
-// process (src/acp/agent.ts forwardedMcp); its Model API backend runs none.
-// src/runtime/backends.ts composes only shellJobAssembly, never mcpJobExecutable.
-const JOB_SOURCES = [
-  'native/windows/MuseSparkVault.cs',
-  'native/windows/MuseSparkVaultCng.cs',
-  'native/windows/MuseSparkVaultHello.cs',
-  'native/windows/MuseSparkVaultLock.cs',
-  path.join('native', 'windows', 'MuseSparkJob.cs'),
-  path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
-  path.join('native', 'windows', 'MuseSparkScreenRecord.cs'),
-]
-const DARWIN_HELPER = path.join('native', 'darwin', 'muse-dictate')
-const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>
-  path.join('native', 'linux', arch, 'muse-created'),
-)
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const SCHEMAS = [
   'exec-result-v1.schema.json',
@@ -144,35 +69,7 @@ function requireBundles() {
 
 /** Ship only the usage entry's transitive assets, never chat code or maps. */
 function usageAssets() {
-  const root = path.resolve('dist', 'webview')
-  const meta = JSON.parse(readFileSync(path.join('dist', 'meta', 'usageWebview.json'), 'utf8'))
-  const pending = ['dist/webview/usage.js', 'dist/webview/usage.css']
-  const files = new Set()
-  while (pending.length > 0) {
-    const file = pending.pop()
-    if (files.has(file)) continue
-    const relative = path.relative(root, path.resolve(file))
-    if (
-      relative === '' ||
-      relative.startsWith('..') ||
-      path.isAbsolute(relative) ||
-      !['.js', '.css'].includes(path.extname(file))
-    ) {
-      throw new Error('Usage asset is outside the browser bundle')
-    }
-    const output = meta.outputs?.[file]
-    if (output === undefined || !statSync(file).isFile()) {
-      throw new Error(`${file} is missing from the usage browser build`)
-    }
-    files.add(file)
-    if (output.cssBundle !== undefined) pending.push(output.cssBundle)
-    const imports = output.imports ?? []
-    for (const imported of imports) {
-      if (imported.external) throw new Error('Usage assets must be bundled locally')
-      pending.push(imported.path)
-    }
-  }
-  return [...files]
+  return acpUsageAssets()
 }
 
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
@@ -238,7 +135,7 @@ if (existsSync(vaultHelper)) {
   mkdirSync(path.dirname(target), { recursive: true })
   copyFileSync(vaultHelper, target)
 }
-cpSync('native/runner', path.join(STAGE, 'native/runner'), { recursive: true })
+cpSync(RUNNER_HELPERS, path.join(STAGE, RUNNER_HELPERS), { recursive: true })
 const tables = readdirSync('l10n')
   .filter((file) => /^ui\.[^/]+\.json$/.test(file))
   .map((file) => [

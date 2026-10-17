@@ -9,19 +9,19 @@ beforeAll(warmDeferredSurfaces)
 describe('QuoteMenu', () => {
   it.each([
     ['Copy', undefined],
-    ['Ask about this', 'question'],
-    ['Comment on this', 'comment'],
+    ['Ask About This', 'question'],
+    ['Comment on This', 'comment'],
   ])('relays %s unchanged', async (label, intent) => {
     const onChoose = vi.fn()
     const onCopy = vi.fn()
     const onClose = vi.fn()
     render(<QuoteMenu onChoose={onChoose} onCopy={onCopy} onClose={onClose} />)
-    expect(await screen.findByRole('menu')).toHaveAccessibleName('Highlighted text')
+    expect(await screen.findByRole('menu')).toHaveAccessibleName('Highlighted Text')
     // Pills with labels (2026-10-04): every action's name is on its pill.
     expect(screen.getAllByRole('menuitem').map((pill) => pill.textContent)).toEqual([
       'Copy',
-      'Ask about this',
-      'Comment on this',
+      'Ask About This',
+      'Comment on This',
     ])
     const pill = screen.getByRole('menuitem', { name: label })
     expect(within(pill).getByText(label)).toBeVisible()

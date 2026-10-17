@@ -36,24 +36,15 @@ must remain opaque and shadowless, with contrast borders. Never blur a control.
 Use the 120/180/240 ms motion tokens only for meaningful changes, inside
 `prefers-reduced-motion: no-preference`; streamed text stays still.
 
-Run `npm run check:visual` for a visual change. The complete audited component
-inventory is rendered in six themes at 320 and 690 px. Pixelmatch uses colour
-threshold **0.1** and antialiasing detection (`includeAA: false`). The dated
-lead decision (2026-10-06) permits per image at most **0.01% of pixels or 12
-pixels**, whichever is smaller, rounded down. Goldens are
-PNG archives outside git, capped at 512 MiB; only the reviewed source revision,
-hashes, dimensions, render/state coverage and environment are tracked.
-On CI or another rasterization environment the recorded Git revision is
-rendered beside the candidate. Fetch that revision if a shallow checkout does
-not have it; a missing source or screenshot fails, never skips.
+A UI change gets one small local look: `npm run ui:look -- <scene>`
+renders that scene from the built webview into `temp/ui-look/`, in the
+light and dark themes unless `--theme` names one. No baseline, no
+comparison, no CI. There are no screenshot runs anywhere in the pipeline.
+Look at both pictures yourself and put them into the change's
+certification record: a green CI says nothing about how a screen looks.
 
-Commit capture inputs, run an update with a named review and a fresh external
-archive directory, inspect the candidate images, then commit the manifest.
-Normal checks never rewrite it. Keep full-resolution capture sets out of git;
 README media comes only from the existing curated `scripts/readme-shots.mjs`
-list (2 MiB total budget, banner included). The
-[visual contract](test/harness/goldens/README.md) explains grouped scenes,
-CSS pseudo-states and the real-interaction/accessibility companion checks.
+list (2 MiB total budget, banner included).
 
 ## Before you open a pull request
 
@@ -62,18 +53,24 @@ Use this order for a candidate branch:
 1. Integrate the planned milestones onto the current `main` in order. Resolve
    conflicts and stage the candidate with no unstaged changes. Record its
    `git write-tree` hash.
-2. Run `npm ci` and `npm run quality` on that exact staged tree. Hosted CI
-   is the platform gate: the merge queue runs every OS once on the commit
-   that lands, so the maintainer's Mac mini, Kubuntu VM and Windows 11 VM
-   serve targeted runs and reproductions only (the affected real
-   filesystem, process and packaging paths, temporary-directory aliases and
-   Windows short names), never a full suite before each push. Record the
-   tree hash, OS and tool versions, commands and process exit codes of any
-   such run.
+2. Run `npm ci` and the fast local checks on that exact staged tree: format,
+   lint, typecheck, the suites you touched and the packed product itself
+   (its commands, its help, its errors, its files on disk). Hosted CI is the
+   gate for a release: every job green on the commit that merges. Its full
+   tier runs the static gates and the unit tests on three systems and the
+   accessibility and integration gates on Ubuntu (no screenshot runs
+   anywhere), so no complete local
+   `npm run quality` is owed before a push, and the maintainer's Mac mini,
+   Kubuntu VM and Windows 11 VM serve targeted runs and reproductions only
+   (the affected real filesystem, process and packaging paths,
+   temporary-directory aliases and Windows short names). Record the tree
+   hash, OS and tool versions, commands and process exit codes of any such
+   run. A red hosted job is read and its cause measured; it is never rerun
+   into green.
 3. Have an independent agent review the staged diff and acceptance evidence.
    Scan the staged changes for secrets too: local `security:secrets` scans
    committed history, so it cannot see the index before commit. Fix findings,
-   restage, and repeat the full local gate, staged secret scan and affected
+   restage, and repeat the local checks, staged secret scan and affected
    platform checks. Commit only after the final tree passes; verify the
    commit's tree matches the tested `git write-tree` hash.
 4. Push the reviewed commit to its feature branch and open one pull request.
@@ -83,11 +80,11 @@ Use this order for a candidate branch:
    full branch check without a pull request.
 5. Use `gh run watch RUN_ID --exit-status`, then
    `gh run view RUN_ID --json headSha,jobs`. Match `headSha` to the pushed
-   commit and inspect all seven required conclusions. After the PR checks and
+   commit and inspect all five required conclusions. After the PR checks and
    review pass, choose **Merge when ready** (`gh pr merge N --merge`) to put
    the PR in GitHub's merge queue. The `merge_group` event runs the full tier
    once on the merge commit that will become `main`; the queue merges it only
-   if all seven pass, and removes the PR otherwise. Fix failures and repeat
+   if all five pass, and removes the PR otherwise. Fix failures and repeat
    from the exact-tree gate; later branch changes need fresh PR checks and a
    fresh queue entry. Do not merge `main` into a PR just to refresh it: the
    queue tests the combination itself.
@@ -95,19 +92,32 @@ Use this order for a candidate branch:
    independent review, and any unproved platform or live gate to the PR
    proof. A printed success line without the process exit status is not a
    gate result.
+7. Before a release, hold real conversations through the packed product:
+   install the tarball the candidate's build packs (`npm run package:acp`)
+   in an empty folder and, on the cheapest models under a stated spending
+   cap, run one plain turn, one turn with a tool call and an approval, and
+   one long streamed answer, then read `usage` back; the terminal agent and
+   ACP both. State the expected number of calls first and count them
+   afterwards. 0.18.0 shipped a defect that every suite passed.
 
-- Run `npm run quality` and make it green. It runs every local gate except
+- `npm run quality` runs every local gate in one go, when you want that
+  before a push; it is feedback, not the release record. It leaves out only
   the VS Code integration tests (`npm run test:integration`, run by
   `npm run quality:ci` and CI): formatting, ESLint (zero warnings),
   stylelint, the PowerShell lint, type checks, the localization and host-API
-  checks, dead-code and cycle detection, duplication, unit tests with coverage thresholds, the
+  checks, dead-code and cycle detection, duplication, unit tests with no coverage gate, the
   production build with bundle budgets and the bundle split, `npm audit`,
   the accessibility gate, secret scanning and semgrep. CI's full tier runs
-  the gates on Ubuntu, Windows and macOS, the complete accessibility gate on
-  Ubuntu and integration tests on Ubuntu and Windows, and gitleaks and
+  the gates on Ubuntu, Windows and macOS, the accessibility gate on Ubuntu
+  except on pull requests, and integration tests on Ubuntu and Windows, and gitleaks and
   semgrep as jobs of their own; the PowerShell lint runs only where Windows
   PowerShell exists, so a green run on one platform is not quite the whole
   set.
+- Tests stand on the built product wherever the behaviour is the product's.
+  A stand-in is allowed for the outside world only (for example a server
+  replaying a recorded exchange), never for our own code.
+- An exact-size assertion may move with the measured number and a one-line
+  reason in the same change; a cap moves only on the owner's word.
 - Add or change tests with the code. A new check must be seen to fail once
   on purpose; the certification records under `docs/certification/`
   show how that is written down.
@@ -131,7 +141,7 @@ Use this order for a candidate branch:
 
 - A visible change gets a harness scenario (`test/harness/index.html`, its
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
-  rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
+  rendered with `npm run ui:look -- <names>` (`--theme=dark`, `light`,
   `hc-dark`, `hc-light`, `one-dark-pro` or `dracula`; `--lang=pseudo` for clipping) and checked with
   `node scripts/a11y.mjs <names>` in the four themes. Scenes wait with
   `whenFound`, never fixed delays; nest waits when one control reveals the
@@ -183,6 +193,11 @@ Use this order for a candidate branch:
 - No new dependency without a reason in the pull request and a
   compatibility check; no suppressed lint rule or `any` without an inline
   reason and a row in PLAN.md §8.
+- A test or script that cites `PLAN.md`, `README.md` or `CHANGELOG.md` names
+  a heading and quotes a phrase from under it
+  (`test/unit/helpers/planCitation.ts`), never a line number. Every branch
+  moves the lines; the phrase must be found exactly once, under that
+  heading, or the check fails.
 - Keep secrets out: the pre-commit hook runs gitleaks, and nothing in the
   repository may contain a real credential.
 - The pre-commit hook runs staged lint and format tasks serially to limit
@@ -205,26 +220,21 @@ Use this order for a candidate branch:
 the repository variable `CI_MERGE_QUEUE` is `on`. That tier runs formatting,
 ESLint/stylelint, all five compiler projects, localization, host API, knip,
 cycles, duplication, token checks, the production build and its size/split/host-global/
-notices checks, audit, and every unit/process-e2e test on Ubuntu (no
-coverage). Gitleaks and semgrep also run. Both tiers require the six-theme visual job:
-its validated manifest supplies the reviewed Git revision, fetched explicitly
-if absent from the full checkout history. It rebuilds baseline PNGs in the
-runner's Chrome/font environment under the 512 MiB limit, compares every
-scene/state/width, and uploads only the receipt. A failed, cancelled or skipped
-visual job fails the required aggregate. Visual replay adds a bounded browser job (45-minute deadline); hosted wall time awaits measurement.
+notices checks, audit, and every unit test on Ubuntu. Gitleaks and semgrep
+also run. There is no screenshot run on either tier.
 
 Everything else selects the full tier: `merge_group`, manual dispatch, the
 release workflow's fallback build, and every PR while `CI_MERGE_QUEUE` is not
-`on`. Static gates run on all three OSes. Ubuntu and macOS run four Vitest
-shards, Windows five (its files stay serial within a shard); each uploads blob
-reports, checks that every shard arrived, then merges them and enforces the unchanged coverage
-thresholds once per OS. The 448-page a11y harness runs once on Ubuntu against
-the production webview from the static gate; its pages, themes and scenarios
-do not depend on the OS. Linux/Windows VS Code integration, the macOS helper
-and the universal VSIX/ACP package checks remain. Expected wall time is
-roughly 10–15 minutes, pending hosted proof. In a merge group, gitleaks runs
-its pinned CLI (checksum-checked) over every commit the group reaches, since
-the gitleaks action refuses the `merge_group` event.
+`on`. Static gates run on all three OSes. Ubuntu runs four Vitest shards,
+Windows and macOS eight (their files stay serial within a shard); all run
+without a coverage gate. The accessibility harness runs on Ubuntu against
+the production webview from the static gate except on pull requests; its
+pages, themes and scenarios do not depend on the OS. Linux/Windows VS Code
+integration, the macOS helper and the universal VSIX/ACP package checks
+remain. Expected wall time is roughly 10–15 minutes, pending hosted proof.
+In a merge group, gitleaks runs its pinned CLI (checksum-checked) over every
+commit the group reaches, since the gitleaks action refuses the
+`merge_group` event.
 
 The seven required names stay: `build / quality (ubuntu-latest)`,
 `build / quality (windows-latest)`, `build / quality (macos-latest)`,
@@ -293,6 +303,117 @@ whose entry names a release, a sign that its PLAN status line is behind.
 Write for users: no lane, machine, agent or review-round names, no
 credentials, and nothing PLAN or the certification does not support. When
 unsure, say less.
+
+## Archiving closed history from PLAN.md
+
+`PLAN.md` is read whole by `npm run check:plan`, `npm run check:roadmap` and
+`/report`, and their reader refuses a plan over 4 MiB
+(`REPORT_PLAN_MAX_BYTES`). Reaching that bound stops all three at once, in the
+middle of whatever branch added the last paragraph, so `check:plan` fails
+earlier: once the file passes 85% of the bound. When it does, move closed
+history to [`docs/plan-archive/`](docs/plan-archive/) before adding more. What
+moves is kept there byte for byte:
+
+- **`milestones.md`**: sections of closed, released milestones. PLAN.md §6
+  keeps the heading, every status row, the Goal / Depends on / Gates fields,
+  the lane tables and the line `- **Archived.** The full section is in …`.
+  The checklist of a closed section may follow its text into the archive
+  when room is needed (the stub then lists no items in `/report`); a lane
+  table a test reads never does.
+- **`gates.md`**: §7 gate records of lanes that are verified and no longer
+  worked on. One paragraph in §7 says where they went.
+- **`decisions.md`**: the design record of §2 decisions. PLAN.md §2 keeps the
+  heading and one paragraph that states the rule in force and ends with
+  `Full record: …`. It also keeps, in place, every passage an open branch
+  touches with the passages next to it, every passage a test cites, and every
+  live table (budgets, caps, prices, limits, version pins).
+
+What never moves: §3, §8, §9 and §10; a milestone that is not fully released;
+the status rows, fields, checklists and lane tables of unfinished work;
+anything a test or script cites; D3 and D6.
+
+To archive:
+
+1. List what open work touches: each unmerged branch's own `PLAN.md` diff
+   against its merge base. A passage a branch changes or stands next to stays
+   where it is, so that branch still merges without a modify/delete conflict.
+2. Move whole top-level blocks only: a paragraph, a list item with everything
+   indented under it, a table, a whole ordered list. Never part of one.
+3. Put each moved passage in its archive file between
+   `<!-- plan-archive:begin id="…" lines="…" at="…" bytes="…" sha256="…" -->`
+   and `<!-- plan-archive:end id="…" -->`, with one blank line inside each
+   marker (`at` is the commit the line numbers refer to; the first move's
+   blocks carry none). `test/unit/planArchive.test.ts` hashes every block;
+   never edit inside one.
+4. Write each decision's summary from the decision itself, amendments
+   included, and nothing beyond it. Lanes read it first and act on it.
+5. Prove nothing was lost and nothing got harder: rebuild the old `PLAN.md`
+   from the new one plus the archive and compare the bytes; merge every open
+   branch's `PLAN.md` onto the new file and onto the old one, and accept no
+   new and no larger conflict.
+6. Run `npm run check:plan`, `npm run roadmap:generate` (`ROADMAP.md` must not
+   change), `npm run check:reference`, `prettier --check` on `PLAN.md` and
+   the archive files, and the suites that read the plan (`planReader`,
+   `checkPlan`, `planArchive`, `planCitation`, `autoCompact`, `geminiCodec`,
+   `m113cLaneClosure`, `teamPlanRecord`, `paidMoneyStructure`).
+7. Record the bytes before and after, the bytes moved per section and the
+   proofs in [`docs/certification/plan-archive.md`](docs/certification/plan-archive.md).
+
+### The command
+
+`npm run plan:archive` (`scripts/plan-archive.mjs`) does steps 2 and 3 and
+the first proof of step 5, and refuses a move it cannot prove. It works on
+the `PLAN.md` of your checkout, so a lane archives the passages of its own
+branch with it.
+
+```sh
+# Where the plan stands against the bound and the gate; every block's hash.
+npm run plan:archive -- status
+
+# A decision's design record: the summary paragraph stays, with the link.
+npm run plan:archive -- move decisions --heading "D108 — Role preference" \
+  --lines 6120-6230,6240-6300 --summary summary.txt --dry-run
+
+# Lane history or a gate record: one pointer line stays.
+npm run plan:archive -- move gates --heading "0.17.1 gate records" \
+  --lines 39714-39727 --pointer
+
+# A closed milestone that already links to its archive section: nothing stays.
+npm run plan:archive -- move milestones --heading "QPIN — One question card" \
+  --lines 16599-16608 --linked --allow-fact-change
+
+# Several moves in the line numbers of one PLAN.md.
+npm run plan:archive -- move --batch moves.json --dry-run
+```
+
+- `--lines` are 1-based, inclusive ranges of `PLAN.md` as it stands, each a
+  run of whole top-level blocks. A heading never moves.
+- The first range is replaced by the paragraph in `--summary <file>` followed
+  by `Full record: <link>`, by one `- **Archived.**` line (`--pointer`), or by
+  nothing (`--linked`, allowed only where the section already links to the
+  archive file). The blocks go under `## <heading>` in the archive file.
+- `--batch` takes a JSON list such as
+  `[{ "to": "milestones", "heading": "…", "lines": "A-B,C-D", "pointer": true }]`,
+  with `"summary": "…"` or `"linked": true` in place of `"pointer"`.
+- Each block's marker names the commit its `lines` refer to: `HEAD`, or
+  `--at <commit>` for text a merge in progress brought in (the branch's
+  commit). When `PLAN.md` differs from that commit's, every passage is looked
+  up there and must stand in it exactly once.
+- Before anything is written the command rebuilds the old `PLAN.md` from the
+  new one plus the archive files and compares the bytes, and compares what the
+  plan reader parses before and after. Either difference stops it;
+  `--allow-fact-change` accepts the second for a closed milestone whose
+  fields, checklist or lane tables move.
+- `--dry-run` prints the same report (sizes before and after against the
+  bound and the gate, each block's id, lines, bytes and SHA-256, the
+  reassembly result, the parsed facts) and writes nothing.
+
+The command does not look at other branches: step 1 and the merge proof of
+step 5 stay with whoever moves text that open work may touch.
+
+A design record lives in the archive from the day it lands: `PLAN.md` carries
+the rule in force and the link, and a branch that adds a decision moves its
+record with this command in the same change.
 
 ## Style
 
@@ -373,10 +494,27 @@ never a literal in the code:
   duplicates `en.ts` or stops loading it. Each lazily loaded bundle keeps its
   own language state, so one that reads `UI_TEXT` must install the caller's
   table in its factory.
+- **A name one bundle imports from another** exists at run time only if the
+  other bundle's entry exports it. The build points imports of some shared
+  modules at the bundle that carries them (`transport.ts`, `sse.ts` and
+  `ndjson.ts` at `dist/modelApi.js`, whose entry is
+  `src/host/backend/modelApiEntry.ts`; `usdSchema.ts` at
+  `dist/modelApiBoundaries.js`, whose entry is
+  `src/shared/modelApiBoundariesEntry.ts`).
+  TypeScript checks the import against the source module and cannot see a
+  name the entry lacks. `npm run build` reads the built bundles and fails on
+  such a member, and `test/unit/modelApiEntryExports.test.ts` names the file
+  and the import for the Model API bundle. The check follows a loaded bundle
+  to the members read from it, and what it cannot follow fails the build
+  with the form it met, never passes unchecked: keep a sibling's module in a
+  variable, a property or a function that returns it and read its members
+  by name, not passed whole to other code or kept in an object. A load whose
+  file name is worked out at run time has to be listed, with the reason, in
+  `COMPUTED_LOADS` (`scripts/lib/bundleExports.mjs`).
 
 `npm run check:l10n` checks all of this. It fails a key missing from a
 translation, a changed `{slot}`, a wrong set of plural forms, and a
-`UI_TEXT` read at module load. `npm run harness:shots -- --lang=pseudo`
+`UI_TEXT` read at module load. `npm run ui:look -- --lang=pseudo`
 renders the panel in a pseudo-locale where any English left outside the
 table stands out.
 
@@ -392,7 +530,7 @@ there, and the gate compares each form's slots with the English.
 **Correcting a translation.** The translations are machine-made. Edit the
 line in `l10n/ui.<language>.json` or `package.nls.<language>.json`, keeping
 its `{slots}` and code spans. Run `npm run check:l10n` and
-`npm run harness:shots -- --lang=<language>` to see the result.
+`npm run ui:look -- --lang=<language>` to see the result.
 
 - **A value that reads the same as English** (a name, or a word the language
   borrows) goes in `l10n/untranslated.json` under that language.
@@ -501,8 +639,8 @@ licence of this repository.
 
 M80 v4 plus F1/F2 rulings assigns A contracts, B engine, C Action and D packaging/
 docs/process/hosts. Implementing lanes run owned focused files serially on rigs;
-the lead runs unchanged `npm run quality` on the exact integrated tree before
-proposing merge, then build.yml, hosts.yml and action-check.yml OS matrices.
+hosted CI gates the exact integrated tree: the build.yml, hosts.yml and
+action-check.yml OS matrices.
 No lane's focused pass certifies integrated behavior or the release.
 
 Focused D command: `npx vitest run test/e2e/execStdio.e2e.test.ts` (on a rig).
@@ -602,8 +740,8 @@ Run the affected complete test files with the repository's ordinary timeout
 and at most three files/workers per rig invocation. New size, split, settings
 and package guards need a deliberate red run and byte-exact restoration in
 the [W record](<docs/certification/m107-w-wiring,-docs-and-gates-(last).md>).
-The lead still runs full quality on the final candidate. Neither integration
-handoffs nor a scoped lane receipt reduce the release gates.
+Hosted CI gates the final candidate. Neither integration handoffs nor a scoped
+lane receipt reduce the release gates.
 
 M106 keeps optional work behind built entry points. The Model API loads code
 intelligence from `dist/modelApiCodeIntel.js` and MCP transport from

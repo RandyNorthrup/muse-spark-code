@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "review": "owner-2026-10-10-menu-fan-r3",
+  "sourceRevision": "a067f64cfab8c9b20e32094753f924cb1dc4e238",
+  "previousBaselineRevision": "71ca4b93e89e60e50225e5d5114f345a4a518042",
+  "baselineRevision": "a067f64cfab8c9b20e32094753f924cb1dc4e238",
+  "baselineUpdated": true,
+  "baselineDecision": "Replace only the 144 captures of chat-tool-menu-narrow and quote-menu. Preserve all 9,648 non-menu capture records and PNGs; 120 menu hashes changed.",
+  "changedScenes": ["chat-tool-menu-narrow", "quote-menu"],
+  "manifestSha256": "d886e3db3671f0a3bb1b38648ba8f7c3f642f8c3bec256852fc4497db9996318",
+  "captureInputsMatchCommittedBytes": true,
+  "sourceCommitPatchSha256": "977dbc996e389b10d62efa962c3f6ba4bb1c125d996ef77a5cea04c7dbb20293",
+  "archive": "/var/tmp/l-MENUFAN/visual-owner-2026-10-10-menu-fan-r3",
+  "archiveFrames": 9792,
+  "archiveBytes": 447973530,
+  "captureReview": {
+    "frames": 576,
+    "archive": "/var/tmp/l-MENUFAN/menufan-r3-menu-frames",
+    "bytes": 25595158,
+    "scenes": [
+      "rewind",
+      "assistant-menu",
+      "chat-tool-menu-narrow",
+      "checkpoint-restore",
+      "chat-menu",
+      "quote-menu",
+      "queued-menu",
+      "queued-menu-edit"
+    ],
+    "themes": ["light", "dark", "hc-dark", "hc-light", "one-dark-pro", "dracula"],
+    "states": ["default", "hover", "focus-visible", "pressed", "disabled", "selected"],
+    "dimensions": [
+      [320, 760],
+      [690, 760]
+    ],
+    "browser": "150.0.7871.186",
+    "platform": "linux",
+    "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+    "reviewMethod": "Every frame inspected in 16 contact sheets, each with 36 labelled crops retaining the complete menu and outline margin. Labels, focus rings and pill gaps reviewed across every state/theme/width.",
+    "contactSheets": [
+      {
+        "file": "temp/menufan/r3/review-sheets/assistant-menu-320.png",
+        "sha256": "f9fe1fb2980dea7e0cef6d7735ec47ff9b5b781ff70a37f03c4bd23b7266d64c",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/assistant-menu-690.png",
+        "sha256": "71addc0d062a0f285a81c08812d3d67b88c30af601e8575b21bab16d23826056",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/chat-menu-320.png",
+        "sha256": "c2a8466cd9f6a1d34b772134fd8e592955ba0a2a8cc82b5150695b83c22abc1f",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/chat-menu-690.png",
+        "sha256": "c57c80bb62a7d30e1ae81af9c06218362923349a2fbd44bb79ae7306159b8643",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/chat-tool-menu-narrow-320.png",
+        "sha256": "56c292d5a5814e089b9ff9a64f7607520def9a17cf09bf278a828051d5fe55b5",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/chat-tool-menu-narrow-690.png",
+        "sha256": "f94f05f142f36c8b815950d0bab3d1fb1fa27cd59baab3762cdace8d4e54cfd2",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/checkpoint-restore-320.png",
+        "sha256": "694279dfa5ac36cb79ac8e0170ca6ad216fe75b8c57dcd9d1b3a71130b70bc4f",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/checkpoint-restore-690.png",
+        "sha256": "8e39fb20695e1e46ac98168780301fd9caca74768996222d03a806a052e5ba22",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/queued-menu-320.png",
+        "sha256": "19cc4e2d1a34b276c660be7f524d897771a75d15990ffbc6774b72fe60563ddc",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/queued-menu-690.png",
+        "sha256": "aca4778a3b56a3a666575953fcf3d5da62d73633cac4acfb603c19e3d401cd29",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/queued-menu-edit-320.png",
+        "sha256": "c5e90be9747a8ef7d511735e9e2959e5cf5c187c1818eed14130745ec4e113f8",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/queued-menu-edit-690.png",
+        "sha256": "7a7a337c1cfacb89a86ce075ba7b9b7d732282cfcaa2a55742518705d463510e",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/quote-menu-320.png",
+        "sha256": "7d0dbc64e7c192e262c8bde6c30b2cd2c7746c9009250c6fe1c35e593ebe0596",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/quote-menu-690.png",
+        "sha256": "f2ec81d8055bb72f0b9c7f5a563e30e1d3a5958a7599794208b792e711dc7603",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/rewind-320.png",
+        "sha256": "60f948b1a340dd4440469f6cd96b1724ec12c3095a2cfa11a65b57e8fc9f6e69",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      },
+      {
+        "file": "temp/menufan/r3/review-sheets/rewind-690.png",
+        "sha256": "0710c8206b2f9b61cec462234435622a6675ebf5e9cba426b51ee213cbb3585c",
+        "width": 1920,
+        "height": 1680,
+        "frames": 36
+      }
+    ]
+  },
+  "readme": {
+    "command": "node scripts/readme-shots.mjs --only quote,rewind,history",
+    "recaptured": ["quote", "rewind", "history"],
+    "changedFiles": ["media/readme/history.png"],
+    "bytes": 1504088,
+    "budgetBytes": 2097152,
+    "inputFingerprint": "48475dc2bbe0af0d8b994c3d9c923ce42f030d61ad0122ac3122e83ef2d33207"
+  },
+  "aggregateQuality": "Lead-owned; not run under the lane brief.",
+  "menuPixelVerification": {
+    "manifestSha256": "d886e3db3671f0a3bb1b38648ba8f7c3f642f8c3bec256852fc4497db9996318",
+    "oldManifestSha256": "3951179a8aa655657632557845efdeca6c82c0916a5f60738aa0733efdd86542",
+    "checked": 144,
+    "changedPixels": 0,
+    "untouched": 9648,
+    "changedBaselineHashes": 120,
+    "staleBaselineFailures": 108,
+    "archive": "/var/tmp/l-MENUFAN/visual-owner-2026-10-10-menu-fan-r3",
+    "baselineBytes": 447973530,
+    "budgetBytes": 536870912
+  },
+  "verification": {
+    "command": "npm run check:visual -- --shard=15/1632",
+    "revision": "a067f64cfab8c9b20e32094753f924cb1dc4e238",
+    "manifestSha256": "d886e3db3671f0a3bb1b38648ba8f7c3f642f8c3bec256852fc4497db9996318",
+    "candidateSha256": "b32ac9862d61a2e6482b124ab14a5a039c611fc99f3f553fd90e78fdcfffde0a",
+    "shard": {
+      "index": 15,
+      "count": 1632
+    },
+    "selectionSha256": "4430f9bd0e8f08d02046d0a391dc71cc9e30c549de29f530a90615c6532eebe0",
+    "checked": 6,
+    "changedPixels": 0,
+    "maxImageChangedPixels": 0,
+    "regenerated": false,
+    "baselineBytes": 376402,
+    "candidateBytes": 376402,
+    "browser": "150.0.7871.186",
+    "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+    "platform": "linux",
+    "policy": {
+      "threshold": 0.1,
+      "includeAA": false,
+      "maxChangedPixelRatio": 0.0001,
+      "maxChangedPixels": 12
+    }
+  },
+  "widerVisualAttempt": {
+    "command": "npm run check:visual -- --shard=1/12",
+    "firstAttempt": "Terminated with signal 143 after 72 captures; no pixel failure reported.",
+    "retry": "Stopped after 288 logged captures: unchanged muse-workflow-map/light/320 fixture failed before its tool toggle rendered.",
+    "error": "never rendered: [data-entry-id=\"wft1\"] .tool-toggle",
+    "log": "temp/menufan/r3/visual-shard-final-retry.log",
+    "fullMatrixPassed": false
+  }
+}

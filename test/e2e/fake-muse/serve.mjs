@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// A fake Muse Code CLI for the process-level e2e tests (test/e2e): `muse
+// A fake Muse Code CLI for the host checks (test/hosts, LIST in the test
+// overhaul; the process-level e2e tests that also used it are deleted): `muse
 // serve` as the extension sees it, a JSON-RPC 2.0 NDJSON host over stdio
 // speaking the Muse Session Protocol subset the extension uses (PLAN.md D11,
 // shapes verified against Muse Code 1.3.0). It is deliberately small and

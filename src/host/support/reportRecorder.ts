@@ -8,7 +8,7 @@
 // A window records at most REPORT_RECORD_LIMIT failures a minute, so a
 // render or reconnect loop cannot become a disk write per frame. Each
 // recorded failure gets a sanitized reference (its kind and this window's
-// recording sequence): what a transcript row's "Report this" hands over,
+// recording sequence): what a transcript row's "Report This" hands over,
 // never the row's text.
 
 import {

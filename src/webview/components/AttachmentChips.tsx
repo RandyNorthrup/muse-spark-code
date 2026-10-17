@@ -25,7 +25,7 @@ function sizeLabel(attachment: AttachmentSummary): string {
   if (info !== undefined && 'durationSeconds' in info) {
     const duration =
       info.durationSeconds === null
-        ? UI_TEXT.media.durationUnknown
+        ? UI_TEXT.media.durationUnknownLabel
         : formatUnit(info.durationSeconds, 'second')
     const size = `${duration} · ${formatBytes(info.sizeBytes)}`
     if (info.kind !== 'video') return size

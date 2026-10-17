@@ -51,7 +51,7 @@ describe('ApprovalCard', () => {
     )
     expect(screen.getByText('Get-Content x')).toBeInTheDocument()
     expect(screen.getByText('(step 2 of 2)')).toBeInTheDocument()
-    expect(screen.getByText('Protected write')).toBeInTheDocument()
+    expect(screen.getByText('Protected Write')).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText(/what to do instead/), {
       target: { value: ' use the file tool ' },
     })
@@ -164,7 +164,7 @@ describe('ApprovalCard', () => {
     )
     expect(screen.getByText('/etc/hosts')).toBeInTheDocument()
     expect(screen.queryByPlaceholderText(/what to do instead/)).toBeNull()
-    expect(screen.queryByText('Protected write')).toBeNull()
+    expect(screen.queryByText('Protected Write')).toBeNull()
     render(
       <ApprovalCard
         approval={{ ...approval, subject: { kind: 'tool' }, isJudgeEscalated: true }}
@@ -173,7 +173,7 @@ describe('ApprovalCard', () => {
       />,
     )
     expect(screen.getByText('mystery')).toBeInTheDocument()
-    expect(screen.getByText('Escalated by the safety check')).toBeInTheDocument()
+    expect(screen.getByText('Escalated by the Safety Check')).toBeInTheDocument()
   })
 
   it('names the page a web fetch will read (M69)', () => {
@@ -257,10 +257,10 @@ describe('TodoPanel', () => {
     const onOpenInTab = vi.fn()
     const items = [{ text: 'Test', status: 'pending' }]
     const { rerender } = render(<TodoPanel items={items} />)
-    expect(screen.queryByRole('button', { name: 'Open in a tab' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Open in a Tab' })).toBeNull()
     rerender(<TodoPanel items={items} isInert onOpenInTab={onOpenInTab} />)
     expect(screen.getByRole('region')).toHaveAttribute('inert')
-    fireEvent.click(screen.getByRole('button', { name: 'Open in a tab' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open in a Tab' }))
     expect(onOpenInTab).toHaveBeenCalledOnce()
   })
 
@@ -284,9 +284,9 @@ describe('TodoPanel', () => {
 
   // M25: rows were keyed by their text, so two tasks with the same text collided.
   it('keeps two tasks with the same text apart', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {
-      // A key collision is reported here; the test asserts there is none.
-    })
+    // Call-through only: a key collision would be reported here; the test
+    // asserts there is none.
+    const consoleError = vi.spyOn(console, 'error')
     const { rerender } = render(
       <TodoPanel
         items={[
@@ -329,7 +329,7 @@ describe('ApprovalCard tool subjects (M18)', () => {
 })
 
 describe('ApprovalCard reviewer and rule reasons (M78)', () => {
-  it('says why it asks beyond the mode: the Auto reviewer’s reason, or the user’s rule (M78)', () => {
+  it('says why it asks beyond the mode: the Auto Reviewer’s reason, or the user’s rule (M78)', () => {
     const onDecide = vi.fn()
     render(
       <ApprovalCard
