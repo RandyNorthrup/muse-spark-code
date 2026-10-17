@@ -1,0 +1,21 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "/home/user/.gemini/tmp/workspace/chats/session-0001.jsonl",
+  "cwd": "/workspace",
+  "hook_event_name": "BeforeToolSelection",
+  "timestamp": "2026-10-05T02:23:23.331Z",
+  "llm_request": {
+    "model": "gemini-3.8-flash",
+    "messages": [
+      {
+        "role": "user",
+        "content": "<session_context>\nThis is the Gemini CLI. We are setting up the context for our chat.\nToday's date is Sunday, October 4, 2026 (formatted according to the user's locale).\nMy operating system is: linux\nThe project's temporary directory is: /home/user/.gemini/tmp/workspace\n- **Workspace Directories:**\n  - /workspace\n- **Directory Structure:**\n\nShowing up to 200 items (files + folders).\n\n/workspace/\n├───hello.txt\n├───probe.js\n├───rec.js\n├───.gemini/\n│   └───settings.json\n├───captures/\n└───out/\n    ├───command.txt\n    ├───gemini-stderr.txt\n    └───gemini-stdout.json\n\n\n</session_context>Read hello.txt, then run the shell command `echo hi`, then reply with one word."
+      }
+    ],
+    "config": {
+      "temperature": 1,
+      "topP": 0.95,
+      "topK": 64
+    }
+  }
+}

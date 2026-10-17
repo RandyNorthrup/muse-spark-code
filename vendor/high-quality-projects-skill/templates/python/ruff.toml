@@ -1,0 +1,60 @@
+# Strict Ruff config. Copy to project root as ruff.toml (or inline under
+# [tool.ruff] in pyproject.toml).
+#
+# Starts from "every rule Ruff has" and subtracts only rules that are
+# actively wrong to enforce, not merely inconvenient. Each removal is
+# justified below — delete an ignore to go stricter still.
+
+# Match the project's lowest supported Python, also used by mypy and CI.
+target-version = "py314"
+line-length = 100
+
+[lint]
+select = ["ALL"]
+
+ignore = [
+    # Conflicts with the formatter — Ruff itself tells you to disable these
+    # when using `ruff format`.
+    "COM812",  # trailing comma missing
+    "ISC001",  # single-line implicit string concat
+
+    # Docstring style pair conflicts: D203/D211 and D212/D213 are mutually
+    # exclusive. Keeping D211 (no blank line before class) + D212 (summary on
+    # first line), so drop their opposites.
+    "D203",
+    "D213",
+
+    # Enforcing a docstring on every module/package is busywork on small
+    # projects. `interrogate` can provide coverage-style reporting instead,
+    # which is a better fit than a hard error when the project installs it.
+    "D100",
+    "D104",
+
+    # Per-file copyright boilerplate is a project policy, not a universal
+    # correctness rule. Keep ownership/licensing in LICENSE and package metadata.
+    "CPY001",
+
+]
+
+[lint.per-file-ignores]
+# Tests get a longer leash: magic values, hardcoded fixtures, and private
+# access are normal in test code.
+# Assertions are allowed in tests, not as production input validation: Python
+# optimization can remove them. Test helpers and fixtures still need types.
+"tests/**" = ["PLR2004", "S101", "S105", "S106", "SLF001"]
+"**/test_*.py" = ["PLR2004", "S101", "S105", "S106", "SLF001"]
+"**/conftest.py" = ["S101"]
+
+[lint.flake8-annotations]
+# `self`/`cls` don't need annotations; everything else does.
+mypy-init-return = true
+suppress-dummy-args = true
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.mccabe]
+max-complexity = 10
+
+[format]
+docstring-code-format = true

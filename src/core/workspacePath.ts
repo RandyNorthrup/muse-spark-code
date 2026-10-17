@@ -7,6 +7,13 @@
 // without carrying the backend that loads on first use (M57, PLAN.md D6).
 
 import { pathModule } from './workspaceRoot'
+import {
+  isUncPath,
+  normalWindowsPath,
+  unprovenUncPathReason,
+  windowsPathProblem,
+} from './windowsPathSpelling'
+import { pathIdentityRelation } from './pathIdentity'
 
 export type PathResolution =
   | {
@@ -37,13 +44,9 @@ export interface RealPathIo {
 }
 
 const PARENT_SEGMENT = '..'
-// Device names Windows resolves in every directory (`NUL`, `CON`, `COM1.txt`):
-// reading one can block on a console, writing one goes nowhere.
-const WINDOWS_RESERVED_NAME = /^(?:con|prn|aux|nul|conin\$|conout\$|com\d|lpt\d)(?:\..*)?$/i
-const WINDOWS_TRAILING_DOT_OR_SPACE = /[. ]$/
 
 /** Whether a `path.relative` result stays below its base. */
-function isBelow(relative: string, p: ReturnType<typeof pathModule>): boolean {
+export function isBelow(relative: string, p: ReturnType<typeof pathModule>): boolean {
   return (
     relative !== '' &&
     relative !== PARENT_SEGMENT &&
@@ -53,20 +56,56 @@ function isBelow(relative: string, p: ReturnType<typeof pathModule>): boolean {
 }
 
 /**
- * Why a Windows path segment is refused, if it is: an alternate data stream
- * (`a.txt:hidden`), a device name, or a trailing dot or space, which Windows
- * strips (so `.git.` would be `.git`).
+ * One shared normalisation for every model-given path (M101, Pi's
+ * utils/paths and SoL-Pi's `6f74efcf23`, `8c46b7631b`, `7d7f082eea`): the
+ * permission check and the write resolve the same text, so a path the check
+ * lets through is the path the tool touches. Unicode spaces become spaces,
+ * a leading `@` (a mention, not the name) is dropped, `file://` URLs become
+ * paths, and `/c/…`, `/mnt/c/…` and `/cygdrive/c/…` become `C:/…` on
+ * Windows. `~` is refused: it would otherwise create a literal `~` folder.
  */
-function windowsSegmentProblem(segment: string): string | undefined {
-  if (segment.includes(':')) {
-    return 'names an alternate data stream'
+export function normalizeModelPath(
+  given: string,
+  platform: NodeJS.Platform,
+): { readonly ok: true; readonly path: string } | { readonly ok: false; readonly reason: string } {
+  let path = given.replaceAll(/[\u{00A0}\u{2000}-\u{200A}\u{202F}\u{205F}\u{3000}]/gu, ' ')
+  if (path.startsWith('@')) {
+    path = path.slice(1)
   }
-  if (WINDOWS_RESERVED_NAME.test(segment)) {
-    return 'names a Windows device'
+  if (path === '~' || path.startsWith('~/') || (platform === 'win32' && path.startsWith('~\\'))) {
+    return {
+      ok: false,
+      reason: `path ${given} starts at the home directory, which is outside the workspace`,
+    }
   }
-  return WINDOWS_TRAILING_DOT_OR_SPACE.test(segment)
-    ? 'ends a name with a dot or a space, which Windows drops'
-    : undefined
+  // `file://` by the URL's own rule, not the host's: the platform names the
+  // path, so only an absolute path or a localhost one converts.
+  if (path.startsWith('file://')) {
+    try {
+      const url = new URL(path)
+      if (
+        url.protocol !== 'file:' ||
+        (url.hostname !== '' && url.hostname !== 'localhost') ||
+        url.search !== '' ||
+        url.hash !== '' ||
+        /%2f|%5c|%00/i.test(url.pathname)
+      ) {
+        return { ok: false, reason: `path ${given} is not a valid file URL` }
+      }
+      path = decodeURIComponent(url.pathname)
+    } catch {
+      return { ok: false, reason: `path ${given} is not a valid file URL` }
+    }
+  }
+  if (platform === 'win32') {
+    const drive =
+      /^\/(?:mnt\/|cygdrive\/)?([a-zA-Z])\//.exec(path) ?? /^\/([a-zA-Z])[:|]\//.exec(path)
+    const letter = drive?.[1]
+    if (drive !== null && letter !== undefined) {
+      path = `${letter}:/${path.slice(drive[0].length)}`
+    }
+  }
+  return { ok: true, path }
 }
 
 /** Resolves a model-given path inside the workspace by its text, refusing escapes. */
@@ -75,21 +114,30 @@ export function resolveWorkspacePath(
   given: string,
   platform: NodeJS.Platform,
 ): PathResolution {
+  const normalized = normalizeModelPath(given, platform)
+  if (!normalized.ok) {
+    return normalized
+  }
+  const problem = windowsPathProblem(normalized.path, platform, workspaceRoot)
+  if (problem !== undefined) return { ok: false, reason: `path ${given} ${problem}` }
   const p = pathModule(platform)
-  const absolute = p.resolve(workspaceRoot, given)
-  const relative = p.relative(workspaceRoot, absolute)
+  const root = platform === 'win32' ? normalWindowsPath(workspaceRoot) : workspaceRoot
+  const absolute = p.resolve(
+    root,
+    platform === 'win32' ? normalWindowsPath(normalized.path) : normalized.path,
+  )
+  const relative = p.relative(root, absolute)
   if (!isBelow(relative, p)) {
     return { ok: false, reason: `path ${given} is outside the workspace` }
   }
-  const segments = relative.split(p.sep)
-  if (platform === 'win32') {
-    for (const segment of segments) {
-      const problem = windowsSegmentProblem(segment)
-      if (problem !== undefined) {
-        return { ok: false, reason: `path ${given} ${problem}` }
-      }
-    }
+  if (
+    platform === 'win32' &&
+    isUncPath(absolute) &&
+    pathIdentityRelation(absolute, workspaceRoot, platform) !== 'inside'
+  ) {
+    return { ok: false, reason: unprovenUncPathReason(given) }
   }
+  const segments = relative.split(p.sep)
   const forward = segments.join('/')
   return { ok: true, absolute, relative: forward, canonical: forward }
 }

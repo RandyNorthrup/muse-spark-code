@@ -11,21 +11,55 @@
 // names of a hard-linked file keep the old content (which is what keeps a
 // package manager's shared store intact), the owner is the writer, and
 // Windows' hidden and system attributes are not copied.
+//
+// `writeFileIfUnchanged` is the one conditional write (the Codex review of
+// PR #54, third round): the target's bytes are compared with the expected
+// text first (a target that is gone is not recreated, nor its folder), then
+// the same steps, and again immediately before each rename attempt; a target
+// that no longer holds the expected text is left alone. No file system
+// offers a conditional rename, so what remains differs by platform
+// (PLAN.md §9):
+// - POSIX: the rename replaces the name at once, whoever has the file open.
+//   A change saved between the last comparison and the rename is replaced,
+//   and a program that still holds the old file open and writes after the
+//   rename writes into a file that no longer has a name: its change is lost.
+// - Windows: the rename is refused while another program holds the target
+//   open without sharing delete; the refusal is retried, comparing again
+//   before each attempt, so a change written while the file was held is
+//   seen. A change saved and closed between the last comparison and the
+//   rename is still replaced.
 
 import { randomUUID } from 'node:crypto'
-import { constants } from 'node:fs'
-import { access, mkdir, open, realpath, rename, rm, stat } from 'node:fs/promises'
+import { constants, type BigIntStats } from 'node:fs'
+import { access, link, mkdir, open, readFile, realpath, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import {
+  type FileIdentity,
+  handleIdentity,
+  identityOf,
+  lstatIdentity,
+  sameFile,
+  statIdentity,
+} from '../core/fs/fileIdentity'
 import { isSamePath } from '../core/paths'
+import { bytesFingerprint } from '../core/verify/fingerprint'
 import {
   ATOMIC_RENAME_ATTEMPTS,
   ATOMIC_RENAME_DELAY_MS,
   ATOMIC_TEMPORARY_SUFFIX,
-  MODEL_TEXT,
+  FILE_REFUSAL_MODEL_TEXT,
 } from '../shared/constants'
 import { canonicalPath } from './canonicalPath'
+import type { ConditionalWrite, StagedFile } from '../core/backends/modelapi/tools'
 
 export interface AtomicWriteOptions {
+  /** Private sharing artifacts use 0600 for both new and replaced files. */
+  readonly mode?: number
+  /** A checkpoint's live admission, checked after awaits and before file mutations. */
+  readonly beforeCommit?: () => void
+  /** The owner's final word immediately before filesystem mutations/publication. */
+  readonly assertCanWrite?: () => void
   /** Waits between rename attempts; injectable so tests do not sleep. */
   readonly sleep: (ms: number) => Promise<void>
   /** `fs.rename`; tests stand in a scanner holding the file. */
@@ -35,10 +69,38 @@ export interface AtomicWriteOptions {
   /** Model API tools require the operation to keep its approved canonical target. */
   readonly expectedCanonicalPath?: string
   readonly platform?: NodeJS.Platform
+  /**
+   * A checkpoint restore (M72): whether the file is executable. The file's
+   * own permissions are kept (a new file's are the default ones) and only
+   * the execute bits follow, set where the read bits are; unset: the
+   * permissions are kept as they are.
+   */
+  readonly executable?: boolean
+  /**
+   * A conditional write's last word, asked right after the final comparison
+   * before each rename: false leaves the target alone (format on edit asks
+   * whether an editor now holds unsaved text for the file; Grok's review).
+   */
+  readonly isReplaceable?: () => boolean
+  /**
+   * Runs once the content is staged and closed, with the staged file's mode
+   * from its handle and the folder the write created, before the first
+   * rename attempt (M86: the recorder's intent). A throw leaves the target alone.
+   */
+  readonly staged?: (file: StagedFile) => Promise<void>
 }
 
 // The bits `chmod` sets: setuid, setgid, sticky and the three rwx triads.
 const PERMISSION_BITS = 0o7777
+const EXECUTE_BITS = 0o111
+const READ_BITS = 0o444
+// A read bit two places left of its triad's execute bit.
+const READ_TO_EXECUTE_SHIFT = 2
+
+/** The permissions with the execute bits set where readable, or all cleared. */
+function withExecuteBits(mode: number, isExecutable: boolean): number {
+  return isExecutable ? mode | ((mode & READ_BITS) >> READ_TO_EXECUTE_SHIFT) : mode & ~EXECUTE_BITS
+}
 
 interface Destination {
   readonly path: string
@@ -55,6 +117,28 @@ function errorCode(error: unknown): string | undefined {
     : undefined
 }
 
+/** A cleanup may remove only the same regular file, with exact inode IDs and captured metadata. */
+export async function isOwnedFile(
+  target: string,
+  identity: FileIdentity & Partial<Pick<BigIntStats, 'mtimeNs' | 'size'>>,
+): Promise<boolean> {
+  try {
+    // Windows file IDs exceed Number's safe range: rounded IDs can name two files.
+    const current = await lstatIdentity(target)
+    return (
+      current.isFile() &&
+      sameFile(current, identity) &&
+      (identity.mtimeNs === undefined || current.mtimeNs === identity.mtimeNs) &&
+      (identity.size === undefined || current.size === identity.size)
+    )
+  } catch (error: unknown) {
+    if (errorCode(error) === 'ENOENT') {
+      return false
+    }
+    throw error
+  }
+}
+
 /** Renames `from` over `to`, again while Windows reports the target busy. */
 export async function renameReplacing(
   from: string,
@@ -66,6 +150,8 @@ export async function renameReplacing(
   for (let attempt = 1; ; attempt += 1) {
     try {
       await beforeAttempt?.()
+      options.beforeCommit?.()
+      options.assertCanWrite?.()
       await renameFile(from, to)
       return
     } catch (error: unknown) {
@@ -86,14 +172,14 @@ export async function renameReplacing(
 async function assertBoundPath(
   actualPath: string,
   expectedPath: string,
-  options: AtomicWriteOptions,
+  options: Pick<AtomicWriteOptions, 'expectedCanonicalPath' | 'platform'>,
 ): Promise<void> {
   if (options.expectedCanonicalPath === undefined) {
     return
   }
   const canonical = await canonicalPath(actualPath)
   if (!isSamePath(canonical, expectedPath, options.platform ?? process.platform)) {
-    throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+    throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
   }
 }
 
@@ -118,65 +204,427 @@ async function destinationOf(target: string, options: AtomicWriteOptions): Promi
 }
 
 /**
- * Replaces `target` with `content` (UTF-8) in one step, its folder created.
- * The temporary file's name is unique, so two windows writing the same
- * target never share one; it ends in ATOMIC_TEMPORARY_SUFFIX for cleanups.
+ * How many folders, `folder` and up, a recursive `mkdir` of it made, from the
+ * outermost one it names (undefined: none). Windows names it in its long-path
+ * form (`\\?\C:\…`), so both are compared in that form.
+ */
+export function foldersMade(folder: string, outermost: string | undefined): number {
+  if (outermost === undefined) {
+    return 0
+  }
+  const below = path.relative(path.toNamespacedPath(outermost), path.toNamespacedPath(folder))
+  return below === '' ? 1 : below.split(path.sep).length + 1
+}
+
+/** The target no longer holds what a conditional write expected: nothing was written. */
+class ChangedBeforeWriteError extends Error {}
+
+/** The one outcome that is not an error: a conditional write that found the file changed. */
+function changedBeforeWrite(): ChangedBeforeWriteError {
+  return new ChangedBeforeWriteError()
+}
+
+/** Refuses a destination whose current text is not the expected text. */
+async function assertUnchanged(
+  destination: string,
+  expectedFingerprint: string | (() => Promise<boolean>),
+): Promise<void> {
+  if (typeof expectedFingerprint === 'function') {
+    if (!(await expectedFingerprint())) {
+      throw changedBeforeWrite()
+    }
+    return
+  }
+  let bytes: Uint8Array
+  try {
+    bytes = await readFile(destination)
+  } catch (error: unknown) {
+    if (errorCode(error) === 'ENOENT') {
+      throw changedBeforeWrite()
+    }
+    throw error
+  }
+  if (bytesFingerprint(bytes) !== expectedFingerprint) {
+    throw changedBeforeWrite()
+  }
+}
+
+/**
+ * Replaces `target` with `content` (text as UTF-8, or bytes as they are:
+ * a checkpoint restore, M72) in one step, its folder created. The
+ * temporary file's name is unique, so two windows writing the same target
+ * never share one; it ends in ATOMIC_TEMPORARY_SUFFIX for cleanups.
  */
 export async function writeFileAtomically(
   target: string,
-  content: string,
+  content: string | Uint8Array,
   options: AtomicWriteOptions,
 ): Promise<void> {
+  await writeAtomically(target, content, options, undefined)
+}
+
+/**
+ * `writeFileAtomically`, only while `target` still holds the text whose
+ * fingerprint is `expectedFingerprint` (`core/verify/fingerprint`): checked
+ * immediately before each rename attempt. `changed`, and nothing written,
+ * when it does not.
+ */
+export async function writeFileIfUnchanged(
+  target: string,
+  expectedFingerprint: string | (() => Promise<boolean>),
+  content: string | Uint8Array,
+  options: AtomicWriteOptions,
+): Promise<ConditionalWrite> {
+  try {
+    await writeAtomically(target, content, options, expectedFingerprint)
+    return 'written'
+  } catch (error: unknown) {
+    if (error instanceof ChangedBeforeWriteError) {
+      return 'changed'
+    }
+    throw error
+  }
+}
+
+interface ConditionalRemoveOptions {
+  /** The checked canonical target: a link or junction on the way now refuses the removal. */
+  readonly expectedCanonicalPath: string
+  readonly platform?: NodeJS.Platform
+  /** The owner's final word immediately before the removal. */
+  readonly assertCanWrite?: () => void
+  /** Asked once the bytes compare equal: false leaves the file alone (an editor's unsaved text). */
+  readonly isReplaceable?: () => boolean
+  /** Removes the file: a Revert's move to the trash. */
+  readonly remove: (target: string) => Promise<void>
+}
+
+/**
+ * Removes `target` only while it is a regular file, at its expected canonical
+ * path, that still holds the text whose fingerprint is `expectedFingerprint`:
+ * `changed`, and nothing removed, when not. The bytes are compared, then the
+ * path and the file's identity (device, inode, size and modification time)
+ * again immediately before the removal, so a save or a replacement since the
+ * comparison refuses it. As for the conditional write, no file system offers
+ * a conditional removal: a change saved between that last check and the
+ * removal goes with the file (to the trash, for a Revert).
+ */
+export async function deleteFileIfUnchanged(
+  target: string,
+  expectedFingerprint: string,
+  options: ConditionalRemoveOptions,
+): Promise<ConditionalWrite> {
+  await assertBoundPath(target, options.expectedCanonicalPath, options)
+  let held: BigIntStats
+  try {
+    held = await lstatIdentity(target)
+  } catch (error: unknown) {
+    if (errorCode(error) === 'ENOENT') {
+      return 'changed'
+    }
+    throw error
+  }
+  if (!held.isFile()) {
+    return 'changed'
+  }
+  try {
+    await assertUnchanged(target, expectedFingerprint)
+  } catch (error: unknown) {
+    if (error instanceof ChangedBeforeWriteError) {
+      return 'changed'
+    }
+    throw error
+  }
+  await assertBoundPath(target, options.expectedCanonicalPath, options)
+  if (options.isReplaceable?.() === false) {
+    return 'changed'
+  }
+  // Last, so only the owner's word and the removal itself follow it.
+  if (!(await isOwnedFile(target, held))) {
+    return 'changed'
+  }
+  options.assertCanWrite?.()
+  await options.remove(target)
+  return 'written'
+}
+
+async function writeAtomically(
+  target: string,
+  content: string | Uint8Array,
+  options: AtomicWriteOptions,
+  expectedFingerprint: string | (() => Promise<boolean>) | undefined,
+): Promise<void> {
   await assertBoundPath(target, options.expectedCanonicalPath ?? target, options)
-  await mkdir(path.dirname(target), { recursive: true })
+  let createdFolders = 0
+  if (expectedFingerprint === undefined || typeof expectedFingerprint === 'function') {
+    if (expectedFingerprint !== undefined) {
+      await assertUnchanged(target, expectedFingerprint)
+    }
+    options.beforeCommit?.()
+    options.assertCanWrite?.()
+    createdFolders = foldersMade(
+      path.dirname(target),
+      await mkdir(path.dirname(target), { recursive: true }),
+    )
+  } else {
+    // A conditional write replaces only the expected text: a target that is
+    // gone, with its folder or not, stays gone.
+    await assertUnchanged(target, expectedFingerprint)
+  }
   await assertBoundPath(target, options.expectedCanonicalPath ?? target, options)
   const destination = await destinationOf(target, options)
   await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)
   const temporary = `${destination.path}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`
-  let temporaryIdentity: { readonly dev: number; readonly ino: number } | undefined
+  let temporaryIdentity: FileIdentity | undefined
+  let stagedMode = 0
   try {
     await assertBoundPath(temporary, temporary, options)
-    const handle = await open(temporary, 'wx')
+    options.beforeCommit?.()
+    options.assertCanWrite?.()
+    const handle = await open(temporary, 'wx', options.mode)
     try {
-      const held = await handle.stat()
+      const held = await handleIdentity(handle)
       // The content is written through this handle only after path and inode
       // agree twice. Node cannot make a path-based rename handle-relative.
       for (let sample = 0; sample < 2; sample += 1) {
         await assertBoundPath(temporary, temporary, options)
-        const current = await stat(temporary)
-        if (held.dev !== current.dev || held.ino !== current.ino) {
-          throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+        const current = await statIdentity(temporary)
+        if (!sameFile(held, current)) {
+          throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
         }
       }
-      temporaryIdentity = { dev: held.dev, ino: held.ino }
-      await handle.writeFile(content, 'utf8')
-      if (destination.mode !== undefined) {
-        await handle.chmod(destination.mode)
+      temporaryIdentity = identityOf(held)
+      options.beforeCommit?.()
+      options.assertCanWrite?.()
+      await (typeof content === 'string'
+        ? handle.writeFile(content, 'utf8')
+        : handle.writeFile(content))
+      const mode = options.mode ?? destination.mode ?? Number(held.mode) & PERMISSION_BITS
+      options.beforeCommit?.()
+      options.assertCanWrite?.()
+      if (options.executable !== undefined && (options.platform ?? process.platform) !== 'win32') {
+        await handle.chmod(withExecuteBits(mode, options.executable))
+      } else if (options.mode !== undefined || destination.mode !== undefined) {
+        await handle.chmod(mode)
+      }
+      if (options.staged !== undefined) {
+        const staged = await handle.stat()
+        stagedMode = staged.mode & PERMISSION_BITS
       }
     } finally {
       await handle.close()
     }
+    await options.staged?.({ mode: stagedMode, createdFolders })
     await renameReplacing(temporary, destination.path, options, async () => {
       await assertBoundPath(temporary, temporary, options)
       await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)
-      const current = await stat(temporary)
-      if (current.dev !== temporaryIdentity?.dev || current.ino !== temporaryIdentity.ino) {
-        throw new Error(MODEL_TEXT.pathChangedAfterApproval)
+      const current = await statIdentity(temporary)
+      if (temporaryIdentity === undefined || !sameFile(current, temporaryIdentity)) {
+        throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
       await assertBoundPath(temporary, temporary, options)
       await assertBoundPath(destination.path, options.expectedCanonicalPath ?? target, options)
+      // Last, so nothing but the rename itself follows the comparison.
+      if (expectedFingerprint === undefined) {
+        options.assertCanWrite?.()
+        return
+      }
+      await assertUnchanged(destination.path, expectedFingerprint)
+      if (options.isReplaceable?.() === false) {
+        throw changedBeforeWrite()
+      }
+      options.assertCanWrite?.()
     })
   } catch (error: unknown) {
     // A retargeted directory must not make cleanup delete a different file.
     try {
       await assertBoundPath(temporary, temporary, options)
-      const current = await stat(temporary)
-      if (current.dev === temporaryIdentity?.dev && current.ino === temporaryIdentity.ino) {
+      if (temporaryIdentity !== undefined && (await isOwnedFile(temporary, temporaryIdentity))) {
         await rm(temporary, { force: true })
       }
     } catch {
       // Preserve the original write failure; a moved temp may be left behind.
     }
     throw error
+  }
+}
+
+export interface NewFileOptions {
+  /** The owner's final word, including after awaited staging. */
+  readonly assertCanWrite?: () => void
+  /** The file's mode before the umask; the file keeps the stage's inode. */
+  readonly mode: number
+  /**
+   * The folder's canonical form, links resolved, that the file must land
+   * in: the checked one when the caller confined the path already, else the
+   * folder's form when the create starts.
+   */
+  readonly expectedDirectory?: string
+  /**
+   * A stage that could not be removed: `isPublished` says whether the file
+   * was published first (complete under its name) or the create failed.
+   */
+  readonly warn: (stage: string, isPublished: boolean, error: unknown) => void
+  /** Replace the hard-link call in a deterministic publication test. */
+  readonly publish?: (stage: string, target: string) => Promise<void>
+  /** Waits between removal attempts; injectable so tests do not sleep. */
+  readonly sleep?: (ms: number) => Promise<void>
+  /** Removes the stage (`fs.rm`); tests stand in a scanner holding it. */
+  readonly remove?: (stage: string) => Promise<void>
+  /** Runs once the stage is written and closed, before the last check; tests swap the folder here. */
+  readonly staged?: (file: StagedFile) => Promise<void>
+  readonly platform?: NodeJS.Platform
+}
+
+const NAME_TAKEN_ERROR = 'NameTakenError'
+// What the hard link answers when the name is taken.
+const NAME_TAKEN_CODE = 'EEXIST'
+// What mkdir answers when a part of the folder's path is a file.
+const NOT_A_FOLDER_CODES: ReadonlySet<string> = new Set(['EEXIST', 'ENOTDIR'])
+
+/**
+ * The target's name was taken when the file was to be published: nothing
+ * was written. It keeps `code: 'EEXIST'`, as the link's own error had it.
+ */
+class NameTakenError extends Error {
+  public readonly code = NAME_TAKEN_CODE
+
+  public constructor(target: string, cause: unknown) {
+    super(`${target} exists already`, { cause })
+    this.name = NAME_TAKEN_ERROR
+  }
+}
+
+/** Whether `createFileExclusively` found the name taken (and nothing else went wrong). */
+export function isNameTaken(error: unknown): boolean {
+  return error instanceof Error && error.name === NAME_TAKEN_ERROR
+}
+
+/** Refuses a folder that now leads somewhere else than it did when it was checked. */
+async function assertSameDirectory(
+  directory: string,
+  expected: string,
+  platform: NodeJS.Platform,
+): Promise<void> {
+  if (!isSamePath(await canonicalPath(directory), expected, platform)) {
+    throw new Error(`${directory} now leads elsewhere through a link`)
+  }
+}
+
+function removeFile(target: string): Promise<void> {
+  return rm(target, { force: true })
+}
+
+/** Removes a stage, again while Windows reports it held (a scanner, an indexer). */
+async function removeStage(
+  stage: string,
+  sleep: (ms: number) => Promise<void>,
+  remove: (stage: string) => Promise<void>,
+): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await remove(stage)
+      return
+    } catch (error: unknown) {
+      const code = errorCode(error)
+      if (
+        code === undefined ||
+        !RENAME_RETRY_CODES.has(code) ||
+        attempt >= ATOMIC_RENAME_ATTEMPTS
+      ) {
+        throw error
+      }
+      await sleep(ATOMIC_RENAME_DELAY_MS * 2 ** (attempt - 1))
+    }
+  }
+}
+
+/**
+ * Creates `absolutePath` with `content` (text as UTF-8, or bytes as they
+ * are: a held pull request's files, M71), its folder made, and never
+ * replaces a file already there: the content goes to a hidden stage beside
+ * it, which a hard link then publishes under the target name. A taken name
+ * is a `NameTakenError` (see `isNameTaken`), so a reader never sees half a
+ * file and another writer's file is never replaced. File systems without
+ * hard links fail closed; copy and rename cannot make both guarantees.
+ *
+ * The folder is checked against `expectedDirectory` before it is made,
+ * after it is made and
+ * again just before the link, so a folder swapped for a link or junction in
+ * between is refused. Node cannot link relative to a held folder handle, so
+ * a swap between that last check and the link itself stays outside the
+ * guarantee, as for `writeFileAtomically`.
+ */
+export async function createFileExclusively(
+  absolutePath: string,
+  content: string | Uint8Array,
+  options: NewFileOptions,
+): Promise<void> {
+  const platform = options.platform ?? process.platform
+  const sleep = options.sleep ?? delay
+  const directory = path.dirname(absolutePath)
+  const expected = options.expectedDirectory ?? (await canonicalPath(directory))
+  await assertSameDirectory(directory, expected, platform)
+  let createdFolders: number
+  try {
+    options.assertCanWrite?.()
+    createdFolders = foldersMade(directory, await mkdir(directory, { recursive: true }))
+  } catch (error: unknown) {
+    const code = errorCode(error)
+    if (code !== undefined && NOT_A_FOLDER_CODES.has(code)) {
+      throw new Error(`${directory} is not a folder`, { cause: error })
+    }
+    throw error
+  }
+  await assertSameDirectory(directory, expected, platform)
+  const stage = path.join(
+    directory,
+    `.${path.basename(absolutePath)}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`,
+  )
+  let stageIdentity: FileIdentity | undefined
+  let isPublished = false
+  let stagedMode: number
+  try {
+    options.assertCanWrite?.()
+    const handle = await open(stage, 'wx', options.mode)
+    try {
+      const held = await handleIdentity(handle)
+      stageIdentity = identityOf(held)
+      stagedMode = Number(held.mode) & PERMISSION_BITS
+      options.assertCanWrite?.()
+      await (typeof content === 'string'
+        ? handle.writeFile(content, 'utf8')
+        : handle.writeFile(content))
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
+    await options.staged?.({ mode: stagedMode, createdFolders })
+    await assertSameDirectory(directory, expected, platform)
+    if (!(await isOwnedFile(stage, stageIdentity))) {
+      throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
+    }
+    try {
+      options.assertCanWrite?.()
+      await (options.publish ?? link)(stage, absolutePath)
+    } catch (error: unknown) {
+      throw errorCode(error) === NAME_TAKEN_CODE ? new NameTakenError(absolutePath, error) : error
+    }
+    isPublished = true
+  } finally {
+    const owned = stageIdentity
+    if (owned !== undefined) {
+      try {
+        await removeStage(stage, sleep, async (file) => {
+          await assertSameDirectory(directory, expected, platform)
+          if (await isOwnedFile(file, owned)) {
+            await (options.remove ?? removeFile)(file)
+          }
+        })
+      } catch (error: unknown) {
+        // A published file is complete whatever happens to its stage; a
+        // stage left beside it is swept later (plans) or harmless (memory).
+        options.warn(stage, isPublished, error)
+      }
+    }
   }
 }

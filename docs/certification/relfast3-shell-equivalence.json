@@ -1,0 +1,16 @@
+{
+  "beforeTest": "9f082633c49f10a47270f247cb082e086d7e639dcc6db9c92e5dbe3c4c6fe5b2",
+  "afterTest": "8801a3fb1b8bf4b449ccf39e10c070001e70e85a11a280d221ece775b0ffa77d",
+  "results": [
+    {
+      "name": "move the M80 v0 tag after all channels published",
+      "before": "dd2e1485c7f424092a8ebd1f14c3a449d4f10ddc6fa59f5b70dcf9f34db1e228",
+      "after": "dd2e1485c7f424092a8ebd1f14c3a449d4f10ddc6fa59f5b70dcf9f34db1e228"
+    },
+    {
+      "name": "report the M80 major-tag outcome",
+      "before": "fbaea71a2ae53d62b9d1077228ac98023ec8a4170b3d0bea4221abe4c65d208b",
+      "after": "fbaea71a2ae53d62b9d1077228ac98023ec8a4170b3d0bea4221abe4c65d208b"
+    }
+  ]
+}

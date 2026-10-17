@@ -2,7 +2,7 @@
 // Pure orchestration over injected dependencies so it is unit-tested without
 // VS Code.
 
-import type { ChatSurface } from '../views/webviewSetup'
+import type { ChatSurface } from '../views/chatSurface'
 
 export interface FocusInputDeps {
   /** Current value of the `museSpark.inputFocused` context key. */
@@ -20,7 +20,8 @@ export async function toggleInputFocus(deps: FocusInputDeps): Promise<void> {
   }
   const surface = deps.activeSurface()
   if (surface === undefined) {
-    // The view resolves asynchronously; the composer focuses itself on init.
+    // The view resolves asynchronously; opening it focuses it, so the
+    // composer's load-time request lands through the ownership rule.
     await deps.openSidebar()
     return
   }

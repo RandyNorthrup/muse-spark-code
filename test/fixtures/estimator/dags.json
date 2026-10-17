@@ -1,0 +1,1634 @@
+[
+  {
+    "name": "chain",
+    "lanes": [
+      {
+        "id": "A",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": [],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      },
+      {
+        "id": "B",
+        "kind": "core",
+        "estimatedHours": 2,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["A"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      },
+      {
+        "id": "C",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["B"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      }
+    ],
+    "golden": {
+      "criticalPath": ["A", "B", "C"],
+      "criticalPathHours": 4,
+      "finishHoursWithTwoSlots": 4,
+      "schedule": [
+        {
+          "laneId": "A",
+          "start": "2026-10-06T12:00:00.000Z",
+          "end": "2026-10-06T13:00:00.000Z"
+        },
+        {
+          "laneId": "B",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T15:00:00.000Z"
+        },
+        {
+          "laneId": "C",
+          "start": "2026-10-06T15:00:00.000Z",
+          "end": "2026-10-06T16:00:00.000Z"
+        }
+      ],
+      "p50": "2026-10-06T16:00:00.000Z",
+      "p90": "2026-10-06T16:00:00.000Z"
+    },
+    "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
+  },
+  {
+    "name": "fan-out",
+    "lanes": [
+      {
+        "id": "A",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": [],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      },
+      {
+        "id": "B",
+        "kind": "core",
+        "estimatedHours": 2,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["A"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      },
+      {
+        "id": "C",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["A"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      }
+    ],
+    "golden": {
+      "criticalPath": ["A", "B"],
+      "criticalPathHours": 3,
+      "finishHoursWithTwoSlots": 3,
+      "schedule": [
+        {
+          "laneId": "A",
+          "start": "2026-10-06T12:00:00.000Z",
+          "end": "2026-10-06T13:00:00.000Z"
+        },
+        {
+          "laneId": "B",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T15:00:00.000Z"
+        },
+        {
+          "laneId": "C",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T14:00:00.000Z"
+        }
+      ],
+      "p50": "2026-10-06T15:00:00.000Z",
+      "p90": "2026-10-06T15:00:00.000Z"
+    },
+    "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
+  },
+  {
+    "name": "diamond",
+    "lanes": [
+      {
+        "id": "A",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": [],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      },
+      {
+        "id": "B",
+        "kind": "core",
+        "estimatedHours": 2,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["A"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      },
+      {
+        "id": "C",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["A"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      },
+      {
+        "id": "D",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": ["B", "C"],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": [],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      }
+    ],
+    "golden": {
+      "criticalPath": ["A", "B", "D"],
+      "criticalPathHours": 4,
+      "finishHoursWithTwoSlots": 4,
+      "schedule": [
+        {
+          "laneId": "A",
+          "start": "2026-10-06T12:00:00.000Z",
+          "end": "2026-10-06T13:00:00.000Z"
+        },
+        {
+          "laneId": "B",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T15:00:00.000Z"
+        },
+        {
+          "laneId": "C",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T14:00:00.000Z"
+        },
+        {
+          "laneId": "D",
+          "start": "2026-10-06T15:00:00.000Z",
+          "end": "2026-10-06T16:00:00.000Z"
+        }
+      ],
+      "p50": "2026-10-06T16:00:00.000Z",
+      "p90": "2026-10-06T16:00:00.000Z"
+    },
+    "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
+  },
+  {
+    "name": "affinity-bound",
+    "lanes": [
+      {
+        "id": "A",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": [],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": ["macos"],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      },
+      {
+        "id": "B",
+        "kind": "core",
+        "estimatedHours": 1,
+        "elapsedAgentHours": 0,
+        "minimumRemainingHours": 0.1,
+        "state": "planned",
+        "dependencies": [],
+        "files": ["src/example.ts"],
+        "affinity": {
+          "os": ["macos"],
+          "architectures": [],
+          "machineClassIds": [],
+          "gpuRequired": false
+        },
+        "resources": {
+          "slots": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountRequestsPerHour": {
+            "status": "known",
+            "value": 1,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 1,
+              "upper": 1
+            }
+          },
+          "accountTokensPerHour": {
+            "status": "known",
+            "value": 10,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 10,
+              "upper": 10
+            }
+          },
+          "ciJobs": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "ciMinutes": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountUsdPerHour": {
+            "status": "known",
+            "value": 0,
+            "basis": "assumption",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "interval",
+              "lower": 0,
+              "upper": 0
+            }
+          },
+          "accountPercentPerHour": {
+            "status": "unknown",
+            "value": null,
+            "basis": "unknown",
+            "samples": 0,
+            "uncertainty": {
+              "kind": "unknown"
+            }
+          },
+          "disk": [
+            {
+              "role": "workspace",
+              "peakBytes": {
+                "status": "known",
+                "value": 4294967296,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 4294967296,
+                  "upper": 4294967296
+                }
+              },
+              "steadyBytes": {
+                "status": "known",
+                "value": 2147483648,
+                "basis": "assumption",
+                "samples": 0,
+                "uncertainty": {
+                  "kind": "interval",
+                  "lower": 2147483648,
+                  "upper": 2147483648
+                }
+              }
+            }
+          ]
+        },
+        "review": {
+          "status": "known",
+          "rounds": 0,
+          "modules": [],
+          "redesigns": []
+        }
+      }
+    ],
+    "golden": {
+      "criticalPath": ["A"],
+      "criticalPathHours": 1,
+      "finishHoursWithTwoSlots": 2,
+      "schedule": [
+        {
+          "laneId": "A",
+          "start": "2026-10-06T12:00:00.000Z",
+          "end": "2026-10-06T13:00:00.000Z"
+        },
+        {
+          "laneId": "B",
+          "start": "2026-10-06T13:00:00.000Z",
+          "end": "2026-10-06T14:00:00.000Z"
+        }
+      ],
+      "p50": "2026-10-06T14:00:00.000Z",
+      "p90": "2026-10-06T14:00:00.000Z"
+    },
+    "distribution": "fixedDuration; no review or redesign rounds; not a calibrated Monte Carlo claim"
+  }
+]

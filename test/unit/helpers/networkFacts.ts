@@ -12,6 +12,8 @@ export const DEFAULT_NETWORK_FACTS: NetworkFacts = {
   isSystemCertificatesOn: true,
   isFetchSupportOn: true,
   isWebSocketSupportOn: true,
+  fetchRouting: 'routed',
+  webSocketRouting: 'routed',
   hasEnvironmentProxy: false,
   hasExtraCaCertificates: false,
   museProxySource: 'none',

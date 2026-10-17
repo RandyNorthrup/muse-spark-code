@@ -1,0 +1,47 @@
+Run: red-reduced
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
++ 'gooey-burst'
+- 'none'
+
+    at file:///C:/Users/Randy/Coding/mx-m87f/temp/m87f/browser.mjs:52:51
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at process.processImmediate (node:internal/timers:541:9) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'gooey-burst',
+  expected: 'none',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.20.0
+
+Run: red-forced
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: forced
++ actual - expected
+
++ 'url("#_r_0_")'
+- 'none'
+
+    at file:///C:/Users/Randy/Coding/mx-m87f/temp/m87f/browser.mjs:53:12
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at process.processImmediate (node:internal/timers:541:9) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 'url("#_r_0_")',
+  expected: 'none',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.20.0

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compileGlob, isGlobMatch } from '../../src/core/backends/modelapi/glob'
+import { compileGlob, isGlobMatch } from '../../src/core/backends/modelapi/globLimits'
 
 describe('isGlobMatch', () => {
   it('matches a bare file pattern at any depth and a rooted one only where written', () => {

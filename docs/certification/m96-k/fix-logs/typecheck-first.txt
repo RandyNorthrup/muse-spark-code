@@ -1,0 +1,12 @@
+npm notice run muse-spark-code@0.12.1 typecheck
+npm notice run run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration
+npm notice run muse-spark-code@0.12.1 typecheck:host
+npm notice run tsc -p tsconfig.json --noEmit
+npm notice run muse-spark-code@0.12.1 typecheck:webview
+npm notice run tsc -p src/webview/tsconfig.json --noEmit
+npm notice run muse-spark-code@0.12.1 typecheck:unit
+npm notice run tsc -p test/unit/tsconfig.json --noEmit
+npm notice run muse-spark-code@0.12.1 typecheck:e2e
+npm notice run tsc -p test/e2e/tsconfig.json --noEmit
+npm notice run muse-spark-code@0.12.1 typecheck:integration
+npm notice run tsc -p test/integration/tsconfig.json --noEmit

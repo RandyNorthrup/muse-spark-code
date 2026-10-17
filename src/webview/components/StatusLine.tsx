@@ -1,11 +1,13 @@
-// The spinner line under the last row while a turn runs: a sparkle and a
-// verb that changes every few seconds, as the Claude Code panel shows. It is
-// not a live region (M25): a polite region here read a new verb out every
+// The working line under the last row while a turn runs: a mark, a trace and
+// a verb that changes every few seconds, as the Claude Code panel shows. It
+// is not a live region (M25): a polite region here read a new verb out every
 // few seconds for as long as the turn ran. The app's one live region says
 // when the turn ends.
 
 import { useEffect, useState } from 'react'
 import { STATUS_VERB_INTERVAL_MS, UI_TEXT } from '../../shared/constants'
+import { HeartbeatTrace } from './HeartbeatTrace'
+import { StatusMark } from './StatusMark'
 
 export function StatusLine() {
   const verbs = Object.values(UI_TEXT.statusVerbs)
@@ -21,10 +23,24 @@ export function StatusLine() {
   }, [verbCount])
   return (
     <li className="status-line">
-      <span className="status-spark" aria-hidden="true">
-        ✦
+      <span className="status-verb">
+        <StatusMark />
+        {/* Every verb sits in the same grid cell and only the current one is
+            visible, so the box is as wide as the longest verb in this
+            language and the trace after it never moves (owner, 2026-10-04). */}
+        <span className="status-verb-text">
+          {verbs.map((verb, verbIndex) =>
+            verbIndex === index ? (
+              <span key={verb}>{verb}</span>
+            ) : (
+              <span key={verb} className="status-verb-sizer" aria-hidden="true">
+                {verb}
+              </span>
+            ),
+          )}
+        </span>
       </span>
-      <span>{verbs[index]}</span>
+      <HeartbeatTrace />
     </li>
   )
 }

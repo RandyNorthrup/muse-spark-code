@@ -17,6 +17,7 @@ import {
   worktreeFolder,
   worktreeRemoveArgs,
 } from '../../core/worktrees'
+import { redactSecrets } from '../../core/redact'
 import { GIT_WORKTREE_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
@@ -27,7 +28,12 @@ export interface WorktreeDeps {
   readonly platform: NodeJS.Platform
   readonly isWorkspaceTrusted: () => boolean
   /** git in `cwd`: its stdout, or a rejection whose message holds git's own words. */
-  readonly runGit: (args: readonly string[], cwd: string, timeoutMs?: number) => Promise<string>
+  readonly runGit: (
+    args: readonly string[],
+    cwd: string,
+    timeoutMs?: number,
+    beforeRun?: () => void,
+  ) => Promise<string>
   readonly pathExists: (fsPath: string) => boolean
   /** An input box; `validate` answers undefined for a good value, else why it is not. */
   readonly askBranchName: (
@@ -40,6 +46,11 @@ export interface WorktreeDeps {
   readonly offerOpen: (message: string) => Promise<boolean>
   /** The folder in a new window. */
   readonly openFolder: (fsPath: string) => Promise<void>
+  /**
+   * Remembers the worktree for the window that opens on it (M71): a
+   * conversation there is a conversation in a worktree.
+   */
+  readonly recordWorktree: (folder: string, branch: string, repositoryRoot: string) => Promise<void>
   readonly showInformation: (message: string) => void
   readonly showWarning: (message: string) => void
   readonly showError: (message: string) => void
@@ -50,6 +61,31 @@ const HEAD = 'HEAD'
 const LINE_BREAK = /\r?\n/
 // execFile's rejection message: "Command failed: git …" then git's stderr.
 const COMMAND_FAILED = 'Command failed:'
+
+/** Current project trust includes the owning activation and held-worktree ceiling. */
+function checkTrust(deps: WorktreeDeps): void {
+  if (!deps.isWorkspaceTrusted()) throw new Error(UI_TEXT.worktreeUntrusted)
+}
+
+async function runCurrentGit(
+  deps: WorktreeDeps,
+  args: readonly string[],
+  root: string,
+  timeoutMs?: number,
+): Promise<string> {
+  checkTrust(deps)
+  const result = await deps.runGit(args, root, timeoutMs, () => {
+    checkTrust(deps)
+  })
+  checkTrust(deps)
+  return result
+}
+
+function canContinue(deps: WorktreeDeps): boolean {
+  if (deps.isWorkspaceTrusted()) return true
+  deps.showWarning(UI_TEXT.worktreeUntrusted)
+  return false
+}
 
 function nativePath(fsPath: string, platform: NodeJS.Platform): string {
   return platform === 'win32' ? path.win32.normalize(fsPath) : fsPath
@@ -62,7 +98,7 @@ function gitMessage(error: unknown): string {
     .split(LINE_BREAK)
     .map((line) => line.trim())
     .filter((line) => line !== '' && !line.startsWith(COMMAND_FAILED))
-  return lines.join(' ') || text
+  return redactSecrets(lines.join(' ') || text)
 }
 
 /** The repository the workspace is in, or undefined after saying why there is none. */
@@ -77,7 +113,7 @@ async function repositoryRoot(deps: WorktreeDeps): Promise<string | undefined> {
     return undefined
   }
   try {
-    const toplevel = await deps.runGit(['rev-parse', '--show-toplevel'], workspaceRoot)
+    const toplevel = await runCurrentGit(deps, ['rev-parse', '--show-toplevel'], workspaceRoot)
     return toplevel.trim()
   } catch (error: unknown) {
     deps.showError(`${UI_TEXT.worktreeNotRepository}: ${gitMessage(error)}`)
@@ -96,13 +132,13 @@ async function branchProblem(
     return UI_TEXT.worktreeBranchEmpty
   }
   try {
-    await deps.runGit(branchCheckArgs(name), root)
+    await runCurrentGit(deps, branchCheckArgs(name), root)
   } catch {
     return UI_TEXT.worktreeBranchInvalid
   }
   try {
     // `show-ref --quiet` exits 0 only when the branch exists.
-    await deps.runGit(branchExistsArgs(name), root)
+    await runCurrentGit(deps, branchExistsArgs(name), root)
     return UI_TEXT.worktreeBranchExists
   } catch {
     return undefined
@@ -111,7 +147,7 @@ async function branchProblem(
 
 async function outputOrEmpty(deps: WorktreeDeps, args: readonly string[], root: string) {
   try {
-    const output = await deps.runGit(args, root)
+    const output = await runCurrentGit(deps, args, root)
     return output.trim()
   } catch {
     return ''
@@ -120,11 +156,13 @@ async function outputOrEmpty(deps: WorktreeDeps, args: readonly string[], root: 
 
 async function pickBase(deps: WorktreeDeps, root: string): Promise<string | undefined> {
   const current = await outputOrEmpty(deps, ['rev-parse', '--abbrev-ref', HEAD], root)
+  if (!canContinue(deps)) return undefined
   const listed = await outputOrEmpty(
     deps,
     ['for-each-ref', '--format=%(refname:short)', 'refs/heads'],
     root,
   )
+  if (!canContinue(deps)) return undefined
   const branches = listed.split(LINE_BREAK).filter((branch) => branch !== '' && branch !== current)
   const items: PickItem[] = [
     {
@@ -137,7 +175,12 @@ async function pickBase(deps: WorktreeDeps, root: string): Promise<string | unde
     },
     ...branches.map((branch) => ({ id: branch, label: branch })),
   ]
-  return await deps.pick(items, UI_TEXT.worktreeBaseTitle, UI_TEXT.worktreeBasePlaceholder)
+  const selected = await deps.pick(
+    items,
+    UI_TEXT.worktreeBaseTitle,
+    UI_TEXT.worktreeBasePlaceholder,
+  )
+  return canContinue(deps) ? selected : undefined
 }
 
 export async function newWorktree(deps: WorktreeDeps): Promise<void> {
@@ -146,7 +189,7 @@ export async function newWorktree(deps: WorktreeDeps): Promise<void> {
     return
   }
   const typed = await deps.askBranchName((value) => branchProblem(deps, root, value))
-  if (typed === undefined) {
+  if (typed === undefined || !canContinue(deps)) {
     return
   }
   const branch = typed.trim()
@@ -160,15 +203,25 @@ export async function newWorktree(deps: WorktreeDeps): Promise<void> {
     return
   }
   try {
-    await deps.runGit(worktreeAddArgs(folder, branch, base), root, GIT_WORKTREE_TIMEOUT_MS)
+    await runCurrentGit(deps, worktreeAddArgs(folder, branch, base), root, GIT_WORKTREE_TIMEOUT_MS)
   } catch (error: unknown) {
     deps.showError(`${UI_TEXT.worktreeAddFailed}: ${gitMessage(error)}`)
     return
   }
   deps.log.info(`git worktree add: ${branch} from ${base} at ${folder}`)
-  if (await deps.offerOpen(fill(UI_TEXT.worktreeCreated, { path: folder }))) {
-    await deps.openFolder(folder)
+  try {
+    await deps.recordWorktree(folder, branch, nativePath(root, deps.platform))
+  } catch (error: unknown) {
+    // The worktree is there either way: it is offered, only without its record.
+    deps.log.warn(`The new worktree was not recorded: ${gitMessage(error)}`)
   }
+  if (
+    !canContinue(deps) ||
+    !(await deps.offerOpen(fill(UI_TEXT.worktreeCreated, { path: folder }))) ||
+    !canContinue(deps)
+  )
+    return
+  await deps.openFolder(folder)
 }
 
 function removalItem(entry: WorktreeEntry): PickItem {
@@ -187,7 +240,7 @@ function removalItem(entry: WorktreeEntry): PickItem {
 /** `git worktree remove`, then with `--force` only after a second, explicit yes. */
 async function didRemoveFolder(deps: WorktreeDeps, root: string, folder: string): Promise<boolean> {
   try {
-    await deps.runGit(worktreeRemoveArgs(folder, false), root, GIT_WORKTREE_TIMEOUT_MS)
+    await runCurrentGit(deps, worktreeRemoveArgs(folder, false), root, GIT_WORKTREE_TIMEOUT_MS)
     return true
   } catch (error: unknown) {
     const message = gitMessage(error)
@@ -201,11 +254,11 @@ async function didRemoveFolder(deps: WorktreeDeps, root: string, folder: string)
     folder,
     UI_TEXT.worktreeDiscardAction,
   )
-  if (!isDiscarding) {
+  if (!isDiscarding || !canContinue(deps)) {
     return false
   }
   try {
-    await deps.runGit(worktreeRemoveArgs(folder, true), root, GIT_WORKTREE_TIMEOUT_MS)
+    await runCurrentGit(deps, worktreeRemoveArgs(folder, true), root, GIT_WORKTREE_TIMEOUT_MS)
     return true
   } catch (error: unknown) {
     deps.showError(`${UI_TEXT.worktreeRemoveFailed}: ${gitMessage(error)}`)
@@ -222,7 +275,7 @@ export async function removeWorktree(deps: WorktreeDeps): Promise<void> {
   try {
     // git prints `C:/…` on Windows; the dialogs show the platform's own form,
     // which git accepts back.
-    const listing = await deps.runGit(['worktree', 'list', '--porcelain'], root)
+    const listing = await runCurrentGit(deps, ['worktree', 'list', '--porcelain'], root)
     entries = parseWorktreeList(listing).map((entry) => ({
       ...entry,
       path: nativePath(entry.path, deps.platform),
@@ -249,7 +302,7 @@ export async function removeWorktree(deps: WorktreeDeps): Promise<void> {
     UI_TEXT.worktreeRemovePlaceholder,
   )
   const entry = removable.find((candidate) => candidate.path === folder)
-  if (folder === undefined || entry === undefined) {
+  if (folder === undefined || entry === undefined || !canContinue(deps)) {
     return
   }
   const branchNote =
@@ -259,7 +312,7 @@ export async function removeWorktree(deps: WorktreeDeps): Promise<void> {
     `${folder}${branchNote}`,
     UI_TEXT.worktreeRemoveAction,
   )
-  if (!isConfirmed || !(await didRemoveFolder(deps, root, folder))) {
+  if (!isConfirmed || !canContinue(deps) || !(await didRemoveFolder(deps, root, folder))) {
     return
   }
   deps.log.info(`git worktree remove: ${folder}`)

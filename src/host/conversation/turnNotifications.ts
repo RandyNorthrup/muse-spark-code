@@ -62,10 +62,12 @@ export function attentionNotice(sessionId: string, event: AgentEvent): Attention
           }
     }
     case 'questionRequested': {
-      return {
-        key: `${sessionId}:question:${event.userInputId}`,
-        message: UI_TEXT.notifyQuestionWaiting,
-      }
+      return event.isReplayed === true
+        ? undefined
+        : {
+            key: `${sessionId}:question:${event.userInputId}`,
+            message: UI_TEXT.notifyQuestionWaiting,
+          }
     }
     default: {
       return undefined
@@ -118,4 +120,9 @@ export class BackgroundNotifier {
     }
     void this.raise(notice.message, reveal)
   }
+}
+
+/** One background reminder per session/turn, through the existing setting/focus rule. */
+export function notifyOpenQuestions(sessionId: string, turnId: string): AttentionNotice {
+  return { key: `${sessionId}:openQuestions:${turnId}`, message: UI_TEXT.notifyOpenQuestions }
 }

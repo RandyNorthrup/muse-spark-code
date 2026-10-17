@@ -1,5 +1,5 @@
 {
-  "source": "VS Code 1.139.0, theme \"Default Light Modern\", read from the workbench by scripts/capture-themes.mjs",
+  "source": "VS Code 1.140.0, theme \"Default Light Modern\", read from the workbench by scripts/capture-themes.mjs",
   "kind": "light",
   "bodyClass": "vscode-light",
   "variables": {
@@ -22,12 +22,15 @@
     "--vscode-disabledForeground": "rgba(97, 97, 97, 0.5)",
     "--vscode-editor-background": "#ffffff",
     "--vscode-editorCursor-foreground": "#000000",
+    "--vscode-editorWarning-foreground": "#bf8803",
     "--vscode-editorWidget-background": "#f8f8f8",
     "--vscode-editorWidget-border": "rgba(59, 59, 59, 0.2)",
     "--vscode-editorWidget-foreground": "#3b3b3b",
     "--vscode-errorForeground": "#f85149",
     "--vscode-focusBorder": "#005fb8",
     "--vscode-foreground": "#3b3b3b",
+    "--vscode-gitDecoration-addedResourceForeground": "#587c0c",
+    "--vscode-gitDecoration-deletedResourceForeground": "#ad0707",
     "--vscode-input-background": "#ffffff",
     "--vscode-input-border": "#cecece",
     "--vscode-input-foreground": "#3b3b3b",
@@ -38,11 +41,7 @@
     "--vscode-list-activeSelectionBackground": "#e8e8e8",
     "--vscode-list-activeSelectionForeground": "#000000",
     "--vscode-list-hoverBackground": "#f2f2f2",
-    "--vscode-menu-background": "#ffffff",
-    "--vscode-menu-border": "#cecece",
-    "--vscode-menu-foreground": "#3b3b3b",
-    "--vscode-menu-selectionBackground": "#005fb8",
-    "--vscode-menu-selectionForeground": "#ffffff",
+    "--vscode-list-warningForeground": "#855f00",
     "--vscode-panel-border": "#e5e5e5",
     "--vscode-progressBar-background": "#005fb8",
     "--vscode-sideBar-background": "#f8f8f8",
@@ -58,8 +57,10 @@
   },
   "unset": [
     "--vscode-editor-font-family",
+    "--vscode-editor-font-size",
     "--vscode-font-family",
     "--vscode-font-size",
+    "--vscode-inputValidation-errorForeground",
     "--vscode-inputValidation-warningForeground"
   ]
 }

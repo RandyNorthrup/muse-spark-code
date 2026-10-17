@@ -1,0 +1,12 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "/home/user/.gemini/tmp/workspace/chats/session-0001.jsonl",
+  "cwd": "/workspace",
+  "hook_event_name": "BeforeTool",
+  "timestamp": "2026-10-05T02:32:49.603Z",
+  "tool_name": "run_shell_command",
+  "tool_input": {
+    "description": "Print hi to standard output",
+    "command": "echo hi"
+  }
+}

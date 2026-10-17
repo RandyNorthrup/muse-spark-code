@@ -5,7 +5,9 @@
 
 import { UI_TEXT } from '../../shared/constants'
 import type { SlashCommand } from '../../shared/slashCommands'
+import { ListBody } from './ListBody'
 import { MenuOption } from './MenuOption'
+import { SLASH_LISTBOX_ID, slashOptionId } from './menuIds'
 
 export interface SlashMenuProps {
   readonly items: readonly SlashCommand[]
@@ -14,15 +16,11 @@ export interface SlashMenuProps {
   readonly onHover: (index: number) => void
 }
 
-export const SLASH_LISTBOX_ID = 'slash-listbox'
-
-export function slashOptionId(index: number): string {
-  return `slash-option-${String(index)}`
-}
-
 export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuProps) {
+  // A long list scrolls: it is a Tab stop of its own, so it scrolls from the
+  // keyboard too (WCAG 2.1.1), and a click on it leaves the focus in the prompt.
   return (
-    <div className="mention-menu slash-menu">
+    <ListBody className="mention-menu slash-menu">
       <div className="palette-group-title" aria-hidden="true">
         {UI_TEXT.groupSlashCommands}
       </div>
@@ -34,6 +32,7 @@ export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuPr
             <MenuOption
               key={item.name}
               id={slashOptionId(index)}
+              tip={item.tip}
               isActive={index === activeIndex}
               onHover={() => {
                 onHover(index)
@@ -52,6 +51,6 @@ export function SlashMenu({ items, activeIndex, onSelect, onHover }: SlashMenuPr
           ))}
         </ul>
       )}
-    </div>
+    </ListBody>
   )
 }

@@ -13,9 +13,22 @@
 // is a file the repository ships and is confined to the workspace like every
 // other workspace read (D24): a link that leads outside it is skipped with a
 // warning, as the file tools refuse it, and the other skills still load.
+//
+// The bundled skills (M89, PLAN.md D68) are a third source, the lowest: the
+// `skills/` folder of the package vendored inside the installed extension,
+// confined to that package, shadowed by a project or personal skill with the
+// same id. Their bodies name `${SKILL_ROOT}` paths, so each reaches the model
+// after one line saying which folder that is.
 
+import type { ContentSource } from '../schedules/provenance'
 import path from 'node:path'
 import {
+  BUNDLED_SKILLS_DIR,
+  BUNDLED_SKILLS_SOURCES_DIR,
+  BUNDLED_SKILLS_VENDOR_SEGMENTS,
+  FIRST_PARTY_SKILLS_DIR,
+  EXTENSION_SKILLS_DIR,
+  MODEL_TEXT,
   PERSONAL_SKILLS_DIR_SEGMENTS,
   PROJECT_SKILLS_DIR_SEGMENTS,
   SKILL_FILE_MAX_BYTES,
@@ -23,11 +36,19 @@ import {
   SKILL_ID_PATTERN,
   type SKILL_SOURCES,
 } from '../../shared/constants'
-import { type ContextIo, type ContextText, readContextText } from './contextFiles'
+import type { ContextIo } from './contextFiles'
+import {
+  type CatalogKind,
+  type CatalogParse,
+  type CatalogRoot,
+  loadCatalogFiles,
+  splitFrontMatter,
+} from './catalogFiles'
 
 export type SkillSource = (typeof SKILL_SOURCES)[number]
 
 export interface SkillDefinition {
+  readonly contentSource?: Extract<ContentSource, { kind: 'skill' }>
   /** The directory name: the selector a `/id` invocation and `read_skill` use. */
   readonly id: string
   readonly name: string
@@ -37,17 +58,25 @@ export interface SkillDefinition {
   /** Shown in the palette unless the front matter says `user-invocable: false`. */
   readonly isUserInvocable: boolean
   readonly argumentHint: string | undefined
+  /** A bundled skill's package folder, its `SKILL_ROOT` (M89); undefined for the others. */
+  readonly packageRoot?: string
 }
 
-export interface SkillRoot {
-  /** Absolute directory holding `<id>/SKILL.md` entries. */
-  readonly directory: string
-  readonly source: SkillSource
-  /**
-   * The workspace root for project skills: a skill file whose canonical
-   * path leaves it is skipped. Undefined for the personal root.
-   */
-  readonly confineTo: string | undefined
+export interface SkillRoot extends CatalogRoot<SkillSource> {
+  /** The package folder the root's skills name as `SKILL_ROOT` (the bundled root, M89). */
+  readonly packageRoot?: string
+}
+
+/**
+ * The bundled source as the host hands it in (M89, PLAN.md D68): the
+ * vendored package inside the installed extension, and its setting, read at
+ * each load so turning it off empties the source at the next refresh.
+ */
+export interface BundledSkillsSource {
+  readonly packageRoot: string
+  /** The extension's own skills folder (M92, PLAN.md D71). */
+  readonly firstPartyRoot: string
+  readonly isEnabled: () => boolean
 }
 
 export interface SkillsLoad {
@@ -67,46 +96,26 @@ export type SkillFileParse =
   | { readonly ok: true; readonly skill: ParsedSkillFile }
   | { readonly ok: false; readonly reason: string }
 
-const FRONT_MATTER_FENCE = '---'
-const LINE_BREAK = /\r?\n/
-const KEY_VALUE = /^([A-Za-z][A-Za-z0-9_-]*):\s*(.*)$/
-const QUOTE_PAIRS = [
-  ['"', '"'],
-  ["'", "'"],
-] as const
 const FALSE = 'false'
 const NAME_KEY = 'name'
 const DESCRIPTION_KEY = 'description'
 const USER_INVOCABLE_KEY = 'user-invocable'
 const ARGUMENT_HINT_KEY = 'argument-hint'
 
-function unquote(value: string): string {
-  const trimmed = value.trim()
-  for (const [open, close] of QUOTE_PAIRS) {
-    if (trimmed.length >= 2 && trimmed.startsWith(open) && trimmed.endsWith(close)) {
-      return trimmed.slice(1, -1)
-    }
-  }
-  return trimmed
+const SKILL_CATALOG: CatalogKind = {
+  kind: 'skill',
+  fileName: SKILL_FILE_NAME,
+  maxBytes: SKILL_FILE_MAX_BYTES,
+  idPattern: SKILL_ID_PATTERN,
 }
 
 /** Splits a SKILL.md into its front matter fields and body. */
 export function parseSkillFile(text: string): SkillFileParse {
-  const lines = text.split(LINE_BREAK)
-  if (lines[0]?.trim() !== FRONT_MATTER_FENCE) {
-    return { ok: false, reason: 'front matter is missing' }
+  const split = splitFrontMatter(text)
+  if (!split.ok) {
+    return split
   }
-  const end = lines.findIndex((line, index) => index > 0 && line.trim() === FRONT_MATTER_FENCE)
-  if (end === -1) {
-    return { ok: false, reason: 'front matter is not closed' }
-  }
-  const fields = new Map<string, string>()
-  for (const line of lines.slice(1, end)) {
-    const match = KEY_VALUE.exec(line)
-    if (match?.[1] !== undefined && match[2] !== undefined) {
-      fields.set(match[1], unquote(match[2]))
-    }
-  }
+  const { fields } = split
   const name = fields.get(NAME_KEY)
   if (name === undefined || name === '') {
     return { ok: false, reason: 'front matter has no name' }
@@ -123,10 +132,7 @@ export function parseSkillFile(text: string): SkillFileParse {
       description,
       isUserInvocable: fields.get(USER_INVOCABLE_KEY)?.toLowerCase() !== FALSE,
       argumentHint: argumentHint === '' ? undefined : argumentHint,
-      body: lines
-        .slice(end + 1)
-        .join('\n')
-        .trim(),
+      body: split.body,
     },
   }
 }
@@ -153,80 +159,57 @@ export function personalSkillsRoot(input: PersonalSkillsRootInput): string {
   return p.join(configHome, ...PERSONAL_SKILLS_DIR_SEGMENTS)
 }
 
+/** The package vendored inside the installed extension (M89): `<extension>/vendor/high-quality-projects-skill`. */
+export function bundledSkillsPackageRoot(extensionRoot: string, platform: NodeJS.Platform): string {
+  return pathModule(platform).join(extensionRoot, ...BUNDLED_SKILLS_VENDOR_SEGMENTS)
+}
+
+/** The bundled package's skill root: its `skills/` folder (M89). */
+export function bundledSkillsRoot(packageRoot: string, platform: NodeJS.Platform): string {
+  return pathModule(platform).join(packageRoot, BUNDLED_SKILLS_DIR)
+}
+
+/** The extension's own skills folder (M92, PLAN.md D71): `<extension>/first-party-skills`. */
+export function firstPartySkillsRoot(extensionRoot: string, platform: NodeJS.Platform): string {
+  return pathModule(platform).join(extensionRoot, FIRST_PARTY_SKILLS_DIR)
+}
+
+/** The extension's own skill root (M97): `<extension>/skills`, beside the vendored package. */
+export function extensionSkillsRoot(packageRoot: string, platform: NodeJS.Platform): string {
+  const p = pathModule(platform)
+  return p.join(p.dirname(p.dirname(packageRoot)), EXTENSION_SKILLS_DIR)
+}
+
+/**
+ * Where the Muse Code install keeps its copy of the package (M89):
+ * `skill-sources`, beside the managed personal skill root, in the config home
+ * that root resolves to.
+ */
+export function bundledSkillSourcesRoot(input: PersonalSkillsRootInput): string {
+  const p = pathModule(input.platform)
+  return p.join(p.dirname(personalSkillsRoot(input)), BUNDLED_SKILLS_SOURCES_DIR)
+}
+
+/**
+ * A skill's body as the model reads it (`read_skill`, a typed `/id`): a
+ * bundled one after the line naming its package root (M89, PLAN.md D68).
+ */
+export function skillBodyForModel(skill: SkillDefinition): string {
+  return skill.packageRoot === undefined
+    ? skill.body
+    : `${MODEL_TEXT.bundledSkillRoot} ${skill.packageRoot}\n\n${skill.body}`
+}
+
 export interface SkillsLoaderDeps {
   readonly io: ContextIo
   readonly platform: NodeJS.Platform
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
-/** One skill file; a read that throws (a link loop, permissions) is a refusal of that skill only. */
-async function readSkillFile(
-  deps: SkillsLoaderDeps,
-  file: string,
-  confineTo: string | undefined,
-): Promise<ContextText | undefined> {
-  try {
-    return await readContextText(deps, file, confineTo)
-  } catch (error: unknown) {
-    return { ok: false, reason: `could not be read: ${describe(error)}` }
-  }
-}
-
-async function loadRoot(
-  deps: SkillsLoaderDeps,
-  root: SkillRoot,
-  seen: Map<string, SkillSource>,
-  skills: SkillDefinition[],
-  warnings: string[],
-): Promise<void> {
-  const p = pathModule(deps.platform)
-  const entries = await deps.io.listDirectory(root.directory)
-  const ids = entries.toSorted((a, b) => a.localeCompare(b, 'en'))
-  for (const id of ids) {
-    const label = `${root.source} skill ${id}`
-    if (!SKILL_ID_PATTERN.test(id)) {
-      warnings.push(`${label} skipped: the directory name is not a valid skill id`)
-      continue
-    }
-    const shadowedBy = seen.get(id)
-    if (shadowedBy !== undefined) {
-      warnings.push(`${label} skipped: the ${shadowedBy} skill with the same id takes precedence`)
-      continue
-    }
-    const file = p.join(root.directory, id, SKILL_FILE_NAME)
-    const read = await readSkillFile(deps, file, root.confineTo)
-    if (read === undefined) {
-      warnings.push(`${label} skipped: ${SKILL_FILE_NAME} is missing`)
-      continue
-    }
-    if (!read.ok) {
-      warnings.push(`${label} skipped: ${SKILL_FILE_NAME} ${read.reason}`)
-      continue
-    }
-    const { text } = read
-    const bytes = Buffer.byteLength(text)
-    if (bytes > SKILL_FILE_MAX_BYTES) {
-      warnings.push(
-        `${label} skipped: ${SKILL_FILE_NAME} is ${String(bytes)} bytes, over the ${String(SKILL_FILE_MAX_BYTES)} byte limit`,
-      )
-      continue
-    }
-    const parsed = parseSkillFile(text)
-    if (!parsed.ok) {
-      warnings.push(`${label} skipped: ${parsed.reason}`)
-      continue
-    }
-    if (parsed.skill.name !== id) {
-      warnings.push(
-        `${label}: front matter name ${parsed.skill.name} differs from the directory; the directory name is the selector`,
-      )
-    }
-    seen.set(id, root.source)
-    skills.push({ id, source: root.source, ...parsed.skill })
-  }
+function parseCatalogFile(text: string): CatalogParse<ParsedSkillFile> {
+  const parsed = parseSkillFile(text)
+  return parsed.ok
+    ? { ok: true, name: parsed.skill.name, entry: parsed.skill }
+    : { ok: false, reason: parsed.reason }
 }
 
 /** Every valid skill under the roots, in root order; ids sorted within a root. */
@@ -234,11 +217,33 @@ export async function loadSkills(
   deps: SkillsLoaderDeps,
   roots: readonly SkillRoot[],
 ): Promise<SkillsLoad> {
-  const seen = new Map<string, SkillSource>()
-  const skills: SkillDefinition[] = []
-  const warnings: string[] = []
-  for (const root of roots) {
-    await loadRoot(deps, root, seen, skills, warnings)
+  const load = await loadCatalogFiles(deps, roots, SKILL_CATALOG, parseCatalogFile)
+  // A source may read two roots (the vendored package and the first-party
+  // folder are both `bundled`, M92), so an entry's package travels with its
+  // root directory, not its source.
+  const packageRoots = new Map(
+    roots.flatMap((root) =>
+      root.packageRoot === undefined ? [] : [[root.directory, root.packageRoot]],
+    ),
+  )
+  return {
+    skills: load.entries.map((entry) => {
+      const packageRoot = packageRoots.get(entry.directory)
+      return {
+        id: entry.id,
+        source: entry.source,
+        ...entry.entry,
+        ...(entry.contentSource !== undefined && {
+          contentSource: {
+            ...entry.contentSource,
+            kind: 'skill',
+            id: entry.id,
+            version: entry.contentSource.contentHash,
+          },
+        }),
+        ...(packageRoot !== undefined && { packageRoot }),
+      }
+    }),
+    warnings: load.warnings,
   }
-  return { skills, warnings }
 }

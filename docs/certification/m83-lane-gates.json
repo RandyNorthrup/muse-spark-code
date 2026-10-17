@@ -1,0 +1,633 @@
+{
+  "date": "2026-10-01T06:15:31.991Z",
+  "sourceCommit": "d4ad53a326e768a47f72d83e4b06875be8e6b832",
+  "releaseCandidate": "8d59fb5c58377439cfc67f71a963353c97aa3133",
+  "previousReceiptCommit": "fd836d63",
+  "environment": {
+    "platform": "win32",
+    "node": "v24.20.0",
+    "npm": "11.19.0",
+    "powershell": "7.6.6",
+    "git": "2.52.0.windows.1",
+    "vitest": "5.0.1"
+  },
+  "gates": [
+    {
+      "name": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exitCode": 0,
+      "log": "temp/m83-lane/lazy-ui-typecheck.log",
+      "logSha256": "1e2d94b0a2132315fa450d5355814f4519f9f4c1c545d9853de91a1ae58fb76a"
+    },
+    {
+      "name": "eslint",
+      "command": [
+        "npx",
+        "--no-install",
+        "eslint",
+        "--max-warnings=0",
+        "eslint.config.mjs",
+        "scripts/build.mjs",
+        "scripts/check-bundle-size.mjs",
+        "scripts/check-bundle-split.mjs",
+        "scripts/check-host-globals.mjs",
+        "scripts/lib/lazyBundleTable.mjs",
+        "scripts/third-party-notices.mjs",
+        "src/core/export/transcriptMarkdown.ts",
+        "src/core/import/agentImport.ts",
+        "src/core/import/importConvert.ts",
+        "src/core/import/importMask.ts",
+        "src/extension.ts",
+        "src/host/agentImportBundle.ts",
+        "src/host/agentImportEntry.ts",
+        "src/host/agentImportHost.ts",
+        "src/host/canonicalPath.ts",
+        "src/host/cliFeatures.ts",
+        "src/host/commands/agentImportCommands.ts",
+        "src/host/conversation/conversationController.ts",
+        "src/host/importIo.ts",
+        "src/host/lazyBundle.ts",
+        "src/shared/constants.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/l10n/enLazy.ts",
+        "src/shared/palette.ts",
+        "src/shared/protocol.ts",
+        "src/webview/App.tsx",
+        "test/unit/agentImport.test.ts",
+        "test/unit/agentImportBundle.test.ts",
+        "test/unit/agentImportCommands.test.ts",
+        "test/unit/agentImportWorkspaceEdits.test.ts",
+        "test/unit/canonicalPath.test.ts",
+        "test/unit/checkpointNativeCommands.test.ts",
+        "test/unit/cliFeatures.test.ts",
+        "test/unit/helpers/agentImportDeps.ts",
+        "test/unit/helpers/memoryImportIo.ts",
+        "test/unit/helpers/syntheticTokens.ts",
+        "test/unit/importConvert.test.ts",
+        "test/unit/importIo.test.ts",
+        "test/unit/importMask.test.ts",
+        "test/unit/paletteRegistry.test.ts"
+      ],
+      "exitCode": 0,
+      "log": "temp/m83-lane/closure-eslint.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "prettier",
+      "command": [
+        "npx",
+        "--no-install",
+        "prettier",
+        "--check",
+        ".github/workflows/build.yml",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "SECURITY.md",
+        "docs/PRIVACY.md",
+        "docs/certification/README.md",
+        "docs/certification/m83-lane-drills.json",
+        "docs/certification/m83-lane-gates.json",
+        "docs/certification/m83.md",
+        "docs/ide-compatibility/host-api.md",
+        "eslint.config.mjs",
+        "knip.jsonc",
+        "l10n/ui.cs.json",
+        "l10n/ui.de.json",
+        "l10n/ui.es.json",
+        "l10n/ui.fr.json",
+        "l10n/ui.hu.json",
+        "l10n/ui.it.json",
+        "l10n/ui.ja.json",
+        "l10n/ui.ko.json",
+        "l10n/ui.pl.json",
+        "l10n/ui.pt-br.json",
+        "l10n/ui.ru.json",
+        "l10n/ui.tr.json",
+        "l10n/ui.zh-cn.json",
+        "l10n/ui.zh-tw.json",
+        "l10n/untranslated.json",
+        "package-lock.json",
+        "package.json",
+        "package.nls.cs.json",
+        "package.nls.de.json",
+        "package.nls.es.json",
+        "package.nls.fr.json",
+        "package.nls.hu.json",
+        "package.nls.it.json",
+        "package.nls.ja.json",
+        "package.nls.json",
+        "package.nls.ko.json",
+        "package.nls.pl.json",
+        "package.nls.pt-br.json",
+        "package.nls.ru.json",
+        "package.nls.tr.json",
+        "package.nls.zh-cn.json",
+        "package.nls.zh-tw.json",
+        "scripts/build.mjs",
+        "scripts/check-bundle-size.mjs",
+        "scripts/check-bundle-split.mjs",
+        "scripts/check-host-globals.mjs",
+        "scripts/lib/lazyBundleTable.d.mts",
+        "scripts/lib/lazyBundleTable.mjs",
+        "scripts/third-party-notices.mjs",
+        "src/core/export/transcriptMarkdown.ts",
+        "src/core/import/agentImport.ts",
+        "src/core/import/importConvert.ts",
+        "src/core/import/importMask.ts",
+        "src/extension.ts",
+        "src/host/agentImportBundle.ts",
+        "src/host/agentImportEntry.ts",
+        "src/host/agentImportHost.ts",
+        "src/host/canonicalPath.ts",
+        "src/host/cliFeatures.ts",
+        "src/host/commands/agentImportCommands.ts",
+        "src/host/conversation/conversationController.ts",
+        "src/host/importIo.ts",
+        "src/host/lazyBundle.ts",
+        "src/shared/constants.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/l10n/enLazy.ts",
+        "src/shared/palette.ts",
+        "src/shared/protocol.ts",
+        "src/webview/App.tsx",
+        "test/unit/agentImport.test.ts",
+        "test/unit/agentImportBundle.test.ts",
+        "test/unit/agentImportCommands.test.ts",
+        "test/unit/agentImportWorkspaceEdits.test.ts",
+        "test/unit/canonicalPath.test.ts",
+        "test/unit/checkpointNativeCommands.test.ts",
+        "test/unit/cliFeatures.test.ts",
+        "test/unit/helpers/agentImportDeps.ts",
+        "test/unit/helpers/memoryImportIo.ts",
+        "test/unit/helpers/syntheticTokens.ts",
+        "test/unit/importConvert.test.ts",
+        "test/unit/importIo.test.ts",
+        "test/unit/importMask.test.ts",
+        "test/unit/paletteRegistry.test.ts"
+      ],
+      "exitCode": 0,
+      "log": "temp/m83-lane/closure-format.log",
+      "logSha256": "f20510a9da4717c51c4cffee6d0dd88d6c9a723d0a83711d01216f5b48961283"
+    },
+    {
+      "name": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exitCode": 0,
+      "log": "temp/m83-lane/closure-deadcode.log",
+      "logSha256": "32d03c4959c7106fcd39a95a5f71d40ce10802b5b3028e72437f21f382abe59e"
+    },
+    {
+      "name": "duplication",
+      "command": ["npx", "--no-install", "jscpd"],
+      "exitCode": 0,
+      "log": "temp/m83-lane/lazy-ui-duplication.log",
+      "logSha256": "d9d78248d77d88391e5bc3929cc4c5347370bbe8e55fc2a41c42f56f5e6be713"
+    },
+    {
+      "name": "localization",
+      "command": ["npm", "run", "check:l10n"],
+      "exitCode": 0,
+      "log": "temp/m83-lane/closure-l10n.log",
+      "logSha256": "f0911f629691bd67158fff612de25088c3b8d762a7a9560fb309e170f9c6fbfd"
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 0,
+      "log": "temp/m83-lane/closure-host-api.log",
+      "logSha256": "221d3440794cadfb7ab2a872a3a1056a5c47bfb40be9f7ee9b89c7d2b8434dbb"
+    },
+    {
+      "name": "production-build",
+      "command": ["npm", "run", "build"],
+      "exitCode": 0,
+      "log": "temp/m83-lane/closure-build.log",
+      "logSha256": "8a6e367a9f66d1a1d71e15b0e60bea12bb4c38e60f9d7e9e74593eca32890bd7"
+    },
+    {
+      "name": "vitest",
+      "command": [
+        "npx",
+        "--no-install",
+        "vitest",
+        "run",
+        "test/unit/agentImport.test.ts",
+        "test/unit/agentImportCommands.test.ts",
+        "test/unit/importIo.test.ts",
+        "test/unit/importConvert.test.ts",
+        "test/unit/importMask.test.ts",
+        "test/unit/agentImportWorkspaceEdits.test.ts",
+        "test/unit/agentImportBundle.test.ts",
+        "test/unit/cliFeatures.test.ts",
+        "test/unit/paletteRegistry.test.ts",
+        "test/unit/canonicalPath.test.ts",
+        "test/unit/checkpointNativeCommands.test.ts"
+      ],
+      "exitCode": 0,
+      "log": "temp/m83-lane/closure-vitest.log",
+      "logSha256": "38f12746da194c0758aa6361f4478dca8578e33a404d7541dc070e46ec03d8a8"
+    }
+  ],
+  "testSummary": {
+    "filesPassed": 11,
+    "testsPassed": 219,
+    "existingUnavailableFileSymlinkCases": 3
+  },
+  "drills": {
+    "passed": 23,
+    "record": "docs/certification/m83-lane-drills.json",
+    "sha256": "e4ded88fbd96fc452a7761c3ea2b670e8efc81590771290cdb2d532ef3da3e3e"
+  },
+  "buildBytes": {
+    "extension.js": 612881,
+    "modelApi.js": 334366,
+    "checkpointStore.js": 121537,
+    "agentImport.js": 104974
+  },
+  "fingerprints": [
+    {
+      "path": ".github/workflows/build.yml",
+      "sha256": "e7b2f36c78fb9d96e4b91cd7a99d64e04cf952d680d3f233a7053e2daa3c9d2b"
+    },
+    {
+      "path": ".jscpd.json",
+      "sha256": "241a93303e9659051c87c3fe12fad6e3d8a23a39a6f5f4bb6439b2728999b141"
+    },
+    {
+      "path": ".vscodeignore",
+      "sha256": "972894b9a6a05bd0485ce4f0641792d05cea71849f2b75460ed6cd8c2a4d4341"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "14b7ff2a849981e0d405e3dd74ca62a06d761ae9c2d77ccca41b54bfc0e84081"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha256": "754d33d0ff87c7b51b80849d816a694e6cb1ab4acddb4e0b6c8528aa719668f8"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "sha256": "dad8d33ce36bb424ce5346899e536ac6ecc4ab138ea7594b9c52e5de5860030f"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.txt",
+      "sha256": "0383aa9316ed16ec4c6f8ab5056b4a1833b167e711a89a941a91709f77eca8ee"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "sha256": "aaab551ffa79dc35de7628c986f143468689310d6299f6e41e14b18994897101"
+    },
+    {
+      "path": "knip.jsonc",
+      "sha256": "363c56ebb366951bd7841ecbf2d1ce2fe650d033b0610ba2c02b6f3407eeb5ec"
+    },
+    {
+      "path": "l10n/ui.cs.json",
+      "sha256": "825ccf790e5281c726d47d0dd83faa855c3f13627ea6b2dad95c24d15258baea"
+    },
+    {
+      "path": "l10n/ui.de.json",
+      "sha256": "e7f7921495e53c419790d869ac59cb5f8600abeb0470afcb6a9550cd8a94b0d1"
+    },
+    {
+      "path": "l10n/ui.es.json",
+      "sha256": "b29ec8899ef0e6df7a3da655d9a52e22df55875380439345879a78e60baad5e8"
+    },
+    {
+      "path": "l10n/ui.fr.json",
+      "sha256": "125ab89ee5b8e52ce57648a4671f46369fb095544d63dd80dbedf8a3f7f6135e"
+    },
+    {
+      "path": "l10n/ui.hu.json",
+      "sha256": "b65504a42fff5aa24ac92c5848bfd3ad27c3dcc385c9079f0615707170d0bc65"
+    },
+    {
+      "path": "l10n/ui.it.json",
+      "sha256": "1d37fcc169042fd21b2f69f0a3be058d3ec83ae69f989fbc26f6a5cbf48a4791"
+    },
+    {
+      "path": "l10n/ui.ja.json",
+      "sha256": "d4c0c9938c669099ff6d5e3dbe25a73720147899c2f23ac81a88c384f513203b"
+    },
+    {
+      "path": "l10n/ui.ko.json",
+      "sha256": "e1bc1f42a2932fd1a33a05dcd0a7cb31023fa6de20312ab5f82e05beb7854efa"
+    },
+    {
+      "path": "l10n/ui.pl.json",
+      "sha256": "96b52a67ff7e49ffe89eb4ffeb43996415e37f4b9157c55879f6fe5f986cd65a"
+    },
+    {
+      "path": "l10n/ui.pt-br.json",
+      "sha256": "b1ecf7c7c9b6f193dda962bd7bdd0ecd99f89ae01e70c05a9bc2e631edfbad57"
+    },
+    {
+      "path": "l10n/ui.ru.json",
+      "sha256": "508d1bcedd4bd577c690e143da3d5d0677c5d566f89460cc75659c187f31f9b4"
+    },
+    {
+      "path": "l10n/ui.tr.json",
+      "sha256": "e79370c0e3cafd0270090ce2896557083532814f0f7643767cc9730380b91f14"
+    },
+    {
+      "path": "l10n/ui.zh-cn.json",
+      "sha256": "4b6388f3fd0c959a16faeb69a95750cb955d8202a8f89f3c0edcc03ebe42a60e"
+    },
+    {
+      "path": "l10n/ui.zh-tw.json",
+      "sha256": "dc8c83fb6ebadcf16358c63f31538e9440b10fb62034b8c6e5a064a5e3c0afb2"
+    },
+    {
+      "path": "l10n/untranslated.json",
+      "sha256": "d4f459f4b44a3e008384fef5fc6047d730a012c3b7b94863f4cfbfc280995c22"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "48fbb7ee7862a61ba010e70ce9ab0447825fbd817b776eb00a7d8d387bff8261"
+    },
+    {
+      "path": "package.json",
+      "sha256": "bee08160dc64a37d26a4652d5a0dfda35a3457cae93bbdf16f3ec0e30aed99fc"
+    },
+    {
+      "path": "package.nls.cs.json",
+      "sha256": "75af3b2adb1abb4ef7d6e1314384bf7f5f2b49847fc56207eb29feaf95d0d43d"
+    },
+    {
+      "path": "package.nls.de.json",
+      "sha256": "099ab77079aa51d2ff2eb4cebb621de9958f9c687c40c6f3d1888c9ff40554ac"
+    },
+    {
+      "path": "package.nls.es.json",
+      "sha256": "70fbddb81ab06ad9473ab62efd54c0a8e62124a06a9512b4c1b4fe34d9360ad2"
+    },
+    {
+      "path": "package.nls.fr.json",
+      "sha256": "86d231dde362dfe3d1dfc77632aa97a45e28ee8a87ccb889bb97adf9f0c1e047"
+    },
+    {
+      "path": "package.nls.hu.json",
+      "sha256": "f657c941390ab30e9cfbaf03471c4e91be3b222df682e5c596dbcd78c876bb39"
+    },
+    {
+      "path": "package.nls.it.json",
+      "sha256": "41c1d689f708015aceff94c087baa0b27c9e50591d7aa501116007d52595c6a6"
+    },
+    {
+      "path": "package.nls.ja.json",
+      "sha256": "eaf7e8bb53e98f8c9a6b8e77c25a44e35211d2097f8ff90f82962ad151daee64"
+    },
+    {
+      "path": "package.nls.json",
+      "sha256": "74d94f4c78292621e292fc212283837885c2745a9ed5eb83df42715e5cd2cd02"
+    },
+    {
+      "path": "package.nls.ko.json",
+      "sha256": "2b03e78c6c2a03e9dcf23bf134b79241ec9d7b3959c9e750a1c4e9c310e5e622"
+    },
+    {
+      "path": "package.nls.pl.json",
+      "sha256": "3e8f6b84be354e666f928334cc94bc80d64734eea98a1367e02e7408c88fc90e"
+    },
+    {
+      "path": "package.nls.pt-br.json",
+      "sha256": "9feccea78e323e239a7072cd56909d96b4ed03bdc7b2180039f160f3a43209df"
+    },
+    {
+      "path": "package.nls.ru.json",
+      "sha256": "a7e5c0382ab6ccfc3a300779b51c7f7faff8e22bd0fe233c243b8fc9559957b4"
+    },
+    {
+      "path": "package.nls.tr.json",
+      "sha256": "a831887543cbf26c21abd9c31e7887862f1f31cdc68c461a291261670403c744"
+    },
+    {
+      "path": "package.nls.zh-cn.json",
+      "sha256": "ac0962d21d4db219261bf88a13298a48f6ce0f8f4d89683cf763d6cb42dce29c"
+    },
+    {
+      "path": "package.nls.zh-tw.json",
+      "sha256": "377ce4f36ea217d57737d7a39032bb9068aed98ffd3d5400cb723c40b533fc96"
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "0c7db9bf5bc44557dbb9c53e4fe6ed15af6c2093a981b55c37100686ab57a037"
+    },
+    {
+      "path": "scripts/check-bundle-size.mjs",
+      "sha256": "f3d142e771f49ab3607823944ae34a1054370c21509dd6b278eebfc8d1f05b5d"
+    },
+    {
+      "path": "scripts/check-bundle-split.mjs",
+      "sha256": "c4fe25e407db860f5c2c6ce0d4dfed1dd25baf72d12bed92d1cc6dbdc344d10c"
+    },
+    {
+      "path": "scripts/check-host-api.mjs",
+      "sha256": "6e206eb781b07ef04fc132cf4003e50771578842c30d4540afa017f87c92ead8"
+    },
+    {
+      "path": "scripts/check-host-globals.mjs",
+      "sha256": "62f07da67326cfe6678b5d40241f936faeb40e8b3d55872a39d01328a4adb3a1"
+    },
+    {
+      "path": "scripts/check-l10n.mjs",
+      "sha256": "6ca614b6c440679927b4af951be9f68710e9570e37920a9e204ef1e1e8457b82"
+    },
+    {
+      "path": "scripts/lib/lazyBundleTable.d.mts",
+      "sha256": "af9bd02ae5e2e380772c3a3815b85afb2fe3dfc9de8f021c792c369c39da7097"
+    },
+    {
+      "path": "scripts/lib/lazyBundleTable.mjs",
+      "sha256": "8f9146e0a4dc6f29c1c3003683bffea8733856f09d2e57f09649c4d0fb777e78"
+    },
+    {
+      "path": "scripts/third-party-notices.mjs",
+      "sha256": "68de8eb8be7fdcaaa982172bcb40ea9027028d2622dc28a55b94915e6dc28531"
+    },
+    {
+      "path": "src/core/export/transcriptMarkdown.ts",
+      "sha256": "4f8bf04743edf11981b166bfe906a21bc3c64888ad640eb748679463ab8d7998"
+    },
+    {
+      "path": "src/core/import/agentImport.ts",
+      "sha256": "e58abb6968d71e70e85ad5f34ecfa175ea7a98e6b45cea4862cea9542eef3512"
+    },
+    {
+      "path": "src/core/import/importConvert.ts",
+      "sha256": "1a5c70e2948cc9ca8faf02da7e1278785f5bb1ebe81f4ae1418d9b1ce0310cc1"
+    },
+    {
+      "path": "src/core/import/importMask.ts",
+      "sha256": "c80c207c0bed04bacc5c4fa83f1966f6eee81cec9cf4fb2a85dd1d22f5e8169b"
+    },
+    {
+      "path": "src/extension.ts",
+      "sha256": "109a4b04118918e6119fa165e8ad15e19135cfbf7efac88f071af61c028095f2"
+    },
+    {
+      "path": "src/host/agentImportBundle.ts",
+      "sha256": "e27a29a9f62d721396dff230acd13fa809f792831b0492a0f92aaa9ea065d590"
+    },
+    {
+      "path": "src/host/agentImportEntry.ts",
+      "sha256": "a9ca8a8e9ab244953adf353d7411668db1fed121335794a99e52d57ff0aede86"
+    },
+    {
+      "path": "src/host/agentImportHost.ts",
+      "sha256": "b172f903f5d0288849c10696575c2021c79fae56800167650fb9b1fa4d1a0ee9"
+    },
+    {
+      "path": "src/host/canonicalPath.ts",
+      "sha256": "d78aeae478ae26f0fb7ee595a0e5041f9e71b3f059286ddebd5b1a907f57d42e"
+    },
+    {
+      "path": "src/host/checkpoints/checkpointStore.ts",
+      "sha256": "9f56a40d898f8e8ae1ca8d01d33543ef9ae247d47d449baac22885d6fcc56f7b"
+    },
+    {
+      "path": "src/host/checkpoints/shadowGit.ts",
+      "sha256": "dc4f8a03c1e5a96b621fd353073620d07bc4a483e48f7b732af90b2ff34d5de3"
+    },
+    {
+      "path": "src/host/cliFeatures.ts",
+      "sha256": "0c5617c1b52d951efda23f64e8100cd369e48ef6560e889cd1ed8068084e3401"
+    },
+    {
+      "path": "src/host/commands/agentImportCommands.ts",
+      "sha256": "66df40f769bc50d9bd220cb591eeac3d58007a9ff3e7badb57242d7fcaacba5a"
+    },
+    {
+      "path": "src/host/conversation/conversationController.ts",
+      "sha256": "5c496be99bf9177cc65aabf0a3e5ec5a7d788e5d807ffc4057818fedd882e9f5"
+    },
+    {
+      "path": "src/host/importIo.ts",
+      "sha256": "231bf15dfc40408639de6f5034bdde71f29dbbed68e8441be8247868898ec3ef"
+    },
+    {
+      "path": "src/host/lazyBundle.ts",
+      "sha256": "abf34fbcda129bd471b5f6fe46766810e24841e6313f5f1ec3c430785acdf68b"
+    },
+    {
+      "path": "src/host/popups.ts",
+      "sha256": "31c176ab87bc4b4b1b1caa763782924da1009013fe8c1ddc9789ce9f4ca73603"
+    },
+    {
+      "path": "src/shared/constants.ts",
+      "sha256": "1babb2da6aece9e25ac841e175e4738b2567ca8dca571e7d003755c0e2ee1391"
+    },
+    {
+      "path": "src/shared/l10n/en.ts",
+      "sha256": "b9074481c081e39b3bd10c9e01eec197a5110a7c8b87b5da838eec9638094c36"
+    },
+    {
+      "path": "src/shared/l10n/enLazy.ts",
+      "sha256": "7123fdeff10db5edf8967a86715cb493ba24e95855c086a292986781d70d930a"
+    },
+    {
+      "path": "src/shared/l10n/text.ts",
+      "sha256": "d28576bfd1d11385b4076c95b530d65368149d5b0a33496763ffb5a4846dc77c"
+    },
+    {
+      "path": "src/shared/palette.ts",
+      "sha256": "1398b2c6bff7962949975ffebec507c22df3b2dee93346b6ff70276dd44c3e2b"
+    },
+    {
+      "path": "src/shared/protocol.ts",
+      "sha256": "af607b7288f63d4003ddf77ccfa26b0fa19790c3c13165e6f7f75f2c4b098e0f"
+    },
+    {
+      "path": "src/webview/App.tsx",
+      "sha256": "890c6e4643a1be2ad59ba3a60f2ccb1f513caa279175282a2290e931f1042382"
+    },
+    {
+      "path": "src/webview/tsconfig.json",
+      "sha256": "44b81d4139ad05c099d70f92f54b29a62f84032551f4e02adc519e19384e9ecf"
+    },
+    {
+      "path": "test/unit/agentImport.test.ts",
+      "sha256": "60d94bd23df8ac01b73be9afe3a62942660b663e99de37134242832900540bd5"
+    },
+    {
+      "path": "test/unit/agentImportBundle.test.ts",
+      "sha256": "718f77fe20a9da247bbe5a19519628349261762e180c82a72fbf5d2bd27a76c0"
+    },
+    {
+      "path": "test/unit/agentImportCommands.test.ts",
+      "sha256": "cbc62e987af775c9c5aceb0c0b761260ba89681d82aeebffa9dddb349f865cdb"
+    },
+    {
+      "path": "test/unit/agentImportWorkspaceEdits.test.ts",
+      "sha256": "68753dffedb5a3b0b2c22356c63e68ccfdec650cabc2b9fd2704625165887d10"
+    },
+    {
+      "path": "test/unit/canonicalPath.test.ts",
+      "sha256": "7a98d34ffa8e2f6877f39cc7ae2db2d204b2fb0a99fc86273f5c99e83b1e5f0b"
+    },
+    {
+      "path": "test/unit/checkpointNativeCommands.test.ts",
+      "sha256": "532e2e72f4a0841ff09d7afb005e09b8871c97cd89ab889a346e3799a20c8cf2"
+    },
+    {
+      "path": "test/unit/checkpointStorageGuards.test.ts",
+      "sha256": "aa7024ec05a72dc7d431d414ee80607ca8876e34d99c171f1d1c8f4035abf6cd"
+    },
+    {
+      "path": "test/unit/cliFeatures.test.ts",
+      "sha256": "9a88d63a40e772909dceec9b77dbf2e8717fd18533b159b657b58d26effe2996"
+    },
+    {
+      "path": "test/unit/helpers/agentImportDeps.ts",
+      "sha256": "9124f586ecd6ea7b67fbbbdd245883246afcdc831efb1522a9f97f7d465a45e7"
+    },
+    {
+      "path": "test/unit/helpers/checkpointHarness.ts",
+      "sha256": "2a494b294fc1f666664c0189f48f7b1ed2ac515beae03b741d8dec6d2f226249"
+    },
+    {
+      "path": "test/unit/helpers/memoryImportIo.ts",
+      "sha256": "60c31462423f9f3237605481f4a97d88865c2ea1320d75618de8edb5a245c9f2"
+    },
+    {
+      "path": "test/unit/helpers/syntheticTokens.ts",
+      "sha256": "653ba7f7e0d8d3ca59f8eb08f47cd5e63236eedf9b01fae8c82d5eceba0bc4a0"
+    },
+    {
+      "path": "test/unit/importConvert.test.ts",
+      "sha256": "113e54fab8f666099fe3e72b853f1e622afc84d5fc6b26fe6f85b52745ed74e8"
+    },
+    {
+      "path": "test/unit/importIo.test.ts",
+      "sha256": "7981fe1ceeef06d0ba51615574d00c9b2c687fd370d648eb966b656d89db9bea"
+    },
+    {
+      "path": "test/unit/importMask.test.ts",
+      "sha256": "034c04c9d98950a7d712c4fa851f4e4616d37af1e11252bab8316ad2fc610c59"
+    },
+    {
+      "path": "test/unit/paletteRegistry.test.ts",
+      "sha256": "12f1fa0b9956e64356b5b9da119e9cb59185e1eba9de1663233850ec94e8b2ea"
+    },
+    {
+      "path": "test/unit/tsconfig.json",
+      "sha256": "cfff4774ca5275507fd15523dabd23d1d64cfead96e258c13d7297a237a3c262"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "6e0eb6dc6291b46a868115d911697d0d713779fa43c66742c664846b8b387917"
+    },
+    {
+      "path": "vitest.config.ts",
+      "sha256": "3fd0b8060c936896467b92f2dc4700bc7b63e8d45e4401dc5454843927c3f65d"
+    }
+  ],
+  "remaining": [
+    "Full quality and coverage gate reserved for the lead",
+    "Independent review and other-platform/browser gates reserved for the lead",
+    "M76 runtime admission not integrated",
+    "Named PR32 handoff unavailable; brief, prepared sources and archive used"
+  ],
+  "scope": "New scoped receipt for the named 8d59fb5c release-candidate snapshot plus the lazy UI repair. Full release certification remains lead-owned. Later changes are documentation only."
+}

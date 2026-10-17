@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   exportFileName,
+  fenced,
   renderTranscriptMarkdown,
   type TranscriptExport,
+  transcriptItemMarkdown,
 } from '../../src/core/export/transcriptMarkdown'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import { EN } from '../../src/shared/l10n/en'
@@ -94,7 +96,7 @@ describe('renderTranscriptMarkdown', () => {
         '### Tool: bash (failed)\n\nArguments:\n\n```\nnot json\n```\n\n_Failed: exit 1_',
         // Counts in the display language's digits and grouping (PLAN.md D33).
         '### Tool: tool\n\n_The output (5,000 bytes) is stored by the backend and not included._',
-        '### Shell command\n\n```\n!npm test\n```\n\nOutput:\n\n```\npassed\n```\n\n_Exit code 0_',
+        '### Shell Command\n\n```\n!npm test\n```\n\nOutput:\n\n```\npassed\n```\n\n_Exit code 0_',
         '### Subagent: explorer\n\nFind the tests\n\n> Found 3 tests\n> in src',
         '### Subagent: agent (running)',
         '### Subagent: agent\n\n> Only a summary',
@@ -163,6 +165,27 @@ describe('renderTranscriptMarkdown', () => {
   it('fences output longer than any backtick run inside it', () => {
     const markdown = render([item({ kind: 'toolCall', tool: 't', visibleOutput: 'a ```` b ` c' })])
     expect(markdown).toContain('`````\na ```` b ` c\n`````')
+  })
+
+  it('fences an output of 200,000 backtick runs, past the engine’s argument limit (RV84c C3)', () => {
+    // The review's share file: 400 KB, well under the import cap.
+    const output = '` '.repeat(200_000)
+    const section = transcriptItemMarkdown(
+      item({ kind: 'toolCall', tool: 't', visibleOutput: output }),
+    )
+    expect(section).toContain(`\`\`\`\n${output}\n\`\`\``)
+    const longest = `${output}${'`'.repeat(7)}`
+    expect(render([item({ kind: 'toolCall', tool: 't', visibleOutput: longest })])).toContain(
+      `${'`'.repeat(8)}\n${longest}\n${'`'.repeat(8)}`,
+    )
+  })
+})
+
+describe('fenced', () => {
+  // RV83d #8: spreading every run's length into Math.max overflowed the stack.
+  it('fences a text of 128,000 backtick runs, longer than its longest', () => {
+    const text = `${'`a'.repeat(128_000)}\`\`\`\``
+    expect(fenced(text, 'json')).toBe(`\`\`\`\`\`json\n${text}\n\`\`\`\`\``)
   })
 })
 

@@ -10,6 +10,11 @@ import {
 } from '../../src/shared/effort'
 
 describe('effort helpers', () => {
+  it('uses only recorded BYO effort tiers, with an empty unknown range', () => {
+    expect(effortLevelsFor('other/model')).toEqual([])
+    expect(effortLevelsFor('other/model', ['low', 'high'])).toEqual(['low', 'high'])
+  })
+
   it('recognises the UI tiers and rejects the rest of the wire vocabulary', () => {
     expect(isEffortLevel('xhigh')).toBe(true)
     expect(isEffortLevel('ultra')).toBe(false)
@@ -17,7 +22,7 @@ describe('effort helpers', () => {
   })
 
   it('labels tiers the way Claude Code does', () => {
-    expect(effortLabel('xhigh')).toBe('Extra high')
+    expect(effortLabel('xhigh')).toBe('Extra High')
     expect(effortLabel('max')).toBe('Max')
   })
 

@@ -26,16 +26,26 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import type { AttachmentSummary } from '../shared/protocol'
+import { fill } from '../shared/l10n/text'
 import { readImageInfo } from './imageDimensions'
 import { isPdf, pdfPageCount } from './pdf'
 import type { TurnPart } from './agent/agentBackend'
+import type { ModelCapabilityRecord } from './providers/capabilityRecord'
 import { textFileInput } from './textAttachment'
+import type { MediaFileInfo, MediaLimitResult } from './media/limits'
+
+/** Installed by the lazy media bundle; M2/E1/E2 bind the selected-model gate and wire. */
+export interface AttachmentMediaPort {
+  readonly sniff: (bytes: Uint8Array) => MediaFileInfo | undefined
+  readonly check: (info: MediaFileInfo) => MediaLimitResult
+  readonly part: (summary: AttachmentSummary, info: MediaFileInfo) => TurnPart
+}
 
 export type AddAttachmentResult =
   | { readonly ok: true; readonly attachment: AttachmentSummary }
   | { readonly ok: false; readonly reason: string }
 
-interface StoredAttachment {
+interface StoredBytesAttachment {
   readonly summary: AttachmentSummary
   readonly bytes: Uint8Array
   readonly text?: string
@@ -43,9 +53,17 @@ interface StoredAttachment {
   readonly modelApiTextBytes?: number
 }
 
+type StoredAttachment =
+  | StoredBytesAttachment
+  | {
+      readonly summary: AttachmentSummary
+      readonly part: () => TurnPart
+    }
+
 const FIRST_PRINTABLE_CODE_POINT = 0x20
 
-function hasBinaryControlCharacters(content: string): boolean {
+/** Whether text holds a control character other than a tab or a line break: not a text file. */
+export function hasBinaryControlCharacters(content: string): boolean {
   for (const character of content) {
     if ('\t\n\r'.includes(character)) {
       continue
@@ -79,12 +97,13 @@ export class AttachmentStore {
   public constructor(
     private readonly newId: () => string,
     private readonly maxEncodedMediaChars: number = MAX_ENCODED_MEDIA_CHARS,
+    private media?: AttachmentMediaPort,
   ) {}
 
   /** Encoded data URL characters held for this message's images and PDFs. */
   private mediaChars(): number {
     return Array.from(this.entries.values(), (entry) =>
-      entry.summary.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
+      !('bytes' in entry) || entry.summary.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
         ? 0
         : this.encodedChars(entry.bytes, entry.summary.mediaType),
     ).reduce((total, length) => total + length, 0)
@@ -98,18 +117,16 @@ export class AttachmentStore {
 
   /** Serialized MSP attachment parts, before prompt/context and command envelope. */
   private mspAttachmentBytes(): number {
-    return Array.from(this.entries.values(), (entry) => entry.mspPartBytes ?? 0).reduce(
-      (total, length) => total + length,
-      0,
-    )
+    return Array.from(this.entries.values(), (entry) =>
+      'bytes' in entry ? (entry.mspPartBytes ?? 0) : 0,
+    ).reduce((total, length) => total + length, 0)
   }
 
   /** Conservative text-only share of the Model API context window. */
   private modelApiTextBytes(): number {
-    return Array.from(this.entries.values(), (entry) => entry.modelApiTextBytes ?? 0).reduce(
-      (total, length) => total + length,
-      0,
-    )
+    return Array.from(this.entries.values(), (entry) =>
+      'bytes' in entry ? (entry.modelApiTextBytes ?? 0) : 0,
+    ).reduce((total, length) => total + length, 0)
   }
 
   private fitsMediaBytes(bytes: Uint8Array, mediaType: string): boolean {
@@ -123,11 +140,33 @@ export class AttachmentStore {
     )
   }
 
-  private addDocument(name: string, bytes: Uint8Array): AddAttachmentResult {
-    if (bytes.byteLength > MAX_DOCUMENT_BYTES) {
-      return { ok: false, reason: UI_TEXT.documentTooLarge }
+  private addDocument(
+    name: string,
+    bytes: Uint8Array,
+    record?: ModelCapabilityRecord,
+  ): AddAttachmentResult {
+    const policy = record?.modalities.pdf
+    if (policy !== undefined && policy.state !== 'yes')
+      return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
+    const isMeta = record === undefined || record.identity.provider === 'meta'
+    const maxBytes = isMeta ? MAX_DOCUMENT_BYTES : policy?.value.maxBytes
+    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
+      return {
+        ok: false,
+        reason: isMeta ? UI_TEXT.documentTooLarge : UI_TEXT.modelAttachmentOverLimit,
+      }
     }
     const pageCount = pdfPageCount(bytes)
+    if (
+      !isMeta &&
+      policy?.state === 'yes' &&
+      policy.value.maxPages !== undefined &&
+      (pageCount === undefined || pageCount > policy.value.maxPages)
+    )
+      return {
+        ok: false,
+        reason: UI_TEXT.modelAttachmentOverLimit,
+      }
     const summary: AttachmentSummary = {
       id: this.newId(),
       name,
@@ -136,8 +175,11 @@ export class AttachmentStore {
       ...(pageCount !== undefined && { pageCount }),
     }
     // A message Meta would refuse whole (more than 50 images) is refused here, with the reason.
-    if (this.weight() + imageWeight(summary) > MODEL_API_MEDIA_PER_REQUEST) {
-      return { ok: false, reason: UI_TEXT.documentsOverBudget }
+    if (isMeta && this.weight() + imageWeight(summary) > MODEL_API_MEDIA_PER_REQUEST) {
+      return {
+        ok: false,
+        reason: UI_TEXT.documentsOverBudget,
+      }
     }
     if (!this.fitsMediaBytes(bytes, PDF_MEDIA_TYPE)) {
       return { ok: false, reason: UI_TEXT.mediaTotalTooLarge }
@@ -150,16 +192,40 @@ export class AttachmentStore {
     name: string,
     bytes: Uint8Array,
     shouldCheckMspBudget: boolean,
+    record?: ModelCapabilityRecord,
   ): AddAttachmentResult {
-    if (bytes.byteLength > MAX_IMAGE_BYTES) {
-      return { ok: false, reason: UI_TEXT.attachmentTooLarge }
+    const policy = record?.modalities.image
+    if (policy !== undefined && policy.state !== 'yes')
+      return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
+    const isMeta = record === undefined || record.identity.provider === 'meta'
+    const maxBytes = isMeta ? MAX_IMAGE_BYTES : policy?.value.maxBytes
+    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
+      return {
+        ok: false,
+        reason: isMeta ? UI_TEXT.attachmentTooLarge : UI_TEXT.modelAttachmentOverLimit,
+      }
     }
     const info = readImageInfo(bytes)
     if (info === undefined) {
       return { ok: false, reason: UI_TEXT.attachmentUnsupported }
     }
-    if (this.weight() + 1 > MODEL_API_MEDIA_PER_REQUEST) {
-      return { ok: false, reason: UI_TEXT.documentsOverBudget }
+    if (policy?.state === 'yes' && !policy.value.mimes.includes(info.mediaType))
+      return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
+    let imageCount = 0
+    for (const entry of this.entries.values()) {
+      if (entry.summary.mediaType.startsWith('image/')) imageCount++
+    }
+    if (
+      isMeta
+        ? this.weight() + 1 > MODEL_API_MEDIA_PER_REQUEST
+        : policy?.state === 'yes' &&
+          policy.value.maxCount !== undefined &&
+          imageCount + 1 > policy.value.maxCount
+    ) {
+      return {
+        ok: false,
+        reason: isMeta ? UI_TEXT.documentsOverBudget : UI_TEXT.modelAttachmentOverLimit,
+      }
     }
     if (!this.fitsMediaBytes(bytes, info.mediaType)) {
       return { ok: false, reason: UI_TEXT.mediaTotalTooLarge }
@@ -247,6 +313,11 @@ export class AttachmentStore {
     return { ok: true, attachment: summary }
   }
 
+  /** The first media action installs its lazy bundle without losing existing attachments. */
+  public installMediaPort(media: AttachmentMediaPort): void {
+    this.media = media
+  }
+
   /**
    * An image, or a PDF when `acceptsDocuments` (the Model API backend); the
    * caller refuses a PDF on Muse Code with its own reason first (M54).
@@ -256,21 +327,57 @@ export class AttachmentStore {
     bytes: Uint8Array,
     canAcceptDocuments = false,
     canAcceptText = false,
+    capabilityRecord?: ModelCapabilityRecord,
   ): AddAttachmentResult {
     if (this.entries.size >= MAX_ATTACHMENTS_PER_MESSAGE) {
       return { ok: false, reason: UI_TEXT.attachmentLimit }
     }
+    const mediaInfo = this.media?.sniff(bytes)
+    if (mediaInfo !== undefined) return this.addMedia(name, mediaInfo)
     if (isPdf(bytes)) {
       return canAcceptDocuments
-        ? this.addDocument(name, bytes)
+        ? this.addDocument(name, bytes, capabilityRecord)
         : { ok: false, reason: UI_TEXT.pdfNeedsModelApi }
     }
     if (name.toLowerCase().endsWith(PDF_EXTENSION)) {
       return { ok: false, reason: UI_TEXT.invalidPdf }
     }
-    return canAcceptText && TEXT_ATTACHMENT_EXTENSIONS.has(path.extname(name).toLowerCase())
-      ? this.addText(name, bytes, !canAcceptDocuments)
-      : this.addImage(name, bytes, !canAcceptDocuments)
+    if (
+      canAcceptText &&
+      TEXT_ATTACHMENT_EXTENSIONS.has(path.extname(name.replaceAll('\\', '/')).toLowerCase())
+    )
+      return this.addText(name, bytes, !canAcceptDocuments)
+    const image = this.addImage(name, bytes, !canAcceptDocuments, capabilityRecord)
+    return !image.ok && image.reason === UI_TEXT.attachmentUnsupported && this.media !== undefined
+      ? { ok: false, reason: fill(UI_TEXT.media.attachmentUnknownType, { type: 'media' }) }
+      : image
+  }
+
+  /** Host sniffed a confined file. Keep metadata and the injected wire binding, never bytes. */
+  public addMedia(
+    name: string,
+    info: MediaFileInfo,
+    isScreenRecording = false,
+  ): AddAttachmentResult {
+    if (this.entries.size >= MAX_ATTACHMENTS_PER_MESSAGE)
+      return { ok: false, reason: UI_TEXT.attachmentLimit }
+    const media = this.media
+    if (media === undefined) return { ok: false, reason: UI_TEXT.media.museCodeRefusal }
+    const admission = media.check(info)
+    if (!admission.ok) return { ok: false, reason: admission.reason }
+    if (this.weight() + 1 > MODEL_API_MEDIA_PER_REQUEST)
+      return { ok: false, reason: UI_TEXT.documentsOverBudget }
+    const summary: AttachmentSummary = {
+      id: this.newId(),
+      name,
+      mediaType: info.mediaType,
+      sizeBytes: info.sizeBytes,
+      // The recording classification rides with the chip: cost and the
+      // upload lifecycle read it (M105 E1 recording binding).
+      media: { info, ...(isScreenRecording && { isScreenRecording: true as const }) },
+    }
+    this.entries.set(summary.id, { summary, part: () => media.part(summary, info) })
+    return { ok: true, attachment: summary }
   }
 
   public remove(id: string): boolean {
@@ -302,6 +409,10 @@ export class AttachmentStore {
         continue
       }
       const { summary } = entry
+      if ('part' in entry) {
+        parts.push(entry.part())
+        continue
+      }
       if (entry.text !== undefined) {
         parts.push({
           type: 'textFile',

@@ -1,0 +1,181 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamNativeLifetime.test.ts (18 tests | 1 failed) 10310ms
+   ❯ M96 K real native lifetime (18)
+     × signals Linux through a stable pidfd and rejects a changed final identity 543ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > signals Linux through a stable pidfd and rejects a changed final identity
+Error: Command failed: /usr/bin/python3 -I -c
+import errno,json,os,re,signal,sys
+expected=json.loads(sys.argv[1])
+
+def forbidden(*args): raise RuntimeError('raw PID signalling is forbidden')
+os.kill=forbidden
+original_send=signal.pidfd_send_signal
+def checked_send(fd,signum):
+    with open('/proc/self/fdinfo/'+str(fd)) as file: information=file.read()
+    assert re.search(r'^Pid:\s+'+str(expected['pid'])+r'$',information,re.M)
+    original_send(fd,signum)
+signal.pidfd_send_signal=checked_send
+fd=None
+result={'kind':'notOwned'}
+try:
+    pid=expected['pid']
+    if pid > 1 and hasattr(os,'pidfd_open') and hasattr(signal,'pidfd_send_signal'):
+        fd=os.pidfd_open(pid)
+        base='/proc/'+str(pid)
+        def sample():
+            with open(base+'/stat') as file: raw=file.read()
+            fields=raw[raw.rfind(')')+2:].split()
+            return fields[0],fields[2],fields[19]
+        before=sample()
+        with open(base+'/status') as file: status=file.read()
+        uid=re.search(r'^Uid:\s+(\d+)',status,re.M)
+        with open(base+'/environ','rb') as file: environment=file.read().split(b'\0')
+        with open('/proc/sys/kernel/random/boot_id') as file: boot=file.read().strip()
+        marker=expected.get('launchId')
+        owned=(uid is not None and int(uid[1])==os.getuid() and before[0]!='Z'
+               and before[1]==expected['group']
+               and boot+':'+before[2]==expected['startTime']
+               and (marker is None or ('MUSE_SPARK_LAUNCH_ID='+marker).encode() in environment)
+               and sample()==before)
+        if owned:
+            os.kill(pid,getattr(signal,sys.argv[2])) if 'original_send' in globals() else signal.pidfd_send_signal(fd,getattr(signal,sys.argv[2]))
+            result={'kind':'signalled'}
+except OSError as error:
+    if error.errno not in (errno.ESRCH,errno.ENOENT):
+        result={'kind':'failed','code':errno.errorcode.get(error.errno,'UNKNOWN')}
+finally:
+    if fd is not None: os.close(fd)
+print(json.dumps(result))
+ {"pid":3241898,"group":"3241898","startTime":"cc6d9537-8f7b-4eb5-a03b-96b6397f5dcf:100388314","command":"/usr/bin/node","launchId":"5836bdb4-dda2-40db-9b9f-305381394a78"} SIGKILL
+Traceback (most recent call last):
+  File "<string>", line 36, in <module>
+    os.kill(pid,getattr(signal,sys.argv[2])) if 'original_send' in globals() else signal.pidfd_send_signal(fd,getattr(signal,sys.argv[2]))
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 5, in forbidden
+    def forbidden(*args): raise RuntimeError('raw PID signalling is forbidden')
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: raw PID signalling is forbidden
+
+ ❯ src/host/processTree.ts:94:16
+     92|           return
+     93|         }
+     94|         reject(new Error(error.message, { cause: error }))
+       |                ^
+     95|       },
+     96|     )
+
+Caused by: Error: Command failed: /usr/bin/python3 -I -c
+import errno,json,os,re,signal,sys
+expected=json.loads(sys.argv[1])
+
+def forbidden(*args): raise RuntimeError('raw PID signalling is forbidden')
+os.kill=forbidden
+original_send=signal.pidfd_send_signal
+def checked_send(fd,signum):
+    with open('/proc/self/fdinfo/'+str(fd)) as file: information=file.read()
+    assert re.search(r'^Pid:\s+'+str(expected['pid'])+r'$',information,re.M)
+    original_send(fd,signum)
+signal.pidfd_send_signal=checked_send
+fd=None
+result={'kind':'notOwned'}
+try:
+    pid=expected['pid']
+    if pid > 1 and hasattr(os,'pidfd_open') and hasattr(signal,'pidfd_send_signal'):
+        fd=os.pidfd_open(pid)
+        base='/proc/'+str(pid)
+        def sample():
+            with open(base+'/stat') as file: raw=file.read()
+            fields=raw[raw.rfind(')')+2:].split()
+            return fields[0],fields[2],fields[19]
+        before=sample()
+        with open(base+'/status') as file: status=file.read()
+        uid=re.search(r'^Uid:\s+(\d+)',status,re.M)
+        with open(base+'/environ','rb') as file: environment=file.read().split(b'\0')
+        with open('/proc/sys/kernel/random/boot_id') as file: boot=file.read().strip()
+        marker=expected.get('launchId')
+        owned=(uid is not None and int(uid[1])==os.getuid() and before[0]!='Z'
+               and before[1]==expected['group']
+               and boot+':'+before[2]==expected['startTime']
+               and (marker is None or ('MUSE_SPARK_LAUNCH_ID='+marker).encode() in environment)
+               and sample()==before)
+        if owned:
+            os.kill(pid,getattr(signal,sys.argv[2])) if 'original_send' in globals() else signal.pidfd_send_signal(fd,getattr(signal,sys.argv[2]))
+            result={'kind':'signalled'}
+except OSError as error:
+    if error.errno not in (errno.ESRCH,errno.ENOENT):
+        result={'kind':'failed','code':errno.errorcode.get(error.errno,'UNKNOWN')}
+finally:
+    if fd is not None: os.close(fd)
+print(json.dumps(result))
+ {"pid":3241898,"group":"3241898","startTime":"cc6d9537-8f7b-4eb5-a03b-96b6397f5dcf:100388314","command":"/usr/bin/node","launchId":"5836bdb4-dda2-40db-9b9f-305381394a78"} SIGKILL
+Traceback (most recent call last):
+  File "<string>", line 36, in <module>
+    os.kill(pid,getattr(signal,sys.argv[2])) if 'original_send' in globals() else signal.pidfd_send_signal(fd,getattr(signal,sys.argv[2]))
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 5, in forbidden
+    def forbidden(*args): raise RuntimeError('raw PID signalling is forbidden')
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: raw PID signalling is forbidden
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 1, killed: false, signal: null, cmd: '/usr/bin/python3 -I -c
+import errno,json,os,re,signal,sys
+expected=json.loads(sys.argv[1])
+
+def forbidden(*args): raise RuntimeError('raw PID signalling is forbidden')
+os.kill=forbidden
+original_send=signal.pidfd_send_signal
+def checked_send(fd,signum):
+    with open('/proc/self/fdinfo/'+str(fd)) as file: information=file.read()
+    assert re.search(r'^Pid:\s+'+str(expected['pid'])+r'$',information,re.M)
+    original_send(fd,signum)
+signal.pidfd_send_signal=checked_send
+fd=None
+result={'kind':'notOwned'}
+try:
+    pid=expected['pid']
+    if pid > 1 and hasattr(os,'pidfd_open') and hasattr(signal,'pidfd_send_signal'):
+        fd=os.pidfd_open(pid)
+        base='/proc/'+str(pid)
+        def sample():
+            with open(base+'/stat') as file: raw=file.read()
+            fields=raw[raw.rfind(')')+2:].split()
+            return fields[0],fields[2],fields[19]
+        before=sample()
+        with open(base+'/status') as file: status=file.read()
+        uid=re.search(r'^Uid:\s+(\d+)',status,re.M)
+        with open(base+'/environ','rb') as file: environment=file.read().split(b'\0')
+        with open('/proc/sys/kernel/random/boot_id') as file: boot=file.read().strip()
+        marker=expected.get('launchId')
+        owned=(uid is not None and int(uid[1])==os.getuid() and before[0]!='Z'
+               and before[1]==expected['group']
+               and boot+':'+before[2]==expected['startTime']
+               and (marker is None or ('MUSE_SPARK_LAUNCH_ID='+marker).encode() in environment)
+               and sample()==before)
+        if owned:
+            os.kill(pid,getattr(signal,sys.argv[2])) if 'original_send' in globals() else signal.pidfd_send_signal(fd,getattr(signal,sys.argv[2]))
+            result={'kind':'signalled'}
+except OSError as error:
+    if error.errno not in (errno.ESRCH,errno.ENOENT):
+        result={'kind':'failed','code':errno.errorcode.get(error.errno,'UNKNOWN')}
+finally:
+    if fd is not None: os.close(fd)
+print(json.dumps(result))
+ {"pid":3241898,"group":"3241898","startTime":"cc6d9537-8f7b-4eb5-a03b-96b6397f5dcf:100388314","command":"/usr/bin/node","launchId":"5836bdb4-dda2-40db-9b9f-305381394a78"} SIGKILL' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  12:44:58
+   Duration  11.18s (tests 93%, transform 4%, import 2%, setup 1%)

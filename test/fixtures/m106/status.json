@@ -1,0 +1,40 @@
+{
+  "provenance": {
+    "date": "2026-10-05",
+    "source": "status-capture.json",
+    "run": null,
+    "model": null,
+    "attempts": 2,
+    "inferenceAttempts": 0
+  },
+  "responses": [
+    {
+      "label": "with key",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "response": {
+        "is_alive": true,
+        "service_status": "operational",
+        "service_message": "",
+        "updated_at": "",
+        "model_statuses": []
+      }
+    },
+    {
+      "label": "without key",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "response": {
+        "is_alive": true,
+        "service_status": "operational",
+        "service_message": "",
+        "updated_at": "",
+        "model_statuses": []
+      }
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "path": ["src", "test"],
   "pattern": "**/*.{ts,tsx,css}",
-  "ignore": ["**/node_modules/**", "**/dist/**", "**/coverage/**"],
+  "ignore": ["**/node_modules/**", "**/dist/**", "**/coverage/**", "**/vendor/**"],
   "minTokens": 50,
   "minLines": 5,
   "threshold": 0,

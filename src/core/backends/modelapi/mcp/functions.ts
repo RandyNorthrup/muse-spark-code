@@ -34,12 +34,17 @@ import {
   MCP_FUNCTION_SEPARATOR,
   MCP_SCHEMA_LIMITS,
   MCP_TOOL_DESCRIPTION_MAX_CHARS,
-  MODEL_TEXT,
+  MODEL_API_MODEL_TEXT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
 } from '../../../../shared/constants'
 import { readImageInfo } from '../../../imageDimensions'
-import type { FunctionOutputPart, FunctionToolDefinition } from '../schemas'
+import {
+  type FunctionOutputPart,
+  type FunctionToolDefinition,
+  NON_STRICT_TOOL,
+  withStrictTools,
+} from '../schemas'
 import {
   type CallToolResult,
   type ContentBlock,
@@ -315,6 +320,42 @@ function clipDescription(text: string): string {
     : text
 }
 
+// The harness rewrite closes omitted object constraints intentionally. An MCP
+// server owns its schema: closing an open object would remove valid arguments.
+// Follow only schema positions; enum values and descriptions are data.
+function isLosslessMcpSchema(schema: JsonObject, isOptional = false): boolean {
+  const type = schema['type']
+  if (
+    (type === 'object' || (Array.isArray(type) && type.includes('object'))) &&
+    schema['additionalProperties'] !== false
+  ) {
+    return false
+  }
+  // An added null sentinel must restore to omission. A nullable type whose
+  // enum excludes null would retain that sentinel and violate the MCP enum.
+  const values = schema['enum']
+  if (
+    isOptional &&
+    (type === 'null' || (Array.isArray(type) && type.includes('null'))) &&
+    Array.isArray(values) &&
+    !values.includes(null)
+  ) {
+    return false
+  }
+  const properties = schema['properties']
+  const required = schema['required']
+  return (
+    (!isObject(properties) ||
+      Object.entries(properties).every(
+        ([key, child]) =>
+          isObject(child) &&
+          isLosslessMcpSchema(child, !Array.isArray(required) || !required.includes(key)),
+      )) &&
+    (schema['items'] === undefined ||
+      (isObject(schema['items']) && isLosslessMcpSchema(schema['items'])))
+  )
+}
+
 /** The function the model is offered for a server's tool, with what its schema lost. */
 export function mcpFunctionDefinition(
   name: string,
@@ -323,11 +364,32 @@ export function mcpFunctionDefinition(
   const { parameters, notes, isReplaced } = functionParameters(tool.inputSchema)
   const described = tool.description ?? tool.annotations?.title ?? tool.title ?? tool.name
   const description = clipDescription(
-    isReplaced ? `${described}\n\n${MODEL_TEXT.mcpSchemaReplaced}` : described,
+    isReplaced ? `${described}\n\n${MODEL_API_MODEL_TEXT.mcpSchemaReplaced}` : described,
   )
+  const definition: FunctionToolDefinition = {
+    type: 'function',
+    name,
+    description,
+    parameters,
+    strict: false,
+  }
+  // Preflight the original schema with M101's rewrite. A fitted schema can
+  // already have lost a constraint (including $ref siblings), so it cannot
+  // establish strict support. The existing pool logs these notes once when
+  // offering the tool, naming its server and tool without schema contents.
+  if (!isReplaced && notes.length === 0 && isObject(tool.inputSchema)) {
+    try {
+      withStrictTools([{ ...definition, parameters: tool.inputSchema }], true)
+      if (isLosslessMcpSchema(tool.inputSchema)) return { definition, notes }
+    } catch (error: unknown) {
+      if (!(error instanceof Error) || error.message !== 'strict_tool_schema_unsupported') {
+        throw error
+      }
+    }
+  }
   return {
-    definition: { type: 'function', name, description, parameters, strict: false },
-    notes,
+    definition: { ...definition, [NON_STRICT_TOOL]: true },
+    notes: [...notes, 'strict: false; the schema cannot be converted losslessly'],
   }
 }
 
@@ -403,7 +465,7 @@ function collectBlock(block: ContentBlock, collected: Collected): void {
       return
     }
     case 'audio': {
-      add(`[audio ${block.mimeType} not passed on: ${MODEL_TEXT.mcpTextAndImagesOnly}]`)
+      add(`[audio ${block.mimeType} not passed on: ${MODEL_API_MODEL_TEXT.mcpTextAndImagesOnly}]`)
       return
     }
     case 'resource_link': {
@@ -419,7 +481,7 @@ function collectBlock(block: ContentBlock, collected: Collected): void {
         collectImage(resource.blob, resource.mimeType, collected)
       } else {
         add(
-          `[resource ${resource.uri} (${resource.mimeType ?? 'binary'}) not passed on: ${MODEL_TEXT.mcpTextAndImagesOnly}]`,
+          `[resource ${resource.uri} (${resource.mimeType ?? 'binary'}) not passed on: ${MODEL_API_MODEL_TEXT.mcpTextAndImagesOnly}]`,
         )
       }
     }
@@ -454,7 +516,8 @@ export function mcpCallOutcome(result: CallToolResult): McpCallOutcome {
     collected.texts.push(json)
     collected.shown.push(json)
   }
-  const body = collected.texts.length === 0 ? MODEL_TEXT.mcpNoContent : collected.texts.join('\n')
+  const body =
+    collected.texts.length === 0 ? MODEL_API_MODEL_TEXT.mcpNoContent : collected.texts.join('\n')
   const text = clip(body)
   const visibleOutput = clip(collected.shown.length === 0 ? body : collected.shown.join('\n'))
   const output = result.isError === true ? `Error: ${text}` : text

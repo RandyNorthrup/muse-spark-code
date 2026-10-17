@@ -1,0 +1,187 @@
+[
+  {
+    "drill": "stdin-error",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamNativeLifetime.test.ts",
+    "exitCode": 1,
+    "before": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "after": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "failures": [
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rejects MSP writes to closed stdin without an unhandled pipe error",
+      "AssertionError: expected 0 to be greater than 0"
+    ],
+    "log": "fix-logs/stdin-error.txt"
+  },
+  {
+    "drill": "end-retry",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamProcessLifetime.test.ts",
+    "exitCode": 1,
+    "before": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "after": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "failures": [
+      "FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > retries a failed end-record write after storage recovers"
+    ],
+    "log": "fix-logs/end-retry.txt"
+  },
+  {
+    "drill": "unreadable-launch",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamNativeLifetime.test.ts",
+    "exitCode": 1,
+    "before": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "after": "a820b4b53e6690e6ed62f0aa6071d4d3ce28232bb79b713e71c418c755d1b60a",
+    "failures": [
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > warns about malformed launch payloads at startup and preserves all foreign bytes",
+      "AssertionError: expected [ Array(1) ] to deeply equal [ \u2026(2) ]"
+    ],
+    "log": "fix-logs/unreadable-launch.txt"
+  },
+  {
+    "drill": "chmod-verification",
+    "source": "src/host/team/windowHints.ts",
+    "test": "test/unit/teamHintsAndLoad.test.ts",
+    "exitCode": 1,
+    "before": "054a7b7404ea4249a56a002c7f56e2fe793a4ca81c7920936a382243a76ebf63",
+    "after": "054a7b7404ea4249a56a002c7f56e2fe793a4ca81c7920936a382243a76ebf63",
+    "failures": [
+      "FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > refuses forged hints and publication when successful chmod leaves permissive bits",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 2 times"
+    ],
+    "log": "fix-logs/chmod-verification.txt"
+  },
+  {
+    "drill": "monotonic-load",
+    "source": "src/host/team/loadGuard.ts",
+    "test": "test/unit/teamHintsAndLoad.test.ts",
+    "exitCode": 1,
+    "before": "d8940f22b32ad68a8269d68b8d91d645ac3b88c6743794a1a18149baaca10740",
+    "after": "d8940f22b32ad68a8269d68b8d91d645ac3b88c6743794a1a18149baaca10740",
+    "failures": [
+      "FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K load sampler > keeps sustained CPU protection through a backward wall-clock adjustment",
+      "AssertionError: expected false to be true // Object.is equality"
+    ],
+    "log": "fix-logs/monotonic-load.txt"
+  },
+  {
+    "drill": "retirement-ownership",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamNativeLifetime.test.ts",
+    "exitCode": 1,
+    "before": "5217eb7e8ce8923abaf121364cc499d064e5f83522253a6d4a5e7803381d1d33",
+    "after": "5217eb7e8ce8923abaf121364cc499d064e5f83522253a6d4a5e7803381d1d33",
+    "failures": [
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > signals nothing on disposal after PID and process-group reuse",
+      "AssertionError: expected \"kill\" to not be called at all, but actually been called 2 times",
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rechecks the leader identity before KILL after TERM",
+      "AssertionError: expected [ { childExited: true, \u2026(1) } ] to deeply equal [ { childExited: false, \u2026(1) } ]",
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rechecks the leader identity before KILL after TERM"
+    ],
+    "log": "fix-logs/retirement-ownership.txt"
+  },
+  {
+    "drill": "kill-recheck",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamNativeLifetime.test.ts",
+    "exitCode": 1,
+    "before": "5217eb7e8ce8923abaf121364cc499d064e5f83522253a6d4a5e7803381d1d33",
+    "after": "5217eb7e8ce8923abaf121364cc499d064e5f83522253a6d4a5e7803381d1d33",
+    "failures": [
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rechecks the leader identity before KILL after TERM",
+      "AssertionError: expected [ { childExited: true, \u2026(1) } ] to deeply equal [ { childExited: false, \u2026(1) } ]",
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rechecks the leader identity before KILL after TERM"
+    ],
+    "log": "fix-logs/kill-recheck.txt"
+  },
+  {
+    "drill": "short-command-gate",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamNativeLifetime.test.ts",
+    "exitCode": 1,
+    "before": "5217eb7e8ce8923abaf121364cc499d064e5f83522253a6d4a5e7803381d1d33",
+    "after": "5217eb7e8ce8923abaf121364cc499d064e5f83522253a6d4a5e7803381d1d33",
+    "failures": [
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > holds short commands until their OS confirmation is durable",
+      "AssertionError: promise resolved \"Buffer[ 115, 116, 97, 114, 116, \u2026(-93) ]\" instead of rejecting"
+    ],
+    "log": "fix-logs/short-command-gate.txt"
+  },
+  {
+    "drill": "stdin-error",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamNativeLifetime.test.ts",
+    "exitCode": 1,
+    "before": "8fe0877cfc2d423ef5edd9c6fb8b484dcb883a682431d6b4898eb6b683710279",
+    "after": "8fe0877cfc2d423ef5edd9c6fb8b484dcb883a682431d6b4898eb6b683710279",
+    "failures": [
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > rejects MSP writes to closed stdin without an unhandled pipe error",
+      "AssertionError: expected 0 to be greater than 0"
+    ],
+    "log": "fix-logs/stdin-error-final.txt"
+  },
+  {
+    "drill": "end-retry",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamProcessLifetime.test.ts",
+    "exitCode": 1,
+    "before": "8fe0877cfc2d423ef5edd9c6fb8b484dcb883a682431d6b4898eb6b683710279",
+    "after": "8fe0877cfc2d423ef5edd9c6fb8b484dcb883a682431d6b4898eb6b683710279",
+    "failures": [
+      "FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > journals a later proved retirement and never downgrades it to uncertain",
+      "FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > retries a failed end-record write after storage recovers"
+    ],
+    "log": "fix-logs/end-retry-final.txt"
+  },
+  {
+    "drill": "unreadable-launch",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamNativeLifetime.test.ts",
+    "exitCode": 1,
+    "before": "8fe0877cfc2d423ef5edd9c6fb8b484dcb883a682431d6b4898eb6b683710279",
+    "after": "8fe0877cfc2d423ef5edd9c6fb8b484dcb883a682431d6b4898eb6b683710279",
+    "failures": [
+      "FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > warns about malformed launch payloads at startup and preserves all foreign bytes",
+      "AssertionError: expected [ Array(1) ] to deeply equal [ \u2026(2) ]"
+    ],
+    "log": "fix-logs/unreadable-launch-final.txt"
+  },
+  {
+    "drill": "chmod-verification",
+    "source": "src/host/team/windowHints.ts",
+    "test": "test/unit/teamHintsAndLoad.test.ts",
+    "exitCode": 1,
+    "before": "fc8769e27cd02721ec26a2a9022e80c37ffcb1be8e0e0ee6fc71b9b81177c1cc",
+    "after": "fc8769e27cd02721ec26a2a9022e80c37ffcb1be8e0e0ee6fc71b9b81177c1cc",
+    "failures": [
+      "FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > refuses forged hints and publication when successful chmod leaves permissive bits",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 2 times"
+    ],
+    "log": "fix-logs/chmod-verification-final.txt"
+  },
+  {
+    "drill": "monotonic-load",
+    "source": "src/host/team/loadGuard.ts",
+    "test": "test/unit/teamHintsAndLoad.test.ts",
+    "exitCode": 1,
+    "before": "d8940f22b32ad68a8269d68b8d91d645ac3b88c6743794a1a18149baaca10740",
+    "after": "d8940f22b32ad68a8269d68b8d91d645ac3b88c6743794a1a18149baaca10740",
+    "failures": [
+      "FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K load sampler > keeps sustained CPU protection through a backward wall-clock adjustment",
+      "AssertionError: expected false to be true // Object.is equality"
+    ],
+    "log": "fix-logs/monotonic-load-final.txt"
+  },
+  {
+    "drill": "end-proof-recovery",
+    "source": "src/host/team/processLifetime.ts",
+    "test": "test/unit/teamProcessLifetime.test.ts",
+    "exitCode": 1,
+    "before": "8fe0877cfc2d423ef5edd9c6fb8b484dcb883a682431d6b4898eb6b683710279",
+    "after": "8fe0877cfc2d423ef5edd9c6fb8b484dcb883a682431d6b4898eb6b683710279",
+    "failures": [
+      "FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > journals a later proved retirement and never downgrades it to uncertain",
+      "AssertionError: expected { childExited: true, \u2026(1) } to deeply equal { childExited: true, \u2026(1) }"
+    ],
+    "log": "fix-logs/end-proof-recovery.txt"
+  }
+]

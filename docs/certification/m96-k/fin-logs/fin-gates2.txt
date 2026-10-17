@@ -1,0 +1,208 @@
+base=/Users/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=macmini slot=finm96k-gates snapshot=25fe03bd base=/Users/randy/gates/base-c78aedc3ea0dab3c
+
+> muse-spark-code@0.12.1 typecheck
+> run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration
+
+
+> muse-spark-code@0.12.1 typecheck:host
+> tsc -p tsconfig.json --noEmit
+
+
+> muse-spark-code@0.12.1 typecheck:webview
+> tsc -p src/webview/tsconfig.json --noEmit
+
+
+> muse-spark-code@0.12.1 typecheck:unit
+> tsc -p test/unit/tsconfig.json --noEmit
+
+
+> muse-spark-code@0.12.1 typecheck:e2e
+> tsc -p test/e2e/tsconfig.json --noEmit
+
+
+> muse-spark-code@0.12.1 typecheck:integration
+> tsc -p test/integration/tsconfig.json --noEmit
+
+
+> muse-spark-code@0.12.1 deadcode
+> knip
+
+Configuration hints (1)
+vendor/**    knip.jsonc  Remove from ignore
+
+> muse-spark-code@0.12.1 duplication
+> jscpd
+
+Using config from .jscpd.json
+[90mNo duplicates found.[39m
+[90m┌────────────┬────────────────┬─────────────┬──────────────┬──────────────┬──────────────────┬───────────────────┐[39m
+[90m│[39m[31m Format     [39m[90m│[39m[31m Files analyzed [39m[90m│[39m[31m Total lines [39m[90m│[39m[31m Total tokens [39m[90m│[39m[31m Clones found [39m[90m│[39m[31m Duplicated lines [39m[90m│[39m[31m Duplicated tokens [39m[90m│[39m
+[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤[39m
+[90m│[39m css        [90m│[39m 1              [90m│[39m 3079        [90m│[39m 24454        [90m│[39m 0            [90m│[39m 0 (0.00%)        [90m│[39m 0 (0.00%)         [90m│[39m
+[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤[39m
+[90m│[39m tsx        [90m│[39m 84             [90m│[39m 22996       [90m│[39m 142362       [90m│[39m 0            [90m│[39m 0 (0.00%)        [90m│[39m 0 (0.00%)         [90m│[39m
+[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤[39m
+[90m│[39m typescript [90m│[39m 752            [90m│[39m 254429      [90m│[39m 1571623      [90m│[39m 0            [90m│[39m 0 (0.00%)        [90m│[39m 0 (0.00%)         [90m│[39m
+[90m├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤[39m
+[90m│[39m [1mTotal:[22m     [90m│[39m 837            [90m│[39m 280504      [90m│[39m 1738439      [90m│[39m 0            [90m│[39m 0 (0.00%)        [90m│[39m 0 (0.00%)         [90m│[39m
+[90m└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘[39m
+[90mFound 0 clones.[39m
+[90mtime: 826.027ms[39m
+
+> muse-spark-code@0.12.1 check:l10n
+> node scripts/check-l10n.mjs
+
+l10n: 14 tables, 120 manifest strings, 424 source files; 0 problems
+
+> muse-spark-code@0.12.1 check:host-api
+> node scripts/check-host-api.mjs
+
+host-api: 271 VS Code APIs, 18 files importing vscode, 23 Node built-ins, 59 theme variables; 0 problem(s)
+
+> muse-spark-code@0.12.1 build
+> node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs
+
+
+  dist/uiText.js  104.9kb
+
+⚡ Done in 172ms
+
+  dist/museCodeReviewer.js  42.7kb
+
+⚡ Done in 275ms
+
+  dist/voice.js  34.7kb
+
+⚡ Done in 408ms
+
+  dist/bundledSkills.js  22.9kb
+
+⚡ Done in 562ms
+
+  dist/review.js  43.1kb
+
+⚡ Done in 614ms
+
+  dist/agentImport.js  115.6kb
+
+⚡ Done in 635ms
+
+  dist/searchWorker.js  18.1kb
+
+⚡ Done in 637ms
+
+  dist/codeIntel.js  76.9kb
+
+⚡ Done in 649ms
+
+  dist/sessionBoard.js  62.0kb
+
+⚡ Done in 677ms
+
+  dist/modelApi.js  430.1kb
+
+⚡ Done in 727ms
+
+  dist/pageWorker.js  203.2kb
+
+⚡ Done in 745ms
+
+  dist/reviewer.js  54.6kb
+
+⚡ Done in 766ms
+
+  dist/planMarkdown.js  139.0kb
+
+⚡ Done in 804ms
+
+  dist/checkpointStore.js  135.7kb
+
+⚡ Done in 744ms
+
+  dist/acp.js  800.9kb
+
+⚡ Done in 841ms
+bundle sizes:
+  dist/extension.js  590.6 KiB
+  dist/modelApi.js  430.1 KiB
+  dist/review.js  43.1 KiB
+  dist/sessionBoard.js  62.0 KiB
+  dist/reviewer.js  54.6 KiB
+  dist/planMarkdown.js  139.0 KiB
+  dist/checkpointStore.js  135.7 KiB
+  dist/agentImport.js  115.6 KiB
+  dist/bundledSkills.js  22.9 KiB
+  dist/codeIntel.js  76.9 KiB
+  dist/voice.js  34.7 KiB
+  dist/museCodeReviewer.js  42.7 KiB
+  dist/uiText.js  104.9 KiB
+  dist/searchWorker.js  18.1 KiB
+  dist/pageWorker.js  203.2 KiB
+  dist/webview/main.js  860.5 KiB
+  dist/webview/main.css  43.0 KiB
+  dist/acp.js  800.9 KiB
+
+  dist/extension.js  590.6kb
+
+⚡ Done in 916ms
+
+  dist/webview/main.js   860.5kb
+  dist/webview/main.css   43.0kb
+
+⚡ Done in 927ms
+ok   dist/extension.js: 590.6 KiB (budget 600 KiB)
+ok   dist/modelApi.js: 430.1 KiB (budget 475 KiB)
+ok   dist/review.js: 43.1 KiB (budget 50 KiB)
+ok   dist/sessionBoard.js: 62.0 KiB (budget 75 KiB)
+ok   dist/reviewer.js: 54.6 KiB (budget 75 KiB)
+ok   dist/planMarkdown.js: 139.0 KiB (budget 150 KiB)
+ok   dist/checkpointStore.js: 135.7 KiB (budget 225 KiB)
+ok   dist/agentImport.js: 115.6 KiB (budget 125 KiB)
+ok   dist/bundledSkills.js: 22.9 KiB (budget 50 KiB)
+ok   dist/codeIntel.js: 76.9 KiB (budget 100 KiB)
+ok   dist/voice.js: 34.7 KiB (budget 50 KiB)
+ok   dist/museCodeReviewer.js: 42.7 KiB (budget 75 KiB)
+ok   dist/uiText.js: 104.9 KiB (budget 125 KiB)
+ok   dist/searchWorker.js: 18.1 KiB (budget 50 KiB)
+ok   dist/pageWorker.js: 203.2 KiB (budget 300 KiB)
+ok   dist/webview/main.js: 860.5 KiB (budget 900 KiB)
+ok   dist/acp.js: 800.9 KiB (budget 850 KiB)
+ok   dist/extension.js: 8 of the backend's 41 files (17.6 KiB), all on the allowed list
+       client.ts 5.4 KiB: the key client that makes images for Muse Code (M44)
+       goalRecord.ts 0.2 KiB: a stored session's goal (D14, M45)
+       imageGeneration.ts 3.3 KiB: the IDE server's image tools on Muse Code (M44)
+       imageToolDefinitions.ts 1.0 KiB: the IDE server's image tools on Muse Code (M44)
+       schedules.ts 1.3 KiB: the schedule store's next occurrence (M52)
+       schemas.ts 2.0 KiB: the key client's request and response shapes
+       sessionStore.ts 3.7 KiB: the stored-session format the window's session store reads (D14)
+       sse.ts 0.7 KiB: the key client's stream parser
+ok   dist/acp.js: 4 of the backend's files, all on the allowed list
+ok   dist/modelApi.js: carries the 32 files that load only with the backend, and no English table
+ok   dist/planMarkdown.js: carries the plan reader; dist/extension.js carries none of its parser
+ok   dist/pageWorker.js: the page converter (parse5 and its parts) loads only there, never at activation
+ok   dist/checkpointStore.js: carries the checkpoint implementation; activation keeps the port and synchronous loader
+ok   dist/review.js: carries the review and edit review; dist/extension.js keeps the loader
+ok   dist/agentImport.js: carries the import (scan, converters, file access, smol-toml); dist/extension.js carries none of it
+ok   dist/uiText.js: Node bundles share the English fallback
+ok   dist/sessionBoard.js: loads only on its first action
+ok   dist/reviewer.js: loads only on its first action
+ok   dist/codeIntel.js: loads only on the first code intelligence call, never at activation
+ok   dist/voice.js: loads only on the first recording, never at activation
+ok   dist/museCodeReviewer.js: loads only on the first review, never at activation
+ok   dist/extension.js: 0 reference(s) to navigator
+ok   dist/modelApi.js: 0 reference(s) to navigator
+ok   dist/review.js: 0 reference(s) to navigator
+ok   dist/sessionBoard.js: 0 reference(s) to navigator
+ok   dist/reviewer.js: 0 reference(s) to navigator
+ok   dist/planMarkdown.js: 0 reference(s) to navigator
+ok   dist/checkpointStore.js: 0 reference(s) to navigator
+ok   dist/agentImport.js: 0 reference(s) to navigator
+ok   dist/bundledSkills.js: 0 reference(s) to navigator
+ok   dist/codeIntel.js: 0 reference(s) to navigator
+ok   dist/voice.js: 0 reference(s) to navigator
+ok   dist/museCodeReviewer.js: 0 reference(s) to navigator
+ok   dist/searchWorker.js: 0 reference(s) to navigator
+ok   dist/pageWorker.js: 0 reference(s) to navigator
+ok   THIRD_PARTY_NOTICES.txt: 83 bundled packages

@@ -1,0 +1,164 @@
+{
+  "$comment": "README screenshots: each entry renders one harness scenario at the given size and writes media/readme/<name>.png. The banner is not a harness render and stays out (see excluded).",
+  "shots": [
+    {
+      "file": "media/readme/agents.png",
+      "scenario": "agents",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Subagents: the 2 agents pill and the Agent map"
+    },
+    {
+      "file": "media/readme/approval.png",
+      "scenario": "approval",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "An approval card, docked above the message box, with the CLI's own choices"
+    },
+    {
+      "file": "media/readme/question.png",
+      "scenario": "question",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "A compact transcript marker and one question card pinned above the composer, with tabs, choices, Other and Explain instead"
+    },
+    {
+      "file": "media/readme/history.png",
+      "scenario": "history",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "History: search, resume, archive"
+    },
+    {
+      "file": "media/readme/languages.png",
+      "scenario": "usage",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "lang": "de",
+      "note": "Account & usage in German, with its numbers written the German way"
+    },
+    {
+      "file": "media/readme/modes.png",
+      "scenario": "modes",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Permission modes and effort; Shift+Tab cycles modes"
+    },
+    {
+      "file": "media/readme/paid.png",
+      "scenario": "paid",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "A search marked paid, the reply's sources, and the badge"
+    },
+    {
+      "file": "media/readme/paid-always.png",
+      "scenario": "paid-always",
+      "theme": "light",
+      "width": 690,
+      "height": 1000,
+      "note": "Paid feature tallies, workspace consent, Tab daily budget, Model hooks and Judge"
+    },
+    {
+      "file": "media/readme/palette.png",
+      "scenario": "slash-palette",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Type /: context, Git and model actions above the prompt"
+    },
+    {
+      "file": "media/readme/quote.png",
+      "scenario": "quote-menu",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Highlight, right-click: Copy, Ask About This or Comment on This"
+    },
+    {
+      "file": "media/readme/rewind.png",
+      "scenario": "rewind",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Every sent message's ⋯: Fork Conversation, Fork and Rewind, Rewind, Save Prompt and Share Prompt…"
+    },
+    {
+      "file": "media/readme/slash-commands.png",
+      "scenario": "slash-commands",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "A letter more: the slash commands, ranked as you type"
+    },
+    {
+      "file": "media/readme/turn.png",
+      "scenario": "tools-open",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "A turn: its steps opened under one summary row (thinking, read, edit with its diff, write, shell), the reply and the diff tally"
+    },
+    {
+      "file": "media/readme/usage.png",
+      "scenario": "usage",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Account & usage: windows, tokens, and what is eating the usage"
+    },
+    {
+      "file": "media/readme/voice.png",
+      "scenario": "dictation",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Voice dictation: tap or hold, Ctrl+D"
+    },
+    {
+      "file": "media/readme/open-question.png",
+      "scenario": "readme-open-question",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "An open question reopened in the attention dock, with its transcript row and navigation chip"
+    },
+    {
+      "file": "media/readme/help.png",
+      "scenario": "readme-help",
+      "theme": "light",
+      "width": 1000,
+      "height": 760,
+      "note": "Help & Reference searched for Next open question: question handling, deferral setting and navigation commands"
+    },
+    {
+      "file": "media/readme/deterministic-report.png",
+      "scenario": "deterministic-report",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "Local deterministic report tab and export actions"
+    },
+    {
+      "file": "media/readme/resources.png",
+      "scenario": "resources-throttle",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "The Resources chip beside the heartbeat while throttling, opened as Show resources does: readings against their limits, waiting work, no relocation route on this build, and Resume now, Open settings and Show resources"
+    }
+  ],
+  "excluded": [
+    {
+      "file": "media/readme/banner.png",
+      "reason": "Rendered by scripts/render-images.mjs from media/banner.svg, not by the UI harness."
+    }
+  ]
+}

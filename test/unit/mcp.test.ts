@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { handleMcpMessage, type McpTool } from '../../src/core/mcp'
+import { handleMcpMessage, mcpRequestKeys, type McpTool } from '../../src/core/mcp'
 
 const info = { name: 'muse_spark_ide', version: '1' }
 
@@ -78,7 +78,28 @@ describe('handleMcpMessage', () => {
       kind: 'response',
       body: { jsonrpc: '2.0', id: 3, result: { content: [{ type: 'text', text: 'echo:hi' }] } },
     })
-    expect(tool.call).toHaveBeenCalledWith({ text: 'hi' })
+    expect(tool.call).toHaveBeenCalledWith({ text: 'hi' }, expect.any(AbortSignal))
+    const stop = new AbortController()
+    await handleMcpMessage(
+      request(4, 'tools/call', { name: 'echo', arguments: { text: 'x' } }),
+      [tool],
+      info,
+      stop.signal,
+    )
+    expect(tool.call).toHaveBeenLastCalledWith({ text: 'x' }, stop.signal)
+  })
+
+  // M68: a caller that goes away stops a tool's wait (the diagnostics tool's).
+  it('hands the call the stop its caller gave', async () => {
+    const tool = echoTool()
+    const gone = new AbortController()
+    await handleMcpMessage(
+      request(6, 'tools/call', { name: 'echo', arguments: { text: 'hi' } }),
+      [tool],
+      info,
+      gone.signal,
+    )
+    expect(tool.call).toHaveBeenCalledWith({ text: 'hi' }, gone.signal)
   })
 
   it('reports an unknown tool and a throwing tool as tool errors, not protocol errors', async () => {
@@ -110,5 +131,35 @@ describe('handleMcpMessage', () => {
     expect(await handleMcpMessage('{"jsonrpc":"1.0","id":1}', [], info)).toMatchObject({
       body: { id: null, error: { code: -32_600 } },
     })
+  })
+})
+
+describe('mcpRequestKeys (M69)', () => {
+  it('keys a request by its id and a cancellation by the id it names', () => {
+    expect(mcpRequestKeys(request(3, 'tools/call', {}))).toEqual({
+      request: 'n:3',
+      cancelled: undefined,
+    })
+    expect(mcpRequestKeys(JSON.stringify({ jsonrpc: '2.0', id: '3', method: 'ping' }))).toEqual({
+      request: 's:3',
+      cancelled: undefined,
+    })
+    // What Muse Code 1.4.0 sent when a turn was stopped mid-call.
+    expect(
+      mcpRequestKeys(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'notifications/cancelled',
+          params: { requestId: 3, reason: 'client cancelled `tools/call`' },
+        }),
+      ),
+    ).toEqual({ request: undefined, cancelled: 'n:3' })
+    for (const raw of [
+      '{not json',
+      JSON.stringify({ jsonrpc: '2.0', method: 'notifications/cancelled', params: {} }),
+      JSON.stringify({ jsonrpc: '2.0', method: 'notifications/other', params: { requestId: 3 } }),
+    ]) {
+      expect(mcpRequestKeys(raw), raw).toEqual({ request: undefined, cancelled: undefined })
+    }
   })
 })

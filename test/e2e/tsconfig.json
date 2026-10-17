@@ -6,6 +6,7 @@
   "include": [
     "./**/*.ts",
     "../unit/helpers/**/*.ts",
+    "../action/**/*.ts",
     "../unit/mocks/**/*.ts",
     "../../src/**/*.ts",
     "../../src/**/*.tsx",

@@ -1,0 +1,20 @@
+{
+  "provider": "ollama",
+  "step": "version",
+  "capturedAt": "2026-10-05T13:18:11.745Z",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:11434/api/version"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-length": "20",
+      "content-type": "application/json; charset=utf-8",
+      "date": "Mon, 05 Oct 2026 13:18:11 GMT"
+    },
+    "body": "{\"version\":\"0.35.1\"}",
+    "chunkBytes": [20]
+  }
+}

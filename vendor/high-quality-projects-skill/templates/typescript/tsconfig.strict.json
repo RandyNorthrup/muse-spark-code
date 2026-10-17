@@ -1,0 +1,49 @@
+{
+  // Strict TypeScript base. Extend it from your project tsconfig:
+  //   { "extends": "./templates/typescript/tsconfig.strict.json" }
+  // (or copy the compilerOptions block in directly).
+  //
+  // `strict: true` is the well-known flag but it is NOT the strictest setting —
+  // the four options after it are deliberately excluded from `strict` because
+  // they break real code. They are the ones that actually catch bugs.
+  "compilerOptions": {
+    "strict": true,
+
+    // --- not included in `strict` ---
+    // arr[i] is T | undefined, not T. This is the single highest-value flag
+    // here and the most likely to light up an existing codebase.
+    "noUncheckedIndexedAccess": true,
+    // `{a?: string}` and `{a: string | undefined}` stop being interchangeable.
+    "exactOptionalPropertyTypes": true,
+    // Subclass members that override must say `override`.
+    "noImplicitOverride": true,
+    // obj.foo is an error when foo only exists via an index signature.
+    "noPropertyAccessFromIndexSignature": true,
+
+    // --- unused code (dead-code gate at the compiler level) ---
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+
+    // --- correctness ---
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "forceConsistentCasingInFileNames": true,
+    "useUnknownInCatchVariables": true,
+
+    // --- module hygiene ---
+    // Import elision becomes explicit; prevents accidental runtime imports of
+    // type-only modules.
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
+    // ^ the one deliberate loosening: type-checking all of node_modules'
+    //   .d.ts files is slow and fails on third-party bugs you cannot fix.
+
+    // Set target, module, moduleResolution, lib, and emit options in the owning
+    // project for its runtime. Bundler resolution is not a Node default; Node
+    // projects need the matching Node module/resolution pair. Applications and
+    // published libraries also have different declaration/output requirements.
+  }
+}

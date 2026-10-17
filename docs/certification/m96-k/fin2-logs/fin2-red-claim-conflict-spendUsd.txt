@@ -1,0 +1,47 @@
+base=/Users/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=macmini slot=finm96k2-red snapshot=b23d1596 base=/Users/randy/gates/base-c78aedc3ea0dab3c
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /Users/randy/gates.noindex/rt-finm96k2-red
+
+ ❯ test/unit/teamSettlement.test.ts (6 tests | 1 failed) 22ms
+   ❯ M96 K injected D78 settlement (6)
+     ✓ finds a lost reported acknowledgement after restart without another charge or credit 9ms
+     ✓ finds a lost nonsent acknowledgement after restart without another charge or credit 1ms
+     ✓ retains an unacknowledged intent and the whole unknown allowance; conflicts never refund it 1ms
+     ✓ settles before-midnight claims to their own day and keeps latest day on clock rollback 1ms
+     ✓ two windows share team and other-paid spend; lowered limits refuse dispatch without losing existing claims 1ms
+     × refuses missing or mismatched ids and every conflicting outcome component 7ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  09:07:02
+   Duration  725ms (transform 48%, import 24%, setup 22%, tests 4%, worker 1%)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamSettlement.test.ts > M96 K injected D78 settlement > refuses missing or mismatched ids and every conflicting outcome component
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected:
+Error {
+  "message": "rejected promise",
+}
+
++ Received:
+undefined
+
+ ❯ test/unit/teamSettlement.test.ts:272:8
+    270|       await expect(
+    271|         settleTeamJournalClaim(journal, first.reservation.id, { ...REP…
+    272|       ).rejects.toThrow('TEAM_CLAIM_CONFLICT')
+       |        ^
+    273|     const sameUsage = await claim(journal, {
+    274|       ...REQUEST, tokens: REPORTED.tokens, inputTokens: REPORTED.input…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

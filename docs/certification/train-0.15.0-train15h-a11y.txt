@@ -1,0 +1,26 @@
+TRAIN15H accessibility certification — Windows 11 rig
+
+First complete run: 2026-10-07T00:16:29.031Z to 2026-10-07T00:57:30.397Z; exit 1
+light/muse-workflow-map: no result: Error: scenario muse-workflow-map never became ready within 10 s
+
+Not measured, as axe cannot: the contrast of 2108 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 20 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's).
+
+a11y: 864 pages (216 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 1 pages without a result
+
+Original scenario diagnostic: node scripts/a11y.mjs muse-workflow-map
+Not measured, as axe cannot: the contrast of 4 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's).
+
+a11y: 4 pages (1 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result
+
+After whenFound and loaded-tree readiness: node scripts/a11y.mjs muse-workflow-map
+Not measured, as axe cannot: the contrast of 4 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 0 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's).
+
+a11y: 4 pages (1 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result
+
+Final complete run: node scripts/a11y.mjs; 2026-10-07T01:00:58.058Z to 2026-10-07T01:41:46.159Z; exit 0
+Not measured, as axe cannot: the contrast of 2133 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 20 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's).
+
+a11y: 864 pages (216 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result
+
+No scenario filters, deadline overrides or gate exemptions in either complete run.
+All 78 browser JS/CSS hashes agree with final restored output and both package archives.

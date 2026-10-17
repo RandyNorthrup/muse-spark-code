@@ -29,6 +29,7 @@ const base: SupportFacts = {
   backendSetting: 'auto',
   shellSandboxSetting: 'auto',
   shellSandboxPosture: 'sandboxed (default)',
+  isShellSandboxed: true,
   sandboxNetworkSetting: 'default',
   isSandboxNetworkApplied: false,
   isBinaryPathConfigured: false,
@@ -62,6 +63,7 @@ describe('renderSupportReport', () => {
         'workspace: open, trusted: yes',
         'backend setting: auto',
         'shell sandbox: setting auto, posture sandboxed (default)',
+        'muse code file writes: workspace only (writes outside it fail); inside it, only .git, .muse and .agents ask',
         'sandbox network: setting default, not passed (Muse Code’s own default, or the shell sandbox is off)',
         'muse binary path configured: no; environment variables: 2',
         // The home directory is `~` in a report meant for a public issue (D24).
@@ -83,6 +85,20 @@ describe('renderSupportReport', () => {
         '    plane=policy source_class=windows_machine_policy state=absent',
       ].join('\n'),
     )
+  })
+
+  // musecode-write-asks: the report says what the shell sandbox means for
+  // Muse Code's file tools (Meta's permissions page; probed 2026-10-04).
+  it('says that without the sandbox the file tools can write anywhere without asking', () => {
+    const text = renderSupportReport({
+      ...base,
+      shellSandboxPosture: 'disabled (profileWorkspace, Muse Code 1.4.0-R4302.1)',
+      isShellSandboxed: false,
+    })
+    expect(text).toContain(
+      'muse code file writes: anywhere this account can write, without asking, in every mode (shell sandbox off); only .git, .muse and .agents ask',
+    )
+    expect(text).not.toContain('workspace only')
   })
 
   it('names what is missing: no workspace, no CLI, no version, no dictation, a remote', () => {
@@ -144,6 +160,8 @@ describe('renderSupportReport', () => {
         isSystemCertificatesOn: false,
         isFetchSupportOn: false,
         isWebSocketSupportOn: true,
+        fetchRouting: 'routed',
+        webSocketRouting: 'routed',
         hasEnvironmentProxy: true,
         hasExtraCaCertificates: true,
         museProxySource: 'vscode',
@@ -165,6 +183,28 @@ describe('renderSupportReport', () => {
         network: { ...base.network, museProxySource: 'environment' },
       }),
     ).toContain('muse serve: proxy from its environment;')
+  })
+
+  // M62 (PLAN.md D43): below VS Code 1.112 an extension's WebSocket is not
+  // routed, and on Node 20 there is none; the settings do not change that.
+  it('never claims a route the editor does not give a global', () => {
+    const olderVsCode = renderSupportReport({
+      ...base,
+      network: { ...base.network, webSocketRouting: 'notRouted' },
+    })
+    expect(olderVsCode).toContain(
+      "extension requests through VS Code's network support: fetch yes, WebSocket no (this editor does not route it; VS Code does from 1.112)",
+    )
+    const node20 = renderSupportReport({
+      ...base,
+      network: { ...base.network, webSocketRouting: 'absent' },
+    })
+    expect(node20).toContain('fetch yes, WebSocket none in this extension host')
+    const otherEditor = renderSupportReport({
+      ...base,
+      network: { ...base.network, fetchRouting: 'notRouted', webSocketRouting: 'notRouted' },
+    })
+    expect(otherEditor).toContain('fetch no (this editor does not route it), WebSocket no (')
   })
 
   it('shows captured status fields and omits unrecognized lines that may contain secrets', () => {

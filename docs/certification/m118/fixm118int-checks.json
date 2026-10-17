@@ -1,0 +1,151 @@
+[
+  {
+    "check": "typecheck",
+    "command": ["npm", "run", "typecheck"],
+    "exitCode": 0
+  },
+  {
+    "check": "final-host-typecheck",
+    "command": ["npm", "run", "typecheck:host"],
+    "exitCode": 0
+  },
+  {
+    "check": "final-unit-typecheck",
+    "command": ["npm", "run", "typecheck:unit"],
+    "exitCode": 0
+  },
+  {
+    "check": "eslint",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "src/core/prompts/promptImport.ts",
+      "src/extension.ts",
+      "src/host/prompts/chatSharing.ts",
+      "src/host/prompts/promptEntry.ts",
+      "src/runtime/sharing/sharingEntry.ts",
+      "src/shared/featureCatalog.ts",
+      "src/webview/state/uiState.ts",
+      "test/unit/App.test.tsx",
+      "test/unit/chatSharingHost.test.ts",
+      "test/unit/promptImport.test.ts",
+      "test/unit/promptMenus.test.ts",
+      "test/unit/promptNative.test.ts",
+      "test/unit/runtimeSharing.test.ts",
+      "test/unit/promptHostLifecycle.test.ts"
+    ],
+    "exitCode": 0
+  },
+  {
+    "check": "prettier",
+    "command": [
+      "npx",
+      "prettier",
+      "--check",
+      "CHANGELOG.md",
+      "PLAN.md",
+      "README.md",
+      "docs/certification/m118.md",
+      "docs/ide-compatibility/host-api.md",
+      "docs/sharing-reference.md",
+      "src/core/prompts/promptImport.ts",
+      "src/extension.ts",
+      "src/host/prompts/chatSharing.ts",
+      "src/host/prompts/promptEntry.ts",
+      "src/runtime/sharing/sharingEntry.ts",
+      "src/shared/featureCatalog.ts",
+      "src/webview/state/uiState.ts",
+      "test/unit/App.test.tsx",
+      "test/unit/chatSharingHost.test.ts",
+      "test/unit/promptImport.test.ts",
+      "test/unit/promptMenus.test.ts",
+      "test/unit/promptNative.test.ts",
+      "test/unit/runtimeSharing.test.ts",
+      "test/unit/promptHostLifecycle.test.ts"
+    ],
+    "exitCode": 0
+  },
+  {
+    "check": "deadcode",
+    "command": ["npm", "run", "deadcode"],
+    "exitCode": 0
+  },
+  {
+    "check": "duplication",
+    "command": ["npx", "jscpd"],
+    "exitCode": 0
+  },
+  {
+    "check": "l10n",
+    "command": ["npm", "run", "check:l10n"],
+    "exitCode": 0
+  },
+  {
+    "check": "host-api",
+    "command": ["npm", "run", "check:host-api"],
+    "exitCode": 0
+  },
+  {
+    "check": "reference",
+    "command": ["npm", "run", "check:reference"],
+    "exitCode": 0
+  },
+  {
+    "check": "build",
+    "command": ["npm", "run", "build"],
+    "exitCode": 0
+  },
+  {
+    "check": "destinations",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/chatSharingHost.test.ts",
+      "test/unit/promptNative.test.ts",
+      "test/unit/promptEntry.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0
+  },
+  {
+    "check": "lifecycle-runtime",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/promptHostLifecycle.test.ts",
+      "test/unit/runtimeSharing.test.ts",
+      "test/unit/promptImport.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0
+  },
+  {
+    "check": "webview-actions",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/App.test.tsx",
+      "test/unit/promptMenus.test.ts",
+      "test/unit/uiState.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0
+  },
+  {
+    "check": "sharing-contracts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/sharingArtifacts.test.ts",
+      "test/unit/promptWorkspaceIntegration.test.ts",
+      "test/unit/promptLibrary.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0
+  }
+]

@@ -1,9 +1,10 @@
 {
   // Extension host project: src/extension.ts, src/host/**, src/core/**, src/shared/**.
   // Runs inside VS Code's Node-based extension host; no DOM types here.
+  // ES2023: the floor's extension host is Node 20 (VS Code 1.99, PLAN.md M62).
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["ES2024"],
+    "lib": ["ES2023"],
     "types": ["node", "vscode"]
   },
   "include": ["src/**/*.ts", "vitest.config.ts"],

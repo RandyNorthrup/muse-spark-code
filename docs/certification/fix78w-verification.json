@@ -1,0 +1,831 @@
+{
+  "rig": "kubuntu",
+  "date": "2026-10-04",
+  "branch": "feature/m71-git-prs",
+  "parent": "4057fab1",
+  "mainSync": "244d5905a94e3e5cd2b30659aa584649bc207663",
+  "bundles": {
+    "mainSync": "244d5905a94e3e5cd2b30659aa584649bc207663",
+    "branchBefore": "4057fab1",
+    "node": "v24.18.0",
+    "mainSyncBytes": 909415,
+    "beforeBytes": 934862,
+    "entryBytes": 716118,
+    "initialBytes": 919959,
+    "totalJsBytes": 939985,
+    "outputs": [
+      {
+        "path": "dist/webview/main.js",
+        "bytes": 716118,
+        "eager": true
+      },
+      {
+        "path": "dist/webview/chunks/GitPanel-MKAIXXOF.js",
+        "bytes": 8950,
+        "eager": false
+      },
+      {
+        "path": "dist/webview/chunks/UsageDialog-SHJ3ZXG6.js",
+        "bytes": 11076,
+        "eager": false
+      },
+      {
+        "path": "dist/webview/chunks/chunk-GO5TBZ5O.js",
+        "bytes": 63610,
+        "eager": true
+      },
+      {
+        "path": "dist/webview/chunks/chunk-6RFK7WHL.js",
+        "bytes": 140231,
+        "eager": true
+      }
+    ],
+    "additions": [
+      {
+        "path": "src/shared/l10n/en.ts",
+        "bytes": 10467
+      },
+      {
+        "path": "src/webview/components/GitPanel.tsx",
+        "bytes": 8955
+      },
+      {
+        "path": "src/webview/state/gitState.ts",
+        "bytes": 1668
+      },
+      {
+        "path": "src/webview/App.tsx",
+        "bytes": 1324
+      },
+      {
+        "path": "src/shared/git.ts",
+        "bytes": 1052
+      },
+      {
+        "path": "src/shared/palette.ts",
+        "bytes": 710
+      },
+      {
+        "path": "src/webview/state/uiState.ts",
+        "bytes": 683
+      },
+      {
+        "path": "src/shared/protocol.ts",
+        "bytes": 442
+      }
+    ]
+  },
+  "owningTests": [
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/conversationController.test.ts",
+        "test/unit/conversationGit.test.ts",
+        "test/unit/conversationGitBundle.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-1.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/conversationController.test.ts",
+        "test/unit/conversationGit.test.ts",
+        "test/unit/conversationGitBundle.test.ts"
+      ],
+      "passed": 608,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/gitActivationWiring.test.ts",
+        "test/unit/git.test.ts",
+        "test/unit/gitPhysicalOwner.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-2.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/gitActivationWiring.test.ts",
+        "test/unit/git.test.ts",
+        "test/unit/gitPhysicalOwner.test.ts"
+      ],
+      "passed": 31,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/gitWindowFileSystem.test.ts",
+        "test/unit/github.test.ts",
+        "test/unit/githubRemote.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-3.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/gitWindowFileSystem.test.ts",
+        "test/unit/github.test.ts",
+        "test/unit/githubRemote.test.ts"
+      ],
+      "passed": 57,
+      "failed": 0,
+      "pending": 1
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/githubSession.test.ts",
+        "test/unit/gitState.test.ts",
+        "test/unit/gitText.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-4.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/githubSession.test.ts",
+        "test/unit/gitState.test.ts",
+        "test/unit/gitText.test.ts"
+      ],
+      "passed": 17,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/heldCheckout.test.ts",
+        "test/unit/heldTree.test.ts",
+        "test/unit/pullRequestCheckout.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-5.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/heldCheckout.test.ts",
+        "test/unit/heldTree.test.ts",
+        "test/unit/pullRequestCheckout.test.ts"
+      ],
+      "passed": 95,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/pullRequestCheckoutGit.test.ts",
+        "test/unit/pullRequestLinks.test.ts",
+        "test/unit/pullRequestRef.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-6.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/pullRequestCheckoutGit.test.ts",
+        "test/unit/pullRequestLinks.test.ts",
+        "test/unit/pullRequestRef.test.ts"
+      ],
+      "passed": 34,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/pushPlan.test.ts",
+        "test/unit/worktreeCommands.test.ts",
+        "test/unit/worktreeConversationHost.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-7.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/pushPlan.test.ts",
+        "test/unit/worktreeCommands.test.ts",
+        "test/unit/worktreeConversationHost.test.ts"
+      ],
+      "passed": 42,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/worktreeConversations.test.ts",
+        "test/unit/worktreeFeatures.test.ts",
+        "test/unit/worktrees.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-8.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/worktreeConversations.test.ts",
+        "test/unit/worktreeFeatures.test.ts",
+        "test/unit/worktrees.test.ts"
+      ],
+      "passed": 25,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/agentImport.test.ts",
+        "test/unit/agentImportBundle.test.ts",
+        "test/unit/agentImportCommands.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-9.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/agentImport.test.ts",
+        "test/unit/agentImportBundle.test.ts",
+        "test/unit/agentImportCommands.test.ts"
+      ],
+      "passed": 127,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/agentImportWorkspaceEdits.test.ts",
+        "test/unit/importConvert.test.ts",
+        "test/unit/importExposure.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-10.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/agentImportWorkspaceEdits.test.ts",
+        "test/unit/importConvert.test.ts",
+        "test/unit/importExposure.test.ts"
+      ],
+      "passed": 77,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/importIo.test.ts",
+        "test/unit/App.test.tsx",
+        "test/unit/AppLazy.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-11.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/importIo.test.ts",
+        "test/unit/App.test.tsx",
+        "test/unit/AppLazy.test.tsx"
+      ],
+      "passed": 176,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/html.test.ts",
+        "test/unit/webviewSetup.test.ts",
+        "test/unit/UsageDialog.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-12.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/html.test.ts",
+        "test/unit/webviewSetup.test.ts",
+        "test/unit/UsageDialog.test.tsx"
+      ],
+      "passed": 51,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/Modal.test.tsx",
+        "test/unit/Composer.test.tsx",
+        "test/unit/Palette.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-13.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/Modal.test.tsx",
+        "test/unit/Composer.test.tsx",
+        "test/unit/Palette.test.tsx"
+      ],
+      "passed": 91,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/paletteRegistry.test.ts",
+        "test/unit/reviewUi.test.tsx",
+        "test/unit/TasksApp.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-14.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/paletteRegistry.test.ts",
+        "test/unit/reviewUi.test.tsx",
+        "test/unit/TasksApp.test.tsx"
+      ],
+      "passed": 52,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/protocol.test.ts",
+        "test/unit/manifest.test.ts",
+        "test/unit/ErrorBoundary.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=temp/fix78w-owning-15.json"
+      ],
+      "exitCode": 0,
+      "files": [
+        "test/unit/protocol.test.ts",
+        "test/unit/manifest.test.ts",
+        "test/unit/ErrorBoundary.test.tsx"
+      ],
+      "passed": 173,
+      "failed": 0,
+      "pending": 0
+    }
+  ],
+  "newProductionSuite": {
+    "command": "npx vitest run test/unit/webviewBundle.test.mjs --maxWorkers=3 --testTimeout=120000",
+    "exit": 0,
+    "passed": 10
+  },
+  "gates": [
+    {
+      "command": "npm run typecheck",
+      "exit": 0,
+      "projects": 5
+    },
+    {
+      "command": "npx eslint --max-warnings=0 <changed source/script/test files>",
+      "exit": 0
+    },
+    {
+      "command": "npx prettier --check <changed supported files>",
+      "exit": 0
+    },
+    {
+      "command": "npm run deadcode",
+      "exit": 0
+    },
+    {
+      "command": "npx jscpd",
+      "exit": 0,
+      "clones": 0
+    },
+    {
+      "command": "npm run cycles",
+      "exit": 0
+    },
+    {
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "tables": 14,
+      "manifestStrings": 122,
+      "sourceFiles": 455,
+      "problems": 0
+    },
+    {
+      "command": "npm run check:host-api",
+      "exit": 0,
+      "problems": 0
+    },
+    {
+      "command": "npm run build",
+      "exit": 0,
+      "checks": ["size", "split", "host-globals", "notices"]
+    }
+  ],
+  "drills": [
+    {
+      "name": "original IIFE output fails startup and deferred owners",
+      "file": "scripts/build.mjs",
+      "sha256": "5d6ac4f3c967bf0be46c62e7b2f38460d81a10de69c921144c29d384fb032e65",
+      "restored": "5d6ac4f3c967bf0be46c62e7b2f38460d81a10de69c921144c29d384fb032e65",
+      "results": [
+        {
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/webviewBundle.test.mjs",
+            "--maxWorkers=3",
+            "--testTimeout=120000"
+          ],
+          "exit": 1,
+          "summary": [
+            " Test Files  1 failed (1)",
+            "      Tests  3 failed | 7 passed (10)",
+            "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > keeps all initial JavaScript within the unchanged 900 KiB cap",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > loads GitPanel only through its dynamic import",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > loads UsageDialog only through its dynamic import"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "GitPanel becomes eager",
+      "file": "src/webview/App.tsx",
+      "sha256": "054408ae5890ea1aea7e37b01d4c9616f379ead44789c181a3b602c89bcc678a",
+      "restored": "054408ae5890ea1aea7e37b01d4c9616f379ead44789c181a3b602c89bcc678a",
+      "results": [
+        {
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/webviewBundle.test.mjs",
+            "--maxWorkers=3",
+            "--testTimeout=120000"
+          ],
+          "exit": 1,
+          "summary": [
+            " Test Files  1 failed (1)",
+            "      Tests  2 failed | 8 passed (10)",
+            "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > keeps all initial JavaScript within the unchanged 900 KiB cap",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > loads GitPanel only through its dynamic import"
+          ]
+        },
+        {
+          "command": ["node", "scripts/check-bundle-split.mjs"],
+          "exit": 1,
+          "summary": [
+            "  src/webview/components/GitPanel.tsx must load only in its deferred webview chunk"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "UsageDialog becomes eager",
+      "file": "src/webview/App.tsx",
+      "sha256": "054408ae5890ea1aea7e37b01d4c9616f379ead44789c181a3b602c89bcc678a",
+      "restored": "054408ae5890ea1aea7e37b01d4c9616f379ead44789c181a3b602c89bcc678a",
+      "results": [
+        {
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/webviewBundle.test.mjs",
+            "--maxWorkers=3",
+            "--testTimeout=120000"
+          ],
+          "exit": 1,
+          "summary": [
+            " Test Files  1 failed (1)",
+            "      Tests  2 failed | 8 passed (10)",
+            "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > keeps all initial JavaScript within the unchanged 900 KiB cap",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > loads UsageDialog only through its dynamic import"
+          ]
+        },
+        {
+          "command": ["node", "scripts/check-bundle-split.mjs"],
+          "exit": 1,
+          "summary": [
+            "  src/webview/components/UsageDialog.tsx must load only in its deferred webview chunk"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "size gate ignores all static imports",
+      "file": "scripts/check-bundle-size.mjs",
+      "sha256": "85806d3bec011346332ba73605febd7cdb0cc8d398a3b8cf2d4a9078962876c0",
+      "restored": "85806d3bec011346332ba73605febd7cdb0cc8d398a3b8cf2d4a9078962876c0",
+      "results": [
+        {
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/webviewBundle.test.mjs",
+            "--maxWorkers=3",
+            "--testTimeout=120000"
+          ],
+          "exit": 1,
+          "summary": [
+            " Test Files  1 failed (1)",
+            "      Tests  3 failed | 7 passed (10)",
+            "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > counts a shared static chunk once and leaves dynamic imports outside startup",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > rejects overflow in a static chunk even when the entry itself is tiny",
+            "    134|     expect(result.stdout).toContain('OVER dist/webview/main.js + stati…",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > rejects a missing static chunk"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "browser chunks omitted from package",
+      "file": ".vscodeignore",
+      "sha256": "08d24b9f14bcf42ca79dce475913f33f88dcb25ac481c9d3c84abe5e9e320e68",
+      "restored": "08d24b9f14bcf42ca79dce475913f33f88dcb25ac481c9d3c84abe5e9e320e68",
+      "results": [
+        {
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/webviewBundle.test.mjs",
+            "--maxWorkers=3",
+            "--testTimeout=120000"
+          ],
+          "exit": 1,
+          "summary": [
+            " Test Files  1 failed (1)",
+            "      Tests  1 failed | 9 passed (10)",
+            "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > packages every emitted browser script, with no stale browser chunks"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "stale hashed chunks remain shipped",
+      "file": "scripts/build.mjs",
+      "sha256": "5d6ac4f3c967bf0be46c62e7b2f38460d81a10de69c921144c29d384fb032e65",
+      "restored": "5d6ac4f3c967bf0be46c62e7b2f38460d81a10de69c921144c29d384fb032e65",
+      "results": [
+        {
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/webviewBundle.test.mjs",
+            "--maxWorkers=3",
+            "--testTimeout=120000"
+          ],
+          "exit": 1,
+          "summary": [
+            " Test Files  1 failed (1)",
+            "      Tests  1 failed | 9 passed (10)",
+            "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > packages every emitted browser script, with no stale browser chunks"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "module script type removed",
+      "file": "src/host/html.ts",
+      "sha256": "cfd1191a1a421be8585bc4aaf823d6eb28090c1bb78b219d23cd8a28cc8314ce",
+      "restored": "cfd1191a1a421be8585bc4aaf823d6eb28090c1bb78b219d23cd8a28cc8314ce",
+      "results": [
+        {
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/html.test.ts",
+            "--maxWorkers=3",
+            "--testTimeout=120000"
+          ],
+          "exit": 1,
+          "summary": [
+            " Test Files  1 failed (1)",
+            "      Tests  1 failed | 8 passed (9)",
+            "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+            " FAIL  test/unit/html.test.ts > buildWebviewHtml > references the bundled script and stylesheet with the nonce"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "shared review text sentinel missing from browser reader",
+      "file": "dist/webview/chunks/chunk-6RFK7WHL.js",
+      "sha256": "966946473016b8c2555de2fb2ef201793e7f6817249e24e6fd7ada21078c8320",
+      "restored": "966946473016b8c2555de2fb2ef201793e7f6817249e24e6fd7ada21078c8320",
+      "results": [
+        {
+          "command": ["node", "scripts/check-bundle-split.mjs"],
+          "exit": 1,
+          "summary": [
+            "  dist/webview/chunks/chunk-6RFK7WHL.js no longer carries REVIEW_MODEL_TEXT (its key reviewerRole)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "deferred Git callback drops the edited commit",
+      "file": "src/webview/App.tsx",
+      "sha256": "054408ae5890ea1aea7e37b01d4c9616f379ead44789c181a3b602c89bcc678a",
+      "restored": "054408ae5890ea1aea7e37b01d4c9616f379ead44789c181a3b602c89bcc678a",
+      "results": [
+        {
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/AppLazy.test.tsx",
+            "--maxWorkers=3",
+            "--testTimeout=120000"
+          ],
+          "exit": 1,
+          "summary": [
+            " Test Files  1 failed (1)",
+            "      Tests  1 failed (1)",
+            "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+            " FAIL  test/unit/AppLazy.test.tsx > App while its deferred panels load > waits for use, keeps new form state and language, and lets a loading modal close"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "no browser constants source owner",
+      "file": "dist/meta/webview.json",
+      "sha256": "78dae16b526ab48828c08062161128db6e68b0b402a8f461a3f0a9c446e53669",
+      "restored": "78dae16b526ab48828c08062161128db6e68b0b402a8f461a3f0a9c446e53669",
+      "results": [
+        {
+          "command": ["node", "scripts/check-bundle-split.mjs"],
+          "exit": 1,
+          "summary": [
+            "bundle split: 3 problem(s); see PLAN.md D6 and M57",
+            "  the webview must carry shared constants in exactly one JavaScript output",
+            "  dist/webview/chunks/chunk-6RFK7WHL.js carries REVIEW_MODEL_TEXT (its key reviewerRole), which only dist/review.js, dist/modelApi.js read",
+            "  dist/webview/chunks/chunk-6RFK7WHL.js carries REVIEW_MODEL_TEXT (its key reviewMuseCodeRole), which only dist/review.js, dist/modelApi.js read"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "duplicate React, English and installed-language source ownership in emitted metadata",
+      "file": "scripts/build.mjs",
+      "sha256": "5d6ac4f3c967bf0be46c62e7b2f38460d81a10de69c921144c29d384fb032e65",
+      "restored": "5d6ac4f3c967bf0be46c62e7b2f38460d81a10de69c921144c29d384fb032e65",
+      "results": [
+        {
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "test/unit/webviewBundle.test.mjs",
+            "--maxWorkers=3",
+            "--testTimeout=120000"
+          ],
+          "exit": 1,
+          "summary": [
+            " Test Files  1 failed (1)",
+            "      Tests  3 failed | 7 passed (10)",
+            "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > shares one copy of src/shared/l10n/en.ts with both panels",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > shares one copy of src/shared/l10n/text.ts with both panels",
+            " FAIL  test/unit/webviewBundle.test.mjs > the production webview chunks (FIX78W) > shares one copy of node_modules/react/cjs/react.production.js with both panels"
+          ]
+        }
+      ]
+    }
+  ],
+  "browser": {
+    "rig": "kubuntu",
+    "cases": [
+      {
+        "language": "en",
+        "initialDeferredRequests": 0,
+        "requests": [
+          "/dist/webview/main.css",
+          "/dist/webview/main.js",
+          "/dist/webview/chunks/chunk-GO5TBZ5O.js",
+          "/dist/webview/chunks/chunk-6RFK7WHL.js",
+          "/dist/webview/chunks/GitPanel-MKAIXXOF.js",
+          "/dist/webview/chunks/UsageDialog-SHJ3ZXG6.js"
+        ],
+        "violations": [],
+        "errors": [],
+        "retainedDraft": true,
+        "editedSubmit": true,
+        "closeWhileLoading": true,
+        "usageReopens": true
+      },
+      {
+        "language": "de",
+        "initialDeferredRequests": 0,
+        "requests": [
+          "/dist/webview/main.css",
+          "/dist/webview/main.js",
+          "/dist/webview/chunks/chunk-GO5TBZ5O.js",
+          "/dist/webview/chunks/chunk-6RFK7WHL.js",
+          "/dist/webview/chunks/GitPanel-MKAIXXOF.js",
+          "/dist/webview/chunks/UsageDialog-SHJ3ZXG6.js"
+        ],
+        "violations": [],
+        "errors": [],
+        "retainedDraft": true,
+        "editedSubmit": true,
+        "closeWhileLoading": true,
+        "usageReopens": true
+      },
+      {
+        "case": "missing chunk",
+        "crashBoundary": true,
+        "reloadAction": true
+      }
+    ]
+  },
+  "a11y": {
+    "command": "node scripts/a11y.mjs git-held git-commit git-pr git-pr-narrow usage usage-api usage-install usage-install-narrow palette palette-tips slash-commands slash-tips review-pane",
+    "exit": 0,
+    "pages": 52,
+    "scenarios": 13,
+    "themes": 4,
+    "violations": 0,
+    "undecided": 0,
+    "exempt": 0,
+    "missingResults": 0,
+    "unseenContrastElements": 496
+  },
+  "sourceHashes": {
+    ".vscodeignore": "08d24b9f14bcf42ca79dce475913f33f88dcb25ac481c9d3c84abe5e9e320e68",
+    "scripts/build.mjs": "5d6ac4f3c967bf0be46c62e7b2f38460d81a10de69c921144c29d384fb032e65",
+    "scripts/check-bundle-size.mjs": "85806d3bec011346332ba73605febd7cdb0cc8d398a3b8cf2d4a9078962876c0",
+    "scripts/check-bundle-split.mjs": "45a52938894f0278ac63657a369e789213d0e3ca2d5ea18afae460c5f040e210",
+    "scripts/third-party-notices.mjs": "c47d703de3af8f66c01762ae5e479bd30f1fbf8e8e811d7009d057f53bc8b214",
+    "src/host/html.ts": "cfd1191a1a421be8585bc4aaf823d6eb28090c1bb78b219d23cd8a28cc8314ce",
+    "src/webview/App.tsx": "054408ae5890ea1aea7e37b01d4c9616f379ead44789c181a3b602c89bcc678a",
+    "test/harness/index.html": "7c562e0bacd9764db14cb105d5360dc40229aa9be5f6b0e4e783d106fc213e65",
+    "test/unit/App.test.tsx": "3db100de1ef09295eb391016e2355417e84f921f6ec839ebd1159dfc375fa7ae",
+    "test/unit/html.test.ts": "e4859bfff96a65db6b50dc65b6f7ce7e022b4b18ac06b4722522fd729bf71e6f",
+    "test/unit/AppLazy.test.tsx": "58bd9e96a344e04fc342341d14414bcf716c2504f9e4e52cb6cfc0699dff7280",
+    "test/unit/webviewBundle.test.mjs": "c98c677adc0143444746749cbbfcc9cfcfa2f9d751fcafe2804b09da5a629447"
+  }
+}

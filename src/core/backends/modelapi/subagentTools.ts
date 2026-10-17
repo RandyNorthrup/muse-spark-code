@@ -3,13 +3,38 @@
 // the other arguments are our own tool interface. This is not an MSP parser.
 
 import * as z from 'zod/mini'
+import type { PanelPlaybookPort } from '../../orchestration/panelPlaybook'
 import {
   MODEL_API_SUBAGENT_TOOLS,
+  REVIEWER_ROLE,
   SUBAGENT_CAPACITY,
   SUBAGENT_WAIT_DEFAULT_MS,
   SUBAGENT_WAIT_MAX_MS,
   SUBAGENT_WAIT_MIN_MS,
+  type PaidFeature,
 } from '../../../shared/constants'
+import type { PacingClass } from './pacing'
+
+/** Existing paid admission tags also identify background request owners (D86.6). */
+export function fanOutPacingClass(feature: PaidFeature | undefined): PacingClass {
+  switch (feature) {
+    case 'subagents': {
+      return 'subagent'
+    }
+    case 'bestOfN': {
+      return 'bestOfN'
+    }
+    case 'scheduledPrompts': {
+      return 'schedule'
+    }
+    case 'judge': {
+      return 'judge'
+    }
+    default: {
+      return 'foreground'
+    }
+  }
+}
 
 /** A child's state as the tools report it (Muse Code's snake_case vocabulary). */
 const SUBAGENT_STATES = ['queued', 'running', 'interrupted', 'result_ready', 'closed'] as const
@@ -33,16 +58,21 @@ export const SUBAGENT_TOOL_DEFINITIONS: readonly {
 }[] = [
   {
     name: MODEL_API_SUBAGENT_TOOLS.spawn,
-    description: `Start a subagent: another agent with a conversation of its own that works on one objective in this workspace, with your tools except these and the same approvals, while you carry on. Use it for independent, bounded work that gains from running in parallel; do quick or sequential work yourself. Spawn follows the current approval mode. Up to ${String(SUBAGENT_CAPACITY)} work at once; later ones queue.`,
+    description: `Start a subagent: another agent with a conversation of its own that works on one objective in this workspace, with your tools except these and the same approvals, while you carry on. Use it for independent, bounded work that gains from running in parallel; do quick or sequential work yourself. To run a custom agent from your instructions' Agents list (or a built-in), pass its id as agent: its prompt, tools, model, effort and permissions then narrow this session's. Spawn follows the current approval mode. Up to ${String(SUBAGENT_CAPACITY)} work at once; later ones queue.`,
     properties: {
       role: {
         type: 'string',
-        description: 'A short name for the agent, e.g. explorer or test-runner',
+        description: `A short name for the agent, e.g. explorer or test-runner. The role ${REVIEWER_ROLE} starts the built-in Reviewer: its own review prompt and tools that only read.`,
       },
       objective: {
         type: 'string',
         description:
           'The whole task and what to report back. The agent sees nothing else of this conversation.',
+      },
+      agent: {
+        type: 'string',
+        description:
+          "A custom agent id from the Agents list in your instructions, e.g. explore; omit to run with this session's own prompt, tools, model and effort",
       },
       worktree_isolation: {
         type: 'boolean',
@@ -115,9 +145,11 @@ export const SUBAGENT_TOOL_DEFINITIONS: readonly {
 export const spawnArgs = z.object({
   role: z.string().check(z.trim(), z.minLength(1)),
   objective: z.string().check(z.trim(), z.minLength(1)),
+  agent: z.optional(z.string().check(z.trim(), z.minLength(1))),
   worktree_isolation: z.optional(z.union([z.boolean(), z.record(z.string(), z.unknown())])),
   command_id: z.optional(z.string()),
 })
+export type SpawnArgs = z.infer<typeof spawnArgs>
 
 export const statusArgs = z.object({
   subagent_id: z.optional(z.string()),
@@ -144,4 +176,26 @@ export const targetArgs = z.object({
 export function isSubagentTool(name: string): boolean {
   const names: readonly string[] = Object.values(MODEL_API_SUBAGENT_TOOLS)
   return names.includes(name)
+}
+
+/**
+ * Which delegation family a conversation declares (M96, PLAN.md D75): a team
+ * conversation declares the team's five tools and none of M48's six; every
+ * other conversation declares exactly what it declares today. Never both.
+ */
+export function delegationFamily(teamMode: 'single-model' | 'team'): 'team' | 'subagents' {
+  return teamMode === 'team' ? 'team' : 'subagents'
+}
+
+/** M116: bind immediately before a new child/follow-up actually starts, after paid
+ * consent and ordinary tool admission. Idempotent spawn retries start no work.
+ * @unwired M116 playbook subagent dispatch
+ * Muse Code's native spawn owner binds this same port at its dispatch boundary. */
+export async function dispatchPlaybookSubagent<T>(
+  playbook: PanelPlaybookPort,
+  sessionId: string,
+  targetId: string | undefined,
+  start: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  return await playbook.dispatch('subagent', sessionId, targetId, start)
 }

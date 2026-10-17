@@ -1,5 +1,26 @@
 # Certification records
 
+- [MUSE143](muse143.md): live Windows 1.4.3 approval/rename/fork/sandbox
+  receipts, version-aware update guidance and retained upstream limitations.
+- [FIXCYCLES](fixcycles.md): complete cycle-root inventory, worker environment dependency fix, red/restored drills and fresh-clone gates.
+
+- [SDK142](sdk142.md): Muse Code 1.4.1/1.4.2 fingerprints, CLI documentation corrections and regression drill; SDK stays 1.3.0.
+
+[0.10.0 release preparation](release-0.10.0.md) tracks the current candidate
+and the still-open checks for every distribution channel.
+
+[PR #51 Android/Termux regression tests](pr51-termux-tests.md) records the
+contributor test scope and resumed integration proof, separate from a real
+Android installation or microphone certification.
+
+Outside contributions get one vetting record each under `vetting/`, as
+[docs/contributor-vetting.md](../contributor-vetting.md) sets out:
+
+- [PR #51](vetting/pr-51.md): retroactive; the author's public record, the
+  merged diff against the change checklist, the fork CI approvals, what
+  went out of process, and the benefit check of its four tests (PLAN.md
+  D102).
+
 One file per milestone, written when the milestone closed: the gate results
 of that day, what was built row by row and which test checks it, the visual
 verification, the test-fire proofs (every new check broken on purpose once,
@@ -72,5 +93,45 @@ The PNGs beside the records are that day's harness renders.
 - [0.9.1](release-0.9.1.md): Muse Code 1.4.0 on Windows: rename, fork and the sandbox warning limited for every version; known 1.4.0 schema fingerprints (PLAN.md D26 amendment)
 - [M57](m57.md): the Model API backend out of the activation bundle into `dist/modelApi.js`, the identity audit and the bundle-split gate (PLAN.md D6)
 - [M58](m58.md): a popup before every paid use: Allow once, Allow always in this workspace, or Deny (PLAN.md D48)
+- [MG78b](mg78b.md): current-main integration of M71, conflict resolutions and bounded merge evidence (2026-10-04)
+- [MRG78](mrg78.md): Win11 merge of main's activation diet, CI and panel polish into M71, with bounded checks and the open browser-size gate (2026-10-04)
+- [M71](m71.md): git and pull requests: commit, push that always asks and never forces, pull requests on GitHub linked to their conversation, and someone else's pull request held in its own worktree until trusted (PLAN.md D49)
 - [M82](m82.md): awareness and budgets: background-turn notifications, per-reply tokens and cost, a session budget cap kept by reservation, cache savings (PLAN.md D49)
+- [M75](m75.md): paired efficiency evaluation on the extension's own Model API harness, behavioural verifiers, attempts counted from the requests sent, capability floors, and the live baseline, 10/10 in 39 model calls for $0.0041 (PLAN.md D49; the report is [m75-baseline.md](m75-baseline.md))
+- [M70m2 reconciliation](m70m2.md): focused review, packing and handoff merge proof; full certification remains the lead's gate.
+- [MG69 reconciliation](mg69.md): preserve review, session transfer and agent import while merging main; focused rig proof, with full certification left to the lead.
+- [M73](m73.md): observation packing on the Model API, `recall_output`, the savings ledger and the M75 packing arm; built and held, its live M75 run not run (PLAN.md D49)
+- [M79](m79.md): plans as files: Save plan and Implement in a fresh conversation, Muse Code's `.agents/plans` convention, the plan's steps as the todo list (PLAN.md D49, D13)
+- [M74](m74.md): long tasks, `/handoff` only: the distilled brief reviewed in a dialog before the new conversation starts; automatic compaction, the hidden follow-up and the memory flush not built (blocked on M75 and Q-M74), so M74 is not complete (PLAN.md D49)
+- [M69](m69.md): web fetch on both backends: public HTTPS pages, every DNS answer checked and the connection pinned (through VS Code's proxy too), per-host approval, untrusted-content markers; Muse Code through the `ide` server (PLAN.md D49, folds in M44b)
 - [Sign-in detection](sign-in-detection.md): the CLI's sign-in read from its credential file's structure and confirmed by the CLI, sign-out through `account/logout`, and every way a browser sign-in ends (PLAN.md D26 amendment)
+- [M83e](m83e.md): exposure-preserving import, metadata-only preview, unsaved target editor edits and scoped rig/red-drill evidence (PLAN.md D49, D64); [M83](m83.md), [M83b](m83b.md) and [M83d](m83d.md) are superseded history.
+- [M84](m84.md): session export, import and share: redacted by default and previewed, every imported byte parsed, imported conversations asking every time (PLAN.md D49)
+- [M68](m68.md): the verify loop: diagnostics and check commands after edits, `run_checks`, `then_run`, format on edit, and the Muse Code note (PLAN.md D49; merged as PR #54)
+- [M67](m67.md): code intelligence tools from VS Code's language services on both backends, `rename_symbol` through the edit path, and the opt-in repo map (PLAN.md D49)
+- [M60](m60.md): the host API record and the `vscode` boundary, with M61's host bridge and portable controller (PLAN.md D60)
+- [M62a, M62b](m62.md): the VS Code floor at 1.99, from an API and Node audit, tested in VSCodium and code-server; Eclipse Theia 1.75 (PLAN.md M62, A8)
+- [M63a–M63c](m63.md): the ACP agent for other editors, the Model API key in the OS credential store, and the agent's package; Zed, Emacs with agent-shell, Neovim with CodeCompanion, JupyterLab with Jupyter AI; the editors' MCP servers; the host checks in CI (PLAN.md D61, D62)
+- [PR #32 joined with M57 and M58](pr32-integration.md): the ACP agent loads `dist/modelApi.js`, each paid use asks in the editor, the agent's budget, networks and proxies, the key store on the owner's Windows 11 VM and Mac mini (PLAN.md D6, D62, Q66)
+- [M72](m72.md): turn checkpoints in a shadow repository: restore files, the conversation or both, and redo (PLAN.md D51)
+- [M76](m76.md): custom Model API agents, bounded untrusted files, tool/permission narrowing, paid model consent and trust during waits; lane evidence with lead-owned aggregate gates open (PLAN.md D49)
+- [M80 headless and CI](m80.md): lanes A–D, their integration, the W workflow and the cross-lane fix pass, with every drill and the integrated-tree gates on three rigs; hosted matrix and live receipts L/LA/LR pending.
+- [M87](m87.md): panel polish: the context meter, steps under one summary, message times, Edit on a queued message, the diff tally, the tasks pane and its tab, menu tips, the joined shell blocks, the working line and one radial menu for the chat; lane records [P](m87-p.md), [A](m87-a.md), [B](m87-b.md), [C](m87-c.md), [D](m87-d.md), [E](m87-e.md), [F](m87-f.md) and [the plural gate](m87-l10ngate.md) (PLAN.md D66)
+- [M89](m89.md): the bundled high-quality-projects skills: a third skill source on the Model API backend, the install, update offer and removal for Muse Code, junctions and symlinks proven on the three rigs (PLAN.md D68)
+- [M95 research](m95-research.md): bring-your-own model providers and subscription sign-in: five wire formats, the leaders' provider setup, where our Model API backend is Meta-specific, the adapter seam, OpenRouter, and what each provider allows for plan sign-in today (PLAN.md D74, M95, M95b, M95c)
+- [M95 captures](m95-captures.md): the live wire of the twelve keyed cloud presets (OpenAI, xAI, Anthropic, Gemini, OpenRouter, Groq, Mistral, Together, Fireworks, DeepSeek, Hugging Face, Z.ai): model lists, a streamed tool call and its follow-up, usage, cache pairs, error shapes, 46 model-call attempts counted (frames in `m95-captures/`; PLAN.md D74, M95 step 13)
+
+- [M96 research](m96-research.md): agent roles and orchestration: Claude Code, Codex, Roo, Kilo, Cline, VS Code and Cursor; five multi-agent frameworks; external agents over ACP and their terms; long MCP calls; what this repository already has; what D75 takes and adds; the lead's fleet practice, its incidents and the facts behind the scheduler and the coordinator (PLAN.md D75, M96, M96c, M96d)
+
+- [Muse Code's unasked file writes](musecode-write-asks.md): why the sandbox is off for a Windows profile workspace, what Muse Code 1.4.2 lets a client do about unasked file writes (nothing over MSP), probes with forced tool calls and no model call, #26 retested on 1.4.2, the once-per-window sandbox-off warning, the Diagnostics line and the honest Plan line (PLAN.md D7, D12, §9)
+- [Other agents' folders are protected writes](protect-agent-folders.md): other coding agents' folders, MCP and instruction files join the protected-write list on the Model API backend, and Muse Code's file-write approvals are judged by the same list, outside the workspace too (PLAN.md D24)
+- [Docs truth audit of the 0.12.0 tree](docs-truth-audit-0120.md): every user-facing claim checked against the code, the Model API Auto line, redaction at the panel boundary, confidential-workspace checks at every dispatch, fixed-word CLI failure logs and the scanner's exit docs
+- [M81](m81.md): the browser check on both backends, using a verified pinned Chrome for Testing headless shell, its owned proxy, canaries and runtime acquisition; host widening requires user consent (PLAN.md D49, D6).
+- [M99](m99.md): What's New after an update: the page or notice once per update in one window, the content built from CHANGELOG.md, the Try it allow list, the changelog's Highlights guard, every guard red-drilled on Kubuntu (PLAN.md D79)
+- [Defaults on](defaults.md): D78 availability, first-use paid consent, shared daily claims and monotonic Stop, with FIXDEF review drills
+- [M92](m92.md): Muse Gadgets guidance, the shared token table, secret prompts and one-time shell approvals, with the M92e review fixes
+- [0.13.0 release train](train-0.13.0.md): ordered history-preserving integration, conflict resolutions, failed full-gate receipt, budget-stop evidence and nine regression drills
+- [0.15.0 release train](train-0.15.0.md): ordered integrations and current-main reference, immutable goldens, deterministic exec fixtures, actual helperless/universal VSIX diet and unchanged-cap hold, default-timeout owning receipts and guard-fire records
+
+- [M95 lane X review corrections](m95-x.md): credential allowlist, provider commit recovery, captured probes, path/DNS guards and translated counts, with regression drills and named integration residuals.
+- [M102 integration](m102.md): usage integration on M95's joined transport, lazy ACP usage and headless loading, golden and guard-fire evidence; round three records the stopped provider-accounting path, cold exec package timeout and universal VSIX cap blocker.

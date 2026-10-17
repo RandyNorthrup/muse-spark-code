@@ -7,11 +7,38 @@
 // the host says their files changed. The memory is read once, as Muse Code
 // takes its snapshot at session start.
 
+import path from 'node:path'
+import {
+  RecordingReader,
+  RecordingScope,
+  recordOperation,
+  recordProjection,
+  type ContentRead,
+} from './recordingReader'
+import type { ContentSource } from '../schedules/provenance'
 import { RULES_PREAMBLE } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
-import { loadRuleFile, type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
-import { loadSkills, projectSkillsRoot, type SkillDefinition, type SkillRoot } from './skills'
+import {
+  type AgentCatalogue,
+  type AgentDefinition,
+  type AgentResolution,
+  type AgentRoot,
+  agentHoles,
+  NO_AGENTS,
+  offeredAgents,
+  projectAgentsRoot,
+  resolveAgent,
+} from './customAgents'
+import { type RuleFile, ruleDirectoriesFor, renderRules } from './rules'
+import {
+  type BundledSkillsSource,
+  bundledSkillsRoot,
+  extensionSkillsRoot,
+  projectSkillsRoot,
+  type SkillDefinition,
+  type SkillRoot,
+} from './skills'
 
 export interface WorkspaceContextDeps {
   /** Bytes and directory entries, links included (PLAN.md D27). */
@@ -20,10 +47,24 @@ export interface WorkspaceContextDeps {
   readonly platform: NodeJS.Platform
   /** Muse Code's personal skill root; undefined when the host has no home. */
   readonly personalSkillsRoot: string | undefined
+  /**
+   * The skills that ship with the extension (M89, PLAN.md D68), the lowest
+   * source; undefined where none ship (the ACP agent, the evaluation).
+   */
+  readonly bundledSkills?: BundledSkillsSource | undefined
+  /** The managed personal agent root (M76); undefined when the host has no home. */
+  readonly personalAgentsRoot: string | undefined
+  /**
+   * Whether the agents are loaded (M76): a parent conversation lists them
+   * and spawns them; a child cannot spawn, so it reads none.
+   */
+  readonly hasAgents: boolean
   readonly isWorkspaceTrusted: () => boolean
   /** The memory snapshot (M49); undefined when the backend has no memory. */
   readonly loadMemory: (() => Promise<readonly MemoryScopeSnapshot[]>) | undefined
   readonly warn: (message: string) => void
+  /** Cached projections retain exactly the inputs the guarded reader consumed. */
+  readonly recordDerived?: (bytes: string, scope: RecordingScope) => void
 }
 
 /** The loaded context as the instructions builder consumes it. */
@@ -31,11 +72,18 @@ export interface ContextSections {
   /** The rendered rules section with the preamble, or undefined without rules. */
   readonly rules: string | undefined
   readonly skills: readonly SkillDefinition[]
+  /**
+   * The custom agents the model may run through `subagent_spawn` (M76):
+   * only those a spawn of the name would run (RV70x).
+   */
+  readonly agents: readonly AgentDefinition[]
   /** The scopes that keep notes, as the session began; empty without any. */
   readonly memory: readonly MemoryScopeSnapshot[]
 }
 
 const ROOT_DIRECTORY = ''
+// Missing source evidence stays explicit and cannot authorize a new fire.
+const UNKNOWN_CONTEXT_SOURCE: ContentSource = { kind: 'tool', callId: 'unproved-context' }
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
@@ -49,11 +97,16 @@ export class WorkspaceContext {
   private readonly rules: RuleFile[] = []
   private readonly checkedDirectories = new Set<string>()
   private skills: readonly SkillDefinition[] = []
+  private agents: AgentCatalogue = NO_AGENTS
   private memory: readonly MemoryScopeSnapshot[] = []
   private rulesText: string | undefined
   private loading: Promise<void> | undefined
 
-  public constructor(private readonly deps: WorkspaceContextDeps) {}
+  private readonly recorder = new RecordingReader()
+
+  public constructor(private readonly deps: WorkspaceContextDeps) {
+    // Each fixed loading operation installs its recording port before reading.
+  }
 
   private get isTrusted(): boolean {
     return this.deps.isWorkspaceTrusted()
@@ -69,6 +122,53 @@ export class WorkspaceContext {
     ]
     if (this.deps.personalSkillsRoot !== undefined) {
       roots.push({ directory: this.deps.personalSkillsRoot, source: 'user', confineTo: undefined })
+    }
+    // The extension's own files, read only from its own folders: the
+    // vendored package (M89) and the first-party skills beside it (M92).
+    // The first-party root comes first, so the extension's own skill wins an
+    // id the vendored package also holds.
+    const { bundledSkills } = this.deps
+    if (bundledSkills?.isEnabled() === true) {
+      roots.push(
+        {
+          directory: bundledSkills.firstPartyRoot,
+          source: 'bundled',
+          confineTo: bundledSkills.firstPartyRoot,
+          packageRoot: bundledSkills.firstPartyRoot,
+        },
+        {
+          directory: bundledSkillsRoot(bundledSkills.packageRoot, this.deps.platform),
+          source: 'bundled',
+          confineTo: bundledSkills.packageRoot,
+          packageRoot: bundledSkills.packageRoot,
+        },
+      )
+      // The extension's own skills (M97, PLAN.md D76): the same `bundled`
+      // source and setting, after the vendored package, without touching it.
+      const extensionSkills = extensionSkillsRoot(bundledSkills.packageRoot, this.deps.platform)
+      const extensionRoot = (this.deps.platform === 'win32' ? path.win32 : path.posix).dirname(
+        extensionSkills,
+      )
+      roots.push({
+        directory: extensionSkills,
+        source: 'bundled',
+        confineTo: extensionRoot,
+        packageRoot: extensionRoot,
+      })
+    }
+    return roots
+  }
+
+  private agentRoots(): readonly AgentRoot[] {
+    const roots: AgentRoot[] = [
+      {
+        directory: projectAgentsRoot(this.deps.workspaceRoot, this.deps.platform),
+        source: 'project',
+        confineTo: this.deps.workspaceRoot,
+      },
+    ]
+    if (this.deps.personalAgentsRoot !== undefined) {
+      roots.push({ directory: this.deps.personalAgentsRoot, source: 'user', confineTo: undefined })
     }
     return roots
   }
@@ -91,16 +191,23 @@ export class WorkspaceContext {
       return false
     }
     this.checkedDirectories.add(directory)
-    const load = await loadRuleFile(
-      { io: this.deps.io, workspaceRoot: this.deps.workspaceRoot, platform: this.deps.platform },
+    const recorded = await this.recorder.run(recordOperation, {
+      kind: 'rules',
+      deps: {
+        io: this.deps.io,
+        workspaceRoot: this.deps.workspaceRoot,
+        platform: this.deps.platform,
+      },
       directory,
-    )
+    })
+    const load = recorded.value
     if (load.warning !== undefined) {
       this.deps.warn(load.warning)
     }
     if (load.file === undefined) {
       return false
     }
+    this.deps.recordDerived?.(load.file.text.trim(), recorded.scope)
     this.rules.push(load.file)
     return true
   }
@@ -122,13 +229,64 @@ export class WorkspaceContext {
     await this.guarded('loading the rules', () => this.loadDirectory(ROOT_DIRECTORY), false)
     this.renderRulesSection()
     await this.refreshSkills()
+    if (this.deps.hasAgents) {
+      await this.loadAgentCatalogue()
+    }
     const { loadMemory } = this.deps
     if (loadMemory !== undefined) {
       this.memory = await this.guarded('loading the memory', loadMemory, [])
     }
   }
 
-  /** The root rules, the skills and the memory index, loaded once. */
+  /**
+   * Agents load once per session with the rest of the context (M76): a
+   * repository's files only in a trusted workspace, like the skills. Each
+   * root loads on its own; one that fails is a hole the others' precedence
+   * respects (RV70x).
+   */
+  private async loadAgentCatalogue(): Promise<void> {
+    // Rules and skills awaited first; trust can change before agent loading.
+    if (!this.isTrusted) return
+    const roots = this.agentRoots()
+    const { platform } = this.deps
+    const load = await this.guarded(
+      'loading the agents',
+      async () => {
+        const recorded = await this.recorder.run(recordOperation, {
+          kind: 'agents',
+          deps: { io: this.deps.io, platform },
+          roots,
+        })
+        for (const agent of recorded.value.agents)
+          if (agent.source !== 'builtin')
+            this.deps.recordDerived?.(
+              JSON.stringify({ id: agent.id, description: agent.description }),
+              recorded.scope,
+            )
+        return recorded.value
+      },
+      // Anything else that fails leaves every root unknown: no name runs,
+      // a built-in included, rather than one a file may have narrowed.
+      {
+        agents: [],
+        holes: agentHoles(
+          platform,
+          roots.map((root) => ({ root, listingFailure: 'failed', refused: [] })),
+        ),
+        warnings: [],
+      },
+    )
+    for (const warning of load.warnings) {
+      this.deps.warn(warning)
+    }
+    // An in-flight file read cannot be cancelled, but its catalogue must not
+    // survive trust withdrawal while the filesystem was answering.
+    this.agents = this.deps.isWorkspaceTrusted()
+      ? { agents: load.agents, holes: load.holes }
+      : NO_AGENTS
+  }
+
+  /** The root rules, the skills, the agents and the memory index, loaded once. */
   public load(): Promise<void> {
     this.loading ??= this.loadAll()
     return this.loading
@@ -163,7 +321,19 @@ export class WorkspaceContext {
     }
     const load = await this.guarded(
       'loading the skills',
-      () => loadSkills({ io: this.deps.io, platform: this.deps.platform }, this.skillRoots()),
+      async () => {
+        const recorded = await this.recorder.run(recordOperation, {
+          kind: 'skills',
+          deps: { io: this.deps.io, platform: this.deps.platform },
+          roots: this.skillRoots(),
+        })
+        for (const skill of recorded.value.skills)
+          this.deps.recordDerived?.(
+            JSON.stringify({ id: skill.id, description: skill.description }),
+            recorded.scope,
+          )
+        return recorded.value
+      },
       { skills: this.skills, warnings: [] },
     )
     for (const warning of load.warnings) {
@@ -174,11 +344,90 @@ export class WorkspaceContext {
     return isChanged
   }
 
+  /** Exact cached material, independent of dynamic instruction scaffolding. */
+  public instructionMaterial(
+    shouldIncludeAgents = true,
+    shouldIncludeMemory = true,
+    shouldIncludeSkills = true,
+  ): readonly {
+    bytes: string
+    source: ContentSource
+    isFullyShown?: boolean
+  }[] {
+    const inputs: ContentRead[] = []
+    this.sections(inputs, shouldIncludeAgents, shouldIncludeMemory, shouldIncludeSkills)
+    const recorded = RecordingScope.build(recordProjection, { inputs, project: (reads) => reads })
+    return (recorded.scope.inventory() ?? []).map((input) => ({
+      ...input,
+      bytes: String(input.bytes),
+    }))
+  }
+
   public skill(id: string): SkillDefinition | undefined {
     return this.skills.find((skill) => skill.id === id)
   }
 
-  public sections(): ContextSections {
-    return { rules: this.rulesText, skills: this.skills, memory: this.memory }
+  /** What a spawn naming `id` runs: an agent, nothing, or a refusal for a root that did not load. */
+  public agent(id: string): AgentResolution {
+    return resolveAgent(this.agents, id)
+  }
+
+  public sections(
+    reader?: RecordingScope | ContentRead[],
+    shouldIncludeAgents = true,
+    shouldIncludeMemory = true,
+    shouldIncludeSkills = true,
+  ): ContextSections {
+    if (reader !== undefined) {
+      const read = (
+        value: unknown,
+        bytes: string,
+        source: ContentSource,
+        isFullyShown?: boolean,
+      ) => {
+        if (Array.isArray(reader))
+          reader.push({ bytes, source, ...(isFullyShown !== undefined && { isFullyShown }) })
+        else reader.read(value, bytes, source, isFullyShown)
+      }
+      for (const rule of this.rules)
+        read(
+          rule,
+          rule.text.trim(),
+          rule.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
+          this.rulesText?.includes(rule.text.trim()) === true,
+        )
+      const skills = shouldIncludeSkills ? this.skills : []
+      for (const skill of skills)
+        read(
+          skill,
+          JSON.stringify({ id: skill.id, description: skill.description }),
+          skill.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
+        )
+      const agents = shouldIncludeAgents ? this.agents.agents : []
+      for (const agent of agents)
+        if (agent.source !== 'builtin')
+          read(
+            agent,
+            JSON.stringify({ id: agent.id, description: agent.description }),
+            agent.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
+          )
+      const memory = shouldIncludeMemory ? this.memory : []
+      for (const snapshot of memory)
+        read(snapshot, JSON.stringify(snapshot), {
+          kind: 'harness',
+          operation: 'memory-snapshot',
+        })
+    }
+    return {
+      rules: this.rulesText,
+      skills: shouldIncludeSkills ? this.skills : [],
+      agents: shouldIncludeAgents ? offeredAgents(this.agents) : [],
+      memory: shouldIncludeMemory ? this.memory : [],
+    }
+  }
+
+  /** Loaded rule filenames only, for InstructionsLoaded; never their contents. */
+  public rulePaths(): readonly string[] {
+    return this.rules.map((rule) => rule.path)
   }
 }

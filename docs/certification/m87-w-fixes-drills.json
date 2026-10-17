@@ -1,0 +1,220 @@
+{
+  "rig": "macmini",
+  "node": "v24.21.0",
+  "snapshot": "48695b29044ab433d604953d4863e90fa00e27af",
+  "tests": ["test/unit/conversationController.test.ts", "test/unit/editReview.test.ts"],
+  "drills": [
+    {
+      "name": "turn-after-output",
+      "file": "src/host/conversation/conversationController.ts",
+      "expected": "held patch output",
+      "before": "a113e16c247a73c81ae8a9b53f602fadd82ac770cb69e1779b28e15ed20edd54",
+      "mutated": "44fc301b0a27964ad3bad5502b1287fb598dfa861fe94b3650a14f1e56ae04e8",
+      "after": "a113e16c247a73c81ae8a9b53f602fadd82ac770cb69e1779b28e15ed20edd54",
+      "red": {
+        "exit": 1,
+        "summary": [
+          " Test Files  1 failed | 1 passed (2)",
+          "      Tests  6 failed | 455 passed (461)",
+          "   Duration  14.88s (tests 86%, transform 10%, import 3%, setup 1%)",
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert when a turn starts during held patch output (completed: false, M87)",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert when a turn starts during held patch output (completed: true, M87)",
+          "AssertionError: expected [ [ 'revert', 'c1', …(1) ] ] to deeply equal []",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held resolve admission (changesSession: false, M87)",
+          "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held read admission (changesSession: false, M87)",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held write admission (changesSession: false, M87)",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held delete admission (changesSession: false, M87)",
+          "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "summary": [
+          " Test Files  2 passed (2)",
+          "      Tests  461 passed (461)",
+          "   Duration  14.80s (tests 86%, transform 9%, import 3%, setup 1%)"
+        ]
+      }
+    },
+    {
+      "name": "session-after-await",
+      "file": "src/host/conversation/conversationController.ts",
+      "expected": "changesSession: true",
+      "before": "a113e16c247a73c81ae8a9b53f602fadd82ac770cb69e1779b28e15ed20edd54",
+      "mutated": "142a4be643660f7cd3995dd8497cf22655f6bb635c0b533c777699ace73f4923",
+      "after": "a113e16c247a73c81ae8a9b53f602fadd82ac770cb69e1779b28e15ed20edd54",
+      "red": {
+        "exit": 1,
+        "summary": [
+          " Test Files  1 failed | 1 passed (2)",
+          "      Tests  4 failed | 457 passed (461)",
+          "   Duration  14.74s (tests 86%, transform 9%, import 3%, setup 1%)",
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held resolve admission (changesSession: true, M87)",
+          "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held read admission (changesSession: true, M87)",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held write admission (changesSession: true, M87)",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held delete admission (changesSession: true, M87)",
+          "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "summary": [
+          " Test Files  2 passed (2)",
+          "      Tests  461 passed (461)",
+          "   Duration  15.51s (tests 84%, transform 10%, import 4%, setup 2%)"
+        ]
+      }
+    },
+    {
+      "name": "prepare-after-resolve",
+      "file": "src/host/editor/editReview.ts",
+      "expected": "held resolve admission",
+      "before": "ce7df66b5158bf3e1f34fc2e4e5229f8d9cd4aa76940e3697bb87c5b0360def5",
+      "mutated": "ac052e741323589e2f6f6895f231fa16258c45057f054819083db698a3273363",
+      "after": "ce7df66b5158bf3e1f34fc2e4e5229f8d9cd4aa76940e3697bb87c5b0360def5",
+      "red": {
+        "exit": 1,
+        "summary": [
+          " Test Files  1 failed | 1 passed (2)",
+          "      Tests  2 failed | 459 passed (461)",
+          "   Duration  15.43s (tests 83%, transform 11%, import 4%, setup 1%)",
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held resolve admission (changesSession: false, M87)",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held resolve admission (changesSession: true, M87)",
+          "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "summary": [
+          " Test Files  2 passed (2)",
+          "      Tests  461 passed (461)",
+          "   Duration  14.83s (tests 85%, transform 10%, import 4%, setup 1%)"
+        ]
+      }
+    },
+    {
+      "name": "io-guard-forwarding",
+      "file": "src/host/editor/editReview.ts",
+      "expected": "held write admission",
+      "before": "ce7df66b5158bf3e1f34fc2e4e5229f8d9cd4aa76940e3697bb87c5b0360def5",
+      "mutated": "5c087903144b6a1205a6ed39ce22b39a31da6211af2fb2296807831399c3465b",
+      "after": "ce7df66b5158bf3e1f34fc2e4e5229f8d9cd4aa76940e3697bb87c5b0360def5",
+      "red": {
+        "exit": 1,
+        "summary": [
+          " Test Files  1 failed | 1 passed (2)",
+          "      Tests  4 failed | 457 passed (461)",
+          "   Duration  14.81s (tests 86%, transform 10%, import 4%, setup 1%)",
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held write admission (changesSession: false, M87)",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held write admission (changesSession: true, M87)",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held delete admission (changesSession: false, M87)",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert during held delete admission (changesSession: true, M87)",
+          "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "summary": [
+          " Test Files  2 passed (2)",
+          "      Tests  461 passed (461)",
+          "   Duration  14.87s (tests 86%, transform 9%, import 3%, setup 1%)"
+        ]
+      }
+    },
+    {
+      "name": "send-admission",
+      "file": "src/host/conversation/conversationController.ts",
+      "expected": "holds send admission",
+      "before": "a113e16c247a73c81ae8a9b53f602fadd82ac770cb69e1779b28e15ed20edd54",
+      "mutated": "3ef9b849613bdff34cc1f589c5083b0c4ba9fbb699feaa0350bd1a240b77ba56",
+      "after": "a113e16c247a73c81ae8a9b53f602fadd82ac770cb69e1779b28e15ed20edd54",
+      "red": {
+        "exit": 1,
+        "summary": [
+          " Test Files  1 failed | 1 passed (2)",
+          "      Tests  1 failed | 460 passed (461)",
+          "   Duration  14.73s (tests 86%, transform 9%, import 3%, setup 1%)",
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > holds send admission until Revert I/O settles and releases it after failure (M87)",
+          "AssertionError: expected [ …(2) ] to have a length of 1 but got 2"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "summary": [
+          " Test Files  2 passed (2)",
+          "      Tests  461 passed (461)",
+          "   Duration  14.77s (tests 86%, transform 9%, import 3%, setup 1%)"
+        ]
+      }
+    },
+    {
+      "name": "pending-turn-admission",
+      "file": "src/host/conversation/conversationController.ts",
+      "expected": "awaits its acknowledgement",
+      "before": "a113e16c247a73c81ae8a9b53f602fadd82ac770cb69e1779b28e15ed20edd54",
+      "mutated": "803a1146551104c295538abdb5b654af7327061e4c9ff1b35d1e834daca38b36",
+      "after": "a113e16c247a73c81ae8a9b53f602fadd82ac770cb69e1779b28e15ed20edd54",
+      "red": {
+        "exit": 1,
+        "summary": [
+          " Test Files  1 failed | 1 passed (2)",
+          "      Tests  1 failed | 460 passed (461)",
+          "   Duration  15.23s (tests 84%, transform 11%, import 4%, setup 1%)",
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert while a submitted turn still awaits its acknowledgement (M87)",
+          "AssertionError: expected [ [ 'revert', 'c1', …(1) ] ] to deeply equal []"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "summary": [
+          " Test Files  2 passed (2)",
+          "      Tests  461 passed (461)",
+          "   Duration  15.19s (tests 84%, transform 10%, import 4%, setup 2%)"
+        ]
+      }
+    },
+    {
+      "name": "completed-turn-epoch",
+      "file": "src/host/conversation/conversationController.ts",
+      "expected": "completed: true",
+      "before": "a113e16c247a73c81ae8a9b53f602fadd82ac770cb69e1779b28e15ed20edd54",
+      "mutated": "723b6483e167c63e4b852bbd78578ab6325b5eb85bc9302075aca2cdaff3b9ff",
+      "after": "a113e16c247a73c81ae8a9b53f602fadd82ac770cb69e1779b28e15ed20edd54",
+      "red": {
+        "exit": 1,
+        "summary": [
+          " Test Files  1 failed | 1 passed (2)",
+          "      Tests  1 failed | 460 passed (461)",
+          "   Duration  15.24s (tests 84%, transform 11%, import 4%, setup 1%)",
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+          " FAIL  test/unit/conversationController.test.ts > ConversationController: editor integration (M5) > refuses Revert when a turn starts during held patch output (completed: true, M87)",
+          "AssertionError: expected [ [ 'revert', 'c1', …(1) ] ] to deeply equal []"
+        ]
+      },
+      "restored": {
+        "exit": 0,
+        "summary": [
+          " Test Files  2 passed (2)",
+          "      Tests  461 passed (461)",
+          "   Duration  14.94s (tests 85%, transform 10%, import 4%, setup 1%)"
+        ]
+      }
+    }
+  ],
+  "baseline": {
+    "exit": 0,
+    "summary": [
+      " Test Files  2 passed (2)",
+      "      Tests  461 passed (461)",
+      "   Duration  14.84s (tests 86%, transform 9%, import 3%, setup 1%)"
+    ]
+  }
+}

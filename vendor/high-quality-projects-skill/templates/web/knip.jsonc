@@ -1,0 +1,61 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+
+  // Dead-code gate for JS/TS. Knip finds three things ESLint cannot, because it
+  // reasons across the whole project graph rather than per-file:
+  //   1. unused FILES        - modules nothing imports
+  //   2. unused EXPORTS      - exported symbols nobody consumes
+  //   3. unused DEPENDENCIES - packages in package.json nothing requires
+  //
+  // Run as a gate:  knip --strict
+  // Preview only:   knip --reporter compact
+  //
+  // THIS FILE IS .jsonc, NOT .json, AND THAT MATTERS.
+  // knip 6 validates its config strictly and rejects unknown keys. The
+  // "//": [ ... ] pseudo-comment convention that works in knip 5 is a hard
+  // error here:
+  //     ERROR: Invalid input (unrecognized_keys: //, //rules)
+  // knip reads `knip.jsonc` natively, so real comments are the fix.
+  // knip 6 also removed the `classMembers` rule; leaving it in produces
+  //     WARNING: Ignored unknown issue type "classMembers" in rules
+
+  "entry": [
+    "src/index.{js,ts,tsx}",
+    "src/main.{js,ts,tsx}",
+    "src/app/**/{page,layout,route,loading,error,not-found}.{js,ts,tsx}",
+    "**/*.{test,spec}.{js,ts,tsx}",
+    "scripts/**/*.{js,ts,mjs}",
+  ],
+
+  "project": ["src/**/*.{js,ts,tsx,jsx}", "scripts/**/*.{js,ts,mjs}"],
+
+  "ignore": ["**/*.d.ts", "dist/**", "build/**", "coverage/**"],
+
+  // Build-time-only packages that no source file imports directly. Trim this to
+  // what your project actually has — every unnecessary entry here is a hole in
+  // the unused-dependency check.
+  "ignoreDependencies": ["prettier", "stylelint-config-standard"],
+
+  "ignoreExportsUsedInFile": true,
+
+  // error = fails the run under --strict; warn = reported only.
+  //
+  // `cycles` is deliberately absent. knip 6 has the rule, but against a
+  // deliberately circular pair of modules it reported nothing, both by default
+  // and under `--include cycles`. Use `dpdm` for cycle detection instead:
+  //     dpdm --no-warning --no-tree --exit-code circular:1 src/main.ts
+  // That was verified in both directions - exit 1 on a real cycle, exit 0 once
+  // the cycle is removed.
+  "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "devDependencies": "error",
+    "unlisted": "error",
+    "unresolved": "error",
+    "exports": "error",
+    "types": "error",
+    "duplicates": "error",
+    "binaries": "error",
+    "enumMembers": "error",
+  },
+}

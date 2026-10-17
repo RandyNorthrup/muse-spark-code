@@ -32,6 +32,46 @@ export async function withDeadline<T>(
   }
 }
 
+/** A deadline that a start still under way may stretch once (`withSlowDeadline`). */
+interface SlowDeadline {
+  readonly firstMs: number
+  /** The whole wait, the first deadline's included; never shorter than it. */
+  readonly totalMs: number
+  /** Whether the work still goes on at the first deadline (its process has not exited). */
+  readonly isRunning: () => boolean
+  /** The failure's text for the deadline that passed. */
+  readonly message: (timeoutMs: number) => string
+  /** Told when the first deadline passed and the wait goes on. */
+  readonly onSlow: () => void
+}
+
+/**
+ * `promise` within `firstMs`; past that, while the work still goes on,
+ * within `totalMs` in all: one longer wait, so a slow start on a starved
+ * machine is not taken for a stuck one, and a stuck one still ends. Work
+ * that stopped fails at the first deadline, and a rejection of `promise`
+ * (the process died) ends the wait at once.
+ */
+export async function withSlowDeadline<T>(promise: Promise<T>, deadline: SlowDeadline): Promise<T> {
+  try {
+    return await withDeadline(promise, deadline.firstMs, deadline.message(deadline.firstMs))
+  } catch (error: unknown) {
+    if (
+      !(error instanceof DeadlineError) ||
+      deadline.totalMs <= deadline.firstMs ||
+      !deadline.isRunning()
+    ) {
+      throw error
+    }
+  }
+  deadline.onSlow()
+  return await withDeadline(
+    promise,
+    deadline.totalMs - deadline.firstMs,
+    deadline.message(deadline.totalMs),
+  )
+}
+
 /** Does nothing: the abort listener until it is made, and a late failure nobody waits for. */
 const IGNORE = (): void => undefined
 

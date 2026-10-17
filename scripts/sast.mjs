@@ -15,8 +15,13 @@ import path from 'node:path'
 import process from 'node:process'
 
 const SEMGREP = 'semgrep'
+// Serial analysis keeps large TypeScript taint scans within the shared heap
+// while retaining every rule and the unchanged default scan deadline.
+const MAX_WORKERS = 1
 const SEMGREP_ARGS = [
   'scan',
+  '--jobs',
+  String(MAX_WORKERS),
   '--config',
   'auto',
   '--error',
@@ -25,6 +30,7 @@ const SEMGREP_ARGS = [
   '--exclude=node_modules',
   '--exclude=.vscode-test',
   '--exclude=.claude',
+  '--exclude=vendor',
 ]
 const PYTHONS = ['python', 'python3', 'py']
 // Asks the interpreter for its user scheme's scripts folder (pip install --user).

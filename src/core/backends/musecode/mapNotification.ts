@@ -1,3 +1,4 @@
+import { redactDiagnosticEvent } from '../../redact'
 // Maps Muse Session Protocol notifications onto backend-agnostic AgentEvents.
 // Pure and total: an unknown method is `UNKNOWN_METHOD` and params that fail
 // their schema are `MALFORMED_PARAMS`, and the caller decides how loudly to
@@ -15,8 +16,35 @@ import {
   requirementRefSchema,
   todoItemSchema,
 } from '../../../shared/agentEvents'
-import { UI_TEXT } from '../../../shared/constants'
+import {
+  QUESTION_OUTCOME_CLARIFIED,
+  QUESTION_OUTCOME_DEFERRED,
+  UI_TEXT,
+} from '../../../shared/constants'
+import { isProtectedFileAccess } from '../../protectedPaths'
 import { toSessionGoal, toSnapshot, wireGoalSchema, wireItemSchema } from './sessionRecords'
+import type { SessionRecord } from '../../agent/agentBackend'
+
+/** Parsed domain values for lane W's captured-frame lifecycle adapter. */
+export type MuseCodeLifecycleEvent =
+  | { readonly type: 'started'; readonly record: SessionRecord }
+  | {
+      readonly type: 'deleteCompleted'
+      readonly sessionId: string
+      readonly commandId: string
+      readonly outcome: string
+      readonly reason?: string
+      readonly physicalChange?: string
+    }
+
+/** No default wire parser: new frames require the missing served captures. */
+export interface MuseCodeLifecycleReader {
+  parseNotification(notification: {
+    readonly method: string
+    readonly params: unknown
+  }): MuseCodeLifecycleEvent
+  parseDeleteAdmission(receipt: unknown, commandId: string): void
+}
 
 export type MappedNotification =
   | { readonly sessionId: string; readonly event: AgentEvent }
@@ -28,6 +56,29 @@ export const MALFORMED_PARAMS = 'malformed'
 export type MapOutcome = MappedNotification | typeof UNKNOWN_METHOD | typeof MALFORMED_PARAMS
 
 const ALREADY_TERMINAL = 'alreadyTerminal'
+const ONCE_SCOPE = 'once'
+// MSP's approving decisions: `approved`, `approvedPolicyAmendment`, …
+const APPROVING_DECISION_PREFIX = 'approved'
+
+type WireChoice = z.infer<typeof approvalChoiceSchema>
+
+/**
+ * A file write the extension's list protects (D24, 2026-10-04) offers no
+ * approval that outlasts it: "Always Allow" would be a rule Muse Code
+ * answers later writes by, without a card. Allow once and every refusal
+ * stay, as Muse Code offers for its own protected writes.
+ */
+function choicesFor(
+  subject: z.infer<typeof approvalSubjectSchema>,
+  choices: WireChoice[],
+): WireChoice[] {
+  return isProtectedFileAccess(subject)
+    ? choices.filter(
+        (choice) =>
+          choice.scope === ONCE_SCOPE || !choice.decision.startsWith(APPROVING_DECISION_PREFIX),
+      )
+    : choices
+}
 
 export interface WireNotification {
   readonly method: string
@@ -71,7 +122,10 @@ const schemas = {
   'session/tokenUsage': z.object({
     ...sessionScoped,
     modelId: z.optional(z.nullable(z.string())),
-    cumulative: z.object({ promptTokens: z.number(), outputTokens: z.number() }),
+    cumulative: z.object({
+      promptTokens: z.int().check(z.gte(0)),
+      outputTokens: z.int().check(z.gte(0)),
+    }),
   }),
   'session/contextUsage': z.object({
     ...sessionScoped,
@@ -104,6 +158,8 @@ const schemas = {
     availableChoices: z.array(approvalChoiceSchema),
     judgeEscalated: z.boolean(),
     protectedWrite: z.boolean(),
+    // The asking turn, on every captured frame (2026-10-02, stageRaceCapture).
+    turnId: z.optional(z.string()),
   }),
   'approval/updated': z.object({
     ...sessionScoped,
@@ -153,7 +209,7 @@ function isMappedMethod(method: string): method is MappedMethod {
 /** The default delta field when the host omits one. */
 const DEFAULT_DELTA_FIELD = 'text'
 
-export function mapNotification(notification: WireNotification): MapOutcome {
+function rawNotification(notification: WireNotification): MapOutcome {
   const { method } = notification
   if (!isMappedMethod(method)) {
     return UNKNOWN_METHOD
@@ -297,9 +353,12 @@ export function mapNotification(notification: WireNotification): MapOutcome {
           rawArgs: p.rawArgs,
           requirementId: p.currentRequirementId,
           subject: p.subject,
-          availableChoices: p.availableChoices,
+          availableChoices: choicesFor(p.subject, p.availableChoices),
           isJudgeEscalated: p.judgeEscalated,
-          isProtectedWrite: p.protectedWrite,
+          // Muse Code's own flag, or the extension's list (a Muse Code file
+          // write it does not flag).
+          isProtectedWrite: p.protectedWrite || isProtectedFileAccess(p.subject),
+          ...(p.turnId !== undefined && { turnId: p.turnId }),
         },
       }
     }
@@ -316,7 +375,7 @@ export function mapNotification(notification: WireNotification): MapOutcome {
           approvalId: p.approvalId,
           requirementId: p.currentRequirementId,
           subject: p.subject,
-          availableChoices: p.availableChoices,
+          availableChoices: choicesFor(p.subject, p.availableChoices),
         },
       }
     }
@@ -383,4 +442,17 @@ export function mapNotification(notification: WireNotification): MapOutcome {
       }
     }
   }
+}
+
+/** Diagnostic events are safe before any backend subscriber sees them. */
+export function mapNotification(notification: WireNotification): MapOutcome {
+  const mapped = rawNotification(notification)
+  return typeof mapped === 'string' || !('event' in mapped)
+    ? mapped
+    : { ...mapped, event: redactDiagnosticEvent(mapped.event) }
+}
+
+/** Only a harness-deferred id changes M46's captured clarified outcome. Future words pass through. */
+export function questionSettlementOutcome(outcome: string, wasDeferred: boolean): string {
+  return wasDeferred && outcome === QUESTION_OUTCOME_CLARIFIED ? QUESTION_OUTCOME_DEFERRED : outcome
 }

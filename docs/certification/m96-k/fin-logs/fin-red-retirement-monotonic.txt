@@ -1,0 +1,66 @@
+base=/home/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=kubuntu slot=finm96k-red snapshot=576937e2 base=/home/randy/gates/base-c78aedc3ea0dab3c
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/gates/rt-finm96k-red
+
+ ✓ test/unit/teamHintsAndLoad.test.ts (9 tests) 71ms
+ ❯ test/unit/teamProcessLifetime.test.ts (15 tests | 1 failed) 312ms
+   ✓ M96 K window ownership and journal (5)
+     ✓ never treats a duplicate window or a newer start as permission 10ms
+     ✓ grants no takeover when its durable receipt fails 2ms
+     ✓ writes and validates real files; refuses traversal and invalid state 14ms
+     ✓ moves only its own unreadable file aside, preserving exact bytes 6ms
+     ✓ leaves another live window journal byte-exact until Take over 6ms
+   ❯ M96 K launcher contract (10)
+     ✓ refuses a journal storage path through a link 2ms
+     ✓ starts no process when the intent fsync fails 6ms
+     ✓ flushes intent before spawn, adds marker, then records OS confirmation and separate end 55ms
+     ✓ starts no process when the intent cannot be written 1ms
+     ✓ rechecks load after the asynchronous intent and starts nothing under pressure 6ms
+     ✓ dispose cannot miss a pending intent; no process is created after dispose 5ms
+     ✓ keeps ended children without descendant proof in recovery 50ms
+     ✓ rejects descendant proof from a process group 39ms
+     × journals a later proved retirement and never downgrades it to uncertain 64ms
+     ✓ keeps a failed confirmation child available to dispose when retirement is uncertain 43ms
+ ✓ test/unit/teamNativeLifetime.test.ts (7 tests) 3310ms
+   ✓ M96 K real native lifetime (7)
+     ✓ preserves the real command exit code through its native container 899ms
+     ✓ reconciles foreign journals before startup returns and preserves all foreign bytes 396ms
+     ✓ scans real marked descendants and stops only after click and second identity check 451ms
+     ✓ retains no-scope detached descendants as uncertain after direct child exit 902ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > journals a later proved retirement and never downgrades it to uncertain
+AssertionError: expected { childExited: true, …(1) } to deeply equal { childExited: true, …(1) }
+
+- Expected
++ Received
+
+  {
+    "childExited": true,
+-   "descendants": "proved",
++   "descendants": "uncertain",
+  }
+
+ ❯ test/unit/teamProcessLifetime.test.ts:327:34
+    325|     expect(await child.retire()).toEqual({ childExited: true, descenda…
+    326|     shouldProve = false
+    327|     expect(await child.retire()).toEqual({ childExited: true, descenda…
+       |                                  ^
+    328|     expect(await lifetime.recoveryRecords(f.journal)).toEqual([])
+    329|     await lifetime.dispose()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 30 passed (31)
+   Start at  07:28:41
+   Duration  4.26s (tests 62%, transform 23%, import 8%, setup 6%)

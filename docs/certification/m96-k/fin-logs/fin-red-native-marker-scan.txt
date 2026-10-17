@@ -1,0 +1,61 @@
+base=/home/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=kubuntu slot=finm96k-red snapshot=35408f9b base=/home/randy/gates/base-c78aedc3ea0dab3c
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/gates/rt-finm96k-red
+
+ ✓ test/unit/teamHintsAndLoad.test.ts (9 tests) 76ms
+ ✓ test/unit/teamProcessLifetime.test.ts (15 tests) 367ms
+ ❯ test/unit/teamNativeLifetime.test.ts (7 tests | 2 failed) 3610ms
+   ❯ M96 K real native lifetime (7)
+     ✓ starts a separate journalled team Muse Code host over real fake-CLI pipes 258ms
+     ✓ preserves the real command exit code through its native container 917ms
+     ✓ reconciles foreign journals before startup returns and preserves all foreign bytes 501ms
+     ✓ runs marked child at below-normal priority with intent and OS confirmation on disk 219ms
+     × scans real marked descendants and stops only after click and second identity check 476ms
+     × retains no-scope detached descendants as uncertain after direct child exit 940ms
+     ✓ hard parent death kills the real direct child under setpriv without a user scope 253ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > scans real marked descendants and stops only after click and second identity check
+AssertionError: expected undefined to be 'matched' // Object.is equality
+
+- Expected:
+"matched"
+
++ Received:
+undefined
+
+ ❯ test/unit/teamNativeLifetime.test.ts:251:28
+    249|       const observations = await recovery.find(records)
+    250|       const found = observations.find((row) => row.pid === pid)
+    251|       expect(found?.match).toBe('matched')
+       |                            ^
+    252|       if (found === undefined) throw new Error('marked descendant abse…
+    253|       expect(await recovery.stop(found, false)).toBe('kept')
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > retains no-scope detached descendants as uncertain after direct child exit
+
+AssertionError: expected 0 to be greater than 0
+ ❯ test/unit/teamNativeLifetime.test.ts:272:28
+    270|       const recovery = createOrphanRecovery(createNativeOrphanDriver())
+    271|       const found = await recovery.find(records)
+    272|       expect(found.length).toBeGreaterThan(0)
+       |                            ^
+    273|       for (const orphan of found) await recovery.stop(orphan, true)
+    274|       await child.retire()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  2 failed | 29 passed (31)
+   Start at  07:28:15
+   Duration  4.82s (tests 58%, transform 26%, import 9%, setup 6%)

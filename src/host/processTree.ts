@@ -17,7 +17,17 @@
 // creation time just before it is killed, so a process that took a dead
 // one's id is never hit.
 
-import { execFile } from 'node:child_process'
+import { parseProcessTable, type ProcessRow } from '../core/resources/trees/processTable'
+
+import {
+  execFile,
+  spawnSync,
+  type SpawnSyncOptions,
+  type SpawnSyncReturns,
+} from 'node:child_process'
+import { stopResourceTree } from '../core/resources/admission'
+import type { ResourceLease } from '../core/resources/launch'
+import { withoutCredentials } from '../core/credentialEnvironment'
 import path from 'node:path'
 import {
   setEnvironmentVariable,
@@ -25,7 +35,10 @@ import {
 } from '../core/backends/musecode/launch'
 import { powerShellQuoted } from '../core/shellQuote'
 import {
+  GIT_OUTPUT_MAX_BYTES,
   ORPHAN_SWEEP_ROUNDS,
+  POSIX_TREE_EXIT_POLL_MS,
+  POSIX_TREE_EXIT_WAIT_MS,
   PROCESS_TABLE_TIMEOUT_MS,
   SHELL_JOB_TYPE_NAME,
   TREE_EXIT_WAIT_MS,
@@ -46,6 +59,7 @@ export type RunProgram = (
   file: string,
   args: readonly string[],
   env: NodeJS.ProcessEnv,
+  timeoutMs?: number,
 ) => Promise<string>
 
 export interface ProcessTreeDeps {
@@ -80,12 +94,12 @@ export function treeSpawnOptions(platform: NodeJS.Platform): { readonly detached
   return { detached: platform !== 'win32' }
 }
 
-export const runProgram: RunProgram = (file, args, env) =>
+export const runProgram: RunProgram = (file, args, env, timeoutMs = PROCESS_TABLE_TIMEOUT_MS) =>
   new Promise((resolve, reject) => {
     execFile(
       file,
       [...args],
-      { windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS, env },
+      { windowsHide: true, timeout: timeoutMs, env: withoutCredentials(env) },
       (error, stdout) => {
         if (error === null) {
           resolve(stdout)
@@ -108,7 +122,7 @@ export function windowsPowerShell(
   readonly file: string
   readonly env: NodeJS.ProcessEnv
 } {
-  const env = { ...base }
+  const env = withoutCredentials(base)
   setEnvironmentVariable(
     env,
     'win32',
@@ -138,19 +152,6 @@ function deathOf(root: TreeRoot, ms: number): Promise<number | undefined> {
   })
 }
 
-/** A row of the process table: ids, the creation time as printed and in epoch milliseconds. */
-export interface ProcessRow {
-  readonly pid: number
-  readonly parent: number
-  /** FILETIME ticks, exactly as the table printed them. */
-  readonly ticks: string
-  readonly createdAt: number
-  readonly name: string
-}
-
-// A FILETIME counts 100 ns ticks from 1601-01-01 UTC: past 2^53, so a BigInt.
-const FILETIME_TICKS_PER_MS = 10_000n
-const FILETIME_UNIX_EPOCH_MS = 11_644_473_600_000n
 // The process table prints creation times to the microsecond; a process
 // handle gives them to the tick.
 const TICKS_PER_MICROSECOND = 10
@@ -172,25 +173,6 @@ function identityKillScript(rows: readonly ProcessRow[]): string {
   // into the next PID. Hashtable records keep each identity pair together.
   const targets = rows.map((row) => `@{ Id = ${String(row.pid)}; Ticks = ${row.ticks} }`).join(', ')
   return `foreach ($target in @(${targets})) { $process = Get-Process -Id $target.Id -ErrorAction SilentlyContinue; if ($null -ne $process -and [math]::Abs($process.StartTime.ToFileTimeUtc() - $target.Ticks) -lt ${String(TICKS_PER_MICROSECOND)}) { Stop-Process -InputObject $process -Force; [Console]::Out.WriteLine($target.Id) } }`
-}
-
-/** The script's rows; a line that is not one (an error, a blank) is skipped. */
-export function parseProcessTable(stdout: string): readonly ProcessRow[] {
-  const rows: ProcessRow[] = []
-  for (const line of stdout.split(/\r?\n/)) {
-    const [pid = '', parent = '', ticks = '', ...name] = line.trim().split(' ')
-    if ([pid, parent, ticks].some((field) => !DECIMAL.test(field))) {
-      continue
-    }
-    rows.push({
-      pid: Number(pid),
-      parent: Number(parent),
-      ticks,
-      createdAt: Number(BigInt(ticks) / FILETIME_TICKS_PER_MS - FILETIME_UNIX_EPOCH_MS),
-      name: name.join(' '),
-    })
-  }
-  return rows
 }
 
 /**
@@ -283,7 +265,12 @@ export async function sweepExitedTree(
   startedAt: number,
   diedAt: number,
   deps: ProcessTreeDeps,
+  resource?: ResourceLease,
 ): Promise<void> {
+  if (resource !== undefined) {
+    await stopResourceTree(resource)
+    return
+  }
   if (pid === undefined) {
     return
   }
@@ -312,6 +299,16 @@ export async function sweepExitedTree(
   await sweepOrphans(pid, diedAt, startedAt, deps.systemRoot, deps)
 }
 
+/**
+ * The statement that loads the job helper's assembly, through .NET rather
+ * than `Add-Type`: a cmdlet is found by module auto-loading, which without
+ * a module analysis cache analyses every module on the module path before
+ * the statement can run (20 s and more on GitHub's Windows runner, M51).
+ */
+export function loadJobAssembly(assemblyPath: string): string {
+  return `[void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(assemblyPath)})`
+}
+
 /** Terminates the command's job: false (logged) when that could not be done. */
 async function didTerminateJob(
   job: ShellJob,
@@ -320,7 +317,7 @@ async function didTerminateJob(
   deps: ProcessTreeDeps,
 ): Promise<boolean> {
   const powershell = windowsPowerShell(systemRoot)
-  const script = `Add-Type -Path ${powerShellQuoted(job.assemblyPath)}; if ([${SHELL_JOB_TYPE_NAME}]::Terminate(${powerShellQuoted(job.name)}, ${String(KILLED_EXIT_CODE)})) { '${TERMINATED}' } else { '${ABSENT}' }`
+  const script = `${loadJobAssembly(job.assemblyPath)}; if ([${SHELL_JOB_TYPE_NAME}]::Terminate(${powerShellQuoted(job.name)}, ${String(KILLED_EXIT_CODE)})) { '${TERMINATED}' } else { '${ABSENT}' }`
   try {
     const output = await (deps.run ?? runProgram)(
       powershell.file,
@@ -340,6 +337,54 @@ async function didTerminateJob(
   return false
 }
 
+/** Wait for group exit, allowing Linux's unreaped zombies to count as exited. */
+async function waitForPosixGroup(pid: number, deps: ProcessTreeDeps): Promise<void> {
+  const deadline = Date.now() + POSIX_TREE_EXIT_WAIT_MS
+  try {
+    for (;;) {
+      process.kill(-pid, 0)
+      if (deps.platform === 'linux') {
+        // A zombie may retain its group indefinitely when init does not reap
+        // it. ps supplies only group IDs and states, with no inherited secrets.
+        const table = await (deps.run ?? runProgram)(
+          '/bin/ps',
+          ['-eo', 'pgid=,stat='],
+          {},
+          Math.max(1, deadline - Date.now()),
+        )
+        const isRunning = table.split('\n').some((line) => {
+          const [group, state] = line.trim().split(/\s+/, 2)
+          return group === String(pid) && state !== undefined && !state.startsWith('Z')
+        })
+        if (!isRunning) {
+          return
+        }
+      }
+      const remaining = deadline - Date.now()
+      if (remaining <= 0) {
+        process.kill(-pid, SIGKILL)
+        deps.log(
+          `process group ${String(pid)} was still present ${String(POSIX_TREE_EXIT_WAIT_MS)} ms after SIGKILL; signalled it again`,
+        )
+        return
+      }
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, Math.min(POSIX_TREE_EXIT_POLL_MS, remaining))
+      })
+    }
+  } catch (error: unknown) {
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESRCH') {
+      return
+    }
+    deps.log(`process group ${String(pid)} exit could not be confirmed: ${String(error)}`)
+    try {
+      process.kill(-pid, SIGKILL)
+    } catch {
+      // The group can disappear between the failed probe and this last signal.
+    }
+  }
+}
+
 /**
  * Kills `root` and its descendants; resolves once they are gone, as far as
  * can be seen. `startedAt` is when the shell was spawned; `job` the job
@@ -350,7 +395,12 @@ export async function killTree(
   deps: ProcessTreeDeps,
   startedAt: number,
   job?: ShellJob,
+  resource?: ResourceLease,
 ): Promise<void> {
+  if (resource !== undefined) {
+    await stopResourceTree(resource)
+    return
+  }
   const { pid } = root
   if (pid === undefined || hasExited(root)) {
     return
@@ -363,6 +413,7 @@ export async function killTree(
       deps.log(`process group ${String(pid)} could not be signalled: ${String(error)}`)
       root.kill(SIGKILL)
     }
+    await waitForPosixGroup(pid, deps)
     return
   }
   const { systemRoot } = deps
@@ -395,4 +446,149 @@ export async function killTree(
     return
   }
   await sweepOrphans(pid, diedAt, startedAt, systemRoot, deps)
+}
+
+// The journal reducer is synchronous. A separate trusted supervisor keeps
+// enumerating while its caller is in spawnSync, before timeout reparents any
+// detached descendants. This is the POSIX fallback to a governed cgroup/job.
+const POSIX_TREE_SUPERVISOR = String.raw`
+const { spawn, execFileSync } = require('node:child_process');
+const { readFileSync } = require('node:fs');
+const spec = JSON.parse(readFileSync(0, 'utf8'));
+const known = new Map();
+let failed = false;
+let ending = false;
+let child;
+let poll;
+let deadline;
+const counts = { stdout: 0, stderr: 0 };
+function table() {
+  return execFileSync('/bin/ps', ['-axo', 'pid=,ppid=,lstart='], {
+    encoding: 'utf8', timeout: spec.cleanupMs, maxBuffer: spec.maxBuffer,
+    env: { ...process.env, LC_ALL: 'C' }
+  }).split('\n').flatMap(line => {
+    const match = /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/.exec(line);
+    return match ? [{ pid: Number(match[1]), parent: Number(match[2]), start: match[3] }] : [];
+  });
+}
+function identity(row) {
+  if (process.platform !== 'linux') return row.start;
+  try {
+    const stat = readFileSync('/proc/' + row.pid + '/stat', 'utf8');
+    return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+  } catch (error) {
+    if (error.code !== 'ENOENT' && error.code !== 'ESRCH') throw error;
+    return undefined; // A process may exit between enumeration and identity read.
+  }
+}
+function capture() {
+  const rows = table();
+  const current = new Map(rows.map(row => [row.pid, row]));
+  if (!known.has(child.pid)) {
+    const root = current.get(child.pid);
+    if (root) known.set(root.pid, { ...root, identity: identity(root) });
+  }
+  let added;
+  do {
+    added = false;
+    for (const row of rows) {
+      const parent = known.get(row.parent);
+      const liveParent = current.get(row.parent);
+      if (known.has(row.pid) || !parent || !liveParent ||
+          identity(liveParent) !== parent.identity ||
+          Date.parse(row.start) < Date.parse(parent.start)) continue;
+      const stamp = identity(row);
+      if (stamp === undefined) continue;
+      known.set(row.pid, { ...row, identity: stamp });
+      added = true;
+    }
+  } while (added);
+}
+function signal(row, name) {
+  // Re-read the identity immediately before signalling; a reused PID is left.
+  let live;
+  try {
+    const text = execFileSync('/bin/ps', ['-o', 'lstart=', '-p', String(row.pid)], {
+      encoding: 'utf8', timeout: spec.cleanupMs, env: { ...process.env, LC_ALL: 'C' }
+    }).trim();
+    if (text) live = { ...row, start: text };
+  } catch (error) {
+    if (error.status !== 1) throw error;
+    return; // ps reports a process that has already exited.
+  }
+  if (!live || identity(live) !== row.identity) return;
+  try { process.kill(row.pid, name); }
+  catch (error) { if (error.code !== 'ESRCH') throw error; }
+}
+function endTree() {
+  if (ending) return;
+  ending = true;
+  clearInterval(poll);
+  clearTimeout(deadline);
+  try {
+    capture();
+    // Stop parents before the last enumeration so they cannot fork during it.
+    for (const row of known.values()) signal(row, 'SIGSTOP');
+    capture();
+  } catch (error) {
+    failed = true;
+    process.stderr.write(String(error.message));
+  } finally {
+    // Enumeration failure must still end every identity already captured.
+    for (const row of [...known.values()].reverse()) {
+      try { signal(row, 'SIGKILL'); }
+      catch (error) { failed = true; process.stderr.write(String(error.message)); }
+    }
+    // Same-group processes get the native group sweep as well.
+    try { if (child.pid > 0) process.kill(-child.pid, 'SIGKILL'); }
+    catch (error) { if (error.code !== 'ESRCH') failed = true; }
+  }
+}
+table(); // Refuse before dispatch when the process table is unavailable.
+child = spawn(spec.command, spec.args, { detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+for (const stream of ['stdout', 'stderr']) child[stream].on('data', chunk => {
+  counts[stream] += chunk.length;
+  if (counts[stream] > spec.maxBuffer) { failed = true; endTree(); return; }
+  process[stream].write(chunk);
+});
+child.on('error', error => { failed = true; process.stderr.write(error.message); endTree(); });
+child.on('exit', endTree);
+child.on('close', code => { process.exitCode = failed || code === null ? 1 : code; });
+poll = setInterval(() => {
+  try { capture(); }
+  catch (error) { failed = true; process.stderr.write(error.message); endTree(); }
+}, spec.pollMs);
+deadline = setTimeout(() => {
+  failed = true;
+  process.stderr.write('ETIMEDOUT');
+  endTree();
+}, spec.timeout);
+`
+
+/** POSIX synchronous caller, asynchronous tree supervision. The supplied
+ * environment is already scrubbed by the caller; no shell parses the effect. */
+export function runTreeSync(
+  command: string,
+  args: readonly string[],
+  options: SpawnSyncOptions,
+): SpawnSyncReturns<Buffer> {
+  const maxBuffer = options.maxBuffer ?? GIT_OUTPUT_MAX_BYTES
+  return spawnSync(process.execPath, ['-e', POSIX_TREE_SUPERVISOR], {
+    ...options,
+    // Child streams keep the caller's bound. Reserve room for the
+    // supervisor's failure text so the caller cannot kill it mid-cleanup.
+    maxBuffer: maxBuffer * 2,
+    input: Buffer.from(
+      JSON.stringify({
+        command,
+        args,
+        timeout: options.timeout ?? PROCESS_TABLE_TIMEOUT_MS,
+        maxBuffer,
+        pollMs: POSIX_TREE_EXIT_POLL_MS,
+        cleanupMs: POSIX_TREE_EXIT_WAIT_MS,
+      }),
+    ),
+    timeout: (options.timeout ?? PROCESS_TABLE_TIMEOUT_MS) + POSIX_TREE_EXIT_WAIT_MS * 2,
+    encoding: 'buffer',
+  })
 }

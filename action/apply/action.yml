@@ -1,0 +1,116 @@
+# Muse Spark Code (Unofficial): apply a proposal (M80, PLAN.md D65).
+# prepare (contents: read, no secrets) checks the proposal artifact out and
+# applies it for the caller's own tests; push (environment muse-apply with
+# maintainer reviewers, contents: write) applies it again and pushes it to
+# the pull request's head with a lease on the exact head. No model key, no
+# npm, no repository code, hook, filter, fsmonitor or signer runs here.
+name: Muse Spark Code (Unofficial) apply
+description: Apply a Muse Spark Code proposal artifact to its pull request (prepare for tests, or push after approval). Not endorsed by Meta.
+author: Randy Northrup
+
+inputs:
+  mode:
+    description: prepare (apply for tests) or push (commit and push after approval).
+    required: true
+  artifact-name:
+    description: The proposal artifact's name, from the propose job's artifact-name output.
+    required: true
+  github-token:
+    description: prepare needs contents read; push needs contents write and pull-requests read.
+    required: false
+    default: ${{ github.token }}
+  path:
+    description: The checkout directory, relative to the workspace.
+    required: false
+    default: '.'
+
+outputs:
+  ready:
+    description: true once the exact patch applied to the exact head.
+    value: ${{ steps.apply.outputs.ready }}
+  commit-sha:
+    description: The pushed commit (push only).
+    value: ${{ steps.apply.outputs.commit-sha }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Node
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+      with:
+        node-version: '22'
+        package-manager-cache: false
+
+    - name: Resolve tools and allocate the invocation
+      id: tools
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_TOOLS_ROLE: apply
+        MUSE_INPUT_PATH: ${{ inputs.path }}
+      run: exec node "$GITHUB_ACTION_PATH/../lib/tools.mjs"
+
+    - name: Download the proposal
+      id: download
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.tools.outputs.download }}
+
+    - name: Apply the proposal
+      id: apply
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_NODE: ${{ steps.tools.outputs.node }}
+        MUSE_GIT: ${{ steps.tools.outputs.git }}
+        MUSE_INVOCATION: ${{ steps.tools.outputs.invocation }}
+        MUSE_CHECKOUT: ${{ steps.tools.outputs.checkout }}
+        MUSE_INPUT_MODE: ${{ inputs.mode }}
+        MUSE_ARTIFACT_NAME: ${{ inputs.artifact-name }}
+        MUSE_GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: exec "$MUSE_NODE" "$GITHUB_ACTION_PATH/lib/apply.mjs"
+
+    - name: Tidy the private work folder
+      id: tidy
+      if: always() && steps.tools.outputs.invocation != ''
+      shell: bash
+      env:
+        BASH_ENV: ''
+        ENV: ''
+        SHELLOPTS: ''
+        BASHOPTS: ''
+        PS4: ''
+        NODE_OPTIONS: ''
+        NODE_PATH: ''
+        MUSE_NODE: ${{ steps.tools.outputs.node }}
+        MUSE_INVOCATION: ${{ steps.tools.outputs.invocation }}
+      run: exec "$MUSE_NODE" "$GITHUB_ACTION_PATH/../lib/tools.mjs" tidy

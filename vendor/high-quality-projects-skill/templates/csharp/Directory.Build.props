@@ -1,0 +1,66 @@
+<!--
+  Strict C# / .NET defaults. Drop this at the ROOT of a solution and every
+  project under it inherits these settings — no per-.csproj edits needed.
+
+  This is the highest-leverage file in the set: it turns the compiler and the
+  built-in Roslyn analyzers into a hard gate rather than advisory warnings.
+-->
+<Project>
+  <PropertyGroup>
+    <!-- Keep TargetFramework/TargetFrameworks and any explicit LangVersion in
+         the owning project. Directory.Build.props is imported before project
+         properties, so a fallback TFM can break multi-targeting. Pin the SDK
+         in global.json; its TFM-aligned language default is reproducible.
+         Do not use LangVersion=latest, which varies with the installed SDK. -->
+
+    <!-- Nullable reference types on, and violations are build errors.
+         Without TreatWarningsAsErrors this is just advisory noise. -->
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningLevel>9999</WarningLevel>
+
+    <!-- latest-all = every shipped analyzer rule, including the ones off by
+         default. This is the strict setting; "latest-recommended" is the
+         gentler fallback if the codebase is large and legacy. -->
+    <AnalysisLevel>latest-all</AnalysisLevel>
+    <AnalysisMode>All</AnalysisMode>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+
+    <!-- Run supported IDE code-style analyzers during build. Set intended
+         diagnostic severities in the existing .editorconfig (the companion
+         template sets the dead-code rules): this switch does not promote
+         every suggestion to an error. Keep the dotnet format verify-no-changes
+         check as a separate formatting gate. XML comments cannot contain two
+         consecutive hyphens, so command-line flags are not written here. -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Dead code / correctness -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- ^ CS1591 = "missing XML comment on public member". Doc generation is
+         on so other doc warnings still fire, but requiring a comment on every
+         public member is busywork. Remove from NoWarn to enforce it. -->
+
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <ReportAnalyzer>true</ReportAnalyzer>
+
+    <!-- Supply chain -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+
+    <!-- Reproducibility -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!-- Conventional test-project names: narrow naming/context relaxations.
+       This does not install a test framework or its analyzers. Projects with
+       other names must scope their own test settings after IsTestProject is set. -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CA1707;CA2007</NoWarn>
+    <!-- CA1707: underscores in test method names are the convention.
+         CA2007: ConfigureAwait(false) is not needed in test code. -->
+  </PropertyGroup>
+</Project>

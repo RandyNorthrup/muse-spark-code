@@ -1,0 +1,242 @@
+{
+  "version": 1,
+  "date": "2026-10-05",
+  "base": "f70636a4c918547ca51a425041894e49c0d08159",
+  "status": "Windows correction and D78 injected settlement verified; integrated product and remaining native matrix open",
+  "modelAttempts": 0,
+  "laneAContract": {
+    "ref": "macmini/m96/a",
+    "commit": "8901ea1b92865b6bee0f4b4fd7d6abbf2a356ba8",
+    "path": "src/core/team/teamMeter.ts"
+  },
+  "sources": [
+    {
+      "path": "native/windows/MuseSparkJob.cs",
+      "sha256": "4bef4c65251ecf651ae88619970b7afabb2142bf1c58e6bb35d94837921361e2"
+    },
+    {
+      "path": "native/windows/MuseSparkMcpJob.cs",
+      "sha256": "52433627a1834e29e17cce619c3e72276ce00d9623d883cbc3080fcf0d327161"
+    },
+    {
+      "path": "src/host/team/processLifetime.ts",
+      "sha256": "20277e13bd448bf9bb09820a7a603f33c8c46edd3c1aedd912f8cf8c31651362"
+    },
+    {
+      "path": "src/host/team/teamJournal.ts",
+      "sha256": "9e9d7cd20153b6f158b89f7fd3bc091a9c9bb8a628c7d54c94649d971843079c"
+    },
+    {
+      "path": "src/host/team/windowIdentity.ts",
+      "sha256": "eaffb89a736131577b06657db7cb27855740f056b8e93c91c7a3f6accdc42a58"
+    },
+    {
+      "path": "src/host/team/orphanRecovery.ts",
+      "sha256": "28ca3c82fc2991f25e0f4981385efad530f69424bb59b8b8c9181551d3461542"
+    },
+    {
+      "path": "src/host/team/windowHints.ts",
+      "sha256": "14acebf74f699a663ba9b407478d83061581abe79e9c5b7b5bb651e8c17d172e"
+    },
+    {
+      "path": "src/host/team/loadGuard.ts",
+      "sha256": "fbf99d5fa59646aba25fe15e97238f412ce15dcf4b1932cd41fc02e214f0f973"
+    },
+    {
+      "path": "src/host/backend/jobSource.ts",
+      "sha256": "700ff1e1a28c8e20438c2c9d5c822ce822148365ce52651b0009c749fb2d5086"
+    },
+    {
+      "path": "src/host/backend/shellJob.ts",
+      "sha256": "cea2d7e40168da733173d92c6fc031961511930f98c640e8e37c4ae5285b9086"
+    },
+    {
+      "path": "test/unit/teamProcessLifetime.test.ts",
+      "sha256": "f559a92b6500a1ee17dd2bbc0e5dfd994d823018dc85f08f865affe07377d1c8"
+    },
+    {
+      "path": "test/unit/teamHintsAndLoad.test.ts",
+      "sha256": "9ba9de0497657d7f5fa5b27d1ff793bc40ed595f0cdcf19a4cd8d67e2341fe98"
+    },
+    {
+      "path": "test/unit/teamNativeLifetime.test.ts",
+      "sha256": "6616dd56be9f89fbeadb54c8159a39881042d2cfe0d37eecc1f8119bb85fdcd3"
+    },
+    {
+      "path": "test/unit/teamSettlement.test.ts",
+      "sha256": "0d2e25864c67e10ccacca4fcca737fb953ad0b918b758403e5d8c39795aec06a"
+    },
+    {
+      "path": "package.json",
+      "sha256": "96943b8386d1bd826c4d6e8de1c3aa444afa0454095b1cafd126556a10f799aa"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "sha256": "e54ee750ff15efb16359f9939cf78ff914310a1de166aa139359f64f7a602285"
+    },
+    {
+      "path": "tsconfig.json",
+      "sha256": "6e0eb6dc6291b46a868115d911697d0d713779fa43c66742c664846b8b387917"
+    },
+    {
+      "path": "test/unit/tsconfig.json",
+      "sha256": "cfff4774ca5275507fd15523dabd23d1d64cfead96e258c13d7297a237a3c262"
+    },
+    {
+      "path": "vitest.config.ts",
+      "sha256": "5da10d5030689ed302595dcbd8bc0043cd63f7799973271264c1efd831ed9ee1"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "55b85087d986f10a09ef9bf0c9c8b8e11588359d40cb4345c649915b11d6da88"
+    },
+    {
+      "path": "PLAN.md",
+      "sha256": "425b152b3949efeef24f303ee4f628d1e08d4b7851040e4b596180da9348292c"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-windows-before.txt",
+      "sha256": "088936b4b0e9ad4e9b41f5a4b292002b2c9a6779d2c4ea423d8c8a2c0ec3eae8"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-windows-green.txt",
+      "sha256": "ff1218cbe8a5a27a4ccff33a0ea193d9fa4dd38e783f2c56ff203c0480933d8e"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-windows-baseline.txt",
+      "sha256": "694e2db54c4f69fd129d70e5c13d1ed39580aa46b373e0dfafce9ae84111508a"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-windows-rig-baseline.txt",
+      "sha256": "64a6684afd6622e10ecbfc5c3ab682d0735dbe586a684062e3580486d026f05c"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-windows-restored.txt",
+      "sha256": "a9e0f851ef37c595bd63ef7614b37bd91489af4c188d60f9a76f58c9e81a9301"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-macmini-rig-baseline.txt",
+      "sha256": "d412d94241dd1b4e3b8a94eafe0089657f99bc5560dcabba738652fa7e2c1398"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-macmini-restored.txt",
+      "sha256": "0e979942e268746165987a21e3fb8c0239a695e7dc82dbdbb548e4034ea6f892"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-final-windows.txt",
+      "sha256": "ef658acf3a6fe06954f4d5d3d015f12451ed3b492c2922ecaa01538ae4c68ac5"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-final-mac-checks.txt",
+      "sha256": "f1947bcb867291671d4f0df37a4b881a515d1a29f752af2e66d9ef68dd89bf24"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-final-kubuntu.txt",
+      "sha256": "78739afe9813b773d4c409befe34d1d62601ae1d5d141dc6eada1e9163c9963a"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-style-final.txt",
+      "sha256": "e736c693ba3b5e6a6b868a173a08d483e2c6f07696fd62091664c181f4cb9e12"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-a-contract-check-final.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-status-overlapped.txt",
+      "sha256": "342a058605e78c90eccbe1008f3ee423a4696af2e65ffc3b44ef9972ddba6e41"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-status-proof.txt",
+      "sha256": "128d094503a49ea99b33366623cb23ee1626d2f78711efe5b5c1f1257782402a"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-windows-flush-access.txt",
+      "sha256": "3377a97211c495ad2077e208290f5590255581d48e23660f3ef4f753bda0dade"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-windows-owner-acl.txt",
+      "sha256": "4f6db3ca1f63503f19a69e68dfc707cede0a9bfa29317546e49b5be2a3f4f3fc"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-claim-identity.txt",
+      "sha256": "83e7c0f1d35d22b3c9ebc1513ab3450808c6319e3fe435715cccb8b62a0e775e"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-claim-replay.txt",
+      "sha256": "85c66d62ecdb93371192dca227c24cac4f29a2f0d13864809b80930a776821d9"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-claim-liability.txt",
+      "sha256": "8b248ebc06bbf9ffdad687cd5f498163fa12e8e2d0452952bed0ea444ff57efc"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-claim-refund.txt",
+      "sha256": "1609cd3078c37b55c69c9070d5f0bfb9be75dd7395145623538d467215e6491e"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-claim-conflict-kind.txt",
+      "sha256": "3a8aa490cfced3cdb1a54d9e0583c67efc02dd48ede1a37ca5ea177404b343d6"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-claim-conflict-tokens.txt",
+      "sha256": "3887141dbdcf03a7e2cfc6d135297f3b0631517711ef8e116c76f04f3d2dda43"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-claim-conflict-inputTokens.txt",
+      "sha256": "2218fe4ad82a53a904298e7790b50fe95dbae6c68bd3686d71231eb454035d3b"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-claim-conflict-outputTokens.txt",
+      "sha256": "20253e0ce37ffc8fb6d7ea29228620cf1d4007f9fe70b1d0d91437d96ab8cbc9"
+    },
+    {
+      "path": "docs/certification/m96-k/fin2-logs/fin2-red-claim-conflict-spendUsd.txt",
+      "sha256": "bf95562da1c9b619d3a8e4c02dea577f81078c49781690a61812d1284474d247"
+    }
+  ],
+  "checks": {
+    "windowsCodingHost": {
+      "exit": 0,
+      "tests": 29
+    },
+    "windowsVMRestored": {
+      "exit": 0,
+      "tests": 29
+    },
+    "macmini": {
+      "exit": 0,
+      "tests": 36,
+      "snapshot": "60a9e521"
+    },
+    "kubuntu": {
+      "exit": 0,
+      "tests": 37,
+      "snapshot": "bbd607bb"
+    },
+    "requiredStaticAndBuild": {
+      "exit": 0,
+      "machine": "macmini"
+    },
+    "typeContract": {
+      "exit": 0,
+      "machine": "coding-host"
+    },
+    "redDrills": {
+      "count": 13,
+      "allRedExit": 1,
+      "allRestorationsMatch": true
+    },
+    "extensionKiB": 590.6,
+    "modelApiKiB": 430.1,
+    "checkpointKiB": 135.7,
+    "chatKiB": 860.5,
+    "acpKiB": 800.9
+  }
+}

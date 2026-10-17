@@ -7,6 +7,7 @@
 // interaction is injected.
 
 import type { MemoryNote, MemoryStore } from '../../core/memory/memoryStore'
+import { redactSecrets } from '../../core/redact'
 import {
   MEMORY_INDEX_FILE,
   MEMORY_NOTE_EXTENSION,
@@ -15,6 +16,16 @@ import {
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import type { PickItem, PickOne } from './pickItem'
+
+/**
+ * One mutation of the notes. A scope whose notes lie under the workspace
+ * folder holds the pure checkpoint lease until `work` settles; `work` gets
+ * the guard to honour right before each native write.
+ */
+export type MemoryEdit = <T>(
+  scope: MemoryScope,
+  work: (assertCanWrite: () => void) => Promise<T>,
+) => Promise<T>
 
 export interface MemoryViewDeps {
   readonly store: Pick<
@@ -31,8 +42,9 @@ export interface MemoryViewDeps {
   /** A modal; true when the user chose `action`. */
   readonly confirm: (message: string, detail: string, action: string) => Promise<boolean>
   readonly openFile: (fsPath: string) => Promise<void>
-  /** Moves a file to the trash. */
-  readonly trash: (fsPath: string) => Promise<void>
+  /** Moves a file to the trash, after a checkpoint copy and the guard's last word. */
+  readonly trash: (fsPath: string, assertCanWrite: () => void) => Promise<void>
+  readonly edit: MemoryEdit
   readonly openDocs: () => void
   readonly showInformation: (message: string) => void
   readonly showError: (message: string) => void
@@ -46,7 +58,7 @@ const DELETE = 'delete'
 const EXTENSION = /\.[^./\\]+$/
 
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
 function noteItem(note: MemoryNote, index: number): PickItem {
@@ -74,8 +86,10 @@ async function deleteNote(deps: MemoryViewDeps, note: MemoryNote): Promise<void>
   if (!isConfirmed) {
     return
   }
-  await deps.trash(note.absolute)
-  await deps.store.forget(note)
+  await deps.edit(note.scope, async (assertCanWrite) => {
+    await deps.trash(note.absolute, assertCanWrite)
+    await deps.store.forget(note, assertCanWrite)
+  })
   deps.showInformation(fill(UI_TEXT.memoryDeleted, { path: note.path }))
 }
 
@@ -147,7 +161,11 @@ async function newNote(deps: MemoryViewDeps, scopes: readonly MemoryScope[]): Pr
   if (description === undefined) {
     return
   }
-  const place = await deps.store.create(scope, noteName(name), description)
+  const place = await deps.edit(
+    scope,
+    async (assertCanWrite) =>
+      await deps.store.create(scope, noteName(name), description, assertCanWrite),
+  )
   await deps.openFile(place.absolute)
 }
 

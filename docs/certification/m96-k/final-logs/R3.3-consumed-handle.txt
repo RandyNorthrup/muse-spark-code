@@ -1,0 +1,49 @@
+
+ RUN  v5.0.2 /Users/randy/lanes/FIXM96K4
+
+ ❯ test/unit/teamHintsAndLoad.test.ts (21 tests | 1 failed) 433ms
+   ❯ M96 K advisory hints (14)
+     × Windows consumes the handle-verified hint rather than an older opened inode after replacement 14ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 20 passed (21)
+   Start at  14:07:54
+   Duration  1.76s (transform 54%, tests 27%, import 9%, setup 9%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K advisory hints > Windows consumes the handle-verified hint rather than an older opened inode after replacement
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "branch": "feature/a",
+        "instanceId": "694b762b-a776-4fa9-8e07-2751aae51a6f",
+        "kind": "paths",
+        "paths": Array [
+          "src/a.ts",
+        ],
+        "repository": "/repo/.git",
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:264:28
+    262|     })
+    263|     expect(await reader.check(intent)).toBe('continue')
+    264|     expect(f.question).not.toHaveBeenCalled()
+       |                            ^
+    265|     expect(f.disabled).not.toHaveBeenCalled()
+    266|     expect(await reader.advisory()).toMatchObject({ workers: 7 })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯

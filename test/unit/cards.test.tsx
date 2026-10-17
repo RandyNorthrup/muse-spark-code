@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { UI_TEXT } from '../../src/shared/constants'
 import { ApprovalCard } from '../../src/webview/components/ApprovalCard'
 import { TodoPanel } from '../../src/webview/components/TodoPanel'
 import type { PendingApproval } from '../../src/webview/state/uiState'
@@ -45,19 +46,14 @@ const approval: PendingApproval = {
 describe('ApprovalCard', () => {
   it('shows the current stage, flags, and sends the chosen decision with feedback', () => {
     const onDecide = vi.fn()
-    render(<ApprovalCard approval={approval} toolName="powershell" onDecide={onDecide} />)
+    const first = render(
+      <ApprovalCard approval={approval} toolName="powershell" onDecide={onDecide} />,
+    )
     expect(screen.getByText('Get-Content x')).toBeInTheDocument()
     expect(screen.getByText('(step 2 of 2)')).toBeInTheDocument()
-    expect(screen.getByText('Protected write')).toBeInTheDocument()
+    expect(screen.getByText('Protected Write')).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText(/what to do instead/), {
       target: { value: ' use the file tool ' },
-    })
-    fireEvent.click(screen.getByText('Allow once'))
-    expect(onDecide).toHaveBeenLastCalledWith({
-      approvalId: 'a1',
-      choiceId: 'allow_once',
-      requirementId: { approvalId: 'a1', sourceIndex: 1 },
-      feedback: undefined,
     })
     fireEvent.click(screen.getByText('Reject'))
     expect(onDecide).toHaveBeenLastCalledWith({
@@ -69,6 +65,41 @@ describe('ApprovalCard', () => {
     expect(screen.getByTitle('Always allow in this workspace: Get-Content ...')).toHaveClass(
       'button-primary',
     )
+    // A choice without feedback carries none (a fresh card: one decision per stage).
+    first.unmount()
+    const onOther = vi.fn()
+    render(<ApprovalCard approval={approval} toolName="powershell" onDecide={onOther} />)
+    fireEvent.click(screen.getByText('Allow once'))
+    expect(onOther).toHaveBeenLastCalledWith({
+      approvalId: 'a1',
+      choiceId: 'allow_once',
+      requirementId: { approvalId: 'a1', sourceIndex: 1 },
+      feedback: undefined,
+    })
+  })
+
+  it('sends one decision for its stage, however fast the clicks, until the host reopens it (D26)', () => {
+    const onDecide = vi.fn()
+    const { rerender } = render(
+      <ApprovalCard approval={approval} toolName="powershell" onDecide={onDecide} />,
+    )
+    // Both clicks land before the locked card renders.
+    fireEvent.click(screen.getByText('Allow once'))
+    fireEvent.click(screen.getByText('Allow once'))
+    fireEvent.click(screen.getByText('Reject'))
+    expect(onDecide).toHaveBeenCalledTimes(1)
+    // Locked by the host's state, then reopened: the stage may be decided again.
+    rerender(
+      <ApprovalCard
+        approval={{ ...approval, decidedSourceIndex: 1 }}
+        toolName="powershell"
+        onDecide={onDecide}
+      />,
+    )
+    rerender(<ApprovalCard approval={approval} toolName="powershell" onDecide={onDecide} />)
+    fireEvent.click(screen.getByText('Reject'))
+    expect(onDecide).toHaveBeenCalledTimes(2)
+    expect(onDecide).toHaveBeenLastCalledWith(expect.objectContaining({ choiceId: 'abort' }))
   })
 
   it('locks every control once the current stage has been decided', () => {
@@ -101,6 +132,22 @@ describe('ApprovalCard', () => {
     expect(screen.getAllByText('Allow once')[1]).toBeEnabled()
   })
 
+  it('keeps each choice in its DOM order, with its full text as its title for an ellipsized label', () => {
+    render(<ApprovalCard approval={approval} toolName="powershell" onDecide={vi.fn()} />)
+    const choices = screen.getAllByRole('button')
+    expect(choices.map((choice) => choice.textContent)).toEqual([
+      'Allow once',
+      'Always allow in this workspace: Get-Content ...',
+      'Reject',
+    ])
+    // The rule's preview when the host gives one, the label otherwise.
+    expect(choices.map((choice) => choice.getAttribute('title'))).toEqual([
+      'Allow once',
+      'Always allow in this workspace: Get-Content ...',
+      'Reject',
+    ])
+  })
+
   it('falls back to the subject fields and hides the feedback box without such a choice', () => {
     const onDecide = vi.fn()
     render(
@@ -117,7 +164,7 @@ describe('ApprovalCard', () => {
     )
     expect(screen.getByText('/etc/hosts')).toBeInTheDocument()
     expect(screen.queryByPlaceholderText(/what to do instead/)).toBeNull()
-    expect(screen.queryByText('Protected write')).toBeNull()
+    expect(screen.queryByText('Protected Write')).toBeNull()
     render(
       <ApprovalCard
         approval={{ ...approval, subject: { kind: 'tool' }, isJudgeEscalated: true }}
@@ -126,11 +173,97 @@ describe('ApprovalCard', () => {
       />,
     )
     expect(screen.getByText('mystery')).toBeInTheDocument()
-    expect(screen.getByText('Escalated by the safety check')).toBeInTheDocument()
+    expect(screen.getByText('Escalated by the Safety Check')).toBeInTheDocument()
+  })
+
+  it('names the page a web fetch will read (M69)', () => {
+    render(
+      <ApprovalCard
+        approval={{
+          ...approval,
+          subject: {
+            kind: 'webFetch',
+            target: 'https://docs.example.com/a?b=1',
+            toolName: 'web_fetch',
+          },
+          isProtectedWrite: false,
+        }}
+        toolName="web_fetch"
+        onDecide={vi.fn()}
+      />,
+    )
+    expect(
+      screen.getByRole('group', { name: 'Muse wants to fetch https://docs.example.com/a?b=1' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('https://docs.example.com/a?b=1').tagName).toBe('CODE')
+  })
+
+  it('names the page a browser check opens, and says when it is beyond this computer (M81)', () => {
+    for (const [kind, title] of [
+      ['browserCheck', 'Muse wants to open http://localhost:5173/ in a headless browser'],
+      [
+        'browserCheckWiden',
+        'Muse wants to open http://localhost:5173/ in a headless browser, beyond this computer',
+      ],
+    ] as const) {
+      const { unmount } = render(
+        <ApprovalCard
+          approval={{
+            ...approval,
+            subject: { kind, target: 'http://localhost:5173/', toolName: 'browser_check' },
+            isProtectedWrite: false,
+          }}
+          toolName="browser_check"
+          onDecide={vi.fn()}
+        />,
+      )
+      expect(screen.getByRole('group', { name: title })).toBeInTheDocument()
+      expect(screen.getByText('http://localhost:5173/').tagName).toBe('CODE')
+      // M81 A1: widening says what it also allows, under that card only.
+      const residual = screen.queryByText(UI_TEXT.approvalBrowserCheckWidenResidual)
+      expect(residual === null, kind).toBe(kind !== 'browserCheckWiden')
+      unmount()
+    }
   })
 })
 
 describe('TodoPanel', () => {
+  it('collapses to progress and current task, expands back, and reopens expanded on mount', () => {
+    const items = [
+      { text: 'Plan', status: 'completed' },
+      { text: 'Test', status: 'inProgress', activeForm: 'Testing' },
+      { text: 'Ship', status: 'pending' },
+    ]
+    const { unmount } = render(<TodoPanel items={items} />)
+    const toggle = screen.getByRole('button', { name: 'Tasks 1 of 3 done' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const controlled = document.querySelector(
+      `[id="${CSS.escape(toggle.getAttribute('aria-controls') ?? '')}"]`,
+    )
+    expect(controlled).toBe(screen.getByRole('list'))
+    fireEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('list')).toBeNull()
+    expect(screen.getByTitle('Testing')).toBeVisible()
+    fireEvent.click(toggle)
+    expect(screen.getByRole('list')).toBeVisible()
+    fireEvent.click(toggle)
+    unmount()
+    render(<TodoPanel items={items} />)
+    expect(screen.getByRole('list')).toBeVisible()
+  })
+
+  it('offers tab opening only when provided, and preserves the inert modal guard', () => {
+    const onOpenInTab = vi.fn()
+    const items = [{ text: 'Test', status: 'pending' }]
+    const { rerender } = render(<TodoPanel items={items} />)
+    expect(screen.queryByRole('button', { name: 'Open in a Tab' })).toBeNull()
+    rerender(<TodoPanel items={items} isInert onOpenInTab={onOpenInTab} />)
+    expect(screen.getByRole('region')).toHaveAttribute('inert')
+    fireEvent.click(screen.getByRole('button', { name: 'Open in a Tab' }))
+    expect(onOpenInTab).toHaveBeenCalledOnce()
+  })
+
   it('lists tasks with their status marks and the active form, and hides when empty', () => {
     const { rerender } = render(
       <TodoPanel
@@ -151,9 +284,9 @@ describe('TodoPanel', () => {
 
   // M25: rows were keyed by their text, so two tasks with the same text collided.
   it('keeps two tasks with the same text apart', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {
-      // A key collision is reported here; the test asserts there is none.
-    })
+    // Call-through only: a key collision would be reported here; the test
+    // asserts there is none.
+    const consoleError = vi.spyOn(console, 'error')
     const { rerender } = render(
       <TodoPanel
         items={[
@@ -192,5 +325,25 @@ describe('ApprovalCard tool subjects (M18)', () => {
       'Muse wants to use subagent_spawn',
     )
     expect(screen.getByText('Map the tree')).toHaveClass('approval-prompt')
+  })
+})
+
+describe('ApprovalCard reviewer and rule reasons (M78)', () => {
+  it('says why it asks beyond the mode: the Auto Reviewer’s reason, or the user’s rule (M78)', () => {
+    const onDecide = vi.fn()
+    render(
+      <ApprovalCard
+        approval={{
+          ...approval,
+          isJudgeEscalated: true,
+          note: 'Asks you: deletes the build output',
+        }}
+        toolName="bash"
+        onDecide={onDecide}
+      />,
+    )
+    expect(screen.getByText('Asks you: deletes the build output')).toHaveClass('approval-note')
+    render(<ApprovalCard approval={approval} toolName="bash" onDecide={onDecide} />)
+    expect(screen.getAllByText(/^Asks you:/)).toHaveLength(1)
   })
 })

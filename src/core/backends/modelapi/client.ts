@@ -1,47 +1,151 @@
-// A thin, schema-validated client for the four Model API endpoints the
-// backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`,
-// the streamed `POST /responses` and `POST /images/generations` (M34).
+import { PaidAuthority } from '../../paid/paidAuthority'
+// A thin, schema-validated Model API client (PLAN.md D2, M34, D86.6):
+// models, token counts, streamed responses, generated/edited images and
+// public service health.
 // Errors follow the documented envelope and retry policy
-// (dev.meta.ai/docs/error-handling): 429 / 500 / 503 are
+// (PLAN.md D86.6): 429 / 500 / 502 / 503 / 504 are
 // retried with exponential backoff and jitter, honouring `Retry-After`,
 // before any of the response has been read; everything else surfaces as a
 // `ModelApiError`. `fetch`, the clock and the key are injected.
 
-import { createHash } from 'node:crypto'
-
 import {
-  MODEL_API_MAX_RETRIES,
-  HTTP_TOO_MANY_REQUESTS,
+  RequestTransport,
+  assertConfirmedAllowed,
+  ignoreClosingError,
+  ModelApiError,
+  parseJsonResponse,
+  readBoundedText,
+  redactModelApiError,
+  redactStreamDiagnostics,
+  type ConfirmedModelRequest,
+  type ResponseAttemptGuard,
+  type RetryBudget,
+  type RetryNotice,
+  retryAfterMs,
+} from './transport'
+export {
+  MissingApiKeyError,
+  ModelApiError,
+  isModelApiError,
+  isMissingApiKeyError,
+  retryAfterMs,
+  type ConfirmedModelRequest,
+  type ResponseAttemptGuard,
+  type RetryBudget,
+  type RetryNotice,
+  type ResponseObservation,
+} from './transport'
+import type { ProviderClient as TransportProviderClient } from './providerClient'
+import type { PlanUsageRow } from '../../../shared/usage'
+import type { ModelResolver } from './modelPolicy'
+import {
+  type PaidFeature,
+  MODEL_API_BASE_URL,
+  MODEL_API_MIN_OUTPUT_TOKENS,
   IMAGE_REQUEST_TIMEOUT_MS,
-  MODEL_API_RETRY_BASE_MS,
-  MODEL_API_RETRY_JITTER_MS,
-  MODEL_API_RETRY_MAX_MS,
-  MODEL_API_RETRYABLE_STATUSES,
   MODEL_API_REQUEST_TIMEOUT_MS,
-  MODEL_API_STREAM_IDLE_MS,
-  MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
-import { DeadlineError, withDeadline } from '../../timeouts'
+import { estimateInput, requestParts, searchAllowanceUsd } from './sessionBudget'
+
 import type { CoreLogger } from '../../logging'
-import { describeNetworkFailure, networkFailureMessage } from '../../networkFailure'
+import type { NetworkAdvice } from '../../networkFailure'
 import {
   type CreateImageBody,
   type EditImageBody,
   type CreateResponseBody,
-  errorBodySchema,
   eventTypeSchema,
   type ImagesResponse,
   imagesResponseSchema,
   inputTokensSchema,
   modelListSchema,
+  modelApiStatusSchema,
   type StreamEvent,
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
+import { estimateCostUsd, formatUsd, type BillableUsage } from '../../usage/insights'
+import { webSearchPriceUsd } from '../../paid/paidFeatures'
+import { modelApiPaidTier, type PaidQuote, type SearchSettlement } from '../../../shared/paid'
+import { Usd, sumUsd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
+
+/** The client needs admission and settlement, not the ledger's internal totals. */
+interface PaidRequestClaim {
+  readonly reservedUsd: UsdAmount
+  check(capUsd: UsdAmount): void
+  settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
+}
+
+import { redactSecrets } from '../../redact'
+import { fill } from '../../../shared/l10n/text'
+import { outputTokenMinimumMessage } from '../../../shared/providerRouting'
+
+import type { PacingProvider, RequestPacer } from './pacing'
+import { fanOutPacingClass } from './subagentTools'
+
+/** Public transport contract shared by Meta, plan clients and host adapters. */
+export type ProviderClient = Pick<
+  ModelApiClient,
+  Exclude<
+    keyof ModelApiClient,
+    | 'provider'
+    | 'capabilities'
+    | 'providerId'
+    | 'searchPriceUsd'
+    | 'inheritSearchQuote'
+    | 'releaseSearchQuotes'
+    | 'readServiceStatus'
+    | 'withScheduleAuthority'
+    | 'requestFile'
+  >
+> & {
+  readonly providerId?: ModelApiClient['providerId']
+  readonly searchPriceUsd?: ModelApiClient['searchPriceUsd']
+  readonly inheritSearchQuote?: ModelApiClient['inheritSearchQuote']
+  readonly releaseSearchQuotes?: ModelApiClient['releaseSearchQuotes']
+  readonly readServiceStatus?: ModelApiClient['readServiceStatus']
+  readonly withScheduleAuthority?: (run: () => UnattendedRun | undefined) => ProviderClient
+  readonly provider?: TransportProviderClient['provider']
+  readonly models?: ModelResolver
+  readonly modelContextLimit?: (model: string) => number | undefined
+  readonly isPlanModel?: (model: string) => boolean
+  readonly readPlanUsage?: () => readonly PlanUsageRow[]
+}
+import type { SecretScrubPort } from '../../../shared/redact'
+
+import type { UnattendedRun } from '../../schedules/unattended'
 
 export interface ModelApiClientDeps {
+  /** M109 T: broker-backed exact-value scrub, immediately before every send. */
+  readonly vaultScrub?: SecretScrubPort
+  readonly paidAuthority?: PaidAuthority
+  /** Share across clients for one process; omitted clients own a bucket themselves. */
+  readonly pacing?: RequestPacer
+  /** One owner shares limits across its normal and best-of-N clients. */
+  readonly pacingOwner?: object
+  /** M95 binding: project the selected record's provider and captured header interpreter. */
+  readonly pacingProvider?: (modelId: string | undefined) => PacingProvider
+  /** M101 binding: FormatQuirks.retry's classification, after its quota fences. */
+  readonly isRetryableFailure?: (
+    failure: ModelApiError,
+    retryAfterMs: number | undefined,
+  ) => boolean
+  /** The host presents a 5xx banner with this public link; no response text crosses this port. */
+  readonly onServiceFailure?: (status: number, statusUrl: string) => void
+  /** Interactive VS Code extras only; ACP/headless clients omit this port. */
+  readonly reservePaidRequest?: (
+    body: CreateResponseBody | CreateImageBody,
+    feature: PaidFeature,
+    estimatedInputTokens?: number,
+    signal?: AbortSignal,
+    /** M106: tokens plus the verified hosted-call allowance, computed in this bundle. */
+    reservationUsd?: UsdAmount,
+  ) => Promise<PaidRequestClaim | undefined>
+  /** M95 integration: a provider's verified hosted-search tariff, never a fallback estimate. */
+  readonly providerId?: ((modelId: string) => string) | undefined
+  readonly webSearchPriceUsd?: (modelId: string) => UsdAmount | undefined
+  /** M95's verified token pricing; an unpriced provider cannot spend under a search cap. */
+  readonly searchTokenCostUsd?: (usage: BillableUsage, modelId: string) => UsdAmount | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
@@ -52,311 +156,71 @@ export interface ModelApiClientDeps {
   /** 0 ≤ n < 1, for the retry jitter; injected so tests are deterministic. */
   readonly random: () => number
   readonly log: CoreLogger
-  /** How long a reply stream may send nothing; the constant unless a test shortens it. */
+  /** Idle limit for headers and all response-body reads; tests may shorten it. */
   readonly streamIdleMs?: number
-}
-
-export class ModelApiError extends Error {
-  public constructor(
-    message: string,
-    /** HTTP status, or 0 when the request never got a response. */
-    public readonly status: number,
-    /** The envelope's `error.type` (`rate_limit_error`, …), when any. */
-    public readonly kind: string | undefined,
-    /** The envelope's `error.code` (`invalid_api_key`, …), when any. */
-    public readonly code: string | undefined,
-  ) {
-    super(message)
-    this.name = 'ModelApiError'
-  }
-}
-
-/** Thrown when the key is absent: the caller decides how to prompt. */
-export class MissingApiKeyError extends Error {
-  public constructor() {
-    super('No Model API key is stored')
-    this.name = 'MissingApiKeyError'
-  }
+  /**
+   * Whose settings a request that never reached Meta names (M56): VS Code's
+   * unless the ACP agent says its own (PLAN.md D62, Q66).
+   */
+  readonly networkAdvice?: NetworkAdvice
 }
 
 const JSON_MEDIA_TYPE = 'application/json'
 const EVENT_STREAM_MEDIA_TYPE = 'text/event-stream'
-const RETRY_AFTER_HEADER = 'retry-after'
-const NETWORK_FAILURE_STATUS = 0
 const SSE_DONE_SENTINEL = '[DONE]'
 
-/** Closing a parser that already failed rejects with that failure, which the stream reported. */
-function ignoreClosingError(): void {
-  // Nothing to add: the stream's own error already went to its caller.
-}
-
-/** The documented error envelope, or the status text when the body is not one. */
-async function describeFailure(response: Response): Promise<ModelApiError> {
-  let body: unknown
-  try {
-    body = await response.json()
-  } catch {
-    body = undefined
-  }
-  const parsed = errorBodySchema.safeParse(body)
-  if (!parsed.success) {
-    return new ModelApiError(
-      `HTTP ${String(response.status)} ${response.statusText}`.trim(),
-      response.status,
-      undefined,
-      undefined,
-    )
-  }
-  const { error } = parsed.data
-  return new ModelApiError(
-    error.message,
-    response.status,
-    error.type ?? undefined,
-    error.code ?? undefined,
-  )
-}
-
-/**
- * `Retry-After` in milliseconds: a delay in seconds, or an HTTP date (RFC
- * 9110 §10.2.3 allows both; PLAN.md D25), measured from `now`.
- */
-export function retryAfterMs(header: string | null, now: number): number | undefined {
-  if (header === null || header.trim() === '') {
-    return undefined
-  }
-  const seconds = Number(header)
-  if (Number.isFinite(seconds)) {
-    return seconds >= 0 ? seconds * MILLISECONDS_PER_SECOND : undefined
-  }
-  const at = Date.parse(header)
-  return Number.isNaN(at) ? undefined : Math.max(at - now, 0)
-}
-
-/** One retry the client is about to make, for the transcript's notice. */
-export interface RetryNotice {
-  readonly attempt: number
-  readonly maxAttempts: number
-  readonly delayMs: number
-  readonly reason: string
-}
-
-/**
- * The retries one model call has used (the review of PR #28): a stream sent
- * again whole and the HTTP retries inside each of its requests draw on the
- * same MODEL_API_MAX_RETRIES.
- */
-export interface RetryBudget {
-  retriesUsed: number
-}
-
-/** In-memory identity of an explicitly confirmed scheduled Model API run. */
-export interface ConfirmedModelRequest {
-  readonly modelId: string
-  readonly keyDigest: string
-  /** The paid gate and session model must still match before every HTTP try. */
-  readonly isStillAllowed: () => boolean
-  /** Only after identity and gate checks, immediately before the first HTTP try. */
-  readonly onRequestStarted: () => void
-}
-
-/** A child task's synchronous final admission, after reading the actual key. */
-export type ResponseAttemptGuard = (keyDigest: string | undefined) => void
-
-function isAborted(signal: AbortSignal | undefined): boolean {
-  return signal?.aborted === true
-}
-
-/** Rejects as soon as `signal` aborts, instead of sleeping the retry delay out. */
-function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; dispose(): void } {
-  let onAbort: (() => void) | undefined
-  const promise = new Promise<never>((_resolve, reject) => {
-    onAbort = () => {
-      reject(new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined))
-    }
-    signal.addEventListener('abort', onAbort, { once: true })
-  })
-  return {
-    promise,
-    dispose: () => {
-      if (onAbort !== undefined) {
-        signal.removeEventListener('abort', onAbort)
-      }
-    },
-  }
-}
-
-export class ModelApiClient {
-  /** Stream event types already logged as ignored (M39). */
+export class ModelApiClient implements TransportProviderClient {
+  private searchClaimSequence = 0
   private readonly ignoredEventTypes = new Set<string>()
-
-  public constructor(private readonly deps: ModelApiClientDeps) {}
-
-  /** The retry delay, cut short by the turn's Stop. */
-  private async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
-    if (signal === undefined) {
-      await this.deps.sleep(ms)
-      return
-    }
-    if (signal.aborted) {
-      throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
-    }
-    const aborted = whenAborted(signal)
-    try {
-      await Promise.race([this.deps.sleep(ms), aborted.promise])
-    } finally {
-      aborted.dispose()
-    }
+  private readonly transport: RequestTransport
+  public readonly provider
+  public readonly capabilities = () => ({
+    toolCalling: true,
+    vision: true,
+    reasoning: true,
+    parallelToolCalls: true,
+  })
+  public constructor(
+    private readonly deps: ModelApiClientDeps,
+    private readonly scheduledRun?: () => UnattendedRun | undefined,
+  ) {
+    this.transport = new RequestTransport({
+      ...deps,
+      ...(scheduledRun !== undefined && { scheduledRun }),
+    })
+    this.provider = {
+      id: 'meta',
+      label: 'Meta',
+      origin: new URL(deps.baseUrl).origin,
+      format: 'responses',
+      auth: 'apiKey',
+      isLocal: false,
+    } as const
   }
 
-  private async headers(): Promise<{
-    readonly values: Record<string, string>
-    readonly keyDigest: string
-  }> {
-    const key = await this.deps.apiKey()
-    if (key === undefined) {
-      throw new MissingApiKeyError()
-    }
-    return {
-      values: { Authorization: `Bearer ${key}`, 'Content-Type': JSON_MEDIA_TYPE },
-      keyDigest: createHash('sha256').update(key).digest('hex'),
-    }
-  }
-
-  private backoffMs(attempt: number, suggestedMs: number | undefined): number {
-    const exponential = Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS)
-    const jitter = Math.floor(this.deps.random() * MODEL_API_RETRY_JITTER_MS)
-    return Math.min((suggestedMs ?? exponential) + jitter, MODEL_API_RETRY_MAX_MS)
-  }
-
-  /**
-   * One request with the documented retry policy. The response is handed
-   * back unread on success; a non-2xx status becomes a `ModelApiError`.
-   */
-  private async request(
-    path: string,
-    init: {
-      readonly method: 'GET' | 'POST'
-      readonly body?: unknown
-      readonly accept: string
-      /**
-       * `rateLimitOnly` for a request that bills per call (M34, the review
-       * of PR #27): a 429 was refused before any work and is retried; a
-       * lost connection or a server error may have been done and billed,
-       * so it is not.
-       */
-      readonly retries?: 'all' | 'rateLimitOnly'
-    },
-    signal: AbortSignal | undefined,
-    onRetry?: (notice: RetryNotice) => void,
-    budget?: RetryBudget,
-    admitAttempt?: ResponseAttemptGuard,
-    confirmed?: ConfirmedModelRequest,
-  ): Promise<Response> {
-    const isRateLimitOnly = init.retries === 'rateLimitOnly'
-    const fixedHeaders =
-      admitAttempt === undefined && confirmed === undefined ? await this.headers() : undefined
-    const url = `${this.deps.baseUrl}${path}`
-    const retry = async (attempt: number, delay: number, reason: string) => {
-      if (budget !== undefined) {
-        budget.retriesUsed = attempt + 1
-      }
-      onRetry?.({
-        attempt: attempt + 1,
-        maxAttempts: MODEL_API_MAX_RETRIES + 1,
-        delayMs: delay,
-        reason,
-      })
-      await this.pause(delay, signal)
-    }
-    // How long the answer took, retries included, at trace level (M39).
-    const startedAt = this.deps.now()
-    for (let attempt = budget?.retriesUsed ?? 0; ; attempt += 1) {
-      let credentials: Awaited<ReturnType<ModelApiClient['headers']>>
-      try {
-        credentials = fixedHeaders ?? (await this.headers())
-      } catch (error: unknown) {
-        if (isAborted(signal)) {
-          throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
-        }
-        if (error instanceof MissingApiKeyError) {
-          admitAttempt?.(undefined)
-        }
-        throw error
-      }
-      if (isAborted(signal)) {
-        throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
-      }
-      if (
-        confirmed !== undefined &&
-        (credentials.keyDigest !== confirmed.keyDigest || !confirmed.isStillAllowed())
-      ) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
-      }
-      // Local consent refusal is outside the transport retry catch: it never
-      // becomes another billable attempt.
-      admitAttempt?.(credentials.keyDigest)
-      if (isAborted(signal)) {
-        throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
-      }
-      if (confirmed !== undefined && !confirmed.isStillAllowed()) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
-      }
-      confirmed?.onRequestStarted()
-      const headers = { ...credentials.values, Accept: init.accept }
-      let response: Response
-      try {
-        response = await this.deps.fetch(url, {
-          method: init.method,
-          headers,
-          ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
-          ...(signal !== undefined && { signal }),
-        })
-      } catch (error: unknown) {
-        if (error instanceof ModelApiError || signal?.aborted === true) {
-          throw error instanceof ModelApiError
-            ? error
-            : new ModelApiError(
-                error instanceof Error ? error.message : String(error),
-                NETWORK_FAILURE_STATUS,
-                undefined,
-                undefined,
-              )
-        }
-        // Never reached the server: its causes say why, and the message
-        // names the setting or store to check (M56, PLAN.md D43).
-        const reason = networkFailureMessage(error)
-        if (isRateLimitOnly || attempt >= MODEL_API_MAX_RETRIES) {
-          throw new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)
-        }
-        const delay = this.backoffMs(attempt, undefined)
-        this.deps.log.warn(
-          `Model API request failed to send (${describeNetworkFailure(error).detail}); retrying in ${String(delay)} ms`,
-        )
-        await retry(attempt, delay, reason)
-        continue
-      }
-      if (response.ok) {
-        this.deps.log.trace(
-          `Model API ${init.method} ${path} answered ${String(response.status)} in ${String(this.deps.now() - startedAt)} ms`,
-        )
-        return response
-      }
-      const failure = await describeFailure(response)
-      const isRetryable = isRateLimitOnly
-        ? response.status === HTTP_TOO_MANY_REQUESTS
-        : MODEL_API_RETRYABLE_STATUSES.has(response.status)
-      if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {
-        throw failure
-      }
-      const delay = this.backoffMs(
-        attempt,
-        retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now()),
-      )
-      this.deps.log.warn(
-        `Model API answered ${String(response.status)} (${failure.message}); retrying in ${String(delay)} ms`,
-      )
-      await retry(attempt, delay, `HTTP ${String(response.status)}: ${failure.message}`)
-    }
+  private async paidReservation(
+    body: CreateResponseBody | CreateImageBody,
+    feature: PaidFeature | undefined,
+    signal: AbortSignal,
+    guard?: ResponseAttemptGuard,
+    reservationUsd?: UsdAmount,
+    estimatedInputTokens = guard?.paidEstimatedInputTokens,
+  ) {
+    const run = this.scheduledRun?.()
+    if (run === undefined && this.scheduledRun !== undefined)
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    const reserve =
+      run === undefined
+        ? (guard?.reservePaidRequest ?? this.deps.reservePaidRequest)
+        : run.reservePaidRequest
+    feature ??= run === undefined ? undefined : 'scheduledPrompts'
+    const claim =
+      feature === undefined
+        ? undefined
+        : await reserve?.(body, feature, estimatedInputTokens, signal, reservationUsd)
+    if (run !== undefined && claim === undefined)
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    return claim === undefined ? undefined : { claim, isSent: false, run }
   }
 
   /** A billed image request: only a 429 is retried, with a deadline of its own. */
@@ -366,53 +230,189 @@ export class ModelApiClient {
     signal: AbortSignal,
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
-    const response = await this.request(
-      path,
-      { method: 'POST', body, accept: JSON_MEDIA_TYPE, retries: 'rateLimitOnly' },
-      AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)]),
-      undefined,
-      undefined,
-      admitAttempt,
-    )
-    return imagesResponseSchema.parse(await response.json())
+    const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
+    const paid = await this.paidReservation(body, 'imageGeneration', active, admitAttempt)
+    const claim = paid?.claim
+    try {
+      const result = await this.transport.request(
+        path,
+        {
+          method: 'POST',
+          body,
+          modelId: body.model,
+          accept: JSON_MEDIA_TYPE,
+          retries: 'rateLimitOnly',
+          ...(paid !== undefined && { paid }),
+        },
+        active,
+        undefined,
+        undefined,
+        admitAttempt,
+      )
+      const parsed = await parseJsonResponse(result, (json) => imagesResponseSchema.parse(json))
+      // The request asks for one image; ambiguous results retain their flat fee.
+      if (claim !== undefined) {
+        await claim.settle(Usd.from(parsed.data.length === 0 ? 0 : claim.reservedUsd).toAmount())
+      }
+      return parsed
+    } finally {
+      if (paid?.isSent === false) {
+        await paid.claim.settle(Usd.from(0).toAmount())
+      }
+    }
+  }
+
+  private searchTokenCostUsd(
+    usage: BillableUsage,
+    modelId: string,
+    unknownChargeUsd?: UsdAmount,
+  ): UsdAmount {
+    const knownCost =
+      modelApiPaidTier(modelId) === undefined ? undefined : estimateCostUsd(usage, modelId)
+    const cost =
+      this.deps.searchTokenCostUsd === undefined
+        ? knownCost
+        : this.deps.searchTokenCostUsd(usage, modelId)
+    if (
+      cost === undefined ||
+      !usdAmountSchema.safeParse(cost).success ||
+      Usd.from(cost).compare(Usd.from(0)) < 0
+    ) {
+      throw new Error(
+        unknownChargeUsd === undefined
+          ? fill(UI_TEXT.sessionBudgetUnpriced, { model: modelId })
+          : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd) }),
+      )
+    }
+    return Usd.from(cost).toAmount()
+  }
+
+  /** Children inherit their parent's token through the same authority. */
+  public inheritSearchQuote(parent: PaidQuote, quote: PaidQuote): boolean {
+    return this.deps.paidAuthority?.inherit(parent, quote) ?? true
+  }
+
+  public releaseSearchQuotes(
+    conversationId: string,
+    retainedQuoteIds: readonly string[] = [],
+  ): void {
+    this.deps.paidAuthority?.releaseConversation(conversationId, retainedQuoteIds)
+  }
+
+  /** Each session owns its authority callback, even when hosts share transport. */
+  public withScheduleAuthority(run: () => UnattendedRun | undefined): ModelApiClient {
+    return new ModelApiClient(this.deps, run)
+  }
+
+  /** Whether interactive extras have a finite daily admission port (D78). */
+  public get hasPaidDailyBudget(): boolean {
+    return this.deps.reservePaidRequest !== undefined
+  }
+
+  public providerId(modelId: string): string {
+    return this.deps.providerId?.(modelId) ?? new URL(this.deps.baseUrl).origin
+  }
+
+  public searchPriceUsd(modelId: string): UsdAmount | undefined {
+    try {
+      const price =
+        this.deps.webSearchPriceUsd === undefined
+          ? webSearchPriceUsd(modelId)
+          : this.deps.webSearchPriceUsd(modelId)
+      return price !== undefined &&
+        usdAmountSchema.safeParse(price).success &&
+        !price.startsWith('-')
+        ? price
+        : undefined
+    } catch {
+      return undefined
+    }
   }
 
   /** Bind a one-use child consent to the stored key without retaining it. */
   public async currentKeyDigest(): Promise<string> {
-    const credentials = await this.headers()
-    return credentials.keyDigest
+    return await this.transport.currentKeyDigest()
+  }
+
+  public async requestFile(
+    ...args: Parameters<RequestTransport['requestFile']>
+  ): Promise<Response> {
+    return await this.transport.requestFile(...args)
   }
 
   /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */
   public retryDelayMs(attempt: number): number {
-    return this.backoffMs(attempt, undefined)
+    return this.transport.backoffMs(attempt, undefined)
   }
 
   /** Waits `ms`, or rejects as soon as the turn's Stop aborts `signal`. */
   public async waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void> {
-    await this.pause(ms, signal)
+    await this.transport.pause(ms, signal)
   }
 
   /** The chat model ids the key can use, as the catalogue lists them. */
   public async listModels(): Promise<readonly string[]> {
     // No turn to stop it: a deadline instead, so a panel never waits for ever (D25).
-    const response = await this.request(
+    const result = await this.transport.request(
       '/models',
       { method: 'GET', accept: JSON_MEDIA_TYPE },
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
-    const parsed = modelListSchema.parse(await response.json())
-    return parsed.data.map((model) => model.id)
+    const parsed = await parseJsonResponse(result, (json) => modelListSchema.parse(json))
+    return parsed.data.map((model) => result.redact(model.id))
+  }
+
+  /** Public, non-inference health read. The status capture required no authentication. */
+  public async readServiceStatus(
+    signal?: AbortSignal,
+  ): Promise<ReturnType<typeof modelApiStatusSchema.parse>> {
+    if ((this.deps.pacingProvider?.(undefined).identity.provider ?? 'meta') !== 'meta') {
+      throw new Error(UI_TEXT.modelApiStatusUnavailable)
+    }
+    let status = 0
+    let retryAfter: number | undefined
+    try {
+      const response = await this.transport.fetchWithIdleDeadline(`${MODEL_API_BASE_URL}/status`, {
+        method: 'GET',
+        headers: { Accept: JSON_MEDIA_TYPE },
+        signal: AbortSignal.any([
+          AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+          ...(signal === undefined ? [] : [signal]),
+        ]),
+      })
+      status = response.status
+      retryAfter = retryAfterMs(response.headers.get('retry-after'), this.deps.now())
+      if (!response.ok) {
+        void response.body?.cancel().catch(ignoreClosingError)
+        throw new Error(UI_TEXT.modelApiStatusUnavailable)
+      }
+      // Bounded like every other Model API body: an oversized status page is
+      // cancelled at the cap instead of being buffered whole before zod runs.
+      return modelApiStatusSchema.parse(JSON.parse(await readBoundedText(response)))
+    } catch {
+      // Shared scrubber plus an allowlist: provider prose, identifiers, stack and causes never cross.
+      const failure = new ModelApiError(
+        redactSecrets(UI_TEXT.modelApiStatusUnavailable),
+        status,
+        'service_status',
+        undefined,
+      )
+      throw Object.assign(failure, { retryAfterMs: retryAfter })
+    }
   }
 
   /** Tokens the rendered input would occupy; not billed (dev.meta.ai/docs/token-counting). */
-  public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
-    const response = await this.request(
+  public async countInputTokens(
+    body: Omit<CreateResponseBody, 'stream'>,
+    signal?: AbortSignal,
+  ): Promise<number> {
+    const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
+    const result = await this.transport.request(
       '/responses/input_tokens',
-      { method: 'POST', body, accept: JSON_MEDIA_TYPE },
-      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      { method: 'POST', body, modelId: body.model, accept: JSON_MEDIA_TYPE },
+      signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
     )
-    return inputTokensSchema.parse(await response.json()).input_tokens
+    return await parseJsonResponse(result, (json) => inputTokensSchema.parse(json).input_tokens)
   }
 
   /**
@@ -450,96 +450,314 @@ export class ModelApiClient {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): AsyncGenerator<StreamEvent> {
-    if (
-      confirmed !== undefined &&
-      (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
-    ) {
-      throw new Error(UI_TEXT.scheduleConfirmationExpired)
+    if (body.max_output_tokens < MODEL_API_MIN_OUTPUT_TOKENS) {
+      await admitAttempt?.mediaAccounting?.finish()
+      throw new RangeError(outputTokenMinimumMessage(MODEL_API_MIN_OUTPUT_TOKENS))
     }
-    // Nothing from the server for this long, headers or a frame, ends the
-    // turn (M39); the request is aborted too, which frees the connection.
-    const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
-    const stalled = fill(UI_TEXT.modelApiStalled, {
-      seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
-    })
-    const stall = new AbortController()
-    const within = async <T>(waiting: Promise<T>): Promise<T> => {
-      try {
-        return await withDeadline(waiting, idleMs, stalled)
-      } catch (error: unknown) {
-        if (error instanceof DeadlineError) {
-          stall.abort()
-          throw new ModelApiError(stalled, NETWORK_FAILURE_STATUS, undefined, undefined)
-        }
-        throw error
+    try {
+      assertConfirmedAllowed(body.model, confirmed)
+    } catch (error: unknown) {
+      await admitAttempt?.mediaAccounting?.finish()
+      throw error
+    }
+    let feature = admitAttempt?.paidFeature
+    if (feature === undefined && confirmed !== undefined) {
+      feature = 'scheduledPrompts'
+    }
+    if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search')) {
+      feature = 'webSearch'
+    }
+    const hasSearch = body.tools.some((tool) => tool.type === 'web_search')
+    const searchQuote = admitAttempt?.searchQuote
+    const searchPrice =
+      searchQuote?.tariffUsd ?? (hasSearch ? this.searchPriceUsd(body.model) : undefined)
+    let paid: Awaited<ReturnType<ModelApiClient['paidReservation']>>
+    const authority = this.deps.paidAuthority ?? new PaidAuthority()
+    const claimId =
+      searchQuote === undefined
+        ? undefined
+        : `${searchQuote.id}:${String(this.searchClaimSequence++)}`
+    const searchItems = new Set<string>()
+    let returnedSearches = 0
+    let searchCharge: SearchSettlement | undefined
+    const returnedFees = () =>
+      searchCharge?.costUsd ?? multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), returnedSearches)
+    const returnedLiability = (reservedUsd: UsdAmount, shouldKeepAllowance: boolean) =>
+      sumUsd(
+        reservedUsd,
+        shouldKeepAllowance && returnedSearches <= (body.max_tool_calls ?? 0)
+          ? Usd.from(0).toAmount()
+          : Usd.from(returnedFees())
+              .subtract(
+                Usd.from(
+                  multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), body.max_tool_calls ?? 0),
+                ),
+              )
+              .toAmount(),
+      )
+    const noteReturned = (isTerminal: boolean) => {
+      if (searchQuote === undefined || claimId === undefined) return
+      const effects = authority.dispatch({
+        type: 'settle',
+        claimId,
+        returnedCalls: returnedSearches,
+        isTerminal,
+      })
+      for (const effect of effects) {
+        if (effect.type === 'settled') searchCharge = effect.settlement
+      }
+      if (searchCharge !== undefined) admitAttempt?.onSearchesReturned?.(searchCharge)
+    }
+    let hasTerminal = false
+    let hasTerminalSearchCount = false
+    const noteSearchAnomaly = () => {
+      if (body.max_tool_calls !== undefined && returnedSearches > body.max_tool_calls) {
+        this.deps.log.warn(
+          `Hosted search returned ${String(returnedSearches)} calls above its bound of ${String(body.max_tool_calls)}; all calls are charged`,
+        )
       }
     }
-    const response = await within(
-      this.request(
+    try {
+      const media = admitAttempt?.mediaAccounting
+      if (
+        media !== undefined &&
+        (body.model !== media.modelId || body.max_output_tokens > media.maxOutputTokens)
+      )
+        throw new Error('Media reservation does not match this request')
+      let reservationUsd = media?.reservedUsd
+      // A scheduled fire always reserves against its own finite ledger.
+      if (hasSearch && (this.hasPaidDailyBudget || this.scheduledRun !== undefined)) {
+        if (body.max_tool_calls === undefined)
+          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        const inputTokens =
+          admitAttempt?.paidEstimatedInputTokens ??
+          estimateInput(requestParts(body), undefined).inputTokens
+        reservationUsd = sumUsd(
+          media?.reservedUsd ??
+            this.searchTokenCostUsd(
+              { inputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
+              body.model,
+            ),
+          searchAllowanceUsd(body.max_tool_calls, searchPrice),
+        )
+      }
+      if (media !== undefined && this.scheduledRun !== undefined) {
+        await media.rebindDaily(async () => {
+          paid = await this.paidReservation(
+            body,
+            feature,
+            signal,
+            admitAttempt,
+            reservationUsd,
+            media.inputTokens,
+          )
+          if (paid === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+          const claim = paid.claim
+          return {
+            check: () => {
+              claim.check(Usd.from(0).toAmount())
+            },
+            settle: (costUsd, hasUnknownCost) => {
+              let amount = sumUsd(costUsd, returnedFees())
+              if (hasUnknownCost === true)
+                amount = hasSearch
+                  ? returnedLiability(claim.reservedUsd, !hasTerminalSearchCount)
+                  : costUsd
+              return claim.settle(amount, hasUnknownCost)
+            },
+          }
+        })
+      } else if (media === undefined) {
+        paid = await this.paidReservation(body, feature, signal, admitAttempt, reservationUsd)
+      }
+      const claim = paid?.claim
+      if (searchQuote !== undefined && claimId !== undefined) {
+        if (this.deps.paidAuthority === undefined) {
+          const grant = { quote: searchQuote, generation: 'caller' }
+          authority.dispatch({ type: 'quote', ...grant, ask: true })
+          authority.dispatch({ type: 'answer', grant, answer: 'once' })
+        } else if (!authority.canSpend(searchQuote))
+          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        authority.dispatch({
+          type: 'reserve',
+          claimId,
+          quote: searchQuote,
+          reservedUsd: claim?.reservedUsd ?? searchAllowanceUsd(body.max_tool_calls, searchPrice),
+        })
+      }
+      admitAttempt?.check?.()
+      const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
         '/responses',
-        { method: 'POST', body, accept: EVENT_STREAM_MEDIA_TYPE },
-        AbortSignal.any([signal, stall.signal]),
+        {
+          body,
+          accept: EVENT_STREAM_MEDIA_TYPE,
+          modelId: body.model,
+          pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
+          estimatedTokens:
+            (admitAttempt?.paidEstimatedInputTokens ??
+              new TextEncoder().encode(JSON.stringify([body.input, body.instructions, body.tools]))
+                .length) + body.max_output_tokens,
+          ...(paid !== undefined && { paid }),
+        },
+        signal,
         onRetry,
         budget,
         admitAttempt,
         confirmed,
-      ),
-    )
-    if (response.body === null) {
-      throw new ModelApiError('The response had no body', response.status, undefined, undefined)
-    }
-    const frames = parseSse(response.body)[Symbol.asyncIterator]()
-    try {
-      for (;;) {
-        const next = await within(frames.next())
-        if (next.done === true) {
-          return
-        }
-        const frame = next.value
-        // OpenAI-style streams end with `data: [DONE]`; a keep-alive may carry no
-        // data. Neither is an event (D26).
-        if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
-          continue
-        }
-        let json: unknown
-        try {
-          json = JSON.parse(frame.data)
-        } catch {
-          throw new ModelApiError(
-            // Its length, not its text: the frame is model output, and this
-            // message becomes the failed turn's reason in the log (M39).
-            `Malformed stream frame (${String(frame.data.length)} characters)`,
-            response.status,
-            undefined,
-            undefined,
+        this.deps.streamIdleMs,
+      )
+      if (response.body === null) {
+        throw new ModelApiError('The response had no body', response.status, undefined, undefined)
+      }
+      const frames = parseSse(response.body)[Symbol.asyncIterator]()
+      try {
+        for (;;) {
+          const next = await frames.next()
+          if (next.done === true) {
+            return
+          }
+          const frame = next.value
+          // OpenAI-style streams end with `data: [DONE]`; a keep-alive may carry no
+          // data. Neither is an event (D26).
+          if (frame.data.trim() === '' || frame.data === SSE_DONE_SENTINEL) {
+            continue
+          }
+          let json: unknown
+          try {
+            json = JSON.parse(frame.data)
+          } catch {
+            throw new ModelApiError(
+              // Its length, not its text: the frame is model output, and this
+              // message becomes the failed turn's reason in the log (M39).
+              `Malformed stream frame (${String(frame.data.length)} characters)`,
+              response.status,
+              undefined,
+              undefined,
+            )
+          }
+          json = JSON.parse(JSON.stringify(json), (_key, value: unknown) =>
+            typeof value === 'string' ? redactContent(value) : value,
+          )
+          const known = streamEventSchema.safeParse(json)
+          if (known.success) {
+            eventParsed(known.data)
+            const event = redactStreamDiagnostics(known.data, redact)
+            if (
+              known.data.type === 'response.output_item.done' &&
+              known.data.item.type === 'web_search_call'
+            ) {
+              searchItems.add(
+                known.data.item.id ??
+                  (known.data.output_index === undefined
+                    ? `unidentified:${String(searchItems.size)}`
+                    : `index:${String(known.data.output_index)}`),
+              )
+              returnedSearches = searchItems.size
+              noteReturned(false)
+            }
+            if (
+              ['response.completed', 'response.incomplete', 'response.failed'].includes(
+                known.data.type,
+              ) &&
+              'response' in known.data
+            ) {
+              returnedSearches = Math.max(
+                returnedSearches,
+                known.data.response.output.filter((item) => item.type === 'web_search_call').length,
+              )
+              hasTerminalSearchCount = true
+              noteReturned(true)
+              noteSearchAnomaly()
+              const usage = known.data.response.usage
+              const cached = usage?.input_tokens_details?.cached_tokens ?? 0
+              const isCountedUsage =
+                usage !== null &&
+                usage !== undefined &&
+                Number.isSafeInteger(usage.input_tokens) &&
+                usage.input_tokens >= 0 &&
+                Number.isSafeInteger(usage.output_tokens) &&
+                usage.output_tokens >= 0 &&
+                Number.isSafeInteger(cached) &&
+                cached >= 0 &&
+                cached <= usage.input_tokens
+              // M105 media settles its own claims on counted usage, with or without a token claim.
+              if (isCountedUsage) await media?.settle(usage)
+              if (claim !== undefined && isCountedUsage && media === undefined) {
+                const billable = {
+                  inputTokens: usage.input_tokens,
+                  outputTokens: usage.output_tokens,
+                  cachedTokens: cached,
+                }
+                await claim.settle(
+                  sumUsd(
+                    hasSearch
+                      ? this.searchTokenCostUsd(
+                          billable,
+                          body.model,
+                          returnedLiability(claim.reservedUsd, false),
+                        )
+                      : estimateCostUsd(billable, body.model),
+                    returnedFees(),
+                  ),
+                )
+              } else if (
+                claim !== undefined &&
+                media === undefined &&
+                hasSearch &&
+                body.max_tool_calls !== undefined
+              ) {
+                await claim.settle(returnedLiability(claim.reservedUsd, false))
+              }
+              hasTerminal = true
+            }
+            yield event
+            continue
+          }
+          const typed = eventTypeSchema.safeParse(json)
+          if (!typed.success) {
+            throw new ModelApiError(
+              'Stream frame without a type',
+              response.status,
+              undefined,
+              undefined,
+            )
+          }
+          // Once a type, not once a frame (M39).
+          if (this.ignoredEventTypes.has(typed.data.type)) {
+            continue
+          }
+          this.ignoredEventTypes.add(typed.data.type)
+          this.deps.log.info(
+            `Model API stream events of type ${redact(typed.data.type)} are ignored`,
           )
         }
-        const known = streamEventSchema.safeParse(json)
-        if (known.success) {
-          yield known.data
-          continue
-        }
-        const typed = eventTypeSchema.safeParse(json)
-        if (!typed.success) {
-          throw new ModelApiError(
-            'Stream frame without a type',
-            response.status,
-            undefined,
-            undefined,
-          )
-        }
-        // Once a type, not once a frame (M39).
-        if (this.ignoredEventTypes.has(typed.data.type)) {
-          continue
-        }
-        this.ignoredEventTypes.add(typed.data.type)
-        this.deps.log.info(`Model API stream events of type ${typed.data.type} are ignored`)
+      } catch (error: unknown) {
+        throw redactModelApiError(error, redact, response.status)
+      } finally {
+        // An early end (a malformed frame, a stall, the caller stopping)
+        // closes the parser, which releases the response body (the review of
+        // PR #20). Not awaited: after a stall its last read may never settle.
+        void frames.return(undefined).catch(ignoreClosingError)
       }
     } finally {
-      // An early end (a malformed frame, a stall, the caller stopping)
-      // closes the parser, which releases the response body (the review of
-      // PR #20). Not awaited: after a stall its last read may never settle.
-      void frames.return(undefined).catch(ignoreClosingError)
+      try {
+        if (!hasTerminal) noteSearchAnomaly()
+        if (paid?.isSent === false && admitAttempt?.mediaAccounting === undefined)
+          await paid.claim.settle(Usd.from(0).toAmount())
+        else if (
+          paid !== undefined &&
+          hasSearch &&
+          !hasTerminal &&
+          admitAttempt?.mediaAccounting === undefined
+        ) {
+          await paid.claim.settle(
+            returnedLiability(paid.claim.reservedUsd, !hasTerminalSearchCount),
+            !hasTerminalSearchCount,
+          )
+        }
+      } finally {
+        await admitAttempt?.mediaAccounting?.finish()
+      }
     }
   }
 }

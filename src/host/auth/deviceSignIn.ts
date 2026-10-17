@@ -136,6 +136,36 @@ function endingOf(outcome: string): HostEnding | undefined {
   return { endedAs: shown }
 }
 
+/**
+ * Settles with `value` once `signal` aborts (at once if it already has);
+ * `remove` stops listening. Not `Promise.withResolvers`: VS Code 1.99 and
+ * 1.100 run Node 20 (PLAN.md M62).
+ */
+function settleOnAbort<T>(
+  signal: AbortSignal,
+  value: T,
+): { readonly promise: Promise<T>; readonly remove: () => void } {
+  const listening = new AbortController()
+  const promise = new Promise<T>((resolve) => {
+    signal.addEventListener(
+      'abort',
+      () => {
+        resolve(value)
+      },
+      { once: true, signal: listening.signal },
+    )
+    if (signal.aborted) {
+      resolve(value)
+    }
+  })
+  return {
+    promise,
+    remove: () => {
+      listening.abort()
+    },
+  }
+}
+
 /** The returned URL is data from a CLI process: do not open arbitrary origins. */
 export function parseDeviceCode(raw: unknown): { readonly url: string; readonly code: string } {
   const parsed = loginStartSchema.parse(raw)
@@ -201,10 +231,12 @@ export async function runDeviceSignIn(deps: DeviceSignInDeps): Promise<DeviceSig
     throw error
   }
   // Cancel, the host's own ending, or its exit: whatever the flow is
-  // waiting on stops.
-  const stopped = Promise.withResolvers<typeof STOPPED>()
+  // waiting on stops. A controller of the flow's own, not
+  // `Promise.withResolvers`, which Node 20 lacks (PLAN.md M62).
+  const stopper = new AbortController()
+  const stopped = settleOnAbort(stopper.signal, STOPPED)
   const stop = () => {
-    stopped.resolve(STOPPED)
+    stopper.abort()
   }
   let hostEnding: HostEnding | undefined
   let isEnded = false
@@ -348,6 +380,7 @@ export async function runDeviceSignIn(deps: DeviceSignInDeps): Promise<DeviceSig
     return isAborted() ? 'cancelled' : 'timedOut'
   } finally {
     deps.signal.removeEventListener('abort', stop)
+    stopped.remove()
     await session.close()
   }
 }

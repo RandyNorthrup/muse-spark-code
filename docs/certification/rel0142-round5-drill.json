@@ -1,0 +1,11 @@
+{
+  "mutation": "Remove all: true only from parseReport's help branch",
+  "command": "npx vitest run test/unit/reportCommand.test.ts test/unit/referenceEntry.test.ts --maxWorkers=3",
+  "exitCode": 1,
+  "failures": [
+    "RVHELPREF host and terminal regressions R16 prints applicability, billing, setting type, CLI contracts and unavailable values",
+    "report argument parsing answers --help and -h with the complete reference"
+  ],
+  "beforeSha256": "0faaebcd5f6dfddb4e08093624ac0c53c320681b159cb93ffac298fc3738daf1",
+  "restoredSha256": "0faaebcd5f6dfddb4e08093624ac0c53c320681b159cb93ffac298fc3738daf1"
+}

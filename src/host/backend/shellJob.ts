@@ -8,10 +8,10 @@
 //
 // PowerShell reaches the Win32 job calls through a small C# type, compiled
 // once per machine into the extension's storage (named by the source's
-// digest) and loaded by each command. Where that is impossible (Constrained
-// Language Mode forbids `Add-Type`), the self-test fails, the log says so,
-// and commands run as before, their kill falling back to taskkill and the
-// orphan sweep (`processTree.ts`).
+// digest) by .NET's compiler and loaded by each command. Where that is
+// impossible (Constrained Language Mode forbids loading an assembly), the self-test
+// fails, the log says so, and commands run as before, their kill falling
+// back to taskkill and the orphan sweep (`processTree.ts`).
 
 import { randomUUID } from 'node:crypto'
 import { access } from 'node:fs/promises'
@@ -23,9 +23,16 @@ import {
   WINDOWS_POWERSHELL_COMMAND_ARGS,
 } from '../../shared/constants'
 import { powerShellQuoted } from '../../core/shellQuote'
-import { type RunProgram, runProgram, type ShellJob, windowsPowerShell } from '../processTree'
-import { compileJob, type JobBuild, jobFileName, removeStaleJobs } from './jobBuild'
+import {
+  loadJobAssembly,
+  type RunProgram,
+  runProgram,
+  type ShellJob,
+  windowsPowerShell,
+} from '../processTree'
+import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { JobHelper } from './jobSource'
+import { isResourcePaused } from '../../core/resources/launch'
 
 // The C# (C# 5, which Windows PowerShell 5.1's `Add-Type` compiles) is the
 // shipped native/windows/MuseSparkJob.cs with the shared Win32 half
@@ -40,7 +47,7 @@ export interface ShellJobDeps {
   readonly log: (message: string) => void
   /** A helper's whole C# (`jobSource.ts`), read when the helper is first built. */
   readonly readJobSource: (helper: JobHelper) => Promise<string>
-  /** `execFile` for Windows PowerShell; tests stand in the compiler. */
+  /** `execFile` for the compiler and self-test; tests stand them in. */
   readonly run?: RunProgram
 }
 
@@ -56,7 +63,8 @@ async function isPresent(file: string): Promise<boolean> {
 const ASSEMBLY: JobBuild = {
   stem: `${SHELL_JOB_TYPE_NAME}-`,
   extension: '.dll',
-  addTypeOptions: '-OutputType Library',
+  outputType: 'library',
+  references: [],
   label: 'shell job assembly',
   isPresent,
 }
@@ -70,19 +78,22 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
   const run = deps.run ?? runProgram
   try {
     const csharp = await deps.readJobSource('shellJob')
-    const assembly = path.join(deps.storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp))
+    let assembly = path.join(deps.storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp))
     if (!(await isPresent(assembly))) {
-      await compileJob(ASSEMBLY, assembly, csharp, deps.systemRoot, run)
+      await compileJob(ASSEMBLY, assembly, csharp, deps.systemRoot, deps.run)
       await removeStaleJobs(ASSEMBLY, assembly, deps.log)
     }
-    // Joining a job, as a command does, proves the type loads and the
-    // system lets a process start a job of its own here.
+    assembly = await nativeJobPath(assembly)
+    // Loading the type and joining a job, as a command does, proves both
+    // work and the system lets a process start a job of its own here. A
+    // failing .NET call ends only its own statement in PowerShell, so the
+    // answer is inside `try`: a load or join that fails never says joined.
     const powershell = windowsPowerShell(deps.systemRoot)
     const answer = await run(
       powershell.file,
       [
         ...WINDOWS_POWERSHELL_COMMAND_ARGS,
-        `Add-Type -Path ${powerShellQuoted(assembly)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(`${SHELL_JOB_NAME_PREFIX}${randomUUID()}`)}); '${JOINED}'`,
+        `try { ${loadJobAssembly(assembly)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(`${SHELL_JOB_NAME_PREFIX}${randomUUID()}`)}); '${JOINED}' } catch { exit 1 }`,
       ],
       powershell.env,
     )
@@ -91,6 +102,7 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
     }
     return assembly
   } catch (error: unknown) {
+    if (isResourcePaused(error)) throw error
     deps.log(
       `Windows job objects are unavailable (${String(error)}); a stopped command is ended with taskkill and a sweep for its orphans`,
     )
@@ -98,10 +110,26 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
   }
 }
 
-/** The helper's assembly, compiled and tested on first use; undefined where it cannot be. */
+/** The helper's assembly; a failed preparation can be tried again by the next caller. */
 export function shellJobAssembly(deps: ShellJobDeps): () => Promise<string | undefined> {
   let ready: Promise<string | undefined> | undefined
-  return () => (ready ??= prepare(deps))
+  const attempt = async (): Promise<string | undefined> => {
+    // Share an in-flight attempt and keep success, but not a transient
+    // failure, whether it resolved empty or threw (a throwing logger, say):
+    // A policy pause propagates; only an unavailable helper permits fallback.
+    try {
+      const assembly = await prepare(deps)
+      if (assembly === undefined) {
+        ready = undefined
+      }
+      return assembly
+    } catch (error: unknown) {
+      ready = undefined
+      if (isResourcePaused(error)) throw error
+      return undefined
+    }
+  }
+  return () => (ready ??= attempt())
 }
 
 /** A fresh job for one command. */
@@ -113,7 +141,15 @@ export function newShellJob(assemblyPath: string): ShellJob {
  * The statement a command starts with to join its job. A failure (the
  * assembly gone, a policy) is swallowed: the command runs as it would
  * without one, and its kill finds no job and falls back.
+ *
+ * Governed launches stop before running a payload if membership cannot be proved.
+ *
+ * It names no cmdlet (`loadJobAssembly`): a hook runs in a narrow
+ * environment without `PSModuleAnalysisCachePath`, and on GitHub's Windows
+ * runner the module analysis an `Add-Type` here set off took 20 s or more
+ * and, on a fresh runner, ran past the hook test's 60 s budget before the
+ * hook began.
  */
-export function joinStatement(job: ShellJob): string {
-  return `try { Add-Type -Path ${powerShellQuoted(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch { }; `
+export function joinStatement(job: ShellJob, isGoverned = false): string {
+  return `try { ${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch {${isGoverned ? ' exit 1' : ''} }; `
 }

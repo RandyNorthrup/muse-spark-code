@@ -1,0 +1,1334 @@
+[
+  {
+    "id": "T05",
+    "guard": "TOTP key/counter/digest finally erasure",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > erases owned key and counter buffers while transferring the current code to its caller"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/totp.ts",
+        "sha256": "4d66fce952bab3ce89f8b12c3e68551e075d7ddecbaaac85a2bf27fdd6dbfc65",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F01",
+    "guard": "HTTPS only",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > normalizes Unicode IDNA, case and default ports; preserves exact nondefault ports"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/origin.ts",
+        "sha256": "5322e8cd2f5d14d8ed84058466a75bd889cfa4d290dc8f94e3f8f50ea0a41fdb",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F02",
+    "guard": "URL credentials refused",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > normalizes Unicode IDNA, case and default ports; preserves exact nondefault ports"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/origin.ts",
+        "sha256": "5322e8cd2f5d14d8ed84058466a75bd889cfa4d290dc8f94e3f8f50ea0a41fdb",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F03",
+    "guard": "valid certificate",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses certificate error before inserting or reading material"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/origin.ts",
+        "sha256": "5322e8cd2f5d14d8ed84058466a75bd889cfa4d290dc8f94e3f8f50ea0a41fdb",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F04",
+    "guard": "exact top and frame origins (both validation layers)",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses top-level look-alike before inserting or reading material",
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses cross-origin frame before inserting or reading material",
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses plain HTTP before inserting or reading material",
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses different port before inserting or reading material"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/origin.ts",
+        "sha256": "5322e8cd2f5d14d8ed84058466a75bd889cfa4d290dc8f94e3f8f50ea0a41fdb",
+        "byteExact": true
+      },
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F05",
+    "guard": "approved frame binding (both digest and current frame guard)",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses changed frame id before inserting or reading material"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/ticket.ts",
+        "sha256": "ef24f3e970c347e8d2711219309f526615f9ae795811eda3985a843e34b927eb",
+        "byteExact": true
+      },
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F06",
+    "guard": "input element required",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses textarea before inserting or reading material"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F07",
+    "guard": "disabled input refused",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses disabled input before inserting or reading material"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F08",
+    "guard": "readonly input refused",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses readonly input before inserting or reading material"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F09",
+    "guard": "password input kind",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses wrong input kind before inserting or reading material"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F10",
+    "guard": "username input kind",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses incorrect username/code field kinds and missing code autocomplete"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F11",
+    "guard": "code input kind and autocomplete",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses incorrect username/code field kinds and missing code autocomplete"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F12",
+    "guard": "approval digest",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > checks ticket digest and registered browser identity before redemption"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/ticket.ts",
+        "sha256": "ef24f3e970c347e8d2711219309f526615f9ae795811eda3985a843e34b927eb",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F13",
+    "guard": "registered browser identity (both digest and id guard)",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > checks ticket digest and registered browser identity before redemption"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/ticket.ts",
+        "sha256": "ef24f3e970c347e8d2711219309f526615f9ae795811eda3985a843e34b927eb",
+        "byteExact": true
+      },
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F14",
+    "guard": "redemption result identity",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > rejects denied redemption or material",
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > rejects ticket redemption or material"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/ticket.ts",
+        "sha256": "ef24f3e970c347e8d2711219309f526615f9ae795811eda3985a843e34b927eb",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F15",
+    "guard": "live target invalidation after awaits",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > rechecks live facts after redemption and immediately before insertion"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/origin.ts",
+        "sha256": "5322e8cd2f5d14d8ed84058466a75bd889cfa4d290dc8f94e3f8f50ea0a41fdb",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F16",
+    "guard": "cancellation/revocation and current-target barrier",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > rechecks live facts after redemption and immediately before insertion",
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > cancel and broker revoke close the browser before a delayed material callback can dispatch"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/ticket.ts",
+        "sha256": "ef24f3e970c347e8d2711219309f526615f9ae795811eda3985a843e34b927eb",
+        "byteExact": true
+      },
+      {
+        "path": "src/core/vault/web/origin.ts",
+        "sha256": "5322e8cd2f5d14d8ed84058466a75bd889cfa4d290dc8f94e3f8f50ea0a41fdb",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F17",
+    "guard": "material origin",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > rejects origin redemption or material"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F18",
+    "guard": "lossless password UTF-8",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses malformed UTF-8 without silently changing the password"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F19",
+    "guard": "fill byte erasure",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > erases every owned fill buffer after both insertion and a CDP failure"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/webFill.ts",
+        "sha256": "dc0b1a214019d7691e1259bc654f7fde7df99135665867aa1724ad01c049eb1a",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F20",
+    "guard": "cleanup exception normalization",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > erases every owned fill buffer after both insertion and a CDP failure",
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > refuses malformed UTF-8 without silently changing the password",
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > returns fixed words even when finish or browser cleanup fails",
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > rechecks live facts after redemption and immediately before insertion",
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > rejects kind redemption or material",
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > returns fixed failure words for CDP and scrub errors rather than their secret-bearing text"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/ticket.ts",
+        "sha256": "ef24f3e970c347e8d2711219309f526615f9ae795811eda3985a843e34b927eb",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "P01",
+    "guard": "password fields never read",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webPageRead.test.ts > vault masked page reads > never reads password fields and scrubs a value copied by the page into DOM text"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/pageRead.ts",
+        "sha256": "269ba218b34a85cb5a886fe41a516292f16f0a09fc26f908935b824b3878dcea",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "P02",
+    "guard": "page copies scrubbed",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webPageRead.test.ts > vault masked page reads > refuses a navigation during the scrub await",
+      "FAIL  test/unit/vault/webPageRead.test.ts > vault masked page reads > never reads password fields and scrubs a value copied by the page into DOM text"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/pageRead.ts",
+        "sha256": "269ba218b34a85cb5a886fe41a516292f16f0a09fc26f908935b824b3878dcea",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "P03",
+    "guard": "exception details refused",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webPageRead.test.ts > vault masked page reads > refuses malformed, exceptional or oversized CDP answers before scrub or return"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/pageRead.ts",
+        "sha256": "269ba218b34a85cb5a886fe41a516292f16f0a09fc26f908935b824b3878dcea",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "P04",
+    "guard": "page read bound",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webPageRead.test.ts > vault masked page reads > refuses malformed, exceptional or oversized CDP answers before scrub or return"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/pageRead.ts",
+        "sha256": "269ba218b34a85cb5a886fe41a516292f16f0a09fc26f908935b824b3878dcea",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "P05",
+    "guard": "page read invalidation after scrub",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webPageRead.test.ts > vault masked page reads > refuses a navigation during the scrub await"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/origin.ts",
+        "sha256": "5322e8cd2f5d14d8ed84058466a75bd889cfa4d290dc8f94e3f8f50ea0a41fdb",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "C01",
+    "guard": "secure cookies only",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses insecure cookies without storing a passkey"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/cookies.ts",
+        "sha256": "f764c020898166f0975e71e2e4f12b8b6fc4e8bdff90d3031b25fc827816aae4",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "C02",
+    "guard": "host-only cookies only",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses domain cookies without storing a passkey"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/cookies.ts",
+        "sha256": "f764c020898166f0975e71e2e4f12b8b6fc4e8bdff90d3031b25fc827816aae4",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "C03",
+    "guard": "cookie origin",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses origin cookies without storing a passkey"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/cookies.ts",
+        "sha256": "f764c020898166f0975e71e2e4f12b8b6fc4e8bdff90d3031b25fc827816aae4",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "C04",
+    "guard": "cookie private-key extras refused",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses passkey cookies without storing a passkey"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/cookies.ts",
+        "sha256": "f764c020898166f0975e71e2e4f12b8b6fc4e8bdff90d3031b25fc827816aae4",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "C05",
+    "guard": "expired cookies removed",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > drops expired cookies and caps each surviving expiry to 30 days without extending native expiry"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/cookies.ts",
+        "sha256": "f764c020898166f0975e71e2e4f12b8b6fc4e8bdff90d3031b25fc827816aae4",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "C06",
+    "guard": "cookie native expiry and 30-day cap",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > drops expired cookies and caps each surviving expiry to 30 days without extending native expiry"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/cookies.ts",
+        "sha256": "f764c020898166f0975e71e2e4f12b8b6fc4e8bdff90d3031b25fc827816aae4",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "C07",
+    "guard": "cookie identity unique",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > drops expired cookies and caps each surviving expiry to 30 days without extending native expiry"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/cookies.ts",
+        "sha256": "f764c020898166f0975e71e2e4f12b8b6fc4e8bdff90d3031b25fc827816aae4",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "C08",
+    "guard": "capture acquisition bytes erased",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > captures only origin-bound cookies on user close, stores expiry, and zeroes acquisition buffers",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses insecure cookies without storing a passkey",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses domain cookies without storing a passkey",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses origin cookies without storing a passkey",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses passkey cookies without storing a passkey",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses changed frame/certificate after cookie read and scrubs all buffers even if storage throws"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "C09",
+    "guard": "private envelope extras refused",
+    "exitCode": 0,
+    "failedTests": [],
+    "restored": [
+      {
+        "path": "src/core/vault/web/cookies.ts",
+        "sha256": "f764c020898166f0975e71e2e4f12b8b6fc4e8bdff90d3031b25fc827816aae4",
+        "byteExact": true
+      }
+    ],
+    "fired": false
+  },
+  {
+    "id": "S01",
+    "guard": "headed mode",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses headless runtime before capturing cookies"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S02",
+    "guard": "full Chrome product",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses headless shell before capturing cookies"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S03",
+    "guard": "no virtual authenticator",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses virtual authenticator before capturing cookies"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S04",
+    "guard": "headed version pin",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses wrong version before capturing cookies"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S05",
+    "guard": "headed manifest pin",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses wrong manifest before capturing cookies"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S06",
+    "guard": "headed executable pin",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses wrong executable before capturing cookies"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S07",
+    "guard": "headed owned teardown",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > maps close failures to fixed words without suppressing cleanup",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > captures only origin-bound cookies on user close, stores expiry, and zeroes acquisition buffers",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses headless runtime before capturing cookies",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses headless shell before capturing cookies",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses virtual authenticator before capturing cookies",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses wrong version before capturing cookies",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses wrong manifest before capturing cookies",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses wrong executable before capturing cookies",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses empty cookies without storing a passkey",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses insecure cookies without storing a passkey",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses domain cookies without storing a passkey",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses origin cookies without storing a passkey",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses passkey cookies without storing a passkey",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > closes a runtime acquired after cancellation and saves nothing",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses changed frame/certificate after cookie read and scrubs all buffers even if storage throws"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S08",
+    "guard": "restore material origin",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses expired or foreign sessions and forged private cookie envelopes"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S09",
+    "guard": "restore expiry coherent with metadata",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses incoherent metadata expiry at restore"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S10",
+    "guard": "restore creation is not future",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses incoherent future expiry at restore"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S11",
+    "guard": "restore item 30-day cap",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses incoherent cap expiry at restore"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S12",
+    "guard": "restore cookies cannot outlive item",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses incoherent cookie expiry at restore"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S13",
+    "guard": "restore expired items refused (item and cookie coherence)",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses incoherent cookie expiry at restore",
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses expired or foreign sessions and forged private cookie envelopes"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/sessions.ts",
+        "sha256": "75421af271c3e0b6d77848bedfb3118861242c31ccae0f0bcba0bffaccc38cd9",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "S14",
+    "guard": "safe session deadline",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses an unsafe or overflowing session deadline"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/cookies.ts",
+        "sha256": "f764c020898166f0975e71e2e4f12b8b6fc4e8bdff90d3031b25fc827816aae4",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I01",
+    "guard": "CSV review required",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > imports Chrome CSV after review and returns metadata only with ask-every-time policy",
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > a declined review writes nothing and wipes every prepared credential buffer"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "b1b7b15d6492f55f7b99c45b95dda5f3bb975e91c478533c2ece7812f7d9e9a1",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I02",
+    "guard": "CSV only known headers, no passkeys",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > rejects malformed rows, unsafe origins, passkey columns and non-login types before any write"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "b1b7b15d6492f55f7b99c45b95dda5f3bb975e91c478533c2ece7812f7d9e9a1",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I03",
+    "guard": "CSV only logins",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > rejects malformed rows, unsafe origins, passkey columns and non-login types before any write"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "b1b7b15d6492f55f7b99c45b95dda5f3bb975e91c478533c2ece7812f7d9e9a1",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I04",
+    "guard": "CSV duplicate identities refused",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses duplicate generated identities before review and leaves existing items intact"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "b1b7b15d6492f55f7b99c45b95dda5f3bb975e91c478533c2ece7812f7d9e9a1",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I05",
+    "guard": "CSV metadata excludes credential columns",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > imports Chrome CSV after review and returns metadata only with ask-every-time policy",
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > accepts BOM, escaped quotes, commas and multiline fields without exposing them in labels"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "b1b7b15d6492f55f7b99c45b95dda5f3bb975e91c478533c2ece7812f7d9e9a1",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I06",
+    "guard": "CSV credential buffers erased",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > imports Chrome CSV after review and returns metadata only with ask-every-time policy",
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > a declined review writes nothing and wipes every prepared credential buffer"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "b1b7b15d6492f55f7b99c45b95dda5f3bb975e91c478533c2ece7812f7d9e9a1",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I07",
+    "guard": "CSV lossless UTF-8",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses oversized files/fields and malformed UTF-8 rather than importing changed passwords"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "b1b7b15d6492f55f7b99c45b95dda5f3bb975e91c478533c2ece7812f7d9e9a1",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I08",
+    "guard": "CSV file size bound",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses oversized files/fields and malformed UTF-8 rather than importing changed passwords"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "b1b7b15d6492f55f7b99c45b95dda5f3bb975e91c478533c2ece7812f7d9e9a1",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I09",
+    "guard": "CSV partial receipt",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > reports partial writes explicitly and never echoes the storage exception"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "b1b7b15d6492f55f7b99c45b95dda5f3bb975e91c478533c2ece7812f7d9e9a1",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "C09b",
+    "guard": "strict private cookie envelope with otherwise valid unexpired cookies",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webSessions.test.ts > vault web sessions > refuses expired or foreign sessions and forged private cookie envelopes"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/cookies.ts",
+        "sha256": "f764c020898166f0975e71e2e4f12b8b6fc4e8bdff90d3031b25fc827816aae4",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "T06",
+    "guard": "canonical base32 seed length bound",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > decodes canonical base32, lowercase and padding while rejecting ambiguous encodings"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/totp.ts",
+        "sha256": "4d66fce952bab3ce89f8b12c3e68551e075d7ddecbaaac85a2bf27fdd6dbfc65",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "T07",
+    "guard": "TOTP seed byte size and nonempty guard",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > rejects empty seeds, invalid times, periods, digits and algorithms"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/totp.ts",
+        "sha256": "4d66fce952bab3ce89f8b12c3e68551e075d7ddecbaaac85a2bf27fdd6dbfc65",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "T08",
+    "guard": "TOTP supported algorithm and digits",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > rejects empty seeds, invalid times, periods, digits and algorithms"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/totp.ts",
+        "sha256": "4d66fce952bab3ce89f8b12c3e68551e075d7ddecbaaac85a2bf27fdd6dbfc65",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "F21",
+    "guard": "failed broker settlement ends the browser even after successful insertion",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webFill.test.ts > vault web fill boundaries > returns fixed words even when finish or browser cleanup fails"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/ticket.ts",
+        "sha256": "f08570736f84796619f48677672afb66270d386f9c44fbbdd8a6b99fd3720d88",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "P06",
+    "guard": "invalid page-target URL errors never escape normalization",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webPageRead.test.ts > vault masked page reads > maps an invalid target URL to fixed words before reading or scrubbing"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/pageRead.ts",
+        "sha256": "93ab8f1698ab211644b7137244eaaea31ed43f8494addde6f976300093faa089",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I10",
+    "guard": "TOTP URI known parameters only",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses unsupported TOTP settings, duplicate URI parameters, HOTP and malformed seeds"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I11",
+    "guard": "TOTP URI unique parameters",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses unsupported TOTP settings, duplicate URI parameters, HOTP and malformed seeds"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I12",
+    "guard": "TOTP URI kind excludes HOTP",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses unsupported TOTP settings, duplicate URI parameters, HOTP and malformed seeds"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I13",
+    "guard": "TOTP URI has no port",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses unsupported TOTP settings, duplicate URI parameters, HOTP and malformed seeds"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I14",
+    "guard": "TOTP URI has no credentials",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses unsupported TOTP settings, duplicate URI parameters, HOTP and malformed seeds"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I15",
+    "guard": "TOTP URI has no fragment",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses unsupported TOTP settings, duplicate URI parameters, HOTP and malformed seeds"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I16",
+    "guard": "TOTP URI supported SHA1 login seed",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses unsupported TOTP settings, duplicate URI parameters, HOTP and malformed seeds"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I17",
+    "guard": "TOTP URI standard digits",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses unsupported TOTP settings, duplicate URI parameters, HOTP and malformed seeds"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I18",
+    "guard": "TOTP URI standard step",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses unsupported TOTP settings, duplicate URI parameters, HOTP and malformed seeds"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I19",
+    "guard": "CSV exact row arity",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > rejects malformed rows, unsafe origins, passkey columns and non-login types before any write"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I20",
+    "guard": "CSV unique headers",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > rejects malformed rows, unsafe origins, passkey columns and non-login types before any write"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I21",
+    "guard": "CSV quoted field must terminate",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > rejects malformed rows, unsafe origins, passkey columns and non-login types before any write"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I22",
+    "guard": "CSV quoted suffix and unquoted quotes refused",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > rejects malformed rows, unsafe origins, passkey columns and non-login types before any write"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I23",
+    "guard": "CSV field bound at construction and delimiter",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > refuses oversized files/fields and malformed UTF-8 rather than importing changed passwords"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I24",
+    "guard": "CSV row bound even under byte cap",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > bounds import rows before review even when the file fits its byte budget"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  },
+  {
+    "id": "I25",
+    "guard": "CSV no empty success without rows",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/vault/webCsvImport.test.ts > vault explicit CSV import > rejects malformed rows, unsafe origins, passkey columns and non-login types before any write"
+    ],
+    "restored": [
+      {
+        "path": "src/core/vault/web/csvImport.ts",
+        "sha256": "a91c651414dafbfda283c230f1a7700accd112b5881719fe12f2b4fca59ae462",
+        "byteExact": true
+      }
+    ],
+    "fired": true
+  }
+]

@@ -36,6 +36,8 @@ import {
 } from '../../../../shared/constants'
 import type { McpSettingsEntries, McpServerView } from '../../musecode/museConfigView'
 import { mcpServerPart } from './functions'
+// M96 lane T (LANE-T-SEAM, lane 0): import from shared constants at integration.
+import { TEAM_MCP_SERVER_NAME } from '../../../../shared/constants'
 
 export interface McpStdioLaunch {
   readonly transport: typeof MCP_TRANSPORTS.stdio
@@ -253,6 +255,13 @@ function launchOf(
   if (mcpServerPart(view.name) === IDE_MCP_SERVER_NAME) {
     throw new EntryProblem(
       `the name ${IDE_MCP_SERVER_NAME} is the extension's own diagnostics server; rename this entry`,
+    )
+  }
+  // M96 (PLAN.md D75): a user's MCP server may not be named `team`, as it
+  // may not be named `ide`.
+  if (mcpServerPart(view.name) === TEAM_MCP_SERVER_NAME) {
+    throw new EntryProblem(
+      `the name ${TEAM_MCP_SERVER_NAME} is the extension's own team server; rename this entry`,
     )
   }
   if (view.transport === MCP_TRANSPORTS.stdio) {

@@ -3,6 +3,7 @@ import {
   applyGoalCommand,
   type GoalContext,
   goalInstructions,
+  goalProgress,
   goalObjectiveProblem,
   goalResultText,
   runGoalTool,
@@ -13,7 +14,7 @@ import type { GoalRecord } from '../../src/core/backends/modelapi/goalRecord'
 import {
   GOAL_OBJECTIVE_MAX_CHARS,
   GOAL_PROGRESS_REMINDER_STEPS,
-  MODEL_TEXT,
+  MODEL_API_MODEL_TEXT,
 } from '../../src/shared/constants'
 import { goalDetails } from '../../src/webview/toolDetails'
 
@@ -71,11 +72,11 @@ describe('the goal tools on the Model API backend (M45)', () => {
 
   it('create_goal refuses over an unfinished goal and replaces a finished one', () => {
     expect(run('create_goal', { objective: 'Other' }).outcome.failureReason).toBe(
-      MODEL_TEXT.goalUnfinishedExists,
+      MODEL_API_MODEL_TEXT.goalUnfinishedExists,
     )
     const paused = { ...active, status: 'paused' }
     const refused = run('create_goal', { objective: 'Other' }, paused)
-    expect(refused.outcome.failureReason).toBe(MODEL_TEXT.goalPausedExists)
+    expect(refused.outcome.failureReason).toBe(MODEL_API_MODEL_TEXT.goalPausedExists)
     expect(refused.goal).toBe(paused)
     const done = { ...active, status: 'complete', percent_complete: 100 }
     expect(run('create_goal', { objective: 'Next' }, done).goal).toMatchObject({
@@ -87,26 +88,26 @@ describe('the goal tools on the Model API backend (M45)', () => {
 
   it('create_goal checks the objective and the budget', () => {
     expect(run('create_goal', { objective: '  ' }, undefined).outcome.failureReason).toBe(
-      MODEL_TEXT.goalEmptyObjective,
+      MODEL_API_MODEL_TEXT.goalEmptyObjective,
     )
     expect(run('create_goal', {}, undefined).outcome.failureReason).toBe(
-      MODEL_TEXT.goalEmptyObjective,
+      MODEL_API_MODEL_TEXT.goalEmptyObjective,
     )
     const long = 'x'.repeat(GOAL_OBJECTIVE_MAX_CHARS + 1)
     expect(run('create_goal', { objective: long }, undefined).outcome.failureReason).toBe(
-      `${MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`,
+      `${MODEL_API_MODEL_TEXT.goalObjectiveTooLong} ${String(GOAL_OBJECTIVE_MAX_CHARS)}`,
     )
     for (const budget of [0, -5, 1.5]) {
       expect(
         run('create_goal', { objective: 'x', token_budget: budget }, undefined).outcome
           .failureReason,
-      ).toBe(MODEL_TEXT.goalBadBudget)
+      ).toBe(MODEL_API_MODEL_TEXT.goalBadBudget)
     }
     expect(
       run('create_goal', { objective: 'x', token_budget: 5000 }, undefined).goal,
     ).toMatchObject({ token_budget: 5000 })
     expect(runGoalTool('create_goal', 'not json', undefined, context).outcome.failureReason).toBe(
-      MODEL_TEXT.goalEmptyObjective,
+      MODEL_API_MODEL_TEXT.goalEmptyObjective,
     )
   })
 
@@ -130,11 +131,11 @@ describe('the goal tools on the Model API backend (M45)', () => {
       percent_complete: 40,
     })
     expect(run('update_goal', { status: 'paused' }).outcome.failureReason).toBe(
-      MODEL_TEXT.goalBadStatus,
+      MODEL_API_MODEL_TEXT.goalBadStatus,
     )
     for (const goal of [undefined, { ...active, status: 'paused' }]) {
       const refused = run('update_goal', { status: 'complete' }, goal)
-      expect(refused.outcome.failureReason).toBe(MODEL_TEXT.goalNoActive)
+      expect(refused.outcome.failureReason).toBe(MODEL_API_MODEL_TEXT.goalNoActive)
       expect(refused.goal).toBe(goal)
     }
   })
@@ -159,16 +160,16 @@ describe('the goal tools on the Model API backend (M45)', () => {
       expect(
         run('report_progress', { current_work: 'a', next_work: 'b', percent_complete: percent })
           .outcome.failureReason,
-      ).toBe(MODEL_TEXT.goalBadPercent)
+      ).toBe(MODEL_API_MODEL_TEXT.goalBadPercent)
     }
     expect(
       run('report_progress', { current_work: ' ', next_work: 'b', percent_complete: 5 }).outcome
         .failureReason,
-    ).toBe(MODEL_TEXT.goalEmptyWork)
+    ).toBe(MODEL_API_MODEL_TEXT.goalEmptyWork)
     expect(
       run('report_progress', { current_work: 'a', next_work: 'b', percent_complete: 5 }, undefined)
         .outcome.failureReason,
-    ).toBe(MODEL_TEXT.goalNoActive)
+    ).toBe(MODEL_API_MODEL_TEXT.goalNoActive)
   })
 
   it('writes the result the row reads, with the session id first', () => {
@@ -261,18 +262,25 @@ describe('the goal loop on the Model API backend (M45)', () => {
   })
 
   it('pins the goal while it is active, and adds the step probe after ten quiet calls', () => {
-    expect(goalInstructions(undefined, 0)).toBeUndefined()
-    expect(goalInstructions({ ...active, status: 'paused' }, 0)).toBeUndefined()
-    const pinned = goalInstructions(
-      { ...active, current_work: 'Tests', next_work: 'Fix', token_budget: 9, tokens_used: 3 },
-      GOAL_PROGRESS_REMINDER_STEPS - 1,
-    )
+    expect(goalInstructions(undefined)).toBeUndefined()
+    expect(goalInstructions({ ...active, status: 'paused' })).toBeUndefined()
+    const pinned = goalInstructions({
+      ...active,
+      current_work: 'Tests',
+      next_work: 'Fix',
+      token_budget: 9,
+      tokens_used: 3,
+    })
     expect(pinned).toContain('# Session goal')
     expect(pinned).toContain('- Objective: Say hello in one word')
-    expect(pinned).toContain('- Current work: Tests')
-    expect(pinned).toContain('- Tokens used: 3 of a budget of 9')
+    expect(pinned).not.toContain('- Current work: Tests')
+    expect(goalProgress({ ...active, current_work: 'Tests' }, 0)).toContain('- Current work: Tests')
+    expect(pinned).not.toContain('- Tokens used:')
+    expect(goalProgress({ ...active, token_budget: 9, tokens_used: 3 }, 0)).toContain(
+      '- Tokens used: 3 of a budget of 9',
+    )
     expect(pinned).not.toContain('Progress has not been reported')
-    expect(goalInstructions(active, GOAL_PROGRESS_REMINDER_STEPS)).toContain(
+    expect(goalProgress(active, GOAL_PROGRESS_REMINDER_STEPS)).toContain(
       `Progress has not been reported in the last ${String(GOAL_PROGRESS_REMINDER_STEPS)} model calls.`,
     )
   })

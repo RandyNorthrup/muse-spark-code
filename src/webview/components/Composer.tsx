@@ -1,3 +1,5 @@
+import type { PromptLibraryProps } from '../prompts/PromptLibrary'
+import { webviewKey } from '../../shared/keybindings'
 // The prompt box: textarea with Claude-Code key semantics (Enter sends,
 // Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send, Shift+Tab cycles the
 // permission mode, "@" opens the mention menu), attachment chips, paste/drop of images and editor files,
@@ -33,10 +35,11 @@ import {
   BASE64_DATA_URL_OVERHEAD_CHARS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
-  DICTATION_KEY,
   type DictationAction,
   GOAL_SLASH_COMMAND,
+  HANDOFF_SLASH_COMMAND,
   LOOP_SLASH_COMMAND,
+  HOOK_RUN_SLASH_COMMAND,
   IME_PROCESS_KEY,
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_DOCUMENT_BYTES,
@@ -45,8 +48,6 @@ import {
   PDF_EXTENSION,
   PDF_HEADER_WINDOW_BYTES,
   PDF_MEDIA_TYPE,
-  PRIVATE_ATTACHMENT_EXTENSIONS,
-  PRIVATE_ATTACHMENT_NAMES,
   TEXT_ATTACHMENT_EXTENSIONS,
   TEXT_ATTACHMENT_MEDIA_TYPE,
   type PermissionMode,
@@ -60,15 +61,23 @@ import {
 } from '../../shared/mentions'
 import { fill } from '../../shared/l10n/text'
 import { hasPdfHeader } from '../../shared/pdfHeader'
-import { paidFeaturePrice } from '../../shared/paid'
+import { isPrivateFileName } from '../../shared/privateFiles'
 import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
-import { rankSlashCommands, type SlashCommand } from '../../shared/slashCommands'
+import type { SlashCommand } from '../../shared/slashCommands'
+import { rankSlashCommands } from '../../shared/slashRank'
 import { blobToBase64, parseUriList } from '../base64'
 import { type DictationPress, pressAction, releaseAction } from '../dictationGesture'
-import { wrapIndex } from '../listNavigation'
-import { type DictationUiState, type MentionResults, userShellCommandOf } from '../state/uiState'
-import { AttachmentChips } from './AttachmentChips'
+import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import {
+  type DictationUiState,
+  landFocusRequest,
+  type MentionResults,
+  userShellCommandOf,
+} from '../state/uiState'
+import { AttachmentChips } from './AttachmentChips'
+import { ContextMeter, type ContextMeterProps } from './ContextMeter'
+import {
+  BookmarkIcon,
   CloseIcon,
   FileIcon,
   MicIcon,
@@ -78,10 +87,27 @@ import {
   SlashIcon,
   StopIcon,
 } from './icons'
-import { MentionMenu, mentionOptionId } from './MentionMenu'
+import { deferred } from './DeferredSurface'
+import { MENTION_OPTION_ID_PREFIX, mentionOptionId } from './menuIds'
 import { modeIcon } from './modeIcons'
-import { PALETTE_LISTBOX_ID, type PaletteKeys } from './Palette'
-import { SLASH_LISTBOX_ID, SlashMenu, slashOptionId } from './SlashMenu'
+import type { PaletteKeys } from './Palette'
+import type { MenuEntry } from './PopoverMenu'
+import { PALETTE_LISTBOX_ID } from '../../shared/constants'
+import { usePaidFeaturePrice } from '../moneyHooks'
+import { retrySurface } from '../surfaceRetry'
+import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, slashOptionId } from './menuIds'
+
+// The completion menus load on first open: keyboard handling stays in the
+// composer (the textarea keeps focus), so the boundary never takes it.
+const SlashMenu = deferred(async () => {
+  const { SlashMenu } = await import('./SlashMenu')
+  return { default: SlashMenu }
+}, false)
+
+const MentionMenu = deferred(async () => {
+  const { MentionMenu } = await import('./MentionMenu')
+  return { default: MentionMenu }
+}, false)
 
 export interface ImageData {
   readonly name: string
@@ -97,19 +123,34 @@ export interface SlashPaletteSlot {
   readonly onActiveRowChange: (elementId: string | undefined) => void
 }
 
+const PromptLibrary = deferred(async () => {
+  const module = await import('../prompts/PromptLibrary')
+  return { default: module.PromptLibrary }
+})
+
+const PopoverMenu = deferred(async () => {
+  const module = await import('./PopoverMenu')
+  return { default: module.PopoverMenu }
+})
+
 export interface ComposerProps {
+  /** M118-P-REACT-BRIDGE: bound by W/native hosts; IO stays in the host. */
+  readonly promptLibrary?: Omit<PromptLibraryProps, 'onClose'>
+  readonly onUseSavedPrompt?: () => void
+  readonly onSavePrompt?: (text: string) => void
+  readonly onSharePrompt?: (text: string) => void
   readonly draft: string
   readonly placeholder: string
   readonly settings: SettingsSnapshot
   readonly canSend: boolean
   readonly isRunning: boolean
   readonly modelLabel: string
+  readonly planMark?: ReactNode
   readonly permissionMode: PermissionMode
-  /** "12% context" once known; undefined hides the indicator. */
-  readonly contextLabel: string | undefined
-  readonly contextTitle: string | undefined
+  /** The reported context usage the meter draws (M87); no window, no meter. */
+  readonly context: ContextMeterProps['context']
   /** The paid features that are on (M33, PLAN.md D30); undefined hides the badge. */
-  readonly paidBadge: { readonly label: string; readonly title: string } | undefined
+  readonly paidBadge: { readonly label: string; readonly title: string | undefined } | undefined
   /** The badge opens Account & usage, where this window's tally is. */
   readonly onOpenUsage: () => void
   readonly focusRequests: number
@@ -155,6 +196,7 @@ export interface ComposerProps {
   readonly onDismissBanner: () => void
   /** The prompt's "/" list (M38): the palette's slash commands and skills. */
   readonly slashCommands: readonly SlashCommand[]
+  readonly slashLoadState?: 'loading' | 'failed' | 'ready'
   /** Another menu or dialog is open: the "/" menus stay closed. */
   readonly isMenuOpen: boolean
   /** The palette, attached above the box, for a prompt that is just `/`. */
@@ -171,6 +213,9 @@ const MIN_ROWS = 1
 const URI_LIST_TYPE = 'text/uri-list'
 const IMAGE_TYPE_PREFIX = 'image/'
 const PASTED_IMAGE_NAME = 'pasted-image'
+
+// The toolbar icon buttons share one class string (M114 startup compaction).
+const ICON_BUTTON = 'icon-button chat-control'
 
 /** How the box was measured: its content height and the height of one row. */
 export interface RowMetrics {
@@ -216,11 +261,10 @@ export function isSendKey(
   event: KeyboardEvent<HTMLTextAreaElement>,
   isCtrlEnterMode: boolean,
 ): boolean {
-  if (event.key !== 'Enter' || event.shiftKey || event.altKey) {
-    return false
-  }
-  const hasModifier = event.ctrlKey || event.metaKey
-  return isCtrlEnterMode ? hasModifier : !hasModifier
+  return (
+    webviewKey('composer.send', event, 'down', { useCtrlEnterToSend: isCtrlEnterMode }) !==
+    undefined
+  )
 }
 
 /**
@@ -237,14 +281,14 @@ function fileExtension(name: string): string {
   return dot === -1 ? '' : name.slice(dot).toLowerCase()
 }
 
-function isPrivateAttachmentName(name: string): boolean {
-  const lower = name.toLowerCase()
+function isStreamedMedia(file: File): boolean {
   return (
-    lower === '.env' ||
-    lower.startsWith('.env.') ||
-    PRIVATE_ATTACHMENT_NAMES.has(lower) ||
-    PRIVATE_ATTACHMENT_EXTENSIONS.has(fileExtension(lower))
+    /^(?:video|audio)\//u.test(file.type) || /\.(?:mp4|mov|webm|mkv|mp3|wav|m4a)$/iu.test(file.name)
   )
+}
+
+function parseHostUris(text: string): readonly string[] {
+  return parseUriList(text).filter((uri) => /^(?:file|vscode-remote):/iu.test(uri))
 }
 
 function attachableFiles(list: FileList | undefined, shouldIncludeText = false): readonly File[] {
@@ -253,8 +297,24 @@ function attachableFiles(list: FileList | undefined, shouldIncludeText = false):
       file.type.startsWith(IMAGE_TYPE_PREFIX) ||
       file.type === PDF_MEDIA_TYPE ||
       file.name.toLowerCase().endsWith(PDF_EXTENSION) ||
+      isStreamedMedia(file) ||
       (shouldIncludeText && TEXT_ATTACHMENT_EXTENSIONS.has(fileExtension(file.name))),
   )
+}
+
+/** URI-backed files go to the host; an unrelated clipboard screenshot keeps its legacy path. */
+function filesWithoutUris(files: readonly File[], uris: readonly string[]): readonly File[] {
+  const names = new Set(
+    uris.map((uri) => {
+      try {
+        return decodeURIComponent(new URL(uri).pathname).split(/[/\\]/u).at(-1)
+      } catch {
+        // Malformed host URIs do not suppress unrelated clipboard files.
+        return
+      }
+    }),
+  )
+  return files.filter((file) => file.name === '' || !names.has(file.name))
 }
 
 /** The same conservative data-URL budget the host checks after decoding. */
@@ -273,30 +333,29 @@ interface PendingMediaReservation {
 
 /** Ctrl+D (Cmd+D on a Mac): the microphone from the keyboard. */
 function isDictationKey(event: KeyboardEvent<HTMLElement>): boolean {
-  return (
-    (event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === DICTATION_KEY
-  )
+  return webviewKey('composer.dictation', event) === 'dictate'
 }
 
 /** The keys whose release ends a Ctrl+D hold: the letter or the modifier. */
 function isDictationRelease(event: KeyboardEvent<HTMLElement>): boolean {
-  return (
-    event.key.toLowerCase() === DICTATION_KEY || event.key === 'Control' || event.key === 'Meta'
-  )
+  return webviewKey('composer.dictation', event, 'up') === 'release'
 }
 
-const ACTIVATION_KEYS: ReadonlySet<string> = new Set([' ', 'Enter'])
-
-function dictationTitle(dictation: DictationUiState): string {
+function dictationTitle(
+  dictation: DictationUiState,
+  voicePrice: string | undefined,
+): string | undefined {
   switch (dictation.status) {
     case 'unavailable': {
       return dictation.reason ?? UI_TEXT.dictationUnavailable
     }
     case 'idle': {
-      // The paid engine says so, with its price (M35, PLAN.md D30).
-      return dictation.engine === 'museVoice'
-        ? fill(UI_TEXT.dictationPaidTitle, { price: paidFeaturePrice('voice') })
-        : UI_TEXT.dictationTitle
+      // The paid engine says so, with its price (M35, PLAN.md D30). The
+      // tooltip waits for the lazy money chunk rather than showing a guess.
+      if (dictation.engine !== 'museVoice') return UI_TEXT.dictationTitle
+      return voicePrice === undefined
+        ? undefined
+        : fill(UI_TEXT.dictationPaidTitle, { price: voicePrice })
     }
     case 'starting':
     case 'listening': {
@@ -337,6 +396,9 @@ function slashMenuOf(draft: string, caret: number): 'palette' | 'commands' | und
 }
 
 export function Composer(props: ComposerProps) {
+  const [isPromptLibraryOpen, setPromptLibraryOpen] = useState(false)
+  const [isPromptMenuOpen, setPromptMenuOpen] = useState(false)
+  const [promptMenuAnchor, setPromptMenuAnchor] = useState<{ x: number; y: number }>()
   const {
     draft,
     placeholder,
@@ -345,8 +407,7 @@ export function Composer(props: ComposerProps) {
     isRunning,
     modelLabel,
     permissionMode,
-    contextLabel,
-    contextTitle,
+    context,
     paidBadge,
     onOpenUsage,
     focusRequests,
@@ -382,6 +443,7 @@ export function Composer(props: ComposerProps) {
     banner,
     onDismissBanner,
     slashCommands,
+    slashLoadState = 'ready',
     isMenuOpen,
     renderSlashPalette,
     slashPaletteKeys,
@@ -389,6 +451,13 @@ export function Composer(props: ComposerProps) {
     onSlashMenuOpen,
   } = props
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  /** Focus requests already landed. */
+  const landedFocusRequests = useRef(0)
+  /** When `focusRequests` last grew: a request lands only within the delivery
+  window after that (panel-focus F3); afterwards it is gone, so an hour-old
+  ask never throws the caret here on a much later click. */
+  const latestFocusRequestAt = useRef(0)
+  const seenFocusRequests = useRef(0)
   /** Admission stays reserved until the host echoes acceptance or a refusal. */
   const pendingFiles = useRef<PendingMediaReservation[]>([])
   const currentAttachments = useRef(attachments)
@@ -408,6 +477,9 @@ export function Composer(props: ComposerProps) {
     const settled = new Set(attachmentSettlements)
     pendingFiles.current = pendingFiles.current.filter((pending) => !settled.has(pending.requestId))
   }, [attachmentSettlements])
+  // The dictate tooltip's exact voice price arrives with the lazy money
+  // chunk; only the paid engine states one, so the free one loads nothing.
+  const voicePrice = usePaidFeaturePrice(dictation.engine === 'museVoice' ? 'voice' : undefined)
   const [caret, setCaret] = useState(0)
   const [mentionIndex, setMentionIndex] = useState(0)
   const [dismissedMention, setDismissedMention] = useState<number | undefined>(undefined)
@@ -461,7 +533,9 @@ export function Composer(props: ComposerProps) {
   // A prompt that starts with `!` runs as a shell command (M46): the box says so.
   const isShellMode = userShellCommandOf(draft) !== undefined
   const mention: MentionQuery | undefined = mentionQueryAt(draft, caret)
-  const isMentionOpen = mention !== undefined && dismissedMention !== mention.start
+  // The prompt menu takes the place of the attached `/` and `@` lists while it is open.
+  const isMentionOpen =
+    !isPromptMenuOpen && mention !== undefined && dismissedMention !== mention.start
   const mentionItems: readonly MentionItem[] =
     isMentionOpen && mentionResults !== undefined && mentionResults.requestId === activeRequest
       ? mentionResults.items
@@ -473,11 +547,34 @@ export function Composer(props: ComposerProps) {
     setDismissedSlash(undefined)
   }
   const slashMenu =
-    isFocusWithin && !isMenuOpen && dismissedSlash !== draft ? slashMenuOf(draft, caret) : undefined
+    isFocusWithin && !isMenuOpen && !isPromptMenuOpen && dismissedSlash !== draft
+      ? slashMenuOf(draft, caret)
+      : undefined
   const slashItems =
-    slashMenu === 'commands' ? rankSlashCommands(slashCommands, draft.slice(1)) : []
+    slashMenu === 'commands' && slashLoadState === 'ready'
+      ? rankSlashCommands(slashCommands, draft.slice(1))
+      : []
   const activeSlash = slashIndex < slashItems.length ? slashIndex : 0
   const isSlashMenuOpen = slashMenu !== undefined
+  // The textarea keeps the focus and points at the active row with
+  // aria-activedescendant, so nothing scrolls a list that grew past its
+  // height: the active row is brought into view here, as in the palette
+  // (WCAG 2.1.1). Keyed by the rows' names, so a re-render with the same
+  // rows leaves a list the user scrolled where it is.
+  const slashKeys = slashItems.map((item) => item.name).join('\n')
+  const hasSlashRows = slashItems.length > 0
+  const mentionKeys = mentionItems.map((item) => item.path).join('\n')
+  const hasMentionRows = mentionItems.length > 0
+  useEffect(() => {
+    if (hasSlashRows) {
+      scrollRowIntoView(SLASH_OPTION_ID_PREFIX, String(activeSlash))
+    }
+  }, [hasSlashRows, slashKeys, activeSlash])
+  useEffect(() => {
+    if (hasMentionRows) {
+      scrollRowIntoView(MENTION_OPTION_ID_PREFIX, String(mentionIndex))
+    }
+  }, [hasMentionRows, mentionKeys, mentionIndex])
   // Escape in the palette's own list (a Tab stop) brings the focus back to
   // the box, where it always is otherwise.
   useEffect(() => {
@@ -491,11 +588,38 @@ export function Composer(props: ComposerProps) {
     }
   }, [isSlashMenuOpen, onSlashMenuOpen])
 
+  // The one place a recorded focus request lands (`landFocusRequest`):
+  // only while this surface already holds the keyboard, and only within the
+  // delivery window after the ask. A request checked while unowned — a load
+  // finishing behind a freshly opened file — lands only if this surface
+  // itself gains focus in time (the `reveal()` a host command just issued),
+  // so a `focusInput` delivered a moment before its reveal's focus still
+  // works; anything older is dropped, and the chat never takes the keyboard
+  // from a file a person just opened.
   useEffect(() => {
-    if (focusRequests === 0) {
-      return
+    if (focusRequests > seenFocusRequests.current) {
+      seenFocusRequests.current = focusRequests
+      latestFocusRequestAt.current = Date.now()
     }
-    textareaRef.current?.focus()
+    const landPending = () => {
+      const landed = landFocusRequest(
+        focusRequests,
+        landedFocusRequests.current,
+        document.hasFocus(),
+        Date.now(),
+        latestFocusRequestAt.current,
+      )
+      if (landed === landedFocusRequests.current) {
+        return
+      }
+      landedFocusRequests.current = landed
+      textareaRef.current?.focus()
+    }
+    landPending()
+    window.addEventListener('focus', landPending)
+    return () => {
+      window.removeEventListener('focus', landPending)
+    }
   }, [focusRequests])
 
   // The box grows with its wrapped content and shrinks back (issue #4),
@@ -595,21 +719,21 @@ export function Composer(props: ComposerProps) {
     if (!isMentionOpen) {
       return false
     }
-    switch (event.key) {
-      case 'ArrowDown': {
+    switch (webviewKey('composer.mention', event)) {
+      case 'next': {
         if (mentionItems.length > 0) {
           setMentionIndex((mentionIndex + 1) % mentionItems.length)
         }
         return true
       }
-      case 'ArrowUp': {
+      case 'previous': {
         if (mentionItems.length > 0) {
           setMentionIndex((mentionIndex - 1 + mentionItems.length) % mentionItems.length)
         }
         return true
       }
-      case 'Enter':
-      case 'Tab': {
+      case 'accept':
+      case 'complete': {
         const item = mentionItems[mentionIndex]
         if (item === undefined) {
           return false
@@ -617,7 +741,7 @@ export function Composer(props: ComposerProps) {
         selectMention(item)
         return true
       }
-      case 'Escape': {
+      case 'close': {
         setDismissedMention(mention.start)
         return true
       }
@@ -642,27 +766,51 @@ export function Composer(props: ComposerProps) {
   }
 
   /**
-   * Enter runs a command; a skill, `/goal` (M45) or Tab completes the name
-   * instead, a skill and `/goal` ready for what follows them.
+   * Enter runs a command; a skill, `/goal` (M45), `/handoff` (M74) or Tab
+   * completes the name instead, a skill and those commands ready for what
+   * follows them.
    */
   const chooseSlash = (command: SlashCommand, isCompleting: boolean) => {
     const { action } = command
-    if (action.type === 'insertSkill') {
-      replaceDraft(`/${action.selector} `)
-    } else if (action.type === 'startGoal' || action.type === 'startLoop') {
-      replaceDraft(
-        action.type === 'startGoal' ? `/${GOAL_SLASH_COMMAND} ` : `/${LOOP_SLASH_COMMAND} `,
-      )
-    } else if (isCompleting) {
-      replaceDraft(`/${command.name}`)
-    } else {
-      onSlashCommand(command)
+    // A command with arguments stays in the prompt, ready for them; any
+    // other command runs on Enter, and Tab only completes its name.
+    switch (action.type) {
+      case 'insertSkill': {
+        replaceDraft(`/${action.selector} `)
+        break
+      }
+      case 'startGoal': {
+        replaceDraft(`/${GOAL_SLASH_COMMAND} `)
+        break
+      }
+      case 'startLoop': {
+        replaceDraft(`/${LOOP_SLASH_COMMAND} `)
+        break
+      }
+      case 'startHook': {
+        replaceDraft(`/${HOOK_RUN_SLASH_COMMAND} `)
+        break
+      }
+      case 'startHandoff': {
+        replaceDraft(`/${HANDOFF_SLASH_COMMAND} `)
+        break
+      }
+      default: {
+        if (isCompleting) {
+          replaceDraft(`/${command.name}`)
+        } else {
+          onSlashCommand(command)
+        }
+        break
+      }
     }
   }
 
   const didHandleSlashKey = (event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
     // Shift+Enter is still a new line, and Shift+Tab still cycles the mode.
-    const isShifted = event.shiftKey && (event.key === 'Enter' || event.key === 'Tab')
+    const isShifted =
+      webviewKey('composer.newline', event) === 'newline' ||
+      webviewKey('composer.permission', event) === 'cycle'
     if (slashMenu === undefined || isShifted) {
       return false
     }
@@ -670,22 +818,22 @@ export function Composer(props: ComposerProps) {
       return slashPaletteKeys.current?.didHandleKey(event) === true
     }
     const active = slashItems[activeSlash]
-    switch (event.key) {
-      case 'ArrowDown':
-      case 'ArrowUp': {
-        const delta = event.key === 'ArrowDown' ? 1 : -1
+    switch (webviewKey('composer.slash', event)) {
+      case 'next':
+      case 'previous': {
+        const delta = webviewKey('composer.slash', event) === 'next' ? 1 : -1
         setSlashIndex(wrapIndex(activeSlash, delta, slashItems.length))
         break
       }
-      case 'Enter':
-      case 'Tab': {
+      case 'accept':
+      case 'complete': {
         if (active === undefined) {
           return false
         }
-        chooseSlash(active, event.key === 'Tab')
+        chooseSlash(active, webviewKey('composer.slash', event) === 'complete')
         break
       }
-      case 'Escape': {
+      case 'close': {
         dismissSlash()
         break
       }
@@ -715,7 +863,10 @@ export function Composer(props: ComposerProps) {
       }
       return
     }
-    if (onCyclePermissionMode !== undefined && event.key === 'Tab' && event.shiftKey) {
+    if (
+      onCyclePermissionMode !== undefined &&
+      webviewKey('composer.permission', event) === 'cycle'
+    ) {
       event.preventDefault()
       onCyclePermissionMode()
       return
@@ -737,7 +888,7 @@ export function Composer(props: ComposerProps) {
   }
 
   const handleMicKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (!ACTIVATION_KEYS.has(event.key)) {
+    if (webviewKey('composer.mic', event) !== 'dictate') {
       return
     }
     // Space/Enter would also click; the press/release pair replaces it.
@@ -748,7 +899,7 @@ export function Composer(props: ComposerProps) {
   }
 
   const handleMicKeyUp = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (ACTIVATION_KEYS.has(event.key)) {
+    if (webviewKey('composer.mic', event) === 'dictate') {
       releaseDictation()
     }
   }
@@ -759,14 +910,23 @@ export function Composer(props: ComposerProps) {
   } {
     if (isMentionOpen) {
       const active = mentionItems.length > 0 ? mentionOptionId(mentionIndex) : undefined
-      return { controls: 'mention-listbox', activeDescendant: active }
+      return {
+        controls: active === undefined ? undefined : 'mention-listbox',
+        activeDescendant: active,
+      }
     }
     if (slashMenu === 'palette') {
-      return { controls: PALETTE_LISTBOX_ID, activeDescendant: paletteRowId }
+      return {
+        controls: paletteRowId === undefined ? undefined : PALETTE_LISTBOX_ID,
+        activeDescendant: paletteRowId,
+      }
     }
     if (slashMenu === 'commands') {
       const active = slashItems.length > 0 ? slashOptionId(activeSlash) : undefined
-      return { controls: SLASH_LISTBOX_ID, activeDescendant: active }
+      return {
+        controls: active === undefined ? undefined : SLASH_LISTBOX_ID,
+        activeDescendant: active,
+      }
     }
     return { controls: undefined, activeDescendant: undefined }
   }
@@ -779,7 +939,7 @@ export function Composer(props: ComposerProps) {
         current.reduce(
           (total, attachment) =>
             total +
-            (attachment.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
+            (attachment.media !== undefined || attachment.mediaType === TEXT_ATTACHMENT_MEDIA_TYPE
               ? 0
               : encodedMediaChars(attachment.sizeBytes, attachment.mediaType)),
           0,
@@ -828,7 +988,14 @@ export function Composer(props: ComposerProps) {
     }
     for (const file of files) {
       const name = file.name === '' ? PASTED_IMAGE_NAME : file.name
-      if (isPrivateAttachmentName(name)) {
+      if (isPrivateFileName(name)) {
+        onRefuseFile(name, UI_TEXT.textFilePrivate)
+        continue
+      }
+      // Browser File objects expose no approved host path. A URI transfer
+      // takes the host route below; bytes-only media needs the native picker.
+      // Refused, not unreadable: nothing was opened (M105 E1 review).
+      if (isStreamedMedia(file)) {
         onRefuseFile(name, UI_TEXT.textFilePrivate)
         continue
       }
@@ -862,6 +1029,18 @@ export function Composer(props: ComposerProps) {
   }
 
   const handlePaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    // A synthetic clipboard may carry files without a reader; that reads as
+    // an empty URI list, never a throw.
+    const clipboard = event.clipboardData
+    const readClipboard = (type: string): string =>
+      typeof clipboard.getData === 'function' ? clipboard.getData(type) : ''
+    const uris = parseHostUris(readClipboard(URI_LIST_TYPE))
+    if (uris.length > 0) {
+      event.preventDefault()
+      onDroppedUris(uris)
+      attachFiles(filesWithoutUris(attachableFiles(event.clipboardData.files, true), uris))
+      return
+    }
     const files = attachableFiles(event.clipboardData.files, true)
     if (files.length === 0) {
       return
@@ -870,7 +1049,7 @@ export function Composer(props: ComposerProps) {
     // file with no text representation can be probed for PDF bytes instead.
     if (
       attachableFiles(event.clipboardData.files).length === 0 &&
-      event.clipboardData.getData(TEXT_ATTACHMENT_MEDIA_TYPE) !== ''
+      readClipboard(TEXT_ATTACHMENT_MEDIA_TYPE) !== ''
     ) {
       return
     }
@@ -880,19 +1059,65 @@ export function Composer(props: ComposerProps) {
 
   const handleDrop = (event: DragEvent<HTMLElement>) => {
     event.preventDefault()
-    attachFiles(attachableFiles(event.dataTransfer.files, true))
-    const uris = parseUriList(event.dataTransfer.getData(URI_LIST_TYPE))
+    const uris = parseHostUris(event.dataTransfer.getData(URI_LIST_TYPE))
     if (uris.length > 0) {
       onDroppedUris(uris)
     }
+    attachFiles(filesWithoutUris(attachableFiles(event.dataTransfer.files, true), uris))
   }
 
   // What the box's aria-controls and aria-activedescendant point at.
   const popup = popupAria()
 
+  // Occasional prompt actions share one compact menu beside the toolbar's
+  // other menus; the panel's right-click menu offers them too.
+  const hasDraftText = draft.trim() !== ''
+  const promptEntries: MenuEntry[] = [
+    ...(hasDraftText && props.onSavePrompt !== undefined
+      ? [{ id: 'save', label: UI_TEXT.promptSave }]
+      : []),
+    ...(hasDraftText && props.onSharePrompt !== undefined
+      ? [{ id: 'share', label: UI_TEXT.sharePrompt }]
+      : []),
+    ...(props.promptLibrary !== undefined || props.onUseSavedPrompt !== undefined
+      ? [{ id: 'use', label: UI_TEXT.promptUseSaved }]
+      : []),
+  ]
+  const closePromptMenu = () => {
+    setPromptMenuOpen(false)
+    setPromptMenuAnchor(undefined)
+    textareaRef.current?.focus()
+  }
+  const runPromptAction = (id: string) => {
+    switch (id) {
+      case 'save': {
+        props.onSavePrompt?.(draft)
+        break
+      }
+      case 'share': {
+        props.onSharePrompt?.(draft)
+        break
+      }
+      case 'use': {
+        if (props.onUseSavedPrompt === undefined) {
+          setPromptLibraryOpen(true)
+        } else {
+          props.onUseSavedPrompt()
+        }
+        break
+      }
+    }
+  }
+
   return (
     <footer
       className="composer"
+      data-vscode-context={JSON.stringify({
+        'museSpark.promptSource': 'composer',
+        'museSpark.promptText': draft,
+        'museSpark.composerHasText': draft.trim() !== '',
+        'museSpark.chatAvailable': true,
+      })}
       onFocus={() => {
         setIsFocusWithin(true)
       }}
@@ -911,7 +1136,7 @@ export function Composer(props: ComposerProps) {
           <span>{banner}</span>
           <button
             type="button"
-            className="icon-button"
+            className={ICON_BUTTON}
             title={UI_TEXT.bannerDismiss}
             aria-label={UI_TEXT.bannerDismiss}
             onClick={onDismissBanner}
@@ -926,8 +1151,23 @@ export function Composer(props: ComposerProps) {
             onActiveRowChange: setPaletteRowId,
           })
         : null}
-      {slashMenu === 'commands' ? (
+      {slashMenu === 'commands' && slashLoadState !== 'ready' ? (
+        <div className="mention-menu slash-menu">
+          {slashLoadState === 'loading' ? (
+            <p role="status">{UI_TEXT.loadingOutput}</p>
+          ) : (
+            <div role="alert">
+              <p>{UI_TEXT.surfaceLoadFailed}</p>
+              <button type="button" onClick={retrySurface}>
+                {UI_TEXT.surfaceLoadRetry}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+      {slashMenu === 'commands' && slashLoadState === 'ready' ? (
         <SlashMenu
+          keepFocus
           items={slashItems}
           activeIndex={activeSlash}
           onSelect={(command) => {
@@ -938,6 +1178,7 @@ export function Composer(props: ComposerProps) {
       ) : null}
       {isMentionOpen ? (
         <MentionMenu
+          keepFocus
           items={mentionItems}
           activeIndex={mentionIndex}
           onSelect={selectMention}
@@ -966,6 +1207,20 @@ export function Composer(props: ComposerProps) {
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
         onClick={syncCaret}
+        onContextMenu={(event) => {
+          // VS Code contributes these actions natively. Other panel hosts
+          // share this popover; Shift preserves their own clipboard menu.
+          if (document.body.dataset['nativeContextMenu'] === 'true' || event.shiftKey) {
+            setPromptMenuOpen(false)
+            return
+          }
+          if (promptEntries.length === 0) {
+            return
+          }
+          event.preventDefault()
+          setPromptMenuAnchor({ x: event.clientX, y: event.clientY })
+          setPromptMenuOpen(true)
+        }}
         onPaste={handlePaste}
         onFocus={() => {
           onFocusChange(true)
@@ -974,11 +1229,32 @@ export function Composer(props: ComposerProps) {
           onFocusChange(false)
         }}
       />
+      {isPromptLibraryOpen && props.promptLibrary !== undefined ? (
+        <PromptLibrary
+          {...props.promptLibrary}
+          onClose={() => {
+            setPromptLibraryOpen(false)
+          }}
+        />
+      ) : null}
+      {isPromptMenuOpen && promptEntries.length > 0 ? (
+        <PopoverMenu
+          label={UI_TEXT.promptLibrary}
+          entries={promptEntries}
+          align="left"
+          {...(promptMenuAnchor !== undefined && { anchor: promptMenuAnchor })}
+          onSelect={(id) => {
+            closePromptMenu()
+            runPromptAction(id)
+          }}
+          onClose={closePromptMenu}
+        />
+      ) : null}
       <div className="composer-toolbar">
         <div className="composer-toolbar-group">
           <button
             type="button"
-            className="icon-button"
+            className={ICON_BUTTON}
             title={UI_TEXT.attachTitle}
             aria-label={UI_TEXT.attachTitle}
             onMouseDown={keepMenuFocus}
@@ -988,7 +1264,7 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className="icon-button"
+            className={ICON_BUTTON}
             title={UI_TEXT.commandsTitle}
             aria-label={UI_TEXT.commandsTitle}
             onMouseDown={keepMenuFocus}
@@ -996,9 +1272,30 @@ export function Composer(props: ComposerProps) {
           >
             <SlashIcon />
           </button>
+          {promptEntries.length === 0 ? null : (
+            <button
+              type="button"
+              className="icon-button prompt-menu-button"
+              title={UI_TEXT.promptLibrary}
+              aria-label={UI_TEXT.promptLibrary}
+              aria-haspopup="dialog"
+              aria-expanded={isPromptMenuOpen}
+              onMouseDown={keepMenuFocus}
+              onClick={() => {
+                if (isPromptMenuOpen) {
+                  closePromptMenu()
+                } else {
+                  setPromptMenuAnchor(undefined)
+                  setPromptMenuOpen(true)
+                }
+              }}
+            >
+              <BookmarkIcon />
+            </button>
+          )}
           <button
             type="button"
-            className="pill"
+            className="pill chat-control"
             title={UI_TEXT.modelPillTitle}
             aria-label={UI_TEXT.modelPillLabel}
             onMouseDown={keepMenuFocus}
@@ -1006,6 +1303,7 @@ export function Composer(props: ComposerProps) {
           >
             {modelLabel}
           </button>
+          {props.planMark}
           {isShellMode ? (
             <span className="editor-chip shell-chip" title={UI_TEXT.composerShellModeTitle}>
               <span className="editor-chip-label">{UI_TEXT.composerShellMode}</span>
@@ -1017,7 +1315,7 @@ export function Composer(props: ComposerProps) {
               <span className="editor-chip-label">{editorContextLabel}</span>
               <button
                 type="button"
-                className="chip-remove"
+                className="chip-remove chat-control"
                 title={UI_TEXT.editorContextRemove}
                 aria-label={`${UI_TEXT.editorContextRemove}: ${editorContextLabel}`}
                 onMouseDown={keepMenuFocus}
@@ -1033,7 +1331,7 @@ export function Composer(props: ComposerProps) {
               <span className="editor-chip-label">{referenceLabel}</span>
               <button
                 type="button"
-                className="chip-remove"
+                className="chip-remove chat-control"
                 title={UI_TEXT.referenceRemove}
                 aria-label={`${UI_TEXT.referenceRemove}: ${referenceLabel}`}
                 onMouseDown={keepMenuFocus}
@@ -1048,7 +1346,7 @@ export function Composer(props: ComposerProps) {
           {paidBadge === undefined ? null : (
             <button
               type="button"
-              className="paid-badge"
+              className="paid-badge chat-control"
               title={paidBadge.title}
               onMouseDown={keepMenuFocus}
               onClick={onOpenUsage}
@@ -1056,19 +1354,10 @@ export function Composer(props: ComposerProps) {
               {paidBadge.label}
             </button>
           )}
-          {contextLabel === undefined ? null : (
-            <button
-              type="button"
-              className="context-label context-label-button"
-              title={contextTitle}
-              onClick={onCompact}
-            >
-              {contextLabel}
-            </button>
-          )}
+          <ContextMeter context={context} onCompact={onCompact} />
           <button
             type="button"
-            className="mode-button"
+            className="mode-button chat-control"
             title={
               onOpenModeMenu === undefined ? UI_TEXT.sideChatPlanOnly : UI_TEXT.permissionModeTitle
             }
@@ -1086,8 +1375,8 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className={`icon-button mic-button mic-${dictation.status}${dictation.engine === 'museVoice' ? ' mic-paid' : ''}`}
-            title={dictationTitle(dictation)}
+            className={`icon-button mic-button mic-${dictation.status}${dictation.engine === 'museVoice' ? ' mic-paid' : ''} chat-control`}
+            title={dictationTitle(dictation, voicePrice)}
             aria-label={
               dictation.engine === 'museVoice' ? UI_TEXT.dictationPaidLabel : UI_TEXT.dictationLabel
             }
@@ -1102,7 +1391,7 @@ export function Composer(props: ComposerProps) {
           {isRunning ? (
             <button
               type="button"
-              className="send-button"
+              className="send-button send-button-stop chat-control"
               title={UI_TEXT.stopTitle}
               aria-label={UI_TEXT.stopTitle}
               onClick={onStop}
@@ -1112,7 +1401,7 @@ export function Composer(props: ComposerProps) {
           ) : (
             <button
               type="button"
-              className="send-button"
+              className="send-button chat-control"
               title={sendTitle(canSend, isShellMode)}
               aria-label={isShellMode ? UI_TEXT.runCommandTitle : UI_TEXT.sendTitle}
               disabled={!canSend}

@@ -1,0 +1,58 @@
+
+ RUN  v5.0.2 /Users/randy/lanes/FIXM96K4
+
+ ❯ test/unit/teamHintsAndLoad.test.ts (21 tests | 2 failed) 112ms
+   ❯ M96 K orphan decisions (4)
+     × finds marked descendants even when direct child ended; does not stop without click 8ms
+     × a marker-only recovery row cannot stop without a recorded confirmation 3ms
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 19 passed (21)
+   Start at  14:15:38
+   Duration  970ms (transform 37%, setup 26%, import 22%, tests 14%, worker 1%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K orphan decisions > finds marked descendants even when direct child ended; does not stop without click
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      43,
+    ]
+
+
+Number of calls: 1
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:554:25
+    552|     expect(await recovery.stop(found[0]!, false)).toBe('kept')
+    553|     expect(signal).not.toHaveBeenCalled()
+    554|     expect(observe).not.toHaveBeenCalled()
+       |                         ^
+    555|     expect(await recovery.stop(found[0]!, true)).toBe('stopped')
+    556|     expect(observe.mock.invocationCallOrder[0]).toBeLessThan(signal.mo…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K orphan decisions > a marker-only recovery row cannot stop without a recorded confirmation
+AssertionError: expected 'stopped' to be 'changed' // Object.is equality
+
+Expected: "changed"
+Received: "stopped"
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:577:50
+    575|     const found = await recovery.find([{ id, command: 'worker', cwd: '…
+    576|     expect(found[0]).toMatchObject({ match: 'uncertain' })
+    577|     expect(await recovery.stop(found[0]!, true)).toBe('changed')
+       |                                                  ^
+    578|     expect(signal).not.toHaveBeenCalled()
+    579|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯

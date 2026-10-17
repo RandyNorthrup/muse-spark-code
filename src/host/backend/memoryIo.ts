@@ -6,31 +6,42 @@
 // The workspace's name for the project folder is taken from the path as the
 // operating system spells it, which is what Muse Code hashes.
 
-import { randomUUID } from 'node:crypto'
 import { realpath } from 'node:fs'
-import { link, mkdir, open, readdir, rm } from 'node:fs/promises'
+import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { ATOMIC_TEMPORARY_SUFFIX, MEMORY_STAGE_FILE_MODE } from '../../shared/constants'
-import type { ToolIo } from '../../core/backends/modelapi/tools'
+import { MEMORY_STAGE_FILE_MODE } from '../../shared/constants'
+import type { StagedFile, ToolIo } from '../../core/backends/modelapi/tools'
 import type { MemoryDirectoryEntry, MemoryIo } from '../../core/memory/memoryStore'
 import { isMissingPath } from '../canonicalPath'
+import { createFileExclusively } from '../fsAtomic'
+
+/**
+ * A folder's entries by kind, a link or junction reported as neither file
+ * nor folder; rejects as `readdir` does (plans, M79, tell a missing folder
+ * from one that is a file).
+ */
+export async function entriesByKind(
+  absolutePath: string,
+): Promise<readonly MemoryDirectoryEntry[]> {
+  const entries = await readdir(absolutePath, { withFileTypes: true })
+  return entries.map((entry) => {
+    let kind: MemoryDirectoryEntry['kind'] = 'other'
+    if (entry.isFile()) {
+      kind = 'file'
+    } else if (entry.isDirectory()) {
+      kind = 'directory'
+    }
+    return { name: entry.name, kind }
+  })
+}
 
 /** A folder's entries; none when it does not exist. */
 export async function listMemoryEntries(
   absolutePath: string,
 ): Promise<readonly MemoryDirectoryEntry[]> {
   try {
-    const entries = await readdir(absolutePath, { withFileTypes: true })
-    return entries.map((entry) => {
-      let kind: MemoryDirectoryEntry['kind'] = 'other'
-      if (entry.isFile()) {
-        kind = 'file'
-      } else if (entry.isDirectory()) {
-        kind = 'directory'
-      }
-      return { name: entry.name, kind }
-    })
+    return await entriesByKind(absolutePath)
   } catch (error: unknown) {
     if (isMissingPath(error)) {
       return []
@@ -46,44 +57,66 @@ export function createMemoryIo(
     readonly warn: (message: string) => void
     /** Replace the hard-link call in a deterministic publication test. */
     readonly publish?: (stage: string, target: string) => Promise<void>
+    /** Existing atomic staging seam for a deterministic publication test. */
+    readonly staged?: (file: StagedFile) => Promise<void>
+    /** Runtime owners fence publication after asynchronous staging. */
+    readonly assertCanWrite?: () => void
+    /**
+     * Exclusive creation has no ToolIo write call: what the tool io does
+     * around a write runs here instead, the checkpoint storage refused and,
+     * through a turn's recording io (M86), its intent journaled before
+     * `publish` runs.
+     */
+    readonly aroundCreate?: (
+      absolutePath: string,
+      content: string,
+      checkedPath: string | undefined,
+      publish: (staged?: (file: StagedFile) => Promise<void>) => Promise<void>,
+    ) => Promise<void>
   },
 ): MemoryIo {
+  const admission = (assertCanWrite?: () => void) => () => {
+    options.assertCanWrite?.()
+    assertCanWrite?.()
+  }
+  const createNote = (
+    absolutePath: string,
+    content: string,
+    checkedPath: string | undefined,
+    assertCanWrite: (() => void) | undefined,
+    staged?: (file: StagedFile) => Promise<void>,
+  ) =>
+    createFileExclusively(absolutePath, content, {
+      mode: MEMORY_STAGE_FILE_MODE,
+      assertCanWrite: admission(assertCanWrite),
+      // The folder `locate` checked (C2-4): one swapped for a link since is refused.
+      ...(checkedPath !== undefined && { expectedDirectory: path.dirname(checkedPath) }),
+      // The stage is named after the note, which the model named: not logged (M39).
+      warn: (_stage, isPublished, error) => {
+        const when = isPublished ? 'after the note was published' : 'after the write failed'
+        const code =
+          typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+        options.warn(`a memory note's hidden stage could not be removed ${when} (${String(code)})`)
+      },
+      ...(options.publish !== undefined && { publish: options.publish }),
+      staged: async (file) => {
+        await options.staged?.(file)
+        await staged?.(file)
+      },
+    })
   return {
-    readFile: (absolutePath) => files.readFile(absolutePath),
+    readFile: (absolutePath, observeSource) =>
+      files.readFile(absolutePath, undefined, undefined, observeSource),
     hasUnsavedChanges: (absolutePath) => files.hasUnsavedChanges(absolutePath),
-    writeFile: (absolutePath, content) => files.writeFile(absolutePath, content),
-    async createFile(absolutePath, content) {
-      const directory = path.dirname(absolutePath)
-      await mkdir(directory, { recursive: true })
-      const stage = path.join(
-        directory,
-        `.${path.basename(absolutePath)}.${randomUUID()}${ATOMIC_TEMPORARY_SUFFIX}`,
-      )
-      let hasOwnedStage = false
-      try {
-        const handle = await open(stage, 'wx', MEMORY_STAGE_FILE_MODE)
-        hasOwnedStage = true
-        try {
-          await handle.writeFile(content, 'utf8')
-          await handle.sync()
-        } finally {
-          await handle.close()
-        }
-        // A same-folder hard link publishes complete bytes under the target
-        // name without replacing another writer's note. Unsupported file
-        // systems fail closed; copy and rename cannot make both guarantees.
-        await (options.publish ?? link)(stage, absolutePath)
-      } finally {
-        if (hasOwnedStage) {
-          try {
-            await rm(stage, { force: true })
-          } catch (error: unknown) {
-            // Once linked, the note is complete. Keep that success so its
-            // index line is written; the hidden stage can be cleaned later.
-            options.warn(`memory stage ${stage} could not be removed: ${String(error)}`)
-          }
-        }
-      }
+    // The checked path holds a replacement to where `locate` found the note (C2-4, M86).
+    writeFile: (absolutePath, content, checkedPath, assertCanWrite) =>
+      files.writeFile(absolutePath, content, checkedPath, admission(assertCanWrite)),
+    createFile: async (absolutePath, content, checkedPath, assertCanWrite) => {
+      const publish = (staged?: (file: StagedFile) => Promise<void>) =>
+        createNote(absolutePath, content, checkedPath, assertCanWrite, staged)
+      await (options.aroundCreate === undefined
+        ? publish()
+        : options.aroundCreate(absolutePath, content, checkedPath, publish))
     },
     realPath: (absolutePath) => files.realPath(absolutePath),
     listEntries: listMemoryEntries,

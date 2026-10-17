@@ -26,9 +26,9 @@ describe('ErrorBoundary', () => {
   })
 
   it('shows the error with a Reload button that asks the host for a fresh document', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {
-      // React and the boundary both report; the test asserts on the boundary's line.
-    })
+    // Call-through only (no replacement): React and the boundary both
+    // report; the test asserts on the boundary's line.
+    const consoleError = vi.spyOn(console, 'error')
     const onReload = vi.fn()
     const onError = vi.fn()
     render(
@@ -37,7 +37,7 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>,
     )
     const alert = screen.getByRole('alert')
-    expect(alert).toHaveTextContent('The panel hit an error')
+    expect(alert).toHaveTextContent('The Panel Hit an Error')
     expect(alert).toHaveTextContent('render exploded')
     expect(screen.queryByText('fine')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Reload' }))

@@ -3,7 +3,7 @@
 
 import type * as vscode from 'vscode'
 import type { HostToWebviewMessage } from '../../shared/protocol'
-import type { ChatSurface } from './webviewSetup'
+import type { ChatSurface } from './chatSurface'
 
 export class SurfaceRegistry {
   private readonly surfaces = new Map<string, ChatSurface>()

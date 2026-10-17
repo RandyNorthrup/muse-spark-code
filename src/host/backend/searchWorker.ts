@@ -16,6 +16,7 @@ import type {
   SearchOutcome,
   SearchWorkerMessage,
 } from '../../core/backends/modelapi/tools'
+import { compileDenyGlobsWithin } from '../../core/backends/modelapi/glob'
 
 const LINE_BREAK = /\r?\n/
 
@@ -27,21 +28,48 @@ const SEARCH_JOB = z.object({
   files: z.array(z.object({ relative: z.string(), absolute: z.string() })),
   maxFileBytes: z.number(),
   maxHits: z.number(),
+  maxHitChars: z.number(),
+  denyRead: z.array(z.string()),
+  globLimits: z.object({ maxLength: z.number(), maxAlternatives: z.number() }),
 })
 
 function isBinary(text: string): boolean {
   return text.includes('\0')
 }
 
+/** The first code point past the Basic Multilingual Plane. */
+const ASTRAL_PLANE_START = 0x1_00_00
+
+/**
+ * One hit within `max` characters (M101, Pi's truncate): a minified line
+ * cannot fill the whole search budget. Cut on a code point boundary, saying
+ * how far the line goes.
+ */
+function clipHit(line: string, max: number): string {
+  if (line.length <= max) {
+    return line
+  }
+  // At or past the astral start the character at max - 1 is a lead
+  // surrogate, so the cut moves one back to keep the pair whole.
+  const end = (line.codePointAt(max - 1) ?? 0) >= ASTRAL_PLANE_START ? max - 1 : max
+  return `${line.slice(0, Math.max(end, 0))}… [line cut to ${String(max)} characters]`
+}
+
 /** The matching lines of one file, at most `room` of them. */
-function matchesIn(regex: RegExp, file: string, text: string, room: number): SearchHit[] {
+function matchesIn(
+  regex: RegExp,
+  file: string,
+  text: string,
+  room: number,
+  maxHitChars: number,
+): SearchHit[] {
   const hits: SearchHit[] = []
   for (const [index, line] of text.split(LINE_BREAK).entries()) {
     if (hits.length >= room) {
       break
     }
     if (regex.test(line)) {
-      hits.push({ file, line: index + 1, text: line })
+      hits.push({ file, line: index + 1, text: clipHit(line, maxHitChars) })
     }
   }
   return hits
@@ -57,14 +85,22 @@ function isInside(root: string, target: string): boolean {
   )
 }
 
-/** The file's text when it is a small, confined, readable text file. */
+/**
+ * The file's text when it is a small, confined, readable text file that the
+ * permission settings do not deny by its canonical path (M78).
+ */
 async function searchableText(
   realRoot: string,
   absolute: string,
   maxFileBytes: number,
+  isDenied: (relativePaths: readonly string[]) => boolean,
 ): Promise<string | undefined> {
   try {
-    if (!isInside(realRoot, await realpath(absolute))) {
+    const real = await realpath(absolute)
+    if (!isInside(realRoot, real)) {
+      return undefined
+    }
+    if (isDenied([path.relative(realRoot, real).split(path.sep).join('/')])) {
       return undefined
     }
     const info = await stat(absolute)
@@ -91,16 +127,17 @@ async function run(job: SearchJob): Promise<SearchOutcome> {
     }
   }
   const realRoot = await realpath(job.root)
+  const isDenied = compileDenyGlobsWithin(job.denyRead, job.globLimits)
   let found = 0
   for (const file of job.files) {
     if (found >= job.maxHits) {
       break
     }
-    const text = await searchableText(realRoot, file.absolute, job.maxFileBytes)
+    const text = await searchableText(realRoot, file.absolute, job.maxFileBytes, isDenied)
     if (text === undefined) {
       continue
     }
-    const hits = matchesIn(regex, file.relative, text, job.maxHits - found)
+    const hits = matchesIn(regex, file.relative, text, job.maxHits - found, job.maxHitChars)
     if (hits.length === 0) {
       continue
     }

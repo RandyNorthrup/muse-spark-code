@@ -1,0 +1,14 @@
+{
+  // The code intelligence fixture's own project (M67): VS Code's TypeScript
+  // service loads it for the integration test, and ESLint's project service
+  // lints the two files with it.
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "noEmit": true
+  },
+  "include": ["./*.ts"]
+}
