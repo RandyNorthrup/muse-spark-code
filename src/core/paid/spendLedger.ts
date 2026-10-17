@@ -391,9 +391,37 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     }
     return state
   }
+  // One process never contends with itself through the filesystem lock:
+  // same-scope operations from this instance queue here first, so the
+  // on-disk lock only ever arbitrates between processes and a holder in
+  // this process can never make its own next operation refuse as busy.
+  const tails = new Map<string, Promise<void>>()
+  const serialise = async <T>(scope: LedgerScope, operation: () => Promise<T>): Promise<T> => {
+    const key = scope.directory
+    const previous = tails.get(key) ?? Promise.resolve()
+    // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
+    let releaseGate: (() => void) | undefined
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Node 20 (VS Code 1.99's host) lacks Promise.withResolvers (PLAN.md §8); the executor assigns the resolver synchronously, so releaseGate?.() in finally always releases the next operation.
+    const gate = new Promise<void>((resolve) => {
+      releaseGate = resolve
+    })
+    const tail = (async (): Promise<void> => {
+      await previous
+      await gate
+    })()
+    tails.set(key, tail)
+    await previous
+    try {
+      return await operation()
+    } finally {
+      releaseGate?.()
+      if (tails.get(key) === tail) tails.delete(key)
+    }
+  }
   const lockOperation = async <T>(
     scope: LedgerScope,
     operation: (state: State) => Promise<T>,
+    timeoutMs: number,
   ): Promise<T> => {
     for (const folder of ['', 'audit', 'history', 'sent', 'inbox', 'owners'])
       mkdirSync(path.join(scope.directory, folder), { recursive: true })
@@ -436,12 +464,14 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     const staging = path.join(scope.directory, `.lock-${randomUUID()}`)
     mkdirSync(staging)
     linkSync(path.join(scope.directory, 'owners', id), path.join(staging, id))
-    const deadline = performance.now() + SPEND_LEDGER_LOCK_TIMEOUT_MS
+    const deadline = performance.now() + timeoutMs
     const judged = new Map<string, boolean>()
     let isAcquired = false
+    let attempts = 0
     try {
       for (;;) {
-        if (performance.now() >= deadline) fail(scope, 'busy', 'lock')
+        // The first attempt always runs, so a zero wait means try once.
+        if (attempts++ > 0 && performance.now() >= deadline) fail(scope, 'busy', 'lock')
         let renameError: unknown
         try {
           renameSync(staging, lock)
@@ -531,9 +561,10 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
   const locked = async <T>(
     scope: LedgerScope,
     operation: (state: State) => Promise<T>,
+    timeoutMs: number = SPEND_LEDGER_LOCK_TIMEOUT_MS,
   ): Promise<T> => {
     try {
-      return await lockOperation(scope, operation)
+      return await serialise(scope, async () => await lockOperation(scope, operation, timeoutMs))
     } catch (error: unknown) {
       if (isSpendLedgerError(error)) throw error
       return fail(scope, 'unreadable', 'lock or recovery', error)
@@ -576,8 +607,11 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     }
   }
   const drainOrView = async (scope: LedgerScope): Promise<LedgerTotal> => {
+    // The charge is already durable in the inbox and counted by view():
+    // draining it now is opportunistic, so never wait out another
+    // process's lock hold just to fold it into the snapshot.
     try {
-      return await locked(scope, (state) => Promise.resolve(total(state)))
+      return await locked(scope, (state) => Promise.resolve(total(state)), 0)
     } catch (error: unknown) {
       if (isSpendLedgerError(error) && error.kind === 'busy') return view(scope)
       throw error
