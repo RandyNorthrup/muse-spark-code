@@ -25,7 +25,12 @@ import { createRuntimeBackend } from '../../src/runtime/backends'
 import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
-import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import {
+  ACP_AGENT_NAME,
+  SECRET_KEYS,
+  UI_TEXT,
+  WHATS_NEW_CHANGELOG_URL,
+} from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { readUiTableFile } from '../../src/host/l10n'
 import { unpackUiTable } from '../../src/shared/l10n/packed'
@@ -401,6 +406,24 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       stage = 'stdio disconnect'
     })
     stage = 'completed'
+  })
+
+  it('reads the release notes as /whatsnew and lists it in /help, with no model send (M99)', async () => {
+    const agent = startAgent(signedIn)
+    await agent.run(async (client) => {
+      const sessionId = await newSession(client)
+      const ask = (prompt: string) =>
+        client.request('session/prompt', { sessionId, prompt: [{ type: 'text', text: prompt }] })
+      expect(await ask('/help')).toEqual({ stopReason: 'end_turn' })
+      expect(text(agent.updates)).toMatch(/\/whatsnew\b/)
+      const before = agent.updates.length
+      expect(await ask('/whatsnew')).toEqual({ stopReason: 'end_turn' })
+      const said = text(agent.updates.slice(before))
+      expect(said).toContain(UI_TEXT.whatsNewTitle)
+      expect(said).toMatch(/^## \d+\.\d+\.\d+/m)
+      expect(said).toContain(WHATS_NEW_CHANGELOG_URL)
+      expect(agent.updates.filter((update) => update.sessionUpdate === 'tool_call')).toHaveLength(0)
+    })
   })
 
   it('streams a reply, runs an allowed tool call and skips a denied one, on Muse Code', async () => {
