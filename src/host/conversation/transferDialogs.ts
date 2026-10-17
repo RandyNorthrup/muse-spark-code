@@ -5,7 +5,7 @@
 // `./sessionImport`.
 
 import * as vscode from 'vscode'
-import { SESSION_EXPORT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
+import { UI_TEXT } from '../../shared/constants'
 import { readPickedFile } from '../backend/toolIo'
 import { canonicalPath } from '../canonicalPath'
 import type { SessionTransferFiles } from './sessionImport'
@@ -30,11 +30,14 @@ export function createSessionTransferFiles(): SessionTransferFiles {
         throw new Error(UI_TEXT.transferLocalFileOnly)
       }
       const expectedCanonicalPath = await canonicalPath(target.fsPath)
+      // A share file reads whole at any size (D121: the removed 16 MiB
+      // ceiling was invented), so every file written can be read back;
+      // the schema's item count still bounds what parses.
       const { bytes, isMissing } = await readPickedFile(
         target.fsPath,
-        SESSION_EXPORT_MAX_BYTES,
+        Infinity,
         expectedCanonicalPath,
-        SESSION_EXPORT_MAX_BYTES,
+        Infinity,
       )
       // Moved or deleted (a sync client) between the dialog and the read.
       if (isMissing) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildChatShare, renderChatShare } from '../../src/core/sharing/chatShare'
 import { createChatSharePrivacy } from '../../src/core/sharing/privacy'
-import { SESSION_EXPORT_MAX_BYTES, SESSION_EXPORT_MAX_ITEMS } from '../../src/shared/constants'
+import { SESSION_EXPORT_MAX_ITEMS } from '../../src/shared/constants'
 
 const privacy = createChatSharePrivacy({
   workspaceRoots: [],
@@ -77,7 +77,7 @@ describe('M118 ranges and limits', () => {
       ),
     ).toThrow()
   })
-  it('refuses empty history, too many items and output past the UTF-8 byte cap', () => {
+  it('refuses empty history and too many items, and renders past the old byte cap (D121)', () => {
     expect(() => buildChatShare({ ...source, items: [] }, request, privacy)).toThrow(
       'no conversation',
     )
@@ -97,11 +97,13 @@ describe('M118 ranges and limits', () => {
     const huge = buildChatShare(
       {
         ...source,
-        items: [{ ...source.items[0]!, text: 'é'.repeat(SESSION_EXPORT_MAX_BYTES / 2) }],
+        items: [{ ...source.items[0]!, text: 'é'.repeat(9 * 1024 * 1024) }],
       },
       request,
       privacy,
     )
-    expect(() => renderChatShare(huge, 'json')).toThrow('limit')
+    expect(new TextEncoder().encode(renderChatShare(huge, 'json')).byteLength).toBeGreaterThan(
+      16 * 1024 * 1024,
+    )
   })
 })

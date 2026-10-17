@@ -5312,6 +5312,9 @@ export const REPORT_NETWORK_MAX_BYTES = 2 * 1024 * 1024
 export const REPORT_NETWORK_MAX_PAGES = 3
 export const REPORT_NETWORK_CACHE_ENTRIES = 100
 export const REPORT_SOURCE_TIMEOUT_MS = 5000
+// Report sources read bounded (D121: this keeps the 16 MiB bound the removed
+// session-export cap used to lend them; the report reader is not this lane's row).
+export const REPORT_SOURCE_MAX_BYTES = 16 * 1024 * 1024
 export const REPORT_GITHUB_RATE_FLOOR = 10
 export const REPORT_CHECK_RUNS_MAX = 500
 export const REPORT_HISTORY_MAX_PER_KIND = 50
@@ -5589,11 +5592,9 @@ export const SHARE_DESTINATIONS = [
   'email',
 ] as const
 export const SHARE_LOCAL_DESTINATIONS = ['copy', 'file', 'browser'] as const
-// A file is read whole and its transcript posted to the panel. It holds text
-// only (no image or PDF bytes), so 16 MiB is far past a long conversation;
-// an export over it is refused, so every file written can be read back.
-export const SESSION_EXPORT_MAX_BYTES = 16 * 1024 * 1024
 // The most transcript items a file may hold; a long agentic session has a few thousand.
+// (D121: the removed 16 MiB file ceiling was invented; files write and read
+// back at any byte size.)
 export const SESSION_EXPORT_MAX_ITEMS = 20_000
 // How many characters an export scrubs before it lets the extension host's
 // event loop run (RV84 #9). Measured 2026-10-01: a 4 MiB conversation held
