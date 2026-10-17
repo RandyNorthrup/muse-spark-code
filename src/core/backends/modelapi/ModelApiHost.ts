@@ -378,6 +378,8 @@ import {
   afterAgentThoughtFields,
   beforeToolSelectionFields,
   createFileChangedThrottle,
+  dispatchElicitationHooks,
+  dispatchElicitationResultHooks,
   emptyExtensionDispatch,
   extensionHookPayload,
   fileChangedFields,
@@ -388,7 +390,9 @@ import {
   isFileChangedWatched,
   permissionDeniedFields,
   taskFields,
+  teammateIdleFields,
   userPromptExpansionFields,
+  type ElicitationHookFire,
   type ExtensionHookContext,
   type ExtensionHookDefinition,
   type ExtensionHookDispatch,
@@ -3472,8 +3476,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     matcherValue: string | undefined,
     signal: AbortSignal | undefined,
     shouldReplayContexts = true,
+    onlySources?: readonly ExtensionHookDefinition['source'][],
   ): Promise<ExtensionHookDispatch | undefined> {
-    const hooks = this.enabledExtensionHooks()
+    const enabled = this.enabledExtensionHooks()
+    const hooks =
+      onlySources === undefined
+        ? enabled
+        : enabled.filter((hook) => onlySources.includes(hook.source))
     if (hooks.length === 0) {
       return undefined
     }
@@ -7186,7 +7195,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const seam =
       this.deps.isHooksEnabled?.() === false
         ? ALLOW_ELICITATION_SEAM
-        : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
+        : (this.deps.elicitationHooks ?? this.defaultElicitationSeam())
     const checked = forms.validateElicitationSchema(parsed.requestedSchema)
     if (!checked.ok) {
       this.deps.log.warn(`MCP server ${server} elicitation declined: ${checked.reason}`)
@@ -7293,6 +7302,33 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
+   * The default Elicitation seam (M91 D70): the configured extension hooks
+   * run, since the host injects no seam of its own. The scope grouping
+   * (policy hooks decline only, user hooks answer and alone see values)
+   * lives in `dispatchElicitationHooks`/`dispatchElicitationResultHooks`;
+   * this binds them to the session's hook dispatch. There is no turn, so
+   * hook contexts drop and hook messages surface as notices.
+   */
+  private defaultElicitationSeam(): ElicitationHookSeam {
+    const fire: ElicitationHookFire = async (event, fields, matcherValue, onlySources) =>
+      await this.fireExtensionHooks(
+        event,
+        undefined,
+        fields,
+        matcherValue,
+        undefined,
+        true,
+        onlySources,
+      )
+    return {
+      fireElicitation: async (input) => await dispatchElicitationHooks(fire, input),
+      fireElicitationResult: async (input) => {
+        await dispatchElicitationResultHooks(fire, input)
+      },
+    }
+  }
+
+  /**
    * The ElicitationResult hook run (observation) and the server's answer. A
    * project hook sees the field names and the action only, never values.
    */
@@ -7305,8 +7341,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     const seam =
       this.deps.isHooksEnabled?.() === false
         ? ALLOW_ELICITATION_SEAM
-        : (this.deps.elicitationHooks ?? ALLOW_ELICITATION_SEAM)
-    await seam.fireElicitationResult({ server, fieldNames: [...fieldNames], action })
+        : (this.deps.elicitationHooks ?? this.defaultElicitationSeam())
+    await seam.fireElicitationResult({
+      server,
+      fieldNames: [...fieldNames],
+      action,
+      ...(content !== undefined && { values: content }),
+    })
     this.deps.log.info(describeElicitationForLog(server, fieldNames, action))
     return action === 'accept' ? { action, content: { ...content } } : { action }
   }
@@ -9115,7 +9156,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const verdict = await this.fireExtensionHooks(
       'TeammateIdle',
       undefined,
-      { name: child.id, siblings_running: siblings },
+      teammateIdleFields({ name: child.id, siblingsRunning: siblings }),
       child.id,
       undefined,
     )

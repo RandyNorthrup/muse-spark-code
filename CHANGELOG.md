@@ -15,6 +15,15 @@ happened, not what was planned; superseded entries are kept.
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
 
+- MCP elicitation hooks now run. With `museSpark.modelApiHooks` on, a
+  project's `Elicitation` hook can decline the request and a user hook can
+  answer it (checked against the server's schema); `ElicitationResult`
+  observers in the project see field names and the outcome only, while user
+  hooks also see accepted values. When a project or managed hook declines,
+  user hooks are not run for that request (they still see the outcome in
+  `ElicitationResult`). Previously these hooks were accepted by the
+  configuration but never ran.
+
 ### Pending
 
 - All fourteen translated settings tables now say Muse Code asks before a

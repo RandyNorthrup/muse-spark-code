@@ -54,6 +54,11 @@ import {
 } from './hooks'
 import { sparkHooksFiles } from './hookNames'
 import { compileGlob } from './globLimits'
+import type {
+  ElicitationHookInput,
+  ElicitationHookVerdict,
+  ElicitationResultInput,
+} from './mcp/elicitation'
 import { boundedHookText } from './toolHookPayload'
 import type { ContextIo } from '../../context/contextFiles'
 import { decodeContextText } from '../../context/contextFiles'
@@ -673,10 +678,29 @@ export function directoryAddedFields(relativePath: string): Readonly<Record<stri
 }
 
 /**
+ * What an Elicitation hook sees before the form shows: the requesting
+ * server, its bounded message and the field names (which are required).
+ * Values are never sent up front: a user hook answers through the `answer`
+ * field, which the caller validates against the server's schema.
+ */
+export function elicitationFields(
+  server: string,
+  message: string,
+  fieldNames: readonly string[],
+  requiredNames: readonly string[],
+): Readonly<Record<string, unknown>> {
+  return {
+    server,
+    message: boundedHookText(message, HOOK_DISPLAY_MESSAGE_MAX_CHARS),
+    fields: [...fieldNames],
+    required: [...requiredNames],
+  }
+}
+
+/**
  * What the user answered. A project hook sees the action and the field
  * names only; `values` are passed for user-scope hooks alone (the caller
  * decides the scope; lane M validates the answer against the schema).
- * @unwired M91 project hook elicitation fields
  */
 export function elicitationResultFields(options: {
   readonly server: string
@@ -692,12 +716,107 @@ export function elicitationResultFields(options: {
   }
 }
 
-/** @unwired M91 team hook idle field names */
+/** The fields a TeammateIdle hook sees: the idling task and its running siblings. */
 export function teammateIdleFields(options: {
   readonly name: string
   readonly siblingsRunning: number
 }): Readonly<Record<string, unknown>> {
   return { name: options.name, siblings_running: options.siblingsRunning }
+}
+
+function isVerdictAnswerRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * The Elicitation verdict from the two scope-grouped dispatches (M91 D70).
+ * Policy hooks (project, managed) run first and can only decline; the
+ * user's own hooks run next and may also answer. A refusal declines with
+ * the hook's reason; cancel stays the caller's own stop/timeout path,
+ * because the hook protocol carries a single refusal. A user answer that
+ * is not a record declines rather than guessing.
+ */
+export function elicitationVerdictFromDispatch(
+  policy: ExtensionHookDispatch | undefined,
+  personal: ExtensionHookDispatch | undefined,
+): ElicitationHookVerdict {
+  if (policy?.refusedReason !== undefined) {
+    return { decision: 'decline', source: 'project', reason: policy.refusedReason }
+  }
+  if (personal?.refusedReason !== undefined) {
+    return { decision: 'decline', source: 'user', reason: personal.refusedReason }
+  }
+  if (personal?.hasAnswer === true) {
+    return isVerdictAnswerRecord(personal.answer)
+      ? { decision: 'answer', source: 'user', values: personal.answer }
+      : { decision: 'decline', source: 'user', reason: 'hook answer is not a record' }
+  }
+  return { decision: 'proceed' }
+}
+
+/** Fires one elicitation event for one scope group; the session binds it to its hook dispatch. */
+export type ElicitationHookFire = (
+  event: Extract<ExtensionHookEvent, 'Elicitation' | 'ElicitationResult'>,
+  fields: Readonly<Record<string, unknown>>,
+  matcherValue: string,
+  onlySources: readonly HookSource[],
+) => Promise<ExtensionHookDispatch | undefined>
+
+/**
+ * The Elicitation hook run before the form (M91 D70): policy hooks (project
+ * and managed) first, decline only; then the user's own hooks, which may
+ * also answer. A policy refusal settles it, so the user's hooks do not run
+ * at all: their answer could not be used, and they still observe the
+ * outcome through ElicitationResult.
+ */
+export async function dispatchElicitationHooks(
+  fire: ElicitationHookFire,
+  input: ElicitationHookInput,
+): Promise<ElicitationHookVerdict> {
+  const fields = elicitationFields(
+    input.server,
+    input.message,
+    input.fieldNames,
+    input.requiredNames,
+  )
+  const policy = await fire('Elicitation', fields, input.server, ['project', 'managed'])
+  if (policy?.refusedReason !== undefined) {
+    return elicitationVerdictFromDispatch(policy, undefined)
+  }
+  const personal = await fire('Elicitation', fields, input.server, ['user'])
+  return elicitationVerdictFromDispatch(policy, personal)
+}
+
+/**
+ * The ElicitationResult observation run (M91 D70): project and managed
+ * hooks see the field names and the action only; the accepted values go to
+ * the user's own hooks alone.
+ */
+export async function dispatchElicitationResultHooks(
+  fire: ElicitationHookFire,
+  input: ElicitationResultInput,
+): Promise<void> {
+  await fire(
+    'ElicitationResult',
+    elicitationResultFields({
+      server: input.server,
+      action: input.action,
+      fieldNames: input.fieldNames,
+    }),
+    input.server,
+    ['project', 'managed'],
+  )
+  await fire(
+    'ElicitationResult',
+    elicitationResultFields({
+      server: input.server,
+      action: input.action,
+      fieldNames: input.fieldNames,
+      ...(input.values !== undefined && { values: input.values }),
+    }),
+    input.server,
+    ['user'],
+  )
 }
 
 export function messageDisplayFields(message: string): Readonly<Record<string, unknown>> {
