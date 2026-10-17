@@ -14394,6 +14394,53 @@ and thats it." A thousand-test suite kept shipping broken code as
 - Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
   1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
 
+### D140 — Claimed-shipped milestones: an `@unwired` tag is resolved by the user-visible promise (MSM58M69, 2026-10-17)
+
+A verification scan found `@unwired` tags carrying shipped milestone ids
+(M58, M69). The tag alone does not mean the promise is broken: TESTCUT
+tagged every unused export with its nearest shipped id. Each item is
+resolved against the plan's user-visible promise, not against the tag:
+
+- **Promise already kept through another path:** the dead export is
+  removed, not wired. M69's `htmlToMarkdown` had no callers (a prior
+  dead-code lane verified zero references; the revert restored it only
+  incidentally): both backends convert through `convertHtmlJob` on the
+  page worker. Wiring a second conversion path would duplicate behaviour
+  to satisfy the gate.
+- **Designed for a milestone that is still building:** it stays unwired
+  and no other lane wires it. `askSchedulePaidConsent` and
+  `createSchedulePaidScope` are M115 Lane U's region
+  (`src/core/paid/paidConsent.ts`, the schedule scope); `paidAccountQuestion`
+  and `AccountPaidUseConsent` are M108 lane P's per-account consent. The
+  tag keeps knip honest until their lanes land.
+- **Fail-closed meanwhile, at the sites a person can reach:** a paid V2
+  draft is refused unless the trusted caller carries `scheduledPrompts`
+  and a budget at least its cap (`src/runtime/schedules/surface.ts`,
+  again in `control.ts`); the panel's caller carries neither
+  (`runtime.ts`, `scheduledPrompts: false`), and the editor's default
+  draft cap is 0 (`schedulesBridge.ts`). A CLI/ACP caller with the flag
+  and budget can create a paid draft today, but it cannot spend: no
+  production code constructs `createSchedulePaidScope` or calls
+  `reserveSchedule`, `UnattendedRun` is never constructed, and the one
+  `ScheduleDelivery` composition (`engine.ts`) has no session target
+  (`find` returns nothing, `open`/`fresh`/`runs` throw
+  target-unavailable). Lane U therefore wires creation consent, the run
+  scope and the reservation **before** any delivery target; nothing here
+  claims a firing V2 run checks consent today (corrected by RVMSM58M69,
+  which also added the surface-refusal tests to
+  `test/unit/schedulePaidConsent.test.ts`; that file's helper tests prove
+  only the unwired helpers' own logic).
+- **Refusals stay default-off:** web fetch keeps refusing private/local
+  addresses and credentialed URLs. A per-role permission for the person's
+  own network is NOT FIXED and not built (owner's choice of 2026-10-16
+  allows one in the model role settings, which have no web-fetch entry
+  today); when it is built, the refuse sites are `checkPageUrl`
+  (`src/core/web/pageUrl.ts`), `isPublicAddress`
+  (`src/core/web/publicAddress.ts`) and the pin in
+  `src/core/web/webFetch.ts`, and every caller (VS Code, ACP/headless,
+  both backends) must pass the role's answer through. MSM58M69 shipped
+  no behaviour change for it.
+
 ## 3. Open questions (need the owner)
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
