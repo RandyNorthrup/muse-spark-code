@@ -2584,6 +2584,7 @@
   "museCodeUnresponsiveTurn": "Muse Code ne répond plus alors qu’un tour est en cours. Le redémarrer arrête ce tour ; la conversation reprend avec votre prochain message.",
   "museCodeRestarted": "Muse Code a été redémarré. Votre prochain message poursuit cette conversation.",
   "sessionLogDamaged": "Le journal Muse Code de cette conversation est endommagé (une défaillance de Muse Code) : elle ne peut donc plus recevoir de nouveaux messages. Commencez une nouvelle conversation ; celle-ci reste dans l’Historique.",
+  "museSignInLostOnRestart": "{exit}, et il n’est plus connecté, donc ce tour n’a pas pu s’exécuter ({detail}). Connectez-vous de nouveau avec « muse login » dans un terminal, ou définissez META_API_KEY pour la CLI, puis renvoyez.",
   "vaultScrubUnavailable": "Le service de nettoyage du coffre est indisponible.",
   "vaultSessionLogUnavailable": "L'exportation du journal de session sécurisé pour le coffre est indisponible.",
   "turnUnqueued": "Non envoyé : le message en file d’attente a été retiré",

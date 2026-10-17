@@ -175,6 +175,14 @@ export class MuseCodeBackendManager {
   private generation = 0
   private resourceStop = new AbortController()
   private launchCache: { readonly key: string; readonly resolution: LaunchResolution } | undefined
+  /**
+   * How the last host's run ended in failure (`HostExit.isFailure`): the
+   * replacement host carries it, so the first turn that fails for a lost
+   * sign-in names the restart instead of failing quietly (F94). Only the
+   * restart that carries it clears it: a fault's Restart goes through
+   * `dispose`, and the failure it follows must still name the next start.
+   */
+  private failedExit: string | undefined
 
   public constructor(private readonly deps: BackendManagerDeps) {}
 
@@ -364,6 +372,9 @@ export class MuseCodeBackendManager {
       close: () => spawned.close(),
     }
     let host: MuseCodeHost
+    // The restart carries the crash that caused it, once: a later spawn
+    // starts clean, and a failed spawn keeps it for the retry.
+    const restartCause = this.failedExit
     try {
       this.deps.accountHome?.assertCurrent()
       host = new MuseCodeHost(
@@ -373,6 +384,7 @@ export class MuseCodeBackendManager {
         this.deps.featurePorts,
         undefined,
         this.deps.accountHome,
+        restartCause,
       )
     } catch (error: unknown) {
       // An initialize result the wrapper cannot read: the process goes too.
@@ -384,12 +396,30 @@ export class MuseCodeBackendManager {
         `muse serve did not grant ${IDE_MCP_CAPABILITY}; the IDE diagnostics tool is unavailable (granted: ${host.info.grantedCapabilities.join(', ')})`,
       )
     }
+    this.failedExit = undefined
     this.deps.log.info(
       `Connected to ${host.info.serverName} ${host.info.serverVersion} in ${String(Date.now() - spawnedAt)} ms (museHome ${host.info.museHome})`,
     )
-    host.onExit(() => {
-      if (this.generation === generation) {
-        this.hostPromise = undefined
+    if (restartCause !== undefined) {
+      this.deps.log.warn(
+        `The previous run ${restartCause}; the replacement starts with the CLI's own credentials, as logged above`,
+      )
+    }
+    host.onExit((exit) => {
+      if (this.generation !== generation) {
+        // A failure that lands while its stop was already asked for (the
+        // incident's "exited as asked" at code 1) still names the next
+        // start, unless a replacement already holds the slot.
+        if (exit.isFailure && this.hostPromise === undefined) {
+          this.failedExit = exit.description
+        }
+        return
+      }
+      this.hostPromise = undefined
+      // A run that ended in failure names the restart its replacement
+      // carries; a clean stop leaves nothing behind.
+      if (exit.isFailure) {
+        this.failedExit = exit.description
       }
     })
     const { unresponsive } = this.deps
@@ -651,6 +681,9 @@ export class MuseCodeBackendManager {
     this.resourceStop = new AbortController()
     const pending = this.hostPromise
     this.hostPromise = undefined
+    // A recorded failure is kept: a fault's Restart stops through here,
+    // and the failure it follows still names the next start (F94). The
+    // exit this stop is about to cause records itself above if it fails.
     this.generation += 1
     if (pending === undefined) {
       return

@@ -2584,6 +2584,7 @@
   "museCodeUnresponsiveTurn": "Muse Code dejó de responder mientras se ejecuta un turno. Reiniciarlo detiene ese turno; la conversación continúa con su próximo mensaje.",
   "museCodeRestarted": "Muse Code se reinició. Su próximo mensaje continúa esta conversación.",
   "sessionLogDamaged": "El registro de Muse Code de esta conversación está dañado (un fallo de Muse Code), por lo que no puede recibir mensajes nuevos. Inicie una nueva conversación; esta permanece en el Historial.",
+  "museSignInLostOnRestart": "{exit} y ya no tiene sesión iniciada, por lo que este turno no pudo ejecutarse ({detail}). Inicie sesión de nuevo con «muse login» en un terminal, o establezca META_API_KEY para la CLI, y envíe de nuevo.",
   "vaultScrubUnavailable": "El servicio de depuración del almacén no está disponible.",
   "vaultSessionLogUnavailable": "La exportación del registro de sesión segura del almacén no está disponible.",
   "turnUnqueued": "No enviado: se retiró el mensaje en cola",

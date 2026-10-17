@@ -98,6 +98,7 @@ import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog, isMspFailure, stderrForLog } from '../../core/backends/musecode/logText'
 import { resolveResumedModel } from '../../core/backends/musecode/resumedModel'
+import { signInLossText } from '../../core/backends/musecode/signInLoss'
 import { chatReferenceText } from '../../core/chatReference'
 import type {
   PlanModeHold,
@@ -1321,6 +1322,12 @@ export class ConversationController {
   private readonly effortSyncs = new WeakMap<AgentSession, EffortSync>()
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
+  /**
+   * The host the attached session runs on (F94): the first turn that
+   * fails for a sign-in its restarted backend lost names that restart.
+   * Set beside the session, cleared with it.
+   */
+  private attachedHost: AgentHost | undefined
   /** An older Muse Code can fix #29 by updating; actual faults still surface on every version. */
   private needsApprovalLedgerUpdate = false
   /** Best-of-N runs (M77): one manager per surface, posting to it. */
@@ -1992,6 +1999,7 @@ export class ConversationController {
     this.sideRefused.clear()
     session?.dispose()
     this.session = undefined
+    this.attachedHost = undefined
     this.activeTurnId = undefined
     this.hasSaidOutputFailure = false
     this.fileMessageIds.clear()
@@ -2801,7 +2809,23 @@ export class ConversationController {
         }
         this.noteActivity()
         if (event.terminal === 'failed' && event.errorKind === AUTH_REQUIRED_ERROR_KIND) {
-          this.deps.auth.markAuthRequired(event.reason ?? AUTH_REQUIRED_ERROR_KIND)
+          // A restarted backend whose replacement lost the sign-in says so
+          // loudly (F94): the panel names the restart and the way back,
+          // instead of failing as just another turn.
+          const restartCause = this.attachedHost?.takeRestartCause?.()
+          const loud =
+            restartCause === undefined
+              ? undefined
+              : signInLossText({
+                  errorKind: event.errorKind,
+                  reason: event.reason,
+                  restartCause,
+                })
+          this.deps.auth.markAuthRequired(loud ?? event.reason ?? AUTH_REQUIRED_ERROR_KIND)
+        } else if (event.terminal === 'completed') {
+          // A turn that ran to completion proves the host: no later
+          // failure blames the restart this host replaced.
+          this.attachedHost?.takeRestartCause?.()
         }
         // This session's own event log failed (a child's turn is the child's).
         if (
@@ -4028,6 +4052,7 @@ export class ConversationController {
     )
     this.session = session
     this.sessionKind = host.info.kind
+    this.attachedHost = host
     // MSP serves 1.4.3; installed build labels such as 1.4.3-R5018.1 name
     // the same release, not a semver prerelease. Unknown versions stay defensive.
     const version = host.info.serverVersion.replace(/-R\d+\.\d+$/, '')
