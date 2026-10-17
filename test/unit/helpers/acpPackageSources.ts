@@ -12,12 +12,18 @@ import {
   JOB_SOURCES,
   LINUX_HELPERS,
   RUNNER_HELPERS,
+  VOICE_WINDOWS_HELPERS,
 } from '../../../scripts/lib/acpNativeSources.mjs'
 
 const SOURCES_MODULE = path.join('scripts', 'lib', 'acpNativeSources.mjs')
 
 /** Every native file the packager copies one by one. */
-export const ACP_NATIVE_FILES: readonly string[] = [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS]
+export const ACP_NATIVE_FILES: readonly string[] = [
+  ...JOB_SOURCES,
+  DARWIN_HELPER,
+  ...LINUX_HELPERS,
+  ...VOICE_WINDOWS_HELPERS,
+]
 
 /**
  * Lays out the packager's native inputs under `root`: inert test-owned bytes

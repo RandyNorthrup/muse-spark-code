@@ -666,6 +666,20 @@ const usageCompanionOptions = {
   entryPoints: [USAGE_COMPANION_ENTRY],
   outfile: 'dist/usageCompanion.js',
 }
+const voiceCompanionOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/runtime/companion/voiceEntry.ts'],
+  outfile: 'dist/voiceCompanion.js',
+}
+const voiceCompanionWebviewOptions = {
+  ...common,
+  plugins: isProduction ? [compactBrowserUiText] : [],
+  entryPoints: ['src/webview/voice/companion.ts'],
+  outfile: 'dist/webview/voiceCompanion.js',
+  platform: 'browser',
+  format: 'esm',
+  target: BROWSER_TARGET,
+}
 const usagePanelOptions = {
   ...hostOptions,
   entryPoints: [USAGE_PANEL_ENTRY],
@@ -1283,6 +1297,8 @@ if (isWatch) {
     esbuild.context(usageServiceOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
+    esbuild.context(voiceCompanionOptions),
+    esbuild.context(voiceCompanionWebviewOptions),
     esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(vaultOptions),
@@ -1399,6 +1415,8 @@ if (isWatch) {
     modelsSubscriptions: esbuild.build(modelsSubscriptionsOptions),
     usageService: esbuild.build(usageServiceOptions),
     usageCompanion: esbuild.build(usageCompanionOptions),
+    voiceCompanion: esbuild.build(voiceCompanionOptions),
+    voiceCompanionWebview: esbuild.build(voiceCompanionWebviewOptions),
     usagePanel: esbuild.build(usagePanelOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
     vault: esbuild.build(vaultOptions),

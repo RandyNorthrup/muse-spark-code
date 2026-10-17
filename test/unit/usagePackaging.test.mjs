@@ -41,6 +41,7 @@ function fixture() {
   )
   for (const bundle of ACP_BUNDLES)
     if (bundle.endsWith('.js')) put(`dist/${bundle}`, 'exports.EN = {}')
+
   layOutAcpNativeSources(root, process.cwd())
   put('LICENSE', 'MIT')
   put('design/fonts/manifest.json', readFileSync('design/fonts/manifest.json', 'utf8'))
@@ -100,6 +101,11 @@ function fixture() {
   }
   for (const file of Object.keys(outputs)) put(file, '/* usage asset */')
   put('dist/webview/main.js', '/* chat must not ship */')
+  // The packager copies the companion page beside the usage assets
+  // (scripts/package-acp.mjs pageAssets); stub both so the tarball
+  // assertion below runs instead of failing in requireBundles.
+  put('dist/webview/voiceCompanion.js', '/* companion page fixture */')
+  put('dist/webview/voiceCompanion.css', '/* companion page fixture */')
   put('dist/webview/usage.js.map', '/* private source paths must not ship */')
   put('dist/meta/usageWebview.json', JSON.stringify({ outputs }))
   return {
@@ -143,6 +149,8 @@ describe('usage assets in the ACP package', () => {
         expect(archived[file.slice('usage.'.length, -'.json'.length)]).toEqual(
           JSON.parse(readFileSync(path.join(f.root, 'l10n', file), 'utf8')),
         )
+    // The packaged companion's Windows free engine (RVCMICCOMP finding 1).
+    expect(files).toContain('package/native/windows/dictate.ps1')
     expect(files).not.toContain('package/dist/webview/main.js')
     expect(files).not.toContain('package/dist/webview/usage.js.map')
     expect(files).not.toContain('package/l10n/untranslated.json')

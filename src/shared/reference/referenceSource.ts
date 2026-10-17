@@ -1,3 +1,4 @@
+import { COMPANION_VOICE_RELEASE } from '../constants'
 // The generator's build entry: its imports are visible to the dead-code gate.
 export {
   featureCatalog,
@@ -66,7 +67,11 @@ export { parseHandoffPrompt } from '../handoff'
 
 // Reviewed host capability inventory: pairs are explicit, never a Cartesian claim.
 // The tooling gate also checks tool/action coverage and host admission witnesses.
+const companionCapabilities: [string, readonly string[]][] = COMPANION_VOICE_RELEASE.isReady
+  ? [['companion-dictation', ['acp:museCode', 'acp:modelApi']]]
+  : []
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
+  ...companionCapabilities,
   ['resources', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi']],
   ...['strict-tools', 'parallel-reads', 'cut-short-tools', 'structured-side-calls'].map(

@@ -1,4 +1,13 @@
 {
+  "companionVoiceTitle": "Dictar",
+  "companionVoiceCancel": "Cancelar",
+  "companionVoiceFailed": "El dictado falló o fue rechazado. Comprueba el permiso del micrófono, el motor elegido y el presupuesto diario, y vuelve a grabar. Una solicitud de pago ya enviada aún puede generar un cargo.",
+  "companionVoiceFree": "Sistema operativo (gratis)",
+  "companionVoiceReview": "Revisar la transcripción antes de enviar",
+  "companionVoiceLimit": "Máximo {seconds} segundos. El audio se elimina tras la transcripción.",
+  "companionVoicePaidSummary": "Audio de pago: {duration}.",
+  "companionVoiceOpen": "Abrir la página auxiliar de dictado",
+  "companionVoiceReference": "Dictar en el navegador y revisar el texto antes de enviarlo a la sesión ACP o terminal correspondiente. El reconocimiento del sistema es gratuito en Windows y macOS; Muse Voice es de pago, pide consentimiento y comparte el presupuesto diario.",
   "resourceTitle": "Recursos",
   "resourceHarnessInTree": "Detención en pausa: el proceso de control sigue en este árbol. Se conserva su control; vuelve a intentar detenerlo.",
   "resourceCgroupChanged": "Detención rechazada: la cgroup de este árbol se eliminó o reemplazó. Se conserva su control.",
@@ -342,7 +351,8 @@
     "estimate-by": "--by <date>: Fecha límite",
     "fleet": "--fleet current|minimum|optimum: Flota actual / Configuración mínima / Configuración óptima",
     "estimate-format": "--format md|html|json|text: Formato de salida",
-    "seed": "--seed <seed>: Semilla de simulación"
+    "seed": "--seed <seed>: Semilla de simulación",
+    "muse-voice": "--muse-voice: Permitir Muse Voice de pago en la página de dictado; pide consentimiento antes del primer cargo y comparte el presupuesto diario."
   },
   "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave.",
   "referenceVault": "En curso.",

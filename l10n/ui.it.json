@@ -1,4 +1,13 @@
 {
+  "companionVoiceTitle": "Detta",
+  "companionVoiceCancel": "Annulla",
+  "companionVoiceFailed": "La dettatura è fallita o è stata rifiutata. Controlla il permesso del microfono, il motore scelto e il budget giornaliero, poi registra di nuovo. Una richiesta a pagamento già inviata può ancora essere addebitata.",
+  "companionVoiceFree": "Sistema operativo (gratuito)",
+  "companionVoiceReview": "Rivedi la trascrizione prima di inviare",
+  "companionVoiceLimit": "Massimo {seconds} secondi. L’audio viene eliminato dopo la trascrizione.",
+  "companionVoicePaidSummary": "Audio a pagamento: {duration}.",
+  "companionVoiceOpen": "Apri la pagina complementare di dettatura",
+  "companionVoiceReference": "Dettare nel browser e rivedere il testo prima di inviarlo alla propria sessione ACP o al terminale. Il riconoscimento di sistema è gratuito su Windows e macOS; Muse Voice è a pagamento, chiede il consenso e condivide il budget giornaliero.",
   "resourceTitle": "Risorse",
   "resourceHarnessInTree": "Arresto in pausa: il processo di controllo è ancora in questo albero. Il controllo viene mantenuto; riprova l’arresto.",
   "resourceCgroupChanged": "Arresto rifiutato: il cgroup di questo albero è stato rimosso o sostituito. Il controllo viene mantenuto.",
@@ -342,7 +351,8 @@
     "estimate-by": "--by <date>: Scadenza",
     "fleet": "--fleet current|minimum|optimum: Parco macchine attuale / Configurazione minima / Configurazione ottimale",
     "estimate-format": "--format md|html|json|text: Formato di uscita",
-    "seed": "--seed <seed>: Seme della simulazione"
+    "seed": "--seed <seed>: Seme della simulazione",
+    "muse-voice": "--muse-voice: Consentire Muse Voice a pagamento nella pagina di dettatura; chiede il consenso prima del primo addebito e condivide il budget giornaliero."
   },
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
   "referenceVault": "In corso.",

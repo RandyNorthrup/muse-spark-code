@@ -441,11 +441,11 @@ export class PaidUsage {
 
   /** Batch transcription keeps fractional seconds. An uncertain attempt uses
    * its admitted duration bound in this estimate, never a made-up zero bill. */
-  public addVoiceBatch(seconds: number): void {
+  public addVoiceBatch(seconds: number, context: Parameters<typeof recordPaidUse>[3] = {}): void {
     if (!Number.isFinite(seconds) || seconds < 0) {
       throw new Error(UI_TEXT.media.durationUnknown)
     }
-    this.add('voice', seconds)
+    this.add('voice', seconds, undefined, context)
   }
 
   /** Counts `units` uses: searches, images, or whole seconds of audio. */
@@ -453,12 +453,13 @@ export class PaidUsage {
     feature: PaidFeature,
     units: number,
     searchPriceUsd?: UsdAmount | SearchSettlement,
+    context: Parameters<typeof recordPaidUse>[3] = {},
   ): void {
     if (typeof searchPriceUsd === 'object') searchPriceUsd = searchPriceUsd.quote.tariffUsd
     if (units <= 0) {
       return
     }
-    recordPaidUse(this.recording, feature, units)
+    recordPaidUse(this.recording, feature, units, context)
 
     const { tally } = this
     if (feature === 'webSearch') {

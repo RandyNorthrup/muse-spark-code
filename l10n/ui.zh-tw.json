@@ -1,4 +1,13 @@
 {
+  "companionVoiceTitle": "聽寫",
+  "companionVoiceCancel": "取消",
+  "companionVoiceFailed": "聽寫失敗或遭拒絕。請檢查麥克風權限、所選引擎和每日預算，然後重新錄音。已傳送的付費請求仍可能產生費用。",
+  "companionVoiceFree": "作業系統（免費）",
+  "companionVoiceReview": "傳送前檢查轉錄文字",
+  "companionVoiceLimit": "最多 {seconds} 秒。轉錄後刪除音訊。",
+  "companionVoicePaidSummary": "付費音訊：{duration}。",
+  "companionVoiceOpen": "開啟聽寫配套頁面",
+  "companionVoiceReference": "在瀏覽器中聽寫，檢查文字後再傳送至自己的 ACP 工作階段或終端機。Windows 和 macOS 的系統語音辨識免費；Muse Voice 需付費，會徵求同意並使用共用每日預算。",
   "resourceTitle": "資源",
   "resourceHarnessInTree": "停止已暫停：控制程序仍在此程序樹中。管理權將保留，請重試停止。",
   "resourceCgroupChanged": "停止遭拒：此程序樹的 cgroup 已被刪除或替換。管理權將保留。",
@@ -342,7 +351,8 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 目前設備群 / 最小組態 / 最佳組態",
     "estimate-format": "--format md|html|json|text: 輸出格式",
-    "seed": "--seed <seed>: 模擬種子"
+    "seed": "--seed <seed>: 模擬種子",
+    "muse-voice": "--muse-voice：允許在聽寫頁面使用付費 Muse Voice；首次收費前徵求同意，並使用共用每日預算。"
   },
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
   "referenceVault": "進行中.",

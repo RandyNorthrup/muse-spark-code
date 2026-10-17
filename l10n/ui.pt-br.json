@@ -1,4 +1,13 @@
 {
+  "companionVoiceTitle": "Ditar",
+  "companionVoiceCancel": "Cancelar",
+  "companionVoiceFailed": "O ditado falhou ou foi recusado. Confira a permissão do microfone, o mecanismo escolhido e o orçamento diário e grave novamente. Uma solicitação paga já enviada ainda pode ser cobrada.",
+  "companionVoiceFree": "Sistema operacional (grátis)",
+  "companionVoiceReview": "Revisar a transcrição antes de enviar",
+  "companionVoiceLimit": "Máximo de {seconds} segundos. O áudio é removido após a transcrição.",
+  "companionVoicePaidSummary": "Áudio pago: {duration}.",
+  "companionVoiceOpen": "Abrir página complementar de ditado",
+  "companionVoiceReference": "Ditar no navegador e revisar o texto antes de enviá-lo à própria sessão ACP ou ao terminal. O reconhecimento do sistema é gratuito no Windows e macOS; Muse Voice é pago, pede consentimento e compartilha o orçamento diário.",
   "resourceTitle": "Recursos",
   "resourceHarnessInTree": "Parada pausada: o processo de controle ainda está nesta árvore. O controle é mantido; tente parar novamente.",
   "resourceCgroupChanged": "Parada recusada: o cgroup desta árvore foi removido ou substituído. O controle é mantido.",
@@ -342,7 +351,8 @@
     "estimate-by": "--by <date>: Prazo",
     "fleet": "--fleet current|minimum|optimum: Frota atual / Configuração mínima / Configuração ideal",
     "estimate-format": "--format md|html|json|text: Formato de saída",
-    "seed": "--seed <seed>: Semente da simulação"
+    "seed": "--seed <seed>: Semente da simulação",
+    "muse-voice": "--muse-voice: Permitir Muse Voice pago na página de ditado; pede consentimento antes da primeira cobrança e compartilha o orçamento diário."
   },
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
   "referenceVault": "Em andamento.",

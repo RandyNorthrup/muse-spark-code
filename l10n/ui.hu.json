@@ -1,4 +1,13 @@
 {
+  "companionVoiceTitle": "Diktálás",
+  "companionVoiceCancel": "Mégse",
+  "companionVoiceFailed": "A diktálás sikertelen vagy elutasított. Ellenőrizze a mikrofonengedélyt, a választott motort és a napi keretet, majd rögzítsen újra. A már elküldött fizetős kérésért még díjat számíthatnak fel.",
+  "companionVoiceFree": "Operációs rendszer (ingyenes)",
+  "companionVoiceReview": "Küldés előtt ellenőrizze az átiratot",
+  "companionVoiceLimit": "Legfeljebb {seconds} másodperc. A hang az átírás után törlődik.",
+  "companionVoicePaidSummary": "Fizetős hang: {duration}.",
+  "companionVoiceOpen": "Diktálási kísérőoldal megnyitása",
+  "companionVoiceReference": "Diktálás a böngészőben, majd a szöveg ellenőrzése a saját ACP-munkamenetbe vagy terminálba küldés előtt. A rendszer felismerése Windowson és macOS-en ingyenes; a Muse Voice fizetős, hozzájárulást kér és a közös napi keretet használja.",
   "resourceTitle": "Erőforrások",
   "resourceHarnessInTree": "A leállítás szünetel: a vezérlőfolyamat még ebben a fában van. A felügyelet megmarad; próbálja újra a leállítást.",
   "resourceCgroupChanged": "A leállítás megtagadva: a fa cgroup csoportját eltávolították vagy lecserélték. A felügyelet megmarad.",
@@ -342,7 +351,8 @@
     "estimate-by": "--by <date>: Határidő",
     "fleet": "--fleet current|minimum|optimum: Jelenlegi géppark / Minimális összeállítás / Optimális összeállítás",
     "estimate-format": "--format md|html|json|text: Kimeneti formátum",
-    "seed": "--seed <seed>: Szimulációs kezdőérték"
+    "seed": "--seed <seed>: Szimulációs kezdőérték",
+    "muse-voice": "--muse-voice: Fizetős Muse Voice engedélyezése a diktálás kísérőoldalán; az első terhelés előtt hozzájárulást kér, és a közös napi keretet használja."
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Folyamatban.",

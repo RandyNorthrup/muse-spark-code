@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "sourceRevision": "ee472698d10dd77554c2365a5d39019f6cdc8deb",
+  "review": "CMICCOMP-2026-10-10-linuxlt-accessibility-responsive-review",
+  "reviewer": "Codex lane agent; owner review remains before release",
+  "platform": "linux",
+  "browser": "153.0.8010.52",
+  "sourceSha256": {
+    "src/webview/voice/companion.ts": "f37ed449b78c6e28daf109449988fddee882effc62f60ad6c58d0fd2550330db",
+    "src/webview/voice/companion.css": "633c3238bb58406c74b61f744893cc89d8d623d5e698fbcad48bd82efb8856e8",
+    "src/webview/companionChannel.ts": "72b5aa5e83515a1e9521a2fd19114fa120e7db42467b727216f3ff0bd72d34d0",
+    "src/shared/companionWav.ts": "e52d1eee3eb39a888789d96a913117992fbc420ad2e9bd279251571fbc2cb04c",
+    "src/shared/l10n/en.ts": "857547897dff82cf0bc72b3cf6cf74ccc75450b6b0ef4d1d0c9b6082bda3f924",
+    "src/runtime/companion/voiceEntry.ts": "4042a500b6e5488001fde2ef969678827af100c0aa2c83ae75e35b58f947d142",
+    "test/unit/companionVoiceBrowser.test.mjs": "ef2e794c15779edd5240c2b3d4840214bcd9628066b7e09962850fd6c7da6a8b"
+  },
+  "standaloneVoice": {
+    "archive": "temp/voice-review (ignored lane artifacts; PNG bytes stay outside git)",
+    "reviewedImages": [
+      {
+        "file": "voice-dark-320.png",
+        "sha256": "a6e3daebb6fd12073fff8c3416dca3271cfc7580d618fc566427f22007186aa2",
+        "bytes": 20671,
+        "width": 320,
+        "height": 640,
+        "theme": "dark",
+        "surface": "capture-review"
+      },
+      {
+        "file": "voice-light-320.png",
+        "sha256": "7a6947d86f25c1dc2581866f6e03837f84783c52d91918d2f5f635c896be5aa4",
+        "bytes": 19903,
+        "width": 320,
+        "height": 640,
+        "theme": "light",
+        "surface": "capture-review"
+      },
+      {
+        "file": "voice-hc-dark-320.png",
+        "sha256": "d2a07416ff54fdeb0a91d4ce798f4b41553819e73876f73eb1083b0b219aa10f",
+        "bytes": 18307,
+        "width": 320,
+        "height": 640,
+        "theme": "hc-dark",
+        "surface": "capture-review"
+      },
+      {
+        "file": "voice-hc-light-320.png",
+        "sha256": "9a5eb1808139410117a77fdb2b337844de854d07bb53632228b339bf6a562d45",
+        "bytes": 17232,
+        "width": 320,
+        "height": 640,
+        "theme": "hc-light",
+        "surface": "capture-review"
+      },
+      {
+        "file": "voice-dialog-hc-light-320.png",
+        "sha256": "3844713981874cdb959298d2518dfac8d71a0ae733d4467f90211852e2a9ab4c",
+        "bytes": 28680,
+        "width": 320,
+        "height": 640,
+        "theme": "hc-light",
+        "surface": "paid-consent"
+      },
+      {
+        "file": "voice-dialog-dark-960.png",
+        "sha256": "6ec890314042993061f8d5e41b271631bcbdddc7e2e9ef4b9445cc66d67a65e8",
+        "bytes": 46018,
+        "width": 960,
+        "height": 760,
+        "theme": "dark",
+        "surface": "paid-consent"
+      }
+    ],
+    "coverage": {
+      "manualVisualReview": "All six images inspected for text readability, clipping, dialog placement and control reachability.",
+      "axe": "Zero violations at 320px in dark/light/hc-dark/hc-light capture-review and hc-light paid-consent.",
+      "horizontalOverflow": "Absent at 320px in all four themes and 960px in desktop paid-consent.",
+      "functional": "Actual Chrome fake audio through authenticated host; ACP permission and reviewed prompt admission; cancellation and track teardown.",
+      "remaining": "Windows/macOS browser and real speech-helper/editor receipts remain held."
+    }
+  },
+  "existingVisualMatrix": {
+    "command": "npm run check:visual -- --shard=16/64",
+    "receipt": {
+      "revision": "6636c84beb804af52e49363ac10ede3223d3d295",
+      "manifestSha256": "aaa2f8fdf0fd4322083a1fc3b9f0357f648da34bcb345ee1ec70a9ad0cac23ea",
+      "candidateSha256": "5d2e682b4706485fa46bad22e328ff1c1fb3b0b4fc6f3dc4951630d85d6419e6",
+      "shard": {
+        "index": 16,
+        "count": 64
+      },
+      "selectionSha256": "cacd6de5cc8a9646a85adfe48b01763c4d039c1e538241013dc3e3e32983b574",
+      "checked": 156,
+      "changedPixels": 0,
+      "maxImageChangedPixels": 0,
+      "regenerated": true,
+      "baselineBytes": 5734335,
+      "candidateBytes": 5734335,
+      "browser": "153.0.8010.52",
+      "rasterization": "a8de1ddfb6e62687899116825ad89f19166af18efdb086980f1c0e365c739033",
+      "platform": "linux",
+      "policy": {
+        "threshold": 0.1,
+        "includeAA": false,
+        "maxChangedPixelRatio": 0.0001,
+        "maxChangedPixels": 12
+      }
+    },
+    "coverage": {
+      "frames": 156,
+      "selectionSha256": "cacd6de5cc8a9646a85adfe48b01763c4d039c1e538241013dc3e3e32983b574",
+      "scenes": [
+        "traffic-mergeQueue",
+        "traffic-metrics",
+        "transcript",
+        "usage",
+        "usage-api",
+        "usage-attempts",
+        "usage-breakdown",
+        "usage-burn",
+        "usage-detail",
+        "usage-features",
+        "usage-limits",
+        "usage-page-empty",
+        "usage-page-nine-providers",
+        "usage-providers",
+        "usage-savings",
+        "usage-share",
+        "usage-stacked",
+        "usage-steps",
+        "usage-tokens",
+        "vault-approval",
+        "vault-grant",
+        "vault-panel",
+        "verify",
+        "whats-new",
+        "whats-new-footer",
+        "whats-new-highlights"
+      ],
+      "themes": ["dark"],
+      "widths": [320]
+    },
+    "fullMatrix": "Deferred to lead. Unsharded run interrupted with exit 130 after 1440 regenerated baseline frames; no full-matrix pass claimed."
+  }
+}

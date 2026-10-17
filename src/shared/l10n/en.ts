@@ -16,6 +16,17 @@
 import { forms } from './forms'
 
 export const EN = {
+  companionVoiceTitle: 'Dictate',
+  companionVoiceCancel: 'Cancel',
+  companionVoiceFailed:
+    'Dictation failed or was refused. Check microphone permission, the selected engine and the daily budget, then record again. A paid request already sent may still be charged.',
+  companionVoiceFree: 'Operating system (free)',
+  companionVoiceReview: 'Review transcript before sending',
+  companionVoiceLimit: '{seconds} seconds maximum. Audio is removed after transcription.',
+  companionVoicePaidSummary: 'Paid audio: {duration}.',
+  companionVoiceOpen: 'Open dictation companion',
+  companionVoiceReference:
+    'Dictate in the browser and review before sending to your owning ACP session or terminal. System recognition is free on Windows and macOS; paid Muse Voice asks for consent and shares the daily budget.',
   // M107 / D87: resource surfaces and manifest-ready settings text.
   resourceTitle: 'Resources',
   resourceHarnessInTree:
@@ -348,6 +359,8 @@ export const EN = {
   referenceProviders:
     'List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
   referenceCliOptions: {
+    'muse-voice':
+      '--muse-voice: Allow paid Muse Voice in the dictation companion; it asks before the first charge and shares the daily budget.',
     'resource-governor':
       '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
     'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',

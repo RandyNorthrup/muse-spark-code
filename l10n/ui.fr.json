@@ -1,4 +1,13 @@
 {
+  "companionVoiceTitle": "Dicter",
+  "companionVoiceCancel": "Annuler",
+  "companionVoiceFailed": "La dictée a échoué ou a été refusée. Vérifiez l’autorisation du microphone, le moteur choisi et le budget quotidien, puis enregistrez à nouveau. Une demande payante déjà envoyée peut encore être facturée.",
+  "companionVoiceFree": "Système d’exploitation (gratuit)",
+  "companionVoiceReview": "Relire la transcription avant l’envoi",
+  "companionVoiceLimit": "{seconds} secondes maximum. L’audio est supprimé après transcription.",
+  "companionVoicePaidSummary": "Audio payant : {duration}.",
+  "companionVoiceOpen": "Ouvrir la page de dictée compagnon",
+  "companionVoiceReference": "Dicter dans le navigateur et relire le texte avant de l’envoyer à sa session ACP ou au terminal. La reconnaissance système est gratuite sous Windows et macOS ; Muse Voice est payant, demande le consentement et partage le budget quotidien.",
   "resourceTitle": "Ressources",
   "resourceHarnessInTree": "Arrêt en pause : le processus de contrôle est encore dans cet arbre. Le contrôle est conservé ; réessayez l’arrêt.",
   "resourceCgroupChanged": "Arrêt refusé : le cgroup de cet arbre a été supprimé ou remplacé. Le contrôle est conservé.",
@@ -342,7 +351,8 @@
     "estimate-by": "--by <date>: Échéance",
     "fleet": "--fleet current|minimum|optimum: Parc actuel / Configuration minimale / Configuration optimale",
     "estimate-format": "--format md|html|json|text: Format de sortie",
-    "seed": "--seed <seed>: Graine de simulation"
+    "seed": "--seed <seed>: Graine de simulation",
+    "muse-voice": "--muse-voice : Autoriser Muse Voice payant sur la page de dictée ; demande le consentement avant le premier paiement et partage le budget quotidien."
   },
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
   "referenceVault": "En cours.",

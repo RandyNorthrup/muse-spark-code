@@ -5812,4 +5812,14 @@ and versions leave over HTTPS. Disable `museSpark.legalRegistryLookups` for
 local-only scans; missing dependency licences remain unknown. Private registry
 configuration is never contacted. CLI lookup still requires `--registry`.
 
-Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers.
+Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers. The credential vault remains unavailable until its broker is installed.
+
+### Companion dictation certification
+
+The M9/M35 browser microphone implementation remains hidden in this build:
+its runtime command, ACP slash command, paid flag and Help row are disabled
+until Windows/macOS browser/native-helper receipts and the assigned editor
+bindings/receipts pass. No companion
+dictation command is advertised as supported. Existing editor dictation is
+unchanged. [The certification record](docs/certification/m35-companion.md)
+tracks the Linux fake-device tests and the remaining platform checks.

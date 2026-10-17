@@ -1,4 +1,13 @@
 {
+  "companionVoiceTitle": "Dikte et",
+  "companionVoiceCancel": "İptal",
+  "companionVoiceFailed": "Dikte başarısız oldu veya reddedildi. Mikrofon iznini, seçilen motoru ve günlük bütçeyi kontrol edip yeniden kaydedin. Gönderilmiş ücretli bir istek yine de ücretlendirilebilir.",
+  "companionVoiceFree": "İşletim sistemi (ücretsiz)",
+  "companionVoiceReview": "Göndermeden önce dökümü gözden geçir",
+  "companionVoiceLimit": "En fazla {seconds} saniye. Ses, dökümden sonra silinir.",
+  "companionVoicePaidSummary": "Ücretli ses: {duration}.",
+  "companionVoiceOpen": "Dikte yardımcı sayfasını aç",
+  "companionVoiceReference": "Tarayıcıda dikte edin ve kendi ACP oturumunuza veya terminale göndermeden önce metni gözden geçirin. Windows ve macOS sistem tanıması ücretsizdir; Muse Voice ücretlidir, onay ister ve ortak günlük bütçeyi kullanır.",
   "resourceTitle": "Kaynaklar",
   "resourceHarnessInTree": "Durdurma bekletildi: denetim süreci hâlâ bu ağaçta. Denetim korunuyor; durdurmayı yeniden deneyin.",
   "resourceCgroupChanged": "Durdurma reddedildi: bu ağacın cgroup grubu kaldırılmış veya değiştirilmiş. Denetim korunuyor.",
@@ -342,7 +351,8 @@
     "estimate-by": "--by <date>: Son tarih",
     "fleet": "--fleet current|minimum|optimum: Mevcut makine grubu / Asgari kurulum / En uygun kurulum",
     "estimate-format": "--format md|html|json|text: Çıktı biçimi",
-    "seed": "--seed <seed>: Simülasyon tohumu"
+    "seed": "--seed <seed>: Simülasyon tohumu",
+    "muse-voice": "--muse-voice: Dikte sayfasında ücretli Muse Voice kullanımına izin verin; ilk ücretlendirmeden önce onay ister ve ortak günlük bütçeyi kullanır."
   },
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Devam ediyor.",

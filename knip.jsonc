@@ -36,6 +36,8 @@
     "src/runtime/usage/usageCompanionEntry.ts",
     "src/host/usage/usagePanelEntry.ts",
     "src/webview/usage/usage.tsx",
+    "src/runtime/companion/voiceEntry.ts",
+    "src/webview/voice/companion.ts",
     "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
     // Help data: separate lazy runtime and generator build entries.

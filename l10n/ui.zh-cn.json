@@ -1,4 +1,13 @@
 {
+  "companionVoiceTitle": "听写",
+  "companionVoiceCancel": "取消",
+  "companionVoiceFailed": "听写失败或被拒绝。请检查麦克风权限、所选引擎和每日预算，然后重新录音。已发送的付费请求仍可能产生费用。",
+  "companionVoiceFree": "操作系统（免费）",
+  "companionVoiceReview": "发送前检查转录文本",
+  "companionVoiceLimit": "最多 {seconds} 秒。转录后删除音频。",
+  "companionVoicePaidSummary": "付费音频：{duration}。",
+  "companionVoiceOpen": "打开听写配套页面",
+  "companionVoiceReference": "在浏览器中听写，检查文本后再发送到自己的 ACP 会话或终端。Windows 和 macOS 的系统语音识别免费；Muse Voice 收费，会征求同意并使用共享每日预算。",
   "resourceTitle": "资源",
   "resourceHarnessInTree": "停止已暂停：控制进程仍在此进程树中。管理权将保留，请重试停止。",
   "resourceCgroupChanged": "停止被拒绝：此进程树的 cgroup 已被删除或替换。管理权将保留。",
@@ -342,7 +351,8 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 当前设备群 / 最小配置 / 最优配置",
     "estimate-format": "--format md|html|json|text: 输出格式",
-    "seed": "--seed <seed>: 模拟种子"
+    "seed": "--seed <seed>: 模拟种子",
+    "muse-voice": "--muse-voice：允许在听写页面使用付费 Muse Voice；首次收费前征求同意，并使用共享每日预算。"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
   "referenceVault": "进行中.",

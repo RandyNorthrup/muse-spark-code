@@ -1,7 +1,13 @@
 import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
-import { COMMAND_IDS, type SETTING_DEFAULTS, PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
+import {
+  COMMAND_IDS,
+  type SETTING_DEFAULTS,
+  PROMPT_COMMAND_IDS,
+  UI_TEXT,
+  COMPANION_VOICE_RELEASE,
+} from './constants'
 import type { UiText } from './l10n/en'
 
 type PlainReferenceText =
@@ -697,6 +703,21 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode'],
     ),
+    ...(COMPANION_VOICE_RELEASE.isReady
+      ? [
+          feature(
+            'companion-dictation',
+            { ui: 'companionVoiceTitle' },
+            { ui: 'companionVoiceReference' },
+            [],
+            [],
+            'voice-dictation',
+            undefined,
+            false,
+            ['acp'],
+          ),
+        ]
+      : []),
     feature(
       'chat',
       { ui: 'transcriptLabel' },
