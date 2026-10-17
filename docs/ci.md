@@ -1,9 +1,10 @@
 # Headless runs and GitHub CI (Unofficial)
 
 M80 integration guide, 2026-10-02. All four implementation lanes (A contracts,
-B engine and CLI, C Action, D packaging and docs) are integrated, and their
-fake-only tests pass on Linux, macOS and Windows. The hosted `action-check.yml`
-matrix (W, fake-only) runs and passes on same-repository pull requests. The live
+B engine and CLI, C Action, D packaging and docs) are integrated. Their
+fake-only tests and the fake-only `action-check.yml` matrix (W) were deleted on
+2026-10-17 (no fakes; [unproven.md](real-life/unproven.md) lists what they
+covered). The live
 receipt LA passed on 2026-10-05 for main at `30de7c89`, using the unsigned
 candidate package. The live receipt L, and LR now that 0.12.0 is released, are
 still open, so this page does not claim certified headless or Action support,
@@ -11,17 +12,6 @@ nor npm-registry Action support. Command receipts and precise claim limits live 
 [m80.md](certification/m80.md).
 
 ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
-
-The spend cap admits a request only when its full reservation fits. Verified exact
-counts reserve the exact input; Anthropic reserves its estimate plus 25%, limited
-by the UTF-8 byte upper bound; unverified count shapes (including Gemini) reserve
-that size bound. Only the last request can exceed the cap when a provider estimate
-is too low: its full actual cost is recorded, and another request is refused.
-Each retry reserves separately; a sent attempt with no outcome keeps its entire
-reservation permanently. Only a provably dead owner’s unsent claim is released.
-The v3 ledger imports old history once without modifying it. Simultaneous spending
-from an old build is outside the new shared-cap guarantee; upgrade both hosts
-before relying on one cap across versions.
 
 ## One prompt, one workspace, one turn
 
@@ -162,8 +152,7 @@ event variant against a structural mirror of the event schema, parity-tested.
 | terminal, incompleteReason                                  | Latest response/tap terminal and reason, or null.                                                                                                                                                                                         |
 | backend, mode, model                                        | museCode/modelApi; plan/acceptEdits; selected id or null before selection.                                                                                                                                                                |
 | sessionId, ephemeral                                        | string or null; boolean.                                                                                                                                                                                                                  |
-| finalMessage                                                | Redacted final or partial answer, or the withholding line for structured output.                                                                                                                                                          |
-| finalMessageComplete                                        | Whether the final answer is complete; false on a stopped or unverified run.                                                                                                                                                               |
+| finalMessage                                                | Whole redacted released final message or fixed withholding line.                                                                                                                                                                          |
 | filesChanged                                                | Deduplicated relative paths from edit locations/tap; not a secret-scan claim.                                                                                                                                                             |
 | denials                                                     | {toolCallId,title,kind,paths:string[]} rows; paths relative.                                                                                                                                                                              |
 | questionsDeclined                                           | Nonnegative integer.                                                                                                                                                                                                                      |
@@ -192,11 +181,12 @@ event variant against a structural mirror of the event schema, parity-tested.
 | result            | one ExecResult                                                                                                    |
 
 Agent message/thought chunks and all ACP tool text/content/rawInput/rawOutput/
-diffs/resources are suppressed. Tool events carry metadata only. Incomplete message events remain withheld. The final result preserves the latest
-redacted partial answer with `finalMessageComplete: false`, its non-success exit
-and full unsettled liability. Structured output stays withheld until valid.
-Partial text and completed text with missing usage never authorize Action
-publication; the exit/status checks still govern it.
+diffs/resources are suppressed. Tool events carry metadata only. Complete prose
+is released only against its own response's completed terminal and clean EOF.
+Every incomplete/failed/cut-short item is withheld whole as
+“message withheld: the response did not complete”; a final withheld item cannot
+be replaced with an earlier successful message. Completed prose with missing
+usage may be redacted and shown, but exit 9 never authorizes Action publication.
 Every egress sink replaces longest exact literals first, then known Meta/auth/
 JWT/field/URL/GitHub/AWS/Slack patterns. Each exact literal is also matched in
 its percent-encoded form, and in the form an earlier pattern-only pass left of
@@ -231,12 +221,15 @@ Exact Meta HTTPS origin, empty user-info/fragment/unexpected query, string POST
 body and `redirect:error` are required. Only GET /v1/models and POST
 /v1/responses, /v1/images/generations, /v1/images/edits may pass.
 
-With I conservatively estimated from the actual request and M the resolved output
-cap (1024 by default), response liability is `R=I*p_in + M*p_out` at the selected
-model's per-token rates, including the largest applicable cache-write tariff.
-Admission rounds each reservation upward to integer micro-USD. Input and output
-must still fit the model's known context and output limits. There is no fixed
-full-context minimum; refusals show the actual arithmetic.
+With W=1,048,576 and M=max_output_tokens, context liability is
+`R=((W-M)*p_in + M*p_out)/1,000,000`. Admission uses exact tariff arithmetic,
+then rounds each reservation and priced liability **up** to integer micro-USD
+(EXEC_USD_UNITS=1,000,000; F1 supersedes v4's earlier nanodollar text).
+
+| Tier, M=32,768 | Exact context liability | Admitted reservation/minimum | Minimum with images |
+| -------------- | ----------------------: | ---------------------------: | ------------------: |
+| Contributor    |              $0.1081344 |                    $0.108135 |           $0.118135 |
+| Standard       |               $1.409024 |                    $1.409024 |           $1.419024 |
 
 Standard recipes use $2.00; contributor recipes explicitly opt in and use $1.00.
 Cached input is priced at its lower tariff, reasoning is already part of output.
@@ -660,23 +653,10 @@ never file bytes. Headless `--record`, `/record` and `/attach` are usage errors
 (exit 2); there is no unattended screen recorder or implicit paid transcription.
 These flags do not change M80's pending live/hosted certification.
 
-`.github/workflows/action-check.yml` runs W with the composite Action on the
-three hosted runners against the fake-only test package, whose bin
-(`test/action/exec-test-launcher.ts`) answers only Meta's origin with a scripted
-fake and reports hashes and booleans only. W-review first reads
-`test/action/w-fixture.txt`; W-text first writes the new
-`test/action/w-text-fix.txt` (write_file replaces an existing file only as the
-model last read it, D27); W-image first generates the unignored
-generated/m80.png; each then returns its final reply. `test/action/w-check.mjs`
-judges each invocation. `test/e2e/execTestLauncher.e2e.test.ts` packs the same
-launcher and rehearses all four scenarios through the real run-exec entry on
-each platform.
-Two responses each report 10 input/5 output tokens. Upward micro-USD reservations depend on the serialized requests and their output
-caps, within $1.00.
-Simulated priced cost is $0.000004 text/review and $0.010004 with returned image,
-about one cent; **actual fake W spend is $0**. Image case must publish no patch/
-manifest and never invoke apply. A cap below the actual request quote refuses before any billable call. W also requires startup/env/argv traps, trusted gate
-drills and exact digest/head/lease bare-repo apply tests on Linux/macOS/Windows.
+W, the fake-only Action check (`action-check.yml`), ran the composite Action
+on the three hosted runners against a fake-only test package whose bin answered
+Meta's origin with a scripted fake. It was deleted on 2026-10-17 (no fakes),
+with its test package and judge.
 
 `.github/workflows/action-live.yml` is LA's workflow. Only the repository
 owner starts it, by hand (`workflow_dispatch`, on the default branch; no other
@@ -684,8 +664,8 @@ trigger). It packs the product package from the dispatched commit, checks its
 digest, and runs `./action` on Ubuntu against one open same-repository pull
 request in review or text (fix) mode. The run uses the real
 `MUSE_MODEL_API_KEY`, `muse-spark-1.3-contributor`, a $0.25 cap, a 10-minute
-deadline, `contents: read` and `pull-requests: read`, and posts no comment. W's
-startup traps and token sentinel apply. `test/action/la-check.mjs` requires a
+deadline, `contents: read` and `pull-requests: read`, and posts no comment. Startup
+traps and a token sentinel are planted. `test/action/la-check.mjs` requires a
 completed result within the cap and no fired trap, sentinel or key-shaped
 string in the published outputs. The step summary records the commit, the
 `action/` tree, the package SHA-256, the outputs and the ledger.
@@ -802,16 +782,3 @@ journal is unavailable rather than a fabricated pass. CI network collection is
 refused by the report binding, even with `--network`; CI credentials are never
 passed to report tools. Approved service captures and installed native editor
 receipts remain separate certification requirements.
-
-In `--output json`, request start/end progress appears on stderr with the
-reservation, token totals and settled/uncertain cost. Stdout remains one JSON
-result. No progress contains a prompt, provider key or raw tool output.
-
-Initial HTTP validation, sign-in, permission and quota refusals before any output
-settle at zero. Interrupted processing (including HTTP 408/499), server errors
-and stream loss keep unresolved liability separately from money spent. Final
-provider usage settles even when the response is incomplete. Stopping a stream
-without final usage cannot prove a smaller bill: a provider can charge unseen
-generated tokens after disconnect. The retained amount is a possible charge,
-never a confirmed spend. `--max-output-tokens` lowers the actual request cap;
-startup no longer prices the model's full context window before building it.
