@@ -1,5 +1,13 @@
 import { isAutoCompactionEvaluated } from '../shared/constants'
 import { ESTIMATE_OPTIONS } from './estimator/options'
+import {
+  PROMPTS_LIST_FLAGS,
+  PROMPTS_SAVE_FLAGS,
+  PROMPTS_SCOPE_FLAG,
+  PROMPTS_USE_FLAGS,
+  SHARE_FLAGS,
+  SHARING_BASE_FLAGS,
+} from './sharing/args'
 import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
@@ -141,41 +149,6 @@ const FONTS_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
-// The sharing commands' flags, mirroring the owner parser in sharing/args.ts
-// (parseCommandLine hands sharing argv to the owner before its own strict
-// parse, so this route only drives help, the reference and the guard). The
-// per-action shapes differ inside the owner (prompts save takes a repeated
-// --tag, list a single one; share takes a confirmation value, use a bare
-// --confirm): the registry keeps the widest shape the screen can render.
-const SHARE_OPTIONS = {
-  cwd: { type: 'string' },
-  json: { type: 'boolean' },
-  mode: { type: 'string' },
-  format: { type: 'string' },
-  destination: { type: 'string' },
-  out: { type: 'string' },
-  from: { type: 'string' },
-  to: { type: 'string' },
-  'no-code-blocks': { type: 'boolean' },
-  'no-attachment-names': { type: 'boolean' },
-  diffs: { type: 'boolean' },
-  'attachment-content': { type: 'string', multiple: true },
-  'exported-at': { type: 'string' },
-  confirm: { type: 'string' },
-} as const satisfies CliParserOptions
-
-const PROMPTS_OPTIONS = {
-  cwd: { type: 'string' },
-  json: { type: 'boolean' },
-  scope: { type: 'string' },
-  search: { type: 'string' },
-  tag: { type: 'string', multiple: true },
-  title: { type: 'string' },
-  chat: { type: 'string' },
-  var: { type: 'string', multiple: true },
-  confirm: { type: 'boolean' },
-} as const satisfies CliParserOptions
-
 export const CLI_OPTION_REGISTRY = {
   providersAdd: { options: PROVIDER_OPTIONS },
   providersModels: {
@@ -220,11 +193,24 @@ export const CLI_OPTION_REGISTRY = {
   resources: { options: { json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } } },
   fontsInstall: { options: FONTS_OPTIONS },
   estimate: { options: ESTIMATE_OPTIONS, text: { by: 'estimate-by', format: 'estimate-format' } },
+  // Help-only routes: parseCommandLine hands sharing argv to the owner
+  // parser before its own strict parse, so these entries drive help, the
+  // reference and the guard. The flags are the owner's own tables, spread
+  // in the same order the parser composes them.
   share: {
-    options: SHARE_OPTIONS,
+    options: { ...SHARING_BASE_FLAGS, ...SHARE_FLAGS },
     text: { from: 'share-from', to: 'share-to', out: 'share-out', json: 'sharing-json' },
   },
-  prompts: { options: PROMPTS_OPTIONS, text: { json: 'sharing-json' } },
+  prompts: {
+    options: {
+      ...SHARING_BASE_FLAGS,
+      ...PROMPTS_SCOPE_FLAG,
+      ...PROMPTS_LIST_FLAGS,
+      ...PROMPTS_SAVE_FLAGS,
+      ...PROMPTS_USE_FLAGS,
+    },
+    text: { json: 'sharing-json' },
+  },
 } as const
 
 // The description map is exhaustive over the parser's option names. It never
@@ -321,8 +307,8 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof CLI_OPTION_REGISTRY.providersModels.options
     | keyof typeof FONTS_OPTIONS
     | keyof typeof ESTIMATE_OPTIONS
-    | keyof typeof SHARE_OPTIONS
-    | keyof typeof PROMPTS_OPTIONS,
+    | keyof typeof CLI_OPTION_REGISTRY.share.options
+    | keyof typeof CLI_OPTION_REGISTRY.prompts.options,
     keyof UiText['referenceCliOptions']
   >
 >

@@ -68,6 +68,55 @@ function oneOf<T extends string>(value: string, allowed: readonly T[]): T {
   return found
 }
 
+/** One sharing flag table: frozen literals, so the help registry keeps their names. */
+type SharingFlagTable = Readonly<NonNullable<ParseArgsConfig['options']>>
+
+/**
+ * The sharing flags as static tables, read by the owner parser below and by
+ * the help registry (which renders the widest shape a screen can show: a
+ * repeated save `--tag` where list takes one, a confirmation value for
+ * share where use takes a bare `--confirm`). One source, never a copy.
+ */
+export const SHARING_BASE_FLAGS = {
+  cwd: { type: 'string' },
+  // Scripts pass --json to receive the machine-readable result; without
+  // it the terminal prints only the human preview and review transcript.
+  json: { type: 'boolean' },
+} as const satisfies SharingFlagTable
+export const SHARE_FLAGS = {
+  mode: { type: 'string' },
+  format: { type: 'string' },
+  destination: { type: 'string' },
+  out: { type: 'string' },
+  from: { type: 'string' },
+  to: { type: 'string' },
+  'no-code-blocks': { type: 'boolean' },
+  'no-attachment-names': { type: 'boolean' },
+  diffs: { type: 'boolean' },
+  'attachment-content': { type: 'string', multiple: true },
+  'exported-at': { type: 'string' },
+  confirm: { type: 'string' },
+} as const satisfies SharingFlagTable
+export const PROMPTS_SCOPE_FLAG = {
+  scope: { type: 'string' },
+} as const satisfies SharingFlagTable
+export const PROMPTS_LIST_FLAGS = {
+  search: { type: 'string' },
+  tag: { type: 'string' },
+} as const satisfies SharingFlagTable
+export const PROMPTS_SAVE_FLAGS = {
+  title: { type: 'string' },
+  tag: { type: 'string', multiple: true },
+} as const satisfies SharingFlagTable
+export const PROMPTS_USE_FLAGS = {
+  chat: { type: 'string' },
+  // Scripts supply variables as --var name=value and confirm without
+  // the interactive review as --confirm; the terminal prints the
+  // prepared text either way (nothing is inserted into an editor).
+  var: { type: 'string', multiple: true },
+  confirm: { type: 'boolean' },
+} as const satisfies SharingFlagTable
+
 /** Strict action-specific flags; a misspelled privacy option cannot broaden a share. */
 export function parseSharingArgs(argv: readonly string[], sessionId?: string): SharingCommand {
   const [root, action, ...args] = argv
@@ -75,38 +124,12 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
   if (root === 'share' && action !== 'chat') throw localArgumentError(action ?? '')
   const isShare = root === 'share' || action === 'share'
   const flags: NonNullable<ParseArgsConfig['options']> = {
-    cwd: { type: 'string' },
-    // Scripts pass --json to receive the machine-readable result; without
-    // it the terminal prints only the human preview and review transcript.
-    json: { type: 'boolean' },
-    ...(isShare && {
-      mode: { type: 'string' },
-      format: { type: 'string' },
-      destination: { type: 'string' },
-      out: { type: 'string' },
-      from: { type: 'string' },
-      to: { type: 'string' },
-      'no-code-blocks': { type: 'boolean' },
-      'no-attachment-names': { type: 'boolean' },
-      diffs: { type: 'boolean' },
-      'attachment-content': { type: 'string', multiple: true },
-      'exported-at': { type: 'string' },
-      confirm: { type: 'string' },
-    }),
-    ...(root === 'prompts' && action !== 'list' && { scope: { type: 'string' } }),
-    ...(action === 'list' && { search: { type: 'string' }, tag: { type: 'string' } }),
-    ...(action === 'save' && {
-      title: { type: 'string' },
-      tag: { type: 'string', multiple: true },
-    }),
-    ...(action === 'use' && {
-      chat: { type: 'string' },
-      // Scripts supply variables as --var name=value and confirm without
-      // the interactive review as --confirm; the terminal prints the
-      // prepared text either way (nothing is inserted into an editor).
-      var: { type: 'string', multiple: true },
-      confirm: { type: 'boolean' },
-    }),
+    ...SHARING_BASE_FLAGS,
+    ...(isShare && SHARE_FLAGS),
+    ...(root === 'prompts' && action !== 'list' && PROMPTS_SCOPE_FLAG),
+    ...(action === 'list' && PROMPTS_LIST_FLAGS),
+    ...(action === 'save' && PROMPTS_SAVE_FLAGS),
+    ...(action === 'use' && PROMPTS_USE_FLAGS),
   }
   const { values, positionals } = parseArgs({
     args,
