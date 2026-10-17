@@ -3,13 +3,23 @@
 // tail only, the declared tool list stays byte-stable, packing runs after any
 // output rewrite, paid calls share one gate with separate tallies, `then_run`
 // is the shell by another name, overflow compaction skips the economics gate,
-// and the eval stays comparable. Every test below calls the real module with
-// real inputs: no mocks, no fakes, no timers, no loopback provider.
+// and the eval stays comparable. Every test below calls the real module;
+// every input that names something the outside world sends (provider tariffs
+// and models, the recorded harness environment, tool outputs, skill and rule
+// files, roster data) comes from the product's own listed records or from the
+// recorded M91-G harness capture (`test/fixtures/golden-requests/`, harness
+// date 1970-01-01, workspace /ws), never invented. The remaining values are
+// the functions' own scenario parameters (ledger days, token counts, the
+// approval answers), documented where they are used. No mocks, no fakes, no
+// timers, no loopback provider.
 
-import { readFileSync, readdirSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { removeFolder } from './helpers/temporaryFolders'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import {
   MODEL_API_TOOLS,
@@ -18,18 +28,28 @@ import {
   OBS_PACK_WHOLE_SENDS,
   THEN_RUN_ARGUMENT,
 } from '../../src/shared/constants'
-import { Usd } from '../../src/shared/usd'
+import { Usd, multiplyUsd, type UsdAmount } from '../../src/shared/usd'
 import type { PaidQuote } from '../../src/shared/paid'
-import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
+import { RULES_PREAMBLE } from '../../src/shared/constants'
+import { toolDefinitions, type ToolDefinitionOptions } from '../../src/core/backends/modelapi/tools'
 import {
   instructionsFor,
   type InstructionFacts,
 } from '../../src/core/backends/modelapi/instructions'
+import { builtinAgents } from '../../src/core/context/customAgents'
+import { parseSkillFile, type SkillDefinition } from '../../src/core/context/skills'
+import { buildStableRosterSection } from '../../src/core/team/roster'
+import { TEAM_TOOL_DEFINITIONS } from '../../src/core/team/teamTools'
+import { webSearchPriceUsd } from '../../src/core/paid/paidFeatures'
 import {
   ObservationPack,
   estimatePackTokens,
 } from '../../src/core/backends/modelapi/observationPack'
-import { withStrictTools, type InputItem } from '../../src/core/backends/modelapi/schemas'
+import {
+  withStrictTools,
+  type InputItem,
+  type ToolDefinition,
+} from '../../src/core/backends/modelapi/schemas'
 import { promptCacheKey } from '../../src/core/backends/modelapi/promptCache'
 import { toolMatcherNames } from '../../src/core/backends/modelapi/hookNames'
 import { authorizeThenGuard } from '../../src/core/backends/modelapi/verifyLoop'
@@ -41,8 +61,17 @@ import {
   step,
 } from '../../src/core/paid/paidAuthority'
 import { OBSERVATION_PACKING_ARM } from '../../src/core/eval/mechanisms'
-import { evalTasksOfSplit } from '../../src/core/eval/tasks'
+import {
+  EVAL_TASKS,
+  EVAL_VERIFY_PRELUDE,
+  evalTaskSchema,
+  evalTasksOfSplit,
+} from '../../src/core/eval/tasks'
 
+// The recorded M91-G harness environment, as the golden fixtures carry it:
+// workspace /ws on linux with the shell, no memory or code-intel tools, not
+// a git repository, and the harness date 1970-01-01 (embedded in every
+// recorded instructions text as "Today's date: 1970-01-01").
 function baseFacts(): InstructionFacts {
   return {
     workspaceRoot: '/ws',
@@ -52,7 +81,7 @@ function baseFacts(): InstructionFacts {
     hasShell: true,
     hasMemory: false,
     hasCodeIntel: false,
-    today: '2026-01-01',
+    today: '1970-01-01',
     environment: { git: undefined },
     context: { rules: undefined, skills: [], agents: [], memory: [] },
   }
@@ -164,12 +193,14 @@ describe('invariant 1: earlier request bytes never change, extras append at the 
 
 describe('invariant 2: observation packing keeps what the model saw', () => {
   const CALL_ID = 'call_big_output'
-  // Many lines: a placeholder keeps head and tail lines, so the packed form
-  // is far shorter than the original.
-  const BIG = Array.from(
-    { length: 400 },
-    (_, index) => `line ${String(index).padStart(3, '0')} ${'x'.repeat(28)} [as-written]`,
-  ).join('\n')
+  // The oversized tool output is recorded, not generated: the read_file
+  // result the M91-G harness run carried in scenario 04 (13,407 characters;
+  // the `N|line M ...` rendering is the product's own read_file result
+  // format, the file content was the harness's big.txt). Packing mechanics
+  // depend only on the length, so this recorded long output drives them;
+  // the request ids below stay the test's own (a renamed or dropped call
+  // must fail loudly, as the golden harness's own normalisation holds).
+  const BIG = recordedToolOutput('04-packed-output.json', 1)
 
   function send(pack: ObservationPack, output: string): InputItem[] {
     const call: InputItem = {
@@ -189,9 +220,11 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
       (item): item is InputItem & { type: 'function_call_output' } =>
         item.type === 'function_call_output' && item.call_id === CALL_ID,
     )
-    expect(result).toBeDefined()
-    expect(typeof result!.output).toBe('string')
-    return result!.output as string
+    // Checked narrowing, not a cast: a non-string output fails the test here.
+    if (result === undefined) throw new Error(`missing function_call_output for ${CALL_ID}`)
+    if (typeof result.output !== 'string')
+      throw new Error(`function_call_output for ${CALL_ID} is not a string`)
+    return result.output
   }
 
   it('pins the packing thresholds the savings come from', () => {
@@ -275,24 +308,50 @@ describe('invariant 2: observation packing keeps what the model saw', () => {
   })
 })
 
-function paidQuote(id: string, model: string, tariff = '0.05'): PaidQuote {
+// Paid quotes name real priced models (`MODEL_API_PRICED_MODELS.standard`:
+// muse-spark-1.3 and muse-spark-1.2) at the product's own listed web-search
+// tariff (`PAID_PRICES_USD.webSearchPerThousand`, verified 2026-09-24,
+// `PAID_PRICES_VERIFIED_ON`), read through the real `webSearchPriceUsd`.
+// The ids stay the test's own distinct request ids (production mints a
+// randomUUID per request) and capturedAt is the real clock, as production
+// sets it (`paidConsent.ts`); neither reaches an assertion.
+function searchTariff(model: string): UsdAmount {
+  const tariff = webSearchPriceUsd(model)
+  if (tariff === undefined) throw new Error(`no listed web-search tariff for ${model}`)
+  return tariff
+}
+
+function searchQuote(
+  id: string,
+  model: string,
+  tariff: UsdAmount = searchTariff(model),
+): PaidQuote {
   return {
     id,
     feature: 'webSearch',
     provider: 'meta',
     model,
     modelRevision: 1,
-    tariffUsd: Usd.from(tariff).toAmount(),
+    tariffUsd: tariff,
     unit: 'search',
-    capturedAt: 0,
+    capturedAt: Date.now(),
   }
 }
 
 describe('invariant 3: paid calls share one gate and tally separately', () => {
   it('asks per key through one reducer while each claim settles its own tally', () => {
-    const searchA = paidQuote('q-a', 'muse-spark-1.3')
-    const searchB = paidQuote('q-b', 'muse-spark-1.4')
+    const searchA = searchQuote('q-a', 'muse-spark-1.3')
+    const searchB = searchQuote('q-b', 'muse-spark-1.2')
+    const tariff = searchTariff('muse-spark-1.3')
+    // Literal anchor on the listed tariff (2.5 per thousand searches): a
+    // provider-side price change must fail here and be re-verified, exactly
+    // like the packing thresholds above.
+    expect(tariff).toBe('0.0025')
     expect(paidAuthorityKey(searchA)).not.toBe(paidAuthorityKey(searchB))
+    // The day, cap and spend are the scenario's ledger state (the reducer
+    // only mirrors them for the host's budget wiring; the cap itself is
+    // refused by the budget journal's claim check, not here — see the
+    // certification record).
     let state = initialPaidAuthorityState()
     state = step(state, {
       type: 'day',
@@ -300,9 +359,6 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
       capUsd: Usd.from('1').toAmount(),
       spentUsd: Usd.from(0).toAmount(),
     }).state
-    // The reducer mirrors the day's cap and spend for the host's budget
-    // wiring; the cap itself is refused by the budget journal's claim
-    // check, not here (see the certification record).
     expect(state.days.get('2026-01-01')).toEqual({
       capUsd: Usd.from('1').toAmount(),
       spentUsd: Usd.from(0).toAmount(),
@@ -333,14 +389,14 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
         type: 'reserve',
         claimId: 'claim-b',
         quote: searchB,
-        reservedUsd: Usd.from('0.05').toAmount(),
+        reservedUsd: multiplyUsd(tariff, 1),
       }),
     ).toThrow()
     state = step(state, {
       type: 'reserve',
       claimId: 'claim-a1',
       quote: searchA,
-      reservedUsd: Usd.from('0.05').toAmount(),
+      reservedUsd: multiplyUsd(tariff, 2),
     }).state
     const settledOnce = step(state, {
       type: 'settle',
@@ -357,7 +413,7 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
       type: 'reserve',
       claimId: 'claim-a2',
       quote: searchA,
-      reservedUsd: Usd.from('0.05').toAmount(),
+      reservedUsd: multiplyUsd(tariff, 4),
     }).state
     state = step(state, {
       type: 'settle',
@@ -369,9 +425,9 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
     expect(state.claims.has('claim-a1')).toBe(true)
     expect(state.claims.has('claim-a2')).toBe(true)
     // Each claim keeps its own tally: 2 calls and 4 calls at the same tariff.
-    expect(state.claims.get('claim-a1')?.settlement?.costUsd).toBe(Usd.from('0.10').toAmount())
-    expect(state.claims.get('claim-a2')?.settlement?.costUsd).toBe(Usd.from('0.20').toAmount())
-    expect(state.settledUsd).toBe(Usd.from('0.30').toAmount())
+    expect(state.claims.get('claim-a1')?.settlement?.costUsd).toBe(multiplyUsd(tariff, 2))
+    expect(state.claims.get('claim-a2')?.settlement?.costUsd).toBe(multiplyUsd(tariff, 4))
+    expect(state.settledUsd).toBe(multiplyUsd(tariff, 6))
 
     // A claim settled in stages counts each stage's delta once, never the
     // running total again.
@@ -379,7 +435,7 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
       type: 'reserve',
       claimId: 'claim-a3',
       quote: searchA,
-      reservedUsd: Usd.from('0.15').toAmount(),
+      reservedUsd: multiplyUsd(tariff, 3),
     }).state
     state = step(state, {
       type: 'settle',
@@ -387,15 +443,15 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
       returnedCalls: 1,
       isTerminal: false,
     }).state
-    expect(state.settledUsd).toBe(Usd.from('0.35').toAmount())
+    expect(state.settledUsd).toBe(multiplyUsd(tariff, 7))
     state = step(state, {
       type: 'settle',
       claimId: 'claim-a3',
       returnedCalls: 3,
       isTerminal: true,
     }).state
-    expect(state.claims.get('claim-a3')?.settlement?.costUsd).toBe(Usd.from('0.15').toAmount())
-    expect(state.settledUsd).toBe(Usd.from('0.45').toAmount())
+    expect(state.claims.get('claim-a3')?.settlement?.costUsd).toBe(multiplyUsd(tariff, 3))
+    expect(state.settledUsd).toBe(multiplyUsd(tariff, 9))
 
     // Revoking the key ends its authority: nothing under it reserves again.
     state = step(state, {
@@ -408,13 +464,13 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
         type: 'reserve',
         claimId: 'claim-a4',
         quote: searchA,
-        reservedUsd: Usd.from('0.05').toAmount(),
+        reservedUsd: multiplyUsd(tariff, 1),
       }),
     ).toThrow()
   })
 
   it('asks again when the price rises under a saved grant for the same key', () => {
-    const cheap = paidQuote('q-cheap', 'muse-spark-1.3', '0.05')
+    const cheap = searchQuote('q-cheap', 'muse-spark-1.3')
     let state = initialPaidAuthorityState()
     state = step(state, { type: 'quote', quote: cheap, generation: 'g1', ask: true }).state
     state = step(state, {
@@ -429,7 +485,7 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
     }).state
 
     // Same key, same price: the saved grant answers, no question.
-    const samePrice = paidQuote('q-same', 'muse-spark-1.3', '0.05')
+    const samePrice = searchQuote('q-same', 'muse-spark-1.3')
     const quiet = step(state, {
       type: 'quote',
       quote: samePrice,
@@ -440,7 +496,12 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
     expect(quiet.effects.some((effect) => effect.type === 'ask')).toBe(false)
 
     // Same key, higher price: the person is asked again before any spend.
-    const dearer = paidQuote('q-dearer', 'muse-spark-1.3', '0.10')
+    // The risen tariff is twice the listed one: production re-reads the
+    // tariff per request (`ModelApiHost` compares the quote against the
+    // current `searchPriceUsd`), so a provider-side rise arrives as a new
+    // quote at a higher tariff under the same key.
+    const risen = multiplyUsd(searchTariff('muse-spark-1.3'), 2)
+    const dearer = searchQuote('q-dearer', 'muse-spark-1.3', risen)
     expect(paidAuthorityKey(dearer)).toBe(paidAuthorityKey(cheap))
     const asked = step(quiet.state, {
       type: 'quote',
@@ -455,7 +516,7 @@ describe('invariant 3: paid calls share one gate and tally separately', () => {
         type: 'reserve',
         claimId: 'claim-dearer',
         quote: dearer,
-        reservedUsd: Usd.from('0.10').toAmount(),
+        reservedUsd: risen,
       }),
     ).toThrow()
   })
@@ -483,14 +544,18 @@ describe('invariant 4: then_run is the shell by another name', () => {
   })
 
   it('authorizes before the as-edited guard, and again when a rule lapses', async () => {
+    // The authorize closures return the two real user answers (approved,
+    // refused); the guard and the lapse check read real files, so a changed
+    // file and a lapsed rule below are real edits, not arranged booleans.
+    const files = editState()
     let authorizations = 0
     const allowed = await authorizeThenGuard({
-      isRuleLapsed: () => false,
+      isRuleLapsed: files.isRuleLapsed,
       authorize: () => {
         authorizations += 1
         return Promise.resolve(undefined)
       },
-      guard: () => Promise.resolve(true),
+      guard: files.guard,
     })
     expect(allowed).toBeUndefined()
     expect(authorizations).toBe(1)
@@ -498,38 +563,41 @@ describe('invariant 4: then_run is the shell by another name', () => {
     // A refusal at authorization ends it: the guard never runs.
     let guardRuns = 0
     const refused = await authorizeThenGuard({
-      isRuleLapsed: () => false,
+      isRuleLapsed: files.isRuleLapsed,
       authorize: () => Promise.resolve({ skip: 'refused' as const }),
       guard: () => {
         guardRuns += 1
-        return Promise.resolve(true)
+        return files.guard()
       },
     })
     expect(refused).toEqual({ skip: 'refused' })
     expect(guardRuns).toBe(0)
 
-    // The file no longer holding the edit is its own refusal.
+    // The file no longer holding the edit is its own refusal: a real edit
+    // lands between authorization and the guard's read.
+    files.editFile()
     const changed = await authorizeThenGuard({
-      isRuleLapsed: () => false,
+      isRuleLapsed: files.isRuleLapsed,
       authorize: () => Promise.resolve(undefined),
-      guard: () => Promise.resolve(false),
+      guard: files.guard,
     })
     expect(changed).toEqual({ skip: 'changed' })
 
     // A rule file edited while the guard waited: authorize and guard again.
-    let isLapsed = false
+    // The guard's own read models the subagent edit landing mid-wait.
+    const relapsing = editState()
     let secondAuthorizations = 0
     let secondGuardRuns = 0
     const relapsed = await authorizeThenGuard({
-      isRuleLapsed: () => isLapsed,
+      isRuleLapsed: relapsing.isRuleLapsed,
       authorize: () => {
         secondAuthorizations += 1
         return Promise.resolve(undefined)
       },
       guard: () => {
         secondGuardRuns += 1
-        isLapsed = true
-        return Promise.resolve(true)
+        relapsing.editRules()
+        return relapsing.guard()
       },
     })
     expect(relapsed).toBeUndefined()
@@ -538,6 +606,47 @@ describe('invariant 4: then_run is the shell by another name', () => {
   })
 })
 
+// One real folder per verify-ordering case: the guard reads a real edited
+// file ("the file still holds what the edit left") and the lapse check reads
+// a real rule file ("a deciding file changed since the user's message").
+// Folders are removed after the run by `removeFolder` (with its Windows
+// retries); `tmpdir()` honours the machine's TMPDIR.
+const verifyFolders: string[] = []
+afterAll(async () => {
+  for (const folder of verifyFolders) await removeFolder(folder)
+})
+
+function editState(): {
+  readonly guard: () => Promise<boolean>
+  readonly isRuleLapsed: () => boolean
+  readonly editFile: () => void
+  readonly editRules: () => void
+} {
+  const folder = mkdtempSync(path.join(tmpdir(), 'invariants-verify-'))
+  verifyFolders.push(folder)
+  const editedFile = path.join(folder, 'edited.ts')
+  const rulesFile = path.join(folder, 'rules.md')
+  writeFileSync(editedFile, 'const edited = 1\n')
+  writeFileSync(rulesFile, '# Rules\n')
+  const messageRules = readFileSync(rulesFile, 'utf8')
+  return {
+    guard: () => Promise.resolve(readFileSync(editedFile, 'utf8') === 'const edited = 1\n'),
+    isRuleLapsed: () => readFileSync(rulesFile, 'utf8') !== messageRules,
+    editFile: () => {
+      writeFileSync(editedFile, 'const edited = 2\n')
+    },
+    editRules: () => {
+      writeFileSync(rulesFile, '# Rules\n# More\n')
+    },
+  }
+}
+
+// The pricing card repeats Meta's published standard-tier rates
+// (`MODEL_API_PRICES_PER_MILLION.standard`, verified 2026-09-26,
+// `MODEL_API_PRICES_VERIFIED_ON`) as literals, so a catalogue change that
+// moves the economics boundary fails here and is re-verified. The token
+// counts are the decision's scenario state: enough context to overflow,
+// removable work to compact, and summary costs below the savings.
 function compactInput(): AutoCompactInput {
   return {
     pricing: {
@@ -597,39 +706,36 @@ describe('invariant 6: the eval stays comparable', () => {
     expect(OBSERVATION_PACKING_ARM.change).toBeDefined()
   })
 
-  it('keeps a fixed task set per split', () => {
+  it('pins the complete task definitions behind a recorded digest', () => {
+    // The digest covers every field a score's meaning rests on (prompt,
+    // fixture files, verifier, title, isLongOutput) as well as the ids and
+    // splits: any edit that changes what a run measures must update this
+    // literal deliberately. Key order is the source order of `EVAL_TASKS`,
+    // stable across runs; the prelude is digested too because it opens every
+    // verifier. Each definition also parses under the real `evalTaskSchema`;
+    // the behavioural half (every verifier fails its defect and passes two
+    // fix spellings) stays in `test/unit/eval/evalTasks.test.ts`.
+    for (const task of EVAL_TASKS) {
+      expect(evalTaskSchema.safeParse(task).success).toBe(true)
+    }
+    const payload = JSON.stringify({ prelude: EVAL_VERIFY_PRELUDE, tasks: EVAL_TASKS })
+    expect(createHash('sha256').update(payload).digest('hex')).toBe(
+      'e613f70a55d6872733e40f1f9a55e0cb6376c3d8237ecef563181a0f7a051a48',
+    )
     const accept = evalTasksOfSplit('accept')
     const heldout = evalTasksOfSplit('heldout')
-    // The literal task ids: adding, dropping or renaming a task changes
-    // what an eval score means, so it must be a deliberate, recorded edit.
-    expect(accept.map((task) => task.id)).toEqual([
-      'accept-off-by-one',
-      'accept-null-guard',
-      'accept-await-read',
-      'accept-import-path',
-      'accept-no-secret',
-      'accept-empty-average',
-      'accept-long-middle-value',
-    ])
-    expect(heldout.map((task) => task.id)).toEqual([
-      'heldout-strict-equal',
-      'heldout-clear-timer',
-      'heldout-sort-numbers',
-      'heldout-await-write',
-      'heldout-long-middle-rule',
-    ])
     expect(accept.every((task) => task.split === 'accept')).toBe(true)
     expect(heldout.every((task) => task.split === 'heldout')).toBe(true)
     const acceptIds = new Set(accept.map((task) => task.id))
     expect(acceptIds.size).toBe(accept.length)
     expect(heldout.every((task) => !acceptIds.has(task.id))).toBe(true)
-    expect(evalTasksOfSplit('accept').map((task) => task.id)).toEqual([...acceptIds])
   })
 })
 
 const goldenFileSchema = z.object({ scenario: z.string(), requests: z.array(z.string()) })
 const goldenBodySchema = z.object({
   model: z.string(),
+  input: z.array(z.unknown()),
   instructions: z.string(),
   tools: z.array(z.unknown()),
   tool_choice: z.string(),
@@ -649,23 +755,195 @@ function goldenRequests(relativePath: string): readonly string[] {
   return goldenFileSchema.parse(raw).requests
 }
 
-function goldenTurn(
-  file: string,
-  tools: ReturnType<typeof toolDefinitions> | ReturnType<typeof withStrictTools>,
-) {
+function goldenFiles(): string[] {
+  const directory = fileURLToPath(new URL('../fixtures/golden-requests/', import.meta.url))
+  return [
+    ...readdirSync(directory)
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => name),
+    ...readdirSync(path.join(directory, 'strict'))
+      .filter((name) => name.endsWith('.json'))
+      .map((name) => `strict/${name}`),
+  ]
+}
+
+const fixtureItemSchema = z.object({
+  type: z.string(),
+  call_id: z.string().optional(),
+  output: z.unknown().optional(),
+})
+
+/** One recorded tool output from a golden fixture: the output string of the
+ * first function_call_output in the request, narrowed by a typeof guard. */
+function recordedToolOutput(relativePath: string, requestIndex: number): string {
+  const raw: unknown = JSON.parse(goldenRequests(relativePath)[requestIndex]!)
+  const parsed = z.object({ input: z.array(fixtureItemSchema) }).parse(raw)
+  const output = parsed.input.find((item) => item.type === 'function_call_output')?.output
+  if (typeof output !== 'string')
+    throw new Error(
+      `no recorded string tool output in ${relativePath} request ${String(requestIndex)}`,
+    )
+  return output
+}
+
+interface GoldenPrefix {
+  readonly options: ToolDefinitionOptions
+  readonly facts: (base: InstructionFacts) => InstructionFacts
+  /** The host appends the hosted-search tool when paid web search is
+   * offered (`ModelApiHost`: `isWebSearchOffered`). */
+  readonly hostedSearch?: boolean
+}
+
+interface GoldenScenario {
+  readonly file: string
+  /** One reproduced prefix per recorded request, in request order. */
+  readonly prefixes: readonly GoldenPrefix[]
+}
+
+function shoutSkill(): SkillDefinition {
+  // The harness workspace's skill file, as the deleted M91-G harness wrote
+  // it (`skillFile('shout', 'Repeat in caps', 'UPPER CASE.')`): parsed by the
+  // real `parseSkillFile`, so only the file bytes are recorded and the
+  // definition itself is product-built. The file lived under
+  // `.agents/skills/shout/`, hence the project source.
+  const parsed = parseSkillFile(
+    '---\nname: shout\ndescription: Repeat in caps\n---\n\nUPPER CASE.\n',
+  )
+  if (!parsed.ok) throw new Error(`the recorded shout skill does not parse: ${parsed.reason}`)
+  return { id: 'shout', source: 'project', ...parsed.skill }
+}
+
+function skillsRulesFacts(base: InstructionFacts): InstructionFacts {
+  // The harness workspace's AGENTS.md (`End every reply with PINEAPPLE.`,
+  // as the deleted M91-G harness wrote it) under the product's own rules
+  // preamble (`RULES_PREAMBLE`).
+  return {
+    ...base,
+    context: {
+      rules: `${RULES_PREAMBLE}\n\n## Rules from AGENTS.md\n\nEnd every reply with PINEAPPLE.`,
+      skills: [shoutSkill()],
+      agents: [],
+      memory: [],
+    },
+  }
+}
+
+const PLAIN_OPTIONS: ToolDefinitionOptions = { hasShell: true, hasSkills: false }
+const basePrefix: GoldenPrefix = { options: PLAIN_OPTIONS, facts: (base) => base }
+
+function repeatPrefix(prefix: GoldenPrefix, count: number): GoldenPrefix[] {
+  return Array.from({ length: count }, () => prefix)
+}
+
+// The parent's prefix in scenario 06: paid subagents with image generation
+// on (the harness ran 06 with `paidSubagents: true`, which also offers paid
+// web search, hence the hosted-search tool the host appends). The harness
+// offered the product's own built-in agents.
+const subagentParentPrefix: GoldenPrefix = {
+  options: { hasShell: true, hasSkills: false, hasImageGeneration: true, hasSubagents: true },
+  hostedSearch: true,
+  facts: (base) => ({ ...base, context: { ...base.context, agents: [...builtinAgents()] } }),
+}
+
+// The spawned child's own prefix in scenario 06: a child cannot ask the
+// panel, keep a task list or spawn again (`isSubagent`), while image
+// generation and the offered web search stay.
+const subagentChildPrefix: GoldenPrefix = {
+  options: { hasShell: true, hasSkills: false, isSubagent: true, hasImageGeneration: true },
+  hostedSearch: true,
+  facts: (base) => base,
+}
+
+const GOLDEN_SCENARIOS: readonly GoldenScenario[] = [
+  { file: '01-plain-turn.json', prefixes: repeatPrefix(basePrefix, 1) },
+  { file: '02-tool-call.json', prefixes: repeatPrefix(basePrefix, 2) },
+  { file: '03-edit-then-run.json', prefixes: repeatPrefix(basePrefix, 2) },
+  { file: '04-packed-output.json', prefixes: repeatPrefix(basePrefix, 4) },
+  { file: '05-manual-compaction.json', prefixes: repeatPrefix(basePrefix, 3) },
+  {
+    file: '06-subagent-child.json',
+    prefixes: [subagentParentPrefix, subagentParentPrefix, subagentChildPrefix],
+  },
+  {
+    file: '07-skills-and-rules.json',
+    prefixes: [
+      {
+        options: { hasShell: true, hasSkills: true },
+        facts: skillsRulesFacts,
+      },
+    ],
+  },
+  {
+    file: '08-team-on.json',
+    prefixes: [
+      {
+        options: { hasShell: true, hasSkills: false, teamTools: TEAM_TOOL_DEFINITIONS },
+        // The harness declared no roles (`teamRosterData: () => ({ stable: [] })`),
+        // so the stable section is the real builder's empty-roles output.
+        facts: (base) => ({ ...base, teamRoster: buildStableRosterSection([]) }),
+      },
+    ],
+  },
+  { file: '09-single-continuation.json', prefixes: repeatPrefix(basePrefix, 2) },
+  {
+    file: 'moved-helpers.json',
+    prefixes: repeatPrefix(
+      {
+        options: { hasShell: true, hasSkills: false, hasWebFetch: true },
+        facts: (base) => ({ ...base, hasWebFetch: true }),
+      },
+      2,
+    ),
+  },
+]
+
+function prefixTools(prefix: GoldenPrefix) {
+  const tools = toolDefinitions('linux', prefix.options)
+  // The hosted-search tool's wire bytes, as the host appends them.
+  return prefix.hostedSearch === true ? [...tools, { type: 'web_search' as const }] : tools
+}
+
+/** Rebuilds a recorded turn's body with the real builders and returns the
+ * complete serialized body: the byte comparison then covers every field,
+ * not selected ones. */
+function rebuildGoldenTurn(file: string, tools: readonly ToolDefinition[]): string {
   const body = goldenBodySchema.parse(JSON.parse(goldenRequests(file)[0]!) as unknown)
-  const instructions = instructionsFor({ ...baseFacts(), today: '1970-01-01' })
+  const instructions = instructionsFor(baseFacts())
   expect(JSON.stringify(body.tools)).toBe(JSON.stringify(tools))
   expect(body.instructions).toBe(instructions)
-  expect(body.prompt_cache_key).toBe(
-    promptCacheKey({ model: 'muse-spark-1.3', instructions, tools }),
-  )
-  return body
+  expect(body.prompt_cache_key).toBe(promptCacheKey({ model: body.model, instructions, tools }))
+  // The recorded contract's scalars, pinned as literals: a regeneration with
+  // new scalars fails these before the byte comparison below.
+  expect(body.model).toBe('muse-spark-1.3')
+  expect(body.tool_choice).toBe('auto')
+  expect(body.reasoning).toEqual({ effort: 'high', summary: 'auto' })
+  expect(body.stream).toBe(true)
+  expect(body.store).toBe(false)
+  expect(body.include).toEqual(['reasoning.encrypted_content'])
+  expect(body.max_output_tokens).toBe(32_768)
+  expect(body.prompt_cache_retention).toBe('in_memory')
+  return JSON.stringify({
+    model: body.model,
+    input: body.input,
+    instructions,
+    tools,
+    tool_choice: body.tool_choice,
+    reasoning: body.reasoning,
+    stream: body.stream,
+    store: body.store,
+    include: body.include,
+    max_output_tokens: body.max_output_tokens,
+    prompt_cache_key: body.prompt_cache_key,
+    prompt_cache_retention: body.prompt_cache_retention,
+  })
 }
 
 describe('invariant 7: golden request bytes with new features off', () => {
-  // The host's body assembly order (ModelApiHost.body + keyed), pinned as
-  // literals: it is the order JSON.stringify sends on the Meta path.
+  // The recorded contract's key order (ModelApiHost.body + keyed, as
+  // JSON.stringify sends it on the Meta path), pinned as literals: a
+  // regeneration that adds, removes or reorders a field fails here and is
+  // reviewed. The cases below tie the recorded bytes to the real producers,
+  // so producer drift fails there instead.
   const BODY_KEYS = [
     'model',
     'input',
@@ -682,15 +960,7 @@ describe('invariant 7: golden request bytes with new features off', () => {
   ]
 
   it('keeps every recorded golden request in the sent key order', () => {
-    const directory = fileURLToPath(new URL('../fixtures/golden-requests/', import.meta.url))
-    const files = [
-      ...readdirSync(directory)
-        .filter((name) => name.endsWith('.json'))
-        .map((name) => name),
-      ...readdirSync(path.join(directory, 'strict'))
-        .filter((name) => name.endsWith('.json'))
-        .map((name) => `strict/${name}`),
-    ]
+    const files = goldenFiles()
     expect(files.length).toBeGreaterThan(0)
     for (const file of files) {
       for (const request of goldenRequests(file)) {
@@ -700,25 +970,80 @@ describe('invariant 7: golden request bytes with new features off', () => {
     }
   })
 
-  it('reproduces the plain golden turn from the real modules', () => {
-    const body = goldenTurn(
+  it.each(GOLDEN_SCENARIOS.map((scenario) => [scenario.file, scenario] as const))(
+    'reproduces %s tools, instructions and every cache key from the real builders',
+    (_file, scenario) => {
+      const requests = goldenRequests(scenario.file)
+      // A regenerated scenario with more or fewer requests fails here first.
+      expect(requests.length).toBe(scenario.prefixes.length)
+      for (const [index, request] of requests.entries()) {
+        const prefix = scenario.prefixes[index]!
+        const tools = prefixTools(prefix)
+        const body = goldenBodySchema.parse(JSON.parse(request) as unknown)
+        expect(JSON.stringify(body.tools)).toBe(JSON.stringify(tools))
+        expect(body.instructions).toBe(instructionsFor(prefix.facts(baseFacts())))
+        // Each request carries the key the real function emits for its
+        // recorded prefix (with the reproduced tools): a key change, or a
+        // prefix change the key must follow, fails here on all ten files,
+        // not just scenario 01.
+        expect(body.prompt_cache_key).toBe(
+          promptCacheKey({ model: body.model, instructions: body.instructions, tools }),
+        )
+      }
+    },
+  )
+
+  // The strict fixtures cover scenarios 01-07 (no team, continuation or
+  // moved-helpers strict run was recorded).
+  const strictScenarios = GOLDEN_SCENARIOS.filter((scenario) =>
+    [
       '01-plain-turn.json',
-      toolDefinitions('linux', { hasShell: true, hasSkills: false }),
-    )
-    expect(body.model).toBe('muse-spark-1.3')
-    expect(body.tool_choice).toBe('auto')
-    expect(body.reasoning).toEqual({ effort: 'high', summary: 'auto' })
-    expect(body.stream).toBe(true)
-    expect(body.store).toBe(false)
-    expect(body.include).toEqual(['reasoning.encrypted_content'])
-    expect(body.max_output_tokens).toBe(32_768)
-    expect(body.prompt_cache_retention).toBe('in_memory')
+      '02-tool-call.json',
+      '03-edit-then-run.json',
+      '04-packed-output.json',
+      '05-manual-compaction.json',
+      '06-subagent-child.json',
+      '07-skills-and-rules.json',
+    ].includes(scenario.file),
+  )
+  it.each(strictScenarios.map((scenario) => [scenario.file, scenario] as const))(
+    'reproduces strict/%s tools through the real strict conversion',
+    (_file, scenario) => {
+      const requests = goldenRequests(`strict/${scenario.file}`)
+      expect(requests.length).toBe(scenario.prefixes.length)
+      for (const [index, request] of requests.entries()) {
+        const strictTools = withStrictTools(prefixTools(scenario.prefixes[index]!), true)
+        const body = goldenBodySchema.parse(JSON.parse(request) as unknown)
+        expect(JSON.stringify(body.tools)).toBe(JSON.stringify(strictTools))
+        // Strict conversion keeps the instructions: each strict request's
+        // text is its plain request's recorded text.
+        const plain = goldenBodySchema.parse(
+          JSON.parse(goldenRequests(scenario.file)[index]!) as unknown,
+        )
+        expect(body.instructions).toBe(plain.instructions)
+        expect(body.prompt_cache_key).toBe(
+          promptCacheKey({
+            model: body.model,
+            instructions: body.instructions,
+            tools: strictTools,
+          }),
+        )
+      }
+    },
+  )
+
+  it('reproduces the plain golden turn byte-for-byte', () => {
+    expect(
+      rebuildGoldenTurn('01-plain-turn.json', prefixTools(GOLDEN_SCENARIOS[0]!.prefixes[0]!)),
+    ).toBe(goldenRequests('01-plain-turn.json')[0])
   })
 
-  it('reproduces the strict golden tools from the real strict conversion', () => {
-    goldenTurn(
-      'strict/01-plain-turn.json',
-      withStrictTools(toolDefinitions('linux', { hasShell: true, hasSkills: false }), true),
-    )
+  it('reproduces the strict golden turn byte-for-byte', () => {
+    expect(
+      rebuildGoldenTurn(
+        'strict/01-plain-turn.json',
+        withStrictTools(prefixTools(GOLDEN_SCENARIOS[0]!.prefixes[0]!), true),
+      ),
+    ).toBe(goldenRequests('strict/01-plain-turn.json')[0])
   })
 })
