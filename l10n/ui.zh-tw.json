@@ -754,6 +754,7 @@
     "messages": {
       "targetUnavailable": "此排程的目標在目前主機上無法使用。",
       "targetClosed": "目標已關閉，或此等待中的執行已略過。",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "根據此排程的補執行原則，已略過錯過的執行。",
       "backgroundNotice": "排程 {name} 已在背景開啟對話。",
       "conversationTitle": "排程 {name} · {date}",

@@ -756,6 +756,7 @@
     "messages": {
       "targetUnavailable": "El destino de esta programación no está disponible en este anfitrión.",
       "targetClosed": "El destino se cerró o se omitió esta ejecución pendiente.",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "Se omitió la ejecución perdida según la política de recuperación de esta programación.",
       "backgroundNotice": "La programación {name} abrió una conversación en segundo plano.",
       "conversationTitle": "Programación {name} · {date}",

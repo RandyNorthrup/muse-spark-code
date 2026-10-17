@@ -757,6 +757,7 @@
     "messages": {
       "targetUnavailable": "Cel tego harmonogramu jest niedostępny na tym hoście.",
       "targetClosed": "Cel został zamknięty lub pominięto to oczekujące uruchomienie.",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "Pominięto zaległe uruchomienie zgodnie z zasadą nadrabiania tego harmonogramu.",
       "backgroundNotice": "Harmonogram {name} otworzył rozmowę w tle.",
       "conversationTitle": "Harmonogram {name} · {date}",

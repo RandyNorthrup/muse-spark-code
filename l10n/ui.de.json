@@ -755,6 +755,7 @@
     "messages": {
       "targetUnavailable": "Das Ziel dieses Zeitplans ist auf diesem Host nicht verfügbar.",
       "targetClosed": "Das Ziel wurde geschlossen oder diese wartende Ausführung wurde übersprungen.",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "Die verpasste Ausführung wurde gemäß der Nachholregel dieses Zeitplans übersprungen.",
       "backgroundNotice": "Der Zeitplan {name} hat eine Unterhaltung im Hintergrund geöffnet.",
       "conversationTitle": "Zeitplan {name} · {date}",

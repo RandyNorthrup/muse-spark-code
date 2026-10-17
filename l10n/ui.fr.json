@@ -756,6 +756,7 @@
     "messages": {
       "targetUnavailable": "La cible de cette planification est indisponible sur cet hôte.",
       "targetClosed": "La cible a été fermée ou cette exécution en attente a été ignorée.",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "L’exécution manquée a été ignorée selon la règle de rattrapage de cette planification.",
       "backgroundNotice": "La planification {name} a ouvert une conversation en arrière-plan.",
       "conversationTitle": "Planification {name} · {date}",

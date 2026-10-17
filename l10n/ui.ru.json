@@ -757,6 +757,7 @@
     "messages": {
       "targetUnavailable": "Цель этого расписания недоступна на этом хосте.",
       "targetClosed": "Цель закрыта или это ожидающее выполнение пропущено.",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "Пропущенное выполнение не запущено согласно правилу наверстывания этого расписания.",
       "backgroundNotice": "Расписание {name} открыло беседу в фоновом режиме.",
       "conversationTitle": "Расписание {name} · {date}",

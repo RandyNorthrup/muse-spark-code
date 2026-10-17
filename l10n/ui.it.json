@@ -756,6 +756,7 @@
     "messages": {
       "targetUnavailable": "La destinazione di questa pianificazione non è disponibile su questo host.",
       "targetClosed": "La destinazione è stata chiusa o questa esecuzione in attesa è stata saltata.",
+      "deliveryFailed": "Delivery failed: {reason}",
       "catchUpSkipped": "L’esecuzione mancata è stata saltata secondo la regola di recupero di questa pianificazione.",
       "backgroundNotice": "La pianificazione {name} ha aperto una conversazione in background.",
       "conversationTitle": "Pianificazione {name} · {date}",
