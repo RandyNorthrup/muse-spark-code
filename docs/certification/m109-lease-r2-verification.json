@@ -1662,5 +1662,13 @@
     "Linux/macOS must rerun all four owning files, fileLease, six caller files and the complete non-hub related graph; SIGSTOP/SIGKILL are now permanent in writerLease.",
     "Final ESLint over changed source/test files exits 0. Final host and unit typechecks exit 0; earlier full five-project typecheck exits 0.",
     "Final owning post-compatibility replay: writerLease 23 + writerLifetime 13 + ownerEvidence 3, all 39 pass."
-  ]
+  ],
+  "codeCommit": "37207d50b",
+  "postHook": {
+    "stagedAndCommittedSourceDiffEqual": true,
+    "independentHostBytes": 51193,
+    "cap": 51200,
+    "cleanAtCodeCommit": true,
+    "noLaneTestRunnerRetained": true
+  }
 }
