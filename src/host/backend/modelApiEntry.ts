@@ -35,6 +35,7 @@ export {
   rateLimitHeaders,
   parseJsonResponse,
   redactModelApiError,
+  rethrowStreamError,
   ignoreClosingError,
   redactSecrets,
   assertConfirmedAllowed,
