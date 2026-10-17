@@ -12,7 +12,7 @@ happened, not what was planned; superseded entries are kept.
 - **Evaluated automatic compaction** (M101 CM1013R9, certified by the
   second counted run in CM1013R10). The first binding run passed on
   2026-10-12: verdict `pass` on the full frozen set (sixteen tasks across
-  all four arms, 274 of 588 ceiling calls, $0.06285), every arm above both
+  all four arms, 274 attempts / 276 requests of the 588 ceiling, $0.06285), every arm above both
   0.75 floors, packing engaged on both long-output tasks and a settled
   D78 admission on both long-context tasks (receipts in
   `docs/certification/m101-binding-report.json` and
@@ -23,7 +23,7 @@ happened, not what was planned; superseded entries are kept.
   first charge still asks once in the paid-use popup naming the price and
   daily budget. `modelApiStrictTools` stays on: its arm held both floors in
   the same run. The second counted run on the flipped head passed too
-  (267 calls, $0.059742, all eight floors held; receipts in
+  (265 attempts / 267 requests, $0.059742, all eight floors held; receipts in
   `docs/certification/m101-binding-report-2026-10-12-28686235d.json`/`.md`
   and the run log beside them), so the shipped digest `a59c8448…` is
   certified: certified equals computed equals the frozen pin. In that run
@@ -344,6 +344,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Automatic compaction could never run from the terminal (RVMSM101):
+  admission required a trusted workspace, but headless `exec` refuses
+  workspace trust outright, so `--auto-compaction` under
+  `--max-budget-usd` was accepted and silently never compacted, and the
+  ACP agent needed `--trust-workspace` on top of the editor's paid-use
+  approval. In the agent the spend is now authorized by that approval
+  (or, headless, by the explicit flag under the run budget); the VS Code
+  panel keeps its Restricted Mode fence, and workspace trust still gates
+  hooks, remembered grants and tools.
+- Headless `exec --auto-compaction` on the Muse Code backend is now
+  refused as a Model-API-only option instead of being accepted as a
+  no-op (Muse Code compacts itself).
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
