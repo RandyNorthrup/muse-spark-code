@@ -149,7 +149,6 @@ export const EN = {
   companionLaunchFailed:
     'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
   // M118: prompt library and local sharing; read UI_TEXT at use time.
-  promptLimits: 'The prompt exceeds the size limit, or this scope has too many prompts.',
   promptWorkspaceRequired: 'Open a workspace to save workspace prompts.',
   promptScopeDamaged:
     '{scope}: The prompt store is unreadable or damaged. Its files were kept unchanged.',
@@ -174,6 +173,9 @@ export const EN = {
     'Composer toolbar or right-click: Save, Share, Use saved. Outside VS Code, Shift-right-click keeps native clipboard actions. Prompts are plain text; save no secrets.',
   promptCopyToUser: 'Copy to My Prompts',
   promptTitle: 'Title',
+  // NOLIMITS1FIX: the only prompt refusal left — a blank title. The removed
+  // size/count bounds were invented.
+  promptTitleRequired: 'A title is required.',
   promptBody: 'Prompt Text',
   promptTags: 'Tags',
   promptVariables: 'Variables',

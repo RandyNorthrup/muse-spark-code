@@ -133,7 +133,7 @@ describe('portable prompt store and library', () => {
     await expect(store.remove('user', fixture.id)).rejects.toThrow()
     expect(await readFile(path.join(directory, 'broken.md'))).toEqual(before)
   })
-  it('rejects conflicting ids, wrong scopes, symlinks and overlarge files', async () => {
+  it('rejects conflicting ids, wrong scopes and symlinks, and reads overlarge files', async () => {
     const { store, data, root } = await rig()
     await store.write(fixture)
     const directory = path.join(data, 'prompts')
@@ -151,8 +151,10 @@ describe('portable prompt store and library', () => {
     await expect(store.list('user')).rejects.toThrow()
     await expect(readPromptFile(conflict)).rejects.toThrow()
     await rm(conflict)
+    // NOLIMITS1FIX: the removed 128 KiB file bound was invented — a file
+    // past it reads back whole.
     await writeFile(conflict, 'x'.repeat(131_073))
-    await expect(readPromptFile(conflict)).rejects.toThrow()
+    await expect(readPromptFile(conflict)).resolves.toBe('x'.repeat(131_073))
     await rm(conflict)
     await rm(directory, { recursive: true })
     await symlink(root, directory)
@@ -163,8 +165,9 @@ describe('portable prompt store and library', () => {
     // D121: the removed 80/10000 ceilings refuse nothing; only blank refuses.
     expect(() => validatePrompt({ ...fixture, title: 'x'.repeat(81) })).not.toThrow()
     expect(() => validatePrompt({ ...fixture, title: ' '.repeat(3) })).toThrow()
-    // The prompt file itself stays bounded.
-    expect(() => validatePrompt({ ...fixture, tags: ['x'.repeat(131_073)] })).toThrow()
+    // NOLIMITS1FIX: the prompt file bound is gone too — a file past the
+    // removed 128 KiB stands.
+    expect(() => validatePrompt({ ...fixture, tags: ['x'.repeat(131_073)] })).not.toThrow()
     expect(() =>
       validatePrompt({ ...fixture, body: 'x'.repeat(10_001), variables: [] }),
     ).not.toThrow()

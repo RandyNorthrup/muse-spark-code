@@ -52,17 +52,16 @@ describe('prompt import', () => {
     importer.cancel()
     await cancelled
   })
-  it('enforces the byte cap even on otherwise valid portable files', async () => {
+  it('previews an otherwise valid portable file past the removed byte cap', async () => {
     const file = serialisePromptFile({ ...fixture, tags: ['x'.repeat(131_073)] })
     const read = () => Promise.resolve(file)
-    await expect(
-      new PromptImporter({ read, isConfidentialWorkspace: () => false }).preview(
-        { kind: 'file', location: 'p.md' },
-        'user',
-      ),
-    ).rejects.toThrow()
+    const preview = await new PromptImporter({
+      read,
+      isConfidentialWorkspace: () => false,
+    }).preview({ kind: 'file', location: 'p.md' }, 'user')
+    expect(preview.prompt.tags).toEqual(['x'.repeat(131_073)])
   })
-  it('refuses malformed/oversized inputs and remote import in a confidential workspace', async () => {
+  it('refuses malformed inputs and remote import in a confidential workspace', async () => {
     const read = vi.fn(() => Promise.resolve('x'.repeat(131_073)))
     await expect(
       new PromptImporter({ read, isConfidentialWorkspace: () => false }).preview(

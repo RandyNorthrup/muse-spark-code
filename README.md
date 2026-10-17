@@ -5132,7 +5132,8 @@ appear as error notices in the conversation.
 Copy exports scrubbed text or Markdown. File export uses `.muse-prompt.md`
 with versioned JSON front matter. Closing the prompt sharing UI cancels a pending
 export, including one waiting on the Save dialog. Import from a file or a pasted public HTTPS
-raw-file link (including a raw gist link) is capped at 128 KiB, shows the
+raw-file link (including a raw gist link) reads the whole prompt at any size
+(a link reads under web fetch's own 5 MiB body bound), shows the
 whole prompt, declared variables and destination scope, and marks the result
 untrusted. A gist web page is HTML, so use its raw-file URL. Publishing secret
 gists is phase 2; node links, team libraries and email are phase 3.

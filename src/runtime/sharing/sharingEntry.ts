@@ -20,7 +20,6 @@ import type { SharingCommand } from './args'
 import { createAcpSharing, acpSharingCommands, type AcpSharingPort } from '../../acp/sharing'
 import {
   UI_TEXT,
-  PROMPT_LIMITS,
   PROMPT_FILE_MODE,
   PROMPT_STDIN_TIMEOUT_MS,
   SETTING_DEFAULTS,
@@ -245,14 +244,13 @@ export async function runRuntimeSharing(
         controller.signal.addEventListener('abort', cancelRead, { once: true })
         const deadline = setTimeout(stop, PROMPT_STDIN_TIMEOUT_MS)
         let text = ''
-        let bytes = 0
         const decoder = new TextDecoder('utf-8', { fatal: true })
         try {
+          // NOLIMITS1FIX: the removed 128 KiB bound was invented — stdin
+          // streams to its end at any size.
           for await (const chunk of process.stdin) {
             controller.signal.throwIfAborted()
             if (!(chunk instanceof Buffer)) throw new Error(UI_TEXT.promptFileInvalid)
-            bytes += chunk.byteLength
-            if (bytes > PROMPT_LIMITS.fileBytes) throw new Error(UI_TEXT.promptLimits)
             text += decoder.decode(chunk, { stream: true })
           }
           return text + decoder.decode()
@@ -273,7 +271,7 @@ export async function runRuntimeSharing(
       UI_TEXT.shareConfidential,
       UI_TEXT.shareCancelled,
       UI_TEXT.sharePreviewExpired,
-      UI_TEXT.promptLimits,
+      UI_TEXT.promptTitleRequired,
     ]
     const message =
       error instanceof Error && known.includes(error.message)
