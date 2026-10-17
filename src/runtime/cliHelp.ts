@@ -608,8 +608,13 @@ export function renderOptionRow(table: UiText, route: CliHelpRoute, option: CliH
   const definition = Object.entries(CLI_OPTION_REGISTRY[route].options).find(
     ([name]) => name === option.name,
   )?.[1]
+  // The union's `multiple` is literal `true` today; the comparison stays so
+  // a future table that writes `multiple: false` explicitly still renders
+  // single. (PLAN.md §8.)
+  /* eslint-disable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-unnecessary-boolean-literal-compare, unicorn/no-unnecessary-boolean-comparison */
   const isRepeatable =
     definition !== undefined && 'multiple' in definition && definition.multiple === true
+  /* eslint-enable @typescript-eslint/no-unnecessary-condition, @typescript-eslint/no-unnecessary-boolean-literal-compare, unicorn/no-unnecessary-boolean-comparison */
   // Descriptions may contain a legacy rendered prefix. Keep its translated
   // prose, but the table alone owns the flag and required value syntax.
   const meaning = optionMeaning(table, route, option.name).replace(

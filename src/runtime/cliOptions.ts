@@ -7,7 +7,7 @@ import {
   PROMPTS_USE_FLAGS,
   SHARE_FLAGS,
   SHARING_BASE_FLAGS,
-} from './sharing/args'
+} from '../shared/sharingFlags'
 import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
