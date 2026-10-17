@@ -2519,6 +2519,8 @@
   "rewindConversationFailed": "대화를 되돌리지 못했습니다",
   "sideChatFailed": "사이드 채팅을 열지 못했습니다",
   "sideChatPlanOnly": "사이드 채팅은 계획 모드로 유지됩니다.",
+  "sideChatWriteRefused": "사이드 채팅은 읽기 전용이므로 이 요청이 거부되었습니다.",
+  "sideChatResolver": "사이드 채팅",
   "planActionsLabel": "계획 작업",
   "savePlan": "계획 저장",
   "implementPlan": "새 대화에서 구현",

@@ -2681,6 +2681,8 @@
   "rewindConversationFailed": "Nie udało się cofnąć rozmowy",
   "sideChatFailed": "Nie udało się otworzyć czatu pobocznego",
   "sideChatPlanOnly": "Czaty poboczne pozostają w trybie planowania.",
+  "sideChatWriteRefused": "Czaty poboczne są tylko do odczytu, więc to żądanie zostało odrzucone.",
+  "sideChatResolver": "Czat poboczny",
   "planActionsLabel": "Działania planu",
   "savePlan": "Zapisz plan",
   "implementPlan": "Wdróż w nowej rozmowie",

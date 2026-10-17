@@ -3311,9 +3311,13 @@ side-chat request is ignored if the original tab has since changed sessions.
 On the Model API backend, the side branch keeps Plan mode after reopen,
 suppresses local hooks and refuses external MCP tools, including ones their
 server labels read only. It also refuses scheduled prompt creation, cancellation
-and paid runs before any job claim or Model API request. Muse Code applies its
-own project and session rules in Plan mode;
-review those rules before treating that branch as read only. Close the side
+and paid runs before any job claim or Model API request. On the Muse Code
+backend, the side branch stays in Plan mode and the panel refuses every
+approval it raises — answered with the card's own rejection, or, when the
+card has to be shown, by refusing any approving click on it — so the branch
+cannot approve a write. Writes the CLI's own project and session allow rules
+already cover still run without asking;
+review those rules before treating that branch as strictly read only. Close the side
 tab to return to the main one; its branch stays in History. It uses the
 selected backend's normal model allowance or key billing; it does not route
 Model API calls through a Muse subscription. In a side chat, `Shift+Tab`
@@ -4722,13 +4726,16 @@ stopped and the next message resumes the same session.
   (worth trying if commands run for you); `off` never sandboxes.
 - **No Rename, conversation rewind or Side chat with Muse Code on Windows** —
   Muse Code refuses `session/rename` and `session/fork` on Windows (1.3.0,
-  1.4.0, 1.4.2-R4684.1 and 1.4.3-R5018.1, retested October 5;
+  1.4.0, 1.4.2-R4684.1, 1.4.3-R5018.1 and 1.4.4-R5419.1, retested October 10;
   [#30](https://github.com/meta-models/muse-code-sdk/issues/30),
   [#31](https://github.com/meta-models/muse-code-sdk/issues/31)), so the
   panel does not offer fork-based actions there, whatever the version, until
   a release is verified to fix them; **Rewind Code to Here** still works
   (**Restore Files to Here** needs a Model API session on every platform),
   and the Model API backend offers all of them.
+  The [Windows 1.4.4 capture](docs/certification/m53.md#c-m53-1-windows-144-retest-2026-10-10)
+  includes completed-turn cuts, a second host, close/resume and TUI `/fork`;
+  all still fail. Rename's trace reports `unsupported_platform`.
 - **"Muse Code applies your approvals in this conversation but reports an
   error for each one"** — Muse Code on Windows can fail its own approval
   ledger after applying a decision ("approval ledger durability fence",
