@@ -14583,6 +14583,17 @@ resolved against the plan's user-visible promise, not against the tag:
      lower of the connection's approved cap and the existing shared daily
      budget.
 
+**CM971R4 vendor evidence blocker — resolved by lead (2026-10-11).**
+The original strict grammar retained eight shipped upstream texts under review.
+CM971R5's ruling in M97 admits only measured benign notice forms and permits
+version-and-byte-pinned receipts for reviewed notice-only differences. Seven
+texts now match exactly; only `lz-string@1.5.0` needs and receives a receipt.
+The production build and repository scan pass with unchanged gates and exits.
+`@muse-code/sdk@1.4.4` declares MIT and its actual text matches the same MIT
+notice and terms as React; no SDK receipt is written. Its metadata and first
+five licence lines are recorded in `docs/certification/m97.md`; the owner's
+redistribution decision remains separate from deterministic matching.
+
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
 explicitly approves the 116 Title Case scenes, `models-errors` with the
 provider-picker repair, and the three What's New scenes as class (b'):
@@ -32984,7 +32995,63 @@ Record regression failures, byte-exact red drills and bounded checks in
 
 ### M97 — Read-only legal scan, then selected fixes (D76, integrated candidate; certification incomplete)
 
-**Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
+**Status 2026-10-17: built.** MSM97 lane merged to the test-overhaul main
+with runnable gates green and the packed-product proof in
+`docs/certification/msm97.md`; SAST, installed-host/Windows/visual
+receipts and aggregate quality stay with the lead, F27–F31 with
+LEGALTRUE. Retained requirements and receipts follow.
+
+- **Decision 2026-10-10 (owner).** The bundled SPDX License List 3.28.0
+  templates and equivalent-words list (CM971-R3) stay attributed under
+  CC-BY-3.0, Linux Foundation and its Contributors; the licence texts in
+  them keep their own terms (release issue I-R11).
+- **Decision 2026-10-10 (lead): scan scope.** A workspace scan judges what
+  the workspace distributes; a product rule for every user's workspace.
+  (1) Distribution is decided from the build records first (or the package
+  manifest's files list when there are none), never by walking
+  `node_modules`; the records, their listed files and the shipped packages'
+  metadata and licence files are admitted before the walk, outside the
+  directory-entry budget, which applies to the rest. An input the bundler
+  shook out (no bytes in any output) does not ship. (2) Licence texts of
+  shipping dependencies must match a template or keep human review;
+  dependencies that do not ship, and undistributed files such as test
+  fixtures, are informational and never make the scan incomplete. (3)
+  `.git` and `node_modules` are expected and skipped, not incomplete
+  reasons. (4) The SPDX guidelines' equivalences apply (quote styles,
+  Markdown emphasis, list markers, whitespace, titles and notices outside
+  the template's slot, an appendix given from its applied notice); real
+  wording differences keep review, and every pinned template is tried
+  (MIT-0 added). Omitted advice in a long report is summarized, not an
+  incomplete reason.
+
+- **Decision 2026-10-11 (lead, CM971R5).** Keep strict default matching
+  and exits unchanged. Admit only benign holder/notice forms measured on the
+  eight shipped upstream texts: the literal `and affiliates.` and `et al.`
+  suffixes, a final full stop after a two-word capitalized name, and a parenthesized email/URL pair.
+  Existing copyright markers, year lists/ranges and rights-reserved notices
+  retain their guards; restriction sentences, including Title Case and every
+  supported language, still require review. Remaining notice-only differences
+  may use root `licence-review.json` receipts pinned to package, exact version,
+  exact licence-byte SHA-256 and the found single SPDX identifier, with a reason.
+  Report every applied receipt visibly as advice in all formats and resolve
+  only that text check; declaration conflicts and other gaps remain. Never
+  issue an SDK receipt: report its metadata and first five licence lines for
+  the owner's redistribution decision. Preserve the legal 150-KiB cap by
+  simplifying existing bundle code if necessary, without new dependencies.
+  Record per-package comparisons, red/restored guards and repository scan in
+  `docs/certification/m97.md`; full aggregate quality remains the lead's gate.
+
+- **CM971R4 repair scope (2026-10-10, RVCM971C).** Exact variable
+  matches require short names (at most eight tokens), multilingual restriction
+  rejection after Unicode case/separator splitting, and no sentence punctuation
+  beyond company abbreviations. Compound `non profit` is a
+  phrase, never a ban on `Profit Inc.`. Scope reader gaps to shipped material,
+  preserve declaration/text conflicts, prioritize distribution evidence within
+  the unchanged file cap, preserve package versions during privacy scrubbing,
+  and align the exit documentation with blocker-only exit 1. Ecosystem admission
+  counting is shared in the existing dependency module to retain the unchanged
+  zero-duplication gate. Every finding has
+  a regression and byte-exact red/restored drill in `docs/certification/m97.md`.
 
 - **Goal.** Both backends offer an evidence-based legal/licensing and header
   hygiene report without modifying the project; the user can then authorize
@@ -33955,6 +34022,27 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**CM971R5 gate receipt (2026-10-11).** The lead's closed holder forms
+and the reviewed `lz-string` receipt resolve the earlier eight-vendor blocker.
+The 312-word review vocabulary moves unchanged to hash-pinned
+`legal-data/slot-words.txt`, verified at build and load; missing or changed
+vocabulary disables exact matching. This makes room for the receipt reader:
+`legalScan.js` fits the unchanged 150-KiB cap (final measured sizes are in
+`docs/certification/m97.md`). All 54 complete owning/allied files pass
+11,437 tests at repository timeouts, including 10,240 restriction controls.
+The production build passes; 87 bundles / 1,910 files verify and the repository scan reports
+zero incomplete checks, blockers or should-fix findings (exit 0). Full aggregate
+quality remains reserved for the lead by the explicit lane rules.
+
+**CM971R4 gate receipt (2026-10-10).** The unchanged production build gate
+refuses eight upstream licence texts under the owner's strict slot grammar;
+see §3 and `docs/certification/m97.md`. This is an external vendor evidence
+blocker, recorded before committing the review repairs. The gate remains on
+and failing; no product qualification or repository exit-0/1 pass is claimed.
+The lane's explicit shared rules reserve the full aggregate quality command
+for the lead, so this rig runs the prescribed static gates, production build,
+and complete owning test files instead.
 
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
@@ -39606,9 +39694,34 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   `exec legal-scan --json` and legacy `legal --format json` share the scanner;
   complete should-fix exits 0 and blocker exits 1. Real scans retain documented
   human-review/full-matching/freshness limitations and therefore exit 2.
+  C-M97-1 (2026-10-10, lane CM971, receipt `docs/certification/m97.md`)
+  lifts this for fully evidenced scans: license files match the pinned
+  SPDX License List 3.28.0 templates (CM971-R3 redesign), and per-bundle
+  build-captured hashes establish freshness, so a complete real scan exits
+  0 or 1; remaining gaps stay named and still exit 2.
 - I-R8 — **open, documented scanner limit; owner: scanner lane and lead.**
   Identifier/title heuristics are not complete license-text matching or legal
   analysis; static readers cannot resolve arbitrary build logic or linkage.
+  C-M97-1 (2026-10-10) narrows this, and CM971-R3 redesigns it: texts
+  match the pinned SPDX templates under the SPDX matching guidelines, a
+  variable accepts only what it stands for, and modified or unrecognized
+  texts keep the named full-matching reason with the differing span.
+  Restriction vocabulary (noncommercial, nonprofit, educational, only,
+  personal, no, …) is never part of a holder's name in any case, so a
+  notice carrying it keeps human review. Linkage analysis and legal
+  conclusions remain human-review items, not verdicts.
+- I-R11 — **decided 2026-10-10, owner: SPDX template data licence.** The
+  SPDX License List 3.28.0 templates and equivalent-words list bundled in
+  `src/core/legal/legal-data/` (and `dist/legal-data/`) stay attributed
+  under CC-BY-3.0 (Linux Foundation and its Contributors), as
+  `NOTICE.md`, `THIRD_PARTY_NOTICES.txt` and `provenance.json` record;
+  the licence texts inside keep their own terms.
+- I-R12 — **this repository's own build records verify; owner: lead.**
+  `npm run build` ends with `scripts/check-legal-build-records.mjs`: the
+  production scanner over every bundle record and listed file must report
+  no build-evidence reason (87 bundles, 0 reasons on macmini, CM971-R3),
+  and the production scan of the whole repository must complete. Under the
+  scan-scope decision above it does: exit 0 on macmini, advice only.
 - I-R9 — **closed; owner: M97FIN.** Merge `242a47f2` incorporates all 20
   finished S/W findings from `aa181639`; combined targeted suites pass.
 - I-R10 — **local aggregate closed; owner: FIN4/lead.** Full

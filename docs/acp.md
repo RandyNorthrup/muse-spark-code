@@ -111,10 +111,16 @@ are in `result`. No automatic fix is available. The reserved
 argument parsing. The older `legal --format json` invocation remains an alias.
 Both refuse prompt text and model/credential flags.
 
-The current scanner also lists human review, full license-text matching and
-artifact freshness as incomplete checks on every real run. Even a fixture
-with no findings therefore returns exit 2; the complete exit-0/1 branches are
-tested with injected reports and are not yet real-scanner CI receipts.
+License files match the pinned SPDX License List 3.28.0 templates exactly
+(only a template's variable and optional parts may vary), and per-bundle
+SHA-256 hashes captured by the build establish artifact freshness, so a fully
+evidenced scan with no findings returns exit 0 (exit 1 with a blocker).
+A text that differs from its template is quoted at the differing span for
+human review.
+Heuristic or unrecognized license texts, missing locks or license data,
+dynamic metadata, binary files, links, stale artifacts and bounded-out input
+stay named incomplete checks with exit 2; the absence of an ecosystem's
+manifests entirely is a complete observation, not a gap.
 
 Registry enrichment uses npm/PyPI HTTPS metadata, sends only package names and
 versions, refuses redirects and never reads private registry configuration.
@@ -133,6 +139,13 @@ command. The optional panel paid explanation uses a portable core executor;
 this ACP command itself stays free. Native editor UI adapters retain their
 existing compatibility milestones. **Not legal advice; for distribution
 decisions consult a lawyer.**
+
+An optional workspace-root `licence-review.json` array holds reviewed licence
+receipts: `package`, exact `version`, licence-byte `sha256`, the found single
+`spdx` identifier and a one-line `reason`. Applied receipts appear visibly as
+**Reviewed by receipt** in every report format and resolve only that text
+check. Changed versions or bytes need review again; conflicts and other gaps
+remain. See [the receipt example](../README.md#legal-scan-m97).
 
 ## Choose who pays
 

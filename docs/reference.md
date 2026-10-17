@@ -79,7 +79,7 @@ Commands: `museSpark.openUsagePage`. Settings: `museSpark.usageHistory`, `museSp
 
 ### Legal Scan
 
-Scan the workspace for licensing, attribution and header findings
+Local licence scan; optional licence-review.json receipts bind a reviewed SPDX licence to its package, exact version and SHA-256, with a reason. Changed bytes or versions require review again.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 

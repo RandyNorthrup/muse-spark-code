@@ -4971,6 +4971,7 @@
   "legalConfidenceLabel": "Jistota: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Použití: /legal [cesta relativní k pracovnímu prostoru …]. Volby nejsou podporovány.",
+  "legalScanReceiptHelp": "Místní kontrola licencí; volitelné záznamy v licence-review.json vážou zkontrolovanou licenci SPDX na balíček, přesnou verzi a SHA-256 s uvedením důvodu. Změna bajtů nebo verze vyžaduje novou kontrolu.",
   "legalScanItemDetail": "Zkontrolovat pracovní prostor z hlediska licencí, uvedení autorů a nálezů v hlavičkách",
   "legalScanBusy": "Právní kontrola začne, až skončí aktuální kolo.",
   "legalScanUntrusted": "Právní kontrola čte pracovní prostor, což omezený režim neumožňuje. Chcete-li ji použít, označte pracovní prostor jako důvěryhodný.",
@@ -5194,7 +5195,6 @@
     "m138": "Neověřeno: {v0} je odkaz nebo uniklý adresář.",
     "m139": "Kontrola zastavena na limitu: rozpočet položek adresáře; zbytek nevypsán.",
     "m140": "Neověřeno: {v0} se při výpisu změnil.",
-    "m141": "Neověřeno: {v0} jsou interní data repozitáře.",
     "m142": "Neověřeno: {v0} je odkaz.",
     "m143": "Neověřeno: {v0} je zvláštní soubor.",
     "m144": "Neověřeno: {v0} nelze připustit.",
@@ -5277,12 +5277,6 @@
     "m171": "Neověřeno: nečitelná npm metadata zámku v {v0}.",
     "m172": "Neověřeno: nepodporovaná verze npm zámku v {v0}.",
     "m173": "Neověřeno: {v0} překračuje hloubku npm zámku.",
-    "m174": {
-      "one": "Neověřeno: {count} npm položka v {v1} bez licence nebo odpovídajících instalačních dat.",
-      "other": "Neověřeno: {count} npm položek v {v1} bez licence nebo odpovídajících instalačních dat.",
-      "few": "Neověřeno: {count} npm položky v {v1} bez licence nebo odpovídajících instalačních dat.",
-      "many": "Neověřeno: {count} npm položek v {v1} bez licence nebo odpovídajících instalačních dat."
-    },
     "m175": "Neověřeno: žádné čitelné Yarn položky v {v0}.",
     "m176": {
       "one": "Neověřeno: {v0} zaznamenává verze bez licencí pro {count} balíčků; instalační data by pomohla.",
@@ -5345,6 +5339,32 @@
       "many": "Neověřeno: {count} Python požadavků bez vyřešené verze; tranzitivní licence neznámé."
     },
     "m196": "Neověřeno: Python manifesty, zámky a metadata distribuce chybí.",
+    "m198": "Neověřeno: {v0} uvádí vadný licenční výraz ({v1}); jeho podmínky vyžadují lidskou kontrolu.",
+    "m199": "Neověřeno: licence {v0} v {v1} se liší od kanonického znění.",
+    "m200": "{v0} se liší od šablony SPDX {v1} v místě „{v2}“, kde šablona pokračuje „{v3}“; jeho změněné podmínky vyžadují lidskou kontrolu",
+    "m201": "{v0} se liší od šablony SPDX {v1}: „{v2}“ do ní nepatří; jeho změněné podmínky vyžadují lidskou kontrolu",
+    "m202": "Nezkontrolováno: balíček {v0} uvádí {v1}, který leží mimo pracovní prostor a nelze jej ověřit",
+    "m203": "Nezkontrolováno: záznamy sestavení se neshodují v obsahu {v0}",
+    "m204": "Nezkontrolováno: výstup {v1} balíčku {v0} chybí nebo se liší od záznamu sestavení",
+    "m205": "Nezkontrolováno: připnutá data šablon SPDX neprošla ověřením ({v0}); přesné porovnání textu licence je pro ně vypnuto",
+    "m206": "Nezkontrolováno: vstup {v1} balíčku {v0} nemá hash zachycený při sestavení nebo mu už neodpovídá",
+    "m207": {
+      "one": "Závislosti, které se nedistribuují ({count}), mají licenční text odlišný od šablony SPDX nebo nerozpoznaný ({v0}); nedistribuují se, takže tuto kontrolu neomezují.",
+      "other": "Závislosti, které se nedistribuují ({count}), mají licenční text odlišný od šablony SPDX nebo nerozpoznaný ({v0}); nedistribuují se, takže tuto kontrolu neomezují.",
+      "few": "Závislosti, které se nedistribuují ({count}), mají licenční text odlišný od šablony SPDX nebo nerozpoznaný ({v0}); nedistribuují se, takže tuto kontrolu neomezují.",
+      "many": "Závislosti, které se nedistribuují ({count}), mají licenční text odlišný od šablony SPDX nebo nerozpoznaný ({v0}); nedistribuují se, takže tuto kontrolu neomezují."
+    },
+    "m208": "Pokud se některá z těchto závislostí začne distribuovat, zkontrolujte její licenční text.",
+    "m209": {
+      "one": "Další doporučení pro {v0} ({count}) nejsou vypsána; nic jiného nebylo vynecháno.",
+      "other": "Další doporučení pro {v0} ({count}) nejsou vypsána; nic jiného nebylo vynecháno.",
+      "few": "Další doporučení pro {v0} ({count}) nejsou vypsána; nic jiného nebylo vynecháno.",
+      "many": "Další doporučení pro {v0} ({count}) nejsou vypsána; nic jiného nebylo vynecháno."
+    },
+    "m210": "Pro jejich výpis zkontrolujte menší sadu cest.",
+    "reviewedReceipt": "Zkontrolováno podle záznamu: {reason}",
+    "receiptRenew": "Nová verze nebo změněné bajty licence vyžadují novou kontrolu a záznam.",
+    "invalidReceipt": "nezkontrolováno: {file} není platný soubor záznamů o kontrole licencí",
     "unknown": "neznámé",
     "unresolved": "nevyřešené",
     "noLicense": "bez licence",

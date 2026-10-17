@@ -4850,6 +4850,7 @@
   "legalConfidenceLabel": "Confianza: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Uso: /legal [ruta relativa al espacio de trabajo …]. No se admiten opciones.",
+  "legalScanReceiptHelp": "Análisis local de licencias; las constancias opcionales de licence-review.json vinculan una licencia SPDX revisada con su paquete, versión exacta y SHA-256, con un motivo. Los cambios de bytes o versiones requieren una nueva revisión.",
   "legalScanItemDetail": "Analizar el área de trabajo en busca de hallazgos de licencias, atribuciones y encabezados",
   "legalScanBusy": "El análisis legal empezará cuando termine el turno actual.",
   "legalScanUntrusted": "El análisis legal lee el área de trabajo, lo que el modo restringido no permite. Confíe en el área de trabajo para usarlo.",
@@ -5065,7 +5066,6 @@
     "m138": "Sin comprobar: {v0} es un enlace o directorio fuera del perímetro.",
     "m139": "Análisis detenido en el límite: presupuesto de entradas alcanzado; resto no enumerado.",
     "m140": "Sin comprobar: {v0} cambió durante la enumeración.",
-    "m141": "Sin comprobar: {v0} es interno al repositorio.",
     "m142": "Sin comprobar: {v0} es un enlace.",
     "m143": "Sin comprobar: {v0} es un archivo especial.",
     "m144": "Sin comprobar: no se pudo admitir {v0}.",
@@ -5138,11 +5138,6 @@
     "m171": "Sin comprobar: metadatos npm ilegibles en {v0}.",
     "m172": "Sin comprobar: versión de bloqueo npm no compatible en {v0}.",
     "m173": "Sin comprobar: {v0} excede la profundidad de bloqueo npm.",
-    "m174": {
-      "one": "Sin comprobar: {count} entrada npm en {v1} sin licencia ni datos instalados correspondientes.",
-      "other": "Sin comprobar: {count} entradas npm en {v1} sin licencia ni datos instalados correspondientes.",
-      "many": "Sin comprobar: {count} entradas npm en {v1} sin licencia ni datos instalados correspondientes."
-    },
     "m175": "Sin comprobar: no hay entradas Yarn legibles en {v0}.",
     "m176": {
       "one": "Sin comprobar: {v0} registra versiones sin licencias para {count} paquetes; los datos instalados podrían ayudar.",
@@ -5197,6 +5192,30 @@
       "many": "Sin comprobar: {count} requisitos Python sin versión resuelta; licencias transitivas desconocidas."
     },
     "m196": "Sin comprobar: faltan manifiestos Python, bloqueos y metadatos de distribución.",
+    "m198": "Sin comprobar: {v0} declara una expresión de licencia defectuosa ({v1}); sus términos necesitan revisión humana.",
+    "m199": "Sin comprobar: la licencia de {v0} en {v1} difiere de su redacción canónica.",
+    "m200": "{v0} difiere de la plantilla SPDX {v1} en «{v2}», donde la plantilla continúa «{v3}»; sus términos modificados requieren revisión humana",
+    "m201": "{v0} difiere de la plantilla SPDX {v1}: «{v2}» no forma parte de ella; sus términos modificados requieren revisión humana",
+    "m202": "No comprobado: el paquete {v0} incluye {v1}, que está fuera del espacio de trabajo y no se puede verificar",
+    "m203": "No comprobado: los registros de compilación no coinciden sobre el contenido de {v0}",
+    "m204": "No comprobado: la salida {v1} del paquete {v0} falta o difiere de su registro de compilación",
+    "m205": "No comprobado: los datos fijados de plantillas SPDX no superaron la verificación ({v0}); la coincidencia exacta del texto de licencia está desactivada para ellos",
+    "m206": "No comprobado: la entrada {v1} del paquete {v0} no tiene un hash capturado en la compilación o ya no coincide con él",
+    "m207": {
+      "one": "Dependencias que no se distribuyen ({count}) con textos de licencia distintos de su plantilla SPDX o no reconocidos ({v0}); no se distribuyen, así que no limitan este análisis.",
+      "other": "Dependencias que no se distribuyen ({count}) con textos de licencia distintos de su plantilla SPDX o no reconocidos ({v0}); no se distribuyen, así que no limitan este análisis.",
+      "many": "Dependencias que no se distribuyen ({count}) con textos de licencia distintos de su plantilla SPDX o no reconocidos ({v0}); no se distribuyen, así que no limitan este análisis."
+    },
+    "m208": "Si alguna de estas dependencias empieza a distribuirse, revise su texto de licencia.",
+    "m209": {
+      "one": "No se listan más avisos para {v0} ({count}); no se omitió nada más.",
+      "other": "No se listan más avisos para {v0} ({count}); no se omitió nada más.",
+      "many": "No se listan más avisos para {v0} ({count}); no se omitió nada más."
+    },
+    "m210": "Analice un conjunto menor de rutas para listarlos.",
+    "reviewedReceipt": "Revisado mediante constancia: {reason}",
+    "receiptRenew": "Una versión nueva o cambios en los bytes de la licencia requieren otra revisión y constancia.",
+    "invalidReceipt": "sin comprobar: {file} no es un archivo válido de constancias de revisión de licencias",
     "unknown": "desconocido",
     "unresolved": "sin resolver",
     "noLicense": "sin licencia",

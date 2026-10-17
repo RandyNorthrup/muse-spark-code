@@ -1,0 +1,9 @@
+[
+  {
+    "package": "lz-string",
+    "version": "1.5.0",
+    "sha256": "433fc9dfe659dbfb1e91eed8351f13651e97bfa3ac6d03394c3d63f61d4bbc80",
+    "spdx": "MIT",
+    "reason": "MIT terms are unchanged; the copyright notice names the lowercase holder pieroxy."
+  }
+]

@@ -1,5 +1,5 @@
 {
-  "dataVersion": "spdx-license-ids@3.0.24+spdx-exceptions@2.5.0",
+  "dataVersion": "spdx-license-ids@3.0.24+spdx-exceptions@2.5.0+templates@3.28.0",
   "datasets": [
     {
       "name": "spdx-license-ids",
@@ -46,6 +46,172 @@
       "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
       "attribution": "The Linux Foundation, Kyle E. Mitchell. Used under CC-BY-3.0 with this attribution preserved; exception identifiers only, not the exception texts.",
       "modifications": "JSON whitespace normalized by Prettier; identifier values unchanged."
+    },
+    {
+      "name": "spdx-license-templates",
+      "version": "3.28.0",
+      "sourceUrl": "https://github.com/spdx/license-list-data/tree/v3.28.0/template",
+      "repositoryUrl": "https://github.com/spdx/license-list-data",
+      "tag": "v3.28.0",
+      "commit": "c4a7237ec8f4654e867546f9f409749300f1bf4c",
+      "equivalentWordsTag": "license-list-XML v3.28.0",
+      "equivalentWordsCommit": "6f2ddc538acb19180f4c8e96cff94ccf27822e8b",
+      "vendoredOn": "2026-10-10",
+      "files": [
+        {
+          "path": "equivalentwords.txt",
+          "kind": "equivalentWords",
+          "sha256": "05cbd81aa7c6d8881891b49e812a972c10a137f6c017405fcb049d2619585e96",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-XML/6f2ddc538acb19180f4c8e96cff94ccf27822e8b/equivalentwords.txt"
+        },
+        {
+          "path": "templates/AGPL-3.0-only.template.txt",
+          "kind": "template",
+          "sha256": "d43ea2d9bde7c424687b60b1787addd7d21c0bd4b1ebb8f09b41665933731677",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/AGPL-3.0-only.template.txt"
+        },
+        {
+          "path": "templates/AGPL-3.0-or-later.template.txt",
+          "kind": "template",
+          "sha256": "2de8e3bd722bedf4ff78e4d034eb1c8d6dd60708ddc6b4d050cc10c4a452b131",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/AGPL-3.0-or-later.template.txt"
+        },
+        {
+          "path": "templates/Apache-2.0.template.txt",
+          "kind": "template",
+          "sha256": "5567209d3a634ebd6ed122a7302563b9668ab141941149a4e30d9c7b887f41b9",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/Apache-2.0.template.txt"
+        },
+        {
+          "path": "templates/BSD-2-Clause.template.txt",
+          "kind": "template",
+          "sha256": "922ac644c79e7c2aa31bacac531a5d4d5b9d183853a3dc44a253fd9267c3c890",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/BSD-2-Clause.template.txt"
+        },
+        {
+          "path": "templates/BSD-3-Clause.template.txt",
+          "kind": "template",
+          "sha256": "c42368b683ceef1ad41b6f17999adf3b7534e3c47fbdd51449ed6690edb1fc5f",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/BSD-3-Clause.template.txt"
+        },
+        {
+          "path": "templates/BSL-1.0.template.txt",
+          "kind": "template",
+          "sha256": "5218853c2dd51b793b84bce58bb669dcad92215fc6de3dd06be83946e94d9078",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/BSL-1.0.template.txt"
+        },
+        {
+          "path": "templates/CC0-1.0.template.txt",
+          "kind": "template",
+          "sha256": "11b0f2c2841f449603f36bf727342f194ffdda8cc98cb9b3416d7a1e1b31628e",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/CC0-1.0.template.txt"
+        },
+        {
+          "path": "templates/EPL-2.0.template.txt",
+          "kind": "template",
+          "sha256": "b7830f3791575509e335b5dcfd4246e146374572c67102e466c1e8d49bc6b020",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/EPL-2.0.template.txt"
+        },
+        {
+          "path": "templates/GPL-2.0-only.template.txt",
+          "kind": "template",
+          "sha256": "c9f2d3e2a989b5e6caa601a189f33c1023a5a331683462b67c024bad793007de",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/GPL-2.0-only.template.txt"
+        },
+        {
+          "path": "templates/GPL-2.0-or-later.template.txt",
+          "kind": "template",
+          "sha256": "6c357660f1186a9598d96f01f23afd1faad0651349d4222db3cadd14ed5454db",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/GPL-2.0-or-later.template.txt"
+        },
+        {
+          "path": "templates/GPL-3.0-only.template.txt",
+          "kind": "template",
+          "sha256": "bd632df8d9c69b3bb583bcc464abd8216f973b228528f0fa50ddb778a8a90b6f",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/GPL-3.0-only.template.txt"
+        },
+        {
+          "path": "templates/GPL-3.0-or-later.template.txt",
+          "kind": "template",
+          "sha256": "f8746a99750398c3579e17d2a3e6e48ceea91e1146be070ed2d6d81f4cd5461a",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/GPL-3.0-or-later.template.txt"
+        },
+        {
+          "path": "templates/ISC.template.txt",
+          "kind": "template",
+          "sha256": "c4d7eeea621fc85334340d8bc20f59a3042a7d3451211dc123055c07b9733fb1",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/ISC.template.txt"
+        },
+        {
+          "path": "templates/LGPL-2.1-only.template.txt",
+          "kind": "template",
+          "sha256": "a12cc4ef130006ba5a540b4c6f1d403b3334e902afcc299fbf68191dd368eb5a",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/LGPL-2.1-only.template.txt"
+        },
+        {
+          "path": "templates/LGPL-2.1-or-later.template.txt",
+          "kind": "template",
+          "sha256": "db81ab8c20c267c67a8650d5ff5731a85cca3e5a5ab741aa8d89ee2f4ffcdae1",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/LGPL-2.1-or-later.template.txt"
+        },
+        {
+          "path": "templates/LGPL-3.0-only.template.txt",
+          "kind": "template",
+          "sha256": "5a2d695d75a998223610f949bd7b686bfe77bc61146a61b085cb04ee6ed6ec86",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/LGPL-3.0-only.template.txt"
+        },
+        {
+          "path": "templates/LGPL-3.0-or-later.template.txt",
+          "kind": "template",
+          "sha256": "5a2d695d75a998223610f949bd7b686bfe77bc61146a61b085cb04ee6ed6ec86",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/LGPL-3.0-or-later.template.txt"
+        },
+        {
+          "path": "templates/MIT-0.template.txt",
+          "kind": "template",
+          "sha256": "c897e948891e3e587ba8e14acb51743a3ec69a671ce5a0f07f25ddf24f73de7a",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/MIT-0.template.txt"
+        },
+        {
+          "path": "templates/MIT.template.txt",
+          "kind": "template",
+          "sha256": "6283193f4c437103f80b74e52677fd00271ba762237a33432597a07da79d6dc1",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/MIT.template.txt"
+        },
+        {
+          "path": "templates/MPL-2.0.template.txt",
+          "kind": "template",
+          "sha256": "f8d0669c1b4aee55ae7018b6200098d07621014cc571e5455072fc1b551395d7",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/MPL-2.0.template.txt"
+        },
+        {
+          "path": "templates/Unlicense.template.txt",
+          "kind": "template",
+          "sha256": "e6a01517253c197874d66ab30ca3f596cfce601aafcc310ec2944585a4a254bd",
+          "sourceUrl": "https://raw.githubusercontent.com/spdx/license-list-data/c4a7237ec8f4654e867546f9f409749300f1bf4c/template/Unlicense.template.txt"
+        }
+      ],
+      "license": "CC-BY-3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+      "attribution": "SPDX License List 3.28.0 license templates (spdx/license-list-data) and the SPDX equivalent-words list (spdx/license-list-XML), Linux Foundation and its Contributors. The license texts inside the templates keep their own terms.",
+      "modifications": "None: every file is byte-identical to the pinned upstream file (SHA-256 per file above); the scanner verifies each hash before use. The build copies them to dist/legal-data/ beside the scanner."
+    },
+    {
+      "name": "holder-slot-words",
+      "version": "1",
+      "vendoredOn": "2026-10-11",
+      "files": [
+        {
+          "path": "slot-words.txt",
+          "sha256": "33d392c38b9dc51013097abd1bedacbec14174933fbe4d05d4b267fb9056b292"
+        }
+      ],
+      "license": "MIT",
+      "attribution": "Original Muse Spark Code holder-slot review vocabulary from CM971R4; not SPDX data.",
+      "modifications": "Moved the same packed entries out of the legal bundle; unchanged expansion and 312 distinct restriction words.",
+      "sourceUrl": "https://github.com/RandyNorthrup/muse-spark-code/blob/330f5e5222ac6061ec113a7414e59d5dd6152a8e/src/core/legal/licenseTemplates.ts",
+      "sourceRevision": "330f5e5222ac6061ec113a7414e59d5dd6152a8e",
+      "sourcePath": "src/core/legal/licenseTemplates.ts"
     }
   ]
 }

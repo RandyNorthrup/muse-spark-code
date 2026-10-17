@@ -4,6 +4,7 @@
 // regions whose values it reads. Serializing a full table reads every region.
 import { Buffer } from 'node:buffer'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { readCompiledSource } from './compiledSources.mjs'
 import path from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { brotliCompressSync, deflateSync, constants as zlibConstants } from 'node:zlib'
@@ -34,7 +35,7 @@ export const UI_TEXT_REGIONS = [
 
 /** The canonical object, parsed rather than searched through strings/comments. */
 export function uiTextProperties() {
-  const source = readFileSync(TABLE, 'utf8')
+  const source = readCompiledSource(TABLE)
   const tree = ts.createSourceFile(TABLE, source, ts.ScriptTarget.Latest, true)
   const declaration = tree.statements
     .filter((statement) => ts.isVariableStatement(statement))
@@ -429,7 +430,7 @@ export const compactBrowserUiText = {
       return {
         contents:
           "import { forms } from './forms';\n" +
-          readFileSync(args.path, 'utf8').replace(
+          readCompiledSource(args.path).replace(
             'const english = EN.vault',
             () => `const english = ${property.source.slice('vault:'.length)}`,
           ),
@@ -466,7 +467,7 @@ export const compactBrowserUiText = {
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]installTable\.ts$/ }, (args) => ({
-      contents: readFileSync(args.path, 'utf8').replace(
+      contents: readCompiledSource(args.path).replace(
         "import { EN, type UiText } from '../shared/l10n/en'",
         "import { EN } from 'browser-table-contract'; import type { UiText } from '../shared/l10n/en'",
       ),
@@ -506,7 +507,7 @@ installSurfaceEnglish(EN);`,
     // that also declares a lazy() surface fails loudly rather than losing one.
     build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx?$/ }, (args) => {
       if (!data.scheduleReaders.has(path.resolve(args.path))) return
-      const source = readFileSync(args.path, 'utf8')
+      const source = readCompiledSource(args.path)
       if (/\blazy\(|ReferencePage/.test(source))
         throw new Error(`Unsupported lazy surface in a schedule English reader: ${args.path}`)
       return {
@@ -537,7 +538,7 @@ installSurfaceEnglish(EN);`,
     }))
     // Independent resource roots install deferred English before their first render.
     build.onLoad({ filter: /[/\\](?:ResourceSurface|ResourcesSection)\.tsx$/ }, (args) => ({
-      contents: "import 'browser-resource-english';\n" + readFileSync(args.path, 'utf8'),
+      contents: "import 'browser-resource-english';\n" + readCompiledSource(args.path),
       loader: 'tsx',
       resolveDir: path.dirname(args.path),
       watchFiles: [args.path],
@@ -555,13 +556,13 @@ installSurfaceEnglish(EN);`,
     build.onLoad({ filter: /[/\\]paletteRegistry\.ts$/ }, (args) => ({
       contents:
         "await Promise.all([import('browser-surface-english'), import('browser-schedule-english')]);\n" +
-        readFileSync(args.path, 'utf8'),
+        readCompiledSource(args.path),
       loader: 'ts',
       resolveDir: path.dirname(args.path),
       watchFiles: [args.path],
     }))
     build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx$/ }, (args) => {
-      const source = readFileSync(args.path, 'utf8')
+      const source = readCompiledSource(args.path)
       if (!source.includes('lazy') && !source.includes('ReferencePage')) return
       const tree = ts.createSourceFile(
         args.path,
@@ -624,7 +625,7 @@ export function compressedReference(isProduction) {
     setup(build) {
       if (!isProduction) return
       build.onLoad({ filter: /[/\\]reference\.generated\.ts$/ }, async (args) => {
-        const source = readFileSync(args.path, 'utf8')
+        const source = readCompiledSource(args.path)
         const tree = ts.createSourceFile(args.path, source, ts.ScriptTarget.Latest, true)
         const factory = tree.statements.find(
           (node) => ts.isFunctionDeclaration(node) && node.name?.text === 'referenceModel',
