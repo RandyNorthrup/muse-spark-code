@@ -1,11 +1,14 @@
 # MSM82 lane: merge main and re-verify M82 on the current tree
 
-Lane branch `ms/msm82`, worktree on rig `macmini`. Milestone M82
-(Awareness and budgets, PLAN.md D49) shipped long before this lane:
-main carries its lineage evolved through later milestones (M105 media
-reservations, M108 accounts, M109 vault, M117 estimator, M121 exact
-money, D78 shared ledger). This lane merges that main, keeps the
-test-overhaul deletions deleted, and re-proves M82 on the merged tree.
+Lane branch `ms/msm82` (PR #203), continued on `fix/pr203-review` as lane
+PR203FIX, worktree on rig `macmini`. Milestone M82 (Awareness and budgets,
+PLAN.md D49) shipped long before this lane: main carries its lineage evolved
+through later milestones (M105 media reservations, M108 accounts, M109
+vault, M117 estimator, M121 exact money, D78 shared ledger). This lane
+merges that main, keeps the test-overhaul deletions deleted, and re-proves
+M82 on the merged tree. It also fixes the two P1 review findings on PR
+#203: the notifier unit tests certified scripted closures, and the earlier
+record called a red full unit gate a re-verification.
 
 ## What was merged from which branch
 
@@ -21,8 +24,8 @@ test-overhaul deletions deleted, and re-proves M82 on the merged tree.
     `museSpark.notifyOnBackgroundTurn`,
     `museSpark.modelApiReplyUsage`, `museSpark.modelApiSessionBudgetUsd`
     (`package.json`), `BackgroundNotifier` per window
-    (`src/extension.ts:3199`), `attentionNotice` in the controller
-    (`src/host/conversation/conversationController.ts:2267`),
+    (`src/extension.ts:3201`), `attentionNotice` in the controller
+    (`src/host/conversation/conversationController.ts:2269`),
     `reply-usage` harness scenario, M82 case19 preserved as live
     case22 (`test/e2e/modelApi.live.e2e.test.ts:40`).
 - Conflict resolution: main's version taken for all source, locale,
@@ -41,91 +44,46 @@ test-overhaul deletions deleted, and re-proves M82 on the merged tree.
 - Incidental: `docs/certification/m95-captures.md` formatted with
   prettier (2 lines; pre-existing `format:check` failure, file and
   config byte-identical to main).
+- PR203FIX confirmed `main-now` still merged (`git merge --no-ff
+main-now` → Already up to date) and added: `NoticeMemory` plus the
+  live-host deps factory (`turnNotifications.ts`,
+  `vscodeBackgroundNotices.ts`), the activation rewiring
+  (`src/extension.ts`), the rewritten unit suite, the new integration
+  suite, the regenerated host-API record, and this record.
 
-## What was finished
+## What was finished (finding 1)
 
-- `test/unit/turnNotice.test.ts` (9 tests, new): M82 notice logic
-  through the real modules — events parsed by the real
-  `agentEventSchema`, real `attentionNotice`/`BackgroundNotifier`/
-  `notifyOpenQuestions`, real constants and English table, real
-  timers. The notifier's own ports (show, focus, setting, log) are
-  recording closures supplied to its real constructor. No `vi`
-  import, no module mock, no casts.
-- Red drill: `isReplayed === true` broken to `=== false` in
-  `turnNotifications.ts` → 1 failed (`names an approval and a
-question, but not a replayed card`); reverted → 9 passed, no diff
-  left in source.
-
-## Connections (all on main's evolved code, verified by grep)
-
-- Notification: `BackgroundNotifier` per window
-  (`src/extension.ts:3199`), setting read per notice
-  (`src/host/conversation/turnNotifications.ts:79`), attention keys
-  from the controller (`conversationController.ts:2267`).
-- Reply usage: read per reply (`ModelApiHost.ts:754`,
-  `modelApiBackendManager.ts:118`), rendered under the reply
-  (`.response-usage`), persisted with the transcript.
-- Budget cap: read per request (`ModelApiHost.ts:738`),
-  machine-scoped setting, reservation preflight before PreLLMCall
-  hooks, turn cost against the cap in the transcript.
-- Cache savings: `src/webview/usage/SavingsSection.tsx` in Account &
-  usage, Model API only.
-- Docs: README "Awareness and budgets" + settings table,
-  `docs/reference.md` settings, Help via README/CHANGELOG entry
-  (M82 shipped in an earlier release section; no new entry needed —
-  this lane changes no user-visible behaviour versus main).
-
-## Gates (final tree, exit codes)
-
-- `format:check` 0; `lint` 0; `typecheck` (all five projects) 0.
-- `check:badges` `check:tokens` `check:l10n` `check:reference`
-  `check:host-api` `check:plan` `check:roadmap` — all 0.
-- `deadcode` (knip) 0; `cycles` 0; `duplication` 0 clones.
-- `build` 0 (`dist/extension.js` 551.0 KiB,
-  `dist/modelApi.js` 507.2 KiB, budgets enforced).
-- `security:audit` 0; `test:a11y` on `reply-usage` + `usage-api`
-  0 (8 pages, 0 violations; one first-run "never became ready" did
-  not repeat).
-- Touched tests: `turnNotice` 9/9; `sessionBudget` 42/42;
-  `turnNotifications` (old suite) removed per overhaul;
-  `manifest` 40, `sessionStore` 21, `mapNotification` 39,
-  `usageText` 18, `judgeAdmissionLedger` 8 — all pass.
-- Full `test:unit`: 9170 passed, 54 failed in 20 files — every
-  failure a 5 s timeout (or one `ENOTEMPTY` fixture-cleanup race)
-  under the 24-minute fully-loaded parallel run on this rig;
-  `usageL10nGate` re-run alone passes 8/8. Failing files are
-  byte-identical to main (this lane's tree differs from main in
-  four files: this record, the certification index line, the
-  prettier fix and the new test). No M82 file fails.
-- `security:secrets` (`gitleaks git`) exits 1 on this clone for 2
-  `generic-api-key` hits in commit `3e8ea2c25`, which belongs to
-  another lane's branch (`rv/cm1134i`) and is in neither main's nor
-  this lane's history; worktree findings are all in git-ignored
-  `dist/`/`temp/` build output.
-- `security:sast` blocked on this rig: the semgrep binary crashes at
-  startup (`ca-certs: empty trust anchors`, also with proxy env
-  unset and `--offline`). The lead runs it outside the sandbox.
-
-## Real-life steps for the lead
-
-1. Start the Model API backend, turn on `museSpark.modelApiReplyUsage`,
-   send a turn with a tool call: each reply shows its tokens and
-   dollar estimate; the turn's lines add to its cost.
-2. Set `museSpark.modelApiSessionBudgetUsd` to a small cap, send a
-   turn past it: the unfitting request is never sent and the turn
-   says why; the transcript shows each turn's cost against the cap.
-3. Unfocus the VS Code window, start a turn over a minute long (or
-   wait on an approval): one VS Code notification with **Show
-   conversation**; nothing while focused.
-4. Open Account & usage on the Model API backend: the cache-savings
-   row with dollars and share.
-5. No live or paid model call was made from this lane.
-
-## APP PROBLEMS
-
-- `security:sast` cannot run in this lane's sandbox (semgrep
-  `ca-certs: empty trust anchors` at startup).
-- `security:secrets` on a shared clone scans other lanes' refs; the
-  2 hits are not on main or this branch.
-- Full-suite 5 s timeouts fail under parallel load on this small rig
-  (24 min run); each re-run in isolation passes.
+- `test/unit/turnNotice.test.ts` (7 tests): M82 notice policy through
+  the real modules — events parsed by the real `agentEventSchema`,
+  real `attentionNotice`/`notifyOpenQuestions`, the real `NoticeMemory`
+  (once-per-key plus bounded eviction against the real
+  `BACKGROUND_NOTICE_KEYS_MAX`), real constants and English table,
+  real timers. No `vi` import, no module mock, no casts, no ports at
+  all: the four `BackgroundNotifier` closure tests are deleted (see
+  Removals), and the file's header names the integration suite as the
+  ports' proof.
+- `src/host/conversation/turnNotifications.ts`: the once-per-key rule
+  extracted from `BackgroundNotifier` into the port-free `NoticeMemory`
+  (`:83`), which the notifier owns; `notify` behavior is byte-for-byte
+  the old semantics (`take` first and always, then the setting/focus
+  gates, then `raise`).
+- `src/host/conversation/vscodeBackgroundNotices.ts` (new):
+  `vscodeBackgroundNoticeDeps` (`:16`) builds the production ports
+  from the live host — the real setting read, the live
+  `vscode.window.state.focused`, VS Code's real `showInformationMessage`
+  with the real **Show conversation** button. `src/extension.ts:3201`
+  wires it; the old inline closures are gone.
+- `test/integration/backgroundNotice.test.ts` (4 tests, real Extension
+  Development Host): the setting adapter follows live config updates,
+  the focus adapter reports the live window state, the real notifier
+  stays quiet with the real setting off (a wrongly reached notice
+  would really appear: `show` delegates to the real editor API and
+  only counts the call), and `show` displays a real notification —
+  still awaiting its human click after 2 s, which proves the real API
+  accepted and displayed it. 4/4 on stable and on the manifest floor.
+- Red drills: `isReplayed === true` broken to `=== false` →
+  `names an approval and a question, but not a replayed card` fails;
+  `NoticeMemory.take` dedup disabled → both memory tests fail;
+  reverted → 7/7 pass, no diff left in source.
+- Withdr
+  ...[truncated 6154 chars]
