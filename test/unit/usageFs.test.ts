@@ -48,4 +48,20 @@ describe('usage file store', () => {
       await removeFolder(directory)
     }
   })
+
+  it('puts the entry back when the fenced delete is refused', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'muse-usage-fs-'))
+    try {
+      const fs = new NodeUsageFs(directory)
+      await fs.append('usage/today.jsonl', '{"day":"today"}\n')
+      const refusal = new Error('settlement refused')
+      await expect(fs.remove('usage/today.jsonl', () => Promise.reject(refusal))).rejects.toBe(
+        refusal,
+      )
+      expect(await fs.stat('usage/today.jsonl')).not.toBeUndefined()
+      expect(await fs.list('usage')).toEqual(['today.jsonl'])
+    } finally {
+      await removeFolder(directory)
+    }
+  })
 })

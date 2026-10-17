@@ -98,6 +98,20 @@ async function restore(from: string, to: string, isDirectory: boolean): Promise<
   }
 }
 /**
+ * Puts a quarantined entry back under its name, never over a replacement;
+ * best-effort, like the inline restore below it. The fence refuses with its
+ * own error either way; a restore that fails too leaves the entry under its
+ * quarantine name for the sweep.
+ */
+async function restoreQuarantinedEntry(trash: string, source: string): Promise<void> {
+  try {
+    const moved = await lstatEntry(trash)
+    if (moved !== undefined) await restore(trash, source, moved.isDirectory())
+  } catch {
+    // Left under its quarantine name; the refusal below still stands.
+  }
+}
+/**
  * On Windows, runs `action` holding a handle on `file`, proved to be
  * `identity`. Windows refuses to rename a directory while any handle under it
  * is open, so no ancestor of `file` can be swapped for a link meanwhile; our
@@ -410,7 +424,12 @@ export class NodeUsageFs implements UsageFs {
             if (moved.isSymbolicLink() || fileIdentityKey(moved) !== targetIdentity)
               refusal = new Error('usagePathChanged')
           } catch (error: unknown) {
-            refusal = new Error('usagePathChanged', { cause: error })
+            // The fence refuses with its own error (RVM107W2L): only an
+            // identity or parent change is reported as usagePathChanged,
+            // with its cause. The entry goes back first, never over a
+            // replacement.
+            await restoreQuarantinedEntry(trash, source)
+            throw new Error('usagePathChanged', { cause: error })
           }
           // The fence refuses with its own error (RVM107W2L): only an identity
           // or parent change is reported as usagePathChanged.
