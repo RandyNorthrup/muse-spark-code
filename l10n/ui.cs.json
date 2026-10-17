@@ -2615,7 +2615,6 @@
   "allowSessionPrefix": "Vždy povolit v této relaci:",
   "reject": "Odmítnout",
   "modelApiStalled": "Model API neposlalo nic po dobu {seconds} s, proto byla odpověď ukončena; pro opakování odešlete zprávu znovu",
-  "modelApiRetryAfterTooLong": "Poskytovatel požádal o čekání {wait} s před opakováním, což je nad limit {cap} s, takže požadavek nebyl opakován.",
   "queuedTurnDropped": "Neodesláno: tlačítko Zastavit vymazalo zprávy ve frontě",
   "compactionStopped": "komprimace byla zastavena",
   "compactionEmpty": "Souhrn byl prázdný; konverzace zůstala beze změny.",

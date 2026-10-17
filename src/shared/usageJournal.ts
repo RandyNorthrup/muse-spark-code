@@ -100,6 +100,9 @@ export const USAGE_HEADER_ALLOW_LIST = [
   'ratelimit',
   'ratelimit-policy',
   'retry-after',
+  // Azure OpenAI's wait in milliseconds on a 429 (lane PROVERRORS, research
+  // azure-openai.md ZB2): kept beside `retry-after`, never a meter.
+  'retry-after-ms',
   // The provider's request id (GAPANTH-G20; support asks for it — the
   // refusal path already attaches it, this keeps it on usage records too).
   // Provider-chosen, never credentials.

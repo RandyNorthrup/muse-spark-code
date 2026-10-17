@@ -149,8 +149,7 @@ export class CodecClient implements ProviderClient {
       // content-filter, invalid-request or too-large refusal is never
       // retried; anything else follows the preset's own retry table
       // (OPENAI-G20), defaulting to the Responses table.
-      isRetryableFailure: (failure, retryAfterMs) =>
-        isRefusalRetryable(failure, retryAfterMs, deps.transport.retryTable),
+      isRetryableFailure: (failure) => isRefusalRetryable(failure, deps.transport.retryTable),
     })
     this.currentKeyDigest = this.transport.currentKeyDigest.bind(this.transport)
     this.retryDelayMs = this.transport.backoffMs.bind(this.transport)
