@@ -3,6 +3,9 @@
 // captured interpreter through the client's capability port.
 import * as z from 'zod/mini'
 import {
+  MILLISECONDS_PER_MINUTE,
+  MILLISECONDS_PER_SECOND,
+  MINUTES_PER_HOUR,
   PACING_START_REQUESTS_PER_MINUTE,
   PACING_WINDOW_MS,
   PACING_BACKGROUND_TOKEN_FRACTION,
@@ -24,6 +27,165 @@ export type PacingLimits = z.infer<typeof limitsSchema>
 function headerCount(headers: Headers, name: string): number {
   const value = headers.get(name)
   return value !== null && /^\d+$/.test(value) ? Number(value) : NaN
+}
+
+/** A limit/remaining pair, both decimal integers with remaining at most the limit. */
+function limitPair(
+  headers: Headers,
+  limitName: string,
+  remainingName: string,
+): { readonly limit: number; readonly remaining: number } | undefined {
+  const limit = headerCount(headers, limitName)
+  const remaining = headerCount(headers, remainingName)
+  const isValid =
+    Number.isSafeInteger(limit) && limit > 0 && Number.isSafeInteger(remaining) && remaining >= 0
+  return isValid ? { limit, remaining: Math.min(remaining, limit) } : undefined
+}
+
+/** Reset-duration units in milliseconds: the units the captures show. */
+const RESET_DURATION_UNIT_MS: Readonly<Record<string, number>> = {
+  ms: 1,
+  s: MILLISECONDS_PER_SECOND,
+  m: MILLISECONDS_PER_MINUTE,
+  h: MILLISECONDS_PER_MINUTE * MINUTES_PER_HOUR,
+}
+
+/**
+ * A reset duration in milliseconds (`120ms`, `15.254s`, `1m26.4s`): the
+ * time until the bucket resets, as OpenAI and Groq send it (captured
+ * 2026-10-04: `docs/certification/m95-captures/{openai,groq}/*-stream.json`).
+ * Anything else is not a duration: undefined, so the default window stands.
+ */
+export function resetDurationMs(header: string | null): number | undefined {
+  if (header === null || header.trim() === '') {
+    return undefined
+  }
+  const body = header.trim()
+  let total = 0
+  let consumed = ''
+  for (const part of body.matchAll(/(\d+(?:\.\d+)?)(ms|s|m|h)/g)) {
+    const amount = Number(part[1])
+    const unit = part[2] === undefined ? NaN : (RESET_DURATION_UNIT_MS[part[2]] ?? NaN)
+    total += amount * unit
+    consumed += part[0]
+  }
+  return consumed !== '' && consumed === body && Number.isFinite(total) ? total : undefined
+}
+
+/**
+ * An absolute reset timestamp in milliseconds: Anthropic sends RFC 3339
+ * (`2026-10-04T22:45:06Z`, captured 2026-10-04 in
+ * `docs/certification/m95-captures/anthropic/03-tool-call-stream.json`).
+ * Anything else is not a reset: undefined.
+ */
+export function resetTimestampMs(header: string | null): number | undefined {
+  if (header === null || header.trim() === '') return undefined
+  const at = Date.parse(header)
+  return Number.isNaN(at) ? undefined : at
+}
+
+function pacingLimits(
+  requests: { readonly limit: number; readonly remaining: number },
+  tokens: { readonly limit: number; readonly remaining: number },
+  windowMs: number | undefined,
+): PacingLimits | undefined {
+  const parsed = limitsSchema.safeParse({
+    requests: requests.limit,
+    remainingRequests: requests.remaining,
+    tokens: tokens.limit,
+    remainingTokens: tokens.remaining,
+    ...(windowMs !== undefined && windowMs > 0 && { windowMs: Math.floor(windowMs) }),
+  })
+  return parsed.success
+    ? {
+        ...parsed.data,
+        remainingRequests: Math.min(parsed.data.remainingRequests, parsed.data.requests),
+        remainingTokens: Math.min(parsed.data.remainingTokens, parsed.data.tokens),
+      }
+    : undefined
+}
+
+/**
+ * OpenAI and Groq (captured 2026-10-04): per-minute request/token buckets
+ * with Go-duration resets. The window is the longest reset still running;
+ * a missing or unreadable reset keeps the default window.
+ */
+export function openaiPacingLimits(headers: Headers): PacingLimits | undefined {
+  const requests = limitPair(
+    headers,
+    'x-ratelimit-limit-requests',
+    'x-ratelimit-remaining-requests',
+  )
+  const tokens = limitPair(headers, 'x-ratelimit-limit-tokens', 'x-ratelimit-remaining-tokens')
+  const windows = [
+    resetDurationMs(headers.get('x-ratelimit-reset-requests')),
+    resetDurationMs(headers.get('x-ratelimit-reset-tokens')),
+  ].filter((window) => window !== undefined)
+  return requests === undefined || tokens === undefined
+    ? undefined
+    : pacingLimits(requests, tokens, windows.length > 0 ? Math.max(...windows) : undefined)
+}
+
+/**
+ * xAI (captured 2026-10-04): request/token limits with no reset headers,
+ * so the default window stands.
+ */
+export function xaiPacingLimits(headers: Headers): PacingLimits | undefined {
+  const requests = limitPair(
+    headers,
+    'x-ratelimit-limit-requests',
+    'x-ratelimit-remaining-requests',
+  )
+  const tokens = limitPair(headers, 'x-ratelimit-limit-tokens', 'x-ratelimit-remaining-tokens')
+  return requests === undefined || tokens === undefined
+    ? undefined
+    : pacingLimits(requests, tokens, undefined)
+}
+
+/**
+ * Anthropic (captured 2026-10-04): request and total-token buckets across
+ * four limit families, with absolute RFC 3339 resets. The token bucket is
+ * the all-tokens total; the input/output splits ride the usage headers.
+ * A reset already past keeps the default window instead of failing closed.
+ */
+export function anthropicPacingLimits(headers: Headers): PacingLimits | undefined {
+  const requests = limitPair(
+    headers,
+    'anthropic-ratelimit-requests-limit',
+    'anthropic-ratelimit-requests-remaining',
+  )
+  const tokens = limitPair(
+    headers,
+    'anthropic-ratelimit-tokens-limit',
+    'anthropic-ratelimit-tokens-remaining',
+  )
+  const now = Date.now()
+  const windows = [
+    'anthropic-ratelimit-requests-reset',
+    'anthropic-ratelimit-tokens-reset',
+    'anthropic-ratelimit-input-tokens-reset',
+    'anthropic-ratelimit-output-tokens-reset',
+  ]
+    .map((name) => resetTimestampMs(headers.get(name)))
+    .filter((at) => at !== undefined)
+    .map((at) => at - now)
+    .filter((ms) => ms > 0)
+  const windowMs = windows.length > 0 ? Math.max(...windows) : undefined
+  return requests === undefined || tokens === undefined
+    ? undefined
+    : pacingLimits(requests, tokens, windowMs)
+}
+
+/**
+ * Azure's 429 carries `retry-after-ms` (integer milliseconds; research
+ * `docs/certification/m95-research.md` §1.2 [AZ5]), where other providers
+ * send `retry-after` seconds. Anything else is not a wait: undefined.
+ */
+export function azureRetryAfterMs(headers: Headers): number | undefined {
+  const value = headers.get('retry-after-ms')
+  if (value === null || !/^\d+$/.test(value.trim())) return undefined
+  const ms = Number(value.trim())
+  return Number.isSafeInteger(ms) ? ms : undefined
 }
 
 /** U12, sequences 34/35/37/39/40. No reset header was captured. */

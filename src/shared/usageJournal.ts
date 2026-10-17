@@ -91,6 +91,8 @@ export const USAGE_HEADER_ALLOW_LIST = [
   'ratelimit',
   'ratelimit-policy',
   'retry-after',
+  // Azure's millisecond 429 wait (research §1.2 [AZ5]); stored, like the rest.
+  'retry-after-ms',
 ] as const
 export const usageHeadersSchema = /* @__PURE__ */ z.partialRecord(
   z.enum(USAGE_HEADER_ALLOW_LIST),
