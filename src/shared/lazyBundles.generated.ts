@@ -435,6 +435,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'providers.js',
     side: 'both',
     requestedBy: [
+      { importer: 'src/core/eval/driver.ts', symbol: 'bindEvalAdmission', side: ['acp', 'vscode'] },
       {
         importer: 'src/host/backend/modelApiEntry.ts',
         symbol: 'autoCompactionAdmission',
