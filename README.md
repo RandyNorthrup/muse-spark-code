@@ -3478,14 +3478,14 @@ tokens, the background tasks, and each agent's own transcript.
   read controls wait for a live capture of their accepted MSP commands;
   its captured Interrupt, Stop, Resume and Close controls remain available.
 - On the Model API backend, the agent can spawn up to eight child sessions at
-  once; more wait in order, up to 64 per conversation. A child has its own
+  once; more wait in order, with no count of ours. A child has its own
   conversation and the same workspace tools and approvals, but cannot spawn
   again or ask you a question. Children share the workspace and use your
   Model API key; their tokens count in the conversation's usage. Paid
   subagents are available by default. Each new child task asks with the published
   rates and shared daily budget before it starts, including in
   Bypass mode, unless you allowed subagents always in this workspace (a child on another model still asks). Plan refuses the task. A spawn that would start no child asks
-  nothing: one past the 64, one asking for worktree isolation, or one reusing
+  nothing: one asking for worktree isolation, or one reusing
   an earlier spawn's command id for a different task is refused first, and a
   retry of the same spawn under its command id answers with that child.
   One approval allows at most four actual
