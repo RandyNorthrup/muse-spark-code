@@ -14409,9 +14409,45 @@ and thats it." A thousand-test suite kept shipping broken code as
 - Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
   1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
 
+### D121 — No spending check without a limit the person set (spend-simple, owner 2026-10-17)
+
+The owner, verbatim: "why are there spending checks each call this seems
+like not the right way to do it make sure you research properly. whatever
+get the app to pruduction faster with no bugs. i dont care about the
+credits if the app is proven working." With the standing rule of the same
+day (only the providers' limits are hard-coded; every other limit is the
+person's, none by default), this supersedes the LEDGER design (§3, §6, §7):
+the atomic claim journal, its cross-process admission lock, the 100 ms
+admission bound and its benchmark.
+
+- **No limit set, no check.** With no session budget, no editor
+  `museSpark.paidDailyBudgetUsd` and no agent `paidDailyBudgetUsd` (all
+  none by default, no maximum of ours), nothing is reserved, locked, read
+  or written for spending before a send. Each reply's own usage line still
+  shows its cost.
+- **A limit the person set keeps a running total.** The session budget's
+  total lives in the session that owns it, grows after each call from the
+  usage the provider reported, and is saved with the session, so a resume
+  continues from it. A daily budget's total is lock-free: each process adds
+  to its own file in the day's folder, and a read sums the files.
+- **Stop before, in plain words.** A request whose estimate (its input plus
+  the model's floor output, search fees included) would pass the limit is
+  not sent; the stop names the estimate, the limit and what was used, and
+  the daily stop names the setting. One warning comes when what is left no
+  longer fits a request like the last one. A reply may cost more than its
+  estimate; the next request is then the one stopped.
+- **A reservation is never spend.** A response that ended without its usage
+  counts as cost unknown, with what is known, and adds nothing to the total.
+- **Kept as they were:** the exec run ledger (`--max-budget-usd`, its
+  published v2 schema), the Tab ledger, the team meter and account
+  thresholds. Record, the $120.00 origin and every removal:
+  `docs/certification/spend-simple.md`.
+
 ## 3. Open questions (need the owner)
 
-**LEDGER cancellation billing (2026-10-12).** The requested received-output cancellation bound is not provable: Anthropic explicitly bills client disconnects, and OpenAI counts non-visible generated tokens. Keep the full unresolved reservation as liability, never display it as spend; settle a provider-reported final usage even on an incomplete/cancelled response. A received-output estimate must not release unknown provider liability. Billing research and real-use steps: `docs/certification/spend-ledger.md`.
+**LEDGER cancellation billing (2026-10-12). Resolved 2026-10-17 by D121:**
+the owner chose not to count an unresolved reservation at all; a response
+without its usage is cost unknown. The original question follows. The requested received-output cancellation bound is not provable: Anthropic explicitly bills client disconnects, and OpenAI counts non-visible generated tokens. Keep the full unresolved reservation as liability, never display it as spend; settle a provider-reported final usage even on an incomplete/cancelled response. A received-output estimate must not release unknown provider liability. Billing research and real-use steps: `docs/certification/spend-ledger.md`.
 
 **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
 explicitly approves the 116 Title Case scenes, `models-errors` with the
@@ -15502,7 +15538,10 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
-**LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair).** Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. Shared daily input reserves the byte/context bound even when terminal admission uses a provider estimate. One flushed transaction inode supplies atomic snapshot and audit/history aliases; process owner notes are cached per scope. Portable ledger errors stay in each caller's language state. Runtime settlement uses typed HTTP observations, never retry-message text, and only refunds initial rejections before response frames. Removing inherited stand-in suites also removes their unused production-only exports (unbound account-home factory, account admission wrapper and schedule paid-scope factories); their live interfaces remain. Provider endpoint/path utilities move to a leaf module to break the measured configured-bundle command cycle. Keyless configured runs bind an empty in-memory secret store and skip Meta readiness lookup; a real ECONNREFUSED before connection releases the hold. No provider calls, cap changes, merges or pushes.
+**LEDGER (2026-10-12, Kubuntu and macmini; M80/M82/M95 repair). Superseded
+2026-10-17 by D121:** the versioned ledger, its atomic admission and its
+journal files are removed; spending is checked only against a limit the
+person set. The original scope follows. Replace directory-per-claim budgeting with one versioned spend ledger and atomic admission for session, editor daily and terminal daily scopes; retain every sent attempt at its full liability, recover only from process identity evidence, and certify real-process races, crashes, migration and packed-product refusals. Design and ruling R9 compatibility limits: `docs/certification/spend-ledger.md`. Shared daily input reserves the byte/context bound even when terminal admission uses a provider estimate. One flushed transaction inode supplies atomic snapshot and audit/history aliases; process owner notes are cached per scope. Portable ledger errors stay in each caller's language state. Runtime settlement uses typed HTTP observations, never retry-message text, and only refunds initial rejections before response frames. Removing inherited stand-in suites also removes their unused production-only exports (unbound account-home factory, account admission wrapper and schedule paid-scope factories); their live interfaces remain. Provider endpoint/path utilities move to a leaf module to break the measured configured-bundle command cycle. Keyless configured runs bind an empty in-memory secret store and skip Meta readiness lookup; a real ECONNREFUSED before connection releases the hold. No provider calls, cap changes, merges or pushes.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
@@ -33211,7 +33250,9 @@ lane A's first step.
 
 ## 7. Gates
 
-**LEDGER local qualification deferral (2026-10-12).** The owner's latest
+**LEDGER local qualification deferral (2026-10-12). Superseded 2026-10-17 by
+D121:** the 100 ms admission bound, its benchmark and the ledger it measured
+are removed, so R3/R4 below no longer apply. The original record follows. The owner's latest
 no-stand-in/no-screenshot testing rule replaces full `quality` and fake provider
 proofs for this lane. Static gates and real core/packed commands are recorded in
 `docs/certification/spend-ledger.md`. The unchanged 100 ms admission bound failed
@@ -35453,7 +35494,6 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | M108 lane X location                                  | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                    | Date       |
 | ----------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/core/developer/developerOptions.ts`, `serialize` | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | The extension host runs Node 20 (VS Code 1.99), which lacks `Promise.withResolvers`; the deferred gate uses `new Promise` with a synchronously assigned resolver instead. Every other lane (M62 pattern) does the same. Remove if the minimum host gains `withResolvers`. | 2026-10-06 |
-| `src/core/paid/spendLedger.ts`, `serialise`           | `eslint-disable-next-line unicorn/prefer-promise-with-resolvers` | Same Node 20 host limit as the row above; the per-scope operation queue uses `new Promise` with a synchronously assigned resolver. Remove if the minimum host gains `withResolvers`.                                                                                      | 2026-10-17 |
 
 **INT0170 chat startup ratchet (lead decision, 2026-10-08).** The FIXDIET1
 review ratchet in `test/unit/webviewBundle.test.mjs` moves from 733.8 KiB
