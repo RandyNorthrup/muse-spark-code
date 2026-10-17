@@ -161,4 +161,23 @@ describe('formatWhatsNewText', () => {
     }
     expect(whatsNewTextForContent(content, '0.18.2')).toBe(textOf())
   })
+
+  it('shows only the releases the page would show, not every shipped release', () => {
+    const older: ReleaseNotes = {
+      version: '0.18.1',
+      date: '2026-10-10',
+      highlights: [{ c: [{ t: 'p', c: [{ t: 'text', v: 'Older highlight.' }] }], tries: [] }],
+      sections: [{ heading: 'Fixed', blocks: [{ t: 'p', c: [{ t: 'text', v: 'Older fix.' }] }] }],
+    }
+    const content: WhatsNewContent = {
+      schema: 1,
+      releases: [...RELEASES, older],
+      shortened: undefined,
+    }
+    const text = whatsNewTextForContent(content, '0.18.2')
+    expect(text).toContain('## 0.18.2')
+    expect(text).not.toContain('## 0.18.1')
+    expect(text).not.toContain('Older highlight.')
+    expect(text).not.toContain('Older fix.')
+  })
 })
