@@ -14,14 +14,3 @@ export function fastestRun(work: () => unknown): number {
   }
   return fastest
 }
-
-/** Milliseconds of the fastest of three awaited runs of `work`. */
-export async function fastestAwaitedRun(work: () => Promise<unknown>): Promise<number> {
-  let fastest = Infinity
-  for (let run = 0; run < RUNS; run += 1) {
-    const started = performance.now()
-    await work()
-    fastest = Math.min(fastest, performance.now() - started)
-  }
-  return fastest
-}

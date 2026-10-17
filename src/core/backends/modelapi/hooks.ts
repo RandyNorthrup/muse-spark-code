@@ -1176,13 +1176,17 @@ interface HookWaiter {
   readonly onAbort: () => void
 }
 
-const commandState = { running: 0 }
-const commandWaiters: HookWaiter[] = []
+interface HookCommandState {
+  running: number
+  readonly waiters: HookWaiter[]
+}
+const commandState: HookCommandState = { running: 0, waiters: [] }
+const processState: HookCommandState = { running: 0, waiters: [] }
 
-function releaseCommand(): void {
-  const next = commandWaiters.shift()
+function releaseCommand(state: HookCommandState): void {
+  const next = state.waiters.shift()
   if (next === undefined) {
-    commandState.running -= 1
+    state.running -= 1
     return
   }
   next.signal?.removeEventListener('abort', next.onAbort)
@@ -1190,30 +1194,42 @@ function releaseCommand(): void {
 }
 
 /** One extension-host-wide cap: several sessions cannot spawn unlimited hooks. */
-async function acquireCommand(signal: AbortSignal | undefined): Promise<() => void> {
+async function acquireCommand(
+  signal: AbortSignal | undefined,
+  state: HookCommandState = commandState,
+): Promise<() => void> {
   if (signal?.aborted === true) {
     throw new Error('hook command cancelled')
   }
-  if (commandState.running < HOOK_MAX_RUNNING_COMMANDS) {
-    commandState.running += 1
-    return releaseCommand
+  if (state.running < HOOK_MAX_RUNNING_COMMANDS) {
+    state.running += 1
+    return () => {
+      releaseCommand(state)
+    }
   }
   await new Promise<void>((resolve, reject) => {
     const onAbort = () => {
-      const index = commandWaiters.findIndex((candidate) => candidate.onAbort === onAbort)
+      const index = state.waiters.findIndex((candidate) => candidate.onAbort === onAbort)
       if (index !== -1) {
-        commandWaiters.splice(index, 1)
+        state.waiters.splice(index, 1)
       }
       reject(new Error('hook command cancelled'))
     }
     const waiter: HookWaiter = { resolve, reject, signal, onAbort }
-    commandWaiters.push(waiter)
+    state.waiters.push(waiter)
     signal?.addEventListener('abort', onAbort, { once: true })
     if (signal?.aborted === true) {
       onAbort()
     }
   })
-  return releaseCommand
+  return () => {
+    releaseCommand(state)
+  }
+}
+
+/** The production IO cap is shared by lazy dispatch bundles, separate from admission. */
+export async function acquireHookProcessSlot(signal: AbortSignal | undefined): Promise<() => void> {
+  return await acquireCommand(signal, processState)
 }
 
 async function runBoundedHook(

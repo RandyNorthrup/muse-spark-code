@@ -1,5 +1,5 @@
-import { reportingAmount } from '../../src/core/usage/reportingAmount'
-import { Usd } from '../../src/shared/usd'
+import { Usd, sumUsd } from '../../src/shared/usd'
+import type { UsdAmount } from '../../src/shared/usdSchema'
 import { describe, expect, it } from 'vitest'
 import {
   aggregateUsage,
@@ -27,9 +27,12 @@ import { formatUsd } from '../../src/shared/l10n/exactUsd'
 const now = new Date(2026, 9, 5, 12).getTime()
 const today = usageLocalDay(now)
 const query: UsageQuery = { range: 'today', groupBy: 'provider', metric: 'cost' }
+function a(value: number | string): UsdAmount {
+  return Usd.from(value).toAmount()
+}
 function record(extra: Partial<UsageRecord> = {}): UsageRecord {
   return usageRecordSchema.parse({
-    v: 1,
+    v: 2,
     id: 'call',
     type: 'usage',
     at: now,
@@ -42,7 +45,7 @@ function record(extra: Partial<UsageRecord> = {}): UsageRecord {
     model: 'spark',
     kind: 'turn',
     tokens: { input: 100, cached: 20, output: 10, reasoning: 2 },
-    cost: { certainty: 'computed', usd: 0.01 },
+    cost: { certainty: 'computed', usd: a('0.01') },
     outcome: 'completed',
     durationMs: 1000,
     firstTokenMs: 100,
@@ -63,19 +66,22 @@ function partiallyReportedCalls(output = 100): UsageRecord[] {
 describe('usage aggregation', () => {
   it('settles the cent boundary exactly in every monetary sum and grouping order', () => {
     const records = [0.005, 0.005, 0.005, 0.003, 0.002, 0.003, 0.001, 0.001].map((usd, index) =>
-      record({ provider: index % 2 === 0 ? 'a' : 'b', cost: { certainty: 'computed', usd } }),
+      record({
+        provider: index % 2 === 0 ? 'a' : 'b',
+        cost: { certainty: 'computed', usd: a(usd) },
+      }),
     )
     for (const calls of [records, records.toReversed()]) {
       const result = aggregateUsage(calls, [], query, now)
-      expect(result.totals.costs[0]?.usd).toBe(0.025)
+      expect(result.totals.costs[0]?.usd).toBe('0.025')
       for (const rows of [result.breakdown, result.buckets, result.features]) {
         const sum = usageSumUsd(rows.flatMap((row) => row.totals.costs.map((cost) => cost.usd)))
-        expect(sum).toBe(0.025)
-        expect(formatUsd(sum ?? 0, 2)).toBe('$0.03')
+        expect(sum).toBe('0.025')
+        expect(formatUsd(sum ?? a(0), 2)).toBe('$0.03')
       }
     }
     expect(usageSumUsd([undefined, undefined])).toBeUndefined()
-    expect(usageSumUsd([0, undefined])).toBe(0)
+    expect(usageSumUsd([a(0), undefined])).toBe('0')
   })
   const trials = (() => {
     let seed = 102
@@ -96,8 +102,8 @@ describe('usage aggregation', () => {
           at: now - random(8) * 3_600_000,
           cost: {
             certainty: USAGE_CERTAINTIES[random(USAGE_CERTAINTIES.length)]!,
-            usd: random(20_000) / EXEC_USD_UNITS,
-            apiEquivalentUsd: random(20_000) / EXEC_USD_UNITS,
+            usd: Usd.from(random(20_000)).divide(EXEC_USD_UNITS).toAmount(),
+            apiEquivalentUsd: Usd.from(random(20_000)).divide(EXEC_USD_UNITS).toAmount(),
           },
         })
       })
@@ -141,11 +147,8 @@ describe('usage aggregation', () => {
               for (const key of ['usd', 'apiEquivalentUsd'] as const) {
                 const amounts = records
                   .filter((call) => call.cost.certainty === certainty)
-                  .map((call) => Math.round((call.cost[key] ?? 0) * EXEC_USD_UNITS))
-                const expected =
-                  amounts.length === 0
-                    ? undefined
-                    : amounts.reduce((sum, units) => sum + units, 0) / EXEC_USD_UNITS
+                  .map((call) => call.cost[key] ?? a(0))
+                const expected = amounts.length === 0 ? undefined : sumUsd(...amounts)
                 const amount = result.totals.costs.find((cost) => cost.certainty === certainty)?.[
                   key
                 ]
@@ -168,21 +171,25 @@ describe('usage aggregation', () => {
       }
     },
   )
-  it('refuses amounts and sums outside safe fixed-point precision', () => {
-    expect(() => usageSumUsd([Number.MAX_SAFE_INTEGER])).toThrow('unsafe usage amount')
-    const safe = Math.floor(Number.MAX_SAFE_INTEGER / EXEC_USD_UNITS)
-    expect(() => usageSumUsd([safe, safe])).toThrow('unsafe usage sum')
-    expect(() =>
-      aggregateUsage(
-        [
-          record({ cost: { certainty: 'reported', usd: safe } }),
-          record({ cost: { certainty: 'reported', usd: safe } }),
-        ],
-        [],
-        query,
-        now,
-      ),
-    ).toThrow('unsafe usage sum')
+  it('sums sub-micro-dollar and very large amounts exactly (M121)', () => {
+    // 0.17 rounded each amount to micro-dollars: 3 × 0.0000004 summed to 0.
+    const tiny = a('0.0000004')
+    expect(usageSumUsd([tiny, tiny, tiny])).toBe('0.0000012')
+    const large = a('9007199254.740993')
+    expect(usageSumUsd([large, large])).toBe('18014398509.481986')
+    const result = aggregateUsage(
+      [
+        record({ cost: { certainty: 'reported', usd: tiny } }),
+        record({ cost: { certainty: 'reported', usd: tiny } }),
+        record({ cost: { certainty: 'reported', usd: large } }),
+      ],
+      [],
+      query,
+      now,
+    )
+    expect(result.totals.costs).toEqual([
+      { certainty: 'reported', records: 3, usd: '9007199254.7409938' },
+    ])
   })
   it('uses only paired calls for cache and speed rates and counts latency coverage', () => {
     const calls = partiallyReportedCalls()
@@ -260,14 +267,14 @@ describe('usage aggregation', () => {
       record({
         provider: 'ollama',
         tokens: {},
-        cost: { certainty: 'local', usd: 0 },
+        cost: { certainty: 'local', usd: a(0) },
         durationMs: undefined,
         firstTokenMs: undefined,
       }),
-      record({ cost: { certainty: 'plan', apiEquivalentUsd: 2 }, tokens: {} }),
-      record({ cost: { certainty: 'uncertain', usd: 3 }, tokens: {} }),
-      record({ cost: { certainty: 'reported', usd: 1 }, tokens: {} }),
-      record({ cost: { certainty: 'estimated', usd: 4 }, tokens: {} }),
+      record({ cost: { certainty: 'plan', apiEquivalentUsd: a(2) }, tokens: {} }),
+      record({ cost: { certainty: 'uncertain', usd: a(3) }, tokens: {} }),
+      record({ cost: { certainty: 'reported', usd: a(1) }, tokens: {} }),
+      record({ cost: { certainty: 'estimated', usd: a(4) }, tokens: {} }),
     ]
     const result = aggregateUsage(records, [], query, now)
     expect(result.totals.records).toBe(6)
@@ -276,9 +283,9 @@ describe('usage aggregation', () => {
     expect(result.totals.costs).toEqual(
       expect.arrayContaining([
         { certainty: 'unpriced', records: 1 },
-        { certainty: 'local', records: 1, usd: 0 },
-        { certainty: 'plan', records: 1, apiEquivalentUsd: 2 },
-        { certainty: 'uncertain', records: 1, usd: 3 },
+        { certainty: 'local', records: 1, usd: '0' },
+        { certainty: 'plan', records: 1, apiEquivalentUsd: '2' },
+        { certainty: 'uncertain', records: 1, usd: '3' },
       ]),
     )
     expect(aggregateUsage([], [], query, now).totals.durationMs).toBeUndefined()
@@ -308,7 +315,7 @@ describe('usage aggregation', () => {
           expect(rows.reduce((sum, row) => sum + (row.totals.tokens.input ?? 0), 0)).toBe(499_500)
           expect(rows.reduce((sum, row) => sum + (row.totals.tokens.output ?? 0), 0)).toBe(10_000)
           expect(usageSumUsd(rows.flatMap((row) => row.totals.costs.map((cost) => cost.usd)))).toBe(
-            10,
+            '10',
           )
         }
         expect(result.totals.cacheHitPercent).toBeCloseTo((124_750 / 499_500) * 100)
@@ -373,9 +380,9 @@ describe('usage aggregation', () => {
       )
       expect(Date.parse(result.from) - Date.parse(result.previousTo)).toBe(86_400_000)
     }
-    expect(usagePeriodDelta(3, 2)).toBe(50)
-    expect(usagePeriodDelta(1, 0)).toBeUndefined()
-    expect(usagePeriodDelta(undefined, 1)).toBeUndefined()
+    expect(usagePeriodDelta(a(3), a(2))).toBe(50)
+    expect(usagePeriodDelta(a(1), a(0))).toBeUndefined()
+    expect(usagePeriodDelta(undefined, a(1))).toBeUndefined()
   })
   it('merges raw and rolled-up histogram counts with p50/p95 in the same containing buckets', () => {
     const durations = [
@@ -428,7 +435,11 @@ describe('usage aggregation', () => {
         now,
         now + USAGE_BURN_MIN_MS,
       ),
-    ).toBe(4)
+    ).toBe('4')
+    // A non-terminating forecast rounds up to the nano-dollar, never under.
+    expect(
+      usageBurnProjection(a(1), now - 3 * USAGE_BURN_MIN_MS, now, now + USAGE_BURN_MIN_MS),
+    ).toBe('1.333333334')
     expect(
       usageBurnProjection(Usd.from(2).toAmount(), now - USAGE_BURN_MIN_MS + 1, now, now + 1),
     ).toBeUndefined()
@@ -437,11 +448,4 @@ describe('usage aggregation', () => {
       usageBurnProjection(Usd.from(2).toAmount(), now - USAGE_BURN_MIN_MS, now, now),
     ).toBeUndefined()
   })
-})
-
-it('projects exact amounts only to finite reporting values', () => {
-  expect(reportingAmount(Usd.from('0.3').toAmount())).toBe(0.3)
-  expect(() => reportingAmount(Usd.from('1e309').toAmount())).toThrow(
-    'Nonfinite USD reporting projection',
-  )
 })
