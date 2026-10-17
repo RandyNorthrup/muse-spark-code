@@ -129,7 +129,11 @@ export class AccountSecrets implements AccountCredentialVault {
     try {
       value = await this.deps.vault.read(binding)
     } catch (error) {
-      throw error instanceof AccountStoreError ? error : new AccountStoreError('unavailable')
+      // A failed storage call may echo the attempted value in an error:
+      // only the fixed kind crosses, with its cause (D119).
+      throw error instanceof AccountStoreError
+        ? error
+        : new AccountStoreError('unavailable', { cause: error })
     }
     // A vault must never bypass account/origin checking, including M109's port.
     this.check(binding)
@@ -150,9 +154,10 @@ export class AccountSecrets implements AccountCredentialVault {
     try {
       await this.deps.vault.write(binding, record)
     } catch (error: unknown) {
-      // A store failure is unavailable: anything else keeps its kind.
+      // A store failure is unavailable, with its cause: anything else keeps
+      // its kind (D119).
       if (!(error instanceof Error)) throw error
-      throw new AccountStoreError('unavailable')
+      throw new AccountStoreError('unavailable', { cause: error })
     }
   }
 
@@ -170,9 +175,10 @@ export class AccountSecrets implements AccountCredentialVault {
       this.available(binding)
       await this.deps.vault.remove(binding)
     } catch (error: unknown) {
-      // A store failure is unavailable: anything else keeps its kind.
+      // A store failure is unavailable, with its cause: anything else keeps
+      // its kind (D119).
       if (!(error instanceof Error)) throw error
-      throw new AccountStoreError('unavailable')
+      throw new AccountStoreError('unavailable', { cause: error })
     }
   }
 
@@ -191,7 +197,7 @@ export class AccountSecrets implements AccountCredentialVault {
         this.available(binding)
         return undefined
       }
-      throw new AccountStoreError('unavailable')
+      throw new AccountStoreError('unavailable', { cause: error })
     }
     this.available(binding)
     if (value === undefined) return undefined

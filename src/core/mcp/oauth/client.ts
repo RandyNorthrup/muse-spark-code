@@ -157,7 +157,7 @@ export class McpOAuthClient {
       // signal's own abort reason. Any other failure, even one racing a
       // stop, denies with the fixed reason.
       if (signal.aborted && error === signal.reason) throw error
-      oauthDenied()
+      return oauthDenied({ cause: error })
     } finally {
       this.active.delete(controller)
       controller.abort()
@@ -465,7 +465,7 @@ export class McpOAuthClient {
                 if (dispatch.hasStarted)
                   await this.ports.vault.invalidate(binding.handle, parsed.metadata.id)
                 if (!(error instanceof Error)) throw error
-                oauthDenied()
+                return oauthDenied({ cause: error })
               }
             }
             check()

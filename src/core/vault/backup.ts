@@ -160,8 +160,10 @@ export async function restoreEncryptedBackup(
       throw new VaultError('invalid')
     return await VaultStore.restore(options, shape.data, [backup.slot], isConfirmed)
   } catch (error) {
+    // A restore failure reads invalid either way, but the cause stays on
+    // the error for the caller (D119).
     if (error instanceof VaultError) throw error
-    throw new VaultError('invalid')
+    throw new VaultError('invalid', { cause: error })
   } finally {
     plaintext.fill(0)
   }

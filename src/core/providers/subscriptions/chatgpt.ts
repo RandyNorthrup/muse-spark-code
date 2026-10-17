@@ -80,8 +80,9 @@ export class ChatGptSignInError extends Error {
       | 'expired'
       | 'store-unavailable'
       | 'request-failed',
+    options?: { cause?: unknown },
   ) {
-    super(`chatgpt.${code}`)
+    super(`chatgpt.${code}`, options)
     this.name = 'ChatGptSignInError'
   }
 }
@@ -319,7 +320,7 @@ export class ChatGptSignIn {
       return await work()
     } catch (error) {
       if (error instanceof ChatGptSignInError) throw error
-      throw new ChatGptSignInError('request-failed')
+      throw new ChatGptSignInError('request-failed', { cause: error })
     }
   }
 
@@ -355,7 +356,7 @@ export class ChatGptSignIn {
       return response
     } catch (error) {
       if (error instanceof ChatGptSignInError) throw error
-      throw new ChatGptSignInError('request-failed')
+      throw new ChatGptSignInError('request-failed', { cause: error })
     }
   }
 

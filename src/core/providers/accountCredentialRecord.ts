@@ -53,9 +53,10 @@ export class AccountStoreError extends Error {
       | 'invalidCredential'
       | 'originMismatch'
       | 'invalidProvidersFile',
+    options?: { cause?: unknown },
   ) {
     // Fixed codes only: store/revocation errors can contain the secret itself.
-    super(code)
+    super(code, options)
     this.name = 'AccountStoreError'
   }
 }

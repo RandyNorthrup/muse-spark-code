@@ -102,8 +102,8 @@ const costSchema = z.object({
   cache_write: z.optional(z.number().check(z.nonnegative())),
 })
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
-const fail = (): never => {
-  throw new Error(UI_TEXT.modelsPanelUnavailable)
+const fail = (options?: { cause?: unknown }): never => {
+  throw new Error(UI_TEXT.modelsPanelUnavailable, options)
 }
 
 function ignoreTransportLog(): void {
@@ -788,7 +788,7 @@ export function createConfiguredProviderServices(
           // A typed codec refusal (an unsupported reasoning effort and its
           // localized reason) and the output-cap minimum refusal (MINOUT)
           // reach the caller; genuinely unknown errors keep the generic
-          // unavailable error (lane FIXDSTHINK2 finding 3).
+          // unavailable error, with their cause (D119).
           if (chat.isChatCodecError(error)) throw error
           if (error instanceof RangeError) throw error
           // A lapsed confirmation keeps the run's own guidance instead of
@@ -797,7 +797,7 @@ export function createConfiguredProviderServices(
           // The idle limit ended the stream: the user is told so, in the
           // sentence the Meta Model API path uses.
           if (error instanceof ModelApiError && error.message === stalled()) throw error
-          return fail()
+          return fail({ cause: error })
         } finally {
           if (presets.planKeyPresetById(entry.preset) !== undefined)
             for (let index = 0; index < dispatch.attempts; index++)

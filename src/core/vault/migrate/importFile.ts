@@ -171,7 +171,7 @@ export class VaultFileImporter {
         return { items: structuredClone(metadata), receipt }
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
-        throw new VaultMigrationFault('storage')
+        throw new VaultMigrationFault('storage', { cause: error })
       } finally {
         for (const item of items) eraseItem(item)
         source?.fill(0)
@@ -241,7 +241,7 @@ export class VaultFileImporter {
         })
       } catch (error: unknown) {
         if (error instanceof VaultMigrationFault) throw error
-        throw new VaultMigrationFault('storage')
+        throw new VaultMigrationFault('storage', { cause: error })
       } finally {
         source?.fill(0)
       }

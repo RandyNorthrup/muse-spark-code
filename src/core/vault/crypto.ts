@@ -19,8 +19,11 @@ import { vaultEncodedSchema, vaultMaterialSchema, type VaultItem } from '../../s
 
 /** Safe codes for callers; exceptions never include a value or parser input. */
 export class VaultError extends Error {
-  constructor(readonly code: 'invalid' | 'authentication' | 'rollback' | 'locked' | 'busy' | 'io') {
-    super(code === 'rollback' ? UI_TEXT.vault.rollback : UI_TEXT.vault.noAccess)
+  constructor(
+    readonly code: 'invalid' | 'authentication' | 'rollback' | 'locked' | 'busy' | 'io',
+    options?: { cause?: unknown },
+  ) {
+    super(code === 'rollback' ? UI_TEXT.vault.rollback : UI_TEXT.vault.noAccess, options)
     this.name = 'VaultError'
   }
 }
@@ -169,9 +172,10 @@ export function aesGcmOpen(
     return plaintext
   } catch (error: unknown) {
     // Authentication covers a wrong key and corrupt data alike: the cipher
-    // cannot tell them apart. Anything else keeps its kind.
+    // cannot tell them apart. Anything else keeps its kind, and the cause
+    // stays on the error either way (D119).
     if (!(error instanceof Error)) throw error
-    throw new VaultError('authentication')
+    throw new VaultError('authentication', { cause: error })
   } finally {
     chunk?.fill(0)
     tail?.fill(0)
@@ -301,9 +305,11 @@ export function decodeVaultMaterial(bytes: Buffer): VaultItem['material'] {
     isComplete = true
     return material.data
   } catch (error: unknown) {
-    // Only a malformed encoding reads invalid: anything else keeps its kind.
-    if (!(error instanceof VaultError) && !(error instanceof SyntaxError)) throw error
-    throw new VaultError('invalid')
+    // Only a malformed encoding reads invalid, with its cause; anything
+    // else keeps its kind (D119).
+    if (error instanceof VaultError || error instanceof SyntaxError)
+      throw new VaultError('invalid', { cause: error })
+    throw error
   } finally {
     // Every exit wipes what was copied: a decoded return owns its fields,
     // every failure abandons only zeroes.
