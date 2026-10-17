@@ -1,5 +1,8 @@
 // The preview (M96 lane F): roles, entries, forced switches and the cost
-// range for a sample task, from the fake prices, with no model call.
+// range for a sample task, from sample price inputs, with no model call.
+// `select` is previewDraft's own input: every case passes a constant
+// strategy, so each proof covers the preview's logic, never a selection
+// algorithm's.
 
 import { describe, expect, it } from 'vitest'
 import { Usd } from '../../src/shared/usd'
@@ -12,7 +15,6 @@ import {
   TEAM_PREVIEW_SAMPLES,
   TEAM_SAMPLE_PLANS,
   type TeamPreviewPrice,
-  type TeamPreviewSelect,
 } from '../../src/core/team/preview'
 import { buildTemplateDraft } from '../../src/core/team/templates'
 
@@ -32,18 +34,6 @@ const PRICES: readonly TeamPreviewPrice[] = [
     usdPerMTokCachedInput: 1,
   },
 ]
-
-/** Lane A's selection reduced to first entry with headroom (a test fake). */
-function firstWithHeadroom(dayCaps: Readonly<Record<string, number>>): TeamPreviewSelect {
-  return (_role, poolSize, spentPerEntry) => {
-    for (let index = 0; index < poolSize; index += 1) {
-      if ((spentPerEntry[index] ?? 0) < (dayCaps[_role] ?? Number.MAX_SAFE_INTEGER)) {
-        return index
-      }
-    }
-    return -1
-  }
-}
 
 function pairDraft() {
   return buildTemplateDraft('pair', [
@@ -123,12 +113,12 @@ describe('previewDraft', () => {
     expect(preview.switchCount).toBe(2)
   })
 
-  it('estimates the cost range by hand from the fake prices', () => {
+  it('estimates the cost range by hand from the sample prices', () => {
     const preview = previewDraft({
       draft: pairDraft(),
       sample: 'feature-tests',
       prices: PRICES,
-      select: firstWithHeadroom({}),
+      select: () => 0,
     })
     expect(preview.tokens).toBe(520_000)
     expect(preview.switchCount).toBe(0)
@@ -150,7 +140,7 @@ describe('previewDraft', () => {
       draft: pairDraft(),
       sample: 'feature-tests',
       prices: PRICES,
-      select: firstWithHeadroom({}),
+      select: () => 0,
     })
     expect(Number(preview.usdLow)).toBeLessThan(Number(preview.usdHigh ?? 0))
   })
@@ -172,9 +162,8 @@ describe('previewDraft', () => {
       draft,
       sample: 'feature-tests',
       prices: PRICES,
-      // Engineering's first entry is exhausted from the start.
-      select: (role, poolSize, spent) =>
-        role === 'engineering' ? 1 : firstWithHeadroom({})(role, poolSize, spent),
+      // Engineering selects past its first entry; every other role takes its first.
+      select: (role) => (role === 'engineering' ? 1 : 0),
     })
     expect(preview.steps[0]?.switched).toBe(true)
     expect(preview.switchCount).toBe(1)
@@ -197,7 +186,7 @@ describe('previewDraft', () => {
       draft: pairDraft(),
       sample: 'research-library',
       prices: PRICES,
-      select: firstWithHeadroom({}),
+      select: () => 0,
     })
     expect(preview.unstaffedRoles).toEqual(['research'])
     expect(preview.steps).toEqual([])
@@ -239,7 +228,7 @@ describe('previewDraft', () => {
       draft: pairDraft(),
       sample: 'review-branch',
       prices: [],
-      select: firstWithHeadroom({}),
+      select: () => 0,
     })
     expect(preview.usdLow).toBeUndefined()
     expect(preview.hasUnknownPrice).toBe(true)
