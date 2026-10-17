@@ -18615,7 +18615,7 @@ JSON ledger format; converting the project plan is outside this lane.
 
 ### M80 — Headless and CI (D49, D65)
 
-**Status 2026-10-05: building.** Status evidence: `docs/certification/m80.md`.
+**Status 2026-10-17: building.** Status evidence: `docs/certification/msm80.md`.
 
 **Contract:** scratchpad `m80/SPEC.md` v4 plus its F1/F2 lead rulings,
 2026-10-02. M80 builds on M63/D61, independently of M82. It adds one-turn
@@ -18766,6 +18766,22 @@ behavior remains unchanged. No paid/live calls or hosted vendor run in this
 lane; full quality and hosted/live L/LA/LR receipts remain lead-owned under
 the rig brief. Evidence: [cm80ci.md](docs/certification/cm80ci.md). Existing
 `yaml` 2.9.1 development pin is unchanged; no dependency or bundle-cap change.
+
+**Lane MSM80, 2026-10-17 (macmini finish on `ms/msm80`).** Merged
+`main-now` `821566c0f` (conflicts only in generated/roll-up files; main's
+test-overhaul deletion of `referenceGenerator.test.mjs` stands, its real
+R5-P3 case re-homed to `test/unit/ciReference.test.mjs`). First macOS runs
+of the other-CI process suites found two shell bugs kubuntu/dash never
+shows: macOS `sh` (bash 3.2) cannot parse a multiline `case` inside `$( )`
+(the alias shape check already ran before the subshell, so only value
+removals stay inside), and a failed bare `exec` reports exit 0 once an EXIT
+trap runs (the final launcher call is now plain invocation, so a missing
+Node keeps 127 on every shell). Each fix has a fast guard with a red drill
+(`ciTemplates.test.ts` no-case-in-substitution; the R6-P2-2 probe in its
+plain form). Static gates, typecheck, build and the pure-logic suites pass
+on the merged tree; the process suites' remaining failures are rig-load
+timeouts, with a quiet full-green run still wanted. No paid/live calls.
+Evidence: [msm80.md](docs/certification/msm80.md).
 
 ### M81 — Browser check (D49)
 
