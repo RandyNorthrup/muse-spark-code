@@ -76,6 +76,7 @@ const HOST_BUNDLES = [
   'dist/screenRecord.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
+  'dist/modelEfforts.js',
   'dist/report.js',
   'dist/recorder.js',
   'dist/whatsNew.js',

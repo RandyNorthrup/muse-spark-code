@@ -44,6 +44,7 @@
 !dist/voice.js
 !dist/webFetch.js
 !dist/museCodeReviewer.js
+!dist/modelEfforts.js
 !dist/modelsPanel.js
 !dist/modelsSubscriptions.js
 !dist/usageService.js

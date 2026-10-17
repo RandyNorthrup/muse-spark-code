@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { SCENARIOS, SIZED_SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
 
@@ -26,21 +25,9 @@ describe('feedback harness scenes', () => {
       expect(SIZED_SCENARIOS[scene]).toEqual({ width: 320, ready: '[role="dialog"]' })
     }
   })
-
-  it('implements each scene step and its end-state readiness gate', () => {
-    const harness = readFileSync('test/harness/index.html', 'utf8')
-    for (const scene of SCENES) {
-      expect(harness.includes(`'${scene}':`) || harness.includes(`${scene}: () =>`)).toBe(true)
-    }
-    // The preview scenes wait for the Edit button only the preview brings;
-    // the sent scenes wait for a settled status line, so a stuck preview or
-    // send fails the gate instead of scanning early.
-    expect(harness).toContain('.feedback-fields .button-secondary')
-    expect(harness).toContain('[role="dialog"] [role="status"]')
-    expect(harness).toContain(`'Send feedback to Muse Code': ['feedbackTitle']`)
-    expect(harness).toContain("case 'previewFeedback':")
-    expect(harness).toContain("case 'submitFeedback':")
-    expect(harness).toContain("outcome: shown('Feedback uploaded.')")
-    expect(harness).toContain("'Feedback uploaded.': ['feedbackUploaded']")
-  })
 })
+
+// The scenes' steps and end-state readiness gates live in test/harness/ and
+// are proven by the production-Chrome suite (feedbackBrowser.test.mjs) and
+// the lead's local look: per the owner's 2026-10-17 rule no test asserts on
+// harness source text, so the word-search check that stood here is gone.

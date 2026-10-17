@@ -7,10 +7,31 @@ import { waitForHarness } from '../../scripts/lib/harnessCapture.mjs'
 import { prepareLang } from '../../scripts/lib/harnessLang.mjs'
 import { HARNESS_PATH, LOOPBACK, serveRepo } from '../../scripts/lib/harnessServer.mjs'
 import { PRODUCTION_BUILD_KEY } from './helpers/productionPackage'
-import { warmBrowser } from './helpers/warmBrowser'
+
+// A fresh Chrome's first page pays browser-wide work once: a renderer start
+// and the first font fallbacks (5.5 s on a CPU-starved Mac, CIFIX017). This
+// inlines the deleted test/unit/helpers/warmBrowser.ts verbatim, so the file
+// stands alone and every case keeps its deadline.
+async function warmBrowser(browser) {
+  const page = await browser.newPage()
+  try {
+    await page.setContent(
+      '<!doctype html><html lang="en"><body><p style="font-family:sans-serif">Warm</p><pre style="font-family:monospace">warm()</pre><p lang="ja">温</p></body></html>',
+    )
+    await page.evaluate(async () => {
+      await globalThis.document.fonts.ready
+      return globalThis.document.body.getBoundingClientRect().height
+    })
+  } finally {
+    await page.close()
+  }
+}
 
 const runtime = {}
-const themes = JSON.parse(readFileSync('test/harness/visual-matrix.json', 'utf8')).themes
+// The overhaul deleted the screenshot matrix (PASS 3a); the local-look
+// convention (scripts/ui-look.mjs) covers light and dark, so the dialog
+// suite does the same.
+const themes = ['light', 'dark']
 const scenes = ['feedback-narrow', 'feedback-preview-narrow', 'feedback-sent-narrow']
 
 beforeAll(async () => {

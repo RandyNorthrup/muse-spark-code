@@ -107,6 +107,20 @@ it('names the helpers bundle by the method that loads it', () => {
   })
 })
 
+it('names the effort catalogue bundle by the spawn that preloads it', () => {
+  expect(LAZY_BUNDLES.find((entry) => entry.file === 'modelEfforts.js')).toEqual({
+    file: 'modelEfforts.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/host/backend/museCodeBackendManager.ts',
+        symbol: 'MuseCodeBackendManager.spawn',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  })
+})
+
 function fixtureTree(files: Record<string, string>): string {
   const folder = mkdtempSync(path.join(tmpdir(), 'muse-lazy-stray-'))
   folders.push(folder)
