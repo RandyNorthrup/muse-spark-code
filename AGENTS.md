@@ -62,6 +62,15 @@ this file or in PLAN.md that disagrees loses.
   never printed, logged or put on a command line.
 - **Never `--no-verify`**, never weaken a gate to get green, never re-run a red
   check into green: read it and fix the cause.
+- **Research first, choose the most robust (2026-10-17).** Before suggesting,
+  keeping or building anything, research it and verify that it is the most
+  robust, feature-rich and reliable way to do it, "not some broken or half
+  cocked hairbrained plan". This covers everything in the project, what exists
+  as much as what is new: "this includes **ALL** of the current code, plans,
+  milestones, etc."
+- **"etc" means everything left out (2026-10-17).** When the owner writes
+  "etc", it means every case not named, with no exceptions. Never read it as a
+  short list.
 
 ## Working rules
 
