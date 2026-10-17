@@ -1,6 +1,5 @@
-import type { SessionUpdate } from '@agentclientprotocol/sdk'
-import { UI_TEXT } from '../../../../src/shared/constants'
 import type { OpenQuestion } from '../../../../src/shared/questions'
+import type { WaitingApproval } from '../../../../src/webview/state/uiState'
 
 /** Internal harness fixture; M46 remains the source for actual MSP frames. */
 export function questionFixture(overrides: Partial<OpenQuestion> = {}): OpenQuestion {
@@ -29,31 +28,22 @@ export function questionFixture(overrides: Partial<OpenQuestion> = {}): OpenQues
   }
 }
 
-/** The ACP-local commands announced without invoking the conversation model. */
-export function expectedQuestionCommandsUpdate(
-  skillCommands: Extract<
-    SessionUpdate,
-    { sessionUpdate: 'available_commands_update' }
-  >['availableCommands'] = [],
-): SessionUpdate {
+/** A shell approval waiting on its first step, for dock-arrival scenes. */
+export function approvalFixture(overrides: Partial<WaitingApproval> = {}): WaitingApproval {
   return {
-    sessionUpdate: 'available_commands_update',
-    availableCommands: [
-      { name: 'help', description: UI_TEXT.referenceIntro, input: null },
-      { name: 'compact', description: UI_TEXT.compactDetail, input: null },
-      {
-        name: 'report',
-        description: UI_TEXT.reportSlashDescription,
-        input: { hint: '<kind> [args] | history' },
-      },
-      {
-        name: 'agents',
-        description: UI_TEXT.referenceAgentOutcomes,
-        input: { hint: '[receipt|continue|retry] [ID]' },
-      },
-      ...skillCommands,
-      { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
-      { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
-    ],
+    entryId: 'approval-row-2',
+    toolName: 'exec',
+    approval: {
+      approvalId: 'a2',
+      requirementId: { approvalId: 'a2', sourceIndex: 0 },
+      subject: { kind: 'shell', command: 'Get-Date' },
+      rawArgs: '{"command":"Get-Date"}',
+      availableChoices: [
+        { choiceId: 'allow_once', label: 'Allow once', decision: 'approved', scope: 'once' },
+      ],
+      isProtectedWrite: false,
+      isJudgeEscalated: false,
+    },
+    ...overrides,
   }
 }

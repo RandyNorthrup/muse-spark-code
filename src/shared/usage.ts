@@ -69,7 +69,7 @@ export const providerUsageRowSchema = z.object({
   pricing: z.enum(MODEL_PRICINGS),
   inputTokens: z.number(),
   outputTokens: z.number(),
-  costUsd: z.optional(z.number()),
+  costUsd: z.optional(legacyUsdSchema),
   keyUsageError: z.optional(z.string()),
   keyUsage: z.optional(
     z.object({

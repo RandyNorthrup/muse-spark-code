@@ -192,8 +192,95 @@ happened, not what was planned; superseded entries are kept.
   remaining balance from its free key endpoint. Terminal `providers connect
   openrouter` and `providers usage <id>` share those paths, with fixed failure
   text and no credentials in UI state or output.
+### Fixed
+
+- On Windows, two requests that reserve session spend at the same moment
+  could end one of them with "The session spend ledger could not be read or
+  saved", although nothing was wrong with the ledger. Windows answers a lock
+  that is just being released differently from one that is held; the product
+  now waits for both the same way, within the same one-second bound.
 
 ### Pending
+
+- All fourteen translated settings tables now say Muse Code asks before a
+  command unless a permission rule allows it, matching the English modes.
+
+- Closing an ACP session no longer discards its selected permission mode;
+  loading it again on the same connection keeps that mode.
+
+- ACP waits for the selected-mode notice to leave its ordered update queue
+  before acknowledging `session/set_mode`.
+
+- ACP remembers a permission answer before dispatching it, so a stage update
+  arriving before the decision acknowledgement cannot open the same prompt again.
+
+- ACP permission answers retain the selected persistent rule's identity;
+  consent for one command prefix cannot silently install another stage's rule.
+- After Muse Code restarted, a conversation could continue on a different
+  model than the one shown (and at that model's price). It now keeps the
+  model you chose: the choice is applied and read back from Muse Code before
+  the next message is sent, the panel shows the model each request really
+  used, and a message that would run on another model is not sent.
+  A restart that finishes verification after you clear or replace the
+  conversation no longer reattaches the conversation you left. Failed model
+  verification releases its resumed handle, including command timeouts.
+  Opening Model API history on its already-selected model no longer runs
+  model-switch hooks or resets switch-related session state. ACP remembers
+  backend-reported model and effort changes too, including changes received
+  before a configuration command finishes.
+
+- Activation budget: the Create AGENTS.md command, its rules template and
+  their redaction load on the command's first run instead of at activation,
+  leaving 830 bytes of room below the 3,072-byte growth allowance. No
+  behaviour change; a missing bundle refuses the run and the next run tries
+  again.
+
+- The chat no longer takes the keyboard from a file you just opened: a chat
+  panel that finishes loading never pulls the focus in, a focus request for
+  a panel that is no longer active is dropped instead of landing on a much
+  later click, and a question that arrives while you are elsewhere waits
+  with its badge instead of taking the keyboard. Acting on the chat
+  yourself — clicking into the panel, Focus Input, sending — focuses the
+  input as before, and Focus Input while the composer is focused hands
+  the keyboard back to the file you were in (it used to focus the editor
+  group, which keeps a chat tab active).
+
+- Test-overhaul review: paid-popup lazy-load checks now build the real
+  runtime instead of writing a replacement formatter, retaining locale
+  propagation and sub-cent search-price disclosure checks.
+
+- Test-overhaul review: account-command tests now use the real parser and
+  metadata files, not a hand-built provider metadata store or key store.
+  Credential-operation composition remains for the real-life run.
+
+- Test-overhaul review: retain real on-disk session save/load, damaged
+  history, retention-boundary and path-confinement checks without fake
+  upload ledgers, question stores or filesystem replacements.
+
+- Test-overhaul review: retain real question-dock draft, focus and session
+  boundary regressions without the deleted suite's fake-timer case.
+
+- Test-overhaul review: retain stored-zone scheduling regressions through
+  the real calendar engine and Intl, without the deleted suite's fake
+  clock or spy replacements. Covers daylight-saving gaps/folds, skipped
+  dates, sparse cron and preview/admission end bounds.
+
+- Test overhaul (not a user feature): the unit suite now runs real code
+  only — about 800 fake-driven test files deleted, the screenshot
+  comparison system removed (a UI change gets one small local look,
+  `npm run ui:look -- <scene>`), the coverage gate dropped, and the
+  accessibility check moved off the pull-request path. The packed
+  product's real-life run is the product's test.
+  (docs/testing/test-overhaul-2026-10-12.md).
+
+- Test overhaul follow-up (not a user feature): the dead-code gate
+  declares the built-but-unwired in-progress source instead of deleting
+  it — one titled block in `knip.jsonc` grouping 110 files by feature
+  (vault, team workers, schedules, resources, accounts, media,
+  estimator, theme, reporting, devices, hooks, judge) with their PLAN.md
+  milestones; no file is deleted. The unused-export residue those
+  features' API surface leaves in wired files is measured in
+  docs/testing/test-overhaul-2026-10-12.md for the per-feature owners.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
@@ -263,6 +350,578 @@ happened, not what was planned; superseded entries are kept.
   so only that clear is withheld when its audit append fails. Every other
   revocation, own-machine Reset included, is still published after an audit
   failure, and the caller still gets the persistence error.
+
+- M123 (Git and pull requests in every editor, PLAN.md D104): lanes 0, G
+  and P are merged and switched off until the milestone is complete, so
+  nothing changes for users yet. No GitHub setting is offered, and an
+  editor built on VS Code without its Git extension (Arduino IDE 2, some
+  forks) keeps its earlier behaviour. Merged: the GitHub token-source
+  contracts with fakes of GitHub, the device flow, `gh` and Git remotes
+  (lane 0); the runtime's native Git service (status, the commit form,
+  commit, a push confirmed with every URL Git will use and the same
+  refusals as VS Code, never a force-push, commit-message drafts),
+  revalidated after every wait and serialized per repository across
+  windows by one fenced lease (LOCKLIB) that renews every third of its
+  30-second lease, is checked synchronously at each Git dispatch and is
+  never re-created once lost (lane G, with M123G4 and M123G4C); pull
+  requests in the runtime (draft, open and link, status and checks, a
+  fork onto its parent) and checkouts of other people's pull requests
+  held under the runtime data folder, whose records take that lease with
+  fenced compare-and-swap generations, so at most one window gets a
+  checkout and no folder is left without its record (lane P, with
+  M123P9's logged sweep failures and translated uncertain writes). Still
+  to land: the GitHub sign-in (lane A, accepted on its branch), the
+  editors' leases (lane L), the panel and its strings (lane U) and each
+  editor's qualification (lane Q). The pull-request checkout's own git
+  launches are not yet under the resource governor; nothing in this release
+  can start them, and the process inventory fails the day something could.
+
+- Muse Code permissions: on the Muse Code backend one command is asked
+  about once — the first answer is reused for later stages instead of
+  asking again, and an answer given while a newer stage arrives is applied
+  to that stage instead of dropped. A permission mode set in the editor is
+  reported back and kept when the session is loaded again. The Manual and
+  Edit Automatically descriptions now say commands are asked about unless
+  a permission rule allows them.
+
+## [0.18.2] - 2026-10-12
+
+### Highlights
+
+- **The landing screen shows the extension's own mark.** The empty chat
+  panel showed the Meta logo beside the product name. It now shows the
+  product's own squiggled "m", the mark of the Marketplace and activity-bar
+  icons: blue in dark and light themes, and in the theme's text colour in
+  high-contrast themes and under forced colours.
+
+### Changed
+
+- The chat panel's empty screen shows the extension's own mark instead of
+  Meta's logo, in the same place and at the same size. The mark is blue in
+  ordinary themes and takes the text colour in high-contrast themes.
+- The Get Started walkthrough's four pictures were taken again. Two still
+  showed Meta's logo (the empty panel and the actions palette); the other
+  two were from an older panel, and the sign-in picture did not show the
+  third choice, Start with your own model, that the last page describes.
+
+### Documentation
+
+- The README's four screenshots that showed Meta's logo (modes, palette,
+  slash commands, voice) were taken again and show the extension's own mark.
+
+### Release infrastructure
+
+- Screenshot comparison no longer runs in CI or in the local gate (the
+  owner's decision, 2026-10-12). A change to the interface is looked at by a
+  person, locally, in one light and one dark theme. The comparison could
+  only say that a frame had changed against the frame accepted before it,
+  never that what a frame showed was wrong: Meta's logo was in the accepted
+  frames.
+
+## [0.18.1] - 2026-10-12
+
+### Fixed
+
+- In 0.18.0 a turn on a model provider you added yourself, on a ChatGPT
+  plan or through Copilot stopped before anything was sent, with an internal
+  error ("… is not a function"). Those turns work again, and we are sorry
+  for the broken release. Meta's own models were not affected.
+- Usage recorded by earlier versions is counted again. 0.18.0 left those
+  records out as not exact; nothing was deleted.
+- Report a Problem did nothing if you had changed certain settings (those
+  with a second dot in their name, such as `museSpark.vault.enabled`): it
+  said "That did not work" and never opened. It opens again.
+
+### Changed
+
+- A damaged install now says so before anything is sent. Part of the Model
+  API backend loads from a file of its own (`dist/modelApiTools.js`) the
+  first time a turn needs it. If that file is missing or cannot be read, the
+  turn is refused, nothing goes to the model, and you are told what to
+  reinstall: the extension in VS Code, `muse-spark-code-acp` in a terminal
+  or an ACP editor. The log names the file. Nothing else about a turn
+  changes: what is sent to the model, what your hooks receive and the
+  argument previews are the same bytes as before.
+
+## [0.18.0] - 2026-10-11
+
+### Highlights
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  Keep more than one account with a provider:
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes
+  them and sets each one's thresholds,
+  `auth set --provider <id> --account <id>` stores a key for one account, and
+  `exec --account <id>` runs on the account you name. In an ACP editor on a
+  Model API key, `/accounts` shows the list, the current account and its
+  thresholds. A vendor limit stops only the account that hit it. Changing
+  account inside a session, pooled runs and an Accounts page in the editor
+  are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete. File content and edits stay hidden, and nothing runs, asks or
+  calls a hook until the call itself is complete. Other models keep the
+  finished-call row until their own stream is captured; headless `exec`
+  shows finished tools only.
+- **Reviewing Git changes works without a Git filter.** On a machine or
+  repository with no Git filter configured (for example without Git LFS),
+  every native review was refused with "Git could not read the changes to
+  review" since 0.15.0. It works now.
+- **The activity-bar icon is the extension's own mark.** The squiggled "m"
+  of the Marketplace icon replaces the Meta logo silhouette.
+
+### Added
+
+- **Several accounts per provider, in the terminal and in ACP** (M108,
+  CM108ACC). `providers accounts` lists, adds, removes and orders a
+  provider's accounts and sets their thresholds;
+  `auth set --provider <id> --account <id>` stores one key per account, read
+  from standard input only;
+  `exec --account <id>` pins a headless run to one account. In an ACP session
+  on the Model API backend `/accounts` shows the list, the current account
+  and its thresholds, and the `account` picker shows the same. Meta's Model
+  API entry is built in, so nothing has to exist first; a vendor limit stops
+  only its own account and the stop names it. Still refused, and saying so:
+  changing account inside a session and pooled runs. The three account
+  settings keep no effect, and the editor has no Accounts page yet.
+
+- **Live tool-argument previews, in the panel and in ACP** (M106, C-M106-2).
+  On the Model API backend a tool row shows an **Argument preview** while
+  the model is still writing the call: declared top-level string fields
+  (file paths, shell commands, search patterns, fetch URLs) appear once
+  their closing quote validates, scrubbed like every other display. File
+  content, edits and nested values stay hidden, and a tool the request never
+  offered shows a byte count only. A preview never runs a tool, asks for
+  approval or calls a hook. One model's record verifies streamed arguments
+  today, `muse-spark-1.3-contributor`; every other model keeps the
+  completed-call row until its own stream is captured, and headless `exec`
+  records completed tools only.
+
+- **Judge benchmark tooling (repository only, lane JEVBENCH, D107/M125).**
+  `scripts/judge-bench.mjs` judges a labelled decision set through one
+  engine interface (local Ollama SystemOne, local llama-server chat with
+  logprobs, remote Jev wire or remote chat from environment variables) and
+  reports accuracy, per-label precision/recall, per-domain accuracy,
+  unsafe-approve count, Brier, latency p50/p95/max with cold vs warm, tokens
+  and the 5 s veto-window fit. `scripts/judge-bench-decisions.json` holds
+  170 hand-labelled decisions (50 allow / 50 deny / 50 ask plus 20 hard
+  cases, all secrets synthetic). Results and the recommendation live in
+  `docs/certification/judge-bench.md`. Nothing here runs in CI or ships in
+  the extension.
+
+- **Judge engine decision (lead, 2026-10-10; lane JEVBENCH2, D107/M125).**
+  Jev online stays the Judge engine: on the Win11 GPU both local sizes
+  fit the 5 s veto window but score far below Jev on the full 170 cases
+  (0.376/0.375 vs 0.794), with 9 must-refuse cases approved by 4b.
+  Local veto engines wait for ~0 unsafe-approves and accuracy within 2
+  points of Jev; M125 lanes L/V retune the deny question first. The
+  lead's rows in `docs/certification/judge-bench.md` (§§3/8) were
+  verified cell-by-cell against the committed raw result files in
+  lane JEVBENCH2 round 2 (all matched; gaps filled), and a new unit
+  test fails if a committed result file contains anything key-like.
+
+- Internal B1 inspect confinement tooling (M125 F1a): Linux per-file Landlock
+  grants, verified system executables, a fixed environment, syscall guards,
+  session self-tests and a portable runner. `npm run build:confine` builds
+  its offline certification artifacts under `temp/`; no editor approval
+  uses this path. macOS stays off pending its captured Seatbelt policy and
+  platform receipt; Windows is excluded by D107. Fresh reviews and F1b's
+  approval integration are required before exposure.
+
+- Cursor's Tab hooks now run at Tab's two points (M94 lane K, revived as
+  M94KR on the 0.17.0 base). `beforeTabFileRead` guards fail closed before
+  completion dispatch, with verdicts cached per path and content digest and
+  invalidated on configuration changes; `afterTabFileEdit` observes accepts
+  with actual line text and never blocks. The guard and dispatch bridge stay
+  in the lazy Tab bundle, all hook callers share the production runner's
+  process cap, and a bundle-load failure logs fixed words only. The final
+  live check remains open; see `docs/certification/m94-k.md`.
+  - **What these hooks receive.** They are local processes you configure.
+    `beforeTabFileRead` gets the absolute path and the **full, unredacted
+    text** of the current file and of each context file, with the workspace
+    folders, the Tab model and the request id. `afterTabFileEdit` gets the
+    accepted text and the surrounding line text (512 characters each at
+    most) with a 1-based range. Neither payload is sent anywhere by the
+    extension; hook processes never get the Model API key.
+
+- **Production admission for automatic compaction** (M101 C-M101-1, dormant).
+  The panel backend manager and the runtime backend manager (ACP, exec) now
+  bind the one shared D78 gate and ledger for automatic compaction
+  (`admitAutoCompaction`) and the Meta catalogue model reader
+  (`autoCompactModel`), so every host that offers automatic compaction
+  admits the same way. Every automatic attempt reserves its projected cost
+  from the daily ledger before dispatch, rechecks the claim synchronously
+  at send, and settles once per attempt at its exact cost (known nonsends
+  refunded, uncertain attempts retain their liability); a refused or
+  missing ledger sends nothing. Near-window and overflow protection are
+  never blocked by economics. Nothing changes for users yet: the feature
+  stays off behind the unevaluated latch (`IS_AUTO_COMPACTION_EVALUATED`)
+  and reports "awaiting evaluation", and requests sent while it is off are
+  byte-identical.
+
+### Changed
+
+- What's New fits its content budget by itself: the newest release always
+  ships in full. The writer checks every complete plan against both decoded
+  and encoded bounds, preferring older full notes, then Highlights with a
+  full-notes link, then omission, newest first. Keeping earlier Highlights
+  never reserves bytes for a shortening flag the final plan does not need.
+  A shortened page says "Earlier notes: see the full changelog",
+  and the packaged changelog shows the same releases. A newest release that
+  alone exceeds the budget still fails the build naming the release, so its
+  notes are trimmed instead. Packaging uses the parser's heading and body
+  spans; release headings require ATX `## [version] - YYYY-MM-DD` with LF or
+  CRLF endings. CR-only files and Setext release headings fail by name.
+  Only size overflow permits reducing notes: other encoding or schema
+  failures stop the build with the releases and cause. HTTP/HTTPS schemes
+  are normalized to lowercase, including repository-derived full-notes links
+  in the page and packaged notes, so uppercase links cannot drop fitting
+  notes. An unsupported repository URL fails by name before plan selection.
+
+- Internal B1 inspect checks protected/private paths after canonicalizing
+  their spelling, sends the same operands to the grant walk and program,
+  and refuses noncanonical native input. A cancelled caller detaches from
+  the shared self-test promptly; session disposal still awaits its cleanup.
+  Regression properties and native canaries cover both review findings
+  (M125 F1a); the component remains unavailable to editor approvals.
+
+- Usage, team and schedule money is exact too (M121): journal and usage
+  page totals, provider rows, key usage, team costs, budgets and preview
+  totals, and schedule caps and liabilities are kept as exact decimal
+  dollars and shown through the exact formatters. The usage journal moves
+  to version 2; version 1 records with numeric dollars still read and
+  convert exactly, and a record that cannot convert is refused with an
+  explanation instead of being rounded or zeroed.
+
+- Keep automatic-compaction admission in the lazy Model API backend and its
+  price-card calculations in the existing providers bundle. Format paid-use
+  questions on first use through the existing imported-hook runtime. Activation
+  behavior, paid admission, displayed text and all bundle limits stay unchanged.
+  Remove the unused internal GitHub lease-result type found by the train gate.
+
+- M106's wire certification adds counted, scrubbed Muse Code 1.4.4 effort,
+  feedback and session-lifecycle captures, plus an opt-in developer collector
+  for Meta's missing raw argument stream, status and output-cap receipts.
+  Every provider's remaining credential or local-runtime requirement is
+  recorded. Muse Code 1.4.4's removed delete method is captured as a refusal.
+
+- The Model API backend now binds the selected model's capability record in
+  production: streamed tool-argument previews render on the U9-captured
+  `muse-spark-1.3-contributor` model in VS Code and ACP, and Meta turns in
+  VS Code and interactive ACP request the documented 131,072-token output
+  cap. Headless `exec` requests at most 32,768 output tokens (or the record’s
+  smaller maximum), because its run ledger reserves each request’s worst
+  case before dispatch. Its body, schema, ledger and start reservation
+  share one resolved cap. Headless `exec` drops every `tool_call`/`tool_call_update`
+  before its sink, so it records completed tools only and never shows live
+  argument previews. Unobserved models keep today's stream and the legacy
+  32,768-token request cap. No setting changes; feature-off request bytes
+  are unchanged (`docs/certification/m106-capability-binding.md`).
+
+- Fixed headless edit reporting after argument previews: complete-argument
+  promotion carries file locations through ACP, so successful edits appear in
+  `filesChanged` even when their previews began without a path. ACP regression
+  coverage now checks workspace-relative locations on any Windows drive and
+  excludes pathless tools and paths outside the session workspace.
+
+- Fixed the Model API selected-record binding review findings: the
+  production entry resolves qualified models through the session client's
+  own resolver instead of a standalone registry, so headless `exec` keeps
+  its daily budget admission and run-ledger accounting, ChatGPT and Copilot
+  subscription models stay selectable, plan-key usage stays with the owning
+  service, and interactive ACP binds a qualified record's larger output
+  cap. Declared IDE and MCP tools render preview text from their own
+  string fields, as host tools do; unoffered tools still show a byte count
+  only. The reference lists argument previews on the VS Code and ACP
+  surfaces. Raw Meta capture receipts: the 16-frame U9 strict stream
+  proves declared-tool preview text from captured bytes, and the refused
+  1-token probe documents Meta's 16-token output minimum (the collector
+  probes it next run).
+
+- Fixed two follow-up selected-record binding findings (RVCM1062C). A
+  compaction, Git draft or summary fork sent before any prompt on a resumed
+  qualified model now builds its request after the selected record
+  resolves, so it carries the record's output maximum and reasoning effort
+  instead of the legacy 32,768-token cap and the unresolved fallback; the
+  cached maximum is dropped whenever the record or the selection changes.
+  Streamed argument-preview text now comes only from the tools the request
+  itself offered: a tool the request never offered (allowlisted out,
+  untrusted away, or never declared) renders a byte count only, never its
+  fields (`docs/certification/m106-capability-binding.md`).
+
+- Fixed both RVCM1062D binding findings. Strict tools preserve each host
+  tool's curated preview fields, so file content, edits and tools without
+  preview declarations remain hidden. Responses and token counts build
+  from one resolved model record and use it for output caps, reasoning,
+  offered tools, admission and accounting; configuration changes cannot
+  replace the client underneath an already-built body. A stale record
+  refuses before dispatch, and a switched selection rebuilds the request.
+
+- Fixed the RVCM1062E finding: every stale-record refusal now names the
+  operation the user actually ran. A lapsed record during manual
+  compaction says to compact again, during a turn to send the message
+  again, and during a model-hook call to try the action again; headless
+  runs name the run, and resolution-time refusals that know no operation
+  retry neutrally. Scheduled prompts keep their schedule guidance. The
+  new guidance is translated in all fourteen UI tables
+  (`docs/certification/m106-capability-binding.md`).
+
+- The activity-bar icon is now the extension's own mark: the squiggled "m"
+  from the Marketplace icon as a single-colour mask, replacing the Meta logo
+  silhouette. The Marketplace icon, banner and social preview already used
+  the "m"; the activity-bar icon was missed.
+
+- The visual check's What's New footer screenshots apply hover, focus and
+  pressed to the footer's own links, whatever the notes above them end with
+  (VISFOOT).
+
+- The Cost Over Time chart now scales its bars to the largest period, like
+  the token and time charts; before, a period under $1 drew a short bar
+  whatever the others were.
+
+### Fixed
+
+- Local report sources sort every tied list to a total order, so the same
+  inputs produce byte-identical source facts whatever order records arrive
+  in: Git commits, tags, branches and worktrees break key ties on their
+  full serialized bytes, session check runs break remaining ties on
+  serialized bytes after the existing timestamp/check/outcome/commit/
+  duration fields, usage breakdown and limit keys do the same, scrubbed
+  question ids do the same, and agent file order normalizes Windows
+  separators before comparing. Permuted valid inputs additionally render
+  byte-identical changes, project, session and usage reports in Markdown,
+  HTML, JSON and text. Distinct records that scrub to the same key still
+  collide at the collector's unique row keys; that pre-existing collector
+  limitation is recorded, not changed, by this repair. Runtime discovery
+  also refuses directory entries shaped like session files, so a folder
+  named `*.jsonl` can no longer mark a usage read partial (C-M113-1,
+  RVM113S tie-breaks, RVCM1131 findings 1–3).
+
+- Tab's Help description and all 14 translations now explain that only
+  **Allow always in this workspace** saves the model and price; **Allow once**
+  saves nothing, covers this window, and each new window asks again. The
+  generated reference no longer promises one extra question for legacy consent
+  (RVM94KR4G).
+
+- Tab consent review RVM94KR3G: accepting image generation's price or turning
+  voice off preserves Tab's **Allow once**, including requests waiting to
+  send. Revocation is per feature; **Ask again** and Tab's own price acceptance
+  changes end its consent, and a changed model or price asks for its own key.
+  The legacy **Allow always** migration saves the model and price only when answered
+  **Allow always in this workspace**; **Allow once** saves nothing and the
+  next window asks again.
+
+- Tab consent and hook-policy review RVM94KR2 (M94 lane K, redesign). Each
+  point fails closed.
+  - Tab's consent is keyed by model and price. A question open for one model
+    no longer answers a request for another; **Allow once** stays in its
+    window and is never written down; **Allow always** is kept with the model
+    and price it named. An **Allow always** kept by an earlier version asks
+    a migration question: only **Allow always in this workspace** saves the
+    model and price; **Allow once** saves nothing and the next window asks
+    again. An answer given after **Ask again** sends nothing.
+  - A hook file or setting change stops Tab reading from the moment it is
+    noticed, before the `ConfigChange` hook runs, until it has reloaded.
+  - A request's last check now runs immediately before it is sent, after the
+    key read and rate pacing: a changed model, consent or hook configuration
+    sends nothing, and the request costs nothing.
+  - A hook's cached read verdict counts only for the model it was asked about
+    and the configuration it ran under.
+
+- Tab hook review RVM94KR (M94 lane K). Each point fails closed.
+  - A `spark-hooks.json` that is present but does not load in full no longer
+    reads as "no hooks": invalid JSON, an unreadable or oversized file, an
+    unknown event name, an invalid Tab group or a guard whose matcher never
+    names `TabRead`. Tab then reads no file, and the status bar says **Tab
+    paused: hook file has errors** in all 14 languages until it is fixed.
+  - A Tab request is bound to the trust, Tab settings, `files.exclude`,
+    ignore files and hook configuration in force when it starts. It is
+    checked again after the paid question, at dispatch (after the debounce or
+    a wait for a free slot) and before its answer shows, and dropped if
+    anything moved.
+  - The paid question names the request's own model, the request sends only
+    that model, and a request for another model than the one last allowed
+    asks again, **Allow always** included.
+  - A hook whose wait for a process slot was cancelled now gives its
+    admitted resource lease back.
+  - The privacy guide said configured Cursor Tab hooks did not run; they do,
+    and the guide, README and this entry now say what they receive.
+
+- Unproved version 1 monthly rollup dollars are refused before money validation,
+  preserving the other usage days and the translated precision notice even for
+  overflow or negative literals (M121A round 4). Changes that round to zero show
+  `0%`; the money guard also checks nested and generic mapped keys, including
+  remapped (`as`) names and lib-declared records beneath ordinary wrappers.
+
+- Legacy money reads fail closed on overflow, underflow, negative zero and
+  unconvertible exponents (M121A round 3), preserving the precision-refusal
+  notice instead of accepting a rounded zero.
+
+- Usage period-change percentages and cost sorting use exact dollars,
+  including charges smaller than a nano-dollar. Portable usage summaries
+  share the same exact percentage calculation; very small monetary labels
+  keep their digits beyond Intl's precision limit. The money guard resolves
+  union/intersection members, apparent types and inherited interfaces.
+
+- Exact money keeps every promise on every Node version (M121A fix round).
+  Version 1 journals and schedules read dollars through a small JSON parse
+  that keeps each number's written digits, so a literal a double cannot
+  carry is refused on Node 20 exactly as on newer runtimes instead of being
+  rounded into the record. Usage charts label the original amount in every
+  status line, data table and previous-period figure; only the plotted
+  geometry stays approximate, so a single xAI tick no longer reads as ten
+  times its charge. The exact-money type guard now also sees through
+  finite-key records and mapped types.
+
+- Tests only: the exact-money guard cites PLAN.md by heading and quoted
+  phrase instead of by line number. A line number named a different sentence
+  after every edit above it, and the old check only asked that the numbered
+  line was not blank; each sanctioned entry's clause must now be in PLAN.md
+  exactly once, under M121's heading, so PLAN edits elsewhere no longer turn
+  the suite red and a deleted, reworded, duplicated or moved clause does.
+
+- **Automatic compaction review repairs** (M101, RVCM1011C): hidden options
+  preserve the complete ACP and CLI manuals, including invalid-argument help.
+  Help filters structured option identities rather than flag substrings.
+  Revoked consent, paid switch, trust or evaluation refuses only that
+  compaction and lets the ordinary turn continue; actual ledger failures
+  still fail closed. The native setting keeps 0.17.1's description (it shows
+  or hides the first-turn notice while automatic compaction is inactive), and
+  the README and ACP page do not describe the inactive feature.
+
+- **Automatic compaction admission, third review** (M101, RVCM1011B): one
+  authority reserves each actual request's input estimate and full output
+  allowance, settles reported usage and refunds the difference. Consent,
+  paid switch, trust and evaluation are checked at preparation and final
+  dispatch, including retries; revocation stops the send. Unevaluated
+  automatic compaction is absent from paid surfaces and help; the native
+  setting only shows or hides the first-turn notice.
+  Turn-on confirms its rates, manual summary forks keep their own identity,
+  and ACP Once covers one workspace within the agent process.
+
+- **Automatic compaction admission** (M101, RVCM1011): shared first-charge
+  consent precedes spending; daily Stop and unreadable storage refuse even
+  near-window protection. Each HTTP attempt gets a fresh claim, known
+  nonsends refund, and settlement failure ends the owning turn before any
+  continuation. ACP/exec use their transport's sole daily debit. ACP adds
+  `--auto-compaction` as an explicit paid opt-in; exec paid defaults remain
+  off. The evaluated latch remains false.
+
+- The installed CLI, ACP agent and headless runs share the account service
+  instead of answering "Accounts are unavailable": Meta's Model API entry is
+  built in, so `providers accounts` (list, add, remove, order, thresholds),
+  `auth set --provider meta --account <id>`, `exec --account <id>` and
+  ACP's `/accounts` (list, current, thresholds) work with no pre-existing
+  file. The `account` picker serves the Model API backend only; the Muse
+  Code backend runs on its subscription, and an accounts failure leaves the
+  session working without accounts. Choosing another account in a session
+  stays refused until the pooled owner lands, and says which account the
+  session keeps instead of reporting unavailable — including across the
+  runtime/ACP bundle boundary. A malformed user row refuses and is left
+  untouched (the built-in entry applies only with no file); a vendor-limit
+  stop names the blocked account and its reset even with no usage page
+  bundled; a pooled `exec` run names the missing pool owner instead of
+  the connection text. The Models panel stop notice names the blocked
+  account too, and a refused providers file (a malformed row, unparsable
+  JSON, duplicate account ids, or a provider id that does not match its
+  key) says the file was refused and left unchanged instead of the
+  connection sentence — on the terminal, through ACP list/current/thresholds
+  and picker selection, as the Models panel's own error, from `exec
+  --account` readiness instead of a keyring-outage message, from developer
+  multiple-accounts open instead of a raw stack, and on the terminal crash
+  line as the sentence itself.
+
+- Models & Agents keeps the visible section during lazy navigation and reserves
+  its remembered height on reload. The first visit estimates its host rows.
+  Visual captures wait for money amounts, and filtered model tables now have
+  reviewed coverage across every theme, width and interaction state.
+
+- Release-train bundle diet (repository only, no user-visible change):
+  shared top-level initialisers the bundler cannot drop (computed
+  `Math.ceil`, `String.raw`, `String.fromCodePoint`, `'0'.repeat`,
+  templates over constants, call-argument `new Set`) are literals or pure
+  factories now, and single-surface schemas live behind pure builders, so
+  small bundles stop carrying them: usagePanel.js back under its cap with
+  room to spare. Recorded in `docs/certification/train-bundle-diet.md`.
+
+- A confirmed run on a ChatGPT or Copilot plan model (hook model, review,
+  scheduled prompt) no longer fails with "the model changed" before it is
+  sent. The subscription client proceeds while the confirmation is still
+  allowed and refuses with the run's own guidance only once it has lapsed,
+  like the other clients (M106, RVCM1062F).
+
+- Fixed the RVCM1062G findings on that plan-model success path. A confirmed
+  scheduled run now records its start receipt and scheduled-prompt tally,
+  and a paid-gate lapse during ChatGPT sign-in or Copilot token counting
+  still refuses before anything is sent — through the same
+  confirmed-dispatch helper the other branches use. A lapsed confirmation
+  names the hook, schedule or review instead of the generic plan retry
+  sentence, and a catalogue request id is accepted against a session
+  confirmation id (M106, RVCM1062G;
+  `docs/certification/m106-capability-binding.md`).
+
+- Fixed the RVCM1062H findings: the last two confirmed-dispatch paths that
+  decided by themselves now route through the shared helper. A still-allowed
+  scheduled or hook confirmation on a configured provider (which carries no
+  origin) dispatches instead of refusing with "Models & Agents is not
+  available in this build", and a lapsed confirmation there keeps the run's
+  own guidance instead of that sentence. An inventory test fails if any site
+  but the helper ever refuses a confirmed dispatch again (M106, RVCM1062H;
+  `docs/certification/m106-capability-binding.md`).
+
+- Reviewing Git changes now works on machines and repositories with no Git
+  filters configured (for example without Git LFS installed). Broken since
+  0.15.0, it refused every native review there with "Git could not read the
+  changes to review" (lane REVIEWEXIT).
+
+### Documentation
+
+- The README's Resources screenshot shows the relocation sentence users
+  see ("Relocation requires a paired device or runner route."); it still
+  showed the wording 0.17.1 replaced.
+
+- PLAN.md had grown to 4,157,477 bytes, 36,827 short of the 4 MiB bound at
+  which `check:plan`, `check:roadmap` and `/report` refuse it. Closed history
+  moved to `docs/plan-archive/`, byte for byte: the design record of 50
+  decisions (`decisions.md`; PLAN.md §2 keeps each heading, a paragraph that
+  states the rule in force and a link), 140 gate records dated 2026-10-08 or
+  earlier (`gates.md`) and 7 closed 0.17.0 sections (`milestones.md`).
+  PLAN.md is 3,472,457 bytes. Passages that open branches touch, passages
+  tests cite and live tables stayed in place; every parsed fact is unchanged
+  and ROADMAP.md regenerates identical. `check:plan` now fails when PLAN.md
+  passes 85% of the bound and names the archive procedure in CONTRIBUTING.md,
+  and `test/unit/planArchive.test.ts` hashes every archived passage.
+
+- `npm run plan:archive` (repository only) moves passages of PLAN.md into
+  `docs/plan-archive/` and proves each move before writing: the old file is
+  rebuilt byte for byte from the result, and the plan reader must parse the
+  same facts. `status` shows the plan's size against the bound and the gate
+  and checks every archived block's hash. A design record now goes to the
+  archive in the change that adds it; PLAN.md keeps the rule in force and
+  the link (AGENTS.md, CONTRIBUTING.md).
+
+## [0.17.2] - 2026-10-11
+
+### Fixed
+
+- A reply from a provider you added yourself (an Anthropic, OpenAI or
+  Mistral key, a local server and the others) or from a ChatGPT plan is no
+  longer cut off 30 seconds after the request starts. Since 0.15.0 any answer
+  that took longer, such as a long written answer or one the model thinks
+  about first, was lost, and for a provider you added the error read
+  "Models & Agents is not available in this build." A reply now has no limit
+  on its total time; one that goes silent ends after 5 minutes with nothing
+  received, and the message says so.
+
+### Changed
+
+- The visual check renders the What's New screenshots from a fixed sample
+  of release notes (`test/harness/whats-new/CHANGELOG.fixture.md`) instead
+  of this file, so a release's notes and its version no longer need new
+  reviewed screenshots. A test names any kind of Markdown the real notes
+  use and the sample lacks. The capture inputs gain the build helpers and
+  the dependency versions, and no longer include this file (VISFIX).
 
 ## [0.17.1] - 2026-10-10
 

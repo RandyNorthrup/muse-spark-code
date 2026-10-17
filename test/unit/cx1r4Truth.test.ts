@@ -75,16 +75,32 @@ const acpContext = {
   signal: new AbortController().signal,
 }
 
-describe('CX1R4 F1: accounts claims are removed from current surfaces', () => {
-  it('compact help prints no accounts usage lines', () => {
+// CM108ACC bound accounts in the terminal and in ACP on the Model API backend:
+// list, current, thresholds and per-account keys. Pooling, in-session
+// switching, the three settings and the editor's page stay unpublished.
+describe('CX1R4 F1 after CM108ACC: accounts are published where the code serves them', () => {
+  it('compact help prints the accounts usage line and offers no pooling', () => {
     const usage = formatAcpUsage(EN, 'muse-spark-code-acp')
-    expect(usage).not.toMatch(/providers accounts|exec --account|account-pool|Accounts:/)
+    expect(usage).toContain(
+      'Accounts: muse-spark-code-acp providers accounts list|add|remove|order|thresholds',
+    )
+    expect(usage).toContain('muse-spark-code-acp auth set --provider <id> --account <id>')
+    expect(usage).not.toMatch(/account-pool/)
   })
 
-  it('published Help omits the accounts feature, route, options and settings', () => {
-    expect(help.features.some((feature) => feature.id === 'accounts')).toBe(false)
-    expect(help.cli.some((command) => command.route === 'accounts')).toBe(false)
-    expect(help.cli.some((command) => command.name.includes('--account'))).toBe(false)
+  it('published Help has the accounts feature, route and --account, not pooling or the settings', () => {
+    const feature = help.features.find((entry) => entry.id === 'accounts')
+    expect(feature?.summary).toEqual({ ui: 'referenceAccounts' })
+    expect(feature?.surfaces).toEqual(['acp:modelApi'])
+    expect(feature?.settings).toEqual([])
+    expect(
+      help.cli.filter((command) => command.route === 'accounts').map((command) => command.name),
+    ).toEqual(['providers accounts'])
+    expect(
+      help.cli
+        .filter((command) => command.name.includes('--account'))
+        .map((command) => command.name),
+    ).toEqual(['authSet: --account <value>', 'exec: --account <value>'])
     for (const id of [
       'museSpark.accountSwap',
       'museSpark.accountParallel',
@@ -93,16 +109,24 @@ describe('CX1R4 F1: accounts claims are removed from current surfaces', () => {
       expect(help.settings.some((setting) => setting.id === id)).toBe(false)
   })
 
-  it('the capability inventory binds accounts to no surface', () => {
-    expect(REFERENCE_CAPABILITIES['accounts']).toEqual([])
-    expect(featureCatalog().find((feature) => feature.id === 'accounts')?.surfaces).toEqual([])
+  it('the capability inventory binds accounts to ACP on the Model API backend', () => {
+    expect(REFERENCE_CAPABILITIES['accounts']).toEqual(['acp:modelApi'])
+    expect(featureCatalog().find((feature) => feature.id === 'accounts')?.surfaces).toEqual([
+      'acp:modelApi',
+    ])
   })
 
-  it('README removes the product section and keeps only the progress-list anchor', () => {
-    expect(readme).not.toContain('## Several accounts per provider')
-    expect(readme).toContain('<a id="several-accounts-per-provider"></a>')
+  it('README has the product section for what works and no progress-list anchor', () => {
+    expect(readme).toContain('## Several accounts per provider')
+    expect(readme).toContain('[Several accounts](#several-accounts-per-provider)')
+    expect(readme).not.toContain('<a id="several-accounts-per-provider"></a>')
+    expect(readme).toContain('muse-spark-code-acp providers accounts list --provider <id>')
+    expect(readme).toContain('muse-spark-code-acp exec --account <id> <prompt>')
+    const prose = readme.replaceAll(/\s+/g, ' ')
+    expect(prose).toContain('`/accounts` (list, current, thresholds) and the `account` picker')
+    expect(prose).toContain('Choosing another account stays refused')
     expect(readme).not.toMatch(
-      /providers accounts list|exec --account|account-pool|\/accounts|account` picker|Several accounts per provider\.\* List provider/,
+      /account-pool|`museSpark\.accountSwap` and|Several accounts per provider\.\* List provider/,
     )
   })
 

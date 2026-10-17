@@ -33,7 +33,7 @@ export function useTestCostDisclosure(costUsd: UsdAmount | undefined): CostDiscl
     isDisclosed: false,
     line:
       money.status === 'failed' ? null : (
-        <p className="models-hint" role="status">
+        <p className="models-hint" role="status" data-deferred-loading>
           {UI_TEXT.loadingOutput}
         </p>
       ),

@@ -691,7 +691,9 @@ async function runInScope(
   })
 }
 
-/** One plugin hook call outside any session. */
+/** One plugin hook call outside any session.
+ * @unwired M91b one plugin hook call outside any session
+ */
 export async function runPluginHook(
   call: PluginCall,
   deps: PluginRunDeps,

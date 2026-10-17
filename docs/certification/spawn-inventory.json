@@ -517,5 +517,37 @@
     "site": "src/runtime/vault/slots/windowsVaultTransport.ts#call:spawnResourceProcess:1",
     "profile": "contained",
     "reason": "Private vault guard selects contained native job launch after readiness/digest checks."
+  },
+  {
+    "site": "src/core/locks/processOwner.ts#call:execFile:1",
+    "profile": "contained",
+    "reason": "Considered exemption: the shared file lease's liveness probe stays a direct launch, so a lock decision never waits on the governor pressure it may be resolving; fixed program, no shell, caller pid digits-only, bounded timeout and output."
+  },
+  {
+    "site": "src/core/locks/processOwner.ts#import:1",
+    "profile": "contained",
+    "reason": "Considered exemption: the shared file lease's liveness probe stays a direct launch, so a lock decision never waits on the governor pressure it may be resolving; fixed program, no shell, caller pid digits-only, bounded timeout and output."
+  },
+  {
+    "site": "src/runtime/panel/git/service.ts#import:1",
+    "profile": "contained",
+    "reason": "Admitted by the shared git runner (createGitProcess): admission, Windows job, then the caller's gate and the spawn in one synchronous turn, and the gate again at Windows GO (M123 lock protocol)."
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/checkout.ts#call:execFile:1",
+    "profile": "test-only",
+    "reason": "Pull-request checkout (M123 lane P): no production entry imports it in this release, so nothing can start these launches (proved by the guard). They move behind the governed launcher, with the gate in the spawn turn, before the panel binds the checkout.",
+    "testOnly": "nodeGitProcesses"
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/checkout.ts#call:spawn:1",
+    "profile": "test-only",
+    "reason": "Pull-request checkout (M123 lane P): no production entry imports it in this release, so nothing can start these launches (proved by the guard). They move behind the governed launcher, with the gate in the spawn turn, before the panel binds the checkout.",
+    "testOnly": "nodeGitProcesses"
+  },
+  {
+    "site": "src/runtime/panel/pullRequests/checkout.ts#import:1",
+    "profile": "test-only",
+    "reason": "Pull-request checkout (M123 lane P): no production entry imports it in this release, so nothing can start these launches (proved by the guard). They move behind the governed launcher, with the gate in the spawn turn, before the panel binds the checkout."
   }
 ]

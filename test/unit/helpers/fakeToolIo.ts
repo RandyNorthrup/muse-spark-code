@@ -5,40 +5,6 @@
 import type { SearchHit, ShellResult, ToolIo } from '../../../src/core/backends/modelapi/tools'
 import { refusedShellEntry } from '../../../src/core/shellResult'
 import { fingerprint } from '../../../src/core/verify/fingerprint'
-import { createToolIo } from '../../../src/host/backend/toolIo'
-
-/** A command-hook completion; callers choose the independent stdout and status. */
-export function hookResult(
-  stdout: string,
-  options: { readonly exitCode?: number; readonly stderr?: string } = {},
-): ShellResult {
-  return {
-    stdout,
-    stderr: options.stderr ?? '',
-    exitCode: options.exitCode ?? 0,
-    isTimedOut: false,
-    isCancelled: false,
-  }
-}
-
-/**
- * The real tool io over the real file system: no shell environment, and an
- * editor with unsaved changes at `unsavedFiles` only (none by default).
- */
-export function nativeToolIo(
-  unsavedFiles: () => readonly string[] = () => [],
-  env: () => NodeJS.ProcessEnv = () => ({}),
-): ToolIo {
-  return createToolIo({
-    platform: process.platform,
-    systemRoot: process.env['SystemRoot'],
-    env,
-    listFiles: () => Promise.resolve([]),
-    searchWorkerPath: 'unused',
-    log: () => undefined,
-    unsavedFiles,
-  })
-}
 
 /**
  * The real adapter's final admission (the sixth `runShell` argument), asked at
@@ -228,65 +194,4 @@ export const noopToolIo: ToolIo = {
   runShell: enteringShell(() =>
     Promise.resolve({ stdout: '', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }),
   ),
-}
-
-/** One command a held shell runs (M46): until the test finishes it or its signal stops it. */
-export interface HeldRun {
-  readonly command: string
-  readonly signal: AbortSignal | undefined
-  /** Its time limit was lifted (the command moved to the background). */
-  isLifted: boolean
-  finish(result: Partial<ShellResult>): void
-}
-
-/**
- * The memory file system with a shell whose commands run until the test
- * ends them, or their signal stops them as the real runner does (M46:
- * commands moved to the background, stopped, and the user's own).
- */
-export function heldShellToolIo(
-  files: Record<string, string>,
-  root: string,
-): MemoryToolIo & { readonly runs: HeldRun[] } {
-  const io = memoryToolIo(files, root)
-  const runs: HeldRun[] = []
-  return {
-    ...io,
-    runs,
-    runShell: (command, cwd, timeoutMs, signal, limit, assertCanRun) => {
-      const refused = refusedAtEntry(assertCanRun)
-      if (refused !== undefined) {
-        return Promise.resolve(refused)
-      }
-      io.shellCalls.push({ command, cwd, timeoutMs })
-      return new Promise((resolve) => {
-        const run: HeldRun = {
-          command,
-          signal,
-          isLifted: false,
-          finish: (result) => {
-            resolve({
-              stdout: '',
-              stderr: '',
-              exitCode: 0,
-              isTimedOut: false,
-              isCancelled: false,
-              ...result,
-            })
-          },
-        }
-        limit?.bind(() => {
-          run.isLifted = true
-        })
-        signal?.addEventListener(
-          'abort',
-          () => {
-            run.finish({ exitCode: null, isCancelled: true })
-          },
-          { once: true },
-        )
-        runs.push(run)
-      })
-    },
-  }
 }
