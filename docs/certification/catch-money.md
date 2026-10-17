@@ -444,7 +444,7 @@ whole-module moves also evacuated each module's base bytes.
 
 Main `d842cad5d` merged with hooks on. Main's 25 conflicting test-file
 removals (including one helper) and removed visual audit stay deleted.
-Both changelog/plan sides stay; the money-read decision is D109, leaving
+Both changelog/plan sides stay; the money-read decision is D119 (numbered D109 until 2026-10-17), leaving
 main's test-overhaul D108 intact. The earlier fake-driven certification
 above is historical, not current proof. Credential/editor/consent paths
 whose tests main removed require the lead's real-life run; no fake is
@@ -577,3 +577,24 @@ reported. Green 13 tests; drill changes the cause's all-branches `&&` to `||`:
 exit 1 (`REPORTED` instead of `GENERIC`), restored 13 tests exit 0, SHA-256
 `da2c7d6afd623f3bdfeb5f94e973d0a046748c7c27a59a1e6d7d2923ec8821b2`.
 Logs `.lane/T1-cause-{paths,drill,restored}.log`.
+
+## PR161FIN baseline regeneration (2026-10-17, D119)
+
+Reason (lead decision 2026-10-16): money, credential, consent and spending
+handlers are fixed, not baselined; every other pre-existing site the
+corrected classifier finds joins the baseline under the same identity rule
+the 1,163 used (file + failure class + operation token + enclosing
+context, hashed from the exact source). No classifier, test or gate change;
+the classifier, its tests and `npm run check:catches` are byte-identical to
+the reviewed state.
+
+Counts: `scripts/catch-baseline.json` 1,163 sites → 1,347 sites (+184 net:
+the corrected reader's pre-existing finds minus the ~30 handlers PR161FIN
+fixed across money, vault/credential, estimate, usage, team/panel,
+schedules, accounts, ChatGPT setup, developer multi-account and sign-in
+restart). Area deltas: acp GENERIC 0→19, core GENERIC 363→428, host
+GENERIC 306→359 and SWALLOW 65→66, root SWALLOW 2→3 and GENERIC 8→9,
+runtime GENERIC 173→186 and SWALLOW 49→48 (the question-withdrawal catch
+now carries its disposition reason: CLEANUP), webview GENERIC 0→32,
+shared unchanged. `npm run check:catches` exits 0 on the regenerated tree.
+The folder-grouped burn-down list is `docs/catches-burndown.md`.

@@ -14370,7 +14370,7 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
-### D109 — Reads that guard money, consent or credentials are three-valued (2026-10-12)
+### D119 — Reads that guard money, consent or credentials are three-valued (2026-10-12; numbered D109 until 2026-10-17, when that number was found shared)
 
 A read that guards money, consent or a credential answers found, absent,
 or could-not-read with a closed kind — never a boolean that collapses the

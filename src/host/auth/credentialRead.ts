@@ -1,4 +1,4 @@
-// The three-valued credential read (CATCHMONEY R3; PLAN.md D108): every
+// The three-valued credential read (CATCHMONEY R3; PLAN.md D119): every
 // read that guards money, consent or a credential answers found, absent, or
 // could-not-read with a closed kind. Booleans that collapse the third state
 // into "absent" are deleted; callers switch on the three states and fail
