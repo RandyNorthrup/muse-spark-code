@@ -2333,7 +2333,6 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
 {
   "type": "array",
   "default": [],
-  "maxItems": 8,
   "items": {
     "type": "object",
     "required": ["name", "command"],
@@ -2361,7 +2360,6 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
       "timeoutSeconds": {
         "type": "integer",
         "minimum": 1,
-        "maximum": 600,
         "default": 300,
         "description": "Seconds before the command is stopped (300 unless set).",
         "descriptionKey": "config.checkCommands.timeoutSeconds.description"
