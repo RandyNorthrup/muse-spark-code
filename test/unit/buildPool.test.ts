@@ -92,4 +92,55 @@ describe('runBuildPool', () => {
     await expect(runBuildPool(specs, 1)).rejects.toThrow('bundle broken failed: service blew up')
     expect(started).toEqual(['first', 'broken'])
   })
+
+  it('waits for in-flight work to settle before rejecting, and keeps a non-Error cause readable', async () => {
+    let didSlowFinish = false
+    const specs: PoolSpec<string>[] = [
+      [
+        'slow',
+        async () => {
+          await delay(40)
+          didSlowFinish = true
+          return 'slow-result'
+        },
+      ],
+      [
+        'broken',
+        async () => {
+          await delay(1)
+          // A thrown value need not be an Error; the pool must not lose it
+          // or crash reading `.message` off it.
+          const failure: unknown = 'plain string failure'
+          throw failure
+        },
+      ],
+    ]
+    await expect(runBuildPool(specs, 2)).rejects.toThrow(
+      'bundle broken failed: plain string failure',
+    )
+    // The caller stops the esbuild service when the pool rejects, so no
+    // bundle may still be in flight at that point.
+    expect(didSlowFinish).toBe(true)
+  })
+
+  it('refuses an invalid size or duplicate names instead of silently dropping work', async () => {
+    let ran = 0
+    const specs: PoolSpec<number>[] = [
+      [
+        'one',
+        () => {
+          ran += 1
+          return Promise.resolve(1)
+        },
+      ],
+    ]
+    await expect(runBuildPool(specs, NaN)).rejects.toThrow('pool size')
+    await expect(runBuildPool(specs, 0)).rejects.toThrow('pool size')
+    expect(ran).toBe(0)
+    const duplicates: PoolSpec<number>[] = [
+      ['dup', () => Promise.resolve(1)],
+      ['dup', () => Promise.resolve(2)],
+    ]
+    await expect(runBuildPool(duplicates, 2)).rejects.toThrow('duplicate bundle name: dup')
+  })
 })
