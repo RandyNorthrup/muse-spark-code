@@ -4500,14 +4500,17 @@
   "acpProviderAdded": "Dodano dostawcę {id}.",
   "acpProviderRemoved": "Usunięto dostawcę {id}.",
   "acpChatGpt": {
-    "usage": "Użycie: muse-spark-code-acp providers add|remove|status chatgpt",
+    "usage": "Użycie: muse-spark-code-acp providers add|remove|status chatgpt [--new-account]",
     "actions": {
       "add": "Kontynuuj z ChatGPT",
+      "add-new-account": "Użyj innego konta ChatGPT",
       "remove": "Usuń logowanie do ChatGPT",
       "status": "Sprawdź logowanie do ChatGPT"
     },
     "notice": "Wymagany jest ChatGPT Plus lub Pro. Żądania zużywają limit planu; OpenAI może wykorzystać dodatkowe kredyty, jeśli włączono je w ChatGPT. Zaloguj się w przeglądarce.",
     "alreadyAdded": "ChatGPT jest już dodany. Usuń go przed ponownym logowaniem.",
+    "accountMismatch": "To nie jest konto ChatGPT, które ta aplikacja tutaj zarejestrowała. Zaloguj się na to konto lub wybierz „Użyj innego konta ChatGPT”.",
+    "clientRefused": "OpenAI nie akceptuje już zapisanej rejestracji ChatGPT tej aplikacji. Jeśli ChatGPT jest dodany, usuń go, a następnie wybierz „Użyj innego konta ChatGPT”.",
     "states": {
       "signed-in": "ChatGPT jest zalogowany.",
       "expired": "Logowanie do ChatGPT wygasło; odnowi się przy użyciu lub usuń je i zaloguj się ponownie.",

@@ -14,7 +14,12 @@ import { providersFile, modelRef } from '../host/backend/providersEntry'
 const { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } = providersFile
 const { parseModelRef } = modelRef
 import { createRuntimeChatGptHost, type RuntimeChatGptOptions } from './chatGptHost'
-import { ACP_AGENT_NAME, OAUTH_CODE_TTL_MS, UI_TEXT } from '../shared/constants'
+import {
+  ACP_AGENT_NAME,
+  CHATGPT_NEW_ACCOUNT_FLAG,
+  OAUTH_CODE_TTL_MS,
+  UI_TEXT,
+} from '../shared/constants'
 import { fill, setUiText } from '../shared/l10n/text'
 import type { ProviderClient } from '../core/backends/modelapi/client'
 import {
@@ -83,7 +88,8 @@ export function runtimeSubscriptionClient(
   }
 }
 
-export type ChatGptProviderAction = 'add' | 'remove' | 'status'
+/** `add-new-account` is `providers add chatgpt --new-account`: a new registration. */
+export type ChatGptProviderAction = 'add' | 'add-new-account' | 'remove' | 'status'
 export type ChatGptLocalStatus = 'signed-in' | 'expired' | 'signed-out'
 
 /** Translated command text; failure codes never contain service text. */
@@ -113,7 +119,7 @@ export async function runChatGptProviderCommand(
   deps: ChatGptProviderCommandDeps,
 ): Promise<number> {
   try {
-    if (action === 'add') deps.print(deps.text.beforeSignIn())
+    if (action === 'add' || action === 'add-new-account') deps.print(deps.text.beforeSignIn())
     const host = await deps.createHost()
     if (action === 'status') {
       const state = await host.withRefreshLock(async (): Promise<ChatGptLocalStatus> => {
@@ -147,7 +153,7 @@ export async function runChatGptProviderCommand(
         deps.printError(deps.text.alreadyAdded())
         return 1
       }
-      await signIn.signIn()
+      await signIn.signIn({ isNewAccount: action === 'add-new-account' })
       try {
         await deps.providers.add(host)
       } catch (error) {
@@ -280,9 +286,13 @@ export function runtimeChatGptCommandDeps(
 export function chatGptAuthenticationMethods(
   createHost: () => Promise<ChatGptHostPort>,
 ): SignInMethod[] {
-  const actions: readonly ChatGptProviderAction[] = ['add', 'remove', 'status']
+  const actions: readonly ChatGptProviderAction[] = ['add', 'add-new-account', 'remove', 'status']
   return actions.map((action) => {
-    const args = ['providers', action, 'chatgpt']
+    const isAdd = action === 'add' || action === 'add-new-account'
+    const args =
+      action === 'add-new-account'
+        ? ['providers', 'add', 'chatgpt', CHATGPT_NEW_ACCOUNT_FLAG]
+        : ['providers', action, 'chatgpt']
     return {
       id: `chatgpt-${action}`,
       name: UI_TEXT.acpChatGpt.actions[action],
@@ -295,12 +305,12 @@ export function chatGptAuthenticationMethods(
           await host.withRefreshLock(async () => {
             const stored = await host.readRecord()
             if (stored === undefined) {
-              if (action === 'add') throw new ChatGptSignInError('sign-in-required')
+              if (isAdd) throw new ChatGptSignInError('sign-in-required')
               return
             }
             const parsed = chatGptRecordSchema.safeParse(stored)
             if (!parsed.success) throw new ChatGptSignInError('invalid-token')
-            if (action === 'remove' || (action === 'add' && parsed.data.expiresAt <= host.now()))
+            if (action === 'remove' || (isAdd && parsed.data.expiresAt <= host.now()))
               throw new ChatGptSignInError('sign-in-required')
           })
           return

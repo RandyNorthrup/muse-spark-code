@@ -4500,14 +4500,17 @@
   "acpProviderAdded": "Poskytovatel {id} přidán.",
   "acpProviderRemoved": "Poskytovatel {id} odebrán.",
   "acpChatGpt": {
-    "usage": "Použití: muse-spark-code-acp providers add|remove|status chatgpt",
+    "usage": "Použití: muse-spark-code-acp providers add|remove|status chatgpt [--new-account]",
     "actions": {
       "add": "Pokračovat s ChatGPT",
+      "add-new-account": "Použít jiný účet ChatGPT",
       "remove": "Odebrat přihlášení ChatGPT",
       "status": "Zkontrolovat přihlášení ChatGPT"
     },
     "notice": "Je vyžadován ChatGPT Plus nebo Pro. Požadavky využívají limit vašeho tarifu; OpenAI může čerpat další kredity, pokud jste je v ChatGPT povolili. Přihlaste se v prohlížeči.",
     "alreadyAdded": "ChatGPT je již přidán. Před dalším přihlášením jej odeberte.",
+    "accountMismatch": "Toto není účet ChatGPT, který tato aplikace zde zaregistrovala. Přihlaste se tímto účtem, nebo zvolte „Použít jiný účet ChatGPT“.",
+    "clientRefused": "OpenAI již nepřijímá uloženou registraci ChatGPT této aplikace. Pokud je ChatGPT přidán, odeberte jej a poté zvolte „Použít jiný účet ChatGPT“.",
     "states": {
       "signed-in": "ChatGPT je přihlášen.",
       "expired": "Přihlášení ChatGPT vypršelo; při použití se obnoví, nebo jej odeberte a přihlaste se znovu.",

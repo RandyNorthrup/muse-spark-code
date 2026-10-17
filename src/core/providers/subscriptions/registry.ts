@@ -143,6 +143,12 @@ export function chatGptFailureText(code: ChatGptSignInError['code'], reason?: st
     case 'already-added': {
       return UI_TEXT.acpChatGpt.alreadyAdded
     }
+    case 'account-mismatch': {
+      return UI_TEXT.acpChatGpt.accountMismatch
+    }
+    case 'client-refused': {
+      return UI_TEXT.acpChatGpt.clientRefused
+    }
     case 'authorize-refused': {
       return fill(UI_TEXT.acpChatGpt.authorizeRefused, { reason: reason ?? code })
     }

@@ -19,6 +19,7 @@ import { setTimeout as pause } from 'node:timers/promises'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import {
+  CHATGPT_REGISTRATION_SECRET_KEY,
   HTTP_STATUS,
   MILLISECONDS_PER_SECOND,
   OAUTH_CODE_TTL_MS,
@@ -43,6 +44,8 @@ type ChatGptCallback = Awaited<ReturnType<ChatGptHostPort['startCallback']>> & {
 export async function startChatGptCallback(
   state: string,
   timeoutMs: number,
+  /** The saved issued client a reauthorization's callback may omit. */
+  clientId?: string,
 ): Promise<ChatGptCallback> {
   const server = createServer()
   const completion: { resolve?: (url: string) => void; reject?: (error: Error) => void } = {}
@@ -97,7 +100,7 @@ export async function startChatGptCallback(
         answer(HTTP_STATUS.notFound)
         return
       }
-      parseChatGptCallback(url.href, redirectUri, state)
+      parseChatGptCallback(url.href, redirectUri, state, clientId)
       isClaimed = true
       // Let the response finish before forcibly closing idle sockets.
       response.on('finish', () => {
@@ -289,6 +292,16 @@ export async function createChatGptSignIn(deps: ChatGptVsCodeDeps): Promise<Chat
       )
     const hostId = await withRefreshLock(() => loadChatGptHostId(directory))
     const key = `${PROVIDER_SECRET_PREFIX}chatgpt`
+    const readStored = async (account: string): Promise<unknown> => {
+      const stored = await grantStore(() => deps.secrets.get(account))
+      if (stored === undefined) return
+      try {
+        const parsed: unknown = JSON.parse(stored)
+        return parsed
+      } catch {
+        throw new ChatGptSignInError('invalid-token')
+      }
+    }
     return new ChatGptSignIn({
       hostId,
       fetch: deps.fetch,
@@ -303,25 +316,23 @@ export async function createChatGptSignIn(deps: ChatGptVsCodeDeps): Promise<Chat
         }
         if (!isOpened) throw new ChatGptSignInError('browser-unavailable')
       },
-      startCallback: async (state, timeoutMs) => {
+      startCallback: async (state, timeoutMs, clientId) => {
         if (deps.isRemote) throw new ChatGptSignInError('invalid-callback')
-        return await startChatGptCallback(state, timeoutMs)
+        return await startChatGptCallback(state, timeoutMs, clientId)
       },
-      readRecord: async () => {
-        const stored = await grantStore(() => deps.secrets.get(key))
-        if (stored === undefined) return
-        try {
-          const parsed: unknown = JSON.parse(stored)
-          return parsed
-        } catch {
-          throw new ChatGptSignInError('invalid-token')
-        }
-      },
+      readRecord: () => readStored(key),
       writeRecord: async (record) => {
         await grantStore(() => deps.secrets.store(key, JSON.stringify(record)))
       },
       deleteRecord: async () => {
         await grantStore(() => deps.secrets.delete(key))
+      },
+      // The core validates both shapes; this port stores the JSON as given.
+      readRegistration: () => readStored(CHATGPT_REGISTRATION_SECRET_KEY),
+      writeRegistration: async (registration) => {
+        await grantStore(() =>
+          deps.secrets.store(CHATGPT_REGISTRATION_SECRET_KEY, JSON.stringify(registration)),
+        )
       },
     })
   } catch (error) {

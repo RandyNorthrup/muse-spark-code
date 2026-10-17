@@ -1,13 +1,15 @@
 // Shared by every ACP editor: OS-store grants, terminal/browser URL handoff,
 // the loopback callback and process-safe refresh. No VS Code dependency.
+import type * as z from 'zod/mini'
 import {
   ChatGptSignInError,
   chatGptRecordSchema,
+  chatGptRegistrationSchema,
   resolveChatGptHostId,
   type ChatGptHostPort,
 } from '../core/providers/subscriptions/chatgpt'
 import type { SecretStore } from '../host/auth/credentialStore'
-import { PROVIDER_SECRET_PREFIX } from '../shared/constants'
+import { CHATGPT_REGISTRATION_SECRET_KEY, PROVIDER_SECRET_PREFIX } from '../shared/constants'
 import { startChatGptCallback } from './chatGptCallback'
 import { withChatGptRefreshLock, type ChatGptLockOptions } from './chatGptRefreshLock'
 import { storeOperation } from './keyStore'
@@ -43,6 +45,26 @@ export async function createRuntimeChatGptHost(
   options: RuntimeChatGptOptions,
 ): Promise<ChatGptHostPort> {
   const lock = { ...options.lock, ...(options.signal !== undefined && { signal: options.signal }) }
+  /** One JSON entry of the grant's store, validated on the way in and out. */
+  const readStored = async <T>(account: string, schema: z.ZodMiniType<T>) => {
+    const stored = await grantStore(async () => await options.secrets.get(account))
+    if (stored === undefined) return
+    try {
+      const value: unknown = JSON.parse(stored)
+      const parsed = schema.safeParse(value)
+      if (!parsed.success) throw new ChatGptSignInError('invalid-token')
+      return parsed.data
+    } catch {
+      throw new ChatGptSignInError('invalid-token')
+    }
+  }
+  const writeStored = async <T>(account: string, schema: z.ZodMiniType<T>, value: T) => {
+    const parsed = schema.safeParse(value)
+    if (!parsed.success) throw new ChatGptSignInError('invalid-token')
+    await grantStore(async () => {
+      await options.secrets.store(account, JSON.stringify(parsed.data))
+    })
+  }
   try {
     const hostId = await withChatGptRefreshLock(async () => {
       const stored = await grantStore(async () => await options.secrets.get(HOST_ACCOUNT))
@@ -75,32 +97,19 @@ export async function createRuntimeChatGptHost(
           throw new ChatGptSignInError('browser-unavailable')
         }
       },
-      startCallback: (state, timeoutMs) =>
-        startChatGptCallback(state, timeoutMs, options.callbackText, options.signal),
-      readRecord: async () => {
-        const stored = await grantStore(async () => await options.secrets.get(RECORD_ACCOUNT))
-        if (stored === undefined) return
-        try {
-          const value: unknown = JSON.parse(stored)
-          const parsed = chatGptRecordSchema.safeParse(value)
-          if (!parsed.success) throw new ChatGptSignInError('invalid-token')
-          return parsed.data
-        } catch {
-          throw new ChatGptSignInError('invalid-token')
-        }
-      },
-      writeRecord: async (record) => {
-        const parsed = chatGptRecordSchema.safeParse(record)
-        if (!parsed.success) throw new ChatGptSignInError('invalid-token')
-        await grantStore(async () => {
-          await options.secrets.store(RECORD_ACCOUNT, JSON.stringify(parsed.data))
-        })
-      },
+      startCallback: (state, timeoutMs, clientId) =>
+        startChatGptCallback(state, timeoutMs, options.callbackText, options.signal, clientId),
+      readRecord: () => readStored(RECORD_ACCOUNT, chatGptRecordSchema),
+      writeRecord: (record) => writeStored(RECORD_ACCOUNT, chatGptRecordSchema, record),
       deleteRecord: async () => {
         await grantStore(async () => {
           await options.secrets.delete(RECORD_ACCOUNT)
         })
       },
+      readRegistration: () =>
+        readStored(CHATGPT_REGISTRATION_SECRET_KEY, chatGptRegistrationSchema),
+      writeRegistration: (registration) =>
+        writeStored(CHATGPT_REGISTRATION_SECRET_KEY, chatGptRegistrationSchema, registration),
       withRefreshLock: (work) => withChatGptRefreshLock(work, lock),
     }
   } catch (error) {

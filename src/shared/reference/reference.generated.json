@@ -4454,7 +4454,7 @@
     },
     {
       "route": "chatGptProvider",
-      "name": "providers add|remove|status chatgpt",
+      "name": "providers add|remove|status chatgpt [--new-account]",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
       "text": { "ui": "referenceProviders" }
     },

@@ -28,6 +28,8 @@ const STATE = 'synthetic_state_123456'
 const NONCE = 'synthetic_nonce_123456'
 /** The previous bare-random form OpenAI answers with `invalid_authorize_request`. */
 const OLD_HOST_ID = 'synthetic_host_12345678'
+/** A saved issued client, in the documented `oaiapp_…` form. */
+const SAVED_CLIENT = 'oaiapp_synthetic'
 
 const scratch = { folder: '' }
 beforeAll(async () => {
@@ -135,6 +137,85 @@ describe('ChatGPT host id', () => {
       clientId: 'oaiapp_synthetic',
       scope: 'openid',
     })
+  })
+
+  // SIWC registration and sign-in (read 2026-10-17): a returning account
+  // reauthorizes with its saved issued client and no agent_name_hint; the
+  // first sign-in registers with dynamic_agent_client and the app's name.
+  it('reauthorizes a returning account with its saved client, never re-registering', () => {
+    const pair = createPkcePair()
+    const hostId = createChatGptHostId()
+    const first = new URL(
+      buildChatGptAuthorizeUrl({ ...pair, redirectUri: REDIRECT, hostId, nonce: NONCE }),
+    )
+    expect(first.searchParams.get('client_id')).toBe('dynamic_agent_client')
+    expect(first.searchParams.get('agent_name_hint')).toBe('Muse Spark Code (Unofficial)')
+    const again = new URL(
+      buildChatGptAuthorizeUrl({
+        ...pair,
+        redirectUri: REDIRECT,
+        hostId,
+        nonce: NONCE,
+        clientId: SAVED_CLIENT,
+      }),
+    )
+    expect(again.searchParams.get('client_id')).toBe(SAVED_CLIENT)
+    expect(again.searchParams.has('agent_name_hint')).toBe(false)
+    expect(again.searchParams.get('ext_agent_host_id')).toBe(hostId)
+    expect(() =>
+      buildChatGptAuthorizeUrl({
+        ...pair,
+        redirectUri: REDIRECT,
+        hostId,
+        nonce: NONCE,
+        clientId: 'dynamic_agent_client',
+      }),
+    ).toThrow('chatgpt.invalid-callback')
+  })
+
+  // "On reauthorization, the callback may omit client_id … If the callback
+  // supplies a different client ID, reject the result."
+  it('accepts a returning callback without client_id and refuses another client', async () => {
+    const reauthorized = `${REDIRECT}?code=synthetic-code&state=${STATE}`
+    expect(parseChatGptCallback(reauthorized, REDIRECT, STATE, SAVED_CLIENT)).toEqual({
+      code: 'synthetic-code',
+      clientId: SAVED_CLIENT,
+    })
+    expect(() => parseChatGptCallback(reauthorized, REDIRECT, STATE)).toThrow(
+      'chatgpt.invalid-callback',
+    )
+    expect(() =>
+      parseChatGptCallback(
+        `${reauthorized}&client_id=oaiapp_other_account`,
+        REDIRECT,
+        STATE,
+        SAVED_CLIENT,
+      ),
+    ).toThrow('chatgpt.invalid-callback')
+    const callback = await startChatGptCallback(
+      STATE,
+      2000,
+      () => 'Return to the app.',
+      undefined,
+      SAVED_CLIENT,
+    )
+    try {
+      const status = await new Promise<number | undefined>((resolve, reject) => {
+        get(`${callback.redirectUri}?code=synthetic-code&state=${STATE}`, (response) => {
+          response.resume()
+          response.once('end', () => {
+            resolve(response.statusCode)
+          })
+        }).once('error', reject)
+      })
+      expect(status).toBe(200)
+      const value = await callback.waitForCallback()
+      expect(parseChatGptCallback(value, callback.redirectUri, STATE, SAVED_CLIENT).clientId).toBe(
+        SAVED_CLIENT,
+      )
+    } finally {
+      callback.close()
+    }
   })
 
   it('keeps a documented id, migrates an old one, creates the first one', () => {

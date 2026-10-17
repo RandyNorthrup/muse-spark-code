@@ -4500,14 +4500,17 @@
   "acpProviderAdded": "Поставщик {id} добавлен.",
   "acpProviderRemoved": "Поставщик {id} удалён.",
   "acpChatGpt": {
-    "usage": "Использование: muse-spark-code-acp providers add|remove|status chatgpt",
+    "usage": "Использование: muse-spark-code-acp providers add|remove|status chatgpt [--new-account]",
     "actions": {
       "add": "Продолжить с ChatGPT",
+      "add-new-account": "Использовать другую учётную запись ChatGPT",
       "remove": "Удалить вход в ChatGPT",
       "status": "Проверить вход в ChatGPT"
     },
     "notice": "Требуется ChatGPT Plus или Pro. Запросы расходуют лимит вашего плана; OpenAI может использовать дополнительные кредиты, если вы включили их в ChatGPT. Войдите в браузере.",
     "alreadyAdded": "ChatGPT уже добавлен. Удалите его перед повторным входом.",
+    "accountMismatch": "Это не та учётная запись ChatGPT, которую это приложение здесь зарегистрировало. Войдите с этой учётной записью или выберите «Использовать другую учётную запись ChatGPT».",
+    "clientRefused": "OpenAI больше не принимает сохранённую регистрацию ChatGPT этого приложения. Если ChatGPT добавлен, удалите его, затем выберите «Использовать другую учётную запись ChatGPT».",
     "states": {
       "signed-in": "Вход в ChatGPT выполнен.",
       "expired": "Срок входа в ChatGPT истёк; он обновится при использовании, либо удалите его и войдите снова.",

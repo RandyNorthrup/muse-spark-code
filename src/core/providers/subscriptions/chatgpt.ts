@@ -45,7 +45,37 @@ const tokenSchema = z.object({
   id_token: z.optional(nonempty),
   scope: z.optional(nonempty),
 })
-const invalidGrantSchema = z.object({ error: z.literal('invalid_grant') })
+/**
+ * The token endpoint's answers that mean the refresh token or code is
+ * unusable: clear it and repeat OAuth with the saved issued client
+ * (SIWC errors and recovery, "Refresh errors", read 2026-10-17).
+ */
+const unusableGrantSchema = z.object({
+  error: z.enum([
+    'invalid_grant',
+    'invalid_refresh_token',
+    'token_expired',
+    'refresh_token_expired',
+    'refresh_token_invalidated',
+    'refresh_token_reused',
+  ]),
+})
+/** "Invalid client: fix the client configuration": the saved registration is refused. */
+const invalidClientSchema = z.object({ error: z.literal('invalid_client') })
+const accountHashSchema = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
+
+/**
+ * One ChatGPT account's registration: the client OpenAI issued for it
+ * (`oaiapp_…`, never `dynamic_agent_client`) and the hash of the verified
+ * account it belongs to. Kept across sign-out and reused by later
+ * sign-ins to that account; it holds no token.
+ */
+export const chatGptRegistrationSchema = z.object({
+  v: z.literal(CREDENTIAL_RECORD_VERSION),
+  clientId: nonempty.check(z.refine((value) => value !== DYNAMIC_CLIENT)),
+  accountIdHash: z.optional(accountHashSchema),
+})
+export type ChatGptRegistration = z.infer<typeof chatGptRegistrationSchema>
 
 /** Secret-store payload only. Never send this record across a UI bridge. */
 export const chatGptRecordSchema = z.object({
@@ -56,7 +86,7 @@ export const chatGptRecordSchema = z.object({
   clientId: nonempty,
   hostId: nonempty,
   /** Hash of the captured verified OIDC subject; never the raw account id. */
-  accountIdHash: z.optional(z.string().check(z.regex(/^[a-f0-9]{64}$/u))),
+  accountIdHash: z.optional(accountHashSchema),
   accessToken: nonempty,
   refreshToken: nonempty,
   expiresAt: positive,
@@ -119,13 +149,21 @@ export function resolveChatGptHostId(stored: string | undefined): {
 /** OpenAI's own `error` code on the callback: an opaque token, never free text. */
 const AUTHORIZE_ERROR_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/
 
-/** Dynamic registration, PKCE S256 and a persistent opaque installation id. */
+/**
+ * PKCE S256 and the persistent opaque host id. A first sign-in registers
+ * with `dynamic_agent_client` and the app's name; a later one reauthorizes
+ * with the saved issued `clientId` and omits the name (SIWC registration and
+ * sign-in, read 2026-10-17). No ID-token or login hint is sent: this app
+ * keeps neither the ID token nor the e-mail address.
+ */
 export function buildChatGptAuthorizeUrl(options: {
   readonly redirectUri: string
   readonly hostId: string
   readonly verifier: string
   readonly state: string
   readonly nonce: string
+  /** The saved issued client for a returning account; absent registers anew. */
+  readonly clientId?: string | undefined
 }): string {
   const redirect = callbackUrl(options.redirectUri)
   if (
@@ -133,14 +171,16 @@ export function buildChatGptAuthorizeUrl(options: {
     !isPkceVerifier(options.verifier) ||
     !isPkceState(options.state) ||
     !isPkceState(options.nonce) ||
-    !isChatGptHostId(options.hostId)
+    !isChatGptHostId(options.hostId) ||
+    options.clientId === '' ||
+    options.clientId === DYNAMIC_CLIENT
   ) {
     throw new ChatGptSignInError('invalid-callback')
   }
-  const { verifier, state, nonce, hostId } = options
+  const { verifier, state, nonce, hostId, clientId } = options
   const url = new URL(`${ISSUER}/api/accounts/authorize`)
   url.search = new URLSearchParams({
-    client_id: DYNAMIC_CLIENT,
+    client_id: clientId ?? DYNAMIC_CLIENT,
     response_type: 'code',
     redirect_uri: redirect.href,
     scope: SCOPES,
@@ -149,21 +189,28 @@ export function buildChatGptAuthorizeUrl(options: {
     nonce,
     code_challenge: createChallenge(verifier),
     code_challenge_method: 'S256',
-    agent_name_hint: 'Muse Spark Code (Unofficial)',
+    ...(clientId === undefined && { agent_name_hint: 'Muse Spark Code (Unofficial)' }),
     ext_agent_host_id: hostId,
   }).toString()
   return url.href
 }
 
-/** Validate the captured callback fields, including the dynamically issued client. */
+/**
+ * Validate the captured callback fields. A new registration's callback names
+ * the issued client; a reauthorization with the saved `clientId` may omit it
+ * and must never name another one (SIWC: "reject the result rather than
+ * replacing the selected account's registration"). `scope` may be absent:
+ * the token response's granted scopes decide.
+ */
 export function parseChatGptCallback(
   value: string,
   redirectUri: string,
   state: string,
+  clientId?: string,
 ): {
   readonly code: string
   readonly clientId: string
-  readonly scope: string
+  readonly scope?: string | undefined
 } {
   const url = callbackUrl(value)
   if (url.origin !== callbackUrl(redirectUri).origin) {
@@ -180,24 +227,33 @@ export function parseChatGptCallback(
     if (!AUTHORIZE_ERROR_PATTERN.test(refusal)) throw new ChatGptSignInError('invalid-callback')
     throw new ChatGptSignInError('authorize-refused', refusal)
   }
-  for (const field of ['code', 'client_id', 'scope', 'state']) {
+  const required = clientId === undefined ? ['code', 'client_id', 'state'] : ['code', 'state']
+  for (const field of required) {
     if (url.searchParams.getAll(field).length !== 1) {
       throw new ChatGptSignInError('invalid-callback')
     }
+  }
+  for (const field of ['client_id', 'scope']) {
+    if (url.searchParams.getAll(field).length > 1) throw new ChatGptSignInError('invalid-callback')
   }
   if (!isPkceState(state) || url.searchParams.get('state') !== state) {
     throw new ChatGptSignInError('invalid-state')
   }
   const callback = parse(
-    z.object({ code: nonempty, clientId: nonempty, scope: nonempty }),
+    z.object({ code: nonempty, clientId: nonempty, scope: z.optional(nonempty) }),
     {
       code: url.searchParams.get('code'),
-      clientId: url.searchParams.get('client_id'),
-      scope: url.searchParams.get('scope'),
+      clientId: url.searchParams.get('client_id') ?? clientId,
+      scope: url.searchParams.get('scope') ?? undefined,
     },
     'invalid-callback',
   )
-  if (callback.clientId === DYNAMIC_CLIENT) throw new ChatGptSignInError('invalid-callback')
+  if (
+    callback.clientId === DYNAMIC_CLIENT ||
+    (clientId !== undefined && callback.clientId !== clientId)
+  ) {
+    throw new ChatGptSignInError('invalid-callback')
+  }
   return callback
 }
 
@@ -308,9 +364,11 @@ export interface ChatGptHostPort {
   readonly fetch: typeof fetch
   readonly now: () => number
   openBrowser(url: string): Promise<void>
+  /** `clientId` is the saved issued client a reauthorization's callback may omit. */
   startCallback(
     state: string,
     timeoutMs: number,
+    clientId: string | undefined,
   ): Promise<{
     readonly redirectUri: string
     waitForCallback(): Promise<string>
@@ -321,6 +379,9 @@ export interface ChatGptHostPort {
   /** Atomically replace the whole record; a rejected write preserves its prior value. */
   writeRecord(record: ChatGptRecord): Promise<void>
   deleteRecord(): Promise<void>
+  /** The account's registration, in the same store; it outlives the grant. */
+  readRegistration(): Promise<unknown>
+  writeRegistration(registration: ChatGptRegistration): Promise<void>
   /** An inter-process lock shared by every window/process using this grant. */
   withRefreshLock<T>(work: () => Promise<T>): Promise<T>
 }
@@ -365,8 +426,11 @@ export class ChatGptSignIn {
           } catch {
             throw new ChatGptSignInError('request-failed')
           }
-          if (invalidGrantSchema.safeParse(failure).success) {
+          if (unusableGrantSchema.safeParse(failure).success) {
             throw new ChatGptSignInError('sign-in-required')
+          }
+          if (invalidClientSchema.safeParse(failure).success) {
+            throw new ChatGptSignInError('client-refused')
           }
         }
         throw new ChatGptSignInError('request-failed')
@@ -406,13 +470,33 @@ export class ChatGptSignIn {
     return discovery
   }
 
-  public async signIn(): Promise<void> {
+  /** The saved registration, or undefined when this account never registered here. */
+  private async registration(): Promise<ChatGptRegistration | undefined> {
+    const stored = await this.host.readRegistration()
+    return stored === undefined
+      ? undefined
+      : parse(chatGptRegistrationSchema, stored, 'invalid-token')
+  }
+
+  /**
+   * Sign in. A saved registration is reused: the browser reauthorizes the
+   * same account with its issued client, and a different account is refused
+   * before any credential is replaced. `isNewAccount` registers a new client
+   * instead ("Use a different ChatGPT account"), which then becomes the
+   * saved registration.
+   */
+  public async signIn(options: { readonly isNewAccount?: boolean } = {}): Promise<void> {
     await this.guard(() =>
       this.host.withRefreshLock(async () => {
+        const saved = options.isNewAccount === true ? undefined : await this.registration()
         const discovery = await this.discovery()
         const pkce = createPkcePair()
         const nonce = pkceRandom(PKCE_STATE_BYTES)
-        const callback = await this.host.startCallback(pkce.state, OAUTH_CODE_TTL_MS)
+        const callback = await this.host.startCallback(
+          pkce.state,
+          OAUTH_CODE_TTL_MS,
+          saved?.clientId,
+        )
         try {
           const waiting = callback.waitForCallback()
           // Attach a handler before opening the browser; a callback may reject immediately.
@@ -424,9 +508,38 @@ export class ChatGptSignIn {
               verifier: pkce.verifier,
               state: pkce.state,
               nonce,
+              clientId: saved?.clientId,
             }),
           )
-          const grant = parseChatGptCallback(await waiting, callback.redirectUri, pkce.state)
+          let grant: ReturnType<typeof parseChatGptCallback>
+          try {
+            grant = parseChatGptCallback(
+              await waiting,
+              callback.redirectUri,
+              pkce.state,
+              saved?.clientId,
+            )
+          } catch (error) {
+            // OpenAI no longer knows the saved client: the registration is
+            // what it refused, and signing in the same way cannot fix it.
+            if (
+              saved !== undefined &&
+              error instanceof ChatGptSignInError &&
+              error.code === 'authorize-refused' &&
+              error.reason === 'invalid_client'
+            ) {
+              throw new ChatGptSignInError('client-refused')
+            }
+            throw error
+          }
+          // A new registration's issued client is kept before the exchange,
+          // so a failed exchange is repeated with it, never re-registered.
+          if (saved === undefined) {
+            await this.host.writeRegistration({
+              v: CREDENTIAL_RECORD_VERSION,
+              clientId: grant.clientId,
+            })
+          }
           const token = parse(
             tokenSchema,
             await this.json(
@@ -451,8 +564,36 @@ export class ChatGptSignIn {
             nonce,
             now: this.host.now(),
           })
+          if (
+            accountIdHash !== undefined &&
+            saved?.accountIdHash !== undefined &&
+            accountIdHash !== saved.accountIdHash
+          ) {
+            // Never combine one account's registration with another
+            // account's tokens: this grant is ended, not kept.
+            try {
+              await this.request(
+                discovery.revocation_endpoint,
+                new URLSearchParams({
+                  client_id: grant.clientId,
+                  token: token.refresh_token,
+                  token_type_hint: 'refresh_token',
+                }),
+              )
+            } catch {
+              /* The mismatch below is what the person reads; nothing was stored. */
+            }
+            throw new ChatGptSignInError('account-mismatch')
+          }
           const scope = token.scope ?? grant.scope
+          if (scope === undefined) throw new ChatGptSignInError('missing-plan-scope')
           checkScope(scope)
+          const account = accountIdHash ?? saved?.accountIdHash
+          await this.host.writeRegistration({
+            v: CREDENTIAL_RECORD_VERSION,
+            clientId: grant.clientId,
+            ...(account !== undefined && { accountIdHash: account }),
+          })
           await this.host.writeRecord(
             parse(
               chatGptRecordSchema,
@@ -567,7 +708,11 @@ export class ChatGptSignIn {
     )
   }
 
-  /** Revocation and refresh use the same lock; deletion also runs on refusal. */
+  /**
+   * Sign out. Revocation and refresh use the same lock; deletion also runs
+   * on refusal. The account's registration stays for its next sign-in:
+   * "Signing out … does not create a new client" (SIWC accounts and sessions).
+   */
   public async remove(): Promise<void> {
     await this.guard(() =>
       this.host.withRefreshLock(async () => {
@@ -575,6 +720,12 @@ export class ChatGptSignIn {
           const stored = unpersistedRefresh.get(this.host) ?? (await this.host.readRecord())
           if (stored === undefined) return
           const record = parse(chatGptRecordSchema, stored, 'invalid-token')
+          // A grant from before registrations were kept carries its issued client.
+          await this.host.writeRegistration({
+            v: CREDENTIAL_RECORD_VERSION,
+            clientId: record.clientId,
+            ...(record.accountIdHash !== undefined && { accountIdHash: record.accountIdHash }),
+          })
           const discovery = await this.discovery()
           await this.request(
             discovery.revocation_endpoint,
