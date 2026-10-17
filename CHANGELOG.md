@@ -9,8 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- On Windows, a folder literally named `..foo` (or `...`) directly under a
-  trusted root was refused as outside its trusted root, so native schedules
+- On Windows, a folder literally named `..foo` directly under a trusted
+  root was refused as outside its trusted root, so native schedules
   and helpers would not trust it. Only `..` itself or a leading `..\` leaves
   the root now; genuine escapes still fail closed.
 

@@ -59,7 +59,7 @@ describe('windowsPathProblem', () => {
   it('refuses non-local verbatim and device namespaces', () => {
     for (const given of [
       String.raw`\\?\UNC\srv\share\x`,
-      String.raw`\\?\Volume{b75e2c83-0000-0000-0000-602f nasc}\x`,
+      String.raw`\\?\Volume{b75e2c83-0000-0000-0000-602f00000000}\x`,
       String.raw`\\.\C:\x`,
       String.raw`\??\C:\x`,
     ]) {
