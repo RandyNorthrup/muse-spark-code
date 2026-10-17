@@ -46,6 +46,7 @@ function fixture() {
   put('design/fonts/manifest.json', readFileSync('design/fonts/manifest.json', 'utf8'))
   put('dist/providerCatalog.json', '{"providers":{}}')
   put('dist/providerCatalog.js', 'module.exports={providers:{}};')
+  put('dist/whatsNew.json', '{"schema":1,"releases":[]}')
   put('dist/legal-data/licenses.json', '{}')
   put('docs/npm-readme.md', '# Test package')
   for (const schema of [

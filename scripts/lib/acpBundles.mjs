@@ -85,6 +85,9 @@ export const ACP_BUNDLES = [
   'configuredProviders.js',
   'providerCatalog.json',
   'providerCatalog.js',
+  // What's New's release notes for /whatsnew in ACP editors (M99): data the
+  // agent reads beside its bundle, never code, so no lazy-registry row.
+  'whatsNew.json',
   'media.js',
   'reviewer.js',
   'team.js',
