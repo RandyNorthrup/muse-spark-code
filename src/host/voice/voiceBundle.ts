@@ -19,13 +19,15 @@ import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as VoiceEntry from './voiceEntry'
 
-/** The bundle's two drivers, shipped and loaded together. */
+/** The bundle's drivers and model removal, shipped and loaded together. */
 export interface VoiceBundle {
   readonly createDictation: typeof VoiceEntry.createDictation
   readonly createMuseVoice: typeof VoiceEntry.createMuseVoice
+  readonly createLinuxDictation: typeof VoiceEntry.createLinuxDictation
+  readonly removeLinuxDictationModel: typeof VoiceEntry.removeLinuxDictationModel
 }
 
-/** Whether a required module exports both drivers. */
+/** Whether a required module exports every voice entry point. */
 export function isVoiceBundle(value: unknown): value is VoiceBundle {
   return (
     typeof value === 'object' &&
@@ -33,7 +35,11 @@ export function isVoiceBundle(value: unknown): value is VoiceBundle {
     'createDictation' in value &&
     typeof value.createDictation === 'function' &&
     'createMuseVoice' in value &&
-    typeof value.createMuseVoice === 'function'
+    typeof value.createMuseVoice === 'function' &&
+    'createLinuxDictation' in value &&
+    typeof value.createLinuxDictation === 'function' &&
+    'removeLinuxDictationModel' in value &&
+    typeof value.removeLinuxDictationModel === 'function'
   )
 }
 

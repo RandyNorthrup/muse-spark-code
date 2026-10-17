@@ -136,7 +136,7 @@
   "command.showWhatsNew.title": "新功能",
   "config.showWhatsNewOnUpdate.description": "默认开启：扩展更新后，如果该版本有亮点，“新功能”会在编辑器标签页中打开；仅含修复的补丁版本之后，改为以不打扰的通知提供。关闭后更新时不显示任何内容；“Muse Spark: 新功能”仍可随时打开。",
   "config.paidDailyBudgetUsd.description": "Model API 交互式付费附加功能共享的每日美元预算，跨窗口和密钥生效。默认 5.00；范围 0.50–500。发送前预留费用，存储不可读时拒绝请求。不包含 Tab 的独立预算。ACP 和无界面运行的标志与预算保持不变。",
-  "config.dictationEngine.description": "Model API 的听写引擎。默认使用免费系统识别器；Muse Voice 需要付费使用同意和经过验证的预算批准。Muse Code 的显式语音启用保持不变。",
+  "config.dictationEngine.description": "Model API 的听写引擎。默认使用免费听写；Muse Voice 需要付费使用同意和经过验证的预算批准。Muse Code 的显式语音启用保持不变。",
   "config.modelApiTab.description": "Tab 在两种聊天后端上都使用已存储的 Model API 密钥。默认触发方式是 Invoke；输入时自动建议需要 Automatic。\n本机所有窗口中 Tab 补全请求的每日硬性预算（美元）；最坏情况会超出预算的请求不会发送。$0.05 到 $50。\n允许一次 / 在此工作区中始终允许.",
   "config.tabModel.description": "Tab 补全请求使用的模型。Standard 按 token 收费更高；Meta 不会用发送的内容训练。贡献者模型按 token 收费更低，Meta 会用发送的代码训练。",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3：Standard 费率，不用你的代码训练。",
@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "允许报告使用网络来源。",
   "config.reports.network.enumDescriptions.off": "仅读取本地来源。",
   "config.reports.keepHistory.description": "在此计算机上保留每种类型最近的 50 份报告，用于历史记录和比较。",
-  "config.reports.agentSources.description": "选择读取您自己的 Claude Code 或 Codex 用量和限制文件。默认不启用任何来源。绝不会将会话正文和凭据文件作为报告来源读取。"
+  "config.reports.agentSources.description": "选择读取您自己的 Claude Code 或 Codex 用量和限制文件。默认不启用任何来源。绝不会将会话正文和凭据文件作为报告来源读取。",
+  "config.linuxDictationModel.description": "在本地 Linux x64/arm64 上启用免费离线英语听写。首次下载 74 MiB 模型前会询问。关闭将停止听写并删除模型和未完成的下载；再次开启并重新加载窗口即可启用。Windows/macOS 不变。"
 }

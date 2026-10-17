@@ -1,0 +1,180 @@
+{
+  "machine": "kubuntu",
+  "date": "2026-10-10",
+  "testTimeouts": "repository defaults; named 30-second cold CPU inference timeout only",
+  "tests": [
+    {
+      "files": [
+        "test/unit/linuxDictationModel.test.ts",
+        "test/unit/linuxDictation.test.ts",
+        "test/unit/linuxDictationHost.test.ts"
+      ],
+      "passed": 23,
+      "skipped": 0
+    },
+    {
+      "files": [
+        "test/unit/linuxDictationNative.test.ts",
+        "test/unit/helperLocation.test.ts",
+        "test/unit/dictation.test.ts"
+      ],
+      "passed": 36,
+      "skipped": 0
+    },
+    {
+      "files": [
+        "test/unit/voiceBundle.test.ts",
+        "test/unit/dictationHost.test.ts",
+        "test/unit/referenceGenerator.test.mjs"
+      ],
+      "passed": 139,
+      "skipped": 1
+    },
+    {
+      "files": ["test/unit/vsixPackaging.test.mjs"],
+      "passed": 87,
+      "skipped": 0
+    },
+    {
+      "files": ["test/e2e/linuxDictation.real.test.ts"],
+      "passed": 5,
+      "skipped": 0
+    },
+    {
+      "files": ["test/unit/settings.test.ts"],
+      "passed": 23,
+      "skipped": 0
+    }
+  ],
+  "fiveTypeProjectsExitCode": 0,
+  "finalChecks": [
+    {
+      "name": "typecheck-e2e",
+      "exitCode": 0
+    },
+    {
+      "name": "eslint",
+      "exitCode": 0
+    },
+    {
+      "name": "deadcode",
+      "exitCode": 0
+    },
+    {
+      "name": "duplication",
+      "exitCode": 0
+    },
+    {
+      "name": "l10n",
+      "exitCode": 0
+    },
+    {
+      "name": "prettier-write",
+      "exitCode": 0
+    },
+    {
+      "name": "roadmap-generate",
+      "exitCode": 0
+    },
+    {
+      "name": "prettier-check",
+      "exitCode": 0
+    },
+    {
+      "name": "reference",
+      "exitCode": 0
+    },
+    {
+      "name": "plan",
+      "exitCode": 0
+    },
+    {
+      "name": "roadmap",
+      "exitCode": 0
+    },
+    {
+      "name": "build",
+      "exitCode": 0
+    }
+  ],
+  "hostApiExitCode": 0,
+  "nativeBuildExitCode": 0,
+  "nativeLegalFindings": 0,
+  "visualCaptures": 72,
+  "visualChangedPixels": 0,
+  "drillProbes": 45,
+  "certifyingDrills": 41,
+  "allDrillRestoresByteExact": true,
+  "publication": "held for unchanged universal VSIX budget decision and hosted native/package receipts; full aggregate gates belong to lead",
+  "d106": {
+    "machine": "kubuntu",
+    "date": "2026-10-10",
+    "testTimeouts": "repository defaults; no --testTimeout override",
+    "tests": [
+      {
+        "files": [
+          "test/unit/linuxDictationModel.test.ts",
+          "test/unit/linuxDictationHost.test.ts",
+          "test/unit/linuxDictationHelper.test.ts"
+        ],
+        "passed": 19,
+        "skipped": 0
+      },
+      {
+        "files": [
+          "test/unit/linuxDictation.test.ts",
+          "test/unit/linuxDictationNative.test.ts",
+          "test/unit/helperLocation.test.ts"
+        ],
+        "passed": 28,
+        "skipped": 0
+      },
+      {
+        "files": [
+          "test/unit/dictation.test.ts",
+          "test/unit/voiceBundle.test.ts",
+          "test/unit/referenceGenerator.test.mjs"
+        ],
+        "passed": 144,
+        "skipped": 0
+      },
+      {
+        "files": ["test/unit/dictationHost.test.ts"],
+        "passed": 12,
+        "skipped": 1
+      },
+      {
+        "files": ["test/unit/vsixPackaging.test.mjs"],
+        "passed": 85,
+        "skipped": 0
+      },
+      {
+        "files": [
+          "test/unit/linuxHelperPins.test.mjs",
+          "test/unit/manifest.test.ts",
+          "test/unit/settings.test.ts"
+        ],
+        "passed": 67,
+        "skipped": 0
+      },
+      {
+        "files": ["test/e2e/linuxDictation.real.test.ts"],
+        "passed": 0,
+        "skipped": "suite skips without MUSE_DICTATION_MODEL and a built helper; no live downloads in this lane"
+      }
+    ],
+    "notes": [
+      "linuxDictationNative counts re-verified in the 13:27 batch (5 passed).",
+      "manifest counts extended for the D106 helper artifact downloads (RELFAST/RELFAST2).",
+      "museVoice.test.ts live-WebSocket case fails identically on the pristine base (sandbox blocks loopback); outside this lane's suites.",
+      "check-linux-helper-pins shape passes on committed pins; --require-values refuses them (unset dev state) as designed."
+    ],
+    "fiveTypeProjectsExitCode": 0,
+    "build": {
+      "activation": "553.0 / 600 KiB (unchanged)",
+      "voice": "43.8 / 50 KiB",
+      "pinsInActivation": 0,
+      "pinsInVoice": "present"
+    }
+  }
+}

@@ -65,7 +65,7 @@
     {
       "id": "M9",
       "title": "Voice dictation",
-      "summary": "Dictate into the prompt box with a microphone button (tap or hold, or Ctrl+D) on Windows and macOS, using the operating system's own speech recogniser at no cost.",
+      "summary": "Dictate at no cost with tap, hold or Ctrl+D on Windows and macOS, with an offline Linux helper downloading on consent as same-tag release assets (never in the package).",
       "area": "voice-media",
       "release": "0.1.0"
     },

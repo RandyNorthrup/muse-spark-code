@@ -136,7 +136,7 @@
   "command.showWhatsNew.title": "Nowości",
   "config.showWhatsNewOnUpdate.description": "Domyślnie włączone: po aktualizacji rozszerzenia Nowości otwierają się na karcie edytora, gdy wydanie ma najważniejsze zmiany; po poprawce zawierającej tylko poprawki zamiast tego proponuje je dyskretne powiadomienie. Wyłączone nie pokazuje nic po aktualizacjach; Muse Spark: Nowości nadal je otwiera.",
   "config.paidDailyBudgetUsd.description": "Wspólny dzienny budżet w USD dla interaktywnych płatnych dodatków Model API, między oknami i kluczami. Domyślnie 5,00; zakres 0,50–500. Rezerwuje przed wysłaniem i odmawia przy nieczytelnym magazynie. Osobny budżet Tab jest wyłączony. Flagi i budżety ACP oraz trybu bez interfejsu pozostają bez zmian.",
-  "config.dictationEngine.description": "Silnik dyktowania w Model API. Domyślny jest bezpłatny systemowy rozpoznawacz; Muse Voice wymaga zgody na płatne użycie i zweryfikowanej zgody budżetowej. Jawne włączenie głosu w Muse Code pozostaje bez zmian.",
+  "config.dictationEngine.description": "Silnik dyktowania w Model API. Domyślne jest bezpłatne dyktowanie; Muse Voice wymaga zgody na płatne użycie i zweryfikowanej zgody budżetowej. Jawne włączenie głosu w Muse Code pozostaje bez zmian.",
   "config.modelApiTab.description": "Tab używa zapisanego klucza Model API z oboma silnikami czatu. Domyślny wyzwalacz to Invoke; sugestie podczas pisania wymagają Automatic.\nSztywny dzienny budżet w dolarach na żądania uzupełnień Tab we wszystkich oknach tej maszyny; żądanie, którego najgorszy przypadek by go przekroczył, nie jest wysyłane. Od 0,05 $ do 50 $.\nZezwól raz / Zawsze zezwalaj w tym obszarze roboczym.",
   "config.tabModel.description": "Model używany przez żądania uzupełnień Tab. Standard kosztuje więcej za token; Meta nie trenuje na wysyłanych danych. Model kontrybucyjny kosztuje mniej za token, a Meta trenuje na wysyłanym do niego kodzie.",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: stawki Standard, brak treningu na Twoim kodzie.",
@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "Zezwól na sieciowe źródła raportów.",
   "config.reports.network.enumDescriptions.off": "Odczytuj wyłącznie lokalne źródła.",
   "config.reports.keepHistory.description": "Przechowuj na tym komputerze 50 najnowszych raportów każdego rodzaju do historii i porównań.",
-  "config.reports.agentSources.description": "Zezwól na odczyt własnych plików użycia i limitów Claude Code lub Codex. Domyślnie: żadne. Tekst rozmów i pliki poświadczeń nigdy nie są odczytywane jako źródła raportów."
+  "config.reports.agentSources.description": "Zezwól na odczyt własnych plików użycia i limitów Claude Code lub Codex. Domyślnie: żadne. Tekst rozmów i pliki poświadczeń nigdy nie są odczytywane jako źródła raportów.",
+  "config.linuxDictationModel.description": "Włącza bezpłatne angielskie dyktowanie offline na lokalnym Linuksie x64/arm64. Pyta przed pobraniem modelu 74 MiB. Wyłączenie zatrzymuje dyktowanie i usuwa model oraz częściowe pobranie; włącz i przeładuj okno, aby wznowić. Windows/macOS bez zmian."
 }

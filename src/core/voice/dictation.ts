@@ -57,6 +57,9 @@ export function parseHelperLine(line: string): HelperLine | undefined {
 }
 
 export interface HelperInvocation {
+  /** A CPU recognizer may need longer to drain the final bounded phrase. */
+  readonly stopGraceMs?: number
+
   readonly command: string
   readonly args: readonly string[]
   /**
@@ -553,7 +556,7 @@ export class Dictation {
       }
       this.deps.log.warn('Dictation helper did not confirm the stop; restarting it')
       this.fail(helper, 'The dictation helper stopped responding')
-    }, DICTATION_STOP_GRACE_MS)
+    }, this.deps.invocation.stopGraceMs ?? DICTATION_STOP_GRACE_MS)
   }
 
   /**

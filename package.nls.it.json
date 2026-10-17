@@ -136,7 +136,7 @@
   "command.showWhatsNew.title": "Novità",
   "config.showWhatsNewOnUpdate.description": "Attivato per impostazione predefinita: dopo un aggiornamento dell’estensione, Novità si apre in una scheda dell’editor quando la versione ha elementi in evidenza; dopo una patch di sole correzioni, una notifica discreta la propone al suo posto. Disattivato non mostra nulla dopo gli aggiornamenti; Muse Spark: Novità la apre comunque.",
   "config.paidDailyBudgetUsd.description": "Budget giornaliero condiviso in USD per gli extra interattivi a pagamento di Model API, tra finestre e chiavi. Predefinito 5,00; intervallo 0,50–500. Riserva prima dell’invio e rifiuta se l’archivio è illeggibile. Il budget separato di Tab è escluso. Opzioni e budget ACP e senza interfaccia restano invariati.",
-  "config.dictationEngine.description": "Motore di dettatura su Model API. Il riconoscitore gratuito del sistema è predefinito; Muse Voice richiede consenso al pagamento e ammissione verificata dal budget. L’attivazione esplicita della voce in Muse Code resta invariata.",
+  "config.dictationEngine.description": "Motore di dettatura su Model API. La dettatura gratuita è predefinita; Muse Voice richiede consenso al pagamento e ammissione verificata dal budget. L’attivazione esplicita della voce in Muse Code resta invariata.",
   "config.modelApiTab.description": "Tab usa la chiave Model API salvata con entrambi i motori di chat. Il trigger predefinito è Invoke; i suggerimenti durante la digitazione richiedono Automatic.\nBudget giornaliero rigido in dollari USA per le richieste di completamento Tab in tutte le finestre di questa macchina; una richiesta il cui caso peggiore lo supererebbe non viene inviata. Da 0,05 $ a 50 $.\nConsenti una volta / Consenti sempre in questa area di lavoro.",
   "config.tabModel.description": "Il modello usato dalle richieste di completamento Tab. Standard costa di più per token; Meta non addestra sui dati che riceve. Il modello collaboratore costa meno per token, e Meta addestra sul codice che riceve.",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: tariffe Standard, nessun addestramento sul tuo codice.",
@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "Consenti fonti di rete per i rapporti.",
   "config.reports.network.enumDescriptions.off": "Leggi solo fonti locali.",
   "config.reports.keepHistory.description": "Conserva su questo computer gli ultimi 50 rapporti di ogni tipo per la cronologia e i confronti.",
-  "config.reports.agentSources.description": "Abilita la lettura dei tuoi file di utilizzo e limiti di Claude Code o Codex. Impostazione predefinita: nessuno. Il testo delle conversazioni e i file di credenziali non vengono mai letti come fonti dei rapporti."
+  "config.reports.agentSources.description": "Abilita la lettura dei tuoi file di utilizzo e limiti di Claude Code o Codex. Impostazione predefinita: nessuno. Il testo delle conversazioni e i file di credenziali non vengono mai letti come fonti dei rapporti.",
+  "config.linuxDictationModel.description": "Abilita la dettatura inglese gratuita offline su Linux locale x64/arm64. Chiede prima di scaricare il modello da 74 MiB. Disattivandola ferma la dettatura ed elimina modello e download parziale; riattiva e ricarica la finestra per riprendere. Windows/macOS invariati."
 }

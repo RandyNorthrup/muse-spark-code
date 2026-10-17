@@ -136,7 +136,7 @@
   "command.showWhatsNew.title": "Yenilikler",
   "config.showWhatsNewOnUpdate.description": "Varsayılan olarak açık: uzantı güncellendikten sonra, sürümde öne çıkanlar varsa Yenilikler bir düzenleyici sekmesinde açılır; yalnızca düzeltme içeren bir yamadan sonra bunun yerine sessiz bir bildirim bunu önerir. Kapalıyken güncellemelerde hiçbir şey gösterilmez; Muse Spark: Yenilikler yine de açar.",
   "config.paidDailyBudgetUsd.description": "Pencereler ve anahtarlar arasında, Model API’nin etkileşimli ücretli ek özellikleri için ortak günlük USD bütçesi. Varsayılan 5,00; aralık 0,50–500. Göndermeden önce ayırır ve okunamayan depolamada reddeder. Tab’ın ayrı bütçesi dahil değildir. ACP ve arayüzsüz çalışma bayrakları ile bütçeleri değişmez.",
-  "config.dictationEngine.description": "Model API dikte motoru. Ücretsiz işletim sistemi tanıyıcısı varsayılandır; Muse Voice ücretli kullanım onayı ve doğrulanmış bütçe kabulü gerektirir. Muse Code’un açık ses etkinleştirmesi değişmez.",
+  "config.dictationEngine.description": "Model API dikte motoru. Ücretsiz dikte varsayılandır; Muse Voice ücretli kullanım onayı ve doğrulanmış bütçe kabulü gerektirir. Muse Code’un açık ses etkinleştirmesi değişmez.",
   "config.modelApiTab.description": "Tab her iki sohbet arka ucuyla kayıtlı Model API anahtarını kullanır. Varsayılan tetikleyici Invoke; yazarken öneriler için Automatic gerekir.\nBu makinedeki tüm pencerelerde Tab tamamlama istekleri için ABD doları cinsinden katı günlük bütçe; en kötü durumu bunu aşacak istek gönderilmez. 0,05 $ ile 50 $ arasında.\nBir kez izin ver / Bu çalışma alanında her zaman izin ver.",
   "config.tabModel.description": "Tab tamamlama isteklerinin kullandığı model. Standard, token başına daha pahalıdır; Meta kendisine gönderilenle eğitim yapmaz. Katkıcı model token başına daha ucuzdur ve Meta, kendisine gönderilen kodla eğitim yapar.",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: Standard tarifeler, kodunuzla eğitim yok.",
@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "Raporlar için ağ kaynaklarına izin ver.",
   "config.reports.network.enumDescriptions.off": "Yalnızca yerel kaynakları oku.",
   "config.reports.keepHistory.description": "Geçmiş ve karşılaştırma için bu bilgisayarda her türün en yeni 50 raporunu sakla.",
-  "config.reports.agentSources.description": "Kendi Claude Code veya Codex kullanım ve sınır dosyalarınızın okunmasına izin verin. Varsayılan: hiçbiri. Konuşma metni ve kimlik bilgisi dosyaları rapor kaynağı olarak asla okunmaz."
+  "config.reports.agentSources.description": "Kendi Claude Code veya Codex kullanım ve sınır dosyalarınızın okunmasına izin verin. Varsayılan: hiçbiri. Konuşma metni ve kimlik bilgisi dosyaları rapor kaynağı olarak asla okunmaz.",
+  "config.linuxDictationModel.description": "Yerel Linux x64/arm64 üzerinde ücretsiz çevrimdışı İngilizce dikteyi açar. 74 MiB modeli ilk kez indirmeden önce sorar. Kapatmak dikteyi durdurur, modeli ve kısmi indirmeyi kaldırır; yeniden açıp pencereyi yükleyerek tekrar etkinleştirin. Windows/macOS değişmez."
 }

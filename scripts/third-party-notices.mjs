@@ -66,6 +66,9 @@ only Apple's system frameworks and the Windows helper is a PowerShell
 script of this project; neither includes third-party code.
 The Linux created-path helper statically links OpenSSL SHA-256 routines;
 its copyright notices and Apache 2.0 licence follow the package notices.
+The Linux dictation helper includes whisper.cpp/ggml (MIT) and downloads
+OpenAI's MIT-licensed tiny.en weights only after consent. Both notices follow;
+PulseAudio is dynamically linked from the user's system and is not bundled.
 
 Generated from the production build by scripts/third-party-notices.mjs;
 "npm run notices" regenerates this file.
@@ -158,8 +161,14 @@ function render(packages, isAcp) {
     return `${RULE}\n${names.join('\n')}\n${THIN_RULE}\n\n${text}\n`
   })
   const native = `${RULE}\nOpenSSL (Linux native helper, Apache-2.0)\n${THIN_RULE}\n\n${readFileSync(path.join('native', 'openssl-NOTICE.txt'), 'utf8').trimEnd()}\n`
+  const dictation = (isAcp ? [] : ['whisper-LICENSE.txt', 'model-LICENSE.txt'])
+    .map(
+      (file) =>
+        `${RULE}\nLinux offline dictation: ${file} (MIT)\n${THIN_RULE}\n\n${readFileSync(path.join('native', 'dictation-linux', file), 'utf8').trimEnd()}\n`,
+    )
+    .join('\n')
   const legalData = normalise(readFileSync('src/core/legal/data/NOTICE.md', 'utf8'))
-  return `${header}\n${native}\n${blocks.join('\n')}\n${RULE}\nSPDX identifier data\n${THIN_RULE}\n\n${legalData}\n`
+  return `${header}\n${native}\n${dictation}\n${blocks.join('\n')}\n${RULE}\nSPDX identifier data\n${THIN_RULE}\n\n${legalData}\n`
 }
 
 /** The file `--acp` names; undefined without the flag. */

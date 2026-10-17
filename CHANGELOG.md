@@ -7,6 +7,86 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Linux free dictation: a prebuilt CPU-only whisper.cpp helper for local x64/arm64
+  recognizes English offline. First use asks before a pinned 74 MiB tiny.en
+  model download; downloads resume, corrupt weights refuse recognition, and
+  `linuxDictationModel=false` stops recording and removes stored weights.
+  Audio stays in bounded memory; Windows/macOS retain their existing helpers.
+- Linux free dictation (D140, lead decision): the native helper leaves the
+  VSIX (the 3,700 KiB cap is unchanged) and ships as same-tag release assets
+  instead. One consent card asks once before the helper (~7.6 MB) and model
+  (74 MiB) downloads; every helper file is verified by embedded SHA-256 pins
+  before it ever runs, refuses loudly on mismatch, and is removed with the
+  model when the setting is off. Offline installs place both files in the
+  shown folder; digests are checked the same way. The feature stays off until
+  review passes and hosted receipts land.
+
+
+### Added
+
+- **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
+  first governed launch, a **Resources** chip sits beside the heartbeat, or
+  above the composer between turns. Its popover shows CPU, memory in use and
+  available memory against your limits, what is waiting, any override, and
+  that relocation is not available on this build. Its buttons are **Resume
+  now**, **Open settings** and **Show resources** (the Usage & cost page). A
+  status bar item shows while the governor throttles or pauses. At pause, one
+  notice per conversation names the reading and its limit, with the same
+  actions. New commands: **Muse Spark: Show Resources** opens the popover in
+  the chat in view, and **Muse Spark: Resume Work Now** holds this window's
+  governor at normal for fifteen minutes. A governor you switched off stays
+  off. The governor, its status item and the chip still load on first use,
+  never at activation, and chat's first paint stays within its budget.
+  A status the chip cannot trust (unreadable, with unknown fields, or too
+  large) shows as **Resources: Unknown** with a short explanation, never as
+  an older reading. While the chip loads it says so in place, and if it
+  cannot load it offers **Try again** without disturbing the conversation.
+  JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
+  chip and status adapter once their M104 bridges bind them; none does yet.
+  ACP and terminals keep `/resources` and `resources status|resume`.
+
+### Changed
+
+- `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
+  (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
+  without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
+  after earlier bumps. The SDK now hides the `muse serve` window on Windows
+  itself (meta-models/muse-code-sdk#34). The extension's other Muse Code
+  workarounds were re-checked against 1.4.4 and are still needed
+  (`docs/certification/sdk144.md`).
+- `@agentclientprotocol/sdk` moves from 1.5.1 to 1.7.0 (SDK144). The ACP
+  agent, headless `exec` and team workers speak the same ACP v1; the SDK's
+  transport is unchanged, so the agent's 32 MiB line override and the
+  session-router seam carry over as they were.
+- **A sent message's menu is shorter and its pills fit their labels.**
+  **Fork conversation from here** is now **Fork Conversation**, and **Fork
+  conversation and rewind code** is now **Fork and Rewind**, in every
+  language. Every radial menu's pills stay one size, but that size is now
+  the longest label's own width instead of a fixed 272 px, so short menus
+  no longer carry empty blue space; only a label wider than the panel ends
+  in an ellipsis with the whole label in its tooltip.
+- The README's Resources screenshot is retaken with the rest of the set (the
+  same Linux Chrome build and fonts); the other 18 screenshots still match the
+  current UI and are unchanged.
+- README and `docs/acp.md` name all four places the project ships from (VS Code Marketplace, Open VSX, npm, GitHub Releases), add an npm version badge, and install the ACP agent with `npm install -g muse-spark-code-acp` first, the release `.tgz` second.
+- The npm package's README and the Marketplace/Open VSX page list the same four channels as the README (VS Code Marketplace, Open VSX, npm, GitHub Releases); the npm page adds the release `.tgz` install.
+- README adds a total downloads badge (all channels) and a GitHub app installs badge, both served by the project's Cloudflare Worker, now kept in `infra/marketplace-hook` (counters only; not part of any package).
+- README notes the project's unofficial GitHub OAuth app for M123 sign-in and that its GitHub Marketplace listing awaits GitHub's review; the privacy notice adds the app's device flow, `repo` scope, keychain or vault storage and revocation.
+- The working line is calmer: the heartbeat trace sweeps in about 1.4 s instead of
+  1.2 s, and the circle mark before the status text keeps its 0.16.0 loop at 75 % size
+  (12 px instead of 16 px).
+- Preserve exact decimal USD across schedule authorization, consent and agent caps,
+  rental cost estimates, reporting facts, account totals and voice consent. Read
+  historical numeric records at validated boundaries; saved reports verify their
+  original hashes before migration to exact money version 2.
+- The resource history journal is one shared bundle that the window's
+  governor and the usage page both load, instead of a copy in each; both stay
+  inside their size budgets. Usage records read the account id from a small
+  leaf instead of every account schema.
+- The Model API backend's session store loads with that backend instead of
+  at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
+  activation bundle; sessions are kept and read as before (ACTBUD017).
+
 ### Fixed
 
 - Muse Voice gives each recording one owner from Start until its end: a queued

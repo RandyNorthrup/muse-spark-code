@@ -136,7 +136,7 @@
   "command.showWhatsNew.title": "Neuigkeiten",
   "config.showWhatsNewOnUpdate.description": "Standardmäßig aktiviert: Nach einem Update der Erweiterung öffnen sich die Neuigkeiten in einem Editor-Tab, wenn die Version das Wichtigste hervorhebt; nach einem Patch nur mit Fehlerbehebungen bietet stattdessen eine dezente Benachrichtigung sie an. Deaktiviert zeigt bei Updates nichts an; Muse Spark: Neuigkeiten öffnet sie weiterhin.",
   "config.paidDailyBudgetUsd.description": "Gemeinsames Tagesbudget in USD für interaktive kostenpflichtige Model-API-Extras über Fenster und Schlüssel hinweg. Standard 5,00; Bereich 0,50–500. Reserviert vor dem Senden und verweigert bei unlesbarem Speicher. Tabs eigenes Budget ist ausgeschlossen. ACP- und Headless-Optionen und deren Budgets bleiben unverändert.",
-  "config.dictationEngine.description": "Diktiermodul der Model API. Standard ist die kostenlose Betriebssystem-Erkennung; Muse Voice erfordert Zustimmung zur kostenpflichtigen Nutzung und verifizierte Budgetfreigabe. Muse Codes ausdrückliche Sprachaktivierung bleibt unverändert.",
+  "config.dictationEngine.description": "Diktiermodul der Model API. Standard ist die kostenlose Spracheingabe; Muse Voice erfordert Zustimmung zur kostenpflichtigen Nutzung und verifizierte Budgetfreigabe. Muse Codes ausdrückliche Sprachaktivierung bleibt unverändert.",
   "config.modelApiTab.description": "Tab verwendet den gespeicherten Model API-Schlüssel mit beiden Chat-Backends. Standard ist Invoke; Vorschläge beim Tippen erfordern Automatic.\nHartes Tagesbudget in US-Dollar für Tab-Vervollständigungsanfragen über alle Fenster dieser Maschine; eine Anfrage, deren ungünstigster Fall es überschreiten würde, wird nicht gesendet. Von 0,05 $ bis 50 $.\nEinmal zulassen / In diesem Arbeitsbereich immer zulassen.",
   "config.tabModel.description": "Das Modell, das Tab-Vervollständigungsanfragen verwenden. Standard kostet mehr pro Token; Meta trainiert nicht mit dem, was an es gesendet wird. Das Contributor-Modell ist günstiger pro Token, und Meta trainiert mit dem Code, der an es gesendet wird.",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: Standardpreise, kein Training mit Ihrem Code.",
@@ -250,5 +250,6 @@
   "config.reports.network.enumDescriptions.always": "Netzwerkquellen für Berichte erlauben.",
   "config.reports.network.enumDescriptions.off": "Nur lokale Quellen lesen.",
   "config.reports.keepHistory.description": "Die neuesten 50 Berichte je Art auf diesem Rechner für Verlauf und Vergleiche aufbewahren.",
-  "config.reports.agentSources.description": "Das Lesen Ihrer eigenen Claude-Code- oder Codex-Nutzungs- und Limitdateien erlauben. Standard: keine. Gesprächstexte und Zugangsdaten werden niemals als Berichtsquellen gelesen."
+  "config.reports.agentSources.description": "Das Lesen Ihrer eigenen Claude-Code- oder Codex-Nutzungs- und Limitdateien erlauben. Standard: keine. Gesprächstexte und Zugangsdaten werden niemals als Berichtsquellen gelesen.",
+  "config.linuxDictationModel.description": "Kostenlose englische Offline-Spracheingabe auf lokalem Linux x64/arm64. Fragt vor dem ersten Download des 74-MiB-Modells. Ausschalten stoppt die Spracheingabe und entfernt Modell und Teil-Download; zum Aktivieren einschalten und Fenster neu laden. Windows/macOS bleiben unverändert."
 }

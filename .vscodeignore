@@ -145,3 +145,7 @@ dist/fontsInstall.js
 **/*.ttf
 **/*.otf
 **/*.eot
+
+# CM9LNX/D106: the Linux dictation helper ships as release assets, never in
+# the VSIX (the cap stays unchanged); only its licence notices stay packed.
+!native/dictation-linux/*LICENSE.txt

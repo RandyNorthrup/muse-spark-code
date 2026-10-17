@@ -643,6 +643,8 @@ export const ON_FIRST_USE = [
       'src/core/voice/dictation.ts',
       'src/core/voice/museVoice.ts',
       'src/core/voice/recorderHelper.ts',
+      'src/core/voice/linuxDictation.ts',
+      'src/core/voice/linuxModel.ts',
     ],
   },
   // The window's web fetch (M69), split out on 2026-10-04: the Model API
