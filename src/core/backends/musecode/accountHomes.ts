@@ -62,6 +62,7 @@ interface AccountHomesDeps {
   }) => Promise<void>
 }
 
+/** @unwired M108 CLI account homes reader */
 export class MuseCodeAccountHomes implements AccountLimitsReader {
   private readonly generations = new Map<string, number>()
   private readonly lifetimes = new Map<string, AbortController>()
@@ -230,7 +231,9 @@ export class MuseCodeAccountHomes implements AccountLimitsReader {
 
 const recoveryChoiceSchema = z.enum(['upgrade', 'wait', 'payAsYouGo', 'cancel'])
 type RecoveryChoice = z.infer<typeof recoveryChoiceSchema>
-/** P handles policy confirmation after recovery; this port never selects a CLI key. */
+/** P handles policy confirmation after recovery; this port never selects a CLI key.
+ * @unwired M108 CLI account recovery port
+ */
 export async function recoverMuseCodeAccount(deps: {
   readonly offer: (question: {
     readonly detail: string

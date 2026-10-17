@@ -1,11 +1,39 @@
 // One lazy, host-neutral reference implementation for VS Code and ACP.
 import * as z from 'zod/mini'
-import { REFERENCE_DOCS_URL, UI_TEXT } from '../constants'
+import { isAutoCompactionEvaluated, REFERENCE_DOCS_URL, UI_TEXT } from '../constants'
 import type { UiText } from '../l10n/en'
 import { fill, formatNumber, setUiText } from '../l10n/text'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../protocol'
 import { referenceModel } from './reference.generated'
-const REFERENCE = referenceModel()
+const inventory = referenceModel()
+const REFERENCE = isAutoCompactionEvaluated()
+  ? inventory
+  : {
+      ...inventory,
+      features: inventory.features
+        .filter((feature) => feature.id !== 'auto-compaction')
+        .map((feature) => ({
+          ...feature,
+          settings: feature.settings.filter(
+            (setting) => setting !== 'museSpark.modelApiAutoCompaction',
+          ),
+        })),
+      settings: inventory.settings.filter(
+        (setting) => setting.id !== 'museSpark.modelApiAutoCompaction',
+      ),
+      cli: inventory.cli.filter((option) => {
+        if (option.text === undefined) return true
+        const texts =
+          'conditions' in option.text
+            ? option.text.conditions.map(({ text }) => text)
+            : [option.text]
+        return texts.every(
+          (text) =>
+            !('cli' in text) ||
+            (text.cli !== 'auto-compaction' && text.cli !== 'no-auto-compaction'),
+        )
+      }),
+    }
 import { referenceName, referenceText, referenceSchema } from './text'
 
 export type ReferenceRequest = Extract<

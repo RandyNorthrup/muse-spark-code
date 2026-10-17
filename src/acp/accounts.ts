@@ -8,7 +8,8 @@ import {
   type AccountsReply,
   type AccountsRequest,
 } from '../shared/hostApi/accounts'
-import { ACP_CONFIG_IDS, UI_TEXT, type AcpBackendKind } from '../shared/constants'
+import { ACP_CONFIG_IDS, UI_TEXT } from '../shared/constants'
+import { slashCommandText } from '../shared/mentions'
 import {
   accountStopText,
   accountEventText,
@@ -18,27 +19,7 @@ import {
   type AccountUsagePort,
 } from './accountText'
 
-export {
-  accountErrorText,
-  AccountSwitchRefusedError,
-  isAccountSwitchRefusedError,
-} from './accountText'
-
-/** The account port a served session attaches: the Model API backend only,
- * and never a failure. Ordinary sessions never depend on accounts: the
- * subscription backend runs without a port, and a loader failure leaves the
- * session working without accounts instead of refusing `serve`. */
-export function serveAccountsPort(
-  backend: AcpBackendKind,
-  load: () => AccountsSessionPort,
-): AccountsSessionPort | undefined {
-  if (backend !== 'modelApi') return undefined
-  try {
-    return load()
-  } catch {
-    return undefined
-  }
-}
+export { accountErrorText, isAccountSwitchRefusedError } from './accountText'
 
 type AccountsState = Extract<AccountsReply, { type: 'accounts/state' }>
 export interface AccountsSessionPort extends AccountUsagePort {
@@ -53,11 +34,14 @@ export interface AccountsSessionPort extends AccountUsagePort {
 }
 
 /** U's panel dispatcher, also used by the authenticated companion bridge.
- * M104 owns origin/permission/envelope checks; this is the inner payload port. */
+ * M104 owns origin/permission/envelope checks; this is the inner payload port.
+ * @unwired M104 companion bridge for accounts */
 export interface AccountsPanelPort {
   dispatch(request: AccountsRequest): Promise<AccountsReply>
   subscribe(listener: (reply: AccountsReply) => void): () => void
 }
+/** The companion's validated panel skin over the inner payload port.
+ * @unwired M104 companion bridge for accounts */
 export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPort {
   return {
     async dispatch(request) {
@@ -289,10 +273,11 @@ export class AcpAccounts {
     })
   }
 
-  public async command(text: string, canCommit: () => boolean): Promise<string | undefined> {
+  public async command(sent: string, canCommit: () => boolean): Promise<string | undefined> {
+    const text = slashCommandText(sent)
     if (!/^\/accounts(?:\s|$)/.test(text)) return
     if (this.isDisposed || this.state === undefined) throw new Error(UI_TEXT.accounts.unavailable)
-    const [, action = 'list', account, ...rest] = text.trim().split(/\s+/)
+    const [, action = 'list', account, ...rest] = text.split(/\s+/)
     if (rest.length > 0) throw new Error(UI_TEXT.accounts.invalidAccount)
     if (action === 'use' && account !== undefined) {
       await this.use(account, canCommit)

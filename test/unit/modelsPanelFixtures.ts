@@ -1,4 +1,7 @@
 import { Usd } from '../../src/shared/usd'
+import { EN } from '../../src/shared/l10n/en'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
+import { fill } from '../../src/shared/l10n/text'
 // Fixtures for the Models panel's unit tests: a host-owned state with a
 // local provider, a scanned model and the wizard at every step. Kept in
 // one file so the suites share builders instead of duplicating them.
@@ -92,7 +95,13 @@ export function makeTest(overrides: Partial<ProviderTest> = {}): ProviderTest {
 }
 
 export function makeKeyUsage(overrides: Partial<ProviderKeyUsage> = {}): ProviderKeyUsage {
-  return { dayUsd: 1.2, monthUsd: 3.4, limitUsd: 10, remainingUsd: 6.6, ...overrides }
+  return {
+    dayUsd: Usd.from('1.2').toAmount(),
+    monthUsd: Usd.from('3.4').toAmount(),
+    limitUsd: Usd.from(10).toAmount(),
+    remainingUsd: Usd.from('6.6').toAmount(),
+    ...overrides,
+  }
 }
 
 export function makeSuggestion(kind: SuggestionKind): PanelSuggestion {
@@ -137,6 +146,13 @@ export function makeState(overrides: Partial<ModelsPanelState> = {}): ModelsPane
     facets: { providers: ['ollama'], families: ['qwen3'] },
     scans: {},
     suggestions: [],
+    sessionBudget: {
+      effectiveUsd: Usd.from(0).toAmount(),
+      nowLine: fill(EN.wizardSessionBudgetNow, {
+        amount: formatUsd('0'),
+        scope: EN.sessionBudgetScopeGlobal,
+      }),
+    },
     lastChoices: {},
     drafts: { edits: {} },
     pendingRemovals: [],

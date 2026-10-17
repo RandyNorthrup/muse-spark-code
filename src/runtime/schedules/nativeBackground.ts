@@ -1,4 +1,6 @@
 import { nonnegativeUsdSchema } from '../../shared/usdSchema'
+import { SCHEDULE_LEGACY_MONEY_KEYS } from '../../core/schedules/journal'
+import { parseJsonWithExactNumbers } from '../../shared/exactJson'
 import { createHash } from 'node:crypto'
 import process from 'node:process'
 import path from 'node:path'
@@ -24,6 +26,18 @@ import {
   type ScheduleWakeAuthorization,
   type BackgroundRegistrationInput,
 } from './registration'
+
+/**
+ * Parse the wake record. A version 1 cap whose written digits a double
+ * cannot carry is refused, never rounded: the written digits come from
+ * `parseJsonWithExactNumbers`, never the reviver's source text, so the
+ * refusal holds on Node 20 as well as newer runtimes (M121 P2-1).
+ */
+function parseWakeRecord(stored: string): unknown {
+  const { value, isExact } = parseJsonWithExactNumbers(stored, SCHEDULE_LEGACY_MONEY_KEYS)
+  if (!isExact) throw new Error('scheduleStoredJsonInvalid')
+  return value
+}
 
 export interface BackgroundFilePort {
   readonly trustedPath: (
@@ -138,7 +152,7 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       this.deps.uid,
       'definition',
     )
-    let record = backgroundWakeRecordSchema.parse(JSON.parse(stored))
+    let record = backgroundWakeRecordSchema.parse(parseWakeRecord(stored))
     const effective = await this.definition(record.executable)
     if (
       record.id !== this.id ||
@@ -199,7 +213,7 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
     if (!(await this.isRegistered())) return { registered: false }
     const stored = await this.deps.files.read(this.stateFile)
     if (stored === undefined) return { registered: true }
-    const input: unknown = JSON.parse(stored)
+    const input: unknown = parseWakeRecord(stored)
     const record = backgroundWakeRecordSchema.parse(input)
     return record.disabledAtMs === undefined
       ? { registered: true, nextWakeAtMs: record.nextWakeAtMs }

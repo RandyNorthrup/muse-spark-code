@@ -397,3 +397,59 @@ file` fails (1 failed, 16 skipped). Restored.
 - **D24** `crashTextForLog` back to stack-only:
   `reports a refused providers file as its own sentence instead of a raw
 stack` fails (1 failed, 44 skipped). Restored.
+
+## Publication after 0.17.1's truth pass (release train merge, 2026-10-11)
+
+This lane forks from 0.17.0. The 0.17.1 truth pass (`c/x-1`) had since taken
+accounts out of every published surface because the code refused. The merge
+into the release train puts back what this lane's code serves, and only that.
+
+Published again:
+
+- Help: the feature row "Several Accounts per Provider" on the surface
+  `acp:modelApi`, the `providers accounts` command row, and the `--account`
+  rows of `auth set` and `exec` (`REFERENCE_IN_PROGRESS_FEATURES`,
+  `REFERENCE_SURFACES`, the capability pair in `referenceSource.ts`,
+  `hiddenRoutes` and the flag pattern in `scripts/lib/reference.mjs`, the
+  command line of `/help` in `cliCommands.ts`). `referenceAccounts` has its
+  sentence again in English and the 14 tables.
+- Compact help: the `Accounts:` line (`accounts.cliUsage`).
+- README: the section "Several accounts per provider", for the terminal, a
+  pinned headless run and ACP on the Model API backend, with its contents
+  link; the progress-list anchor is gone.
+- `docs/acp.md`: the `/accounts` command bullet and the M108 section;
+  `docs/ci.md`: the `--account <id>` row; `docs/PRIVACY.md`: what
+  `providers.json` holds.
+- CHANGELOG: a new Added entry under the next release. The 0.17.0 entries
+  stay as they are, archived.
+
+Still held, each with its owner:
+
+- Pooling: the `exec` pool flag's Help row, the `docs/ci.md` row and the
+  compact help line `accounts.execHelp`, whose text offers it (C-M108-2).
+- Changing the account inside a session: refused with the stay-put text
+  (C-M108-2).
+- The settings `accountSwap`, `accountParallel` and
+  `accounts.severalOnThisDevice`: compatibility-only, not in Help
+  (C-M108-2, C-M108-7).
+- The editor's Accounts and usage pages, the roadmap entry's wording and the
+  packaged README's bullet (C-M108-3, C-M108-9); the account picker on the
+  Muse Code backend (C-M108-5).
+
+Two things changed in this lane's own code during the merge:
+
+- `serve` keeps the release's binding (`sessionsIfPresent('meta')`: Model API
+  only, and a refused providers file or a loader failure is logged and
+  leaves the session without accounts). With the built-in Meta entry it
+  binds on an absent data path. This lane's `serveAccountsPort` did the same
+  two things and is gone, with its two unit cases;
+  `test/unit/cx1r5Session.test.ts` covers the binding with the real store
+  (absent path, valid file, refused file).
+- A failed account start is logged (`ACP accounts startup failed`), as on
+  the release branch, instead of being dropped silently.
+
+The truth tests pin the published state and the held items:
+`cx1r4Truth.test.ts` (compact help, Help rows, capability, README),
+`cx1r2Truth.test.ts`, `cx1r5Truth.test.ts` (the `accounts` claim and the
+`usage` pattern keep only what is still held) and
+`featureCatalogDetails.test.ts`.

@@ -73,6 +73,7 @@ export interface RuntimeAccountServices {
   ): Promise<Awaited<ReturnType<typeof createAccountRequestOwner>>['confirmations']>
   hold(isHeld: boolean): void
   sessions(provider: string, account?: string): AccountsSessionPort
+  sessionsIfPresent(provider: string): Promise<AccountsSessionPort | undefined>
   /** The backend's key reads through the fixed account; nothing else changes. */
   secretsFor(provider: string, account: string, fallback: SecretStore): SecretStore
   /** The terminal `developer` owner: real store, real confirmation, while
@@ -489,6 +490,9 @@ export function createRuntimeAccountServices(
       },
     },
     sessions,
+    async sessionsIfPresent(provider) {
+      return (await metadata.read(provider)) === undefined ? undefined : sessions(provider)
+    },
     secretsFor,
     async developer(deps: {
       readLine(prompt: string): Promise<string>

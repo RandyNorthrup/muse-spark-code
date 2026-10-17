@@ -148,21 +148,6 @@ export function renderSteps(
   return props
 }
 
-/** A transcript that can be rendered again with changed props, as the app does. */
-export function mountTranscript(
-  entries: readonly TranscriptEntry[],
-  overrides: Partial<TranscriptProps> = {},
-) {
-  const props = transcriptProps(entries, overrides)
-  const view = render(<Transcript {...props} />)
-  return {
-    props,
-    rerender: (changes: Partial<TranscriptProps>) => {
-      view.rerender(<Transcript {...props} {...changes} />)
-    },
-  }
-}
-
 /** Select a real DOM passage; return cleanup so tests cannot leak a selection. */
 export function selectPassage(element: HTMLElement): () => void {
   const selection = globalThis.getSelection()
@@ -183,7 +168,7 @@ export async function warmRowMenus(): Promise<void> {
     {},
   )
   const view = render(<Transcript {...props} />)
-  fireEvent.click(view.getByRole('button', { name: 'More actions' }))
+  fireEvent.click(view.getByRole('button', { name: 'More Actions' }))
   await view.findByRole('menu')
   await act(async () => {
     view.rerender(<Transcript {...transcriptProps([tool({})], {})} />)

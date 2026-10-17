@@ -9,12 +9,14 @@ import { Usd } from '../../src/shared/usd'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
+import { formatUsd } from '../../src/shared/l10n/exactUsd'
 import { fill } from '../../src/shared/l10n/text'
 import type {
   ImportPreview,
   ModelsPanelState,
   ModelsWizardStep,
   PanelToHostMessage,
+  PresetCard,
 } from '../../src/shared/modelsPanel'
 import { ModelsSection } from '../../src/webview/models/ModelsSection'
 import { ProvidersSection } from '../../src/webview/models/ProvidersSection'
@@ -38,6 +40,32 @@ function fail(message: string): never {
 /** A wizard whose draft stays current (the lifecycle races run on the real panel). */
 const OPEN_WIZARD = { generation: 1, isCurrent: (generation: number) => generation === 1 }
 
+const CHATGPT_CARD: PresetCard = {
+  id: 'chatgpt',
+  label: 'ChatGPT',
+  description: 'ChatGPT Plus and Pro accounts',
+  category: 'subscription',
+  format: 'responses',
+  originKind: 'fixed',
+  originDisplay: 'https://api.openai.com',
+  auth: 'subscription',
+  connectOAuth: true,
+  keyHint: '',
+}
+
+const COPILOT_CARD: PresetCard = {
+  id: 'copilot',
+  label: 'Copilot',
+  description: 'Copilot models granted to VS Code',
+  category: 'subscription',
+  format: 'chat',
+  originKind: 'fixed',
+  originDisplay: 'https://github.com/copilot',
+  auth: 'subscription',
+  connectOAuth: false,
+  keyHint: '',
+}
+
 function props(
   state: ModelsPanelState,
   post: (message: PanelToHostMessage) => void,
@@ -56,6 +84,67 @@ function props(
   }
 }
 
+/**
+ * Opens the wizard's provider picker over the ChatGPT and Copilot cards with
+ * `availability`, focused, and returns its box.
+ */
+function focusSignInPicker(
+  post: (message: PanelToHostMessage) => void,
+  availability: Partial<ModelsPanelState>,
+): HTMLElement {
+  const state = makeState({
+    presets: [CHATGPT_CARD, COPILOT_CARD],
+    ...availability,
+    drafts: { edits: {}, wizard: makeDraft() },
+  })
+  render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+  const box = screen.getByRole('combobox')
+  fireEvent.focus(box)
+  return box
+}
+
+/** The usual local servers, each on its usual port. */
+const LOCAL_SERVERS = [
+  { presetId: 'ollama', label: 'Ollama', port: 11_434 },
+  { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
+]
+
+/** The Providers section after a local scan that checked both usual servers. */
+function renderLocalScan(
+  post: (message: PanelToHostMessage) => void,
+  found: typeof LOCAL_SERVERS,
+): void {
+  const state = makeState({ localScan: { found, checked: LOCAL_SERVERS } })
+  render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+}
+
+/** The suggestions step over a $5 spending limit effective from `scope`. */
+function renderBudgetStep(post: (message: PanelToHostMessage) => void, scope: string): void {
+  render(
+    <Wizard
+      life={OPEN_WIZARD}
+      panelState={makeState({
+        suggestions: [makeSuggestion('defaultModel')],
+        sessionBudget: {
+          effectiveUsd: Usd.from(5).toAmount(),
+          nowLine: fill(UI_TEXT.wizardSessionBudgetNow, { amount: formatUsd('5'), scope }),
+        },
+      })}
+      draft={makeDraft({ step: 'suggestions', presetId: 'openrouter', blockers: [] })}
+      post={post}
+      onNavigateModels={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  )
+}
+
+/** Types `value` into the spending-limit field. */
+function typeBudget(value: string): void {
+  fireEvent.change(screen.getByLabelText(UI_TEXT.wizardSessionBudget), {
+    target: { value },
+  })
+}
+
 describe('ProvidersSection', () => {
   it('hides unavailable OpenRouter connect and usage with an honest status (PR136 VE)', () => {
     const post = vi.fn()
@@ -67,7 +156,7 @@ describe('ProvidersSection', () => {
     expect(screen.queryByRole('button', { name: UI_TEXT.reconnectAccount })).toBeNull()
     expect(
       screen.getByText(
-        'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
+        'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
       ),
     ).toBeDefined()
     rerender(
@@ -86,10 +175,10 @@ describe('ProvidersSection', () => {
         )}
       />,
     )
-    expect(screen.queryByRole('button', { name: 'Connect OpenRouter account' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Connect OpenRouter Account' })).toBeNull()
     expect(
       screen.getByText(
-        'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
+        'OpenRouter account connection and key usage are unavailable. Paste a key to use models.',
       ),
     ).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.enterKey }))
@@ -144,6 +233,9 @@ describe('ProvidersSection', () => {
       event: 'cancel',
       providerId: 'ollama',
     })
+    // The host owns draft retirement; cancellation closes on its acknowledgement.
+    expect(screen.getByLabelText(UI_TEXT.providerFields.address)).toBeDefined()
+    rerender(<ProvidersSection {...props({ ...state, drafts: { edits: {} } }, post)} />)
     expect(screen.queryByLabelText(UI_TEXT.providerFields.address)).toBeNull()
   })
 
@@ -153,6 +245,54 @@ describe('ProvidersSection', () => {
     expect(screen.getByText(UI_TEXT.modelsEmpty)).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardPickProvider }))
     expect(dispatch).toHaveBeenCalledWith({ type: 'open-wizard' })
+  })
+
+  it("shows and edits a saved custom provider's model limits", () => {
+    const post = vi.fn()
+    const draft = makeDraft({
+      presetId: 'custom',
+      models: ['m1'],
+      blockers: [],
+      modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } },
+    })
+    const state = makeState({
+      providers: [makeProvider({ id: 'custom', presetId: 'custom', models: ['m1'] })],
+      drafts: { edits: { custom: draft } },
+    })
+    render(<ProvidersSection {...props(state, post)} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
+    expect(screen.getByLabelText(UI_TEXT.customLimitsContext)).toHaveProperty('value', '128000')
+    expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveProperty('value', '4000')
+    fireEvent.change(screen.getByLabelText(UI_TEXT.customLimitsOutput), {
+      target: { value: '8000' },
+    })
+    expect(post).toHaveBeenCalledWith({
+      type: 'providers/prefill',
+      providerId: 'custom',
+      fields: { modelLimits: { m1: { contextTokens: 128_000, outputTokens: 8000 } } },
+    })
+  })
+
+  it('disables both wizard Save controls while the host owns its save', () => {
+    const post = vi.fn()
+    const draft = makeDraft({ step: 'confirm', blockers: [], saving: true })
+    render(
+      <Wizard
+        life={OPEN_WIZARD}
+        panelState={makeState()}
+        draft={draft}
+        post={post}
+        onNavigateModels={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    const save = screen.getByRole('button', { name: UI_TEXT.saveProvider })
+    const useNow = screen.getByRole('button', { name: UI_TEXT.saveAndUseNow })
+    expect(save).toBeDisabled()
+    expect(useNow).toBeDisabled()
+    fireEvent.click(save)
+    fireEvent.click(useNow)
+    expect(post).not.toHaveBeenCalled()
   })
 
   it('lists a provider with its key state and removes with Undo', () => {
@@ -181,6 +321,45 @@ describe('ProvidersSection', () => {
     expect(post).toHaveBeenCalledWith({ type: 'providers/select', presetId: 'ollama' })
   })
 
+  it('hides Copilot in a confidential workspace and offers ChatGPT', () => {
+    const post = vi.fn()
+    focusSignInPicker(post, {
+      subscriptionsAvailable: true,
+      copilotAvailable: false,
+      confidentialWorkspace: true,
+    })
+    expect(screen.queryByText('Copilot')).toBeNull()
+    expect(screen.getByText('ChatGPT')).toBeDefined()
+  })
+
+  it('disables ChatGPT in a remote window with its reason and never selects it', () => {
+    const post = vi.fn()
+    const box = focusSignInPicker(post, {
+      subscriptionsAvailable: true,
+      copilotAvailable: true,
+      remoteWindow: true,
+    })
+    const reason = screen.getByText(UI_TEXT.signInRemoteWindow)
+    expect(reason.closest('li')?.getAttribute('aria-disabled')).toBe('true')
+    fireEvent.change(box, { target: { value: 'ChatGPT' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    fireEvent.mouseDown(reason.closest('li') ?? fail('chatgpt row missing'))
+    expect(post).not.toHaveBeenCalled()
+  })
+
+  it('disables a sign-in with no connector as not offered, and picks an offered one', () => {
+    const post = vi.fn()
+    const box = focusSignInPicker(post, { subscriptionsAvailable: false, copilotAvailable: true })
+    const reason = screen.getByText(UI_TEXT.signInNotOffered)
+    expect(reason.closest('li')?.getAttribute('aria-disabled')).toBe('true')
+    fireEvent.change(box, { target: { value: 'ChatGPT' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(post).not.toHaveBeenCalledWith({ type: 'providers/select', presetId: 'chatgpt' })
+    fireEvent.change(box, { target: { value: 'Copilot' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(post).toHaveBeenCalledWith({ type: 'providers/select', presetId: 'copilot' })
+  })
+
   it('prefills the loopback port where the preset allows it', () => {
     const post = vi.fn()
     const state = makeState({
@@ -199,6 +378,26 @@ describe('ProvidersSection', () => {
     })
   })
 
+  it('offers each answering server and fills its port on choice', () => {
+    const post = vi.fn()
+    renderLocalScan(post, LOCAL_SERVERS)
+    fireEvent.click(screen.getByRole('button', { name: 'Ollama on Port 11434' }))
+    expect(post).toHaveBeenNthCalledWith(1, { type: 'providers/select', presetId: 'ollama' })
+    expect(post).toHaveBeenNthCalledWith(2, {
+      type: 'providers/prefill',
+      fields: { loopbackPort: 11_434 },
+    })
+  })
+
+  it('says nothing is running and names each usual port', () => {
+    const post = vi.fn()
+    renderLocalScan(post, [])
+    expect(screen.getByText('Nothing is running on this computer yet.')).toBeDefined()
+    expect(screen.getByText('Ollama on Port 11434')).toBeDefined()
+    expect(screen.getByText('LM Studio on Port 1234')).toBeDefined()
+    expect(post).not.toHaveBeenCalled()
+  })
+
   it('enters the key outside the webview and connects OAuth', () => {
     const post = vi.fn()
     const state = makeState({
@@ -210,7 +409,7 @@ describe('ProvidersSection', () => {
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.enterKey }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/enterKey', mode: 'new' })
-    fireEvent.click(screen.getByRole('button', { name: 'Connect OpenRouter account' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Connect OpenRouter Account' }))
     expect(post).toHaveBeenCalledWith({ type: 'providers/connect' })
   })
 
@@ -275,6 +474,67 @@ describe('ProvidersSection', () => {
     })
   })
 
+  it('asks each ticked custom model for its limits and gates Continue on them', () => {
+    const post = vi.fn()
+    const state = makeState({
+      models: [
+        makeRow({
+          ref: 'custom/m1',
+          providerId: 'custom',
+          modelId: 'm1',
+          contextTokens: 128_000,
+          ticked: true,
+        }),
+      ],
+      totalModels: 1,
+      drafts: {
+        edits: {},
+        wizard: makeDraft({
+          step: 'models',
+          presetId: 'custom',
+          models: ['m1'],
+          modelLimits: { m1: { contextTokens: 128_000 } },
+          blockers: [UI_TEXT.customLimitsMissing],
+        }),
+      },
+    })
+    render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
+    // The scan's reported window is filled; the longest reply is asked.
+    expect(screen.getByLabelText(UI_TEXT.customLimitsContext)).toHaveProperty('value', '128000')
+    expect(screen.getByLabelText(UI_TEXT.customLimitsOutput)).toHaveProperty('value', '')
+    expect(screen.getByText(UI_TEXT.customLimitsMissing)).toBeDefined()
+    expect(screen.getByRole('button', { name: UI_TEXT.wizardContinue })).toHaveProperty(
+      'disabled',
+      true,
+    )
+    fireEvent.change(screen.getByLabelText(UI_TEXT.customLimitsOutput), {
+      target: { value: '4000' },
+    })
+    expect(post).toHaveBeenCalledWith({
+      type: 'providers/prefill',
+      fields: { modelLimits: { m1: { contextTokens: 128_000, outputTokens: 4000 } } },
+    })
+  })
+
+  it('shows a saved provider with a refused card as unavailable with its reason', () => {
+    const post = vi.fn()
+    const state = makeState({
+      providers: [
+        makeProvider({
+          id: 'mistral-plan',
+          presetId: 'mistral-plan',
+          label: 'Mistral plan',
+          unavailable: 'Mistral plan is unavailable: its preset changed.',
+        }),
+      ],
+    })
+    render(<ProvidersSection {...props(state, post)} />)
+    expect(screen.getByText('Mistral plan is unavailable: its preset changed.')).toBeDefined()
+    expect(screen.queryByRole('button', { name: UI_TEXT.testConnection })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerRemove }))
+    expect(post).toHaveBeenCalledWith({ type: 'providers/remove', providerId: 'mistral-plan' })
+  })
+
   it('keeps OpenRouter private by default and routes on choice', () => {
     const post = vi.fn()
     const state = makeState({
@@ -284,42 +544,45 @@ describe('ProvidersSection', () => {
       },
     })
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
-    const zdr = screen.getByRole('radio', { name: /No data retention/ })
+    const zdr = screen.getByRole('radio', { name: /No Data Retention/ })
     expect((zdr as HTMLInputElement).checked).toBe(true)
-    fireEvent.click(screen.getByRole('radio', { name: /No training/ }))
+    fireEvent.click(screen.getByRole('radio', { name: /No Training/ }))
     expect(post).toHaveBeenCalledWith({
       type: 'providers/prefill',
       fields: { privacy: 'no-training' },
     })
   })
 
-  it('accepts the suggested default and overrides the budget', async () => {
+  it('accepts the suggested default and commits the typed spending limit on Continue', () => {
     const post = vi.fn()
     const state = makeState({
       drafts: {
         edits: {},
-        wizard: makeDraft({ step: 'suggestions', presetId: 'ollama', auth: 'none' }),
+        wizard: makeDraft({
+          step: 'suggestions',
+          presetId: 'ollama',
+          auth: 'none',
+          blockers: [],
+        }),
       },
       suggestions: [makeSuggestion('defaultModel'), makeSuggestion('sessionBudget')],
     })
     render(<ProvidersSection {...props(state, post, { wizardOpen: true })} />)
-    const acceptButtons = screen.getAllByRole('button', { name: UI_TEXT.suggestionAccept })
-    fireEvent.click(acceptButtons[0] ?? fail('default accept missing'))
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.suggestionAccept }))
     expect(post).toHaveBeenCalledWith({ type: 'suggestions/accept', kind: 'defaultModel' })
-    fireEvent.change(screen.getByLabelText(UI_TEXT.suggestSessionBudget), {
+    // The spending limit is a field now, not a second suggestion card: the
+    // typed number is committed on Continue, with no Change press.
+    fireEvent.change(screen.getByLabelText(UI_TEXT.wizardSessionBudget), {
       target: { value: '5' },
     })
-    const changeButtons = screen.getAllByRole('button', { name: UI_TEXT.suggestionChange })
-    fireEvent.click(changeButtons[1] ?? fail('budget change missing'))
-    // The positivity check waits for the lazy money chunk (STARTUP017).
-    await loadMoneyDisplay()
-    await waitFor(() => {
-      expect(post).toHaveBeenCalledWith({
-        type: 'suggestions/change',
-        kind: 'sessionBudget',
-        usd: Usd.from(5).toAmount(),
-      })
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
+    expect(post).toHaveBeenCalledWith({
+      type: 'suggestions/change',
+      kind: 'sessionBudget',
+      usd: Usd.from(5).toAmount(),
+      expectedUsd: '0',
     })
+    expect(post).toHaveBeenCalledWith({ type: 'providers/wizard', event: 'next' })
   })
 
   it('keeps Save disabled until the form is valid, with each blocker inline', () => {
@@ -399,7 +662,7 @@ describe('ProvidersSection', () => {
     render(<ProvidersSection {...props(state, post, { importOpen: true })} />)
     expect(await screen.findByText(UI_TEXT.providerImportPreviewTitle)).toBeDefined()
     expect(screen.getByText(UI_TEXT.importUntrusted)).toBeDefined()
-    expect(screen.getByText(UI_TEXT.importNeedsKey)).toBeDefined()
+    expect(screen.getByText(UI_TEXT.importNeedsKeyLabel)).toBeDefined()
     const confirm = screen.getAllByRole('button', { name: UI_TEXT.providerImport }).at(-1)
     fireEvent.click(confirm ?? fail('import confirm missing'))
     expect(post).toHaveBeenCalledWith({
@@ -445,9 +708,115 @@ describe('Wizard', () => {
       unmount()
     }
   })
+
+  it('shows the spending limit as the conversation setting, prefilled with what it is now', () => {
+    const post = vi.fn()
+    renderBudgetStep(post, UI_TEXT.sessionBudgetScopeWorkspace)
+    expect(screen.getByText(UI_TEXT.wizardSessionBudget)).toBeDefined()
+    expect(screen.getByLabelText<HTMLInputElement>(UI_TEXT.wizardSessionBudget).value).toBe('5')
+    // One line names the setting for every conversation, its current
+    // value, and which scope it is effective from.
+    expect(
+      screen.getByText(
+        fill(UI_TEXT.wizardSessionBudgetNow, {
+          amount: formatUsd('5'),
+          scope: UI_TEXT.sessionBudgetScopeWorkspace,
+        }),
+      ),
+    ).toBeDefined()
+  })
+
+  it('commits the typed spending limit on Continue, with no separate Change press', () => {
+    const post = vi.fn()
+    renderBudgetStep(post, UI_TEXT.sessionBudgetScopeGlobal)
+    typeBudget('2')
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
+    expect(post).toHaveBeenNthCalledWith(1, {
+      type: 'suggestions/change',
+      kind: 'sessionBudget',
+      usd: '2',
+      expectedUsd: '5',
+    })
+    expect(post).toHaveBeenNthCalledWith(2, { type: 'providers/wizard', event: 'next' })
+  })
+
+  it.each([
+    { initial: 0, edited: undefined },
+    { initial: 5, edited: '0' },
+  ])('retains the edit and prefill only when edited (initial=$initial)', ({ initial, edited }) => {
+    const post = vi.fn()
+    const draft = makeDraft({ step: 'suggestions', presetId: 'openrouter', blockers: [] })
+    const view = (effective: number) => (
+      <Wizard
+        life={OPEN_WIZARD}
+        panelState={makeState({
+          sessionBudget: { effectiveUsd: Usd.from(effective).toAmount(), nowLine: '' },
+        })}
+        draft={draft}
+        post={post}
+        onNavigateModels={vi.fn()}
+        onClose={vi.fn()}
+      />
+    )
+    const { rerender } = render(view(initial))
+    if (edited !== undefined) {
+      typeBudget(edited)
+    }
+    rerender(view(2))
+    expect(screen.getByLabelText(UI_TEXT.wizardSessionBudget)).toHaveProperty(
+      'value',
+      edited ?? '2',
+    )
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
+    if (edited === undefined) {
+      expect(post.mock.calls).toEqual([[{ type: 'providers/wizard', event: 'next' }]])
+    } else {
+      expect(post.mock.calls[0]).toEqual([
+        { type: 'suggestions/change', kind: 'sessionBudget', usd: edited, expectedUsd: '5' },
+      ])
+    }
+  })
+
+  it('disables Continue while the spending limit is not a non-negative amount', () => {
+    const post = vi.fn()
+    renderBudgetStep(post, UI_TEXT.sessionBudgetScopeGlobal)
+    // Nothing is saved until the field holds a non-negative dollar amount:
+    // an unparseable number disables Continue instead of posting it, and
+    // the wording of the failure stays host-side with the write.
+    typeBudget('-3')
+    expect(
+      screen.getByRole('button', { name: UI_TEXT.wizardContinue }).getAttribute('disabled'),
+    ).not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardContinue }))
+    expect(post).not.toHaveBeenCalled()
+  })
 })
 
 describe('ModelsSection', () => {
+  it.each([
+    { name: 'Models', Section: ModelsSection },
+    { name: 'Providers', Section: ProvidersSection },
+  ])('F7: $name clears failed scanning/cancel and offers retry', ({ Section }) => {
+    const post = vi.fn()
+    const state = makeState({
+      providers: [makeProvider({ id: 'openrouter' })],
+      scans: {
+        openrouter: {
+          providerId: 'openrouter',
+          status: 'failed',
+          detail: UI_TEXT.providerProbeUnparseable,
+        },
+      },
+    })
+    render(<Section {...props(state, post)} />)
+    expect(
+      screen.getByText(fill(UI_TEXT.scanFailed, { detail: UI_TEXT.providerProbeUnparseable })),
+    ).toBeDefined()
+    expect(screen.queryByText(UI_TEXT.providersScanning)).toBeNull()
+    expect(screen.queryByRole('button', { name: UI_TEXT.wizardCancel })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.refreshModels }))
+    expect(post).toHaveBeenCalledWith({ type: 'models/scan', providerId: 'openrouter' })
+  })
   it('shows badged rows, ticks as a delta, and pins', () => {
     const post = vi.fn()
     const state = makeState({

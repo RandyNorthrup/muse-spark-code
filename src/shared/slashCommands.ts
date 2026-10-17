@@ -27,7 +27,7 @@ function commandOf(item: PaletteItem): SlashCommand | undefined {
     return undefined
   }
   if (item.slashName !== undefined) {
-    // The label is then the better description ("Switch model…").
+    // The label is then the better description ("Switch Model…").
     return {
       name: item.slashName,
       detail: item.detail ?? item.label,

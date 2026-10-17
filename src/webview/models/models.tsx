@@ -15,7 +15,13 @@ import { webviewErrorReport } from '../errorReport'
 import { type HostBridge, vsCodeHostBridge } from '../hostBridge'
 import { installEmbeddedTable } from '../installTable'
 import { DeferredSurface } from '../components/DeferredSurface'
+import { rememberedSectionHeight, SectionLoading } from './DeferredSections'
+import { SectionNavigation } from './SectionNavigation'
 import './models.css'
+
+void import('./ProvidersSection').catch(() => {
+  /* The section boundary owns the visible failure. */
+})
 
 const ModelsApp = lazy(async () => {
   const module = await import('./panel')
@@ -94,7 +100,30 @@ function startModelsPanel(root: Element, bridge: HostBridge): void {
         report('render', error)
       }}
     >
-      <DeferredSurface isModal={false}>
+      <DeferredSurface
+        isModal={false}
+        fallback={
+          <>
+            {rememberedSectionHeight(bridge, 'providers') === undefined && (
+              <p className="models-visually-hidden" role="status" data-deferred-loading>
+                {UI_TEXT.loadingOutput}
+              </p>
+            )}
+            <div
+              className="models-panel"
+              style={{
+                visibility:
+                  rememberedSectionHeight(bridge, 'providers') === undefined ? 'hidden' : undefined,
+              }}
+            >
+              <SectionNavigation activeId="providers" />
+              <div className="models-section-slot">
+                <SectionLoading section="providers" host={bridge} />
+              </div>
+            </div>
+          </>
+        }
+      >
         <ModelsApp host={bridge} report={report} />
       </DeferredSurface>
     </PanelBoundary>,

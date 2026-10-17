@@ -40,7 +40,7 @@ export type Block =
       readonly items: readonly (readonly Block[])[]
     }
 
-/** A Highlight's "Try it": a contributed command to run, or a setting to open (D79). */
+/** A Highlight's "Try It": a contributed command to run, or a setting to open (D79). */
 export const TRY_KINDS = ['command', 'setting'] as const
 export type TryKind = (typeof TRY_KINDS)[number]
 export interface TryIt {
@@ -70,6 +70,13 @@ export interface ReleaseNotes {
 export interface WhatsNewContent {
   readonly schema: typeof WHATS_NEW_CONTENT_SCHEMA_VERSION
   readonly releases: readonly ReleaseNotes[]
+  /**
+   * Present and true when the writer shortened an older release to its
+   * Highlights or left one out to stay within the decoded bound (absent
+   * otherwise, so unchanged builds write byte-identical content). The page
+   * then points at the full changelog for the earlier notes.
+   */
+  readonly shortened?: boolean | undefined
 }
 
 const WEB_LINK = /^https?:\/\//
@@ -104,6 +111,7 @@ const blockSchema: z.ZodMiniType<Block> = z.lazy(() =>
 
 const contentSchema = z.object({
   schema: z.literal(WHATS_NEW_CONTENT_SCHEMA_VERSION),
+  shortened: z.optional(z.boolean()),
   releases: z.array(
     z.object({
       version: z.string(),
@@ -124,18 +132,25 @@ const packedContentSchema = z.object({
   data: z.string().check(z.regex(/^[A-Za-z0-9+/]*={0,2}$/)),
 })
 
-/** Build-only encoding retains both full releases within the artifact budget. */
-export function encodeWhatsNewContent(text: string): string {
+type EncodingResult =
+  | { readonly kind: 'encoded'; readonly text: string }
+  | { readonly kind: 'over-budget'; readonly bytes: number; readonly maxBytes: number }
+
+/** Build-only encoding: only size overflow is recoverable by selecting smaller notes. */
+export function encodeWhatsNewContent(text: string): EncodingResult {
   const bytes = Buffer.byteLength(text)
-  if (bytes > WHATS_NEW_CONTENT_DECODE_MAX_BYTES) throw new Error(UI_TEXT.actionFailed)
+  if (bytes > WHATS_NEW_CONTENT_DECODE_MAX_BYTES)
+    return { kind: 'over-budget', bytes, maxBytes: WHATS_NEW_CONTENT_DECODE_MAX_BYTES }
   contentSchema.parse(JSON.parse(text))
-  if (bytes <= WHATS_NEW_CONTENT_MAX_BYTES) return text
+  if (bytes <= WHATS_NEW_CONTENT_MAX_BYTES) return { kind: 'encoded', text }
   const data = brotliCompressSync(text, {
     params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
   }).toString('base64')
   const packed = JSON.stringify({ encoding: 'br', data })
-  if (Buffer.byteLength(packed) > WHATS_NEW_CONTENT_MAX_BYTES) throw new Error(UI_TEXT.actionFailed)
-  return packed
+  const packedBytes = Buffer.byteLength(packed)
+  return packedBytes > WHATS_NEW_CONTENT_MAX_BYTES
+    ? { kind: 'over-budget', bytes: packedBytes, maxBytes: WHATS_NEW_CONTENT_MAX_BYTES }
+    : { kind: 'encoded', text: packed }
 }
 
 /** The content file's text, checked; throws with zod's reason when it is not ours. */

@@ -102,6 +102,11 @@ describe('persistent check slots', () => {
     for (const [request] of run.mock.calls)
       for (const name of names) expect(request.env).not.toHaveProperty(name)
   })
+  it('keeps the sentence-case busy error when the host is busy', async () => {
+    const { deps, job } = await fixture()
+    const slots = new CheckSlots({ ...deps, isHostBusy: () => true })
+    await expect(slots.run(job)).rejects.toThrow('All slots busy')
+  })
   it('snapshots working edits and untracked files without touching the real index or refs', async () => {
     const { deps, worker, folder } = await fixture()
     const index = await readFile(path.join(worker, '.git', 'index'))
