@@ -234,9 +234,12 @@ export class ModelApiClient implements TransportProviderClient {
     const stopNoticing = startStillWaiting((elapsedMs) => {
       this.deps.log.info(stillWaitingText('the image request', elapsedMs))
     })
-    const paid = await this.paidReservation(body, 'imageGeneration', signal, admitAttempt)
-    const claim = paid?.claim
+    // The reservation is inside the try: it can throw (consent denied, the
+    // daily ledger unavailable), and the notice timer must still stop.
+    let paid: Awaited<ReturnType<ModelApiClient['paidReservation']>>
     try {
+      paid = await this.paidReservation(body, 'imageGeneration', signal, admitAttempt)
+      const claim = paid?.claim
       const result = await this.transport.request(
         path,
         {
