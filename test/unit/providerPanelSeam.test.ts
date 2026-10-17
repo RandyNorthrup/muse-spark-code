@@ -47,12 +47,14 @@ const CLOUD = {
   auth: 'apiKey' as const,
   models: ['gpt-test'],
 }
+const LOCAL_LIMITS = { contextTokens: 8192, outputTokens: 1024 }
 const LOCAL = {
   id: 'ollama',
   preset: 'ollama',
   address: 'http://localhost:11434',
   auth: 'none' as const,
   models: ['qwen-test'],
+  modelLimits: { 'qwen-test': LOCAL_LIMITS },
 }
 
 describe('production Models panel seam', () => {
@@ -119,7 +121,11 @@ describe('production Models panel seam', () => {
         useNow: false,
       }
       await saveWizardDraft(deps, draft)
-      const edited = { ...provider, models: ['edited-model'] }
+      const edited = {
+        ...provider,
+        models: ['edited-model'],
+        ...(provider.auth === 'none' && { modelLimits: { 'edited-model': LOCAL_LIMITS } }),
+      }
       await saveWizardDraft(deps, {
         ...draft,
         provider: edited,
@@ -233,21 +239,33 @@ describe('production Models panel seam', () => {
     expect(startLoopback).not.toHaveBeenCalled()
   })
 
-  it('contacts every local preset at its model-list path and loopback port (PR136 VJ)', async () => {
+  it('contacts every listed local preset at its model-list path and loopback port (PR136 VJ)', async () => {
     const { seam } = await panel()
     const fetcher = vi.fn<typeof fetch>(() => Promise.resolve(new Response('{}')))
-    for (const id of ['ollama', 'lmstudio', 'vllm', 'llamacpp']) {
+    for (const id of ['lmstudio', 'llamacpp']) {
       const preset = seam.catalog.get(id)
       expect(preset).toBeDefined()
       const probes = await probeLocalServers(preset?.localProbes ?? [], fetcher)
       expect(probes[0]?.answered).toBe(true)
     }
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
-      'http://127.0.0.1:11434/api/tags',
       'http://127.0.0.1:1234/v1/models',
-      'http://127.0.0.1:8000/v1/models',
       'http://127.0.0.1:8080/v1/models',
     ])
+  })
+
+  it('hides uncaptured presets from the panel catalog (rule 13)', async () => {
+    // C-M95-4 R2: the catalog used to union every `category === 'local'`
+    // preset, so vLLM and Ollama stayed listed, probed and callable with
+    // no capture behind them. Only captured wires are listed.
+    const { seam } = await panel()
+    for (const id of ['lmstudio', 'llamacpp']) {
+      expect(seam.catalog.has(id)).toBe(true)
+    }
+    for (const id of ['ollama', 'vllm', 'azure', 'custom']) {
+      expect(seam.catalog.has(id)).toBe(false)
+    }
+    expect(seam.catalog.get('ollama')).toBeUndefined()
   })
 
   it('rejects invalid imported defaults before confirmation or changing the production file (PR136 VZ)', async () => {

@@ -8,6 +8,7 @@ export function formatAcpUsage(table: UiText, command: string): string {
   return [
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
+    table.referenceCliOptions['context-window'],
     sharingHelp(table),
     `${command} resources [status|history|resume] [--json]`,
     `${command} usage resources [--json]`,
@@ -33,6 +34,7 @@ const PROVIDER_OPTIONS = {
   address: { type: 'string' },
   format: { type: 'string' },
   model: { type: 'string', multiple: true },
+  'context-window': { type: 'string' },
   privacy: { type: 'string' },
   'private-ok': { type: 'boolean' },
   'key-stdin': { type: 'boolean' },
@@ -165,6 +167,7 @@ export const CLI_OPTION_REGISTRY = {
 // The description map is exhaustive over the parser's option names. It never
 // chooses an English usage line or a failure message by matching its contents.
 export const CLI_OPTION_TEXT = {
+  'context-window': 'context-window',
   'usage-history': 'usage-history',
   preset: 'preset',
   as: 'as',

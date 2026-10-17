@@ -1,0 +1,64 @@
+{
+  "provider": "llamacpp",
+  "step": "models-list",
+  "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+  "capturedAt": "2026-10-10T16:57:37.800+00:00",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:8080/v1/models",
+    "headers": {
+      "content-type": "application/json"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "server": "llama.cpp",
+      "access-control-allow-origin": "",
+      "content-type": "application/json; charset=utf-8",
+      "content-length": "801",
+      "keep-alive": "timeout=5, max=100"
+    },
+    "bodySummary": {
+      "note": "trimmed: count, keys and sample entries",
+      "count": 1,
+      "topLevelKeys": ["data", "models", "object"],
+      "entryKeys": [
+        "aliases",
+        "architecture",
+        "created",
+        "id",
+        "meta",
+        "object",
+        "owned_by",
+        "tags"
+      ],
+      "sample": [
+        {
+          "id": "/var/tmp/l-CM954/m95local/Qwen3-0.6B-Q8_0.gguf",
+          "aliases": ["/var/tmp/l-CM954/m95local/Qwen3-0.6B-Q8_0.gguf"],
+          "tags": [],
+          "object": "model",
+          "architecture": {
+            "input_modalities": ["text"],
+            "output_modalities": ["text"]
+          },
+          "created": 1791651457,
+          "owned_by": "llamacpp",
+          "meta": {
+            "vocab_type": 2,
+            "n_vocab": 151936,
+            "n_ctx": 4096,
+            "n_ctx_train": 40960,
+            "n_embd": 1024,
+            "n_params": 596049920,
+            "size": 633495552,
+            "ftype": "Q8_0"
+          }
+        }
+      ]
+    },
+    "chunkBytes": [801]
+  }
+}

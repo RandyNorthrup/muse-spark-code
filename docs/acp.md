@@ -227,6 +227,27 @@ minimum with `modelCapabilities.<model>.output.minTokens`; their capability cap
 and custom output limit must meet it. ACP config options and CLI/exec flags
 currently expose no separate output-token cap.
 
+Local provider configuration requires the actual loaded context window.
+Use `providers add --preset lmstudio --model qwen3-0.6b --context-window 8192`
+to save a validated window for every selected model. Existing entries may
+set per-model limits in the user-level `providers.json` (never in a workspace):
+
+```json
+{
+  "modelLimits": {
+    "qwen3-0.6b": { "contextTokens": 8192, "outputTokens": 8192 }
+  }
+}
+```
+
+Both counts must be positive integers and output cannot exceed context.
+The shared provider reader validates them before use, and the shared host
+uses the same window for context pressure and compaction in every ACP editor.
+LM Studio's committed capture reports no window; no uncaptured native endpoint
+is queried. Missing windows refuse inference with instructions to enter one.
+
+> > > > > > > cand/MSM95/4
+
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
 unlocked Secret Service the Model API backend is unavailable; there is no

@@ -24,6 +24,7 @@ import { CostNotice } from './components/CostNotice'
 import { InlineError } from './components/InlineError'
 import { SearchableSelect, type SelectChip } from './components/SearchableSelect'
 import { SuggestionCard } from './components/SuggestionCard'
+import { ContextWindow } from './components/ContextWindow'
 
 export interface WizardProps {
   readonly panelState: ModelsPanelState
@@ -635,6 +636,25 @@ function WizardModelsStep({
           </li>
         ))}
       </ul>
+      {draft.auth === 'none' &&
+        draft.models.map((model) => (
+          <ContextWindow
+            key={model}
+            model={model}
+            tokens={
+              draft.modelLimits?.[model]?.contextTokens ??
+              rows.find((row) => row.modelId === model)?.contextTokens
+            }
+            onChange={(contextTokens) => {
+              post({
+                type: 'models/contextWindow',
+                scope: { scope: 'wizard' },
+                ref: `${draft.presetId ?? ''}/${model}`,
+                contextTokens,
+              })
+            }}
+          />
+        ))}
       <StepFoot errors={draft.errors} blockers={draft.blockers} post={post} onClose={onClose} />
     </div>
   )

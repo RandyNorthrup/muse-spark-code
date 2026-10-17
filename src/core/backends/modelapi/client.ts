@@ -36,6 +36,7 @@ export {
   rateLimitHeaders,
 } from './transport'
 import type { ProviderClient as TransportProviderClient } from './providerClient'
+import type { ContextModel } from '../../context/overflow'
 import type { PlanUsageRow } from '../../../shared/usage'
 import type { ModelResolver } from './modelPolicy'
 import {
@@ -108,6 +109,13 @@ export type ProviderClient = Pick<
   readonly provider?: TransportProviderClient['provider']
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
+  /**
+   * C-M95-4 R3: the registry's live window for a configured model, read
+   * synchronously from its last listing for compaction sizing. Undefined
+   * when the registry never listed the model (the previous fallback
+   * stands) or its window is unknown (the request refuses instead).
+   */
+  readonly peekContextModel?: (model: string) => ContextModel | undefined
   readonly isPlanModel?: (model: string) => boolean
   readonly readPlanUsage?: () => readonly PlanUsageRow[]
 }

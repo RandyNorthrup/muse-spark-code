@@ -22,6 +22,7 @@ import {
   outputTokenMinimumMessage,
   providerOutputMinimum,
   openRouterRoutingSchema,
+  pruneModelLimits,
 } from '../../shared/providerRouting'
 import { isProviderId, parseModelRef } from './modelRef'
 import type { PriceCard } from './priceCard'
@@ -243,13 +244,25 @@ export async function readProvidersFile(
     return { ok: false, reason: 'unparseable', detail: filePath }
   }
   const parsed = z.safeParse(providersFileSchema, value)
-  return parsed.success
-    ? { ok: true, file: parsed.data }
-    : {
-        ok: false,
-        reason: 'invalid',
-        detail: parsed.error.issues[0]?.message ?? UI_TEXT.actionFailed,
-      }
+  if (!parsed.success)
+    return {
+      ok: false,
+      reason: 'invalid',
+      detail: parsed.error.issues[0]?.message ?? UI_TEXT.actionFailed,
+    }
+  // C-M95-4 R5: a load prunes limits for models that are not listed,
+  // for every reader of this file: the panel, the wizard, the CLI, ACP,
+  // the registry.
+  return {
+    ok: true,
+    file: {
+      ...parsed.data,
+      providers: parsed.data.providers.map((entry) => ({
+        ...entry,
+        modelLimits: pruneModelLimits(entry.models, entry.modelLimits),
+      })),
+    },
+  }
 }
 
 export type ProvidersFileWrite =

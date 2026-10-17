@@ -8,10 +8,11 @@ import { Usd, usdInputSchema, type UsdAmount } from '../../shared/usd'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
+import { modelLimitsSchema } from '../../shared/providerRouting'
 import type { PickItem } from '../commands/pickItem'
 import type { PresetInfo, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
-import type { WizardDraft } from '../providers/wizardSave'
+import { scannedLocalModelLimits, type WizardDraft } from '../providers/wizardSave'
 import { type SessionBudgetConfig } from './sessionBudget'
 
 export interface ProviderQuickPickUi {
@@ -287,6 +288,34 @@ export async function runAddProviderQuickPick(
         limits[id] = { contextTokens, outputTokens }
       }
       modelLimits = limits
+    }
+    // A local server's report is its only window (C-M95-4 R3): the scan
+    // fills what it reports, the user answers the rest. Custom servers are
+    // covered above. Dismissing writes nothing.
+    if (entry.auth === 'none' && preset.id !== 'custom') {
+      const scannedWindows = scannedLocalModelLimits(entry.auth, ticked, scanned.rows) ?? {}
+      const localLimits: Record<string, { contextTokens: number; outputTokens: number }> = {
+        ...scannedWindows,
+      }
+      for (const id of ticked) {
+        const entered = await ui.inputText({
+          title: `${UI_TEXT.localContextWindow}: ${id}`,
+          placeholder: UI_TEXT.localContextWindowHint,
+          value: localLimits[id]?.contextTokens.toString(),
+          validate: (value) =>
+            modelLimitsSchema.shape.contextTokens.safeParse(Number(value)).success
+              ? undefined
+              : UI_TEXT.localContextWindowInvalid,
+        })
+        if (entered === undefined) return undefined
+        const parsed = modelLimitsSchema.shape.contextTokens.safeParse(Number(entered))
+        if (!parsed.success) {
+          ui.showError(UI_TEXT.localContextWindowInvalid)
+          return undefined
+        }
+        localLimits[id] = { contextTokens: parsed.data, outputTokens: parsed.data }
+      }
+      modelLimits = localLimits
     }
     // OpenRouter's privacy routing (D74: private by default) is the panel's
     // choice (lane M renders it from `privacyChoices`); the quick pick keeps

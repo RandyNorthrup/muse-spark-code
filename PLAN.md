@@ -28535,6 +28535,57 @@ and the shared provider bundle has room for those reusable helpers.
 
 **Provider panel, 0.17.1 residual (PROVWIZ9, lead decision 2026-10-09).**
 Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main.
+**CM954 R4 (2026-10-10, linuxlt; RVCM954B).** Finish every P2/P3
+finding and its siblings. Preserve R3's scanned-window persistence and
+localized refusals; prove the production entry actually sizes manual and
+automatic compaction from the selected local model. The committed LM Studio
+captures contain only `/v1/models`, without a window; no native model endpoint
+shape is captured, so do not invent or probe one. Add validated per-model
+manual context windows to the quick pick, shared panel wizard and saved-model
+editor, and `providers add --context-window` in the CLI. ACP reads the same
+validated `providers.json` modelLimits; all ACP editors use that command or
+configuration, with no VS Code-only logic. Manual limits win over scan values
+and survive edits, rescans and reloads. Missing/invalid windows remain refused.
+Update all 14 translations, reference, README, roadmap and certification.
+Keep browser window validation in the shared panel contract, so importing
+provider-file options and their English fallback cannot overflow Models budgets.
+Load the Models table on first navigation through the existing accessible
+deferred boundary, with failure/retry and its own measured cap; retain every
+existing startup, Models-body and deferred-aggregate cap.
+Run scoped gates and default-timeout tests directly on this rig; drill each
+guard and restore byte-exact. No model server, live/paid call, dependency,
+merge, push or gate change. Full quality belongs to the lead per lane brief.
+Plan: implementation, 24 byte-exact red/restored drills and 290 tests across
+17 complete files pass. Scoped static/build gates pass within unchanged caps.
+Fields commit on blur/Enter, preserving output caps while typing.
+Reviewed full visual baseline capture, all 72 affected-table comparisons and
+scoped accessibility pass. Lane fixes and certification are complete with
+hooks enabled. Full quality and installed-editor qualification remain the
+lead's integration gates; no reviewed finding is deferred.
+
+**CM954 R5 (2026-10-11, linuxlt; RVCM954C, third review of this lane).**
+LEAD REDESIGN: ONE RESOLVER FOR A MODEL'S LIMITS, READ AT USE TIME. Fix
+every P2/P3 finding and its class, no residuals. (1) A model's context
+window and output limit come from its saved provider record through one
+resolver every consumer calls at the moment of use: the request body, the
+output cap, manual and automatic compaction, the windowless refusal, the
+panel. No consumer keeps its own copy: the per-host output-cap cache is
+deleted, and peek reads through to providers.json at call time (the file
+is tiny; catalogue fallback is static). Registry resolve/list re-read the
+file on every call, so no snapshot survives a read and no write needs a
+separate invalidation. (2) Manual compact resolves the model first and
+sizes its summary from that same resolution; automatic compaction prefers
+the turn's fresh resolution for registry models and keeps the seam for
+Meta models (a stored Meta resolution's static window must never shadow
+the seam). (3) Limits exist only for ticked models: wizard untick drops
+the limit, saves (wizard, import) keep limits for listed models only, and
+loads prune the rest for every reader. (4) The R3 changelog note is
+corrected to point at the R4 manual-entry UI. Regressions: edit the
+window after a warm listing, then compact and send (cap and summary follow
+the new window up and down); wizard tick, set window, untick, save (no
+resurrection on re-tick). Fakes only; no model server. Touch ModelApiHost
+only at the output-cap and compact call sites. Record drills in
+docs/certification/m95-c4.md.
 
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
 `--no-ff`, then merge a single sanitized squash of X's net changes on its
@@ -28913,23 +28964,24 @@ release acceptance are still pending.
   its own capture is recorded (AGENTS.md rule 13). The captured frames are
   in `docs/certification/m95-captures/<provider>/`:
 
-  | Codec       | Preset                                     | Wire capture                                                                                             |
-  | ----------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-  | `responses` | OpenAI                                     | captured 2026-10-04 (`gpt-5.6-luna`)                                                                     |
-  | `responses` | Azure OpenAI (v1 API)                      | not yet: needs the owner's resource and deployment                                                       |
-  | `responses` | xAI                                        | captured 2026-10-04 (`grok-4.3`)                                                                         |
-  | `chat`      | OpenRouter                                 | captured 2026-10-04 (`openai/gpt-oss-20b` with ZDR; cache pass-through on `anthropic/claude-sonnet-5.5`) |
-  | `chat`      | Groq                                       | captured 2026-10-04 (`openai/gpt-oss-20b`)                                                               |
-  | `chat`      | DeepSeek                                   | captured 2026-10-04 (`deepseek-flash`)                                                                   |
-  | `chat`      | Mistral                                    | captured 2026-10-04 (`ministral-3b-latest`)                                                              |
-  | `chat`      | Together                                   | captured 2026-10-04 (`openai/gpt-oss-120b`)                                                              |
-  | `chat`      | Fireworks                                  | captured 2026-10-04 (`gpt-oss-120b`)                                                                     |
-  | `chat`      | Hugging Face (token, router)               | captured 2026-10-04 (`openai/gpt-oss-20b`, routed to Groq)                                               |
-  | `chat`      | Z.ai (pay-as-you-go; moved from M95c)      | captured 2026-10-04 (`glm-5.3-flash`, `tool_stream`; Anthropic route compared, not used)                 |
-  | `chat`      | LM Studio, vLLM, llama.cpp server          | not yet: step 1 on the rigs                                                                              |
-  | `anthropic` | Anthropic                                  | captured 2026-10-04 (Haiku 4.5, Sonnet 5.5 with thinking and a breakpoint, Opus 5.5)                     |
-  | `gemini`    | Google Gemini (API key, `generateContent`) | captured 2026-10-04 (`gemini-3.5-flash-lite`)                                                            |
-  | `ollama`    | Ollama (local)                             | not yet: step 1 on the rigs                                                                              |
+  | Codec       | Preset                                     | Wire capture                                                                                                                   |
+  | ----------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+  | `responses` | OpenAI                                     | captured 2026-10-04 (`gpt-5.6-luna`)                                                                                           |
+  | `responses` | Azure OpenAI (v1 API)                      | not yet: needs the owner's resource and deployment                                                                             |
+  | `responses` | xAI                                        | captured 2026-10-04 (`grok-4.3`)                                                                                               |
+  | `chat`      | OpenRouter                                 | captured 2026-10-04 (`openai/gpt-oss-20b` with ZDR; cache pass-through on `anthropic/claude-sonnet-5.5`)                       |
+  | `chat`      | Groq                                       | captured 2026-10-04 (`openai/gpt-oss-20b`)                                                                                     |
+  | `chat`      | DeepSeek                                   | captured 2026-10-04 (`deepseek-flash`)                                                                                         |
+  | `chat`      | Mistral                                    | captured 2026-10-04 (`ministral-3b-latest`)                                                                                    |
+  | `chat`      | Together                                   | captured 2026-10-04 (`openai/gpt-oss-120b`)                                                                                    |
+  | `chat`      | Fireworks                                  | captured 2026-10-04 (`gpt-oss-120b`)                                                                                           |
+  | `chat`      | Hugging Face (token, router)               | captured 2026-10-04 (`openai/gpt-oss-20b`, routed to Groq)                                                                     |
+  | `chat`      | Z.ai (pay-as-you-go; moved from M95c)      | captured 2026-10-04 (`glm-5.3-flash`, `tool_stream`; Anthropic route compared, not used)                                       |
+  | `chat`      | LM Studio, llama.cpp server                | captured 2026-10-10 on `linuxlt` (C-M95-4: llmster 0.0.25-1 with Qwen3-0.6B; llama.cpp b11541 with Qwen3-0.6B-Q8_0)            |
+  | `chat`      | vLLM                                       | not yet: blocked on `linuxlt` (C-M95-4: the 0.31 engine's ZMQ IPC needs AF_UNIX, denied by the rig sandbox; retry off-sandbox) |
+  | `anthropic` | Anthropic                                  | captured 2026-10-04 (Haiku 4.5, Sonnet 5.5 with thinking and a breakpoint, Opus 5.5)                                           |
+  | `gemini`    | Google Gemini (API key, `generateContent`) | captured 2026-10-04 (`gemini-3.5-flash-lite`)                                                                                  |
+  | `ollama`    | Ollama (local)                             | not yet: step 1 on the rigs                                                                                                    |
 
   The **Custom server** preset speaks any of the `chat`, `responses` and
   `anthropic` formats. M95b adds the subscription sign-ins and plan keys;

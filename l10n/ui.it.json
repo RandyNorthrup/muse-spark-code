@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Scadenza",
     "fleet": "--fleet current|minimum|optimum: Parco macchine attuale / Configurazione minima / Configurazione ottimale",
     "estimate-format": "--format md|html|json|text: Formato di uscita",
-    "seed": "--seed <seed>: Seme della simulazione"
+    "seed": "--seed <seed>: Seme della simulazione",
+    "context-window": "--context-window <tokens>: Inserisci la finestra di contesto caricata sul server locale. I valori manuali prevalgono sui limiti rilevati."
   },
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
   "referenceVault": "In corso.",
@@ -4234,6 +4235,9 @@
   "providerTestPaid": "Questo controllo invia un token e costa circa {cost}.",
   "providerTestFailed": "Controllo non riuscito: {detail}",
   "scanFailed": "Analisi non riuscita: {detail}",
+  "llamacppScanMissingWindow": "L’elenco modelli di llama.cpp non riporta alcuna finestra di contesto attiva (build acquisita {build}).",
+  "localModelWindowUnknown": "La finestra di contesto del modello {model} è sconosciuta. Inserisci la finestra caricata nella procedura del provider, nel pannello Modelli o con providers add --context-window.",
+  "providerNeedsKey": "Il provider {id} ha bisogno di una chiave.",
   "wizardPickProvider": "Scegli un provider",
   "providerFields": {
     "provider": "Provider",
@@ -5440,5 +5444,8 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  }
+  },
+  "localContextWindow": "Finestra di contesto (token)",
+  "localContextWindowHint": "Inserisci la finestra di contesto caricata sul server locale. I valori manuali prevalgono sui limiti rilevati.",
+  "localContextWindowInvalid": "Inserisci un numero intero positivo di token."
 }

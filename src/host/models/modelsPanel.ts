@@ -39,7 +39,7 @@ import type {
 } from '../providers/providerPorts'
 import type { ProvidersHost } from '../providers/providersHost'
 import { isOriginBound, type CredentialRecord } from '../providers/credentialRecords'
-import type { WizardSaveOutcome } from '../providers/wizardSave'
+import { scannedLocalModelLimits, type WizardSaveOutcome } from '../providers/wizardSave'
 import type { ScanOutcome } from '../providers/modelScans'
 import {
   OPENROUTER_ORIGIN,
@@ -282,19 +282,20 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     if (preset === undefined) {
       throw new Error(UI_TEXT.actionFailed)
     }
-    // A custom entry saves only complete limits per chosen model; the
-    // blockers below keep Save disabled until each one is valid, and the
-    // production store rejects the entry if one is still missing.
+    // An entry saves only complete limits per chosen model; the blockers
+    // below keep Save disabled until each one is valid, and the production
+    // store rejects the entry if one is still missing. Custom entries always
+    // carry the validated map; other presets carry it only when at least one
+    // model validated, so a windowless draft keeps its existing entry shape.
+    const parsedModelLimits = Object.fromEntries(
+      draft.models.flatMap((model): [string, { contextTokens: number; outputTokens: number }][] => {
+        const parsed = modelLimitsSchema.safeParse(draft.modelLimits?.[model])
+        return parsed.success ? [[model, parsed.data]] : []
+      }),
+    )
     const modelLimits =
-      preset.id === 'custom'
-        ? Object.fromEntries(
-            draft.models.flatMap(
-              (model): [string, { contextTokens: number; outputTokens: number }][] => {
-                const parsed = modelLimitsSchema.safeParse(draft.modelLimits?.[model])
-                return parsed.success ? [[model, parsed.data]] : []
-              },
-            ),
-          )
+      preset.id === 'custom' || Object.keys(parsedModelLimits).length > 0
+        ? parsedModelLimits
         : undefined
     const snapshot = editSnapshots.get(draft)
     if (snapshot !== undefined) {
@@ -526,6 +527,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           },
           test: { status: 'untested' },
           models: [...entry.models],
+          modelLimits: entry.modelLimits,
           pinned: [...(entry.pinned ?? [])],
         },
       ]
@@ -554,7 +556,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           toolCalling: model.toolCapable,
           vision: model.vision,
           reasoning: model.reasoning,
-          contextTokens: model.context,
+          contextTokens:
+            draft?.modelLimits?.[model.id]?.contextTokens ??
+            saved?.modelLimits?.[model.id]?.contextTokens ??
+            model.context,
           inputPerMillion: model.inputPerMillion,
           outputPerMillion: model.outputPerMillion,
           cachedPerMillion: model.cachedPerMillion,
@@ -979,9 +984,23 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             await finish(false)
             return
           }
+          // Carry scanned windows; explicit saved or draft limits retain priority.
+          const scanned = rows.get(entry.id)
+          const carried =
+            scanned === undefined
+              ? undefined
+              : scannedLocalModelLimits(entry.auth, entry.models, scanned)
+          const carriedLimits =
+            carried === undefined && entry.modelLimits === undefined
+              ? undefined
+              : { ...carried, ...entry.modelLimits }
           outcome = await providers.saveDraft(
             {
-              provider: { ...entry, ...(verdict.kind === 'private' && { privateNetwork: true }) },
+              provider: {
+                ...entry,
+                ...(verdict.kind === 'private' && { privateNetwork: true }),
+                ...(carriedLimits !== undefined && { modelLimits: carriedLimits }),
+              },
               credential:
                 snapshot === undefined || enteredCredentials.has(draft)
                   ? draftSecret(entry, message.providerId)
@@ -1172,22 +1191,67 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             ...draft.models.filter((value) => value !== model),
             ...(message.ticked ? [model] : []),
           ]
-          // An unticked model drops its custom limits with it.
-          if (!message.ticked && draft.modelLimits?.[model] !== undefined) {
-            draft.modelLimits = Object.fromEntries(
-              Object.entries(draft.modelLimits).filter(([id]) => id !== model),
+          // Limits exist only for ticked models. Unticking drops the
+          // manual window, so a later save cannot store (and a later
+          // re-tick cannot resurrect) a window for an unticked model.
+          if (!message.ticked && draft.modelLimits !== undefined) {
+            const kept = Object.fromEntries(
+              Object.entries(draft.modelLimits).filter(([key]) => key !== model),
             )
+            draft.modelLimits = Object.keys(kept).length > 0 ? kept : undefined
           }
         } else {
           const entry = await entryOf(id)
+          const models = [
+            ...entry.models.filter((value) => value !== model),
+            ...(message.ticked ? [model] : []),
+          ]
+          // C-M95-4 R3: a ticked scanned local model carries its window;
+          // an unticked one drops its stale limit.
+          const carried =
+            message.ticked && entry.auth === 'none'
+              ? (scannedLocalModelLimits(entry.auth, [model], rows.get(id) ?? []) ?? {})
+              : {}
+          const kept = Object.fromEntries(
+            Object.entries(entry.modelLimits ?? {}).filter(
+              ([key]) => message.ticked || key !== model,
+            ),
+          )
+          const modelLimits = { ...carried, ...kept }
           await providers.updateProvider({
             ...entry,
-            models: [
-              ...entry.models.filter((value) => value !== model),
-              ...(message.ticked ? [model] : []),
-            ],
+            models,
+            ...((entry.modelLimits !== undefined || Object.keys(modelLimits).length > 0) && {
+              modelLimits,
+            }),
           })
         }
+        break
+      }
+      case 'models/contextWindow': {
+        const id = message.scope.providerId ?? draftOf().presetId ?? ''
+        const draft =
+          message.scope.scope === 'wizard' ? draftOf(message.scope.providerId) : undefined
+        const entry = draft === undefined ? await entryOf(id) : draftEntry(draft, id)
+        const prefix = `${id}/`
+        if (entry.auth !== 'none' || !message.ref.startsWith(prefix))
+          throw new Error(UI_TEXT.actionFailed)
+        const model = message.ref.slice(prefix.length)
+        if (!entry.models.includes(model) && rows.get(id)?.some((row) => row.id === model) !== true)
+          throw new Error(UI_TEXT.actionFailed)
+        const previous = entry.modelLimits?.[model]
+        const modelLimits = {
+          ...entry.modelLimits,
+          [model]: {
+            contextTokens: message.contextTokens,
+            outputTokens: Math.min(
+              previous?.outputTokens ?? message.contextTokens,
+              message.contextTokens,
+            ),
+          },
+        }
+        if (draft === undefined) await providers.updateProvider({ ...entry, modelLimits })
+        else draft.modelLimits = modelLimits
         break
       }
       case 'models/pin':

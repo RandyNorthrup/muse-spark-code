@@ -678,7 +678,7 @@
     {
       "id": "M95",
       "title": "Bring your own models",
-      "summary": "Add origin-bound provider keys or connect OpenRouter in the browser, view exact current-key usage and limits on request, preserve keys when cancelling authorization, and match model features and output caps to capabilities.",
+      "summary": "Add origin-bound provider keys or connect OpenRouter in the browser, view exact current-key usage and limits on request, preserve keys when cancelling authorization, match model features and output caps to capabilities, and use scanned or manually entered local context windows shared by the wizard, panel and ACP configuration.",
       "area": "models-providers",
       "release": "0.15.0"
     },

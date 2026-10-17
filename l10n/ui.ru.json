@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Срок",
     "fleet": "--fleet current|minimum|optimum: Текущий парк машин / Минимальная конфигурация / Оптимальная конфигурация",
     "estimate-format": "--format md|html|json|text: Формат вывода",
-    "seed": "--seed <seed>: Начальное значение симуляции"
+    "seed": "--seed <seed>: Начальное значение симуляции",
+    "context-window": "--context-window <tokens>: Введите размер контекстного окна, загруженного на локальном сервере. Ручные значения заменяют обнаруженные ограничения."
   },
   "referenceScanSecrets": "Ищет секреты в файле патча UTF-8 и завершается с ошибкой при обнаружении. --key-stdin также проверяет точное значение ключа Model API в памяти; ключ не сохраняется.",
   "referenceVault": "В работе.",
@@ -4344,6 +4345,9 @@
   "providerTestPaid": "Эта проверка отправляет один токен и стоит около {cost}.",
   "providerTestFailed": "Проверка не удалась: {detail}",
   "scanFailed": "Проверка не удалась: {detail}",
+  "llamacppScanMissingWindow": "Список моделей llama.cpp не сообщает активное контекстное окно (зафиксированная сборка {build}).",
+  "localModelWindowUnknown": "Контекстное окно модели {model} неизвестно. Введите загруженное окно в мастере провайдера, панели моделей или с помощью providers add --context-window.",
+  "providerNeedsKey": "Провайдеру {id} нужен ключ.",
   "wizardPickProvider": "Выберите поставщика",
   "providerFields": {
     "provider": "Поставщик",
@@ -5594,5 +5598,8 @@
       "few": "{count} разрешения",
       "many": "{count} разрешений"
     }
-  }
+  },
+  "localContextWindow": "Контекстное окно (токены)",
+  "localContextWindowHint": "Введите размер контекстного окна, загруженного на локальном сервере. Ручные значения заменяют обнаруженные ограничения.",
+  "localContextWindowInvalid": "Введите положительное целое число токенов."
 }

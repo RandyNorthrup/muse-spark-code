@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: 마감일",
     "fleet": "--fleet current|minimum|optimum: 현재 장비 구성 / 최소 구성 / 최적 구성",
     "estimate-format": "--format md|html|json|text: 출력 형식",
-    "seed": "--seed <seed>: 시뮬레이션 시드"
+    "seed": "--seed <seed>: 시뮬레이션 시드",
+    "context-window": "--context-window <tokens>: 로컬 서버에 로드된 컨텍스트 창을 입력하세요. 수동 값이 스캔된 한도보다 우선합니다."
   },
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "referenceVault": "진행 중.",
@@ -4014,6 +4015,9 @@
   "providerTestPaid": "이 확인은 토큰 하나를 보내며 약 {cost} 비용이 듭니다.",
   "providerTestFailed": "확인 실패: {detail}",
   "scanFailed": "검사 실패: {detail}",
+  "llamacppScanMissingWindow": "llama.cpp 모델 목록에 라이브 컨텍스트 윈도우가 보고되지 않았습니다(캡처된 빌드 {build}).",
+  "localModelWindowUnknown": "모델 {model}의 컨텍스트 창을 알 수 없습니다. 제공업체 마법사, 모델 패널 또는 providers add --context-window에서 로드된 창을 입력하세요.",
+  "providerNeedsKey": "공급자 {id}에 키가 필요합니다.",
   "wizardPickProvider": "공급자 선택",
   "providerFields": {
     "provider": "공급자",
@@ -5132,5 +5136,8 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  }
+  },
+  "localContextWindow": "컨텍스트 창 (토큰)",
+  "localContextWindowHint": "로컬 서버에 로드된 컨텍스트 창을 입력하세요. 수동 값이 스캔된 한도보다 우선합니다.",
+  "localContextWindowInvalid": "양의 정수로 토큰 수를 입력하세요."
 }

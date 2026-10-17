@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Termín",
     "fleet": "--fleet current|minimum|optimum: Aktuální flotila / Minimální sestava / Optimální sestava",
     "estimate-format": "--format md|html|json|text: Výstupní formát",
-    "seed": "--seed <seed>: Počáteční hodnota simulace"
+    "seed": "--seed <seed>: Počáteční hodnota simulace",
+    "context-window": "--context-window <tokens>: Zadejte kontextové okno načtené na místním serveru. Ruční hodnoty mají přednost před zjištěnými limity."
   },
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "referenceVault": "Probíhá.",
@@ -4344,6 +4345,9 @@
   "providerTestPaid": "Tato kontrola odešle jeden token a stojí asi {cost}.",
   "providerTestFailed": "Kontrola selhala: {detail}",
   "scanFailed": "Prohledání selhalo: {detail}",
+  "llamacppScanMissingWindow": "Seznam modelů llama.cpp nehlásí žádné živé kontextové okno (zachycené sestavení {build}).",
+  "localModelWindowUnknown": "Model {model} nemá známé kontextové okno. Zadejte jeho načtené okno v průvodci poskytovatelem, panelu Modely nebo pomocí providers add --context-window.",
+  "providerNeedsKey": "Poskytovatel {id} potřebuje klíč.",
   "wizardPickProvider": "Vyberte poskytovatele",
   "providerFields": {
     "provider": "Poskytovatel",
@@ -5594,5 +5598,8 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  }
+  },
+  "localContextWindow": "Kontextové okno (tokeny)",
+  "localContextWindowHint": "Zadejte kontextové okno načtené na místním serveru. Ruční hodnoty mají přednost před zjištěnými limity.",
+  "localContextWindowInvalid": "Zadejte kladný celý počet tokenů."
 }

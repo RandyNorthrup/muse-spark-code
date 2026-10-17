@@ -818,6 +818,17 @@ free account reads, with no model request. New setups keep no data retention
 `providers connect openrouter` and `providers usage <id>` through the same
 portable flow; see [the terminal and remote-editor guide](docs/acp.md).
 Scan this computer probes each local preset's loopback port and model-list path.
+Local models retain their scanned context window. The provider wizard and
+Models table also accept a positive whole-token **Context window** for each
+model; enter the window actually loaded on the server. Manual values override
+scan values and survive rescans and edits. A missing window is refused before
+inference. LM Studio's captured `/v1/models` list has no window, so enter it
+manually. The ACP CLI accepts `providers add --preset lmstudio --model
+qwen3-0.6b --context-window 8192`; its window applies to all selected models.
+ACP reads the same validated per-model `modelLimits` in user-level
+`providers.json`, including `contextTokens` and `outputTokens` (positive whole
+counts, output no larger than context). Manual and automatic compaction use
+the selected model's saved window.
 Provider exports include subscription configuration without credentials. A
 confirmed import requires credentials to be entered again, clears credentials
 for imported and removed ids, and replaces providers and the validated default

@@ -1144,6 +1144,7 @@ const REFERENCE_DETAILS: Readonly<
     'pricePerMillion',
     'privacyNoRetentionDetail',
     'referenceOutputCapMinimum',
+    'localContextWindowHint',
   ],
   estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],

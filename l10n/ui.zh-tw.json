@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 目前設備群 / 最小組態 / 最佳組態",
     "estimate-format": "--format md|html|json|text: 輸出格式",
-    "seed": "--seed <seed>: 模擬種子"
+    "seed": "--seed <seed>: 模擬種子",
+    "context-window": "--context-window <tokens>: 輸入本機伺服器載入的上下文視窗。手動值優先於掃描取得的限制。ACP 使用 providers.json 中相同的 modelLimits。"
   },
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
   "referenceVault": "進行中.",
@@ -4014,6 +4015,9 @@
   "providerTestPaid": "此檢查將傳送一個 token，大約花費 {cost}。",
   "providerTestFailed": "檢查失敗：{detail}",
   "scanFailed": "掃描失敗：{detail}",
+  "llamacppScanMissingWindow": "llama.cpp 模型清單未回報即時內容視窗（擷取的建置 {build}）。",
+  "localModelWindowUnknown": "模型 {model} 的上下文視窗未知。請在供應商精靈、模型面板或 providers add --context-window 中輸入已載入的視窗。",
+  "providerNeedsKey": "提供者 {id} 需要金鑰。",
   "wizardPickProvider": "選擇提供者",
   "providerFields": {
     "provider": "提供者",
@@ -5132,5 +5136,8 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  }
+  },
+  "localContextWindow": "上下文視窗（權杖）",
+  "localContextWindowHint": "輸入本機伺服器載入的上下文視窗。手動值優先於掃描取得的限制。ACP 使用 providers.json 中相同的 modelLimits。",
+  "localContextWindowInvalid": "請輸入正整數權杖數。"
 }
