@@ -36,10 +36,9 @@ import {
   HTTP_STATUS,
   PROVIDER_PROBE_MODEL_IDS_MAX,
   PROVIDER_PROBE_TIMEOUT_MS,
-  PROVIDERS_CONFIG_DIR_NAME,
-  PROVIDERS_FILE_NAME,
   UI_TEXT,
 } from '../shared/constants'
+import { providerConfigFilePath } from '../core/credentialLease'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
 import { modelLimitsSchema } from '../shared/providerRouting'
 import type { ProvidersAddOptions } from './cliArgs'
@@ -66,13 +65,10 @@ export function providersFilePath(input: {
   readonly homeDir: string
   readonly xdgConfigHome: string | undefined
 }): string {
-  const base = path.join(
-    input.xdgConfigHome ?? path.join(input.homeDir, '.config'),
-    PROVIDERS_CONFIG_DIR_NAME,
-  )
-  // Windows joins with `\`; join keeps one dialect per platform, as the
-  // skill and memory roots do.
-  return path.join(base, PROVIDERS_FILE_NAME)
+  // One implementation in `core/credentialLease`: the terminal and the
+  // panel derive the same lease directory, so one credential lease excludes
+  // writers on either side.
+  return providerConfigFilePath(input)
 }
 
 /** DNS answers for an endpoint name; an IP literal is its own answer. */

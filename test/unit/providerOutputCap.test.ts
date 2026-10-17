@@ -13,19 +13,24 @@ import { modelPolicyFor, outputLimitFor } from '../../src/core/backends/modelapi
 import { MODEL_API_MIN_OUTPUT_TOKENS } from '../../src/shared/constants'
 import { outputTokenMinimumMessage } from '../../src/shared/providerRouting'
 
+function expectMinimumRefused(policy: ReturnType<typeof modelPolicyFor>): void {
+  for (const ceiling of [0, 1, 15]) {
+    expect(() => outputLimitFor(policy, ceiling)).toThrow(
+      outputTokenMinimumMessage(MODEL_API_MIN_OUTPUT_TOKENS),
+    )
+  }
+  expect(outputLimitFor(policy, MODEL_API_MIN_OUTPUT_TOKENS)).toBe(MODEL_API_MIN_OUTPUT_TOKENS)
+}
+
 describe('provider output cap', () => {
   it('refuses a ceiling below the provider minimum with the minimum sentence', () => {
-    const policy = modelPolicyFor('acme/muse-spark-1.3', {
-      capabilities: { toolCalling: true },
-      maxOutputTokens: 64,
-      minOutputTokens: MODEL_API_MIN_OUTPUT_TOKENS,
-    })
-    for (const ceiling of [0, 1, 15]) {
-      expect(() => outputLimitFor(policy, ceiling)).toThrow(
-        outputTokenMinimumMessage(MODEL_API_MIN_OUTPUT_TOKENS),
-      )
-    }
-    expect(outputLimitFor(policy, MODEL_API_MIN_OUTPUT_TOKENS)).toBe(MODEL_API_MIN_OUTPUT_TOKENS)
+    expectMinimumRefused(
+      modelPolicyFor('acme/muse-spark-1.3', {
+        capabilities: { toolCalling: true },
+        maxOutputTokens: 64,
+        minOutputTokens: MODEL_API_MIN_OUTPUT_TOKENS,
+      }),
+    )
   })
 
   it('clamps the ceiling to the policy maximum', () => {
@@ -38,14 +43,6 @@ describe('provider output cap', () => {
   })
 
   it('refuses a Meta ceiling below sixteen', () => {
-    const policy = modelPolicyFor('muse-spark-1.3', {
-      capabilities: { toolCalling: true },
-    })
-    for (const ceiling of [0, 1, 15]) {
-      expect(() => outputLimitFor(policy, ceiling)).toThrow(
-        outputTokenMinimumMessage(MODEL_API_MIN_OUTPUT_TOKENS),
-      )
-    }
-    expect(outputLimitFor(policy, MODEL_API_MIN_OUTPUT_TOKENS)).toBe(MODEL_API_MIN_OUTPUT_TOKENS)
+    expectMinimumRefused(modelPolicyFor('muse-spark-1.3', { capabilities: { toolCalling: true } }))
   })
 })

@@ -37,6 +37,7 @@ import { providerUsageRowSchema } from '../../src/shared/usage'
 import { UI_TEXT, PROVIDER_SECRET_PREFIX } from '../../src/shared/constants'
 import { memorySecrets } from './helpers/fakes'
 import { testProvidersHost } from './helpers/m95kFixtures'
+import { collectPrinted } from './helpers/collectPrinted'
 import {
   latestState,
   openModelsPanel,
@@ -114,8 +115,7 @@ async function fixture() {
     `${PROVIDER_SECRET_PREFIX}router`,
     formatStoredProviderSecret({ v: 1, auth: 'apiKey', origin: ORIGIN }, KEY),
   )
-  const printed: string[] = [],
-    errors: string[] = []
+  const { printed, errors, print, printError } = collectPrinted()
   let file = emptyProvidersFile()
   const deps: ProvidersDeps = {
     secrets,
@@ -123,12 +123,8 @@ async function fixture() {
     resolveHost: options.resolve,
     readSecret: (prompt) =>
       Promise.resolve(prompt === UI_TEXT.providerConnectReplaceKey ? 'yes' : 'synthetic-code'),
-    print: (line) => {
-      printed.push(line)
-    },
-    printError: (line) => {
-      errors.push(line)
-    },
+    print,
+    printError,
     readUserFile: () => Promise.resolve({ ok: true, file }),
     writeUserFile: (next) => {
       file = next

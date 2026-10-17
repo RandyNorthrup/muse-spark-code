@@ -57,6 +57,34 @@ function saving(parts: { readonly setComposerModel?: (modelRef: string) => Promi
   }
 }
 
+/** A keyless Ollama draft save with the given model windows. */
+function saveOllamaDraft(
+  savingParts: ReturnType<typeof saving>,
+  modelLimits: WizardDraft['provider']['modelLimits'],
+) {
+  return saveWizardDraft(
+    {
+      store: savingParts.store,
+      credentials: savingParts.credentials,
+      policy: POLICY,
+      setComposerModel: () => Promise.resolve(),
+    },
+    {
+      ...DRAFT,
+      provider: {
+        id: 'ollama',
+        preset: 'ollama',
+        address: 'http://127.0.0.1:11434',
+        auth: 'none',
+        models: ['qwen3:8b'],
+        modelLimits,
+      },
+      credential: undefined,
+      defaultModel: 'ollama/qwen3:8b',
+    },
+  )
+}
+
 describe('saveWizardDraft', () => {
   it('writes the provider, secret, default and composer models in order', async () => {
     const savingParts = saving()
@@ -505,27 +533,9 @@ describe('saveWizardDraft', () => {
 
   it('saves a local server with no secret', async () => {
     const savingParts = saving()
-    const outcome = await saveWizardDraft(
-      {
-        store: savingParts.store,
-        credentials: savingParts.credentials,
-        policy: POLICY,
-        setComposerModel: () => Promise.resolve(),
-      },
-      {
-        ...DRAFT,
-        provider: {
-          id: 'ollama',
-          preset: 'ollama',
-          address: 'http://127.0.0.1:11434',
-          auth: 'none',
-          models: ['qwen3:8b'],
-          modelLimits: { 'qwen3:8b': { contextTokens: 4096, outputTokens: 4096 } },
-        },
-        credential: undefined,
-        defaultModel: 'ollama/qwen3:8b',
-      },
-    )
+    const outcome = await saveOllamaDraft(savingParts, {
+      'qwen3:8b': { contextTokens: 4096, outputTokens: 4096 },
+    })
     expect(outcome.providerId).toBe('ollama')
     expect(savingParts.secrets.values.size).toBe(0)
   })
@@ -536,30 +546,10 @@ describe('saveWizardDraft', () => {
     // keeps limits for models in the list only, so a later re-tick scans
     // afresh instead of resurrecting the stale window.
     const savingParts = saving()
-    const outcome = await saveWizardDraft(
-      {
-        store: savingParts.store,
-        credentials: savingParts.credentials,
-        policy: POLICY,
-        setComposerModel: () => Promise.resolve(),
-      },
-      {
-        ...DRAFT,
-        provider: {
-          id: 'ollama',
-          preset: 'ollama',
-          address: 'http://127.0.0.1:11434',
-          auth: 'none',
-          models: ['qwen3:8b'],
-          modelLimits: {
-            'qwen3:0.6b': { contextTokens: 1_000_000, outputTokens: 1_000_000 },
-            'qwen3:8b': { contextTokens: 4096, outputTokens: 4096 },
-          },
-        },
-        credential: undefined,
-        defaultModel: 'ollama/qwen3:8b',
-      },
-    )
+    const outcome = await saveOllamaDraft(savingParts, {
+      'qwen3:0.6b': { contextTokens: 1_000_000, outputTokens: 1_000_000 },
+      'qwen3:8b': { contextTokens: 4096, outputTokens: 4096 },
+    })
     expect(outcome.providerId).toBe('ollama')
     expect(savingParts.store.current).toEqual([
       {

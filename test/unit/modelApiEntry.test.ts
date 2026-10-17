@@ -55,6 +55,42 @@ function entryDeps(
   }
 }
 
+/** Services over a providers file whose scans never reach the network. */
+function offlineServices(configFile: string) {
+  return createConfiguredProviderServices(undefined, {
+    configFile,
+    catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
+    secrets: memorySecrets(),
+    resolve: () => Promise.resolve(['127.0.0.1']),
+    send: () => Promise.reject(new Error('No network expected')),
+  })
+}
+
+async function beginWatchedSession(
+  host: Awaited<ReturnType<typeof createModelApiHost>>,
+  ref: string,
+) {
+  const session = await host.startSession({
+    workspaceRoot: '/ws',
+    modelId: ref,
+    approvalMode: 'onRequest',
+  })
+  return { session, watched: watchSessionTurns(session) }
+}
+
+/** The host's model lookup, answered by the configured registry. */
+function resolveThroughServices(
+  services: ReturnType<typeof offlineServices>,
+  fakeClient: ReturnType<typeof fakeModelApiClient>,
+) {
+  return {
+    resolve: async (model: string) => ({
+      ...(await services.registry.resolve(model)),
+      client: fakeClient,
+    }),
+  }
+}
+
 describe('createModelApiHost registry windows', () => {
   it('sizes a listed model from the registry peek', async () => {
     const host = await createModelApiHost(
@@ -104,13 +140,7 @@ describe('production entry local compaction', () => {
           ],
         })
         expect(saved.ok).toBe(true)
-        const services = createConfiguredProviderServices(undefined, {
-          configFile,
-          catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
-          secrets: memorySecrets(),
-          resolve: () => Promise.resolve(['127.0.0.1']),
-          send: () => Promise.reject(new Error('No network expected')),
-        })
+        const services = offlineServices(configFile)
         await services.registry.resolve(ref)
         let isSeedComplete = false
         const deps = entryDeps(
@@ -133,20 +163,10 @@ describe('production entry local compaction', () => {
               admissions += 1
               return Promise.resolve({ guard: () => undefined, settle: () => undefined })
             },
-            models: {
-              resolve: async (model) => ({
-                ...(await services.registry.resolve(model)),
-                client: fakeClient,
-              }),
-            },
+            models: resolveThroughServices(services, fakeClient),
           },
         })
-        const session = await host.startSession({
-          workspaceRoot: '/ws',
-          modelId: ref,
-          approvalMode: 'onRequest',
-        })
-        const watched = watchSessionTurns(session)
+        const { session, watched } = await beginWatchedSession(host, ref)
         const done = watched.turnDone()
         api.script({ text: 'earlier history' })
         await session.sendTurn([
@@ -230,13 +250,7 @@ describe('production entry local compaction', () => {
         expect(saved.ok).toBe(true)
       }
       await save(4096)
-      const services = createConfiguredProviderServices(undefined, {
-        configFile,
-        catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
-        secrets: memorySecrets(),
-        resolve: () => Promise.resolve(['127.0.0.1']),
-        send: () => Promise.reject(new Error('No network expected')),
-      })
+      const services = offlineServices(configFile)
       await services.registry.resolve(ref)
       const deps = entryDeps((model) => services.client.peekContextModel?.(model), api, ref)
       const fakeClient = fakeModelApiClient(api, new FakeLogOutputChannel())
@@ -244,20 +258,10 @@ describe('production entry local compaction', () => {
         ...deps,
         host: {
           ...deps.host,
-          models: {
-            resolve: async (model) => ({
-              ...(await services.registry.resolve(model)),
-              client: fakeClient,
-            }),
-          },
+          models: resolveThroughServices(services, fakeClient),
         },
       })
-      const session = await host.startSession({
-        workspaceRoot: '/ws',
-        modelId: ref,
-        approvalMode: 'onRequest',
-      })
-      const watched = watchSessionTurns(session)
+      const { session, watched } = await beginWatchedSession(host, ref)
       api.script({ text: 'earlier history' })
       let done = watched.turnDone()
       await session.sendTurn([{ type: 'text', text: 'remember this task' }])
