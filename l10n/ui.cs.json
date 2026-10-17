@@ -280,6 +280,7 @@
   "referenceExecImages": "Obrázky bez rozhraní vyžadují --image-generation, acceptEdits a dostatečný pevný rozpočet. Cena se nepotvrzuje; požadavky vyžadující oprávnění jsou odmítnuty.",
   "referenceProviders": "Vypisujte, přidávejte, testujte nebo odebírejte poskytovatele modelů. Klíče využívají úložiště přihlašovacích údajů. Placené testy tokenů vyžadují editor; CLI je odmítá.",
   "referenceCliOptions": {
+    "context-window": "--context-window <tokens>: Zadejte kontextové okno načtené na místním serveru. Ruční hodnoty mají přednost před zjištěnými limity.",
     "resource-governor": "--resource-governor on|off: Udržuje odezvu počítače zpomalením nebo odložením práce spuštěné prostředím agenta. Ve výchozím nastavení zapnuto.",
     "cpu-max": "--cpu-max <percent>: Omezí práci, když využití procesoru překračuje toto procento po dobu 30 sekund.",
     "memory-max": "--memory-max <percent>: Omezí práci, když využitá paměť překračuje toto procento ve dvou po sobě jdoucích vzorcích.",
@@ -342,8 +343,7 @@
     "estimate-by": "--by <date>: Termín",
     "fleet": "--fleet current|minimum|optimum: Aktuální flotila / Minimální sestava / Optimální sestava",
     "estimate-format": "--format md|html|json|text: Výstupní formát",
-    "seed": "--seed <seed>: Počáteční hodnota simulace",
-    "context-window": "--context-window <tokens>: Zadejte kontextové okno načtené na místním serveru. Ruční hodnoty mají přednost před zjištěnými limity."
+    "seed": "--seed <seed>: Počáteční hodnota simulace"
   },
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "referenceVault": "Probíhá.",
@@ -4363,6 +4363,9 @@
   "providerTestPaid": "Tato kontrola odešle jeden token a stojí asi {cost}.",
   "providerTestFailed": "Kontrola selhala: {detail}",
   "scanFailed": "Prohledání selhalo: {detail}",
+  "localContextWindow": "Kontextové okno (tokeny)",
+  "localContextWindowHint": "Zadejte kontextové okno načtené na místním serveru. Ruční hodnoty mají přednost před zjištěnými limity.",
+  "localContextWindowInvalid": "Zadejte kladný celý počet tokenů.",
   "llamacppScanMissingWindow": "Seznam modelů llama.cpp nehlásí žádné živé kontextové okno (zachycené sestavení {build}).",
   "localModelWindowUnknown": "Model {model} nemá známé kontextové okno. Zadejte jeho načtené okno v průvodci poskytovatelem, panelu Modely nebo pomocí providers add --context-window.",
   "providerNeedsKey": "Poskytovatel {id} potřebuje klíč.",
@@ -5619,8 +5622,5 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  },
-  "localContextWindow": "Kontextové okno (tokeny)",
-  "localContextWindowHint": "Zadejte kontextové okno načtené na místním serveru. Ruční hodnoty mají přednost před zjištěnými limity.",
-  "localContextWindowInvalid": "Zadejte kladný celý počet tokenů."
+  }
 }

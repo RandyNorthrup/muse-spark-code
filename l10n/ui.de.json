@@ -280,6 +280,7 @@
   "referenceExecImages": "Bilder ohne Oberfläche erfordern --image-generation, acceptEdits und ein ausreichendes festes Budget. Es gibt keine Preisabfrage; Anfragen mit Genehmigungspflicht werden abgelehnt.",
   "referenceProviders": "Modellanbieter auflisten, hinzufügen, testen oder entfernen. Schlüssel liegen im Anmeldedatenspeicher. Kostenpflichtige Tokenprüfungen benötigen den Editor; die CLI verweigert sie.",
   "referenceCliOptions": {
+    "context-window": "--context-window <tokens>: Geben Sie das auf dem lokalen Server geladene Kontextfenster ein. Manuelle Werte haben Vorrang vor erkannten Limits.",
     "resource-governor": "--resource-governor on|off: Hält diesen Rechner reaktionsfähig, indem von der Agentenumgebung gestartete Arbeit verlangsamt oder verschoben wird. Standardmäßig aktiviert.",
     "cpu-max": "--cpu-max <percent>: Drosselt, wenn die CPU-Auslastung des Rechners 30 Sekunden lang über diesem Prozentsatz liegt.",
     "memory-max": "--memory-max <percent>: Drosselt, wenn der belegte Arbeitsspeicher bei zwei Messungen über diesem Prozentsatz liegt.",
@@ -342,8 +343,7 @@
     "estimate-by": "--by <date>: Frist",
     "fleet": "--fleet current|minimum|optimum: Aktueller Gerätebestand / Minimale Ausstattung / Optimale Ausstattung",
     "estimate-format": "--format md|html|json|text: Ausgabeformat",
-    "seed": "--seed <seed>: Startwert der Simulation",
-    "context-window": "--context-window <tokens>: Geben Sie das auf dem lokalen Server geladene Kontextfenster ein. Manuelle Werte haben Vorrang vor erkannten Limits."
+    "seed": "--seed <seed>: Startwert der Simulation"
   },
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
   "referenceVault": "In Arbeit.",
@@ -4143,6 +4143,9 @@
   "providerTestPaid": "Diese Prüfung sendet einen Token und kostet etwa {cost}.",
   "providerTestFailed": "Prüfung fehlgeschlagen: {detail}",
   "scanFailed": "Suche fehlgeschlagen: {detail}",
+  "localContextWindow": "Kontextfenster (Tokens)",
+  "localContextWindowHint": "Geben Sie das auf dem lokalen Server geladene Kontextfenster ein. Manuelle Werte haben Vorrang vor erkannten Limits.",
+  "localContextWindowInvalid": "Geben Sie eine positive ganze Anzahl von Tokens ein.",
   "llamacppScanMissingWindow": "Die llama.cpp-Modellliste meldet kein aktives Kontextfenster (erfasster Build {build}).",
   "localModelWindowUnknown": "Für Modell {model} ist kein Kontextfenster bekannt. Geben Sie das geladene Fenster im Anbieterassistenten, im Modelle-Panel oder mit providers add --context-window ein.",
   "providerNeedsKey": "Anbieter {id} braucht einen Schlüssel.",
@@ -5311,8 +5314,5 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  },
-  "localContextWindow": "Kontextfenster (Tokens)",
-  "localContextWindowHint": "Geben Sie das auf dem lokalen Server geladene Kontextfenster ein. Manuelle Werte haben Vorrang vor erkannten Limits.",
-  "localContextWindowInvalid": "Geben Sie eine positive ganze Anzahl von Tokens ein."
+  }
 }

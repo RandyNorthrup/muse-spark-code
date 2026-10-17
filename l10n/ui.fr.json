@@ -280,6 +280,7 @@
   "referenceExecImages": "Les images sans interface exigent --image-generation, acceptEdits et un budget strict suffisant. Aucune confirmation du prix ; les demandes nécessitant une autorisation sont refusées.",
   "referenceProviders": "Lister, ajouter, tester ou supprimer des fournisseurs de modèles. Les clés utilisent le coffre d’identifiants. Les tests de jetons payants nécessitent l’éditeur ; la CLI les refuse.",
   "referenceCliOptions": {
+    "context-window": "--context-window <tokens>: Saisissez la fenêtre de contexte chargée sur le serveur local. Les valeurs manuelles remplacent les limites détectées.",
     "resource-governor": "--resource-governor on|off: Préserve la réactivité de cette machine en ralentissant ou en différant le travail lancé par l’environnement d’agent. Activé par défaut.",
     "cpu-max": "--cpu-max <percent>: Ralentit lorsque l’utilisation du processeur reste au-dessus de ce pourcentage pendant 30 secondes.",
     "memory-max": "--memory-max <percent>: Ralentit lorsque la mémoire utilisée reste au-dessus de ce pourcentage pendant deux mesures.",
@@ -342,8 +343,7 @@
     "estimate-by": "--by <date>: Échéance",
     "fleet": "--fleet current|minimum|optimum: Parc actuel / Configuration minimale / Configuration optimale",
     "estimate-format": "--format md|html|json|text: Format de sortie",
-    "seed": "--seed <seed>: Graine de simulation",
-    "context-window": "--context-window <tokens>: Saisissez la fenêtre de contexte chargée sur le serveur local. Les valeurs manuelles remplacent les limites détectées."
+    "seed": "--seed <seed>: Graine de simulation"
   },
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
   "referenceVault": "En cours.",
@@ -4253,6 +4253,9 @@
   "providerTestPaid": "Ce contrôle envoie un jeton et coûte environ {cost}.",
   "providerTestFailed": "Contrôle échoué : {detail}",
   "scanFailed": "Analyse échouée : {detail}",
+  "localContextWindow": "Fenêtre de contexte (tokens)",
+  "localContextWindowHint": "Saisissez la fenêtre de contexte chargée sur le serveur local. Les valeurs manuelles remplacent les limites détectées.",
+  "localContextWindowInvalid": "Saisissez un nombre entier positif de tokens.",
   "llamacppScanMissingWindow": "La liste de modèles llama.cpp ne signale aucune fenêtre de contexte active (build capturé {build}).",
   "localModelWindowUnknown": "La fenêtre de contexte du modèle {model} est inconnue. Saisissez la fenêtre chargée dans l’assistant du fournisseur, le panneau Modèles ou avec providers add --context-window.",
   "providerNeedsKey": "Le fournisseur {id} a besoin d’une clé.",
@@ -5465,8 +5468,5 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  },
-  "localContextWindow": "Fenêtre de contexte (tokens)",
-  "localContextWindowHint": "Saisissez la fenêtre de contexte chargée sur le serveur local. Les valeurs manuelles remplacent les limites détectées.",
-  "localContextWindowInvalid": "Saisissez un nombre entier positif de tokens."
+  }
 }

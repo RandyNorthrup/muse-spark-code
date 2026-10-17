@@ -280,6 +280,7 @@
   "referenceExecImages": "Imagens sem interface exigem --image-generation, acceptEdits e um orçamento rígido suficiente. Não há pergunta sobre o preço; solicitações que exigem permissão são recusadas.",
   "referenceProviders": "Listar, adicionar, testar ou remover provedores de modelos. As chaves usam o armazenamento de credenciais. Testes de tokens pagos exigem o editor; a CLI os recusa.",
   "referenceCliOptions": {
+    "context-window": "--context-window <tokens>: Informe a janela de contexto carregada no servidor local. Os valores manuais prevalecem sobre os limites detectados. O",
     "resource-governor": "--resource-governor on|off: Mantém esta máquina responsiva ao reduzir a velocidade ou adiar trabalhos iniciados pelo ambiente do agente. Ativado por padrão.",
     "cpu-max": "--cpu-max <percent>: Limita quando o uso da CPU permanece acima desta porcentagem por 30 segundos.",
     "memory-max": "--memory-max <percent>: Limita quando a memória em uso permanece acima desta porcentagem por duas amostras.",
@@ -342,8 +343,7 @@
     "estimate-by": "--by <date>: Prazo",
     "fleet": "--fleet current|minimum|optimum: Frota atual / Configuração mínima / Configuração ideal",
     "estimate-format": "--format md|html|json|text: Formato de saída",
-    "seed": "--seed <seed>: Semente da simulação",
-    "context-window": "--context-window <tokens>: Informe a janela de contexto carregada no servidor local. Os valores manuais prevalecem sobre os limites detectados. O"
+    "seed": "--seed <seed>: Semente da simulação"
   },
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
   "referenceVault": "Em andamento.",
@@ -4253,6 +4253,9 @@
   "providerTestPaid": "Esta verificação envia um token e custa cerca de {cost}.",
   "providerTestFailed": "Verificação falhou: {detail}",
   "scanFailed": "Verificação falhou: {detail}",
+  "localContextWindow": "Janela de contexto (tokens)",
+  "localContextWindowHint": "Informe a janela de contexto carregada no servidor local. Os valores manuais prevalecem sobre os limites detectados. O",
+  "localContextWindowInvalid": "Informe um número inteiro positivo de tokens.",
   "llamacppScanMissingWindow": "A lista de modelos do llama.cpp não informa nenhuma janela de contexto ativa (build capturado {build}).",
   "localModelWindowUnknown": "O modelo {model} não tem uma janela de contexto conhecida. Informe a janela carregada no assistente do provedor, no painel Modelos ou com providers add --context-window.",
   "providerNeedsKey": "O provedor {id} precisa de uma chave.",
@@ -5465,8 +5468,5 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  },
-  "localContextWindow": "Janela de contexto (tokens)",
-  "localContextWindowHint": "Informe a janela de contexto carregada no servidor local. Os valores manuais prevalecem sobre os limites detectados. O",
-  "localContextWindowInvalid": "Informe um número inteiro positivo de tokens."
+  }
 }
