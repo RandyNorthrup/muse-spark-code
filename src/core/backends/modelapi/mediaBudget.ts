@@ -138,9 +138,18 @@ export class MediaBudget {
   public assertMessageFits(
     content: readonly InputContentPart[],
     queued?: { readonly chars: number; readonly slots: number },
+    record?: ModelCapabilityRecord,
   ): void {
     const usage = this.usage(content)
-    if (usage.slots + (queued?.slots ?? 0) > MODEL_API_MEDIA_PER_REQUEST)
+    // The 50-slot budget is Meta's own (MODEL_API_MEDIA_PER_REQUEST): a
+    // configured provider answers for its own counts, so its fresh media
+    // never meets Meta's number here. Replay elision in fit() still honors
+    // the model's recorded maxCount. The aggregate byte bound below is the
+    // pipeline's own and applies to every request.
+    if (
+      (record === undefined || record.identity.provider === 'meta') &&
+      usage.slots + (queued?.slots ?? 0) > MODEL_API_MEDIA_PER_REQUEST
+    )
       throw new Error(UI_TEXT.documentsOverBudget)
     if (usage.chars + (queued?.chars ?? 0) > this.maxEncodedMediaChars)
       throw new Error(UI_TEXT.mediaTotalTooLarge)
@@ -167,7 +176,7 @@ export class MediaBudget {
     record?: ModelCapabilityRecord,
     required: readonly InputContentPart[] = [],
   ): readonly InputItem[] {
-    this.assertMessageFits(required)
+    this.assertMessageFits(required, undefined, record)
     const reserved = this.usage(required)
     const protectedParts = new Set(required)
     let left = MODEL_API_MEDIA_PER_REQUEST - reserved.slots

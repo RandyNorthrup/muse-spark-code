@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
 import type { InputItem } from '../../src/core/backends/modelapi/schemas'
+import { resolveModelCapabilities } from '../../src/core/providers/capabilities'
 import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { pdfFixture } from './helpers/pdfFixture'
 
@@ -249,6 +250,39 @@ describe('Model API replay media budget', () => {
       input[1],
     ])
     expect(budget.omitted).toBe(true)
+  })
+
+  it('never meets Meta’s 50-slot budget on a configured provider’s fresh media', () => {
+    // PROVM95: the slot count is Meta's own limit. A listed provider model
+    // answers for its own counts, so 51 fresh images fit the assertion and
+    // reach the record-driven elision below instead of throwing Meta's
+    // number before send. The aggregate byte bound still applies.
+    const record = resolveModelCapabilities(
+      { provider: 'fireworks', nativeModel: 'm', format: 'chat' },
+      [],
+    )
+    const required = Array.from(
+      { length: 51 },
+      () =>
+        ({
+          type: 'input_image',
+          image_url: 'data:image/png;base64,AQ==',
+          detail: 'auto',
+        }) as const,
+    )
+    const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
+    const budget = new MediaBudget()
+    // Fresh media fits whole: with no Meta budget in the way the required
+    // parts stay protected and ride to the provider, which answers for its
+    // own counts. Without the record the same 51 images throw Meta's number.
+    expect(budget.fit(input, record, required)).toEqual(input)
+    expect(budget.omitted).toBe(false)
+    expect(() => {
+      budget.assertMessageFits(required, undefined, record)
+    }).not.toThrow()
+    expect(() => {
+      budget.assertMessageFits(required)
+    }).toThrow()
   })
 
   it('counts MCP output image bytes against a newer PDF request cap', () => {
