@@ -616,7 +616,11 @@ describe('Models panel over the shipped preset catalogue', () => {
     const category = new Map(latestState(panel).presets.map((card) => [card.id, card.category]))
     expect(category.get('anthropic')).toBe('cloud')
     expect(category.get('openrouter')).toBe('aggregator')
-    expect(category.get('ollama')).toBe('local')
+    // Rule 13: uncaptured presets stay out of the panel even when local.
+    expect(category.get('ollama')).toBeUndefined()
+    expect(category.get('vllm')).toBeUndefined()
+    expect(category.get('llamacpp')).toBe('local')
+    expect(category.get('lmstudio')).toBe('local')
     expect(category.get('custom')).toBe('custom')
     for (const id of ['mistral-plan', 'chatgpt', 'copilot']) {
       expect(category.get(id)).toBe('subscription')
@@ -683,11 +687,11 @@ describe('Models panel over the shipped preset catalogue', () => {
     const { providers } = realCatalogue(memoryProvidersStore(), answeringFetch([11_434, 1234]))
     const { panel, warnings } = setup({ providers })
     await send(panel, { type: 'providers/scanLocal' }, () => {
-      expect(latestState(panel).localScan?.found).toHaveLength(2)
+      expect(latestState(panel).localScan?.found).toHaveLength(1)
     })
-    // Both answers are offered, in catalogue order, from preset data.
+    // Only a listed preset's answer is offered, in catalogue order, from
+    // preset data: Ollama answered on 11434 but stays unlisted (rule 13).
     expect(latestState(panel).localScan?.found).toEqual([
-      { presetId: 'ollama', label: 'Ollama', port: 11_434 },
       { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
     ])
     // The scan finishes the scan, not the job: no wizard, no failure notice.
@@ -705,10 +709,10 @@ describe('Models panel over the shipped preset catalogue', () => {
       })
     })
     // A local wizard starts on its usual port even before choosing.
-    await send(panel, { type: 'providers/select', presetId: 'ollama' }, () => {
+    await send(panel, { type: 'providers/select', presetId: 'llamacpp' }, () => {
       expect(latestState(panel).drafts.wizard).toMatchObject({
-        loopbackPort: 11_434,
-        address: 'http://127.0.0.1:11434',
+        loopbackPort: 8080,
+        address: 'http://127.0.0.1:8080',
       })
     })
   })
@@ -719,11 +723,10 @@ describe('Models panel over the shipped preset catalogue', () => {
       expect(latestState(panel).localScan).toBeDefined()
     })
     expect(latestState(panel).localScan?.found).toEqual([])
-    // Each local app with its usual port, from preset data, never hard-coded.
+    // Each listed local app with its usual port, from preset data, never
+    // hard-coded: unlisted presets are never probed (rule 13).
     expect(latestState(panel).localScan?.checked).toEqual([
-      { presetId: 'ollama', label: 'Ollama', port: 11_434 },
       { presetId: 'lmstudio', label: 'LM Studio', port: 1234 },
-      { presetId: 'vllm', label: 'vLLM', port: 8000 },
       { presetId: 'llamacpp', label: 'llama.cpp', port: 8080 },
     ])
     expect(latestState(panel).drafts.wizard).toBeUndefined()
