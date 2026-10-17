@@ -193,6 +193,9 @@ export const EN = {
   shareDiffs: 'Include Diffs',
   sharePreview: 'Preview',
   shareConfirm: 'Confirm Sharing',
+  // The Share Chat dialog's destination group (F71): what the choice picks,
+  // not the button's own words.
+  shareDestination: 'Share as',
   shareCopy: 'Copy',
   shareFile: 'Save File…',
   shareBrowser: 'Open in Browser',
@@ -1128,10 +1131,13 @@ export const EN = {
     'This conversation was too long to keep in the panel across the reload; open it from History to see all of it.',
   linkOutsideWorkspace: 'Links to files outside the workspace are not opened from the transcript.',
   emptyStateHint: 'Type /model to pick the right tool for the job.',
-  // macOS binds Cmd+Esc; Windows binds Ctrl+Alt+Esc (Ctrl+Esc opens Start
-  // there; M26, D29).
-  composerPlaceholder:
-    'ctrl esc (cmd esc on macOS, ctrl alt esc on Windows) to focus or unfocus Muse',
+  // The empty composer's invitation (F67): a message first, then only this
+  // machine's shortcut, in one line. The host fills `shortcut` for its own
+  // platform (webviewSetup); the all-platform tip stays in Getting Started
+  // (M26, D29).
+  composerPlaceholder: 'Ask Muse…',
+  // {shortcut}: this machine's focus key (Ctrl+Esc, Cmd+Esc or Ctrl+Alt+Esc).
+  composerPlaceholderWithShortcut: 'Ask Muse… ({shortcut} to focus)',
   // Shown while a turn runs: Enter then steers the running turn.
   composerQueuePlaceholder: 'Queue another message…',
   queuedLabel: 'Queued',
@@ -1203,6 +1209,9 @@ export const EN = {
     'Muse Code cannot start: its sign-in file {path} is in the macOS format, which Muse Code cannot read on this system. Move or rename that file, then sign in again.',
   hostExited: 'Muse Code stopped unexpectedly',
   hostStarting: 'Starting Muse Code…',
+  // The pill while the sign-in facts are still being read (F60): what the
+  // panel waits for, not the backend starting.
+  checkingSignIn: 'Checking sign-in…',
   // PLAN.md D25: restarts, crashes and closed sessions continue the conversation.
   hostRestartsOnSend: 'The next message restarts it and continues this conversation.',
   turnStoppedByRestart: 'Stopped: the backend restarted',
@@ -3072,7 +3081,7 @@ export const EN = {
   trainingBlocked:
     'Models that may train on workspace content are blocked in this workspace (museSpark.confidentialWorkspace).',
   backendItem: 'Backend',
-  backendDetail: 'museSpark.backend: auto / museCode / modelApi',
+  backendDetail: 'Which engine runs this conversation: automatic, Muse Code, or the Model API.',
   backendMuseCode: 'Muse Code (Your Muse Subscription)',
   backendModelApi: 'Meta Model API (Your Key, Pay as You Go)',
   modelApiBackendNotice:
@@ -5135,6 +5144,9 @@ export const EN = {
   modelUnpriced: 'Unpriced',
   modelLocal: 'Local',
   modelPlan: 'Plan',
+  // A contributor-tier model's mark in the picker (F62): Meta may train on
+  // what it is sent, for the lower price.
+  pickerContributorTier: 'Contributor',
   modelFree: 'Free',
   modelColumns: {
     name: 'Model',
