@@ -1,0 +1,12 @@
+{
+  "secretList": "List the visible vault handles, labels, kinds and permitted targets. This never returns values or first-party items.",
+  "secretRequest": "Ask the user to add a missing credential to the vault. Only a handle is returned; never request a value in chat.",
+  "secretUse": "Request a brokered use of a vault handle for the exact command or destination. Existing tool approvals, hooks, reviewers and Bypass do not grant vault access.",
+  "argumentHandle": "A secret handle cannot be used in command arguments, which other processes can inspect. Choose a brokered environment, standard-input or authentication route.",
+  "notValue": "Vault handles are references, not credential values. Do not substitute them into commands, files or model text.",
+  "tainted": "This use follows untrusted content and needs the user's approval regardless of existing grants. Unattended use is denied.",
+  "noUnattended": "{item} needs an unattended grant for {use}. Add the grant in the vault or run interactively.",
+  "missingItem": "The requested handle is unavailable. Ask the user to add it through the vault's native entry flow.",
+  "ceiling": "The requested handle exceeds this worker's secret-access ceiling. The model can narrow delegation but cannot widen access or create a grant.",
+  "disclosure": "This route discloses the value to the model and its provider. It requires explicit disclosure consent and the value cannot be recalled."
+}

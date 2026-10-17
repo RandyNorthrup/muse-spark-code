@@ -140,11 +140,13 @@ export function createWebFetcher(
   log: Logger,
   convertHtml: HtmlConverter,
   nat64Lookups: Nat64Lookups = NAT64_LOOKUPS,
+  rawTextLimit?: number,
 ): WebFetcher {
   return async (url, signal, isStillAllowed) => {
     const result = await fetchWebPage(
       url,
       {
+        ...(rawTextLimit !== undefined && { rawTextLimit }),
         resolve: resolveAll,
         nat64: async () => await discoverNat64(nat64Lookups, log),
         request: pinnedHttpsRequest,

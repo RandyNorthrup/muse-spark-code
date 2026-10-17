@@ -20,6 +20,7 @@ import type * as WebFetchEntry from './webFetchEntry'
 
 /** The bundle's exports. */
 export interface WebFetchBundle {
+  readonly readRawPromptWith: typeof WebFetchEntry.readRawPromptWith
   readonly checkWebPageUrl: typeof WebFetchEntry.checkWebPageUrl
   readonly fetchWebPageWith: typeof WebFetchEntry.fetchWebPageWith
 }
@@ -32,7 +33,9 @@ export function isWebFetchBundle(value: unknown): value is WebFetchBundle {
     'checkWebPageUrl' in value &&
     typeof value.checkWebPageUrl === 'function' &&
     'fetchWebPageWith' in value &&
-    typeof value.fetchWebPageWith === 'function'
+    typeof value.fetchWebPageWith === 'function' &&
+    'readRawPromptWith' in value &&
+    typeof value.readRawPromptWith === 'function'
   )
 }
 

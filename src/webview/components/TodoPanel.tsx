@@ -39,7 +39,7 @@ export function TodoPanel({
       <div className="todo-header">
         <button
           type="button"
-          className="todo-title"
+          className="todo-title chat-control"
           aria-expanded={isExpanded}
           aria-controls={listId}
           onClick={() => {
@@ -52,7 +52,7 @@ export function TodoPanel({
         {onOpenInTab !== undefined && (
           <button
             type="button"
-            className="todo-open"
+            className="todo-open chat-control"
             title={UI_TEXT.todoOpenInTabTitle}
             onClick={onOpenInTab}
           >

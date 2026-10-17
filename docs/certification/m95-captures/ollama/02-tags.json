@@ -1,0 +1,20 @@
+{
+  "provider": "ollama",
+  "step": "tags",
+  "capturedAt": "2026-10-05T13:18:12.387Z",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "http://127.0.0.1:11434/api/tags"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "content-type": "application/json; charset=utf-8",
+      "date": "Mon, 05 Oct 2026 13:18:11 GMT",
+      "transfer-encoding": "chunked"
+    },
+    "body": "{\"models\":[{\"name\":\"mxbai-embed-large:latest\",\"model\":\"mxbai-embed-large:latest\",\"modified_at\":\"2026-10-04T18:12:04.8380217-07:00\",\"size\":669615493,\"digest\":\"468836162de7f81e041c43663fedbbba921dcea9b9fefea135685a39b2d83dd8\",\"details\":{\"parent_model\":\"\",\"format\":\"gguf\",\"family\":\"bert\",\"families\":[\"bert\"],\"parameter_size\":\"334M\",\"quantization_level\":\"F16\",\"context_length\":512,\"embedding_length\":1024},\"capabilities\":[\"embedding\"]},{\"name\":\"nomic-embed-text:latest\",\"model\":\"nomic-embed-text:latest\",\"modified_at\":\"2026-10-04T18:11:49.1259075-07:00\",\"size\":274302450,\"digest\":\"0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f\",\"details\":{\"parent_model\":\"\",\"format\":\"gguf\",\"family\":\"nomic-bert\",\"families\":[\"nomic-bert\"],\"parameter_size\":\"137M\",\"quantization_level\":\"F16\",\"context_length\":2048,\"embedding_length\":768},\"capabilities\":[\"embedding\"]},{\"name\":\"tev1:4b\",\"model\":\"tev1:4b\",\"modified_at\":\"2026-10-04T17:52:59.8339956-07:00\",\"size\":4482415847,\"digest\":\"9b5bb969e46c4b776826d6f2d401e22893205693f172653af6254897255025b8\",\"details\":{\"parent_model\":\"Tev1-4B-Q8_0.gguf\",\"format\":\"gguf\",\"family\":\"qwen35\",\"families\":[\"qwen35\"],\"parameter_size\":\"4.2B\",\"quantization_level\":\"Q8_0\",\"context_length\":262144,\"embedding_length\":2560},\"capabilities\":[\"decision\"]},{\"name\":\"qwen3:1.7b\",\"model\":\"qwen3:1.7b\",\"modified_at\":\"2026-10-04T17:44:03.2788561-07:00\",\"size\":1359293444,\"digest\":\"8f68893c685c3ddff2aa3fffce2aa60a30bb2da65ca488b61fff134a4d1730e7\",\"details\":{\"parent_model\":\"\",\"format\":\"gguf\",\"family\":\"qwen3\",\"families\":[\"qwen3\"],\"parameter_size\":\"2.0B\",\"quantization_level\":\"Q4_K_M\",\"context_length\":40960,\"embedding_length\":2048},\"capabilities\":[\"completion\",\"tools\",\"thinking\"]},{\"name\":\"qwen3:4b-instruct-2507-q4_K_M\",\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"modified_at\":\"2026-10-04T17:34:46.4543388-07:00\",\"size\":2497293803,\"digest\":\"0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0\",\"details\":{\"parent_model\":\"\",\"format\":\"gguf\",\"family\":\"qwen3\",\"families\":[\"qwen3\"],\"parameter_size\":\"4.0B\",\"quantization_level\":\"Q4_K_M\",\"context_length\":262144,\"embedding_length\":2560},\"capabilities\":[\"tools\",\"thinking\",\"completion\"]},{\"name\":\"llama3.2:3b\",\"model\":\"llama3.2:3b\",\"modified_at\":\"2026-10-04T17:27:56.5506563-07:00\",\"size\":2019393189,\"digest\":\"a80c4f17acd55265feec403c7aef86be0c25983ab279d83f3bcd3abbcb5b8b72\",\"details\":{\"parent_model\":\"\",\"format\":\"gguf\",\"family\":\"llama\",\"families\":[\"llama\"],\"parameter_size\":\"3.2B\",\"quantization_level\":\"Q4_K_M\",\"context_length\":131072,\"embedding_length\":3072},\"capabilities\":[\"completion\",\"tools\"]},{\"name\":\"qwen3:4b\",\"model\":\"qwen3:4b\",\"modified_at\":\"2026-10-04T17:27:21.1947544-07:00\",\"size\":2497293931,\"digest\":\"359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7\",\"details\":{\"parent_model\":\"\",\"format\":\"gguf\",\"family\":\"qwen3\",\"families\":[\"qwen3\"],\"parameter_size\":\"4.0B\",\"quantization_level\":\"Q4_K_M\",\"context_length\":262144,\"embedding_length\":2560},\"capabilities\":[\"completion\",\"tools\",\"thinking\"]}]}",
+    "chunkBytes": [2988]
+  }
+}

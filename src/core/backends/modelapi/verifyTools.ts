@@ -37,18 +37,37 @@ export function parseRunChecks(
     : { ok: false, reason: `invalid arguments: ${z.prettifyError(parsed.error)}` }
 }
 
-const thenRunArgs = z.object({ [THEN_RUN_ARGUMENT]: z.optional(z.string()) })
+const thenRunArgs = z.object({ [THEN_RUN_ARGUMENT]: z.unknown() })
 
-/** The command an edit call's `then_run` names, trimmed; undefined for none. */
-export function thenRunOf(argsJson: string): string | undefined {
+/** An edit call's `then_run`: absent, one command line, or present but unusable. */
+export type ThenRunRequest =
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'run'; readonly command: string }
+  | { readonly kind: 'invalid' }
+
+/**
+ * The command an edit call's `then_run` names, trimmed (M101): a value that
+ * is present but not a string is reported, never silently dropped. An empty
+ * line is no command.
+ */
+export function thenRunOf(argsJson: string): ThenRunRequest {
+  let raw: unknown
   try {
-    const parsed = thenRunArgs.safeParse(JSON.parse(argsJson))
-    const command = parsed.success ? parsed.data[THEN_RUN_ARGUMENT]?.trim() : undefined
-    return command === '' ? undefined : command
+    raw = JSON.parse(argsJson)
   } catch {
     // The edit tool itself refuses arguments that are not JSON.
-    return undefined
+    return { kind: 'absent' }
   }
+  const parsed = thenRunArgs.safeParse(raw)
+  const value = parsed.success ? parsed.data[THEN_RUN_ARGUMENT] : undefined
+  if (value === undefined) {
+    return { kind: 'absent' }
+  }
+  if (typeof value !== 'string') {
+    return { kind: 'invalid' }
+  }
+  const command = value.trim()
+  return command === '' ? { kind: 'absent' } : { kind: 'run', command }
 }
 
 export const THEN_RUN_PROPERTY = {

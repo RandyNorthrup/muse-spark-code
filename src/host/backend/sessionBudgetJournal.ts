@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { mkdir, stat } from 'node:fs/promises'
+import { mkdir, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import type {
@@ -16,8 +16,13 @@ import type {
 } from '../../core/backends/modelapi/sessionBudget'
 import type { StoredSession } from '../../core/backends/modelapi/sessionStore'
 import { formatUsd } from '../../core/usage/insights'
-import { UI_TEXT } from '../../shared/constants'
+import {
+  DAILY_BUDGET_LOCK_ATTEMPTS,
+  DAILY_BUDGET_LOCK_WAIT_MS,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from './storeErrors'
 
@@ -28,33 +33,81 @@ const SEED_FILE = 'seed.json'
 const CLAIM_FILE = 'claim.json'
 const MISSING = 'ENOENT'
 const EXISTS = 'EEXIST'
+// Windows answers `mkdir` with EPERM, not EEXIST, while the directory of that
+// name is still being removed by its last holder (measured on Windows 11,
+// Node 24, 2026-10-12: two holders taking and releasing one lock directory,
+// 494 EPERM beside 6,119 EEXIST in 6,000 takes; `rmdir` never failed).
+const BEING_REMOVED_ON_WINDOWS = 'EPERM'
 const SESSION_ID = /^[A-Za-z0-9_-]+$/
 const ACCOUNT_ID = /^[a-f0-9]{64}$/
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/
 
-const seedSchema = z.object({
+// Version 1 stored JSON numbers; each reads as its exact decimal text (M121).
+const legacyUsdSchema = z.pipe(
+  z.number().check(z.nonnegative()),
+  z.transform((amount) => Usd.from(amount).toString()),
+)
+const legacySeedSchema = z.object({
   version: z.literal(1),
   scopeId: z.string().check(z.regex(UUID)),
   sessionId: z.string().check(z.regex(SESSION_ID)),
   accountId: z.string().check(z.regex(ACCOUNT_ID)),
-  spentUsd: z.number().check(z.nonnegative()),
+  spentUsd: legacyUsdSchema,
   hasUnknownHistoricalFees: z.boolean(),
 })
-type Seed = z.infer<typeof seedSchema>
+const usdSchema = z.string().check(z.regex(/^\d+(?:\.\d+)?$/))
+const decimalSeedSchema = z.extend(legacySeedSchema, {
+  version: z.literal(2),
+  spentUsd: usdSchema,
+})
+type Seed = z.infer<typeof decimalSeedSchema>
+const seedSchema = z.pipe(
+  z.union([legacySeedSchema, decimalSeedSchema]),
+  z.transform((seed): Seed => ({
+    ...seed,
+    version: 2,
+    spentUsd: Usd.from(seed.spentUsd).toString(),
+  })),
+)
 
-const claimSchema = z.object({
+const legacyClaimSchema = z.object({
   version: z.literal(1),
   scopeId: z.string().check(z.regex(UUID)),
   claimId: z.string().check(z.regex(UUID)),
   ownerId: z.string().check(z.regex(UUID)),
   sessionId: z.string().check(z.regex(SESSION_ID)),
   accountId: z.string().check(z.regex(ACCOUNT_ID)),
-  reservedUsd: z.number().check(z.nonnegative()),
-  settledUsd: z.optional(z.number().check(z.nonnegative())),
+  reservedUsd: legacyUsdSchema,
+  settledUsd: z.optional(legacyUsdSchema),
+  retainedUsd: z.optional(legacyUsdSchema),
   hasUnknownCost: z.optional(z.boolean()),
   isUnbounded: z.optional(z.boolean()),
 })
-type Claim = z.infer<typeof claimSchema>
+const decimalClaimSchema = z.extend(legacyClaimSchema, {
+  version: z.literal(2),
+  reservedUsd: usdSchema,
+  settledUsd: z.optional(usdSchema),
+  retainedUsd: z.optional(usdSchema),
+})
+type Claim = z.infer<typeof decimalClaimSchema>
+const claimSchema = z.pipe(
+  z.union([legacyClaimSchema, decimalClaimSchema]),
+  z.transform((claim): Claim => {
+    const { reservedUsd, settledUsd, retainedUsd, ...fields } = claim
+    return {
+      ...fields,
+      version: 2,
+      reservedUsd: Usd.from(reservedUsd).toString(),
+      ...(settledUsd !== undefined && { settledUsd: Usd.from(settledUsd).toString() }),
+      ...(retainedUsd !== undefined && { retainedUsd: Usd.from(retainedUsd).toString() }),
+    }
+  }),
+)
+type ClaimView = Omit<Claim, 'reservedUsd' | 'settledUsd' | 'retainedUsd'> & {
+  readonly reservedUsd: UsdAmount
+  readonly settledUsd?: UsdAmount
+  readonly retainedUsd?: UsdAmount
+}
 
 const claimFlagsSchema = z.object({
   isUnbounded: z.optional(z.boolean()),
@@ -62,17 +115,40 @@ const claimFlagsSchema = z.object({
 })
 type ClaimFlags = z.infer<typeof claimFlagsSchema>
 
-export interface SessionBudgetJournalDeps {
+export type SessionBudgetJournalDeps = {
   readonly directory: string
-  /** Reads the authoritative session file without its journal projection. */
-  readonly loadSession: (sessionId: string) => Promise<StoredSession | undefined>
   readonly sleep: (ms: number) => Promise<void>
   readonly rename?: (from: string, to: string) => Promise<void>
-}
+} & (
+  | {
+      /** Reads the authoritative session file without its journal projection. */
+      readonly loadSession: (sessionId: string) => Promise<StoredSession | undefined>
+    }
+  | {
+      /** D78: an independent new daily scope has no earlier session history. */
+      readonly initialBudget: () => Promise<
+        Omit<SessionBudgetTotal, 'spentUsd'> & { readonly spentUsd: UsdAmount }
+      >
+    }
+)
 
 interface ProjectedSessionBudgetJournal extends SessionBudgetJournal {
+  /** Atomic admission. A crashed lock is never stolen; its scope fails closed. */
+  reserveAdmitted(
+    sessionId: string,
+    accountId: string,
+    costUsd: UsdAmount,
+    capUsd: UsdAmount,
+  ): Promise<SessionBudgetClaim>
+  /** A usage view must never seed an unopened budget ledger. */
+  readExisting(
+    sessionId: string,
+    accountId: string,
+  ): Promise<(SessionBudgetTotal & { readonly uncertainUsd?: UsdAmount }) | undefined>
   /** Existing journal data owns this field; an unopened journal leaves a snapshot alone. */
   project(session: StoredSession): Promise<StoredSession>
+  /** Read-only reconciliation; ownership of settlement stays with the creator. */
+  lookupByClaimId(sessionId: string, accountId: string, claimId: string): Promise<ClaimView>
 }
 
 interface Scope {
@@ -86,8 +162,21 @@ function unavailable(cause?: unknown): Error {
   return new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause })
 }
 
-function assertCost(costUsd: number): void {
-  if (!Number.isFinite(costUsd) || costUsd < 0) {
+/**
+ * Whether `mkdir`'s refusal says the reservation lock is held right now, so
+ * the caller waits for it within its bound: the name exists, or, on Windows,
+ * its last holder is still removing it. Anything else is a failure of the
+ * store and is reported at once.
+ */
+export function isReservationLockHeld(
+  code: string | undefined,
+  platform: NodeJS.Platform,
+): boolean {
+  return code === EXISTS || (platform === 'win32' && code === BEING_REMOVED_ON_WINDOWS)
+}
+
+function assertCost(costUsd: UsdAmount): void {
+  if (!usdAmountSchema.safeParse(costUsd).success || Usd.from(costUsd).compare(Usd.from(0)) < 0) {
     throw unavailable()
   }
 }
@@ -124,7 +213,8 @@ function hasHistoricalFlatFees(session: StoredSession): boolean {
 function hasUnknownHistory(session: StoredSession): boolean {
   if (session.budgetIsFreshFork === true) {
     if (
-      session.budgetSpentUsd !== 0 ||
+      session.budgetSpentUsd === undefined ||
+      Usd.from(session.budgetSpentUsd).compare(Usd.from(0)) !== 0 ||
       session.forkedFrom === undefined ||
       !SESSION_ID.test(session.forkedFrom)
     ) {
@@ -181,23 +271,40 @@ function readClaim(scope: Scope, seed: Seed, claimId: string): Claim {
   }
 }
 
-function totalFor(scope: Scope): SessionBudgetTotal {
+function totalFor(scope: Scope, isUsageView = false) {
   try {
     const seed = readSeed(scope)
-    let spentUsd = seed.spentUsd
+    let spent = Usd.from(seed.spentUsd)
     let hasUnknownHistoricalFees = seed.hasUnknownHistoricalFees
+    let uncertainUsd = Usd.from(0).toAmount()
     const claimIds = readdirSync(path.join(scope.directory, CLAIMS_DIRECTORY))
     for (const claimId of claimIds) {
       const claim = readClaim(scope, seed, claimId)
-      spentUsd += claim.settledUsd ?? claim.reservedUsd
+      spent = spent.add(Usd.from(claim.settledUsd ?? claim.retainedUsd ?? claim.reservedUsd))
+      if (claim.settledUsd === undefined || claim.hasUnknownCost === true)
+        uncertainUsd = Usd.from(uncertainUsd)
+          .add(Usd.from(claim.settledUsd ?? claim.retainedUsd ?? claim.reservedUsd))
+          .toAmount()
       hasUnknownHistoricalFees ||=
         claim.hasUnknownCost === true ||
         (claim.isUnbounded === true && claim.settledUsd === undefined)
     }
-    assertCost(spentUsd)
-    return { spentUsd, hasUnknownHistoricalFees }
+    assertCost(spent.toAmount())
+    return {
+      spent,
+      hasUnknownHistoricalFees,
+      ...(isUsageView && Usd.from(uncertainUsd).compare(Usd.from(0)) > 0 && { uncertainUsd }),
+    }
   } catch (error: unknown) {
     throw unavailable(error)
+  }
+}
+
+function projectedTotal(scope: Scope): SessionBudgetTotal {
+  const total = totalFor(scope)
+  return {
+    spentUsd: total.spent.toAmount(),
+    hasUnknownHistoricalFees: total.hasUnknownHistoricalFees,
   }
 }
 
@@ -231,10 +338,21 @@ export function createSessionBudgetJournal(
       // An existing intent never grants another writer the right to seed.
       return readSeed(scope)
     }
-    const session = await deps.loadSession(scope.sessionId)
-    if (session?.sessionId !== scope.sessionId || session.accountId !== scope.accountId) {
-      throw unavailable()
+    const loadBudget = async (shouldCheckHistory = true): Promise<SessionBudgetTotal> => {
+      if ('initialBudget' in deps) {
+        const initial = await deps.initialBudget()
+        return { ...initial, spentUsd: Usd.from(initial.spentUsd).toAmount() }
+      }
+      const session = await deps.loadSession(scope.sessionId)
+      if (session?.sessionId !== scope.sessionId || session.accountId !== scope.accountId)
+        throw unavailable()
+      return {
+        spentUsd: Usd.from(session.budgetSpentUsd ?? 0).toAmount(),
+        hasUnknownHistoricalFees: shouldCheckHistory && hasUnknownHistory(session),
+      }
     }
+    // As before: validate ownership first; history failures retain the intent.
+    await loadBudget(false)
     try {
       await mkdir(path.dirname(scope.intent), { recursive: true })
       await mkdir(scope.intent)
@@ -247,22 +365,19 @@ export function createSessionBudgetJournal(
     try {
       // Only the intent creator reaches this path. A crash leaves the
       // intent behind and future readers refuse, rather than resetting spend.
-      const fresh = await deps.loadSession(scope.sessionId)
-      if (fresh?.sessionId !== scope.sessionId || fresh.accountId !== scope.accountId) {
-        throw unavailable()
-      }
+      const fresh = await loadBudget()
       await mkdir(path.dirname(scope.directory), { recursive: true })
       await mkdir(scope.directory)
       await mkdir(path.join(scope.directory, CLAIMS_DIRECTORY))
-      const spentUsd = fresh.budgetSpentUsd ?? 0
+      const spentUsd = fresh.spentUsd
       assertCost(spentUsd)
       const seed: Seed = {
-        version: 1,
+        version: 2,
         scopeId: randomUUID(),
         sessionId: scope.sessionId,
         accountId: scope.accountId,
-        spentUsd,
-        hasUnknownHistoricalFees: hasUnknownHistory(fresh),
+        spentUsd: Usd.from(spentUsd).toString(),
+        hasUnknownHistoricalFees: fresh.hasUnknownHistoricalFees,
       }
       await writeFileAtomically(
         path.join(scope.directory, SEED_FILE),
@@ -278,19 +393,19 @@ export function createSessionBudgetJournal(
   const writeClaim = async (
     scope: Scope,
     seed: Seed,
-    costUsd: number,
+    costUsd: UsdAmount,
     isNonsentReservation: boolean,
     flags: ClaimFlags = {},
   ): Promise<Claim> => {
     assertCost(costUsd)
     const claim: Claim = {
-      version: 1,
+      version: 2,
       scopeId: seed.scopeId,
       claimId: randomUUID(),
       ownerId,
       sessionId: scope.sessionId,
       accountId: scope.accountId,
-      reservedUsd: costUsd,
+      reservedUsd: Usd.from(costUsd).toString(),
       ...(flags.hasUnknownCost === true && { hasUnknownCost: true }),
       ...(flags.isUnbounded === true && { isUnbounded: true }),
     }
@@ -317,15 +432,15 @@ export function createSessionBudgetJournal(
             const current = readClaim(scope, currentSeed, claim.claimId)
             if (
               current.ownerId !== ownerId ||
-              current.reservedUsd !== costUsd ||
-              (current.settledUsd !== undefined && current.settledUsd !== 0)
+              current.reservedUsd !== claim.reservedUsd ||
+              (current.settledUsd !== undefined && current.settledUsd !== '0')
             ) {
               throw unavailable()
             }
           }
           await writeFileAtomically(
             path.join(directory, CLAIM_FILE),
-            JSON.stringify({ ...claim, settledUsd: 0, hasUnknownCost: false }),
+            JSON.stringify({ ...claim, settledUsd: '0', hasUnknownCost: false }),
             options,
           )
         } catch {
@@ -338,8 +453,9 @@ export function createSessionBudgetJournal(
 
   const claimFor = (scope: Scope, seed: Seed, created: Claim): SessionBudgetClaim => {
     let settling: Promise<SessionBudgetTotal> | undefined
-    let settlingCost: number | undefined
+    let settlingCost: UsdAmount | undefined
     let isSettlingCostUnknown: boolean | undefined
+    let isSettlingFinal: boolean | undefined
     const owned = (): Claim => {
       const currentSeed = readSeed(scope)
       const claim = readClaim(scope, currentSeed, created.claimId)
@@ -353,33 +469,42 @@ export function createSessionBudgetJournal(
       return claim
     }
     const settleEntry = async (
-      actualCostUsd: number,
+      actualCostUsd: UsdAmount,
       hasUnknownCost: boolean,
+      isFinal: boolean,
     ): Promise<SessionBudgetTotal> => {
       const claim = owned()
+      const amount = Usd.from(actualCostUsd)
+      if (!isFinal && amount.compare(Usd.from(claim.retainedUsd ?? claim.reservedUsd)) < 0) {
+        throw unavailable()
+      }
       if (claim.settledUsd !== undefined) {
         if (
-          claim.settledUsd !== actualCostUsd ||
+          claim.settledUsd !== amount.toString() ||
           (claim.hasUnknownCost === true) !== hasUnknownCost
         ) {
           throw unavailable()
         }
-        return totalFor(scope)
+        return projectedTotal(scope)
       }
       try {
         await writeFileAtomically(
           path.join(scope.directory, CLAIMS_DIRECTORY, created.claimId, CLAIM_FILE),
-          JSON.stringify({ ...claim, settledUsd: actualCostUsd, hasUnknownCost }),
+          JSON.stringify({
+            ...claim,
+            ...(isFinal ? { settledUsd: amount.toString() } : { retainedUsd: amount.toString() }),
+            hasUnknownCost,
+          }),
           options,
         )
-        return totalFor(scope)
+        return projectedTotal(scope)
       } catch (error: unknown) {
         throw unavailable(error)
       }
     }
     return {
       claimId: created.claimId,
-      reservedUsd: created.reservedUsd,
+      reservedUsd: Usd.from(created.reservedUsd).toAmount(),
       check(capUsd) {
         assertCost(capUsd)
         if (settling !== undefined) {
@@ -390,34 +515,43 @@ export function createSessionBudgetJournal(
           throw unavailable()
         }
         const total = totalFor(scope)
-        if (capUsd > 0 && total.hasUnknownHistoricalFees) {
+        if (Usd.from(capUsd).compare(Usd.from(0)) > 0 && total.hasUnknownHistoricalFees) {
           throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
         }
-        if (capUsd > 0 && total.spentUsd > capUsd) {
+        if (
+          Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
+          total.spent.compare(Usd.from(capUsd)) > 0
+        ) {
           throw new Error(
             fill(UI_TEXT.sessionBudgetStopped, {
-              estimate: formatUsd(created.reservedUsd),
+              estimate: formatUsd(Usd.from(created.reservedUsd).toAmount()),
               cap: formatUsd(capUsd),
-              spent: formatUsd(Math.max(0, total.spentUsd - created.reservedUsd)),
+              spent: formatUsd(total.spent.subtract(Usd.from(created.reservedUsd)).toAmount()),
             }),
           )
         }
-        return total
+        return {
+          spentUsd: total.spent.toAmount(),
+          hasUnknownHistoricalFees: total.hasUnknownHistoricalFees,
+        }
       },
-      async settle(actualCostUsd, hasUnknownCost) {
+      async settle(actualCostUsd, hasUnknownCost, isFinal = true) {
         assertCost(actualCostUsd)
         const validated = claimFlagsSchema.parse({ hasUnknownCost })
         const isUnknown =
           validated.hasUnknownCost ?? isSettlingCostUnknown ?? owned().hasUnknownCost === true
         if (
           settlingCost !== undefined &&
-          (settlingCost !== actualCostUsd || isSettlingCostUnknown !== isUnknown)
+          (isSettlingCostUnknown !== isUnknown ||
+            isSettlingFinal !== isFinal ||
+            settlingCost !== Usd.from(actualCostUsd).toAmount())
         ) {
           throw unavailable()
         }
-        settlingCost = actualCostUsd
+        settlingCost = Usd.from(actualCostUsd).toAmount()
         isSettlingCostUnknown = isUnknown
-        settling ??= settleEntry(actualCostUsd, isUnknown)
+        isSettlingFinal = isFinal
+        settling ??= settleEntry(actualCostUsd, isUnknown, isFinal)
         const current = settling
         try {
           return await current
@@ -426,26 +560,92 @@ export function createSessionBudgetJournal(
             settling = undefined
             settlingCost = undefined
             isSettlingCostUnknown = undefined
+            isSettlingFinal = undefined
           }
         }
       },
     }
   }
 
+  const withReservationLock = async <T>(scope: Scope, operation: () => Promise<T>): Promise<T> => {
+    const lock = `${scope.intent}.lock`
+    await mkdir(path.dirname(lock), { recursive: true })
+    let hasLock = false
+    let lastRefusal: unknown
+    for (let attempt = 0; attempt < DAILY_BUDGET_LOCK_ATTEMPTS; attempt += 1) {
+      try {
+        await mkdir(lock)
+        hasLock = true
+        break
+      } catch (error: unknown) {
+        if (!isReservationLockHeld(storeErrorCode(error), process.platform)) {
+          throw unavailable(error)
+        }
+        lastRefusal = error
+        await deps.sleep(DAILY_BUDGET_LOCK_WAIT_MS)
+      }
+    }
+    // The wait is over and the lock is still refused: the last answer says why.
+    if (!hasLock) throw unavailable(lastRefusal)
+    try {
+      return await operation()
+    } finally {
+      await rmdir(lock)
+    }
+  }
+
   return {
+    async reserveAdmitted(sessionId, accountId, costUsd, capUsd) {
+      const scope = scopeFor(sessionId, accountId)
+      return await withReservationLock(scope, async () => {
+        assertCost(capUsd)
+        if (Usd.from(capUsd).compare(Usd.from(0)) <= 0) throw unavailable()
+        const seed = await ensure(scope)
+        const claim = claimFor(scope, seed, await writeClaim(scope, seed, costUsd, true))
+        try {
+          claim.check(capUsd)
+          return claim
+        } catch (error: unknown) {
+          await claim.settle(Usd.from(0).toAmount())
+          throw error
+        }
+      })
+    },
+    async readExisting(sessionId, accountId) {
+      const scope = scopeFor(sessionId, accountId)
+      if (!(await isPresent(scope.intent)) && !(await isPresent(scope.directory))) return
+      const { spent, ...total } = totalFor(scope, true)
+      return { ...total, spentUsd: spent.toAmount() }
+    },
+    lookupByClaimId(sessionId, accountId, claimId) {
+      const scope = scopeFor(sessionId, accountId)
+      const { reservedUsd, settledUsd, retainedUsd, ...fields } = readClaim(
+        scope,
+        readSeed(scope),
+        claimId,
+      )
+      return Promise.resolve({
+        ...fields,
+        reservedUsd: Usd.from(reservedUsd).toAmount(),
+        ...(settledUsd !== undefined && { settledUsd: Usd.from(settledUsd).toAmount() }),
+        ...(retainedUsd !== undefined && { retainedUsd: Usd.from(retainedUsd).toAmount() }),
+      })
+    },
     async read(sessionId, accountId) {
       const scope = scopeFor(sessionId, accountId)
       await ensure(scope)
-      return totalFor(scope)
+      return projectedTotal(scope)
     },
     async reserve(sessionId, accountId, costUsd, flags = {}) {
       const scope = scopeFor(sessionId, accountId)
-      const seed = await ensure(scope)
-      return claimFor(
-        scope,
-        seed,
-        await writeClaim(scope, seed, costUsd, true, claimFlagsSchema.parse(flags)),
-      )
+      return await withReservationLock(scope, async () => {
+        const seed = await ensure(scope)
+        return claimFor(
+          scope,
+          seed,
+          await writeClaim(scope, seed, costUsd, true, claimFlagsSchema.parse(flags)),
+        )
+      })
     },
     async record(sessionId, accountId, actualCostUsd, hasUnknownCost = false) {
       const scope = scopeFor(sessionId, accountId)
@@ -472,7 +672,7 @@ export function createSessionBudgetJournal(
       }
       const total = totalFor(scope)
       const { budgetIsFreshFork: _initialFork, ...projected } = session
-      return { ...projected, budgetSpentUsd: total.spentUsd }
+      return { ...projected, budgetSpentUsd: total.spent.toAmount() }
     },
   }
 }

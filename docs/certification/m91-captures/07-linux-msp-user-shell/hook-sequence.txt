@@ -1,0 +1,10 @@
+2026-10-04T19:18:32.387Z #1 PreToolUse label=PreToolUse mode=log
+2026-10-04T19:18:32.388Z #1 exit 0
+2026-10-04T19:18:32.444Z #2 PostToolUse label=PostToolUse mode=log
+2026-10-04T19:18:32.444Z #2 exit 0
+2026-10-04T19:18:36.391Z #3 PreToolUse label=PreToolUse mode=log
+2026-10-04T19:18:36.392Z #3 exit 0
+2026-10-04T19:18:36.446Z #4 PostToolUseFailure label=PostToolUseFailure mode=log
+2026-10-04T19:18:36.447Z #4 exit 0
+2026-10-04T19:18:43.407Z #5 SessionEnd label=SessionEnd mode=log
+2026-10-04T19:18:43.407Z #5 exit 0

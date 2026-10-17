@@ -1,0 +1,77 @@
+{
+  "en": {
+    "config.modelApiStrictTools.description": "Use strict tool schemas where the selected model supports them. Disable to keep the previous tool declarations.",
+    "config.modelApiParallelReads.description": "Run safe read-only tool calls concurrently, up to four at a time. Other tool calls run in order.",
+    "config.webSearchMaxPerRequest.description": "Maximum hosted web searches per response (1–20; default 5). The price and shared daily budget are shown before the first charge."
+  },
+  "de": {
+    "config.modelApiStrictTools.description": "Strikte Werkzeugschemas verwenden, wenn das gewählte Modell sie unterstützt. Deaktivieren, um die bisherigen Werkzeugdeklarationen beizubehalten.",
+    "config.modelApiParallelReads.description": "Sichere, nur lesende Werkzeugaufrufe gleichzeitig ausführen, höchstens vier auf einmal. Andere Werkzeugaufrufe werden der Reihe nach ausgeführt.",
+    "config.webSearchMaxPerRequest.description": "Maximale Anzahl gehosteter Websuchen pro Antwort (1–20; Standard 5). Preis und gemeinsames Tagesbudget werden vor der ersten Belastung angezeigt."
+  },
+  "es": {
+    "config.modelApiStrictTools.description": "Usar esquemas estrictos de herramientas cuando el modelo seleccionado los admita. Desactívalo para conservar las declaraciones anteriores.",
+    "config.modelApiParallelReads.description": "Ejecutar simultáneamente llamadas seguras a herramientas de solo lectura, hasta cuatro a la vez. Las demás llamadas se ejecutan en orden.",
+    "config.webSearchMaxPerRequest.description": "Máximo de búsquedas web alojadas por respuesta (1–20; valor predeterminado 5). El precio y el presupuesto diario compartido se muestran antes del primer cargo."
+  },
+  "fr": {
+    "config.modelApiStrictTools.description": "Utiliser des schémas d’outils stricts lorsque le modèle sélectionné les prend en charge. Désactivez cette option pour conserver les déclarations précédentes.",
+    "config.modelApiParallelReads.description": "Exécuter simultanément les appels d’outils sûrs en lecture seule, jusqu’à quatre à la fois. Les autres appels sont exécutés dans l’ordre.",
+    "config.webSearchMaxPerRequest.description": "Nombre maximal de recherches web hébergées par réponse (1–20 ; valeur par défaut 5). Le tarif et le budget quotidien partagé sont affichés avant la première facturation."
+  },
+  "it": {
+    "config.modelApiStrictTools.description": "Usa schemi rigorosi degli strumenti quando il modello selezionato li supporta. Disattiva per mantenere le dichiarazioni precedenti.",
+    "config.modelApiParallelReads.description": "Esegui contemporaneamente le chiamate sicure agli strumenti di sola lettura, fino a quattro alla volta. Le altre chiamate vengono eseguite in ordine.",
+    "config.webSearchMaxPerRequest.description": "Numero massimo di ricerche web ospitate per risposta (1–20; predefinito 5). Il prezzo e il budget giornaliero condiviso vengono mostrati prima del primo addebito."
+  },
+  "pt-br": {
+    "config.modelApiStrictTools.description": "Usar esquemas estritos de ferramentas quando o modelo selecionado os aceitar. Desative para manter as declarações anteriores.",
+    "config.modelApiParallelReads.description": "Executar simultaneamente chamadas seguras a ferramentas de somente leitura, até quatro por vez. As demais chamadas são executadas em ordem.",
+    "config.webSearchMaxPerRequest.description": "Máximo de pesquisas web hospedadas por resposta (1–20; padrão 5). O preço e o orçamento diário compartilhado são exibidos antes da primeira cobrança."
+  },
+  "cs": {
+    "config.modelApiStrictTools.description": "Používat striktní schémata nástrojů, pokud je vybraný model podporuje. Vypnutím zachováte předchozí deklarace nástrojů.",
+    "config.modelApiParallelReads.description": "Spouštět bezpečná volání nástrojů pouze pro čtení souběžně, nejvýše čtyři najednou. Ostatní volání se provádějí v pořadí.",
+    "config.webSearchMaxPerRequest.description": "Maximální počet hostovaných webových vyhledávání na odpověď (1–20; výchozí 5). Cena a sdílený denní rozpočet se zobrazí před prvním účtováním."
+  },
+  "hu": {
+    "config.modelApiStrictTools.description": "Szigorú eszközsémák használata, ha a kiválasztott modell támogatja őket. Kikapcsolva megmaradnak a korábbi eszközdeklarációk.",
+    "config.modelApiParallelReads.description": "A biztonságos, csak olvasó eszközhívások párhuzamos futtatása, legfeljebb négy egyszerre. A többi hívás sorrendben fut.",
+    "config.webSearchMaxPerRequest.description": "A kiszolgálón végzett webes keresések maximális száma válaszonként (1–20; alapérték 5). Az ár és a közös napi keret az első terhelés előtt jelenik meg."
+  },
+  "pl": {
+    "config.modelApiStrictTools.description": "Używaj ścisłych schematów narzędzi, gdy wybrany model je obsługuje. Wyłącz, aby zachować poprzednie deklaracje narzędzi.",
+    "config.modelApiParallelReads.description": "Uruchamiaj bezpieczne wywołania narzędzi tylko do odczytu równolegle, maksymalnie cztery naraz. Pozostałe wywołania są wykonywane w kolejności.",
+    "config.webSearchMaxPerRequest.description": "Maksymalna liczba wyszukiwań internetowych po stronie usługi na odpowiedź (1–20; domyślnie 5). Cena i wspólny budżet dzienny są wyświetlane przed pierwszą opłatą."
+  },
+  "ru": {
+    "config.modelApiStrictTools.description": "Использовать строгие схемы инструментов, если выбранная модель их поддерживает. Отключите, чтобы сохранить прежние объявления инструментов.",
+    "config.modelApiParallelReads.description": "Выполнять безопасные вызовы инструментов только для чтения параллельно, не более четырёх одновременно. Остальные вызовы выполняются по порядку.",
+    "config.webSearchMaxPerRequest.description": "Максимальное число веб-поисков на стороне сервиса на ответ (1–20; по умолчанию 5). Цена и общий дневной бюджет показываются до первого списания."
+  },
+  "tr": {
+    "config.modelApiStrictTools.description": "Seçilen model desteklediğinde katı araç şemalarını kullan. Önceki araç bildirimlerini korumak için kapatın.",
+    "config.modelApiParallelReads.description": "Güvenli salt okunur araç çağrılarını aynı anda en fazla dört çağrı olacak şekilde paralel çalıştır. Diğer çağrılar sırayla çalışır.",
+    "config.webSearchMaxPerRequest.description": "Yanıt başına hizmet tarafındaki web aramalarının üst sınırı (1–20; varsayılan 5). Fiyat ve paylaşılan günlük bütçe ilk ücretlendirmeden önce gösterilir."
+  },
+  "ja": {
+    "config.modelApiStrictTools.description": "選択したモデルが対応している場合、厳密なツールスキーマを使用します。無効にすると従来のツール定義を維持します。",
+    "config.modelApiParallelReads.description": "安全な読み取り専用のツール呼び出しを最大4件まで同時に実行します。その他の呼び出しは順番に実行します。",
+    "config.webSearchMaxPerRequest.description": "回答あたりのサービス側ウェブ検索回数の上限（1～20、既定値5）。初回の課金前に料金と共有の1日予算が表示されます。"
+  },
+  "ko": {
+    "config.modelApiStrictTools.description": "선택한 모델이 지원하는 경우 엄격한 도구 스키마를 사용합니다. 이전 도구 선언을 유지하려면 끄세요.",
+    "config.modelApiParallelReads.description": "안전한 읽기 전용 도구 호출을 최대 네 개까지 동시에 실행합니다. 다른 호출은 순서대로 실행합니다.",
+    "config.webSearchMaxPerRequest.description": "응답당 서비스 측 웹 검색의 최대 횟수(1~20, 기본값 5)입니다. 첫 과금 전에 가격과 공유 일일 예산이 표시됩니다."
+  },
+  "zh-cn": {
+    "config.modelApiStrictTools.description": "当所选模型支持时，使用严格的工具架构。关闭后保留原有工具声明。",
+    "config.modelApiParallelReads.description": "并发执行安全的只读工具调用，每次最多四个。其他工具调用按顺序执行。",
+    "config.webSearchMaxPerRequest.description": "每次回答允许的服务端网页搜索次数上限（1–20，默认 5）。首次收费前会显示价格和共享每日预算。"
+  },
+  "zh-tw": {
+    "config.modelApiStrictTools.description": "當所選模型支援時，使用嚴格的工具結構描述。關閉後保留原有工具宣告。",
+    "config.modelApiParallelReads.description": "並行執行安全的唯讀工具呼叫，每次最多四個。其他工具呼叫依序執行。",
+    "config.webSearchMaxPerRequest.description": "每次回答允許的服務端網頁搜尋次數上限（1–20，預設 5）。首次收費前會顯示價格和共用每日預算。"
+  }
+}

@@ -102,7 +102,7 @@ export async function stageInputs({ paths, inputs }) {
  * was cut and its full size.
  */
 export async function generateDiff({ owner, git, paths, baseEnv, staged }) {
-  requireGit(
+  const outcome = requireGit(
     await safeGit({
       owner,
       git,
@@ -118,14 +118,20 @@ export async function generateDiff({ owner, git, paths, baseEnv, staged }) {
       baseEnv,
       readOnly: true,
       stdoutPath: paths.diffFull,
+      stdoutPrefixMaxBytes: staged.maxDiffBytes,
     }),
     'diff',
   )
-  const full = new TextDecoder('utf-8').decode(await readFile(paths.diffFull))
+  // stream:true drops an incomplete trailing code point at the byte boundary.
+  const full = new TextDecoder('utf-8').decode(await readFile(paths.diffFull), { stream: true })
   await rm(paths.diffFull, { force: true })
   const cut = truncateUtf8(full, staged.maxDiffBytes)
   await writeFile(paths.diff, cut.text, { flag: 'wx', mode: PRIVATE_FILE })
-  return { truncated: cut.truncated, bytes: cut.bytes }
+  if (outcome.stdoutTotalBytes === undefined) throw new Error('review diff byte count is missing')
+  return {
+    truncated: outcome.stdoutTotalBytes > Buffer.byteLength(cut.text),
+    bytes: outcome.stdoutTotalBytes,
+  }
 }
 
 /** Fills each known placeholder once, in a single pass, so inserted text is never expanded. */

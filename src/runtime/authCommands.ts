@@ -5,8 +5,19 @@
 
 import type { LaunchResolution } from '../core/backends/musecode/launch'
 import { isValidModelApiKey, type SecretStore } from '../host/auth/credentialStore'
-import { MUSE_LOGIN_ARGS, SECRET_KEYS, UI_TEXT } from '../shared/constants'
+import type { ProvidersFileRead } from '../core/providers/providersFile'
+import {
+  CREDENTIAL_RECORD_VERSION,
+  MUSE_LOGIN_ARGS,
+  SECRET_KEYS,
+  UI_TEXT,
+} from '../shared/constants'
 import { fill } from '../shared/l10n/text'
+import {
+  formatStoredProviderSecret,
+  parseStoredProviderSecret,
+  providerSecretAccount,
+} from './keyStore'
 
 export interface AuthCommandDeps {
   readonly secrets: SecretStore
@@ -75,6 +86,121 @@ export async function authClear(deps: AuthCommandDeps): Promise<number> {
   return EXIT_OK
 }
 
+/**
+ * `auth set --provider <id>`: the key comes from standard input only (the
+ * reader hides terminal typing and takes a pipe's first line), is checked
+ * against the preset's shape, and is stored bound to the exact origin it
+ * was entered for. Never an argument, a setting, a file or the environment.
+ */
+export async function authSetProvider(
+  deps: AuthCommandDeps,
+  providerId: string,
+  /** The runner's own user file (never a repository file). */
+  readUserFile: () => Promise<ProvidersFileRead>,
+): Promise<number> {
+  const { keyTargetFor } = await import('./providersCommands')
+  const target = await keyTargetFor(readUserFile, providerId)
+  if (!target.ok) {
+    deps.printError(target.reason)
+    return EXIT_FAILED
+  }
+  const { preset, origin } = target
+  if (preset.auth !== 'apiKey') {
+    deps.printError(fill(UI_TEXT.providerNotConfigured, { provider: providerId }))
+    return EXIT_FAILED
+  }
+  const typed = await deps.readSecret(fill(UI_TEXT.providerKeyPrompt, { provider: providerId }))
+  const candidate = typed.trim()
+  if (candidate === '') {
+    deps.printError(UI_TEXT.providerKeyNotStored)
+    return EXIT_FAILED
+  }
+  const { presets } = await import('../host/backend/providersEntry')
+  if (!presets.isKeyShape(preset.keyShape, candidate)) {
+    deps.printError(
+      fill(UI_TEXT.providerKeyShape, { provider: preset.label, hint: preset.keyHint }),
+    )
+    return EXIT_FAILED
+  }
+  const account = providerAccount(deps, providerId)
+  if (account === undefined) return EXIT_FAILED
+  try {
+    await deps.secrets.store(
+      account,
+      formatStoredProviderSecret(
+        { v: CREDENTIAL_RECORD_VERSION, auth: 'apiKey', origin },
+        candidate,
+      ),
+    )
+  } catch (error: unknown) {
+    return unavailable(deps, error)
+  }
+  deps.print(fill(UI_TEXT.providerKeyStored, { provider: providerId, store: deps.storeName }))
+  return EXIT_OK
+}
+
+/** The validated account, with one consistent refusal for every auth command. */
+function providerAccount(deps: AuthCommandDeps, providerId: string): string | undefined {
+  const account = providerSecretAccount(providerId)
+  if (account === undefined)
+    deps.printError(fill(UI_TEXT.providerUnknown, { provider: providerId }))
+  return account
+}
+
+/** `auth status --provider <id>`: the stored key's bound origin, never the key. */
+export async function authStatusProvider(
+  deps: AuthCommandDeps,
+  providerId: string,
+): Promise<number> {
+  const account = providerAccount(deps, providerId)
+  if (account === undefined) return EXIT_FAILED
+  let stored: string | undefined
+  try {
+    stored = await deps.secrets.get(account)
+  } catch (error: unknown) {
+    return unavailable(deps, error)
+  }
+  if (stored === undefined || stored === '') {
+    deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: providerId }))
+    return EXIT_FAILED
+  }
+  let value: unknown
+  try {
+    value = JSON.parse(stored) as unknown
+  } catch {
+    value = undefined
+  }
+  const parsed = value === undefined ? undefined : parseStoredProviderSecret(value)
+  if (parsed === undefined) {
+    deps.printError(fill(UI_TEXT.providerSecretUnreadable, { provider: providerId }))
+    return EXIT_FAILED
+  }
+  deps.print(
+    fill(UI_TEXT.providerKeyPresent, {
+      provider: providerId,
+      store: deps.storeName,
+      origin: parsed.record.origin,
+    }),
+  )
+  return EXIT_OK
+}
+
+/** `auth clear --provider <id>`: removes the provider's secret. */
+export async function authClearProvider(
+  deps: AuthCommandDeps,
+  providerId: string,
+): Promise<number> {
+  const account = providerAccount(deps, providerId)
+  if (account === undefined) return EXIT_FAILED
+  try {
+    await deps.secrets.delete(account)
+  } catch (error: unknown) {
+    return unavailable(deps, error)
+  }
+  deps.print(fill(UI_TEXT.providerKeyCleared, { provider: providerId }))
+  return EXIT_OK
+}
+
 /** The two events of a child process `login` waits for. */
 export interface ExitingProcess {
   once(event: 'error', listener: (error: Error) => void): unknown
@@ -84,12 +210,12 @@ export interface ExitingProcess {
 export interface LoginDeps {
   readonly resolveLaunch: () => LaunchResolution
   readonly environment: () => NodeJS.ProcessEnv
-  /** `child_process.spawn` with the terminal handed over (`stdio: 'inherit'`). */
+  /** Governed launch with terminal streams forwarded after admission. */
   readonly spawnInTerminal: (
     command: string,
     args: readonly string[],
     env: NodeJS.ProcessEnv,
-  ) => ExitingProcess
+  ) => ExitingProcess | Promise<ExitingProcess>
   readonly printError: (line: string) => void
 }
 
@@ -109,13 +235,16 @@ export function login(deps: LoginDeps): Promise<number> {
     [...prefix, ...MUSE_LOGIN_ARGS],
     deps.environment(),
   )
-  return new Promise((resolve) => {
-    child.once('error', (error) => {
-      deps.printError(describe(error))
-      resolve(EXIT_FAILED)
+  const waitForExit = (process: ExitingProcess): Promise<number> =>
+    new Promise((resolve) => {
+      process.once('error', (error) => {
+        deps.printError(describe(error))
+        resolve(EXIT_FAILED)
+      })
+      process.once('exit', (code) => {
+        resolve(code ?? EXIT_FAILED)
+      })
     })
-    child.once('exit', (code) => {
-      resolve(code ?? EXIT_FAILED)
-    })
-  })
+  const waitForLaunch = async (pending: Promise<ExitingProcess>) => await waitForExit(await pending)
+  return child instanceof Promise ? waitForLaunch(child) : waitForExit(child)
 }

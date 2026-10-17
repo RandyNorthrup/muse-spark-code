@@ -38,22 +38,33 @@ import { PERMISSION_MODES, type PermissionMode, UI_TEXT } from './constants'
 import type { BackendKind } from './protocol'
 
 /**
- * The Modes menu's line for a mode on the backend in use (PLAN.md D24, D69).
- * `hasReviewer`: the Auto reviewer on Muse Code is on (M90); the ACP agent
- * has none.
+ * Which Auto reviewer is on: Muse Code's (M90, its setting) and the Model
+ * API's paid one (M78, its setting on and its price accepted). Each words
+ * Auto on its own backend only; the ACP agent has neither.
  */
+export interface AutoReviewers {
+  readonly museCode: boolean
+  readonly modelApi: boolean
+}
+
+const NO_AUTO_REVIEWERS: AutoReviewers = { museCode: false, modelApi: false }
+
+/** The Modes menu's line for a mode on the backend in use (PLAN.md D24, D69). */
 export function permissionModeDetail(
   mode: PermissionMode,
   backend: BackendKind | undefined,
-  hasReviewer = false,
+  reviewers: AutoReviewers = NO_AUTO_REVIEWERS,
 ): string {
   if (backend === 'modelApi') {
+    if (mode === 'auto' && reviewers.modelApi) {
+      return UI_TEXT.modelApiReviewedAutoDetail
+    }
     // The Model API backend words only the modes that behave differently there.
     const modelApiDetails: Readonly<Partial<Record<PermissionMode, string>>> =
       UI_TEXT.modelApiPermissionModeDetails
     return modelApiDetails[mode] ?? UI_TEXT.permissionModeDetails[mode]
   }
-  return mode === 'auto' && hasReviewer
+  return mode === 'auto' && reviewers.museCode
     ? UI_TEXT.museCodeReviewedAutoDetail
     : UI_TEXT.permissionModeDetails[mode]
 }

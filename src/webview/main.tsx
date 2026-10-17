@@ -7,25 +7,30 @@
 // language's table goes in before anything reads the text (PLAN.md D33).
 
 import { createRoot } from 'react-dom/client'
-import { useSyncExternalStore } from 'react'
-import { WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
+import { lazy, Suspense, useSyncExternalStore } from 'react'
+import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import { App } from './App'
-import { TasksApp } from './TasksApp'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { ReportDialogHost } from './components/ReportDialog'
+import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
 import { installEmbeddedTable } from './installTable'
+import { windowResourceLoader } from './resources/windowPort'
+import { installSurfaceRetry, retrySurface } from './surfaceRetry'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
 import './styles.css'
 
-// This bundle's own resolved URL, read while it first runs (M93): the
-// report's frames name only locations inside it, as the package path, never
-// the URL (which holds the install folder).
-const ownScriptUrl =
-  document.currentScript instanceof HTMLScriptElement ? document.currentScript.src : undefined
+const TasksApp = lazy(async () => {
+  const { TasksApp } = await import('./TasksApp')
+  return { default: TasksApp }
+})
+
+// This module's own resolved URL (M93): the report's frames name only
+// locations inside main.js, as the package path, never the URL (which holds
+// the install folder). Frames in its hashed chunks are left out.
+const ownScriptUrl = import.meta.url
 
 const rootElement = document.querySelector(`#${WEBVIEW_ROOT_ELEMENT_ID}`)
 if (rootElement === null) {
@@ -36,7 +41,7 @@ if (rootElement === null) {
  * The report dialog over the crash screen (M93): the store outlives the
  * crashed tree and keeps reducing the host's `reportDraft` answers, so the
  * boundary's crash screen renders the dialog itself while the app's copy is
- * gone with the tree, and a render failure keeps its "Report a problem" way on.
+ * gone with the tree, and a render failure keeps its "Report a Problem" way on.
  */
 function CrashReportDialog({
   store,
@@ -50,7 +55,7 @@ function CrashReportDialog({
     return null
   }
   return (
-    <ReportDialogHost
+    <DeferredReportDialog
       key={report.session}
       report={report}
       postMessage={postMessage}
@@ -62,24 +67,41 @@ function CrashReportDialog({
 }
 
 if (document.body.dataset['surface'] === 'tasks') {
+  mountTasks(rootElement)
+} else {
+  mountChat(rootElement)
+}
+
+function mountTasks(element: Element): void {
   const api = acquireVsCodeApi()
   const tableError = installEmbeddedTable(document)
   if (tableError !== undefined) {
     throw tableError
   }
-  createRoot(rootElement).render(
-    <TasksApp
-      messages={window}
-      postMessage={(message) => {
-        api.postMessage(message)
-      }}
-    />,
+  createRoot(element).render(
+    <Suspense
+      fallback={
+        <main className="todo-surface">
+          <header className="todo-tab-header">
+            <h1>{UI_TEXT.todoTitle}</h1>
+          </header>
+          <p role="status">{UI_TEXT.loadingOutput}</p>
+        </main>
+      }
+    >
+      <TasksApp
+        messages={window}
+        postMessage={(message) => {
+          api.postMessage(message)
+        }}
+      />
+    </Suspense>,
   )
-} else {
-  mountChat(rootElement)
 }
 
 function mountChat(element: Element): void {
+  // Exact prices load outside startup (STARTUP017): the mounted surfaces
+  // fetch the money chunk through its hooks, each retrying on its own.
   const host = vsCodeHostBridge(window)
   // What throws here reaches the host's log (M39): a render the boundary
   // caught, an error or a rejected promise nothing handled, a host message.
@@ -111,6 +133,14 @@ function mountChat(element: Element): void {
   const persister = persistStore(store, (state) => {
     host.saveState(state)
   })
+  installSurfaceRetry(
+    () => {
+      persister.flush(store.hasRendered())
+    },
+    () => {
+      host.post({ type: 'hostAction', action: 'reload' })
+    },
+  )
   // The document goes away (a reload, the panel closing): save what is shown.
   window.addEventListener('pagehide', () => {
     persister.flush(store.hasRendered())
@@ -118,6 +148,8 @@ function mountChat(element: Element): void {
   const postMessage = (message: WebviewToHostMessage) => {
     host.post(message)
   }
+  // M107 U–C1: the window governor's chip, mounted once the host sends a status.
+  const resources = windowResourceLoader(store, postMessage)
 
   createRoot(element).render(
     <>
@@ -132,14 +164,9 @@ function mountChat(element: Element): void {
           // the host builds the report from its journal alone.
           host.post({ type: 'openReport' })
         }}
-        onReload={() => {
-          // A state that crashed the very first render would crash the reloaded
-          // one too: it is saved without its transcript then.
-          persister.flush(store.hasRendered())
-          host.post({ type: 'hostAction', action: 'reload' })
-        }}
+        onReload={retrySurface}
       >
-        <App store={store} postMessage={postMessage} />
+        <App store={store} postMessage={postMessage} resources={resources} />
       </ErrorBoundary>
     </>,
   )

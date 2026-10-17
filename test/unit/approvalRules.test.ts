@@ -197,6 +197,11 @@ describe('the Auto reviewer on Muse Code: what it may answer (M90, PLAN.md D69)'
       },
     ],
     ['a custom child that asks', { permissionMode: 'manual' as const }],
+    // M92e (PLAN.md D71): the secret is built at runtime, never as a literal.
+    [
+      'a shell command holding a detected secret',
+      { subject: { kind: 'shell', command: `deploy --token sk-${'k'.repeat(24)}` } },
+    ],
   ])('never %s', (_case, overrides: Partial<ApprovalRequest>) => {
     expect(isReviewableApproval(shellRequest(overrides), 'auto', 't1')).toBe(false)
   })

@@ -42,6 +42,7 @@ import {
 } from '../../shared/constants'
 import { reportWebviewErrorSchema } from '../../shared/protocol'
 import { redactSecrets } from '../redact'
+import type { SecretScrubPort } from '../../shared/redact'
 
 const YES = 'yes'
 const NO = 'no'
@@ -59,19 +60,33 @@ const REPORT_PLATFORMS = ['win32', 'darwin', 'linux'] as const
 /** A dotted version with an optional short suffix (`1.4.2-R4684.1`); never a sentence. */
 const VERSION_PATTERN = /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z.-]{1,32})?$/
 
-/** A setting name (`museSpark.backend`); a value never rides along. */
-const SETTING_NAME_PATTERN = /^museSpark\.[A-Za-z][A-Za-z0-9]{0,63}$/
+/**
+ * A setting name: the section, then one to four dotted segments of letters
+ * and digits (`museSpark.backend`, `museSpark.vault.enabled`). A value never
+ * rides along. Until 0.18.1 a second dot was refused, so anyone who had
+ * changed a dotted setting could not open the report at all.
+ */
+const SETTING_NAME_PATTERN = /^museSpark(?:\.[A-Za-z][A-Za-z0-9]{0,63}){1,4}$/
 
-/** How many setting names one report may carry; the manifest holds about forty. */
-const SETTING_NAMES_MAX = 64
+/** How many setting names one report may carry; the manifest holds a hundred. */
+const SETTING_NAMES_MAX = 128
 
-/** A setting name's bound before its pattern is checked: the prefix plus 64. */
+/** A setting name's bound before its pattern is checked; the longest is 41. */
 const SETTING_NAME_MAX_CHARS = 80
+
+/** The title of a report whose facts are left out and did not validate. */
+const TITLE_WITHOUT_FACTS = 'Problem report: Muse Spark'
 
 /** The shortest user/machine name worth redacting; shorter would eat ordinary words. */
 const EXTRA_LITERAL_MIN_CHARS = 3
 
 const problemReportFactsSchema = z.strictObject({
+  modelApiStatus: z.optional(
+    z.strictObject({
+      isAlive: z.boolean(),
+      status: z.enum(['operational', 'unknown']),
+    }),
+  ),
   extensionVersion: z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS)),
   /**
    * The editor's VS Code version; absent for the standalone agent, which
@@ -169,6 +184,20 @@ function validatedFacts(input: unknown): ProblemReportFacts {
   return cliVersion !== undefined && isReportVersion(cliVersion) ? { ...facts, cliVersion } : facts
 }
 
+/**
+ * The facts a draft may use. A report with its facts switched off carries
+ * none, so facts that fail validation must not stop it: it is built without
+ * them, title included. With facts on, the refusal stands and names its field.
+ */
+function draftFacts(input: ProblemReportInput): ProblemReportFacts | undefined {
+  try {
+    return validatedFacts(input.facts)
+  } catch (error: unknown) {
+    if (input.includeFacts || !(error instanceof ReportBuildError)) throw error
+    return undefined
+  }
+}
+
 /** One record the report will carry, with its place in the input it came from. */
 export interface SelectedReportEvent {
   /** The record's index in the input list: the preview's removal handle. */
@@ -235,9 +264,9 @@ const POSIX_USER_PATH = /\/(?:home|Users)\/[^\s]+/g
 // Unknown Windows paths can contain spaces; stop at a line or enclosing quote.
 const WINDOWS_USER_PATH = /(?:\\\\\?\\)?[a-z]:[\\/]users[\\/][^\r\n"'<>`]+|\\\\[^\r\n"'<>`]+/gi
 const WINDOWS_ROOT = /^(?:[a-z]:[\\/]|\\\\)/i
-const EXTENDED_UNC_PREFIX = /^\\\\\?\\UNC\\/i
-const EXTENDED_DRIVE_PREFIX = /^\\\\\?\\/
-const REGEXP_SPECIAL = /[.*+?^${}()|[\]\\]/g
+const UNC_PREFIX = '\\\\'
+const EXTENDED_DRIVE_PREFIX = '\\\\?\\'
+const EXTENDED_UNC_PREFIX = '\\\\?\\UNC\\'
 const EMAIL_PATTERN = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g
 const IPV4_PATTERN = /\b(?:\d{1,3}\.){3}\d{1,3}\b/g
 const IPV6_PATTERN =
@@ -248,19 +277,67 @@ function isIpv6Like(match: string): boolean {
   return match.includes('::') || /[a-fA-F]/.test(match)
 }
 
-/** Windows roots have equivalent case, separators and extended spellings. */
+/**
+ * A Windows path compared as Windows compares it: letters in lower case
+ * (where that keeps the length, so every index still points into the
+ * original) and `/` for `\`.
+ */
+function foldWindowsPath(text: string): string {
+  return Array.from(text, (character) => {
+    const lower = character.toLowerCase()
+    return lower.length === character.length ? lower : character
+  })
+    .join('')
+    .replaceAll('\\', '/')
+}
+
+/** Whether `text` holds `prefix` (in any letter case) just before `at`. */
+function hasPrefixAt(text: string, at: number, prefix: string): boolean {
+  return (
+    at >= prefix.length && text.slice(at - prefix.length, at).toLowerCase() === prefix.toLowerCase()
+  )
+}
+
+/** Where a root found at `at` starts, with its prefix; undefined when it has none it needs. */
+function rootMatchStart(text: string, at: number, isUnc: boolean): number | undefined {
+  if (!isUnc) {
+    return hasPrefixAt(text, at, EXTENDED_DRIVE_PREFIX) ? at - EXTENDED_DRIVE_PREFIX.length : at
+  }
+  if (hasPrefixAt(text, at, EXTENDED_UNC_PREFIX)) return at - EXTENDED_UNC_PREFIX.length
+  return hasPrefixAt(text, at, UNC_PREFIX) ? at - UNC_PREFIX.length : undefined
+}
+
+/**
+ * Windows roots have equivalent case, separators and extended spellings
+ * (`\\?\C:\…`, `\\?\UNC\server\…`). Matched as literals, never as a pattern
+ * built from the root.
+ */
 function replaceReportRoot(text: string, root: string, mark: string): string {
   if (!WINDOWS_ROOT.test(root)) return text.replaceAll(root, () => mark)
-  const plain = root
-    .replace(EXTENDED_UNC_PREFIX, () => '\\\\')
-    .replace(EXTENDED_DRIVE_PREFIX, () => '')
-  const isUnc = plain.startsWith('\\\\')
-  const escaped = (isUnc ? plain.slice(2) : plain)
-    .split(/[\\/]/)
-    .map((part) => part.replaceAll(REGEXP_SPECIAL, (character) => `\\${character}`))
-    .join(String.raw`[\\/]`)
-  const prefix = isUnc ? String.raw`\\\\(?:\?\\UNC\\)?` : String.raw`(?:\\\\\?\\)?`
-  return text.replaceAll(new RegExp(`${prefix}${escaped}`, 'gi'), () => mark)
+  let plain = root
+  if (hasPrefixAt(root, EXTENDED_UNC_PREFIX.length, EXTENDED_UNC_PREFIX)) {
+    plain = UNC_PREFIX + root.slice(EXTENDED_UNC_PREFIX.length)
+  } else if (root.startsWith(EXTENDED_DRIVE_PREFIX)) {
+    plain = root.slice(EXTENDED_DRIVE_PREFIX.length)
+  }
+  const isUnc = plain.startsWith(UNC_PREFIX)
+  const key = foldWindowsPath(isUnc ? plain.slice(UNC_PREFIX.length) : plain)
+  if (key === '') return text
+  const folded = foldWindowsPath(text)
+  let result = ''
+  let copied = 0
+  let at = folded.indexOf(key)
+  while (at !== -1) {
+    const start = rootMatchStart(text, at, isUnc)
+    if (start !== undefined && start >= copied) {
+      result += text.slice(copied, start) + mark
+      copied = at + key.length
+      at = folded.indexOf(key, copied)
+    } else {
+      at = folded.indexOf(key, at + 1)
+    }
+  }
+  return result + text.slice(copied)
 }
 
 /**
@@ -342,6 +419,11 @@ function factLines(facts: ProblemReportFacts): readonly string[] {
     `node: ${facts.nodeVersion}`,
     `platform: ${facts.platform}`,
     `backend: ${facts.backend}`,
+    ...(facts.modelApiStatus === undefined
+      ? []
+      : [
+          `model api service: ${facts.modelApiStatus.status}; alive: ${facts.modelApiStatus.isAlive ? YES : NO}`,
+        ]),
     `cli: ${cli}; signed in: ${facts.cliSignIn ? YES : NO}`,
     `stored model api key: ${facts.hasStoredApiKey ? YES : NO}; META_API_KEY in environment: ${facts.hasEnvironmentApiKey ? YES : NO}`,
     `shell sandbox: ${facts.sandbox}`,
@@ -429,18 +511,18 @@ function cappedDescription(description: string): string {
  * off-allowlist facts; skips off-allowlist records. The returned text is the
  * final draft: the preview shows it byte-identical, and exports carry it unchanged.
  */
-export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
+function reportParts(input: ProblemReportInput): { title: string; text: string } {
   if (!Number.isFinite(input.nowMs)) {
     throw new ReportBuildError('nowMs', 'not a finite time')
   }
-  const facts = validatedFacts(input.facts)
+  const facts = draftFacts(input)
   const events = validatedEvents(input.events)
   const sections: string[] = ['Muse Spark problem report']
   const description = cappedDescription(input.description)
   if (description !== '') {
     sections.push(`What was happening:\n${description}`)
   }
-  if (input.includeFacts) {
+  if (facts !== undefined && input.includeFacts) {
     sections.push(`Support facts:\n${factLines(facts).join('\n')}`)
   }
   if (input.includeEvents) {
@@ -450,9 +532,31 @@ export function buildProblemReportDraft(input: ProblemReportInput): SealedReport
         : `Recent events (${String(events.length)}):\n${events.length === 0 ? NONE : eventLines(events).join('\n')}`,
     )
   }
-  const title = scrubFinalDraft(problemReportTitle(facts), input.scrub)
-  const text = scrubFinalDraft(sections.join('\n\n'), input.scrub)
-  return sealReportDraft(title, text)
+  return {
+    title: facts === undefined ? TITLE_WITHOUT_FACTS : problemReportTitle(facts),
+    text: sections.join('\n\n'),
+  }
+}
+
+/** Existing synchronous builder for callers with no vault.
+ * @unwired M93 report-a-problem draft without vault */
+export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
+  const parts = reportParts(input)
+  return sealReportDraft(
+    scrubFinalDraft(parts.title, input.scrub),
+    scrubFinalDraft(parts.text, input.scrub),
+  )
+}
+
+/** M109: scrub raw final text before privacy edits and seal only the resulting preview. */
+export async function buildVaultProblemReportDraft(
+  input: ProblemReportInput,
+  vaultScrub?: SecretScrubPort,
+): Promise<SealedReportDraft> {
+  const parts = reportParts(input)
+  const title = vaultScrub === undefined ? parts.title : await vaultScrub.scrub(parts.title)
+  const text = vaultScrub === undefined ? parts.text : await vaultScrub.scrub(parts.text)
+  return sealReportDraft(scrubFinalDraft(title, input.scrub), scrubFinalDraft(text, input.scrub))
 }
 
 /** Where a draft goes on GitHub: opened prefilled, or the fallback when too long. */

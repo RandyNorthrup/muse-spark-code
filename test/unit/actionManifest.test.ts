@@ -49,8 +49,12 @@ function scalar(raw: string): string {
   return (comment === -1 ? raw : raw.slice(0, comment)).trim()
 }
 
-/** Block mappings, block sequences of mappings and one-line scalars; nothing else. */
-function parseYaml(text: string): Yaml {
+/**
+ * Block mappings, block sequences of mappings and one-line scalars; nothing
+ * else. Workflow fragments may also hold `|` literal blocks (an
+ * upload-artifact `path` list); Action manifests never may.
+ */
+function parseYaml(text: string, { literalBlocks = false } = {}): Yaml {
   const lines: Line[] = text
     .split(/\r?\n/)
     .filter((line) => line.trim() !== '' && !line.trimStart().startsWith('#'))
@@ -69,6 +73,17 @@ function parseYaml(text: string): Yaml {
       index += 1
       const next = at()
       const isNested = next !== undefined && next.indent > indent
+      if (literalBlocks && match[2] === '|') {
+        if (!isNested) throw new Error(`empty literal block: ${key}`)
+        const body: string[] = []
+        for (let item = at(); item !== undefined && item.indent > indent; item = at()) {
+          if (item.indent < next.indent) throw new Error(`bad indent: ${item.text}`)
+          body.push(' '.repeat(item.indent - next.indent) + item.text)
+          index += 1
+        }
+        result[key] = `${body.join('\n')}\n`
+        continue
+      }
       result[key] = match[2] === undefined ? (isNested ? block(next.indent) : '') : scalar(match[2])
     }
     const stray = at()
@@ -326,6 +341,13 @@ describe('the apply manifest (G17)', () => {
 
   it('reads the YAML subset strictly', () => {
     expect(() => parseYaml('a: |\n  b\n')).toThrow(/unsupported/)
+    expect(() => parseYaml('a: >\n  b\n', { literalBlocks: true })).toThrow(/unsupported/)
+    expect(() => parseYaml('a: |\nb: c\n', { literalBlocks: true })).toThrow(/empty literal/)
+    expect(() => parseYaml('a: |\n    b\n  c\n', { literalBlocks: true })).toThrow(/bad indent/)
+    expect(parseYaml('a: |\n  b\n    c\nd: e\n', { literalBlocks: true })).toEqual({
+      a: 'b\n  c\n',
+      d: 'e',
+    })
     expect(() => parseYaml('a: 1\na: 2\n')).toThrow(/duplicate/)
     expect(() => parseYaml("a: 'b\n")).toThrow(/unterminated/)
     expect(() => parseYaml('a: 1\n    b: 2\n')).toThrow(/bad indent/)
@@ -333,4 +355,53 @@ describe('the apply manifest (G17)', () => {
       a: [{ b: "it's", c: 'x' }],
     })
   })
+})
+
+it('builds and downloads every real native helper before packaging the fake-only Action candidate', () => {
+  const workflow = readFileSync(path.join(REPO_ROOT, '.github/workflows/action-check.yml'), 'utf8')
+  const helper = workflow.split('\n  native-helpers:\n', 2)[1]?.split('\n  package:\n', 1)[0]
+  if (helper === undefined) throw new Error('Missing native helper job')
+  const matrix = helper.split('        include:\n', 2)[1]?.split('    steps:\n', 1)[0]
+  if (matrix === undefined) throw new Error('Missing native helper matrix')
+  const entries = record(parseYaml(`include:\n${matrix}`, { literalBlocks: true }))['include']
+  if (!Array.isArray(entries)) throw new Error('Missing native helper entries')
+  expect(entries.map((entry) => strings(entry))).toEqual([
+    {
+      platform: 'darwin',
+      os: 'macos-latest',
+      artifact: 'muse-dictate-darwin',
+      // M105: the screen-capture app travels archived, keeping its modes.
+      path: 'native/darwin/muse-dictate\nnative/darwin/muse-dictate-screen.tgz\n',
+    },
+    {
+      platform: 'linux-x64',
+      os: 'ubuntu-24.04',
+      artifact: 'muse-created-linux-x64',
+      path: 'native/linux/x64/muse-created',
+    },
+    {
+      platform: 'linux-arm64',
+      os: 'ubuntu-24.04-arm',
+      artifact: 'muse-created-linux-arm64',
+      path: 'native/linux/arm64/muse-created',
+    },
+  ])
+  expect(helper).toContain('bash native/darwin/build.sh')
+  expect(helper).toContain('buildLinuxHelper()')
+  expect(helper).toContain('if-no-files-found: error')
+  const packageJob = workflow.split('\n  package:\n', 2)[1]?.split('\n  w:\n', 1)[0]
+  if (packageJob === undefined) throw new Error('Missing candidate package job')
+  expect(packageJob).toContain('needs: native-helpers')
+  const beforePack = packageJob.split('      - run: npm run package:acp', 1)[0]
+  for (const entry of entries) {
+    const spec = strings(entry)
+    expect(beforePack).toContain(`name: ${spec['artifact'] ?? ''}`)
+    const uploaded = (spec['path'] ?? '').trimEnd().split('\n')
+    for (const file of uploaded) expect(beforePack).toContain(`path: ${path.posix.dirname(file)}`)
+  }
+  // M109: the vault helper the packagers require beside the dictation helper.
+  expect(helper).toContain('name: muse-vault-darwin')
+  expect(beforePack).toContain('name: muse-vault-darwin')
+  expect(beforePack).toContain('tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin')
+  expect(packageJob).toContain('node scripts/package-acp-test.mjs')
 })

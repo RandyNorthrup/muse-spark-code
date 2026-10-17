@@ -1,0 +1,10 @@
+{
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "m91 capture: cancel me in UserPromptSubmit",
+  "session_id": "01a10856-1c44-7142-9744-1db99cb7d0b4",
+  "turn_id": "01a10856-a1b7-7000-8b0b-6b16c403b220",
+  "cwd": "<workspace>",
+  "transcript_path": null,
+  "model": "echo",
+  "permission_mode": "default"
+}

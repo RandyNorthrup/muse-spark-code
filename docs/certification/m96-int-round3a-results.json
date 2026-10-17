@@ -1,0 +1,843 @@
+{
+  "date": "2026-10-05",
+  "rig": "win11",
+  "lane": "M96INT round 3a",
+  "startingHead": "46f3e700",
+  "laneAHead": "273a9131",
+  "mergeCommit": "fb935dcc",
+  "mergeStandaloneCertified": false,
+  "reviewUnit": "merge commit plus this follow-up; merge hook captured partial relocation",
+  "scope": {
+    "round3b": false,
+    "fullQuality": false,
+    "liveCalls": 0,
+    "paidCalls": 0,
+    "pushed": false
+  },
+  "startup": {
+    "baseCommit": "e23ec61c",
+    "sourceOverlayFiles": 201,
+    "baseBytes": 604810,
+    "round2Bytes": 611874,
+    "beforeRelocationBytes": 613036,
+    "afterBytes": 608883,
+    "growthBytes": 4073,
+    "growthLimitBytes": 4096,
+    "remainingGrowthBytes": 23,
+    "mainTrain600000Verified": false,
+    "moduleBytes": [
+      {
+        "module": "src/extension.ts",
+        "baseBytes": 35903,
+        "beforeBytes": 35881,
+        "afterBytes": 35911,
+        "addedBefore": -22,
+        "finalGrowth": 8
+      },
+      {
+        "module": "node_modules/zod/v4/core/core.js",
+        "baseBytes": 1713,
+        "beforeBytes": 1713,
+        "afterBytes": 1746,
+        "addedBefore": 0,
+        "finalGrowth": 33
+      },
+      {
+        "module": "node_modules/zod/v4/core/schemas.js",
+        "baseBytes": 16157,
+        "beforeBytes": 16625,
+        "afterBytes": 16568,
+        "addedBefore": 468,
+        "finalGrowth": 411
+      },
+      {
+        "module": "node_modules/zod/v4/core/api.js",
+        "baseBytes": 1690,
+        "beforeBytes": 1690,
+        "afterBytes": 1691,
+        "addedBefore": 0,
+        "finalGrowth": 1
+      },
+      {
+        "module": "node_modules/zod/v4/mini/schemas.js",
+        "baseBytes": 3268,
+        "beforeBytes": 3391,
+        "afterBytes": 3409,
+        "addedBefore": 123,
+        "finalGrowth": 141
+      },
+      {
+        "module": "src/shared/constants.ts",
+        "baseBytes": 47979,
+        "beforeBytes": 48839,
+        "afterBytes": 48177,
+        "addedBefore": 860,
+        "finalGrowth": 198
+      },
+      {
+        "module": "src/host/auth/deviceSignIn.ts",
+        "baseBytes": 3302,
+        "beforeBytes": 3308,
+        "afterBytes": 3308,
+        "addedBefore": 6,
+        "finalGrowth": 6
+      },
+      {
+        "module": "src/host/backend/museCodeBackendManager.ts",
+        "baseBytes": 7415,
+        "beforeBytes": 7412,
+        "afterBytes": 7415,
+        "addedBefore": -3,
+        "finalGrowth": 0
+      },
+      {
+        "module": "src/core/backends/musecode/MuseCodeHost.ts",
+        "baseBytes": 21290,
+        "beforeBytes": 21283,
+        "afterBytes": 21290,
+        "addedBefore": -7,
+        "finalGrowth": 0
+      },
+      {
+        "module": "src/shared/agentEvents.ts",
+        "baseBytes": 3852,
+        "beforeBytes": 3858,
+        "afterBytes": 3432,
+        "addedBefore": 6,
+        "finalGrowth": -420
+      },
+      {
+        "module": "src/core/backends/musecode/logText.ts",
+        "baseBytes": 798,
+        "beforeBytes": 797,
+        "afterBytes": 798,
+        "addedBefore": -1,
+        "finalGrowth": 0
+      },
+      {
+        "module": "src/host/backend/sandboxSetup.ts",
+        "baseBytes": 2371,
+        "beforeBytes": 2370,
+        "afterBytes": 2371,
+        "addedBefore": -1,
+        "finalGrowth": 0
+      },
+      {
+        "module": "src/host/backend/environment.ts",
+        "baseBytes": 744,
+        "beforeBytes": 743,
+        "afterBytes": 744,
+        "addedBefore": -1,
+        "finalGrowth": 0
+      },
+      {
+        "module": "src/core/backends/modelapi/schemas.ts",
+        "baseBytes": 2092,
+        "beforeBytes": 2092,
+        "afterBytes": 2093,
+        "addedBefore": 0,
+        "finalGrowth": 1
+      },
+      {
+        "module": "src/core/backends/modelapi/sessionStore.ts",
+        "baseBytes": 3835,
+        "beforeBytes": 4125,
+        "afterBytes": 4133,
+        "addedBefore": 290,
+        "finalGrowth": 298
+      },
+      {
+        "module": "src/host/backend/sessionBudgetJournal.ts",
+        "baseBytes": 5758,
+        "beforeBytes": 5758,
+        "afterBytes": 5761,
+        "addedBefore": 0,
+        "finalGrowth": 3
+      },
+      {
+        "module": "src/host/checkpoints/checkpointHost.ts",
+        "baseBytes": 4188,
+        "beforeBytes": 4186,
+        "afterBytes": 4188,
+        "addedBefore": -2,
+        "finalGrowth": 0
+      },
+      {
+        "module": "src/host/backend/toolIo.ts",
+        "baseBytes": 9329,
+        "beforeBytes": 9331,
+        "afterBytes": 9331,
+        "addedBefore": 2,
+        "finalGrowth": 2
+      },
+      {
+        "module": "src/core/verify/checkCommands.ts",
+        "baseBytes": 550,
+        "beforeBytes": 551,
+        "afterBytes": 552,
+        "addedBefore": 1,
+        "finalGrowth": 2
+      },
+      {
+        "module": "src/host/ide/ideMcpServer.ts",
+        "baseBytes": 2805,
+        "beforeBytes": 2195,
+        "afterBytes": 2195,
+        "addedBefore": -610,
+        "finalGrowth": -610
+      },
+      {
+        "module": "src/host/conversation/conversationController.ts",
+        "baseBytes": 114918,
+        "beforeBytes": 116087,
+        "afterBytes": 116090,
+        "addedBefore": 1169,
+        "finalGrowth": 1172
+      },
+      {
+        "module": "src/shared/paid.ts",
+        "baseBytes": 2395,
+        "beforeBytes": 3326,
+        "afterBytes": 2401,
+        "addedBefore": 931,
+        "finalGrowth": 6
+      },
+      {
+        "module": "src/host/conversation/conversationCheckpoints.ts",
+        "baseBytes": 6233,
+        "beforeBytes": 6227,
+        "afterBytes": 6233,
+        "addedBefore": -6,
+        "finalGrowth": 0
+      },
+      {
+        "module": "src/shared/bestOfN.ts",
+        "baseBytes": 597,
+        "beforeBytes": 597,
+        "afterBytes": 609,
+        "addedBefore": 0,
+        "finalGrowth": 12
+      },
+      {
+        "module": "src/shared/sessionBoard.ts",
+        "baseBytes": 192,
+        "beforeBytes": 192,
+        "afterBytes": 194,
+        "addedBefore": 0,
+        "finalGrowth": 2
+      },
+      {
+        "module": "src/shared/protocol.ts",
+        "baseBytes": 9183,
+        "beforeBytes": 9829,
+        "afterBytes": 9408,
+        "addedBefore": 646,
+        "finalGrowth": 225
+      },
+      {
+        "module": "src/core/backends/modelapi/client.ts",
+        "baseBytes": 5508,
+        "beforeBytes": 5523,
+        "afterBytes": 5523,
+        "addedBefore": 15,
+        "finalGrowth": 15
+      },
+      {
+        "module": "src/core/web/webFetch.ts",
+        "baseBytes": 7095,
+        "beforeBytes": 7109,
+        "afterBytes": 7109,
+        "addedBefore": 14,
+        "finalGrowth": 14
+      },
+      {
+        "module": "src/host/settings.ts",
+        "baseBytes": 3858,
+        "beforeBytes": 3931,
+        "afterBytes": 3934,
+        "addedBefore": 73,
+        "finalGrowth": 76
+      },
+      {
+        "module": "src/host/html.ts",
+        "baseBytes": 995,
+        "beforeBytes": 1009,
+        "afterBytes": 1009,
+        "addedBefore": 14,
+        "finalGrowth": 14
+      },
+      {
+        "module": "src/host/review/museCodeReviewerBundle.ts",
+        "baseBytes": 501,
+        "beforeBytes": 500,
+        "afterBytes": 501,
+        "addedBefore": -1,
+        "finalGrowth": 0
+      },
+      {
+        "module": "src/host/paid/paidHost.ts",
+        "baseBytes": 2408,
+        "beforeBytes": 2445,
+        "afterBytes": 2453,
+        "addedBefore": 37,
+        "finalGrowth": 45
+      },
+      {
+        "module": "src/core/paid/paidConsent.ts",
+        "baseBytes": 2719,
+        "beforeBytes": 3679,
+        "afterBytes": 3078,
+        "addedBefore": 960,
+        "finalGrowth": 359
+      },
+      {
+        "module": "src/core/paid/paidFeatures.ts",
+        "baseBytes": 4556,
+        "beforeBytes": 5370,
+        "afterBytes": 4879,
+        "addedBefore": 814,
+        "finalGrowth": 323
+      },
+      {
+        "module": "src/shared/teamView.ts",
+        "baseBytes": 0,
+        "beforeBytes": 1735,
+        "afterBytes": 0,
+        "addedBefore": 1735,
+        "finalGrowth": 0
+      },
+      {
+        "module": "src/host/mcpLoopback.ts",
+        "baseBytes": 0,
+        "beforeBytes": 716,
+        "afterBytes": 716,
+        "addedBefore": 716,
+        "finalGrowth": 716
+      },
+      {
+        "module": "src/host/teamViewBundle.ts",
+        "baseBytes": 0,
+        "beforeBytes": 0,
+        "afterBytes": 1020,
+        "addedBefore": 0,
+        "finalGrowth": 1020
+      }
+    ]
+  },
+  "tests": {
+    "distinctPassed": 611,
+    "batches": [
+      {
+        "file": "temp/round3/units-0.json",
+        "passed": 42,
+        "failed": 0,
+        "pending": 0,
+        "suites": [
+          {
+            "file": "test/unit/teamAdmission.test.ts",
+            "passed": 13,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamCeilings.test.ts",
+            "passed": 12,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamPool.test.ts",
+            "passed": 17,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "temp/round3/units-1.json",
+        "passed": 59,
+        "failed": 0,
+        "pending": 0,
+        "suites": [
+          {
+            "file": "test/unit/teamClaimJournal.test.ts",
+            "passed": 15,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamLedger.test.ts",
+            "passed": 32,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamMeter.test.ts",
+            "passed": 12,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "temp/round3/units-2.json",
+        "passed": 46,
+        "failed": 0,
+        "pending": 0,
+        "suites": [
+          {
+            "file": "test/unit/paidConsent.test.ts",
+            "passed": 9,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/paidFeatures.test.ts",
+            "passed": 23,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamWorkersPaid.test.ts",
+            "passed": 14,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "temp/round3/units-3.json",
+        "passed": 77,
+        "failed": 0,
+        "pending": 0,
+        "suites": [
+          {
+            "file": "test/unit/modelApiGoldenRequests.test.ts",
+            "passed": 69,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamProtocolLoading.test.ts",
+            "passed": 3,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamStartup.test.mjs",
+            "passed": 5,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "temp/round3/units-4.json",
+        "passed": 89,
+        "failed": 0,
+        "pending": 0,
+        "suites": [
+          {
+            "file": "test/unit/teamConstants.test.ts",
+            "passed": 48,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamRoster.test.ts",
+            "passed": 8,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamTools.test.ts",
+            "passed": 33,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "temp/round3/units-5.json",
+        "passed": 152,
+        "failed": 0,
+        "pending": 0,
+        "suites": [
+          {
+            "file": "test/unit/acpPaid.test.ts",
+            "passed": 24,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/paidHost.test.ts",
+            "passed": 17,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/protocol.test.ts",
+            "passed": 111,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "temp/round3/units-6.json",
+        "passed": 113,
+        "failed": 0,
+        "pending": 0,
+        "suites": [
+          {
+            "file": "test/unit/acpAgent.test.ts",
+            "passed": 91,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamActivationGraph.test.ts",
+            "passed": 1,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/teamDeclaration.test.ts",
+            "passed": 21,
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "temp/round3/units-7.json",
+        "passed": 33,
+        "failed": 0,
+        "pending": 0,
+        "suites": [
+          {
+            "file": "test/unit/modelApiBundle.test.ts",
+            "passed": 10,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/team/teamBuiltInRoles.test.ts",
+            "passed": 7,
+            "status": "passed"
+          },
+          {
+            "file": "test/unit/team/teamToolsets.test.ts",
+            "passed": 16,
+            "status": "passed"
+          }
+        ]
+      }
+    ],
+    "restoredRuns": [
+      {
+        "report": "temp/round3/restored-guards.json",
+        "passed": 110,
+        "failed": 0,
+        "pending": 0
+      },
+      {
+        "report": "temp/round3/restored-constants.json",
+        "passed": 89,
+        "failed": 0,
+        "pending": 0
+      }
+    ]
+  },
+  "drills": [
+    {
+      "test": "test/unit/teamStartup.test.mjs",
+      "beforeSha256": "C22C10C128A11877A9644D2A39CEC66D84BA95E904110CF17892FC27C4D0622B",
+      "id": "view-resolver",
+      "restored": true,
+      "file": "scripts/lib/deferredTeamView.mjs",
+      "afterSha256": "C22C10C128A11877A9644D2A39CEC66D84BA95E904110CF17892FC27C4D0622B",
+      "exitCode": 1,
+      "log": "temp/round3/view-resolver.log",
+      "observedFailures": [
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > excludes the named view/pricing implementations and all team runtime modules",
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > keeps ordinary parsing independent of team.js and validates every deferred payload",
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > refuses a malformed deferred factory {}",
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > refuses a malformed deferred factory {\"createTeamViewSchemas\":\"wrong\"}"
+      ]
+    },
+    {
+      "test": "test/unit/teamStartup.test.mjs",
+      "beforeSha256": "44D668702DE3DAAE183EF4B3616D936B0E761E2976CA269EE6A0D8F28A5CC56C",
+      "id": "role-table",
+      "restored": true,
+      "file": "src/shared/constants.ts",
+      "afterSha256": "44D668702DE3DAAE183EF4B3616D936B0E761E2976CA269EE6A0D8F28A5CC56C",
+      "exitCode": 1,
+      "log": "temp/round3/role-table.log",
+      "observedFailures": [
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > excludes the named view/pricing implementations and all team runtime modules",
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > discards the unused canonical role table while retaining paid feature identities"
+      ]
+    },
+    {
+      "test": "test/unit/teamStartup.test.mjs",
+      "beforeSha256": "026632F2F53F0437DB6FD26521DBB595A01724CF622745F5D0A706D1E53FADF1",
+      "id": "factory-guard",
+      "restored": true,
+      "file": "src/host/teamViewBundle.ts",
+      "afterSha256": "026632F2F53F0437DB6FD26521DBB595A01724CF622745F5D0A706D1E53FADF1",
+      "exitCode": 1,
+      "log": "temp/round3/factory-guard.log",
+      "observedFailures": [
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > refuses a malformed deferred factory {}",
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > refuses a malformed deferred factory {\"createTeamViewSchemas\":\"wrong\"}"
+      ]
+    },
+    {
+      "test": "test/unit/teamWorkersPaid.test.ts",
+      "beforeSha256": "10700C8C81ABF7B2827538984E78C2D700B361DC4D86A78F6259363EF2E054EC",
+      "id": "paid-gate",
+      "restored": true,
+      "file": "src/core/team/teamPaid.ts",
+      "afterSha256": "10700C8C81ABF7B2827538984E78C2D700B361DC4D86A78F6259363EF2E054EC",
+      "exitCode": 1,
+      "log": "temp/round3/paid-gate.log",
+      "observedFailures": [
+        " FAIL  test/unit/teamWorkersPaid.test.ts > F01 scoped team Always consent > refuses a team use turned off while the runtime import yields"
+      ]
+    },
+    {
+      "test": "test/unit/teamStartup.test.mjs",
+      "beforeSha256": "3BAFCC71835F32C551C6AC8DED9893F7359B251DC2896BEF1E8169B08A792FD0",
+      "id": "compiled-locale",
+      "restored": true,
+      "file": "src/core/team/teamEntry.ts",
+      "afterSha256": "3BAFCC71835F32C551C6AC8DED9893F7359B251DC2896BEF1E8169B08A792FD0",
+      "exitCode": 1,
+      "log": "temp/round3/compiled-locale.log",
+      "observedFailures": [
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > keeps ordinary parsing independent of team.js and validates every deferred payload"
+      ]
+    },
+    {
+      "test": "test/unit/acpAgent.test.ts",
+      "beforeSha256": "42971AF6C21B06E0367BBFDA50B4F1E80603C0AD3B9AF77509CC2D6193A83D84",
+      "id": "acp-cancel",
+      "restored": true,
+      "file": "src/acp/agent.ts",
+      "afterSha256": "42971AF6C21B06E0367BBFDA50B4F1E80603C0AD3B9AF77509CC2D6193A83D84",
+      "exitCode": 1,
+      "log": "temp/round3/acp-cancel.log",
+      "observedFailures": [
+        " FAIL  test/unit/acpAgent.test.ts > paid features in the agent (M63c, M58) > emits no paid card if the prompt is cancelled while the price question loads",
+        " FAIL  test/unit/acpAgent.test.ts > paid features in the agent (M63c, M58) > emits no paid card if the prompt is completed while the price question loads"
+      ]
+    },
+    {
+      "test": "test/unit/teamStartup.test.mjs",
+      "exitCode": 1,
+      "afterSha256": "62792BF6768B68B57260309DF908606BE202CED3A2808B63B71E2389334ADFB0",
+      "restored": true,
+      "beforeSha256": "62792BF6768B68B57260309DF908606BE202CED3A2808B63B71E2389334ADFB0",
+      "id": "role-copy",
+      "file": "src/shared/constants.ts",
+      "log": "temp/round3/role-copy.log",
+      "observedFailures": [
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > excludes the named view/pricing implementations and all team runtime modules",
+        " FAIL  test/unit/teamStartup.test.mjs > M96 production startup boundary > discards the unused canonical role table while retaining paid feature identities"
+      ]
+    },
+    {
+      "exitCode": 1,
+      "file": "scripts/lib/deferredTeamView.mjs",
+      "beforeSha256": "C22C10C128A11877A9644D2A39CEC66D84BA95E904110CF17892FC27C4D0622B",
+      "id": "build-split",
+      "restored": true,
+      "afterSha256": "C22C10C128A11877A9644D2A39CEC66D84BA95E904110CF17892FC27C4D0622B",
+      "guardFired": true,
+      "command": "npm.cmd run build",
+      "log": "temp/round3/build-split.log",
+      "observedFailures": [
+        "  dist/extension.js carries the eager team view validators",
+        "  dist/modelApi.js carries the eager team view validators",
+        "  dist/acp.js carries the eager team view validators"
+      ]
+    }
+  ],
+  "buildCaps": [
+    {
+      "file": "dist/extension.js",
+      "bytes": 608883,
+      "capBytes": 614400,
+      "passes": true
+    },
+    {
+      "file": "dist/modelApi.js",
+      "bytes": 450992,
+      "capBytes": 486400,
+      "passes": true
+    },
+    {
+      "file": "dist/review.js",
+      "bytes": 44266,
+      "capBytes": 51200,
+      "passes": true
+    },
+    {
+      "file": "dist/sessionBoard.js",
+      "bytes": 65972,
+      "capBytes": 76800,
+      "passes": true
+    },
+    {
+      "file": "dist/reviewer.js",
+      "bytes": 55911,
+      "capBytes": 76800,
+      "passes": true
+    },
+    {
+      "file": "dist/team.js",
+      "bytes": 53483,
+      "capBytes": 76800,
+      "passes": true
+    },
+    {
+      "file": "dist/planMarkdown.js",
+      "bytes": 142363,
+      "capBytes": 153600,
+      "passes": true
+    },
+    {
+      "file": "dist/checkpointStore.js",
+      "bytes": 139008,
+      "capBytes": 230400,
+      "passes": true
+    },
+    {
+      "file": "dist/agentImport.js",
+      "bytes": 118503,
+      "capBytes": 128000,
+      "passes": true
+    },
+    {
+      "file": "dist/bundledSkills.js",
+      "bytes": 23500,
+      "capBytes": 51200,
+      "passes": true
+    },
+    {
+      "file": "dist/codeIntel.js",
+      "bytes": 78829,
+      "capBytes": 102400,
+      "passes": true
+    },
+    {
+      "file": "dist/voice.js",
+      "bytes": 35596,
+      "capBytes": 51200,
+      "passes": true
+    },
+    {
+      "file": "dist/museCodeReviewer.js",
+      "bytes": 43824,
+      "capBytes": 76800,
+      "passes": true
+    },
+    {
+      "file": "dist/uiText.js",
+      "bytes": 123818,
+      "capBytes": 128000,
+      "passes": true
+    },
+    {
+      "file": "dist/searchWorker.js",
+      "bytes": 18571,
+      "capBytes": 51200,
+      "passes": true
+    },
+    {
+      "file": "dist/pageWorker.js",
+      "bytes": 208040,
+      "capBytes": 307200,
+      "passes": true
+    },
+    {
+      "file": "dist/webview/main.js",
+      "bytes": 919786,
+      "capBytes": 921600,
+      "passes": true
+    },
+    {
+      "file": "dist/acp.js",
+      "bytes": 821779,
+      "capBytes": 870400,
+      "passes": true
+    }
+  ],
+  "universal": {
+    "helper": {
+      "compressedBytes": 81327,
+      "sha256": "F42E757A0D78A6BC6A6AF22C3BCF34FC7D082EB9E8130D9336024A55C19F0F36",
+      "entry": "extension/native/darwin/muse-dictate",
+      "source": "C:/lanes/_ctx/vsix-0.13.0/muse-spark-code-0.13.0.vsix",
+      "bytes": 289568
+    },
+    "universal": true,
+    "bytes": 2324725,
+    "requiredMembers": [
+      "extension/LICENSE.txt",
+      "extension/THIRD_PARTY_NOTICES.txt",
+      "extension/package.nls.json",
+      "extension/native/windows/dictate.ps1",
+      "extension/native/windows/capture.ps1",
+      "extension/native/windows/MuseSparkJob.cs",
+      "extension/native/windows/MuseSparkMcpJob.cs",
+      "extension/native/windows/MuseSparkMcpLauncher.cs",
+      "extension/native/darwin/muse-dictate",
+      "extension/dist/extension.js",
+      "extension/dist/modelApi.js",
+      "extension/dist/searchWorker.js",
+      "extension/dist/pageWorker.js",
+      "extension/dist/planMarkdown.js",
+      "extension/dist/checkpointStore.js",
+      "extension/dist/review.js",
+      "extension/dist/agentImport.js",
+      "extension/dist/bundledSkills.js",
+      "extension/dist/codeIntel.js",
+      "extension/dist/voice.js",
+      "extension/dist/museCodeReviewer.js",
+      "extension/dist/uiText.js",
+      "extension/dist/team.js",
+      "extension/dist/sessionBoard.js",
+      "extension/dist/reviewer.js",
+      "extension/dist/webview/main.js",
+      "extension/dist/webview/main.css",
+      "extension/l10n/ui.cs.json",
+      "extension/l10n/ui.de.json",
+      "extension/l10n/ui.es.json",
+      "extension/l10n/ui.fr.json",
+      "extension/l10n/ui.hu.json",
+      "extension/l10n/ui.it.json",
+      "extension/l10n/ui.ja.json",
+      "extension/l10n/ui.ko.json",
+      "extension/l10n/ui.pl.json",
+      "extension/l10n/ui.pt-br.json",
+      "extension/l10n/ui.ru.json",
+      "extension/l10n/ui.tr.json",
+      "extension/l10n/ui.zh-cn.json",
+      "extension/l10n/ui.zh-tw.json"
+    ],
+    "entries": 123,
+    "sizeGateExitCode": 1,
+    "cap": 2252800,
+    "package": "temp/round3/m96int-universal.vsix",
+    "bundleMembersMatchCurrentBuild": true,
+    "bundleMembersChecked": 23,
+    "overBudgetBytes": 71925
+  },
+  "goldens": {
+    "scenarios": 7,
+    "configurations": 9,
+    "rawBodyAssertions": 63,
+    "controls": 6,
+    "fixturesModified": false
+  },
+  "gates": {
+    "typecheck": "pass, all five projects",
+    "lint": "pass, full JS/CSS/PowerShell plus final changed-file eslint",
+    "format": "pass, full prettier; final documentation checked separately",
+    "deadcode": "pass, plain knip",
+    "duplication": "pass, zero clones",
+    "l10n": "pass, 14 tables / 121 manifest strings / 470 source files / zero problems",
+    "cycles": "pass, 411 files, proxy explicit",
+    "hostApi": "regenerated and passes: 271 APIs / 18 vscode importing files / 24 Node built-ins / 59 theme variables",
+    "notices": "regenerated, 83 packages",
+    "build": "pass: all 18 caps / split / host globals / notices",
+    "universalCap": "FAIL, no cap or ignore changed",
+    "commitHooks": "merge passed; follow-up uses unchanged hooks, result reported in final handoff"
+  },
+  "residuals": [
+    "Universal VSIX exceeds unchanged cap; lead packaging diet before release",
+    "Current main 0.14.0 diet and round 3b production wiring are outside this brief",
+    "Full quality remains the lead aggregate gate"
+  ]
+}

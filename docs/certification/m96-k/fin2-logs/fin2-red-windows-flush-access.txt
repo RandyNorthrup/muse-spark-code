@@ -1,0 +1,138 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+rig=win11 slot=finm96k2-red snapshot=a3c16d21
+rig: Windows WIN-11-VM; slot finm96k2-red; snapshot a3c16d21a8b13a624b977fb649eafcaaf101a00b
+base=C:\Users\randy\gates\base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 C:/Users/Randy/gates/rt-finm96k2-red
+
+ ❯ test/unit/teamNativeLifetime.test.ts (5 tests | 4 failed) 3273ms
+   ❯ M96 K real native lifetime (5)
+     × starts a separate journalled team Muse Code host over real fake-CLI pipes 35ms
+     × preserves the real command exit code through its native container 19ms
+     × reconciles foreign journals before startup returns and preserves all foreign bytes 19ms
+     × runs marked child at below-normal priority with intent and OS confirmation on disk 21ms
+     ✓ prepared Windows owner (1)
+       ✓ hard host death closes jobs and ends detached grandchildren 1399ms
+ ✓ test/unit/teamHintsAndLoad.test.ts (9 tests) 982ms
+   ✓ M96 K advisory hints (5)
+     ✓ uses state home and secures a real native owner-only hints folder 812ms
+ ❯ test/unit/teamProcessLifetime.test.ts (15 tests | 10 failed) 270ms
+   ❯ M96 K window ownership and journal (5)
+     ✓ never treats a duplicate window or a newer start as permission 11ms
+     ✓ grants no takeover when its durable receipt fails 3ms
+     × writes and validates real files; refuses traversal and invalid state 29ms
+     × moves only its own unreadable file aside, preserving exact bytes 20ms
+     × leaves another live window journal byte-exact until Take over 21ms
+   ❯ M96 K launcher contract (10)
+     ✓ refuses a journal storage path through a link 6ms
+     ✓ starts no process when the intent fsync fails 20ms
+     × flushes intent before spawn, adds marker, then records OS confirmation and separate end 20ms
+     ✓ starts no process when the intent cannot be written 2ms
+     × rechecks load after the asynchronous intent and starts nothing under pressure 26ms
+     × dispose cannot miss a pending intent; no process is created after dispose 22ms
+     × keeps ended children without descendant proof in recovery 21ms
+     × rejects descendant proof from a process group 23ms
+     × journals a later proved retirement and never downgrades it to uncertain 21ms
+     × keeps a failed confirmation child available to dispose when retirement is uncertain 21ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 14 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > starts a separate journalled team Muse Code host over real fake-CLI pipes
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > preserves the real command exit code through its native container
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > reconciles foreign journals before startup returns and preserves all foreign bytes
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > runs marked child at below-normal priority with intent and OS confirmation on disk
+Error: EPERM: operation not permitted, fsync
+ ❯ flush src/host/team/teamJournal.ts:153:7
+    151|     const file = await open(target, 'r')
+    152|     try {
+    153|       await file.sync()
+       |       ^
+    154|     } finally {
+    155|       await file.close()
+ ❯ src/host/team/teamJournal.ts:187:9
+ ❯ src/host/team/teamJournal.ts:135:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/14]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K window ownership and journal > writes and validates real files; refuses traversal and invalid state
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K window ownership and journal > moves only its own unreadable file aside, preserving exact bytes
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K window ownership and journal > leaves another live window journal byte-exact until Take over
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > flushes intent before spawn, adds marker, then records OS confirmation and separate end
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > keeps ended children without descendant proof in recovery
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > rejects descendant proof from a process group
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > journals a later proved retirement and never downgrades it to uncertain
+Error: EPERM: operation not permitted, fsync
+ ❯ FileHandle.file.sync test/unit/teamProcessLifetime.test.ts:26:7
+     24|     file.sync = async () => {
+     25|       if (syncState.shouldFail) throw new Error('fsync-failed')
+     26|       await sync()
+       |       ^
+     27|     }
+     28|     return file
+ ❯ flush src/host/team/teamJournal.ts:153:7
+ ❯ src/host/team/teamJournal.ts:187:9
+ ❯ src/host/team/teamJournal.ts:135:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/14]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > rechecks load after the asynchronous intent and starts nothing under pressure
+AssertionError: expected [Function] to throw error including 'HOST_BUSY' but got 'EPERM: operation not permitted, fsync'
+
+Expected: "HOST_BUSY"
+Received: "EPERM: operation not permitted, fsync"
+
+ ❯ test/unit/teamProcessLifetime.test.ts:257:43
+    255|     const isHostBusy = vi.fn().mockReturnValueOnce(false).mockReturnVa…
+    256|     const lifetime = createTeamProcessLifetime({ journal: f.journal, d…
+    257|     await expect(lifetime.launch(request)).rejects.toThrow('HOST_BUSY')
+       |                                           ^
+    258|     expect(d.launch).not.toHaveBeenCalled()
+    259|     expect(await lifetime.recoveryRecords(f.journal)).toHaveLength(1)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/14]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > dispose cannot miss a pending intent; no process is created after dispose
+AssertionError: expected [Function] to throw error including 'DISPOSED' but got 'EPERM: operation not permitted, fsync'
+
+Expected: "DISPOSED"
+Received: "EPERM: operation not permitted, fsync"
+
+ ❯ test/unit/teamProcessLifetime.test.ts:271:38
+    269|     })
+    270|     const pending = lifetime.launch(request)
+    271|     const rejection = expect(pending).rejects.toThrow('DISPOSED')
+       |                                      ^
+    272|     expect(await lifetime.dispose()).toEqual([{ childExited: false, de…
+    273|     await rejection
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/14]⎯
+
+ FAIL  test/unit/teamProcessLifetime.test.ts > M96 K launcher contract > keeps a failed confirmation child available to dispose when retirement is uncertain
+AssertionError: expected [Function] to throw error including 'confirmation-lost' but got 'EPERM: operation not permitted, fsync'
+
+Expected: "confirmation-lost"
+Received: "EPERM: operation not permitted, fsync"
+
+ ❯ test/unit/teamProcessLifetime.test.ts:346:43
+    344|       isHostBusy: () => false,
+    345|     })
+    346|     await expect(lifetime.launch(request)).rejects.toThrow('confirmati…
+       |                                           ^
+    347|     expect(retire).toHaveBeenCalledTimes(1)
+    348|     expect(await lifetime.dispose()).toEqual([{ childExited: false, de…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/14]⎯
+
+
+ Test Files  2 failed | 1 passed (3)
+      Tests  14 failed | 15 passed (29)
+   Start at  09:04:02
+   Duration  7.46s (tests 66%, import 15%, transform 9%, setup 9%)
+
+exit=1

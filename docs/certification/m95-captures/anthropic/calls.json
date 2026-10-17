@@ -1,0 +1,104 @@
+{
+  "provider": "anthropic",
+  "capturedAt": "2026-10-04",
+  "totalRequests": 10,
+  "billedRequests": 7,
+  "freeRequests": 3,
+  "expected": {
+    "billed": 7,
+    "free": 3
+  },
+  "models": ["claude-haiku-4-5-20251001", "claude-sonnet-5-5"],
+  "calls": [
+    {
+      "seq": 1,
+      "name": "models-list-x-api-key",
+      "method": "GET",
+      "url": "https://api.anthropic.com/v1/models?limit=1000",
+      "status": 200,
+      "billed": false,
+      "ms": 955
+    },
+    {
+      "seq": 2,
+      "name": "models-list-bearer",
+      "method": "GET",
+      "url": "https://api.anthropic.com/v1/models?limit=1000",
+      "status": 200,
+      "billed": false,
+      "ms": 191
+    },
+    {
+      "seq": 3,
+      "name": "tool-call-stream",
+      "method": "POST",
+      "url": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "billed": true,
+      "ms": 958
+    },
+    {
+      "seq": 4,
+      "name": "tool-result-stream",
+      "method": "POST",
+      "url": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "billed": true,
+      "ms": 689
+    },
+    {
+      "seq": 5,
+      "name": "tool-history-without-tools",
+      "method": "POST",
+      "url": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "billed": true,
+      "ms": 641
+    },
+    {
+      "seq": 6,
+      "name": "thinking-tool-call-stream",
+      "method": "POST",
+      "url": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "billed": true,
+      "ms": 1642
+    },
+    {
+      "seq": 7,
+      "name": "thinking-tool-result-stream",
+      "method": "POST",
+      "url": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "billed": true,
+      "ms": 1228
+    },
+    {
+      "seq": 8,
+      "name": "cache-call-1",
+      "method": "POST",
+      "url": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "billed": true,
+      "ms": 1178
+    },
+    {
+      "seq": 9,
+      "name": "cache-call-2",
+      "method": "POST",
+      "url": "https://api.anthropic.com/v1/messages",
+      "status": 200,
+      "billed": true,
+      "ms": 1191
+    },
+    {
+      "seq": 10,
+      "name": "error-invalid-model",
+      "method": "POST",
+      "url": "https://api.anthropic.com/v1/messages",
+      "status": 404,
+      "billed": false,
+      "ms": 213
+    }
+  ]
+}

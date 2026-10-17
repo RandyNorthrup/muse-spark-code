@@ -1,0 +1,9 @@
+{
+  "cwd": "<workspace>",
+  "hook_event_name": "SessionEnd",
+  "model": "echo",
+  "permission_mode": "default",
+  "reason": "other",
+  "session_id": "01a10858-6094-7390-8685-60a37851fb0e",
+  "transcript_path": null
+}

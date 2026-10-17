@@ -1,0 +1,28 @@
+{
+  "revision": "c311144b99ac4d113a1bed7bbdedc4aa05c47665",
+  "review": "M114-S-integrated-six-theme-review",
+  "archive": "/home/randy/archive/m114-s-c311144",
+  "browser": "150.0.7871.186",
+  "platform": "linux",
+  "rasterization": "19bff3cb769aebd7c533f170076db49f7c141b902beaaa3aafc78ab8f90373d5",
+  "environment": {
+    "locale": "en",
+    "timezone": "UTC",
+    "deviceScaleFactor": 1,
+    "reducedMotion": true,
+    "animations": "disabled",
+    "network": "loopback-only"
+  },
+  "policy": {
+    "threshold": 0,
+    "includeAA": true,
+    "maxChangedPixels": 0
+  },
+  "totalBytes": 246338755,
+  "manifestSha256": "548a7d33462495c131cc524b927ade317983c2c8238191d03274117b9a6fe7c0",
+  "manifestBytes": 2188201,
+  "captures": 4824,
+  "components": 65,
+  "budgetBytes": 536870912,
+  "status": "complete-reviewed-capture-candidate-not-certified-repeat-stability-open"
+}

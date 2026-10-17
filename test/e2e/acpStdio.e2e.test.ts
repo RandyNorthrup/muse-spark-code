@@ -11,24 +11,31 @@
 // credential file as the panel reads it (D26, PR #49).
 
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Writable } from 'node:stream'
 import * as acp from '@agentclientprotocol/sdk'
 import { EXPECTED_SCHEMA_FINGERPRINT } from '@muse-code/sdk'
 import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFailed, vi } from 'vitest'
+import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
+import { agentDataFolder } from '../../src/runtime/dataFolder'
+import { formatAcpUsage } from '../../src/runtime/cliOptions'
 import { webReadable } from '../../src/runtime/webStreams'
-import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { readUiTableFile } from '../../src/host/l10n'
+import { unpackUiTable } from '../../src/shared/l10n/packed'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
+import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 import { buildModelApiBundle } from '../unit/helpers/modelApiBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { buildAcpFixture, removeAcpFixture } from './acpFixture'
 import {
   fakeCredentialFile,
   installFakeCredential,
@@ -75,46 +82,85 @@ const dataHome = mkdtempSync(path.join(tmpdir(), 'acp-e2e-data-'))
 const children: ChildProcessWithoutNullStreams[] = []
 
 beforeAll(async () => {
+  // Ubuntu's default umask (002) leaves the agent's data folder group-writable;
+  // the governor's private creation registry must not depend on its mode.
+  if (process.platform !== 'win32') {
+    const machine = agentDataFolder({
+      platform: process.platform,
+      env: { XDG_DATA_HOME: dataHome },
+      homeDir: dataHome,
+    })
+    mkdirSync(machine, { recursive: true })
+    chmodSync(machine, 0o775)
+  }
   if (INSTALLED !== undefined) {
     return
   }
-  mkdirSync(path.dirname(AGENT), { recursive: true })
+  await buildAcpFixture(ROOT, PACKAGE, LAID_OUT_VERSION)
   await build({
-    entryPoints: [path.join(ROOT, 'src', 'runtime', 'main.ts')],
-    outfile: AGENT,
+    entryPoints: [path.join(ROOT, 'src', 'runtime', 'sharing', 'sharingEntry.ts')],
+    outfile: path.join(path.dirname(AGENT), 'sharingRuntime.js'),
     bundle: true,
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['@napi-rs/keyring'],
     logLevel: 'silent',
   })
   await buildModelApiBundle(path.dirname(AGENT))
-  writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: LAID_OUT_VERSION }))
-  cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })
-})
+  for (const [entry, file] of [
+    ['src/acp/questionDeferralEntry.ts', 'acpQuestions.js'],
+    ['src/runtime/questions/questionRegistryEntry.ts', 'runtimeQuestions.js'],
+    ['src/runtime/providers/accountsEntry.ts', 'runtimeAccounts.js'],
+    // The real package ships the schedule host; without it every session
+    // opened with "The schedule host could not start" (rel017ci).
+    ['src/runtime/schedules/schedulesBundle.ts', 'schedules.js'],
+  ]) {
+    if (entry === undefined || file === undefined) throw new Error('Missing lazy bundle fixture')
+    await build({
+      entryPoints: [path.join(ROOT, entry)],
+      outfile: path.join(path.dirname(AGENT), file),
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node22',
+      logLevel: 'silent',
+    })
+  }
+}, FIXTURE_HOOK_TIMEOUT_MS)
 
 afterAll(async () => {
-  for (const child of children) {
-    child.kill()
-  }
   const made = [fake.installDir, signedIn, signedOut, loggedOut, workspace, dataHome]
-  await Promise.all(
-    [...made, ...(INSTALLED === undefined ? [PACKAGE] : [])].map((folder) => removeFolder(folder)),
-  )
+  await removeAcpFixture(children, [...made, ...(INSTALLED === undefined ? [PACKAGE] : [])])
 })
 
 function agentEnvironment(configHome: string): NodeJS.ProcessEnv {
-  return {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
-    // What the fake CLI needs (fakeMuse.ts), handed through the agent's own environment.
-    MUSE_FAKE_NODE: process.execPath,
-    MUSE_FAKE_FINGERPRINT: EXPECTED_SCHEMA_FINGERPRINT,
     NODE_PATH,
     XDG_CONFIG_HOME: configHome,
+    XDG_DATA_HOME: dataHome,
+    LOCALAPPDATA: dataHome,
+    USERPROFILE: dataHome,
+    HOME: dataHome,
     LANG: 'C',
     LC_ALL: '',
   }
+  // Proxy lookups read the process environment, so an ambient sandbox proxy
+  // would leak into every spawned agent (Q66 names exactly the vars it sets).
+  // Tests that need a proxy set it through startAgent's extraEnv instead.
+  // Literal keys: the dynamic form trips no-dynamic-delete.
+  delete env['HTTP_PROXY']
+  delete env['HTTPS_PROXY']
+  delete env['ALL_PROXY']
+  delete env['FTP_PROXY']
+  delete env['http_proxy']
+  delete env['https_proxy']
+  delete env['all_proxy']
+  delete env['ftp_proxy']
+  delete env['NO_PROXY']
+  delete env['no_proxy']
+  delete env['NODE_USE_ENV_PROXY']
+  return env
 }
 
 interface Session {
@@ -180,6 +226,21 @@ function initialize(client: acp.ClientContext) {
   return client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
 }
 
+/** A signed-out agent's answer to a client announcing these capabilities. */
+function initializeWith(
+  clientCapabilities?: acp.ClientCapabilities,
+): Promise<acp.InitializeResponse> {
+  return startAgent(signedOut).run((client) =>
+    client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION, clientCapabilities }),
+  )
+}
+
+/** A terminal (or agent) sign-in is on offer, as the ACP Registry requires. */
+function hasTerminalSignIn(response: acp.InitializeResponse): boolean {
+  const methods: { id: string; type?: unknown }[] = response.authMethods ?? []
+  return methods.some((method) => method.type === 'terminal' || method.type === 'agent')
+}
+
 function text(updates: readonly acp.SessionUpdate[]): string {
   return updates
     .flatMap((update) =>
@@ -191,8 +252,30 @@ function text(updates: readonly acp.SessionUpdate[]): string {
 }
 
 describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
+  it('loads the real question bundles, defers without forms, and drains an idle answer once', async () => {
+    const h = startAgent(signedIn, ['--questions-defer-after', '0'])
+    await h.run(async (client) => {
+      const sessionId = await newSession(client)
+      const prompt = (body: string) =>
+        client.request('session/prompt', {
+          sessionId,
+          prompt: [{ type: 'text', text: body }],
+        })
+      expect(await prompt('question-idle')).toEqual({ stopReason: 'end_turn' })
+      expect(await prompt('/questions')).toEqual({ stopReason: 'end_turn' })
+      expect(text(h.updates)).toContain('Colour')
+      expect(await prompt('/answer 1 Use teal')).toEqual({ stopReason: 'end_turn' })
+      expect(text(h.updates)).toContain(UI_TEXT.acpQuestionAnswerQueued)
+      const first = h.updates.length
+      expect(await prompt('Continue')).toEqual({ stopReason: 'end_turn' })
+      expect(text(h.updates.slice(first))).toContain('Use teal')
+      const second = h.updates.length
+      expect(await prompt('Continue again')).toEqual({ stopReason: 'end_turn' })
+      expect(text(h.updates.slice(second))).not.toContain('Use teal')
+    })
+  })
   it('prints its version and help, and refuses an argument it does not know', () => {
-    const env = { ...process.env, NODE_PATH, LANG: 'C' }
+    const env = { ...process.env, NODE_PATH, LANG: 'C', LC_ALL: 'C' }
     const version = spawnSync(process.execPath, [AGENT, '--version'], { encoding: 'utf8', env })
     const expected =
       INSTALLED === undefined
@@ -204,10 +287,120 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
           ).version
     expect(version.stdout.trim()).toBe(expected)
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
+    expect(help.status).toBe(0)
+    expect(help.stderr).toBe('')
+    const helpUsage = formatAcpUsage(UI_TEXT, ACP_AGENT_NAME)
+    expect(help.stdout.trim()).toBe(helpUsage)
+    expect(help.stdout).toContain(`${ACP_AGENT_NAME} help --all\n`)
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
+    expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
     expect(wrong.status).toBe(1)
     expect(wrong.stderr).toContain('--colour')
+    expect(wrong.stderr).toContain(`${helpUsage}\n`)
+    expect(wrong.stderr).not.toMatch(/--(?:no-)?auto-compaction/)
+  })
+
+  it('prints the complete translated usage and reference hint from the installed table', async () => {
+    const translation = z
+      .object({
+        acpUsage: z.string(),
+        referenceCliOptions: z.object({
+          'resource-governor': z.string(),
+          'cpu-max': z.string(),
+          'memory-max': z.string(),
+        }),
+        acpChatGpt: z.object({ usage: z.string() }),
+        scheduleV2: z.object({ runtime: z.object({ usage: z.string() }) }),
+        helpReferenceTitle: z.string(),
+        referenceIntro: z.string(),
+        promptLibrary: z.string(),
+        shareReviewPrivacy: z.string(),
+        promptSave: z.string(),
+        promptSecretsNote: z.string(),
+        promptUseSaved: z.string(),
+        promptVariables: z.string(),
+        promptInsert: z.string(),
+        promptScopeUser: z.string(),
+        promptScopeWorkspace: z.string(),
+        promptCopyToUser: z.string(),
+        sharePrompt: z.string(),
+        shareChat: z.string(),
+        shareConversation: z.string(),
+        shareFull: z.string(),
+        promptRun: z.string(),
+        shareConfirm: z.string(),
+      })
+      .parse(unpackUiTable(JSON.parse(await readUiTableFile(PACKAGE, ['l10n', 'ui.de.json']))))
+    const accountTranslation = z
+      .object({
+        acpUsage: z.string(),
+        helpReferenceTitle: z.string(),
+        accounts: z.object({ cliUsage: z.string(), execHelp: z.string() }),
+      })
+      .parse(unpackUiTable(JSON.parse(await readUiTableFile(PACKAGE, ['l10n', 'ui.de.json']))))
+    const table = {
+      ...UI_TEXT,
+      ...translation,
+      accounts: { ...UI_TEXT.accounts, ...accountTranslation.accounts },
+      acpChatGpt: { ...UI_TEXT.acpChatGpt, ...translation.acpChatGpt },
+      referenceCliOptions: { ...UI_TEXT.referenceCliOptions, ...translation.referenceCliOptions },
+      scheduleV2: {
+        ...UI_TEXT.scheduleV2,
+        runtime: { ...UI_TEXT.scheduleV2.runtime, ...translation.scheduleV2.runtime },
+      },
+    }
+    const verwendung = formatAcpUsage(table, ACP_AGENT_NAME)
+    const help = spawnSync(process.execPath, [AGENT, '--help'], {
+      encoding: 'utf8',
+      env: { ...process.env, NODE_PATH, LC_ALL: 'de_DE.UTF-8' },
+    })
+    expect(help.status).toBe(0)
+    expect(help.stderr).toBe('')
+    expect(help.stdout.trim()).toBe(verwendung)
+    expect(help.stdout).toContain(table.helpReferenceTitle)
+    expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
+  })
+
+  it('binds saved prompts and sharing help over real ACP stdio without a model send (M118)', async () => {
+    mkdirSync(path.join(workspace, 'empty'), { recursive: true })
+    const agent = startAgent(signedIn, [], { XDG_DATA_HOME: dataHome, LOCALAPPDATA: dataHome })
+    let stage = 'initialize'
+    // Hosted timeout stacks identify only this case. Fixed stage words show
+    // whether macOS waits for a request or stdio close, without dumping frames.
+    onTestFailed(() => {
+      process.stderr.write(`M118 ACP last awaited stage: ${stage}\n`)
+    })
+    await agent.run(async (client) => {
+      await initialize(client)
+      stage = 'session/new (first workspace)'
+      const { sessionId } = await client.request('session/new', { cwd: workspace, mcpServers: [] })
+      const ask = (id: string, prompt: string) =>
+        client.request('session/prompt', {
+          sessionId: id,
+          prompt: [{ type: 'text', text: prompt }],
+        })
+      stage = 'save user prompt'
+      await ask(sessionId, '/prompt save --title Shared --scope user --   Exact\r\nbody  ')
+      const id = /\(([^()]*)\)$/.exec(text(agent.updates))?.[1]
+      expect(id).toBeDefined()
+      stage = 'session/new (second workspace)'
+      const { sessionId: fresh } = await client.request('session/new', {
+        cwd: path.join(workspace, 'empty'),
+        mcpServers: [],
+      })
+      stage = 'list user prompts'
+      await ask(fresh, '/prompt list')
+      stage = 'use user prompt'
+      await ask(fresh, `/prompt use ${id ?? ''}`)
+      stage = 'sharing help'
+      await ask(fresh, '/help')
+      expect(text(agent.updates)).toContain('  Exact\r\nbody  ')
+      expect(text(agent.updates)).toContain('/share chat')
+      expect(text(agent.updates)).not.toContain('echo:')
+      stage = 'stdio disconnect'
+    })
+    stage = 'completed'
   })
 
   it('streams a reply, runs an allowed tool call and skips a denied one, on Muse Code', async () => {
@@ -223,6 +416,10 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       { stopReason: 'end_turn' },
       { stopReason: 'end_turn' },
     ])
+    // A host that cannot start names its cause in the agent's log.
+    expect(text(agent.updates), agent.stderr.join('')).not.toContain(
+      UI_TEXT.scheduleV2.runtime.hostUnavailable,
+    )
     expect(text(agent.updates)).toContain('echo: hello')
     const toolCalls = agent.updates.filter((update) => update.sessionUpdate === 'tool_call')
     expect(toolCalls).toHaveLength(2)
@@ -271,7 +468,15 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
 
   it('says at start that a proxy will not be used by the Model API backend, until Node’s switch is on (Q66)', async () => {
     // A port nothing is asked on: the agent sends no request before a session.
-    const proxy = { HTTPS_PROXY: 'http://127.0.0.1:9', NODE_USE_ENV_PROXY: '' }
+    // The other proxy spellings are cleared so the warning names exactly the
+    // variable under test whatever the runner's own environment sets.
+    const proxy = {
+      HTTPS_PROXY: 'http://127.0.0.1:9',
+      NODE_USE_ENV_PROXY: '',
+      https_proxy: '',
+      HTTP_PROXY: '',
+      http_proxy: '',
+    }
     const unused = startAgent(signedIn, ['--backend', 'modelApi'], proxy)
     await unused.run(initialize)
     const said = unused.stderr.join('')
@@ -289,12 +494,11 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(museCode.stderr.join('')).not.toContain('HTTPS_PROXY is set')
   })
 
-  it('hands META_API_KEY in its own environment to Muse Code only, as the extension does (D1)', async () => {
+  it('refuses environment credentials as Muse Code Sign-In (FIXM95X)', async () => {
     const agent = startAgent(signedOut, [], { META_API_KEY: 'LLM|1|placeholder' })
-    // Signed out, but the CLI's own key variable is its credential.
-    await agent.run((client) => newSession(client))
+    await expect(agent.run((client) => newSession(client))).rejects.toMatchObject({ code: -32_000 })
     const said = agent.stderr.join('')
-    expect(said).toContain('META_API_KEY in the environment present')
+    expect(said).not.toContain('META_API_KEY in the environment present')
     expect(said).not.toContain('placeholder')
     expect(agent.wire.join('')).not.toContain('placeholder')
   })
@@ -325,7 +529,6 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         homeDir: configHome,
         secrets: memorySecrets(),
         runGit: () => Promise.reject(new Error('no git')),
-        museCodeCredentials: [],
         fetch: () => Promise.reject(new Error('no network')),
         sleep: () => Promise.resolve(),
         log,
@@ -375,10 +578,10 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
           }),
         })
       }
-      // With META_API_KEY in its environment `muse serve` starts whatever the file says.
+      // Environment credentials cannot turn a signed-out standalone runtime into ready.
       writeFakeCredential(configHome, LOGOUT_SHELL)
       vi.stubEnv('META_API_KEY', 'LLM|1|placeholder')
-      expect(await runtime.backend.readiness(false)).toEqual({ state: 'ready' })
+      expect(await runtime.backend.readiness(false)).toMatchObject({ state: 'signedOut' })
     } finally {
       vi.unstubAllEnvs()
       await Promise.all([runtime.close(), mac.close()])
@@ -401,7 +604,6 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       homeDir: dataHome,
       secrets,
       runGit: () => Promise.reject(new Error('no git')),
-      museCodeCredentials: [],
       fetch: api.fetch,
       sleep: () => Promise.resolve(),
       log,
@@ -414,17 +616,37 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
         approvalMode: 'promptUnmatched',
       })
       const events: AgentEvent[] = []
-      session.onEvent((event) => {
-        events.push(event)
+      // Wait for the event itself, under this test's own deadline: a poll
+      // with its default one-second window gave up on a slow Windows runner.
+      const completed = new Promise<void>((resolve) => {
+        session.onEvent((event) => {
+          events.push(event)
+          if (event.type === 'turnCompleted') resolve()
+        })
       })
       await session.sendTurn([{ type: 'text', text: 'hello' }], 'hello')
-      await vi.waitFor(() => {
-        expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
-      })
+      await completed
       expect(JSON.stringify(events)).toContain('From the bundle.')
       expect(log.error).not.toHaveBeenCalled()
     } finally {
       await runtime.close()
     }
+  })
+})
+
+// The ACP Registry's release gate (lane ACPREG), also run against the packed
+// package in CI: a registry client announcing terminal support with
+// `auth.terminal`, and one using the older `_meta` `terminal-auth` flag, are
+// both offered a terminal (or agent) sign-in; a client announcing neither is not.
+describe('the ACP registry release gate', () => {
+  it('offers terminal sign-in for auth.terminal and for the older _meta flag, and to no one else', async () => {
+    const [modern, legacy, plain] = await Promise.all([
+      initializeWith({ auth: { terminal: true } }),
+      initializeWith({ _meta: { 'terminal-auth': true } }),
+      initializeWith(),
+    ])
+    expect(hasTerminalSignIn(modern)).toBe(true)
+    expect(hasTerminalSignIn(legacy)).toBe(true)
+    expect(hasTerminalSignIn(plain)).toBe(false)
   })
 })

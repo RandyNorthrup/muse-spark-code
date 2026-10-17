@@ -25,6 +25,17 @@ describe('wireWordForLog', () => {
 })
 
 describe('failureForLog', () => {
+  it('recognizes the SDK error from a separate bundle without its local prototype', () => {
+    const error = new MspError({
+      code: -32_000,
+      message: PERSONAL,
+      data: { kind: 'commandRejected' },
+    })
+    Object.setPrototypeOf(error, Error.prototype)
+    expect(error).not.toBeInstanceOf(MspError)
+    expect(failureForLog(error)).toBe('commandRejected (MSP error -32000)')
+  })
+
   it('names an MSP error by its kind and code, never its message', () => {
     const refused = new MspError({
       code: -32_000,

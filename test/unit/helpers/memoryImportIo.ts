@@ -13,24 +13,6 @@ import type {
   ImportWriter,
 } from '../../../src/core/import/agentImport'
 import { AGENT_IMPORT_ROOT_CHANGED_CODE } from '../../../src/shared/constants'
-import { scanAgentImports, type ImportScanInput } from '../../../src/core/import/agentImport'
-
-/** The same trusted Claude fixture scan over either memory or real filesystem IO. */
-export async function scanImportFixture(
-  io: ImportIo,
-  context: Pick<ImportScanInput, 'platform' | 'homeDir' | 'workspaceRoot' | 'workspaceRoots'>,
-) {
-  return await scanAgentImports({
-    ...context,
-    io,
-    claudeConfigDir: undefined,
-    codexHome: undefined,
-    isWorkspaceTrusted: () => true,
-    isActive: () => true,
-    sources: ['claudeCode'],
-  })
-}
-
 export interface MemoryImportTree {
   readonly ignored?: readonly string[]
   readonly files?: Record<string, string>
@@ -38,6 +20,8 @@ export interface MemoryImportTree {
   readonly links?: Record<string, string>
   /** Paths whose read or listing fails with this code. */
   readonly failing?: Record<string, string>
+  /** Files with an execute bit (Cline v1 scripts off Windows). */
+  readonly executables?: readonly string[]
 }
 
 export interface MemoryImportIo extends ImportIo, ImportWriter {
@@ -60,6 +44,7 @@ export function memoryImportIo(tree: MemoryImportTree = {}): MemoryImportIo {
   const files = new Map(Object.entries(tree.files ?? {}))
   const links = new Map(Object.entries(tree.links ?? {}))
   const failing = tree.failing ?? {}
+  const executables = new Set(tree.executables)
   const reads: string[] = []
   const resolve = (absolutePath: string): string => {
     for (const [at, target] of links) {
@@ -160,6 +145,11 @@ export function memoryImportIo(tree: MemoryImportTree = {}): MemoryImportIo {
     },
     realPath(absolutePath) {
       return Promise.resolve(resolve(absolutePath))
+    },
+    isExecutable(absolutePath) {
+      failure(absolutePath)
+      const real = resolve(absolutePath)
+      return Promise.resolve(files.has(real) && executables.has(real))
     },
     isPresent(absolutePath) {
       const real = resolve(absolutePath)

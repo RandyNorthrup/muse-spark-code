@@ -18,11 +18,14 @@
 // slash-commands race, docs/certification/a11y-focus.md).
 
 import { existsSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
+import { performance } from 'node:perf_hooks'
 import process from 'node:process'
 import { chromium } from 'playwright-core'
+import { sortIncomplete } from './lib/a11yIncomplete.mjs'
 import { findChrome } from './lib/chrome.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
@@ -30,6 +33,7 @@ import {
   LOOPBACK,
   PAGE_TIMEOUT_MS,
   SCENARIOS,
+  bundleFor,
   SIZED_SCENARIOS,
   serveRepo,
   withSizedPage,
@@ -37,25 +41,19 @@ import {
 
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
+const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
 // The page the gate has always measured: what Chrome's 690x760 window left
 // for the page. A sized scenario (SIZED_SCENARIOS: a real 320 px panel, the
 // 1400 px column) is this tall at its own width.
 const VIEWPORT = { width: 690, height: 673 }
 const SIZED_VIEWPORT_HEIGHT = 760
 const MAX_WORKERS = 6
-// Windows headless Chrome stalled on the long transcript plus jump button
-// with four concurrent pages (M46); two workers passed twice with all rules.
+// Bound concurrent axe work on Windows as before; every page still runs.
 const WINDOWS_MAX_WORKERS = 2
-// Each worker's browser holds this many pages at once; a page spends most of
-// its time in the harness's 5 s settle, in real time now.
+// Each worker's browser holds this many pages at once; scenario events and
+// readiness still run in real time before each scan.
 const PAGES_PER_WORKER = 2
 const WINDOWS_PAGES_PER_WORKER = 1
-// axe's reasons (messageKey) for a contrast it could not decide: the text is
-// covered, or it could not see the background behind it; or the content is
-// glyphs, not text.
-const CONTRAST_RULE = 'color-contrast'
-const UNSEEN_REASONS = new Set(['elmPartiallyObscured', 'elmPartiallyObscuring', 'bgOverlap'])
-const GLYPH_ONLY_REASON = 'nonBmp'
 // The harness takes these findings out, each only where its own test holds,
 // and they are printed under their own heading with the reason (PLAN.md §8).
 const EXEMPT_REASONS = new Map([
@@ -88,10 +86,10 @@ async function keepFocus(tab) {
   await session.send('Emulation.setFocusEmulationEnabled', { enabled: true })
 }
 
-async function axeResultOf(tab) {
+async function axeResultOf(tab, remaining) {
   const result = tab.locator('#axe-result')
-  await result.waitFor({ state: 'attached', timeout: PAGE_TIMEOUT_MS })
-  return JSON.parse(await result.textContent())
+  await result.waitFor({ state: 'attached', timeout: remaining() })
+  return JSON.parse(await result.textContent({ timeout: remaining() }))
 }
 
 /**
@@ -101,9 +99,9 @@ async function axeResultOf(tab) {
 async function scanWithScrollbars(chrome, url, sized) {
   const profileDir = await mkdtemp(path.join(tmpdir(), 'muse-a11y-sized-'))
   try {
-    return await withSizedPage(chrome, profileDir, url, sized, async (tab) => {
+    return await withSizedPage(chrome, profileDir, url, sized, async (tab, remaining) => {
       await keepFocus(tab)
-      return await axeResultOf(tab)
+      return await axeResultOf(tab, remaining)
     })
   } finally {
     await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
@@ -112,7 +110,7 @@ async function scanWithScrollbars(chrome, url, sized) {
 
 /** One page: `{ violations }` from axe, or `{ error }` saying why there is none. */
 async function scan(chrome, context, port, page, lang) {
-  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&theme=${page.theme}&axe=1${langQuery(lang)}`
+  const url = `http://${LOOPBACK}:${String(port)}/${HARNESS_PATH}?scenario=${page.scenario}&bundle=${bundleFor(page.scenario)}&theme=${page.theme}&axe=1${langQuery(lang)}`
   const sized = SIZED_SCENARIOS[page.scenario]
   if (sized?.hasScrollbars === true) {
     try {
@@ -121,6 +119,8 @@ async function scan(chrome, context, port, page, lang) {
       return { error: String(error.message ?? error) }
     }
   }
+  const deadline = performance.now() + PAGE_TIMEOUT_MS
+  const remaining = () => Math.max(1, deadline - performance.now())
   const tab = await context.newPage()
   try {
     tab.setDefaultTimeout(PAGE_TIMEOUT_MS)
@@ -129,8 +129,8 @@ async function scan(chrome, context, port, page, lang) {
     if (sized !== undefined) {
       await tab.setViewportSize({ width: sized.width, height: SIZED_VIEWPORT_HEIGHT })
     }
-    await tab.goto(url)
-    return await axeResultOf(tab)
+    await tab.goto(url, { timeout: remaining() })
+    return await axeResultOf(tab, remaining)
   } catch (error) {
     return { error: String(error.message ?? error) }
   } finally {
@@ -140,39 +140,6 @@ async function scan(chrome, context, port, page, lang) {
 
 function elementCount(findings) {
   return findings.reduce((sum, finding) => sum + finding.nodes.length, 0)
-}
-
-/**
- * axe's undecided ("incomplete") results, sorted (the review of PR #18).
- * Two kinds of contrast result are counted, not failed, because no tool
- * decides them here: text axe could not see where it looked (covered by a
- * menu or dialog the user opened, or scrolled out of the transcript's
- * view; the same rows are checked where a scenario shows them), and
- * glyph-only content. Everything else axe could not decide fails, as a
- * violation does.
- */
-function sortIncomplete(findings) {
-  const undecided = []
-  let unseen = 0
-  let glyphOnly = 0
-  for (const finding of findings) {
-    const nodes = finding.nodes.filter((node) => {
-      const isContrast = finding.id === CONTRAST_RULE && node.reasons.length > 0
-      if (isContrast && node.reasons.every((reason) => UNSEEN_REASONS.has(reason))) {
-        unseen += 1
-        return false
-      }
-      if (isContrast && node.reasons.every((reason) => reason === GLYPH_ONLY_REASON)) {
-        glyphOnly += 1
-        return false
-      }
-      return true
-    })
-    if (nodes.length > 0) {
-      undecided.push({ ...finding, nodes })
-    }
-  }
-  return { undecided, unseen, glyphOnly }
 }
 
 /** One of axe's result lists over every page, each finding with its page. */
@@ -207,6 +174,12 @@ async function main() {
     throw new Error('No Chrome install found; set CHROME_PATH to the browser executable')
   }
   const { lang, scenarios: requested } = harnessArgs(process.argv.slice(2))
+  if (
+    (requested.length === 0 || requested.some((name) => bundleFor(name) === 'models')) &&
+    !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))
+  ) {
+    throw new Error(`${MODELS_BUNDLE_PATH} is missing; run \`npm run build\` first`)
+  }
   const unknown = requested.filter((name) => !SCENARIOS.includes(name))
   if (unknown.length > 0) {
     throw new Error(`Unknown scenario(s): ${unknown.join(', ')}`)
@@ -223,6 +196,10 @@ async function main() {
     Array.from({ length: workers }, () => mkdtemp(path.join(tmpdir(), 'muse-a11y-'))),
   )
   const results = []
+  // A complete streamed reply renders hundreds of deltas. Competing axe pages
+  // starve its unchanged readiness deadline; run every such page after the pool.
+  const ordinaryPages = pages.filter((page) => page.scenario !== 'long')
+  const streamedPages = pages.filter((page) => page.scenario === 'long')
   let next = 0
   try {
     // Each worker has a browser on a Chrome profile of its own; each of its
@@ -233,8 +210,8 @@ async function main() {
         try {
           await Promise.all(
             Array.from({ length: pagesPerWorker }, async () => {
-              while (next < pages.length) {
-                const page = pages[next]
+              while (next < ordinaryPages.length) {
+                const page = ordinaryPages[next]
                 next += 1
                 results.push({ ...page, ...(await scan(chrome, context, port, page, lang)) })
               }
@@ -245,6 +222,16 @@ async function main() {
         }
       }),
     )
+    if (streamedPages.length > 0) {
+      const context = await launchWorker(chrome, profiles[0])
+      try {
+        for (const page of streamedPages) {
+          results.push({ ...page, ...(await scan(chrome, context, port, page, lang)) })
+        }
+      } finally {
+        await context.close()
+      }
+    }
   } finally {
     server.close()
     await Promise.all(
@@ -285,9 +272,17 @@ async function main() {
   console.log(
     `\na11y: ${String(results.length)} pages (${String(scenarios.length)} scenarios × ${String(THEMES.length)} themes${lang === undefined ? '' : `, in ${lang}`}), ${String(byRule.size)} rules violated on ${String(nodes)} elements, ${String(undecidedByRule.size)} rules undecided on ${String(elementCount(undecided))} elements, ${String(exempt.length)} exempt, ${String(failed.length)} pages without a result`,
   )
+  // The report pages' own verifier (test/harness/reporting/verify.mjs) went
+  // with the test overhaul's process-test deletions; their axe cover now
+  // lapses until the lead folds the reporting scenes into this scan.
+  // docs/certification/m113-w-a11y.json is its last receipt.
   if (byRule.size > 0 || undecidedByRule.size > 0 || failed.length > 0) {
     process.exitCode = 1
   }
 }
 
-await main()
+if (
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
+)
+  await main()

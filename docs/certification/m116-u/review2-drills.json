@@ -1,0 +1,31 @@
+[
+  {
+    "id": "u2-authoritative-limit",
+    "before": "if (savedLimit !== snapshot.settings.patchRoundsMax)",
+    "after": "if (false)",
+    "test": "reconciles every changed server field after saving a rule without enabling stale writes",
+    "file": "src/webview/playbook/PlaybookPanel.tsx",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "exitCode": 1,
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > reconciles every changed server field after saving a rule without enabling stale writes"
+    ],
+    "beforeSha256": "308202716d237c4a64ac26cc438edb893e199ea22e9f77acb849f5c19e552c31",
+    "afterSha256": "308202716d237c4a64ac26cc438edb893e199ea22e9f77acb849f5c19e552c31"
+  },
+  {
+    "id": "u2-retain-actual-limit-draft",
+    "before": "if (savedLimit !== snapshot.settings.patchRoundsMax)",
+    "after": "if (limit !== snapshot.settings.patchRoundsMax)",
+    "test": "preserves an edited round-limit draft when a rule save leaves its server value unchanged",
+    "file": "src/webview/playbook/PlaybookPanel.tsx",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "exitCode": 1,
+    "observedFailures": [
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > saves the round limit as a field patch without discarding another rule draft or focus",
+      "FAIL  test/unit/PlaybookPanel.test.tsx > M116 shared playbook surfaces > preserves an edited round-limit draft when a rule save leaves its server value unchanged"
+    ],
+    "beforeSha256": "308202716d237c4a64ac26cc438edb893e199ea22e9f77acb849f5c19e552c31",
+    "afterSha256": "308202716d237c4a64ac26cc438edb893e199ea22e9f77acb849f5c19e552c31"
+  }
+]

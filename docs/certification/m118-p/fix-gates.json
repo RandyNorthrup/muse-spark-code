@@ -1,0 +1,77 @@
+{
+  "machine": "macmini",
+  "checks": [
+    {
+      "check": "eslint",
+      "command": "npx eslint --max-warnings=0 src/core/prompts/promptLibrary.ts src/core/prompts/promptStore.ts src/extension.ts src/host/prompts/promptCommands.ts src/host/prompts/promptEntry.ts src/host/prompts/promptInsertion.ts src/shared/l10n/en.ts src/shared/prompts.ts src/webview/prompts/PromptLibrary.tsx test/unit/helpers/promptHarness.tsx test/unit/promptEntry.test.ts test/unit/promptLibrary.test.tsx test/unit/promptMenus.test.ts test/unit/promptNative.test.ts test/unit/promptStore.test.ts test/unit/sharingArtifacts.test.ts",
+      "exit": 0,
+      "output": ""
+    },
+    {
+      "check": "typecheck",
+      "command": "npm run typecheck",
+      "exit": 0,
+      "output": "\n> muse-spark-code@0.14.1 typecheck\n> run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration\n\n\n> muse-spark-code@0.14.1 typecheck:host\n> tsc -p tsconfig.json --noEmit\n\n\n> muse-spark-code@0.14.1 typecheck:webview\n> tsc -p src/webview/tsconfig.json --noEmit\n\n\n> muse-spark-code@0.14.1 typecheck:unit\n> tsc -p test/unit/tsconfig.json --noEmit\n\n\n> muse-spark-code@0.14.1 typecheck:e2e\n> tsc -p test/e2e/tsconfig.json --noEmit\n\n\n> muse-spark-code@0.14.1 typecheck:integration\n> tsc -p test/integration/tsconfig.json --noEmit\n\n"
+    },
+    {
+      "check": "localization",
+      "command": "node scripts/check-l10n.mjs",
+      "exit": 0,
+      "output": "l10n: 14 tables, 172 manifest strings, 606 source files; 0 problems\n"
+    },
+    {
+      "check": "deadcode",
+      "command": "npm run deadcode",
+      "exit": 0,
+      "output": "\n> muse-spark-code@0.14.1 deadcode\n> knip\n\nConfiguration hints (2)\nvendor/**    knip.jsonc  Remove from ignore            \naxe-core     knip.jsonc  Remove from ignoreDependencies\n"
+    },
+    {
+      "check": "duplication",
+      "command": "npx jscpd",
+      "exit": 0,
+      "output": "No duplicates found.\nFound 0 clones.\nUsing config from .jscpd.json\n"
+    },
+    {
+      "check": "cycles",
+      "command": "npm run cycles",
+      "exit": 0,
+      "output": "\n> muse-spark-code@0.14.1 cycles\n> dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts\n\n\u2022 Circular Dependencies\n  \u2705 Congratulations, no circular dependency was found in your project.\n\n- Start analyzing dependencies...\n\u2714 [567/567] Analyze done!\n"
+    },
+    {
+      "check": "host-api",
+      "command": "npm run check:host-api",
+      "exit": 1,
+      "output": "host-api: 336 VS Code APIs, 32 files importing vscode, 25 Node built-ins, 61 theme variables; 1 problem(s)\nFAIL docs/ide-compatibility/host-api.md is not what the source gives; run `npm run check:host-api -- --write` and review the diff:\n"
+    },
+    {
+      "check": "build",
+      "command": "npm run build",
+      "exit": 1,
+      "output": "ok   dist/extension.js: 439.8 KiB (budget 600 KiB)\nok   dist/conversation.js: 193.2 KiB (budget 250 KiB)\nok   dist/tab.js: 49.5 KiB (budget 75 KiB)\nok   dist/modelApi.js: 446.9 KiB (budget 475 KiB)\nok   dist/review.js: 29.1 KiB (budget 50 KiB)\nok   dist/sessionBoard.js: 45.1 KiB (budget 75 KiB)\nok   dist/reviewer.js: 22.6 KiB (budget 75 KiB)\nok   dist/foreignHooks.js: 69.3 KiB (budget 100 KiB)\nok   dist/hookRuntime.js: 43.0 KiB (budget 50 KiB)\nok   dist/pluginHooks.js: 34.7 KiB (budget 50 KiB)\nok   dist/planMarkdown.js: 144.1 KiB (budget 150 KiB)\nok   dist/checkpointStore.js: 77.0 KiB (budget 225 KiB)\nok   dist/agentImport.js: 115.6 KiB (budget 125 KiB)\nok   dist/browserCheck.js: 42.5 KiB (budget 75 KiB)\nok   dist/browserRuntime.js: 19.3 KiB (budget 50 KiB)\nok   dist/conversationGit.js: 72.3 KiB (budget 150 KiB)\nok   dist/bundledSkills.js: 14.8 KiB (budget 50 KiB)\nok   dist/codeIntel.js: 39.1 KiB (budget 100 KiB)\nok   dist/voice.js: 19.8 KiB (budget 50 KiB)\nok   dist/webFetch.js: 37.4 KiB (budget 75 KiB)\nok   dist/museCodeReviewer.js: 23.1 KiB (budget 75 KiB)\nok   dist/extensionHooks.js: 35.9 KiB (budget 75 KiB)\nok   dist/report.js: 21.6 KiB (budget 75 KiB)\nok   dist/recorder.js: 24.2 KiB (budget 75 KiB)\nok   dist/whatsNew.js: 18.6 KiB (budget 50 KiB)\nok   dist/whatsNew.json: 28.2 KiB (budget 40 KiB)\nok   dist/judge.js: 47.1 KiB (budget 100 KiB)\nok   dist/uiText.js: 48.8 KiB (budget 125 KiB)\nok   dist/uiTextRuntime.js: 3.5 KiB (budget 25 KiB)\nok   dist/uiTextHooks.js: 4.6 KiB (budget 25 KiB)\nok   dist/uiTextSurfaces.js: 2.5 KiB (budget 25 KiB)\nok   dist/validation.js: 39.8 KiB (budget 50 KiB)\nok   dist/wire.js: 40.6 KiB (budget 50 KiB)\nok   dist/searchWorker.js: 4.9 KiB (budget 50 KiB)\nok   dist/pageWorker.js: 188.6 KiB (budget 300 KiB)\nok   dist/webview/main.js + static imports: 795.4 KiB (budget 900 KiB)\nok   dist/webview/whatsNew.js: 0.7 KiB (budget 25 KiB)\nok   dist/acp.js: 818.2 KiB (budget 850 KiB)\nOVER dist/webview deferred JS: 55.2 KiB (budget 50 KiB)\nok   dist/webview code highlighting: 93.1 KiB (budget 125 KiB)\nok   dist/webview action dialogs: 9.1 KiB (budget 25 KiB)\nok   dist/webview tasks tab: 1.3 KiB (budget 25 KiB)\nbundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)\n"
+    },
+    {
+      "check": "bundle-split",
+      "command": "node scripts/check-bundle-split.mjs",
+      "exit": 1,
+      "output": "bundle split: 1 problem(s); see PLAN.md D6 and M57\n  Unlisted deferred webview surface src/webview/prompts/PromptLibrary.tsx\n"
+    },
+    {
+      "check": "host-globals",
+      "command": "node scripts/check-host-globals.mjs",
+      "exit": 0,
+      "output": "ok   dist/validation.js: 0 reference(s) to navigator\nok   dist/wire.js: 0 reference(s) to navigator\nok   dist/uiText.js: 0 reference(s) to navigator\nok   dist/uiTextRuntime.js: 0 reference(s) to navigator\nok   dist/uiTextHooks.js: 0 reference(s) to navigator\nok   dist/uiTextSurfaces.js: 0 reference(s) to navigator\nok   dist/extension.js: 0 reference(s) to navigator\nok   dist/conversation.js: 0 reference(s) to navigator\nok   dist/tab.js: 0 reference(s) to navigator\nok   dist/modelApi.js: 0 reference(s) to navigator\nok   dist/review.js: 0 reference(s) to navigator\nok   dist/sessionBoard.js: 0 reference(s) to navigator\nok   dist/reviewer.js: 0 reference(s) to navigator\nok   dist/foreignHooks.js: 0 reference(s) to navigator\nok   dist/hookRuntime.js: 0 reference(s) to navigator\nok   dist/extensionHooks.js: 0 reference(s) to navigator\nok   dist/pluginHooks.js: 0 reference(s) to navigator\nok   dist/planMarkdown.js: 0 reference(s) to navigator\nok   dist/checkpointStore.js: 0 reference(s) to navigator\nok   dist/browserCheck.js: 0 reference(s) to navigator\nok   dist/browserRuntime.js: 0 reference(s) to navigator\nok   dist/agentImport.js: 0 reference(s) to navigator\nok   dist/conversationGit.js: 0 reference(s) to navigator\nok   dist/bundledSkills.js: 0 reference(s) to navigator\nok   dist/codeIntel.js: 0 reference(s) to navigator\nok   dist/voice.js: 0 reference(s) to navigator\nok   dist/webFetch.js: 0 reference(s) to navigator\nok   dist/museCodeReviewer.js: 0 reference(s) to navigator\nok   dist/report.js: 0 reference(s) to navigator\nok   dist/recorder.js: 0 reference(s) to navigator\nok   dist/whatsNew.js: 0 reference(s) to navigator\nok   dist/judge.js: 0 reference(s) to navigator\nok   dist/searchWorker.js: 0 reference(s) to navigator\nok   dist/pageWorker.js: 0 reference(s) to navigator\n"
+    },
+    {
+      "check": "exec-schemas",
+      "command": "npm run schema:exec -- --check",
+      "exit": 0,
+      "output": "\n> muse-spark-code@0.14.1 schema:exec\n> node scripts/exec-schema.mjs --check\n\nExec schemas match.\n"
+    },
+    {
+      "check": "prettier",
+      "command": "npx prettier --check <all changed files and three correction receipt files>",
+      "exit": 0,
+      "output": "Checking formatting...\nAll matched files use Prettier code style!\n"
+    }
+  ]
+}

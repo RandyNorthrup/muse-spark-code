@@ -121,3 +121,8 @@ export class BackgroundNotifier {
     void this.raise(notice.message, reveal)
   }
 }
+
+/** One background reminder per session/turn, through the existing setting/focus rule. */
+export function notifyOpenQuestions(sessionId: string, turnId: string): AttentionNotice {
+  return { key: `${sessionId}:openQuestions:${turnId}`, message: UI_TEXT.notifyOpenQuestions }
+}

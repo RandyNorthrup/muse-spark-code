@@ -1,6 +1,6 @@
 // Native file IDs are 64-bit on Windows. This is the sole sampler and
 // comparator: callers retain the exact IDs even when Number would alias them.
-import { statSync, type BigIntStats } from 'node:fs'
+import { statSync, lstatSync, fstatSync, type BigIntStats } from 'node:fs'
 import { lstat, stat, type FileHandle } from 'node:fs/promises'
 import { WORKSPACE_IDENTITY_ZERO } from '../../shared/constants'
 
@@ -28,15 +28,43 @@ export function statIdentitySync(file: string): BigIntStats {
   return statSync(file, { bigint: true })
 }
 
+/** Audit commits compare a held descriptor and the named path in one synchronous tick. */
+export function handleIdentitySync(descriptor: number): BigIntStats {
+  return fstatSync(descriptor, { bigint: true })
+}
+export function lstatIdentitySync(file: string): BigIntStats {
+  return lstatSync(file, { bigint: true })
+}
+
 function isSameFile(left: FileIdentity, right: FileIdentity): boolean {
   return left.dev === right.dev && left.ino === right.ino
 }
 
 export { isSameFile as sameFile }
 
+/** The same volume serial (WSL's device 0 included); never proof of the same file. */
+export function isSameVolume(left: FileIdentity, right: FileIdentity): boolean {
+  return left.dev === right.dev
+}
+
 /** An absent/invalid native ID cannot bind a workspace or an import preview. */
 export function fileIdentityKey(identity: FileIdentity): string | undefined {
   return identity.ino <= WORKSPACE_IDENTITY_ZERO || identity.dev < WORKSPACE_IDENTITY_ZERO
     ? undefined
     : `${identity.dev.toString()}:${identity.ino.toString()}`
+}
+
+/** Exact read-time IDs and nanosecond clock for cached byte provenance. */
+export function fileReadIdentity(sample: Pick<BigIntStats, 'dev' | 'ino' | 'size' | 'mtimeNs'>): {
+  readonly dev: string
+  readonly ino: string
+  readonly size: number
+  readonly mtime: string
+} {
+  return {
+    dev: sample.dev.toString(),
+    ino: sample.ino.toString(),
+    size: Number(sample.size),
+    mtime: sample.mtimeNs.toString(),
+  }
 }

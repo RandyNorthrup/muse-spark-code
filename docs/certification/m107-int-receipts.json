@@ -1,0 +1,833 @@
+{
+  "machine": "win11",
+  "modelAttempts": 0,
+  "suites": [
+    {
+      "index": 0,
+      "files": [
+        "test/unit/sampler.test.ts",
+        "test/unit/samplerProbes.test.ts",
+        "test/unit/samplerSystem.test.ts"
+      ],
+      "status": 0,
+      "passed": 35,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 1,
+      "files": [
+        "test/unit/trees.test.ts",
+        "test/unit/treesPosix.test.ts",
+        "test/unit/treesWindows.test.ts"
+      ],
+      "status": 0,
+      "passed": 52,
+      "failed": 0,
+      "skipped": 1
+    },
+    {
+      "index": 2,
+      "files": [
+        "test/unit/treesActions.test.ts",
+        "test/unit/treesLifecycle.test.ts",
+        "test/unit/treesLifecycleNative.test.ts"
+      ],
+      "status": 0,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 3
+    },
+    {
+      "index": 3,
+      "files": [
+        "test/unit/governor.test.ts",
+        "test/unit/queue.test.ts",
+        "test/unit/resourceLaunchHost.test.ts"
+      ],
+      "status": 0,
+      "passed": 79,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 4,
+      "files": [
+        "test/unit/actuators.test.ts",
+        "test/unit/actuatorsWindows.test.ts",
+        "test/unit/actuatorsLinux.test.ts"
+      ],
+      "status": 0,
+      "passed": 57,
+      "failed": 0,
+      "skipped": 2
+    },
+    {
+      "index": 5,
+      "files": [
+        "test/unit/actuatorsMac.test.ts",
+        "test/unit/shellJob.test.ts",
+        "test/unit/jobSource.test.ts"
+      ],
+      "status": 0,
+      "passed": 32,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 6,
+      "files": [
+        "test/unit/resourceAdapters.test.ts",
+        "test/unit/resourceWindowsLaunch.test.ts",
+        "test/unit/deferredBundles.test.ts"
+      ],
+      "status": 0,
+      "passed": 52,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 7,
+      "files": [
+        "test/unit/toolIo.test.ts",
+        "test/unit/toolIoBounded.test.ts",
+        "test/unit/toolIoCommandAdmission.test.ts"
+      ],
+      "status": 0,
+      "passed": 59,
+      "failed": 0,
+      "skipped": 2
+    },
+    {
+      "index": 8,
+      "files": [
+        "test/unit/mcpProcess.test.ts",
+        "test/unit/mcpPool.test.ts",
+        "test/unit/mcpCheckpointBoundary.test.ts"
+      ],
+      "status": 0,
+      "passed": 45,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 9,
+      "files": [
+        "test/unit/pluginHost.test.ts",
+        "test/unit/pluginContainment.test.ts",
+        "test/unit/museCodeBackendManager.test.ts"
+      ],
+      "status": 0,
+      "passed": 60,
+      "failed": 0,
+      "skipped": 14
+    },
+    {
+      "index": 10,
+      "files": [
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/bestOfNRunner.test.ts",
+        "test/unit/scheduledRunConfirmation.test.ts"
+      ],
+      "status": 0,
+      "passed": 668,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 11,
+      "files": [
+        "test/unit/browserRun.test.ts",
+        "test/unit/browserChecks.test.ts",
+        "test/unit/git.test.ts"
+      ],
+      "status": 0,
+      "passed": 72,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 12,
+      "files": [
+        "test/unit/resourceStops.test.ts",
+        "test/unit/processTree.test.ts",
+        "test/unit/mcpStdio.test.ts"
+      ],
+      "status": 0,
+      "passed": 39,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 13,
+      "files": [
+        "test/unit/MuseCodeHost.test.ts",
+        "test/unit/accountHost.test.ts",
+        "test/unit/modelApiGoldenRequests.test.ts"
+      ],
+      "status": 0,
+      "passed": 134,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 14,
+      "files": [
+        "test/unit/runtimeResources.test.ts",
+        "test/unit/acpResources.test.ts",
+        "test/unit/execResources.test.ts"
+      ],
+      "status": 0,
+      "passed": 34,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 15,
+      "files": [
+        "test/unit/dictation.test.ts",
+        "test/unit/dictationHost.test.ts",
+        "test/unit/recorderHelper.test.ts"
+      ],
+      "status": 0,
+      "passed": 31,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 16,
+      "files": [
+        "test/unit/mcpJobExecutable.test.ts",
+        "test/unit/voiceBundle.test.ts",
+        "test/unit/browserLaunch.test.ts"
+      ],
+      "status": 0,
+      "passed": 23,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "index": 17,
+      "files": [
+        "test/unit/checkpointHost.test.ts",
+        "test/unit/checkpointNativeCommands.test.ts",
+        "test/unit/checkpointShellProof.test.ts"
+      ],
+      "status": 0,
+      "passed": 65,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "followups": [
+    {
+      "name": "stops",
+      "files": [
+        "test/unit/mcpProcess.test.ts",
+        "test/unit/processTree.test.ts",
+        "test/unit/resourceStops.test.ts"
+      ],
+      "passed": 51,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "plugins",
+      "files": [
+        "test/unit/pluginContainment.test.ts",
+        "test/unit/pluginHost.test.ts",
+        "test/unit/resourceAdapters.test.ts"
+      ],
+      "passed": 57,
+      "failed": 0,
+      "skipped": 14
+    }
+  ],
+  "drills": [
+    {
+      "name": "mcp-stop-rejection",
+      "file": "src/core/backends/modelapi/mcp/stdio.ts",
+      "test": "test/unit/mcpStdio.test.ts",
+      "status": 1,
+      "failed": [
+        "McpStdioTransport (M50) handles refused cleanup after a framing fault without an unhandled rejection"
+      ],
+      "sha256": "7aaa361ef4deee425e8ff0cb039675037f3429d0fa55529700253e583f695a6e"
+    },
+    {
+      "name": "runtime-factory-export",
+      "file": "src/core/resources/resourceGovernorEntry.ts",
+      "test": "test/unit/deferredBundles.test.ts",
+      "status": 1,
+      "failed": [],
+      "failedSuites": ["C:/lanes/M107INT/test/unit/deferredBundles.test.ts"],
+      "sha256": "abbe3f7ea10bfcf3119419ac697b6c07f5c323c0e2200acfc25bd4155d8aeec9"
+    },
+    {
+      "name": "private-cli-storage",
+      "file": "test/unit/execResources.test.ts",
+      "test": "test/unit/execResources.test.ts",
+      "status": 1,
+      "failed": [
+        "M107 H headless flags and v2 egress runs terminal resources against the real lazy entry without any key-store or model access"
+      ],
+      "failedSuites": [],
+      "sha256": "52f0c5ff8ef427580da878d5ebb4704aa02619b6b50a09a49678afbc11579ade"
+    },
+    {
+      "name": "tree-stop-authority",
+      "file": "src/host/processTree.ts",
+      "test": "test/unit/processTree.test.ts",
+      "status": 1,
+      "failed": [
+        "uses registered stop authority even after root exit and never falls back on refusal"
+      ],
+      "failedSuites": [],
+      "sha256": "1f89a332b31c12772a2e87fded09ef315b826cf61e017ffc6452ff90b892e5d2"
+    },
+    {
+      "name": "tree-exit-authority",
+      "file": "src/host/processTree.ts",
+      "test": "test/unit/processTree.test.ts",
+      "status": 1,
+      "failed": [
+        "uses registered stop authority even after root exit and never falls back on refusal"
+      ],
+      "failedSuites": [],
+      "sha256": "1f89a332b31c12772a2e87fded09ef315b826cf61e017ffc6452ff90b892e5d2"
+    },
+    {
+      "name": "stop-refusal",
+      "file": "src/core/resources/admission.ts",
+      "test": "test/unit/resourceStops.test.ts",
+      "status": 1,
+      "failed": [
+        "uses registered browser stop with no raw fallback (admitted=false)",
+        "rejects a refused Git stop without waiting for root exit or invoking a bare child kill",
+        "reports refused voice stop through the driver while retaining its registered tree",
+        "routes a contained plugin stop through its lease and preserves refusal (job)",
+        "routes a contained plugin stop through its lease and preserves refusal (posix)"
+      ],
+      "failedSuites": [],
+      "sha256": "a2ef633503527f005ce57026d015c801973da6153dab08b8e416acea78297751"
+    },
+    {
+      "name": "stop-gone-proof",
+      "file": "src/core/resources/admission.ts",
+      "test": "test/unit/processTree.test.ts",
+      "status": 1,
+      "failed": [
+        "uses registered stop authority even after root exit and never falls back on refusal"
+      ],
+      "failedSuites": [],
+      "sha256": "a2ef633503527f005ce57026d015c801973da6153dab08b8e416acea78297751"
+    },
+    {
+      "name": "mcp-exit-authority",
+      "file": "src/host/backend/mcpProcess.ts",
+      "test": "test/unit/mcpProcess.test.ts",
+      "status": 1,
+      "failed": [
+        "routes MCP root-exit cleanup through its registered lease (launcher=false)",
+        "routes MCP root-exit cleanup through its registered lease (launcher=true)"
+      ],
+      "failedSuites": [],
+      "sha256": "d0868aa757d1b3c64918ac23d15a5343929199ef25e5d6d40a28681414a41a12"
+    },
+    {
+      "name": "mcp-stop-authority",
+      "file": "src/host/backend/mcpProcess.ts",
+      "test": "test/unit/mcpProcess.test.ts",
+      "status": 1,
+      "failed": ["refuses an explicit registered MCP stop without signalling its launcher"],
+      "failedSuites": [],
+      "sha256": "d0868aa757d1b3c64918ac23d15a5343929199ef25e5d6d40a28681414a41a12"
+    },
+    {
+      "name": "browser-stop-authority",
+      "file": "src/host/browser/browserProcess.ts",
+      "test": "test/unit/resourceStops.test.ts",
+      "status": 1,
+      "failed": [
+        "uses registered browser stop with no raw fallback (admitted=false)",
+        "uses registered browser stop with no raw fallback (admitted=true)"
+      ],
+      "failedSuites": [],
+      "sha256": "cef7c1fe2b596166698b3798004f864db27403122fb3177b1c19c77a1ab34e1b"
+    },
+    {
+      "name": "git-stop-authority",
+      "file": "src/host/git.ts",
+      "test": "test/unit/resourceStops.test.ts",
+      "status": 1,
+      "failed": [
+        "rejects a refused Git stop without waiting for root exit or invoking a bare child kill"
+      ],
+      "failedSuites": [],
+      "sha256": "535bf6ad990989c9d7d2258345d66ddaa4e3839b8f728f37d3df1e2ba874bf23"
+    },
+    {
+      "name": "voice-stop-authority",
+      "file": "src/host/voice/voiceProcesses.ts",
+      "test": "test/unit/resourceStops.test.ts",
+      "status": 1,
+      "failed": [
+        "reports refused voice stop through the driver while retaining its registered tree"
+      ],
+      "failedSuites": [],
+      "sha256": "685218f1afed237c5f789fb6e27d39b4919ead58c547a83399e77a967ca3882b"
+    },
+    {
+      "name": "plugin-posix-stop-authority",
+      "file": "src/core/backends/modelapi/pluginHost.ts",
+      "test": "test/unit/resourceStops.test.ts",
+      "status": 1,
+      "failed": ["routes a contained plugin stop through its lease and preserves refusal (posix)"],
+      "failedSuites": [],
+      "sha256": "cfdcda33620b144d97cc3c3ae7e8edd4746a1d628835fd844ed3ffc7718a98b2"
+    },
+    {
+      "name": "plugin-job-stop-authority",
+      "file": "src/core/backends/modelapi/pluginHost.ts",
+      "test": "test/unit/resourceStops.test.ts",
+      "status": 1,
+      "failed": ["routes a contained plugin stop through its lease and preserves refusal (job)"],
+      "failedSuites": [],
+      "sha256": "cfdcda33620b144d97cc3c3ae7e8edd4746a1d628835fd844ed3ffc7718a98b2"
+    }
+  ],
+  "browser": [
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "normal",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "throttle",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "relocate",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "pause",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "companion",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "traffic",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "normal",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "throttle",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "relocate",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "pause",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "companion",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "traffic",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "normal",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "throttle",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "relocate",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "pause",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "companion",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "traffic",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "normal",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "throttle",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "relocate",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "pause",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "companion",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "traffic",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "normal",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "throttle",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "relocate",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "pause",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "companion",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "traffic",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "normal",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "throttle",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "relocate",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "pause",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "companion",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "traffic",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "normal",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "throttle",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "relocate",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "pause",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "companion",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "traffic",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "normal",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "throttle",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "relocate",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "pause",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "companion",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "traffic",
+      "errors": 0,
+      "overflow": false,
+      "violations": 0,
+      "incomplete": 0
+    }
+  ]
+}

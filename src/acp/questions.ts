@@ -1,13 +1,13 @@
 // The agent's questions (`request_user_input`) in an ACP client (PLAN.md
 // D62): a form where the client can show one (`elicitation/create`), and
-// otherwise the questions as text, declined so the model carries on and the
-// user answers in the next prompt. The client's answer is parsed before use
+// otherwise the questions as text, deferred so the model carries on and the
+// user answers later with /answer. The client's answer is parsed before use
 // (AGENTS.md rule 7): the ACP SDK checks what the agent receives, not what a
 // request of its own gets back. Pure.
 
 import type { ElicitationPropertySchema, ElicitationSchema } from '@agentclientprotocol/sdk'
 import * as z from 'zod/mini'
-import type { Question, QuestionAnswer } from '../shared/agentEvents'
+import type { ElicitationField, Question, QuestionAnswer } from '../shared/agentEvents'
 import { UI_TEXT } from '../shared/constants'
 
 const MULTIPLE_SELECTION = 'multiple'
@@ -135,5 +135,106 @@ export function questionsText(questions: readonly Question[]): string {
     question.question,
     ...question.options.map((option) => `${BULLET}${option.label}`),
   ])
+  return [UI_TEXT.acpOpenQuestionAsked, ...lines].join(LINE)
+}
+
+/** Only a single text block can be a local command; attachments always remain a prompt. */
+export function questionCommand(
+  text: string,
+):
+  | { readonly kind: 'list' }
+  | { readonly kind: 'answer'; readonly number: number; readonly text: string }
+  | { readonly kind: 'invalid' }
+  | undefined {
+  const trimmed = text.trim()
+  if (trimmed === '/questions') return { kind: 'list' }
+  if (/^\/questions\s/.test(trimmed)) return { kind: 'invalid' }
+  if (!/^\/answer(?:\s|$)/.test(trimmed)) return undefined
+  const match = /^\/answer\s+([1-9]\d*)\s+([\s\S]+)$/.exec(trimmed)
+  const number = Number(match?.[1])
+  const answer = match?.[2]?.trim()
+  return answer !== undefined && answer !== '' && Number.isSafeInteger(number)
+    ? { kind: 'answer', number, text: answer }
+    : { kind: 'invalid' }
+}
+
+// --- MCP elicitation through the client's form (M91 lane M) ---
+
+function elicitationProperty(field: ElicitationField): ElicitationPropertySchema {
+  const titled = {
+    ...(field.title !== undefined && { title: field.title }),
+    ...(field.description !== undefined && { description: field.description }),
+  }
+  switch (field.type) {
+    case 'string': {
+      return {
+        type: 'string',
+        ...titled,
+        ...(field.format !== undefined && { format: field.format }),
+        ...(field.minLength !== undefined && { minLength: field.minLength }),
+        ...(field.maxLength !== undefined && { maxLength: field.maxLength }),
+        ...(typeof field.default === 'string' && { default: field.default }),
+        ...(field.enum !== undefined && field.enumNames === undefined && { enum: field.enum }),
+        ...(field.enum !== undefined &&
+          field.enumNames !== undefined && {
+            oneOf: field.enum.map((value, index) => ({
+              const: value,
+              title: field.enumNames?.[index] ?? value,
+            })),
+          }),
+      }
+    }
+    case 'number':
+    case 'integer': {
+      return {
+        type: field.type,
+        ...titled,
+        ...(field.minimum !== undefined && { minimum: field.minimum }),
+        ...(field.maximum !== undefined && { maximum: field.maximum }),
+        ...(typeof field.default === 'number' && { default: field.default }),
+      }
+    }
+    case 'boolean': {
+      return {
+        type: 'boolean',
+        ...titled,
+        ...(typeof field.default === 'boolean' && { default: field.default }),
+      }
+    }
+  }
+}
+
+/**
+ * An MCP server's validated fields as the ACP client's `elicitation/create`
+ * takes them, retaining every supported constraint. The session validates
+ * the client's answer before it reaches the server.
+ */
+export function elicitationSchema(fields: readonly ElicitationField[]): ElicitationSchema {
+  return {
+    type: 'object',
+    properties: Object.fromEntries(fields.map((field) => [field.name, elicitationProperty(field)])),
+    required: fields.filter((field) => field.required).map((field) => field.name),
+  }
+}
+
+/** The client's answer: accept with content, decline, cancel, or no answer. */
+export function parseElicitationResult(
+  raw: unknown,
+):
+  | { readonly action: 'accept'; readonly content: Readonly<Record<string, unknown>> | undefined }
+  | { readonly action: 'decline' | 'cancel' }
+  | undefined {
+  const response = elicitationResponseSchema.safeParse(raw)
+  if (!response.success) {
+    return undefined
+  }
+  return response.data.action === 'accept'
+    ? { action: 'accept', content: response.data.content ?? undefined }
+    : { action: response.data.action }
+}
+
+/** An elicitation as a message, for a client without forms. */
+export function elicitationText(message: string, fields: readonly ElicitationField[]): string {
+  const lines = [message, ...fields.map((field) => `${BULLET}${field.title ?? field.name}`)]
   return [UI_TEXT.acpQuestionAsked, ...lines].join(LINE)
 }

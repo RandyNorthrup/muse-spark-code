@@ -1,0 +1,297 @@
+{
+  "schemaVersion": 1,
+  "asOf": "2026-10-06T12:00:00.000Z",
+  "planCommit": "bfc27a28f208085bcc4c082f8f747c6cdd139128",
+  "planSha256": "263f8d78320f009bbbc42f4d28a63a15a646cedc167a9b980b6a0cc393067b94",
+  "provenance": {
+    "dependencies": "PLAN.md at planCommit: M103 ordering steps and M104 Starts column; M104 contract freeze is lane 0. M103 A/T depend on the frozen interfaces, not on a measured start time.",
+    "estimates": "The original lane tables have no Hours column. No per-lane hour estimates appear in the supplied lead briefs or reports. Null is unavailable, never zero.",
+    "durations": "Committer time of the first owned implementation commit to its lane integration merge, as D97.4 specifies. Includes waits, reviews, queueing; not active agent hours.",
+    "leadRecords": [
+      "codex/M103INT.md",
+      "codex/M104INT.md",
+      "codex/M103S.report.md",
+      "codex/M104F.report.md"
+    ],
+    "privacy": "Only lane ids, dependencies, commit hashes, UTC dates, hours and counts. No authors, subjects, paths to user profiles, model text or credentials.",
+    "calibration": "No row is a calibration sample until an evidenced estimatedHours is supplied. Missing review and CI durations remain unavailable."
+  },
+  "lanes": [
+    {
+      "laneId": "M103:0",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": [],
+      "duration": null
+    },
+    {
+      "laneId": "M103:I",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": [],
+      "duration": null
+    },
+    {
+      "laneId": "M103:G",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:0", "M103:I"],
+      "duration": null
+    },
+    {
+      "laneId": "M103:S",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:0", "M103:I"],
+      "duration": {
+        "firstCommit": "04694ed54af9f5ff3b3a6717fb859d5d6fa8ba99",
+        "mergeCommit": "f4d2949f789a62203e94282ad8ff8c55aece3459",
+        "startedAt": "2026-10-05T20:50:18.000Z",
+        "finishedAt": "2026-10-06T04:50:49.000Z",
+        "actualHours": 8.008611111111112,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M103:D",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:0", "M103:I"],
+      "duration": {
+        "firstCommit": "f7da13b58d93955d0f379c4a76c26d00e4128848",
+        "mergeCommit": "8e1b1ad6f312fe9d50e69be860365125b1fad0d5",
+        "startedAt": "2026-10-05T21:58:08.000Z",
+        "finishedAt": "2026-10-06T04:51:44.000Z",
+        "actualHours": 6.8933333333333335,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M103:P",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:0", "M103:I"],
+      "duration": {
+        "firstCommit": "8ec0df693bfaee36f34c7c268a8c1d18555ce3c4",
+        "mergeCommit": "556c46ff889294e17d722f552f46ccc4ba5e1b6c",
+        "startedAt": "2026-10-05T22:37:35.000Z",
+        "finishedAt": "2026-10-06T04:52:50.000Z",
+        "actualHours": 6.254166666666666,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M103:M",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:0", "M103:I"],
+      "duration": {
+        "firstCommit": "b882ed7016d3335ae9e80c0923221c5724f00c2b",
+        "mergeCommit": "56caebdaf08eecb4af217d87109371bcb8523f6a",
+        "startedAt": "2026-10-05T22:44:58.000Z",
+        "finishedAt": "2026-10-06T04:53:34.000Z",
+        "actualHours": 6.1433333333333335,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M103:U",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:0", "M103:I"],
+      "duration": null
+    },
+    {
+      "laneId": "M103:V",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:0", "M103:I"],
+      "duration": null
+    },
+    {
+      "laneId": "M103:R",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:0", "M103:I"],
+      "duration": null
+    },
+    {
+      "laneId": "M103:W",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": [
+        "M103:0",
+        "M103:I",
+        "M103:G",
+        "M103:S",
+        "M103:D",
+        "M103:P",
+        "M103:M",
+        "M103:U",
+        "M103:V",
+        "M103:R",
+        "M103:A",
+        "M103:T"
+      ],
+      "duration": null
+    },
+    {
+      "laneId": "M103:A",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:0", "M103:I"],
+      "duration": null
+    },
+    {
+      "laneId": "M103:T",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:0", "M103:I"],
+      "duration": {
+        "firstCommit": "0d1d219f228b84b08a4c28eae6d07413a5b0b1c0",
+        "mergeCommit": "99585cfe2180db91e75be5e6c27ebfd8ed77bfc6",
+        "startedAt": "2026-10-06T00:18:06.000Z",
+        "finishedAt": "2026-10-06T04:58:23.000Z",
+        "actualHours": 4.671388888888889,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M103:E",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M103:W"],
+      "duration": null
+    },
+    {
+      "laneId": "M104:0",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": [],
+      "duration": null
+    },
+    {
+      "laneId": "M104:A",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M104:0"],
+      "duration": null
+    },
+    {
+      "laneId": "M104:B",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M104:0"],
+      "duration": null
+    },
+    {
+      "laneId": "M104:C",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M104:0"],
+      "duration": null
+    },
+    {
+      "laneId": "M104:D",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M104:0"],
+      "duration": {
+        "firstCommit": "5894fd1df251383488add9b57ccff7c40f8c5957",
+        "mergeCommit": "48912048d19943073f190300ec099869bcc35045",
+        "startedAt": "2026-10-06T05:23:15.000Z",
+        "finishedAt": "2026-10-06T07:29:36.000Z",
+        "actualHours": 2.1058333333333334,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M104:E",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M104:0"],
+      "duration": {
+        "firstCommit": "9d8aff29176785485b91a9c91f6f61db8b809580",
+        "mergeCommit": "bc79256fccb595bf0c573e6f54d65de7770d82eb",
+        "startedAt": "2026-10-05T22:26:51.000Z",
+        "finishedAt": "2026-10-06T07:30:32.000Z",
+        "actualHours": 9.061388888888889,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M104:F",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M104:0"],
+      "duration": {
+        "firstCommit": "32339f38d26d92095b67f3e2149f37627f8ea5ff",
+        "mergeCommit": "5de32b37f0c0dcdbda9a98c424a6f00c4e18659b",
+        "startedAt": "2026-10-05T21:07:39.000Z",
+        "finishedAt": "2026-10-06T07:31:34.000Z",
+        "actualHours": 10.39861111111111,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M104:G",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M104:0"],
+      "duration": {
+        "firstCommit": "c265076dd645c26358ef729587b495493f6e1992",
+        "mergeCommit": "3377647edf51c70dfedbc910e7828eea89a7b9ef",
+        "startedAt": "2026-10-05T23:49:22.000Z",
+        "finishedAt": "2026-10-06T07:31:23.000Z",
+        "actualHours": 7.700277777777778,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M104:H",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M104:0", "M104:C"],
+      "duration": {
+        "firstCommit": "d9ddef9a83dd1edba44fdb3633af685f2256aabc",
+        "mergeCommit": "9257bd1646c288d87653c4f33d8c499eeac84c57",
+        "startedAt": "2026-10-05T23:02:51.000Z",
+        "finishedAt": "2026-10-06T07:34:35.000Z",
+        "actualHours": 8.528888888888888,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M104:I",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": ["M104:0"],
+      "duration": {
+        "firstCommit": "7695424b50ac793b840dc91180b193f7c5b092c0",
+        "mergeCommit": "8b9d738f43770560679a8c22043a5d91d9dd5ce6",
+        "startedAt": "2026-10-06T00:06:01.000Z",
+        "finishedAt": "2026-10-06T07:32:16.000Z",
+        "actualHours": 7.4375,
+        "basis": "gitElapsed"
+      },
+      "reviewRounds": null
+    },
+    {
+      "laneId": "M104:J",
+      "estimatedHours": null,
+      "estimateEvidence": "notRecorded",
+      "dependencies": [],
+      "duration": null
+    }
+  ]
+}

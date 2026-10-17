@@ -7,6 +7,7 @@
 // config, PLAN.md D24), only the file search is used. Both list the first
 // workspace folder only, the root every mention is relative to (D27).
 
+import { redactSecrets } from '../../core/redact'
 import { GIT_LS_FILES_ARGS } from '../../shared/constants'
 import type { Logger } from '../logger'
 
@@ -17,7 +18,7 @@ export interface WorkspaceFileListerDeps {
   /** Runs git with `args` in `cwd` and resolves stdout; rejects on any failure. */
   readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
   /** Workspace-relative paths (forward slashes) from `workspace.findFiles`. */
-  readonly findFiles: () => Promise<readonly string[]>
+  readonly findFiles: (signal?: AbortSignal) => Promise<readonly string[]>
   readonly log: Logger
 }
 
@@ -54,18 +55,21 @@ export function parseNulSeparated(output: string): readonly string[] {
 
 export function createWorkspaceFileLister(
   deps: WorkspaceFileListerDeps,
-): () => Promise<readonly string[]> {
-  return async () => {
+): (signal?: AbortSignal) => Promise<readonly string[]> {
+  return async (signal) => {
+    signal?.throwIfAborted()
     if (!deps.respectGitIgnore() || !deps.isWorkspaceTrusted()) {
-      return await deps.findFiles()
+      return await deps.findFiles(signal)
     }
     try {
       const output = await deps.runGit(GIT_LS_FILES_ARGS, deps.workspaceRoot)
+      signal?.throwIfAborted()
       return parseNulSeparated(output)
     } catch (error: unknown) {
-      const reason = error instanceof Error ? error.message : String(error)
+      signal?.throwIfAborted()
+      const reason = redactSecrets(error instanceof Error ? error.message : String(error))
       deps.log.warn(`git ls-files unavailable (${reason}); .gitignore is not applied to mentions`)
-      return await deps.findFiles()
+      return await deps.findFiles(signal)
     }
   }
 }

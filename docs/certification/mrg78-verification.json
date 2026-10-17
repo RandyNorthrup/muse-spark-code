@@ -1,0 +1,659 @@
+{
+  "rig": "win11",
+  "branch": "feature/m71-git-prs",
+  "branchParent": "cb00e78fb084bb9315400ce456eb4d2d33c97186",
+  "mainParent": "244d5905a94e3e5cd2b30659aa584649bc207663",
+  "gates": [
+    {
+      "name": "typecheck",
+      "command": ["npm.cmd", "run", "typecheck"],
+      "exit": 0,
+      "seconds": 61.084
+    },
+    {
+      "name": "lint-repaired",
+      "command": [
+        "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+        "--max-old-space-size=6144",
+        "node_modules/eslint/bin/eslint.js",
+        "--max-warnings=0",
+        "src/host/git/gitExtension.ts",
+        "src/shared/palette.ts",
+        "test/unit/conversationController.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 22.455
+    },
+    {
+      "name": "lint-ps",
+      "command": ["npm.cmd", "run", "lint:ps"],
+      "exit": 1,
+      "seconds": 1.192
+    },
+    {
+      "name": "deadcode",
+      "command": ["npm.cmd", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 13.23
+    },
+    {
+      "name": "duplication",
+      "command": ["npx.cmd", "jscpd"],
+      "exit": 0,
+      "seconds": 2.062
+    },
+    {
+      "name": "cycles",
+      "command": ["npm.cmd", "run", "cycles"],
+      "exit": 0,
+      "seconds": 8.206
+    },
+    {
+      "name": "l10n",
+      "command": ["C:\\Users\\Randy\\gates\\tools\\node\\node.exe", "scripts/check-l10n.mjs"],
+      "exit": 0,
+      "seconds": 2.1
+    },
+    {
+      "name": "host-api-write",
+      "command": [
+        "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+        "scripts/check-host-api.mjs",
+        "--write"
+      ],
+      "exit": 0,
+      "seconds": 12.816
+    },
+    {
+      "name": "host-api",
+      "command": ["C:\\Users\\Randy\\gates\\tools\\node\\node.exe", "scripts/check-host-api.mjs"],
+      "exit": 0,
+      "seconds": 12.519
+    },
+    {
+      "name": "build",
+      "command": ["npm.cmd", "run", "build"],
+      "exit": 1,
+      "seconds": 1.584
+    },
+    {
+      "name": "bundle-split",
+      "command": [
+        "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+        "scripts/check-bundle-split.mjs"
+      ],
+      "exit": 0,
+      "seconds": 1.079
+    },
+    {
+      "name": "host-globals",
+      "command": [
+        "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+        "scripts/check-host-globals.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.101
+    },
+    {
+      "name": "notices",
+      "command": [
+        "C:\\Users\\Randy\\gates\\tools\\node\\node.exe",
+        "scripts/third-party-notices.mjs"
+      ],
+      "exit": 0,
+      "seconds": 0.159
+    }
+  ],
+  "tests": [
+    {
+      "file": "test/unit/agentImport.test.ts",
+      "passed": 36,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/agentImportBundle.test.ts",
+      "passed": 10,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/agentImportCommands.test.ts",
+      "passed": 81,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/agentImportWorkspaceEdits.test.ts",
+      "passed": 18,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/App.test.tsx",
+      "passed": 147,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/changelogVersion.test.ts",
+      "passed": 1,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/chatColumn.test.mjs",
+      "passed": 6,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/cliFeatures.test.ts",
+      "passed": 13,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/conversationController.test.ts",
+      "passed": 529,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/conversationGit.test.ts",
+      "passed": 72,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/conversationGitBundle.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/DiffTallyRow.test.tsx",
+      "passed": 5,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/fileIdentity.test.ts",
+      "passed": 4,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/git.test.ts",
+      "passed": 18,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/gitActivationWiring.test.ts",
+      "passed": 6,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/github.test.ts",
+      "passed": 17,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/githubRemote.test.ts",
+      "passed": 32,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/githubSession.test.ts",
+      "passed": 2,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/gitPhysicalOwner.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/gitState.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/gitText.test.ts",
+      "passed": 7,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/gitWindowFileSystem.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "skipped": [
+        "untracked commit bytes on the file system (M71) accepts a genuine short-name workspace and the same API repository in long spelling"
+      ]
+    },
+    {
+      "file": "test/unit/heldCheckout.test.ts",
+      "passed": 18,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/heldTree.test.ts",
+      "passed": 55,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/importConvert.test.ts",
+      "passed": 38,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/importExposure.test.ts",
+      "passed": 21,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/importIo.test.ts",
+      "passed": 27,
+      "failed": 0,
+      "skipped": [
+        "writes through broken links (M83) refuses to append through a broken AGENTS.md link that leads out of the workspace"
+      ]
+    },
+    {
+      "file": "test/unit/manifest.test.ts",
+      "passed": 31,
+      "failed": 0,
+      "skipped": ["tiered CI (CIFLOW) passes a required name only when its whole tier succeeded"]
+    },
+    {
+      "file": "test/unit/paletteRegistry.test.ts",
+      "passed": 35,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/pullRequestCheckout.test.ts",
+      "passed": 22,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/pullRequestCheckoutGit.test.ts",
+      "passed": 12,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/pullRequestLinks.test.ts",
+      "passed": 2,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/pullRequestRef.test.ts",
+      "passed": 20,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/pushPlan.test.ts",
+      "passed": 21,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/redact.test.ts",
+      "passed": 118,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/review.test.ts",
+      "passed": 23,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/reviewBundle.test.ts",
+      "passed": 8,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/TasksApp.test.tsx",
+      "passed": 4,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/tasksPanel.test.ts",
+      "passed": 6,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/webFetch.test.ts",
+      "passed": 33,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/webFetchBundle.test.ts",
+      "passed": 12,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/worktreeCommands.test.ts",
+      "passed": 12,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/worktreeConversationHost.test.ts",
+      "passed": 9,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/worktreeConversations.test.ts",
+      "passed": 16,
+      "failed": 0,
+      "skipped": []
+    },
+    {
+      "file": "test/unit/worktreeFeatures.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "skipped": []
+    }
+  ],
+  "bundles": [
+    {
+      "file": "dist/agentImport.js",
+      "bytes": 91850,
+      "kib": 89.697265625
+    },
+    {
+      "file": "dist/bundledSkills.js",
+      "bytes": 23599,
+      "kib": 23.0458984375
+    },
+    {
+      "file": "dist/checkpointStore.js",
+      "bytes": 111902,
+      "kib": 109.279296875
+    },
+    {
+      "file": "dist/codeIntel.js",
+      "bytes": 56148,
+      "kib": 54.83203125
+    },
+    {
+      "file": "dist/conversationGit.js",
+      "bytes": 103617,
+      "kib": 101.1884765625
+    },
+    {
+      "file": "dist/extension.js",
+      "bytes": 584274,
+      "kib": 570.580078125
+    },
+    {
+      "file": "dist/modelApi.js",
+      "bytes": 439716,
+      "kib": 429.41015625
+    },
+    {
+      "file": "dist/museCodeReviewer.js",
+      "bytes": 17495,
+      "kib": 17.0849609375
+    },
+    {
+      "file": "dist/pageWorker.js",
+      "bytes": 208040,
+      "kib": 203.1640625
+    },
+    {
+      "file": "dist/planMarkdown.js",
+      "bytes": 142363,
+      "kib": 139.0263671875
+    },
+    {
+      "file": "dist/review.js",
+      "bytes": 44489,
+      "kib": 43.4462890625
+    },
+    {
+      "file": "dist/reviewer.js",
+      "bytes": 29643,
+      "kib": 28.9482421875
+    },
+    {
+      "file": "dist/searchWorker.js",
+      "bytes": 18571,
+      "kib": 18.1357421875
+    },
+    {
+      "file": "dist/sessionBoard.js",
+      "bytes": 64177,
+      "kib": 62.6728515625
+    },
+    {
+      "file": "dist/uiText.js",
+      "bytes": 123321,
+      "kib": 120.4306640625
+    },
+    {
+      "file": "dist/voice.js",
+      "bytes": 35695,
+      "kib": 34.8583984375
+    },
+    {
+      "file": "dist/webFetch.js",
+      "bytes": 47974,
+      "kib": 46.849609375
+    },
+    {
+      "file": "dist/webview/main.js",
+      "bytes": 935470,
+      "kib": 913.544921875
+    },
+    {
+      "file": "dist/webview/main.css",
+      "bytes": 53531,
+      "kib": 52.2763671875
+    }
+  ],
+  "baselineBrowser": {
+    "revision": "244d5905",
+    "bytes": 910023,
+    "kib": 888.6943359375
+  },
+  "drills": [
+    {
+      "name": "reject Git model text in activation",
+      "file": "dist/extension.js",
+      "negativeExit": 1,
+      "failure": "bundle split: 1 problem(s); see PLAN.md D6 and M57\n  dist/extension.js carries GIT_MODEL_TEXT (its key gitCommitInstructions), which only dist/conversationGit.js read",
+      "restoredExit": 0,
+      "sha256Before": "2eb5f42305ffca9770ff2933dc7ac202a724ed17e3f9e4b83c364a012b704fe8",
+      "sha256After": "2eb5f42305ffca9770ff2933dc7ac202a724ed17e3f9e4b83c364a012b704fe8"
+    },
+    {
+      "name": "require Git model text in its reader",
+      "file": "dist/conversationGit.js",
+      "negativeExit": 1,
+      "failure": "bundle split: 1 problem(s); see PLAN.md D6 and M57\n  dist/conversationGit.js no longer carries GIT_MODEL_TEXT (its key gitCommitInstructions)",
+      "restoredExit": 0,
+      "sha256Before": "3f7946bc444cbac5b8cd05b324405f5499d4a2d3e348b3decbacecc9da0e5b28",
+      "sha256After": "3f7946bc444cbac5b8cd05b324405f5499d4a2d3e348b3decbacecc9da0e5b28"
+    },
+    {
+      "name": "bind Git owner to exact native identity",
+      "file": "src/host/git/gitExtension.ts",
+      "mutation": "sameFile(identity, identity)",
+      "negativeExit": 1,
+      "failedTests": [
+        "physical Git ownership (M71) refuses a real junction retarget during consent with identical cached HEAD/remotes",
+        "physical Git ownership (M71) refuses a real junction retarget during native with identical cached HEAD/remotes",
+        "physical Git ownership (M71) never revives ownership after an observed alias loss and restoration",
+        "physical Git ownership (M71) refuses API commit after its real root alias changes during consent",
+        "physical Git ownership (M71) refuses API push after its real root alias changes during consent"
+      ],
+      "restoredExit": 0,
+      "sha256Before": "f03a4a80e0b4a05b1b1c562cd372b95755b3f5f6bc2fd6b738e2bf224b25be2e",
+      "sha256After": "f03a4a80e0b4a05b1b1c562cd372b95755b3f5f6bc2fd6b738e2bf224b25be2e"
+    }
+  ],
+  "localization": [
+    {
+      "file": "l10n/ui.cs.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.de.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.es.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.fr.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.hu.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.it.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.ja.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.ko.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.pl.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.pt-br.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.ru.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.tr.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.zh-cn.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    },
+    {
+      "file": "l10n/ui.zh-tw.json",
+      "branchAddedKeys": 147,
+      "allBranchTranslationsRetained": true,
+      "allMainActiveKeysRetained": true,
+      "obsoleteMainRemovals": ["showHiddenSteps", "hideHiddenSteps", "contextPercent"]
+    }
+  ],
+  "sourceHashes": {
+    "scripts/check-bundle-split.mjs": "5feaa880a645132a9a0bf8856fc700a50cbb8236dfed0ea303ad614e5716e3a2",
+    "src/extension.ts": "004194f80ac799901501d8a8c9184339f81986ed7d6aa9596d3d7c6f6fac74ca",
+    "src/host/conversation/conversationController.ts": "7b6ec5d3a3e212ef692bb50299834ec77c95bfe3150f56739eb15de6602e6104",
+    "src/host/git/gitExtension.ts": "56ac7f818fd6d01b6800b5378ef4ca2550a9eef202f3fd4912f5cdd756397c6d",
+    "src/shared/palette.ts": "ecad8cf3e813eec051fc73c0c9f8edd4388fbfc7a5142c7804fb6cf16808e29a",
+    "src/webview/App.tsx": "e7d7de7d7caafc9ad7e7e1e64d50debafe8b622ab118b69ec36584357c4890f6",
+    "src/webview/styles.css": "b80f3fc5ecc5e4286944da13eda40c48b55f17a4e8c78b69906e957c022a6ee6",
+    "test/unit/conversationController.test.ts": "0b4af1af7c0c8e68ee0305628bfe4061cad3ffb88e6220803b6ed64eabb92160"
+  },
+  "formatting": {
+    "exit": 0,
+    "files": 338,
+    "changelogReleasedBytesMatchMain": true,
+    "unreleasedSections": 1
+  },
+  "mergeCommit": "c32ded4d3e4f7bde3cb795c41e8348c53a0f3aa5",
+  "hooks": {
+    "initialWrappersMissing": true,
+    "repair": "Copy pinned Husky dispatcher and generated wrappers into ignored .husky/_; repository configuration unchanged",
+    "lintStagedReplay": {
+      "command": "npx.cmd lint-staged --concurrent 1 --max-arg-length 4000 --diff=cb00e78fb084bb9315400ce456eb4d2d33c97186",
+      "exit": 0,
+      "scriptFiles": 172,
+      "styleFiles": 1,
+      "documentFiles": 91,
+      "worktreeUnchanged": true
+    },
+    "gitleaksMerge": {
+      "command": "gitleaks git --redact --no-banner --log-opts=\"--first-parent --diff-merges=first-parent cb00e78fb084bb9315400ce456eb4d2d33c97186..c32ded4d3e4f7bde3cb795c41e8348c53a0f3aa5\"",
+      "exit": 0,
+      "commits": 1,
+      "bytes": 1501117,
+      "leaks": 0
+    },
+    "evidenceCommit": "Normal pre-commit hook must run on the follow-up evidence commit; its result is reported in the final response",
+    "rigNpx": "The rig npx shell shim requires absent bash. A process-local sh shim execs the same installed npm npx-cli.js; only the commit process PATH is prefixed. Tracked hook and all commands stay unchanged."
+  }
+}

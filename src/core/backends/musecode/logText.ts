@@ -6,13 +6,27 @@
 // (docs/certification/sign-in-detection.md), in fixed words; anything else
 // by its length alone.
 
-import { MspError } from '@muse-code/sdk'
 import { wireWordForLog } from '../../logging'
 import { DeadlineError } from '../../timeouts'
 
+/** SDK errors cross independently bundled code; constructor identity cannot. */
+export function isMspFailure(
+  error: unknown,
+): error is Error & { readonly kind: string; readonly code: number } {
+  return (
+    error instanceof Error &&
+    error.name === 'MspError' &&
+    'kind' in error &&
+    typeof error.kind === 'string' &&
+    'code' in error &&
+    typeof error.code === 'number' &&
+    Number.isSafeInteger(error.code)
+  )
+}
+
 /** A failure as the log names it: never the CLI's message. */
 export function failureForLog(error: unknown): string {
-  if (error instanceof MspError) {
+  if (isMspFailure(error)) {
     return `${wireWordForLog(error.kind)} (MSP error ${String(error.code)})`
   }
   // The extension's own words, naming the method that went unanswered.

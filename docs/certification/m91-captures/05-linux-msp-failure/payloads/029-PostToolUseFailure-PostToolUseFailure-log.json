@@ -1,0 +1,17 @@
+{
+  "cwd": "<workspace>",
+  "duration_ms": 0,
+  "error": "tool failed: environment failure: managed shell sandbox is unavailable\nThe execution environment is broken: the command was never started and every later command will fail the same way. Do not retry and do not fabricate command output; report this environment failure.",
+  "hook_event_name": "PostToolUseFailure",
+  "is_interrupt": false,
+  "model": "unknown",
+  "permission_mode": "default",
+  "session_id": "01a10858-6094-7390-8685-60a37851fb0e",
+  "tool_input": {
+    "command": "echo m91"
+  },
+  "tool_name": "shell",
+  "tool_use_id": "user_shell_01a10858-81e1-7000-a999-6a1f2ebd2cdc",
+  "transcript_path": null,
+  "turn_id": "01a10858-81e1-7000-a999-6a1f2ebd2cdc"
+}

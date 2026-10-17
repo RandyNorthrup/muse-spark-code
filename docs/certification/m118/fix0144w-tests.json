@@ -1,0 +1,422 @@
+[
+  {
+    "exitCode": 0,
+    "pass": 1,
+    "elapsedSeconds": 5.9715979,
+    "command": "npx.cmd vitest run test/unit/promptHostLifecycle.test.ts test/unit/promptEntry.test.ts test/unit/promptNative.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/promptHostLifecycle.test.ts",
+      "test/unit/promptEntry.test.ts",
+      "test/unit/promptNative.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  13 passed (13)\r",
+      "   Duration  4.45s (import 46%, transform 21%, tests 17%, setup 16%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 1,
+    "elapsedSeconds": 5.0715522,
+    "command": "npx.cmd vitest run test/unit/promptStore.test.ts test/unit/promptImport.test.ts test/unit/promptPrivacy.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/promptStore.test.ts",
+      "test/unit/promptImport.test.ts",
+      "test/unit/promptPrivacy.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  25 passed (25)\r",
+      "   Duration  3.60s (tests 37%, import 28%, setup 20%, transform 15%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 1,
+    "elapsedSeconds": 4.0632858,
+    "command": "npx.cmd vitest run test/unit/prompts.test.ts test/unit/promptMenus.test.ts test/unit/promptWorkspaceIntegration.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/prompts.test.ts",
+      "test/unit/promptMenus.test.ts",
+      "test/unit/promptWorkspaceIntegration.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  36 passed (36)\r",
+      "   Duration  2.61s (import 42%, setup 30%, transform 23%, tests 4%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 1,
+    "elapsedSeconds": 6.0712357,
+    "command": "npx.cmd vitest run test/unit/promptBridge.test.ts test/unit/acpSharing.test.ts test/unit/runtimeSharing.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/promptBridge.test.ts",
+      "test/unit/acpSharing.test.ts",
+      "test/unit/runtimeSharing.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  69 passed (69)\r",
+      "   Duration  4.64s (import 43%, transform 23%, tests 18%, setup 15%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 1,
+    "elapsedSeconds": 5.086205,
+    "command": "npx.cmd vitest run test/unit/chatSharingHost.test.ts test/unit/chatShareDestinations.test.ts test/unit/chatShareRelease.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/chatSharingHost.test.ts",
+      "test/unit/chatShareDestinations.test.ts",
+      "test/unit/chatShareRelease.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  19 passed (19)\r",
+      "   Duration  3.62s (import 53%, transform 22%, setup 20%, tests 4%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 1,
+    "elapsedSeconds": 5.0602954,
+    "command": "npx.cmd vitest run test/unit/chatShareFormats.test.ts test/unit/chatShareScrub.test.ts test/unit/chatShareRange.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/chatShareFormats.test.ts",
+      "test/unit/chatShareScrub.test.ts",
+      "test/unit/chatShareRange.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  20 passed (20)\r",
+      "   Duration  3.56s (import 50%, setup 20%, transform 20%, tests 9%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 1,
+    "elapsedSeconds": 5.2489603,
+    "command": "npx.cmd vitest run test/unit/chatShareFilter.test.ts test/unit/shareContracts.test.ts test/unit/sharingArtifacts.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/chatShareFilter.test.ts",
+      "test/unit/shareContracts.test.ts",
+      "test/unit/sharingArtifacts.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  53 passed (53)\r",
+      "   Duration  3.60s (import 38%, tests 21%, transform 20%, setup 20%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 1,
+    "elapsedSeconds": 9.6530048,
+    "command": "npx.cmd vitest run test/unit/sharingBridge.test.tsx test/unit/shareCommand.test.ts test/unit/ChatShareDialog.test.tsx --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/sharingBridge.test.tsx",
+      "test/unit/shareCommand.test.ts",
+      "test/unit/ChatShareDialog.test.tsx"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  115 passed (115)\r",
+      "   Duration  8.06s (environment 31%, import 24%, tests 22%, transform 14%, setup 8%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 1,
+    "elapsedSeconds": 4.3247823,
+    "command": "npx.cmd vitest run test/unit/promptLibrary.test.tsx --maxWorkers=3 --no-color",
+    "files": ["test/unit/promptLibrary.test.tsx"],
+    "summary": [
+      " Test Files  1 passed (1)\r",
+      "      Tests  7 passed (7)\r",
+      "   Duration  2.84s (environment 43%, tests 24%, transform 14%, import 11%, setup 8%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 2,
+    "elapsedSeconds": 5.9719915,
+    "command": "npx.cmd vitest run test/unit/promptHostLifecycle.test.ts test/unit/promptEntry.test.ts test/unit/promptNative.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/promptHostLifecycle.test.ts",
+      "test/unit/promptEntry.test.ts",
+      "test/unit/promptNative.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  13 passed (13)\r",
+      "   Duration  4.53s (import 46%, transform 21%, tests 17%, setup 15%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 2,
+    "elapsedSeconds": 4.9109792,
+    "command": "npx.cmd vitest run test/unit/promptStore.test.ts test/unit/promptImport.test.ts test/unit/promptPrivacy.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/promptStore.test.ts",
+      "test/unit/promptImport.test.ts",
+      "test/unit/promptPrivacy.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  25 passed (25)\r",
+      "   Duration  3.49s (tests 35%, import 28%, setup 20%, transform 15%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 2,
+    "elapsedSeconds": 3.9679232,
+    "command": "npx.cmd vitest run test/unit/prompts.test.ts test/unit/promptMenus.test.ts test/unit/promptWorkspaceIntegration.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/prompts.test.ts",
+      "test/unit/promptMenus.test.ts",
+      "test/unit/promptWorkspaceIntegration.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  36 passed (36)\r",
+      "   Duration  2.54s (import 42%, setup 31%, transform 22%, tests 4%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 2,
+    "elapsedSeconds": 6.1727685,
+    "command": "npx.cmd vitest run test/unit/promptBridge.test.ts test/unit/acpSharing.test.ts test/unit/runtimeSharing.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/promptBridge.test.ts",
+      "test/unit/acpSharing.test.ts",
+      "test/unit/runtimeSharing.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  69 passed (69)\r",
+      "   Duration  4.74s (import 43%, transform 24%, tests 18%, setup 15%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 2,
+    "elapsedSeconds": 5.2384425,
+    "command": "npx.cmd vitest run test/unit/chatSharingHost.test.ts test/unit/chatShareDestinations.test.ts test/unit/chatShareRelease.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/chatSharingHost.test.ts",
+      "test/unit/chatShareDestinations.test.ts",
+      "test/unit/chatShareRelease.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  19 passed (19)\r",
+      "   Duration  3.73s (import 53%, transform 23%, setup 19%, tests 4%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 2,
+    "elapsedSeconds": 4.9577467,
+    "command": "npx.cmd vitest run test/unit/chatShareFormats.test.ts test/unit/chatShareScrub.test.ts test/unit/chatShareRange.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/chatShareFormats.test.ts",
+      "test/unit/chatShareScrub.test.ts",
+      "test/unit/chatShareRange.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  20 passed (20)\r",
+      "   Duration  3.47s (import 50%, setup 21%, transform 19%, tests 9%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 2,
+    "elapsedSeconds": 5.1019157,
+    "command": "npx.cmd vitest run test/unit/chatShareFilter.test.ts test/unit/shareContracts.test.ts test/unit/sharingArtifacts.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/chatShareFilter.test.ts",
+      "test/unit/shareContracts.test.ts",
+      "test/unit/sharingArtifacts.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  53 passed (53)\r",
+      "   Duration  3.56s (import 39%, tests 21%, setup 20%, transform 19%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 2,
+    "elapsedSeconds": 9.4412407,
+    "command": "npx.cmd vitest run test/unit/sharingBridge.test.tsx test/unit/shareCommand.test.ts test/unit/ChatShareDialog.test.tsx --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/sharingBridge.test.tsx",
+      "test/unit/shareCommand.test.ts",
+      "test/unit/ChatShareDialog.test.tsx"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  115 passed (115)\r",
+      "   Duration  7.93s (environment 31%, import 24%, tests 22%, transform 14%, setup 8%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 2,
+    "elapsedSeconds": 4.1918739,
+    "command": "npx.cmd vitest run test/unit/promptLibrary.test.tsx --maxWorkers=3 --no-color",
+    "files": ["test/unit/promptLibrary.test.tsx"],
+    "summary": [
+      " Test Files  1 passed (1)\r",
+      "      Tests  7 passed (7)\r",
+      "   Duration  2.76s (environment 43%, tests 23%, transform 14%, import 12%, setup 8%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 3,
+    "elapsedSeconds": 5.8156573,
+    "command": "npx.cmd vitest run test/unit/promptHostLifecycle.test.ts test/unit/promptEntry.test.ts test/unit/promptNative.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/promptHostLifecycle.test.ts",
+      "test/unit/promptEntry.test.ts",
+      "test/unit/promptNative.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  13 passed (13)\r",
+      "   Duration  4.32s (import 47%, transform 21%, tests 16%, setup 15%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 3,
+    "elapsedSeconds": 4.7227226,
+    "command": "npx.cmd vitest run test/unit/promptStore.test.ts test/unit/promptImport.test.ts test/unit/promptPrivacy.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/promptStore.test.ts",
+      "test/unit/promptImport.test.ts",
+      "test/unit/promptPrivacy.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  25 passed (25)\r",
+      "   Duration  3.33s (tests 32%, import 30%, setup 21%, transform 16%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 3,
+    "elapsedSeconds": 3.8516988,
+    "command": "npx.cmd vitest run test/unit/prompts.test.ts test/unit/promptMenus.test.ts test/unit/promptWorkspaceIntegration.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/prompts.test.ts",
+      "test/unit/promptMenus.test.ts",
+      "test/unit/promptWorkspaceIntegration.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  36 passed (36)\r",
+      "   Duration  2.45s (import 43%, setup 30%, transform 22%, tests 4%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 3,
+    "elapsedSeconds": 6.0158106,
+    "command": "npx.cmd vitest run test/unit/promptBridge.test.ts test/unit/acpSharing.test.ts test/unit/runtimeSharing.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/promptBridge.test.ts",
+      "test/unit/acpSharing.test.ts",
+      "test/unit/runtimeSharing.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  69 passed (69)\r",
+      "   Duration  4.55s (import 43%, transform 24%, tests 18%, setup 15%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 3,
+    "elapsedSeconds": 4.9022001,
+    "command": "npx.cmd vitest run test/unit/chatSharingHost.test.ts test/unit/chatShareDestinations.test.ts test/unit/chatShareRelease.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/chatSharingHost.test.ts",
+      "test/unit/chatShareDestinations.test.ts",
+      "test/unit/chatShareRelease.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  19 passed (19)\r",
+      "   Duration  3.50s (import 53%, transform 22%, setup 20%, tests 4%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 3,
+    "elapsedSeconds": 4.8295789,
+    "command": "npx.cmd vitest run test/unit/chatShareFormats.test.ts test/unit/chatShareScrub.test.ts test/unit/chatShareRange.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/chatShareFormats.test.ts",
+      "test/unit/chatShareScrub.test.ts",
+      "test/unit/chatShareRange.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  20 passed (20)\r",
+      "   Duration  3.40s (import 50%, setup 21%, transform 19%, tests 9%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 3,
+    "elapsedSeconds": 4.877773,
+    "command": "npx.cmd vitest run test/unit/chatShareFilter.test.ts test/unit/shareContracts.test.ts test/unit/sharingArtifacts.test.ts --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/chatShareFilter.test.ts",
+      "test/unit/shareContracts.test.ts",
+      "test/unit/sharingArtifacts.test.ts"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  53 passed (53)\r",
+      "   Duration  3.45s (import 39%, tests 21%, setup 20%, transform 20%, worker 1%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 3,
+    "elapsedSeconds": 9.2120748,
+    "command": "npx.cmd vitest run test/unit/sharingBridge.test.tsx test/unit/shareCommand.test.ts test/unit/ChatShareDialog.test.tsx --maxWorkers=3 --no-color",
+    "files": [
+      "test/unit/sharingBridge.test.tsx",
+      "test/unit/shareCommand.test.ts",
+      "test/unit/ChatShareDialog.test.tsx"
+    ],
+    "summary": [
+      " Test Files  3 passed (3)\r",
+      "      Tests  115 passed (115)\r",
+      "   Duration  7.82s (environment 30%, import 24%, tests 22%, transform 14%, setup 8%)\r"
+    ]
+  },
+  {
+    "exitCode": 0,
+    "pass": 3,
+    "elapsedSeconds": 4.1879267,
+    "command": "npx.cmd vitest run test/unit/promptLibrary.test.tsx --maxWorkers=3 --no-color",
+    "files": ["test/unit/promptLibrary.test.tsx"],
+    "summary": [
+      " Test Files  1 passed (1)\r",
+      "      Tests  7 passed (7)\r",
+      "   Duration  2.76s (environment 43%, tests 23%, transform 14%, import 11%, setup 8%)\r"
+    ]
+  }
+]

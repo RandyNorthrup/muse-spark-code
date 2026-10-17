@@ -1,0 +1,146 @@
+{
+  "machine": "kubuntu",
+  "checks": [
+    {
+      "check": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exitCode": 0
+    },
+    {
+      "check": "eslint",
+      "command": [
+        "npx",
+        "--no-install",
+        "eslint",
+        "--max-warnings=0",
+        "src/host/team/processLifetime.ts",
+        "src/host/team/windowHints.ts",
+        "src/host/team/loadGuard.ts",
+        "test/unit/teamProcessLifetime.test.ts",
+        "test/unit/teamHintsAndLoad.test.ts",
+        "test/unit/teamNativeLifetime.test.ts"
+      ],
+      "exitCode": 0
+    },
+    {
+      "check": "prettier",
+      "command": [
+        "npx",
+        "--no-install",
+        "prettier",
+        "--check",
+        "src/host/team/processLifetime.ts",
+        "src/host/team/windowHints.ts",
+        "src/host/team/loadGuard.ts",
+        "test/unit/teamProcessLifetime.test.ts",
+        "test/unit/teamHintsAndLoad.test.ts",
+        "test/unit/teamNativeLifetime.test.ts",
+        "PLAN.md",
+        "docs/certification/m96-k.md",
+        "docs/certification/m96-k/fix-drills.json"
+      ],
+      "exitCode": 0
+    },
+    {
+      "check": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exitCode": 0
+    },
+    {
+      "check": "jscpd",
+      "command": ["npx", "--no-install", "jscpd"],
+      "exitCode": 0
+    },
+    {
+      "check": "l10n",
+      "command": ["npm", "run", "check:l10n"],
+      "exitCode": 0
+    },
+    {
+      "check": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 0
+    },
+    {
+      "check": "build",
+      "command": ["npm", "run", "build"],
+      "exitCode": 0
+    }
+  ],
+  "sources": [
+    {
+      "path": "src/host/team/processLifetime.ts",
+      "sha256": "8fe0877cfc2d423ef5edd9c6fb8b484dcb883a682431d6b4898eb6b683710279"
+    },
+    {
+      "path": "src/host/team/windowHints.ts",
+      "sha256": "fc8769e27cd02721ec26a2a9022e80c37ffcb1be8e0e0ee6fc71b9b81177c1cc"
+    },
+    {
+      "path": "src/host/team/loadGuard.ts",
+      "sha256": "d8940f22b32ad68a8269d68b8d91d645ac3b88c6743794a1a18149baaca10740"
+    },
+    {
+      "path": "test/unit/teamProcessLifetime.test.ts",
+      "sha256": "299930e64a0d83791bd29575939f554cdded7be6ebfc2e91c8a84ad04b456ba5"
+    },
+    {
+      "path": "test/unit/teamHintsAndLoad.test.ts",
+      "sha256": "479f8bc6ed3f06986a50e153a008ecd9feb7f61743899cdeeba882380d899746"
+    },
+    {
+      "path": "test/unit/teamNativeLifetime.test.ts",
+      "sha256": "1792a80819355b4f8204d4abd98e8ec8adfd675233289a40aaa1a24c91cd7e5d"
+    }
+  ],
+  "logs": [
+    {
+      "path": "fix-logs/final-green-tests.txt",
+      "sha256": "4db7236975fe2a056051ff772a475d7404aaf1650234aa23069f2e794a6fa7b8"
+    },
+    {
+      "path": "fix-logs/final-settlement-tests.txt",
+      "sha256": "ff66f63b17a0cf868dc8ed00f15614e4561bd30f9f34be2e4923ed34be794697"
+    },
+    {
+      "path": "fix-logs/native-fixes-first.txt",
+      "sha256": "bca61b3179d702dbcbb4d6586d9abc33402709cab6c8f0bf5f6054495da846da"
+    },
+    {
+      "path": "fix-logs/native-fixes-restored.txt",
+      "sha256": "10a1c84f87a64a8430ea4305755e55090519ffee904906cdd4434d2ae3019fe2"
+    },
+    {
+      "path": "fix-logs/final-typecheck.txt",
+      "sha256": "ed5e7b4482ff64ab7e85a757bc6d4d0d5b013be5169323a818496b921f4efc20"
+    },
+    {
+      "path": "fix-logs/final-eslint.txt",
+      "sha256": "fe30e40cc84580de9e156666e3fb49a0ac8e6962d7e0a759012df3c44a0a906b"
+    },
+    {
+      "path": "fix-logs/final-prettier.txt",
+      "sha256": "3ffa29108c3951f89d5fde13c47798a9df5eeea855bcb4b6256028b8e99f54b4"
+    },
+    {
+      "path": "fix-logs/final-deadcode.txt",
+      "sha256": "2c6c28b0213fdf45556386a9d16c1f6996fce4deda901ef7d366cd33b23a92a8"
+    },
+    {
+      "path": "fix-logs/final-jscpd.txt",
+      "sha256": "d5b93fedeeb0e08eef2f0bc5b65ff0f563314255bf914dc13191e0f668e8a777"
+    },
+    {
+      "path": "fix-logs/final-l10n.txt",
+      "sha256": "c8a1c9a2d56c769f19680bf34d37292c784dd48d2fe9506c9fe54ef1df0c3583"
+    },
+    {
+      "path": "fix-logs/final-host-api.txt",
+      "sha256": "42a89d328c3e8e6a1249950da54638ba33238dff573ed24434c7b1b9fbccf799"
+    },
+    {
+      "path": "fix-logs/final-build.txt",
+      "sha256": "5c3f3a202b2bcbee8ae60c5639fb41cbcbca1a45e82d3bd4f6aa0b2e97870663"
+    }
+  ]
+}

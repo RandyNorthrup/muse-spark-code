@@ -1,0 +1,66 @@
+{
+  "attempt": 1,
+  "cwd": "<workspace>",
+  "error": null,
+  "finish_reason": null,
+  "hook_event_name": "PostLLMCall",
+  "message_count": 2,
+  "messages": [
+    {
+      "content": [
+        {
+          "text": "Decide whether the main agent should be reminded to load a relevant skill.",
+          "type": "text"
+        }
+      ],
+      "role": "developer"
+    },
+    {
+      "content": [
+        {
+          "text": "You are a reminder observer for the main agent.\nDo not answer the user. Record exactly one decision this round by calling submit_reminder_decision. Use decision=\"remind\" only when the remind condition stated in your duty is met; otherwise use decision=\"non...[truncated]",
+          "type": "text"
+        }
+      ],
+      "role": "user"
+    }
+  ],
+  "model": "echo",
+  "options": {
+    "anthropic.output_config.effort": "low",
+    "anthropic.thinking": "enabled",
+    "anthropic.thinking.budget_tokens": 4096,
+    "local.reasoning.effort": "low",
+    "meta.reasoning.effort": "low",
+    "meta.session_id": "f92d4df6-5d3d-400a-a42f-5daf60dbfad9",
+    "meta.traceparent": "00-f92d4df65d3d400aa42f5daf60dbfad9-8d75ace0fe9d02f1-01",
+    "openai.reasoning.effort": "low",
+    "openrouter.reasoning.effort": "low"
+  },
+  "output_text_preview": "echo: You are a reminder observer for the main agent.\nDo not answer the user. Record exactly one decision this round by calling submit_reminder_decision. Use decision=\"remind\" only when the remind condition stated in your duty is met; otherwise use decisio...[truncated]",
+  "permission_mode": "default",
+  "provider": "model.unknown.response",
+  "request_id": "f92d4df6-5d3d-400a-a42f-5daf60dbfad9:0:1",
+  "response_id": "muse-tui-echo",
+  "session_id": "f92d4df6-5d3d-400a-a42f-5daf60dbfad9",
+  "status": "success",
+  "step": 0,
+  "tool_call_count": 0,
+  "tool_count": 1,
+  "tools": [
+    {
+      "description": "Submit this reminder child's explicit decision.",
+      "has_parameters": true,
+      "name": "submit_reminder_decision",
+      "strict": true
+    }
+  ],
+  "transcript_path": null,
+  "turn_id": "f92d4df6-5d3d-400a-a42f-5daf60dbfad9",
+  "usage": {
+    "cached_tokens": 0,
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "reasoning_tokens": 0
+  }
+}
