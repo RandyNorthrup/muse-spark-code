@@ -122,6 +122,8 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'runtimeSubscriptionClient',
         side: ['acp', 'vscode'],
       },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'runWithProvider', side: ['acp'] },
       { importer: 'src/runtime/providersCommands.ts', symbol: 'probeProvider', side: ['acp'] },
     ],
   },
@@ -441,7 +443,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
       { importer: 'src/runtime/authCommands.ts', symbol: 'authSetProvider', side: ['acp'] },
-      { importer: 'src/runtime/exec/keyInput.ts', symbol: 'readProviderKeyLine', side: ['acp'] },
+      { importer: 'src/runtime/authCommands.ts', symbol: 'providerLabel', side: ['acp'] },
+      {
+        importer: 'src/runtime/exec/keyInput.ts',
+        symbol: 'readProviderKeyLine',
+        side: ['acp', 'vscode'],
+      },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
+      { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
     ],
   },
   {
@@ -592,7 +601,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'runtimeAccounting.js',
-    side: 'acp',
+    side: 'both',
     requestedBy: [
       { importer: 'src/runtime/backends.ts', symbol: 'accountingEntry', side: ['acp'] },
     ],
