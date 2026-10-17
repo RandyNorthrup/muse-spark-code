@@ -943,8 +943,13 @@ class AcpSession {
               reason: event.reason,
               restartCause,
             })
-      if (loud !== undefined) {
-        this.deps.log.warn(`ACP session ${this.sessionId}: ${loud.message}`)
+      if (loud !== undefined && restartCause !== undefined) {
+        // The loud words go to the client, never to the log as sent: they
+        // carry the turn's reason, which is text the CLI chose (AGENTS.md
+        // rule 8, as `markAuthRequired` logs only a protocol word).
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: sign-in lost across a backend restart (${restartCause})`,
+        )
         pending.reject(loud)
         return
       }
