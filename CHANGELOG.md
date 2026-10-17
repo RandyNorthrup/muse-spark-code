@@ -135,6 +135,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The local MCP connector refuses a `--connection` name that is not a plain
+  file name (it became grant, audit and limits paths unvalidated, so
+  `--connection ../x` wrote its audit journal outside `connector/audit/`).
+  `mcp --help` now prints the usage and exits 0; declining or interrupting a
+  grant or resume confirmation says "Nothing was changed." instead of nothing,
+  the wrong sentence, or a stack trace. The approval page's embedded
+  language table is escaped for its script block. (Review RVMSM124.)
+
 - The local MCP connector restarts an approval page that closed on idle and
   retries a recovered browser opener on the next save request. Failed openers
   close their page immediately; disconnect still closes any open or starting
