@@ -30,19 +30,13 @@ interface Started {
   readonly answerKeyRead: () => void
 }
 
-/**
- * One refresh, wired as activation wires it: `cliSignIn` and the peek are
- * one real `CliAccount` over a temp credential file, so a state the file
- * settles never reaches the probe. The secret table's `get` is the
- * refresh's remaining wait, settled by `answerKeyRead`.
- */
-function start(contents: string, probe: () => Promise<AccountState | undefined>): Started {
-  const dir = mkdtempSync(path.join(tmpdir(), 'fast-signin-'))
-  scratchDirs.add(dir)
-  const file = path.join(dir, 'auth.json')
-  writeFileSync(file, contents)
-  const account = new CliAccount({ platform: 'linux', credentialFilePath: () => file, probe, log })
-  const backend: AuthBackendFacts = {
+/** The backend facts over one real `CliAccount`, as activation wires them. */
+function backendFor(
+  account: CliAccount,
+  file: string,
+  restartBackend: () => Promise<unknown>,
+): AuthBackendFacts {
+  return {
     resolveCli: () => ({ ok: true, cliPath: '/bin/muse' }),
     cliSignIn: (isUserAction) => account.signIn(isUserAction),
     peekCliSignIn: () => account.peekFile(),
@@ -56,17 +50,19 @@ function start(contents: string, probe: () => Promise<AccountState | undefined>)
     credentialFileModifiedAt: () => undefined,
     hasEnvironmentKey: () => false,
     getBackendMode: () => 'auto',
-    restartBackend: () => Promise.resolve(),
+    restartBackend: async () => {
+      await restartBackend()
+    },
     logOutCli: () => Promise.resolve(false),
   }
-  const keyRead = Promise.withResolvers<string | undefined>()
-  const secrets: SecretStore = {
-    get: () => keyRead.promise,
-    store: () => Promise.resolve(),
-    delete: () => Promise.resolve(),
-  }
-  const messages: HostToWebviewMessage[] = []
-  const svc = new AuthService({
+}
+
+function serviceFor(
+  backend: AuthBackendFacts,
+  secrets: SecretStore,
+  messages: HostToWebviewMessage[],
+): AuthService {
+  return new AuthService({
     backend,
     credentials: new CredentialStore(secrets, silent),
     logoutHold: { get: () => false, set: () => Promise.resolve() },
@@ -82,6 +78,29 @@ function start(contents: string, probe: () => Promise<AccountState | undefined>)
     now: () => Date.now(),
     log,
   })
+}
+
+/**
+ * One refresh, wired as activation wires it: `cliSignIn` and the peek are
+ * one real `CliAccount` over a temp credential file, so a state the file
+ * settles never reaches the probe. The secret table's `get` is the
+ * refresh's remaining wait, settled by `answerKeyRead`.
+ */
+function start(contents: string, probe: () => Promise<AccountState | undefined>): Started {
+  const dir = mkdtempSync(path.join(tmpdir(), 'fast-signin-'))
+  scratchDirs.add(dir)
+  const file = path.join(dir, 'auth.json')
+  writeFileSync(file, contents)
+  const account = new CliAccount({ platform: 'linux', credentialFilePath: () => file, probe, log })
+  const backend = backendFor(account, file, () => Promise.resolve())
+  const keyRead = Promise.withResolvers<string | undefined>()
+  const secrets: SecretStore = {
+    get: () => keyRead.promise,
+    store: () => Promise.resolve(),
+    delete: () => Promise.resolve(),
+  }
+  const messages: HostToWebviewMessage[] = []
+  const svc = serviceFor(backend, secrets, messages)
   return {
     pending: svc.refresh(),
     messages,
@@ -132,45 +151,16 @@ describe('sign-in fast path', () => {
     })
     const restart = Promise.withResolvers<undefined>()
     let isRestartHeld = false
-    const backend: AuthBackendFacts = {
-      resolveCli: () => ({ ok: true, cliPath: '/bin/muse' }),
-      cliSignIn: (isUserAction) => account.signIn(isUserAction),
-      peekCliSignIn: () => account.peekFile(),
-      abandonCliProbe: () => {
-        account.abandonProbe()
-      },
-      forgetCliAnswers: () => {
-        account.forgetAnswers()
-      },
-      credentialFilePath: () => file,
-      credentialFileModifiedAt: () => undefined,
-      hasEnvironmentKey: () => false,
-      getBackendMode: () => 'auto',
-      restartBackend: () => (isRestartHeld ? restart.promise : Promise.resolve()),
-      logOutCli: () => Promise.resolve(false),
-    }
+    const backend = backendFor(account, file, () =>
+      isRestartHeld ? restart.promise : Promise.resolve(),
+    )
     const secrets: SecretStore = {
       get: () => Promise.resolve('key'),
       store: () => Promise.resolve(),
       delete: () => Promise.resolve(),
     }
     const messages: HostToWebviewMessage[] = []
-    const svc = new AuthService({
-      backend,
-      credentials: new CredentialStore(secrets, silent),
-      logoutHold: { get: () => false, set: () => Promise.resolve() },
-      runInTerminal: silent,
-      installCommand: 'install',
-      runInstallerInTerminal: silent,
-      runDeviceSignIn: () => Promise.resolve('timedOut'),
-      promptForApiKey: () => Promise.resolve(undefined),
-      broadcast: (message: HostToWebviewMessage) => {
-        messages.push(message)
-      },
-      sleep: () => Promise.resolve(),
-      now: () => Date.now(),
-      log,
-    })
+    const svc = serviceFor(backend, secrets, messages)
     // Signed in on the Model API (stored key, no CLI session): conversations
     // now run on that backend (`liveBackend`).
     await expect(svc.refresh()).resolves.toMatchObject({

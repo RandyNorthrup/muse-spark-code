@@ -21,7 +21,6 @@ const context: PaletteContext = {
       displayLabel: 'Muse Spark 1.3 Contributor',
       contextLimit: 1_007_997,
       isDefault: false,
-      trainsOnContent: true,
     },
   ],
   effort: 'high',
