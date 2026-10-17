@@ -26,9 +26,10 @@ function isUiText(table: unknown, locale: string): table is UiText {
   )
 }
 
-function refused(reason: string): Error {
+function refused(reason: string, cause?: unknown): Error {
   return new Error(
     `The display language's table was not installed; the panel stays English: ${reason}`,
+    { cause },
   )
 }
 
@@ -46,7 +47,7 @@ export function installEmbeddedTable(page: ParentNode): Error | undefined {
   try {
     raw = JSON.parse(element.textContent)
   } catch (error) {
-    return refused(error instanceof Error ? error.message : String(error))
+    return refused(error instanceof Error ? error.message : String(error), error)
   }
   const parsed = embeddedTableSchema.safeParse(raw)
   if (!parsed.success) {

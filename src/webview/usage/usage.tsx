@@ -3,7 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { WEBVIEW_ROOT_ELEMENT_ID } from '../../shared/constants'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import { parseUsageServiceToPageMessage } from '../../shared/usagePage'
-import { hostBridgeFactory, type HostBridgeKind } from '../hostBridge'
+import { hostBridgeFactory, type HostBridge, type HostBridgeKind } from '../hostBridge'
+import { webviewErrorReport } from '../errorReport'
 import { installEmbeddedTable } from '../installTable'
 import { httpHostBridge, type HttpUsagePort } from '../hostBridges/httpHostBridge'
 import { jcefHostBridge } from '../hostBridges/jcefHostBridge'
@@ -85,20 +86,7 @@ if (element === null) throw new TypeError('Missing usage root')
 const root = createRoot(element)
 let isInvalidTable = installEmbeddedTable(document) !== undefined
 const tableElement = document.querySelector('#muse-usage-l10n')
-if (tableElement !== null) {
-  try {
-    const data: unknown = JSON.parse(tableElement.textContent)
-    const parsed = parseUsageServiceToPageMessage(data)
-    isInvalidTable ||=
-      !parsed.ok ||
-      parsed.message.type !== 'usage/table' ||
-      installUsageTable(parsed.message) !== undefined
-  } catch (error: unknown) {
-    // An unreadable table reads unavailable: anything else keeps its kind.
-    if (!(error instanceof Error)) throw error
-    isInvalidTable = true
-  }
-}
+let host: HostBridge | undefined
 try {
   const { jcef, webView2, swt, http: suppliedHttp } = window.museUsageHostPorts ?? {}
   const http =
@@ -110,7 +98,24 @@ try {
     ...(webView2 !== undefined && { webView2: () => webView2HostBridge(webView2) }),
     ...(swt !== undefined && { swt: () => swtHostBridge(swt) }),
   })
-  const host = create(bridgeKind(document.body.dataset['hostBridge']))
+  host = create(bridgeKind(document.body.dataset['hostBridge']))
+  if (tableElement !== null) {
+    try {
+      const data: unknown = JSON.parse(tableElement.textContent)
+      const parsed = parseUsageServiceToPageMessage(data)
+      isInvalidTable ||=
+        !parsed.ok ||
+        parsed.message.type !== 'usage/table' ||
+        installUsageTable(parsed.message) !== undefined
+    } catch (tableError: unknown) {
+      // An unreadable table reads unavailable: anything else keeps its kind.
+      // The outer handler records the failure; the flag names the table
+      // for the unavailable code.
+      if (!(tableError instanceof Error)) throw tableError
+      isInvalidTable = true
+      throw tableError
+    }
+  }
   root.render(
     <UsageBoundary>
       {isInvalidTable ? (
@@ -124,6 +129,8 @@ try {
   )
 } catch (error: unknown) {
   // An unstartable page reads unavailable: anything else keeps its kind.
+  // The failure reaches the host's record with its cause.
   if (!(error instanceof Error)) throw error
-  root.render(<Unavailable />)
+  host?.post(webviewErrorReport('hostMessage', error))
+  root.render(<Unavailable code={isInvalidTable ? 'invalidMessage' : undefined} />)
 }
