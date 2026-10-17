@@ -2,7 +2,7 @@ import type { ExecFileOptions } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { worktreeAddHeldArgs } from '../../src/core/worktrees'
-import { createGitRunner } from '../../src/host/git'
+import { createGitRunner, GitExitError, gitExitCode } from '../../src/host/git'
 import { UNTRUSTED_CHECKOUT_OPTIONS, untrustedCheckoutArgs } from '../../src/host/git/untrustedGit'
 
 function runner(env: NodeJS.ProcessEnv, installed: ReadonlySet<string>) {
@@ -348,5 +348,26 @@ describe('createGitRunner (D24)', () => {
     await expect(run(['status'], '/ws')).rejects.toThrow(/not found/)
     installed.add('/usr/bin/git')
     await expect(run(['status'], '/ws')).resolves.toBe('ok\n')
+  })
+})
+
+describe('gitExitCode (REVIEWEXIT)', () => {
+  it('reads the production runner’s GitExitError first', () => {
+    expect(gitExitCode(new GitExitError(1, '', 'config'))).toBe(1)
+    expect(gitExitCode(new GitExitError(128, 'fatal', 'diff'))).toBe(128)
+  })
+
+  it('falls back to a Node error’s numeric code', () => {
+    expect(gitExitCode(Object.assign(new Error('no match'), { code: 1 }))).toBe(1)
+  })
+
+  it('reads no code from anything else', () => {
+    for (const error of [
+      new Error('git config timed out after 15000 ms'),
+      Object.assign(new Error('denied'), { code: 'EACCES' }),
+      undefined,
+    ]) {
+      expect(gitExitCode(error)).toBeUndefined()
+    }
   })
 })

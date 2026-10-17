@@ -33,6 +33,8 @@ const UI_CONDITIONS: Readonly<
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold&memoryHeadroom=available',
   resourceMemoryMinFreeGiBDescription: 'memoryHeadroom=available',
   providerOpenRouterServices: 'openRouterServices=absent',
+  privacyNoRetentionDetail: 'provider=openrouter&privacy=zdr',
+  referenceOutputCapMinimum: 'outputMinimum=known',
   referenceSandbox: 'platform=win32&shellSandbox',
   autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
   referenceBrowser: 'workspaceTrust',
@@ -51,7 +53,9 @@ const UI_CONDITIONS: Readonly<
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
   'config.reports.network.enumDescriptions.whenSignedIn': 'reportsNetwork&githubSignIn',
   'config.backend.enumDescriptions.auto': 'backendAvailability',
-  'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation',
+  'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation=noRoute',
+  'config.resourceRelocate.enumDescriptions.ask': 'resourceRelocation=noRoute',
+  'config.resourceRelocate.enumDescriptions.off': 'resourceRelocation=off',
   'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
   'config.tabMultiline.enumDescriptions.auto': 'multilineMode',
   'config.tabTrigger.enumDescriptions.onInvoke': 'tabTrigger',
@@ -79,8 +83,11 @@ const SETTING_CONDITIONS: Readonly<
   sandboxNetwork: 'shellSandbox',
   browserCheckExtraHosts: 'browserNetworkAdmission',
   notifyOnBackgroundTurn: 'turnState&windowFocus',
+  // The provider wizard edits this numeric setting, preserving exact USD
+  // through a validated decimal-to-number boundary.
   modelApiSessionBudgetUsd: 'sessionBudget',
 
+  schedules: 'scheduleRuntime=unbound&backend=museCode',
   modelApiObservationPacking: 'conversationStart',
   modelApiAutoCompaction: 'conversationStart&modelPricing',
   modelApiStrictTools: 'conversationStart&tools.strict',
@@ -126,6 +133,7 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
         when = 'permission=denied'
         break
       }
+      case 'auto-compaction':
       case 'no-auto-compaction': {
         when = 'autoCompactionEvaluation'
         break
@@ -185,7 +193,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
   reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
   showReport: { description: { ui: 'reportSlashDescription' }, canRun: true },
-  estimate: { description: { ui: 'referenceEstimate' }, canRun: true },
+  estimate: { description: { ui: 'referenceEstimate' }, canRun: false },
   newConversation: { description: { tip: 'clear' }, canRun: false },
   signOut: { description: { tip: 'signOut' }, canRun: false },
   openInTerminal: { description: { ui: 'referenceTerminal' }, canRun: false },
@@ -233,9 +241,9 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   deleteUploadedFiles: { description: { ui: 'referenceUploadedFiles' }, canRun: false },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
-  schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: true },
-  showSchedules: { description: { tip: 'schedule' }, canRun: true },
-  showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: true },
+  schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: false },
+  showSchedules: { description: { tip: 'schedule' }, canRun: false },
+  showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: false },
   vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
   lockVault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
 }
@@ -267,6 +275,17 @@ function feature(
     editors,
   }
 }
+
+// CX1R3: retained for coverage validation, omitted from published Help.
+// Accounts left the list with CM108ACC: the terminal and ACP serve them.
+// Argument previews left it with C-M106-2: the panel and ACP render them on
+// a model whose record verifies streamed arguments.
+export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
+  'team-workers',
+  'vault',
+  'estimator',
+  'auto-compaction',
+]
 
 export function featureCatalog(): readonly Feature[] {
   return [
@@ -301,6 +320,8 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // MODELSPLIT4: section transitions preserve the visible document; reload
+    // restores its measured box. Lazy price/usage rows announce loading.
     feature(
       'providers',
       { ui: 'modelsPanelTitle' },
@@ -312,7 +333,23 @@ export function featureCatalog(): readonly Feature[] {
         'connectChatGpt',
         'connectCopilot',
       ],
-      ['suggestedProvider'],
+      // Saved custom limits persist directly from Edit without a new test
+      // while the connection is unchanged; pre-write failures retain the draft.
+      // Edit and Change key share a full saved snapshot; unchanged routing,
+      // limits, consent and the default survive. Save admits one operation
+      // per draft, compares edited fields inside the stored mutation and offers
+      // Reload on conflicts. Untouched fields and rotated/removed keys survive
+      // consent waits; only an entered key replaces a stored credential.
+      // Save validates first, then writes provider/key/default/limit/composer in
+      // order. Completed writes stay on failure; localized outcomes name saved,
+      // failed and skipped steps. Every outcome refreshes without losing earlier
+      // information. Budget-only partial drafts retry on a fresh baseline; other
+      // partial or stale forms reopen. A key bound to an old origin shows missing.
+      // Re-entry compares even origin-refused credential records; only concurrent
+      // changes conflict. Confirmed limit retries retain all completed receipts.
+      // Simultaneous cross-window saves remain last-writer-wins until LOCKLIB.
+      // Earlier steps remain navigable while final Save validates limits.
+      ['suggestedProvider', 'modelApiSessionBudgetUsd'],
       'backends',
       ['museCode', 'modelApi'],
       false,
@@ -340,6 +377,8 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    // M121: exact costs and period changes; unproved historical months are
+    // withheld with a translated notice in editor and portable usage views.
     feature(
       'usage',
       { ui: 'usagePageTitle' },
@@ -385,9 +424,9 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'compaction',
       { ui: 'compactItem' },
-      { ui: 'autoCompactionAwaitingEvaluation' },
+      { ui: 'referenceManualCompaction' },
       [],
-      ['modelApiAutoCompaction'],
+      [],
       'observation-packing-model-api',
       ['modelApi'],
       false,
@@ -476,25 +515,30 @@ export function featureCatalog(): readonly Feature[] {
       false,
       ['vscode', 'acp'],
     ),
+    {
+      ...feature(
+        'auto-compaction',
+        { ui: 'autoCompactionName' },
+        { ui: 'autoCompactionAwaitingEvaluation' },
+        [],
+        ['modelApiAutoCompaction'],
+        'agent-loop-guarantees',
+        ['modelApi'],
+        true,
+        ['vscode', 'acp'],
+      ),
+      details: [{ setting: 'modelApiAutoCompaction' }],
+    },
     feature(
-      'auto-compaction',
-      { setting: 'modelApiAutoCompaction' },
-      { setting: 'modelApiAutoCompaction' },
+      'argument-preview',
+      { ui: 'toolArgumentPreviewLabel' },
+      { ui: 'toolArgumentPreviewDescription' },
       [],
-      ['modelApiAutoCompaction'],
+      [],
       'agent-loop-guarantees',
       ['modelApi'],
       false,
       ['vscode', 'acp'],
-    ),
-    feature(
-      'argument-preview',
-      { ui: 'toolArgumentPreviewLabel' },
-      { ui: 'toolArgumentPreviewPending' },
-      [],
-      [],
-      'agent-loop-guarantees',
-      ['modelApi'],
     ),
     feature(
       'cut-short-tools',
@@ -557,6 +601,8 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
       ['modelApi'],
     ),
+    // M87 MENUFAN: shared row/selection bursts follow visible element anchors;
+    // inside pointer/selected borders keep neighbouring focus rings clear.
     feature(
       'conversation-actions',
       { ui: 'transcriptLabel' },
@@ -770,6 +816,8 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApiHooks', 'hookHttpAllowedHosts', 'modelApiShellKeepsDirectory'],
       'hooks',
     ),
+    // M123P9: runtime checkout uses the same installed display language;
+    // uncertain record writes have a translated failure, with CAS cleanup.
     feature(
       'git',
       { ui: 'groupGit' },
@@ -960,10 +1008,14 @@ export function featureCatalog(): readonly Feature[] {
       'paid-features',
       ['modelApi'],
       false,
+      ['vscode', 'acp'],
     ),
     feature(
       'tab',
       { command: COMMAND_IDS.tabMenu },
+      // D73: only Always persists the model/price; Allow once saves nothing,
+      // so each new window asks again (RVM94KR4G). Consent is key-bound, and
+      // other features' price changes preserve Tab's window grant (RVM94KR3G).
       { ui: 'referenceTab' },
       ['tabTurnOn', 'tabTurnOff', 'tabSnooze', 'tabMenu', 'tabLanguages'],
       [
@@ -1050,9 +1102,14 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
   ].map((entry) => {
-    const surfaces = REFERENCE_SURFACES[entry.id] ?? entry.surfaces
+    const isInProgress = REFERENCE_IN_PROGRESS_FEATURES.includes(entry.id)
+    const surfaces = isInProgress ? [] : (REFERENCE_SURFACES[entry.id] ?? entry.surfaces)
     return {
       ...entry,
+      ...(isInProgress && {
+        summary: { ui: 'referenceInProgress' },
+        description: { ui: 'referenceInProgress' },
+      }),
       surfaces,
       editors: [
         ...new Set(
@@ -1071,14 +1128,19 @@ export function featureCatalog(): readonly Feature[] {
       paid: Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
       // Feature-level details (schedules, accounts) and REFERENCE_DETAILS
       // combine: neither source may silently erase the other.
-      details: [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
+      details: isInProgress
+        ? []
+        : [...entry.details, ...(REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui }))],
       facts: {},
     }
   })
 }
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
-  estimator: ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
+  'orchestrator-playbook': ['acp:museCode', 'acp:modelApi'],
+  // CM108ACC: the terminal and ACP sessions on the Model API backend; the
+  // editor's Accounts page is not mounted.
+  accounts: ['acp:modelApi'],
   'web-fetch': ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
   search: ['vscode:modelApi', 'acp:modelApi'],
   images: ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
@@ -1088,8 +1150,14 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
-  providers: ['providerOpenRouterServices'],
+  providers: [
+    'providerOpenRouterServices',
+    'pricePerMillion',
+    'privacyNoRetentionDetail',
+    'referenceOutputCapMinimum',
+  ],
   estimator: ['estimateCliHelp'],
+  // Includes Muse Code's permission-rule exceptions, shared with localized settings.
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],
@@ -1114,7 +1182,17 @@ const REFERENCE_DETAILS: Readonly<
   support: ['referenceAcp'],
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
-  'conversation-actions': ['referenceWindowsSessions'],
+  'conversation-actions': [
+    'referenceWindowsSessions',
+    'restoreFilesToHere',
+    'rewindAndRestore',
+    'copyResponse',
+    'replyToOutput',
+    'askAboutThis',
+    'commentOnThis',
+    'promptSave',
+    'sharePrompt',
+  ],
   questions: ['referenceQuestionsDeferral'],
 }
 

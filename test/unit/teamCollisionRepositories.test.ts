@@ -63,50 +63,53 @@ function git(
   })
 }
 
-async function tree(
-  root: string,
-  files: ReadonlyMap<string, string>,
-  index: string,
-): Promise<string> {
-  await git(
-    root,
-    ['update-index', '--index-info'],
-    [...files].map(([path, hash]) => `100644 ${hash}\t${path}`).join('\n') + '\n',
-    index,
-  )
-  const output = await git(root, ['write-tree'], undefined, index)
-  return output.trim()
+// One `git fast-import` run creates every blob, tree, commit and ref below:
+// the 36 git processes per repository this fixture used to start (a
+// hash-object batch, an update-index plus write-tree per tree, a
+// commit-tree per commit) exceed the 60 s hook deadline on Windows, where
+// each process start costs seconds. Commit marks are numbered in order from
+// FAST_IMPORT_COMMIT_MARK, so a commit names its parent in the same stream
+// with commitMark.
+const FAST_IMPORT_COMMIT_MARK = 1_000_001
+
+function commitMark(index: number): string {
+  return `:${String(FAST_IMPORT_COMMIT_MARK + index)}`
 }
 
-async function hashFiles(
-  root: string,
-  versions: readonly ReadonlyMap<string, string>[],
-): Promise<Map<string, string>[]> {
-  const inputs = versions.flatMap((files, version) =>
-    [...files].map(([path, text]) => ({
-      path,
-      text,
-      source: nodePath.join(root, '.git', 'fixture-blobs', String(version), path),
-    })),
-  )
-  await Promise.all(
-    inputs.map(async ({ source, text }) => {
-      await mkdir(nodePath.dirname(source), { recursive: true })
-      await writeFile(source, text)
-    }),
-  )
-  const output = await git(
-    root,
-    ['hash-object', '-w', '--no-filters', '--stdin-paths'],
-    inputs.map(({ source }) => source).join('\n') + '\n',
-  )
-  const hashes = output.trim().split('\n')
-  expect(hashes).toHaveLength(inputs.length)
-  let offset = 0
-  return versions.map(
-    (files) =>
-      new Map(Array.from(files.keys(), (path): [string, string] => [path, hashes[offset++]!])),
-  )
+function fastImportStream(
+  commits: readonly {
+    readonly ref: string
+    readonly message: string
+    readonly from?: string
+    readonly merges?: readonly string[]
+    readonly files: ReadonlyMap<string, string>
+  }[],
+): string {
+  const parts: string[] = []
+  let blobMark = 0
+  for (const [index, commit] of commits.entries()) {
+    const entries: string[] = []
+    for (const [file, text] of commit.files) {
+      blobMark += 1
+      parts.push(
+        `blob\nmark :${String(blobMark)}\ndata ${String(Buffer.byteLength(text))}\n${text}\n`,
+      )
+      entries.push(`M 100644 :${String(blobMark)} ${file}`)
+    }
+    parts.push(
+      [
+        `commit ${commit.ref}`,
+        `mark ${commitMark(index)}`,
+        'author Test <test@example.invalid> 0 +0000',
+        'committer Test <test@example.invalid> 0 +0000',
+        `data ${String(Buffer.byteLength(commit.message))}\n${commit.message}`,
+        ...(commit.from === undefined ? [] : [`from ${commit.from}`]),
+        ...(commit.merges ?? []).map((parent) => `merge ${parent}`),
+        ...entries,
+      ].join('\n') + '\n',
+    )
+  }
+  return parts.join('')
 }
 
 async function blobs(root: string, requests: readonly string[]): Promise<Map<string, string>> {
@@ -174,36 +177,28 @@ beforeAll(async () => {
         ),
     ),
   ]
-  const hashes = await hashFiles(template, versions)
-  const baseTree = await tree(template, hashes[0]!, nodePath.join(template, '.git', 'index'))
-  const baseCommit = await git(template, ['commit-tree', baseTree, '-m', 'base'])
-  const base = baseCommit.trim()
-  fixture.base = base
-  const branches = await Promise.all(
-    hashes.slice(1).map(async (files, task) => {
-      const branchTree = await tree(
-        template,
-        files,
-        nodePath.join(template, '.git', `task-index-${String(task)}`),
-      )
-      const commit = await git(template, [
-        'commit-tree',
-        branchTree,
-        '-p',
-        base,
-        '-m',
-        `task ${String(task)}`,
-      ])
-      return commit.trim()
-    }),
-  )
-  fixture.branches = branches
   await git(
     template,
-    ['update-ref', '--stdin'],
-    `update refs/heads/integration ${base}\n` +
-      branches.map((commit, task) => `update refs/heads/task-${String(task)} ${commit}\n`).join(''),
+    ['fast-import', '--quiet'],
+    fastImportStream([
+      { ref: 'refs/heads/integration', message: 'base', files: versions[0]! },
+      ...versions.slice(1).map((files, task) => ({
+        ref: `refs/heads/task-${String(task)}`,
+        message: `task ${String(task)}`,
+        from: commitMark(0),
+        files,
+      })),
+    ]),
   )
+  const revParse = await git(template, [
+    'rev-parse',
+    'refs/heads/integration',
+    ...versions.slice(1).map((_, task) => `refs/heads/task-${String(task)}`),
+  ])
+  const refs = revParse.trim().split('\n')
+  const base = refs[0]!
+  fixture.base = base
+  fixture.branches = refs.slice(1)
   await Promise.all(
     [...baseFiles].map(async ([path, text]) => {
       await mkdir(nodePath.dirname(nodePath.join(template, path)), { recursive: true })
@@ -286,27 +281,20 @@ describe('team collisions in real Git repositories', () => {
         files.set('CHANGELOG.md', merged.text)
         versions.push(files)
       }
-      const hashes = await hashFiles(root, versions)
-      const trees = await Promise.all(
-        hashes.map((files, task) =>
-          tree(root, files, nodePath.join(root, '.git', `land-index-${String(task)}`)),
+      await git(
+        root,
+        ['fast-import', '--quiet'],
+        fastImportStream(
+          versions.map((files, task) => ({
+            ref: 'refs/heads/integration',
+            message: `land ${String(task)}`,
+            from: task === 0 ? base : commitMark(task - 1),
+            merges: [`refs/heads/task-${String(task)}`],
+            files,
+          })),
         ),
       )
-      let integration = base
-      for (const [task, treeId] of trees.entries()) {
-        const commit = await git(root, [
-          'commit-tree',
-          treeId,
-          '-p',
-          integration,
-          '-p',
-          branches[task]!,
-          '-m',
-          `land ${String(task)}`,
-        ])
-        integration = commit.trim()
-      }
-      await git(root, ['update-ref', 'refs/heads/integration', integration])
+      const integration = 'integration'
       await git(root, ['checkout', '-q', '-f', 'integration'])
       const final = await blobs(
         root,

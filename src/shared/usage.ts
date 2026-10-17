@@ -16,6 +16,7 @@ import {
   UI_TEXT,
 } from './constants'
 import { type DurationUnit, formatUnit, plural } from './l10n/text'
+import { legacyUsdSchema } from './usdSchema'
 
 export const subscriptionUsageSchema = z.object({
   observedAtMs: z.number(),
@@ -68,13 +69,13 @@ export const providerUsageRowSchema = z.object({
   pricing: z.enum(MODEL_PRICINGS),
   inputTokens: z.number(),
   outputTokens: z.number(),
-  costUsd: z.optional(z.number()),
+  costUsd: z.optional(legacyUsdSchema),
   keyUsage: z.optional(
     z.object({
-      todayUsd: z.number(),
-      monthUsd: z.number(),
-      limitUsd: z.optional(z.number()),
-      remainingUsd: z.optional(z.number()),
+      todayUsd: legacyUsdSchema,
+      monthUsd: legacyUsdSchema,
+      limitUsd: z.optional(legacyUsdSchema),
+      remainingUsd: z.optional(legacyUsdSchema),
     }),
   ),
 })

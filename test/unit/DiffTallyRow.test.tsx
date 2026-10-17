@@ -36,7 +36,7 @@ describe('DiffTally', () => {
     expect(added).toHaveClass('diff-tally-added')
     expect(screen.getByText('−5,678')).toHaveClass('diff-tally-removed')
     expect(added.parentElement).toHaveTextContent('+1,234 −5,678')
-    const row = screen.getByRole('group', { name: 'Changes in this conversation' })
+    const row = screen.getByRole('group', { name: 'Changes in This Conversation' })
     expect(row).toHaveAttribute('title', EN.diffTallyTitle)
     expect(row).toHaveAccessibleDescription(EN.diffTallyTitle)
     expect(screen.queryByRole('button', { name: 'Review' })).not.toBeInTheDocument()

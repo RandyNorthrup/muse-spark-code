@@ -2,7 +2,7 @@
 // it: one editor tab per chat surface, mirroring that surface's conversation's
 // todo list, which the user can move into a window of its own. The tasks
 // panel implements it with a WebviewPanel; a host that passes none answers
-// "Open in a tab" with a notice that it failed. It carries no VS Code type,
+// "Open in a Tab" with a notice that it failed. It carries no VS Code type,
 // so the controller runs in any host (M61, PLAN.md D60).
 
 import type { TodoItem } from '../../shared/agentEvents'

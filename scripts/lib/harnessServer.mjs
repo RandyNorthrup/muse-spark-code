@@ -322,22 +322,41 @@ const CONTENT_TYPES = {
   '.png': 'image/png',
 }
 
+// The harness bundles a server needs, built once per repository root in this
+// process: a suite that opens many servers no longer rebuilds them each time.
+const harnessBuilds = new Map()
+
+async function buildHarness(repoRoot) {
+  try {
+    await buildTrafficHarness(repoRoot)
+    return await build({
+      // Capture fixtures belong to the running gate, like buildTrafficHarness;
+      // a historical production revision may predate this test-only source.
+      entryPoints: [
+        fileURLToPath(new URL('../../test/unit/helpers/usageFixtures.ts', import.meta.url)),
+      ],
+      outfile: path.join(repoRoot, 'temp/harness-usage.js'),
+      bundle: true,
+      platform: 'browser',
+      format: 'iife',
+      globalName: 'museUsageHarness',
+      write: false,
+    })
+  } catch (error) {
+    // A failed build is retried by the next server instead of cached.
+    harnessBuilds.delete(repoRoot)
+    throw error
+  }
+}
+
+function harnessBuild(repoRoot) {
+  if (!harnessBuilds.has(repoRoot)) harnessBuilds.set(repoRoot, buildHarness(repoRoot))
+  return harnessBuilds.get(repoRoot)
+}
+
 /** Serves `repoRoot` on an unused loopback port: `{ server, port }`. */
 export async function serveRepo(repoRoot) {
-  await buildTrafficHarness(repoRoot)
-  const fixture = await build({
-    // Capture fixtures belong to the running gate, like buildTrafficHarness;
-    // a historical production revision may predate this test-only source.
-    entryPoints: [
-      fileURLToPath(new URL('../../test/unit/helpers/usageFixtures.ts', import.meta.url)),
-    ],
-    outfile: path.join(repoRoot, 'temp/harness-usage.js'),
-    bundle: true,
-    platform: 'browser',
-    format: 'iife',
-    globalName: 'museUsageHarness',
-    write: false,
-  })
+  const fixture = await harnessBuild(repoRoot)
   let scheduleBuild
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', `http://${LOOPBACK}`)

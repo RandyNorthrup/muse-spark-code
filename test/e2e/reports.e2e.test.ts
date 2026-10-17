@@ -6,6 +6,7 @@ import process from 'node:process'
 import { promisify } from 'node:util'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 
 const run = promisify(execFile)
 const state = { root: '', command: '' }
@@ -40,7 +41,7 @@ beforeAll(async () => {
     format: 'cjs',
     logLevel: 'silent',
   })
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 
 afterAll(async () => {
   await rm(state.root, { recursive: true, force: true })
@@ -103,7 +104,7 @@ describe('reports CLI subprocess', () => {
     })
     const held = await cli(['project', '--strict'])
     expect(held.code).toBe(4)
-    expect(held.stdout).toEqual(expect.stringContaining('Needs you'))
+    expect(held.stdout).toEqual(expect.stringContaining('Needs You'))
     expect(held.stderr).toBe('')
   })
 

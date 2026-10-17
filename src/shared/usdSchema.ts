@@ -31,7 +31,7 @@ export function compareUsdAmounts(left: UsdAmount, right: UsdAmount): number {
 }
 
 /** Expand finite legacy numbers and decimal input without binary arithmetic. */
-function canonicalUsd(amount: number | string): UsdAmount {
+export function canonicalUsd(amount: number | string): UsdAmount {
   const [mantissa = '0', exponent = '0'] = String(amount).split(/e/i, 2)
   const [whole = '0', fraction = ''] = mantissa.split('.', 2)
   const digits = whole + fraction
