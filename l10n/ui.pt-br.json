@@ -342,7 +342,7 @@
     "seed": "--seed <seed>: Semente da simulação"
   },
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
-  "referenceVault": "Trabalhe com o cofre de credenciais por usuário em um terminal: configuração, recuperação, redefinição, estado, desbloqueio, bloqueio, lista, adição, concessões, auditoria, importação e observação. Os valores nunca são impressos; o intermediário os mantém.",
+  "referenceVault": "Trabalhe com o cofre de credenciais por usuário em um terminal: configuração, recuperação, redefinição, estado, desbloqueio, bloqueio, lista, adição, concessões, auditoria, importação e observação. Os valores nunca são impressos; o intermediário os mantém. Após confirmação explícita, a redefinição também pode substituir um bloqueio de gravação com proprietário desconhecido.",
   "referenceVaultHelp": "Mostra o uso do comando do cofre de credenciais por usuário.",
   "referenceVaultPanel": "O cofre de credenciais está desativado nesta versão até a conclusão das verificações de integração.",
   "referenceVaultLock": "Bloquear agora o cofre de credenciais por usuário; encerra cada uso em cada janela.",
@@ -5339,7 +5339,7 @@
     "resetWarning": "A redefinição apaga este cofre para sempre: todos os segredos guardados se perdem, e a proteção contra reversão recomeça com uma nova âncora quando você configurar o cofre de novo.",
     "resetTypeWord": "Digite {word} para redefinir o cofre.",
     "resetDone": "O cofre foi redefinido. Configure-o novamente para guardar segredos.",
-    "vaultLost": "Este cofre não pode mais ser aberto: seus arquivos estão ausentes ou danificados. Redefina-o para recomeçar.",
+    "vaultLost": "Não é possível abrir o cofre: arquivos estão ausentes ou danificados, ou o proprietário do bloqueio de gravação é desconhecido. Revise a redefinição para começar de novo.",
     "storeUnavailable": "O armazenamento de credenciais do sistema operacional não está disponível. No Linux, entre em uma sessão de desktop com o chaveiro desbloqueado (Secret Service); no macOS, desbloqueie as Chaves de início de sessão; no Windows, entre de forma interativa. Depois tente novamente.",
     "remoteWarning": "Somente uma assinatura ou um código de uso único pode ser solicitado de outro dispositivo. O usuário deve aprovar cada uso naquele dispositivo.",
     "approvalExpired": "Esta aprovação expirou. Solicite o uso novamente.",
@@ -5431,6 +5431,7 @@
       "one": "{count} autorização",
       "other": "{count} autorizações",
       "many": "{count} autorizações"
-    }
+    },
+    "writerRecoveryWarning": "{holder} Se outro programa ainda estiver gravando neste cofre, redefinir ou restaurar fará com que suas alterações sejam perdidas. Continue somente após confirmação explícita."
   }
 }

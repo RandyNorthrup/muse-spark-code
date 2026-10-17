@@ -430,7 +430,7 @@ export const EN = {
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
   referenceVault:
-    'Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
+    'Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them. Reset can also replace unknown writer ownership after explicit confirmation.',
   referenceVaultHelp: 'Show the per-user credential vault command usage.',
   referenceVaultPanel:
     'The credential vault is switched off in this build pending integration checks.',
@@ -6253,6 +6253,8 @@ export const EN = {
       'Vault setup and recovery need an interactive terminal; headless runs cannot do them.',
     recoveryShownOnce: 'Recovery code (shown only now): {code}',
     savedItPrompt: 'Have you saved the recovery code somewhere safe?',
+    writerRecoveryWarning:
+      '{holder} If another program is still writing this vault, resetting or restoring it will lose that program’s changes. Continue only with explicit confirmation.',
     busy: 'The vault is busy in another window. Try again.',
     busyHolder:
       'The vault is held by process {pid} since {since}. Try again after that process exits.',
@@ -6274,7 +6276,7 @@ export const EN = {
     resetTypeWord: 'Type {word} to reset the vault.',
     resetDone: 'The vault was reset. Set it up again to store secrets.',
     vaultLost:
-      'This vault can no longer be opened: its files are missing or damaged. Reset it to start again.',
+      'The vault cannot be opened because files are missing or damaged, or writer ownership cannot be established. Review Reset to start again.',
     // RVCM1091B 4: the OS store's fixed repair, never native text.
     storeUnavailable:
       "The operating system's credential store is not available. On Linux, sign in to a desktop session with an unlocked keyring (the Secret Service); on macOS, unlock the login Keychain; on Windows, sign in interactively. Then try again.",

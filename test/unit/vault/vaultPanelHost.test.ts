@@ -94,7 +94,29 @@ async function answerSession(
 }
 
 describe('U authenticated panel host', () => {
-  it('V16 failed Lock restores the unlocked section and reports the failure; cancellation reaches native entry', async () => {
+  it('passes the owner and loss warning to native confirmation before replacing the lock', async () => {
+    const f = fixture()
+    f.state.status.state = 'unavailable'
+    f.state.status.reason = 'vaultLost'
+    vi.mocked(f.service.resetBegin).mockResolvedValue({
+      resetId: 'a'.repeat(32),
+      word: 'RESET',
+      writer: {
+        kind: 'held',
+        pid: 123,
+        acquiredAt: 1000,
+        otherMachine: true,
+        machineLabel: 'foreign-host',
+      },
+    })
+    f.deps.confirmReset.mockResolvedValue(null)
+    await f.host.handle({ type: 'vaultReset' })
+    expect(f.deps.confirmReset.mock.calls[0]?.[2]).toContain('foreign-host')
+    expect(f.deps.confirmReset.mock.calls[0]?.[2]).toContain('lose that program')
+    expect(f.service.resetConfirm).not.toHaveBeenCalled()
+    f.host.dispose()
+  })
+  it('V16 failed Lock keeps controls locked until an explicit unlock; cancellation reaches native entry', async () => {
     const f = fixture()
     await f.host.refresh()
     vi.mocked(f.service.lock).mockRejectedValueOnce(new Error('test failure'))

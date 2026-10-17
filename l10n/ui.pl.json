@@ -342,7 +342,7 @@
     "seed": "--seed <seed>: Ziarno symulacji"
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
-  "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: konfiguracja, odzyskiwanie, reset, stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker.",
+  "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: konfiguracja, odzyskiwanie, reset, stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker. Po wyraźnym potwierdzeniu reset może też zastąpić blokadę zapisu o nieznanym właścicielu.",
   "referenceVaultHelp": "Pokazuje użycie polecenia magazynu poświadczeń użytkownika.",
   "referenceVaultPanel": "Magazyn poświadczeń jest wyłączony w tej kompilacji do czasu zakończenia kontroli integracji.",
   "referenceVaultLock": "Zablokuj teraz magazyn poświadczeń użytkownika; kończy każde użycie w każdym oknie.",
@@ -5489,7 +5489,7 @@
     "resetWarning": "Reset trwale usuwa ten sejf: wszystkie zapisane sekrety znikają, a ochrona przed wycofaniem rusza od nowa z nową kotwicą, gdy ponownie skonfigurujesz sejf.",
     "resetTypeWord": "Wpisz {word}, aby zresetować sejf.",
     "resetDone": "Sejf został zresetowany. Skonfiguruj go ponownie, aby przechowywać sekrety.",
-    "vaultLost": "Tego sejfu nie można już otworzyć: jego pliki zniknęły lub są uszkodzone. Zresetuj go, aby zacząć od nowa.",
+    "vaultLost": "Nie można otworzyć sejfu: pliki są brakujące lub uszkodzone albo nie można ustalić właściciela blokady zapisu. Sprawdź opcję resetowania, aby zacząć od nowa.",
     "storeUnavailable": "Magazyn poświadczeń systemu operacyjnego jest niedostępny. W systemie Linux zaloguj się do sesji pulpitu z odblokowanym pękiem kluczy (Secret Service); w macOS odblokuj pęk kluczy logowania; w Windows zaloguj się interaktywnie. Następnie spróbuj ponownie.",
     "remoteWarning": "Z innego urządzenia można żądać tylko podpisu lub kodu jednorazowego. Jego użytkownik musi zatwierdzić tam każde użycie.",
     "approvalExpired": "Ta zgoda wygasła. Ponownie poproś o użycie.",
@@ -5584,6 +5584,7 @@
       "other": "{count} uprawnień",
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
-    }
+    },
+    "writerRecoveryWarning": "{holder} Jeśli inny program nadal zapisuje w tym sejfie, reset lub przywrócenie spowoduje utratę jego zmian. Kontynuuj wyłącznie po wyraźnym potwierdzeniu."
   }
 }

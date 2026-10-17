@@ -35,13 +35,14 @@ export class VaultWriterError extends VaultError {
     >,
   ) {
     super('busy')
-    this.message =
-      writer.kind === 'ownerUnknown'
-        ? UI_TEXT.vault.ownerUnknown
-        : fill(writer.otherMachine ? UI_TEXT.vault.busyOtherMachine : UI_TEXT.vault.busyHolder, {
-            pid: formatNumber(writer.pid),
-            since: formatDateTime(writer.acquiredAt),
-          })
+    const text = UI_TEXT.vault
+    if (writer.kind === 'held') {
+      const detail = fill(writer.otherMachine ? text.busyOtherMachine : text.busyHolder, {
+        pid: formatNumber(writer.pid),
+        since: formatDateTime(writer.acquiredAt),
+      })
+      this.message = writer.machineLabel ? writer.machineLabel + ': ' + detail : detail
+    } else this.message = writer.kind === 'ownerUnknown' ? text.ownerUnknown : text.busy
   }
 }
 

@@ -350,7 +350,7 @@ export class VaultChannelServer {
         }
         case 'resetBegin': {
           const challenge = await manage.resetBegin()
-          return { kind: 'resetChallenge', resetId: challenge.resetId, word: challenge.word }
+          return { kind: 'resetChallenge', ...challenge }
         }
         case 'resetConfirm': {
           await manage.resetConfirm(request.resetId, request.word)

@@ -5164,14 +5164,19 @@ typed Credential Manager repair reasons and anchor removal under the exclusive w
 A vault writer keeps exclusive ownership for its entire operation, even if
 suspended or hung. Its thirty-second lease and ten-second renewals are
 informational: another writer may take over only after proving that the
-recorded process has exited on this machine, using its exact OS birth to
-detect a reused process ID. Unknown ownership refuses access. Busy messages
-name the process and acquisition time; a foreign-machine lock also says its
-termination cannot be established here. A vault folder on a shared drive is
-held by one machine at a time. Stop the holding process before retrying;
-never delete its lock to release a live writer. Fences detect local ownership
-mistakes; exclusivity does not depend on a fence check being atomic with a
-filesystem or credential-store mutation.
+recorded process has exited, using this installation's machine identity,
+boot identity, PID namespace and OS birth. Host names are display labels;
+matching names on different machines never prove death. A different boot on
+the same installation proves death. Unknown ownership refuses access.
+Notes are flushed before atomic exclusive publication and stay complete
+throughout the operation. A failed release is retried and this process can
+adopt its own abandoned note. Reset and Restore can replace unreadable,
+foreign or unknown ownership only after explicit confirmation naming the
+known holder and warning that another program still writing would lose its
+changes. Confirmation applies to the exact note shown, which is checked
+again at retirement. Ordinary operations keep refusing. Fences detect local
+ownership mistakes; exclusivity does not depend on a fence check being
+atomic with a filesystem or credential-store mutation.
 Local operations share one queue by native vault-directory identity, including
 case variants, and await every dispatched file or OS-store mutation before
 releasing ownership. A protected anchor behind an authenticated vault file is

@@ -71,26 +71,26 @@ export function vaultPanelService(
       }
     },
     unlock: (authorize) => session.unlock(null, authorize),
-    lock: () => session.lock(),
+    lock: session.lock.bind(session),
     write: async (item, authorize) => {
       const snapshot = await session.snapshot()
       const isEdit = snapshot.items.some((entry) => entry.id === item.metadata.id)
       await session.write(item, isEdit, authorize)
     },
-    updateMetadata: (metadata, authorize) => session.editMetadata(metadata, authorize),
-    remove: (itemId, authorize) => session.remove(itemId, authorize),
-    grant: (grant, authorize) => session.grant(grant, authorize),
-    revoke: (grantId) => session.revoke(grantId),
+    updateMetadata: session.editMetadata.bind(session),
+    remove: session.remove.bind(session),
+    grant: session.grant.bind(session),
+    revoke: session.revoke.bind(session),
     answer: async (answer, authorize) => {
       await session.answer(answer, authorize)
     },
-    importFile: (path, authorize, signal) => session.importFile(path, authorize, signal),
-    keepImport: (receipt) => session.keepImport(receipt),
-    deleteImport: (receipt, authorize, signal) => session.deleteImport(receipt, authorize, signal),
-    resetBegin: () => session.resetBegin(),
-    resetConfirm: (resetId, word, authorize) => session.resetConfirm(resetId, word, authorize),
-    setup: () => session.setup(),
-    confirmSetup: (setupId, authorize) => session.confirmSetup(setupId, authorize),
-    cancelSetup: (setupId) => session.cancelSetup(setupId),
+    importFile: session.importFile.bind(session),
+    keepImport: session.keepImport.bind(session),
+    deleteImport: session.deleteImport.bind(session),
+    resetBegin: session.resetBegin.bind(session),
+    resetConfirm: session.resetConfirm.bind(session),
+    setup: session.setup.bind(session),
+    confirmSetup: session.confirmSetup.bind(session),
+    cancelSetup: session.cancelSetup.bind(session),
   }
 }

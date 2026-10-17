@@ -1091,6 +1091,7 @@ export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
 const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
+  // Reset also recovers unknown writer ownership through its confirmed path.
   vault: ['referenceVault'],
   providers: ['providerOpenRouterServices'],
   estimator: ['estimateCliHelp'],

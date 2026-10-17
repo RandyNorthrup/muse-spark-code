@@ -16,6 +16,7 @@ import {
   type VaultBrokerResponse,
   type VaultBrokerSnapshot,
   type VaultBrokerEvent,
+  type VaultResetChallenge,
 } from '../../../shared/vaultProtocol'
 import { type VaultCeiling } from './policy'
 
@@ -150,7 +151,7 @@ export interface VaultManagementPort {
   keepImport(receipt: string): Promise<void>
   deleteImport(receipt: string, isCurrent: () => boolean): Promise<void>
   /** Reset Vault step 1: only when the anchored vault is lost. */
-  resetBegin(): Promise<{ resetId: string; word: string }>
+  resetBegin(): Promise<VaultResetChallenge>
   /** Step 2: the typed word; writes the audit line, removes the files, clears the anchor. */
   resetConfirm(resetId: string, word: string): Promise<void>
   publicKey(itemId: string): Promise<string>

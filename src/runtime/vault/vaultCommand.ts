@@ -18,10 +18,12 @@ import {
   vaultBrokerEventSchema,
   vaultStatusSchema,
   type VaultPendingReceipt,
+  type VaultResetChallenge,
 } from '../../shared/vaultProtocol'
 import { vaultRefusalSentences } from '../../shared/vaultRefusals'
 import { vaultApprovalText, vaultDecisionChoices } from './vaultApproval'
 import type { VaultImportReport, VaultManagementPort } from '../../core/vault/broker/ports'
+import { vaultWriterRecoveryMessage } from '../../core/vault/broker/manageClient'
 
 const auditFilterSchema = z.strictObject({
   item: z.optional(vaultAuditRecordSchema.shape.handle),
@@ -65,7 +67,7 @@ export interface VaultCommandPort extends Pick<
   /** Kept or orphaned receipts that can still be finished (RVAPP-CM1091D5 P2-2). */
   pendingReceipts(): Promise<readonly VaultPendingReceipt[]>
   /** Reset Vault (lead decision): only for a lost vault; two steps. */
-  resetBegin(): Promise<{ resetId: string; word: string }>
+  resetBegin(): Promise<VaultResetChallenge>
   resetConfirm(resetId: string, word: string): Promise<void>
   publicKey(itemId: string): Promise<unknown>
   watch(signal: AbortSignal): AsyncIterable<unknown>
@@ -375,6 +377,7 @@ async function resetVault(port: VaultCommandPort, deps: VaultCommandDeps): Promi
   }
   const challenge = await port.resetBegin()
   deps.printError(UI_TEXT.vault.resetWarning)
+  if (challenge.writer) deps.printError(vaultWriterRecoveryMessage(challenge.writer))
   let answer = 'cancel'
   try {
     answer = await deps.choose(UI_TEXT.vault.resetVault, ['continue', 'cancel'], deps.signal)

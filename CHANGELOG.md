@@ -232,6 +232,10 @@ happened, not what was planned; superseded entries are kept.
   past add's pre-check reports a collision; unopenable vaults name no
   protection; and setup confirmation broadcasts once, so its unlock no
   longer loses the writer to a mid-flight snapshot.
+- Vault writer notes are now flushed before exclusive publication and remain
+  immutable. Failed release is retried and an abandoned own hold is adopted.
+  Confirmed Reset/Restore can replace unknown ownership, with holder facts
+  and an explicit warning about another writer losing changes.
 - Vault writer death evidence now binds the installation machine identity, boot
   and PID namespace before comparing a process ID or its birth. macOS uses
   base-system tools; Windows reads boot and birth in one bounded query.

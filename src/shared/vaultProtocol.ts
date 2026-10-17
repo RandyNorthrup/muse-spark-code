@@ -187,6 +187,23 @@ export const vaultAuthorizationResultSchema = z.discriminatedUnion('kind', [
 ])
 export type VaultAuthorizationResult = z.infer<typeof vaultAuthorizationResultSchema>
 
+const writerFacts = z.union([
+  z.strictObject({ kind: z.literal('ownerUnknown') }),
+  z.strictObject({ kind: z.literal('unreadable') }),
+  z.strictObject({
+    kind: z.literal('held'),
+    pid: counter.check(z.positive()),
+    acquiredAt: counter,
+    otherMachine: z.boolean(),
+    machineLabel: z.optional(text),
+  }),
+])
+export interface VaultResetChallenge {
+  resetId: string
+  word: string
+  writer?: z.infer<typeof writerFacts> | undefined
+}
+
 export const vaultBrokerResponseSchema = z.strictObject({
   v: z.literal(VAULT_PROTOCOL_VERSION),
   sequence: counter,
@@ -217,7 +234,12 @@ export const vaultBrokerResponseSchema = z.strictObject({
         .array(vaultItemMetadataSchema)
         .check(z.minLength(1), z.maxLength(VAULT_LIMITS.items)),
     }),
-    z.strictObject({ kind: z.literal('resetChallenge'), resetId: id, word: text }),
+    z.strictObject({
+      kind: z.literal('resetChallenge'),
+      resetId: id,
+      word: text,
+      writer: z.optional(writerFacts),
+    }),
     // Writer metadata contains only process/time facts, never paths or values.
     z.strictObject({
       kind: z.literal('refused'),
@@ -246,17 +268,7 @@ export const vaultBrokerResponseSchema = z.strictObject({
         'io',
         'storeUnavailable',
       ]),
-      writer: z.optional(
-        z.union([
-          z.strictObject({ kind: z.literal('ownerUnknown') }),
-          z.strictObject({
-            kind: z.literal('held'),
-            pid: counter.check(z.positive()),
-            acquiredAt: counter,
-            otherMachine: z.boolean(),
-          }),
-        ]),
-      ),
+      writer: z.optional(writerFacts),
     }),
   ]),
 })

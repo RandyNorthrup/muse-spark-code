@@ -293,7 +293,7 @@ describe('production writer mutation lifetime', () => {
     const files = new NodeVaultFiles(root, 1024, {
       ...security,
       protect: async (file) => {
-        if (!file.endsWith('.stage')) return
+        if (!path.basename(file).startsWith('vault.v1.') || !file.endsWith('.stage')) return
         entered.resolve(undefined)
         await release.promise
       },

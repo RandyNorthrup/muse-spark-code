@@ -110,7 +110,7 @@ function nativeHostDeps(deps: {
   return {
     now: deps.now,
     importDone: (names) => dialogs().importDone(names),
-    confirmReset: (word, signal) => dialogs().confirmReset(word, signal),
+    confirmReset: (word, signal, warning) => dialogs().confirmReset(word, signal, warning),
     showRecoveryCode: (code, signal) => dialogs().showRecoveryCode(code, signal),
     editItem: (current, signal) => dialogs().editItem(current, signal),
     confirmRemove: async (item) =>

@@ -71,6 +71,25 @@ function watchBoundary(h: ReturnType<typeof commandHarness>, cause: string): voi
 }
 
 describe('M109 H terminal commands', () => {
+  it('shows the recorded machine and loss warning before asking to replace ownership', async () => {
+    const h = commandHarness()
+    h.port.resetBegin.mockResolvedValue({
+      resetId: 'a'.repeat(32),
+      word: 'RESET',
+      writer: {
+        kind: 'held',
+        pid: 123,
+        acquiredAt: 1000,
+        otherMachine: true,
+        machineLabel: 'foreign-host',
+      },
+    })
+    h.deps.choose.mockResolvedValue('cancel')
+    await runVaultCommand({ command: 'reset' }, h.deps)
+    expect(h.deps.printError).toHaveBeenCalledWith(expect.stringContaining('foreign-host'))
+    expect(h.deps.printError).toHaveBeenCalledWith(expect.stringContaining('lose that program'))
+    expect(h.port.resetConfirm).not.toHaveBeenCalled()
+  })
   const commands: readonly (readonly string[])[] = [
     ['status'],
     ['unlock'],

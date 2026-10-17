@@ -22,6 +22,8 @@ import {
   type VaultViewEvent,
   type VaultViewState,
 } from './vaultViewMachine'
+import type { VaultResetChallenge } from '../../shared/vaultProtocol'
+import { vaultWriterRecoveryMessage } from '../../core/vault/broker/manageClient'
 
 /** C/B/P/M bind these operations to the real broker and single writer. No values cross the panel. */
 export interface VaultPanelService {
@@ -43,7 +45,7 @@ export interface VaultPanelService {
   keepImport(receipt: string): Promise<void>
   deleteImport(receipt: string, authorize: () => void, signal: AbortSignal): Promise<void>
   /** Reset Vault: only for a lost vault (lead decision). */
-  resetBegin(): Promise<{ resetId: string; word: string }>
+  resetBegin(): Promise<VaultResetChallenge>
   resetConfirm(resetId: string, word: string, authorize: () => void): Promise<void>
   /** Set Up Vault: the one-time code as owned bytes; nothing is written before confirmSetup. */
   setup(): Promise<{ setupId: string; code: Buffer }>
@@ -69,7 +71,11 @@ export interface VaultPanelHostDeps {
    * The host's own two steps: the warning with Continue, then the typed word.
    * Resolves the typed text, or null when the person stops.
    */
-  readonly confirmReset: (word: string, signal: AbortSignal) => Promise<string | null>
+  readonly confirmReset: (
+    word: string,
+    signal: AbortSignal,
+    warning?: string,
+  ) => Promise<string | null>
   /** The host's own modal with Copy and I Saved It; true only for I Saved It. */
   readonly showRecoveryCode: (code: string, signal: AbortSignal) => Promise<boolean>
 }
@@ -483,15 +489,20 @@ export class VaultPanelHost {
         await this.load(generation, this.beginReload())
         return
       }
+      const authorize = () => {
+        this.authorize(generation)
+      }
       if (message.type === 'vaultReset') {
         const current = await this.load(generation, this.beginReload())
         if (current.status.reason !== 'vaultLost') throw new Error(UI_TEXT.vault.useChanged)
         const challenge = await this.deps.service.resetBegin()
-        const typed = await this.deps.confirmReset(challenge.word, this.cancellation.signal)
+        const typed = await this.deps.confirmReset(
+          challenge.word,
+          this.cancellation.signal,
+          vaultWriterRecoveryMessage(challenge.writer),
+        )
         if (typed !== null)
-          await this.deps.service.resetConfirm(challenge.resetId, typed, () => {
-            this.authorize(generation)
-          })
+          await this.deps.service.resetConfirm(challenge.resetId, typed, authorize)
         await this.load(this.generation, this.beginReload())
         return
       }
@@ -506,10 +517,8 @@ export class VaultPanelHost {
           )
           if (isSaved) {
             try {
-              this.authorize(generation)
-              await this.deps.service.confirmSetup(shown.setupId, () => {
-                this.authorize(generation)
-              })
+              authorize()
+              await this.deps.service.confirmSetup(shown.setupId, authorize)
             } catch (error: unknown) {
               // A refused confirmation never leaves this setup waiting out its
               // window: it is withdrawn, so Set Up Vault can start again.
@@ -534,18 +543,13 @@ export class VaultPanelHost {
       }
       if (message.type === 'vaultUnlock') {
         this.apply({ kind: 'userUnlock' })
-        await this.deps.service.unlock(() => {
-          this.authorize(generation)
-        })
-        this.authorize(generation)
+        await this.deps.service.unlock(authorize)
+        authorize()
         await this.load(generation, this.beginReload())
         return
       }
       const state = await this.load(generation, this.beginReload())
       if (state.status.state !== 'unlocked') throw new Error(UI_TEXT.vault.locked)
-      const authorize = () => {
-        this.authorize(generation)
-      }
       switch (message.type) {
         case 'vaultAdd':
         case 'vaultEdit': {

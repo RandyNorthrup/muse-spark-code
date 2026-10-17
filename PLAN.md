@@ -38416,6 +38416,7 @@ lane A's first step.
 
 ## 7. Gates
 
+<<<<<<< HEAD
 **CM109JOINB review scoped/native qualification (2026-10-11, Kubuntu).** The
 rig brief delegates aggregate quality and hub integration to the lead. All five
 type projects and scoped lint/format, plain knip, zero duplication, l10n,
@@ -38431,27 +38432,47 @@ launch guarantee. No production resource accounting guard is changed.
 Availability stays off. The 17 writer
 crash cases remain skipped for CM109LEASE/join; the store/shared lock helpers
 are unchanged. No hook, assertion, budget or timeout is weakened.
-**CM109LEASE scoped Win11 qualification (2026-10-11).** The lead's 120-minute
-rig brief leaves aggregate quality with the lead. All five compiler projects,
-changed-file lint/format, dead-code, localization, host API, reference and
-roadmap checks pass. This lane removes its two introduced duplicate blocks;
-the two inherited modelApiHost/modelApiLoopGuarantees test clones remain the
-joined train's deferral. Full build retains exactly the joined usagePanel and
-surface-English overages; vault rows and the independent host cap pass without
-cap changes. The existing plan-size refusal remains. The owning safety tests,
-byte-exact guard drills, complete dependent runs and exact remaining files are
-recorded in docs/certification/m109.md; no desktop-token or foreign-user launch
-workaround, live call, history deletion or gate relaxation is authorized.
-**CM109JOINA scoped Win11 qualification (2026-10-11).** The rig/common brief
-requires complete vault/lease files in batches of three and the named static
-and production-build gates, leaving aggregate quality with the lead. Native
-Credential Manager and foreign-user launch checks retain their documented
-noninteractive-logon failures; no policy or desktop-token workaround is
-authorized. check:plan also refuses the joined text at its unchanged 85%
-threshold. The lead must supply the vault closed-design-record archive
-command; no history is deleted and no threshold is raised. Independent gates
-and writer crash/fence drills continue. Receipts: docs/certification/m109.md
-and m109-join-tests.json / m109-join-drills.json.
+=======
+
+**CM109LEASER2 qualification (2026-10-11, Win11).** The six in-scope
+RVCM109LEASE findings are implemented. Shared-core ownership, atomic
+publication, immutable notes, self-adoption and confirmed Reset/Restore are
+covered by the owning suites and the complete non-hub dependent selection.
+The rig/common brief delegates aggregate quality and cross-platform replay
+to the lead. The two pre-existing duplication pairs in modelApiHost and
+modelApiLoopGuarantees remain outside this lane; both files and the gate
+configuration are unchanged from 18dbcb0e8. Production size still refuses the
+existing usagePanel and surface-English overages. No limit is moved.
+Credential Manager and foreign-user PowerShell startup refuse four native
+cases here; no OS-policy change or workaround is attempted. The lead must
+qualify those paths interactively and replay Linux/macOS. Git transaction
+lock timed takeover remains explicitly lead-owned (review finding 6).
+The requested lane timebox was exceeded. Receipts, exact failures, bytes
+and byte-exact mutation restoration are in docs/certification/m109.md and
+m109-lease-r2-verification.json; no complete aggregate-green claim.
+
+> > > > > > > 37207d50b (fix(vault): publish complete holds and confirm unknown-owner recovery)
+> > > > > > > **CM109LEASE scoped Win11 qualification (2026-10-11).** The lead's 120-minute
+> > > > > > > rig brief leaves aggregate quality with the lead. All five compiler projects,
+> > > > > > > changed-file lint/format, dead-code, localization, host API, reference and
+> > > > > > > roadmap checks pass. This lane removes its two introduced duplicate blocks;
+> > > > > > > the two inherited modelApiHost/modelApiLoopGuarantees test clones remain the
+> > > > > > > joined train's deferral. Full build retains exactly the joined usagePanel and
+> > > > > > > surface-English overages; vault rows and the independent host cap pass without
+> > > > > > > cap changes. The existing plan-size refusal remains. The owning safety tests,
+> > > > > > > byte-exact guard drills, complete dependent runs and exact remaining files are
+> > > > > > > recorded in docs/certification/m109.md; no desktop-token or foreign-user launch
+> > > > > > > workaround, live call, history deletion or gate relaxation is authorized.
+> > > > > > > **CM109JOINA scoped Win11 qualification (2026-10-11).** The rig/common brief
+> > > > > > > requires complete vault/lease files in batches of three and the named static
+> > > > > > > and production-build gates, leaving aggregate quality with the lead. Native
+> > > > > > > Credential Manager and foreign-user launch checks retain their documented
+> > > > > > > noninteractive-logon failures; no policy or desktop-token workaround is
+> > > > > > > authorized. check:plan also refuses the joined text at its unchanged 85%
+> > > > > > > threshold. The lead must supply the vault closed-design-record archive
+> > > > > > > command; no history is deleted and no threshold is raised. Independent gates
+> > > > > > > and writer crash/fence drills continue. Receipts: docs/certification/m109.md
+> > > > > > > and m109-join-tests.json / m109-join-drills.json.
 
 The complete vault run also records sshImport's unchanged fixture setup
 failure: Windows ssh-keygen exits 255 without stdout/stderr under its
