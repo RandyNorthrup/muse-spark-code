@@ -399,7 +399,8 @@ export function scanLegal(snapshot: LegalFileSnapshot, options: LegalScanOptions
   )
   if (Date.now() >= deadline && !incomplete.includes('scan stopped at limit: elapsed time'))
     incomplete.push(UI_TEXT.legalScanner.m112)
-  // Every finding is kept, whatever the report's size.
+  // No whole-report truncation past a finding count (B18): every finding
+  // the per-rule bound above admits is kept, whatever the report's size.
   const kept = withinRules
 
   const counters = new Map<string, number>()

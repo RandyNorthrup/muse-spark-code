@@ -21,8 +21,10 @@ happened, not what was planned; superseded entries are kept.
   is kept, every checkpoint unit is kept with every file copied (idle
   conversations still prune by the person's cleanup age), every code intel
   location is shown with every listed file ranked, every FileChanged hook
-  run fires, ACP tool output travels whole with every session reachable by
-  paging, the legal scan reads every file and keeps every finding, media
+  run fires past its per-path quiet window, ACP tool output travels whole
+  with every session reachable by paging, the legal scan no longer stops
+  at a file count or truncates its report at a finding count (its
+  per-file, per-rule and time bounds still report as incomplete), media
   follows the provider's per-request record with no aggregate budget and no
   upload ceiling of ours, GitHub checks page through every check run and
   status, hook commands start with no host-wide count, and delegated team
