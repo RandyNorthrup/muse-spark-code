@@ -15482,6 +15482,25 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### M126 — Muse Code at its latest release (2026-10-17)
+
+**Status 2026-10-17: building.** Lane `feat/muse-code-latest`. The owner's
+standing rule: the product tracks each model, provider and CLI at its latest
+release, every SDK drop, bugfix and feature update incorporated and tested.
+
+- **Goal.** `@muse-code/sdk` at the latest release; every MSP method,
+  notification, error kind, hook event, setting and behaviour change from
+  1.4.5 to the latest incorporated and proven; fixed numbers that are Muse
+  Code's own settings read from Muse Code instead.
+- **Sources.** The official changelog
+  (`https://dev.meta.ai/docs/muse-code/changelog`, read 2026-10-17), the
+  installed CLI's own schema export (`muse schema generate-json-schema`,
+  stable and experimental, captured 2026-10-17), and the SDK's published
+  types (installed 1.4.4 vs 1.4.10, published 2026-10-16).
+- **Record.** `docs/certification/muse-code-latest.md` names each capture's
+  date and source command.
+- **Depends on.** M106 (wire guarantees), M51 (hook limits).
+
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
