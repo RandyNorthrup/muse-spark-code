@@ -546,3 +546,69 @@ run once by hand, then weekly, checking out only this repository's
 `package.json` and `package-lock.json` and warming one npm cache per
 capacity OS, holding no secret. `setup-node` restores by key prefix, so any
 recent seed warms every `ci/pr-<number>` run on the same OS.
+
+## CISHARDS — more shards, every shard on the organization's runners (2026-10-17, this rig)
+
+`gh` has no credential on this rig (`gh auth login` required), so the
+durations below come from the public Actions API, which needs none:
+`actions/workflows/363874181/runs` for the runs and
+`actions/runs/<id>/jobs?per_page=100` for each job's
+`completed_at − started_at`. `ci.yml` almost never runs on `main` itself
+(pull_request, merge_group, dispatch and `ci/pr-*` pushes only, and the
+merge queue is off), so "the last green runs on main" are the green runs of
+main-line commits: PR #210's split run and the two green merge-train runs
+just before it.
+
+### Baseline (all green, 2026-10-17)
+
+Run 39078180972 (PR #210, part `home`; wall 10.4 min):
+
+| Job                                                                                    | Duration                  |
+| -------------------------------------------------------------------------------------- | ------------------------- |
+| route                                                                                  | 0.1 min                   |
+| tests (ubuntu-latest, shards 1–4)                                                      | 1.4 / 1.4 / 1.0 / 1.4 min |
+| tests (windows-latest, macos-latest) in scnetsolutions/muse-spark-code-ci (`org` wait) | 10.1 min                  |
+| static gates, slowest (macos build, windows lint)                                      | 3.9 / 5.0 min             |
+| integration (ubuntu / windows)                                                         | 1.2 / 2.0 min             |
+| dictation helper, semgrep, gitleaks, packages                                          | 2.2 / 2.2 / 0.5 / 2.0 min |
+
+Its capacity run 39078260135 on branch `ci/pr-210` (part `org`; wall
+8.0 min), current counts 4 Ubuntu (home) + 8 Windows + 8 macOS (org):
+
+| Shards                     | Slowest job       | Fastest job       |
+| -------------------------- | ----------------- | ----------------- |
+| windows-latest, shards 1–8 | 2.8 min (shard 8) | 1.3 min (shard 4) |
+| macos-latest, shards 1–8   | 2.2 min (shard 8) | 1.1 min (shard 2) |
+
+Run 39070870774 (merge train 2026-10-17-3, part `all`; wall 11.6 min):
+Windows shards 2.0–2.9 min, macOS 1.3–2.3 min, Ubuntu 1.4–2.0 min;
+slowest static gate 9.2 min (macos lint). Run 39065488443 (train
+2026-10-17-1, part `all`; wall 24.4 min): same shards, the wall is
+personal-account queueing — that is the ~21-minute scale the brief names.
+The suite is 311 files (`test/unit`, plus `test/e2e` in the same run);
+every current shard is already under 5 minutes, but the slowest Windows
+shard (2.9 min) times the documented ~60% hosted swing (PLAN.md §8) lands
+at 4.6 min — no margin left as the suite grows back.
+
+### Chosen counts and arithmetic
+
+Ubuntu 8, Windows 16, macOS 16: forty shards, every one of them in part
+`org` when `ORG_CI` is on. Windows and macOS run files serially
+(`vitest.config.ts`: `fileParallelism` off on win32 and hosted macOS), so
+shard test time halves with the file count: slowest Windows shard test
+≈ 2.9 − 0.7 (warm setup) ≈ 2.2 min per 1/8 of the suite → ≈ 1.1 min per
+1/16, plus ≈ 0.7 min setup ≈ 1.8 min typical, × 1.6 variance ≈ 2.9 min.
+Cold org start adds ≈ 1 min `npm ci` (measured 11–12 s download, above) →
+≈ 2.8 min × 1.6 ≈ 4.5 min, still under 5. macOS: ≈ 8 min suite / 16 ≈
+0.5 min + setup ≈ 1.5 min × 1.6 ≈ 2.4 min. Ubuntu (parallel workers):
+2.0 min max at 1/4 → ≈ 1.3 min at 1/8 × 1.6 ≈ 2.1 min.
+
+Expected wall: the org unit phase ≈ slowest shard + route/setup ≈ 4–5
+min; the home run ≈ max(slowest static gate, org wait) ≈ 10 min; and a
+split pull request runs zero shard jobs on the personal account (was four
+Ubuntu), so queued runs stop waiting behind its shards. Part-`all` runs
+(forks, Dependabot, merge groups) keep everything here with forty smaller
+shards instead of twenty: more setup minutes in total, a shorter slowest
+tail. Timeouts stay 20 warm / 25 org: ceilings, not targets. The hosted run
+on the lead's push is the proof (acceptance list at the end of this
+section).
