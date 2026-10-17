@@ -46,14 +46,6 @@ function keyOf(absolutePath: string): string {
   return absolutePath.replaceAll('\\', '/')
 }
 
-/** A `realPath` for a workspace opened through `link`, a link to `real`. */
-export function realPathThrough(link: string, real: string): (path: string) => Promise<string> {
-  return (path) =>
-    Promise.resolve(
-      path === link || path.startsWith(`${link}/`) ? real + path.slice(link.length) : path,
-    )
-}
-
 export function memoryToolIo(
   initial: Record<string, string>,
   root: string,
