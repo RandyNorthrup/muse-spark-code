@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- On Windows, two requests that reserve session spend at the same moment
+  could end one of them with "The session spend ledger could not be read or
+  saved", although nothing was wrong with the ledger. Windows answers a lock
+  that is just being released differently from one that is held; the product
+  now waits for both the same way, within the same one-second bound.
+
 ### Pending
 
 - The HTTP usage bridge settles every failed request with a read-failed
@@ -63,6 +71,32 @@ happened, not what was planned; superseded entries are kept.
   failed instead of asking for a key that would not help, and a broken
   account host or secret store reads as "could not say" instead of "no
   account" or assumed presence.
+- All fourteen translated settings tables now say Muse Code asks before a
+  command unless a permission rule allows it, matching the English modes.
+
+- Closing an ACP session no longer discards its selected permission mode;
+  loading it again on the same connection keeps that mode.
+
+- ACP waits for the selected-mode notice to leave its ordered update queue
+  before acknowledging `session/set_mode`.
+
+- ACP remembers a permission answer before dispatching it, so a stage update
+  arriving before the decision acknowledgement cannot open the same prompt again.
+
+- ACP permission answers retain the selected persistent rule's identity;
+  consent for one command prefix cannot silently install another stage's rule.
+- After Muse Code restarted, a conversation could continue on a different
+  model than the one shown (and at that model's price). It now keeps the
+  model you chose: the choice is applied and read back from Muse Code before
+  the next message is sent, the panel shows the model each request really
+  used, and a message that would run on another model is not sent.
+  A restart that finishes verification after you clear or replace the
+  conversation no longer reattaches the conversation you left. Failed model
+  verification releases its resumed handle, including command timeouts.
+  Opening Model API history on its already-selected model no longer runs
+  model-switch hooks or resets switch-related session state. ACP remembers
+  backend-reported model and effort changes too, including changes received
+  before a configuration command finishes.
 
 - Activation budget: the Create AGENTS.md command, its rules template and
   their redaction load on the command's first run instead of at activation,
@@ -210,6 +244,14 @@ happened, not what was planned; superseded entries are kept.
   editor's qualification (lane Q). The pull-request checkout's own git
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
+
+- Muse Code permissions: on the Muse Code backend one command is asked
+  about once — the first answer is reused for later stages instead of
+  asking again, and an answer given while a newer stage arrives is applied
+  to that stage instead of dropped. A permission mode set in the editor is
+  reported back and kept when the session is loaded again. The Manual and
+  Edit Automatically descriptions now say commands are asked about unless
+  a permission rule allows them.
 
 ## [0.18.2] - 2026-10-12
 

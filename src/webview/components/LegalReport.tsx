@@ -232,7 +232,7 @@ export function LegalReport({
   // The preview and the outcome arrive after their request: move keyboard
   // focus to their heading once each, so keyboard and screen-reader users
   // land on what changed (the Modal keeps Tab inside the dialog) — but only
-  // while this surface holds the keyboard (D108): an arrival behind a file
+  // while this surface holds the keyboard (D116): an arrival behind a file
   // must not take the panel forward, and it is still spent, never retried.
   const focusedPreview = useRef<string | undefined>(undefined)
   const focusedResult = useRef<string | undefined>(undefined)
