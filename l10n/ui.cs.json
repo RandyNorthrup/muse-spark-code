@@ -910,6 +910,8 @@
     "copilotRateLimit": "Copilot omezuje počet požadavků. Zkuste to později.",
     "copilotConsent": "Pro pokračování povolte přístup v dialogu souhlasu Copilot.",
     "copilotConfidential": "Copilot je nedostupný, dokud je tento pracovní prostor důvěrný.",
+    "copilotTerminalGrant": "Modely Copilot fungují pouze ve VS Code prostřednictvím rozšíření Copilot; tento terminál k tomuto oprávnění nemá přístup.",
+    "copilotHostGrant": "Modely Copilot fungují pouze ve VS Code prostřednictvím rozšíření Copilot, ke kterému tento hostitel nemá přístup.",
     "copilotNotice": "Modely Copilot zpřístupněné aplikaci VS Code, účtované vašemu tarifu Copilot nebo AI kreditům.",
     "expired": "ChatGPT poskytl příliš krátkou platnost pro tento požadavek. Přihlaste se znovu.",
     "retry": "ChatGPT je dočasně nedostupný. Zkuste to znovu.",

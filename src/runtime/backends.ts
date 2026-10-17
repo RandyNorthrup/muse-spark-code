@@ -755,7 +755,12 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     let refusal = UI_TEXT.acpNoStoredKey
     if (isPlan && modelHint.startsWith('chatgpt/'))
       refusal = UI_TEXT.acpChatGpt.states['signed-out']
-    else if (isPlan && modelHint.startsWith('copilot/')) refusal = UI_TEXT.planUi.copilotUnavailable
+    // The Copilot dispatch adapter is VS Code's Language Model API
+    // (src/host/providers/copilotClient.ts): this terminal cannot reach that
+    // grant, so the refusal names its source instead of offering a sign-in
+    // no terminal can perform.
+    else if (isPlan && modelHint.startsWith('copilot/'))
+      refusal = UI_TEXT.planUi.copilotTerminalGrant
     return { state: 'signedOut', message: refusal }
   }
 

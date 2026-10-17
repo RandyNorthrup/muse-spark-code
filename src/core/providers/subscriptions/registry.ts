@@ -212,7 +212,10 @@ export function createSubscriptionClient(
       const ref = await configured(body.model)
       if (ref.providerId === 'copilot') {
         const adapter = deps.copilot?.().get(ref.modelId)
-        if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
+        // The adapter is VS Code's Language Model API
+        // (src/host/providers/copilotClient.ts), injected only by editor
+        // hosts: a host without it cannot reach the Copilot grant at all.
+        if (adapter === undefined) throw new Error(UI_TEXT.planUi.copilotHostGrant)
         return await adapter.countInputTokens({ ...body, model: ref.modelId })
       }
       return Buffer.byteLength(JSON.stringify(body.input)) + Buffer.byteLength(body.instructions)
@@ -236,7 +239,8 @@ export function createSubscriptionClient(
         assertConfirmedAllowed(body.model, confirmed)
         if (ref.providerId === 'copilot') {
           const adapter = deps.copilot?.().get(ref.modelId)
-          if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
+          // Same unreachable grant as above: name VS Code, never a key.
+          if (adapter === undefined) throw new Error(UI_TEXT.planUi.copilotHostGrant)
           const account = await deps.accountId()
           const guard = Object.assign(() => admitAttempt?.(account), {
             onRequestStarted: () => {

@@ -898,6 +898,8 @@
     "copilotRateLimit": "Copilot 요청 빈도가 제한되었습니다. 나중에 다시 시도하세요.",
     "copilotConsent": "계속하려면 Copilot 동의 대화 상자에서 접근을 허용하세요.",
     "copilotConfidential": "이 작업 영역이 기밀인 동안 Copilot을 사용할 수 없습니다.",
+    "copilotTerminalGrant": "Copilot 모델은 Copilot 확장을 통해 VS Code에서만 실행됩니다. 이 터미널에서는 해당 권한에 접근할 수 없습니다.",
+    "copilotHostGrant": "Copilot 모델은 Copilot 확장을 통해 VS Code에서만 실행되며, 이 호스트에서는 해당 권한에 접근할 수 없습니다.",
     "copilotNotice": "VS Code에 부여된 Copilot 모델이며 Copilot 플랜 또는 AI 크레딧으로 청구됩니다.",
     "expired": "ChatGPT가 부여한 유효 시간이 이 요청에 너무 짧습니다. 다시 로그인하세요.",
     "retry": "ChatGPT를 일시적으로 사용할 수 없습니다. 다시 시도하세요.",

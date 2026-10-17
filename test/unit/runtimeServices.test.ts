@@ -452,9 +452,10 @@ describe('createRuntimeAccountServices', () => {
         state: 'signedOut',
         message: UI_TEXT.acpChatGpt.states['signed-out'],
       })
+      // The Copilot grant lives in VS Code, which no terminal can reach.
       await expect(runtime.backend.readiness(false, 'copilot/gpt-6.1')).resolves.toEqual({
         state: 'signedOut',
-        message: UI_TEXT.planUi.copilotUnavailable,
+        message: UI_TEXT.planUi.copilotTerminalGrant,
       })
       await expect(runtime.backend.readiness(false, 'muse-spark-1.1')).resolves.toEqual({
         state: 'signedOut',

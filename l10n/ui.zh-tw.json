@@ -898,6 +898,8 @@
     "copilotRateLimit": "Copilot 請求頻率受到限制。請稍後重試。",
     "copilotConsent": "請在 Copilot 授權對話框中允許存取以繼續。",
     "copilotConfidential": "此工作區處於機密狀態時 Copilot 無法使用。",
+    "copilotTerminalGrant": "Copilot 模型僅透過 Copilot 擴充功能在 VS Code 中執行；此終端機無法觸及該授權。",
+    "copilotHostGrant": "Copilot 模型僅透過 Copilot 擴充功能在 VS Code 中執行，而此主機無法觸及該授權。",
     "copilotNotice": "授予 VS Code 的 Copilot 模型，按您的 Copilot 計畫或 AI 點數計費。",
     "expired": "ChatGPT 授予的有效期限不足以完成此請求。請重新登入。",
     "retry": "ChatGPT 暫時無法使用。請重試。",
