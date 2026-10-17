@@ -118,8 +118,11 @@ export type CredentialProviderId =
 
 /**
  * What the three-valued credential read needs of a store. The owner keys the
- * once-per-store notices below; every bundle that loads this file agrees on
- * one store's state because the bundle is loaded once per process.
+ * window's once-per-store notice in `hasStoredKey` below; every bundle that
+ * loads this file agrees on one store's state because the bundle is loaded
+ * once per process. Store-read failures warn every time with their kind:
+ * the catch gate records every failure path, so a "warn once" collapse
+ * cannot stand here.
  */
 export interface CredentialReadPort {
   readonly owner: object
@@ -129,21 +132,8 @@ export interface CredentialReadPort {
   readonly providerIds?: () => PromiseLike<readonly CredentialProviderId[]>
 }
 
-/** Per-store "already told" state for the Meta-key read. */
-const metaFailureReported = new WeakMap<object, boolean>()
-/** Provider ids whose unreadable entry was already recorded, once each. */
-const providerFailureReported = new WeakMap<object, Set<string>>()
 /** Stores whose unreadable notice the window already showed, once each. */
 const selectionWarningsShown = new WeakSet<object>()
-
-function reportedProvidersOf(owner: object): Set<string> {
-  let reported = providerFailureReported.get(owner)
-  if (reported === undefined) {
-    reported = new Set<string>()
-    providerFailureReported.set(owner, reported)
-  }
-  return reported
-}
 
 /**
  * The stored key for operational use (backend key reads); undefined when
@@ -161,19 +151,14 @@ export async function getApiKey(port: CredentialReadPort): Promise<string | unde
     stored = await port.secrets.get(SECRET_KEYS.modelApiKey)
   } catch (error: unknown) {
     // read-state: cert TBL-02 (see the function note): this collapse is by
-    // design for operational, non-guard use only.
-    if (!metaFailureReported.get(port.owner)) {
-      metaFailureReported.set(port.owner, true)
-      // The log carries only the failure's kind, never the raw error: the
-      // message can name a keyring path (P3-5).
-      port.warn(
-        `${port.storeName} could not be read, so no Model API key is available (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
-      )
-    }
+    // design for operational, non-guard use only. Every failure warns with
+    // its kind: the log carries only the kind, never the raw error, whose
+    // message can name a keyring path (P3-5).
+    port.warn(
+      `${port.storeName} could not be read, so no Model API key is available (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+    )
     return undefined
   }
-  // A healthy read re-arms the warning: a recurrence warns again.
-  metaFailureReported.set(port.owner, false)
   return stored === undefined || stored === '' ? undefined : stored
 }
 
@@ -188,8 +173,6 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
   let unreadable: CredentialUnreadableKind | undefined
   try {
     const stored = await port.secrets.get(SECRET_KEYS.modelApiKey)
-    // A healthy read re-arms the warning: a recurrence warns again.
-    metaFailureReported.set(port.owner, false)
     if (stored !== undefined && stored !== '') {
       return { outcome: 'found' }
     }
@@ -197,14 +180,12 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
     // An unreadable key says nothing about presence. Every throw maps
     // onto the closed kind (a non-Error keeps its code, else `other`):
     // this read answers in the three states and never throws a foreign
-    // value at a guard that has no handler for it.
+    // value at a guard that has no handler for it. Every failure warns
+    // with its kind, never the raw error.
     unreadable = unreadableKindFor(error)
-    if (!metaFailureReported.get(port.owner)) {
-      metaFailureReported.set(port.owner, true)
-      port.warn(
-        `${port.storeName} could not be read, so the Model API key's presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
-      )
-    }
+    port.warn(
+      `${port.storeName} could not be read, so the Model API key's presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+    )
   }
   let ids: readonly CredentialProviderId[] | undefined
   try {
@@ -236,24 +217,17 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
         // Auth needs presence only; damaged records count too. Parsing and
         // credential dispatch remain in the lazy provider store.
         const stored = await port.secrets.get(`${PROVIDER_SECRET_PREFIX}${id}`)
-        // A healthy entry re-arms its warning.
-        reportedProvidersOf(port.owner).delete(id)
         if (stored !== undefined && stored !== '') {
           isFound = true
         }
       } catch (error: unknown) {
         // An entry that cannot be read says nothing about presence, so the
-        // scan continues past it; the failure is recorded once per provider
-        // with its kind, never as absence. Every throw maps onto the
-        // closed kind.
+        // scan continues past it; every failure warns with its kind, never
+        // as absence. Every throw maps onto the closed kind.
         unreadable ??= unreadableKindFor(error)
-        const reported = reportedProvidersOf(port.owner)
-        if (!reported.has(id)) {
-          reported.add(id)
-          port.warn(
-            `${port.storeName} could not be read for provider ${id}, so its credential is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
-          )
-        }
+        port.warn(
+          `${port.storeName} could not be read for provider ${id}, so its credential is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+        )
       }
     }
   }
