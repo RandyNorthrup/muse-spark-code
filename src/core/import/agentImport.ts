@@ -295,7 +295,10 @@ export function importDisplayPath(
       return undefined
     }
     const relative = p.relative(root, absolutePath)
-    return relative === '' || relative.startsWith('..') || p.isAbsolute(relative)
+    return relative === '' ||
+      relative === '..' ||
+      relative.startsWith(`..${p.sep}`) ||
+      p.isAbsolute(relative)
       ? undefined
       : relative.split(p.sep).join('/')
   }
