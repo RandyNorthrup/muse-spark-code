@@ -347,7 +347,7 @@
   "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave.",
   "referenceVault": "Trabaja con el almacén de credenciales por usuario desde un terminal: configuración, recuperación, restablecimiento, estado, desbloqueo, bloqueo, lista, adición, concesiones, auditoría, importación y observación. Los valores nunca se imprimen; los guarda el intermediario. Restablecer también puede sustituir un bloqueo de escritura de propietario desconocido tras una confirmación explícita.",
   "referenceVaultHelp": "Muestra el uso del comando del almacén de credenciales por usuario.",
-  "referenceVaultPanel": "La bóveda de credenciales está desactivada en esta compilación hasta que se completen las comprobaciones de integración.",
+  "referenceVaultPanel": "Abre la bóveda de credenciales del usuario en el panel Modelos y agentes: configúrala o desbloquéala, gestiona elementos y permisos y bloquéala. Aún no está disponible en Windows.",
   "referenceVaultLock": "Bloquear la bóveda de credenciales por usuario ahora; termina cada uso en cada ventana.",
   "referenceAuthClear": "Eliminar la clave Model API guardada.",
   "referenceAuthStatus": "Comprobar si hay una clave Model API guardada.",

@@ -1503,7 +1503,7 @@ Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProble
 
 ### Vault
 
-vaultBroker=installedDisabledPendingJoin: The credential vault is switched off in this build pending integration checks.
+Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.
 
 Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them. Reset can also replace unknown writer ownership after explicit confirmation.
 
@@ -1843,15 +1843,11 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Vault
 
-`museSpark.vault` — vaultBroker=installedDisabledPendingJoin: The credential vault is switched off in this build pending integration checks.
-
-Available when: `false`.
+`museSpark.vault` — Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.
 
 ### Muse Spark: Lock Vault Now
 
-`museSpark.lockVault` — vaultBroker=installedDisabledPendingJoin: The credential vault is switched off in this build pending integration checks.
-
-Available when: `false`.
+`museSpark.lockVault` — Lock the per-user credential vault now, ending every use in every window.
 
 ## Settings
 

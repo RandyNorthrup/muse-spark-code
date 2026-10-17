@@ -347,7 +347,7 @@
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
   "referenceVault": "從終端機使用按使用者 credential 保管庫：設定、復原、重設、狀態、解鎖、鎖定、清單、新增、授權、稽核、匯入和監視。值永遠不會列印；由代理持有。 明確確認後，重設也可替換擁有者未知的寫入鎖。",
   "referenceVaultHelp": "顯示按使用者 credential 保管庫命令的用法。",
-  "referenceVaultPanel": "憑證保管庫在此版本中已關閉，等待整合檢查完成。",
+  "referenceVaultPanel": "在「模型與代理程式」面板中開啟每位使用者的憑證保管庫：設定或解除鎖定、管理項目和授權並鎖定。Windows 上尚不可用。",
   "referenceVaultLock": "立即鎖定按使用者劃分的認證保管庫，結束每個視窗中的每次使用。",
   "referenceAuthClear": "刪除已儲存的 Model API 金鑰。",
   "referenceAuthStatus": "檢查是否儲存了 Model API 金鑰。",

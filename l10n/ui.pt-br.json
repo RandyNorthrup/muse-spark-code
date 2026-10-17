@@ -347,7 +347,7 @@
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
   "referenceVault": "Trabalhe com o cofre de credenciais por usuário em um terminal: configuração, recuperação, redefinição, estado, desbloqueio, bloqueio, lista, adição, concessões, auditoria, importação e observação. Os valores nunca são impressos; o intermediário os mantém. Após confirmação explícita, a redefinição também pode substituir um bloqueio de gravação com proprietário desconhecido.",
   "referenceVaultHelp": "Mostra o uso do comando do cofre de credenciais por usuário.",
-  "referenceVaultPanel": "O cofre de credenciais está desativado nesta versão até a conclusão das verificações de integração.",
+  "referenceVaultPanel": "Abre o cofre de credenciais do usuário no painel Modelos e agentes: configure ou desbloqueie, gerencie itens e permissões e bloqueie. Ainda não disponível no Windows.",
   "referenceVaultLock": "Bloquear agora o cofre de credenciais por usuário; encerra cada uso em cada janela.",
   "referenceAuthClear": "Remover a chave Model API salva.",
   "referenceAuthStatus": "Verificar se uma chave Model API está salva.",

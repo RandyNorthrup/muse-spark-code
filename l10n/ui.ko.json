@@ -347,7 +347,7 @@
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "referenceVault": "터미널에서 사용자별 자격 증명 Vault로 작업합니다: 설정, 복구, 재설정, 상태, 잠금 해제, 잠금, 목록, 추가, 부여, 감사, 가져오기 및 감시. 값은 절대 인쇄되지 않으며 브로커가 보관합니다. 명시적으로 확인하면 초기화를 통해 소유자를 알 수 없는 쓰기 잠금도 교체할 수 있습니다.",
   "referenceVaultHelp": "사용자별 자격 증명 Vault 명령 사용법을 표시합니다.",
-  "referenceVaultPanel": "자격 증명 보관함은 통합 확인이 끝날 때까지 이 빌드에서 꺼져 있습니다.",
+  "referenceVaultPanel": "모델 및 에이전트 패널에서 사용자별 자격 증명 보관함을 엽니다. 설정 또는 잠금 해제, 항목과 권한 관리, 잠금을 할 수 있습니다. Windows에서는 아직 사용할 수 없습니다.",
   "referenceVaultLock": "사용자별 자격 증명 보관함을 지금 잠가 모든 창의 모든 사용을 종료합니다.",
   "referenceAuthClear": "저장된 Model API 키를 제거합니다.",
   "referenceAuthStatus": "Model API 키가 저장되어 있는지 확인합니다.",

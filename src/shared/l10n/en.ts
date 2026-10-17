@@ -436,7 +436,7 @@ export const EN = {
     'Work with the per-user credential vault from a terminal: setup, recover, reset, status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them. Reset can also replace unknown writer ownership after explicit confirmation.',
   referenceVaultHelp: 'Show the per-user credential vault command usage.',
   referenceVaultPanel:
-    'The credential vault is switched off in this build pending integration checks.',
+    'Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.',
   referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',

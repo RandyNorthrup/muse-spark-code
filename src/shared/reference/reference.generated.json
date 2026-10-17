@@ -1814,22 +1814,8 @@
     {
       "id": "vault",
       "name": { "command": "museSpark.vault" },
-      "summary": {
-        "conditions": [
-          {
-            "when": "vaultBroker=installedDisabledPendingJoin",
-            "text": { "ui": "referenceVaultPanel" }
-          }
-        ]
-      },
-      "description": {
-        "conditions": [
-          {
-            "when": "vaultBroker=installedDisabledPendingJoin",
-            "text": { "ui": "referenceVaultPanel" }
-          }
-        ]
-      },
+      "summary": { "ui": "referenceVaultPanel" },
+      "description": { "ui": "referenceVaultPanel" },
       "commands": ["museSpark.vault", "museSpark.lockVault"],
       "settings": [
         "museSpark.vault.enabled",
@@ -2529,16 +2515,8 @@
       "nameKey": "command.vault.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "vaultBroker=installedDisabledPendingJoin: The credential vault is switched off in this build pending integration checks.",
-      "text": {
-        "conditions": [
-          {
-            "when": "vaultBroker=installedDisabledPendingJoin",
-            "text": { "ui": "referenceVaultPanel" }
-          }
-        ]
-      },
-      "enablement": "false",
+      "description": "Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.",
+      "text": { "ui": "referenceVaultPanel" },
       "canRun": true
     },
     {
@@ -2547,16 +2525,8 @@
       "nameKey": "command.lockVault.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "vaultBroker=installedDisabledPendingJoin: The credential vault is switched off in this build pending integration checks.",
-      "text": {
-        "conditions": [
-          {
-            "when": "vaultBroker=installedDisabledPendingJoin",
-            "text": { "ui": "referenceVaultPanel" }
-          }
-        ]
-      },
-      "enablement": "false",
+      "description": "Lock the per-user credential vault now, ending every use in every window.",
+      "text": { "ui": "referenceVaultLock" },
       "canRun": true
     }
   ],

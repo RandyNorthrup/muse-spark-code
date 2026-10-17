@@ -347,7 +347,7 @@
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: konfiguracja, odzyskiwanie, reset, stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker. Po wyraźnym potwierdzeniu reset może też zastąpić blokadę zapisu o nieznanym właścicielu.",
   "referenceVaultHelp": "Pokazuje użycie polecenia magazynu poświadczeń użytkownika.",
-  "referenceVaultPanel": "Magazyn poświadczeń jest wyłączony w tej kompilacji do czasu zakończenia kontroli integracji.",
+  "referenceVaultPanel": "Otwiera magazyn poświadczeń użytkownika w panelu Modele i agenci: konfigurowanie lub odblokowywanie, zarządzanie elementami i uprawnieniami oraz blokowanie. W systemie Windows jeszcze niedostępne.",
   "referenceVaultLock": "Zablokuj teraz magazyn poświadczeń użytkownika; kończy każde użycie w każdym oknie.",
   "referenceAuthClear": "Usuń zapisany klucz Model API.",
   "referenceAuthStatus": "Sprawdź, czy zapisano klucz Model API.",

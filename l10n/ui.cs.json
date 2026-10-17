@@ -347,7 +347,7 @@
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "referenceVault": "Pracujte s trezorem pověření pro jednotlivé uživatele z terminálu: nastavení, obnova, obnovení výchozího stavu, stav, odemknutí, uzamknutí, seznam, přidání, granty, audit, import a sledování. Hodnoty se nikdy netisknou; drží je zprostředkovatel. Reset může po výslovném potvrzení také nahradit neznámou vlastnickou blokaci zápisu.",
   "referenceVaultHelp": "Zobrazí nápovědu k příkazu trezoru pověření pro jednotlivé uživatele.",
-  "referenceVaultPanel": "Úložiště přihlašovacích údajů je v tomto sestavení vypnuté, dokud nebudou dokončeny kontroly integrace.",
+  "referenceVaultPanel": "Otevře úložiště přihlašovacích údajů uživatele v panelu Modely a agenti: nastavení či odemknutí, správa položek a povolení a uzamčení. Ve Windows zatím není k dispozici.",
   "referenceVaultLock": "Zamknout uživatelský trezor přihlašovacích údajů nyní; ukončí každé použití v každém okně.",
   "referenceAuthClear": "Odstranit uložený klíč Model API.",
   "referenceAuthStatus": "Zjistit, zda je uložen klíč Model API.",

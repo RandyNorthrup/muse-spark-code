@@ -591,14 +591,6 @@
           "when": "false"
         },
         {
-          "command": "museSpark.vault",
-          "when": "false"
-        },
-        {
-          "command": "museSpark.lockVault",
-          "when": "false"
-        },
-        {
           "command": "museSpark.estimate",
           "when": "false"
         }
