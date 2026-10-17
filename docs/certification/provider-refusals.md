@@ -364,3 +364,23 @@ format); Anthropic's mid-stream `overloaded_error` and its retention 400;
 Gemini's `quota_exceeded` body (the snake_case envelope); Azure's 429 with
 `retry-after-ms`; OpenAI's quota 429 and `server_error`; Anthropic's spend-cap
 429; Mistral's exhaustion error.
+
+### Gates
+
+Full set on `fcc07ad8ea` (before the second merge): typecheck 0, lint
+(`--max-warnings=0`) 0, `format:check` 0, deadcode 0, cycles 0, duplication
+0, l10n 0, reference 0, host-api 0, plan 0, roadmap 0, build 0,
+security:audit 0, `vitest related` over every changed source 0 (289 files,
+5,446 tests). SAST exit 1: 9 blocking `detect-child-process` findings in
+eight files this branch never touches (`pluginHost.ts`, `MuseCodeHost.ts`,
+`toolIo.ts`, `browserProcess.ts`, `resourceJobHolder.ts`,
+`processLifetime.ts`, `voiceProcesses.ts`, `pullRequests/checkout.ts`);
+measured byte-identical to `origin/main` `296c63f20c`
+(`git diff --quiet origin/main HEAD -- <the eight>` exit 0), so the same
+findings stand on the untouched base.
+
+After merging `origin/main` `296c63f20c` (no conflicts), on the final
+tree, under the lead's narrowed rule: prettier 0 and eslint
+(`--max-warnings=0`, with main's new stand-in rule) 0 on the 33 files this
+lane changed, typecheck 0, build 0, the touched suites 0 (18 files, 526
+tests), l10n 0, plan 0.
