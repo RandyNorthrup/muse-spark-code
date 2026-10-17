@@ -67,10 +67,7 @@ export interface TransportDeps {
   readonly pacingProvider?: (modelId: string | undefined) => PacingProvider
   readonly paidAuthority?: PaidAuthority
   readonly onServiceFailure?: (status: number, statusUrl: string) => void
-  readonly isRetryableFailure?: (
-    failure: ModelApiError,
-    retryAfterMs: number | undefined,
-  ) => boolean
+  readonly isRetryableFailure?: (failure: ModelApiError) => boolean
   readonly scheduledRun?: () => UnattendedRun | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
@@ -280,6 +277,10 @@ export function isMissingApiKeyError(error: unknown): error is MissingApiKeyErro
 
 const JSON_MEDIA_TYPE = 'application/json'
 const RETRY_AFTER_HEADER = 'retry-after'
+// Azure OpenAI's 429 wait in milliseconds (research azure-openai.md ZB2,
+// https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/quota, read
+// 2026-10-17): read before `Retry-After`, which Azure adds only on PTU.
+const RETRY_AFTER_MS_HEADER = 'retry-after-ms'
 const NETWORK_FAILURE_STATUS = 0
 
 /** The documented error envelope, or the status text when the body is not one. */
@@ -306,7 +307,7 @@ async function describeFailure(
     const requestId = response.headers.get('request-id') ?? response.headers.get('x-request-id')
     if (requestId !== null && requestId.trim() !== '')
       failure.requestId = requestId.trim().slice(0, PROVIDER_REQUEST_ID_MAX_CHARS)
-    failure.retryAfterMs = retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), now)
+    failure.retryAfterMs = providerWaitMs(response.headers, now)
     return failure
   }
   if (parseError !== undefined) {
@@ -358,6 +359,20 @@ export function retryAfterMs(header: string | null, now: number): number | undef
   }
   const at = Date.parse(header)
   return Number.isNaN(at) ? undefined : Math.max(at - now, 0)
+}
+
+/**
+ * The wait an answer names, in every form a provider uses: `retry-after-ms`
+ * (milliseconds; Azure OpenAI), then `Retry-After` (seconds or an HTTP
+ * date). Honoured as given: no wait of ours shortens or refuses it.
+ */
+export function providerWaitMs(headers: Headers, now: number): number | undefined {
+  const milliseconds = headers.get(RETRY_AFTER_MS_HEADER)
+  if (milliseconds !== null && milliseconds.trim() !== '') {
+    const value = Number(milliseconds)
+    if (Number.isFinite(value) && value >= 0) return value
+  }
+  return retryAfterMs(headers.get(RETRY_AFTER_HEADER), now)
 }
 
 /** One retry the client is about to make, for the transcript's notice. */
@@ -820,9 +835,12 @@ export class RequestTransport {
   }
 
   public backoffMs(attempt: number, suggestedMs?: number): number {
-    const exponential = Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS)
     const jitter = Math.floor(this.deps.random() * MODEL_API_RETRY_JITTER_MS)
-    return Math.min((suggestedMs ?? exponential) + jitter, MODEL_API_RETRY_MAX_MS)
+    // The provider's own wait is the least it asks for (every provider
+    // documents it so): waited out whole, never shortened to our backoff.
+    if (suggestedMs !== undefined) return suggestedMs + jitter
+    const exponential = Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS)
+    return Math.min(exponential + jitter, MODEL_API_RETRY_MAX_MS)
   }
 
   /**
@@ -1086,7 +1104,7 @@ export class RequestTransport {
           account,
           provider.readLimits?.(response.headers),
           response.status === HTTP_TOO_MANY_REQUESTS
-            ? (retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now()) ??
+            ? (providerWaitMs(response.headers, this.deps.now()) ??
                 Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS))
             : undefined,
           sent,
@@ -1126,38 +1144,22 @@ export class RequestTransport {
       ) {
         init.paid.isSent = false
       }
-      const waitMs = retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now())
+      // The wait the provider named, in whichever form it used, is waited
+      // out whole before the next try (lane PROVERRORS).
+      const waitMs = failure.retryAfterMs
       // OPENAI-G20: the preset's own retry table decides, so its override
       // (e.g. OpenAI's documented retryable `server_error`) is read, not
       // skipped. The envelope kind/code the parsers carry is what lets a
       // quota 429 refuse while a bare one retries.
-      const retryTable = this.deps.retryTable ?? RETRY_TABLES.responses
-      const decision = classifyRetry(retryTable, {
+      const decision = classifyRetry(this.deps.retryTable ?? RETRY_TABLES.responses, {
         status: response.status,
         kind: failure.kind,
         code: failure.code,
         message: failure.message,
-        retryAfterMs: waitMs,
       })
-      if (!decision.retry && decision.reason === 'retry-after-cap') {
-        const capped = new ModelApiError(
-          fill(UI_TEXT.modelApiRetryAfterTooLong, {
-            wait: Math.ceil((waitMs ?? 0) / MILLISECONDS_PER_SECOND),
-            cap: retryTable.retryAfterCapMs / MILLISECONDS_PER_SECOND,
-          }),
-          response.status,
-          failure.kind,
-          failure.code,
-        )
-        // The refusal keeps its request id and wait (lane PROVERR), as
-        // `redactModelApiError` already does across the privacy boundary.
-        capped.requestId = failure.requestId
-        capped.retryAfterMs = failure.retryAfterMs
-        throw capped
-      }
       const isRetryable =
         !this.deps.isTerminalError?.(failure) &&
-        (this.deps.isRetryableFailure?.(failure, waitMs) ?? decision.retry) &&
+        (this.deps.isRetryableFailure?.(failure) ?? decision.retry) &&
         (!isRateLimitOnly || response.status === HTTP_TOO_MANY_REQUESTS)
       if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {
         if (

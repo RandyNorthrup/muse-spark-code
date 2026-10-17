@@ -622,8 +622,7 @@ export function createConfiguredProviderServices(
       // default envelope (a string `code`) rejects e.g. Google's numeric
       // code and the provider's words are lost behind a bare "HTTP 400".
       parseError: (status, value) => parseFormatError(entry.format ?? preset.format, status, value),
-      isRetryableFailure: (failure, retryAfterMs) =>
-        isRefusalRetryable(failure, retryAfterMs, presets.quirksOf(preset).retry),
+      isRetryableFailure: (failure) => isRefusalRetryable(failure, presets.quirksOf(preset).retry),
     })
     const headers: Record<string, string> = {}
     if ((entry.format ?? preset.format) === 'anthropic') headers['anthropic-version'] = '2023-06-01'

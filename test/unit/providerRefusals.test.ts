@@ -8,12 +8,9 @@
 // own model-list path asked with a made-up key) and `unknown-model.json`
 // (the product's own request path asked for `no-such-model-real-life` with
 // the real key). No server, no fake, no mock: file bytes in through the real
-// extractor and classifier, facts out.
-//
-// A case whose body is not a recorded answer is a documented shape the lane
-// could not record (a 429, a 529, a filter block): each names the
-// documentation's address and the date it was read, and stays UNVERIFIED in
-// `docs/certification/proverr-round2.md` until a real answer is recorded.
+// extractor and classifier, facts out. Only recorded answers are fed in
+// (owner, 2026-10-17: no invented data); what no recorded answer covers yet
+// is listed for capture in `docs/certification/provider-refusals.md`.
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -26,8 +23,6 @@ import {
   type ProviderRefusalKind,
   type RefusalCarrier,
 } from '../../src/core/backends/modelapi/providerRefusal'
-import { parseAnthropicError } from '../../src/core/backends/modelapi/codecs/anthropic'
-import { presetById, quirksOf } from '../../src/core/providers/presets'
 
 const FIXTURES = path.resolve('test/fixtures/provider-refusals')
 
@@ -125,12 +120,14 @@ describe('recorded provider answers classify to the true kind', () => {
     expect(sentence).toContain(fragment)
     expect(sentence).toContain(parsed.message)
     // Authentication and not-found refusals are never retried.
-    expect(isRefusalRetryable(carrier(answer.status, parsed), undefined)).toBe(false)
+    expect(isRefusalRetryable(carrier(answer.status, parsed))).toBe(false)
   })
 })
 
-// The measured Anthropic out-of-credit bytes the lead's drill replays
-// (recorded in round 1): a 400 about credit is `credit`, not `invalidRequest`.
+// The Anthropic out-of-credit answer the lead measured on 2026-10-12
+// (released 0.18.1, real calls; bytes in
+// `docs/certification/provider-refusals.md`, "The measured case"): a 400
+// about credit is `credit`, not `invalidRequest`.
 const CREDIT_BODY = {
   type: 'error',
   error: {
@@ -141,13 +138,12 @@ const CREDIT_BODY = {
 }
 
 describe('recorded credit refusal', () => {
-  it('is credit, never retried, with the request id the provider sent', () => {
+  it('is credit and never retried', () => {
     const parsed = parseRefusalError(400, CREDIT_BODY)
-    const refusal = refusalOf(carrier(400, parsed, 'req-credit-1'))
+    const refusal = refusalOf(carrier(400, parsed))
     expect(refusal.kind).toBe('credit')
-    expect(refusal.requestId).toBe('req-credit-1')
     expect(refusalSentence(refusal, 'anthropic')).toContain('out of credit')
-    expect(isRefusalRetryable(carrier(400, parsed), undefined)).toBe(false)
+    expect(isRefusalRetryable(carrier(400, parsed))).toBe(false)
   })
 })
 
@@ -178,148 +174,5 @@ describe('the stored form carries no key remnant or account id', () => {
     // The request id is the provider support handle and is kept.
     expect(scrubRefusalLeak(parsed.message)).toBe(scrubbed)
     expect(scrubRefusalLeak(parsed.message)).not.toMatch(/\*{2,}/)
-  })
-})
-
-describe('documented shapes the lane could not record (UNVERIFIED)', () => {
-  it('tells an OpenAI quota 429 from a bare one (OPENAI-G20)', () => {
-    // OpenAI documents insufficient_quota as "won't restore API access" on
-    // retry (https://developers.openai.com/api/docs/guides/error-codes, read
-    // 2026-10-13). A 429 with no kind or code retries; the same 429 with the
-    // quota code does not.
-    const bare = parseRefusalError(429, {
-      error: { message: 'Rate limit reached for gpt-5.', type: 'rate_limit_error' },
-    })
-    expect(refusalOf(carrier(429, bare)).kind).toBe('rateLimited')
-    expect(isRefusalRetryable(carrier(429, bare), undefined)).toBe(true)
-    const quota = parseRefusalError(429, {
-      error: {
-        message: 'You exceeded your current quota, please check your plan and billing details.',
-        type: 'insufficient_quota',
-        code: 'insufficient_quota',
-      },
-    })
-    expect(refusalOf(carrier(429, quota)).kind).toBe('credit')
-    expect(isRefusalRetryable(carrier(429, quota), undefined)).toBe(false)
-  })
-
-  it('retries a quota-worded rate limit that carries no quota code (RVPROVERR)', () => {
-    // Gemini documents its per-minute limits as 429 RESOURCE_EXHAUSTED
-    // (https://ai.google.dev/gemini-api/docs/rate-limits, read 2026-10-14);
-    // the prose can say "quota" for a limit that resets, so the word alone
-    // must not veto the retry the 429 table allows. UNVERIFIED until a real
-    // quota-worded Gemini 429 is recorded (capture plan).
-    const parsed = parseRefusalError(429, {
-      error: {
-        code: 429,
-        message: 'Resource has been exhausted (e.g. check quota).',
-        status: 'RESOURCE_EXHAUSTED',
-      },
-    })
-    expect(refusalOf(carrier(429, parsed)).kind).toBe('rateLimited')
-    expect(isRefusalRetryable(carrier(429, parsed), undefined)).toBe(true)
-  })
-
-  it('reads the preset retry override (OPENAI-G20)', () => {
-    // OpenAI documents `server_error` as retryable past the format statuses
-    // (the `quirks.retry` override in src/core/providers/presets.ts); the
-    // transport and the stream client both decide by it.
-    const preset = presetById('openai')
-    if (preset === undefined) throw new Error('expected the openai preset')
-    const table = quirksOf(preset).retry
-    expect(
-      isRefusalRetryable(
-        { status: 500, kind: 'server_error', code: 'server_error', message: 'Server error.' },
-        undefined,
-        table,
-      ),
-    ).toBe(true)
-    expect(
-      isRefusalRetryable(
-        {
-          status: 429,
-          kind: 'insufficient_quota',
-          code: 'insufficient_quota',
-          message: 'You exceeded your current quota.',
-        },
-        undefined,
-        table,
-      ),
-    ).toBe(false)
-  })
-
-  it('reads the Anthropic spend-cap error code instead of retrying it (GAPANTH-G20)', () => {
-    // A tier spend-cap 429 carries `enforced_spend_limit_reached` in
-    // `error.details.error_code` while `type` stays `rate_limit_error`
-    // (https://platform.claude.com/docs/en/api/rate-limits#reaching-your-spend-cap,
-    // read 2026-10-13); retrying it keeps failing, so it is credit.
-    const error = parseAnthropicError(429, {
-      type: 'error',
-      error: {
-        type: 'rate_limit_error',
-        message: 'Number of tokens used in the last minute exceeds the limit.',
-        details: { error_code: 'enforced_spend_limit_reached' },
-      },
-    })
-    // The documented error code rides as the failure code, so the shared
-    // classifier — not a prose match — decides.
-    expect(error.code).toBe('enforced_spend_limit_reached')
-    const refusal = refusalOf(error)
-    expect(refusal.kind).toBe('credit')
-    expect(refusalSentence(refusal, 'anthropic')).toContain('out of credit')
-    expect(isRefusalRetryable(error, undefined)).toBe(false)
-  })
-
-  it('maps an Azure content-filter block to its own sentence (AZURE-G06)', () => {
-    // A filtered prompt answers HTTP 400 with `error.code: "content_filter"`
-    // (https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/content-filter,
-    // read 2026-10-13; the Azure route itself is another lane's branch).
-    const parsed = parseRefusalError(400, {
-      error: {
-        message:
-          'The response was filtered due to the prompt triggering Azure content management policy.',
-        code: 'content_filter',
-      },
-    })
-    const refusal = refusalOf(carrier(400, parsed))
-    expect(refusal.kind).toBe('contentFilter')
-    expect(refusalSentence(refusal, 'azure')).toContain('content filter blocked')
-    expect(isRefusalRetryable(carrier(400, parsed), undefined)).toBe(false)
-  })
-
-  it('ends an unsupported-parameter answer as invalid, never retried', () => {
-    // Measured through the product on 2026-10-12 (lane brief: xAI answers
-    // `reasoning.effort` on `grok-build-0.1` with this 400); no fixture was
-    // saved, so this stays UNVERIFIED until a real answer is recorded.
-    const parsed = parseRefusalError(400, {
-      code: 'invalid-argument',
-      error: 'Model grok-build-0.1 does not support parameter reasoningEffort.',
-    })
-    const refusal = refusalOf(carrier(400, parsed))
-    expect(refusal.kind).toBe('invalidRequest')
-    expect(isRefusalRetryable(carrier(400, parsed), undefined)).toBe(false)
-  })
-})
-
-describe('answers no parser reads', () => {
-  it('classifies an unparsable body by its status, apart from the kind', () => {
-    const parsed = parseRefusalError(502, '<html><body>Bad Gateway</body></html>')
-    // "The body could not be read" travels beside the kind, never as one.
-    expect(parsed.parsed).toBe(false)
-    expect(parsed.kind).toBeUndefined()
-    expect(refusalOf(carrier(502, parsed)).kind).toBe('serverError')
-  })
-
-  it('keeps a stream error its own kind at the answer status', () => {
-    const refusal = refusalOf({
-      status: 200,
-      kind: 'streamError',
-      code: 'content_filter',
-      message: 'The generation was filtered.',
-    })
-    // A streamed filter block consumed output, so it never reads as the
-    // uncharged 400 content-filter sentence; liability stays uncertain.
-    expect(refusal.kind).toBe('streamError')
-    expect(refusalSentence(refusal, 'azure')).toContain('stopped answering')
   })
 })

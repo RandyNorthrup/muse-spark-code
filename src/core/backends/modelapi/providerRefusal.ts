@@ -294,7 +294,6 @@ export function isNeverRetryRefusal(status: number, kind: ProviderRefusalKind): 
  */
 export function isRefusalRetryable(
   failure: RefusalCarrier,
-  retryAfterMs: number | undefined,
   table: RetryTables = RETRY_TABLES.responses,
 ): boolean {
   const kind = classifyRefusalKind({
@@ -316,7 +315,6 @@ export function isRefusalRetryable(
     kind: failure.kind,
     code: failure.code,
     message: '',
-    retryAfterMs,
   }).retry
 }
 

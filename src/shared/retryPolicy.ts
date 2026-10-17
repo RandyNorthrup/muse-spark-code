@@ -1,12 +1,14 @@
 // Retry classification per wire format (M101 BYO 5, Pi's
-// `provider-retry`). Which failures are worth one more try, which never
-// are (quota), and the `Retry-After` past which a request fails at once,
-// naming the wait. Pure, and shared (not under `src/core/providers/`) so
+// `provider-retry`). Which failures are worth one more try and which never
+// are (quota). A provider's `Retry-After` is honoured as given: no wait of
+// ours refuses it (lane PROVERRORS, research AB13/OD3/ZB5/GD4: every
+// provider documents its wait as the minimum to honour, none a maximum).
+// Pure, and shared (not under `src/core/providers/`) so
 // the activation and Model API bundles' Meta client reads the same table
 // the providers bundle carries in `FormatQuirks`. `FormatQuirks` references
 // these tables; it adds nothing of its own.
 
-import { PROVIDER_RETRY_AFTER_CAP_MS, PROVIDER_RETRY_HTTP_STATUS } from './constants'
+import { PROVIDER_RETRY_HTTP_STATUS } from './constants'
 
 /** The wire formats with a retry table; mirrors `ProviderFormat`. */
 export type RetryFormat = 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama'
@@ -19,15 +21,10 @@ export interface RetryTables {
   readonly errorKinds: readonly string[]
   /** Envelope error type/code values never retried, whatever the status (quota). */
   readonly quotaKinds: readonly string[]
-  /** A `Retry-After` past this fails at once, naming the wait. */
-  readonly retryAfterCapMs: number
 }
 
 /** 402 means the account cannot pay: never retried on any format. */
 const HTTP_PAYMENT_REQUIRED = PROVIDER_RETRY_HTTP_STATUS.paymentRequired
-
-/** The research's cap: a `Retry-After` over 60 s fails at once. */
-const RETRY_AFTER_CAP_MS = PROVIDER_RETRY_AFTER_CAP_MS
 
 /**
  * Normalized quota/spend-cap codes emitted by the existing provider parsers.
@@ -64,7 +61,6 @@ export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
     ],
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
-    retryAfterCapMs: RETRY_AFTER_CAP_MS,
   },
   chat: {
     statuses: [
@@ -78,7 +74,6 @@ export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
     ],
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
-    retryAfterCapMs: RETRY_AFTER_CAP_MS,
   },
   anthropic: {
     statuses: [
@@ -93,7 +88,6 @@ export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
     ],
     errorKinds: ['overloaded_error'],
     quotaKinds: QUOTA_ERROR_KINDS,
-    retryAfterCapMs: RETRY_AFTER_CAP_MS,
   },
   gemini: {
     statuses: [
@@ -105,7 +99,6 @@ export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
     ],
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
-    retryAfterCapMs: RETRY_AFTER_CAP_MS,
   },
   ollama: {
     statuses: [
@@ -117,7 +110,6 @@ export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
     ],
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
-    retryAfterCapMs: RETRY_AFTER_CAP_MS,
   },
 }
 
@@ -130,12 +122,10 @@ export interface RetryFailure {
   readonly code: string | undefined
   /** The envelope's message, for quota texts no kind or code names. */
   readonly message: string
-  /** The parsed `Retry-After`, when the answer carried one. */
-  readonly retryAfterMs: number | undefined
 }
 
-/** Why a failure is not retried: spent quota, too long a wait, or neither table hit. */
-export type RetryRefusalReason = 'quota' | 'retry-after-cap' | 'not-retryable'
+/** Why a failure is not retried: spent quota, or neither table hit. */
+export type RetryRefusalReason = 'quota' | 'not-retryable'
 
 /** Whether the failure is worth one more try, and why not when it is not. */
 export type RetryDecision =
@@ -150,9 +140,8 @@ function isMatchingKind(kinds: readonly string[], value: string | undefined): bo
 
 /**
  * Whether to try again after `failure` under `tables`. Quota (402, a quota
- * kind or code, quota wording) never retries; a `Retry-After` past the cap
- * fails at once; otherwise a listed status, or a listed error kind where
- * the status is not listed, retries.
+ * kind or code, quota wording) never retries; otherwise a listed status, or
+ * a listed error kind where the status is not listed, retries.
  */
 export function classifyRetry(tables: RetryTables, failure: RetryFailure): RetryDecision {
   if (failure.status === HTTP_PAYMENT_REQUIRED) {
@@ -166,9 +155,6 @@ export function classifyRetry(tables: RetryTables, failure: RetryFailure): Retry
   }
   if (QUOTA_MESSAGE.test(failure.message)) {
     return { retry: false, reason: 'quota' }
-  }
-  if (failure.retryAfterMs !== undefined && failure.retryAfterMs > tables.retryAfterCapMs) {
-    return { retry: false, reason: 'retry-after-cap' }
   }
   if (tables.statuses.includes(failure.status)) {
     return { retry: true }

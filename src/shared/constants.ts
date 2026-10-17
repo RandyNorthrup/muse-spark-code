@@ -2348,7 +2348,6 @@ export const HTTP_UNAUTHORIZED = 401
 // Refused before any work was done: the one status a per-call-billed request retries (M34).
 export const HTTP_TOO_MANY_REQUESTS = 429
 // Shared per-format retry policy (M101 BYO 5).
-export const PROVIDER_RETRY_AFTER_CAP_MS = 60_000
 export const PROVIDER_RETRY_HTTP_STATUS = {
   paymentRequired: 402,
   requestTimeout: 408,
