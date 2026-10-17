@@ -107,6 +107,7 @@ import {
   type UsageRecording,
 } from './core/usage/recording'
 import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
+import type { UsageNotesBundle } from './core/backends/musecode/usageDeltas'
 import { agentDataFolder } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
 import { isJudgeEngineOn } from './core/judge/engine'
@@ -672,6 +673,17 @@ function isUsageInsightsBundle(value: unknown): value is {
   )
 }
 
+function isUsageNotesBundle(value: unknown): value is UsageNotesBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'MuseUsageDeltas' in value &&
+    typeof value.MuseUsageDeltas === 'function' &&
+    'museCodeLimitInput' in value &&
+    typeof value.museCodeLimitInput === 'function'
+  )
+}
+
 /** A signal that ends a process, as the recorder's vocabulary names it. */
 const EXIT_SIGNAL = /\bSIG[A-Z]{2,6}\b/
 
@@ -766,6 +778,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   MuseCodeHost.usageRecording = usageRecording
   ModelApiBackendManager.usageRecording = usageRecording
+  // The live journal writers ride with the usage service bundle (PLAN.md D6):
+  // sessions construct them on first use instead of carrying them at startup.
+  MuseCodeHost.usageNotesLoader = () => {
+    const bundle: unknown = requireFile(path.join(context.extensionPath, 'dist', 'usageService.js'))
+    if (!isUsageNotesBundle(bundle)) throw new Error(UI_TEXT.actionFailed)
+    return bundle
+  }
   context.subscriptions.push({
     dispose: () => {
       void usageRecording.flush()
