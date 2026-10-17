@@ -1,0 +1,997 @@
+{
+  "capture": "m125-f1a-linux-kubuntu-2026-10-10",
+  "capturedAt": "2026-10-10T18:32:56.817989+00:00",
+  "platform": {
+    "os": "Linux",
+    "release": "7.0.0-31-generic",
+    "architecture": "x86_64",
+    "uid": 1000,
+    "landlockProbe": {
+      "abi": 8,
+      "confined": true
+    }
+  },
+  "workspace": "<lane-private-TMPDIR>/synthetic-workspace",
+  "modelAttempts": 0,
+  "method": "Test-only exec interception after the real production Landlock and seccomp restriction records its exact installed system grant closure and exec environment. Real program execution and guard probes are certified by inspectNative.test.ts. The interception fixture is not in the product.",
+  "sourceSha256": {
+    "native/confine/MuseSparkConfine.c": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+    "src/core/judge/fast/inspectExec.ts": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+    "src/core/judge/fast/inspectGrammar.ts": "69f41dbf373cfe7da8e20fee8eb4fa2809d51ed516518c741f1dd251fcd32b6d",
+    "src/shared/constants.ts": "ce86e66142bbd034f212258d039b48dbb87b745e2a6a1f140b4b4f6aeceb5fe0",
+    "scripts/build-confine.mjs": "ae227b57d5956c51b31c6640ba15c16d1d3f1cedbafc5f1217a0973a0f486132"
+  },
+  "internalArtifacts": {
+    "temp/confine/muse-confine": {
+      "sha256": "05f6cc7a95cbf5129812a40997cc7cab344a2bfdd48c01703589277075ecc3ce",
+      "bytes": 35600
+    },
+    "temp/confine/inspectExec.js": {
+      "sha256": "b37e7e8be492deb48f8256ff145a20755d3a5628677c942a9b02f5559cf5b069",
+      "bytes": 334508
+    },
+    "temp/confine/policy.h": {
+      "sha256": "7c3c5942098f10b86c4eacd948bc1a7a8f2513ae8b364cc0948aab1951882315",
+      "bytes": 1264
+    }
+  },
+  "programs": [
+    {
+      "executable": "/usr/lib/cargo/bin/coreutils/ls",
+      "argv0": "ls",
+      "systemReadExecuteGrants": [
+        "/usr/lib/cargo/bin/coreutils/ls",
+        "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "/usr/lib/x86_64-linux-gnu/libselinux.so.1",
+        "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.14.0",
+        "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+        "/usr/lib/x86_64-linux-gnu/libm.so.6"
+      ],
+      "systemReadOnlyGrants": ["/etc/ld.so.cache"],
+      "environment": ["PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC0", "HOME=<empty-private-home>"],
+      "metadata": {
+        "confined": true,
+        "abi": 8,
+        "excluded": 3
+      }
+    },
+    {
+      "executable": "/usr/lib/cargo/bin/coreutils/cat",
+      "argv0": "cat",
+      "systemReadExecuteGrants": [
+        "/usr/lib/cargo/bin/coreutils/cat",
+        "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "/usr/lib/x86_64-linux-gnu/libselinux.so.1",
+        "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.14.0",
+        "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+        "/usr/lib/x86_64-linux-gnu/libm.so.6"
+      ],
+      "systemReadOnlyGrants": ["/etc/ld.so.cache"],
+      "environment": ["PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC0", "HOME=<empty-private-home>"],
+      "metadata": {
+        "confined": true,
+        "abi": 8,
+        "excluded": 3
+      }
+    },
+    {
+      "executable": "/usr/lib/cargo/bin/coreutils/head",
+      "argv0": "head",
+      "systemReadExecuteGrants": [
+        "/usr/lib/cargo/bin/coreutils/head",
+        "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "/usr/lib/x86_64-linux-gnu/libselinux.so.1",
+        "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.14.0",
+        "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+        "/usr/lib/x86_64-linux-gnu/libm.so.6"
+      ],
+      "systemReadOnlyGrants": ["/etc/ld.so.cache"],
+      "environment": ["PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC0", "HOME=<empty-private-home>"],
+      "metadata": {
+        "confined": true,
+        "abi": 8,
+        "excluded": 3
+      }
+    },
+    {
+      "executable": "/usr/lib/cargo/bin/coreutils/tail",
+      "argv0": "tail",
+      "systemReadExecuteGrants": [
+        "/usr/lib/cargo/bin/coreutils/tail",
+        "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "/usr/lib/x86_64-linux-gnu/libselinux.so.1",
+        "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.14.0",
+        "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+        "/usr/lib/x86_64-linux-gnu/libm.so.6"
+      ],
+      "systemReadOnlyGrants": ["/etc/ld.so.cache"],
+      "environment": ["PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC0", "HOME=<empty-private-home>"],
+      "metadata": {
+        "confined": true,
+        "abi": 8,
+        "excluded": 3
+      }
+    },
+    {
+      "executable": "/usr/lib/cargo/bin/coreutils/wc",
+      "argv0": "wc",
+      "systemReadExecuteGrants": [
+        "/usr/lib/cargo/bin/coreutils/wc",
+        "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "/usr/lib/x86_64-linux-gnu/libselinux.so.1",
+        "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.14.0",
+        "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+        "/usr/lib/x86_64-linux-gnu/libm.so.6"
+      ],
+      "systemReadOnlyGrants": ["/etc/ld.so.cache"],
+      "environment": ["PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC0", "HOME=<empty-private-home>"],
+      "metadata": {
+        "confined": true,
+        "abi": 8,
+        "excluded": 3
+      }
+    },
+    {
+      "executable": "/usr/lib/cargo/bin/coreutils/stat",
+      "argv0": "stat",
+      "systemReadExecuteGrants": [
+        "/usr/lib/cargo/bin/coreutils/stat",
+        "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "/usr/lib/x86_64-linux-gnu/libselinux.so.1",
+        "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.14.0",
+        "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+        "/usr/lib/x86_64-linux-gnu/libm.so.6"
+      ],
+      "systemReadOnlyGrants": ["/etc/ld.so.cache"],
+      "environment": ["PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC0", "HOME=<empty-private-home>"],
+      "metadata": {
+        "confined": true,
+        "abi": 8,
+        "excluded": 3
+      }
+    },
+    {
+      "executable": "/usr/lib/cargo/bin/coreutils/du",
+      "argv0": "du",
+      "systemReadExecuteGrants": [
+        "/usr/lib/cargo/bin/coreutils/du",
+        "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "/usr/lib/x86_64-linux-gnu/libselinux.so.1",
+        "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.14.0",
+        "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+        "/usr/lib/x86_64-linux-gnu/libm.so.6"
+      ],
+      "systemReadOnlyGrants": ["/etc/ld.so.cache"],
+      "environment": ["PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC0", "HOME=<empty-private-home>"],
+      "metadata": {
+        "confined": true,
+        "abi": 8,
+        "excluded": 3
+      }
+    },
+    {
+      "executable": "/usr/bin/grep",
+      "argv0": "grep",
+      "systemReadExecuteGrants": [
+        "/usr/bin/grep",
+        "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.14.0",
+        "/usr/lib/x86_64-linux-gnu/libc.so.6"
+      ],
+      "systemReadOnlyGrants": ["/etc/ld.so.cache"],
+      "environment": ["PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC0", "HOME=<empty-private-home>"],
+      "metadata": {
+        "confined": true,
+        "abi": 8,
+        "excluded": 3
+      }
+    },
+    {
+      "executable": "/usr/bin/find",
+      "argv0": "find",
+      "systemReadExecuteGrants": [
+        "/usr/bin/find",
+        "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+        "/usr/lib/x86_64-linux-gnu/libselinux.so.1",
+        "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.14.0",
+        "/usr/lib/x86_64-linux-gnu/libc.so.6",
+        "/usr/lib/x86_64-linux-gnu/libm.so.6"
+      ],
+      "systemReadOnlyGrants": ["/etc/ld.so.cache"],
+      "environment": ["PATH=/usr/bin:/bin", "LC_ALL=C", "TZ=UTC0", "HOME=<empty-private-home>"],
+      "metadata": {
+        "confined": true,
+        "abi": 8,
+        "excluded": 3
+      }
+    }
+  ],
+  "systemFiles": {
+    "/usr/lib/cargo/bin/coreutils/ls": {
+      "sha256": "48893b0fb21436b54619db80486e83ef39dfccaf1aefe83dfa00c02d6146e8c0",
+      "bytes": 11352352,
+      "uid": 0,
+      "mode": "0o755"
+    },
+    "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2": {
+      "sha256": "bda779ea9e9ad234f60315477d7cfd0bdde861cd8ddd9df8cdaf62f18c4cec14",
+      "bytes": 254864,
+      "uid": 0,
+      "mode": "0o755"
+    },
+    "/usr/lib/x86_64-linux-gnu/libselinux.so.1": {
+      "sha256": "7538ee77765a27966563c0d22437a3080dcdb346ff76cc16d71a3ce3379a716a",
+      "bytes": 199120,
+      "uid": 0,
+      "mode": "0o644"
+    },
+    "/usr/lib/x86_64-linux-gnu/libpcre2-8.so.0.14.0": {
+      "sha256": "4a6b6b2078685b074869d75cb068664d7da6b3036df7bca0442b1bbbd4ac7e65",
+      "bytes": 699056,
+      "uid": 0,
+      "mode": "0o644"
+    },
+    "/usr/lib/x86_64-linux-gnu/libc.so.6": {
+      "sha256": "85e64f97e348786a8fb4d9f3d52fec289e2fb86bba20f0731dfe61990525e0f7",
+      "bytes": 2190608,
+      "uid": 0,
+      "mode": "0o755"
+    },
+    "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1": {
+      "sha256": "9d339ecb409578d6a5d587e6c537a8f9589b8a13fefba30d167433a4b5758bee",
+      "bytes": 187120,
+      "uid": 0,
+      "mode": "0o644"
+    },
+    "/usr/lib/x86_64-linux-gnu/libm.so.6": {
+      "sha256": "1c488db6f4fe8cecb72456bc018de000b7a9b539c2994864b0416b5e8371b3d8",
+      "bytes": 1198376,
+      "uid": 0,
+      "mode": "0o644"
+    },
+    "/etc/ld.so.cache": {
+      "sha256": "25c16bd4b58c3f3f735c478763a2f800db5cb1fc560a8678aee17dff85ff23e9",
+      "bytes": 120535,
+      "uid": 0,
+      "mode": "0o644"
+    },
+    "/usr/lib/cargo/bin/coreutils/cat": {
+      "sha256": "48893b0fb21436b54619db80486e83ef39dfccaf1aefe83dfa00c02d6146e8c0",
+      "bytes": 11352352,
+      "uid": 0,
+      "mode": "0o755"
+    },
+    "/usr/lib/cargo/bin/coreutils/head": {
+      "sha256": "48893b0fb21436b54619db80486e83ef39dfccaf1aefe83dfa00c02d6146e8c0",
+      "bytes": 11352352,
+      "uid": 0,
+      "mode": "0o755"
+    },
+    "/usr/lib/cargo/bin/coreutils/tail": {
+      "sha256": "48893b0fb21436b54619db80486e83ef39dfccaf1aefe83dfa00c02d6146e8c0",
+      "bytes": 11352352,
+      "uid": 0,
+      "mode": "0o755"
+    },
+    "/usr/lib/cargo/bin/coreutils/wc": {
+      "sha256": "48893b0fb21436b54619db80486e83ef39dfccaf1aefe83dfa00c02d6146e8c0",
+      "bytes": 11352352,
+      "uid": 0,
+      "mode": "0o755"
+    },
+    "/usr/lib/cargo/bin/coreutils/stat": {
+      "sha256": "48893b0fb21436b54619db80486e83ef39dfccaf1aefe83dfa00c02d6146e8c0",
+      "bytes": 11352352,
+      "uid": 0,
+      "mode": "0o755"
+    },
+    "/usr/lib/cargo/bin/coreutils/du": {
+      "sha256": "48893b0fb21436b54619db80486e83ef39dfccaf1aefe83dfa00c02d6146e8c0",
+      "bytes": 11352352,
+      "uid": 0,
+      "mode": "0o755"
+    },
+    "/usr/bin/grep": {
+      "sha256": "4874cbc734792ae29aa38cd7978aedf1e646563af9e8ee0d5dab59ecb6406417",
+      "bytes": 191056,
+      "uid": 0,
+      "mode": "0o755"
+    },
+    "/usr/bin/find": {
+      "sha256": "efe4843f166525b02f328f0c456a884d6a597f32d2c78cd615b6be0b64279bcf",
+      "bytes": 216632,
+      "uid": 0,
+      "mode": "0o755"
+    }
+  },
+  "drills": [
+    {
+      "name": "lexical-floor",
+      "source": "src/core/judge/fast/inspectGrammar.ts",
+      "restoredSha256": "69f41dbf373cfe7da8e20fee8eb4fa2809d51ed516518c741f1dd251fcd32b6d",
+      "failedTests": [
+        "B1 positive command grammar refuses cat src/a.ts > out",
+        "B1 positive command grammar refuses cat src/a.ts | wc",
+        "B1 positive command grammar refuses cat $(pwd)",
+        "B1 positive command grammar refuses cat `pwd`",
+        "B1 positive command grammar refuses cat $HOME",
+        "B1 positive command grammar refuses cat ~/x",
+        "B1 positive command grammar refuses cat \"src/a.ts\"",
+        "B1 positive command grammar refuses cat src\\a.ts",
+        "B1 positive command grammar refuses cat 'password=synthetic-sensitive-canary'",
+        "B1 positive command grammar refuses cat a\nls"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "positive-admission",
+      "source": "src/core/judge/fast/inspectGrammar.ts",
+      "restoredSha256": "69f41dbf373cfe7da8e20fee8eb4fa2809d51ed516518c741f1dd251fcd32b6d",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary shares one self-test across requests and sends a fixed environment to the governed launcher",
+        "internal inspect runner failure and lifecycle boundary snapshots the trusted workspace binding before waiting for readiness",
+        "internal inspect runner failure and lifecycle boundary refuses badProbe without leaking its output",
+        "internal inspect runner failure and lifecycle boundary refuses nativeProbeFailure without leaking its output",
+        "internal inspect runner failure and lifecycle boundary refuses malformed without leaking its output",
+        "internal inspect runner failure and lifecycle boundary refuses failure without leaking its output",
+        "internal inspect runner failure and lifecycle boundary refuses limit without leaking its output",
+        "internal inspect runner failure and lifecycle boundary refuses secret without leaking its output",
+        "internal inspect runner failure and lifecycle boundary refuses stderrSecret without leaking its output",
+        "internal inspect runner failure and lifecycle boundary does not start a helper for grammar misses, root or pre-cancelled requests",
+        "internal inspect runner failure and lifecycle boundary disposal cancels a pending self-test, observes close and cleans its tree",
+        "internal inspect runner failure and lifecycle boundary cancels an active run and times out at the normal tool deadline",
+        "internal inspect runner failure and lifecycle boundary latches off when the governed launcher rejects, without publishing raw errors",
+        "B1 positive command grammar admits ls -laRh .",
+        "B1 positive command grammar admits cat -n 'src/a file.ts'",
+        "B1 positive command grammar admits head -n 20 src/a.ts",
+        "B1 positive command grammar admits tail -c 100 src/a.ts",
+        "B1 positive command grammar admits wc -lwcm src/a.ts",
+        "B1 positive command grammar admits stat src/a.ts",
+        "B1 positive command grammar admits du -sh --max-depth=2 .",
+        "B1 positive command grammar admits grep -rni -e 'url.*' '--include=*.ts' .",
+        "B1 positive command grammar admits find src -name '*.ts' -type f -a -size +1 -print",
+        "B1 positive command grammar admits ls",
+        "B1 positive command grammar admits grep -r 'url'",
+        "B1 positive command grammar separates GNU/BSD depth options and refuses Windows",
+        "B1 Linux kernel boundary B1 root binding refuses a workspace retargeted after the session binds it",
+        "B1 Linux kernel boundary runs session self-tests once, preserves command failures and withholds secrets before delivery"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "operand-privacy",
+      "source": "src/core/judge/fast/inspectGrammar.ts",
+      "restoredSha256": "69f41dbf373cfe7da8e20fee8eb4fa2809d51ed516518c741f1dd251fcd32b6d",
+      "failedTests": [
+        "B1 positive command grammar refuses cat .git/config",
+        "B1 positive command grammar refuses cat pkg/.git/config",
+        "B1 positive command grammar refuses cat .claude/settings.json",
+        "B1 positive command grammar refuses cat config/.env.production",
+        "B1 positive command grammar refuses cat certs/dev.pem",
+        "B1 positive command grammar refuses cat AGENTS.md",
+        "B1 positive command grammar refuses cat id_rsa",
+        "B1 positive command grammar refuses cat .env"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "native-root-gate",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": ["B1 Linux kernel boundary refuses root before creating any self-test files"],
+      "exitCode": 1
+    },
+    {
+      "name": "program-allowlist",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary fails closed on traversal budgets, identity mismatch and user-writable executables or ancestry"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "no-follow-walk",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary B1-3/4/5/6/7 excludes protected/private descendants, links, devices, hard links and foreign device ids",
+        "B1 Linux kernel boundary B1-1/2 refuses ancestor and leaf swaps both before the open and after grants"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "hardlink-guard",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary B1-3/4/5/6/7 excludes protected/private descendants, links, devices, hard links and foreign device ids",
+        "B1 Linux kernel boundary B1 root binding refuses a workspace retargeted after the session binds it",
+        "B1 Linux kernel boundary runs session self-tests once, preserves command failures and withholds secrets before delivery"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "per-file-grants",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary B1-3/4/5/6/7 excludes protected/private descendants, links, devices, hard links and foreign device ids",
+        "B1 Linux kernel boundary B1-12 refuses inserted, renamed and replacement inodes after a recursive walk",
+        "B1 Linux kernel boundary B1 root binding refuses a workspace retargeted after the session binds it",
+        "B1 Linux kernel boundary runs session self-tests once, preserves command failures and withholds secrets before delivery"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "system-ancestry",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary fails closed on traversal budgets, identity mismatch and user-writable executables or ancestry"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "exact-library-grants",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary B1-14 denies passwd and unused libraries but documents exact libc/cache exceptions"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "walk-budgets",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary fails closed on traversal budgets, identity mismatch and user-writable executables or ancestry"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "walk-depth",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary fails closed on traversal budgets, identity mismatch and user-writable executables or ancestry"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "unsupported-abi",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary fails closed on traversal budgets, identity mismatch and user-writable executables or ancestry"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "syscall-filter",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary captures ABI, post-walk inode confinement, process/network/write refusal",
+        "B1 Linux kernel boundary B1-10 closes inherited descriptors and refuses writes, network, keys, ptrace, io_uring and process creation",
+        "B1 Linux kernel boundary B1 root binding refuses a workspace retargeted after the session binds it",
+        "B1 Linux kernel boundary runs session self-tests once, preserves command failures and withholds secrets before delivery"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "descriptor-closure",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary B1-10 closes inherited descriptors and refuses writes, network, keys, ptrace, io_uring and process creation"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "verified-exec",
+      "source": "native/confine/MuseSparkConfine.c",
+      "restoredSha256": "26ef48d3ccf4528f520fb9a046d92a50ecf3c993145b84fc3946ccd181a3bca9",
+      "failedTests": [
+        "B1 Linux kernel boundary runs verified cat or refuses its unsupported thread requirement",
+        "B1 Linux kernel boundary runs verified ls or refuses its unsupported thread requirement",
+        "B1 Linux kernel boundary runs verified head or refuses its unsupported thread requirement",
+        "B1 Linux kernel boundary runs verified tail or refuses its unsupported thread requirement",
+        "B1 Linux kernel boundary runs verified wc or refuses its unsupported thread requirement",
+        "B1 Linux kernel boundary runs verified stat or refuses its unsupported thread requirement",
+        "B1 Linux kernel boundary runs verified du or refuses its unsupported thread requirement",
+        "B1 Linux kernel boundary runs verified grep or refuses its unsupported thread requirement",
+        "B1 Linux kernel boundary runs verified find or refuses its unsupported thread requirement",
+        "B1 Linux kernel boundary B1-3/4/5/6/7 excludes protected/private descendants, links, devices, hard links and foreign device ids",
+        "B1 Linux kernel boundary B1-13 exposes Linux names/metadata without protected contents",
+        "B1 Linux kernel boundary B1-14 denies passwd and unused libraries but documents exact libc/cache exceptions",
+        "B1 Linux kernel boundary B1-10 closes inherited descriptors and refuses writes, network, keys, ptrace, io_uring and process creation",
+        "B1 Linux kernel boundary B1 root binding refuses a workspace retargeted after the session binds it",
+        "B1 Linux kernel boundary runs session self-tests once, preserves command failures and withholds secrets before delivery"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "trusted-workspace-identity",
+      "source": "src/core/judge/fast/inspectExec.ts",
+      "restoredSha256": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+      "failedTests": [
+        "B1 Linux kernel boundary B1 root binding refuses a workspace retargeted after the session binds it"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "workspace-binding-snapshot",
+      "source": "src/core/judge/fast/inspectExec.ts",
+      "restoredSha256": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary snapshots the trusted workspace binding before waiting for readiness"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "strict-output-boundary",
+      "source": "src/core/judge/fast/inspectExec.ts",
+      "restoredSha256": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary refuses malformed without leaking its output"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "secret-withholding",
+      "source": "src/core/judge/fast/inspectExec.ts",
+      "restoredSha256": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary refuses secret without leaking its output",
+        "internal inspect runner failure and lifecycle boundary refuses stderrSecret without leaking its output",
+        "B1 Linux kernel boundary runs session self-tests once, preserves command failures and withholds secrets before delivery"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "output-cap",
+      "source": "src/core/judge/fast/inspectExec.ts",
+      "restoredSha256": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary refuses limit without leaking its output"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "single-readiness",
+      "source": "src/core/judge/fast/inspectExec.ts",
+      "restoredSha256": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary shares one self-test across requests and sends a fixed environment to the governed launcher",
+        "internal inspect runner failure and lifecycle boundary refuses badProbe without leaking its output"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "abort-error-classification",
+      "source": "src/core/judge/fast/inspectExec.ts",
+      "restoredSha256": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary cancels an active run and times out at the normal tool deadline"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "neutral-launch-environment",
+      "source": "src/core/judge/fast/inspectExec.ts",
+      "restoredSha256": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary shares one self-test across requests and sends a fixed environment to the governed launcher"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "native-off-reason",
+      "source": "src/core/judge/fast/inspectExec.ts",
+      "restoredSha256": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary refuses nativeProbeFailure without leaking its output"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "admission-timeout-classification",
+      "source": "src/core/judge/fast/inspectExec.ts",
+      "restoredSha256": "219eb962f69f6dac5d319dc1a5ef04f5ac352a0dcaa9d54453c890f9108bbe74",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary preserves the deadline reason while awaiting governed admission"
+      ],
+      "exitCode": 1
+    },
+    {
+      "name": "negative-admission",
+      "source": "src/core/judge/fast/inspectGrammar.ts",
+      "restoredSha256": "69f41dbf373cfe7da8e20fee8eb4fa2809d51ed516518c741f1dd251fcd32b6d",
+      "failedTests": [
+        "internal inspect runner failure and lifecycle boundary does not start a helper for grammar misses, root or pre-cancelled requests",
+        "B1 positive command grammar admits ls -laRh .",
+        "B1 positive command grammar admits head -n 20 src/a.ts",
+        "B1 positive command grammar admits tail -c 100 src/a.ts",
+        "B1 positive command grammar admits wc -lwcm src/a.ts",
+        "B1 positive command grammar admits stat src/a.ts",
+        "B1 positive command grammar admits du -sh --max-depth=2 .",
+        "B1 positive command grammar admits grep -rni -e 'url.*' '--include=*.ts' .",
+        "B1 positive command grammar admits find src -name '*.ts' -type f -a -size +1 -print",
+        "B1 positive command grammar admits ls",
+        "B1 positive command grammar admits grep -r 'url'",
+        "B1 positive command grammar refuses cat src/a.ts > out",
+        "B1 positive command grammar refuses cat src/a.ts | wc",
+        "B1 positive command grammar refuses cat $(pwd)",
+        "B1 positive command grammar refuses cat `pwd`",
+        "B1 positive command grammar refuses cat $HOME",
+        "B1 positive command grammar refuses cat ~/x",
+        "B1 positive command grammar refuses cat src/*.ts",
+        "B1 positive command grammar refuses cat \"src/a.ts\"",
+        "B1 positive command grammar refuses cat ../outside",
+        "B1 positive command grammar refuses cat /etc/passwd",
+        "B1 positive command grammar refuses cat C:\\outside",
+        "B1 positive command grammar refuses cat src\\a.ts",
+        "B1 positive command grammar refuses cat .git/config",
+        "B1 positive command grammar refuses cat pkg/.git/config",
+        "B1 positive command grammar refuses cat .claude/settings.json",
+        "B1 positive command grammar refuses cat config/.env.production",
+        "B1 positive command grammar refuses cat certs/dev.pem",
+        "B1 positive command grammar refuses cat AGENTS.md",
+        "B1 positive command grammar refuses cat id_rsa",
+        "B1 positive command grammar refuses cat .env",
+        "B1 positive command grammar refuses cat 'password=synthetic-sensitive-canary'",
+        "B1 positive command grammar refuses find . -delete",
+        "B1 positive command grammar refuses find . -exec cat {} +",
+        "B1 positive command grammar refuses find . -fprint out",
+        "B1 positive command grammar refuses find -L .",
+        "B1 positive command grammar refuses find . -follow",
+        "B1 positive command grammar refuses find . -ok cat {} ;",
+        "B1 positive command grammar refuses tail -f x",
+        "B1 positive command grammar refuses tail --follow x",
+        "B1 positive command grammar refuses grep -R x .",
+        "B1 positive command grammar refuses grep -f x .",
+        "B1 positive command grammar refuses grep -D read x .",
+        "B1 positive command grammar refuses grep --unknown x .",
+        "B1 positive command grammar refuses stat --format x .",
+        "B1 positive command grammar refuses ls --force .",
+        "B1 positive command grammar refuses git status",
+        "B1 positive command grammar refuses rg x .",
+        "B1 positive command grammar refuses /usr/local/bin/cat x",
+        "B1 positive command grammar refuses ./bin/cat x",
+        "B1 positive command grammar refuses sudo cat x",
+        "B1 positive command grammar refuses cat 'x'word",
+        "B1 positive command grammar refuses cat 'unterminated",
+        "B1 positive command grammar refuses cat a\nls",
+        "B1 positive command grammar refuses head -n -1 x",
+        "B1 positive command grammar refuses cat",
+        "B1 positive command grammar refuses wc",
+        "B1 positive command grammar refuses grep x",
+        "B1 positive command grammar refuses du -d 2 .",
+        "B1 positive command grammar separates GNU/BSD depth options and refuses Windows",
+        "B1 Linux kernel boundary B1 root binding refuses a workspace retargeted after the session binds it",
+        "B1 Linux kernel boundary runs session self-tests once, preserves command failures and withholds secrets before delivery"
+      ],
+      "exitCode": 1
+    }
+  ],
+  "baseRevision": "550ae3add59cf962f918f8516406eec75d07d29a",
+  "compilerVersion": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+  "gateFireCoverage": {
+    "namedTests": 94,
+    "observedFailing": 94,
+    "missing": [],
+    "byteExactRestorations": true
+  },
+  "verification": [
+    {
+      "check": "owned-tests",
+      "exitCode": 0,
+      "seconds": 25.69
+    },
+    {
+      "check": "unit-typecheck",
+      "exitCode": 0,
+      "seconds": 155.78
+    },
+    {
+      "check": "deadcode",
+      "exitCode": 0,
+      "seconds": 16.34
+    },
+    {
+      "check": "duplication",
+      "exitCode": 0,
+      "seconds": 5.19
+    },
+    {
+      "check": "internal-build",
+      "exitCode": 0,
+      "seconds": 1.53
+    },
+    {
+      "check": "linux-capture",
+      "exitCode": 0,
+      "seconds": 1.17
+    },
+    {
+      "check": "product-build",
+      "exitCode": 0,
+      "seconds": 24.72
+    }
+  ],
+  "productionKiBBudgets": {
+    "extension": {
+      "measured": 550.2,
+      "cap": 600
+    },
+    "modelApi": {
+      "measured": 515.8,
+      "cap": 525
+    },
+    "checkpointStore": {
+      "measured": 87.3,
+      "cap": 225
+    }
+  },
+  "reviewRepair": {
+    "review": "RVCM125F1A",
+    "baseRevision": "1c4de1a47",
+    "findingsFixed": ["P1", "P2"],
+    "newRegressionTests": 7,
+    "ownedTestFiles": 3,
+    "ownedTestsPassed": 101,
+    "repositoryTimeouts": true,
+    "sourceSha256": {
+      "native/confine/MuseSparkConfine.c": "f24d61884e67a1af9b27a60994400d95a40b7584ac41fd585944474aae529779",
+      "src/core/judge/fast/inspectExec.ts": "b6990c114034f3bdb9ea43fd121b67bfa452c0aa396d6fbdfe5d088c099f92d5",
+      "src/core/judge/fast/inspectGrammar.ts": "3d3386e1c1b469b79a3e2463ef4608bd8bbbf5788d4834c5148a1112454f78f2",
+      "src/shared/constants.ts": "ce86e66142bbd034f212258d039b48dbb87b745e2a6a1f140b4b4f6aeceb5fe0",
+      "scripts/build-confine.mjs": "ae227b57d5956c51b31c6640ba15c16d1d3f1cedbafc5f1217a0973a0f486132",
+      "test/unit/helpers/inspectPaths.c": "8f06f8e9532870f098b1d424fe9add7e55a1b680ac2b26023dd16aaf8f979e26",
+      "test/unit/helpers/inspectPaths.ts": "81391f17f77ebab4c5e0f3c6dfe925be3e607d385cd26278057a4651223c4573",
+      "test/unit/helpers/inspectStart.ts": "58b709ee79d3a55c87c50be796a4759736bfd1939caa45cf22a0348bbf3662a9",
+      "test/fixtures/inspect-helper.mjs": "c4ff831402dac69b1282f6ef2add6cc4e7a7d9f78d0a6bc0ffce958c992a6924",
+      "test/unit/inspectGrammar.test.ts": "d7bf05fda9f98e7805e5cb4755c1fc50c488ea2a20bcaf1d158d9d6ba43c9599",
+      "test/unit/inspectExec.test.ts": "bea56e13beb067d24916df9949486225f451713ec5aa92e93ff6246b4ee0ca96",
+      "test/unit/inspectNative.test.ts": "ad371179ae2c694aa2b2bbe8c8cfed95d2bffd228b75dba193305197dae85f65"
+    },
+    "internalArtifacts": {
+      "temp/confine/muse-confine": {
+        "sha256": "8eed9595dbc88862e7d0f3e523ae9db8a51914286c94fe7d4695fcb82cfa7ee2",
+        "bytes": 35832
+      },
+      "temp/confine/inspectExec.js": {
+        "sha256": "9bb07aebfd8eb9f41a5296fa1d94ad1159edc7aeb49551ec2fa73f907e188edd",
+        "bytes": 334954
+      },
+      "temp/confine/policy.h": {
+        "sha256": "7c3c5942098f10b86c4eacd948bc1a7a8f2513ae8b364cc0948aab1951882315",
+        "bytes": 1264
+      }
+    },
+    "capture": {
+      "name": "m125-f1a-review-repair-linux-kubuntu-2026-10-10",
+      "capturedAt": "2026-10-10T20:03:08.105273+00:00",
+      "workspace": "<lane-private-TMPDIR>/synthetic-workspace",
+      "modelAttempts": 0,
+      "landlockProbe": {
+        "abi": 8,
+        "confined": true
+      },
+      "programCount": 9,
+      "systemFileCount": 16,
+      "programClosuresMatchInitialCapture": true,
+      "systemFileRecordsMatchInitialCapture": true,
+      "method": "Recompiled the original exec-interception fixture with the repaired production helper; reran the actual ABI probe and every system grant/environment capture. Compared all nine normalized program records and all sixteen system-file hashes, sizes, owners and modes in full against the initial capture stored above.",
+      "fixtureSha256": "ba587fe9933cc401f842d226f500e5279564bb73ca3e88f97eb9f3320c41aa61"
+    },
+    "drills": [
+      {
+        "guard": "grammar-canonicalization",
+        "source": "src/core/judge/fast/inspectGrammar.ts",
+        "suite": "test/unit/inspectGrammar.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "3d3386e1c1b469b79a3e2463ef4608bd8bbbf5788d4834c5148a1112454f78f2",
+        "failedTests": [
+          "test/unit/inspectGrammar.test.ts > B1 positive command grammar > refuses every protected/private path under seeded dot, dotdot, separator and case insertions",
+          "test/unit/inspectGrammar.test.ts > B1 positive command grammar > uses canonical operands in grant and tool argv without changing patterns or relaxing the floor"
+        ]
+      },
+      {
+        "guard": "grammar-component-and-prefix",
+        "source": "src/core/judge/fast/inspectGrammar.ts",
+        "suite": "test/unit/inspectGrammar.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "3d3386e1c1b469b79a3e2463ef4608bd8bbbf5788d4834c5148a1112454f78f2",
+        "failedTests": [
+          "test/unit/inspectGrammar.test.ts > B1 positive command grammar > refuses every protected/private path under seeded dot, dotdot, separator and case insertions",
+          "test/unit/inspectGrammar.test.ts > B1 positive command grammar > uses canonical operands in grant and tool argv without changing patterns or relaxing the floor"
+        ]
+      },
+      {
+        "guard": "native-canonical-input",
+        "source": "native/confine/MuseSparkConfine.c",
+        "suite": "test/unit/inspectNative.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "f24d61884e67a1af9b27a60994400d95a40b7584ac41fd585944474aae529779",
+        "failedTests": [
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > canonicalizes seeded spellings of every protected/private path and refuses noncanonical helper operands"
+        ]
+      },
+      {
+        "guard": "native-protected-components",
+        "source": "native/confine/MuseSparkConfine.c",
+        "suite": "test/unit/inspectNative.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "f24d61884e67a1af9b27a60994400d95a40b7584ac41fd585944474aae529779",
+        "failedTests": [
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > canonicalizes seeded spellings of every protected/private path and refuses noncanonical helper operands",
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > withholds every protected/private descendant through canonical recursive runner operands"
+        ]
+      },
+      {
+        "guard": "native-canonical-walk",
+        "source": "native/confine/MuseSparkConfine.c",
+        "suite": "test/unit/inspectNative.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "f24d61884e67a1af9b27a60994400d95a40b7584ac41fd585944474aae529779",
+        "failedTests": [
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > B1-3/4/5/6/7 excludes protected/private descendants, links, devices, hard links and foreign device ids",
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > withholds every protected/private descendant through canonical recursive runner operands",
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > fails closed on traversal budgets, identity mismatch and user-writable executables or ancestry",
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > B1 root binding refuses a workspace retargeted after the session binds it",
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > runs session self-tests once, preserves command failures and withholds secrets before delivery"
+        ]
+      },
+      {
+        "guard": "native-canonical-prefix",
+        "source": "native/confine/MuseSparkConfine.c",
+        "suite": "test/unit/inspectNative.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "f24d61884e67a1af9b27a60994400d95a40b7584ac41fd585944474aae529779",
+        "failedTests": [
+          "test/unit/inspectNative.test.ts > B1 Linux kernel boundary > canonicalizes seeded spellings of every protected/private path and refuses noncanonical helper operands"
+        ]
+      },
+      {
+        "guard": "request-abort-readiness",
+        "source": "src/core/judge/fast/inspectExec.ts",
+        "suite": "test/unit/inspectExec.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "b6990c114034f3bdb9ea43fd121b67bfa452c0aa396d6fbdfe5d088c099f92d5",
+        "failedTests": [
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > detaches a cancelled readiness waiter during admission while a concurrent caller completes the shared probe",
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > detaches a cancelled readiness waiter while the real hangProbe child remains alive for the session",
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > disposal waits for shared readiness cleanup after its only caller has detached"
+        ]
+      },
+      {
+        "guard": "disposal-observes-readiness",
+        "source": "src/core/judge/fast/inspectExec.ts",
+        "suite": "test/unit/inspectExec.test.ts",
+        "exitCode": 1,
+        "restoredSha256": "b6990c114034f3bdb9ea43fd121b67bfa452c0aa396d6fbdfe5d088c099f92d5",
+        "failedTests": [
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > disposal cancels a pending self-test, observes close and cleans its tree",
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > detaches a cancelled readiness waiter while the real hangProbe child remains alive for the session",
+          "test/unit/inspectExec.test.ts > internal inspect runner failure and lifecycle boundary > disposal waits for shared readiness cleanup after its only caller has detached"
+        ]
+      }
+    ],
+    "byteExactRestorations": true,
+    "verification": [
+      {
+        "check": "typecheck-all-five-projects",
+        "exitCode": 0
+      },
+      {
+        "check": "eslint",
+        "exitCode": 0,
+        "seconds": 23.95
+      },
+      {
+        "check": "deadcode",
+        "exitCode": 0,
+        "seconds": 10.48
+      },
+      {
+        "check": "duplication",
+        "exitCode": 0,
+        "seconds": 2.81
+      },
+      {
+        "check": "l10n",
+        "exitCode": 0,
+        "seconds": 4.57
+      },
+      {
+        "check": "host-api-write",
+        "exitCode": 0,
+        "seconds": 39.81
+      },
+      {
+        "check": "host-api",
+        "exitCode": 0,
+        "seconds": 36.91
+      },
+      {
+        "check": "reference",
+        "exitCode": 0,
+        "seconds": 3.37
+      },
+      {
+        "check": "plan",
+        "exitCode": 0,
+        "seconds": 0.61
+      },
+      {
+        "check": "roadmap-generate",
+        "exitCode": 0
+      },
+      {
+        "check": "roadmap",
+        "exitCode": 0
+      },
+      {
+        "check": "owned-tests",
+        "exitCode": 0,
+        "seconds": 16.04
+      },
+      {
+        "check": "host-typecheck-final",
+        "exitCode": 0,
+        "seconds": 26.6
+      },
+      {
+        "check": "unit-typecheck-final",
+        "exitCode": 0,
+        "seconds": 88.02
+      },
+      {
+        "check": "internal-build",
+        "exitCode": 0,
+        "seconds": 0.78
+      },
+      {
+        "check": "product-build",
+        "exitCode": 0,
+        "seconds": 15.26
+      },
+      {
+        "check": "linux-recapture",
+        "exitCode": 0
+      },
+      {
+        "check": "changed-file-prettier",
+        "exitCode": 0
+      },
+      {
+        "check": "diff-check",
+        "exitCode": 0
+      }
+    ],
+    "productionKiBBudgets": {
+      "extension": {
+        "measured": 550.2,
+        "cap": 600
+      },
+      "modelApi": {
+        "measured": 515.8,
+        "cap": 525
+      },
+      "checkpointStore": {
+        "measured": 87.3,
+        "cap": 225
+      }
+    }
+  }
+}

@@ -37,11 +37,12 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
-**Contents:** [What's new](#whats-new-in-0171) · [Roadmap](ROADMAP.md) ·
+**Contents:** [What's new](#whats-new-in-0182) · [Roadmap](ROADMAP.md) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
 [Several accounts](#several-accounts-per-provider) ·
+[Developer options](#developer-options) ·
 [Rules, skills and memory](#rules-skills-and-memory) ·
 [Muse Code's own tools](#muse-codes-own-tools) · [Web fetch](#web-fetch) ·
 [Browser check](#browser-check) · [Design](#design) · [The panel](#the-panel) ·
@@ -53,11 +54,53 @@ built, what is planned and what each release shipped.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-Schedule budgets, consent and rental cost evidence use exact decimal USD. Saved
-reports write money version 2; historical numeric reports retain their original
+Saved reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
-## What's new in 0.17.1
+## What's new in 0.18.2
+
+- **The landing screen shows the extension's own mark.** The empty chat panel
+  showed the Meta logo beside the product name; it now shows the product's
+  own squiggled "m", blue in dark and light themes and in the theme's text
+  colour in high-contrast themes.
+
+### Earlier in 0.18.1
+
+- **Your own providers, a ChatGPT plan and Copilot work again.** In 0.18.0
+  a turn on any of them stopped before it was sent, with an internal error.
+  Sorry for the broken release; Meta's own models were not affected.
+- **Usage from earlier versions is counted again.** 0.18.0 left those records
+  out as not exact; nothing was deleted.
+- **Report a Problem opens again** if you had changed a setting with a second
+  dot in its name; it used to answer "That did not work".
+
+### Earlier in 0.18.0
+
+- **Several accounts per provider, in the terminal and in ACP editors.**
+  `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
+  provider's accounts and sets their thresholds; `auth set --provider <id>
+--account <id>` stores a key for one account; `exec --account <id>` runs on
+  the account you name. In an ACP editor on a Model API key, `/accounts`
+  shows the list and the current account. Changing account inside a session,
+  pooled runs and an Accounts page in the editor are not available yet.
+- **See a tool call's arguments while the model writes them.** On a Model API
+  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
+  editors shows the file path, command, search pattern or URL as soon as it
+  is complete; content and edits stay hidden and nothing runs until the call
+  is complete. Other models keep the finished-call row for now.
+- **Reviewing Git changes works without a Git filter.** Without Git LFS or
+  another filter configured, every native review was refused since 0.15.0.
+- **The activity-bar icon is the extension's own mark**, the squiggled "m".
+
+### Earlier in 0.17.2
+
+- **Long replies from your own providers and a ChatGPT plan finish.**
+  Since 0.15.0 a reply from a provider you added in Models & Agents, or
+  from a ChatGPT plan sign-in, was cut off 30 seconds after the request
+  started. A reply now has no limit on its total time; one that goes
+  silent ends after 5 minutes, and the message says so.
+
+### Earlier in 0.17.1
 
 - **The provider picker works again.** Models & Agents lists every provider
   again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
@@ -72,39 +115,35 @@ hash verification and migrate when read.
   every major word; sentences and messages keep sentence case.
 - **Smaller fixes.** Chat action menus fan close around the row's **…**
   button, highlighted-text actions included; a question's own-answer field no
-  longer overlaps the options and buttons around it, DeepSeek's Thinking off
-  sends DeepSeek's own switch, a nearly spent budget stops with the budget
-  message instead of a Meta error, and a Muse Code older than 1.4.3 that hits
-  its approval-record fault now gets the update command.
+  longer overlaps the options and buttons around it, sharing a chat from an
+  ACP editor or the terminal shows its preview, an ACP session on a Model API
+  key starts without account details, DeepSeek's Thinking off sends
+  DeepSeek's own switch, a nearly spent budget stops with the budget message
+  instead of a Meta error, a Muse Code older than 1.4.3 that hits its
+  approval-record fault now gets the update command, and Help and these notes
+  describe only what works today and name the features still being built.
 
 ### Earlier in 0.17.0
 
 - **Deterministic reports.** `/report` builds project, quality, milestone,
   release and change reports from local facts, in Markdown, HTML, JSON or text,
   with saved history and comparisons; nothing is sent to a model.
-- **Capacity estimates (preview).** `/estimate <goal>` and the Estimator are in
-  place and verified with test data. Real forecasts need the plan reader that
-  comes later; until then they say so instead of guessing.
-- **Several accounts per provider.** List provider accounts, see the current
-  one and its thresholds; a vendor limit blocks only the affected account.
-- **Orchestrator playbook.** The nine orchestration rules ship as a first-party
-  skill. In the ACP agent and the CLI, `/playbook status`, `record` and
-  `settings` answer locally; the VS Code panel follows.
+- **Orchestrator playbook CLI/ACP.** Read journal records and change settings
+  locally with the CLI or ACP agent.
 - **Refreshed design.** Shared design tokens and generated palettes style every
   panel surface; an optional pinned OFL font pack serves standalone installs.
 
 ### Earlier in 0.16.0
 
-- **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
-  argument previews help you follow Model API tool calls. Independent reads can
+- **Loop guarantees.** Strict tool contracts and bounded hosted search
+  govern Model API tool calls. Independent reads can
   run concurrently while their results keep call order. The loop bounds
   continuations, refuses cut-short tool execution and stops repeated unchanged
   calls. Structured side calls validate answers; headless runs can require a
   bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
   for capability gates and remaining native-reader qualifications.
 - **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
-  pause, new background work. Relocation needs a paired device or runner route
-  and is not available yet, so work stays on this machine.
+  pause, new background work.
 - **Disk floors.** Disk-heavy launches wait below the free-space floor and
   critical-volume writes refuse with a reason. Temporary cleanup requires
   recorded ownership and proved tree exit. See
@@ -123,16 +162,10 @@ hash verification and migrate when read.
   models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
   preview for eligible Plus/Pro accounts; Copilot uses a compatible VS Code
   host's models. Features follow each selected model's capabilities.
-- **Agent roles and teams.** Configure role pools, task limits and worker
-  review. Paid workers require consent and share the daily budget.
 - **/legal.** Scan licensing, copyright and source evidence without a model
   call, export the report, and confirm supported header repairs. The report
   states its coverage limits; it is not a legal certificate.
-- **Automatic compaction and Pi/SoL-Pi sync.** The shared engine preserves
-  packed output, literal recall and cache-stable prompts. Automatic compaction
-  is implemented and its setting defaults on, but production remains inactive
-  pending the paired evaluation.
-- **Usage & Cost.** Open the local page for provider and team totals, token
+- **Usage & Cost.** Open the local page for provider totals, token
   counts, budgets and exports. Reported, estimated and unknown costs stay distinct.
 
 ### Earlier in 0.14.5
@@ -235,27 +268,18 @@ model call or a charge. **Needs You** comes first; every source names its
 availability, freshness and observation time. Missing integrations remain
 visible as unavailable.
 
-| Kind                        | Input                                                                                       |
-| --------------------------- | ------------------------------------------------------------------------------------------- |
-| Project                     | `/report project`                                                                           |
-| Milestone                   | `/report milestone M113`                                                                    |
-| Release                     | `/report release latest`                                                                    |
-| Changes                     | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry                |
-| Quality                     | `/report quality`                                                                           |
-| Usage                       | `/report usage today`; also `7d`, `30d`, `90d`, `week`, `month` or a date range             |
-| Session                     | `/report session`                                                                           |
-| Playbook                    | `/report playbook`                                                                          |
-| Issues                      | `/report issues`                                                                            |
-| Estimate                    | `/report estimate M113`                                                                     |
-| Fleet / security / accounts | `/report fleet`, `/report security`, `/report accounts`; future source bindings unavailable |
-| Schedules / keybindings     | `/report schedules`, `/report keybindings`; owning host bindings unavailable                |
+| Kind      | Input                                                                        |
+| --------- | ---------------------------------------------------------------------------- |
+| Project   | `/report project`                                                            |
+| Milestone | `/report milestone M113`                                                     |
+| Release   | `/report release latest`                                                     |
+| Changes   | `/report changes`; `since <tag, branch, or YYYY-MM-DD>` selects Git ancestry |
+| Quality   | `/report quality`                                                            |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
 all available rows. Next steps follow the plan's declared delivery order and
 only become ready when their required milestones are complete. At most three
-next steps are shown. Session turn
-and approval totals require retained activity facts; transcript row counts
-never substitute for them.
+next steps are shown.
 
 The tab provides **Save As…**, **Copy as Markdown**, **Attach to Message**,
 **History**, **Diff With Previous** and **Refresh**. Save as exports Markdown,
@@ -276,9 +300,7 @@ The terminal requires `--network` on every collection, and uses `gh`'s own
 identity. CI egress remains denied. Cache reads and writes use confined,
 owner-only storage, validated decoded data and ETags; interrupted requests
 retain honest unavailable or partial status. Store, workflow and release
-adapters await approved live captures. Posting, scheduled destinations,
-mail/vault and node-browser integration await their owning milestones;
-the tab does not offer them yet.
+adapters await approved live captures.
 
 `museSpark.reports.agentSources` defaults to an empty array. Only agents you
 explicitly enable (`claudeCode`, `codex`) have their confined local usage files
@@ -295,40 +317,11 @@ command. See the [ACP guide](docs/acp.md#deterministic-reports-m113).
 
 ## Orchestrator playbook policy (M116)
 
-Nine rules govern orchestrated work: eight the team can configure (never to
-off for safety, never above their ceiling) plus the safety rule that always
-applies. A strike policy stops patches after repeated review failures; review
-coverage, finding classes and dispositions are explicit; generation leases
-fence stale reviews; and review history follows edited moves and merges.
-
-Outcomes verify before harness-managed push or completion: each newly
-reachable commit needs a passing receipt from the repository's own hooks,
-run only through native `git hook run` with the source repository's absolute
-hooksPath and a scrubbed environment. Verification discovers new branches,
-tags, notes, every worktree HEAD and private refs in every worktree; POSIX
-timeout cleanup tracks descendants by parent chain and start-time identity.
-Windows verification uses the trusted harness job runner; the M107 governor
-binding stays open.
-
-The panel, Agent map, ACP and CLI read the same journal: `/playbook
-<status|record|settings ...>` and `playbook <status|record|settings ...>`
-show status, journal evidence and settings without starting a backend or a
-model turn. Settings changes need a reason and record the owner; turning
-rules off and naming the fallback reviewer for classifier-blocked reviews
-need a real user decision. Residuals stay open per milestone until a
-lead or owner accepts them, and release refuses while any are open. Record
-views label legacy acceptances with no matching earlier answer as unbound
-and explain why they cover nothing. Local playbook commands leave queued
-late answers untouched; only a turn that starts with the model removes them.
-Queued turns retain them through withdrawal, Stop and process exit; Model API
-waits past submit hooks for request dispatch before announcing delivery.
-Dispatch briefs render structurally and their hashes record before dispatch.
-See the [help reference](docs/reference.md) (`Orchestrator playbook` row
-and the `playbook` CLI command), regenerated with
-`npm run reference:generate` and verified with `npm run check:reference`.
-The reviewer charter ships as the `orchestrator-playbook` skill; turning on
-panel enforcement waits for M96's planner (see
-`docs/certification/m116.md`).
+The CLI `playbook <status|record|settings ...>` and ACP
+`/playbook <status|record|settings ...>` read journal records and settings
+locally without starting a backend or a model turn. Settings changes need a
+reason and record the owner. The reviewer charter ships as the
+`orchestrator-playbook` skill.
 
 ## Highlights
 
@@ -373,9 +366,8 @@ panel enforcement waits for M96's planner (see
   paid wherever it is used, and tallied in Account & usage.
 - **Scheduled prompts under your control.** On the Model API backend,
   `/loop` saves a recurring prompt in this conversation. By default a due
-  prompt waits for you to run and confirm it; unattended runs are opt-in
-  per schedule with a hard spending cap, and your key is never spent
-  without your consent. Scheduled turns currently cannot read video or audio:
+  prompt waits for you to run and confirm it; your key is spent only
+  after your consent. Scheduled turns currently cannot read video or audio:
   verified upload storage, the captured media codec and production calibration bindings are
   unavailable (PLAN D85.6, M105). The shared paid accounting refuses bills
   above an admitted reserve and retains that reserve as uncertain liability.
@@ -586,6 +578,17 @@ and sends nothing. Before the first charge in a window, it asks with the
 model's rates and your budget: **Allow Once** covers that window until it
 closes, **Allow Always in This Workspace** remembers revocable consent, and
 **Deny** snoozes Tab in that window. Closing the question denies it too.
+The question names the model the request will use, and your answer covers
+that model at its price only: a request for another model asks again, even
+under **Allow always**, and **Allow once** never reaches another window. An
+**Allow always** kept by an earlier version asks a migration question. Only
+answering **Allow always in this workspace** saves the model and price;
+answering **Allow once** saves nothing and the next window asks again.
+Accepting another paid feature's price or turning voice off preserves Tab's
+**Allow once**. **Ask again** and Tab's own price acceptance changes end its
+consent; a changed model or price asks again for its own key. A request whose
+model, consent or hook configuration changes before it goes out sends
+nothing; the last check runs immediately before the request is sent.
 
 The hard daily budget defaults to **$1.00 across every window on this
 machine**, reserved before each request. The status shows today's spend;
@@ -631,10 +634,40 @@ request. Snooze offers 15 minutes, an hour or until this window restarts.
 Copilot's sign-in state cannot be detected, so an installed active Copilot
 can cause yielding even when signed out.
 
-Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks remain planned for
-lane K after M91; this build has their host bridge but does not run those
-hook configurations yet. The probe receipts and current limits are in
-[the M94 record](docs/certification/m94.md).
+Cursor's `beforeTabFileRead` and `afterTabFileEdit` hooks run from the project
+`.muse/spark-hooks.json` or your `spark-hooks.json` beside Muse Code's settings,
+when hooks are enabled and the workspace is trusted, on either chat backend.
+Imported Cursor groups keep their format and source event; their matchers are
+`TabRead` and `TabWrite`. Before a file enters a request, each matching guard
+must exit 0 with `permission: allow`; denial, invalid output, a crash, a
+1,500 ms timeout or an oversized payload refuses that read. Verdicts are
+cached by path and content and cleared when the configuration changes.
+Accepted full and inferred partial edits carry real line text and a 1-based
+range; typing alone fires nothing. Edit hooks observe asynchronously and
+cannot veto an accepted edit. With no configured hook, completion text and
+command arguments remain unchanged.
+
+These hooks are local processes you configure, and they see your code as it
+is: a `beforeTabFileRead` hook receives the file's absolute path and its
+**full, unredacted text**, the workspace folders, the Tab model and the
+request id, for the current file and for every context file. An
+`afterTabFileEdit` hook receives the path, the accepted text and the line
+before and after it (512 characters each at most) and the range. The
+extension sends neither payload anywhere else; the command decides what it
+does with it. Hook processes get a scrubbed environment and never the Model
+API key.
+
+A `spark-hooks.json` that exists but does not load in full (invalid JSON,
+an unreadable or oversized file, or any reported problem, such as an unknown
+event name or a `beforeTabFileRead` matcher that never names `TabRead`)
+stops Tab reading any file, and the status bar says **Tab paused: hook file
+has errors** until you fix it; the Muse Spark log names the problem. Only a
+scope with no hook file reads without a guard. Each request is bound to the
+trust, Tab settings, `files.exclude`, ignore files and hook configuration in
+force when it starts: if any of them change before it is sent or before its
+answer shows, it is dropped. The fake-hook receipts and current release
+blockers are in [the M94 record](docs/certification/m94.md) and
+[the hook wiring record](docs/certification/m94-k.md).
 
 ## Backends
 
@@ -795,6 +828,12 @@ JupyterLab (Jupyter AI) with the agent.
 
 Subscription sign-in is being integrated under M95b; installed-editor and live
 success certification is still pending ([record](docs/certification/m95b.md)).
+
+The Models & Agents panel keeps the current section visible while another
+section loads. A pending tab indicates loading after 150 ms. Reloads reserve
+the section's last measured height; the first visit estimates from the host's
+rows and can adjust once when the section arrives.
+
 In **Models & Agents → Providers**, choose **Continue With ChatGPT** or
 **Use My Copilot Models**. The same actions are available in the command palette.
 Connecting selects the shared in-process harness and the account's first
@@ -850,8 +889,7 @@ installed-editor and live provider certification are still open. MiniMax
 and Alibaba plan presets await captures, and Hugging Face OAuth awaits
 application registration.
 
-OpenRouter models accept pasted keys. Account connection and key-usage reads
-are not available yet; Models & Agents hides those actions and says why.
+OpenRouter models accept pasted keys.
 Scan this computer probes each local preset's loopback port and model-list path.
 Provider exports include subscription configuration without credentials. A
 confirmed import requires credentials to be entered again, clears credentials
@@ -939,16 +977,18 @@ question open, even when interactive deferral is disabled.
 ## Several accounts per provider
 
 Accounts keep separate credentials, labels, order, limit groups and thresholds.
-The terminal can manage their metadata and choose a fixed account for a
-headless run. Automatic swapping, parallel admission, device placement and
-the editor panel/usage mounts await the provider, journal and shared-owner
-integration listed in [M108's certification](docs/certification/m108.md).
-`museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
-and default on; they do not enable those missing integrations by themselves.
+The terminal manages their metadata and pins a headless run to one account,
+and an ACP session on the Model API backend lists them. Automatic swapping,
+pooled runs, placement on other devices and the editor's Accounts and usage
+pages are not part of this yet; the [roadmap](ROADMAP.md#in-progress) tracks
+them.
 
-These commands require an existing provider metadata record; this base
-refuses absent or malformed configuration until its provider owner supplies
-it. Display order never selects a backend credential.
+The installed CLI, ACP agent and headless runs share one account service
+over the runtime's providers file and the OS credential store. Meta's Model
+API entry is built in, so listing, adding, ordering, thresholds and
+per-account credentials work with no pre-existing file; a corrupt file is
+reported, never clobbered. Any other provider needs its stored metadata row.
+Display order never selects a backend credential.
 
 Manage metadata through the agent (credentials only from standard input,
 never an argument or a file):
@@ -959,52 +999,35 @@ never an argument or a file):
 - `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
 - `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
 
-`exec --account-pool` and in-session credential swaps report unavailable
-until the pooled owner is connected. ACP's `/accounts` and `account` picker
-read live metadata; choosing another account also reports unavailable.
-Second Muse Code accounts and cross-account native replay/cache evidence
-wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
-it must keep outstanding reservations and uncertain charges across resets.
-The shared paid gate, daily budget and conversation cap never reset on a
-swap, and a different account needs its own first-charge consent.
+ACP's `/accounts` (list, current, thresholds) and the `account` picker read
+the same live metadata on the Model API backend; the Muse Code backend runs
+on its subscription with no account picker. Choosing another account stays
+refused: moving a session credential needs the pooled owner, so the session
+keeps its current account and says so. A pooled headless run stays refused
+until that owner lands too. A vendor limit stops only its own account, and
+the stop names the blocked account and its reset even with no usage page
+bundled.
 
-Placement defaults to one account per provider per device. Another account
-needs another paired device, or the machine-scoped, default-off
-`museSpark.accounts.severalOnThisDevice` option. That option requires the
-provider's terms confirmation and isolated local profiles, labelled “on this
-PC”. The installed profile/placement owner is still pending, so the setting
-does not currently start another account process.
+## Developer options
 
 `muse-spark-code-acp developer` opens the terminal's machine-local Developer
-options after typed confirmation; `developer status` shows its state. The
-shared editor unlocks use seven clicks on the version within ten seconds or
-**Muse Spark: Developer options**, once their palette/About mounts land.
-Testing mode is badged and audited, expires, and Reset stops and removes only
-its recorded profiles. The visible several-account option has no developer
-badge or expiry. Profile start and cleanup report unavailable until their
+options after typed confirmation; `developer status` shows its state. Testing mode is badged and audited, expires, and Reset stops and removes only
+its recorded profiles. Profile start and cleanup report unavailable until their
 resource owner is bound; no successful cleanup is claimed in its absence.
 Revoking testing authority closes admission immediately and attempts to stop
 recorded profiles before saving. Persistence failures are reported; a durable
 revocation audit prevents restoring the previous enabled grant. Removing an
 unknown profile reports an error without changing the current grant.
 
-The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
-lists every provider's pooling decision with its clause, source and date.
-“Confirmation required” quotes the restriction and offers Confirm, Only at
-my own caps, or Cancel; one-account-per-person rules also apply at user caps.
-Accounts sharing a vendor limit group add no capacity against that limit.
-These rules hold on every device and in developer mode. Nothing creates
-accounts, changes request identity or moves a credential to another device.
-
 ## Permission modes
 
-| Mode                   | Model API backend                                                                                                                                                                                       | Muse Code backend                                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Manual**             | Asks before every edit and every command that no allow rule, session allowance or hook settles                                                                                                          | The CLI decides: it applies file edits without asking (only `.git`, `.muse` and `.agents` ask) and asks before commands its own allow rules do not cover                   |
-| **Edit Automatically** | Approves plain file edits, asks before commands that no allow rule, session allowance or hook settles                                                                                                   | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                                                                      |
-| **Plan**               | Refuses edits and commands                                                                                                                                                                              | The CLI refuses protected writes and the commands its own allow rules do not cover, but its file tools still edit without asking ([Plan on Muse Code](#plan-on-muse-code)) |
-| **Auto**               | Runs edits (protected writes ask), asks before commands; the paid, off-by-default [Auto reviewer](#auto-rules-and-permission-profiles-model-api) may allow plain commands and MCP calls no rule settles | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks                                                      |
-| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses and a hook that demands a card                                                                                               | The same, except paid uses and [web fetch](#web-fetch), which the extension asks about before every call                                                                   |
+| Mode                   | Model API backend                                                                                                                                                                                      | Muse Code backend                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Manual**             | Asks before every edit and every command that no allow rule, session allowance or hook settles                                                                                                         | The CLI decides: it applies file edits without asking (only `.git`, `.muse` and `.agents` ask) and asks before commands its own allow rules do not cover                   |
+| **Edit Automatically** | Approves plain file edits, asks before commands that no allow rule, session allowance or hook settles                                                                                                  | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                                                                      |
+| **Plan**               | Refuses edits and commands                                                                                                                                                                             | The CLI refuses protected writes and the commands its own allow rules do not cover, but its file tools still edit without asking ([Plan on Muse Code](#plan-on-muse-code)) |
+| **Auto**               | Runs edits (protected writes ask), asks before commands; the paid, on-by-default [Auto reviewer](#auto-rules-and-permission-profiles-model-api) may allow plain commands and MCP calls no rule settles | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks                                                      |
+| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses and a hook that demands a card                                                                                              | The same, except paid uses and [web fetch](#web-fetch), which the extension asks about before every call                                                                   |
 
 A paid use asks in the paid-use popup in every mode, Bypass included, unless
 you allowed it always in this workspace; on the Model API backend, Plan
@@ -1229,30 +1252,6 @@ character the dialog does not show (a direction override, a zero-width
 character) starts in a mode that asks, Manual (Plan when that is your
 starting mode), and the panel names the mode. A handoff from a
 conversation in Plan mode stays in Plan.
-
-Automatic compaction, its exact todo continuation and the memory flush are
-implemented in the shared Model API engine, but **awaiting evaluation and
-inactive**. `museSpark.modelApiAutoCompaction` defaults to `true`; set it to
-`false` to turn the mechanism off. ACP and headless use the same core and
-accept `--no-auto-compaction`. Muse Code continues to compact itself.
-
-Once a current M75 pair passes and the shared paid gate/ledger is connected,
-compaction is considered inside your turn after a settled tool batch. A
-registered todo completion can trigger it when the expected token saving
-repays the summary call, cache-write premium and carried debt. Cost decisions
-require at least 50% context occupancy and two ordinary requests since the
-last compaction. At 90% occupancy, protection bypasses those economic guards;
-a classified overflow gets at most one automatic compact-and-retry per turn.
-The first paid charge requires the shared price/daily-budget consent, and
-every attempt is tallied. Stop and final account/key/budget checks still apply.
-
-The memory flush writes a labelled, untrusted host snapshot through the
-ordinary memory permission path: Manual asks; Plan and Restricted Mode refuse
-the write while compaction can continue. The next request restores the exact
-host todo list and goal as data, including completed items. It adds no separate
-model call to guess the list. An unsuccessful summary keeps the existing
-conversation; failed or refused automatic work clears economic debt. Production remains inactive until lane E records
-both 0.75 capability floors and actual compaction evidence in its M75 pair.
 
 When a Model API turn fills its context window, it reports **Context window
 full: /compact or /handoff**. Ordinary requests are refused locally only when
@@ -2075,15 +2074,17 @@ or GitHub. Its GitHub Marketplace listing is awaiting GitHub's review.
 ## Streamed argument previews
 
 On the Model API backend, a selected model with verified streamed-argument
-support can show an **Argument Preview** in its tool row. The implementation
-is available in the shared panel and ACP; enabling it in production still
-requires the capability binding described in the M106 certification record.
-The preview shows only declared top-level string fields after their closing
-quote validates: file paths, shell commands, search patterns and fetch URLs.
-These values pass through the existing credential scrubber before display.
-File content, edits, nested values and other fields stay hidden. Tools with
-no preview declaration, including MCP and foreign tools, show a received
-byte count only.
+support shows an **Argument preview** in its tool row, in the shared panel
+and in ACP. The preview shows only declared top-level string fields after
+their closing quote validates: file paths, shell commands, search patterns
+and fetch URLs. These values pass through the existing credential scrubber
+before display. File content, edits, nested values and other fields stay
+hidden. An offered IDE or MCP tool declares its own string fields the same
+way; a tool the request never offered shows a received byte count only.
+
+One model has that verified record today: `muse-spark-1.3-contributor`.
+Every other model keeps the completed-call row until its own stream is
+captured.
 
 An unfinished string never appears. Malformed JSON, duplicate keys,
 non-string values for declared fields or excessive nesting freeze the last
@@ -2100,6 +2101,13 @@ a turn ID cannot prove a tool is still pending. A fresh update restores an
 active preview to its original call row. Recognized credential patterns
 and registered literals are scrubbed; arbitrary unregistered secrets in a
 declared field remain outside that scrubber's contract.
+
+VS Code and interactive ACP use the selected record’s documented output
+maximum (131,072 tokens for Muse Spark), clamped by their budget. Headless
+`exec` requests at most 32,768 output tokens, or the record’s smaller maximum:
+its run ledger reserves the worst case before dispatch, so raising that cap
+would change what existing headless money budgets can run. Headless exec
+records completed tools and does not display live argument previews.
 
 <!-- /reference: streamed-argument-previews -->
 
@@ -2230,34 +2238,6 @@ both backends, as Muse Code's `/goal` does.
   its own, so your key pays for nothing you did not ask for. A token budget
   the agent gives a goal stops it once spent.
 
-## Estimates
-
-The estimator routes are wired, but real forecasts are **not available yet**.
-The composer `/estimate <goal> [--by <date>] [--fleet
-current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
-`muse-spark-code-acp estimate` use one lazy engine. Production snapshots refuse
-with `M117-W-M113-plan-reader` until the plan reader lands; fleet/catalog
-integration also waits for M113. `muse-spark-code-acp estimate --help` shows the
-standalone syntax without starting a model or asking for credentials.
-
-- **Verified with fakes.** The engine returns P50/P90 dates, critical-path
-  schedules, limiting resources and current/minimum/optimum setups. Figures
-  carry parameter-specific evidence and sample sizes; unknown capacity and
-  approximate placement stay qualified. Below 20 samples, fitted parameters
-  remain priors. Bases older than seven days carry a schedule-risk flag.
-- **Existing fleet.** The panel sends an audited, contract-first first-wave
-  request independently of rental readiness. Production dispatch still
-  refuses with `M117-W-M96-board`. Finished-lane history updates and automatic
-  production refresh wait for M115.
-- **Rentals remain advice-only.** M109/M110 provider/install/pair bindings
-  and P's internal Slice 2 provisioning lifecycle are still absent. Liability
-  reservation, separate spend confirmation, funded-deadline/idle teardown,
-  Keep and wipe-before-delete are planned, not shipped behavior. No rental
-  creation is enabled.
-- **Settings** (this machine): `museSpark.estimator.optimize` (`cost` or
-  `speed`) and `museSpark.estimator.priceLookup`, which follows the Reports
-  network policy; catalog quotes retain their dates.
-
 ## Review
 
 Review what the agent did before it lands, on both backends.
@@ -2345,19 +2325,6 @@ Review what the agent did before it lands, on both backends.
 
 ## Scheduled prompts (Model API)
 
-The machine-scoped `museSpark.schedules` switch controls the v2 surface.
-Its host defaults are `museSpark.scheduleDefaultDelivery` (`whenIdle`) and
-`museSpark.scheduleAgentCreation` (`ask`), also machine-scoped. These flat keys
-avoid VS Code's scalar-parent conflict; the reader still validates previous
-`schedules.defaultDelivery` and `schedules.agentCreation` values when a new key
-is absent. Paid consent and the shared daily budget still apply.
-
-The Command Palette's **Schedule This Prompt…**, **Show Schedules** and
-**Show Schedule Timeline** open the v2 editor, list and timeline in the
-active chat, opening a chat when needed. The schedule surface loads on
-first use. Starting unattended jobs through this editor still requires the
-pending editor delivery binding; the `/loop` flow below remains available.
-
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the
 current conversation to become due every ten minutes. Use `m`, `h`, or `d`
 for minutes, hours, or days; `/loop "0 9 * * 1-5" Summarize new bugs` uses
@@ -2394,37 +2361,11 @@ in that conversation's token estimate. A run admitted just before a crash
 is not replayed, even if its result was never seen. Cancel does not stop a
 turn that already began.
 
-Unattended runs are opt-in per schedule. The `schedule` command manages
-jobs beyond `/loop`: `schedule add --draft <JSON>` (with
-`--scheduled-prompts --max-budget-usd <USD>` to allow unattended runs under
-that hard cap), `list`, `remove`, `run-now`, `pause`, `resume`, `fire`,
-`timeline`, `run-due` and `background`. Without a positive budget, paid
-authorization for an unattended run is refused; with one, every run still
-passes the paid rule above, naming its price and the shared daily budget.
-Crash accounting holds across restarts: a lost acknowledgement is recovered
-from the delivery ledger without a second run, and even when both the
-acknowledgement and the ledger are lost there is at most one re-run and
-exactly one recorded settlement for the run. The ACP `/schedule` command
-offers the same list, except `run-due` and background maintenance, and only
-while the agent runs with `--scheduled-prompts` (again with
-`--max-budget-usd`).
-
 Muse Code has its own subscription-backed `cron_create`, `cron_list` and
 `cron_delete` tools. Ask it in chat to schedule, list or cancel its jobs;
 those are not the Model API jobs shown by this panel. Muse Code 1.3.0 does
 not expose scheduler controls over MSP or a `muse cron` CLI command, so the
 panel cannot present an authoritative native job list or direct cancel.
-
-The cross-editor native background scheduler under development (M115) is
-not enabled by these shipped controls. Its launcher verifies installed paths
-and the effective OS definition on every wake. Linux also checks every
-systemd search and applicable drop-in directory, including absent paths;
-a refused registration disables its timer. Windows checks both the task
-folder and the task object's security descriptor. On macOS, switching it off
-first disables the native job, then its record; removing the job waits for a
-full calendar wake interval and an idle instance. POSIX shared-verifier binding
-and native Linux/macOS/ordinary-user Windows certification remain integration
-prerequisites.
 
 ## Observation packing (Model API)
 
@@ -2433,7 +2374,7 @@ ACP and headless Model API conversations enable the same packing and literal
 recall by default for tool-capable models. Every request of a Model API conversation carries the tool outputs before
 it. With packing on, a tool output over 8,000 characters is sent whole for
 its first two requests, then as a short placeholder: its id, its size, and
-its first and last lines. The placeholder is the same text on every later
+its first and last lines. The placeholder is the same cache-stable text on every later
 request, so the prompt cache breaks once per output. When the model needs
 more, it calls `recall_output` with the id and a character offset and reads
 the original back 4,000 characters at a time. It can also pass `search` to
@@ -2672,7 +2613,7 @@ write, and an image edit's sources right before the request leaves the
 machine. These controls apply to the Model API; Muse Code uses its own
 captured native policy contract.
 
-`museSpark.modelApiAutoReviewer` is an off-by-default paid opt-in. Reviews
+`museSpark.modelApiAutoReviewer` is on by default as a paid opt-in: nothing is spent before the paid-use popup. Reviews
 run only in Auto. Every eligible review uses the paid-use popup at the
 current model's token rates, with only the popup's workspace permission able
 to remember consent. The reviewer has no tools and returns ALLOW or ASK with a nonempty
@@ -3465,8 +3406,8 @@ rest of the file still shows. A file is refused whole if it is over 16 MiB, is a
 format or a newer version, or holds any field this version does not know.
 At 320 px too, Tab reaches Close, Copy, scrollable code and Show more,
 with the theme's focus border; Escape closes the view and focuses the composer.
-For a local visual check, `node scripts/harness-shots.mjs share share-narrow`
-captures both widths; `share-narrow` also runs in all four accessibility themes.
+For a local visual check, `npm run ui:look -- share` renders the scene
+from the built webview into `temp/ui-look/`.
 The picker reads a local `file:` URI on the extension host through one
 checked descriptor, stopping at the size cap even if the file grows.
 Other file providers are explicitly refused because this reader cannot
@@ -3525,23 +3466,6 @@ lost-output context into the agent's next request for any inherited task.
 an **N agents** pill in the header opens the **Agent Map** (also `/agents`):
 this conversation, its agents with role, objective, status, duration and
 tokens, the background tasks, and each agent's own transcript.
-
-When a team is active, its tree has one Tab stop. Use arrows, Home, End,
-or type ahead to move between items; F2 focuses an item's actions, Left
-and Right choose an action, and Escape returns to the item. Finished
-workers produce one polite summary. Merge cards list affected files,
-protected paths, conflicts and the supplied review details, with an
-overflow count for long lists. A card without file details cannot approve
-a merge. Tree and card code loads on its first use.
-
-The unreleased scheduler and runner adapters ship in separate bundles for
-team use. Their tool schemas come from the same validators used by the
-board. Maintainers regenerate them with `node scripts/team-tool-schemas.mjs
---write`; the production build checks them for drift. The Traffic and
-Runners views remain internal while the Models & Agents panel and the
-window-owned team runtime are integrated. They are not available as
-commands in this release. ACP and other editors need those same runtime
-bindings; packaging these adapters does not enable team dispatch.
 
 - Muse Code hides its subagent tools unless `run.subagent_delegation_mode` is
   `"auto"` in its settings file (`~/.config/muse/settings.json`, or under
@@ -3856,20 +3780,10 @@ add their own charges during that confirmed turn.
 Manage availability in the palette (**Account & Usage** group, where the backend
 can use it) or with its setting (`museSpark.modelApiWebSearch`,
 `modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`,
-`modelApiBestOfN`, `modelApiTeamWorkers`, `modelApiScheduledPrompts`, `modelApiAutoReviewer`). Default-on
+`modelApiBestOfN`, `modelApiScheduledPrompts`, `modelApiAutoReviewer`). Default-on
 availability causes no startup price dialog. Explicitly turning a feature OFF
 and ON again confirms its price; the first paid use still asks separately. The settings are
 machine-scoped, so a repository cannot turn one on.
-
-Team workers default on for a runnable team of distinct models. They ask in
-this paid-use popup before the first charge, with the models, task ceilings
-and daily budget. Each task identifies its provider and tariff. Meta rates
-are quoted only for a matching verified Meta tariff; other providers or
-unverified tariffs state that the price is unknown and name the task and
-daily token ceilings. Billing uses each task provider's API key.
-Always is scoped to the provider, model and price tier that was approved;
-a different model asks again. Single-model activation asks no team question.
-The M96 team feature remains unavailable until its integration is complete.
 
 **Every paid use then asks first, in a popup**, in every permission mode,
 Bypass included. The popup names what is about to be billed, its price and the shared daily budget,
@@ -4373,7 +4287,7 @@ immediately, and the table names the exceptions (a host restart, or read
 when a conversation starts). The settings that choose what runs and what is billed
 (`initialPermissionMode`, `backend`, `shellSandbox`, `sandboxNetwork`,
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
-`modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`, `modelApiAutoCompaction`,
+`modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`,
 `modelApiPromptCacheRetention`, `turnCheckpoints`, `bundledSkills`, `browserCheckExtraHosts`,
 `browserCheckRuntime`, `showWhatsNewOnUpdate`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
@@ -4381,7 +4295,7 @@ the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
 `modelApiPermissionProfiles`, `modelApiPermissionProfile`,
 `museCodeAutoReviewer` and the eight paid features, `modelApiWebSearch`,
 `modelApiImageGeneration`, `modelApiVoice`, `modelApiSubagents`,
-`modelApiBestOfN`, `modelApiTeamWorkers`, `modelApiScheduledPrompts` and `modelApiAutoReviewer`) are machine-scoped: they
+`modelApiBestOfN`, `modelApiScheduledPrompts` and `modelApiAutoReviewer`) are machine-scoped: they
 take effect from your user settings only, never from a repository's
 `.vscode/settings.json`. In a remote window (SSH, WSL, a dev
 container) machine settings live on the remote side, where a dev container
@@ -4440,9 +4354,7 @@ Bypass at once.
 | `showWhatsNewOnUpdate`            | `true`      | Open What's New after the extension updates: the page after a release with Highlights, a quiet notification after a fixes-only patch; off shows nothing on updates ([What's New after an update](#whats-new-after-an-update))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `paidDailyBudgetUsd`              | `5`         | Shared interactive extras budget in USD, $0.50–$500; machine-scoped. Daily reservations persist across windows; Tab uses its own separate ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `dictationEngine`                 | `"system"`  | Model API dictation engine: `system` (free default) or `museVoice` (paid, currently refused under the finite cap). Muse Code retains its explicit voice opt-in.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| `modelApiAutoCompaction`          | `true`      | Automatic Model API compaction; awaiting evaluation and inactive until the M75 pair and shared paid admission are certified. Set false to opt out. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
-| `modelApiTeamWorkers` | `true` | [Paid](#paid-features): team tasks billed to your Model API key (M96 agent roles, lane A): on with one price question before the first charge; the first delegate call that starts key tasks asks once with each model's prices, each task's ceiling and the shared daily budget. Machine-scoped |
 | `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |
 | `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete Uploaded Files…** removes them early |
 | `screenRecordingMaxSeconds` | `120` | Screen recording length cap in seconds, 10–600; machine-scoped. Shorter bounds are clamped, not refused |
@@ -5052,22 +4964,21 @@ reclaimable memory. Newer runtimes include inactive and purgeable pages.
 These settings are machine-scoped; workspace values are ignored. Settings
 names below start with `museSpark.`.
 
-| Setting                      | Default  | Range or meaning                                                                                       |
-| ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| `resourceGovernor`           | `true`   | Enable this machine's governor                                                                         |
-| `resourceCpuMaxPercent`      | `85`     | 30–100%; sustained for 30 seconds                                                                      |
-| `resourceMemoryMaxPercent`   | `90`     | 40–98% in use                                                                                          |
-| `resourceMemoryMinFreeGiB`   | `2`      | 0.5–64 GiB; effective floor at most 15% of RAM                                                         |
-| `resourceGpuMaxPercent`      | `null`   | 1–100%; no GPU probe until configured                                                                  |
-| `resourceDiskBusyMaxPercent` | `null`   | 1–100%; no disk-busy probe until configured                                                            |
-| `resourceDiskMinFreeGiB`     | `null`   | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
-| `resourceRelocate`           | `paired` | `paired`, `ask` or `off`; needs a paired device or runner route, not available yet                     |
+| Setting                      | Default | Range or meaning                                                                                       |
+| ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `resourceGovernor`           | `true`  | Enable this machine's governor                                                                         |
+| `resourceCpuMaxPercent`      | `85`    | 30–100%; sustained for 30 seconds                                                                      |
+| `resourceMemoryMaxPercent`   | `90`    | 40–98% in use                                                                                          |
+| `resourceMemoryMinFreeGiB`   | `2`     | 0.5–64 GiB; effective floor at most 15% of RAM                                                         |
+| `resourceGpuMaxPercent`      | `null`  | 1–100%; no GPU probe until configured                                                                  |
+| `resourceDiskBusyMaxPercent` | `null`  | 1–100%; no disk-busy probe until configured                                                            |
+| `resourceDiskMinFreeGiB`     | `null`  | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
 
 Levels are **normal**, **throttle**, **relocate** and **pause**. At throttle,
 background capacity narrows to one per kind; at pause, new background work
 waits. This release binds no paired-device or runner route, so sustained
 pressure goes from throttle to pause and never to relocate; resource status
-and the pause notice say relocation is not available yet. Foreground work has a twenty-second maximum wait at pause. **Run Now**
+and the pause notice show that work stays on this machine. Foreground work has a twenty-second maximum wait at pause. **Run Now**
 releases that wait; **Resume Now** overrides pressure for fifteen minutes,
 without turning on an explicitly disabled governor. Unknown readings are shown
 as unknown: they neither trip nor clear a level. Recovery has hysteresis and a
@@ -5113,7 +5024,7 @@ throttling or paused; at pause, one notice per conversation names
 the reading, its limit and what is waiting, with the same three actions.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/resources.png" alt="A running turn with the Resources: Throttling chip beside its heartbeat and the chip's popover open: CPU use 93% of 85%, memory in use 71% of 90%, available memory 4,939.2 MB against a 2,147.5 MB floor, relocation not available yet, two background checks and one worker waiting, and Resume now, Open settings and Show resources on one row, with Close focused" width="60%"><br>
+  <img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/resources.png" alt="A running turn with the Resources: Throttling chip beside its heartbeat and the chip's popover open: CPU use 93% of 85%, memory in use 71% of 90%, available memory 4,939.2 MB against a 2,147.5 MB floor, relocation unavailable, two background checks and one worker waiting, and Resume now, Open settings and Show resources on one row, with Close focused" width="60%"><br>
   <sub>The <b>Resources</b> chip while throttling, opened by <b>Show resources</b></sub>
 </p>
 
@@ -5147,7 +5058,37 @@ The [M107 integration record](docs/certification/m107.md) and
 [editor resource matrix](docs/ide-compatibility/resources.md) distinguish
 component receipts from installed-editor acceptance.
 
+## In progress
+
+Integration work is tracked in the [roadmap](ROADMAP.md#in-progress).
+Dormant schedule-v2 and estimator commands stay out of command discovery and
+refuse when typed. Legacy `/loop` and manual `/compact` keep working.
+Compatibility-only Settings values are retained without runtime reads. The
+schedule switch controls the legacy `/loop` shortcut in Muse Code chat;
+draft delivery selects the delivery carried in new drafts. `resourceRelocate`
+controls the missing-route note on resource pauses,
+and `modelApiAutoCompaction` controls the first-turn awaiting-evaluation notice,
+with automatic compaction inactive. `vault.agentFence` still controls the
+credential fence for interactive Model API shell commands; verification,
+schedules, workers and hooks always remain fenced.
+
+The unbound features include:
+
+- <a id="estimates"></a>Capacity estimates
+- <a id="the-vault"></a>Credential vault
+
 ## Development
+
+The internal B1 confinement build is `npm run build:confine` on Linux.
+It writes the native helper, generated privacy policy and portable inspect
+API to `temp/confine/`; these artifacts are excluded from product packages.
+The internal runner checks protected/private paths on canonical operands,
+rejects noncanonical helper input, and lets a cancelled caller detach from
+the shared self-test while session disposal still waits for its cleanup.
+The runner is unbound from editor approvals. Its certification record is
+[`docs/certification/m125-f1a.md`](docs/certification/m125-f1a.md), including
+the Windows exception and the macOS capture requirement. F1b owns approval
+integration; the shared runner adds no editor-specific behavior.
 
 Resource admission and the lazy launch shims are shared through
 `dist/resourceAdmission.js`; sampler, queue, tree accounting and disk policy
@@ -5231,102 +5172,23 @@ page wait for M104's bridge. The TUI waits for M110a0 lane T. The
 [certification](docs/certification/m118.md) names each pending binding; shared
 logic and fake adapter tests do not establish installed-editor parity.
 
-## The vault
-
-One encrypted vault per user holds API keys, OAuth tokens, SSH keys, sudo and
-other passwords, website logins with their TOTP seeds, session cookies and any
-named secret. Agents get handles and approved, scoped, logged uses, never
-values. Every approval names the exact use and binds to it. One click locks
-everything. It works the same in every editor; see
-[the M109 record](docs/certification/m109.md) for the lanes, the captures and
-what is still open.
-
-The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
-now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
-use in every window. The panel host and the native editor ship in
-`dist/vault.js`, loaded on the first vault command; activation reads no vault
-and starts no broker. Until the broker-backed service lands
-([the M109 record](docs/certification/m109.md)), both commands report that the
-broker installation is missing and refuse access instead of opening an empty
-vault. No value is ever logged, and no handle is substituted into a command,
-a file or the model's text.
-
-Settings (all machine-scoped, so no workspace can change them):
-`museSpark.vault.enabled` (on; an explicitly stored legacy `museSpark.vault`
-boolean remains effective until the new flag is explicitly configured), `museSpark.vault.protection` (`auto` is available
-hardware plus the OS store, with the recovery code offered at setup),
-`museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
-(240) and `museSpark.vault.lockOnScreenLock` (on). The Secure Enclave
-hardware and presence slots are offered where `SecureEnclave.isAvailable`,
-after the owner's Touch ID capture; the Keychain-biometry path stays off
-until an Apple Developer entitlement exists.
-
-The terminal/ACP/headless handlers are implemented against the shared vault
-contracts. This branch still needs the installed broker factory and panel
-bindings from M109 W/U/M104. It does not claim a working packaged vault:
-missing bindings report the broker installation failure and refuse access.
-No activation read or broker start is added.
-
-The terminal grammar is `muse-spark-code-acp vault` followed by `status`,
-`unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,
-`grant <grant-json>`, `revoke <grant-id>`, `audit`, `import <path>`,
-`public-key <item-id>` or `watch`. Every handler was run successfully against
-an injected fake-only local port in the H certification; installed-command
-success remains the integration check. `audit` accepts `--item`, `--requester`,
-`--kind` and `--outcome`. IDs, metadata and grant JSON use the shared schemas.
-Keep secrets out of names, labels and command arguments.
-
-`add` reads private material as one bounded JSON line from standard input,
-with byte fields encoded as base64. Terminal echo stays off while reading;
-base64 is only an input encoding, not encryption. Values never come from an
-argument, environment variable or file. An explicit `import <path>` delegates
-only the chosen credential file to the import owner. `grant` displays every
-scope field and requires explicit terminal confirmation. `watch` displays
-exact requester/use details, asks through the terminal, and answers only the
-same unexpired request id and digest. Pipes cannot approve grants or uses.
-
-ACP `/vault` supports `status` (the default), `list`, `lock` and `audit` locally,
-without sending the command to a model. Vault permissions offer Allow once,
-Allow for this session where permitted, and Deny; ACP's `allow_always` means
-that session choice only. Bypass does not grant a secret. Lock can interrupt
-an active turn or permission question.
-
-Lock, cancel and expiry withdraw a pending vault permission and settle its
-card. Command-bound TOTP consent says that the process sees the code. Agent
-audit replies include only currently visible items. Headless refusals retain
-their reason; only a missing unattended grant recommends creating one.
-
-Turning `museSpark.vault.agentFence` off applies only to an interactive shell.
-Workers, schedules, checks and hooks retain the credential and Git-helper
-fence. Approved environment injection cannot restore loader or startup
-variables.
-
-Local headless `exec --vault` requires existing unattended grants and never
-prompts. Missing grants, presence, taint, unavailable bindings or a failed
-vault use end the run with `denied` (exit 7), independently of
-`--fail-on-denial`. `--key-stdin` and CI cannot enable the vault. Ordinary
-headless behavior without the flag is unchanged. Companion and native panel
-routes carry only public state and bound answers; add/edit opens the host's
-local terminal and never sends a value through the bridge.
-
 ## Development
 
 `npm run schema:exec -- --check` checks the exec and sharing JSON schemas
 against their production zod boundaries. `npm run schema:exec` regenerates
 them. `npm run check:reference` checks the sharing command reference;
 `node scripts/gen-reference.mjs` regenerates it from the same catalog `/help`
-reads.
+reads. Coverage checks retain the full registry; published Help omits dormant
+features and their instructions. Changelog items marked
+`<!-- whats-new: historical -->` retain their release history and are omitted
+from the current What’s New page; their original Try it directives are still
+validated.
 
 `node scripts/build.mjs --production --webview-only` builds the chat, Help and
 What's New browser pages and their metafiles with production options and
 stale-chunk cleanup; it omits the Node
 bundles so browser tests stay within their default setup deadline.
 
-After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI
-surfaces in Chrome against a fake host: no startup requests, first-use loading
-under the shared CSP, and recovery from actual failed entry/static-dependency
-fetches. Retry reloads the panel with its saved conversation and draft. Cold
-menus remain dismissible and cannot take focus after dismissal.
 The generated [feature reference](docs/reference.md) takes its entries from
 `src/shared/featureCatalog.ts` and the marked README sections. Run
 `node scripts/gen-reference.mjs` after updating an entry, and
@@ -5408,7 +5270,7 @@ The delivery helpers require Python 3.12 or newer. See the
   `npm run security:secrets`.
 - semgrep for `npm run security:sast`, at CI's version:
   `pip install -r .github/semgrep/requirements.txt`.
-- Google Chrome (or `CHROME_PATH`) for `test:a11y`, `harness:shots` and
+- Google Chrome (or `CHROME_PATH`) for `test:a11y`, `ui:look` and
   `images`.
 - On Windows, PSScriptAnalyzer 1.25.0 for `npm run lint`
   (`Install-Module PSScriptAnalyzer -RequiredVersion 1.25.0 -Scope CurrentUser`).
@@ -5436,21 +5298,6 @@ group and exited state before authorizing process actions; this mode runs
 before any audio or privacy setup. Native tests build and sign the production
 helper in private fixtures, so they work in a clean checkout.
 
-M109's Windows vault helper is prepared for integration with the shared broker.
-It wraps the vault key with current-user DPAPI or a non-exportable TPM RSA key;
-presence uses a forced-protection key plus a fresh Windows Hello signature in
-the helper's own window. Missing TPM or Hello support refuses those slots.
-Each launch checks the EXE's compiled SHA-256, its file and directory ACLs,
-and every ancestor for unsafe permissions or reparse points. The system
-PowerShell process holds a handle denying writes and deletion while running
-the verified managed entry point; private input follows its readiness signal.
-A refused cache is left intact and rebuilt in a fresh private directory.
-Only this process's completed builds are reused; native DLL imports and the
-helper's startup search are restricted to System32.
-Existing credential storage is unchanged until the broker and migration lanes
-are integrated. The [Windows certification](docs/certification/m109-pw.md)
-records the generated-material captures and the remaining hardware checks.
-
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary
@@ -5474,12 +5321,10 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run build:dev`                       | Dev bundles for the extension, the Model API backend, the review, the search worker, web fetch's page converter worker, the webview and the integration tests, with source maps                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `npm run watch`                           | Rebuild the extension, the Model API backend, the search worker, the page converter worker and the webview on change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `npm run harness:shots`                   | Screenshots of the webview in headless Chrome behind a fake host (`test/harness/`), every scenario or the names you pass; needs `build:dev`. `--theme=dark`, `light`, `hc-dark`, `hc-light`, `one-dark-pro` or `dracula` uses a captured theme; `chat-menu-narrow` uses a true 320 px viewport. The README's screenshots refresh with `npm run readme:shots` (the mapping in `scripts/readme-shots.json`), captured at the mapped viewport size after the harness readiness scan into `media/readme/`: `tools-open` (as `turn.png`), `agents`, `slash-palette` (as `palette.png`), `slash-commands`, `approval`, `question`, `quote-menu` (as `quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation` (as `voice.png`), `paid` and `paid-always`, the Languages section's is `usage --lang=de` (as `languages.png`), `readme-open-question` (as `open-question.png`), `readme-help` (as `help.png`) and `resources-throttle` (as `resources.png`); the walkthrough's are `empty`, `tools`, `slash-palette` and `signin` (as `open.png`, `welcome.png`, `chat.png` and `sign-in.png` in `resources/walkthrough/`); `--lang=<id>` renders them in a table from `l10n/` (`--lang=pseudo` in the pseudo-locale)           |
+| `npm run ui:look -- <scene>`              | Renders one webview scene from the built webview into `temp/ui-look/` for a person to look at after a UI change; no baseline, no comparison, no CI. `--theme=light` or `dark` renders one theme (both by default); needs `build:dev`.row`uses a true 320 px viewport. The README's screenshots refresh with`npm run readme:shots`(the mapping in`scripts/readme-shots.json`), captured at the mapped viewport size after the harness readiness scan into `media/readme/`: `tools-open`(as`turn.png`), `agents`, `slash-palette`(as`palette.png`), `slash-commands`, `approval`, `question`, `quote-menu`(as`quote.png`), `rewind`, `modes`, `history`, `usage`, `dictation`(as`voice.png`), `paid`and`paid-always`, the Languages section's is `usage --lang=de`(as`languages.png`), `readme-open-question`(as`open-question.png`), `readme-help`(as`help.png`) and `resources-throttle`(as`resources.png`); the walkthrough's are `empty`, `tools`, `slash-palette`and`signin`(as`open.png`, `welcome.png`, `chat.png`and`sign-in.png`in`resources/walkthrough/`); `--lang=<id>`renders them in a table from`l10n/` (`--lang=pseudo` in the pseudo-locale)                                                                    |
 | `npm run build:tokens`                    | Regenerate shared CSS and native/desktop/TUI token inputs from `design/tokens/muse.tokens.json`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run check:tokens`                    | Reject stale generated outputs, missing contrast coverage and pairs below AA in all four Muse palettes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run check:visual`                    | Compare every audited component scene, six control states, six captured themes and 320/690 px widths with pixelmatch (colour threshold 0.1, AA detection, per-image allowance at most 0.01% or 12 pixels). Full PNG baselines stay outside git under a 512 MiB budget. An absent archive reconstructs the manifest's Git revision with the current browser/fonts. Both CI tiers require six deterministic shards and their complete receipt merge. Use `-- --shard=1/6` to rerun one batch and `-- --merge-shards=<receipt-directory>` to require all batches and the combined budget. Each shard reconstructs the reviewed source on the runner; see [S's certification](docs/certification/m114-s-screenshots,-visual-regression-and-docs.md). A reviewed update uses `-- --update --review=<reference> --archive=<new-external-directory>`; commit the changed manifest only after reviewing the images. See [the visual contract](test/harness/goldens/README.md).                                                                                                                                                                                                                                                         |
-| `npm run check:visual:a11y`               | Record scoped axe findings for every audited component in six themes at true 320/690 px; retain incomplete findings and fail on violations. The full `test:a11y` gate remains separate.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `harness:shots --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `npm run harness:pseudo`                  | Write the pseudo-locale (`test/harness/l10n/ui.pseudo.json`): every string accented, bracketed and lengthened by about a third, with its slots kept, so English left outside the table and text that overflows stand out in `ui:look -- <scene> --lang=pseudo`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `npm run test:a11y`                       | The accessibility gate: axe-core checks every harness scenario in VS Code's four default themes against WCAG 2.2 AA and fails on any violation, on anything axe leaves undecided (except the contrast of text it could not see and of glyph-only content, which it counts), and on a page without a result or whose scenario threw; needs a build. `node scripts/capture-themes.mjs` refreshes the theme colours from a real VS Code; `--lang=<id>` checks the scenarios in a table from `l10n/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `npm run images`                          | Render the Marketplace icon, the README banner and the social preview from their SVGs (headless Chrome)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `npm run build`                           | Minified production bundles with chat, Models and What’s New sharing one browser splitting build, then enforces the size budgets in `scripts/check-bundle-size.mjs`, fails if the Model API backend's files, the review's, or web fetch's page converter (parse5 and its parts), are in the activation bundle, or an English fallback is in any Node bundle except its shared `dist/uiText.js` (`scripts/check-bundle-split.mjs`), or a host bundle reads `navigator`, and checks `THIRD_PARTY_NOTICES.txt` against the bundled packages. The provider catalogue keeps its exact JSON values in a CommonJS data module, staged through the existing verified Brotli runtime loader                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -5491,7 +5336,7 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run deadcode`                        | `knip`: unused files, exports (including namespace values and types), dependencies (no `--strict`; see `knip.jsonc`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `npm run cycles`                          | `dpdm` circular-import check (`scripts/cycles.mjs` over the roots in `scripts/cycles.json`) covering every build entry, runtime lazy import target, entry-named module and knip entry; `cyclesRoots.test.ts` guards coverage                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `npm run duplication`                     | `jscpd` copy-paste detection (threshold 0)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `npm run test:unit`                       | vitest with coverage thresholds (90 % statements/lines/functions, 85 % branches); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `npm run test:unit`                       | vitest with no coverage gate (the number measured tests of fake code; removed with the 2026-10-14 test overhaul); includes `test/e2e/`, where a fake Muse Code CLI is spawned as a real child process (a compiled stub on Windows) and driven through the real backend manager                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `npm run test:e2e:live`                   | Two real turns on the installed Muse Code CLI (a reply-only turn and M70's review turn held in Plan mode), opt-in with `MUSE_LIVE_E2E=1`; bills the signed-in subscription (25 to 45 model attempts measured for a reply-only turn: one for the answer, the rest for Muse Code's bundled reminder agents, which loop a varying number of times; budget 60 per turn, counted from the CLI's trace log); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `npm run test:e2e:live:modelapi`          | The Model API sweep: the production backend against Meta's real API in empty temporary workspaces, one case per feature (`-- -t case07` runs one); opt-in with `MUSE_LIVE_MODEL_API=1` and a key already stored by `muse-spark-code-acp auth set` in the OS credential store; key environment variables are rejected, contributor tier only; bills the key (about $0.03 a full run, $0.02 of it two images; it stops sending past $0.50); never in CI                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `npm run test:e2e:live:eval`              | The M75 paired efficiency evaluation: the twelve fixture tasks (seven accept, five held-out; two with a tool output long enough to pack) on the baseline and the observation packing arm (M73), on the extension's own Model API harness against Meta's real API, each in an empty temporary workspace, judged by a verifier that runs the fixed code; attempts counted from the requests sent, tokens, cost and pass rate per task, and the capability floors (0.75 per split); a packing run also fails unless it packed on every long-output task, and its report says so. Opt-in with `MUSE_LIVE_MODEL_API=1` and a key already stored by `muse-spark-code-acp auth set` in the OS credential store; key environment variables are rejected, the model's shell commands get no credential variable, the arms take turns going first, contributor model only; `MUSE_EVAL_TASKS` picks tasks, `MUSE_EVAL_REPORT=<path>` writes `<path>.json` and `.md`; run `npm run build:dev` first. Bills the key (the ten-task baseline measured 39 model calls and $0.0041; both arms on all twelve tasks measured 111 model calls and $0.0156 for M73; it stops sending past $0.50 or when a sent call has unknown usage); never in CI |
@@ -5594,6 +5439,18 @@ bundle declarations and callable split guard in
 rejected, then restored byte-exact and accepted. See the
 [timing and gate-fire record](docs/certification/deflake4.md).
 
+**Lazy-bundle registry.** `src/shared/lazyBundles.generated.ts` names every
+dist bundle loaded by file name, the function or constant that names it,
+which process loads it and which package carries it.
+`npm run lazy-registry:generate` writes it from the production build;
+`node scripts/gen-lazy-registry.mjs --check` runs in `npm run build` and
+fails when the file is stale, when a source loads a file the build does not
+emit, when a package lacks a bundle its side can load, when a load's file
+name is worked out at run time and is not listed with its reason
+(`scripts/lib/lazyRegistry.mjs`), and when the build's metafiles are
+missing. The command is tested as a child process over a real production
+build (`test/unit/packagedBundles.test.mjs`).
+
 **Project structure.**
 
 ```
@@ -5608,13 +5465,13 @@ src/webview/                React app (own tsconfig, browser libs)
 native/windows/             dictate.ps1 (dictation, System.Speech) and capture.ps1 (Muse Voice's recorder); MuseSparkJob.cs, MuseSparkMcpLauncher.cs, MuseSparkMcpJob.cs: the Windows job helpers' C#, compiled on first use
 native/darwin/              Dictation.swift, Info.plist, build.sh, check-disclaim.sh: the macOS helper (built and checked in CI)
 resources/walkthrough/      the Get Started walkthrough
-test/unit/                  vitest tests, vscode mock, fakes
-test/e2e/                   the fake Muse Code CLI and the tests that drive the real backend through it; the opt-in live suites
+test/unit/                  vitest tests over real code only: no mocks, fakes, stand-ins or screenshot comparisons
+test/e2e/                   the live drills, kept listed for the real-life run
 test/integration/           @vscode/test-cli suites
 test/fixtures/workspace/    the workspace the integration tests open
-test/harness/               the webview behind a fake host, for screenshots and the accessibility gate; themes/ holds four VS Code themes and captured One Dark Pro/Dracula colours; goldens/ holds the visual manifest, with PNGs outside git
+test/harness/               the webview behind a scripted host, for the local look, the README pictures and the accessibility gate; themes/ holds four captured VS Code themes
 test/hosts/                 the extension and the ACP agent in other editors (VSCodium, code-server, Theia, JupyterLab, Emacs, Neovim), one script per host
-scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, harness screenshots, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
+scripts/                    esbuild build; bundle-size, bundle-split, host-globals, notices, audit, PSScriptAnalyzer, accessibility, localization and host API gates; the pseudo-locale; theme capture, the local UI look, image rendering; CHANGELOG notes and VS Code versions for the workflows; the ACP agent's package
 docs/                       PRIVACY.md, and certification/: per-milestone gate-fire records
 media/                      icons, banner, social preview, README screenshots
 .github/                    workflows (ci, build, release, hosts, forks, action-check), issue and pull-request templates, audit exceptions, pinned semgrep, CODEOWNERS, Dependabot, FUNDING
@@ -5696,14 +5553,23 @@ without rebuilding.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
 
-#### M101 integration validation
+#### M106 wire captures
 
-`node scripts/m101-e.mjs --plan` prints lane E's live capture plan and call
-estimate. `node scripts/m101-e.mjs --fake` runs request goldens, the fake
-M75 pair and automatic-compaction/overflow checks in bounded batches. Lane E
-owns the live receipt; production automatic compaction stays inactive until
-its evaluated latch and paid admission are certified. The launcher's live
-M75 mode uses the existing OS-stored key and bills that key.
+`node scripts/capture-m106-meta.mjs --help` explains the developer capture
+tool; `node scripts/capture-m106-meta.mjs --plan` prints its six requests
+without network access. Live collection requires an explicit paid-capture
+opt-in and a key on standard input. It runs two status GETs and four
+contributor-model POST attempts without retries, including a request with
+the recommended 131,072-token output cap. It writes counted, scrubbed
+receipts into a new directory and exits unsuccessfully if a required wire
+contract is refused or missing. The lead supplies the key and reviews the
+receipts before installing fixtures or enabling a capability.
+
+The [C-M106-1 capture record](docs/certification/m106-completion-captures.md)
+contains Muse Code 1.4.4's observed effort, feedback and lifecycle frames,
+the missing credential or local runtime for every provider, and the remaining
+live checks. The collector is a developer tool shared across Windows,
+macOS and Linux; editor bindings belong to the later completion lanes.
 
 PNG/JPEG images are resized before entering Model API replay when the selected
 model record supplies vision support and documented pixel limits. The portable
@@ -5906,4 +5772,4 @@ and versions leave over HTTPS. Disable `museSpark.legalRegistryLookups` for
 local-only scans; missing dependency licences remain unknown. Private registry
 configuration is never contacted. CLI lookup still requires `--registry`.
 
-Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers. The credential vault remains unavailable until its broker is installed.
+Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers.

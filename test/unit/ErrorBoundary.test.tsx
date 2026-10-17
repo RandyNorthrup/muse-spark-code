@@ -26,9 +26,9 @@ describe('ErrorBoundary', () => {
   })
 
   it('shows the error with a Reload button that asks the host for a fresh document', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {
-      // React and the boundary both report; the test asserts on the boundary's line.
-    })
+    // Call-through only (no replacement): React and the boundary both
+    // report; the test asserts on the boundary's line.
+    const consoleError = vi.spyOn(console, 'error')
     const onReload = vi.fn()
     const onError = vi.fn()
     render(

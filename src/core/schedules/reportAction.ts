@@ -50,6 +50,7 @@ export interface ScheduleReportDeps {
 }
 
 /** S calls this after the ordinary permanent claim and per-target admission.
+ * @unwired M115 schedule report action runner
  * No second scheduler, prompt turn, interactive question or money reservation. */
 export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
   constructor(private readonly deps: ScheduleReportDeps) {}
@@ -159,6 +160,7 @@ export interface ScheduleReportAgentPort {
   admit(draft: ScheduleDraft): Promise<unknown>
 }
 
+/** @unwired M115 schedule report tool */
 export function scheduleReportTool(
   port: ScheduleReportAgentPort,
   noEscalation: ScheduleNoEscalation,

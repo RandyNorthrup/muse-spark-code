@@ -66,6 +66,9 @@
   "tornLines": {
     "other": "已跳过{count}个不完整的行"
   },
+  "inexactRecords": {
+    "other": "{count} 条旧记录的金额无法精确读取，未计入"
+  },
   "recordCount": {
     "other": "{count}条记录"
   },
