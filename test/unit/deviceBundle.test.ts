@@ -1,16 +1,31 @@
 import { copyFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { deviceMethods } from '../../src/host/devices/deviceBundle'
 import type { DeviceServiceDeps } from '../../src/host/devices/deviceEntry'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { requireFile } from '../../src/host/lazyBundle'
-import { builtForTests } from './helpers/lazyBundles'
+import { buildHostBundles } from './helpers/modelApiBundle'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { deferred } from './helpers/deviceExecutionFixtures'
+import { removeFolder } from './helpers/temporaryFolders'
 
-const built = builtForTests('src/host/devices/deviceEntry.ts', 'devices.js')
+// The shipped Devices entry built the way scripts/build.mjs builds host
+// bundles, beside the shared English fallback it loads; the file's folder
+// is removed after its tests.
+const built = { folder: '', file: '' }
+beforeAll(async () => {
+  // Node keys its module cache by real path (macOS's /var is a link).
+  built.folder = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-devices-bundle-')))
+  await buildHostBundles(built.folder, {
+    devices: path.resolve('src/host/devices/deviceEntry.ts'),
+  })
+  built.file = path.join(built.folder, 'devices.js')
+})
+afterAll(() => removeFolder(built.folder))
 afterEach(() => {
   setUiText(EN, 'en')
 })
