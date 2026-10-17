@@ -848,6 +848,8 @@ export function describeExit(
       }),
       isExpected,
       isPersistent: false,
+      // A signal the close itself sent is the stop that was asked for.
+      isFailure: !isExpected,
     }
   }
   // Exit codes are ids, not amounts: no digit grouping.
@@ -858,11 +860,13 @@ export function describeExit(
         description: fill(UI_TEXT.museExitedWithCode, { code }),
         isExpected,
         isPersistent: false,
+        isFailure: exit.code !== 0,
       }
     : {
         description: fill(UI_TEXT.museExitMeaning, { meaning, code }),
         isExpected,
         isPersistent: MUSE_EXIT_PERSISTENT_CODES.has(exit.code),
+        isFailure: exit.code !== 0,
       }
 }
 
