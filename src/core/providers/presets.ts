@@ -64,7 +64,12 @@ export type KeyTest =
   | { readonly kind: 'paid-token' }
 
 export type KeyProbeOutcome =
-  | { readonly ok: true; readonly modelCount: number | undefined }
+  | {
+      readonly ok: true
+      readonly modelCount: number | undefined
+      /** The listed ids, where the check read a models list (F85). */
+      readonly modelIds?: readonly string[] | undefined
+    }
   | { readonly ok: false; readonly paid: boolean; readonly reason: string }
 
 /** The same free-check contract for panel and CLI; callbacks own pinned I/O. */

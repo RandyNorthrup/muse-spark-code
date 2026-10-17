@@ -10,6 +10,7 @@ import {
   type ResolvedModel,
 } from '../backends/modelapi/modelPolicy'
 import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { parseModelRef, sanitizeModelLabel } from './modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
 
@@ -42,7 +43,12 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       const models = await deps.models()
       return models.flatMap((model) => {
         const policy = modelPolicyFor(model.ref, { ...model.evidence, pricing: model.pricing })
-        if (policy.tools.calling.state !== 'yes') return []
+        // A model without confirmed tool calling stays listed with its
+        // limit stated, never hidden without a reason (F83).
+        const agentLimit =
+          policy.tools.calling.state === 'yes'
+            ? undefined
+            : fill(UI_TEXT.providerModelNoToolCalling, { model: model.ref })
         const pricing = model.pricing
         return [
           {
@@ -57,6 +63,7 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
             isPinned: model.isPinned,
             trainsOnContent: model.trainsOnContent,
             planLimitsUrl: model.planLimitsUrl,
+            ...(agentLimit !== undefined && { agentLimit }),
             ...(pricing.kind === 'priced' && {
               inputUsdPerMTokens: pricing.card.input * TOKENS_PER_MILLION,
               outputUsdPerMTokens: pricing.card.output * TOKENS_PER_MILLION,
@@ -71,6 +78,12 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       const model = models.find((model) => model.ref === ref)
       if (model === undefined || parsed === undefined || parsed.providerId === 'meta') {
         throw new Error(UI_TEXT.execUnknownModel)
+      }
+      // Selecting a model without confirmed tool calling for an agent
+      // turn is refused with the same sentence its list row states (F83).
+      const policy = modelPolicyFor(ref, { ...model.evidence, pricing: model.pricing })
+      if (policy.tools.calling.state !== 'yes') {
+        throw new Error(fill(UI_TEXT.providerModelNoToolCalling, { model: ref }))
       }
       const client = await deps.createClient(model)
       if (!deps.isCurrent(model)) {

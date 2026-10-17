@@ -312,6 +312,8 @@ const modelOptionSchema = z.object({
   isPinned: z.optional(booleanSchema),
   /** The provider or route may train on the content (hidden when confidential). */
   trainsOnContent: z.optional(booleanSchema),
+  /** Why this model cannot run the coding agent; the picker shows it (F83). */
+  agentLimit: z.optional(stringSchema),
   effortLevels: z.optional(z.array(z.enum(EFFORT_LEVELS))),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>

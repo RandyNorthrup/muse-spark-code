@@ -271,6 +271,12 @@ export interface ModelSummary {
   readonly isPinned?: boolean | undefined
   readonly trainsOnContent?: boolean | undefined
   readonly planLimitsUrl?: string | undefined
+  /**
+   * Why this model cannot run the coding agent (tool calling unconfirmed):
+   * lists show it with this limit stated instead of hiding it, and an
+   * agent turn on it is refused with this sentence. Absent when it can.
+   */
+  readonly agentLimit?: string | undefined
 }
 
 export interface SkillSummary {
