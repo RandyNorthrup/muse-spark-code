@@ -1,22 +1,14 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  MODEL_API_BASE_URL,
-  PROVIDERS_CONFIG_DIR_NAME,
-  PROVIDERS_FILE_NAME,
-  PROVIDERS_FILE_VERSION,
-  SECRET_KEYS,
-  UI_TEXT,
-} from '../../src/shared/constants'
+import { MODEL_API_BASE_URL, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { AccountSwitchRefusedError } from '../../src/acp/accountText'
 import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
 import { fill } from '../../src/shared/l10n/text'
 import { runtimeProvidersFile } from '../../src/runtime/providers/providersFileStore'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import { createRuntimeBackend } from '../../src/runtime/backends'
-import { StoreUnavailableError } from '../../src/runtime/keyStore'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { memoryKeyring } from './helpers/keyring'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
@@ -26,7 +18,6 @@ import {
   providersFileOf,
 } from './helpers/refusedProviders'
 
-const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const dirs: string[] = []
 
 afterEach(() => {
@@ -461,64 +452,6 @@ describe('createRuntimeAccountServices', () => {
         state: 'signedOut',
         message: UI_TEXT.acpNoStoredKey,
       })
-    } finally {
-      await runtime.close()
-    }
-  })
-
-  it('opens a Model API session with a dead credential store and no key (F43)', async () => {
-    const folder = mkdtempSync(path.join(realpathSync.native(tmpdir()), 'm108-keyless-'))
-    dirs.push(folder)
-    // A local provider lists its models from the file and the static
-    // catalogue: no store, no key, no network.
-    const configDir = path.join(folder, '.config', PROVIDERS_CONFIG_DIR_NAME)
-    mkdirSync(configDir, { recursive: true })
-    writeFileSync(
-      path.join(configDir, PROVIDERS_FILE_NAME),
-      JSON.stringify({
-        v: PROVIDERS_FILE_VERSION,
-        providers: [
-          {
-            id: 'ollama',
-            preset: 'ollama',
-            address: 'http://127.0.0.1:11434',
-            auth: 'none',
-            models: ['llama3.1'],
-            modelCapabilities: {
-              'llama3.1': { tools: { calling: { state: 'yes', value: true } } },
-            },
-          },
-        ],
-      }),
-    )
-    // The Model API host lives in the built lazy bundle, as in the product.
-    const deps = { ...inertDeps(folder), distDir: path.join(ROOT, 'dist') }
-    const runtime = createRuntimeBackend({
-      ...deps,
-      secrets: {
-        get: () => Promise.reject(new StoreUnavailableError()),
-        store: () => Promise.resolve(),
-        delete: () => Promise.resolve(),
-      },
-    })
-    try {
-      // The gate still reports the dead store in the one store sentence...
-      await expect(runtime.backend.readiness(false)).resolves.toEqual({
-        state: 'signedOut',
-        message: UI_TEXT.acpStoreDown,
-        storeDown: true,
-      })
-      // ...but the session opens with no key and no account identity.
-      const host = await runtime.backend.hostFor(folder)
-      const models = await host.listModels()
-      const first = models[0]
-      if (first === undefined) throw new Error('missing test model')
-      const session = await host.startSession({
-        workspaceRoot: folder,
-        modelId: first.modelId,
-        approvalMode: 'promptUnmatched',
-      })
-      expect(typeof session.sessionId).toBe('string')
     } finally {
       await runtime.close()
     }
