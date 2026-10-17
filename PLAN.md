@@ -16574,6 +16574,11 @@ Share the native identity walker through the existing Node boundary bundle;
 the unchanged sharing-runtime cap must accommodate the refusal at admission.
 Its Node entry stays in core, outside the browser project's shared sources.
 
+Follow-up 2026-10-17 (MSWINPATH): the trusted-root walk no longer refuses
+ordinary `..`-prefixed names (`..foo`), and the spelling refusal plus the
+walk's pre-query refusals have D108-compliant regression cover.
+Receipts: `docs/certification/mswinpath.md`.
+
 - **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### FIXCYCLES2 — Share the build's integration-test roots (2026-10-08, Kubuntu)
