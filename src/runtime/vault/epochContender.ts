@@ -1,6 +1,6 @@
 import path from 'node:path'
 import process from 'node:process'
-import { constants } from 'node:fs'
+import { constants, type Stats } from 'node:fs'
 import { lstat, unlink } from 'node:fs/promises'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
@@ -36,6 +36,20 @@ import { holdVaultStartupLock, vaultProcessIdentity } from './posixNative'
  * the single link a kill between publication and temporary cleanup leaves
  * behind. Empty, partial and valid-but-dead records are all covered.
  */
+/**
+ * Only an owner-only non-link single-link file may be retired by these
+ * rounds: anything else fails closed with no access, never deleted.
+ */
+function assertOwnerOnlyRemnant(sample: Stats): void {
+  if (
+    sample.isSymbolicLink() ||
+    !sample.isFile() ||
+    sample.nlink !== 1 ||
+    sample.uid !== process.getuid?.() ||
+    (sample.mode & (constants.S_IRWXG | constants.S_IRWXO)) !== 0
+  )
+    throw new Error(UI_TEXT.vault.noAccess)
+}
 async function retireStalePending(writer: string, mutexAcquiredAt: number): Promise<void> {
   const pending = `${writer}${VAULT_CLAIM_PENDING_SUFFIX}`
   let sample
@@ -47,15 +61,8 @@ async function retireStalePending(writer: string, mutexAcquiredAt: number): Prom
   }
   // Never opened by a reader; still, only an owner-only remnant older than
   // the hold is retired. Anything else fails closed below, never deleted.
-  if (
-    sample.isSymbolicLink() ||
-    !sample.isFile() ||
-    sample.nlink !== 1 ||
-    sample.uid !== process.getuid?.() ||
-    (sample.mode & (constants.S_IRWXG | constants.S_IRWXO)) !== 0 ||
-    sample.mtimeMs > mutexAcquiredAt
-  )
-    throw new Error(UI_TEXT.vault.noAccess)
+  assertOwnerOnlyRemnant(sample)
+  if (sample.mtimeMs > mutexAcquiredAt) throw new Error(UI_TEXT.vault.noAccess)
   await unlink(pending)
 }
 
@@ -78,14 +85,7 @@ async function retireUnparsableWriter(
     if (isVaultFileMissing(error)) return 'retry'
     throw error
   }
-  if (
-    sample.isSymbolicLink() ||
-    !sample.isFile() ||
-    sample.nlink !== 1 ||
-    sample.uid !== process.getuid?.() ||
-    (sample.mode & (constants.S_IRWXG | constants.S_IRWXO)) !== 0
-  )
-    throw new Error(UI_TEXT.vault.noAccess)
+  assertOwnerOnlyRemnant(sample)
   if (sample.mtimeMs > mutexAcquiredAt) return 'wait'
   let reread: Buffer
   try {
@@ -150,14 +150,7 @@ async function settleEpochWriter(
   // missing file and simply reclaims on the next round.
   try {
     const sample = await lstat(writer)
-    if (
-      sample.isSymbolicLink() ||
-      !sample.isFile() ||
-      sample.nlink !== 1 ||
-      sample.uid !== process.getuid?.() ||
-      (sample.mode & (constants.S_IRWXG | constants.S_IRWXO)) !== 0
-    )
-      throw new Error(UI_TEXT.vault.noAccess)
+    assertOwnerOnlyRemnant(sample)
     const reread = await files.read(writer)
     const current = vaultEpochWriterSchema.parse(JSON.parse(reread.toString('utf8')))
     if (current.processId !== owner.processId || current.startedAt !== owner.startedAt)

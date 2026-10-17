@@ -29,22 +29,28 @@ export function vaultWriterDetail(writer: VaultWriterFacts): string {
   return text[writer.kind]
 }
 
+/**
+ * Every named vault refusal's sentence key, with the refusal it names:
+ * the panel and the terminal read the same installed sentences.
+ */
+const REFUSAL_SENTENCE_KEYS = [
+  'locked', // protocol refusal `locked`
+  'setupNeeded', // `uncreated`
+  'setupExists', // `exists`
+  'itemConflict', // `conflict`: an item or path collision, never setup
+  'deleteConflict', // `deleteConflict`: a Delete refused after import
+  'busy', // `busy`
+  'rollback', // `rollback`
+  'storeUnavailable', // `storeUnavailable`
+  'sourceGone', // `sourceGone`: the file is gone, nothing to retry
+  'sourceUnreadable', // `sourceUnreadable`: unreadable source, receipt kept
+  'sourceUnavailable', // `sourceUnavailable`: location away, receipt kept
+  'operationFailed', // `invalid`, `io`
+  'useChanged', // a guard below
+  'approvalExpired', // a guard below
+] as const
+
 /** Every named vault refusal's own sentence. */
 export function vaultRefusalSentences(): readonly string[] {
-  return [
-    UI_TEXT.vault.locked, // protocol refusal `locked`
-    UI_TEXT.vault.setupNeeded, // `uncreated`
-    UI_TEXT.vault.setupExists, // `exists`
-    UI_TEXT.vault.itemConflict, // `conflict`: an item or path collision, never setup
-    UI_TEXT.vault.deleteConflict, // `deleteConflict`: a Delete refused after import
-    UI_TEXT.vault.busy, // `busy`
-    UI_TEXT.vault.rollback, // `rollback`
-    UI_TEXT.vault.storeUnavailable, // `storeUnavailable`
-    UI_TEXT.vault.sourceGone, // `sourceGone`: the file is gone, nothing to retry
-    UI_TEXT.vault.sourceUnreadable, // `sourceUnreadable`: unreadable source, receipt kept
-    UI_TEXT.vault.sourceUnavailable, // `sourceUnavailable`: location away, receipt kept
-    UI_TEXT.vault.operationFailed, // `invalid`, `io`
-    UI_TEXT.vault.useChanged, // a guard below
-    UI_TEXT.vault.approvalExpired, // a guard below
-  ]
+  return REFUSAL_SENTENCE_KEYS.map((key) => UI_TEXT.vault[key])
 }
