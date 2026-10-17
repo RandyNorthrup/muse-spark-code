@@ -5181,6 +5181,7 @@
     "busyOtherMachine": "Der Tresor wird auf einem anderen Rechner seit {since} von Prozess {pid} gehalten. Dessen Beendigung lässt sich hier nicht feststellen.",
     "ownerUnknown": "Der Tresor kann keinen Schreibzugriff erhalten, weil die genaue Startzeit dieses Prozesses im Betriebssystem nicht ermittelt werden konnte. Versuchen Sie es erneut.",
     "unreadable": "Die Schreibsperre ist unlesbar und gibt sich nicht von selbst frei. Setzen Sie den Tresor zurück, um neu zu beginnen.",
+    "filesystemUnsupported": "Das Dateisystem dieses Ordners kann Tresoraktualisierungen nicht veröffentlichen: Harte Verknüpfungen werden hier nicht unterstützt. Verschieben Sie den Tresor in ein Dateisystem, das sie unterstützt, und versuchen Sie es erneut.",
     "importedLabel": "Importierter {source}-Zugang {number}",
     "importedSummary": "In den Tresor importiert: {names}",
     "importKeepOrDelete": "Originaldatei behalten oder löschen, da ihre Zugangsdaten jetzt im Tresor sind?",

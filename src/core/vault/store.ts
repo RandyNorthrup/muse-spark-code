@@ -34,7 +34,12 @@ import {
   isSameVolume,
   fileIdentityKey,
 } from '../fs/fileIdentity'
-import { acquireFileLease, inspectFileLease, LeaseBusyError } from '../locks/fileLease'
+import {
+  acquireFileLease,
+  inspectFileLease,
+  LeaseBusyError,
+  LeaseLinkUnsupportedError,
+} from '../locks/fileLease'
 import { nodeLeasePort } from '../locks/nodeLeasePort'
 import {
   currentProcessOwner,
@@ -60,12 +65,38 @@ import {
   vaultHmacSha256,
 } from './crypto'
 
+/**
+ * A broker authorization refusal, matched structurally so this layer keeps
+ * no dependency on the broker: only its name and reason cross the boundary.
+ */
+function isBrokerRefusal(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    error.name === 'VaultManagementError' &&
+    'reason' in error &&
+    typeof error.reason === 'string'
+  )
+}
+
 type VaultFileName = 'vault.v1' | 'slots.v1' | 'pending.v1' | 'reset.v1'
 /** Dispatched mutations belong to this operation until they settle, even when its callback fails. */
 export type VaultWriterCheck = (() => void) & {
   mutate?: <T>(work: () => Promise<T>) => Promise<T>
 }
-const WRITER_QUEUES = new Map<string, Promise<void>>()
+/**
+ * The serialized per-directory writer queue, shared process-wide (not per
+ * module copy): two bundles loading this file in one process still run one
+ * queue, so a second copy never adopts the first's live lock
+ * (RVAPP-LEASE2 P2-1).
+ */
+function sharedWriterQueues(): Map<string, Promise<void>> {
+  // `globalThis` has no such property: the double assertion is the only
+  // access to the lane-owned queue key (PLAN.md §8).
+  const scope = globalThis as unknown as { __vaultWriterQueues?: Map<string, Promise<void>> }
+  scope.__vaultWriterQueues ??= new Map()
+  return scope.__vaultWriterQueues
+}
+const WRITER_QUEUES = sharedWriterQueues()
 export interface VaultFilePort {
   readonly maxBytes: number
   read(name: VaultFileName): Promise<Buffer | null>
@@ -329,6 +360,9 @@ export class NodeVaultFiles implements VaultFilePort {
     holder: LeaseBusyError['holder'],
     self: { machineId?: string | undefined } | undefined,
   ): VaultWriterError['writer'] {
+    // Without this process's own evidence, a note's owner cannot be judged:
+    // never name its process as the holder.
+    if (!self) return { kind: 'ownerUnknown' }
     if (
       !holder ||
       !Number.isSafeInteger(holder.owner.pid) ||
@@ -337,13 +371,18 @@ export class NodeVaultFiles implements VaultFilePort {
       holder.acquiredAt < 0
     )
       return { kind: 'unreadable' }
-    const label = holder.owner.host
+    // The label comes from the lock file: directional controls could
+    // spoof it, so they are removed before display, never shown.
+    const label = holder.owner.host.replaceAll(
+      /[\u{61C}\u{200E}\u{200F}\u{202A}-\u{202E}\u{2066}-\u{2069}]/gu,
+      '',
+    )
     return {
       kind: 'held',
       pid: holder.owner.pid,
       acquiredAt: holder.acquiredAt,
       otherMachine: Boolean(
-        holder.owner.machineId && self?.machineId && holder.owner.machineId !== self.machineId,
+        holder.owner.machineId && self.machineId && holder.owner.machineId !== self.machineId,
       ),
       ...(label.length > 0 &&
         label.length <= VAULT_LIMITS.text &&
@@ -415,6 +454,12 @@ export class NodeVaultFiles implements VaultFilePort {
       })
     } catch (error: unknown) {
       if (error instanceof VaultWriterError) throw error
+      // A broker authorization refusal (a Lock during confirmed recovery)
+      // is already typed: it passes through, never mapped to I/O.
+      if (isBrokerRefusal(error)) throw error
+      // A filesystem without hard links refuses every publication the same
+      // way: the cause keeps its name, never a generic I/O failure.
+      if (error instanceof LeaseLinkUnsupportedError) throw new VaultError('filesystemUnsupported')
       if (error instanceof LeaseBusyError && error.holder) {
         const self = await exactCurrentProcessOwner()
         throw new VaultWriterError(this.writerFacts(error.holder, self))
@@ -986,11 +1031,15 @@ export class VaultStore implements VaultStorePort {
     anchoredId: string,
     anchor: VaultGenerationPort,
   ): Promise<boolean> {
-    return (await files.writerRecovery?.())
-      ? true
-      : await files.withWriter(
-          async () => !(await isVaultOpenable(files, anchoredId, await anchor.minimum(anchoredId))),
-        )
+    if (await files.writerRecovery?.()) {
+      // A stuck lock alone never loses a vault: a live foreign writer, or
+      // failed self evidence beside healthy files, is stuck, never lost.
+      // Only files no slot or code can open are lost (RVAPP-LEASE2 P1-2).
+      return !(await isVaultOpenable(files, anchoredId, await anchor.minimum(anchoredId)))
+    }
+    return await files.withWriter(
+      async () => !(await isVaultOpenable(files, anchoredId, await anchor.minimum(anchoredId))),
+    )
   }
   /**
    * The reset's file side: appends a value-free audit line to `reset.v1`,
@@ -1019,10 +1068,12 @@ export class VaultStore implements VaultStorePort {
         const current = anchoredId === null ? null : await anchor.minimum(anchoredId)
         authorizeWriter()
         if (!isSameState(current, expected)) throw new VaultError('rollback')
-        // Rechecked under the writer: a vault that became openable is never reset.
+        // Rechecked under the writer: a vault that can be opened is never
+        // reset, with or without a recovery token. The token authorizes the
+        // lock replacement, never the erasure (RVAPP-LEASE2 P1-2).
         if (
-          recovery === undefined &&
-          (anchoredId === null || (await isVaultOpenable(files, anchoredId, current)))
+          (anchoredId === null && recovery === undefined) ||
+          (anchoredId !== null && (await isVaultOpenable(files, anchoredId, current)))
         )
           throw new VaultError('invalid')
         authorizeWriter()

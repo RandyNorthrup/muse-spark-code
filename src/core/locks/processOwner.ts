@@ -370,7 +370,9 @@ export async function isProcessOwnerGone(
     // A former Windows boot timestamp is not a kernel boot identity.
     // Incomparable legacy evidence cannot prove a reboot or a PID's absence.
     if (BOOT_UUID.test(me.bootId) && !BOOT_UUID.test(owner.bootId)) return false
-    if (owner.bootId.toLowerCase() !== me.bootId.toLowerCase()) return true
+    // Another boot under the same installation file may be another host
+    // sharing that file: only this host's own reboot proves death.
+    if (owner.bootId.toLowerCase() !== me.bootId.toLowerCase()) return owner.host === me.host
     if (
       !owner.pidNamespace ||
       !me.pidNamespace ||

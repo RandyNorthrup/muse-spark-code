@@ -21,7 +21,16 @@ import { fill, formatDateTime, formatNumber } from '../../shared/l10n/text'
 
 /** Safe codes for callers; exceptions never include a value or parser input. */
 export class VaultError extends Error {
-  constructor(readonly code: 'invalid' | 'authentication' | 'rollback' | 'locked' | 'busy' | 'io') {
+  constructor(
+    readonly code:
+      | 'invalid'
+      | 'authentication'
+      | 'rollback'
+      | 'locked'
+      | 'busy'
+      | 'io'
+      | 'filesystemUnsupported',
+  ) {
     super(code === 'rollback' ? UI_TEXT.vault.rollback : UI_TEXT.vault.noAccess)
     this.name = 'VaultError'
   }
@@ -42,7 +51,7 @@ export class VaultWriterError extends VaultError {
         since: formatDateTime(writer.acquiredAt),
       })
       this.message = writer.machineLabel ? writer.machineLabel + ': ' + detail : detail
-    } else this.message = writer.kind === 'ownerUnknown' ? text.ownerUnknown : text.unreadable
+    } else this.message = text[writer.kind]
   }
 }
 

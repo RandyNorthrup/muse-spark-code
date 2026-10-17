@@ -3,7 +3,7 @@
 // (only for a lost vault, two steps, typed word, audit line, new anchor).
 // Generated material and a generated temporary home only.
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { writeFile, stat } from 'node:fs/promises'
 import path from 'node:path'
@@ -12,6 +12,8 @@ import { EN } from '../../../src/shared/l10n/en'
 import { fill, setUiText } from '../../../src/shared/l10n/text'
 import type { VaultItem } from '../../../src/shared/vault'
 import { VaultStore } from '../../../src/core/vault/store'
+import { VaultError } from '../../../src/core/vault/crypto'
+import { vaultRefusalMessage } from '../../../src/core/vault/broker/manageClient'
 import { runVaultCommand } from '../../../src/runtime/vault/vaultCommand'
 import { metadata, panel } from '../helpers/vault/fixtures'
 import { commandHarness } from '../helpers/vault/runtime'
@@ -215,6 +217,27 @@ describe('C-M109-1 Reset Vault', () => {
     expect(await VaultStore.isLost(f.files, (await f.anchor.vaultId()) ?? '', f.anchor)).toBe(true)
     code.fill(0)
     again.code.fill(0)
+  })
+
+  it('a filesystem that cannot publish keeps its cause through Reset and setup', async () => {
+    // RVAPP-LEASE2 P2-5: the link refusal is not a generic failure at any
+    // layer; the person reads the filesystem sentence, not "operation failed".
+    const { f, code } = await lost()
+    const challenge = await f.management.resetBegin()
+    vi.spyOn(f.files, 'withWriter').mockRejectedValueOnce(new VaultError('filesystemUnsupported'))
+    await expect(
+      f.management.resetConfirm(challenge.resetId, VAULT_RESET_WORD),
+    ).rejects.toMatchObject({ name: 'VaultError', code: 'filesystemUnsupported' })
+    const setupFiles = managementFixture()
+    vi.spyOn(setupFiles.anchor, 'vaultId').mockRejectedValueOnce(
+      new VaultError('filesystemUnsupported'),
+    )
+    await expect(setupFiles.management.setup()).rejects.toMatchObject({
+      reason: 'filesystemUnsupported',
+    })
+    expect(vaultRefusalMessage('filesystemUnsupported')).toBe(UI_TEXT.vault.filesystemUnsupported)
+    code.fill(0)
+    vi.restoreAllMocks()
   })
 
   it('is refused at the commit when the vault reappeared between the two steps', async () => {

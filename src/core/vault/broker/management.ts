@@ -157,9 +157,31 @@ const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
 /** An OS-store failure keeps its fixed repair reason; anything else is `io`. */
 function storeRefusal(error: unknown): VaultManagementError | VaultWriterError {
   if (error instanceof VaultWriterError) return error
+  if (error instanceof VaultError && error.code === 'filesystemUnsupported')
+    return new VaultManagementError('filesystemUnsupported')
   return new VaultManagementError(
     error instanceof VaultStoreUnavailableError ? 'storeUnavailable' : 'io',
   )
+}
+/**
+ * Whether any vault document exists here. The serialized check first; when
+ * a stuck writer refuses it, reads still go through, so existence is read
+ * directly instead of failing the whole snapshot (RVAPP-LEASE2 P1-2).
+ */
+async function hasVaultFiles(files: VaultFilePort): Promise<boolean> {
+  try {
+    return await VaultStore.exists(files)
+  } catch (error: unknown) {
+    if (!(error instanceof VaultWriterError)) throw error
+    for (const name of ['slots.v1', 'vault.v1', 'pending.v1'] as const) {
+      const bytes = await files.read(name)
+      if (bytes) {
+        bytes.fill(0)
+        return true
+      }
+    }
+    return false
+  }
 }
 /** The store's in-transaction refusal (absent, removed, other kind) as the management reason. */
 async function refusingInvalid(commit: Promise<void>): Promise<void> {
@@ -278,6 +300,19 @@ export class VaultManagement implements VaultManagementPort {
       throw storeRefusal(error)
     }
   }
+  /**
+   * Whether the anchored vault cannot be opened. A recovery token alone is
+   * not loss: without an anchor nothing can prove the files openable, but
+   * an anchored vault that still opens is stuck, never lost; without a
+   * token an unanchored vault is never called lost (RVAPP-LEASE2 P1-2).
+   */
+  private async isUnopenable(): Promise<boolean> {
+    const recovery = await this.deps.files.writerRecovery?.()
+    const anchored = await this.anchoredId()
+    return anchored === null
+      ? recovery !== undefined
+      : await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor)
+  }
   /** M's importer bound to the open store; a lease is current only while that store is. */
   private fileImporter(): VaultFileImporter {
     const store = this.store()
@@ -344,43 +379,24 @@ export class VaultManagement implements VaultManagementPort {
   async snapshot(): Promise<VaultBrokerSnapshot> {
     const pending = this.current() ?? this.confirming
     const broker = await this.deps.broker.status()
-    if (
-      pending === null &&
-      broker.state !== 'unlocked' &&
-      (await this.deps.files.writerRecovery?.())
-    )
+    if (pending === null && broker.state !== 'unlocked' && (await this.isUnopenable()))
       return {
-        status: { ...broker, state: 'unavailable', reason: 'vaultLost' },
+        // A lost vault names no protection either (RVCM1091E P3).
+        status: {
+          ...broker,
+          state: 'unavailable',
+          reason: 'vaultLost',
+          tier: null,
+          provider: null,
+          silentUnlock: false,
+        },
         setupId: null,
         items: [],
         grants: [],
         pending: [],
         pendingReceipts: [],
       }
-    if (pending === null && broker.state !== 'unlocked') {
-      const anchored = await this.anchoredId()
-      if (
-        anchored !== null &&
-        (await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor))
-      )
-        return {
-          // A lost vault names no protection either (RVCM1091E P3).
-          status: {
-            ...broker,
-            state: 'unavailable',
-            reason: 'vaultLost',
-            tier: null,
-            provider: null,
-            silentUnlock: false,
-          },
-          setupId: null,
-          items: [],
-          grants: [],
-          pending: [],
-          pendingReceipts: [],
-        }
-    }
-    const hasVault = await VaultStore.exists(this.deps.files)
+    const hasVault = await hasVaultFiles(this.deps.files)
     let state: VaultStatus['state'] = hasVault ? broker.state : 'uncreated'
     if (pending !== null) state = 'setupPending'
     const status = { ...broker, state }
@@ -548,10 +564,13 @@ export class VaultManagement implements VaultManagementPort {
       if (status.state === 'unlocked') throw new VaultManagementError('invalid')
       const anchored = await this.anchoredId()
       const recovery = await this.deps.files.writerRecovery?.()
+      // The token authorizes the lock replacement, never the erasure: Reset
+      // stays refused while the anchored vault still opens, token or not
+      // (RVAPP-LEASE2 P1-2).
       if (
-        !recovery &&
-        (anchored === null ||
-          !(await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor)))
+        anchored === null
+          ? !recovery
+          : !(await VaultStore.isLost(this.deps.files, anchored, this.deps.anchor))
       )
         throw new VaultManagementError('invalid')
       this.assertSameLock(generation)
@@ -615,6 +634,8 @@ export class VaultManagement implements VaultManagementPort {
         if (error instanceof VaultWriterError) throw error
         if (error instanceof VaultManagementError) throw error
         if (error instanceof VaultStoreUnavailableError) throw storeRefusal(error)
+        // A filesystem that cannot publish keeps its cause (RVAPP-LEASE2 P2-5).
+        if (error instanceof VaultError && error.code === 'filesystemUnsupported') throw error
         // Not lost any more (a vault reappeared) or the files refused: nothing reset.
         throw new VaultManagementError('invalid')
       }

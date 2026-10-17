@@ -5481,6 +5481,7 @@
     "busyOtherMachine": "Sejf jest zajęty na innym komputerze przez proces {pid} od {since}. Nie można tutaj potwierdzić jego zakończenia.",
     "ownerUnknown": "Nie można uzyskać dostępu do zapisu w sejfie, ponieważ nie ustalono dokładnego czasu utworzenia tego procesu w systemie operacyjnym. Spróbuj ponownie.",
     "unreadable": "Blokada zapisu jest nieczytelna i nie zwolni się sama. Zresetuj sejf, aby zacząć od nowa.",
+    "filesystemUnsupported": "System plików tego folderu nie może publikować aktualizacji sejfu: twarde dowiązania nie są tu obsługiwane. Przenieś sejf do systemu plików, który je obsługuje, i spróbuj ponownie.",
     "importedLabel": "Zaimportowane poświadczenie {source} {number}",
     "importedSummary": "Zaimportowano do sejfu: {names}",
     "importKeepOrDelete": "Zachować oryginalny plik, czy go usunąć, skoro jego poświadczenia są w sejfie?",

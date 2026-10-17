@@ -5031,6 +5031,7 @@
     "busyOtherMachine": "保管库自 {since} 起由另一台计算机上的进程 {pid} 持有。此处无法确认该进程已终止。",
     "ownerUnknown": "无法确定操作系统记录的此进程的精确创建时间，因此无法取得保管库写入权限。请重试。",
     "unreadable": "写锁不可读，且不会自动清除。请重置凭据库以重新开始。",
+    "filesystemUnsupported": "此文件夹的文件系统无法发布凭据库更新：此处不支持硬链接。请将凭据库移到支持硬链接的文件系统，然后重试。",
     "importedLabel": "导入的 {source} 凭据 {number}",
     "importedSummary": "已导入凭据库：{names}",
     "importKeepOrDelete": "保留原文件，还是在其凭据已存入凭据库后将其删除？",

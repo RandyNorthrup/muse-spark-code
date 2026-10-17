@@ -5331,6 +5331,7 @@
     "busyOtherMachine": "O cofre está em uso em outra máquina pelo processo {pid} desde {since}. Não é possível confirmar seu encerramento aqui.",
     "ownerUnknown": "O cofre não pode obter acesso de gravação porque não foi possível determinar o instante exato de criação deste processo no sistema operacional. Tente novamente.",
     "unreadable": "O bloqueio de gravação está ilegível e não será liberado sozinho. Redefina o cofre para começar de novo.",
+    "filesystemUnsupported": "O sistema de arquivos desta pasta não pode publicar atualizações do cofre: links físicos não são suportados aqui. Mova o cofre para um sistema de arquivos que os suporte e tente novamente.",
     "importedLabel": "Credencial de {source} importada {number}",
     "importedSummary": "Importado para o cofre: {names}",
     "importKeepOrDelete": "Manter o arquivo original ou excluí-lo agora que as credenciais estão no cofre?",

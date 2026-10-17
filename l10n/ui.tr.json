@@ -5181,6 +5181,7 @@
     "busyOtherMachine": "Kasa başka bir makinede {since} tarihinden beri {pid} işlemi tarafından tutuluyor. İşlemin sona erdiği buradan doğrulanamaz.",
     "ownerUnknown": "Bu işlemin işletim sistemindeki kesin oluşturulma zamanı belirlenemediği için kasa yazma erişimi alamıyor. Yeniden deneyin.",
     "unreadable": "Yazma kilidi okunamıyor ve kendiliğinden boşalmayacak. Yeniden başlamak için kasayı sıfırlayın.",
+    "filesystemUnsupported": "Bu klasörün dosya sistemi kasa güncellemelerini yayımlayamıyor: sabit bağlantılar burada desteklenmiyor. Kasayı bunları destekleyen bir dosya sistemine taşıyıp yeniden deneyin.",
     "importedLabel": "İçe aktarılan {source} kimlik bilgisi {number}",
     "importedSummary": "Kasaya aktarıldı: {names}",
     "importKeepOrDelete": "Özgün dosya saklansın mı, yoksa kimlik bilgileri kasada olduğuna göre silinsin mi?",

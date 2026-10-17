@@ -267,6 +267,7 @@ export const vaultBrokerResponseSchema = z.strictObject({
         'rollback',
         'io',
         'storeUnavailable',
+        'filesystemUnsupported',
       ]),
       writer: z.optional(writerFacts),
     }),
