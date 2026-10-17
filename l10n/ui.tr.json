@@ -351,6 +351,7 @@
   "referenceVaultLock": "Devam ediyor.",
   "referenceAuthClear": "Kayıtlı Model API anahtarını kaldırın.",
   "referenceAuthStatus": "Model API anahtarının kayıtlı olup olmadığını denetleyin.",
+  "referenceAccountRequests": "ACP içindeki yerel Meta istekleri her isteğin başlangıcında hesap seçer. Arayüzsüz çalıştırmada --account-pool havuzu açar; hesap sınırları ve ortak bütçeler geçerliliğini korur.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Bir sağlayıcının hesaplarını yönetir: listeleme, ekleme, kaldırma, sıralama ve eşikler. Kimlik bilgileri yalnızca standart girdiden gelir. Varsayılan hesaba faturalanan ücretli kullanımlar bu çalışma alanının onayını korur; başka bir hesabın ilk ücretli kullanımı o hesap için yeniden sorar ve fiyatını ve paylaşılan günlük bütçeyi belirtir.",
   "referenceDeveloper": "Bu bilgisayardaki geliştirici seçeneklerini gösterir veya kilidini açar. Profil işlemleri bağlı bir kaynak yöneticisi gerektirir.",
@@ -5025,6 +5026,7 @@
   },
   "legalScanAgain": "Yeniden tara",
   "accounts": {
+    "certificationPending": "Hesap değiştirme ve istekleri hesaplar arasında dağıtma, sertifikasyonu bekliyor.",
     "none": "Hesap seçilmedi",
     "id": "Hesap kimliği",
     "use": "Hesabı kullan",
@@ -5118,8 +5120,7 @@
     "usageThreshold": "{period} dönemi için {metric} sınırı: {threshold}",
     "usageEvents": "Hesap olayları",
     "usageRateTokens": "Token sayısı",
-    "usageUnavailable": "Güncel kullanım verisi yok.",
-    "certificationPending": "Hesap değiştirme ve istekleri hesaplar arasında dağıtma, sertifikasyonu bekliyor."
+    "usageUnavailable": "Güncel kullanım verisi yok."
   },
   "developer": {
     "title": "Geliştirici seçenekleri",
@@ -5300,6 +5301,5 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  },
-  "referenceAccountRequests": "ACP içindeki yerel Meta istekleri her isteğin başlangıcında hesap seçer. Arayüzsüz çalıştırmada --account-pool havuzu açar; hesap sınırları ve ortak bütçeler geçerliliğini korur."
+  }
 }

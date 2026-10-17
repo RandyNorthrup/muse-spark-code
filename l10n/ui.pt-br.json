@@ -351,6 +351,7 @@
   "referenceVaultLock": "Em andamento.",
   "referenceAuthClear": "Remover a chave Model API salva.",
   "referenceAuthStatus": "Verificar se uma chave Model API está salva.",
+  "referenceAccountRequests": "As solicitações nativas da Meta no ACP escolhem uma conta no início de cada solicitação. Em execução sem interface, --account-pool ativa o grupo; os limites das contas e os orçamentos compartilhados continuam valendo.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Gerencia as contas de um provedor: listar, adicionar, remover, ordenar e limites. As credenciais vêm somente da entrada padrão. Usos pagos cobrados da conta padrão mantêm o consentimento deste espaço de trabalho; o primeiro uso pago de outra conta pergunta novamente para essa conta, informando o preço e o orçamento diário compartilhado.",
   "referenceDeveloper": "Mostra ou desbloqueia as opções de desenvolvedor desta máquina. As operações de perfis exigem um gerenciador de recursos conectado.",
@@ -5175,6 +5176,7 @@
   },
   "legalScanAgain": "Verificar novamente",
   "accounts": {
+    "certificationPending": "A troca de contas e a distribuição de solicitações entre contas aguardam certificação.",
     "none": "Nenhuma conta selecionada",
     "id": "ID da conta",
     "use": "Usar conta",
@@ -5269,8 +5271,7 @@
     "usageThreshold": "Limite de {metric} para {period}: {threshold}",
     "usageEvents": "Eventos das contas",
     "usageRateTokens": "Tokens de uso",
-    "usageUnavailable": "Não há dados de uso atuais.",
-    "certificationPending": "A troca de contas e a distribuição de solicitações entre contas aguardam certificação."
+    "usageUnavailable": "Não há dados de uso atuais."
   },
   "developer": {
     "title": "Opções do desenvolvedor",
@@ -5454,6 +5455,5 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  },
-  "referenceAccountRequests": "As solicitações nativas da Meta no ACP escolhem uma conta no início de cada solicitação. Em execução sem interface, --account-pool ativa o grupo; os limites das contas e os orçamentos compartilhados continuam valendo."
+  }
 }

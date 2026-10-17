@@ -351,6 +351,7 @@
   "referenceVaultLock": "W toku.",
   "referenceAuthClear": "Usuń zapisany klucz Model API.",
   "referenceAuthStatus": "Sprawdź, czy zapisano klucz Model API.",
+  "referenceAccountRequests": "Natywne żądania Meta w ACP wybierają konto na początku każdego żądania. W trybie bez interfejsu --account-pool włącza pulę; limity kont i wspólne budżety nadal obowiązują.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Zarządza kontami jednego dostawcy: lista, dodawanie, usuwanie, kolejność i progi. Poświadczenia pochodzą wyłącznie ze standardowego wejścia. Płatne użycia rozliczane na konto domyślne zachowują zgodę tego obszaru roboczego; pierwsze płatne użycie innego konta pyta ponownie o to konto, podając jego cenę i wspólny dzienny budżet.",
   "referenceDeveloper": "Pokazuje lub odblokowuje opcje programisty na tym komputerze. Operacje na profilach wymagają podłączonego zarządcy zasobów.",
@@ -5325,6 +5326,7 @@
   },
   "legalScanAgain": "Skanuj ponownie",
   "accounts": {
+    "certificationPending": "Przełączanie kont i rozdzielanie żądań między kontami czekają na certyfikację.",
     "none": "Nie wybrano konta",
     "id": "Identyfikator konta",
     "use": "Użyj konta",
@@ -5420,8 +5422,7 @@
     "usageThreshold": "Limit dla {metric} w okresie {period}: {threshold}",
     "usageEvents": "Zdarzenia kont",
     "usageRateTokens": "Tokeny",
-    "usageUnavailable": "Brak aktualnych danych o użyciu.",
-    "certificationPending": "Przełączanie kont i rozdzielanie żądań między kontami czekają na certyfikację."
+    "usageUnavailable": "Brak aktualnych danych o użyciu."
   },
   "developer": {
     "title": "Opcje programisty",
@@ -5608,6 +5609,5 @@
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
     }
-  },
-  "referenceAccountRequests": "Natywne żądania Meta w ACP wybierają konto na początku każdego żądania. W trybie bez interfejsu --account-pool włącza pulę; limity kont i wspólne budżety nadal obowiązują."
+  }
 }

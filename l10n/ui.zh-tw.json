@@ -351,6 +351,7 @@
   "referenceVaultLock": "進行中.",
   "referenceAuthClear": "刪除已儲存的 Model API 金鑰。",
   "referenceAuthStatus": "檢查是否儲存了 Model API 金鑰。",
+  "referenceAccountRequests": "ACP 的原生 Meta 請求在每次請求開始時選擇帳戶。無介面執行透過 --account-pool 啟用帳戶池；帳戶額度與共用預算仍然有效。",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "管理同一提供者的帳號：列出、新增、刪除、排序和閾值。憑證僅來自標準輸入。計費到預設帳號的付費使用沿用此工作區的同意；其他帳號的首次付費使用會針對該帳號重新詢問，並說明其價格和共用每日預算。",
   "referenceDeveloper": "顯示或解鎖本機開發者選項。設定檔操作需要連接資源管理元件。",
@@ -4875,6 +4876,7 @@
   },
   "legalScanAgain": "重新掃描",
   "accounts": {
+    "certificationPending": "帳號切換和跨帳號請求分配正在等待認證。",
     "none": "未選取帳戶",
     "id": "帳戶 ID",
     "use": "使用帳戶",
@@ -4967,8 +4969,7 @@
     "usageThreshold": "{period}的{metric}上限：{threshold}",
     "usageEvents": "帳戶事件",
     "usageRateTokens": "權杖數",
-    "usageUnavailable": "暫無目前使用情況資料。",
-    "certificationPending": "帳號切換和跨帳號請求分配正在等待認證。"
+    "usageUnavailable": "暫無目前使用情況資料。"
   },
   "developer": {
     "title": "開發人員選項",
@@ -5146,6 +5147,5 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  },
-  "referenceAccountRequests": "ACP 的原生 Meta 請求在每次請求開始時選擇帳戶。無介面執行透過 --account-pool 啟用帳戶池；帳戶額度與共用預算仍然有效。"
+  }
 }

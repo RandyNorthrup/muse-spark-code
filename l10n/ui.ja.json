@@ -351,6 +351,7 @@
   "referenceVaultLock": "進行中.",
   "referenceAuthClear": "保存済みの Model API キーを削除します。",
   "referenceAuthStatus": "Model API キーが保存されているか確認します。",
+  "referenceAccountRequests": "ACP のネイティブ Meta リクエストは、各リクエストの開始時にアカウントを選択します。ヘッドレス実行では --account-pool でプールを有効にし、アカウント上限と共有予算は引き続き適用されます。",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "1 つのプロバイダーのアカウントを管理します。一覧表示、追加、削除、順序、しきい値。認証情報は標準入力からのみ受け取ります。既定のアカウントに請求される有料利用は、このワークスペースの同意をそのまま使います。別のアカウントの最初の有料利用では、そのアカウントについて改めて確認し、料金と共有の 1 日の予算を示します。",
   "referenceDeveloper": "このコンピューターの開発者向けオプションを表示またはロック解除します。プロファイル操作には接続済みのリソース管理機構が必要です。",
@@ -4875,6 +4876,7 @@
   },
   "legalScanAgain": "再スキャン",
   "accounts": {
+    "certificationPending": "アカウント切り替えと複数アカウントへのリクエスト分散は認証待ちです。",
     "none": "アカウントが選択されていません",
     "id": "アカウント ID",
     "use": "アカウントを使用",
@@ -4967,8 +4969,7 @@
     "usageThreshold": "{period} の {metric} の上限: {threshold}",
     "usageEvents": "アカウントのイベント",
     "usageRateTokens": "トークン",
-    "usageUnavailable": "現在の使用状況データはありません。",
-    "certificationPending": "アカウント切り替えと複数アカウントへのリクエスト分散は認証待ちです。"
+    "usageUnavailable": "現在の使用状況データはありません。"
   },
   "developer": {
     "title": "開発者向けオプション",
@@ -5146,6 +5147,5 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  },
-  "referenceAccountRequests": "ACP のネイティブ Meta リクエストは、各リクエストの開始時にアカウントを選択します。ヘッドレス実行では --account-pool でプールを有効にし、アカウント上限と共有予算は引き続き適用されます。"
+  }
 }

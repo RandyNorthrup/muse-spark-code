@@ -351,6 +351,7 @@
   "referenceVaultLock": "In corso.",
   "referenceAuthClear": "Rimuovi la chiave Model API salvata.",
   "referenceAuthStatus": "Verifica se è salvata una chiave Model API.",
+  "referenceAccountRequests": "Le richieste native Meta in ACP scelgono un account all’inizio di ogni richiesta. In modalità senza interfaccia, --account-pool abilita il pool; restano validi i limiti degli account e i budget condivisi.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Gestisce gli account di un provider: elenco, aggiunta, rimozione, ordine e soglie. Le credenziali provengono solo dallo standard input. Gli usi a pagamento addebitati all’account predefinito mantengono il consenso di questa area di lavoro; il primo uso a pagamento di un altro account chiede di nuovo per quell’account, indicando il prezzo e il budget giornaliero condiviso.",
   "referenceDeveloper": "Mostra o sblocca le opzioni sviluppatore di questa macchina. Le operazioni sui profili richiedono un gestore delle risorse collegato.",
@@ -5175,6 +5176,7 @@
   },
   "legalScanAgain": "Analizza di nuovo",
   "accounts": {
+    "certificationPending": "Il cambio di account e la distribuzione delle richieste tra account attendono la certificazione.",
     "none": "Nessun account selezionato",
     "id": "ID account",
     "use": "Usa account",
@@ -5269,8 +5271,7 @@
     "usageThreshold": "Limite di {metric} per {period}: {threshold}",
     "usageEvents": "Eventi degli account",
     "usageRateTokens": "Token",
-    "usageUnavailable": "Nessun dato di utilizzo attuale.",
-    "certificationPending": "Il cambio di account e la distribuzione delle richieste tra account attendono la certificazione."
+    "usageUnavailable": "Nessun dato di utilizzo attuale."
   },
   "developer": {
     "title": "Opzioni sviluppatore",
@@ -5454,6 +5455,5 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  },
-  "referenceAccountRequests": "Le richieste native Meta in ACP scelgono un account all’inizio di ogni richiesta. In modalità senza interfaccia, --account-pool abilita il pool; restano validi i limiti degli account e i budget condivisi."
+  }
 }
