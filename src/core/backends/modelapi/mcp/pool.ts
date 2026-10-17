@@ -64,7 +64,7 @@ export type McpServerState =
   | {
       readonly status: 'connected'
       readonly toolCount: number
-      /** Listed by the server but not offered (the entry's filters, the cap). */
+      /** Listed by the server but not offered (the entry's filters only). */
       readonly unofferedCount: number
     }
   | { readonly status: 'failed'; readonly reason: string }
