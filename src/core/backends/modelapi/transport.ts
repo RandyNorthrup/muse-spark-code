@@ -4,6 +4,7 @@ import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
 import { Usd, type UsdAmount } from '../../../shared/usd'
 import {
   ModelApiPacing,
+  azureRetryAfterMs,
   metaPacingLimits,
   type PacingClass,
   type PacingProvider,
@@ -325,6 +326,15 @@ export function retryAfterMs(header: string | null, now: number): number | undef
   }
   const at = Date.parse(header)
   return Number.isNaN(at) ? undefined : Math.max(at - now, 0)
+}
+
+/**
+ * The wait a failure asks for: the standard `retry-after` (seconds or an
+ * HTTP date) where present, else Azure's integer-millisecond
+ * `retry-after-ms` (research §1.2 [AZ5]).
+ */
+export function retryWaitMs(headers: Headers, now: number): number | undefined {
+  return retryAfterMs(headers.get(RETRY_AFTER_HEADER), now) ?? azureRetryAfterMs(headers)
 }
 
 /** One retry the client is about to make, for the transcript's notice. */
@@ -825,7 +835,11 @@ export class RequestTransport {
       readLimits: metaPacingLimits,
     }
     const isGoverned = path === '/responses' && init.modelId !== undefined
-    const shouldObserveLimits = isGoverned || path === '/responses/input_tokens'
+    // Meta observes only its governed paths; a configured provider observes
+    // every answer through its own header reader (undefined where the
+    // provider sends no limit headers, so only a 429 pause applies).
+    const shouldObserveLimits =
+      isGoverned || path === '/responses/input_tokens' || provider.identity.provider !== 'meta'
     const isRateLimitOnly =
       init.retries === 'rateLimitOnly' ||
       init.paid !== undefined ||
@@ -1048,7 +1062,7 @@ export class RequestTransport {
           account,
           provider.readLimits?.(response.headers),
           response.status === HTTP_TOO_MANY_REQUESTS
-            ? (retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now()) ??
+            ? (retryWaitMs(response.headers, this.deps.now()) ??
                 Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS))
             : undefined,
           sent,
@@ -1083,7 +1097,7 @@ export class RequestTransport {
       ) {
         init.paid.isSent = false
       }
-      const waitMs = retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now())
+      const waitMs = retryWaitMs(response.headers, this.deps.now())
       const decision = classifyRetry(RETRY_TABLES.responses, {
         status: response.status,
         kind: failure.kind,

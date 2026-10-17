@@ -48,6 +48,39 @@ import {
   assertConfirmedAllowed,
   isStaleConfirmedError,
 } from '../backends/modelapi/transport'
+import {
+  anthropicPacingLimits,
+  openaiPacingLimits,
+  xaiPacingLimits,
+  type PacingLimits,
+} from '../backends/modelapi/pacing'
+
+/**
+ * The rate-limit header reader for a preset (PROVM95): each provider's own
+ * header names with their real meaning, from the 2026-10-04 captures.
+ * Presets whose providers send no limit headers get none, so only a 429
+ * pause applies; Groq's per-day scope, xAI's per-second scope and
+ * DeepSeek's concurrency need a capture that names them.
+ */
+function pacingReaderFor(
+  presetId: string,
+): ((headers: Headers) => PacingLimits | undefined) | undefined {
+  switch (presetId.replace('-plan', '')) {
+    case 'openai':
+    case 'groq': {
+      return openaiPacingLimits
+    }
+    case 'xai': {
+      return xaiPacingLimits
+    }
+    case 'anthropic': {
+      return anthropicPacingLimits
+    }
+    default: {
+      return undefined
+    }
+  }
+}
 import { withDeadline, unlessAborted } from '../timeouts'
 import { Usd } from '../../shared/usd'
 import { fill } from '../../shared/l10n/text'
@@ -284,6 +317,7 @@ export function createConfiguredProviderServices(
               : (preset.authHeader ?? 'bearer'),
           )
     let target: PinnedTarget | undefined
+    const readLimits = pacingReaderFor(preset.id)
     return {
       auth,
       transport: {
@@ -294,6 +328,14 @@ export function createConfiguredProviderServices(
         now: Date.now,
         random: Math.random,
         streamIdleMs: idleMs,
+        // The entry's own header interpreter: Meta's reader is the
+        // transport default, every other provider reads its own headers.
+        // A preset with no limit headers omits the reader instead of
+        // sending undefined, so only a 429 pause applies.
+        pacingProvider: () =>
+          readLimits === undefined
+            ? { identity: { provider: entry.id } }
+            : { identity: { provider: entry.id }, readLimits },
         log: {
           trace: ignoreTransportLog,
           info: ignoreTransportLog,
