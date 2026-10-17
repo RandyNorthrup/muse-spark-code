@@ -10,7 +10,10 @@
 # Releases can reuse these exact-tree packages after verifying the CI receipt.
 #
 # Every job has a timeout and every checkout leaves no token in the git
-# config (`persist-credentials: false`): no job here pushes (M26, PLAN.md D29).
+# config (`persist-credentials: false`, M26, PLAN.md D29). One job pushes:
+# `org` (D122) sends a pull request's merge commit to the capacity repository
+# with a one-hour token of its own that git reads from the step's environment,
+# never from its config. Nothing here pushes to this repository.
 name: Build
 
 on:
@@ -20,6 +23,23 @@ on:
         description: Ubuntu PR checks; false runs the full merge/release gate
         type: boolean
         default: false
+      # Where this run's jobs belong (D122). `all` runs every job of the tier
+      # here. `home` runs the Ubuntu unit shards here and the Windows and
+      # macOS ones in the capacity repository scnetsolutions/muse-spark-code-ci
+      # through the `org` job; `org` (the capacity repository's own run) runs
+      # only those shards. Release builds and every caller that passes nothing
+      # get `all`.
+      part:
+        description: all, home or org (D122)
+        type: string
+        default: all
+    secrets:
+      # The private key of the capacity repository's GitHub App, read only by
+      # the `org` job (D122). Empty for forks, Dependabot and every caller
+      # that passes none.
+      org-ci-app-private-key:
+        description: private key of the GitHub App installed on scnetsolutions/muse-spark-code-ci
+        required: false
 
 permissions:
   contents: read
@@ -27,6 +47,7 @@ permissions:
 jobs:
   checks:
     name: static gates (${{ matrix.os }}, ${{ matrix.part.name }})
+    if: ${{ inputs.part != 'org' }}
     runs-on: ${{ matrix.os }}
     # One serial job outgrew its 25 minutes on macOS (CIFIX017R3, run
     # 37992331755: 21.8 min in round 2, cancelled at 25 in round 3 during
@@ -126,11 +147,22 @@ jobs:
   unit:
     name: tests (${{ matrix.os }}, shard ${{ matrix.shard }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    # The warm limit stays 20 minutes (the shard history is in the matrix
+    # comment below). An `org` run starts cold: a cache restores only from
+    # the current or the default branch (the dependency-caching reference),
+    # and a capacity branch is neither until the seeded default-branch cache
+    # lands (CONTRIBUTING.md, "The capacity repository"). A cold `npm ci` is
+    # about a minute (901 packages in 11-12 s from registry.npmjs.org,
+    # measured 2026-10-17), so `org` shards get 25: the warm bound plus the
+    # cold install and margin, still far under the platform's 6-hour ceiling.
+    timeout-minutes: ${{ inputs.part == 'org' && 25 || 20 }}
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        # D122: `home` keeps Ubuntu here and `org` runs Windows and macOS in
+        # the capacity repository (macOS jobs queue first: five at a time per
+        # account, twelve per full run, eight of them these shards).
+        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || inputs.part == 'home' && '["ubuntu-latest"]' || inputs.part == 'org' && '["windows-latest","macos-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
         shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}
         # Windows splits its slower serial run eight ways: with six, shard 1 ran
         # 16-17 min (952 s of tests; modelApiHost alone 207 s) and crossed the
@@ -139,9 +171,10 @@ jobs:
         # (vitest.config.ts) and takes eight too: over six it had no margin
         # even green (run 38225260540: shard 4 took 19 of the 20 minutes,
         # shard 1 took 16), and run 38270466443 lost shard 1 to the limit
-        # while it was still running normally. The limit stays 20 minutes;
-        # Ubuntu keeps four.
-        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}
+        # while it was still running normally. The warm limit stays 20 minutes;
+        # Ubuntu keeps four. Part `org` gets 25 (the job's timeout): a new
+        # capacity branch starts with a cold npm cache.
+        exclude: ${{ fromJSON((inputs.fast || inputs.part == 'org') && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -169,7 +202,7 @@ jobs:
     name: accessibility (WCAG 2.2 AA)
     # Out of the pull-request path: webview changes are looked at locally,
     # and the queue's merge_group run plus releases still gate every merge.
-    if: ${{ !inputs.fast && github.event_name != 'pull_request' }}
+    if: ${{ inputs.part != 'org' && !inputs.fast && github.event_name != 'pull_request' }}
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -193,7 +226,7 @@ jobs:
 
   integration:
     name: integration (${{ matrix.os }})
-    if: ${{ !inputs.fast }}
+    if: ${{ inputs.part != 'org' && !inputs.fast }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -230,15 +263,125 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run test:integration
 
+  # D122: in a `home` run this job stands for the Windows and macOS unit
+  # shards. It pushes the pull request's merge commit to the capacity
+  # repository as ci/pr-<number>, where ci.yml runs part `org` on the
+  # organization's runners (a newer commit replaces the branch, and ci.yml's
+  # concurrency cancels the older run there), then waits for that run and
+  # succeeds only if it succeeded. The push token comes from the capacity
+  # GitHub App: one hour, contents and workflow files of that one repository,
+  # revoked when the job ends. The wait reads the public run with this job's
+  # own read-only token.
+  org:
+    name: tests (windows-latest, macos-latest) in scnetsolutions/muse-spark-code-ci
+    if: ${{ inputs.part == 'home' }}
+    runs-on: ubuntu-latest
+    # The capacity run is a route job, then sixteen shards of at most 25
+    # minutes, macOS five at a time per account. With four pull requests
+    # queued ahead, their 32 macOS shards take eight waves plus two more for
+    # this run's eight: ten waves of full-length shards is 200 minutes before
+    # route and setup overhead. 360 is GitHub's own job ceiling on hosted
+    # runners (actions/reference/limits: "Job execution time ... 6 hours"),
+    # not our figure: the wait outlives any supported backlog, and anything
+    # longer fails at the platform's limit instead of ours. The wait step
+    # polls with this job's own token, which lives as long as the job; only
+    # the push needs the one-hour App token.
+    timeout-minutes: 360
+    env:
+      CAPACITY: scnetsolutions/muse-spark-code-ci
+    steps:
+      - name: a token for the capacity repository only (contents and workflow files, one hour)
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.ORG_CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.org-ci-app-private-key }}
+          owner: scnetsolutions
+          repositories: muse-spark-code-ci
+          permission-contents: write
+          # GitHub refuses a push that adds or changes a file under
+          # .github/workflows without it; the first push of the history does.
+          permission-workflows: write
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The capacity repository receives the commits it lacks, which
+          # needs their parents here.
+          fetch-depth: 0
+      # ci/base takes main as this merge commit saw it (its first parent), so
+      # the next push sends only what main and the pull request added since.
+      # git asks the helper for the password, which reads the step's
+      # environment: the token is in no argument and no config file.
+      - name: push the merge commit to the capacity repository
+        shell: bash
+        env:
+          TOKEN: ${{ steps.token.outputs.token }}
+          BRANCH: ci/pr-${{ github.event.pull_request.number }}
+        run: |
+          # The single quotes below are deliberate. $TOKEN must not expand
+          # into git's arguments, where it would sit in the process list; the
+          # helper's own shell expands it from the step's environment instead,
+          # and $1 is that helper's argument ("get").
+          # shellcheck disable=SC2016
+          git -c credential.helper= \
+            -c 'credential.helper=!f() { test "$1" = get && printf "username=x-access-token\npassword=%s\n" "$TOKEN"; }; f' \
+            push "https://github.com/$CAPACITY.git" "+$GITHUB_SHA^1:refs/heads/ci/base" "+$GITHUB_SHA:refs/heads/$BRANCH"
+          echo "Sent $GITHUB_SHA to $CAPACITY as $BRANCH"
+      # The run of ci.yml on exactly this commit. One that has not shown up
+      # ten minutes after the push means the push or Actions there failed;
+      # the job says so instead of waiting out its limit.
+      - name: wait for the capacity repository's run and take its result
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          query="repos/$CAPACITY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=100"
+          pick='[.workflow_runs[] | select(.path == ".github/workflows/ci.yml")][0] // empty | "\(.id) \(.status) \(.conclusion) \(.html_url)"'
+          errors="$RUNNER_TEMP/capacity-read.err"
+          appear_by=$((SECONDS + 600))
+          id=''
+          while :; do
+            if found=$(gh api "$query" --jq "$pick" 2> "$errors"); then
+              if [ -n "$found" ]; then
+                read -r id status conclusion url <<< "$found"
+                [ "$status" = completed ] && break
+                echo "$url: $status"
+              fi
+            else
+              echo "::warning::reading $CAPACITY's runs failed: $(cat "$errors")"
+            fi
+            if [ -z "$id" ] && [ "$SECONDS" -ge "$appear_by" ]; then
+              echo "::error::no CI run on $GITHUB_SHA appeared in $CAPACITY within ten minutes of the push"
+              exit 1
+            fi
+            sleep 60
+          done
+          {
+            echo "### Windows and macOS unit shards: $conclusion"
+            echo
+            echo "[$CAPACITY run $id]($url)"
+            echo
+            echo '| job | result |'
+            echo '| --- | --- |'
+            gh api "repos/$CAPACITY/actions/runs/$id/jobs?filter=latest&per_page=100" \
+              --jq '.jobs[] | "| [\(.name)](\(.html_url)) | \(.conclusion) |"' 2> "$errors" ||
+              echo "| the job list could not be read: $(cat "$errors") | |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$url concluded $conclusion"
+          test "$conclusion" = success
+
   # The matrix emits the five existing non-security required names on BOTH
-  # events. Every name rejects a failed/cancelled/missing selected-tier job.
+  # events. Every name rejects a failed/cancelled/missing selected-tier job;
+  # in a `home` run that includes `org`, so `quality (windows-latest)` and
+  # `quality (macos-latest)` still mean that those shards passed (D122).
   required:
     name: ${{ matrix.check }}
-    if: always()
+    if: ${{ always() && inputs.part != 'org' }}
     needs:
       [
         checks,
         unit,
+        org,
         accessibility,
         integration,
         native-build,
@@ -263,9 +406,11 @@ jobs:
         shell: bash
         env:
           FAST: ${{ inputs.fast }}
+          PART: ${{ inputs.part }}
           EVENT: ${{ github.event_name }}
           CHECKS: ${{ needs.checks.result }}
           UNIT: ${{ needs.unit.result }}
+          ORG: ${{ needs.org.result }}
           ACCESSIBILITY: ${{ needs.accessibility.result }}
           INTEGRATION: ${{ needs.integration.result }}
           HELPER: ${{ needs.native-build.result }}
@@ -278,6 +423,11 @@ jobs:
           test "$UNIT" = success
           test "$SECRETS" = success
           test "$SAST" = success
+          # D122: a `home` run's Windows and macOS unit shards ran in the
+          # capacity repository, and `org` succeeded only if that run did.
+          if [ "$PART" = home ]; then
+            test "$ORG" = success
+          fi
           if [ "$FAST" != true ]; then
             test "$INTEGRATION" = success
             test "$HELPER" = success
@@ -296,7 +446,7 @@ jobs:
   # fails when the finished binary carries another.
   native-build:
     name: compile dictation helper (macos)
-    if: ${{ !inputs.fast }}
+    if: ${{ inputs.part != 'org' && !inputs.fast }}
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
@@ -332,7 +482,7 @@ jobs:
   # The .vsix with both helpers: what release.yml publishes.
   linux-native-build:
     name: compile created-path helper (linux ${{ matrix.arch }})
-    if: ${{ !inputs.fast }}
+    if: ${{ inputs.part != 'org' && !inputs.fast }}
     strategy:
       matrix:
         include:
@@ -359,7 +509,7 @@ jobs:
 
   packages:
     name: universal release artifacts
-    if: ${{ !inputs.fast }}
+    if: ${{ inputs.part != 'org' && !inputs.fast }}
     needs: [checks, native-build, linux-native-build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -518,6 +668,7 @@ jobs:
 
   secrets:
     name: gitleaks
+    if: ${{ inputs.part != 'org' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -550,6 +701,7 @@ jobs:
 
   sast:
     name: semgrep
+    if: ${{ inputs.part != 'org' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
