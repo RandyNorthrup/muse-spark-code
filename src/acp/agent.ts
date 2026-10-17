@@ -55,6 +55,7 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { wireWordForLog } from '../core/logging'
 import { resolveResumedModel } from '../core/backends/musecode/resumedModel'
 import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
@@ -90,7 +91,6 @@ import {
   approvalModeFor,
   availablePermissionModes,
   permissionModeDetail,
-  untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
 import { acpResourceCommand, acpResourceUpdates, resourceCommands } from './resources'
@@ -125,6 +125,7 @@ import {
   promptParts,
   UpdateTranslator,
 } from './translate'
+import { adoptedMode, answerChoice, ApprovalAnswers } from './permissionAsk'
 import type { AcpSharingPort } from './sharing'
 import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
@@ -355,6 +356,8 @@ class AcpSession {
   private unsubscribe: (() => void) | undefined
   private readonly unsubscribeResources: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
+  /** What the client already answered, so one command is asked about once (F16). */
+  private readonly permissionAnswers = new ApprovalAnswers()
   private readonly earlyFinishes = new Map<string, TurnCompleted>()
   private outbox: Promise<void> = Promise.resolve()
   private pending: PendingPrompt | undefined
@@ -806,6 +809,7 @@ class AcpSession {
       }
       case 'approvalResolved': {
         this.approvals.delete(event.approvalId)
+        this.permissionAnswers.resolved(event.approvalId)
         return
       }
       case 'questionRequested': {
@@ -833,6 +837,14 @@ class AcpSession {
         this.modelId = event.modelId
         this.noteChoice()
         this.send({ sessionUpdate: 'config_option_update', configOptions: this.configOptions() })
+        return
+      }
+      case 'approvalModeChanged': {
+        // The CLI changed the mode itself (a ceiling or managed policy): the
+        // editor keeps showing the mode it set, and the log keeps the fact.
+        this.deps.log.warn(
+          `ACP session ${this.sessionId}: Muse Code now runs approval mode ${wireWordForLog(event.mode)}`,
+        )
         return
       }
       case 'effortChanged': {
@@ -951,53 +963,86 @@ class AcpSession {
 
   private async askPermission(event: ApprovalRequest): Promise<void> {
     const pending = this.pending
-    let choice = editAutomaticallyChoice(event, this.mode)
+    // A command is asked about once (F16): an answer already given for this
+    // approval or its tool call is applied again, never asked again.
+    let choice = editAutomaticallyChoice(event, this.mode) ?? this.permissionAnswers.reuse(event)
+    let settled: ApprovalRequest = event
     if (choice === undefined) {
-      let response: RequestPermissionResponse | undefined
+      // One client request per approval: a newer stage arriving while one is
+      // open is settled by that request's answer, never by a second request.
+      if (!this.permissionAnswers.claim(event.approvalId)) {
+        return
+      }
       try {
         // The tool call the request names has gone out first.
         await this.outbox
-        if (!this.isCurrentPrompt(pending) || this.approvals.get(event.approvalId) !== event) {
+        const latest = this.approvals.get(event.approvalId)
+        if (latest === undefined || !this.isCurrentPrompt(pending)) {
           return
         }
-        response = permissionResponse(
-          await this.client.request('session/request_permission', {
-            sessionId: this.sessionId,
-            toolCall: approvalToolCall(event, this.cwd),
-            options: permissionOptions(event.availableChoices),
-          }),
-        )
-      } catch (error: unknown) {
-        this.deps.log.warn(
-          `ACP session ${this.sessionId}: permission request failed, denying: ${failureForLog(error)}`,
-        )
-        observeError(this.deps, 'permissionRequestFailed')
+        if (latest !== event) {
+          // A newer stage superseded this one while waiting: settle it
+          // instead. The claim is released first (idempotent) so the
+          // re-entered ask can take it.
+          this.permissionAnswers.release(event.approvalId)
+          await this.askPermission(latest)
+          return
+        }
+        let response: RequestPermissionResponse | undefined
+        try {
+          response = permissionResponse(
+            await this.client.request('session/request_permission', {
+              sessionId: this.sessionId,
+              toolCall: approvalToolCall(event, this.cwd),
+              options: permissionOptions(event.availableChoices),
+            }),
+          )
+        } catch (error: unknown) {
+          this.deps.log.warn(
+            `ACP session ${this.sessionId}: permission request failed, denying: ${failureForLog(error)}`,
+          )
+          observeError(this.deps, 'permissionRequestFailed')
+        }
+        const current = this.approvals.get(event.approvalId)
+        if (current === undefined || !this.isCurrentPrompt(pending)) {
+          return
+        }
+        settled = current
+        // The answer is never discarded when a newer stage landed mid-ask:
+        // the picked meaning moves to it, else the denial default decides.
+        choice =
+          answerChoice(response, event.availableChoices, settled.availableChoices) ??
+          decidedChoice(undefined, settled.availableChoices)
+      } finally {
+        this.permissionAnswers.release(event.approvalId)
       }
-      choice = decidedChoice(response, event.availableChoices)
     }
-    if (!this.isCurrentPrompt(pending) || this.approvals.get(event.approvalId) !== event) {
+    if (!this.isCurrentPrompt(pending) || this.approvals.get(event.approvalId) !== settled) {
       // Let go while the editor was asked: the answer is for a session it
       // no longer shows, which another session may now hold.
       return
     }
     if (choice === undefined) {
       this.deps.log.warn(
-        `ACP session ${this.sessionId}: approval ${event.approvalId} offers no denial; stopping the turn`,
+        `ACP session ${this.sessionId}: approval ${settled.approvalId} offers no denial; stopping the turn`,
       )
       observeError(this.deps, 'approvalWithoutDenial')
       await this.cancel()
       return
     }
+    // The next stage can arrive before approval/decide is acknowledged.
+    // Publish the consent synchronously so that event reuses it, not a new ask.
+    this.permissionAnswers.remember(settled.approvalId, settled.itemId, choice)
     try {
       await this.session.decideApproval({
-        approvalId: event.approvalId,
+        approvalId: settled.approvalId,
         choiceId: choice.choiceId,
-        requirementId: event.requirementId,
+        requirementId: settled.requirementId,
       })
     } catch (error: unknown) {
       const level = isPromptSettledError(error) ? 'info' : 'warn'
       this.deps.log[level](
-        `ACP session ${this.sessionId}: approval ${event.approvalId}: ${failureForLog(error)}`,
+        `ACP session ${this.sessionId}: approval ${settled.approvalId}: ${failureForLog(error)}`,
       )
     }
   }
@@ -1627,6 +1672,11 @@ class AcpSession {
     await this.applyEffort(effort)
   }
 
+  /** The mode the client last set on this session. */
+  public get permissionMode(): PermissionMode {
+    return this.mode
+  }
+
   public async setMode(modeId: string): Promise<void> {
     const mode = availablePermissionModes(this.deps.options.canBypass).find(
       (candidate) => candidate === modeId,
@@ -1637,6 +1687,10 @@ class AcpSession {
     this.ensureHeld()
     await this.session.setApprovalMode(approvalModeFor(mode, true))
     this.mode = mode
+    // The set took: tell the editor, which otherwise keeps showing the old
+    // mode (it learns it only from new/load responses and this notice).
+    this.send({ sessionUpdate: 'current_mode_update', currentModeId: mode })
+    await this.outbox
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
@@ -2292,6 +2346,8 @@ class AgentState {
   /** Sessions being set up (`adopt`), by id: a newer load or a close lets them go too. */
   private readonly adopting = new Map<string, AcpSession>()
   private readonly claims = new Map<string, SessionClaim>()
+  /** Modes clients set (`session/set_mode`): a later load keeps them, not the initial mode. */
+  private readonly sessionModes = new Map<string, PermissionMode>()
   /** Remains visible even when the session is no longer available for requests. */
   private readonly releasing = new Map<string, Promise<unknown>>()
   private readonly watchedHosts = new WeakSet<AgentHost>()
@@ -2382,9 +2438,7 @@ class AgentState {
         this.clientCapabilities,
         models,
         this.deps,
-        isImported
-          ? untrustedStartMode(this.deps.options.initialMode, this.deps.options.initialMode)
-          : this.deps.options.initialMode,
+        adoptedMode(this.sessionModes.get(sessionId), this.deps.options.initialMode, isImported),
         session.modelId,
         activeTurnId,
         () => {
@@ -2673,6 +2727,13 @@ class AgentState {
     return this.sessions.get(sessionId)
   }
 
+  /** The mode the client set for a session, kept across later loads. */
+  public async setSessionMode(sessionId: string, modeId: string): Promise<void> {
+    const session = this.session(sessionId)
+    await session.setMode(modeId)
+    this.sessionModes.set(sessionId, session.permissionMode)
+  }
+
   /** Remember the editor's latest model/effort choice for a later load. */
   public noteChoice(sessionId: string): void {
     const held = this.sessions.get(sessionId)
@@ -2684,6 +2745,7 @@ class AgentState {
   /** The editor closes a session: the one held, or one still being set up. */
   public async closeSession(sessionId: string): Promise<void> {
     const wasClaimed = this.claims.delete(sessionId)
+    // Close releases the live handle, not history or the client's selected mode.
     const wasReleased = await this.releaseAll(sessionId)
     this.choices.delete(sessionId)
     if (!wasClaimed && !wasReleased) {
@@ -2750,7 +2812,7 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
       return {}
     })
     .onRequest('session/set_mode', async (context) => {
-      await state.session(context.params.sessionId).setMode(context.params.modeId)
+      await state.setSessionMode(context.params.sessionId, context.params.modeId)
       return {}
     })
     .onRequest('session/set_config_option', async (context) => {

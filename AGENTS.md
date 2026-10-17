@@ -400,9 +400,11 @@ native/darwin/**      Dictation.swift, Info.plist, build.sh, check-disclaim.sh:
                       Muse Voice's `--capture` mode
 resources/            the walkthrough
 test/unit/**          vitest (node + jsdom via docblock) over real code only:
-                      no mocks, fakes, stand-ins or screenshot comparisons;
-                      the `vscode` alias and its hand-written module stay for
-                      the listed integration and host suites only
+                      no mocks, fakes, stand-ins, invented data, screenshot
+                      comparisons or tests that only check that text, a key
+                      or a file exists; no `vscode` module (the editor API is
+                      tested inside VS Code, test/integration). What the
+                      deleted fake tests covered: docs/real-life/unproven.md
 test/e2e/**           the live drills, kept listed for the real-life run
                       (the Muse Code CLI; the Model API sweep and the M75
                       evaluation, which bill the owner's key)
@@ -415,8 +417,9 @@ test/harness/         the webview behind a scripted host, for the local look
                       captured themes
                       playbook.mjs scenes run standalone as
                       `npm run harness:playbook` until the panel port is bound
-test/hosts/           the extension and the ACP agent in other editors
-                      against the fake CLI, one script per host (hosts.yml)
+test/hosts/           the integration tests in VSCodium and the forks, and the
+                      installed ACP agent's help, trust refusal and key round
+                      trip, one script per check (hosts.yml, forks.yml)
 scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
                       notices, audit, PSScriptAnalyzer, semgrep, accessibility,
                       localization, tokens, reference
@@ -428,8 +431,7 @@ scripts/**            esbuild build; bundle-size, bundle-split, host-globals,
 docs/certification/   per-milestone gate-fire records and screenshots
 docs/plan-archive/    closed history moved out of PLAN.md, byte for byte
                       (decisions.md, milestones.md, gates.md); each passage
-                      stands between hashed markers that
-                      test/unit/planArchive.test.ts checks. `check:plan`
+                      stands between hashed markers. `check:plan`
                       fails when PLAN.md passes 85% of the plan reader's
                       bound; CONTRIBUTING.md has the archive procedure and
                       `npm run plan:archive` (scripts/plan-archive.mjs)
@@ -441,7 +443,8 @@ docs/ide-compatibility.md, docs/ide-compatibility/
 action/**             composite proposal Action, bounded trusted launcher,
                       sanitized Git and exact verified package installation
                       action/apply/ holds prepare and reviewer-approved push
-                      in separate jobs; test/action/ contains fake-only fixtures
+                      in separate jobs; test/action/la-check.mjs judges the
+                      live receipt (action-live.yml)
 docs/ci.md            headless/CI contract, security and accounting assumptions
 docs/schemas/**       generated versioned event/result schemas, shipped in npm
 docs/acp.md           the ACP agent's guide, shipped as its package's README
@@ -476,14 +479,12 @@ media/                icons, banner, social preview, README screenshots
 | Package `.vsix`                | `npm run package`                                    |
 | Package the ACP agent (D62)    | `npm run package:acp`                                |
 | Exec schemas (M80)             | `npm run schema:exec` (`-- --check`)                 |
-| Fake-only test package (M80)   | `node scripts/package-acp-test.mjs`                  |
 | Scan staged text (M80)         | `muse-spark-code-acp scan-secrets <file>`            |
-| Host checks (hosts.yml)        | `sh test/hosts/run-<host>.sh`                        |
+| Host checks (hosts.yml)        | `sh test/hosts/<script>.sh`                          |
 
-M80's lanes are integrated and their fake-only suites pass on the rigs; do not
-call exec, the scanner or the Action supported until the hosted action-check
-matrix and the live receipts (L, LA; LR after release) pass. The test tarball
-is private, unsigned and never published as product.
+M80's lanes are integrated; their fake-only suites were deleted on 2026-10-17
+(no fakes). Do not call exec, the scanner or the Action supported until the
+live receipts (L, LA; LR after release) pass.
 
 ## Toolchain pins that matter
 
