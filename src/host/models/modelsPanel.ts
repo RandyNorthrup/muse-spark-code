@@ -974,8 +974,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           )
         } catch (error: unknown) {
           // A failed save reaches its draft through fail(); anything that is
-          // not an error keeps its kind past the queue.
+          // not an error keeps its kind past the queue. The kind reaches the
+          // record; the words carry nothing raw.
           if (!(error instanceof Error)) throw error
+          log.warn(`Models panel save failed (${wireWordForLog(error.name)})`)
           fail(draft, error)
           await finish(false)
           return
@@ -1244,8 +1246,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         await handle(message)
       } catch (error: unknown) {
         // A failed panel message reaches its draft through fail(); anything
-        // that is not an error keeps its kind past the queue.
+        // that is not an error keeps its kind past the queue. The kind
+        // reaches the record; the words carry nothing raw.
         if (!(error instanceof Error)) throw error
+        log.warn(`Models panel message failed (${wireWordForLog(error.name)})`)
         fail(failedDraft, error)
       } finally {
         if (savingDraft !== undefined) {
