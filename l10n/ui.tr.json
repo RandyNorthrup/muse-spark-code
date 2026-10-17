@@ -3555,6 +3555,7 @@
   "providerRefusalNotFound": "{provider} isteği reddetti: böyle bir modeli bilmiyor. {provider} tarafından sunulan bir model seçin; hiçbir şey gönderilmedi ve ücret alınmadı. {provider} şöyle dedi: {detail}",
   "providerRefusalContentFilter": "{provider} isteği reddetti: içerik filtresi engelledi. İşaretli içerik olmadan yeniden ifade edip tekrar deneyin; modele hiçbir şey ulaşmadı ve bu istek için ücret alınmadı. {provider} dedi: {detail}",
   "providerRefusalRateLimited": "{provider} isteği şimdilik reddetti: çok fazla istek{wait}. Kısa süre sonra yeniden deneyin; bu ret için ücret alınmadı. {provider} şöyle dedi: {detail}",
+  "providerRefusalUsageLimit": "{provider} isteği reddetti: hesabın planı veya kullanım sınırı buna şu an izin vermiyor, bu yüzden yeniden denenmedi. Bu ret için ücret alınmadı. {provider} şöyle dedi: {detail}",
   "providerRefusalOverloaded": "{provider} isteği reddetti: aşırı yüklü{wait}. Kısa süre sonra yeniden deneyin; bu ret için ücret alınmadı. {provider} şöyle dedi: {detail}",
   "providerRefusalInvalidRequest": "{provider} isteği reddetti: istek geçersizdi; ücret alınmadı. {provider} şöyle dedi: {detail}",
   "providerRefusalTooLarge": "{provider} isteği reddetti: çok büyüktü. Konuşmayı veya ekleri kısaltıp yeniden deneyin; ücret alınmadı. {provider} şöyle dedi: {detail}",

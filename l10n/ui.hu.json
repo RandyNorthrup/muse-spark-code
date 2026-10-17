@@ -3555,6 +3555,7 @@
   "providerRefusalNotFound": "{provider} elutasította a kérést: ilyen modellt nem ismer. Válasszon olyan modellt, amelyet {provider} kínál; semmit sem küldtünk el, és semmit sem számítottunk fel. {provider} válasza: {detail}",
   "providerRefusalContentFilter": "{provider} elutasította a kérést: tartalomszűrője blokkolta. Fogalmazza újra a megjelölt tartalom nélkül, és próbálja újra; semmi sem jutott el modellhez, és ezért a kérésért nem számítottunk fel semmit. {provider} mondta: {detail}",
   "providerRefusalRateLimited": "{provider} a kérést egyelőre elutasította: túl sok kérés{wait}. Próbálja újra hamarosan; ezért az elutasításért nem számítottunk fel semmit. {provider} válasza: {detail}",
+  "providerRefusalUsageLimit": "{provider} elutasította a kérést: a fiók csomagja vagy használati korlátja most nem engedi, ezért nem próbáltuk újra. Ezért az elutasításért nem számítottunk fel semmit. {provider} válasza: {detail}",
   "providerRefusalOverloaded": "{provider} elutasította a kérést: túlterhelt{wait}. Próbálja újra hamarosan; ezért az elutasításért nem számítottunk fel semmit. {provider} válasza: {detail}",
   "providerRefusalInvalidRequest": "{provider} elutasította a kérést: a kérés érvénytelen; semmit sem számítottunk fel. {provider} válasza: {detail}",
   "providerRefusalTooLarge": "{provider} elutasította a kérést: túl nagy. Rövidítse le a beszélgetést vagy a mellékleteket, és próbálja újra; semmit sem számítottunk fel. {provider} válasza: {detail}",

@@ -3632,6 +3632,7 @@
   "providerRefusalNotFound": "{provider} a refusé la requête : il ne connaît pas ce modèle. Choisissez un modèle proposé par {provider} ; rien n’a été envoyé ni facturé. {provider} a dit : {detail}",
   "providerRefusalContentFilter": "{provider} a refusé la requête : son filtre de contenu l’a bloquée. Reformulez sans le contenu signalé et réessayez ; rien n’a atteint un modèle et rien n’a été facturé pour cette requête. {provider} a dit : {detail}",
   "providerRefusalRateLimited": "{provider} a refusé la requête pour l’instant : trop de requêtes{wait}. Réessayez bientôt ; rien n’a été facturé pour ce refus. {provider} a dit : {detail}",
+  "providerRefusalUsageLimit": "{provider} a refusé la requête : l’offre ou la limite d’utilisation du compte ne la permet pas pour l’instant, elle n’a donc pas été réessayée. Rien n’a été facturé pour ce refus. {provider} a dit : {detail}",
   "providerRefusalOverloaded": "{provider} a refusé la requête : il est surchargé{wait}. Réessayez bientôt ; rien n’a été facturé pour ce refus. {provider} a dit : {detail}",
   "providerRefusalInvalidRequest": "{provider} a refusé la requête : la requête était invalide ; rien n’a été facturé. {provider} a dit : {detail}",
   "providerRefusalTooLarge": "{provider} a refusé la requête : elle était trop volumineuse. Raccourcissez la conversation ou les pièces jointes et réessayez ; rien n’a été facturé. {provider} a dit : {detail}",

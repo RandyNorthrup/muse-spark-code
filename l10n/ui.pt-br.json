@@ -3632,6 +3632,7 @@
   "providerRefusalNotFound": "{provider} recusou a solicitação: não conhece esse modelo. Escolha um modelo que {provider} ofereça; nada foi enviado nem cobrado. {provider} disse: {detail}",
   "providerRefusalContentFilter": "{provider} recusou a solicitação: seu filtro de conteúdo a bloqueou. Reformule sem o conteúdo sinalizado e tente de novo; nada chegou a um modelo e nada foi cobrado por esta solicitação. {provider} disse: {detail}",
   "providerRefusalRateLimited": "{provider} recusou a solicitação por enquanto: solicitações demais{wait}. Tente de novo em breve; nada foi cobrado por esta recusa. {provider} disse: {detail}",
+  "providerRefusalUsageLimit": "{provider} recusou a solicitação: o plano ou o limite de uso da conta não a permite agora, então ela não foi repetida. Nada foi cobrado por esta recusa. {provider} disse: {detail}",
   "providerRefusalOverloaded": "{provider} recusou a solicitação: está sobrecarregado{wait}. Tente de novo em breve; nada foi cobrado por esta recusa. {provider} disse: {detail}",
   "providerRefusalInvalidRequest": "{provider} recusou a solicitação: a solicitação era inválida; nada foi cobrado. {provider} disse: {detail}",
   "providerRefusalTooLarge": "{provider} recusou a solicitação: era grande demais. Encurte a conversa ou os anexos e tente de novo; nada foi cobrado. {provider} disse: {detail}",
