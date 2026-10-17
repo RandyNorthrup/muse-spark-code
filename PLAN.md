@@ -14422,9 +14422,10 @@ admission bound and its benchmark.
 
 - **No limit set, no check.** With no session budget, no editor
   `museSpark.paidDailyBudgetUsd` and no agent `paidDailyBudgetUsd` (all
-  none by default, no maximum of ours), nothing is reserved, locked, read
-  or written for spending before a send. Each reply's own usage line still
-  shows its cost.
+  none by default, no maximum of ours), nothing is reserved, locked or
+  written, and no spend record is read, before a send; only the settings
+  that would hold a limit are read. Each reply's own usage line still shows
+  its cost.
 - **A limit the person set keeps a running total.** The session budget's
   total lives in the session that owns it, grows after each call from the
   usage the provider reported, and is saved with the session, so a resume
