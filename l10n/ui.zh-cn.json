@@ -81,6 +81,7 @@
   "modelApiContinuing": "已达到输出上限。正在继续…",
   "modelApiContinuationRefused": "提供商拒绝继续被截断的回答，回答仍不完整。请发送消息以继续。",
   "modelApiToolStuck": "同一工具调用持续返回未变化的结果，因此本轮已停止。请发送消息以尝试其他方法。",
+  "modelApiContinuationStuck": "由于继续的回答不断重复相同的文本，本轮已停止。请发送消息以尝试其他方法。",
   "modelApiTurnLimitReached": {
     "other": "本轮已达到您的 {count} 个工具轮次上限。上面的摘要说明了已完成和未完成的工作。发送消息即可继续。"
   },

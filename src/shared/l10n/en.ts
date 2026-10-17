@@ -118,6 +118,8 @@ export const EN = {
     'The provider refused to continue the cut-off answer, so it stays partial. Send a message to continue.',
   modelApiToolStuck:
     'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
+  modelApiContinuationStuck:
+    'The turn stopped because the continued answer kept repeating the same text. Send a message to try another approach.',
   modelApiTurnLimitReached: forms({
     one: 'The turn reached your limit of {count} tool round. The summary above covers what was done and what is left. Send a message to continue.',
     other:

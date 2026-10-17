@@ -81,6 +81,7 @@
   "modelApiContinuing": "Byl dosažen limit výstupu. Pokračování…",
   "modelApiContinuationRefused": "Poskytovatel odmítl pokračovat v přerušené odpovědi, zůstává tedy částečná. Pro pokračování odešlete zprávu.",
   "modelApiToolStuck": "Tah byl zastaven, protože stejné volání nástroje opakovaně vracelo nezměněný výsledek. Odešlete zprávu a zkuste jiný postup.",
+  "modelApiContinuationStuck": "Tah byl zastaven, protože pokračující odpověď opakovala stejný text. Odešlete zprávu a zkuste jiný postup.",
   "modelApiTurnLimitReached": {
     "one": "Tah dosáhl vašeho limitu {count} kolo nástrojů. Shrnutí výše popisuje, co je hotové a co zbývá. Pokračujte odesláním zprávy.",
     "other": "Tah dosáhl vašeho limitu {count} kol nástrojů. Shrnutí výše popisuje, co je hotové a co zbývá. Pokračujte odesláním zprávy.",

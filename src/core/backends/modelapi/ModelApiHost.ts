@@ -13974,7 +13974,11 @@ export class ModelApiSession implements ScheduledAgentSession {
           // tool. Text that changes is never a repeat.
           const verdict = this.repeatGuard.observeContinuation(streamed.replyText)
           if (verdict === 'stuck') {
-            this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.modelApiToolStuck })
+            this.emit({
+              type: 'backendNotice',
+              level: 'warning',
+              text: UI_TEXT.modelApiContinuationStuck,
+            })
             return
           }
           outputContinuations += 1

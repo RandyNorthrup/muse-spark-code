@@ -81,6 +81,7 @@
   "modelApiContinuing": "Osiągnięto limit wyjścia. Kontynuacja…",
   "modelApiContinuationRefused": "Dostawca odmówił kontynuowania przerwanej odpowiedzi, więc pozostaje ona częściowa. Wyślij wiadomość, aby kontynuować.",
   "modelApiToolStuck": "Tura została zatrzymana, ponieważ to samo wywołanie narzędzia stale zwracało niezmieniony wynik. Wyślij wiadomość, aby wypróbować inne podejście.",
+  "modelApiContinuationStuck": "Tura została zatrzymana, ponieważ kontynuowana odpowiedź powtarzała ten sam tekst. Wyślij wiadomość, aby wypróbować inne podejście.",
   "modelApiTurnLimitReached": {
     "one": "Tura osiągnęła Twój limit {count} rundy narzędzi. Podsumowanie powyżej opisuje, co zostało zrobione, a co pozostało. Wyślij wiadomość, aby kontynuować.",
     "other": "Tura osiągnęła Twój limit {count} rundy narzędzi. Podsumowanie powyżej opisuje, co zostało zrobione, a co pozostało. Wyślij wiadomość, aby kontynuować.",

@@ -81,6 +81,7 @@
   "modelApiContinuing": "Se alcanzó el límite de salida. Continuando…",
   "modelApiContinuationRefused": "El proveedor se negó a continuar la respuesta cortada, que queda parcial. Envía un mensaje para continuar.",
   "modelApiToolStuck": "El turno se detuvo porque la misma llamada a herramienta devolvía un resultado sin cambios. Envía un mensaje para probar otro enfoque.",
+  "modelApiContinuationStuck": "El turno se detuvo porque la respuesta continuada repetía el mismo texto. Envía un mensaje para probar otro enfoque.",
   "modelApiTurnLimitReached": {
     "one": "El turno alcanzó su límite de {count} ronda de herramientas. El resumen anterior describe lo hecho y lo pendiente. Envíe un mensaje para continuar.",
     "other": "El turno alcanzó su límite de {count} rondas de herramientas. El resumen anterior describe lo hecho y lo pendiente. Envíe un mensaje para continuar.",

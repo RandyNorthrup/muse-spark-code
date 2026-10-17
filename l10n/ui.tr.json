@@ -81,6 +81,7 @@
   "modelApiContinuing": "Çıktı sınırına ulaşıldı. Devam ediliyor…",
   "modelApiContinuationRefused": "Sağlayıcı, kesilen yanıtı sürdürmeyi reddetti; yanıt eksik kalıyor. Devam etmek için bir mesaj gönderin.",
   "modelApiToolStuck": "Aynı araç çağrısı sürekli değişmeyen bir sonuç döndürdüğü için tur durduruldu. Başka bir yaklaşım denemek için mesaj gönderin.",
+  "modelApiContinuationStuck": "Devam eden yanıt aynı metni tekrarladığı için tur durduruldu. Başka bir yaklaşım denemek için mesaj gönderin.",
   "modelApiTurnLimitReached": {
     "one": "Tur, {count} araç turluk sınırınıza ulaştı. Yukarıdaki özet neyin yapıldığını ve neyin kaldığını açıklar. Devam etmek için bir mesaj gönderin.",
     "other": "Tur, {count} araç turluk sınırınıza ulaştı. Yukarıdaki özet neyin yapıldığını ve neyin kaldığını açıklar. Devam etmek için bir mesaj gönderin."
