@@ -25,7 +25,8 @@ happened, not what was planned; superseded entries are kept.
   prompt length and 1–10 edit items — its own refusal answers oversize calls);
   a provider holds any number of accounts past 64 per provider; check
   commands no longer refuse a 9th check and a check names any positive
-  `timeoutSeconds` past 600 (300 unless set).
+  `timeoutSeconds` past 600 (300 unless set); a conversation spawns
+  subagents past 64 per conversation (paid consent still asks per spawn).
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

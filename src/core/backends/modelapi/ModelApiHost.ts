@@ -163,7 +163,6 @@ import {
   SUBAGENT_CAPACITY,
   SUBAGENT_DEPTH,
   SUBAGENT_ID_PREFIX,
-  SUBAGENT_MAX_PER_CONVERSATION,
   SUBAGENT_RESULT_READY,
   SUBAGENT_RESULT_TEXT_MAX_CHARS,
   SUBAGENT_SUMMARY_MAX_CHARS,
@@ -9248,14 +9247,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       return {
         refusal: {
           outcome: subagentFailure('worktree isolation is unavailable on this backend'),
-          isRejected: false,
-        },
-      }
-    }
-    if (this.children.size >= SUBAGENT_MAX_PER_CONVERSATION) {
-      return {
-        refusal: {
-          outcome: subagentFailure('subagent limit reached for this conversation'),
           isRejected: false,
         },
       }
