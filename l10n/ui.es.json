@@ -928,7 +928,6 @@
     "reportContent": "Denunciar contenido dañino",
     "fastDetail": "{description}. Desactivado por defecto: usa más de tu cuota del plan.",
     "requestFailed": "La solicitud del plan de ChatGPT falló: {message}",
-    "streamTooLarge": "La respuesta de ChatGPT fue mayor de lo que acepta esta aplicación. Pida una respuesta más corta.",
     "requestNotBuilt": "Esta aplicación no pudo preparar la solicitud del plan de ChatGPT ({reason}). No se envió nada."
   },
   "untitledConversation": "Sin título",

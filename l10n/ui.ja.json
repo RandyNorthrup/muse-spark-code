@@ -920,7 +920,6 @@
     "reportContent": "有害な内容を報告",
     "fastDetail": "{description}。デフォルトではオフです。プランの使用量を多く消費します。",
     "requestFailed": "ChatGPTプランのリクエストに失敗しました: {message}",
-    "streamTooLarge": "ChatGPT の返信がこのアプリの受け付ける大きさを超えました。より短い回答を依頼してください。",
     "requestNotBuilt": "このアプリは ChatGPT プランのリクエストを準備できませんでした({reason})。何も送信されていません。"
   },
   "untitledConversation": "無題",

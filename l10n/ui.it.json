@@ -928,7 +928,6 @@
     "reportContent": "Segnala contenuti dannosi",
     "fastDetail": "{description}. Disattivato per impostazione predefinita: usa più quota del tuo piano.",
     "requestFailed": "La richiesta del piano ChatGPT non è riuscita: {message}",
-    "streamTooLarge": "La risposta di ChatGPT era più grande di quanto questa app accetta. Chiedi una risposta più breve.",
     "requestNotBuilt": "Questa app non è riuscita a preparare la richiesta del piano ChatGPT ({reason}). Non è stato inviato nulla."
   },
   "untitledConversation": "Senza titolo",

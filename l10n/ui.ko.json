@@ -920,7 +920,6 @@
     "reportContent": "유해 콘텐츠 신고",
     "fastDetail": "{description}. 기본적으로 꺼져 있습니다. 플랜 할당량을 더 많이 사용합니다.",
     "requestFailed": "ChatGPT 플랜 요청이 실패했습니다: {message}",
-    "streamTooLarge": "ChatGPT 응답이 이 앱이 받아들이는 크기보다 컸습니다. 더 짧은 답변을 요청하세요.",
     "requestNotBuilt": "이 앱이 ChatGPT 요금제 요청을 준비하지 못했습니다({reason}). 아무것도 전송되지 않았습니다."
   },
   "untitledConversation": "제목 없음",

@@ -68,16 +68,9 @@ describe('local causes get their own sentence', () => {
     const refusal = failureOfSync(() => codec.encodeRequest(body))
     expect(refusal).toBeInstanceOf(ResponsesDecodeError)
     expect(refusal instanceof ResponsesDecodeError && refusal.isLocal).toBe(true)
-    // An output cap this app was not given is also its own: nothing the provider sent.
-    const noCap = await failureOf(codec.decodeStream(framesOf([])).next())
-    expect(noCap).toBeInstanceOf(ResponsesDecodeError)
-    expect(noCap instanceof ResponsesDecodeError && noCap.isLocal).toBe(true)
     // A frame the provider sent that is not JSON is the provider's, and is not local.
     const frame = new TextEncoder().encode('data: {not json\n\n')
-    const sent = codec.decodeStream(framesOf([frame]), {
-      outputCap: { maxOutputTokens: 10, countOutputTokens: () => 0, abort: () => undefined },
-    })
-    const garbled = await failureOf(sent.next())
+    const garbled = await failureOf(codec.decodeStream(framesOf([frame])).next())
     expect(garbled).toBeInstanceOf(ResponsesDecodeError)
     expect(garbled instanceof ResponsesDecodeError && garbled.isLocal).toBe(false)
   })

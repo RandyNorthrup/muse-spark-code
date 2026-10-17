@@ -924,7 +924,6 @@
     "reportContent": "Káros tartalom jelentése",
     "fastDetail": "{description}. Alapértelmezés szerint kikapcsolva: többet fogyaszt a csomagkeretből.",
     "requestFailed": "A ChatGPT-csomag kérése sikertelen: {message}",
-    "streamTooLarge": "A ChatGPT válasza nagyobb volt, mint amit ez az alkalmazás elfogad. Kérjen rövidebb választ.",
     "requestNotBuilt": "Az alkalmazás nem tudta előkészíteni a ChatGPT-csomag kérését ({reason}). Semmi nem lett elküldve."
   },
   "untitledConversation": "Névtelen",

@@ -1120,8 +1120,6 @@ export const EN = {
     fastDetail: '{description}. Off by default: it uses more of your plan allowance.',
     // {message}: OpenAI's own error message for the failed plan request.
     requestFailed: 'The ChatGPT plan request failed: {message}',
-    // The reply grew past the size this app accepts; nothing is wrong with ChatGPT.
-    streamTooLarge: 'The ChatGPT reply was larger than this app accepts. Ask for a shorter answer.',
     // {reason}: this app's own word for what it could not build or read.
     requestNotBuilt:
       'This app could not prepare the ChatGPT plan request ({reason}). Nothing was sent.',
