@@ -385,13 +385,17 @@ function modelApiManager(
       // may predate an unlocked store: re-read once before refusing, and
       // heal the probe when the store answers again.
       if (metaKeyProbe.state === 'storeDown') {
+        let reread: string | undefined
         try {
-          const reread = await deps.secrets.get(SECRET_KEYS.modelApiKey)
+          reread = await deps.secrets.get(SECRET_KEYS.modelApiKey)
           metaKeyProbe.state = reread !== undefined && reread !== '' ? 'key' : 'absent'
         } catch (error: unknown) {
           if (!isStoreUnavailable(error)) throw error
         }
         if (metaKeyProbe.state === 'storeDown') throw new StoreUnavailableError()
+        // The store answered again: this step gets the key it just read, not
+        // an absent-key read that would refuse the step the probe just healed.
+        if (reread !== undefined && reread !== '') return reread
       }
       return
     },
