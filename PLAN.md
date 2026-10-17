@@ -14736,6 +14736,20 @@ the webview records and lands an ask only within the 1000 ms delivery window
 (`docs/certification/panel-focus.md`). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+### D140 — The panel lists exactly what the transport admits (M95, 2026-10-17)
+
+Rule 13 keeps uncaptured presets out of the Models & Agents panel, and the
+transport refuses them with no dispatch even when keyless (C-M95-4 R2). The
+`custom` preset is the exception on both sides: it is the user's own server,
+which the transport admits without a capture, so the panel lists it — the
+milestone Goal's "a compatible server of their own". Main's union also
+listed uncaptured local presets the transport refuses; the candidate's
+exclusion also dropped `custom`, closing the Goal's custom-server path.
+`listedPresets()` plus `custom` is the whole catalogue; the local scan
+probes only listed presets. Per-attempt pool enrichment for headless exec
+has no consumer (one run pins one account; `--account-pool` refuses loudly
+under D88.5), so the unwired helper is removed rather than connected.
+
 ### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
 
 The VS Code Model API shell inherited credential variables from the extension
@@ -35290,6 +35304,8 @@ Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
+
+**MSM95 models-section budget 13 → 14 KiB (2026-10-17, macmini).** CM954 R4's required saved-model editor UI (the validated per-model context-window field, `src/webview/models/components/ContextWindow.tsx`) grew the deferred models-section chunk from 12,074 B to 13,448 B, 136 bytes over the row's 13 KiB. The field cannot shrink: every byte is required behaviour or its accessible label, hint and alert. The row is re-measured at 14 KiB (14,336 B; 888 B headroom), following the MODELSPLIT row-setting precedent. No other budget moves. Detail: `docs/certification/msm95.md`.
 
 ## 8. Escape hatches register
 

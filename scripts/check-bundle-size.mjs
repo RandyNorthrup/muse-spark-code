@@ -380,6 +380,8 @@ for (const { name, page, source, budgetKiB } of [
 // on the release train on 2026-10-11 at the merge of b92fab054 onto
 // acf388a14: providers section 37 KiB (32,197 bytes measured, plus 15
 // percent, rounded up), models section 13 KiB (12,074 bytes measured).
+// M95 (CM954 R4): the saved-model editor's validated per-model window field
+// grew the chunk to 13,448 bytes, so the row is 14 KiB (PLAN.md §7).
 const modelsMeta = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
 const modelsSectionGroups = modelsDeferredBudgetGroups(modelsMeta)
 for (const { name, budgetKiB, outputs } of modelsSectionGroups) {
