@@ -1,0 +1,63 @@
+{
+  "machine": "win11",
+  "timeout": "repository default; no --testTimeout",
+  "maxWorkers": 3,
+  "files": [
+    {
+      "file": "AgentMap.test.tsx",
+      "passed": 16,
+      "failed": 0,
+      "status": "passed"
+    },
+    {
+      "file": "playbookCommand.test.ts",
+      "passed": 24,
+      "failed": 0,
+      "status": "passed"
+    },
+    {
+      "file": "PlaybookPanel.test.tsx",
+      "passed": 25,
+      "failed": 0,
+      "status": "passed"
+    },
+    {
+      "file": "acpPlaybook.test.ts",
+      "passed": 3,
+      "failed": 0,
+      "status": "passed"
+    },
+    {
+      "file": "playbookBundles.test.mjs",
+      "passed": 2,
+      "failed": 0,
+      "status": "passed"
+    },
+    {
+      "file": "toolRows.test.tsx",
+      "passed": 30,
+      "failed": 0,
+      "status": "passed"
+    },
+    {
+      "file": "acpAgent.test.ts",
+      "passed": 94,
+      "failed": 0,
+      "status": "passed"
+    },
+    {
+      "file": "acpRuntime.test.ts",
+      "passed": 38,
+      "failed": 0,
+      "status": "passed"
+    },
+    {
+      "file": "modelApiGoldenRequests.test.ts",
+      "passed": 18,
+      "failed": 0,
+      "status": "passed"
+    }
+  ],
+  "totalPassed": 250,
+  "totalFailed": 0
+}

@@ -21,6 +21,10 @@ import path from 'node:path'
 import { Duplex } from 'node:stream'
 import type { BrowserProcess, BrowserRunDeps, CheckFolder } from '../../core/browser/browserRun'
 import { startProbeFixture } from '../../core/browser/canaries'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { stopResourceTree } from '../../core/resources/admission'
+import { observeResourceProcess } from '../resources/resourceAdmission'
+import { spawnMcpJob } from '../backend/mcpJobLaunch'
 import { startCheckProxy } from '../../core/browser/checkProxy'
 import {
   BROWSER_CHECK_DIR,
@@ -34,6 +38,9 @@ import {
 } from '../../shared/browserCheckConstants'
 
 export interface HostBrowserDeps {
+  readonly windowsJob?:
+    { readonly executablePath: string; readonly assemblyPath: string } | undefined
+  readonly resource?: ResourceLease | undefined
   readonly platform: NodeJS.Platform
   readonly env: Readonly<Record<string, string | undefined>>
   /** A fixed fact for the extension's log. */
@@ -60,6 +67,10 @@ function spawnCodeOf(error: unknown): string | undefined {
 
 /** Ends the browser and everything it started, at once. */
 async function killBrowser(child: ChildProcess, deps: HostBrowserDeps): Promise<void> {
+  if (deps.resource !== undefined) {
+    await stopResourceTree(deps.resource)
+    return
+  }
   const { pid } = child
   if (pid === undefined || child.exitCode !== null || child.signalCode !== null) {
     return
@@ -103,13 +114,32 @@ function spawnBrowser(
   deps: HostBrowserDeps,
 ): BrowserProcess {
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the pinned headless shell at the absolute path the runtime bundle verified against browserRuntime.json in the extension's own storage (never PATH, a system browser or a workspace file), with the fixed flags of BROWSER_LAUNCH_FLAGS, the check's own proxy endpoint and profile, and a projected environment; the model's URL goes over the pipe, never on the command line (M81 A1, PLAN.md D49).
-  const child = spawn(executable, [...args], {
-    stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'],
-    env: withoutCredentials(env),
-    windowsHide: true,
-    // Its own process group on POSIX, so the kill ends everything it started.
-    detached: deps.platform !== 'win32',
-  })
+  const child =
+    deps.windowsJob === undefined
+      ? spawn(executable, [...args], {
+          stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'],
+          env: resourceEnvironment(withoutCredentials(env), deps.resource),
+          windowsHide: true,
+          // Its own process group on POSIX, so the kill ends everything it started.
+          detached: deps.platform !== 'win32',
+        })
+      : spawnMcpJob({
+          executablePath: deps.windowsJob.executablePath,
+          resourceAssembly: deps.windowsJob.assemblyPath,
+          file: executable,
+          args,
+          cwd: path.dirname(executable),
+          env: resourceEnvironment(withoutCredentials(env), deps.resource),
+          isVerbatim: false,
+          debugPipes: true,
+          resource: deps.resource,
+          log: deps.warn,
+        })
+  if (deps.windowsJob === undefined) observeResourceProcess(deps.resource, child)
+  else {
+    child.stdout?.resume()
+    child.stderr?.resume()
+  }
   // File descriptors 3 and 4: what Chrome reads, and what it writes.
   const writer = child.stdio[3]
   const reader = child.stdio[4]
@@ -149,7 +179,9 @@ function spawnBrowser(
     })
   })
   if (!(writer instanceof Duplex) || !(reader instanceof Duplex)) {
-    child.kill()
+    void killBrowser(child, deps).catch(() => {
+      deps.warn('Browser check: the registered browser tree could not be stopped')
+    })
     throw new Error('no debugging pipes')
   }
   // Writing to a browser that has gone fails; its read end says so.
@@ -262,7 +294,7 @@ export function hostBrowserRunDeps(deps: HostBrowserDeps): BrowserRunDeps {
   return {
     platform: deps.platform,
     env: deps.env,
-    createFolder,
+    createFolder: (storageDir) => createFolder(deps.resource?.temp?.root ?? storageDir),
     removeFolder: async (folder) => {
       try {
         await rm(folder.root, {

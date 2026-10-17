@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Muse Spark Code はマイクを使って音声をメッセージ入力欄に文字として入力します。有料機能の Muse Voice が有効な場合、音声は Meta の Muse Voice Transcribe に送信されます。それ以外の場合は macOS が認識します。画面録画にマイクの音声が含まれるのは、選択した場合のみです。各画面録画は添付する前にプレビューできます。";
+"NSScreenCaptureUsageDescription" = "Muse Spark Code は、画面録画を開始した場合にのみ画面を録画します。選択したディスプレイに表示されているあらゆる内容が含まれる可能性があります。何かが送信される前に、録画をプレビューして「添付」または「破棄」を選択します。";
+"NSSpeechRecognitionUsageDescription" = "Muse Spark Code は macOS に内蔵された音声認識機能を使って、発言を文字に変換します。";

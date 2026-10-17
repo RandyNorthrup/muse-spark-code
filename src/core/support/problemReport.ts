@@ -42,6 +42,7 @@ import {
 } from '../../shared/constants'
 import { reportWebviewErrorSchema } from '../../shared/protocol'
 import { redactSecrets } from '../redact'
+import type { SecretScrubPort } from '../../shared/redact'
 
 const YES = 'yes'
 const NO = 'no'
@@ -59,19 +60,33 @@ const REPORT_PLATFORMS = ['win32', 'darwin', 'linux'] as const
 /** A dotted version with an optional short suffix (`1.4.2-R4684.1`); never a sentence. */
 const VERSION_PATTERN = /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z.-]{1,32})?$/
 
-/** A setting name (`museSpark.backend`); a value never rides along. */
-const SETTING_NAME_PATTERN = /^museSpark\.[A-Za-z][A-Za-z0-9]{0,63}$/
+/**
+ * A setting name: the section, then one to four dotted segments of letters
+ * and digits (`museSpark.backend`, `museSpark.vault.enabled`). A value never
+ * rides along. Until 0.18.1 a second dot was refused, so anyone who had
+ * changed a dotted setting could not open the report at all.
+ */
+const SETTING_NAME_PATTERN = /^museSpark(?:\.[A-Za-z][A-Za-z0-9]{0,63}){1,4}$/
 
-/** How many setting names one report may carry; the manifest holds about forty. */
-const SETTING_NAMES_MAX = 64
+/** How many setting names one report may carry; the manifest holds a hundred. */
+const SETTING_NAMES_MAX = 128
 
-/** A setting name's bound before its pattern is checked: the prefix plus 64. */
+/** A setting name's bound before its pattern is checked; the longest is 41. */
 const SETTING_NAME_MAX_CHARS = 80
+
+/** The title of a report whose facts are left out and did not validate. */
+const TITLE_WITHOUT_FACTS = 'Problem report: Muse Spark'
 
 /** The shortest user/machine name worth redacting; shorter would eat ordinary words. */
 const EXTRA_LITERAL_MIN_CHARS = 3
 
 const problemReportFactsSchema = z.strictObject({
+  modelApiStatus: z.optional(
+    z.strictObject({
+      isAlive: z.boolean(),
+      status: z.enum(['operational', 'unknown']),
+    }),
+  ),
   extensionVersion: z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS)),
   /**
    * The editor's VS Code version; absent for the standalone agent, which
@@ -167,6 +182,20 @@ function validatedFacts(input: unknown): ProblemReportFacts {
     throw new ReportBuildError('settingNames', 'not a setting name')
   }
   return cliVersion !== undefined && isReportVersion(cliVersion) ? { ...facts, cliVersion } : facts
+}
+
+/**
+ * The facts a draft may use. A report with its facts switched off carries
+ * none, so facts that fail validation must not stop it: it is built without
+ * them, title included. With facts on, the refusal stands and names its field.
+ */
+function draftFacts(input: ProblemReportInput): ProblemReportFacts | undefined {
+  try {
+    return validatedFacts(input.facts)
+  } catch (error: unknown) {
+    if (input.includeFacts || !(error instanceof ReportBuildError)) throw error
+    return undefined
+  }
 }
 
 /** One record the report will carry, with its place in the input it came from. */
@@ -390,6 +419,11 @@ function factLines(facts: ProblemReportFacts): readonly string[] {
     `node: ${facts.nodeVersion}`,
     `platform: ${facts.platform}`,
     `backend: ${facts.backend}`,
+    ...(facts.modelApiStatus === undefined
+      ? []
+      : [
+          `model api service: ${facts.modelApiStatus.status}; alive: ${facts.modelApiStatus.isAlive ? YES : NO}`,
+        ]),
     `cli: ${cli}; signed in: ${facts.cliSignIn ? YES : NO}`,
     `stored model api key: ${facts.hasStoredApiKey ? YES : NO}; META_API_KEY in environment: ${facts.hasEnvironmentApiKey ? YES : NO}`,
     `shell sandbox: ${facts.sandbox}`,
@@ -477,18 +511,18 @@ function cappedDescription(description: string): string {
  * off-allowlist facts; skips off-allowlist records. The returned text is the
  * final draft: the preview shows it byte-identical, and exports carry it unchanged.
  */
-export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
+function reportParts(input: ProblemReportInput): { title: string; text: string } {
   if (!Number.isFinite(input.nowMs)) {
     throw new ReportBuildError('nowMs', 'not a finite time')
   }
-  const facts = validatedFacts(input.facts)
+  const facts = draftFacts(input)
   const events = validatedEvents(input.events)
   const sections: string[] = ['Muse Spark problem report']
   const description = cappedDescription(input.description)
   if (description !== '') {
     sections.push(`What was happening:\n${description}`)
   }
-  if (input.includeFacts) {
+  if (facts !== undefined && input.includeFacts) {
     sections.push(`Support facts:\n${factLines(facts).join('\n')}`)
   }
   if (input.includeEvents) {
@@ -498,9 +532,31 @@ export function buildProblemReportDraft(input: ProblemReportInput): SealedReport
         : `Recent events (${String(events.length)}):\n${events.length === 0 ? NONE : eventLines(events).join('\n')}`,
     )
   }
-  const title = scrubFinalDraft(problemReportTitle(facts), input.scrub)
-  const text = scrubFinalDraft(sections.join('\n\n'), input.scrub)
-  return sealReportDraft(title, text)
+  return {
+    title: facts === undefined ? TITLE_WITHOUT_FACTS : problemReportTitle(facts),
+    text: sections.join('\n\n'),
+  }
+}
+
+/** Existing synchronous builder for callers with no vault.
+ * @unwired M93 report-a-problem draft without vault */
+export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
+  const parts = reportParts(input)
+  return sealReportDraft(
+    scrubFinalDraft(parts.title, input.scrub),
+    scrubFinalDraft(parts.text, input.scrub),
+  )
+}
+
+/** M109: scrub raw final text before privacy edits and seal only the resulting preview. */
+export async function buildVaultProblemReportDraft(
+  input: ProblemReportInput,
+  vaultScrub?: SecretScrubPort,
+): Promise<SealedReportDraft> {
+  const parts = reportParts(input)
+  const title = vaultScrub === undefined ? parts.title : await vaultScrub.scrub(parts.title)
+  const text = vaultScrub === undefined ? parts.text : await vaultScrub.scrub(parts.text)
+  return sealReportDraft(scrubFinalDraft(title, input.scrub), scrubFinalDraft(text, input.scrub))
 }
 
 /** Where a draft goes on GitHub: opened prefilled, or the fallback when too long. */

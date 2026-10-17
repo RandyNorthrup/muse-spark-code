@@ -1,0 +1,25 @@
+{
+  "summary": {
+    "total_listed": 2,
+    "in_run_window": 2,
+    "size_matched_to_our_fixtures": 2,
+    "in_window_but_unmatched": [],
+    "outside_window": 0,
+    "purposes": ["user_data"],
+    "expires": [null]
+  },
+  "matched": [
+    {
+      "id": "<file-id-310>",
+      "bytes": 175,
+      "filename": "<uuid-272>",
+      "created_at": 1791253567
+    },
+    {
+      "id": "<file-id-211>",
+      "bytes": 174,
+      "filename": "<uuid-268>",
+      "created_at": 1791253548
+    }
+  ]
+}

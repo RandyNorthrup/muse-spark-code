@@ -22,6 +22,7 @@ function attachChatPanel(
   restoredSessionId: string | undefined,
   isSideChat = false,
   onDisposed?: () => void,
+  surfaceId = `panel:${globalThis.crypto.randomUUID()}`,
 ): void {
   // A restored panel keeps the title VS Code saved, unread mark included.
   let title = panel.title.startsWith(UI_TEXT.unreadMark)
@@ -35,12 +36,14 @@ function attachChatPanel(
     panel.title = isUnread ? `${UI_TEXT.unreadMark}${counted}` : counted
   }
   const surface = configureWebview(panel.webview, context, {
-    id: `panel:${globalThis.crypto.randomUUID()}`,
+    id: surfaceId,
     restoredSessionId,
     isSideChat,
     reveal: () => {
       panel.reveal(undefined, false)
     },
+    // A focus ask delivers only while this panel is the active one (F3).
+    isActive: () => panel.active,
     markUnread: () => {
       if (panel.active) {
         return
@@ -81,6 +84,8 @@ function attachChatPanel(
 }
 
 export interface NewChatPanelOptions {
+  /** The new surface's id, when a caller must know it before the panel is ready (M107 Show). */
+  readonly surfaceId?: string
   readonly sessionId?: string
   readonly isSideChat?: boolean
   readonly onDisposed?: () => void
@@ -104,6 +109,7 @@ export function openChatPanel(
     options.sessionId,
     options.isSideChat,
     options.onDisposed,
+    options.surfaceId,
   )
   return panel
 }

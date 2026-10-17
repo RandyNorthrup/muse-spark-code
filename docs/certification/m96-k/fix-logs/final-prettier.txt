@@ -1,0 +1,4 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'prettier' --check src/host/team/processLifetime.ts src/host/team/windowHints.ts src/host/team/loadGuard.ts test/unit/teamProcessLifetime.test.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts PLAN.md docs/certification/m96-k.md docs/certification/m96-k/fix-drills.json
+Checking formatting...
+All matched files use Prettier code style!

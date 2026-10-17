@@ -32,6 +32,11 @@ checkout. Fork runners separately verify VSIX installation and listing, then
 run that development-extension integration suite. These are distinct proofs;
 code-server and Theia's packaged browser checks keep their recorded scope.
 
+M114's [design rows](m114-design.md) record the shared theme/font contract,
+S's six-theme panel evidence and the named C/N/D bindings for native,
+companion, node and desktop surfaces. Existing support statuses below do not
+change merely because their shared panel styles are polished.
+
 ## The most used
 
 | Editor                                             | Route                                         | Milestone | Status    | Evidence and notes                                                                                                                                                                                                                                                |
@@ -106,6 +111,35 @@ Scheduled/unattended prompts defer immediately and keep the question open,
 including with interactive deferral disabled; headless exec, best-of-N,
 worktrees and the evaluation retain their distinct immediate policies.
 
+## M116 playbook surfaces — integration status
+
+The ACP agent and standalone CLI read journal records and settings locally.
+VS Code panel integration is listed under [In progress](../../ROADMAP.md#in-progress).
+
+## M115 schedule routes — integration status
+
+Scheduled prompts v2 is listed under [In progress](../../ROADMAP.md#in-progress).
+Legacy Model API `/loop` supports manually confirmed Run now in VS Code.
+Muse Code owns its subscription-backed cron tools.
+
+## M105 media routes — integration status
+
+2026-10-07: the extension supplies the media loader and recording command
+ports to all VSIX surfaces; production video/audio admission still refuses
+because M95 capability records, verified storage billing and paid/account
+bindings are absent. ACP exposes the same portable entry-point contract, but
+its production media/recorder factories are unbound. Fake bridge tests prove
+confinement and refusal behavior; they do not certify installed editors.
+All editors keep equal requirements and explicit unavailable states.
+
+| Surface                                                                                           | Attach path                                                                                     | Recording path                                                          | Binding / evidence                                                                         |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| VS Code family, Remote SSH, WSL, containers, Codespaces                                           | `deps.mediaAttachments`; picked media confined like dropped media                               | `deps.recordingCommandDeps`; recording attaches to its own conversation | Integrated bindings; controller/media fakes; installed-host checks: lead                   |
+| ACP clients: Zed, Xcode 27, JetBrains AI Assistant, Qt Creator, Neovim, Emacs, Sublime and others | `/attach <path>` between turns; `resource_link` reads under workspace confinement               | `/record`; recorder-missing stays an honest unavailable-here notice     | ACP translate/media/agent fakes; each installed client's media rendering still needs a run |
+| Headless exec                                                                                     | `/attach` prompts are refused as usage errors; `--attach` without storage fails unknown-storage | `/record` prompts are refused as usage errors                           | runExec fakes; no live run here                                                            |
+| JetBrains, Visual Studio, Eclipse                                                                 | Native `attachments/*` projection, metadata/tokens only                                         | Shared runtime recorder contract                                        | JCEF/WebView2/SWT fakes; real MHP envelope and plugins wait for M104b–d                    |
+| Companion-paired editors, remote windows and browser                                              | Guarded streaming upload adapter                                                                | Browser recorder and Attach/Discard adapter                             | Server/launch exchange and mounted page wait for M104 C/e; capture receipt remains open    |
+
 ## Native and scientific
 
 | Editor                    | Route                               | Milestone | Status  |
@@ -123,3 +157,51 @@ worktrees and the evaluation retain their distinct immediate policies.
 | StackBlitz, Codeflow                         | A runtime experiment                       | M66       | Planned |
 | CodeSandbox, Ona                             | Remote-editor attachment                   | M66       | Planned |
 | Arduino IDE 2, Code::Blocks, CodeLite, Geany | External tool, or a native plugin if asked | M66       | Planned |
+
+## M107 resource feature qualification
+
+## M118 sharing integration (2026-10-06)
+
+The editor statuses above do not imply M107 resource qualification.
+[The resource matrix](resources.md) records the common governor, each surface
+and its pending binding. This join tests portable policy and shared components
+on Kubuntu; it does not move any editor's status or certify a native bridge.
+The VS Code/shared React bridge binds `sharingAction`, `sharingResult` and
+`openSharing` to the lazy shared prompt/chat core. VS Code derivatives take the
+same VSIX path; this integration does not repeat their installed-host receipts.
+ACP binds `/help`, `/prompt save|list|use|share` and `/share chat`. On this base
+ACP can return prepared prompt text and an exact share preview, but has no
+composer or final-click bridge: Use never sends; sharing cancels safely.
+
+| Editor/surface          | M118 evidence                                                                                                                                    | Remaining integration                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| VS Code and derivatives | Own-message/history menus, composer, editor selection and shared React tested with fake host/backend; real VSIX packaging checked in M118 record | Per-derivative installed GUI receipts remain required                                          |
+| JetBrains               | Shared native-menu adapter fake tests                                                                                                            | M104 validated envelopes for menu snapshots/invocations, prompt load, preview and confirmation |
+| Visual Studio           | Same shared adapter                                                                                                                              | Same M104 ports                                                                                |
+| Eclipse                 | Same shared adapter                                                                                                                              | Same M104 ports                                                                                |
+| Zed                     | Existing ACP local command route; shared adapter fake tests                                                                                      | M104 composer/final-click and menu ports                                                       |
+| Xcode                   | Existing ACP local command route; shared adapter fake tests                                                                                      | Same M104 ports                                                                                |
+| Neovim                  | Existing ACP local command route; shared adapter fake tests                                                                                      | Same M104 ports                                                                                |
+| Emacs                   | Existing ACP local command route; shared adapter fake tests                                                                                      | Same M104 ports                                                                                |
+| Sublime Text            | Shared adapter fake tests; ACP local command implementation                                                                                      | Same M104 ports; installed ACP client receipt                                                  |
+| Companion page          | Shared React implementation                                                                                                                      | M104 mounting and validated envelopes                                                          |
+| TUI                     | Shared runtime builder and adapter fake tests                                                                                                    | M110a0 lane T picker, `SharingUi.preparePrompt`, `insertPrompt`, exact-preview `confirmShare`  |
+| Standalone CLI          | Real lazy runtime entry and installed fake-only receipts in M118 record                                                                          | No composer; Use returns prepared text                                                         |
+
+M104 is absent on this base, so no new MHP wire method is invented. Existing
+React envelopes are named above. Their action names are `list`, `saveDraft`,
+`remove`, `duplicate`, `insert`, `importPreview`, `acceptImport`,
+`sharePromptPreview`, `confirmPromptShare`, `saveText`, `saveHistory`, `use`,
+`shareSaved`, `chatContext`, `chatPreview`, `chatConfirm`, `remember`, `invalidate`.
+The pending native DTOs are `nativePromptMenus`/`invokeNativePromptMenu` with
+host-owned `{menuId, contextId}` snapshots, `promptLoadSchema` with
+`{promptId, scope, chat, action: 'insert', send: false}`, and
+`confirmedShareSchema` with `{step: 'confirmed', previewId, request}`.
+M104 must carry equivalent strict DTOs through its validated envelopes and abort
+pending actions on closure/replacement. These are local DTO names, not claims
+that MHP message methods are already available. Phase 2 gists and phase 3
+node/team/email destinations remain unavailable.
+
+## Deterministic reports (M113)
+
+Every editor uses the same report-v1 engine and scoped reports/run, history, get, compare and open contracts. VS Code mounts the lazy shared ReportApp; CLI and ACP render the same document as Markdown/text (CLI also HTML/JSON). JCEF, WebView2, SWT, desktop, companion and terminal adapters have fake contract receipts in M113 X. Installed JetBrains, Visual Studio, Eclipse, Zed, Xcode, Neovim, Emacs and Sublime report-page receipts remain with their host owners; this integration does not claim they ran. Project, quality, milestone, release and change reports are supported. Other report kinds are listed under [In progress](../../ROADMAP.md#in-progress).

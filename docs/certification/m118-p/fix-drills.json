@@ -1,0 +1,279 @@
+{
+  "machine": "macmini",
+  "controls": [
+    {
+      "name": "P1-machine-manifest",
+      "file": "package.json",
+      "removed": "          \"scope\": \"machine\",\n          \"default\": false,\n          \"description\": \"%config.syncPromptsAndBookmarks.description%\"",
+      "planted": "          \"default\": false,\n          \"description\": \"%config.syncPromptsAndBookmarks.description%\"",
+      "command": "npx vitest run test/unit/sharingArtifacts.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P1-machine-manifest.json",
+      "exit": 1,
+      "failedTests": [
+        "M118 integration artifacts requires sync consent on each machine and forbids workspace overrides"
+      ],
+      "expectedTest": "requires sync consent on each machine and forbids workspace overrides",
+      "confirmed": true,
+      "beforeSha256": "1762d55932aca6df52110da865dabfb9881bbdfc6f19b40818458986e5956a01",
+      "afterSha256": "1762d55932aca6df52110da865dabfb9881bbdfc6f19b40818458986e5956a01",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P1-machine-runtime",
+      "file": "src/host/prompts/promptEntry.ts",
+      "removed": "inspect<boolean>(PROMPT_SYNC_SETTING)\n          ?.globalValue",
+      "planted": "get<boolean>(PROMPT_SYNC_SETTING)",
+      "command": "npx vitest run test/unit/promptEntry.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P1-machine-runtime.json",
+      "exit": 1,
+      "failedTests": [
+        "prompt lazy entry never reads or writes the native mirror while sync is disabled"
+      ],
+      "expectedTest": "never reads or writes the native mirror while sync is disabled",
+      "confirmed": true,
+      "beforeSha256": "53104eb682e8dfa31efc044d4be887e2850f99a1bafaaa03fd67ce2636f61057",
+      "afterSha256": "53104eb682e8dfa31efc044d4be887e2850f99a1bafaaa03fd67ce2636f61057",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-2-import-scope",
+      "file": "src/host/prompts/promptCommands.ts",
+      "removed": "this.deps.importer.preview(source, scope)",
+      "planted": "this.deps.importer.preview(source, 'user')",
+      "command": "npx vitest run test/unit/promptNative.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-2-import-scope.json",
+      "exit": 1,
+      "failedTests": [
+        "native prompt review and release imports to an explicitly reviewed scope, defaulting confidential workspaces locally"
+      ],
+      "expectedTest": "imports to an explicitly reviewed scope, defaulting confidential workspaces locally",
+      "confirmed": true,
+      "beforeSha256": "9e5d41846b27909e7736e15858919102db49014c2ad3120f806df71ab16fb6e3",
+      "afterSha256": "9e5d41846b27909e7736e15858919102db49014c2ad3120f806df71ab16fb6e3",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-2-confidential-default",
+      "file": "src/host/prompts/promptEntry.ts",
+      "removed": "isConfidentialWorkspace() === false ? [user, workspace] : [workspace, user]",
+      "planted": "[user, workspace]",
+      "command": "npx vitest run test/unit/promptNative.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-2-confidential-default.json",
+      "exit": 1,
+      "failedTests": [
+        "native prompt review and release imports to an explicitly reviewed scope, defaulting confidential workspaces locally"
+      ],
+      "expectedTest": "imports to an explicitly reviewed scope, defaulting confidential workspaces locally",
+      "confirmed": true,
+      "beforeSha256": "53104eb682e8dfa31efc044d4be887e2850f99a1bafaaa03fd67ce2636f61057",
+      "afterSha256": "53104eb682e8dfa31efc044d4be887e2850f99a1bafaaa03fd67ce2636f61057",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-3-merge-before-mirror",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "removed": "await this.synchronise(removedId)",
+      "planted": "if (this.sync?.isOn() === true) await this.sync.write(await this.store.list('user'))",
+      "command": "npx vitest run test/unit/promptNative.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-3-merge-before-mirror.json",
+      "exit": 1,
+      "failedTests": [
+        "native prompt review and release merges the existing mirror when sync is enabled after the commands were cached"
+      ],
+      "expectedTest": "merges the existing mirror when sync is enabled after the commands were cached",
+      "confirmed": true,
+      "beforeSha256": "89118f96f1d3c45c655e86817c7628c8c28aa7c9a59b4e14486e832c0ff00558",
+      "afterSha256": "89118f96f1d3c45c655e86817c7628c8c28aa7c9a59b4e14486e832c0ff00558",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-3-explicit-deletion",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "removed": "if (prompt.id === removedId && !merged.has(prompt.id)) continue",
+      "planted": "if (false) continue",
+      "command": "npx vitest run test/unit/promptStore.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-3-explicit-deletion.json",
+      "exit": 1,
+      "failedTests": [
+        "portable prompt store and library merges unrelated remote edits while keeping an explicitly removed prompt deleted"
+      ],
+      "expectedTest": "merges unrelated remote edits while keeping an explicitly removed prompt deleted",
+      "confirmed": true,
+      "beforeSha256": "89118f96f1d3c45c655e86817c7628c8c28aa7c9a59b4e14486e832c0ff00558",
+      "afterSha256": "89118f96f1d3c45c655e86817c7628c8c28aa7c9a59b4e14486e832c0ff00558",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-4-locked-revision",
+      "file": "src/core/prompts/promptStore.ts",
+      "removed": "shouldKeepNewer &&",
+      "planted": "false &&",
+      "command": "npx vitest run test/unit/promptStore.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-4-locked-revision.json",
+      "exit": 1,
+      "failedTests": [
+        "portable prompt store and library rechecks the chosen sync revision under the lock after another window saves"
+      ],
+      "expectedTest": "rechecks the chosen sync revision under the lock after another window saves",
+      "confirmed": true,
+      "beforeSha256": "3cfeff88796539e9eea31e7bc333d19ca26ba03378528bf18d922818272f3dc5",
+      "afterSha256": "3cfeff88796539e9eea31e7bc333d19ca26ba03378528bf18d922818272f3dc5",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-5-target-filter",
+      "file": "src/host/prompts/promptInsertion.ts",
+      "removed": "(load) => load.target === surface.id",
+      "planted": "(load) => true",
+      "command": "npx vitest run test/unit/promptMenus.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-5-target-filter.json",
+      "exit": 1,
+      "failedTests": [
+        "loads in any chat without sending binds an opening load to its returned id despite an unrelated ready chat",
+        "loads in any chat without sending targets the original active surface, drops a closed pending load, and rejects a failed open"
+      ],
+      "expectedTest": "binds an opening load to its returned id despite an unrelated ready chat",
+      "confirmed": true,
+      "beforeSha256": "6f7ce01d00552e21bf5f4df599e1b64da18390691310bd0c4f6081394f98789a",
+      "afterSha256": "6f7ce01d00552e21bf5f4df599e1b64da18390691310bd0c4f6081394f98789a",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-5-returned-id",
+      "file": "src/host/prompts/promptInsertion.ts",
+      "removed": "const target = active?.id ?? (await this.deps.open())",
+      "planted": "const target = active?.id ?? (await this.deps.open(), this.ready.keys().next().value ?? '')",
+      "command": "npx vitest run test/unit/promptMenus.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-5-returned-id.json",
+      "exit": 1,
+      "failedTests": [
+        "loads in any chat without sending binds an opening load to its returned id despite an unrelated ready chat",
+        "loads in any chat without sending holds a load until a new surface is ready, then inserts once"
+      ],
+      "expectedTest": "binds an opening load to its returned id despite an unrelated ready chat",
+      "confirmed": true,
+      "beforeSha256": "6f7ce01d00552e21bf5f4df599e1b64da18390691310bd0c4f6081394f98789a",
+      "afterSha256": "6f7ce01d00552e21bf5f4df599e1b64da18390691310bd0c4f6081394f98789a",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-6-saved-id",
+      "file": "src/webview/prompts/PromptLibrary.tsx",
+      "removed": "{ ...current, previous: saved }",
+      "planted": "current",
+      "command": "npx vitest run test/unit/promptLibrary.test.tsx --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-6-saved-id.json",
+      "exit": 1,
+      "failedTests": [
+        "shared prompt library associates a created draft with its saved id so the next save edits it"
+      ],
+      "expectedTest": "associates a created draft with its saved id so the next save edits it",
+      "confirmed": true,
+      "beforeSha256": "b1cf77583df63902c9fadb29587d6b979de04713fcf52aae7e9faf500cb34eb0",
+      "afterSha256": "b1cf77583df63902c9fadb29587d6b979de04713fcf52aae7e9faf500cb34eb0",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-6-in-flight",
+      "file": "src/webview/prompts/PromptLibrary.tsx",
+      "removed": "if (edit === undefined || isSaving) return",
+      "planted": "if (edit === undefined) return",
+      "command": "npx vitest run test/unit/promptLibrary.test.tsx --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-6-in-flight.json",
+      "exit": 1,
+      "failedTests": [
+        "shared prompt library retains a failed draft for retry and blocks duplicate in-flight saves"
+      ],
+      "expectedTest": "retains a failed draft for retry and blocks duplicate in-flight saves",
+      "confirmed": true,
+      "beforeSha256": "b1cf77583df63902c9fadb29587d6b979de04713fcf52aae7e9faf500cb34eb0",
+      "afterSha256": "b1cf77583df63902c9fadb29587d6b979de04713fcf52aae7e9faf500cb34eb0",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-7-independent-scopes",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "removed": "scopes.push({ scope, prompts: [], damaged: true })",
+      "planted": "throw new Error(UI_TEXT.promptStoreDamaged)",
+      "command": "npx vitest run test/unit/promptStore.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-7-independent-scopes.json",
+      "exit": 1,
+      "failedTests": [
+        "portable prompt store and library keeps the healthy scope usable and reports damaged scopes with their files retained"
+      ],
+      "expectedTest": "keeps the healthy scope usable and reports damaged scopes with their files retained",
+      "confirmed": true,
+      "beforeSha256": "89118f96f1d3c45c655e86817c7628c8c28aa7c9a59b4e14486e832c0ff00558",
+      "afterSha256": "89118f96f1d3c45c655e86817c7628c8c28aa7c9a59b4e14486e832c0ff00558",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-7-native-picker",
+      "file": "src/host/prompts/promptCommands.ts",
+      "removed": "if (result.damaged)",
+      "planted": "if (false)",
+      "command": "npx vitest run test/unit/promptMenus.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-7-native-picker.json",
+      "exit": 1,
+      "failedTests": [
+        "prompt menus and commands reports the damaged scope and offers healthy prompts for insert"
+      ],
+      "expectedTest": "reports the damaged scope and offers healthy prompts for insert",
+      "confirmed": true,
+      "beforeSha256": "9e5d41846b27909e7736e15858919102db49014c2ad3120f806df71ab16fb6e3",
+      "afterSha256": "9e5d41846b27909e7736e15858919102db49014c2ad3120f806df71ab16fb6e3",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-7-sync-damage-isolation",
+      "file": "src/host/prompts/promptEntry.ts",
+      "removed": "await ui.report(fill(UI_TEXT.promptScopeDamaged, { scope: UI_TEXT.promptScopeUser }))",
+      "planted": "throw error",
+      "command": "npx vitest run test/unit/promptNative.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-7-sync-damage-isolation.json",
+      "exit": 1,
+      "failedTests": [
+        "native prompt review and release keeps workspace prompts usable when the synced user scope is damaged"
+      ],
+      "expectedTest": "keeps workspace prompts usable when the synced user scope is damaged",
+      "confirmed": true,
+      "beforeSha256": "53104eb682e8dfa31efc044d4be887e2850f99a1bafaaa03fd67ce2636f61057",
+      "afterSha256": "53104eb682e8dfa31efc044d4be887e2850f99a1bafaaa03fd67ce2636f61057",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-5-early-close",
+      "file": "src/host/prompts/promptInsertion.ts",
+      "removed": "if (this.closed.has(target)) return",
+      "planted": "if (false) return",
+      "command": "npx vitest run test/unit/promptMenus.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-5-early-close.json",
+      "exit": 1,
+      "failedTests": [
+        "loads in any chat without sending delivers an early-ready requested surface after open resolves, dropping an early-closed one"
+      ],
+      "expectedTest": "delivers an early-ready requested surface after open resolves, dropping an early-closed one",
+      "confirmed": true,
+      "beforeSha256": "6f7ce01d00552e21bf5f4df599e1b64da18390691310bd0c4f6081394f98789a",
+      "afterSha256": "6f7ce01d00552e21bf5f4df599e1b64da18390691310bd0c4f6081394f98789a",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-6-failed-draft",
+      "file": "src/webview/prompts/PromptLibrary.tsx",
+      "removed": "setSaveFailed(true)",
+      "planted": "setSaveFailed(true); setEdit(undefined)",
+      "command": "npx vitest run test/unit/promptLibrary.test.tsx --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-6-failed-draft.json",
+      "exit": 1,
+      "failedTests": [
+        "shared prompt library retains a failed draft for retry and blocks duplicate in-flight saves"
+      ],
+      "expectedTest": "retains a failed draft for retry and blocks duplicate in-flight saves",
+      "confirmed": true,
+      "beforeSha256": "b1cf77583df63902c9fadb29587d6b979de04713fcf52aae7e9faf500cb34eb0",
+      "afterSha256": "b1cf77583df63902c9fadb29587d6b979de04713fcf52aae7e9faf500cb34eb0",
+      "restoredByteExact": true
+    },
+    {
+      "name": "P2-7-workspace-mutation",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "removed": "if (prompt.scope === 'user') await this.mirror()",
+      "planted": "await this.mirror()",
+      "command": "npx vitest run test/unit/promptNative.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=/Users/randy/lanes/M118P/temp/P2-7-workspace-mutation.json",
+      "exit": 1,
+      "failedTests": [
+        "native prompt review and release keeps workspace prompts usable when the synced user scope is damaged"
+      ],
+      "expectedTest": "keeps workspace prompts usable when the synced user scope is damaged",
+      "confirmed": true,
+      "beforeSha256": "89118f96f1d3c45c655e86817c7628c8c28aa7c9a59b4e14486e832c0ff00558",
+      "afterSha256": "89118f96f1d3c45c655e86817c7628c8c28aa7c9a59b4e14486e832c0ff00558",
+      "restoredByteExact": true
+    }
+  ]
+}

@@ -184,12 +184,23 @@ export async function safeGit({
   baseEnv,
   readOnly,
   stdoutPath,
+  stdoutPrefixMaxBytes,
   auth,
   protocol,
   withinMs = ACTION_GIT_MS,
   stdoutMaxBytes = ACTION_CHILD_STDOUT_MAX_BYTES,
 }) {
   const command = subcommandOf(args)
+  if (
+    stdoutPrefixMaxBytes !== undefined &&
+    (!readOnly ||
+      stdoutPath === undefined ||
+      command !== 'diff' ||
+      args.includes('--binary') ||
+      path.resolve(stdoutPath).replaceAll('\\', '/') !==
+        path.resolve(paths.diffFull).replaceAll('\\', '/'))
+  )
+    throw new Error('prefix capture is only for the read-only review diff')
   if (auth !== undefined && AUTH_COMMAND[auth.kind] !== command) {
     throw new Error(
       `a ${String(auth.kind)} token is only for git ${String(AUTH_COMMAND[auth.kind])}`,
@@ -218,6 +229,7 @@ export async function safeGit({
     cwd,
     env: gitEnvironment({ baseEnv, paths, readOnly, auth, cwd, protocol }),
     stdoutPath,
+    stdoutPrefixMaxBytes,
     withinMs,
     stdoutMaxBytes,
     stderrMaxBytes: ACTION_STDERR_MAX_BYTES,

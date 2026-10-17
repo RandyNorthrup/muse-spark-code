@@ -1,4 +1,4 @@
-// The small startup store shared by both lazy question views.
+// The small startup store shared by docked cards and transcript markers.
 import {
   createContext,
   type ReactNode,
@@ -49,7 +49,7 @@ export function useAttentionSurface() {
   return useContext(AttentionContext)
 }
 
-/** One in-memory draft shared by row and dock; a session boundary discards it. */
+/** Keep the dock's draft through lazy remounts; a session boundary discards it. */
 export function QuestionSurface({
   children,
   navigation,
@@ -129,7 +129,15 @@ export function useAttentionFocus<T extends HTMLElement>(
     }
   }, [])
   useEffect(() => {
-    if (focusKey === undefined || isInert || isTyping(document.activeElement, lastKeyAt.current))
+    // A card arriving is the model's act, not the person's: while this
+    // surface does not hold the keyboard (D116) `isTyping` cannot see the
+    // file being typed in, and focusing here would take the panel forward.
+    if (
+      focusKey === undefined ||
+      isInert ||
+      !document.hasFocus() ||
+      isTyping(document.activeElement, lastKeyAt.current)
+    )
       return
     dock.current?.querySelector<HTMLElement>(selector)?.focus()
   }, [focusKey, selector, isInert])

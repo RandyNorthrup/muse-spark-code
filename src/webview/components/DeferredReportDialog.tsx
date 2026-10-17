@@ -1,12 +1,12 @@
 // The report can open in the app or over its crash screen; both share one lazy entry.
-import { type ComponentProps, lazy, useEffect, useState } from 'react'
+import { type ComponentProps, useEffect, useState } from 'react'
 import type { ReportDialogHost as Host } from './ReportDialog'
-import { DeferredSurface } from './DeferredSurface'
+import { deferred } from './DeferredSurface'
 
-const ReportDialogHost = lazy(async () => {
+const ReportDialogHost = deferred(async () => {
   const module = await import('./ReportDialog')
   return { default: module.ReportDialogHost }
-})
+}, true)
 
 export function DeferredReportDialog(props: ComponentProps<typeof Host>) {
   // The loading modal takes focus before the real host mounts. Capture the
@@ -18,9 +18,5 @@ export function DeferredReportDialog(props: ComponentProps<typeof Host>) {
     },
     [opener],
   )
-  return (
-    <DeferredSurface onClose={props.onClose}>
-      <ReportDialogHost {...props} />
-    </DeferredSurface>
-  )
+  return <ReportDialogHost {...props} />
 }

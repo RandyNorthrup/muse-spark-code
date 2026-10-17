@@ -1,0 +1,83 @@
+{
+  "model": "ministral-3b-latest",
+  "messages": [
+    {
+      "role": "system",
+      "content": [
+        {
+          "type": "text",
+          "text": "be brief",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "What time is it?"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "time00001",
+          "type": "function",
+          "function": {
+            "name": "get_time",
+            "arguments": "{\"timezone\":\"UTC\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "time00001",
+      "content": [
+        {
+          "type": "text",
+          "text": "Packed output \"observation-1\" (100 characters, 10 lines, about 25 tokens): sent whole before, packed to save context. Its first 1 and last 1 lines:\nhead\n[…]\ntail\nCall recall_output with id \"observation-1\" and an offset to page the original back.",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "name": "get_time"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_time",
+        "description": "time",
+        "parameters": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "recall_output",
+        "description": "recall",
+        "parameters": {
+          "type": "object"
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto",
+  "stream": true,
+  "stream_options": {
+    "include_usage": true
+  },
+  "max_tokens": 100,
+  "prompt_cache_key": "session-cache"
+}

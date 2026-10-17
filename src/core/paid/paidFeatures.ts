@@ -1,3 +1,16 @@
+import type { RecordedCall, UsageRecording } from '../usage/recording'
+import type { UsageRecord } from '../../shared/usageJournal'
+import {
+  PAID_USE_REGISTRY,
+  type SearchSettlement,
+  EMPTY_PAID_TALLY,
+  modelApiPaidTier,
+  type PaidState,
+  type PaidTally,
+  type SubagentUsage,
+} from '../../shared/paid'
+
+import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 // The paid Model API features (M33–M35, PLAN.md D30), "opt in and loud":
 // which are on, and what this window has used of them.
 //
@@ -13,20 +26,33 @@
 // No `vscode` here: the host injects the settings, the store, the modal and
 // the window focus.
 
-import { PAID_FEATURES, type PaidFeature } from '../../shared/constants'
 import {
-  EMPTY_PAID_TALLY,
-  modelApiPaidTier,
-  type PaidState,
-  type PaidTally,
-  type SubagentUsage,
-} from '../../shared/paid'
+  PAID_FEATURES,
+  PAID_PRICES_USD,
+  SEARCHES_PER_PRICE_UNIT,
+  MODEL_API_IMAGE_MODEL,
+  MUSE_VOICE_MODEL,
+  UI_TEXT,
+  type PaidFeature,
+} from '../../shared/constants'
+
 import type { CoreLogger } from '../logging'
 import { estimateCostUsd } from '../usage/insights'
+
+/** A verified per-call search tariff; other providers must inject their own price. */
+export function webSearchPriceUsd(modelId: string): UsdAmount | undefined {
+  return modelApiPaidTier(modelId) === undefined
+    ? undefined
+    : Usd.from(PAID_PRICES_USD.webSearchPerThousand).divide(SEARCHES_PER_PRICE_UNIT).toAmount()
+}
 
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
+  /** Lane T: a runnable distinct-model team in this conversation, with a key.
+   * Absence keeps workers unavailable and loads no team code at activation.
+   */
+  readonly isTeamAvailable?: () => boolean
   /** Backend availability never changes the user's setting or accepted price. */
   readonly isAvailable?: (feature: PaidFeature) => boolean
   /** D78: an unconfigured default offers the feature; use still requires consent. */
@@ -112,13 +138,13 @@ export class PaidFeatureGate {
 
   /** Availability only: paidConsent and the request boundary authorize spending. */
   public isOn(feature: PaidFeature): boolean {
-    return (
-      this.deps.isSettingOn(feature) &&
-      this.deps.isAvailable?.(feature) !== false &&
-      (AVAILABLE_BY_DEFAULT.has(feature) ||
-        this.deps.isDefaultOn?.(feature) === true ||
-        this.deps.readAccepted().has(feature))
-    )
+    return feature === 'teamWorkers'
+      ? this.deps.isSettingOn(feature) && this.deps.isTeamAvailable?.() === true
+      : this.deps.isSettingOn(feature) &&
+          this.deps.isAvailable?.(feature) !== false &&
+          (AVAILABLE_BY_DEFAULT.has(feature) ||
+            this.deps.isDefaultOn?.(feature) === true ||
+            this.deps.readAccepted().has(feature))
   }
 
   /** The features that are on, in their fixed order. */
@@ -142,9 +168,15 @@ export class PaidFeatureGate {
   public async review(): Promise<void> {
     const pending: PaidFeature[] = []
     for (const feature of PAID_FEATURES) {
+      if (this.deps.isAvailable?.(feature) === false) continue
       // A feature available by default needs no turn-on confirmation: its
       // price is asked per use. Nothing is forgotten either: it holds no
       // acceptance to lose.
+      if (feature === 'teamWorkers') {
+        // Only the task-specific D48 popup accepts a team price; retire old toggle receipts.
+        if (this.deps.readAccepted().has(feature)) await this.setAccepted(feature, false)
+        continue
+      }
       if (AVAILABLE_BY_DEFAULT.has(feature)) {
         continue
       }
@@ -187,8 +219,17 @@ export class PaidFeatureGate {
 
   /** The palette's toggle turning a feature on: the confirmation first, then the setting. */
   public async turnOn(feature: PaidFeature): Promise<boolean> {
+    if (this.deps.isAvailable?.(feature) === false) return false
     if (this.isOn(feature)) {
       return true
+    }
+    if (feature === 'teamWorkers') {
+      if (this.deps.isTeamAvailable?.() !== true) return false
+      // The first runnable task asks its own price and budget; toggling accepts no price.
+      await this.setAccepted(feature, false)
+      await this.deps.setSetting(feature, true)
+      this.notify()
+      return this.isOn(feature)
     }
     if (this.asksOnFirstUse(feature)) {
       // No modal: its first use asks, naming the price (D48).
@@ -228,12 +269,164 @@ export class PaidFeatureGate {
   }
 }
 
+/** Shared paid-unit producer for VS Code, ACP and sent calls with lost responses. */
+export function recordPaidUse(
+  recording: UsageRecording | undefined,
+  feature: PaidFeature,
+  units: number,
+  context: Partial<
+    Pick<
+      RecordedCall,
+      'session' | 'startedAt' | 'durationMs' | 'outcome' | 'uncertain' | 'retainedLiabilityUsd'
+    >
+  > = {},
+): void {
+  if (units <= 0 || !['webSearch', 'imageGeneration', 'voice'].includes(feature)) return
+  const otherModel = feature === 'voice' ? MUSE_VOICE_MODEL : 'web_search'
+  const otherKind = feature === 'imageGeneration' ? 'image' : 'voice'
+  const otherUnits = feature === 'imageGeneration' ? { images: units } : { audioSeconds: units }
+  recording?.note(undefined, {
+    backend: 'modelApi',
+    provider: 'meta',
+    model: feature === 'imageGeneration' ? MODEL_API_IMAGE_MODEL : otherModel,
+    kind: feature === 'webSearch' ? 'search' : otherKind,
+    startedAt: Date.now(),
+    outcome: 'completed',
+    units: feature === 'webSearch' ? { searches: units } : otherUnits,
+    ...context,
+  })
+}
+
 /** What this window used of each paid feature since it opened (the usage dialog's tally). */
 export class PaidUsage {
   private tally: PaidTally = EMPTY_PAID_TALLY
+  private hasRestored = false
   private readonly listeners = new Set<() => void>()
 
-  public constructor(private readonly log: CoreLogger) {}
+  public constructor(
+    private readonly log: CoreLogger,
+    private readonly recording?: UsageRecording,
+  ) {}
+
+  private addTaskUsage(
+    kind: 'teamWorker' | 'bestOfN',
+    modelId: string,
+    usage: SubagentUsage,
+  ): void {
+    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate ' + kind + ' use for an unpriced model')
+    }
+    const { costUsd } = usage
+    if (!isValidTaskUsage(usage)) {
+      throw new Error(kind + ' usage must be valid nonnegative token counts')
+    }
+    const unknownKey = `${kind}UnknownRequests` as const
+    const tokenKey = `${kind}Tokens` as const
+    const costKey = `${kind}CostUsd` as const
+    const unknown = this.tally[unknownKey] ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      [unknownKey]: unknown - 1,
+      [tokenKey]: (this.tally[tokenKey] ?? 0) + usage.inputTokens + usage.outputTokens,
+      [costKey]: sumUsd(
+        Usd.from(this.tally[costKey] ?? 0).toAmount(),
+        costUsd ?? estimateCostUsd(usage, modelId),
+      ),
+    }
+    for (const listener of this.listeners) listener()
+  }
+  /** Rebuild settled history once; live additions made during the read are retained. */
+  public restore(records: readonly UsageRecord[]): void {
+    if (this.hasRestored) return
+    this.hasRestored = true
+    const restored: PaidTally = { ...EMPTY_PAID_TALLY }
+    const attempts = new Set<string>()
+    for (const record of records) {
+      restored.webSearches += record.units?.searches ?? 0
+      if (record.cost.certainty !== 'uncertain') restored.images += record.units?.images ?? 0
+      restored.voiceSeconds += record.units?.audioSeconds ?? 0
+      if (record.kind === 'schedule') restored.scheduledRuns += 1
+      const tokens = (record.tokens.input ?? 0) + (record.tokens.output ?? 0)
+      const usd = record.cost.usd
+      const isUnknown = usd === undefined || record.cost.certainty === 'uncertain'
+      switch (record.kind) {
+        case 'subagent': {
+          restored.subagentRequests = (restored.subagentRequests ?? 0) + 1
+          restored.subagentUnknownRequests =
+            (restored.subagentUnknownRequests ?? 0) + (isUnknown ? 1 : 0)
+          restored.subagentTokens = (restored.subagentTokens ?? 0) + tokens
+          restored.subagentCostUsd = sumUsd(
+            Usd.from(restored.subagentCostUsd ?? 0).toAmount(),
+            Usd.from(usd ?? 0).toAmount(),
+          )
+
+          continue
+        }
+        case 'reviewer': {
+          restored.autoReviews = (restored.autoReviews ?? 0) + 1
+          restored.autoReviewUnknownRequests =
+            (restored.autoReviewUnknownRequests ?? 0) + (isUnknown ? 1 : 0)
+          restored.autoReviewTokens = (restored.autoReviewTokens ?? 0) + tokens
+          restored.autoReviewCostUsd = sumUsd(
+            Usd.from(restored.autoReviewCostUsd ?? 0).toAmount(),
+            Usd.from(usd ?? 0).toAmount(),
+          )
+
+          continue
+        }
+        case 'bestOfN': {
+          attempts.add(record.session ?? record.id)
+          restored.bestOfNRequests = (restored.bestOfNRequests ?? 0) + 1
+          restored.bestOfNUnknownRequests =
+            (restored.bestOfNUnknownRequests ?? 0) + (isUnknown ? 1 : 0)
+          restored.bestOfNTokens = (restored.bestOfNTokens ?? 0) + tokens
+          restored.bestOfNCostUsd = sumUsd(
+            Usd.from(restored.bestOfNCostUsd ?? 0).toAmount(),
+            Usd.from(usd ?? 0).toAmount(),
+          )
+
+          continue
+        }
+        // No default
+      }
+    }
+    restored.bestOfNAttempts = attempts.size
+    const live = this.tally
+    this.tally = {
+      ...restored,
+      webSearches: restored.webSearches + live.webSearches,
+      images: restored.images + live.images,
+      voiceSeconds: restored.voiceSeconds + live.voiceSeconds,
+      scheduledRuns: restored.scheduledRuns + live.scheduledRuns,
+      subagentRequests: (restored.subagentRequests ?? 0) + (live.subagentRequests ?? 0),
+      subagentUnknownRequests:
+        (restored.subagentUnknownRequests ?? 0) + (live.subagentUnknownRequests ?? 0),
+      subagentTokens: (restored.subagentTokens ?? 0) + (live.subagentTokens ?? 0),
+      subagentCostUsd: sumUsd(
+        Usd.from(restored.subagentCostUsd ?? 0).toAmount(),
+        Usd.from(live.subagentCostUsd ?? 0).toAmount(),
+      ),
+      autoReviews: (restored.autoReviews ?? 0) + (live.autoReviews ?? 0),
+      autoReviewUnknownRequests:
+        (restored.autoReviewUnknownRequests ?? 0) + (live.autoReviewUnknownRequests ?? 0),
+      autoReviewTokens: (restored.autoReviewTokens ?? 0) + (live.autoReviewTokens ?? 0),
+      autoReviewCostUsd: sumUsd(
+        Usd.from(restored.autoReviewCostUsd ?? 0).toAmount(),
+        Usd.from(live.autoReviewCostUsd ?? 0).toAmount(),
+      ),
+      bestOfNAttempts: (restored.bestOfNAttempts ?? 0) + (live.bestOfNAttempts ?? 0),
+      bestOfNRequests: (restored.bestOfNRequests ?? 0) + (live.bestOfNRequests ?? 0),
+      bestOfNUnknownRequests:
+        (restored.bestOfNUnknownRequests ?? 0) + (live.bestOfNUnknownRequests ?? 0),
+      bestOfNTokens: (restored.bestOfNTokens ?? 0) + (live.bestOfNTokens ?? 0),
+      bestOfNCostUsd: sumUsd(
+        Usd.from(restored.bestOfNCostUsd ?? 0).toAmount(),
+        Usd.from(live.bestOfNCostUsd ?? 0).toAmount(),
+      ),
+    }
+    for (const listener of this.listeners) listener()
+  }
 
   public get current(): PaidTally {
     return this.tally
@@ -246,68 +439,51 @@ export class PaidUsage {
     }
   }
 
+  /** Batch transcription keeps fractional seconds. An uncertain attempt uses
+   * its admitted duration bound in this estimate, never a made-up zero bill. */
+  public addVoiceBatch(seconds: number): void {
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      throw new Error(UI_TEXT.media.durationUnknown)
+    }
+    this.add('voice', seconds)
+  }
+
   /** Counts `units` uses: searches, images, or whole seconds of audio. */
-  public add(feature: PaidFeature, units: number): void {
+  public add(
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
+  ): void {
+    if (typeof searchPriceUsd === 'object') searchPriceUsd = searchPriceUsd.quote.tariffUsd
     if (units <= 0) {
       return
     }
+    recordPaidUse(this.recording, feature, units)
+
     const { tally } = this
-    switch (feature) {
-      case 'webSearch': {
-        this.tally = { ...tally, webSearches: tally.webSearches + units }
-        break
+    if (feature === 'webSearch') {
+      if (searchPriceUsd === undefined || Usd.from(searchPriceUsd).compare(Usd.from(0)) < 0) {
+        throw new Error('Search use needs a verified tariff')
       }
-      case 'imageGeneration': {
-        this.tally = { ...tally, images: tally.images + units }
-        break
+      searchPriceUsd = Usd.from(searchPriceUsd).toAmount()
+      const charges = tally.webSearchCharges ?? []
+      const hasTariff = charges.some((charge) => charge.priceUsd === searchPriceUsd)
+      this.tally = {
+        ...tally,
+        webSearches: tally.webSearches + units,
+        webSearchCharges: hasTariff
+          ? charges.map((charge) =>
+              charge.priceUsd === searchPriceUsd
+                ? { ...charge, units: charge.units + units }
+                : charge,
+            )
+          : [...charges, { units, priceUsd: Usd.from(searchPriceUsd).toAmount() }],
       }
-      case 'voice': {
-        this.tally = { ...tally, voiceSeconds: tally.voiceSeconds + units }
-        break
-      }
-      case 'scheduledPrompts': {
-        this.tally = { ...tally, scheduledRuns: tally.scheduledRuns + units }
-        break
-      }
-      case 'subagents': {
-        this.tally = {
-          ...tally,
-          subagentRequests: (tally.subagentRequests ?? 0) + units,
-          subagentUnknownRequests: (tally.subagentUnknownRequests ?? 0) + units,
-        }
-        break
-      }
-      case 'autoReviewer': {
-        this.tally = {
-          ...tally,
-          autoReviews: (tally.autoReviews ?? 0) + units,
-          autoReviewUnknownRequests: (tally.autoReviewUnknownRequests ?? 0) + units,
-        }
-        break
-      }
-      case 'bestOfN': {
-        this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
-        break
-      }
-      case 'tab': {
-        this.tally = { ...tally, tabRequests: (tally.tabRequests ?? 0) + units }
-        break
-      }
-      case 'hookModels': {
-        this.tally = {
-          ...tally,
-          hookModelRuns: (tally.hookModelRuns ?? 0) + units,
-          hookModelUnknownRequests: (tally.hookModelUnknownRequests ?? 0) + units,
-        }
-        break
-      }
-      case 'judge': {
-        this.tally = {
-          ...tally,
-          judgeCalls: (tally.judgeCalls ?? 0) + units,
-          judgeUnknownRequests: (tally.judgeUnknownRequests ?? 0) + units,
-        }
-        break
+    } else {
+      const entry = PAID_USE_REGISTRY[feature]
+      this.tally = { ...tally, [entry.tally]: (tally[entry.tally] ?? 0) + units }
+      if ('unknown' in entry) {
+        this.tally = { ...this.tally, [entry.unknown]: (tally[entry.unknown] ?? 0) + units }
       }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
@@ -325,7 +501,7 @@ export class PaidUsage {
       ...this.tally,
       judgeUnknownRequests: unknown - 1,
       judgeTokens: (this.tally.judgeTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      judgeCostUsd: (this.tally.judgeCostUsd ?? 0) + cost,
+      judgeCostUsd: sumUsd(this.tally.judgeCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) listener()
   }
@@ -340,19 +516,37 @@ export class PaidUsage {
       ...tally,
       autoReviewUnknownRequests: unknown - 1,
       autoReviewTokens: (tally.autoReviewTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      autoReviewCostUsd: (tally.autoReviewCostUsd ?? 0) + cost,
+      autoReviewCostUsd: sumUsd(tally.autoReviewCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) {
       listener()
     }
   }
 
+  public addLegalExplanationUsage(modelId: string, usage: SubagentUsage): void {
+    const cost = reviewerCost(modelId, usage)
+    const unknown = this.tally.legalExplanationUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      legalExplanationUnknownRequests: unknown - 1,
+      legalExplanationTokens:
+        (this.tally.legalExplanationTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      legalExplanationCostUsd: sumUsd(
+        Usd.from(this.tally.legalExplanationCostUsd ?? 0).toAmount(),
+        cost,
+      ),
+    }
+    for (const listener of this.listeners) listener()
+  }
+
   /** One admitted child attempt reported billable usage; never replayed from storage. */
   public addSubagentUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
+    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
       throw new Error('Cannot estimate subagent use for an unpriced model')
     }
-    if (Object.values(usage).some((value) => !Number.isFinite(value) || value < 0)) {
+    const { costUsd } = usage
+    if (!isValidTaskUsage(usage, false)) {
       throw new Error('Subagent usage must be finite and nonnegative')
     }
     const { tally } = this
@@ -363,7 +557,10 @@ export class PaidUsage {
       ...tally,
       subagentUnknownRequests: (tally.subagentUnknownRequests ?? 0) - 1,
       subagentTokens: (tally.subagentTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      subagentCostUsd: (tally.subagentCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      subagentCostUsd: sumUsd(
+        tally.subagentCostUsd ?? Usd.from(0).toAmount(),
+        costUsd ?? estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) {
       listener()
@@ -379,6 +576,11 @@ export class PaidUsage {
     for (const listener of this.listeners) listener()
   }
 
+  /** One team task's reported usage; never replayed from storage (M96 lane A). */
+  public addTeamWorkerUsage(modelId: string, usage: SubagentUsage): void {
+    this.addTaskUsage('teamWorker', modelId, usage)
+  }
+
   /** One prompt/agent hook run started; its cost settles when reported. */
   public addHookModelRun(): void {
     this.add('hookModels', 1)
@@ -386,13 +588,11 @@ export class PaidUsage {
 
   /** One hook run's reported billable usage; never replayed from storage. */
   public addHookModelUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
+    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
       throw new Error('Cannot estimate hook model use for an unpriced model')
     }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
+    const { costUsd } = usage
+    if (!isValidTaskUsage(usage)) {
       throw new Error('Hook model usage must be valid nonnegative token counts')
     }
     const unknown = this.tally.hookModelUnknownRequests ?? 0
@@ -401,7 +601,10 @@ export class PaidUsage {
       ...this.tally,
       hookModelUnknownRequests: unknown - 1,
       hookModelTokens: (this.tally.hookModelTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      hookModelCostUsd: (this.tally.hookModelCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      hookModelCostUsd: sumUsd(
+        this.tally.hookModelCostUsd ?? Usd.from(0).toAmount(),
+        costUsd ?? estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
@@ -422,13 +625,11 @@ export class PaidUsage {
    * never reports keeps its unknown count, never a zero cost.
    */
   public addTabUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
+    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
       throw new Error('Cannot estimate Tab use for an unpriced model')
     }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
+    const { costUsd } = usage
+    if (!isValidTaskUsage(usage)) {
       throw new Error('Tab usage must be valid nonnegative token counts')
     }
     const unknown = this.tally.tabUnknownRequests ?? 0
@@ -438,20 +639,21 @@ export class PaidUsage {
       tabUnknownRequests: unknown - 1,
       tabTokens: (this.tally.tabTokens ?? 0) + usage.inputTokens + usage.outputTokens,
       tabCachedTokens: (this.tally.tabCachedTokens ?? 0) + usage.cachedTokens,
-      tabCostUsd: (this.tally.tabCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      tabCostUsd: sumUsd(
+        this.tally.tabCostUsd ?? Usd.from(0).toAmount(),
+        costUsd ?? estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
 
   /** One owned host's per-response delta, never a cumulative/replayed frame. */
   public addBestOfNUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
+    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
       throw new Error('Cannot estimate best-of-N use for an unpriced model')
     }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
+    const { costUsd } = usage
+    if (!isValidTaskUsage(usage)) {
       throw new Error('Best-of-N usage must be valid nonnegative token counts')
     }
     const unknown = this.tally.bestOfNUnknownRequests ?? 0
@@ -460,24 +662,40 @@ export class PaidUsage {
       ...this.tally,
       bestOfNUnknownRequests: unknown - 1,
       bestOfNTokens: (this.tally.bestOfNTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      bestOfNCostUsd: (this.tally.bestOfNCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      bestOfNCostUsd: sumUsd(
+        this.tally.bestOfNCostUsd ?? Usd.from(0).toAmount(),
+        costUsd ?? estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
 }
 
+/** Validate counts separately from the exact provider receipt. */
+function isValidTaskUsage(usage: SubagentUsage, shouldRequireIntegers = true): boolean {
+  const { costUsd, ...tokens } = usage
+  return (
+    Object.values(tokens).every(
+      (value) =>
+        value === undefined ||
+        ((shouldRequireIntegers ? Number.isSafeInteger(value) : Number.isFinite(value)) &&
+          value >= 0),
+    ) &&
+    usage.cachedTokens <= usage.inputTokens &&
+    (costUsd === undefined || Usd.from(costUsd).compare(Usd.from(0)) >= 0)
+  )
+}
+
 /** One Auto review's tokens (M78): its cost, at the model's published rates. */
-function reviewerCost(modelId: string, usage: SubagentUsage): number {
-  if (modelApiPaidTier(modelId) === undefined) {
+function reviewerCost(modelId: string, usage: SubagentUsage): UsdAmount {
+  if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
     throw new Error('Cannot estimate an Auto review on an unpriced model')
   }
-  if (
-    Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-    usage.cachedTokens > usage.inputTokens
-  ) {
+  const { costUsd } = usage
+  if (!isValidTaskUsage(usage)) {
     throw new Error('Auto review usage must be valid nonnegative token counts')
   }
-  return estimateCostUsd(usage, modelId)
+  return costUsd ?? estimateCostUsd(usage, modelId)
 }
 
 /** The message the panels render the badge, the microphone and the tally from. */

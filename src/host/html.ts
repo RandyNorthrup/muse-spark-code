@@ -1,6 +1,6 @@
 // Builds the webview document. Pure: no `vscode` import, so it is unit-tested
 // directly. Security properties (PLAN.md section 2, D4):
-//   - default-src 'none'; scripts only with the per-load nonce; no remote
+//   - default-src 'none'; scripts from the bundle origin or with the per-load nonce; no remote
 //     origins; no 'unsafe-inline' / 'unsafe-eval' anywhere.
 //   - Inline `style=` attributes are blocked by this policy on purpose, so the
 //     React tree must style through classes in main.css.
@@ -11,6 +11,7 @@
 import {
   NONCE_BYTES,
   PRODUCT_NAME,
+  WEBVIEW_DOCUMENT_ATTRIBUTE,
   WEBVIEW_L10N_ELEMENT_ID,
   WEBVIEW_ROOT_ELEMENT_ID,
 } from '../shared/constants'
@@ -25,6 +26,8 @@ export interface WebviewHtmlOptions {
   /** The installed table and its language (`<html lang>` for screen readers). */
   readonly l10n: UiTable
   readonly surface?: 'tasks'
+  /** A chat document's host-issued id (M107), from `createNonce`: base64url, attribute-safe. */
+  readonly documentId?: string
 }
 
 // What must not appear raw inside a script element: `<` could close it
@@ -57,9 +60,11 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
     `img-src ${options.cspSource} data:`,
     `style-src ${options.cspSource} 'nonce-${options.nonce}'`,
     `font-src ${options.cspSource}`,
-    `script-src 'nonce-${options.nonce}'`,
+    `script-src 'nonce-${options.nonce}' ${options.cspSource}`,
   ].join('; ')
   const { locale, table } = options.l10n
+  const documentAttribute =
+    options.documentId === undefined ? '' : ` ${WEBVIEW_DOCUMENT_ATTRIBUTE}="${options.documentId}"`
 
   return `<!DOCTYPE html>
 <html lang="${locale}">
@@ -70,7 +75,7 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
 <link rel="stylesheet" href="${options.styleUri}" nonce="${options.nonce}">
 <title>${PRODUCT_NAME}</title>
 </head>
-<body${options.surface === 'tasks' ? ' data-surface="tasks"' : ''}>
+<body data-native-context-menu="true"${options.surface === 'tasks' ? ' data-surface="tasks"' : ''}${documentAttribute}>
 <div id="${WEBVIEW_ROOT_ELEMENT_ID}"></div>
 <script type="application/json" id="${WEBVIEW_L10N_ELEMENT_ID}">${scriptSafeJson({ locale, table })}</script>
 <script type="module" nonce="${options.nonce}" src="${options.scriptUri}"></script>

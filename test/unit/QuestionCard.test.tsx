@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Question } from '../../src/shared/agentEvents'
 import { CLARIFICATION_MAX_CHARS } from '../../src/shared/constants'
@@ -31,6 +31,7 @@ const name: Question = {
 
 function renderCard(questions: readonly Question[]) {
   const props: QuestionCardProps = {
+    isDockCard: true,
     question: { userInputId: 'q1', questions },
     onAnswer: vi.fn(),
     onCancel: vi.fn(),
@@ -113,13 +114,13 @@ describe('QuestionCard (M16)', () => {
   })
 })
 
-describe('QuestionCard: Explain instead (M46)', () => {
+describe('QuestionCard: Explain Instead (M46)', () => {
   it('sends an explanation in place of the options, trimmed, up to the limit', () => {
     const props = renderCard([colour])
-    fireEvent.click(screen.getByRole('button', { name: 'Explain instead' }))
-    const box = screen.getByLabelText('Your explanation')
+    fireEvent.click(screen.getByRole('button', { name: 'Explain Instead' }))
+    const box = screen.getByLabelText('Your Explanation')
     expect(box).toHaveAttribute('maxLength', String(CLARIFICATION_MAX_CHARS))
-    const send = screen.getByRole('button', { name: 'Send explanation' })
+    const send = screen.getByRole('button', { name: 'Send Explanation' })
     expect(send).toBeDisabled()
     fireEvent.change(box, { target: { value: ' '.repeat(3) } })
     expect(send).toBeDisabled()
@@ -131,18 +132,22 @@ describe('QuestionCard: Explain instead (M46)', () => {
 
   it('goes back to the choices, and locks while the host settles it', () => {
     renderCard([colour])
-    fireEvent.click(screen.getByRole('button', { name: 'Explain instead' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Back to the choices' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Explain Instead' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the Choices' }))
     expect(submit()).toBeInTheDocument()
-    render(
+    const locked = render(
       <QuestionCard
+        isDockCard
         question={{ userInputId: 'q2', questions: [colour], isSubmitted: true }}
         onAnswer={vi.fn()}
         onCancel={vi.fn()}
         onClarify={vi.fn()}
       />,
     )
-    const explain = screen.getAllByRole('button', { name: 'Explain instead' })
-    expect(explain.at(-1)).toBeDisabled()
+    const card = within(locked.container)
+    expect(card.getByRole('radio', { name: 'Redwarm' })).toBeDisabled()
+    expect(card.getByRole('button', { name: 'Submit' })).toBeDisabled()
+    expect(card.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    expect(card.getByRole('button', { name: 'Explain Instead' })).toBeDisabled()
   })
 })

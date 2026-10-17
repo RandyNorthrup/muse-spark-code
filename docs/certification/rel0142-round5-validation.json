@@ -1,0 +1,287 @@
+{
+  "rig": "kubuntu",
+  "base": "48a2e8575",
+  "repositoryTestTimeouts": true,
+  "baselines": [
+    {
+      "command": "npm run security:audit",
+      "exitCode": 1,
+      "failure": "critical GHSA-pqg4-j6r4-53mv shell-quote@1.10.0"
+    },
+    {
+      "command": "npx vitest run test/unit/reportCommand.test.ts --maxWorkers=3",
+      "exitCode": 1,
+      "passed": 19,
+      "failed": 1,
+      "failure": "Expected { command: 'help' }; received { command: 'help', all: true }"
+    }
+  ],
+  "cleanInstall": {
+    "command": "npm ci",
+    "exitCode": 0,
+    "directory": "/tmp/rel0142-round5-ci-S5JZuo",
+    "installedPackages": 898,
+    "shellQuoteVersion": "1.11.0",
+    "npmLsCommand": "npm ls shell-quote",
+    "productionNpmLsCommand": "npm ls shell-quote --omit=dev",
+    "devOnly": true,
+    "sharedWorktreeDependenciesUnchanged": true
+  },
+  "invocations": [
+    {
+      "command": "npx vitest run test/unit/reportCommand.test.ts test/unit/acpRuntime.test.ts test/unit/execArgs.test.ts --maxWorkers=3",
+      "exitCode": 0,
+      "passed": 110
+    },
+    {
+      "command": "npx vitest run test/unit/reportCommand.test.ts test/unit/referenceGenerator.test.mjs test/unit/referenceEntry.test.ts --maxWorkers=3",
+      "exitCode": 0,
+      "passed": 89
+    },
+    {
+      "command": "npx vitest run test/unit/ReferencePage.test.tsx test/unit/referenceKeyboardTruth.test.tsx test/unit/acpAgent.test.ts --maxWorkers=3",
+      "exitCode": 0,
+      "passed": 121
+    },
+    {
+      "command": "npx vitest run test/e2e/acpStdio.e2e.test.ts test/e2e/execStdio.e2e.test.ts --maxWorkers=3",
+      "exitCode": 0,
+      "passed": 46
+    }
+  ],
+  "suites": [
+    {
+      "file": "test/e2e/acpStdio.e2e.test.ts",
+      "passed": 10,
+      "slowestTest": "the ACP agent over stdio (M63) streams a reply, runs an allowed tool call and skips a denied one, on Muse Code",
+      "slowestMs": 940
+    },
+    {
+      "file": "test/e2e/execStdio.e2e.test.ts",
+      "passed": 36,
+      "slowestTest": "M80 E1-E7 built exec E6 redacts exact percent-legacy key from startup failure stderr",
+      "slowestMs": 18845
+    },
+    {
+      "file": "test/unit/acpAgent.test.ts",
+      "passed": 94,
+      "slowestTest": "ACP session ownership across asynchronous releases closes a reload still waiting for the old release, and leaves no session held",
+      "slowestMs": 416
+    },
+    {
+      "file": "test/unit/acpRuntime.test.ts",
+      "passed": 38,
+      "slowestTest": "createRuntimeBackend says where it looked when the Muse Code CLI is missing, and builds a Model API host per folder",
+      "slowestMs": 91
+    },
+    {
+      "file": "test/unit/execArgs.test.ts",
+      "passed": 52,
+      "slowestTest": "M80 args (A1–A10, F1) A9 bounds files and literal prompt bytes without truncation",
+      "slowestMs": 6
+    },
+    {
+      "file": "test/unit/referenceEntry.test.ts",
+      "passed": 15,
+      "slowestTest": "RVHELPREF4 rejects a corrupt packed technical-prefix index",
+      "slowestMs": 134
+    },
+    {
+      "file": "test/unit/referenceGenerator.test.mjs",
+      "passed": 54,
+      "slowestTest": "RVHELPREF2 runtime truth regressions RVHELPREF4 P2-1 rejects the closed state vocabulary at the generator boundary",
+      "slowestMs": 1400
+    },
+    {
+      "file": "test/unit/referenceKeyboardTruth.test.tsx",
+      "passed": 3,
+      "slowestTest": "reference keyboard behaviour truth opens the full tool output with Enter",
+      "slowestMs": 173
+    },
+    {
+      "file": "test/unit/ReferencePage.test.tsx",
+      "passed": 24,
+      "slowestTest": "RVHELPREF2 presentation truth C03 searches JSON exactly as rendered for settings, feature facts and CLI contracts",
+      "slowestMs": 874
+    },
+    {
+      "file": "test/unit/reportCommand.test.ts",
+      "passed": 20,
+      "slowestTest": "the agent journal, through the extension recorder (M93 regressions) reads what an ACP process recorded, with no events for a folder never written",
+      "slowestMs": 23
+    }
+  ],
+  "distinctTestsPassed": 346,
+  "checks": [
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "durationMs": 78981
+    },
+    {
+      "name": "eslint",
+      "command": "npx eslint --max-warnings=0 test/unit/reportCommand.test.ts",
+      "exitCode": 0,
+      "durationMs": 8589
+    },
+    {
+      "name": "prettier",
+      "command": "npx prettier --check package-lock.json PLAN.md CHANGELOG.md test/unit/reportCommand.test.ts docs/certification/rel0142.md docs/certification/rel0142-round5-drill.json",
+      "exitCode": 0,
+      "durationMs": 9170
+    },
+    {
+      "name": "reference",
+      "command": "npm run check:reference",
+      "exitCode": 0,
+      "durationMs": 2240
+    },
+    {
+      "name": "audit",
+      "command": "npm run security:audit",
+      "exitCode": 0,
+      "durationMs": 1945
+    },
+    {
+      "name": "localization",
+      "command": "npm run check:l10n",
+      "exitCode": 0,
+      "durationMs": 2376
+    },
+    {
+      "name": "deadcode",
+      "command": "npm run deadcode",
+      "exitCode": 0,
+      "durationMs": 3224
+    },
+    {
+      "name": "duplication",
+      "command": "npx jscpd",
+      "exitCode": 0,
+      "durationMs": 1054
+    },
+    {
+      "name": "host-api",
+      "command": "npm run check:host-api",
+      "exitCode": 0,
+      "durationMs": 16770
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "exitCode": 0,
+      "durationMs": 6239
+    },
+    {
+      "name": "production-help",
+      "locale": "C",
+      "command": "node dist/acp.js exec --help",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 111218
+    },
+    {
+      "name": "production-help",
+      "locale": "C",
+      "command": "node dist/acp.js exec -h",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 111218
+    },
+    {
+      "name": "production-help",
+      "locale": "C",
+      "command": "node dist/acp.js report --help",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 111218
+    },
+    {
+      "name": "production-help",
+      "locale": "C",
+      "command": "node dist/acp.js report -h",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 111218
+    },
+    {
+      "name": "production-help",
+      "locale": "C",
+      "command": "node dist/acp.js scan-secrets --help",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 111218
+    },
+    {
+      "name": "production-help",
+      "locale": "C",
+      "command": "node dist/acp.js scan-secrets -h",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 111218
+    },
+    {
+      "name": "production-full-help",
+      "locale": "C",
+      "command": "node dist/acp.js help --all",
+      "exitCode": 0,
+      "stdoutBytes": 111218
+    },
+    {
+      "name": "production-help",
+      "locale": "fr_FR.UTF-8",
+      "command": "node dist/acp.js exec --help",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 130397
+    },
+    {
+      "name": "production-help",
+      "locale": "fr_FR.UTF-8",
+      "command": "node dist/acp.js exec -h",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 130397
+    },
+    {
+      "name": "production-help",
+      "locale": "fr_FR.UTF-8",
+      "command": "node dist/acp.js report --help",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 130397
+    },
+    {
+      "name": "production-help",
+      "locale": "fr_FR.UTF-8",
+      "command": "node dist/acp.js report -h",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 130397
+    },
+    {
+      "name": "production-help",
+      "locale": "fr_FR.UTF-8",
+      "command": "node dist/acp.js scan-secrets --help",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 130397
+    },
+    {
+      "name": "production-help",
+      "locale": "fr_FR.UTF-8",
+      "command": "node dist/acp.js scan-secrets -h",
+      "exitCode": 0,
+      "equalsHelpAll": true,
+      "stdoutBytes": 130397
+    },
+    {
+      "name": "production-full-help",
+      "locale": "fr_FR.UTF-8",
+      "command": "node dist/acp.js help --all",
+      "exitCode": 0,
+      "stdoutBytes": 130397
+    }
+  ]
+}

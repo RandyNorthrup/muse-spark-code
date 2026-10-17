@@ -9,6 +9,7 @@
 
 import * as z from 'zod/mini'
 import path from 'node:path'
+import { sparkHooksFiles } from './hookNames'
 import { Buffer } from 'node:buffer'
 import { createContext, Script } from 'node:vm'
 import {
@@ -33,24 +34,17 @@ import {
   HOOK_CONTROL_CODE_LIMIT,
   HOOK_NEWLINE_CODE,
   HOOK_DELETE_CODE,
-  CODE_INTEL_TOOLS,
   MILLISECONDS_PER_SECOND,
-  MODEL_API_TOOLS,
   PLUGIN_FORMATS,
   PLUGIN_HOOK_TIMEOUT_MS,
   PROJECT_HOOKS_SEGMENTS,
-  SPARK_HOOKS_SEGMENTS,
 } from '../../../shared/constants'
 import { type ContextIo, decodeContextText } from '../../context/contextFiles'
 import { confineWorkspacePath } from '../../workspacePath'
 import { unlessAborted } from '../../timeouts'
+import { HOOK_MODEL_EVENTS } from './hookNames'
 import type { ShellResult, ToolIo } from './tools'
-import {
-  HOOK_MODEL_EVENTS,
-  type HookHandlerType,
-  type TypedHookAnswer,
-  type TypedHookHandlers,
-} from './hookHandlers'
+import type { HookHandlerType, TypedHookAnswer, TypedHookHandlers } from './hookHandlers'
 
 export const HOOK_EVENTS = [
   'SessionStart',
@@ -1155,47 +1149,7 @@ export function matchingHooks(
   })
 }
 
-/**
- * Both spark-hooks.json files (M91): the user's beside Muse Code's settings
- * file, which is the settingsPath (`<config>/muse/settings.json`), and the
- * project's under `.muse`.
- */
-export function sparkHooksFiles(deps: Pick<HookLoadDeps, 'settingsPath' | 'workspaceRoot'>): {
-  readonly user: string
-  readonly project: string
-} {
-  return {
-    user: path.join(path.dirname(deps.settingsPath), SPARK_HOOKS_SEGMENTS.user[1]),
-    project: path.join(deps.workspaceRoot, ...SPARK_HOOKS_SEGMENTS.project),
-  }
-}
-
-/** Muse Code matcher aliases for the Model API backend's built-in tools. */
-export function toolMatcherNames(name: string): readonly string[] {
-  switch (name) {
-    case MODEL_API_TOOLS.bash:
-    case MODEL_API_TOOLS.powershell: {
-      return [name, 'Bash', 'shell']
-    }
-    case MODEL_API_TOOLS.readFile: {
-      return [name, 'Read']
-    }
-    case MODEL_API_TOOLS.writeFile: {
-      return [name, 'Write']
-    }
-    // A rename (M67) edits files as edit_file does: an `Edit` hook sees it too.
-    case MODEL_API_TOOLS.editFile:
-    case CODE_INTEL_TOOLS.renameSymbol: {
-      return [name, 'Edit']
-    }
-    case MODEL_API_TOOLS.search: {
-      return [name, 'Grep']
-    }
-    default: {
-      return [name]
-    }
-  }
-}
+export { toolMatcherNames } from './hookNames'
 
 /** A hook's answer; an imported hook's may carry a documented replacement (M91 lane W). */
 export type HookAnswer = TypedHookAnswer & {
@@ -1222,13 +1176,17 @@ interface HookWaiter {
   readonly onAbort: () => void
 }
 
-const commandState = { running: 0 }
-const commandWaiters: HookWaiter[] = []
+interface HookCommandState {
+  running: number
+  readonly waiters: HookWaiter[]
+}
+const commandState: HookCommandState = { running: 0, waiters: [] }
+const processState: HookCommandState = { running: 0, waiters: [] }
 
-function releaseCommand(): void {
-  const next = commandWaiters.shift()
+function releaseCommand(state: HookCommandState): void {
+  const next = state.waiters.shift()
   if (next === undefined) {
-    commandState.running -= 1
+    state.running -= 1
     return
   }
   next.signal?.removeEventListener('abort', next.onAbort)
@@ -1236,30 +1194,42 @@ function releaseCommand(): void {
 }
 
 /** One extension-host-wide cap: several sessions cannot spawn unlimited hooks. */
-async function acquireCommand(signal: AbortSignal | undefined): Promise<() => void> {
+async function acquireCommand(
+  signal: AbortSignal | undefined,
+  state: HookCommandState = commandState,
+): Promise<() => void> {
   if (signal?.aborted === true) {
     throw new Error('hook command cancelled')
   }
-  if (commandState.running < HOOK_MAX_RUNNING_COMMANDS) {
-    commandState.running += 1
-    return releaseCommand
+  if (state.running < HOOK_MAX_RUNNING_COMMANDS) {
+    state.running += 1
+    return () => {
+      releaseCommand(state)
+    }
   }
   await new Promise<void>((resolve, reject) => {
     const onAbort = () => {
-      const index = commandWaiters.findIndex((candidate) => candidate.onAbort === onAbort)
+      const index = state.waiters.findIndex((candidate) => candidate.onAbort === onAbort)
       if (index !== -1) {
-        commandWaiters.splice(index, 1)
+        state.waiters.splice(index, 1)
       }
       reject(new Error('hook command cancelled'))
     }
     const waiter: HookWaiter = { resolve, reject, signal, onAbort }
-    commandWaiters.push(waiter)
+    state.waiters.push(waiter)
     signal?.addEventListener('abort', onAbort, { once: true })
     if (signal?.aborted === true) {
       onAbort()
     }
   })
-  return releaseCommand
+  return () => {
+    releaseCommand(state)
+  }
+}
+
+/** The production IO cap is shared by lazy dispatch bundles, separate from admission. */
+export async function acquireHookProcessSlot(signal: AbortSignal | undefined): Promise<() => void> {
+  return await acquireCommand(signal, processState)
 }
 
 async function runBoundedHook(

@@ -1,0 +1,16 @@
+[
+  {
+    "kind": "support",
+    "code": 2,
+    "elapsedSeconds": 21.65,
+    "diagnostic": "TS2322",
+    "file": "test/unit/helpers/macslowCompilerDrill.ts"
+  },
+  {
+    "kind": "last-project",
+    "code": 2,
+    "elapsedSeconds": 110.38,
+    "diagnostic": "TS2322",
+    "file": "test/unit/zzzzMacslowCompilerDrill.test.ts"
+  }
+]

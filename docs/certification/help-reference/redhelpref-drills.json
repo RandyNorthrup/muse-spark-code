@@ -1,0 +1,369 @@
+[
+  {
+    "name": "default-enum",
+    "file": "package.json",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "Runtime default mismatch",
+    "matched": true,
+    "beforeSha256": "af49691fff07e2ab8cf2b528128f2483d842fa68a5d216ccc56baac5f5432b9b",
+    "mutatedSha256": "0c16340a193eb99b88caeec17bc230de86857993e056d4963a479939338e6bf8",
+    "seconds": 0.95,
+    "diagnostics": ["Error: Runtime default mismatch: museSpark.judge.engine"],
+    "restoredSha256": "af49691fff07e2ab8cf2b528128f2483d842fa68a5d216ccc56baac5f5432b9b",
+    "mutation": "Set contributes.configuration.properties[museSpark.judge.engine].default from auto to off."
+  },
+  {
+    "name": "command-conditions",
+    "file": "src/shared/reference/resolvers.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceGenerator.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "expected": "command visibility retains",
+    "matched": true,
+    "beforeSha256": "8af9373311a8c06d7fea0e412fd32a9ae5bcad2708a8a54fedd4d890a57d9c49",
+    "mutatedSha256": "cf2e2c6ed15b9716131458816f0197fa3925b85ed680c15e681bf3efc981ae0d",
+    "seconds": 52.66,
+    "diagnostics": [
+      "     \u00d7 command visibility retains each contributed condition and combines alternate menu paths 322ms",
+      " FAIL  test/unit/referenceGenerator.test.mjs > the code-derived reference gate > checks all generated outputs byte-for-byte",
+      "AssertionError: promise rejected \"Error: Stale reference: src/shared/refere\u2026\" instead of resolving",
+      "Caused by: Error: Stale reference: src/shared/reference/reference.generated.ts; run npm run reference:generate",
+      " FAIL  test/unit/referenceGenerator.test.mjs > RVHELPREF truth regressions > R15 retains command menu conditions and component keyboard actions",
+      "AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string",
+      " FAIL  test/unit/referenceGenerator.test.mjs > RVHELPREF2 runtime truth regressions > command visibility retains each contributed condition and combines alternate menu paths",
+      "AssertionError: the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+    ],
+    "restoredSha256": "8af9373311a8c06d7fea0e412fd32a9ae5bcad2708a8a54fedd4d890a57d9c49",
+    "mutation": "Replace [command.enablement, palette].filter with [undefined, undefined].filter."
+  },
+  {
+    "name": "keyboard-bypass",
+    "file": "src/webview/components/Modal.tsx",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "Keyboard dispatch bypasses registry",
+    "matched": true,
+    "beforeSha256": "ce27de4ab8e1948cbb3756363778d31cd132b4d4152541ba1fae11e20b7700eb",
+    "mutatedSha256": "a543180a64f6116dd265f07c1c8985d81baa27d1495adaafebf3b66c58addbf9",
+    "seconds": 1.04,
+    "diagnostics": ["Error: Keyboard dispatch bypasses registry: src/webview/components/Modal.tsx"],
+    "restoredSha256": "ce27de4ab8e1948cbb3756363778d31cd132b4d4152541ba1fae11e20b7700eb",
+    "mutation": "Replace webviewKey('modal.focus', event) !== 'close' with event.key !== 'Delete'."
+  },
+  {
+    "name": "keyboard-event-alias",
+    "file": "src/webview/components/Modal.tsx",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "Keyboard dispatch bypasses registry",
+    "matched": true,
+    "beforeSha256": "ce27de4ab8e1948cbb3756363778d31cd132b4d4152541ba1fae11e20b7700eb",
+    "mutatedSha256": "62a13da125d412911803640c7eeb76d70ff7ba6e5ff8139b6939a8ff7d3fc255",
+    "seconds": 1.06,
+    "diagnostics": ["Error: Keyboard dispatch bypasses registry: src/webview/components/Modal.tsx"],
+    "restoredSha256": "ce27de4ab8e1948cbb3756363778d31cd132b4d4152541ba1fae11e20b7700eb",
+    "mutation": "Replace webviewKey('modal.focus', event) !== 'close' with event['key'] !== 'Delete'."
+  },
+  {
+    "name": "keyboard-action",
+    "file": "src/shared/keybindings.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/Modal.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "expected": "FAIL",
+    "matched": true,
+    "beforeSha256": "2342ebf87a6af947ece987fef922d64c4ae4006e9232bd0bdeb1eff110126231",
+    "mutatedSha256": "8be8b147e7680c38123437ed0fc3ac2a8aeceff5a1367838cc269ac4e2284e0b",
+    "seconds": 2.62,
+    "diagnostics": [
+      " FAIL  test/unit/Modal.test.tsx > Modal > is a labelled dialog that focuses its close button and closes on Escape, the button and the backdrop",
+      "AssertionError: expected \"vi.fn()\" to be called 3 times, but got 2 times"
+    ],
+    "restoredSha256": "2342ebf87a6af947ece987fef922d64c4ae4006e9232bd0bdeb1eff110126231",
+    "mutation": "Change only modal.focus.close.keys[0].key from Escape to Delete."
+  },
+  {
+    "name": "cli-parser",
+    "file": "src/runtime/cliOptions.ts",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "CLI option lacks contract",
+    "matched": true,
+    "beforeSha256": "f5205ef08bee575e4c3e8e17f048514c29fdaeb2d074b49ff7db8c93c5f682b1",
+    "mutatedSha256": "cd7480db2de6cda01b277c275b488448dab5fca81696a892bc300056188e6fb9",
+    "seconds": 1.03,
+    "diagnostics": [
+      "Error: CLI option lacks contract: --undocumented",
+      "CLI option lacks contract: --undocumented",
+      "CLI option lacks contract: --undocumented",
+      "CLI option lacks contract: --undocumented",
+      "CLI option lacks contract: --undocumented",
+      "CLI option lacks contract: --undocumented"
+    ],
+    "restoredSha256": "f5205ef08bee575e4c3e8e17f048514c29fdaeb2d074b49ff7db8c93c5f682b1",
+    "mutation": "Insert undocumented: { type: 'boolean' } into COMMON_OPTIONS."
+  },
+  {
+    "name": "paid-identity",
+    "file": "src/shared/featureCatalog.ts",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "Paid claim mismatch: judge",
+    "matched": true,
+    "beforeSha256": "6c46626ce1a3f602f8f92b532102c72a873c1bc6c6e54dad74ba7a0c68412240",
+    "mutatedSha256": "a19bbc714a0967383311b95580312ea38582f4635e0493ffeada5770d803940a",
+    "seconds": 1.01,
+    "diagnostics": ["Error: Paid claim mismatch: judge"],
+    "restoredSha256": "6c46626ce1a3f602f8f92b532102c72a873c1bc6c6e54dad74ba7a0c68412240",
+    "mutation": "Force paid=false for entry.id=judge while retaining the runtime paid registry."
+  },
+  {
+    "name": "slash-grammar",
+    "file": "src/shared/slashCommands.ts",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "Stale reference",
+    "matched": true,
+    "beforeSha256": "a19ff1145cf876951705babf0f2dccb486c485fd63aeda050a8d15d7a24156c4",
+    "mutatedSha256": "d32c002559f85bba9c7401400de930dcbfa0049029e7e8f004707adfb0e5eb2f",
+    "seconds": 2.06,
+    "diagnostics": [
+      "        throw new Error(`Stale reference: ${file}; run npm run reference:generate`)",
+      "Error: Stale reference: src/shared/reference/reference.generated.ts; run npm run reference:generate"
+    ],
+    "restoredSha256": "a19ff1145cf876951705babf0f2dccb486c485fd63aeda050a8d15d7a24156c4",
+    "mutation": "Replace /goal edit <objective> with /goal edit in SLASH_REFERENCE."
+  },
+  {
+    "name": "conditional-prose",
+    "file": "src/shared/l10n/en.ts",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "Catalogue asserts conditional state",
+    "matched": true,
+    "beforeSha256": "8ca6d49f377917547a43623811ac27427fc4b39f5430dc31a6045d00ce8ecaa9",
+    "mutatedSha256": "76a537a51be584445a9e5e3f651e39575da52c93791207921029009ed72f1e0d",
+    "seconds": 0.97,
+    "diagnostics": [
+      "Error: Catalogue asserts conditional state: native-agents",
+      "Catalogue asserts conditional state: native-agents"
+    ],
+    "restoredSha256": "8ca6d49f377917547a43623811ac27427fc4b39f5430dc31a6045d00ce8ecaa9",
+    "mutation": "Replace referenceNativeAgents with Delegation is off (its default), so the model has no agent tools in this conversation."
+  },
+  {
+    "name": "failure-prose",
+    "file": "src/shared/featureCatalog.ts",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "Failure message used as catalogue description",
+    "matched": true,
+    "beforeSha256": "6c46626ce1a3f602f8f92b532102c72a873c1bc6c6e54dad74ba7a0c68412240",
+    "mutatedSha256": "fbaa4a1e88656fb0064c5892a607c243fd0705407d74a85940e8345c6e77852e",
+    "seconds": 0.98,
+    "diagnostics": ["Error: Failure message used as catalogue description: execFileUnreadable"],
+    "restoredSha256": "6c46626ce1a3f602f8f92b532102c72a873c1bc6c6e54dad74ba7a0c68412240",
+    "mutation": "Replace referenceTabOff descriptor with execFileUnreadable."
+  },
+  {
+    "name": "localized-facts",
+    "file": "scripts/lib/reference.mjs",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "Unlocalized reference fact",
+    "matched": true,
+    "beforeSha256": "ffa5648b247c2b08a4147130c5fd4476a419d3572eec7c4d0526c459ce4a5c08",
+    "mutatedSha256": "9ee95592e0e4bc512d63242017da3db12becf5b35b55b47038eba7269797d7de",
+    "seconds": 0.99,
+    "diagnostics": ["Error: Unlocalized reference fact: conversation-actions.withdrawal.museCode"],
+    "restoredSha256": "ffa5648b247c2b08a4147130c5fd4476a419d3572eec7c4d0526c459ce4a5c08",
+    "mutation": "Replace museCode queuedOnly with queued messages only; steer delivered immediately."
+  },
+  {
+    "name": "localized-description",
+    "file": "l10n/ui.de.json",
+    "command": ["node", "scripts/check-l10n.mjs"],
+    "exit": 1,
+    "expected": "referenceCliOptions.max-budget-usd",
+    "matched": true,
+    "beforeSha256": "cb02f526432686ed509f67dd7bda9c2ea30aa06370b24ea95792abd0f9e3bfc0",
+    "mutatedSha256": "5a91e39796b4998e0b280ff6f26b1bb07d024de292998c4ab0e7c56d56a36029",
+    "seconds": 2.35,
+    "diagnostics": ["l10n/ui.de.json: referenceCliOptions.max-budget-usd: missing"],
+    "restoredSha256": "cb02f526432686ed509f67dd7bda9c2ea30aa06370b24ea95792abd0f9e3bfc0",
+    "mutation": "Delete referenceCliOptions.max-budget-usd from the German table."
+  },
+  {
+    "name": "shortcut-search",
+    "file": "src/webview/components/ReferencePage.tsx",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/ReferencePage.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "expected": "B10 searches displayed shortcut field",
+    "matched": true,
+    "beforeSha256": "a4cae467c8cab97edd4ca6f484389a897a3796580ba6aa058d43931a08a6fd9d",
+    "mutatedSha256": "9a991eaf8ad952821afde9ffc7f13f4f0cc7c8059f80f5b5e479decda00dcd39",
+    "seconds": 10.04,
+    "diagnostics": [
+      "     \u00d7 B10 searches displayed shortcut field New line 188ms",
+      "     \u00d7 B10 searches displayed shortcut field records your voice 204ms",
+      " FAIL  test/unit/ReferencePage.test.tsx > RVHELPREF2 presentation truth > B10 searches displayed shortcut field New line",
+      " FAIL  test/unit/ReferencePage.test.tsx > RVHELPREF2 presentation truth > B10 searches displayed shortcut field records your voice",
+      "AssertionError: expected 0 to be greater than 0"
+    ],
+    "restoredSha256": "a4cae467c8cab97edd4ca6f484389a897a3796580ba6aa058d43931a08a6fd9d",
+    "mutation": "Replace shortcutDescription(k) in the filter fields with an empty string."
+  },
+  {
+    "name": "relationship-targets",
+    "file": "src/webview/components/ReferencePage.tsx",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/ReferencePage.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "expected": "B11 search",
+    "matched": true,
+    "beforeSha256": "a4cae467c8cab97edd4ca6f484389a897a3796580ba6aa058d43931a08a6fd9d",
+    "mutatedSha256": "ea6b33d6ba4ba722702a8b5e8c023084674ea409ca06a4f676d033f02f087eb3",
+    "seconds": 10.15,
+    "diagnostics": [
+      "     \u00d7 B11 search support keeps every visible relationship anchor reachable 141ms",
+      "     \u00d7 B11 search account keeps every visible relationship anchor reachable 174ms",
+      "     \u00d7 B11 search tasks keeps every visible relationship anchor reachable 182ms",
+      " FAIL  test/unit/ReferencePage.test.tsx > RVHELPREF2 presentation truth > B11 search support keeps every visible relationship anchor reachable",
+      " FAIL  test/unit/ReferencePage.test.tsx > RVHELPREF2 presentation truth > B11 search account keeps every visible relationship anchor reachable",
+      " FAIL  test/unit/ReferencePage.test.tsx > RVHELPREF2 presentation truth > B11 search tasks keeps every visible relationship anchor reachable",
+      "Error: expect(received).toBeInTheDocument()"
+    ],
+    "restoredSha256": "a4cae467c8cab97edd4ca6f484389a897a3796580ba6aa058d43931a08a6fd9d",
+    "mutation": "Replace relationshipTargets.has(c.id) || with false ||."
+  },
+  {
+    "name": "deferred-fixture",
+    "file": "test/unit/deferredBundles.test.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/deferredBundles.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "expected": "Missing build metafile: dist/meta/reference.json",
+    "matched": true,
+    "beforeSha256": "51ad32ccfdd889c0d433628c7d272c1d6307a88b674836c7c83b63bd5ca10614",
+    "mutatedSha256": "81984eb3a08a547d3fbe1b4f43bb8c95e7e1181462447fb71bc5cf7ec3f26efd",
+    "seconds": 2.68,
+    "diagnostics": [
+      " FAIL  test/unit/deferredBundles.test.ts [ test/unit/deferredBundles.test.ts ]",
+      "Error: Missing build metafile: dist/meta/reference.json"
+    ],
+    "restoredSha256": "51ad32ccfdd889c0d433628c7d272c1d6307a88b674836c7c83b63bd5ca10614",
+    "mutation": "Delete the reference entry from the in-memory metafile build map."
+  },
+  {
+    "name": "reserved-numeric-token",
+    "file": "src/shared/l10n/en.ts",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "Reserved reference token",
+    "matched": true,
+    "beforeSha256": "8ca6d49f377917547a43623811ac27427fc4b39f5430dc31a6045d00ce8ecaa9",
+    "mutatedSha256": "cae6502f2d469721492cee9be8d45ff5bc272ee5f781b046643d52174ab6f913",
+    "seconds": 0.95,
+    "diagnostics": [
+      "    throw new Error('Reserved reference token')",
+      "Error: Reserved reference token"
+    ],
+    "restoredSha256": "8ca6d49f377917547a43623811ac27427fc4b39f5430dc31a6045d00ce8ecaa9",
+    "mutation": "Replace the first verbose catalogue string with ~n:100."
+  },
+  {
+    "name": "packed-model",
+    "file": "src/shared/reference/reference.generated.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceEntry.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "expected": "FAIL",
+    "matched": true,
+    "beforeSha256": "3c23c37fb13c69e6c3f6f1ec1bec25d9161029e5fe87ecd3b972d3d7f5ff38d7",
+    "mutatedSha256": "39d0a4e79778a88a1a41189b13cd3e815e100f81416fc8936006d6919fe9ea0b",
+    "seconds": 1.96,
+    "diagnostics": [
+      " FAIL  test/unit/referenceEntry.test.ts [ test/unit/referenceEntry.test.ts ]",
+      "RangeError: ~am"
+    ],
+    "restoredSha256": "3c23c37fb13c69e6c3f6f1ec1bec25d9161029e5fe87ecd3b972d3d7f5ff38d7",
+    "mutation": "Change referenceRadix from 36 to 10."
+  },
+  {
+    "name": "packed-valid-fact",
+    "file": "src/shared/reference/reference.generated.ts",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceEntry.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exit": 1,
+    "expected": "round-trips the entire compressed reference without losing any fact",
+    "matched": true,
+    "beforeSha256": "3c23c37fb13c69e6c3f6f1ec1bec25d9161029e5fe87ecd3b972d3d7f5ff38d7",
+    "mutatedSha256": "ccfaca361e42d24f29182f097f890cfb45e584cecc39cdfc718cfd7aa01789fd",
+    "seconds": 2.66,
+    "diagnostics": [
+      "   \u00d7 round-trips the entire compressed reference without losing any fact 116ms",
+      " FAIL  test/unit/referenceEntry.test.ts > round-trips the entire compressed reference without losing any fact",
+      "AssertionError: expected { \u2026(7) } to deeply equal { Object (features, commands, ...) }"
+    ],
+    "restoredSha256": "3c23c37fb13c69e6c3f6f1ec1bec25d9161029e5fe87ecd3b972d3d7f5ff38d7",
+    "mutation": "Replace the pooled storedModelApiKey string with incorrectBillingFact; preserve schema validity."
+  },
+  {
+    "name": "failure-prose-denied",
+    "file": "src/shared/featureCatalog.ts",
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exit": 1,
+    "expected": "Failure message used as catalogue description: execDeniedStop",
+    "matched": true,
+    "beforeSha256": "6c46626ce1a3f602f8f92b532102c72a873c1bc6c6e54dad74ba7a0c68412240",
+    "mutatedSha256": "fcf0dbe5926d8596a087572ce59c6d787dc662f93f1db9fcfc4494fe5065e732",
+    "seconds": 1.06,
+    "diagnostics": ["Error: Failure message used as catalogue description: execDeniedStop"],
+    "restoredSha256": "6c46626ce1a3f602f8f92b532102c72a873c1bc6c6e54dad74ba7a0c68412240",
+    "mutation": "Replace referenceTabOff descriptor with execDeniedStop."
+  }
+]

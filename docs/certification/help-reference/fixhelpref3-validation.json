@@ -1,0 +1,295 @@
+{
+  "lane": "FIXHELPREF3",
+  "machine": "Kubuntu",
+  "base": "c98f6b67c",
+  "date": "2026-10-06",
+  "distinctTestsPassed": 829,
+  "owningFiles": 10,
+  "redDrills": 12,
+  "allDrillsRestoredByteExact": true,
+  "reviewFindings": {
+    "C01": "fixed",
+    "C02": "fixed",
+    "C03": "fixed",
+    "C04": "fixed",
+    "C05": "fixed",
+    "C06": "fixed"
+  },
+  "additionalCorrections": [
+    "Hooks selected-backend source description",
+    "scan-secrets operation description"
+  ],
+  "uniqueAuditedTextReferences": 334,
+  "residualFindings": [],
+  "checks": [
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceGenerator.test.mjs",
+        "test/unit/referenceEntry.test.ts",
+        "test/unit/ReferencePage.test.tsx",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exitCode": 0,
+      "result": "83 tests passed in three files after final restoration",
+      "localLog": "temp/fixhelpref3-reference-release.log"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/Modal.test.tsx",
+        "test/unit/museConfigCommands.test.ts",
+        "test/unit/scanSecrets.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exitCode": 0,
+      "result": "32 tests passed in three files",
+      "localLog": "temp/fixhelpref3-extra-runtime.log"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/modelApiElicitation.test.ts",
+        "test/unit/museCodeReviewer.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exitCode": 0,
+      "result": "676 fake-transport runtime tests passed",
+      "localLog": "temp/fixhelpref3-runtime-truth.log"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceEntry.test.ts",
+        "test/unit/ReferencePage.test.tsx",
+        "test/unit/acpRuntime.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "exitCode": 0,
+      "result": "74 passed; 38 ACP runtime tests add to the distinct total, 36 reference tests repeated",
+      "localLog": "temp/fixhelpref3-post-drill-green.log"
+    },
+    {
+      "command": ["npm", "run", "typecheck"],
+      "exitCode": 0,
+      "result": "All five TypeScript projects passed",
+      "localLog": "temp/fixhelpref3-typecheck-final2.log"
+    },
+    {
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "scripts/lib/reference.mjs",
+        "src/shared/cliCommands.ts",
+        "src/shared/featureCatalog.ts",
+        "src/shared/keybindings.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/reference/referenceEntry.ts",
+        "src/shared/reference/referenceSource.ts",
+        "src/shared/reference/text.ts",
+        "src/shared/reference/types.ts",
+        "src/webview/components/Modal.tsx",
+        "src/webview/components/ReferencePage.tsx",
+        "test/unit/Modal.test.tsx",
+        "test/unit/ReferencePage.test.tsx",
+        "test/unit/referenceEntry.test.ts",
+        "test/unit/referenceGenerator.test.mjs"
+      ],
+      "exitCode": 0,
+      "result": "Zero errors/warnings on changed source/tests",
+      "localLog": "temp/fixhelpref3-eslint-final3.log"
+    },
+    {
+      "command": ["npm", "run", "check:reference"],
+      "exitCode": 0,
+      "result": "53 features / 44 commands / 58 settings / 26 slash / 116 CLI; generated files current",
+      "localLog": "temp/fixhelpref3-reference-fresh-final.log"
+    },
+    {
+      "command": ["npm", "run", "check:l10n"],
+      "exitCode": 0,
+      "result": "14 tables, 165 manifest strings, 602 source files; zero problems",
+      "localLog": "temp/fixhelpref3-l10n-final.log"
+    },
+    {
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 0,
+      "result": "332 VS Code APIs, 31 files importing vscode, 25 Node built-ins, 61 theme variables; zero problems",
+      "localLog": "temp/fixhelpref3-host-api-final.log"
+    },
+    {
+      "command": ["npm", "run", "deadcode"],
+      "exitCode": 0,
+      "result": "Plain knip passed; two existing configuration hints only",
+      "localLog": "temp/fixhelpref3-deadcode-final.log"
+    },
+    {
+      "command": ["npx", "jscpd"],
+      "exitCode": 0,
+      "result": "Zero clones",
+      "localLog": "temp/fixhelpref3-jscpd-final.log"
+    },
+    {
+      "command": ["npm", "run", "build"],
+      "exitCode": 0,
+      "result": "Production size/split/model-text/host-global/notice checks passed",
+      "localLog": "temp/fixhelpref3-build-release.log"
+    },
+    {
+      "command": ["node", "scripts/a11y.mjs", "help", "help-narrow"],
+      "exitCode": 0,
+      "result": "8 pages across four themes; zero violations, undecided, exemptions or missing results; contrast of eight obscured/scrolled-out elements unmeasured",
+      "localLog": "temp/fixhelpref3-a11y-en.log"
+    },
+    {
+      "command": ["node", "scripts/a11y.mjs", "help", "help-narrow", "--lang=fr"],
+      "exitCode": 0,
+      "result": "8 pages across four themes; zero violations, undecided, exemptions or missing results; contrast of eight obscured/scrolled-out elements unmeasured",
+      "localLog": "temp/fixhelpref3-a11y-fr.log"
+    },
+    {
+      "command": ["node", "dist/acp.js", "help", "--all"],
+      "exitCode": 0,
+      "result": "Production CLI help succeeded without a model request",
+      "localLog": "temp/fixhelpref3-cli-en.log"
+    },
+    {
+      "command": ["LC_ALL=fr_FR.UTF-8", "node", "dist/acp.js", "help", "--all"],
+      "exitCode": 0,
+      "result": "Production CLI help succeeded without a model request",
+      "localLog": "temp/fixhelpref3-cli-fr.log"
+    },
+    {
+      "command": ["node", "dist/acp.js", "exec", "--help"],
+      "exitCode": 0,
+      "result": "Production CLI help succeeded without a model request",
+      "localLog": "temp/fixhelpref3-exec-help.log"
+    },
+    {
+      "command": ["node", "dist/acp.js", "scan-secrets", "--help"],
+      "exitCode": 0,
+      "result": "Production CLI help succeeded without a model request",
+      "localLog": "temp/fixhelpref3-scan-help.log"
+    },
+    {
+      "command": ["node", "dist/acp.js", "report", "--help"],
+      "exitCode": 0,
+      "result": "Production CLI help succeeded without a model request",
+      "localLog": "temp/fixhelpref3-report-help.log"
+    },
+    {
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "docs/certification/help-reference.md",
+        "docs/certification/help-reference/fixhelpref3-drills.json",
+        "docs/reference.md",
+        "l10n/ui.cs.json",
+        "l10n/ui.de.json",
+        "l10n/ui.es.json",
+        "l10n/ui.fr.json",
+        "l10n/ui.hu.json",
+        "l10n/ui.it.json",
+        "l10n/ui.ja.json",
+        "l10n/ui.ko.json",
+        "l10n/ui.pl.json",
+        "l10n/ui.pt-br.json",
+        "l10n/ui.ru.json",
+        "l10n/ui.tr.json",
+        "l10n/ui.zh-cn.json",
+        "l10n/ui.zh-tw.json",
+        "package.nls.cs.json",
+        "package.nls.de.json",
+        "package.nls.es.json",
+        "package.nls.fr.json",
+        "package.nls.hu.json",
+        "package.nls.it.json",
+        "package.nls.ja.json",
+        "package.nls.json",
+        "package.nls.ko.json",
+        "package.nls.pl.json",
+        "package.nls.pt-br.json",
+        "package.nls.ru.json",
+        "package.nls.tr.json",
+        "package.nls.zh-cn.json",
+        "package.nls.zh-tw.json",
+        "scripts/lib/reference.mjs",
+        "src/shared/cliCommands.ts",
+        "src/shared/featureCatalog.ts",
+        "src/shared/keybindings.ts",
+        "src/shared/l10n/en.ts",
+        "src/shared/reference/reference.generated.json",
+        "src/shared/reference/reference.generated.ts",
+        "src/shared/reference/referenceEntry.ts",
+        "src/shared/reference/referenceSource.ts",
+        "src/shared/reference/text.ts",
+        "src/shared/reference/types.ts",
+        "src/webview/components/Modal.tsx",
+        "src/webview/components/ReferencePage.tsx",
+        "test/unit/Modal.test.tsx",
+        "test/unit/ReferencePage.test.tsx",
+        "test/unit/referenceEntry.test.ts",
+        "test/unit/referenceGenerator.test.mjs",
+        "docs/certification/help-reference/fixhelpref3-description-audit.md",
+        "docs/certification/help-reference/fixhelpref3-validation.json"
+      ],
+      "exitCode": 0,
+      "result": "All changed files formatted",
+      "localLog": "temp/fixhelpref3-prettier-release-check.log"
+    }
+  ],
+  "productionSizesKiB": {
+    "extension": {
+      "actual": 437.8,
+      "cap": 600
+    },
+    "modelApi": {
+      "actual": 446.6,
+      "cap": 475
+    },
+    "reference": {
+      "actual": 99.7,
+      "cap": 100
+    },
+    "referencePage": {
+      "actual": 36.9,
+      "cap": 50
+    },
+    "deferredWebviewJs": {
+      "actual": 49.8,
+      "cap": 50
+    },
+    "acp": {
+      "actual": 820.0,
+      "cap": 850
+    }
+  },
+  "scope": {
+    "aggregateQuality": "Reserved for lead by rig brief; not run",
+    "nativePhoneIntegration": "Pre-existing planned boundary, not certified",
+    "livePaidRequests": 0,
+    "credentialsRead": false,
+    "dependenciesAdded": 0,
+    "toolsInstalled": 0,
+    "gatesWeakened": false,
+    "mergeRebasePush": false
+  }
+}

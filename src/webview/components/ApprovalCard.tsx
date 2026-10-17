@@ -5,7 +5,7 @@
 // every stage of a multi-command line (M25).
 // A paid call never gets a card: the host's paid-use popup asks (M58).
 
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import type { ApprovalStage, RequirementRef } from '../../shared/agentEvents'
 import {
   BROWSER_CHECK_SUBJECT_KIND,
@@ -15,7 +15,12 @@ import {
   WEB_FETCH_SUBJECT_KIND,
 } from '../../shared/constants'
 import { fill, templateParts } from '../../shared/l10n/text'
+import type { TeamWorkerLabel } from '../../shared/teamView'
 import type { PendingApproval } from '../state/uiState'
+const TeamWorkerLabelView = lazy(async () => {
+  const module = await import('./TeamUi')
+  return { default: module.TeamWorkerLabel }
+})
 
 export interface ApprovalDecisionInput {
   readonly approvalId: string
@@ -27,6 +32,11 @@ export interface ApprovalDecisionInput {
 export interface ApprovalCardProps {
   readonly approval: PendingApproval
   readonly toolName: string
+  /**
+   * A worker's own approval (M96 lane U2): the panel labels the card with
+   * the role, the agent and the task, never with worker text (threat T8).
+   */
+  readonly worker?: TeamWorkerLabel | undefined
   readonly onDecide: (decision: ApprovalDecisionInput) => void
 }
 
@@ -90,7 +100,7 @@ function titleTemplate(approval: PendingApproval, stage: ApprovalStage | undefin
   }
 }
 
-export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps) {
+export function ApprovalCard({ approval, toolName, worker, onDecide }: ApprovalCardProps) {
   const [feedback, setFeedback] = useState('')
   const hasFeedbackChoice = approval.availableChoices.some(
     (choice) => choice.acceptsFeedback === true,
@@ -122,6 +132,11 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
       // which a stray Enter would then make).
       tabIndex={-1}
     >
+      {worker === undefined ? null : (
+        <Suspense fallback={null}>
+          <TeamWorkerLabelView worker={worker} />
+        </Suspense>
+      )}
       <div className="approval-title">
         {templateParts(title).map((part, index) =>
           typeof part === 'string' ? part : <code key={String(index)}>{subject}</code>,

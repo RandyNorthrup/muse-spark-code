@@ -10,6 +10,8 @@ still open, so this page does not claim certified headless or Action support,
 nor npm-registry Action support. Command receipts and precise claim limits live in
 [m80.md](certification/m80.md).
 
+ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
+
 ## One prompt, one workspace, one turn
 
 ```text
@@ -53,6 +55,7 @@ muse-spark-code-acp scan-secrets fix.patch
 | --ephemeral                         | off                    | Model API only; suppress the session store.                                                                                 |
 | --key-stdin                         | off                    | Model API only; non-TTY stdin.                                                                                              |
 | --muse-binary, --shell-sandbox      | serve defaults         | Muse Code only.                                                                                                             |
+| --account <id>                      | default                | Pin one run to one account; refused with --key-stdin in CI.                                                                 |
 | --verbose                           | off                    | Trace on redacted stderr.                                                                                                   |
 
 Budget grammar is unsigned ASCII decimal `[0-9]+(?:\.[0-9]{1,6})?`,
@@ -120,16 +123,19 @@ result is not published: the run step reports status unknown, as for a missing
 result, and publishes nothing.
 
 Stdout contains only the chosen format: text finalMessage, one JSON result, or
-JSONL envelopes `{v:1,seq,time,type,...payload}` (seq starts at 1; time is ISO).
+JSONL envelopes `{v:2,seq,time,type,...payload}` (seq starts at 1; time is ISO).
 Stderr holds redacted diagnostics and status/requests/settled/uncertain/image
 summary. No cwd or raw tool text appears in the result. Changed/denied paths are
 relative with forward slashes; input names are basenames.
 
-The complete machine contracts are [result v1](schemas/exec-result-v1.schema.json)
-and [event v1](schemas/exec-event-v1.schema.json), shipped in npm `schemas/`.
+The complete machine contracts are [result v2](schemas/exec-result-v2.schema.json)
+and [event v2](schemas/exec-event-v2.schema.json), shipped in npm `schemas/`.
 Required fields and numeric/status invariants are validated by the runtime;
 `x-runtime-invariants` records arithmetic/sequencing that JSON Schema alone
 cannot express. `npm run schema:exec -- --check` checks deterministic bytes.
+In v2 every USD field is a canonical decimal string, exactly representable in
+micro-USD. Numeric v1 output is historical and the current Action refuses it.
+Budgets still require explicit flags and obey the same hard bounds.
 The runtime zod schemas (`src/runtime/exec/execProtocol.ts`) are normative.
 The shipped event schema also enforces the update egress rule itself:
 `$defs.execSafeUpdateValue` refuses chunk/tool `sessionUpdate` values and
@@ -155,7 +161,7 @@ event variant against a structural mirror of the event schema, parity-tested.
 | usage.costUsd                                               | {settled,uncertain,reserved,total,isUpperBound}, or null on Muse Code. total includes retained full reservations. isUpperBound iff uncertainty, a pending reservation or any latched stop.                                                |
 | usage.paid                                                  | {imageAttempts,imagesReturned,imagesRefunded,imagesUncertain,settledUsd,uncertainUsd}. Zero on Muse Code.                                                                                                                                 |
 | ledger                                                      | {capUsd,breach,refusal,lastResponse}, or null on Muse Code. lastResponse carries n, terminal, incompleteReason, endedWithoutTerminal, httpStatus, transportError, usage (valid/missing/invalid) and settlement (priced/full-reservation). |
-| limits                                                      | {budgetUsd:number\|null,maxRequests:number\|null,timeoutSeconds:number}.                                                                                                                                                                  |
+| limits                                                      | {budgetUsd:string\|null,maxRequests:number\|null,timeoutSeconds:number}.                                                                                                                                                                  |
 | durationMs                                                  | Nonnegative finite elapsed time from process start.                                                                                                                                                                                       |
 | error                                                       | null for completed; otherwise {kind,message}, whole-redacted.                                                                                                                                                                             |
 
@@ -400,6 +406,13 @@ LR remains required before registry installation is called supported.
 ## Launcher bounds, cancellation and publication
 
 One owner covers input diff, exec, extraction, patch Git, scanner and publication.
+The input review diff is streamed: only `max-diff-bytes` are retained on disk
+and in memory, cut between UTF-8 code points. The remainder is drained and
+counted under the same 30-second Git/input deadlines, so the prompt can name
+the full byte count without storing a large release diff. Prefix capture is
+restricted to this read-only review input; ordinary stdout/stderr, published
+patch and scanner bounds still refuse overflow.
+
 Apply owns its isolated artifact-validation/checkout/apply/commit/push
 lifecycle; the download step runs before it. The gate, install and checkout
 steps have bounded owners of their own; the tools and input-staging steps have
@@ -631,6 +644,14 @@ are recorded in [BADGEFIX](certification/badgefix.md).
 
 ## Evidence and troubleshooting
 
+M105 parses repeatable `exec --attach <path>` flags and confines each source
+before credential handling. Production video/audio dispatch remains refused
+until captured capabilities, Files storage/ownership and exact per-attempt
+media liability are bound. Receipts carry name/size and completion metadata,
+never file bytes. Headless `--record`, `/record` and `/attach` are usage errors
+(exit 2); there is no unattended screen recorder or implicit paid transcription.
+These flags do not change M80's pending live/hosted certification.
+
 `.github/workflows/action-check.yml` runs W with the composite Action on the
 three hosted runners against the fake-only test package, whose bin
 (`test/action/exec-test-launcher.ts`) answers only Meta's origin with a scripted
@@ -696,3 +717,81 @@ ran none of L/LA/LR, read no real credential and called no model.
   eligible diagnostics, review separately; do not bypass scanner or apply guard.
 - Registry refusal: require genuine release provenance and exact identity; a
   candidate digest or separately fetched attestation cannot satisfy LR.
+
+## Resource governor in headless runs
+
+### Reading local usage
+
+M107 adds `--resource-governor on|off`, `--cpu-max <30–100>` and
+`--memory-max <40–98>` to the exec parser and Help reference. Omitted flags
+retain machine settings; flags override only the run. Settings use the
+runtime machine store described in the [ACP guide](acp.md#resource-status-and-resume).
+The default is on. Headless relocation is refused, and no remembered device,
+permission or paid grant is introduced.
+
+The package ships `schemas/exec-event-v2.schema.json` beside frozen
+`exec-event-v1.schema.json` and `exec-result-v1.schema.json`. The resource sink
+uses event envelope version 2 with a `resource` variant; nested results use
+M106’s version 2 contract with decimal USD and optional structured output. It validates the entire union, keeps the existing update-egress
+restrictions, monotonic sequence and output backpressure. The M80 runner uses this v2 sink; the Action accepts version 2,
+validates each resource variant and the nested v2 result invariants.
+Active runtime spawn leases and complete resource enforcement remain a named
+integration binding; event validation alone does not certify that enforcement.
+
+Resource events contain levels, reason codes, aggregate counts and numeric
+readings, never PID/birth identity, commands, paths, names or environment.
+Resource pressure does not delay Stop, cancel, approvals or paid admission,
+and it never kills work. Critical-volume write checks, all watched volumes,
+retained journal and native containment remain qualification handoffs in
+[M107](certification/m107.md). M80's existing live-acceptance limits still apply.
+
+## Structured headless answers
+
+`exec --output-schema <file>` reads a bounded JSON Schema file through an open
+file descriptor, verifies its identity and confines its real path to the
+workspace. `--output-schema-outside` explicitly permits an external path.
+The strict subset supports bounded local `$defs`/`$ref` references. It rejects
+external references, reference-only cycles and unsupported constraints such as
+regular expressions. Objects are closed and require every declared property;
+arrays declare their item type. Recursive object definitions are permitted.
+Both schemas and answers have byte, depth, node and validation work limits. Its closed schema and digest are fixed before session dispatch;
+a changed model, active session or repeated configuration is refused.
+
+The captured `muse-spark-1.3-contributor` record selects provider strict JSON
+Schema. An unknown model uses the explicitly announced local validator with
+the schema appended outside the reusable prefix. The runtime does not invent
+a forced-tool codec. This is a local wiring receipt, not release qualification
+for providers whose transports/capability records are absent from this base.
+
+Successful version-2 results add `output.value` and `output.validation`
+(`provider` or `local`), paired with `ledger.outputSchemaSha256`. Event and result
+readers validate the same canonical contract; schema mismatch or validation
+budget exhaustion exits 10, retaining incurred spend and the schema digest.
+No repair call runs for the final answer. Partial invalid JSON is withheld,
+secret scanning still precedes output, and calls without these flags retain
+the ordinary request and result bytes. The schema body is not stored in the
+ledger. The attached schema does not change headless paid-feature opt-ins,
+consent exclusions or the conditional budget theorem above.
+
+The portable core shares strict declarations, safe parallel reads, bounded
+retry/idle waits, fresh repeat witnesses and output continuation with the
+extension. Provider-specific evidence is injected at the backend factory;
+unknown capabilities stay off. Native Muse Code effort, deletion and feedback
+remain unavailable until their captured feature ports are supplied. These
+limits apply equally to every ACP editor and to headless execution.
+`muse-spark-code-acp --usage` (or `usage --json`) reads the same versioned local
+journal and checked page totals as the interactive page. It makes no model
+request. Headless executions record settled calls through the shared writer;
+usage files contain no prompts, paths, keys or key digests. This does not change
+M80's pending hosted/live certification or paid admission policy.
+
+## Deterministic report gates (M113)
+
+The standalone `report quality` command uses the shared local collection engine;
+`exec` is unchanged. `--strict` fails on unavailable sources and plan drift;
+`--fail-on` selects semantic conditions. A report never runs the checks named by
+package scripts: it reads only recorded normalized completions, so a missing
+journal is unavailable rather than a fabricated pass. CI network collection is
+refused by the report binding, even with `--network`; CI credentials are never
+passed to report tools. Approved service captures and installed native editor
+receipts remain separate certification requirements.

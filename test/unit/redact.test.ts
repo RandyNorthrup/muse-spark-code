@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   countSecretMatches,
   MAY_HOLD_SECRET,
@@ -8,6 +8,7 @@ import {
   SECRET_RULES,
   type SecretRule,
 } from '../../src/core/redact'
+import { registerSecretValue, secretRedactor } from '../../src/shared/redact'
 import { isValidModelApiKey } from '../../src/host/auth/credentialStore'
 import { CURRENT_SHAPE_KEYS, OLDER_SHAPE_KEYS } from './helpers/modelApiKeys'
 
@@ -77,6 +78,29 @@ const SHAPES: readonly (readonly [shape: string, text: string, redacted: string]
   ['an AWS access key id', `id AKIA${'A'.repeat(16)} end`, 'id [redacted] end'],
   ['a Slack token', `xoxb-${'1'.repeat(12)}`, '[redacted]'],
   ['a Stripe-style key', `sk_live_${'a'.repeat(24)}`, '[redacted]'],
+  // M95-S (PLAN.md D74): the BYO providers' key shapes and account ids.
+  // Each text holds only its own shape's literal, proving the literal is in
+  // the prefilter; `bedrock-api-key-` also holds `api-key` by construction.
+  ['a Groq key', `log gsk_${'a'.repeat(24)} end`, 'log [redacted] end'],
+  ['an xAI key', `log xai-${'b'.repeat(24)} end`, 'log [redacted] end'],
+  ['a Fireworks key', `log fw_${'c'.repeat(24)} end`, 'log [redacted] end'],
+  ['a Hugging Face token', `log hf_${'d'.repeat(34)} end`, 'log [redacted] end'],
+  ['a Together key', `log tgp_v1_${'e'.repeat(20)} end`, 'log [redacted] end'],
+  ['a Bedrock key', `log ABSK${'F'.repeat(16)} end`, 'log [redacted] end'],
+  ['a Bedrock gateway key', `log bedrock-api-key-${'g'.repeat(16)} end`, 'log [redacted] end'],
+  ['an OpenRouter user id', '{"user_id":"u_123"}', '{"user_id":"[redacted]"}'],
+  [
+    'a creator and workspace id',
+    'creator_user_id=c_1 workspace_id=w_2',
+    'creator_user_id=[redacted] workspace_id=[redacted]',
+  ],
+  ['an organization header', 'openai-organization: org_abc', 'openai-organization: [redacted]'],
+  ['a workspace header', 'anthropic-workspace-id: ws_1', 'anthropic-workspace-id: [redacted]'],
+  [
+    'a team id in prose',
+    'failed for team 123e4567-e89b-12d3-a456-426614174000 end',
+    'failed for team [redacted] end',
+  ],
   ['an upper-case secret variable', 'GITHUB_TOKEN=abc123 next', 'GITHUB_TOKEN=[redacted] next'],
   ['an api-key header', 'x-api-key: abc123', 'x-api-key: [redacted]'],
   ['a token authorization', 'Authorization: token abc123', 'Authorization: token [redacted]'],
@@ -464,6 +488,40 @@ function withoutLiterals(text: string, literals: readonly string[]): string {
 // The prefilter gates the log redactor and the export alike: a rule whose
 // literal it missed would silently never run (RV84 #9). These prove it is a
 // superset of every rule, on the rule's own declaration and on real matches.
+describe("secretRedactor, one stream's redaction", () => {
+  const key = 'opaque-account-secret/+value='
+  const texts = [
+    `raw ${key} end`,
+    JSON.stringify({ k: key }),
+    `b64 ${btoa(key)} x`,
+    `query ${encodeURIComponent(key)} and Authorization: Bearer abc.def.ghi`,
+    'nothing here',
+  ]
+  it('redacts exactly as redactSecrets, with and without the patterns', () => {
+    for (const shouldIncludePatterns of [true, false]) {
+      const redact = secretRedactor([key], shouldIncludePatterns)
+      for (const text of texts)
+        expect(redact(text)).toBe(redactSecrets(text, [key], shouldIncludePatterns))
+    }
+  })
+  it("derives its literals' forms once and still sees a secret registered later", () => {
+    redactSecrets('warm the registered forms')
+    const encode = vi.spyOn(globalThis, 'btoa')
+    const redact = secretRedactor([key], false)
+    for (const text of texts) redact(text)
+    const calls = encode.mock.calls.length
+    const late = 'late-registered-secret'
+    const release = registerSecretValue(late)
+    try {
+      expect(redact(`x ${late} y ${key}`)).toBe('x [redacted] y [redacted]')
+    } finally {
+      release()
+      encode.mockRestore()
+    }
+    expect(calls).toBe(1)
+  })
+})
+
 describe('MAY_HOLD_SECRET, the prefilter in front of every rule', () => {
   const samples = [...SHAPES.map(([, text]) => text), ...EARLIER_SAMPLES]
 

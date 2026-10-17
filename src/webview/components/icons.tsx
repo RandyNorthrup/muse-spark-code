@@ -30,46 +30,36 @@ function Svg({ title, children }: IconProps & { readonly children: ReactNode }) 
 }
 
 /**
- * The Meta logo (the brand mark the owner supplied for the panel), in its
- * own colours: it is not a stroke icon, so it does not go through `Svg`.
- * Gradient ids are prefixed to stay unique should the mark ever render twice.
+ * The product's own mark: the squiggled handwritten "m" of
+ * media/marketplace-icon.svg (two humps and a flick, no loops), the same
+ * geometry as media/icon.svg, drawn here as a stroke in the brand blue
+ * (--ms-brand-mark, set by styles.css; currentColor keeps forced-colors honest).
+ * The box matches the old logo's (24x16) so the empty state's layout does
+ * not shift. Crop to the path bounds plus half the stroke on every side;
+ * meet the existing box: fill it in the limiting dimension (the width) and
+ * sit centred in the other, so the mark keeps the Marketplace proportions
+ * without clipping the round caps. Decorative next to the product name:
+ * no animation.
  */
-export function MetaLogo({ title }: IconProps) {
+export function ProductMark({ title }: IconProps) {
   const isDecorative = title === undefined
   return (
     <svg
-      className="icon brand-logo"
-      viewBox="0 0 256 171"
+      className="icon product-mark"
+      viewBox="2 6.43 20 11.14"
+      preserveAspectRatio="xMidYMid meet"
       width="24"
       height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       aria-hidden={isDecorative || undefined}
       role={isDecorative ? undefined : 'img'}
     >
       {isDecorative ? null : <title>{title}</title>}
-      <defs>
-        <linearGradient id="meta-logo-a" x1="13.878%" x2="89.144%" y1="55.934%" y2="58.694%">
-          <stop offset="0%" stopColor="#0064E1" />
-          <stop offset="40%" stopColor="#0064E1" />
-          <stop offset="83%" stopColor="#0073EE" />
-          <stop offset="100%" stopColor="#0082FB" />
-        </linearGradient>
-        <linearGradient id="meta-logo-b" x1="54.315%" x2="54.315%" y1="82.782%" y2="39.307%">
-          <stop offset="0%" stopColor="#0082FB" />
-          <stop offset="100%" stopColor="#0064E0" />
-        </linearGradient>
-      </defs>
-      <path
-        fill="#0081FB"
-        d="M27.651 112.136c0 9.775 2.146 17.28 4.95 21.82 3.677 5.947 9.16 8.466 14.751 8.466 7.211 0 13.808-1.79 26.52-19.372 10.185-14.092 22.186-33.874 30.26-46.275l13.675-21.01c9.499-14.591 20.493-30.811 33.1-41.806C161.196 4.985 172.298 0 183.47 0c18.758 0 36.625 10.87 50.3 31.257C248.735 53.584 256 81.707 256 110.729c0 17.253-3.4 29.93-9.187 39.946-5.591 9.686-16.488 19.363-34.818 19.363v-27.616c15.695 0 19.612-14.422 19.612-30.927 0-23.52-5.484-49.623-17.564-68.273-8.574-13.23-19.684-21.313-31.907-21.313-13.22 0-23.859 9.97-35.815 27.75-6.356 9.445-12.882 20.956-20.208 33.944l-8.066 14.289c-16.203 28.728-20.307 35.271-28.408 46.07-14.2 18.91-26.324 26.076-42.287 26.076-18.935 0-30.91-8.2-38.325-20.556C2.973 139.413 0 126.202 0 111.148l27.651.988Z"
-      />
-      <path
-        fill="url(#meta-logo-a)"
-        d="M21.802 33.206C34.48 13.666 52.774 0 73.757 0 85.91 0 97.99 3.597 110.605 13.897c13.798 11.261 28.505 29.805 46.853 60.368l6.58 10.967c15.881 26.459 24.917 40.07 30.205 46.49 6.802 8.243 11.565 10.7 17.752 10.7 15.695 0 19.612-14.422 19.612-30.927l24.393-.766c0 17.253-3.4 29.93-9.187 39.946-5.591 9.686-16.488 19.363-34.818 19.363-11.395 0-21.49-2.475-32.654-13.007-8.582-8.083-18.615-22.443-26.334-35.352l-22.96-38.352C118.528 64.08 107.96 49.73 101.845 43.23c-6.578-6.988-15.036-15.428-28.532-15.428-10.923 0-20.2 7.666-27.963 19.39L21.802 33.206Z"
-      />
-      <path
-        fill="url(#meta-logo-b)"
-        d="M73.312 27.802c-10.923 0-20.2 7.666-27.963 19.39-10.976 16.568-17.698 41.245-17.698 64.944 0 9.775 2.146 17.28 4.95 21.82L9.027 149.482C2.973 139.413 0 126.202 0 111.148 0 83.772 7.514 55.24 21.802 33.206 34.48 13.666 52.774 0 73.757 0l-.445 27.802Z"
-      />
+      <path d="M3 16.57L3.25 16.48L3.52 16.27L3.84 15.95L4.18 15.52L4.55 15L4.95 14.39L5.37 13.74L5.79 13.02L6.23 12.29L6.67 11.55L7.11 10.83L7.53 10.14L7.94 9.49L8.33 8.91L8.7 8.42L9.04 8.01L9.35 7.71L9.62 7.52L9.86 7.43L10.07 7.47L10.24 7.62L10.39 7.86L10.5 8.22L10.58 8.66L10.64 9.17L10.69 9.74L10.72 10.37L10.74 11.02L10.76 11.68L10.78 12.35L10.81 12.98L10.84 13.57L10.9 14.12L10.97 14.59L11.07 14.99L11.19 15.3L11.35 15.51L11.53 15.62L11.75 15.63L11.99 15.53L12.26 15.35L12.56 15.07L12.89 14.71L13.24 14.27L13.6 13.78L13.98 13.24L14.37 12.68L14.76 12.09L15.16 11.5L15.54 10.93L15.92 10.38L16.29 9.88L16.64 9.44L16.97 9.06L17.27 8.76L17.56 8.54L17.82 8.41L18.05 8.37L18.25 8.41L18.42 8.54L18.58 8.76L18.71 9.05L18.82 9.41L18.92 9.82L18.99 10.27L19.06 10.77L19.13 11.27L19.19 11.79L19.26 12.29L19.33 12.78L19.41 13.23L19.5 13.63L19.62 13.98L19.75 14.27L19.89 14.49L20.07 14.64L20.27 14.7L20.49 14.69L20.74 14.6L21 14.45" />
     </svg>
   )
 }
@@ -240,6 +230,15 @@ export function FolderIcon(props: IconProps) {
   return (
     <Svg {...props}>
       <path d="M2.5 4.5h4l1.5 1.5h5.5v6.5h-11v-8Z" />
+    </Svg>
+  )
+}
+
+/** The composer's prompt menu (save, share, use a saved prompt). */
+export function BookmarkIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M4.5 2.5h7v11L8 10.5l-3.5 3v-11Z" />
     </Svg>
   )
 }

@@ -22,6 +22,87 @@ workspaces and keys in this profile share it; it stores no prompts or keys
 and sends nothing. Failed or unreadable storage refuses spending. Tab's
 independent $1/day journal is excluded. ACP and headless policies are unchanged.
 
+## Legal scan (M97 candidate)
+
+The deterministic phase of an explicit `/legal` request stays local: the deterministic scanner reads a
+bounded workspace snapshot and starts no model, backend, auth, shell command,
+package manager, hook, formatter or build. The report is held in the panel;
+scan does not save it to a file. The reserved headless `exec legal-scan`
+command (and its older `legal` alias) writes a report
+only with an explicit `--out` destination. Reports can identify local paths,
+package names/versions, source URLs and bounded evidence excerpts. Known
+credential formats and email values are scrubbed in findings. Scope paths pass the same scrubber after the S/W repairs. Other identifying text may remain, so treat exported reports
+as workspace information.
+
+The Model API native tool and Muse Code's authenticated loopback `ide` tool
+use the same scanner. When a model requests the tool in a normal coding turn,
+the scrubbed findings become a tool result and can be sent to Meta under that
+backend's existing terms and billing. Running the panel's deterministic scan
+itself makes no paid call. Optional model explanations require the paid feature setting, stored Model API key, priced consent and the shared daily budget. Only technical categories, severity and recognized license IDs are sent to Meta; source, paths, excerpts and package names are excluded. Missing returned usage retains reserved cost as unknown liability. Selected header repairs are
+local user edits: the preview stays local, requires separate ownership
+confirmation, and uses guarded conditional writes. Markdown export is saved
+only after an explicit request and destination choice; it uses the same
+scrubbed report facts and disclaimer.
+
+Editor registry enrichment is available by default, after a one-time workspace
+notice naming `registry.npmjs.org` and/or `pypi.org` as applicable and disclosing
+that only package names and versions are sent. Disable
+`museSpark.legalRegistryLookups` for local-only scanning. ACP uses the same
+notice through the editor permission prompt, remembered for this agent process;
+`/legal --offline` disables it. Headless commands remain off unless `--registry`
+is supplied. Only fixed public HTTPS registries are queried; redirects are
+refused. Private registry configuration, source, paths, source excerpts, keys,
+headers and lockfile bodies are never uploaded. No persistent registry cache
+is kept. Unknown local findings remain when enrichment is declined or offline;
+registry metadata supplements evidence and never enables a fix or settles
+ownership. This feature does not certify legal compliance.
+
+## ChatGPT and Copilot subscriptions (M95b integration)
+
+When you choose a ChatGPT model, OpenAI receives the conversation history,
+instructions, attachments supported by the codec, tool definitions and tool
+results at `https://api.openai.com/v1/responses`, as it would for an OpenAI
+API-key request. `store: false` is requested; OpenAI's terms govern retention.
+Sign-in, ID-token validation, refresh and revocation contact
+`https://auth.openai.com`. Catalogue discovery contacts OpenAI's models
+endpoint without sending a conversation. The opaque installation identifier is
+random, never an account name. OpenAI may rewrite a request's cache key; we do
+not use it as account identity.
+
+The extension keeps its issued client, access and refresh tokens only in VS
+Code SecretStorage. The standalone ACP runtime uses the operating system's
+credential store. Lock and installation-id files contain no token. The
+webview, tools, hooks and child processes never receive the grant. Remove
+revokes and deletes this product's record, including deletion after a revoke
+failure. Other applications' OAuth files are not consulted.
+After the ID token is verified, only a SHA-256 hash of its issuer and subject
+is retained for the plan notice. The webview receives that hash, never the raw
+subject, email or name. It scopes acknowledgement to the verified account;
+legacy grants without identity keep the disclosure visible.
+
+With a Copilot model, the same conversation and tool results go through VS
+Code's language-model API to GitHub's Copilot service and its selected model
+provider. VS Code owns consent and credentials; this product does not extract
+them. GitHub's retention and training terms, including terms applicable to
+individual plans, apply. Copilot is unavailable in confidential workspaces.
+The plan notice identifies AI-generated content and includes GitHub's report
+link. Token estimates and dispatched-request tallies stay locally in the
+extension's state; ACP ChatGPT tallies currently live for the process lifetime.
+
+## Account metadata and developer audit
+
+M108's local `providers.json` holds opaque account ids, user-chosen labels,
+order, limit groups and thresholds; it holds no credential. Credentials stay
+in each account's origin-bound SecretStorage/OS-store slot.
+
+Machine-local Developer options state holds unlock/expiry, recorded profile
+ids and their provider/account ids. Its append-only `developer/developer-audit.jsonl`
+holds the time, fixed action/option/editor words and opaque profile ids;
+it contains no label, origin, path, prompt or credential and sends nothing.
+Expiry retains recorded profile state; Reset deletes only resources owned by
+its ledger after confirmation. The runtime refuses unbound profile cleanup,
+so it does not claim deletion or forget ownership without its resource owner.
+
 ## What the extension sends, and to whom
 
 - **Your prompts, attachments and mentioned files.** Everything you type into
@@ -391,8 +472,7 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
     this workspace); a due prompt never runs on its own.
 
 The extension itself has **no telemetry**, no analytics, no automatic crash
-reporting and no hosted server of its own. **Report a problem** contacts
-nothing: it builds a draft that leaves only through an export you choose
+reporting and no hosted server of its own. **Report a problem** builds a local draft that leaves only through an export you choose
 (see [Reporting a problem](#reporting-a-problem)). It contacts Meta when you send a message,
 sign in, dictate with Muse Voice, use a paid feature, run a scheduled prompt
 with **Run now**, or open a panel while signed in (to list models; that request
@@ -423,6 +503,9 @@ workspace-relative path, language id and redacted code around the cursor.
 Multi-line requests also send bounded redacted excerpts of recent edits and
 symbol definitions. Standard is the default and Meta does not train on this
 traffic; the contributor model is a separate choice that permits training.
+The consent question names the model it covers, and the first request on a
+different model asks again, so contributor training is always in a question
+you answered.
 Requests use `store: false` and their own prompt cache key, with no chat
 history, goal or memory.
 
@@ -441,10 +524,30 @@ its suggestion is dismissed, so its cost is accounted for. Missing usage
 keeps the reservation. The typing-through cache and the recent-edit path
 list are kept only in this window's memory.
 
-Tab's hook bridge is prepared for M91/lane K; configuring Cursor's Tab hooks
-does not yet execute them in this build. When that lane lands, a local
-`beforeTabFileRead` hook sees the full unredacted file and may deny it;
-`afterTabFileEdit` observes accepted edits locally.
+**Cursor's Tab hooks run in this build.** When hooks are enabled
+(`museSpark.modelApiHooks`) and the workspace is trusted, a
+`beforeTabFileRead` hook configured in the project's `.muse/spark-hooks.json`
+or your user `spark-hooks.json` runs as a local process before Tab reads any
+file: the current file and every context file. Its standard input holds the
+file's absolute path, its **full, unredacted text** (secrets included:
+redaction happens only before text leaves for Meta), the workspace folder
+paths, the Tab model and the request id. An `afterTabFileEdit` hook runs
+after you accept a suggestion, in full or a word or line at a time, and
+receives the file's absolute path, the accepted text and the line before
+and after it (512 characters each at most), a 1-based range, the workspace
+folder paths, the model and the request id; it only observes. The extension
+sends neither payload anywhere; the command you configured decides what it
+does with it, so configure only commands you trust. Hook processes get a
+scrubbed environment, never the Model API key.
+
+A hook file that is present but cannot be loaded in full stops Tab reading
+any file until it is fixed, and the status bar says so; the log names the
+problem. From the moment a hook file or setting change is noticed until it
+has been reloaded, Tab reads nothing. A request whose trust, Tab settings,
+`files.exclude`, ignore files, hook configuration or consent change before
+it is sent, or before its answer shows, is dropped; the last check runs
+immediately before the request goes out. The model a request sends is the
+one its consent question named, at the price it named.
 
 ## Credentials
 
@@ -459,6 +562,11 @@ does not yet execute them in this build. When that lane lands, a local
   VS Code's per-workspace extension state (its number, address and title,
   by session id), and the worktrees the extension made in its global state
   (folder, repository, branch or pull request, and whether you trusted it).
+- GitHub app (arriving with M123): editors without their own GitHub sign-in
+  sign in through the project's OAuth app "Muse Spark Code (Unofficial)" by
+  GitHub's device flow, asking for the `repo` scope; the token is kept in
+  the operating system's keychain or the vault, and you can revoke it in
+  GitHub's settings (Applications, Authorized OAuth Apps).
 - The Muse Code CLI keeps its own sign-in. On Windows and Linux it is in
   the CLI's credential file (`~/.config/muse/auth.json`). On macOS the token
   is in your login Keychain (item `ai.meta.dev.credentials`, account
@@ -516,6 +624,25 @@ does not yet execute them in this build. When that lane lands, a local
     sign in again.
 
 ## What stays on your machine
+
+### Usage history and browser companion
+
+The shared `usage/` journal stores checked counters, model and editor labels,
+price provenance and allow-listed limit snapshots. It excludes prompts, tool
+arguments, file/workspace paths, account ids, secrets and key digests. It stays
+in the local user-data folder described in the README: raw calls for 30 days,
+then daily rollups for the configured retention (365 days by default). Disabling
+history stops new writes; existing history remains until retention or explicit
+delete. Delete asks with the record count and cannot remove spend ledgers or paid
+grants. Exports are local files created only by a save, download or explicit
+CLI output path. No usage history is uploaded.
+
+The companion serves the same page only on `127.0.0.1`. A one-use fragment code
+is exchanged for a per-window bearer held in memory; authenticated fetch calls
+and event streams stay on loopback. No cookies, browser credential storage,
+telemetry or remote page assets are used. Closing ACP closes its listener; an
+otherwise inactive listener expires after 30 minutes. The code leaves the
+address bar after exchange.
 
 - Conversation history on the Muse Code backend is the CLI's own session
   store under `~/.local/share/muse` (Meta's format). The extension reads it
@@ -714,8 +841,10 @@ hands it and what its tools read or run, the same way the extension does:
 The panel reaches the same dialog from the palette's **Report an issue…**,
 from **Report this** on a recorded error notice or failed turn, and from
 **Report a problem** on the panel's crash screen. The extension never posts
-or uploads the report and calls no network service or model for it; there
-is no telemetry and no GitHub access.
+or uploads the report and makes no model call for it. On the Model API backend,
+preparing facts reads Meta’s public service-status endpoint without authorization
+or report content; only the alive flag and an allowlisted operational word enter
+the draft. Read failure omits that fact. There is no telemetry or GitHub access.
 
 - **The flight recorder.** Each VS Code window keeps its own journal in the
   extension's global storage, `reports/journal-<window>.jsonl`, with an
@@ -865,3 +994,119 @@ Lanes A to D are integrated and the live receipt LA passed on 2026-10-05; L and
 LR remain open. Read
 [CI guide](ci.md) and [M80 receipts](certification/m80.md) for exact flow,
 retention/cleanup bounds, platform limits and support claims.
+
+## Resource governor (M107 integration candidate)
+
+## Prompt and chat sharing
+
+Machine readings and thresholds stay in the harness process. Tree identity
+(PID and birth, job/cgroup/group membership) exists only for local ownership
+proof; resource status, events and history schemas exclude it. The governor
+neither inspects command lines nor inventories the person's own processes.
+Ordinary existing child environment/credential filtering is preserved.
+Sharing is local and starts only from an explicit action. A preview holds the
+exact scrubbed bytes in memory; only its final confirmation permits copy,
+file save or local browser opening. No hosted destination is implemented.
+Confidential workspaces, or unavailable policy, refuse sharing.
+
+The resource journal is local only: `usage/v1/resources/<UTC day>/` in the
+machine's private agent data folder, one append-only file per recording
+process. It holds per-minute CPU and memory percentages, available-memory
+buckets, optional GPU/disk readings, level, configured thresholds, level,
+deferral, pause and override events, and per-kind CPU-seconds and peak memory
+of the harness's own registered work. No process identities, commands, paths,
+process names or environment go into its records; strict schemas refuse them
+on write and on read. Only the VS Code window's governor and the ACP agent
+record, and only while usage history is on (the editor setting or the agent's
+flag, and the shared usage-history choice). Consent is checked when each
+reading is collected: nothing gathered while history is off is kept or written
+later. Each recorder also replaces one small `live/<collector>.json` file with
+its open minute so far. Completed days become one daily row each (averages,
+minutes per level, event count, harness CPU time) in `rollups/<YYYY-MM>.json`,
+kept for the usage-history days; minute detail keeps seven recorded days.
+The usage page's **Delete history** names how many resource entries it
+removes, then, holding the journal's write lock, writes a reset boundary
+(`resource-history-reset.json`, only a timestamp) beside the usage folder and
+removes the folder. Every recorder and the daily-row upkeep work under the same
+lock and check that boundary again as each write lands, and every read drops
+anything, daily rows included, from at or before it, so nothing recorded
+before the delete is written or shown afterwards. A delete that fails is
+reported and can be retried; it is never shown as done while anything is
+left, including a leftover of an earlier attempt. Removal renames an entry to a quarantine name and deletes it only once
+that name proves to be the validated entry in the validated folder; on Linux
+and Windows the folder is held open (Linux) or the entry is (Windows), so a
+swapped link cannot redirect it. macOS keeps a narrow same-user race,
+described in [SECURITY](../SECURITY.md#resource-ownership-and-disk-cleanup-m107-candidate).
+Nothing is sent anywhere.
+Conversation-only shares contain user and assistant text. Full shares may
+contain portable tool arguments and outputs, commands, outcomes, shown
+reasoning and approval decisions. Code blocks and attachment names are
+optional. Diffs and explicitly selected attachment text require separate
+options; history that retains only metadata cannot supply attachment bytes.
+No live handles, replay credentials or arbitrary backend objects are exported.
+
+Relocation's planned peer status is only `level` and the headroom bucket
+`ample`, `some` or `none`. It does not send raw machine readings, processes or
+paths. A dispatch still uses the user's approved pairing, repository mapping,
+base snapshot and receiver permission/paid consent. Resource policy creates no
+new network authorization. Local disk watch paths and temporary-root manifests
+are ownership evidence; public status/history exposes no path. Disk cleanup
+review and installed-host acceptance remain open in
+[M107's record](certification/m107.md).
+Every string, including identifiers, titles, names and chosen contents, goes
+through the credential/account/path scrub. Registered values are refreshed
+before preview and confirmation in the editor. Workspace paths become
+relative; home, user and unrelated absolute paths become redaction markers.
+An unknown secret shape can survive, so inspect the preview. Local output
+files are privately written and confined; opening HTML loads no scripts or
+remote assets.
+
+Saving a prompt is separate from sharing: the portable local prompt file
+retains its body and metadata verbatim. Personal files use the agent data
+folder; workspace files use `.muse/prompts/`. Do not save secrets or commit
+private prompts. Settings Sync copies personal prompts only with explicit
+global opt-in. Raw HTTPS import uses the existing pinned public-address
+transport under a 128 KiB decoded-byte cap and refuses confidential policy.
+Imported text is untrusted, reviewed before acceptance, and never executed
+by import or loading.
+
+In the ACP runtime, sharing refreshes its already-known credential-variable
+values and the stored key of an active Model API backend. A key that becomes
+known after preview invalidates release if it appears anywhere in the portable
+document, including JSON strings. Standalone save/list/use never read a key.
+
+## Deterministic reports (M113)
+
+`/report` reads bounded workspace plan, package, Git, changelog and certification
+facts locally. Report history, normalized check completions and decoded response
+cache live in owner-only `reports/v1/` storage outside the workspace. Other agents'
+usage files are read only after the corresponding explicit setting opt-in.
+The shared export scrub removes secrets, registered values and local profile
+paths before canonical hashing, rendering and storage; JSON remains structurally
+valid. Account labels and tokens are not report fields.
+
+Editor GitHub reads use an existing silent sign-in and current network setting;
+terminal collection requires `--network` and uses `gh`'s own identity. No Model API
+key is read or sent to a child process. The check journal retains only the check name, normalized outcome, duration,
+Git commit and observation time; it contains no command or stdout. A writer
+lease with unprovable ownership is preserved. Manual repair requires all
+relevant writers to have stopped.
+
+The network-off setting and cancellation
+are checked before dispatch; validated decoded cache entries use ETags. No report
+makes a model call. Posting and email are not offered by the integrated report UI;
+those adapters require explicit target permission and their missing owning hosts.
+
+## Multimodal integration boundary (M105)
+
+Video/audio provider delivery and native recording are not yet enabled by the
+production bindings. Their portable adapters are tested with fakes. Once
+bound, uploads send file bytes to the selected provider and persist until the
+configured expiry or successful deletion; session deletion releases ownership
+before deleting an unshared upload. Metadata alone is retained in history and
+exports; exports omit provider file IDs. Contributor models may train on the
+inputs. A screen recording includes visible screen content; microphone and
+system sound require separate opt-ins, and Attach follows a private preview.
+Discard deletes local temporary bytes. Unknown storage billing refuses upload;
+batch transcription requires price/budget consent before any paid request.
+See [M105 certification](certification/m105.md) for the missing bindings.

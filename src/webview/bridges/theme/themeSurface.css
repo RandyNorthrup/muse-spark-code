@@ -1,0 +1,13 @@
+/* Only the root opted into the companion/native theme owns this surface. */
+[data-ms-theme] {
+  color: var(--ms-text);
+  background-color: var(--ms-surface);
+  font-family: var(--ms-font-ui);
+  font-size: var(--ms-font-size);
+  color-scheme: dark;
+}
+
+[data-ms-theme='light'],
+[data-ms-theme='hc-light'] {
+  color-scheme: light;
+}

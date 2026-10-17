@@ -1,17 +1,20 @@
 // Node English fallback regions, generated from the one canonical table.
-// Browser and integration builds keep en.ts unchanged. Accessors retain the
+// Integration builds keep en.ts unchanged. Accessors retain the
 // complete enumerable shape, while an English Node consumer loads only the
 // regions whose values it reads. Serializing a full table reads every region.
 import { Buffer } from 'node:buffer'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { runInNewContext } from 'node:vm'
-import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
+import { brotliCompressSync, deflateSync, constants as zlibConstants } from 'node:zlib'
 import ts from 'typescript'
 import { loadL10n } from './l10nSource.mjs'
+import { browserStartupSources } from './browserKeybindings.mjs'
+import { RESOURCE_WEBVIEW_ENTRIES } from './webviewBundles.mjs'
 
 const TABLE = 'src/shared/l10n/en.ts'
 export const UI_TEXT_REGIONS = [
+  { name: 'media', output: 'dist/uiTextMedia.js', keys: /^media$/ },
   {
     name: 'runtime',
     output: 'dist/uiTextRuntime.js',
@@ -25,7 +28,7 @@ export const UI_TEXT_REGIONS = [
   {
     name: 'surfaces',
     output: 'dist/uiTextSurfaces.js',
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew)/,
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$)/,
   },
 ]
 
@@ -133,18 +136,517 @@ export function compressedEnglish(file, isProduction, compressionQuality) {
   }
 }
 
-/** The browser still carries all English; repeated fragments share a dictionary. */
+/** Encode browser values with the same lossless native codec in every build. */
+function inlineBrowserTable(table, compressionLevel, compressionMemoryLevel, readers) {
+  const alphabet = Array.from({ length: 94 }, (_, index) => String.fromCodePoint(index + 33))
+    .filter((character) => !['"', "'", '\\'].includes(character))
+    .join('')
+  const originalKeys = Object.keys(table)
+  const lanesByKey = new Map(originalKeys.map((key, index) => [key, readers?.[index]]))
+  const keys =
+    readers === undefined
+      ? originalKeys
+      : originalKeys.toSorted(
+          (left, right) =>
+            lanesByKey.get(left).localeCompare(lanesByKey.get(right)) || left.localeCompare(right),
+        )
+  let previous = ''
+  const names = keys
+    .map((key) => {
+      let shared = 0
+      // Keep the prefix byte in ASCII, below the key delimiter.
+      while (shared < 26 && shared < key.length && key[shared] === previous[shared]) shared++
+      previous = key
+      return String.fromCodePoint(97 + shared) + key.slice(shared)
+    })
+    .join('|')
+  const lanes = readers === undefined ? undefined : keys.map((key) => lanesByKey.get(key)).join('')
+  const compressed = deflateSync(JSON.stringify([names, keys.map((key) => table[key]), lanes]), {
+    level: compressionLevel,
+    memLevel: compressionMemoryLevel,
+  })
+  let packed = ''
+  let queued = 0
+  let bits = 0
+  for (const byte of compressed) {
+    queued |= byte << bits
+    bits += 8
+    if (bits <= 13) continue
+    let word = queued & 8191
+    const used = word > 88 ? 13 : 14
+    if (used === 14) word = queued & 16_383
+    queued >>= used
+    bits -= used
+    packed += alphabet[word % 91] + alphabet[Math.floor(word / 91)]
+  }
+  if (bits > 0) {
+    packed += alphabet[queued % 91] + alphabet[Math.floor(queued / 91)]
+  }
+  return `const alphabet=${JSON.stringify(alphabet)},packed=${JSON.stringify(packed)};
+const bytes=new Uint8Array(${compressed.length});
+let queued=0,bits=0,pending=-1,offset=0;
+for(const character of packed){const digit=alphabet.indexOf(character);if(pending<0){pending=digit}else{const word=pending+digit*91;queued|=word<<bits;bits+=(word&8191)>88?13:14;while(bits>7){bytes[offset++]=queued;queued>>=8;bits-=8}pending=-1}}
+const [names,values,readers]=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).json();
+let previous='';
+const keys=names.split('|').map(name=>previous=previous.slice(0,name.charCodeAt(0)-97)+name.slice(1));
+${
+  readers === undefined
+    ? 'export const EN=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));export function setVaultEnglish(english){EN.vault=english}'
+    : `export const EN_SHAPE=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));
+export const EN=Object.fromEntries(keys.flatMap((key,index)=>readers[index]==='1'?[[key,EN_SHAPE[key]]]:[]));
+const lazyValues={};
+export function installSurfaceEnglish(table){Object.assign(lazyValues,table)}
+export function setVaultEnglish(english){installSurfaceEnglish({vault:english})}
+keys.forEach((key,index)=>{if(readers[index]==='2')Object.defineProperty(EN,key,{enumerable:true,configurable:true,get(){if(!Object.hasOwn(lazyValues,key))throw new Error('English surface is not loaded: '+key);return lazyValues[key]}})});`
+}`
+}
+
+/** The standalone browser fallback retains the entire canonical table. */
 export const compactBrowserEnglish = {
   name: 'compact-browser-english',
   setup(build) {
     build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
-      const { EN, compactEnglishSource } = await loadL10n(process.cwd())
+      const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
+        await loadL10n(process.cwd())
+      // DIET1: the complete fallback stays inline. Native DEFLATE decoding
+      // completes before dependent ESM modules run (Chrome 128 and later).
       return {
-        contents: compactEnglishSource(EN),
+        contents: inlineBrowserTable(
+          EN,
+          L10N_BROWSER_COMPRESSION_LEVEL,
+          L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
+        ),
         loader: 'js',
-        watchFiles: [args.path, 'src/shared/l10n/compactEnglish.ts', 'src/shared/constants.ts'],
+        watchFiles: [args.path, 'src/shared/constants.ts'],
       }
     })
   },
+}
+
+/** Browser table validation needs canonical slots and structure, never host prose. */
+function browserTableContract(value) {
+  return typeof value === 'string'
+    ? [...new Set(value.match(/\{\w+\}/g))].join('')
+    : Object.fromEntries(
+        Object.entries(value).map(([key, nested]) => [key, browserTableContract(nested)]),
+      )
+}
+
+/**
+ * Collect every literal text reader in the shipped static and dynamic source graph.
+ * `excluded` are roots that install their own deferred English when loaded
+ * (the independent resource entries); a graph that reaches one stops there.
+ */
+export function browserTextKeys(entries, english, eagerSources = new Set(), excluded = new Set()) {
+  const seen = new Set()
+  const keys = new Set()
+  const eagerKeys = new Set()
+  const visit = (file) => {
+    file = path.resolve(file)
+    if (seen.has(file) || file === path.resolve(TABLE) || excluded.has(file)) return
+    seen.add(file)
+    const tree = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
+    const resolve = (specifier) => {
+      if (!specifier.startsWith('.')) return
+      const source = path.resolve(path.dirname(file), specifier)
+      const resolved = [source, `${source}.ts`, `${source}.tsx`, `${source}/index.ts`].find(
+        (candidate) => /\.tsx?$/.test(candidate) && existsSync(candidate),
+      )
+      if (resolved !== undefined) visit(resolved)
+    }
+    const walk = (node) => {
+      if (
+        ts.isPropertyAccessExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === 'UI_TEXT'
+      ) {
+        keys.add(node.name.text)
+        if (eagerSources.has(file)) eagerKeys.add(node.name.text)
+      }
+      // Group names also occur as protocol/command words. Only an actual
+      // UI_TEXT access makes an object-valued group a reader.
+      if (ts.isStringLiteral(node) && typeof english[node.text] === 'string') {
+        keys.add(node.text)
+        if (eagerSources.has(file)) eagerKeys.add(node.text)
+      }
+      if (
+        ts.isElementAccessExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === 'UI_TEXT'
+      ) {
+        if (ts.isStringLiteral(node.argumentExpression)) keys.add(node.argumentExpression.text)
+        else if (
+          file !== path.resolve('src/webview/components/ReferencePage.tsx') ||
+          node.argumentExpression.getText(tree) !== 'entry.usageKey'
+        )
+          throw new Error(`Unregistered dynamic browser text reader: ${file}`)
+      }
+      if (
+        ts.isCallExpression(node) &&
+        node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+        node.arguments[0] !== undefined &&
+        ts.isStringLiteral(node.arguments[0])
+      )
+        resolve(node.arguments[0].text)
+      ts.forEachChild(node, walk)
+    }
+    walk(tree)
+    for (const node of tree.statements) {
+      if (
+        ((ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) ||
+          (ts.isExportDeclaration(node) && !node.isTypeOnly)) &&
+        node.moduleSpecifier !== undefined &&
+        ts.isStringLiteral(node.moduleSpecifier)
+      ) {
+        resolve(node.moduleSpecifier.text)
+      }
+    }
+  }
+  for (const entry of entries) visit(entry)
+  // Help resolves typed ui/usageKey references from the generated model at runtime.
+  const reference = JSON.parse(
+    readFileSync('src/shared/reference/reference.generated.json', 'utf8'),
+  )
+  const collect = (value) => {
+    if (typeof value === 'string' && Object.hasOwn(english, value)) keys.add(value)
+    else if (value !== null && typeof value === 'object') {
+      if (Object.hasOwn(value, 'cli')) keys.add('referenceCliOptions')
+      if (Object.hasOwn(value, 'tip')) keys.add('paletteTips')
+      for (const nested of Object.values(value)) collect(nested)
+    }
+  }
+  if (seen.has(path.resolve('src/webview/components/ReferencePage.tsx'))) collect(reference)
+  for (const key of keys)
+    if (!Object.hasOwn(english, key)) throw new Error(`Unknown browser text: ${key}`)
+  return { keys, files: [...seen], eagerKeys }
+}
+
+/** Exclude synthetic probes within the project, regardless of the checkout's parent path. */
+export function browserStartupRoots(entries, root = process.cwd()) {
+  return entries.filter((entry) => {
+    const relative = path.relative(root, path.resolve(root, entry)).replaceAll('\\', '/')
+    return !relative.endsWith('/ReferencePage.tsx') && !relative.startsWith('temp/')
+  })
+}
+
+/** Production browser readers retain their English; complete translation checks retain their contract. */
+export const compactBrowserUiText = {
+  name: 'compact-browser-ui-text',
+  setup(build) {
+    let data
+    build.onStart(async () => {
+      const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
+        await loadL10n(process.cwd())
+      const entries = Object.values(build.initialOptions.entryPoints)
+      const roots = browserStartupRoots(entries).filter(
+        (entry) => !/[/\\](?:ResourceSurface|ResourcesSection)\.tsx$/.test(entry),
+      )
+      const eagerSources = browserStartupSources(roots).files
+      const { keys, files, eagerKeys } = browserTextKeys(entries, EN, eagerSources)
+      const resourceEntries = Object.values(RESOURCE_WEBVIEW_ENTRIES)
+      const nonResourceKeys = browserTextKeys(
+        entries.filter((entry) => !resourceEntries.includes(entry.replaceAll('\\', '/'))),
+        EN,
+        new Set(),
+        // M107 U–C1: chat's deferred import of the chip still loads the chip's own English,
+        // and the usage page's lazy history root installs browser-resource-english itself.
+        new Set(resourceEntries.map((entry) => path.resolve(entry))),
+      ).keys
+      const resourceKeys = browserTextKeys(Object.values(RESOURCE_WEBVIEW_ENTRIES), EN).keys
+      const deferredKeys = [...keys].filter((key) => !eagerKeys.has(key))
+      // Help-only CLI/reference prose travels with the existing Help closure.
+      // Direct readers on other surfaces stay in their current fallback region.
+      const helpFiles = files.filter((file) => {
+        const normal = file.replaceAll('\\', '/')
+        return !normal.includes('/shared/reference/') && !normal.endsWith('/ReferencePage.tsx')
+      })
+      const helpKeys = deferredKeys.filter(
+        (key) =>
+          /^(?:reference|acp|exec|scanSecrets|reportUsage$)/.test(key) &&
+          helpFiles.every((file) => !readFileSync(file, 'utf8').includes(`UI_TEXT.${key}`)),
+      )
+      // M108: account and developer English load with their optional surfaces.
+      const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))
+      // STARTUP017: the schedule surfaces' English loads beside them; chat
+      // startup paints restored settlement rows from scheduleSettlement alone.
+      const scheduleKeys = deferredKeys.filter((key) => key === 'scheduleV2')
+      // Each panel module that reads it installs it before its body runs, however
+      // chat loads that module (a deferred surface, a row body or a direct import).
+      const scheduleReaders = new Set(
+        scheduleKeys.length === 0
+          ? []
+          : files.filter(
+              (file) =>
+                /[/\\]src[/\\]webview[/\\]/.test(file) &&
+                !eagerSources.has(file) &&
+                readFileSync(file, 'utf8').includes('UI_TEXT.scheduleV2'),
+            ),
+      )
+      // M109: the vault group's English travels with the vault surface, whose
+      // vaultEnglish.ts installs it before any vault render; never twice here.
+      const surfaceKeys = deferredKeys.filter(
+        (key) =>
+          !helpKeys.includes(key) &&
+          !accountKeys.includes(key) &&
+          !scheduleKeys.includes(key) &&
+          key !== 'vault' &&
+          nonResourceKeys.has(key),
+      )
+      const readers = new Set([...keys].filter((key) => !deferredKeys.includes(key)))
+      const contract = Object.fromEntries(
+        Object.entries(EN).map(([key, value]) => [
+          key,
+          readers.has(key) ? value : browserTableContract(value),
+        ]),
+      )
+      const lanes = Object.keys(EN)
+        .map((key) => {
+          if (readers.has(key)) return '1'
+          return deferredKeys.includes(key) ? '2' : '0'
+        })
+        .join('')
+      data = {
+        EN,
+        keys,
+        files,
+        lanes,
+        deferredKeys,
+        surfaceKeys,
+        helpKeys,
+        accountKeys,
+        scheduleKeys,
+        scheduleReaders,
+        resourceKeys,
+        contract,
+        level: L10N_BROWSER_COMPRESSION_LEVEL,
+        memoryLevel: L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
+      }
+    })
+    build.onLoad({ filter: /[/\\]l10n[/\\]vaultEnglish\.ts$/ }, (args) => {
+      const property = uiTextProperties().find((property) => property.key === 'vault')
+      if (property === undefined) throw new Error('Missing canonical vault English')
+      return {
+        contents:
+          "import { forms } from './forms';\n" +
+          readFileSync(args.path, 'utf8').replace(
+            'const english = EN.vault',
+            () => `const english = ${property.source.slice('vault:'.length)}`,
+          ),
+        loader: 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [TABLE, args.path],
+      }
+    })
+    build.onResolve({ filter: /^browser-table-contract$/ }, () => ({
+      path: 'browser-table-contract',
+      namespace: 'browser-table-contract',
+    }))
+    for (const namespace of [
+      'browser-table-contract',
+      'browser-surface-english',
+      'browser-resource-english',
+      'browser-reference-english',
+      'browser-account-english',
+      'browser-schedule-english',
+    ]) {
+      build.onResolve({ filter: /.*/, namespace }, (args) => {
+        if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
+          return { path: path.resolve(TABLE), namespace: 'file' }
+      })
+    }
+    build.onLoad({ filter: /.*/, namespace: 'browser-table-contract' }, () => ({
+      contents:
+        "export { EN_SHAPE as EN } from '" + path.resolve(TABLE).replaceAll('\\', '/') + "'",
+      loader: 'js',
+    }))
+    build.onLoad({ filter: /[/\\]l10n[/\\]deferredEnglish\.ts$/ }, () => ({
+      contents:
+        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english'), import('browser-schedule-english')]) }",
+      loader: 'js',
+    }))
+    build.onLoad({ filter: /[/\\]installTable\.ts$/ }, (args) => ({
+      contents: readFileSync(args.path, 'utf8').replace(
+        "import { EN, type UiText } from '../shared/l10n/en'",
+        "import { EN } from 'browser-table-contract'; import type { UiText } from '../shared/l10n/en'",
+      ),
+      loader: 'ts',
+      resolveDir: path.dirname(args.path),
+      watchFiles: [args.path],
+    }))
+    build.onResolve({ filter: /^browser-surface-english$/ }, () => ({
+      path: 'browser-surface-english',
+      namespace: 'browser-surface-english',
+    }))
+    build.onResolve({ filter: /^browser-account-english$/ }, () => ({
+      path: 'browser-account-english',
+      namespace: 'browser-account-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-account-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';\n${inlineBrowserTable(Object.fromEntries(data.accountKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}\ninstallSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-surface-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.surfaceKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    build.onResolve({ filter: /^browser-schedule-english$/ }, () => ({
+      path: 'browser-schedule-english',
+      namespace: 'browser-schedule-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-schedule-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.scheduleKeys.map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    // STARTUP017: registered before the lazy() rewrite below, so a reader
+    // that also declares a lazy() surface fails loudly rather than losing one.
+    build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx?$/ }, (args) => {
+      if (!data.scheduleReaders.has(path.resolve(args.path))) return
+      const source = readFileSync(args.path, 'utf8')
+      if (/\blazy\(|ReferencePage/.test(source))
+        throw new Error(`Unsupported lazy surface in a schedule English reader: ${args.path}`)
+      return {
+        contents: "await import('browser-schedule-english');\n" + source,
+        loader: args.path.endsWith('.tsx') ? 'tsx' : 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [args.path],
+      }
+    })
+    build.onResolve({ filter: /^browser-resource-english$/ }, () => ({
+      path: 'browser-resource-english',
+      namespace: 'browser-resource-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-resource-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(
+  Object.fromEntries(
+    [...data.resourceKeys]
+      .filter((key) => data.deferredKeys.includes(key))
+      .toSorted((left, right) => (left < right ? -1 : Number(left > right)))
+      .map((key) => [key, data.EN[key]]),
+  ),
+  data.level,
+  data.memoryLevel,
+)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    // Independent resource roots install deferred English before their first render.
+    build.onLoad({ filter: /[/\\](?:ResourceSurface|ResourcesSection)\.tsx$/ }, (args) => ({
+      contents: "import 'browser-resource-english';\n" + readFileSync(args.path, 'utf8'),
+      loader: 'tsx',
+      resolveDir: path.dirname(args.path),
+      watchFiles: [args.path],
+    }))
+    build.onResolve({ filter: /^browser-reference-english$/ }, () => ({
+      path: 'browser-reference-english',
+      namespace: 'browser-reference-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-reference-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(Object.fromEntries(data.helpKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    build.onLoad({ filter: /[/\\]paletteRegistry\.ts$/ }, (args) => ({
+      contents:
+        "await Promise.all([import('browser-surface-english'), import('browser-schedule-english')]);\n" +
+        readFileSync(args.path, 'utf8'),
+      loader: 'ts',
+      resolveDir: path.dirname(args.path),
+      watchFiles: [args.path],
+    }))
+    build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx$/ }, (args) => {
+      const source = readFileSync(args.path, 'utf8')
+      if (!source.includes('lazy') && !source.includes('ReferencePage')) return
+      const tree = ts.createSourceFile(
+        args.path,
+        source,
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TSX,
+      )
+      const edits = []
+      const visit = (node) => {
+        if (
+          ts.isCallExpression(node) &&
+          ts.isIdentifier(node.expression) &&
+          (node.expression.text === 'lazy' ||
+            (node.expression.text === 'deferred' &&
+              node.arguments[0]?.getText(tree).includes("import('./components/ReferencePage')")))
+        ) {
+          if (
+            (node.expression.text === 'lazy' && node.arguments.length !== 1) ||
+            node.arguments[0] === undefined
+          )
+            throw new Error(`Unsupported lazy English loader: ${args.path}`)
+          const argument = node.arguments[0]
+          edits.push({
+            start: argument.getStart(tree),
+            end: argument.end,
+            source: `async () => { await ${node.expression.text === 'lazy' ? "Promise.all([import('browser-surface-english'), import('browser-account-english')])" : "import('browser-reference-english')"}; return await (${argument.getText(tree)})() }`,
+          })
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(tree)
+      if (edits.length === 0) return
+      let contents = source
+      const ordered = edits.toSorted((left, right) => right.start - left.start)
+      for (const edit of ordered)
+        contents = contents.slice(0, edit.start) + edit.source + contents.slice(edit.end)
+      return {
+        contents,
+        loader: 'tsx',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [args.path],
+      }
+    })
+    build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, (args) => {
+      if (path.resolve(args.path) !== path.resolve(TABLE)) return
+      return {
+        contents: inlineBrowserTable(data.contract, data.level, data.memoryLevel, data.lanes),
+        loader: 'js',
+        watchFiles: [args.path, ...data.files, 'src/shared/reference/reference.generated.json'],
+      }
+    })
+  },
+}
+
+/** Pack the complete reference only in Node production bundles. */
+export function compressedReference(isProduction) {
+  return {
+    name: 'compressed-node-reference',
+    setup(build) {
+      if (!isProduction) return
+      build.onLoad({ filter: /[/\\]reference\.generated\.ts$/ }, async (args) => {
+        const source = readFileSync(args.path, 'utf8')
+        const tree = ts.createSourceFile(args.path, source, ts.ScriptTarget.Latest, true)
+        const factory = tree.statements.find(
+          (node) => ts.isFunctionDeclaration(node) && node.name?.text === 'referenceModel',
+        )
+        if (factory === undefined) throw new Error('Missing generated reference factory')
+        const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
+        const modelPath = path.join(path.dirname(args.path), 'reference.generated.json')
+        const packed = brotliCompressSync(readFileSync(modelPath), {
+          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
+        }).toString('base64')
+        const factorySource = `export function referenceModel() { return parseReferenceModel(JSON.parse(brotliDecompressSync(Buffer.from(${JSON.stringify(packed)}, 'base64')).toString('utf8'))) }`
+        return {
+          contents:
+            "import { Buffer } from 'node:buffer'; import { brotliDecompressSync } from 'node:zlib';\n" +
+            source.slice(0, factory.getStart(tree)) +
+            factorySource +
+            source.slice(factory.end),
+          loader: 'ts',
+          resolveDir: path.dirname(args.path),
+          watchFiles: [args.path, modelPath],
+        }
+      })
+    },
+  }
 }

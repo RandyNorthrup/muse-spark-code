@@ -1,0 +1,59 @@
+{
+  "provider": "huggingface",
+  "capturedAt": "2026-10-04",
+  "totalRequests": 5,
+  "billedRequests": 2,
+  "freeRequests": 3,
+  "expected": {
+    "billed": 2,
+    "free": 3
+  },
+  "models": ["openai/gpt-oss-20b"],
+  "calls": [
+    {
+      "seq": 1,
+      "name": "models-list",
+      "method": "GET",
+      "url": "https://router.huggingface.co/v1/models",
+      "status": 200,
+      "billed": false,
+      "ms": 878
+    },
+    {
+      "seq": 2,
+      "name": "whoami-key-test",
+      "method": "GET",
+      "url": "https://huggingface.co/api/whoami-v2",
+      "status": 200,
+      "billed": false,
+      "ms": 255
+    },
+    {
+      "seq": 3,
+      "name": "tool-call-stream",
+      "method": "POST",
+      "url": "https://router.huggingface.co/v1/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 496
+    },
+    {
+      "seq": 4,
+      "name": "tool-result-stream",
+      "method": "POST",
+      "url": "https://router.huggingface.co/v1/chat/completions",
+      "status": 200,
+      "billed": true,
+      "ms": 432
+    },
+    {
+      "seq": 5,
+      "name": "error-invalid-model",
+      "method": "POST",
+      "url": "https://router.huggingface.co/v1/chat/completions",
+      "status": 400,
+      "billed": false,
+      "ms": 118
+    }
+  ]
+}

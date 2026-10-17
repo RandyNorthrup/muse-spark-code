@@ -1,0 +1,7 @@
+{
+  "name": "registry-fixture",
+  "license": "MIT",
+  "dependencies": {
+    "missing-license": "1.0.0"
+  }
+}

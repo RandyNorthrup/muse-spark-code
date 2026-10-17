@@ -1,0 +1,255 @@
+{
+  "machine": "kubuntu",
+  "date": "2026-10-06",
+  "repositoryDefaultTimeouts": true,
+  "drills": [
+    {
+      "id": "P1-sensitive-value",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "sensitive: container?.isKey === false && container.sensitive, → sensitive: false,",
+      "test": "withholds whole decoded sensitive strings across frames",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "0aa6bc537143ee6d136cc891f337986825fe7472d34ff7402ea45399d0f5bda3",
+      "sha256After": "0aa6bc537143ee6d136cc891f337986825fe7472d34ff7402ea45399d0f5bda3",
+      "restoredByteExact": true,
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"]
+    },
+    {
+      "id": "P1-editor-surfaces",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "sensitive: container?.isKey === false && container.sensitive, → sensitive: false,",
+      "test": "keeps decoded sensitive values out of events, history and ACP",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "0aa6bc537143ee6d136cc891f337986825fe7472d34ff7402ea45399d0f5bda3",
+      "sha256After": "0aa6bc537143ee6d136cc891f337986825fe7472d34ff7402ea45399d0f5bda3",
+      "restoredByteExact": true,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiArgumentPreview.test.ts",
+        "--maxWorkers=3"
+      ]
+    },
+    {
+      "id": "P1-normalized-key",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "key.normalize('NFKC').toLowerCase() → key",
+      "test": "withholds whole decoded sensitive strings across frames",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "0aa6bc537143ee6d136cc891f337986825fe7472d34ff7402ea45399d0f5bda3",
+      "sha256After": "0aa6bc537143ee6d136cc891f337986825fe7472d34ff7402ea45399d0f5bda3",
+      "restoredByteExact": true,
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"]
+    },
+    {
+      "id": "P1-registered-values",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "redactSecrets(decoded, this.literals) → redactSecrets(decoded)",
+      "test": "scrubs registered literal values after JSON decoding",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "0aa6bc537143ee6d136cc891f337986825fe7472d34ff7402ea45399d0f5bda3",
+      "sha256After": "0aa6bc537143ee6d136cc891f337986825fe7472d34ff7402ea45399d0f5bda3",
+      "restoredByteExact": true,
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"]
+    },
+    {
+      "id": "P2-rate",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "mutation": "if (!isForced && elapsed < TOOL_ARGUMENT_PREVIEW_INTERVAL_MS) → if (!isForced && elapsed < 0)",
+      "test": "processes 5,000 tiny deltas in under half a second with coalesced snapshots for both editors",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "9b22ab676dbbcfd4cdcf9adc81c80597c600721fdfd67af2b0391f6db8df3ff2",
+      "sha256After": "9b22ab676dbbcfd4cdcf9adc81c80597c600721fdfd67af2b0391f6db8df3ff2",
+      "restoredByteExact": true,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiArgumentPreview.test.ts",
+        "--maxWorkers=3"
+      ]
+    },
+    {
+      "id": "P2-no-append-snapshot",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "    this.retained += added.length →     this.snapshot()\n    this.retained += added.length",
+      "test": "processes 5,000 tiny deltas in under half a second with coalesced snapshots for both editors",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "0aa6bc537143ee6d136cc891f337986825fe7472d34ff7402ea45399d0f5bda3",
+      "sha256After": "0aa6bc537143ee6d136cc891f337986825fe7472d34ff7402ea45399d0f5bda3",
+      "restoredByteExact": true,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiArgumentPreview.test.ts",
+        "--maxWorkers=3"
+      ]
+    },
+    {
+      "id": "P2-interrupt-timer",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "mutation": "  private interruptArgumentPreview(callId: string): void {\n    this.clearArgumentPreviewTimer(callId) →   private interruptArgumentPreview(callId: string): void {",
+      "test": "cancels a queued coalesced preview before interrupt settlement",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "9b22ab676dbbcfd4cdcf9adc81c80597c600721fdfd67af2b0391f6db8df3ff2",
+      "sha256After": "9b22ab676dbbcfd4cdcf9adc81c80597c600721fdfd67af2b0391f6db8df3ff2",
+      "restoredByteExact": true,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiArgumentPreview.test.ts",
+        "--maxWorkers=3"
+      ]
+    },
+    {
+      "id": "P2-restored-settlement",
+      "file": "src/webview/state/uiState.ts",
+      "mutation": "        argumentPreview: undefined,\n        approval: undefined, →         approval: undefined,",
+      "test": "clears a persisted preview on reconcile settlement",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "c44441f323cf1200fb08fd967fb486ab609fd4f8bfba1b937092fb11dc3bc5e9",
+      "sha256After": "c44441f323cf1200fb08fd967fb486ab609fd4f8bfba1b937092fb11dc3bc5e9",
+      "restoredByteExact": true,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/toolArgumentPreview.test.tsx",
+        "--maxWorkers=3"
+      ]
+    },
+    {
+      "id": "P3-lazy-ui",
+      "file": "src/webview/components/ToolRow.tsx",
+      "mutation": "            <ToolArgumentPreview preview={entry.argumentPreview} /> →             <span>{UI_TEXT.toolArgumentPreviewPending}</span>\n            <ToolArgumentPreview preview={entry.argumentPreview} />",
+      "test": "keeps the substantive preview UI in its lazy chunk",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "2f1123203af4664f919948da4b89f1cb9048c62d9e725fb2195c87dd0cb87671",
+      "sha256After": "2f1123203af4664f919948da4b89f1cb9048c62d9e725fb2195c87dd0cb87671",
+      "restoredByteExact": true,
+      "command": ["npx", "vitest", "run", "test/unit/webviewBundle.test.mjs", "--maxWorkers=3"]
+    },
+    {
+      "id": "P3-preview-cap",
+      "file": "scripts/check-bundle-size.mjs",
+      "mutation": "const WEBVIEW_PREVIEW_BUDGET_KIB = 25 → const WEBVIEW_PREVIEW_BUDGET_KIB = 50",
+      "test": "bounds the new preview chunk independently without widening the deferred cap",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "92acdfdfc44393e1002e9dd6f916a91baed10bac3fb6be568115350e54ce4e08",
+      "sha256After": "92acdfdfc44393e1002e9dd6f916a91baed10bac3fb6be568115350e54ce4e08",
+      "restoredByteExact": true,
+      "command": ["npx", "vitest", "run", "test/unit/bundleSize.test.mjs", "--maxWorkers=3"]
+    },
+    {
+      "id": "P3-deferred-cap",
+      "file": "scripts/check-bundle-size.mjs",
+      "mutation": "const WEBVIEW_DEFERRED_BUDGET_KIB = 50 → const WEBVIEW_DEFERRED_BUDGET_KIB = 75",
+      "test": "bounds the new preview chunk independently without widening the deferred cap",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "92acdfdfc44393e1002e9dd6f916a91baed10bac3fb6be568115350e54ce4e08",
+      "sha256After": "92acdfdfc44393e1002e9dd6f916a91baed10bac3fb6be568115350e54ce4e08",
+      "restoredByteExact": true,
+      "command": ["npx", "vitest", "run", "test/unit/bundleSize.test.mjs", "--maxWorkers=3"]
+    },
+    {
+      "id": "P2-settled-preview",
+      "file": "src/webview/state/uiState.ts",
+      "mutation": "entry.elicitation === undefined &&\n        entry.argumentPreview === undefined → entry.elicitation === undefined",
+      "test": "clears a stale restored preview from an already",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "c44441f323cf1200fb08fd967fb486ab609fd4f8bfba1b937092fb11dc3bc5e9",
+      "sha256After": "c44441f323cf1200fb08fd967fb486ab609fd4f8bfba1b937092fb11dc3bc5e9",
+      "restoredByteExact": true,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/toolArgumentPreview.test.tsx",
+        "--maxWorkers=3"
+      ]
+    },
+    {
+      "id": "P3-preview-registration",
+      "file": "scripts/lib/webviewBundles.mjs",
+      "mutation": "  'ToolArgumentPreview',\n → ",
+      "test": "Unlisted deferred webview surface src/webview/components/ToolArgumentPreview.tsx",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "580aec1a10089f62b0aea1ebf0a673a48fedd33d146dd6f48dcffc70543886fe",
+      "sha256After": "580aec1a10089f62b0aea1ebf0a673a48fedd33d146dd6f48dcffc70543886fe",
+      "restoredByteExact": true,
+      "command": ["node", "scripts/check-bundle-split.mjs"]
+    },
+    {
+      "id": "P3-backend-registration",
+      "file": "scripts/check-bundle-split.mjs",
+      "mutation": "  'argumentPreview.ts',\n → ",
+      "test": "argumentPreview.ts is on neither list",
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "d52c9cfdd7aabb2e537edb92eeb5700145b60a13d41b2ff32fce263d992f2b21",
+      "sha256After": "d52c9cfdd7aabb2e537edb92eeb5700145b60a13d41b2ff32fce263d992f2b21",
+      "restoredByteExact": true,
+      "command": ["node", "scripts/check-bundle-split.mjs"]
+    },
+    {
+      "id": "P1-multiline-literal",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "this.literals.some((literal) => literal.includes('\\n')) → false",
+      "test": "withholds registered multiline values while the string remains open",
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "743b28c0ccb8dffb69d6b8d5b5ba4826df9245380b3cfa4e46794c769a4128ec",
+      "sha256After": "743b28c0ccb8dffb69d6b8d5b5ba4826df9245380b3cfa4e46794c769a4128ec",
+      "restoredByteExact": true
+    },
+    {
+      "id": "P2-final-flush",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "mutation": "Do not force either arguments.done or output_item.done preview emission",
+      "test": "processes 5,000 tiny deltas in under half a second with coalesced snapshots for both editors",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiArgumentPreview.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "observedNamedFailure": true,
+      "sha256Before": "9b22ab676dbbcfd4cdcf9adc81c80597c600721fdfd67af2b0391f6db8df3ff2",
+      "sha256After": "9b22ab676dbbcfd4cdcf9adc81c80597c600721fdfd67af2b0391f6db8df3ff2",
+      "restoredByteExact": true
+    }
+  ],
+  "exploratory": [
+    {
+      "id": "P1-multiline-literal",
+      "file": "src/core/backends/modelapi/argumentPreview.ts",
+      "mutation": "this.literals.some((literal) => literal.includes('\\n')) → false",
+      "test": "withholds registered multiline values while the string remains open",
+      "command": ["npx", "vitest", "run", "test/unit/argumentPreview.test.ts", "--maxWorkers=3"],
+      "exit": 0,
+      "observedNamedFailure": false,
+      "sha256Before": "743b28c0ccb8dffb69d6b8d5b5ba4826df9245380b3cfa4e46794c769a4128ec",
+      "sha256After": "743b28c0ccb8dffb69d6b8d5b5ba4826df9245380b3cfa4e46794c769a4128ec",
+      "restoredByteExact": true
+    }
+  ]
+}

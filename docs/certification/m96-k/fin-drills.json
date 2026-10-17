@@ -1,0 +1,86 @@
+[
+  {
+    "name": "native-priority",
+    "rig": "kubuntu",
+    "file": "processLifetime.ts",
+    "test": "runs marked child at below-normal priority with intent and OS confirmation on disk",
+    "before": "DE53D9A780C113875CBC064E3F812CC459A415463D887F88FABA606CF2F7C408",
+    "mutated": "4CE803159734D23AE8B9F2A0EBC47323B2C3F62178EC997C9BB687498ABAC826",
+    "after": "DE53D9A780C113875CBC064E3F812CC459A415463D887F88FABA606CF2F7C408",
+    "baselineExit": 0,
+    "redExit": 1,
+    "restoredExit": 0
+  },
+  {
+    "name": "native-marker-scan",
+    "rig": "kubuntu",
+    "file": "orphanRecovery.ts",
+    "test": "scans real marked descendants and stops only after click and second identity check",
+    "before": "28CA3C82FC2991F25E0F4981385EFAD530F69424BB59B8B8C9181551D3461542",
+    "mutated": "85B217965FAB1D93E6D96EBFECC5DABA7F1142B4A2635901961139A244B154E3",
+    "after": "28CA3C82FC2991F25E0F4981385EFAD530F69424BB59B8B8C9181551D3461542",
+    "baselineExit": 0,
+    "redExit": 1,
+    "restoredExit": 0
+  },
+  {
+    "name": "scope-populated-proof",
+    "rig": "kubuntu",
+    "file": "processLifetime.ts",
+    "test": "retains no-scope detached descendants as uncertain after direct child exit",
+    "before": "DE53D9A780C113875CBC064E3F812CC459A415463D887F88FABA606CF2F7C408",
+    "mutated": "12154E1BF9E189D02E358E7DF15EE16BDB9A2BF73B19FFEB17DDB736214BC140",
+    "after": "DE53D9A780C113875CBC064E3F812CC459A415463D887F88FABA606CF2F7C408",
+    "baselineExit": 0,
+    "redExit": 1,
+    "restoredExit": 0
+  },
+  {
+    "name": "retirement-monotonic",
+    "rig": "kubuntu",
+    "file": "processLifetime.ts",
+    "test": "journals a later proved retirement and never downgrades it to uncertain",
+    "before": "DE53D9A780C113875CBC064E3F812CC459A415463D887F88FABA606CF2F7C408",
+    "mutated": "AC499594E5DB7902A93788F0B8996D67D659357E24774EB0D7CA2E804F96FB5C",
+    "after": "DE53D9A780C113875CBC064E3F812CC459A415463D887F88FABA606CF2F7C408",
+    "baselineExit": 0,
+    "redExit": 1,
+    "restoredExit": 0
+  },
+  {
+    "name": "startup-reconciliation",
+    "rig": "kubuntu",
+    "file": "processLifetime.ts",
+    "test": "reconciles foreign journals before startup returns and preserves all foreign bytes",
+    "before": "DE53D9A780C113875CBC064E3F812CC459A415463D887F88FABA606CF2F7C408",
+    "mutated": "76B5DB25BBC605E5A17BD743490FBB69040DE7FA20DC2029885DB982BB97CCE9",
+    "after": "DE53D9A780C113875CBC064E3F812CC459A415463D887F88FABA606CF2F7C408",
+    "baselineExit": 0,
+    "redExit": 1,
+    "restoredExit": 0
+  },
+  {
+    "name": "state-home",
+    "rig": "kubuntu",
+    "file": "windowHints.ts",
+    "test": "uses state home and secures a real native owner-only hints folder",
+    "before": "14ACEBF74F699A663BA9B407478D83061581ABE79E9C5B7B5BB651E8C17D172E",
+    "mutated": "6384542EA4E84342D968B103FCE52621F819B18BF4F8B8ACEEBC401D52C802B3",
+    "after": "14ACEBF74F699A663BA9B407478D83061581ABE79E9C5B7B5BB651E8C17D172E",
+    "baselineExit": 0,
+    "redExit": 1,
+    "restoredExit": 0
+  },
+  {
+    "name": "parent-death",
+    "rig": "kubuntu",
+    "file": "processLifetime.ts",
+    "test": "hard parent death kills the real direct child under setpriv without a user scope",
+    "before": "DE53D9A780C113875CBC064E3F812CC459A415463D887F88FABA606CF2F7C408",
+    "mutated": "7AFE5ADC62FADB9D69C74A11932C78A09EF1C7E9F96F3F0BB1C59393E004B4F0",
+    "after": "DE53D9A780C113875CBC064E3F812CC459A415463D887F88FABA606CF2F7C408",
+    "baselineExit": 0,
+    "redExit": 1,
+    "restoredExit": 0
+  }
+]

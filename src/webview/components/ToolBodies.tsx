@@ -274,7 +274,12 @@ export function ToolImage({
     )
   }
   return (
-    <button type="button" className="tool-image" title={UI_TEXT.openFileTitle} onClick={onOpen}>
+    <button
+      type="button"
+      className="tool-image chat-control"
+      title={UI_TEXT.openFileTitle}
+      onClick={onOpen}
+    >
       <img src={image.dataUri} alt={fill(UI_TEXT.toolImageAlt, { path })} />
     </button>
   )

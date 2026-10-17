@@ -81,13 +81,17 @@ async function exported(items: readonly ItemSnapshot[]): Promise<SessionExport> 
 }
 
 function sanitize(doc: SessionExport) {
-  return sanitizeImportedSession(doc, {
-    sessionId: 'session-new',
-    workspaceRoot: '/work/here',
-    approvalMode: 'promptUnmatched',
-    modelId: 'muse-spark-1.3-mine',
-    now: '2026-09-28T13:00:00.000Z',
-  })
+  return sanitizeImportedSession(
+    doc,
+    {
+      sessionId: 'session-new',
+      workspaceRoot: '/work/here',
+      approvalMode: 'promptUnmatched',
+      modelId: 'muse-spark-1.3-mine',
+      now: '2026-09-28T13:00:00.000Z',
+    },
+    CONVERSATION_MODEL_TEXT,
+  )
 }
 
 /** The text of a replayed message's first part. */

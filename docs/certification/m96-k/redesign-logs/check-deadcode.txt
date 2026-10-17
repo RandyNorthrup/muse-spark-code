@@ -1,0 +1,4 @@
+npm notice run muse-spark-code@0.12.1 deadcode
+npm notice run knip
+Configuration hints (1)
+vendor/**    knip.jsonc  Remove from ignore

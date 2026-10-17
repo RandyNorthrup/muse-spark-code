@@ -1,0 +1,424 @@
+# M95b — lane U: shared plan UI
+
+Rig: Windows 11, `C:/lanes/M95BU`, branch `m95b/u`, based on lane S's
+reviewed `92ffb883`. This record covers the UI acceptance in D74/M95b,
+not the sign-in, codec, dispatch or release acceptance of other lanes.
+
+## Result and interfaces
+
+- The selected ChatGPT model has **Using ChatGPT plan** and **Manage usage**
+  beside the model pill. Copilot shows its plan and **Reduced**; a plan-key
+  model uses its provider label and injected HTTPS limits URL. A bare Muse
+  model gains no control. No model selection or paid call follows a link.
+- ChatGPT's first-use notice explains the shared Plus/Pro allowance and the
+  credit caveat. Browser acknowledgement is keyed by provider/account-id hash in local
+  storage (FIXM95BU below supersedes the original origin-wide key);
+  `App.planNoticePort` is the keyed injected interface for profile-wide
+  host persistence. A read failure
+  shows the notice. A write failure is reported through the existing bridge
+  and remembered only for the current mounted surface.
+- The plan-limit modal offers Manage usage, choose another model and close.
+  It never switches billing automatically, invents a reset time, or infers
+  a plan limit from an ordinary failure. It uses the latest completed turn
+  and the selected ChatGPT provider; dismissal covers that failure only.
+  Existing modal work takes precedence, and the composer stays inert while
+  the deferred plan surface first loads.
+- Account & usage renders requests, provider-reported tokens, estimated
+  tokens, and requests with unknown token usage separately. Plan rows show
+  no dollar price, quota or reset inferred from tokens. An old dollar cost
+  in a provider row cannot override its plan pricing. The explanatory text
+  states that plan allowance/credits are outside the app's dollar cap.
+  Its account rows name the chosen plan provider; ChatGPT/Copilot do not
+  appear as a Meta key or Meta pay-as-you-go backend.
+- Copilot's shared note names AI inaccuracy, its added rules and AI credits,
+  and identifies unreported tokens as estimated. Report content opens the
+  prescribed `mailto:copilot-partners@github.com` link through HostBridge.
+- Twenty new UI strings are read at render time from `UI_TEXT.planUi` and
+  translated in all 14 installed-language tables. Existing manifest text
+  is unchanged; there is no new command, setting or dependency.
+
+`usageReport.plans` is optional, validated by the shared protocol, and has
+lane S's non-secret `planUsageSchema` shape. Validation is local to the UI
+boundary so the activation bundle does not import provider implementation
+code; the tests exercise the same positive/negative samples against both
+schemas. Counts are nonnegative integers, provider IDs are valid and unique,
+and reported/estimated request counts cannot exceed the total. V/X/W must
+send these local tallies through this field. The UI does not fetch usage.
+
+`modelOption.planLimitsUrl` is optional and accepts only an HTTPS URL. The
+provider/preset wiring must pass the relevant public limits page together
+with `pricing: 'plan'`, its provider ID and label. Built-in ChatGPT and
+Copilot management URLs are constants. No credential or account identity
+is added to either message shape.
+
+Typed `turnCompleted.errorKind` survives the reducer and validated saved
+transcript. The capture fallback also works while a host still emits the
+generic `modelapi_error` kind. No service wire schema was invented here.
+
+## Capture basis
+
+The owner findings at `C:/lanes/_ctx/codex/M95B-FINDINGS.md` name the empty
+workspace captures: run `acdc0f60…`, zero model attempts, and run
+`577bc807…`, one counted attempt. The latter returned an HTTP 200 SSE error
+whose message contains **Subscription Sharing usage limit**. Tests and the
+fake harness use its exact full reason. The scrubber obscured the error
+code, so the UI uses that distinctive captured phrase as well as the
+planned typed `subscription_sharing_usage_limit_exceeded` kind. The owner
+revoked the issued tokens. This lane made no live or paid call.
+
+## Editor parity and ownership
+
+All surfaces are shared React components behind the existing HostBridge,
+with no VS Code import. Companion pages render the same App. JetBrains,
+Visual Studio, Eclipse, Zed, Xcode, Neovim, Emacs and Sublime adapters can
+pass the same model metadata, failures and usage report; they do not need
+native widgets. The ACP/runtime tally and error producers remain X's
+work. Copilot's native client remains available only where the editor
+supplies it, as D74 specifies. Actual editor host smokes are the lead's
+aggregate acceptance; this record claims shared rendering and fake-host
+tests only.
+
+W owns README, PRIVACY, CHANGELOG, PLAN, manifest wiring and the aggregate
+certification. Handoff: document the plan allowance/credit caveat, the
+limits recovery choices, estimated/unknown tokens, reduced Copilot and
+report link; integrate the optional tally/limits metadata and the host's
+profile acknowledgement port. The paid defaults, budget admission and
+paid-use consent implementation are outside this UI lane and unchanged.
+
+## Validation and failure drills
+
+All tests ran directly on this Windows rig with at most three files and
+`--maxWorkers=3 --testTimeout=120000`. The app/setup/plan batch passed
+**159/159**. After the last account-label and layout correction, the full
+plan/usage/composer batch passed **123/123**. The 16 new cases include bare
+Muse behaviour, deferred loading, persistent and injected acknowledgement,
+captured and typed failures, false-positive/stale-error refusal, dismissal,
+Copilot links, custom plan keys, runtime localization, tally provenance,
+unknown counts, dollar-label refusal, protocol validation and modal order.
+
+`node scripts/check-l10n.mjs` passed: 14 tables, 127 manifest strings,
+494 source files, zero problems. The first scoped accessibility run passed
+40 pages (10 scenarios × four themes), zero violated/undecided rules,
+zero exemptions, zero missing results. Final layout captures and checks
+follow in the closing verification entry.
+
+`node scripts/check-host-api.mjs` has exactly lane S's inherited failure:
+the generated `node:crypto` count is 35 instead of 36. API membership is
+unchanged. W/lead owns `docs/ide-compatibility/host-api.md` and must regenerate
+and review it; this lane does not alter that record or weaken the check.
+
+Full `quality`, coverage, live acceptance and release checks are reserved
+for the lead under the rig brief. No aggregate-green claim is made.
+
+Implementation commit `4c2a24db8a3c9871a15b1bd3024eaea75a1afa10`
+ran the unchanged worktree hooks: serial lint-staged and gitleaks
+(75,022 staged bytes; no leaks). The rig has `sh` but not `bash`;
+ignored workspace-local `temp/hook-bin/npm` and `npx` launch the installed
+npm JavaScript CLIs through `sh`, with PATH changed only in that commit
+process. No hook bypass, package install, shared-install write or Git
+configuration change was used.
+
+The post-commit ESLint run found a formatter conflict on three nested
+conditionals: ESLint added parentheses that Prettier removed. The final
+implementation uses one internal management-URL function with an early
+return, and a local usage-note value. A subsequent scoped ESLint run
+passed. Behaviour and gate rules are unchanged; the closing commit keeps
+the hooks enabled.
+
+## Deliberate regression proofs
+
+Each of these 24 mutations ran the complete `m95PlanUi.test.tsx` file, exited
+1, and failed the named regression. Each production file was restored from
+its original bytes in `finally`; matching SHA-256 was required before the
+next mutation. Tests were never filtered or skipped.
+
+| Mutation               | Named regression that failed                                                             |
+| ---------------------- | ---------------------------------------------------------------------------------------- |
+| notice-ack             | acknowledges the notice once across remounts and explains credits and eligibility        |
+| browser-persistence    | persists browser acknowledgement and fails closed when storage cannot be read            |
+| captured-limit         | handles the captured SSE limit message even with a generic error kind                    |
+| limit-soundness        | does not infer plan limits from ordinary failures, other providers or old turns          |
+| provider-guard         | keeps a single bare Muse model unchanged                                                 |
+| latest-turn            | does not infer plan limits from ordinary failures, other providers or old turns          |
+| dismissal              | dismisses one failure but shows a later plan limit again                                 |
+| typed-error            | retains a typed plan failure through the reducer and a validated snapshot                |
+| plan-cost              | shows plan rows in Account & usage and never displays an invented dollar cost            |
+| plan-boundary          | validates plan tallies at the host boundary and retains the data in UI state             |
+| limits-url             | validates plan tallies at the host boundary and retains the data in UI state             |
+| unknown-tokens         | renders requests, reported and estimated tokens separately and marks unknown requests    |
+| no-zero-invention      | leaves tokens unknown when a dispatched request has no usage instead of showing zero     |
+| copilot-note           | shows Copilot reduced capabilities, AI content, credit caveat and the report destination |
+| modal-order            | waits behind an existing modal and opens once that modal closes                          |
+| loading-inert          | marks the ChatGPT pill and opens usage without a model or paid call                      |
+| count-validation       | validates plan tallies at the host boundary and retains the data in UI state             |
+| coverage-validation    | validates plan tallies at the host boundary and retains the data in UI state             |
+| duplicate-validation   | validates plan tallies at the host boundary and retains the data in UI state             |
+| provider-id-validation | validates plan tallies at the host boundary and retains the data in UI state             |
+| provider-id-shape      | validates plan tallies at the host boundary and retains the data in UI state             |
+| typed-snapshot         | retains a typed plan failure through the reducer and a validated snapshot                |
+| plan-backend-label     | shows plan rows in Account & usage and never displays an invented dollar cost            |
+| plan-signin-label      | shows plan rows in Account & usage and never displays an invented dollar cost            |
+
+Restoration fingerprints (one row per source version exercised):
+
+- src/webview/components/PlanUi.tsx:
+  `97d0b814b82a890e3f1358365aa84a97066a0b445f5d90eb2b5b5f5e30b109c6`
+- src/webview/App.tsx:
+  `4aa712005eca76ccb2f2b1a99e9d83ac854b4b2b565efeb40276478431db4482`
+- src/webview/state/uiState.ts:
+  `7603505b8029b3d050c523abb4e758777e3c83c0ecc5ea6cbe7916e5afe1b443`
+- src/webview/components/UsageDialog.tsx:
+  `5ef0a32c9e2ef1056c496bc1479cdbb558da69c17084084591f21cdfca584450`
+- src/shared/protocol.ts:
+  `cca9e42f5a050a46ea274f106bd74b36a599947a30d3c9d7e6df95b1db1376f0`
+- src/shared/usage.ts:
+  `c28d71014636fb72a3047853090029113b07bf75ecbce5275b1377057eb3ccec`
+- src/webview/state/transcriptEntries.ts:
+  `e6628cb57ce13400845e93fa2b3edf02b42e39da6493202775fc63ef493bfead`
+- src/webview/components/UsageDialog.tsx:
+  `75d2d713e15dda58db5b00c9d065e0cf23c6705fe120d763dc0e36936d7a4ddb`
+
+## Closing verification
+
+| Check                                                         | Result                                                                                         |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `npm.cmd run typecheck`                                       | Exit 0, all five projects                                                                      |
+| `npm.cmd run typecheck:webview` after the conditional cleanup | Exit 0                                                                                         |
+| Scoped `npx.cmd eslint --max-warnings=0`                      | Exit 0 on all changed TS/TSX/MJS files; the additional reducer-test file also passes           |
+| Prettier and stylelint                                        | Real commit hooks passed; changed-file formatting check passed                                 |
+| `npm.cmd run deadcode`                                        | Exit 0; inherited `vendor/**` configuration hint only                                          |
+| `npx.cmd jscpd`                                               | Exit 0; 969 files, zero clones                                                                 |
+| `node scripts/check-l10n.mjs`                                 | Exit 0; 14 tables, 127 manifest strings, 494 source files, zero problems                       |
+| `node scripts/check-host-api.mjs`                             | The sole inherited 35 → 36 `node:crypto` generated-count mismatch described above              |
+| Final plan/usage/composer files                               | 123/123 pass after the conditional cleanup                                                     |
+| App/setup/plan files                                          | 159/159 pass                                                                                   |
+| Reducer/protocol/snapshot files                               | 311/311 pass                                                                                   |
+| Final scoped accessibility run                                | 40 pages, four themes; zero violated/undecided rules, exemptions or missing results            |
+| German narrow surfaces                                        | 16 additional pages, four themes; zero violated/undecided rules, exemptions or missing results |
+| `npm.cmd run build`                                           | Exit 0; all 25 budgets, bundle split, host globals and 84-package notices pass                 |
+
+The reducer's old exact error assertion initially failed because it omitted
+the now-preserved `authRequired` kind. It now asserts the complete typed
+payload; all other assertions remain, and the complete three-file batch
+passes. No test was skipped or weakened.
+
+The final accessibility scan leaves 48 contrasts unmeasured where axe
+cannot see obscured/offscreen text; no new exemption or ignore was added.
+The screenshots use real 320 px viewports and set the fake host body's
+width to that viewport. Usage's label/value cells wrap within it; Copilot's
+note, report link, plan label and Manage usage remain visible.
+
+Build sizes (KiB): activation **553.6/600**, Model API **413.8/475**,
+providers **96.2/125**, Models host **51.0/75**, Models webview **412.4/475**,
+English fallback **122.0/125**, chat startup **899.8/900**, ACP **799.1/850**,
+checkpoint store **88.4/225**. Chat startup has little headroom; composed
+V/C/X/W changes must rerun the same caps. PlanUi and the existing SetupBanner
+load in real deferred chunks; their registry entries keep the split/size
+checks guarding them, with the existing 25 KiB surface budgets unchanged.
+
+Two additional split-check drills removed PlanUi and SetupBanner from that
+registry separately. Each exited 1 with
+`Unlisted deferred webview surface src/webview/components/<surface>.tsx`;
+the registry was restored byte-exact before the next drill and the final
+split check passed. Its restoration fingerprint is
+`42f16ab0f5a9e8842bdba68b2b730a2220209ae674572fa9ed9221ac3580d9ee`.
+
+Screenshots in [m95b-u/](m95b-u/) cover all ten new English states:
+ChatGPT pill, notice, limit and usage (including narrow modals), plan-key
+metadata, and Copilot at regular/narrow widths. Four additional German
+captures are in [m95b-u/de/](m95b-u/de/); the longer translated text and
+localized numbers fit the same narrow surfaces. Its accessibility run left
+28 obscured/offscreen contrasts unmeasured, with no exemptions or new ignores.
+The exact commands run were:
+
+```sh
+node scripts/harness-shots.mjs plan-chatgpt plan-notice plan-notice-narrow plan-limit plan-limit-narrow plan-usage plan-usage-narrow plan-key copilot-plan copilot-plan-narrow --theme=light
+node scripts/a11y.mjs plan-chatgpt plan-notice plan-notice-narrow plan-limit plan-limit-narrow plan-usage plan-usage-narrow plan-key copilot-plan copilot-plan-narrow
+node scripts/harness-shots.mjs plan-notice-narrow plan-limit-narrow plan-usage-narrow copilot-plan-narrow --theme=light --lang=de
+node scripts/a11y.mjs plan-notice-narrow plan-limit-narrow plan-usage-narrow copilot-plan-narrow --lang=de
+```
+
+All browser runs use the loopback fake host. No sign-in, provider request,
+live model call, paid call, credential read or external message was made.
+No other lane's implementation/manifest/documentation files were changed.
+
+## FIXM95BU review repair — macmini, 2026-10-05
+
+This repair starts at `6c9b85dd` on `m95b/ufix`. The complete RVM95BU
+report contains three P2 findings and no P1/P3 findings. Only U-owned
+implementation/test files and this record/PLAN are changed; W owns the
+aggregate CHANGELOG/README and composed acceptance. The rig brief explicitly
+forbids full quality/coverage, merges and network/live/paid calls; the lead
+runs aggregate quality. Worktree hooks are present and remain enabled.
+
+### Billing disclosure (RVM95BU failure paths / honesty)
+
+The session's qualified reference determines ChatGPT/Copilot plan billing,
+account sign-in wording and backend label even when `modelList` is empty or
+contains inconsistent provider metadata. The same reference takes priority
+in App's plan surface. A valid matching catalogue row supplies the display
+label; otherwise the technical provider id is shown. Plan-key pricing still
+comes from its model metadata. No new UI strings or dependencies.
+
+The new parameterized regression **keeps chatgpt/copilot plan billing tied
+to the session when the catalogue is cleared or inconsistent** drives the
+real App's `/usage` action with schema-validated host messages. Before the
+fix both cases failed on the false **Pay as you go** row (exit 1). With the
+fix the plan/usage batch passes **51/51**. Four deliberate mutations each
+ran the complete plan file and exited 1 on that regression: remove the
+bound-reference pricing override; remove account sign-in recognition;
+trust an inconsistent catalogue label; restore metadata-first App selection.
+Every file was restored byte-exact in `finally` and SHA-256 compared:
+
+- `UsageDialog.tsx`: `93899dfad5994a7ededa53f10423d92346d3c9b50a23398c3a700b397319cfe1`.
+- `App.tsx`: `c047ec10490cebab792a3ad5a5db0b7d9adba204c093740d5a916b54b102a7bd`.
+
+### Notice scope and limit lifecycle (remaining RVM95BU P2 findings)
+
+`authState.planAccount` is an authored host bridge contract, not a guessed
+service frame: `{ providerId, accountIdHash }` with a valid non-Meta id and
+64 lowercase hex characters. The producer hashes the verified account id
+with SHA-256 before sending it; email, raw account ids and tokens never enter
+this contract. The production port used by `main.tsx` through App's default
+PlanSurface receives `museSpark.chatGptPlanNotice.v1:<provider>:<hash>`.
+The real webview-entry regression exercises that path without a catalogue.
+Legacy origin-wide acknowledgement is ignored. Missing/mismatched identity
+shows the disclosure and never reads/writes an unscoped acknowledgement.
+Mounted identity or injected-port replacement re-reads acknowledgement before
+React commits; storage failure shows the notice. This branch supplies the U
+consumer and validation. V/X/W supply verified identity extraction and its
+auth updates, as named under **M95BU-R-account-producer** in PLAN §9.
+
+Limit dismissal is `UiState.dismissedPlanTurnId`, with a stale-action guard;
+App dispatches through its deferred plan adapter. It survives model switches,
+component unmount and the validated saved snapshot. A later failed turn gets
+its own screen; successful completion clears dismissal, as do a cleared or
+replaced conversation. Same-session history keeps it. No recovery control
+retries, selects a model or switches billing. The handoff/modal precedence
+guard remains in the deferred plan surface.
+
+The new lifecycle regression failed before the fix on the reopened modal
+(exit 1). Before the notice repair, the complete plan file had **5 failing
+cases / 19 passing**: keyed browser persistence, account separation,
+mounted account changes, mounted port changes and account-field validation.
+After repair the plan/usage/real-entry batch passed **58/58**. Final receipts
+and all deliberate mutations follow below.
+
+To fit the existing 900 KiB cap, U's three plan adapters share one lazy entry,
+and Account & usage's state/bridge adapter lives in its existing deferred
+module. The handoff guard and dismissal dispatch move with the plan adapter.
+No guard, bundle registry, budget, dependency, string or service schema is
+relaxed. There is no new helper module. The first intermediate dismissal build
+was 900.3 KiB; the composed repair subsequently passes the original build gate.
+
+### Named residuals and integration handoff
+
+All three numbered review findings are fixed; none is deferred. The safe
+integration limits are named in PLAN §9: **M95BU-R-account-producer** (V/X/W
+must deliver the verified hash; until then disclosure repeats),
+**M95BU-R-persistence-origin** (different origins may repeat the notice;
+a keyed profile-wide host port can unify it), and **M95BU-R-composed-gates**
+(lead's aggregate gates/editor receipts, tiny startup headroom and the
+inherited host API inventory mismatch). W must fold these behavioral fixes
+into its owned CHANGELOG/README and certify the composed account producer.
+All editor surfaces use the same React/state/HostBridge contract; the ACP
+producer still belongs to X, and Copilot availability still follows D74.
+
+### Repair red-drill receipts
+
+All **25** deliberate mutations below ran the entire `m95PlanUi.test.tsx`
+file with `--maxWorkers=3 --testTimeout=120000`, exited 1 and failed the
+named regression. Each mutated source was restored from its original bytes
+in `finally`; SHA-256 equality was required before continuing. No test was
+filtered/skipped. Fingerprints distinguish the source versions exercised;
+the final adapter cleanup does not alter the guarded behavior.
+
+| Mutation                     | Named regression that failed                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `billing-reference`          | keeps chatgpt plan billing tied to the session when the catalogue is cleared or inconsistent |
+| `billing-account`            | keeps chatgpt plan billing tied to the session when the catalogue is cleared or inconsistent |
+| `billing-label`              | keeps chatgpt plan billing tied to the session when the catalogue is cleared or inconsistent |
+| `billing-pill`               | keeps chatgpt plan billing tied to the session when the catalogue is cleared or inconsistent |
+| `dismissal-surface`          | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-store`            | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-stale`            | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-success`          | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-snapshot`         | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-boundary`         | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-clear`            | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-history`          | keeps dismissal for same-session history and clears it for another conversation              |
+| `notice-key`                 | scopes the production browser notice to provider and account hash across remounts            |
+| `notice-provider`            | scopes the production browser notice to provider and account hash across remounts            |
+| `notice-account-change`      | rereads account acknowledgement on a validated auth update while mounted                     |
+| `notice-port-change`         | rereads a replacement acknowledgement port while mounted                                     |
+| `notice-unknown-read`        | rereads a replacement acknowledgement port while mounted                                     |
+| `notice-unknown-write`       | rereads a replacement acknowledgement port while mounted                                     |
+| `notice-unknown-change`      | rereads account acknowledgement on a validated auth update while mounted                     |
+| `notice-forwarding`          | scopes the production browser notice to provider and account hash across remounts            |
+| `notice-hash-boundary`       | validates the non-secret plan account identity at the host boundary                          |
+| `notice-provider-boundary`   | validates the non-secret plan account identity at the host boundary                          |
+| `handoff-modal-order`        | waits behind an existing modal and opens once that modal closes                              |
+| `notice-unknown-identity`    | rereads a replacement acknowledgement port while mounted                                     |
+| `dismissal-unconfirmed-turn` | does not infer plan limits from ordinary failures, other providers or old turns              |
+
+Restoration fingerprints (source versions exercised):
+
+- `src/webview/components/UsageDialog.tsx`: `93899dfad5994a7ededa53f10423d92346d3c9b50a23398c3a700b397319cfe1`.
+- `src/webview/App.tsx`: `c047ec10490cebab792a3ad5a5db0b7d9adba204c093740d5a916b54b102a7bd`.
+- `src/webview/components/PlanUi.tsx`: `7ac6751700543b03d2d5ca2bf8fa10cc998217c326c412fc74cc54125d6fb85d`.
+- `src/webview/state/uiState.ts`: `1d597e9a38654ec23fa992cd2e1d50099bbbd3d8edf15e640d5702b32dbe7f1f`.
+- `src/webview/state/snapshot.ts`: `a651e06b3eb2cfb49423fba22e5e08ebb4ecff2612573c129253b0e9602c0bdd`.
+- `src/webview/components/PlanUi.tsx`: `527ccd7dd63033379064b743062d0c179996bc39addb50a11aa91a96d7c26344`.
+- `src/webview/state/uiState.ts`: `a686a861c43a5fabfa3d39e001d89d1a8a03de7b2dc78c46e98a6119e03963ff`.
+- `src/shared/protocol.ts`: `630567a8e69832b6cf21fc79667660daaee79cc837f2aee03772176d9a724028`.
+
+- `src/webview/components/PlanUi.tsx` (final formatted adapter):
+  `518fc3a6f2450e687a7d4579665576f86e7addc8659e3c1c07eb12586d3ffe06`.
+
+### Final macmini receipts
+
+| Finding                                        | Outcome                                                                                                        | Regression                                                                                          | Drill receipts             |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------- |
+| Account notice scope / mounted account changes | Fixed in the keyed production port and validated auth identity consumer; verified producer handoff named above | Provider/account remounts; mounted account/port updates; identity validation; real `main.tsx` entry | `notice-*`: 11 mutations   |
+| Stale limit dismissal after model switch       | Fixed in conversation state and snapshot, with success/replacement reset and stale-action refusal              | Model switch/unmount/snapshot regression; same-session vs replacement history                       | `dismissal-*`: 9 mutations |
+| Billing disclosure during catalogue recovery   | Fixed from the bound ChatGPT/Copilot reference, including inconsistent metadata                                | Both providers through the real App's `/usage` action                                               | `billing-*`: 4 mutations   |
+
+The remaining `handoff-modal-order` mutation proves the precedence guard after
+moving it into the existing deferred surface. Total: **25** red drills.
+
+| Check (all directly on macmini)                                  | Result                                                                                                   |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                              | Exit 0, all five projects                                                                                |
+| `npm run typecheck:unit` after the test-only type-import cleanup | Exit 0                                                                                                   |
+| Scoped `npx eslint --max-warnings=0`                             | Production files pass; both test lint findings fixed and test recheck exits 0                            |
+| Changed-file Prettier                                            | The unused-export cleanup required formatting one function signature; corrected without behavior change  |
+| `npm run deadcode`                                               | Exit 0; inherited `vendor/**` hint only                                                                  |
+| `npx jscpd`                                                      | Exit 0; 970 files, zero clones                                                                           |
+| `node scripts/check-l10n.mjs`                                    | Exit 0; 14 tables, 127 manifest strings, 494 source files, zero problems                                 |
+| `node scripts/check-host-api.mjs`                                | Exit 1 solely on inherited inventory 35 → source 36 `node:crypto` imports; justified deferral in PLAN §7 |
+| Plan / real main entry / UsageDialog                             | **58/58**, exit 0                                                                                        |
+| App / reducer / snapshot                                         | **315/315**, exit 0                                                                                      |
+| Protocol / Composer                                              | **212/212**, exit 0                                                                                      |
+| `npm run build`                                                  | Exit 0; unchanged size/split/host-global/notices gates                                                   |
+
+Final focused suites total **585/585**, with at most three files per run and
+`--maxWorkers=3 --testTimeout=120000`. The intermediate combined adapter test
+run exposed a missed JSX replacement; it was corrected before these complete
+final batches. No test was skipped or weakened. React review checks confirm
+conditional lazy loading, render-time acknowledgement adjustment before
+commit, stable cached storage reads between identity changes, existing modal
+semantics and typed adapters without casts or new dependencies.
+
+Final sizes (KiB): activation **553.8/600**, Model API **414.0/475**,
+providers **96.2/125**, English fallback **122.0/125**, ACP **799.1/850**,
+checkpoint store **88.4/225**. Chat startup is **921,593 bytes**,
+**899.993/900 KiB**, with **7 bytes** spare. This is a passed cap with a
+named integration constraint, not room for further composed UI wiring.
+No full quality/coverage, installed-editor acceptance or live/paid calls are
+claimed. Original accessibility screenshots remain the unchanged DOM/layout;
+this repair changes state and deferred React adapters without CSS edits.
+
+Two final boundary drills additionally cover missing account identity and a
+saved error with no confirmed completed turn; the final plan batch reruns
+those assertions. Both fail when their guards are removed and restore the
+final formatted PlanUi bytes exactly.
