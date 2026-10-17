@@ -244,7 +244,11 @@ describe('range edits', () => {
   })
   it('replaces inside the window and records the post-edit window identity', async () => {
     const target = path.join(root, 'edit.txt')
-    const before = readFileSync(big)
+    // A few windowfuls exercise the same head/tail mechanics as the whole
+    // big file without copying its megabytes on every run.
+    let text = ''
+    for (let index = 1; index <= 2500; index += 1) text += line(index)
+    const before = Buffer.from(text, 'utf8')
     writeFileSync(target, before)
     const { seen, run } = context()
     const shown = await run('read_file', { path: 'edit.txt', byteOffset: 0, byteLength: 65_536 })
