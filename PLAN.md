@@ -14714,6 +14714,10 @@ the webview records and lands an ask only within the 1000 ms delivery window
 (`docs/certification/panel-focus.md`). Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+### D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16)
+
+**D122 — The capacity repository runs the Windows and macOS unit shards; the project, its pull requests and main stay on the owner's account.** GitHub runs at most five macOS jobs at a time per account (40 jobs in all on Pro, 20 on a free organization; docs `actions/reference/limits`), and a full run of ours has twelve macOS jobs, so pull requests queued behind each other. The owner opened the free organization `scnetsolutions` only for capacity ("we are only using the org account to remove the bottleneck"; merges keep going to his main). While the repository variable `ORG_CI` is `on`, a same-repository pull request runs its Ubuntu and shared jobs here (part `home`). The maintainer's relay (`npm run ci:org-relay`, `scripts/ci-org-relay.mjs`, his own `gh` sign-in, no stored token) pushes the merge commit to `scnetsolutions/muse-spark-code-ci` as `ci/head-<head sha>`, where the same `ci.yml` runs part `org` (the Windows and macOS unit shards); the relay posts that run's conclusion onto the head commit as the required status `build / org part`, with a link to the run. Forks, Dependabot, merge groups, manual runs and every pull request while `ORG_CI` is not `on` keep every job here (part `all`), where `build / org part` is this run's own aggregate; a check that passed here never stands in for the org's shards. Release reuse (`scripts/release-reuse.mjs`) is unchanged: it reuses only a run on the exact tree of a commit on main, and a pull request reaches main only with `build / org part` green. The capacity repository's `main` holds only a README, so no scheduled workflow runs there. Record: `docs/certification/ciflow.md` (D122).
+
 ### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
 
 The VS Code Model API shell inherited credential variables from the extension

@@ -279,3 +279,33 @@ false` and one `merge_queue` rule: `MERGE`, `ALLGREEN`, entries to merge
 1/1, build concurrency 1, 0 wait, 30-minute check timeout. Nothing was
 applied. See the queue-availability blocker above. Still open: hosted PR
 and queue runs, measured wall times, and the queue itself.
+
+## D122 — CI capacity from the organization account (2026-10-16, 2026-10-17)
+
+**Why.** GitHub's limits are per account (docs `actions/reference/limits`,
+read from `github/docs` 2026-10-16): 40 concurrent jobs with at most 5 on
+macOS on the owner's Pro account, 20 with 5 on macOS on a free
+organization. One full run of ours has 43 jobs, 12 of them macOS (counted
+from run 38915744271), so macOS queued in three waves and pull requests
+waited behind each other. The owner opened the free organization
+`scnetsolutions` for capacity only; the repository stays on his account.
+
+**What.** `ci.yml` gains `route` (picks the part from the event, the
+repository and `ORG_CI`) and a `push` trigger on `ci/head-*` that runs only
+in the capacity repository. `build.yml` takes `part` (`all` by default):
+`home` keeps the Ubuntu shards, `org` runs only the Windows and macOS
+shards, every other job runs outside `org`, and the `required` aggregate
+names `org part` only when the shards ran in its own run.
+`scripts/ci-org-relay.mjs` moves the merge commit and the result between the
+two accounts with the maintainer's `gh` sign-in. A first design with two
+stored tokens was dropped: minting them needed the owner's passkey and a
+copy of each value, and the relay needs neither.
+
+**Tests.** The one new test runs `route`'s own step from `ci.yml` in bash
+for eight events, with the values GitHub sets (no made-up data):
+`npx vitest run test/unit/manifest.test.ts` 41 passed, exit 0 (this PC,
+2026-10-17). `actionlint` on both workflows, ESLint (zero warnings),
+typecheck and `knip`: exit 0. Deliberate break (2026-10-17, on this route step): removing the
+same-repository condition from the route step made the test fail, exit 1;
+restored, it passed. The proof that the split works is its first real pull
+request run in both accounts, recorded below once it has run.
