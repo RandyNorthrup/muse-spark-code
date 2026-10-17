@@ -24,8 +24,6 @@
 import path from 'node:path'
 import type { AgentEvent } from '../../shared/agentEvents'
 import {
-  PULL_REQUEST_BODY_MAX_CHARS,
-  PULL_REQUEST_TITLE_MAX_CHARS,
   GIT_FORM_FILES_SHOWN,
   GIT_PROMPT_COMMITS_MAX,
   GIT_PROMPT_DIFF_MAX_CHARS,
@@ -61,8 +59,10 @@ import {
 } from '../../core/git/gitText'
 import type { SideCallFormats } from '../../core/backends/modelapi/structuredOutput'
 import { isPlainRefName, isPlainRefspec, planPush, type PushPlan } from '../../core/git/pushPlan'
+import { pullRequestFormProblem } from '../../core/git/pullRequestRef'
 import { wireWordForLog } from '../../core/logging'
 import { redactSecrets } from '../../core/redact'
+import type { RuntimeGitDeps } from '../../core/git/runtimeGit'
 import type { WorktreeHold, WorktreeRecord } from '../../core/worktreeConversations'
 import type { Logger } from '../logger'
 import type {
@@ -140,12 +140,18 @@ export interface GitWindow {
     check: () => void,
   ) => Promise<string>
   readonly pickRemote: (names: readonly string[]) => Promise<string | undefined>
-  /** The held window's "Trust this worktree…": asks, and releases the hold on a yes. */
+  /** The held window's "Trust This Worktree…": asks, and releases the hold on a yes. */
   readonly confirmWorktreeTrust: () => Promise<void>
   readonly now: () => number
   readonly log: Logger
   /** Formats the existing user turn; no separate draft request is started here. */
   readonly draftOutput?: GitDraftOutputPort | undefined
+  /**
+   * M123's native route (PLAN.md D104) for a VS Code-family host without
+   * the `vscode.git` extension: the runtime adapter's deps over this
+   * window, or undefined when there is no folder or no git on PATH.
+   */
+  readonly nativeGit?: (() => RuntimeGitDeps | undefined) | undefined
 }
 
 /** A new file: where it is, and its path as the prompt names it. */
@@ -697,17 +703,6 @@ export class ConversationGit implements ConversationGitPort {
     this.surface.post({ type: 'gitPullRequestForm', form })
   }
 
-  /** What stops a pull request before anything is asked, or undefined. */
-  private pullRequestProblem(title: string, body: string, base: string): string | undefined {
-    if (title === '') {
-      return UI_TEXT.gitTitleEmpty
-    }
-    if (title.length > PULL_REQUEST_TITLE_MAX_CHARS || body.length > PULL_REQUEST_BODY_MAX_CHARS) {
-      return UI_TEXT.gitTextTooLong
-    }
-    return isPlainRefName(base) ? undefined : UI_TEXT.gitBaseInvalid
-  }
-
   private async linkPullRequest(link: PullRequestLink): Promise<void> {
     this.checkCurrent()
     this.link = link
@@ -1145,7 +1140,7 @@ export class ConversationGit implements ConversationGitPort {
     }
     const title = request.title.trim()
     const base = request.base.trim()
-    const problem = this.pullRequestProblem(title, request.body, base)
+    const problem = pullRequestFormProblem(title, request.body, base)
     if (problem !== undefined) {
       this.surface.notice('warning', problem)
       done(false)

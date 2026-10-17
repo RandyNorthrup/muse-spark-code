@@ -1,13 +1,22 @@
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MODEL_API_BASE_URL, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { AccountSwitchRefusedError } from '../../src/acp/accountText'
+import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
+import { fill } from '../../src/shared/l10n/text'
 import { runtimeProvidersFile } from '../../src/runtime/providers/providersFileStore'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { memoryKeyring } from './helpers/keyring'
+import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
+import {
+  duplicateAccountsEntry,
+  mismatchedIdEntry,
+  providersFileOf,
+} from './helpers/refusedProviders'
 
 const dirs: string[] = []
 
@@ -44,6 +53,43 @@ function rig() {
 }
 
 const ROW = { id: 'work', label: 'Work', order: 0, thresholds: {} } as const
+const META_ORIGIN = new URL(MODEL_API_BASE_URL).origin
+
+/** A served Model API runtime's dependencies that reach no key, Git or network. */
+function inertDeps(folder = ''): Parameters<ReturnType<typeof rig>['exec']['create']>[0] {
+  const parsed = parseCommandLine(['--backend', 'modelApi'])
+  if (parsed.command !== 'serve') throw new Error('missing test serve options')
+  return {
+    options: parsed.options,
+    version: 'test',
+    distDir: folder,
+    platform: process.platform,
+    env: {},
+    homeDir: folder,
+    secrets: {
+      get: () => Promise.resolve(undefined),
+      store: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
+    },
+    runGit: () => Promise.reject(new Error('unexpected git')),
+    fetch: () => Promise.reject(new Error('unexpected fetch')),
+    sleep: () => Promise.resolve(),
+    log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  }
+}
+
+/** A developer owner whose `work` profile was recorded before its unbound launch failed. */
+async function ownerWithRecordedProfile(services: ReturnType<typeof rig>) {
+  await services.store.add('vendor', { ...ROW, order: 1 })
+  const owner = await services.developer({
+    readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
+    print: vi.fn(),
+  })
+  await owner.unlock('terminal')
+  await owner.setMultiple(true)
+  await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(UI_TEXT.developer.unavailable)
+  return owner
+}
 
 describe('createRuntimeAccountServices', () => {
   it('manages accounts through the file-backed store', async () => {
@@ -99,7 +145,17 @@ describe('createRuntimeAccountServices', () => {
         currentAccount: 'default',
       })
       await expect(port.use('session-a', 'missing', () => true)).rejects.toThrow()
-      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(/unavailable/)
+      // No adoption transaction exists here: the switch is refused with the
+      // session's stay-put text, and the current account is unchanged.
+      const stayPut = fill(UI_TEXT.accounts.switchUnavailable, {
+        provider: 'vendor',
+        account: UI_TEXT.accounts.defaultLabel,
+      })
+      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(
+        AccountSwitchRefusedError,
+      )
+      await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(stayPut)
+      await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: 'default' })
       await expect(port.use('session-a', 'default', () => false)).resolves.toMatchObject({
         currentAccount: 'default',
       })
@@ -116,7 +172,10 @@ describe('createRuntimeAccountServices', () => {
       await services.store.order('vendor', ['work', 'default'])
       await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: 'default' })
       await expect(port.use('session-a', 'work', () => true)).rejects.toThrow(
-        UI_TEXT.accounts.unavailable,
+        fill(UI_TEXT.accounts.switchUnavailable, {
+          provider: 'vendor',
+          account: UI_TEXT.accounts.defaultLabel,
+        }),
       )
       await services.store.remove('vendor', 'default')
       await expect(port.read('session-a')).resolves.toMatchObject({ currentAccount: null })
@@ -197,7 +256,7 @@ describe('createRuntimeAccountServices', () => {
         currentAccount: 'default',
       })
       await expect(configured.accounts.use('run-a', 'default', () => true)).rejects.toThrow(
-        UI_TEXT.accounts.unavailable,
+        fill(UI_TEXT.accounts.switchUnavailable, { provider: 'meta', account: 'Work' }),
       )
       expect(fetch).not.toHaveBeenCalled()
     } finally {
@@ -207,13 +266,79 @@ describe('createRuntimeAccountServices', () => {
     }
   })
 
-  it('uses legacy key fallback only for an absent Meta default binding', async () => {
+  it('refuses --account-pool with the pool limitation instead of the connection text', () => {
     const services = rig()
+    try {
+      const createBackend = vi.fn(createRuntimeBackend)
+      // The throw happens before any backend or credential is touched.
+      expect(() =>
+        services.exec.create(
+          inertDeps(),
+          { account: 'default', hasPoolFlag: true, isInteractive: false },
+          createBackend,
+        ),
+      ).toThrow(UI_TEXT.accounts.poolUnavailable)
+      expect(createBackend).not.toHaveBeenCalled()
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('serves the stored default key with no file; a user file without meta refuses', async () => {
+    const services = rig()
+    const folder = dirs.at(-1)
+    if (folder === undefined) throw new Error('missing test folder')
     const get = vi.fn(() => Promise.resolve('LLM|1|fake-legacy-key'))
     const fallback = { get, store: () => Promise.resolve(), delete: () => Promise.resolve() }
+    const origin = new URL(MODEL_API_BASE_URL).origin
+    const stored = CURRENT_SHAPE_KEYS[0]
+    // The rig seeds a vendor-only user file: with a file present, meta is
+    // unconfigured and the built-in entry no longer applies. The store
+    // refuses with its fixed code; the command boundary renders the text.
+    await expect(
+      services.store.setCredential('meta', 'default', {
+        v: 1,
+        auth: 'apiKey',
+        provider: 'meta',
+        account: 'default',
+        origin,
+        secret: stored,
+      }),
+    ).rejects.toThrow(AccountStoreError)
+    await expect(
+      services.store.setCredential('meta', 'default', {
+        v: 1,
+        auth: 'apiKey',
+        provider: 'meta',
+        account: 'default',
+        origin,
+        secret: stored,
+      }),
+    ).rejects.toThrow('unavailable')
+    rmSync(runtimeProvidersFile(folder))
+    // With no file, the built-in entry authorizes the write.
+    await services.store.setCredential('meta', 'default', {
+      v: 1,
+      auth: 'apiKey',
+      provider: 'meta',
+      account: 'default',
+      origin,
+      secret: stored,
+    })
     try {
+      // The vault serves the pre-existing key; the fallback mock is untouched.
+      await expect(
+        services.secretsFor('meta', 'default', fallback).get(SECRET_KEYS.modelApiKey),
+      ).resolves.toBe(stored)
+      expect(get).not.toHaveBeenCalled()
+      // A missing account is an invalid account, never a silent default key.
+      await expect(
+        services.secretsFor('meta', 'work', fallback).get(SECRET_KEYS.modelApiKey),
+      ).rejects.toThrow(AccountStoreError)
+      await expect(
+        services.secretsFor('meta', 'work', fallback).get(SECRET_KEYS.modelApiKey),
+      ).rejects.toThrow('invalidAccount')
       for (const [provider, account] of [
-        ['meta', 'work'],
         ['absent', 'default'],
         ['absent', 'work'],
       ]) {
@@ -223,10 +348,6 @@ describe('createRuntimeAccountServices', () => {
           services.secretsFor(provider, account, fallback).get(SECRET_KEYS.modelApiKey),
         ).rejects.toThrow(UI_TEXT.accounts.unavailable)
       }
-      expect(get).not.toHaveBeenCalled()
-      await expect(
-        services.secretsFor('meta', 'default', fallback).get(SECRET_KEYS.modelApiKey),
-      ).resolves.toBe('LLM|1|fake-legacy-key')
     } finally {
       services.dispose()
     }
@@ -282,19 +403,101 @@ describe('createRuntimeAccountServices', () => {
     }
   })
 
-  it('refuses unbound profile cleanup and retains ownership after a failed launch', async () => {
+  it.each([
+    ['unparsable JSON', '{not json'],
+    ['duplicate account ids', providersFileOf(duplicateAccountsEntry(META_ORIGIN))],
+    ['a provider id that does not match its key', providersFileOf(mismatchedIdEntry(META_ORIGIN))],
+  ])(
+    'reports a refused providers file as its own refusal from exec readiness: %s',
+    async (_label, text) => {
+      const services = rig()
+      const folder = dirs[0]
+      if (folder === undefined) throw new Error('missing test folder')
+      writeFileSync(runtimeProvidersFile(folder), text, 'utf8')
+      const configured = services.exec.create(
+        inertDeps(folder),
+        { account: 'work', hasPoolFlag: false, isInteractive: false },
+        createRuntimeBackend,
+      )
+      try {
+        // The keyring-outage sentence would misreport this: the runtime is
+        // already on the account service and the file was left untouched.
+        await expect(configured.runtime.backend.readiness(false)).resolves.toEqual({
+          state: 'unavailable',
+          message: UI_TEXT.accounts.providersInvalid,
+        })
+      } finally {
+        await configured.runtime.close()
+        services.dispose()
+      }
+    },
+  )
+
+  it('reads a refused providers file as its own refusal through the ACP session port', async () => {
+    const services = rig()
+    const folder = dirs[0]
+    if (folder === undefined) throw new Error('missing test folder')
+    writeFileSync(runtimeProvidersFile(folder), '{not json', 'utf8')
+    try {
+      const read = services.sessions('meta').read('session-a')
+      await expect(read).rejects.toThrow(UI_TEXT.accounts.providersInvalid)
+      await expect(read).rejects.toMatchObject({
+        name: 'AccountStoreError',
+        code: 'invalidProvidersFile',
+      })
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('opens developer multiple-accounts with the providers-file sentence instead of a raw failure', async () => {
     const services = rig()
     try {
-      await services.store.add('vendor', { ...ROW, order: 1 })
-      const owner = await services.developer({
+      await ownerWithRecordedProfile(services)
+      const folder = dirs[0]
+      if (folder === undefined) throw new Error('missing test folder')
+      const file = runtimeProvidersFile(folder)
+      writeFileSync(file, '{not json', 'utf8')
+      const before = readFileSync(file, 'utf8')
+      const reopen = services.developer({
         readLine: () => Promise.resolve(UI_TEXT.accounts.confirm),
         print: vi.fn(),
       })
-      await owner.unlock('terminal')
-      await owner.setMultiple(true)
-      await expect(owner.addProfile('vendor', 'work')).rejects.toThrow(
-        UI_TEXT.developer.unavailable,
-      )
+      await expect(reopen).rejects.toThrow(UI_TEXT.accounts.providersInvalid)
+      try {
+        await reopen
+        expect.unreachable()
+      } catch (error: unknown) {
+        expect(error).toMatchObject({
+          name: 'AccountStoreError',
+          code: 'invalidProvidersFile',
+        })
+      }
+      expect(readFileSync(file, 'utf8')).toBe(before)
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('keeps the start refusal when enabling multiple accounts over a refused file', async () => {
+    const services = rig()
+    try {
+      const owner = await ownerWithRecordedProfile(services)
+      // The disable lands even though stopping the unbound profile fails.
+      await expect(owner.setMultiple(false)).rejects.toThrow(UI_TEXT.developer.unavailable)
+      const folder = dirs[0]
+      if (folder === undefined) throw new Error('missing test folder')
+      writeFileSync(runtimeProvidersFile(folder), '{not json', 'utf8')
+      await expect(owner.setMultiple(true)).rejects.toThrow(UI_TEXT.accounts.providersInvalid)
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('refuses unbound profile cleanup and retains ownership after a failed launch', async () => {
+    const services = rig()
+    try {
+      const owner = await ownerWithRecordedProfile(services)
       await expect(owner.addProfile('vendor', 'default')).rejects.toThrow(
         UI_TEXT.developer.unavailable,
       )

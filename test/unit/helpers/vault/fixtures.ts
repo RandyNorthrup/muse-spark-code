@@ -4,7 +4,6 @@ import {
   type VaultAuditRecord,
   type VaultBinding,
   type VaultGrant,
-  type VaultItem,
   type VaultItemMetadata,
   type VaultRequester,
   type VaultTicket,
@@ -44,9 +43,6 @@ export function metadata(): VaultItemMetadata {
     publicKey: null,
     fingerprint: null,
   }
-}
-export function item(): VaultItem {
-  return { metadata: metadata(), material: { kind: 'secret', value: randomBytes(32) } }
 }
 export function use(): Extract<VaultUse, { kind: 'environment' }> {
   return {

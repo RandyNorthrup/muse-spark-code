@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { ChartFrame } from '../../src/webview/usage/charts/ChartFrame'
 import { StackedColumns, groupedChart } from '../../src/webview/usage/charts/StackedColumns'
@@ -7,10 +8,69 @@ import { MirroredColumns } from '../../src/webview/usage/charts/MirroredColumns'
 import { ShareBar } from '../../src/webview/usage/charts/ShareBar'
 import { StepLines } from '../../src/webview/usage/charts/StepLines'
 import { BurnLine } from '../../src/webview/usage/charts/BurnLine'
-import { billedCost, equivalentCost, knownSum, metricValue } from '../../src/webview/usage/display'
+import { BreakdownTable } from '../../src/webview/usage/BreakdownTable'
+import { KpiTiles } from '../../src/webview/usage/KpiTiles'
+import {
+  billedCost,
+  costPlot,
+  equivalentCost,
+  knownSum,
+  metricText,
+  metricValue,
+  money,
+  percentOf,
+  remainingUsd,
+} from '../../src/webview/usage/display'
 import { usageStateFor, usageTotals } from './helpers/usageFixtures'
+import { MONEY_PERIOD_CASES } from './helpers/moneyPeriodCases'
+import { formatPercent } from '../../src/shared/l10n/text'
+
+function a(value: string) {
+  return Usd.from(value).toAmount()
+}
 
 describe('usage charts', () => {
+  it.each(MONEY_PERIOD_CASES)(
+    'compares exact cost %s against %s as %s percent (RVM121B)',
+    (current, previous, percent) => {
+      const totals = usageTotals('reported')
+      const previousTotals = usageTotals('reported')
+      totals.costs[0]!.usd = a(current)
+      previousTotals.costs[0]!.usd = a(previous)
+      render(<KpiTiles totals={totals} previous={previousTotals} metric="cost" />)
+      expect(
+        screen.getByText(`${formatPercent(percent)} compared with the previous period`),
+      ).toBeVisible()
+    },
+  )
+
+  it.each([
+    ['0.0000000001', '0.00000000001'],
+    ['100000000000000000001', '100000000000000000000'],
+  ])('sorts exact dollars %s and %s in both directions, with unknown last', (large, small) => {
+    const rows = [large, small, undefined].map((amount, index) => ({
+      id: ['a-large', 'z-small', 'a-unknown'][index]!,
+      label: ['Large', 'Small', 'Unknown'][index]!,
+      totals: {
+        ...usageTotals('reported'),
+        costs:
+          amount === undefined
+            ? []
+            : [{ certainty: 'reported' as const, records: 1, usd: a(amount) }],
+      },
+    }))
+    render(<BreakdownTable rows={rows} post={() => undefined} />)
+    const labels = () =>
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => within(row).getByRole('rowheader').textContent)
+    fireEvent.click(screen.getByRole('button', { name: 'Cost: Sort Ascending' }))
+    expect(labels()).toEqual(['Small', 'Large', 'Unknown'])
+    fireEvent.click(screen.getByRole('button', { name: 'Cost: Sort Descending' }))
+    expect(labels()).toEqual(['Large', 'Small', 'Unknown'])
+  })
+
   it('has one keyboard tab stop, caption, summary, table and bucket description; arrows and Home/End visit each bucket', () => {
     const points = [0, 1, 2].map((index) => ({
       id: String(index),
@@ -53,7 +113,7 @@ describe('usage charts', () => {
         ?.split(' ')
         .every((id) => document.querySelector(`[id="${CSS.escape(id)}"]`) !== null),
     ).toBe(true)
-    fireEvent.click(screen.getByText('Show chart data'))
+    fireEvent.click(screen.getByText('Show Chart Data'))
     expect(screen.getByRole('table', { name: 'Example' })).toHaveTextContent('Unknown')
   })
   it.each(['cost', 'tokens', 'requests', 'time'] as const)(
@@ -68,7 +128,8 @@ describe('usage charts', () => {
         expect(series).toHaveLength(7)
         expect(series.at(-1)).toMatchObject({ label: 'Other', colour: 'other' })
         const expected = {
-          cost: (count / 10) * 9,
+          // Cost geometry is whole nano-dollars (M121): $0.10 × count × 9.
+          cost: count * 9 * 100_000_000,
           tokens: count * 1100 * 9,
           requests: 18,
           time: count * 10_000 * 9,
@@ -79,19 +140,73 @@ describe('usage charts', () => {
   )
   it('keeps unknown tokens and costs absent, excludes reasoning and cache from token totals, and does not add plan equivalents to charges', () => {
     const totals = usageTotals('plan')
-    totals.costs[0]!.usd = 3
+    totals.costs[0]!.usd = Usd.from('3').toAmount()
     totals.costs.push(
-      { certainty: 'uncertain', records: 1, usd: 2 },
-      { certainty: 'unpriced', records: 1, usd: 0.3 },
+      { certainty: 'uncertain', records: 1, usd: Usd.from('2').toAmount() },
+      { certainty: 'unpriced', records: 1, usd: Usd.from('0.3').toAmount() },
     )
     expect(billedCost(totals)).toBeUndefined()
-    expect(equivalentCost(totals)).toBe(0.1)
+    expect(equivalentCost(totals)).toBe('0.1')
     expect(metricValue(totals, 'tokens')).toBe(1100)
     totals.tokens.output = undefined
     expect(metricValue(totals, 'tokens')).toBeUndefined()
     expect(knownSum([undefined, undefined])).toBeUndefined()
-    expect(billedCost(usageTotals('local'))).toBe(0)
+    expect(billedCost(usageTotals('local'))).toBe('0')
   })
+  it('computes budget shares, remainders and chart geometry from exact dollars (M121)', () => {
+    // Binary floats made 0.57 of $1 read as 56.99…%.
+    expect(percentOf(a('0.57'), a('1'))).toBe(57)
+    expect(percentOf(a('1'), a('0'))).toBe(100)
+    expect(remainingUsd(a('0.1'), a('0.3'))).toBe('0.2')
+    expect(remainingUsd(a('2'), a('1'))).toBe('0')
+    // Geometry is whole nano-dollars rounded up; its label reads back exactly.
+    expect(costPlot(a('0.0000000001'))).toBe(1)
+    expect(metricText(costPlot(a('0.125')), 'cost')).toBe('$0.13')
+  })
+  it.each(['0.0000000001', '0.00000000001'])(
+    'labels one xAI tick (%s) exactly, never from plotted geometry (M121 P2-2)',
+    (tick) => {
+      const exact = money(a(tick))
+      // Plotted geometry ceils both ticks to one nano-dollar and would label
+      // each `$0.0000000010`: ten and a hundred times the actual charge.
+      expect(exact).not.toBe('$0.0000000010')
+      const tickTotals = () => ({
+        ...usageTotals('reported', 1),
+        costs: [{ certainty: 'reported' as const, records: 1, usd: a(tick) }],
+      })
+      const state = usageStateFor('one-provider')
+      state.query.metric = 'cost'
+      for (const row of [...state.breakdown, ...state.buckets[0]!.groups]) row.totals = tickTotals()
+      state.buckets[0]!.totals = tickTotals()
+      for (const Chart of [StackedColumns, ShareBar]) {
+        const rendered = render(<Chart state={state} />)
+        expect(screen.getByRole('status')).toHaveTextContent(exact)
+        fireEvent.click(screen.getByText('Show Chart Data'))
+        const table = screen.getByRole('table', { hidden: true })
+        expect(table).toHaveTextContent(exact)
+        expect(table).not.toHaveTextContent('$0.0000000010')
+        rendered.unmount()
+      }
+      const budget = {
+        ...usageStateFor().budgets[0]!,
+        spentUsd: a(tick),
+        projectedUsd: a(tick),
+      }
+      const burn = render(<BurnLine budget={budget} now={Date.now()} />)
+      expect(screen.getByRole('status')).toHaveTextContent(exact)
+      fireEvent.click(screen.getByText('Show Chart Data'))
+      expect(screen.getByRole('table', { hidden: true })).toHaveTextContent(exact)
+      expect(screen.getByRole('table', { hidden: true })).not.toHaveTextContent('$0.0000000010')
+      burn.unmount()
+      const table = render(<BreakdownTable rows={state.breakdown} post={() => undefined} />)
+      expect(screen.getByRole('table')).toHaveTextContent(exact)
+      table.unmount()
+      const kpis = render(<KpiTiles totals={tickTotals()} previous={tickTotals()} metric="cost" />)
+      expect(kpis.container.textContent).toContain(exact)
+      expect(kpis.container.textContent).not.toContain('$0.0000000010')
+      kpis.unmount()
+    },
+  )
   it.each([StackedColumns, MirroredColumns, ShareBar])(
     'renders SVG attributes without inline styles and preserves the numbers in its table',
     (Chart) => {
@@ -244,7 +359,7 @@ describe('usage charts', () => {
     many.buckets[0]!.groups[0]!.id = 'other'
     const chart = groupedChart(many)
     expect(new Set(chart.series.map((series) => series.id)).size).toBe(7)
-    expect(knownSum(chart.points[0]!.values)).toBeCloseTo(4.5)
+    expect(knownSum(chart.points[0]!.values)).toBe(4_500_000_000)
   })
   it('shows projection only from the supplied budget source, with its cap and values in the table', () => {
     const budget = usageStateFor().budgets[0]!

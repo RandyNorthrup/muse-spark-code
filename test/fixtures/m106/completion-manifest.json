@@ -1,0 +1,253 @@
+{
+  "date": "2026-10-10",
+  "lane": "C-M106-1",
+  "rig": "macmini",
+  "cli": "1.4.4-R5419.1",
+  "totals": {
+    "processLaunches": 4,
+    "mspRequestAttempts": 18,
+    "turnStartAttempts": 0,
+    "modelAttempts": 0,
+    "feedbackSubmitAttempts": 2,
+    "feedbackUploads": 1,
+    "metaCollectorHttpAttempts": 0,
+    "localDiscoveryGetAttempts": 4
+  },
+  "captures": [
+    {
+      "file": "msp-1.4.4-invalid-initialize.json",
+      "sha256": "64cd323e5876655de9555c2430bcdb157b904d989f983b205909acb15eeeb9e7",
+      "sourceSha256": "c78c5211137b576e260d679056e897540dc26c9b2eabef3c3005f8b0cefd83ec",
+      "startedAt": "2026-10-10T16:51:50.309Z",
+      "workspace": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/cm1061-msp-zLyWzk",
+      "requestAttempts": 3,
+      "modelAttempts": 0
+    },
+    {
+      "file": "msp-1.4.4-invalid-approval.json",
+      "sha256": "71c64b8543201c9a1a4243608791a3f5ecde94f7588c6323b494d3e283ae6808",
+      "sourceSha256": "5ed0e49e01d759cc34aeb04e0e41089cca28b72371aa5a0df98862d090003c10",
+      "startedAt": "2026-10-10T16:52:09.748Z",
+      "workspace": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/cm1061-msp-rAUxt2",
+      "requestAttempts": 3,
+      "modelAttempts": 0
+    },
+    {
+      "file": "msp-1.4.4-session-lifecycle.json",
+      "sha256": "12bd72b999f81242baa150c52d8c8b1834c2ad2914d2107ffb886fc4ab1fe62b",
+      "sourceSha256": "312a539e3472c42aa268e099e457dadf424f36a6635b6ccbbce2923b1f5439a2",
+      "startedAt": "2026-10-10T16:52:48.332Z",
+      "workspace": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/cm1061-msp-Y4vzL7",
+      "requestAttempts": 6,
+      "modelAttempts": 0
+    },
+    {
+      "file": "msp-1.4.4-host-feedback.json",
+      "sha256": "cfffa8691ede4493a4c85f1363a208e9028f769739f639ec841296042206e8dc",
+      "sourceSha256": "b1638a61c99a5502af4a49c4fabb0c2804b1529ffac12cce4069c89beb65e242",
+      "startedAt": "2026-10-10T16:54:55.196Z",
+      "workspace": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/cm1061-msp-RCamx3",
+      "requestAttempts": 6,
+      "modelAttempts": 0
+    }
+  ],
+  "providers": [
+    {
+      "provider": "meta",
+      "state": "waiting",
+      "requires": "Meta Model API key (lead-held)",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No key supplied to this lane; collector prepared, live execution belongs to the lead. Earlier status/U9 summary fixtures are retained."
+    },
+    {
+      "provider": "openai",
+      "state": "waiting",
+      "requires": "OPENAI_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "azure",
+      "state": "waiting",
+      "requires": "AZURE_OPENAI_API_KEY and owner Azure resource/deployment",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "xai",
+      "state": "waiting",
+      "requires": "XAI_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "anthropic",
+      "state": "waiting",
+      "requires": "ANTHROPIC_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "gemini",
+      "state": "waiting",
+      "requires": "GEMINI_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "openrouter",
+      "state": "waiting",
+      "requires": "OPENROUTER_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "groq",
+      "state": "waiting",
+      "requires": "GROQ_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "deepseek",
+      "state": "waiting",
+      "requires": "DEEPSEEK_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "mistral",
+      "state": "waiting",
+      "requires": "MISTRAL_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "together",
+      "state": "waiting",
+      "requires": "TOGETHER_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "fireworks",
+      "state": "waiting",
+      "requires": "FIREWORKS_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "huggingface",
+      "state": "waiting",
+      "requires": "HF_TOKEN",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "zai",
+      "state": "waiting",
+      "requires": "ZAI_API_KEY",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "custom",
+      "state": "waiting",
+      "requires": "Custom provider account key, endpoint and model",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No provider key supplied to this lane. Existing M95 captures are historical evidence, not new M106 qualification."
+    },
+    {
+      "provider": "ollama",
+      "state": "waiting",
+      "requires": "No key required; running ollama server, installed model and exact server version",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No corresponding executable found on PATH; the preset default loopback models-list GET was refused. No endpoint/model supplied; no server or capability is invented.",
+      "discoveryUrl": "http://127.0.0.1:11434/api/tags"
+    },
+    {
+      "provider": "lmstudio",
+      "state": "waiting",
+      "requires": "No key required; running lmstudio server, installed model and exact server version",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No corresponding executable found on PATH; the preset default loopback models-list GET was refused. No endpoint/model supplied; no server or capability is invented.",
+      "discoveryUrl": "http://127.0.0.1:1234/v1/models"
+    },
+    {
+      "provider": "vllm",
+      "state": "waiting",
+      "requires": "No key required; running vllm server, installed model and exact server version",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No corresponding executable found on PATH; the preset default loopback models-list GET was refused. No endpoint/model supplied; no server or capability is invented.",
+      "discoveryUrl": "http://127.0.0.1:8000/v1/models"
+    },
+    {
+      "provider": "llamacpp",
+      "state": "waiting",
+      "requires": "No key required; running llamacpp server, installed model and exact server version",
+      "items": ["headers", "strict", "structured", "streaming", "output-cap"],
+      "newAttempts": 0,
+      "reason": "No corresponding executable found on PATH; the preset default loopback models-list GET was refused. No endpoint/model supplied; no server or capability is invented.",
+      "discoveryUrl": "http://127.0.0.1:8080/v1/models"
+    }
+  ],
+  "limitations": [
+    "No raw Meta delta/done, new status or output-cap HTTP capture: the lead must run scripts/capture-m106-meta.mjs with a stdin key.",
+    "session/delete returns methodNotFound in 1.4.4; no deleteCompleted frame exists in these captures.",
+    "Ephemeral sessions produce session/started and session/closed; session/listChanged was not observed. Durable-session history notifications still require capture; this lane did not create durable sessions in the owner profile.",
+    "Feedback with the ephemeral session ID returns sessionNotFound. The successful host-level feedback includes no session ID, files or session record; no attachment-enabled outcome is certified.",
+    "The catalogue reports outputLimit 128000. This is Muse Code metadata, not evidence that Meta accepts or enforces the recommended HTTP cap 131072.",
+    "No production capability binding, native reader, editor feature or release certification is enabled by this receipt."
+  ],
+  "localDiscovery": {
+    "timestamp": "2026-10-10T17:28:58.008Z",
+    "inferenceAttempts": 0,
+    "rows": [
+      {
+        "provider": "ollama",
+        "url": "http://127.0.0.1:11434/api/tags",
+        "status": null,
+        "result": "connection refused"
+      },
+      {
+        "provider": "lmstudio",
+        "url": "http://127.0.0.1:1234/v1/models",
+        "status": null,
+        "result": "connection refused"
+      },
+      {
+        "provider": "vllm",
+        "url": "http://127.0.0.1:8000/v1/models",
+        "status": null,
+        "result": "connection refused"
+      },
+      {
+        "provider": "llamacpp",
+        "url": "http://127.0.0.1:8080/v1/models",
+        "status": null,
+        "result": "connection refused"
+      }
+    ],
+    "sourceSha256": "23240c21b3794b0cb2fb342749de61d5731549f11029578610073d22654ea661",
+    "source": "bounded unauthenticated loopback models-list GETs at the preset default ports; no HTTP response received"
+  },
+  "providerAttemptDefinition": "newAttempts counts M106 guarantee probes; models-list discovery GETs are counted separately."
+}

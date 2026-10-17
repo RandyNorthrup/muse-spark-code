@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import * as constants from '../../src/shared/constants'
 import {
@@ -40,7 +41,7 @@ const usage = {
   outputTokens: 3,
   reasoningTokens: 1,
   modelCalls: 1,
-  costUsd: 0.01,
+  costUsd: Usd.from('0.01').toAmount(),
   accuracy: 'reported',
 } as const
 const attempt: TeamAttempt = {
@@ -98,8 +99,8 @@ const metrics: TeamTrafficMetrics = {
   reassignments: 1,
   candidatesReturned: 1,
   mergedChanges: 1,
-  reportedCostUsd: 0.1,
-  estimatedCostUsd: 0.2,
+  reportedCostUsd: Usd.from('0.1').toAmount(),
+  estimatedCostUsd: Usd.from('0.2').toAmount(),
   reportedTokens: 10,
   estimatedTokens: 20,
   timeToMergeMedianMs: 100,
@@ -293,7 +294,9 @@ describe('attempt, board and event boundaries', () => {
     }
     expect(teamSchedulerEventSchema.parse(event)).toEqual(event)
     expect(teamSchedulerEventSchema.safeParse({ ...event, attempt: 0 }).success).toBe(false)
-    expect(teamAttemptUsageSchema.safeParse({ ...usage, costUsd: -1 }).success).toBe(false)
+    expect(
+      teamAttemptUsageSchema.safeParse({ ...usage, costUsd: Usd.from('-1').toAmount() }).success,
+    ).toBe(false)
     expect(teamAttemptUsageSchema.safeParse({ ...usage, inputTokens: -1 }).success).toBe(false)
     expect(teamAttemptUsageSchema.safeParse({ ...usage, modelCalls: 0.5 }).success).toBe(false)
     expect(teamSchedulerEventSchema.safeParse({ ...event, prompt: 'extra' }).success).toBe(false)
@@ -315,6 +318,20 @@ describe('metrics boundaries', () => {
         timeToMergeMedianMs: null,
       }).waitMedianMs,
     ).toBeNull()
+  })
+})
+
+describe('older numeric team money (M121)', () => {
+  it('reads a saved attempt and metrics with numeric dollars as the same exact decimals', () => {
+    // The 0.17 board stored `costUsd` as a JSON number; its text is the amount.
+    const saved: unknown = { ...attempt, usage: { ...usage, costUsd: 0.07 } }
+    expect(teamAttemptSchema.parse(saved).usage.costUsd).toBe('0.07')
+    const old = { ...metrics, reportedCostUsd: 0.1, estimatedCostUsd: 1e-7 }
+    const parsed = teamTrafficMetricsSchema.parse(old)
+    expect([parsed.reportedCostUsd, parsed.estimatedCostUsd]).toEqual(['0.1', '0.0000001'])
+    expect(
+      teamAttemptSchema.safeParse({ ...attempt, usage: { ...usage, costUsd: -1 } }).success,
+    ).toBe(false)
   })
 })
 

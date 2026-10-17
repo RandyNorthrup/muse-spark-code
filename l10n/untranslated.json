@@ -184,7 +184,10 @@
       "teamTemplateSolo",
       "teamTreeLabel",
       "teamOrchestrator",
-      "teamUsageTitle"
+      "teamUsageTitle",
+      "gitPullRequestFormLabel",
+      "agentsCount.one",
+      "openPullRequestRepository"
     ],
     "es": [
       "hooksItem",
@@ -262,7 +265,8 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "teamTreeLabel",
-      "teamUsageTitle"
+      "teamUsageTitle",
+      "openPullRequestRepository"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
@@ -307,7 +311,8 @@
       "kindSubagent",
       "kindWorker",
       "nameColumn",
-      "originSubagent"
+      "originSubagent",
+      "limits"
     ],
     "es": ["certaintyLocal", "certaintyPlan", "editor", "kindHook", "kindWorker", "tokens"],
     "fr": [

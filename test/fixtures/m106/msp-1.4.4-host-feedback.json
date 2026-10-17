@@ -1,0 +1,417 @@
+{
+  "provenance": {
+    "startedAt": "2026-10-10T16:54:55.196Z",
+    "finishedAt": "2026-10-10T16:54:58.919Z",
+    "workspace": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/cm1061-msp-RCamx3",
+    "cli": "1.4.4-R5419.1",
+    "provider": "meta",
+    "model": "muse-spark-1.3-contributor",
+    "modelAttempts": 0,
+    "traceFiles": 1,
+    "requestAttempts": 6,
+    "sourceSha256": "b1638a61c99a5502af4a49c4fabb0c2804b1529ffac12cce4069c89beb65e242",
+    "projection": true,
+    "omitted": [
+      "museHome",
+      "avatarUrl",
+      "email",
+      "profileId",
+      "encrypted_content",
+      "encryptedContent"
+    ],
+    "scrubbed": ["user profile", "temporary workspace", "email addresses"],
+    "modelAttemptsEvidence": "No turn/start sent. For created sessions, own bootstrap trace admission count is zero.",
+    "launchArguments": [
+      "serve",
+      "--provider",
+      "meta",
+      "--model",
+      "muse-spark-1.3-contributor",
+      "--no-session-log",
+      "--disable-shell",
+      "--disable-write"
+    ]
+  },
+  "frames": [
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "clientInfo": {
+            "name": "m106_capture",
+            "version": "0.1.0"
+          },
+          "capabilities": {
+            "userInputDialogs": false,
+            "requestedCapabilities": ["sessionListStream", "feedback"]
+          }
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "serverInfo": {
+            "name": "muse",
+            "version": "1.4.4"
+          },
+          "userAgent": "muse-build/1.4.4 (serve; macos-x86_64; build 1e1635eda6610b6dec0803bc76c1ceb0dbff7caa)",
+          "platformFamily": "unix",
+          "platformOs": "macos",
+          "schema": {
+            "version": 1,
+            "fingerprint": "sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a"
+          },
+          "grantedCapabilities": ["sessionListStream", "feedback"],
+          "experimentalApi": false,
+          "sessionDurability": "ephemeral"
+        }
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "model/list",
+        "params": {}
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "providerId": "meta",
+          "source": "providerCatalog",
+          "models": [
+            {
+              "modelId": "muse-spark-1.3",
+              "displayLabel": "muse-spark-1.3",
+              "providerId": "meta",
+              "releaseDate": "2026-09-02",
+              "description": null,
+              "contextLimit": 1007997,
+              "outputLimit": 128000,
+              "cost": null,
+              "isActive": false,
+              "isDefault": false,
+              "variants": ["minimal", "low", "medium", "high", "xhigh", "max"],
+              "reasoningEffortVariants": [],
+              "defaultReasoningEffort": "high"
+            },
+            {
+              "modelId": "muse-spark-1.3-contributor",
+              "displayLabel": "muse-spark-1.3-contributor",
+              "providerId": "meta",
+              "releaseDate": "2026-09-02",
+              "description": "Your content, including inter-session messages, may be used for product improvement.",
+              "contextLimit": 1007997,
+              "outputLimit": 128000,
+              "cost": null,
+              "isActive": false,
+              "isDefault": true,
+              "variants": ["minimal", "low", "medium", "high", "xhigh", "max"],
+              "reasoningEffortVariants": [
+                {
+                  "tier": "xhigh",
+                  "description": "Use this for deepest analysis and complex fixes."
+                }
+              ],
+              "defaultReasoningEffort": "max"
+            },
+            {
+              "modelId": "muse-spark-1.2",
+              "displayLabel": "muse-spark-1.2",
+              "providerId": "meta",
+              "releaseDate": "2026-08-05",
+              "description": null,
+              "contextLimit": 1007997,
+              "outputLimit": 128000,
+              "cost": null,
+              "isActive": false,
+              "isDefault": false,
+              "variants": ["minimal", "low", "medium", "high", "xhigh"],
+              "reasoningEffortVariants": [
+                {
+                  "tier": "xhigh",
+                  "description": "Use this for deepest analysis and complex fixes."
+                }
+              ],
+              "defaultReasoningEffort": "high"
+            },
+            {
+              "modelId": "muse-spark-1.2-contributor",
+              "displayLabel": "muse-spark-1.2-contributor",
+              "providerId": "meta",
+              "releaseDate": "2026-08-05",
+              "description": "Your content, including inter-session messages, may be used for product improvement.",
+              "contextLimit": 1007997,
+              "outputLimit": 128000,
+              "cost": null,
+              "isActive": false,
+              "isDefault": false,
+              "variants": ["minimal", "low", "medium", "high", "xhigh"],
+              "reasoningEffortVariants": [
+                {
+                  "tier": "xhigh",
+                  "description": "Use this for deepest analysis and complex fixes."
+                }
+              ],
+              "defaultReasoningEffort": "high"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "session/start",
+        "params": {
+          "commandId": "01a126bd-3617-7ae6-8fb5-4b1d92b9b091",
+          "workspaceRoot": "<capture-workspace>",
+          "modelId": "muse-spark-1.3-contributor",
+          "approvalMode": "denyUnmatched"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/started",
+        "params": {
+          "session": {
+            "sessionId": "01a126bd-363a-7a72-8a39-8b298eb7a80a",
+            "path": "",
+            "status": "idle",
+            "activeTurnId": null,
+            "createdAt": "2026-10-10T16:54:56.826626Z",
+            "updatedAt": "2026-10-10T16:54:56.82663Z",
+            "workspaceRoot": "<capture-workspace>",
+            "providerId": "meta",
+            "modelId": "muse-spark-1.3-contributor",
+            "turnCount": 0,
+            "forkedFrom": null,
+            "sideFrom": null,
+            "approvalMode": {
+              "mode": "denyUnmatched",
+              "source": "startup",
+              "lastCommandId": null
+            },
+            "createdByClient": {
+              "name": "m106_capture",
+              "version": "0.1.0"
+            }
+          }
+        },
+        "emittedAtMs": 1791651297167
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "session": {
+            "sessionId": "01a126bd-363a-7a72-8a39-8b298eb7a80a",
+            "path": "",
+            "status": "idle",
+            "activeTurnId": null,
+            "createdAt": "2026-10-10T16:54:56.826626Z",
+            "updatedAt": "2026-10-10T16:54:56.82663Z",
+            "workspaceRoot": "<capture-workspace>",
+            "providerId": "meta",
+            "modelId": "muse-spark-1.3-contributor",
+            "turnCount": 0,
+            "forkedFrom": null,
+            "sideFrom": null,
+            "approvalMode": {
+              "mode": "denyUnmatched",
+              "source": "startup",
+              "lastCommandId": null
+            },
+            "createdByClient": {
+              "name": "m106_capture",
+              "version": "0.1.0"
+            }
+          },
+          "viewCursor": "pending:seam-c-session-view-fold"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/approvalModeChanged",
+        "params": {
+          "sessionId": "01a126bd-363a-7a72-8a39-8b298eb7a80a",
+          "viewCursor": "v:01a126bd-363a-7a72-8a39-8b298eb7a80a:1",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a126bd-363a-7a72-8a39-8b298eb7a80a"
+            },
+            "first": {
+              "id": "c7c95627-7066-4f2c-8f8c-29c94b0fa3d0",
+              "sequence": 2
+            },
+            "last": {
+              "id": "c7c95627-7066-4f2c-8f8c-29c94b0fa3d0",
+              "sequence": 2
+            }
+          },
+          "mode": "denyUnmatched",
+          "source": "approvalReconfigure",
+          "commandId": "01a126bd-3617-7ae6-8fb5-4b1d92b9b091",
+          "clientName": "m106_capture"
+        },
+        "emittedAtMs": 1791651297173
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "session/setReasoningEffort",
+        "params": {
+          "commandId": "01a126bd-3796-7e7b-8f08-6d9a74806663",
+          "sessionId": "01a126bd-363a-7a72-8a39-8b298eb7a80a",
+          "reasoningEffort": "minimal"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/reasoningEffortChanged",
+        "params": {
+          "sessionId": "01a126bd-363a-7a72-8a39-8b298eb7a80a",
+          "viewCursor": "v:01a126bd-363a-7a72-8a39-8b298eb7a80a:2",
+          "sourceRange": {
+            "stream": {
+              "kind": "session",
+              "id": "01a126bd-363a-7a72-8a39-8b298eb7a80a"
+            },
+            "first": {
+              "id": "6bb334f7-b232-47d8-96e9-e4974fb849a7",
+              "sequence": 6
+            },
+            "last": {
+              "id": "6bb334f7-b232-47d8-96e9-e4974fb849a7",
+              "sequence": 6
+            }
+          },
+          "reasoningEffort": "minimal",
+          "source": "user"
+        },
+        "emittedAtMs": 1791651297174
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "result": {
+          "commandId": "01a126bd-3796-7e7b-8f08-6d9a74806663",
+          "status": "accepted"
+        }
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "feedback/submit",
+        "params": {
+          "classification": "bug",
+          "note": "M106 synthetic protocol capture in an empty throwaway workspace. No private files or session record are consented.",
+          "withFiles": false,
+          "attachSessionRecord": false
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "result": {
+          "outcome": "uploaded",
+          "uploadId": "mbfb_iqtqpltgldtpg6o3u7qr3mrp7i",
+          "bundlePath": "<user-profile>/.local/share/muse/feedback/feedback-1.md",
+          "sessionRecordAttached": false,
+          "sessionRecordTruncated": false
+        }
+      }
+    },
+    {
+      "direction": "sent",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "method": "session/delete",
+        "params": {
+          "commandId": "01a126bd-3d5c-7a91-8b9c-e6723307697c",
+          "sessionId": "01a126bd-363a-7a72-8a39-8b298eb7a80a"
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "error": {
+          "code": -32601,
+          "message": "method not found",
+          "data": {
+            "kind": "methodNotFound"
+          }
+        }
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/closed",
+        "params": {
+          "sessionId": "01a126bd-363a-7a72-8a39-8b298eb7a80a",
+          "reason": "hostShutdown",
+          "viewCursor": "pending:seam-c-session-view-fold"
+        },
+        "emittedAtMs": 1791651298692
+      }
+    },
+    {
+      "direction": "received",
+      "frame": {
+        "jsonrpc": "2.0",
+        "method": "session/statusChanged",
+        "params": {
+          "sessionId": "01a126bd-363a-7a72-8a39-8b298eb7a80a",
+          "status": "notLoaded",
+          "viewCursor": "pending:seam-c-session-view-fold"
+        },
+        "emittedAtMs": 1791651298692
+      }
+    }
+  ]
+}

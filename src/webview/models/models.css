@@ -342,6 +342,15 @@
   color: var(--vscode-descriptionForeground);
 }
 
+.models-select-list [role='option'][aria-disabled='true'] {
+  opacity: 60%;
+}
+
+.models-select-reason {
+  display: block;
+  color: var(--vscode-descriptionForeground);
+}
+
 .models-select-list [aria-selected='true'] .models-select-description {
   color: inherit;
 }
@@ -554,4 +563,22 @@
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+/* Contain section margins so the saved box also describes its skeleton. */
+.models-section-slot {
+  display: flow-root;
+}
+
+.models-section-skeleton {
+  overflow: hidden;
+}
+
+.models-nav-item[aria-busy='true'] {
+  color: var(--ms-muted);
+}
+
+.models-section-error {
+  display: flow-root;
+  min-height: var(--ms-models-section-height);
 }

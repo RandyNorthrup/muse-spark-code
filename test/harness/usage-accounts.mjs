@@ -32,7 +32,7 @@ try {
           })
           await page.getByRole('button', { name: 'Refresh', exact: true }).click()
           const card = page
-            .getByRole('heading', { name: 'Provider account budget: openrouter' })
+            .getByRole('heading', { name: 'Provider Account Budget: openrouter' })
             .locator('..')
           await card.getByText('At least 90% of the limit is used.').waitFor()
           await card.scrollIntoViewIfNeeded()
