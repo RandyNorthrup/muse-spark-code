@@ -19,17 +19,17 @@ const FILE_EXTENSION = '.json'
 const SCOPE = /^[A-Za-z0-9-]+$/u
 const totalSchema = z.strictObject({
   spentUsd: nonnegativeUsdSchema,
-  unknownCostCalls: z.number().check(z.int(), z.nonnegative()),
+  unknownChargeCalls: z.number().check(z.int(), z.nonnegative()),
 })
 
 /** What a scope's calls spent, from the usage each reported. */
 export interface DailySpendTotal {
   readonly spentUsd: UsdAmount
   /** Calls that went out and reported no usage: their cost is unknown and not in `spentUsd`. */
-  readonly unknownCostCalls: number
+  readonly unknownChargeCalls: number
 }
 
-const NOTHING: DailySpendTotal = { spentUsd: Usd.from(0).toAmount(), unknownCostCalls: 0 }
+const NOTHING: DailySpendTotal = { spentUsd: Usd.from(0).toAmount(), unknownChargeCalls: 0 }
 
 export function createDailySpend(deps: {
   readonly directory: string
@@ -70,14 +70,14 @@ export function createDailySpend(deps: {
       names = []
     }
     let spent = Usd.from(own.get(scope)?.spentUsd ?? 0)
-    let unknownCostCalls = own.get(scope)?.unknownCostCalls ?? 0
+    let unknownChargeCalls = own.get(scope)?.unknownChargeCalls ?? 0
     for (const name of names) {
       if (name === ownFile || !name.endsWith(FILE_EXTENSION)) continue
       const other = parse(scope, path.join(directory, name))
       spent = spent.add(Usd.from(other.spentUsd))
-      unknownCostCalls += other.unknownCostCalls
+      unknownChargeCalls += other.unknownChargeCalls
     }
-    return { spentUsd: spent.toAmount(), unknownCostCalls }
+    return { spentUsd: spent.toAmount(), unknownChargeCalls }
   }
   /**
    * One finished call, after it ended: its cost from the provider's usage,
@@ -92,7 +92,7 @@ export function createDailySpend(deps: {
     const before = own.get(scope) ?? NOTHING
     const next: DailySpendTotal =
       costUsd === undefined
-        ? { ...before, unknownCostCalls: before.unknownCostCalls + 1 }
+        ? { ...before, unknownChargeCalls: before.unknownChargeCalls + 1 }
         : { ...before, spentUsd: Usd.from(before.spentUsd).add(Usd.from(costUsd)).toAmount() }
     own.set(scope, next)
     // Writes of one scope go in order, so an older figure never lands last.

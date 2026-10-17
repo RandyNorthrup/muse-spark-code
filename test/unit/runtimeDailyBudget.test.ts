@@ -89,7 +89,7 @@ describe('the agent daily limit', () => {
     const signal = new AbortController().signal
     const claim = daily.admit(Usd.from('0.9').toAmount(), signal)
     await claim?.settle(undefined)
-    expect(spentFile(folder)).toEqual({ spentUsd: '0', unknownCostCalls: 1 })
+    expect(spentFile(folder)).toEqual({ spentUsd: '0', unknownChargeCalls: 1 })
     // The estimate was never counted, so the same request still fits.
     expect(daily.admit(Usd.from('0.9').toAmount(), signal)).toBeDefined()
   })
@@ -100,6 +100,6 @@ describe('the agent daily limit', () => {
     const claim = daily.admit(Usd.from('0.4').toAmount(), new AbortController().signal)
     await claim?.settle(Usd.from('0.3').toAmount())
     await claim?.settle(Usd.from('0.3').toAmount())
-    expect(spentFile(folder)).toEqual({ spentUsd: '0.3', unknownCostCalls: 0 })
+    expect(spentFile(folder)).toEqual({ spentUsd: '0.3', unknownChargeCalls: 0 })
   })
 })
