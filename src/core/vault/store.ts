@@ -29,7 +29,8 @@ import {
 import { handleIdentity, lstatIdentity, sameFile, isSameVolume } from '../fs/fileIdentity'
 import { acquireFileLease, LeaseBusyError } from '../locks/fileLease'
 import { nodeLeasePort } from '../locks/nodeLeasePort'
-import { currentProcessOwner, isProcessOwnerGone } from '../locks/processOwner'
+import { exactCurrentProcessOwner, isProcessOwnerGone } from '../locks/processOwner'
+import { hostname } from 'node:os'
 import {
   decodeVaultBytes,
   decodeVaultMaterial,
@@ -43,6 +44,7 @@ import {
   randomVaultBytes,
   sealVaultBlock,
   VaultError,
+  VaultWriterError,
   vaultBlockSchema,
   vaultHmacSha256,
 } from './crypto'
@@ -298,6 +300,8 @@ export class NodeVaultFiles implements VaultFilePort {
     await this.directory()
     let lease
     try {
+      const owner = await exactCurrentProcessOwner()
+      if (!owner) throw new VaultWriterError({ kind: 'ownerUnknown' })
       lease = await acquireFileLease(path.join(this.root, 'writer.lock'), {
         port: {
           ...nodeLeasePort,
@@ -321,8 +325,9 @@ export class NodeVaultFiles implements VaultFilePort {
             }
           },
         },
-        owner: await currentProcessOwner(),
-        isOwnerGone: isProcessOwnerGone,
+        owner,
+        takeover: 'ownerDeathOnly',
+        isOwnerGone: (holder) => isProcessOwnerGone(holder, { self: owner, exactOnly: true }),
         now: Date.now,
         monotonic: () => performance.now(),
         sleep: delay,
@@ -333,6 +338,15 @@ export class NodeVaultFiles implements VaultFilePort {
         pollMs: 0,
       })
     } catch (error: unknown) {
+      if (error instanceof VaultWriterError) throw error
+      if (error instanceof LeaseBusyError && error.holder) {
+        throw new VaultWriterError({
+          kind: 'held',
+          pid: error.holder.owner.pid,
+          acquiredAt: error.holder.acquiredAt,
+          otherMachine: error.holder.owner.host !== hostname(),
+        })
+      }
       throw new VaultError(error instanceof LeaseBusyError ? 'busy' : 'io')
     }
     if (this.writer) {

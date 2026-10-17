@@ -25,7 +25,7 @@ import {
   type VaultTaint,
   type VaultAuditRecord,
 } from '../../../shared/vault'
-import { decodeVaultMaterial, eraseVaultMaterial, VaultError } from '../crypto'
+import { decodeVaultMaterial, eraseVaultMaterial, VaultError, VaultWriterError } from '../crypto'
 import { vaultPrivateDirectory } from './files'
 import pathModule from 'node:path'
 import { type VaultBroker } from './broker'
@@ -175,7 +175,11 @@ export class VaultChannelServer {
           // else still closes the connection without diagnostics.
           const reason = refusal(error)
           if (reason === null) throw error
-          return { kind: 'refused', reason }
+          return {
+            kind: 'refused',
+            reason,
+            ...(error instanceof VaultWriterError && { writer: error.writer }),
+          }
         }
         return { kind: 'ok' }
       }
@@ -359,7 +363,11 @@ export class VaultChannelServer {
     } catch (error: unknown) {
       const reason = refusal(error)
       if (reason === null) throw error
-      return { kind: 'refused', reason }
+      return {
+        kind: 'refused',
+        reason,
+        ...(error instanceof VaultWriterError && { writer: error.writer }),
+      }
     }
   }
   /** Private v2 writes and recovery: manage-only, values never on a public frame. */
@@ -387,7 +395,11 @@ export class VaultChannelServer {
     } catch (error: unknown) {
       const reason = refusal(error)
       if (reason === null) throw error
-      return { kind: 'refused', reason }
+      return {
+        kind: 'refused',
+        reason,
+        ...(error instanceof VaultWriterError && { writer: error.writer }),
+      }
     }
   }
   async listen(path: string): Promise<void> {
@@ -517,7 +529,11 @@ export class VaultChannelServer {
         } catch (error: unknown) {
           const reason = refusal(error)
           if (reason === null) throw error
-          response = { kind: 'refused', reason }
+          response = {
+            kind: 'refused',
+            reason,
+            ...(error instanceof VaultWriterError && { writer: error.writer }),
+          }
           await write({ v: VAULT_PROTOCOL_VERSION, sequence: message.sequence, response })
           return
         }

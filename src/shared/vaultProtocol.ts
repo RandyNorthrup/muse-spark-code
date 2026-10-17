@@ -218,7 +218,7 @@ export const vaultBrokerResponseSchema = z.strictObject({
         .check(z.minLength(1), z.maxLength(VAULT_LIMITS.items)),
     }),
     z.strictObject({ kind: z.literal('resetChallenge'), resetId: id, word: text }),
-    // A refused management call names why, without exception text.
+    // Writer metadata contains only process/time facts, never paths or values.
     z.strictObject({
       kind: z.literal('refused'),
       reason: z.enum([
@@ -246,6 +246,17 @@ export const vaultBrokerResponseSchema = z.strictObject({
         'io',
         'storeUnavailable',
       ]),
+      writer: z.optional(
+        z.union([
+          z.strictObject({ kind: z.literal('ownerUnknown') }),
+          z.strictObject({
+            kind: z.literal('held'),
+            pid: counter.check(z.positive()),
+            acquiredAt: counter,
+            otherMachine: z.boolean(),
+          }),
+        ]),
+      ),
     }),
   ]),
 })

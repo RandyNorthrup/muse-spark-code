@@ -5161,6 +5161,18 @@ paths remain unbound pending the broker/editor bindings and the Windows
 installed-build checks in [the M109 record](docs/certification/m109.md).
 Windows also adopts protocol v2's import receipts and two-step reset, with
 typed Credential Manager repair reasons and a compare-and-delete anchor.
+A vault writer keeps exclusive ownership for its entire operation, even if
+suspended or hung. Its thirty-second lease and ten-second renewals are
+informational: another writer may take over only after proving that the
+recorded process has exited on this machine, using its exact OS birth to
+detect a reused process ID. Unknown ownership refuses access. Busy messages
+name the process and acquisition time; a foreign-machine lock also says its
+termination cannot be established here. A vault folder on a shared drive is
+held by one machine at a time. Stop the holding process before retrying;
+never delete its lock to release a live writer. Fences detect local ownership
+mistakes; exclusivity does not depend on a fence check being atomic with a
+filesystem or credential-store mutation.
+
 Windows damaged-document retention is repaired and qualified; production
 Reset/Restore process-death recovery also passes on Win11. The installed
 broker/panel bindings and remaining OS qualification stay pending; these

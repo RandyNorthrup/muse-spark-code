@@ -6254,6 +6254,12 @@ export const EN = {
     recoveryShownOnce: 'Recovery code (shown only now): {code}',
     savedItPrompt: 'Have you saved the recovery code somewhere safe?',
     busy: 'The vault is busy in another window. Try again.',
+    busyHolder:
+      'The vault is held by process {pid} since {since}. Try again after that process exits.',
+    busyOtherMachine:
+      'The vault is held on another machine by process {pid} since {since}. Its death cannot be established here.',
+    ownerUnknown:
+      'The vault cannot acquire a writer because this process’s exact operating-system birth could not be established. Try again.',
     // C-M109-1: import and Reset Vault (lead decisions, 2026-10-10).
     importedLabel: 'Imported {source} credential {number}',
     importedSummary: 'Imported into the vault: {names}',

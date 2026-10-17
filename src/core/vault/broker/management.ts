@@ -26,7 +26,7 @@ import {
   type VaultBrokerSnapshot,
   type VaultStatus,
 } from '../../../shared/vaultProtocol'
-import { eraseVaultMaterial, randomVaultBytes, VaultError } from '../crypto'
+import { eraseVaultMaterial, randomVaultBytes, VaultError, VaultWriterError } from '../crypto'
 import { createRecoverySlot, unlockRecoverySlot } from '../keyslots'
 import { VaultStore, type VaultFilePort } from '../store'
 import { discoverAmbientFiles } from '../migrate/ambient'
@@ -153,7 +153,8 @@ interface PendingSetup {
 }
 const newId = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
 /** An OS-store failure keeps its fixed repair reason; anything else is `io`. */
-function storeRefusal(error: unknown): VaultManagementError {
+function storeRefusal(error: unknown): VaultManagementError | VaultWriterError {
+  if (error instanceof VaultWriterError) return error
   return new VaultManagementError(
     error instanceof VaultStoreUnavailableError ? 'storeUnavailable' : 'io',
   )
@@ -591,6 +592,7 @@ export class VaultManagement implements VaultManagementPort {
           expected,
         )
       } catch (error: unknown) {
+        if (error instanceof VaultWriterError) throw error
         if (error instanceof VaultManagementError) throw error
         if (error instanceof VaultStoreUnavailableError) throw storeRefusal(error)
         // Not lost any more (a vault reappeared) or the files refused: nothing reset.

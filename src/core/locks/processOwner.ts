@@ -51,6 +51,8 @@ export const processOwnerSchema = z.object({
   processStart: z.number(),
   /** Linux: the boot the process ran in. */
   bootId: z.optional(z.string()),
+  /** Exact OS birth token. Absent in legacy notes; numeric estimates never prove reuse for a vault. */
+  exactBirth: z.optional(z.string()),
 })
 
 /** A process, as a lock note or a pending checkout names its owner. */
@@ -222,6 +224,88 @@ export interface ProcessOwnerProbe {
   readonly self: ProcessOwner
   readonly isAlive: (pid: number) => boolean
   readonly startTimeOf: (pid: number) => Promise<number | undefined>
+  readonly exactBirthOf: (pid: number) => Promise<string | undefined>
+  readonly exactOnly: boolean
+}
+
+// Same libproc ABI used by the repository's orphan recovery. No wall-clock estimate.
+const DARWIN_BIRTH = `
+import ctypes,sys
+class BSD(ctypes.Structure):
+    _fields_=[(n,ctypes.c_uint32) for n in
+        ('flags','status','xstatus','pid','ppid','uid','gid','ruid','rgid','svuid','svgid','reserved')]+[
+        ('comm',ctypes.c_char*16),('name',ctypes.c_char*32)]+[
+        (n,ctypes.c_uint32) for n in ('nfiles','pgid','pjobc','tdev','tpgid')]+[
+        ('nice',ctypes.c_int32),('seconds',ctypes.c_uint64),('microseconds',ctypes.c_uint64)]
+lib=ctypes.CDLL('/usr/lib/libproc.dylib')
+lib.proc_pidinfo.argtypes=[ctypes.c_int,ctypes.c_int,ctypes.c_uint64,ctypes.c_void_p,ctypes.c_int]
+info=BSD()
+pid=int(sys.argv[1])
+if (lib.proc_pidinfo(pid,3,0,ctypes.byref(info),ctypes.sizeof(info))!=ctypes.sizeof(info)
+    or info.pid!=pid or info.seconds==0 or info.microseconds>=1000000): sys.exit(1)
+print(str(info.seconds)+':'+str(info.microseconds))
+`
+
+/** Exact kernel birth, in native units, or absent. No rounded epoch/tolerance comparison. */
+export async function exactProcessBirth(pid: number): Promise<string | undefined> {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return undefined
+  try {
+    if (process.platform === 'linux') {
+      const boot = await systemBootId()
+      const ticks = await linuxStartTicks(pid)
+      return boot !== undefined && ticks !== undefined ? `${boot}:${String(ticks)}` : undefined
+    }
+    if (process.platform === 'darwin') {
+      const output = await run('/usr/bin/python3', ['-I', '-c', DARWIN_BIRTH, String(pid)])
+      const value = output.trim()
+      return /^\d+:\d+$/u.test(value) ? value : undefined
+    }
+    const root = process.env['SystemRoot'] ?? process.env['windir']
+    if (root === undefined || process.platform !== 'win32') return undefined
+    const output = await run(
+      path.win32.join(root, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `(Get-Process -Id ${String(pid)} -ErrorAction Stop).StartTime.ToFileTimeUtc().ToString()`,
+      ],
+    )
+    const value = output.trim()
+    return DECIMAL.test(value) ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Vault acquisition retries twice; a failed probe never creates an estimated-owner lock. */
+const exactSelf: { owner?: ProcessOwner } = {}
+export async function exactCurrentProcessOwner(
+  birthOf: (pid: number) => Promise<string | undefined> = exactProcessBirth,
+): Promise<ProcessOwner | undefined> {
+  if (birthOf === exactProcessBirth) {
+    const cached = exactSelf.owner
+    if (cached) return cached
+  }
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const exactBirth = await birthOf(process.pid)
+    if (exactBirth === undefined) continue
+    const processStart = await processStartTime(process.pid)
+    if (processStart === undefined) continue
+    const bootId = await systemBootId()
+    if (bootId === undefined && process.platform === 'linux') continue
+    const owner: ProcessOwner = {
+      host: hostname(),
+      pid: process.pid,
+      processStart,
+      exactBirth,
+      ...(bootId !== undefined && { bootId }),
+    }
+    if (birthOf === exactProcessBirth) exactSelf.owner = owner
+    return owner
+  }
+  return undefined
 }
 
 /**
@@ -241,6 +325,14 @@ export async function isProcessOwnerGone(
   }
   if (!(probe?.isAlive ?? isProcessAlive)(owner.pid)) {
     return true
+  }
+  if (probe?.exactOnly === true) {
+    if (owner.exactBirth === undefined) return false
+    const birth =
+      owner.pid === me.pid && probe.exactBirthOf === undefined
+        ? me.exactBirth
+        : await (probe.exactBirthOf ?? exactProcessBirth)(owner.pid)
+    return birth !== undefined && birth !== owner.exactBirth
   }
   const isBootBound = owner.bootId !== undefined || me.bootId !== undefined
   if (isBootBound && (owner.bootId === undefined || me.bootId === undefined)) {
