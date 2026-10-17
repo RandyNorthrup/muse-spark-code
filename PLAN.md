@@ -8,6 +8,20 @@ ownership and plan-model headless accounting without bypassing either for
 readiness alone. Evidence and unresolved work: `docs/certification/cliflows.md`
 (review section); the handoff is `.lane/RVCLIFLOWS.report.md`.
 
+**PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
+with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
+in the existing ACP permission-answer cache, agent lifecycle and translated
+manifest tables; no new abstraction or provider calls. T1 compares persistent
+rule identity and never falls back to a reused choice id; T2 remembers consent
+before dispatch; T4 awaits the queued mode notice; T5 retains mode across close;
+T6 aligns all fourteen manifest translations. T3 records the merged deletion
+and real-life replacement steps, never restores a stand-in. Pure-module proof
+and a byte-exact red drill cover rule identity; integration ordering and mode
+lifecycle require the lead's real signed-in run. Run scoped static gates,
+all five typechecks, dependent/list-consuming unit suites, build and permitted
+packed-product commands. Evidence and postable replies: `.lane/PRTH165.report.md`
+and `docs/certification/muse-code-permissions.md`.
+
 **PRTH166 review repairs (2026-10-15).** Reuse the controller's opening
 and resumed-handle ownership checks and ACP's existing choice state. After
 merging main `d842cad5d`, address T1 stale attachment, T2 verification cleanup,

@@ -52,6 +52,20 @@ happened, not what was planned; superseded entries are kept.
   checked, rather than falsely claiming no key is stored (all display languages).
 - RVCLIFLOWS: `scan-secrets` no longer emits a panel-language diagnostic on
   stderr; successful scans print only their count.
+- All fourteen translated settings tables now say Muse Code asks before a
+  command unless a permission rule allows it, matching the English modes.
+
+- Closing an ACP session no longer discards its selected permission mode;
+  loading it again on the same connection keeps that mode.
+
+- ACP waits for the selected-mode notice to leave its ordered update queue
+  before acknowledging `session/set_mode`.
+
+- ACP remembers a permission answer before dispatching it, so a stage update
+  arriving before the decision acknowledgement cannot open the same prompt again.
+
+- ACP permission answers retain the selected persistent rule's identity;
+  consent for one command prefix cannot silently install another stage's rule.
 - After Muse Code restarted, a conversation could continue on a different
   model than the one shown (and at that model's price). It now keeps the
   model you chose: the choice is applied and read back from Muse Code before
@@ -248,6 +262,13 @@ happened, not what was planned; superseded entries are kept.
   does not offer) and changes the list with `--add`/`--remove`; a model the
   provider does not list needs `--force '<reason>'`, and the reason is kept
   on the entry. All of this reads in the installed language.
+- Muse Code permissions: on the Muse Code backend one command is asked
+  about once — the first answer is reused for later stages instead of
+  asking again, and an answer given while a newer stage arrives is applied
+  to that stage instead of dropped. A permission mode set in the editor is
+  reported back and kept when the session is loaded again. The Manual and
+  Edit Automatically descriptions now say commands are asked about unless
+  a permission rule allows them.
 
 ## [0.18.2] - 2026-10-12
 
