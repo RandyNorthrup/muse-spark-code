@@ -174,7 +174,8 @@ export function schedulerToolAnswer(
 
 /** M96's note drains once per orchestrator conversation, at a request tail.
  * Usage changes wait for the next tool answer. Event text is JSON data, never
- * promoted to an instruction, and earlier instruction bytes are untouched. */
+ * promoted to an instruction, and earlier instruction bytes are untouched.
+ * @unwired M96 read only by tests deleted 2026-10-17 (no fakes) */
 export class SchedulerStateNote {
   private readonly pending: TeamSchedulerEvent[] = []
   private readonly seen: string[] = []
