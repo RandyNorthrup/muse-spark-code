@@ -130,7 +130,7 @@ export function useAttentionFocus<T extends HTMLElement>(
   }, [])
   useEffect(() => {
     // A card arriving is the model's act, not the person's: while this
-    // surface does not hold the keyboard (D108) `isTyping` cannot see the
+    // surface does not hold the keyboard (D116) `isTyping` cannot see the
     // file being typed in, and focusing here would take the panel forward.
     if (
       focusKey === undefined ||

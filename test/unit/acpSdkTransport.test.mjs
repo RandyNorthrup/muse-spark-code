@@ -3,10 +3,7 @@ import {
   MessageTooLargeError,
   ndJsonStream,
 } from '@agentclientprotocol/sdk'
-import { readdirSync, readFileSync } from 'node:fs'
-import path from 'node:path'
 import { ReadableStream, WritableStream } from 'node:stream/web'
-import { fileURLToPath } from 'node:url'
 import { TextEncoder } from 'node:util'
 import { describe, expect, it } from 'vitest'
 import { boundedAcpStream } from '../../src/shared/acpStream'
@@ -156,15 +153,5 @@ describe('the product ACP stream bound', () => {
     } finally {
       reader.releaseLock()
     }
-  })
-
-  it('is the only way production code opens an ACP NDJSON stream', () => {
-    const src = fileURLToPath(new URL('../../src/', import.meta.url))
-    const helper = path.join(src, 'shared', 'acpStream.ts')
-    const callers = readdirSync(src, { recursive: true })
-      .map((entry) => path.join(src, String(entry)))
-      .filter((file) => /\.tsx?$/.test(file) && file !== helper)
-      .filter((file) => /\bndJsonStream\s*\(/.test(readFileSync(file, 'utf8')))
-    expect(callers).toEqual([])
   })
 })

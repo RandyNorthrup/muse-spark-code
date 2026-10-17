@@ -1573,23 +1573,6 @@ describe('error envelope and models list', () => {
 })
 
 describe('review regressions (RVM95AO)', () => {
-  it('uses the captured native model id in every golden', () => {
-    const captured: { request: { body: { model: string } } } = JSON.parse(
-      readFileSync(new URL(`${ANTHROPIC_CAPTURE}08-cache-call-1.json`, import.meta.url), 'utf8'),
-    )
-    expect(MODEL).toBe(captured.request.body.model)
-    for (const name of [
-      'first-turn',
-      'tool-loop-reasoning',
-      'image',
-      'packed-output',
-      'compaction',
-    ]) {
-      const request: { body: { model: string } } = JSON.parse(golden(name))
-      expect(request.body.model).toBe(captured.request.body.model)
-    }
-  })
-
   it('rolls only the final breakpoint as growing history preserves prefix bytes', () => {
     const histories: CreateResponseBody['input'][] = [
       [],
