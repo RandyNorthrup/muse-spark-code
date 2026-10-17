@@ -47,6 +47,7 @@ import { redactSecrets } from '../../redact'
 import { scrubSecrets, secretRedactor, type SecretScrubPort } from '../../../shared/redact'
 export { redactSecrets } from '../../redact'
 import { errorBodySchema, type StreamEvent } from './schemas'
+import { scrubRefusalLeak } from './providerRefusal'
 import type { UnattendedRun } from '../../schedules/unattended'
 import type { ModelApiClientDeps } from './client'
 
@@ -1167,8 +1168,10 @@ export class RequestTransport {
         throw failure
       }
       const delay = this.backoffMs(attempt, waitMs)
+      // The provider's words can carry a masked-key remnant or an account
+      // id (PLAN.md D118): the log file keeps the scrubbed form only.
       this.deps.log.warn(
-        `Model API answered ${String(response.status)} (${failure.message}); retrying in ${String(delay)} ms`,
+        `Model API answered ${String(response.status)} (${scrubRefusalLeak(failure.message)}); retrying in ${String(delay)} ms`,
       )
       if (
         response.status === PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout &&
