@@ -3717,6 +3717,7 @@
   "providerRefusalStreamError": "{provider} прервал ответ с ошибкой. Повторите попытку; запрос мог быть оплачен — проверьте использование у {provider}. {provider} сообщил: {detail}",
   "providerRefusalUnrecognised": "{provider} ответил ошибкой, которую эта сборка не распознаёт (HTTP {status}). Повторите попытку; возможно, запрос был оплачен — проверьте использование у {provider}. Ответ начинался так: {detail}",
   "providerRefusalWait": " (повторите через {seconds})",
+  "providerRefusalRequestId": " (ID запроса {id})",
   "providerUnreachable": "Не удалось связаться с {provider}: соединение не удалось ({detail}), поэтому неизвестно, дошёл ли запрос; проверьте сеть и адрес провайдера.",
   "providerConnectionLost": "Соединение с {provider} прервалось после того, как запрос был принят ({detail}). Ответ неполный, и запрос мог быть оплачен — проверьте расход у {provider}.",
   "configuredProviderUnknownPreset": "Запись провайдера {entry} называет пресет {preset}, которого не существует. Выберите пресет в Models & Agents.",

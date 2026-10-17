@@ -3717,6 +3717,7 @@
   "providerRefusalStreamError": "{provider} přestal odpovídat s chybou. Zkuste to znovu; požadavek mohl být účtován — zkontrolujte využití u {provider}. {provider} uvedl: {detail}",
   "providerRefusalUnrecognised": "{provider} odpověděl chybou, kterou toto sestavení nerozpozná (HTTP {status}). Zkuste to znovu; požadavek mohl být účtován — zkontrolujte využití u {provider}. Odpověď začínala: {detail}",
   "providerRefusalWait": " (opakujte za {seconds})",
+  "providerRefusalRequestId": " (ID požadavku {id})",
   "providerUnreachable": "Nepodařilo se spojit s {provider}: připojení selhalo ({detail}), takže není známo, zda požadavek dorazil; zkontrolujte síť a adresu poskytovatele.",
   "providerConnectionLost": "Spojení s {provider} se přerušilo poté, co požadavek přijal ({detail}). Odpověď je neúplná a požadavek mohl být účtován — zkontrolujte využití u {provider}.",
   "configuredProviderUnknownPreset": "Záznam poskytovatele {entry} uvádí preset {preset}, který neexistuje. Vyberte preset v Models & Agents.",

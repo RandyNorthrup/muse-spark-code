@@ -594,10 +594,19 @@ export function scrubRefusalLeak(text: string): string {
 }
 
 /** One sentence built from the kind: the provider named, what to do, then
- * the provider's own words as theirs. Read when it runs, so the installed
- * language is the one shown.
+ * the provider's own words as theirs, and the provider's request id when its
+ * answer carried one (lane PROVERRORS, research anthropic.md §4.1: support
+ * asks for it; provider-chosen, never a credential). Read when it runs, so
+ * the installed language is the one shown.
  */
 export function refusalSentence(refusal: ProviderRefusal, provider: string): string {
+  const sentence = kindSentence(refusal, provider)
+  return refusal.requestId === undefined
+    ? sentence
+    : sentence + fill(UI_TEXT.providerRefusalRequestId, { id: refusal.requestId })
+}
+
+function kindSentence(refusal: ProviderRefusal, provider: string): string {
   const detail = refusal.providerMessage
   const wait =
     refusal.retryAfterMs === undefined || refusal.retryAfterMs <= 0

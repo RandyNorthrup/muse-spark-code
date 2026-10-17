@@ -3486,6 +3486,7 @@
   "providerRefusalStreamError": "{provider}はエラーで応答を停止しました。再試行してください。課金された可能性があります — {provider}の使用状況を確認してください。{provider}の回答:{detail}",
   "providerRefusalUnrecognised": "{provider}はこのビルドが認識できないエラーで応答しました (HTTP {status})。再試行してください。課金された可能性があります — {provider}の使用状況を確認してください。応答の先頭: {detail}",
   "providerRefusalWait": " ({seconds}後に再試行)",
+  "providerRefusalRequestId": " (リクエストID {id})",
   "providerUnreachable": "{provider}に到達できませんでした。接続に失敗したため ({detail})、リクエストが届いたか不明です。ネットワークとプロバイダーのアドレスを確認してください。",
   "providerConnectionLost": "{provider}がリクエストを受け付けた後に接続が切れました ({detail})。応答は不完全で、リクエストに課金された可能性があります。{provider}で使用量を確認してください。",
   "configuredProviderUnknownPreset": "プロバイダーエントリ{entry}は存在しないプリセット{preset}を指定しています。Models & Agentsでプリセットを選んでください。",

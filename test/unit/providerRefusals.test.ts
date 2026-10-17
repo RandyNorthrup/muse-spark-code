@@ -119,6 +119,8 @@ describe('recorded provider answers classify to the true kind', () => {
     const sentence = refusalSentence(refusal, provider)
     expect(sentence).toContain(fragment)
     expect(sentence).toContain(parsed.message)
+    // The provider's support handle reaches the person (lane PROVERRORS).
+    if (requestId !== undefined) expect(sentence).toContain(requestId)
     // Authentication and not-found refusals are never retried.
     expect(isRefusalRetryable(carrier(answer.status, parsed))).toBe(false)
   })

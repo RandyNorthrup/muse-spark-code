@@ -3486,6 +3486,7 @@
   "providerRefusalStreamError": "{provider}出錯並停止了回應。請重試;該請求可能已計費 — 請檢查{provider}的使用情況。{provider}稱:{detail}",
   "providerRefusalUnrecognised": "{provider}傳回了此組建無法識別的錯誤（HTTP {status}）。請重試；該請求可能已計費——請在{provider}處檢查用量。回應的開頭是：{detail}",
   "providerRefusalWait": "（{seconds}後重試）",
+  "providerRefusalRequestId": "（請求 ID {id}）",
   "providerUnreachable": "無法連線到{provider}。連線失敗({detail}),因此請求是否送達未知;請檢查網路和提供者位址。",
   "providerConnectionLost": "{provider}接受請求後連線中斷({detail})。回覆不完整，該請求可能已計費——請在{provider}處查看用量。",
   "configuredProviderUnknownPreset": "提供者項目{entry}指定的預設{preset}不存在。請在 Models & Agents 中選擇預設。",
