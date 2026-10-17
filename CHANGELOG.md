@@ -98,6 +98,13 @@ happened, not what was planned; superseded entries are kept.
   remembered even when the click reaches a window that never showed the
   notice.
 
+- Activation budget, after merging main into the panel wording: the Install
+  and Remove Bundled Skills commands load with the installer they run
+  (dist/bundledSkills.js) instead of at activation. Activation growth over
+  the pre-K baseline goes from 3,717 bytes (over the 3,072-byte allowance)
+  to 2,290 bytes. No behaviour change: the same steps, said in the window's
+  language; a missing bundle refuses the run and the next run tries again.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
