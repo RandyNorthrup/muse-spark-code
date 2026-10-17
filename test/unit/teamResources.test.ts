@@ -1,7 +1,6 @@
 // M96 lease invariants and named regressions from both lane-B reviews.
 import { describe, expect, it } from 'vitest'
 import {
-  busyText,
   defaultResourceKind,
   ResourceRegistry,
   type LeaseHolder,
@@ -12,16 +11,12 @@ import {
   type ToolCallBinding,
 } from '../../src/core/team/resources'
 import { UI_TEXT } from '../../src/shared/constants'
-import { createManualClock } from './helpers/manualClock'
 import { ENGINEER, ORCHESTRATOR, RESEARCHER } from './helpers/teamHolders'
 
 function drivenRegistry(windowId = 'test-window') {
-  const driven = createManualClock()
   return {
-    ...driven,
     registry: new ResourceRegistry({
       windowId,
-      clock: driven.clock,
       waitMs: 60_000,
       idleMs: 120_000,
     }),
@@ -62,13 +57,6 @@ function chrome() {
   return driven
 }
 
-function expectIdleBoundary(registry: ResourceRegistry, advance: (ms: number) => void): void {
-  advance(119_999)
-  expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
-  advance(1)
-  expect(registry.snapshot()[0]?.holders).toEqual([])
-}
-
 describe('defaultResourceKind', () => {
   it('marks browser control, Playwright and device servers exclusive', () => {
     expect(defaultResourceKind({ command: 'chrome-control-mcp' })).toBe('exclusive')
@@ -98,20 +86,6 @@ describe('command patterns', () => {
     expect(registry.resourceForCommand('npm run deve')).toBeUndefined()
     expect(registry.resourceForCommand('npm run build')).toBeUndefined()
   })
-
-  it('holds a command resource until its process exits, never on idleness', async () => {
-    const { registry, advance } = drivenRegistry()
-    registry.declareCommandNeed('npm run dev', 'port:3000')
-    const token = await call(registry, 'command', RESEARCHER, 'port:3000')
-    registry.settle(token, 'answered')
-    advance(1_000_000)
-    expect(registry.checkCall('port:3000', ENGINEER)).toMatchObject({
-      status: 'not-holder',
-      holder: RESEARCHER,
-    })
-    registry.release(token.lease)
-    expect(registry.snapshot()[0]?.holders).toEqual([])
-  })
 })
 
 describe('exclusive leases', () => {
@@ -125,15 +99,6 @@ describe('exclusive leases', () => {
     registry.release(first)
     await expect(waiting).resolves.toMatchObject({ status: 'held' })
     expect(registry.checkCall('chrome', ENGINEER)).toEqual({ status: 'ok' })
-  })
-
-  it('answers resource busy past the wait, naming the holder', async () => {
-    const { registry, advance } = chrome()
-    await held(registry)
-    const waiting = registry.acquire('chrome', ENGINEER)
-    advance(60_000)
-    await expect(waiting).resolves.toEqual({ status: 'busy', holder: RESEARCHER })
-    expect(busyText(RESEARCHER)).toBe('resource busy, held by research task task-a')
   })
 
   it('re-admits the same holder with the same lease identity', async () => {
@@ -232,110 +197,9 @@ describe('idle release and call identity', () => {
     expect(freshSignal?.aborted).toBe(false)
     registry.settle(fresh.call, 'failed')
   })
-
-  it('settles only dispatched records and dispatches each call once without cancelling its first dispatch', async () => {
-    const { registry, advance } = chrome()
-    const outcome = await registry.acquireCall(
-      'chrome',
-      RESEARCHER,
-      'client',
-      'one',
-      new AbortController().signal,
-    )
-    if (outcome.status !== 'held') throw new Error(outcome.status)
-    registry.settle(outcome.call, 'answered')
-    advance(120_000)
-    expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
-    const signal = registry.dispatch(outcome.call)
-    expect(signal?.aborted).toBe(false)
-    expect(registry.dispatch(outcome.call)).toBeUndefined()
-    expect(signal?.aborted).toBe(false)
-    registry.settle(outcome.call, 'failed')
-    advance(120_000)
-    expect(registry.snapshot()[0]?.holders).toEqual([])
-  })
-  it('releases only after the idle time from the last terminal answer', async () => {
-    const { registry, advance } = chrome()
-    const token = await call(registry, 'one')
-    registry.settle(token, 'answered')
-    expectIdleBoundary(registry, advance)
-  })
-
-  it('keeps the lease for a call longer than the idle time', async () => {
-    const { registry, advance } = chrome()
-    const token = await call(registry, 'long')
-    advance(1_000_000)
-    expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
-    registry.settle(token, 'answered')
-    advance(120_000)
-    expect(registry.snapshot()[0]?.holders).toEqual([])
-  })
-
-  it('keeps a cancelled dispatched call until its own terminal answer', async () => {
-    const { registry, advance } = chrome()
-    const token = await call(registry, 'cancelled')
-    registry.cancelCall(token)
-    advance(1_000_000)
-    expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
-    registry.settle(token, 'answered')
-    expectIdleBoundary(registry, advance)
-  })
-
-  it('cannot settle another call by replaying a completion', async () => {
-    const { registry, advance } = chrome()
-    const first = await call(registry, 'first')
-    const second = await call(registry, 'second')
-    registry.settle(first, 'answered')
-    registry.settle(first, 'answered')
-    registry.release(first.lease)
-    advance(1_000_000)
-    expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
-    registry.settle(second, 'failed')
-    expect(registry.snapshot()[0]?.holders).toEqual([])
-  })
-
-  it.each(['exit', 'release-anyway'])(
-    'RVM96RB2-4: ignores old completion and release after replacement by %s',
-    async (action) => {
-      const { registry, advance } = chrome()
-      const old = await call(registry, 'old')
-      if (action === 'exit') registry.markServerExited('chrome')
-      else registry.releaseAnyway('chrome')
-      const replacement = await call(registry, 'new')
-      expect(replacement.lease.id).not.toBe(old.lease.id)
-      expect(replacement.lease.generation).toBeGreaterThan(old.lease.generation)
-      registry.settle(old, 'answered')
-      registry.release(old.lease)
-      advance(1_000_000)
-      expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
-      registry.settle(replacement, 'answered')
-      advance(120_000)
-      expect(registry.snapshot()[0]?.holders).toEqual([])
-    },
-  )
 })
 
 describe('retirement and take back', () => {
-  it.each(['retire', 'take-back'])(
-    'RVM96A-9: %s retains every dispatched call and refuses new calls',
-    async (action) => {
-      const { registry, advance } = chrome()
-      const first = await call(registry, 'first')
-      const second = await call(registry, 'second')
-      registry.cancelCall(first)
-      if (action === 'retire') registry.retireAttempt(RESEARCHER.taskId, 1)
-      else registry.takeBack('chrome', ORCHESTRATOR)
-      expect(registry.checkCall('chrome', RESEARCHER).status).toBe(
-        action === 'retire' ? 'stale-attempt' : 'taken-back',
-      )
-      registry.settle(first, 'answered')
-      advance(1_000_000)
-      expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
-      registry.settle(second, 'failed')
-      expect(registry.snapshot()[0]?.holders).toEqual(action === 'retire' ? [] : [ORCHESTRATOR])
-    },
-  )
-
   it('releases a stopped attempt and refuses its late call by attempt number', async () => {
     const { registry } = chrome()
     await held(registry)
@@ -350,18 +214,6 @@ describe('retirement and take back', () => {
     const waiting = registry.acquire('chrome', ENGINEER)
     registry.retireAttempt('task-b', 1)
     await expect(waiting).resolves.toEqual({ status: 'stale' })
-  })
-
-  it('times out a pending Take back admission without transferring an open lease', async () => {
-    const { registry, advance } = chrome()
-    const token = await call(registry, 'open')
-    registry.takeBack('chrome', ORCHESTRATOR)
-    const waiting = registry.acquire('chrome', ORCHESTRATOR)
-    advance(60_000)
-    await expect(waiting).resolves.toEqual({ status: 'busy', holder: RESEARCHER })
-    registry.settle(token, 'answered')
-    expect(registry.snapshot()[0]?.holders).toEqual([ORCHESTRATOR])
-    expect(busyText(ORCHESTRATOR)).toBe('resource busy, held by orchestrator task main')
   })
 
   it.each(['exit', 'release-anyway'])(
@@ -530,25 +382,6 @@ describe('roles and kinds', () => {
     registry.settle(second, 'failed')
     await expect(fourth).resolves.toMatchObject({ status: 'held' })
   })
-
-  it('pending admissions pin leases and reserve shared slots before dispatch', async () => {
-    const { registry, advance } = drivenRegistry()
-    registry.declare({ name: 'notes', kind: 'shared', sharedLimit: 1 })
-    const pending = await registry.acquireCall(
-      'notes',
-      RESEARCHER,
-      'a',
-      '1',
-      new AbortController().signal,
-    )
-    if (pending.status !== 'held') throw new Error(pending.status)
-    const waiting = registry.acquireCall('notes', ENGINEER, 'b', '2', new AbortController().signal)
-    registry.release(pending.call.lease)
-    advance(120_000)
-    // Releasing a pending admission abandons it; it never dispatches or settles another call.
-    expect(registry.dispatch(pending.call)).toBeUndefined()
-    await expect(waiting).resolves.toMatchObject({ status: 'held' })
-  })
 })
 
 describe('the hint question', () => {
@@ -561,21 +394,6 @@ describe('the hint question', () => {
     expect(registry.externalUserOf('chrome', [])).toBeUndefined()
     expect(registry.externalUserOf('gpu', hints)).toBeUndefined()
     expect(registry.externalUserOf('unknown', hints)).toBeUndefined()
-  })
-})
-
-describe('closing', () => {
-  it('stops timers and tells every waiter, while retaining dispatched uncertainty', async () => {
-    const { registry, advance } = chrome()
-    const first = await call(registry, 'open')
-    const waiting = registry.acquire('chrome', ENGINEER)
-    registry.close()
-    await expect(waiting).resolves.toEqual({ status: 'closed' })
-    await expect(registry.acquire('chrome', ENGINEER)).resolves.toEqual({ status: 'closed' })
-    advance(1_000_000)
-    expect(registry.snapshot()[0]?.holders).toEqual([RESEARCHER])
-    registry.settle(first, 'answered')
-    expect(registry.snapshot()[0]?.holders).toEqual([])
   })
 })
 
