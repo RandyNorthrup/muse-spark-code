@@ -1684,7 +1684,6 @@
   "openPullRequestFiltersUnavailable": "この Git のバージョンまたは設定では、リポジトリのプログラムを無効にして安全にプルリクエストをチェックアウトできません。Git 2.36 以降が必要です。チェックアウトは行われていません。",
   "openPullRequestUnsafePath": "プルリクエストに、保留中のチェックアウトでは書き込まないパスがあります: {path}。チェックアウトは行われていません。",
   "openPullRequestPathCollision": "{first} と {second} はここでは同じファイルまたはフォルダーになります。チェックアウトは行われていません。",
-  "openPullRequestTooLarge": "プルリクエストが、保留中のチェックアウトで書き込める量を超えています (ファイルとフォルダーは最大 {files} 個、合計 {size})。チェックアウトは行われていません。",
   "openPullRequestUnreadable": "Git がプルリクエストのファイルをツリーの一覧どおりに返しませんでした。",
   "openPullRequestAction": "開く",
   "openPullRequestExisting": "プル リクエスト #{number} は既にチェックアウトされています。チェックアウトしたときのコミットで開きますか?",

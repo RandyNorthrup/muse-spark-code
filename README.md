@@ -2043,7 +2043,7 @@ also unavailable while a pull request worktree is held.
     path would leave the worktree, name `.git` (in any case, or as `.git.`,
     `.git ` or `GIT~1`), use a name Windows cannot hold (on Windows), or
     collide with another path where letter case does not count (Windows and
-    macOS); or when it has more than 20,000 files and folders or 250 MB.
+    macOS).
     Each file is created without replacing anything, in a folder whose
     canonical path must be the worktree's: a link or junction on the way
     refuses the checkout, and the half-written worktree is removed.

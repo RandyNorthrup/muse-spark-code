@@ -24,13 +24,10 @@ import { isSamePath } from '../../core/paths'
 import { worktreeAddHeldArgs } from '../../core/worktrees'
 import {
   GIT_WORKTREE_TIMEOUT_MS,
-  HELD_CHECKOUT_MAX_BYTES,
-  HELD_CHECKOUT_MAX_ENTRIES,
   HELD_EXECUTABLE_MODE,
   HELD_FILE_MODE,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, formatBytes } from '../../shared/l10n/text'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { canonicalPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
@@ -192,12 +189,10 @@ export function createHeldCheckout(deps: HeldCheckoutDeps): HeldCheckout {
         'code' in error &&
         error.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER'
       ) {
-        throw new GitUnavailableError(
-          fill(UI_TEXT.openPullRequestTooLarge, {
-            files: HELD_CHECKOUT_MAX_ENTRIES,
-            size: formatBytes(HELD_CHECKOUT_MAX_BYTES),
-          }),
-        )
+        // The listing grew past the git reader's buffer (D121: the removed
+        // entry/size ceilings named invented numbers for this); the tree
+        // could not be taken whole.
+        throw new GitUnavailableError(UI_TEXT.openPullRequestUnreadable)
       }
       throw error
     }

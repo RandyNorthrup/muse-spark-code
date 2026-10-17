@@ -1684,7 +1684,6 @@
   "openPullRequestFiltersUnavailable": "此 Git 版本或配置无法禁用仓库程序并安全检出拉取请求。需要 Git 2.36 或更新版本。未执行任何检出。",
   "openPullRequestUnsafePath": "拉取请求中有一个保留检出不会写入的路径：{path}。未执行任何检出。",
   "openPullRequestPathCollision": "{first} 和 {second} 在这里会是同一个文件或文件夹。未执行任何检出。",
-  "openPullRequestTooLarge": "拉取请求超出了保留检出可写入的大小（最多 {files} 个文件和文件夹，总计 {size}）。未执行任何检出。",
   "openPullRequestUnreadable": "Git 返回的拉取请求文件与其树中列出的不一致。",
   "openPullRequestAction": "打开",
   "openPullRequestExisting": "拉取请求 #{number} 已检出。要在检出时的提交处打开它吗？",

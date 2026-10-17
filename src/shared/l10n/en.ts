@@ -2065,8 +2065,6 @@ export const EN = {
     'The pull request has a path a held checkout does not write: {path}. Nothing was checked out.',
   openPullRequestPathCollision:
     '{first} and {second} would be the same file or folder here. Nothing was checked out.',
-  openPullRequestTooLarge:
-    'The pull request is larger than a held checkout writes (at most {files} files and folders, {size} in all). Nothing was checked out.',
   openPullRequestUnreadable:
     'Git did not give back the pull request’s files as its tree lists them.',
   openPullRequestAction: 'Open',

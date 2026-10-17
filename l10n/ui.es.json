@@ -1740,7 +1740,6 @@
   "openPullRequestFiltersUnavailable": "La extracción segura de la solicitud de cambios no puede desactivar los programas del repositorio con esta versión o configuración de Git. Se requiere Git 2.36 o posterior. No se extrajo nada.",
   "openPullRequestUnsafePath": "La solicitud de cambios tiene una ruta que una extracción retenida no escribe: {path}. No se extrajo nada.",
   "openPullRequestPathCollision": "{first} y {second} serían aquí el mismo archivo o carpeta. No se extrajo nada.",
-  "openPullRequestTooLarge": "La solicitud de cambios es mayor de lo que escribe una extracción retenida (como máximo {files} archivos y carpetas, {size} en total). No se extrajo nada.",
   "openPullRequestUnreadable": "Git no devolvió los archivos de la solicitud de cambios tal como los enumera su árbol.",
   "openPullRequestAction": "Abrir",
   "openPullRequestExisting": "El pull request #{number} ya está extraído. ¿Abrirlo en el commit en el que se extrajo?",

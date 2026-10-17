@@ -1768,7 +1768,6 @@
   "openPullRequestFiltersUnavailable": "Przy tej wersji lub konfiguracji Git bezpieczne pobranie pull requestu nie może wyłączyć programów repozytorium. Wymagany jest Git 2.36 lub nowszy. Nic nie pobrano.",
   "openPullRequestUnsafePath": "Pull request zawiera ścieżkę, której wstrzymane pobranie nie zapisuje: {path}. Nic nie pobrano.",
   "openPullRequestPathCollision": "{first} i {second} byłyby tu tym samym plikiem lub folderem. Nic nie pobrano.",
-  "openPullRequestTooLarge": "Pull request jest większy, niż zapisuje wstrzymane pobranie (najwyżej {files} plików i folderów, łącznie {size}). Nic nie pobrano.",
   "openPullRequestUnreadable": "Git nie zwrócił plików pull requestu tak, jak wymienia je jego drzewo.",
   "openPullRequestAction": "Otwórz",
   "openPullRequestExisting": "Żądanie ściągnięcia #{number} jest już wyewidencjonowane. Otworzyć je na zatwierdzeniu, na którym zostało wyewidencjonowane?",
