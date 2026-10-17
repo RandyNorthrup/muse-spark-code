@@ -1,9 +1,9 @@
 // "Open a Pull Request in a Conversation…" (M71, PLAN.md D49): the pull
 // request's head is fetched from GitHub through VS Code's git extension
 // (credentials apply; where the extension is missing, through the user's own
-// git in their Git environment, M123's nativeRepository.ts) and checked out, detached, in a worktree of its own
-// that opens in a new window, where a conversation reviews or changes it
-// with its host confined to that worktree.
+// git in their Git environment, M123's nativeRepository.ts) and checked out,
+// detached, in a worktree of its own that opens in a new window, where a
+// conversation reviews or changes it with its host confined to that worktree.
 //
 // A pull request the user did not author is adversarial content until the
 // user says otherwise: its worktree goes under the extension's own storage,
