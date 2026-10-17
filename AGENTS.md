@@ -68,6 +68,13 @@ this file or in PLAN.md that disagrees loses.
   cocked hairbrained plan". This covers everything in the project, what exists
   as much as what is new: "this includes **ALL** of the current code, plans,
   milestones, etc."
+- **Bleeding edge, always (2026-10-17).** The owner: "we need to be on the
+  bleeding edge for each of these models, providers, and cli … as soon as an
+  sdk drops or there has been a bugfix or a feature update etc we need that
+  immidietly accounted for and incorporated into our app and tested
+  accuratly". Every model, provider, SDK, CLI, protocol and editor the product
+  uses is followed at its latest release. A new release, fix or feature is
+  incorporated at once and tested accurately, never left as a gap.
 - **"etc" means everything else (2026-10-17).** The owner: "etc means
   everything else i have not mentioned or thought of". It covers every case
   the owner did not name and every case nobody has thought of yet. Never read
