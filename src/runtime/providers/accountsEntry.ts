@@ -49,6 +49,19 @@ export async function runTerminalDeveloperCommand(
       exitCode: 0,
     }
   }
+  // Usage is settled before any store or state work: a misuse reports the
+  // usage with exit 2 whatever state this machine holds, never a stack
+  // trace. Only the parser's own usage text converts: any other
+  // SyntaxError still propagates.
+  let request: ReturnType<typeof parseDeveloperCommand>
+  try {
+    request = parseDeveloperCommand(args)
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError && error.message === UI_TEXT.developer.commandUsage) {
+      return { text: error.message, exitCode: 2 }
+    }
+    throw error
+  }
   const services = createRuntimeAccountServices(input)
   try {
     const developer = await services.developer(owner)
@@ -57,17 +70,10 @@ export async function runTerminalDeveloperCommand(
       ? { text: UI_TEXT.developer[reply.code], exitCode: 1 }
       : { text: developerStatusText(reply), exitCode: 0 }
   } catch (error: unknown) {
-    // A usage refusal reports the usage with exit 2, never a stack trace.
-    // Only the parser's own usage text converts: any other SyntaxError (a
-    // corrupt state file parses below) still propagates.
-    if (error instanceof SyntaxError && error.message === UI_TEXT.developer.commandUsage) {
-      return { text: error.message, exitCode: 2 }
-    }
     // Stored state belongs to another machine identity: opening refuses, so
     // only Reset can recover (DEVID017B). Anything else names the identity
     // instead of reporting a generic failure.
     if (!(error instanceof DeveloperOptionsError) || error.code !== 'differentMachine') throw error
-    const request = parseDeveloperCommand(args)
     if (request?.type !== 'developer/reset')
       return { text: UI_TEXT.developer.differentMachine, exitCode: 1 }
     try {
