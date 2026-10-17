@@ -494,6 +494,7 @@ export class McpConnection {
       return []
     }
     const tools: McpToolInfo[] = []
+    const seenCursors = new Set<string>()
     let cursor: string | undefined
     for (;;) {
       const raw = await this.request('tools/list', cursor === undefined ? {} : { cursor }, {
@@ -517,6 +518,15 @@ export class McpConnection {
       if (cursor === undefined || cursor === '') {
         return tools
       }
+      // No page cap (B8), but a cursor the server already named would page
+      // forever: stop at the repeat and say so instead of hanging.
+      if (seenCursors.has(cursor)) {
+        this.options.log.warn(
+          `MCP server ${this.options.name} repeated a tools/list cursor; the tools read so far are offered`,
+        )
+        return tools
+      }
+      seenCursors.add(cursor)
     }
   }
 
