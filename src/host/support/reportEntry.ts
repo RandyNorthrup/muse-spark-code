@@ -4,7 +4,9 @@
 // paths and the dialog's handler stay out of the bundle VS Code loads at
 // activation. The flight recorder itself stays there: it records from the
 // first moment. The bundle keeps its own installed-language state, so the
-// factory installs the caller's table before anything reads it.
+// factory installs the caller's table before anything reads it. The
+// Diagnostics command's report text (PLAN.md D14), fixed words that read no
+// language table, loads here too, on that command's first run.
 
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
@@ -12,6 +14,8 @@ import {
   createReportProblemHandler as createHandler,
   type ReportProblemHandlerDeps,
 } from '../conversation/reportProblemHandler'
+
+export { renderSupportReport, sandboxReadinessLine } from '../../core/support/report'
 
 /** The dialog's handler for one surface, in the caller's display language. */
 export function createReportProblemHandler(

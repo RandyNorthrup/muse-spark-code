@@ -483,6 +483,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'report.js',
     side: 'vscode',
     requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
       {
         importer: 'src/host/conversation/conversationController.ts',
         symbol: 'ConversationController.reportProblemHandler',

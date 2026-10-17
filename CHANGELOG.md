@@ -60,6 +60,19 @@ happened, not what was planned; superseded entries are kept.
   the keyboard back to the file you were in (it used to focus the editor
   group, which keeps a chat tab active).
 
+- Linux shell sandbox that cannot start (F91): while sandboxed on Linux,
+  each host start probes whether Muse Code's bubblewrap sandbox can create
+  a user namespace here, and says so once in words on every surface (panel
+  notice, editor-protocol session update, terminal log) naming the two ways
+  out, without ever switching the sandbox off on its own. The model hears it
+  once too. Diagnostics reports the posture and the check.
+
+- Activation budget, after merging main into the F91 change: the
+  Diagnostics command's report text loads with the report dialog's bundle
+  (dist/report.js) on the command's first run instead of at activation.
+  Activation growth over the pre-K baseline goes from 4,529 bytes (over the
+  3,072-byte allowance) to 760 bytes. No behaviour change.
+
 - Test-overhaul review: paid-popup lazy-load checks now build the real
   runtime instead of writing a replacement formatter, retaining locale
   propagation and sub-cent search-price disclosure checks.

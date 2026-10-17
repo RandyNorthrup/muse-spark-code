@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest'
 import type { MuseLaunch } from '../../src/core/backends/musecode/launch'
 import {
   elevatedInvocation,
+  isLinuxSandboxBlocked,
   isProfileWorkspace,
   museCliInvocation,
+  parseLinuxSandboxProbe,
   parseSandboxCheck,
+  probeLinuxSandboxShell,
   resolveShellSandbox,
   sandboxCheckInvocation,
   sandboxSetupInvocation,
@@ -274,5 +277,96 @@ describe('resolveShellSandbox', () => {
     expect(isSandboxNetworkApplied('restricted', unsandboxed)).toBe(false)
     // `default` leaves Muse Code's own default or a managed configuration's.
     expect(isSandboxNetworkApplied('default', sandboxed)).toBe(false)
+  })
+})
+
+// Verbatim `bwrap --unshare-user -- /bin/true` output, measured 2026-10-15 on
+// the linuxlt rig (bubblewrap 0.11.0, exit 1): the kernel refuses the user
+// namespace, which is the same refusal Muse Code's Linux sandbox meets (F91).
+const BWRAP_NAMESPACE_REFUSED = [
+  'bwrap: No permissions to create new namespace, likely because the kernel does not allow non-privileged user namespaces. See <https://deb.li/bubblewrap> or <file:///usr/share/doc/bubblewrap/README.Debian.gz>.',
+  '',
+].join('\n')
+
+describe('parseLinuxSandboxProbe', () => {
+  it('reads a started user namespace as a sandbox that can start', () => {
+    expect(parseLinuxSandboxProbe({ exitCode: 0, stderr: '' })).toEqual({
+      canStart: true,
+      reason: undefined,
+      detail: undefined,
+    })
+  })
+
+  it('reads the kernel refusing the user namespace as blocked namespaces', () => {
+    expect(parseLinuxSandboxProbe({ exitCode: 1, stderr: BWRAP_NAMESPACE_REFUSED })).toEqual({
+      canStart: false,
+      reason: 'userNamespacesBlocked',
+      detail:
+        'bwrap: No permissions to create new namespace, likely because the kernel does not allow non-privileged user namespaces. See <https://deb.li/bubblewrap> or <file:///usr/share/doc/bubblewrap/README.Debian.gz>.',
+    })
+  })
+
+  it('reads a bwrap that never ran as a failed probe, without guessing why', () => {
+    expect(parseLinuxSandboxProbe({ exitCode: undefined, stderr: '' })).toEqual({
+      canStart: false,
+      reason: 'bwrapFailed',
+      detail: undefined,
+    })
+  })
+
+  it('keeps another bwrap failure as failed, with its own first line', () => {
+    expect(
+      parseLinuxSandboxProbe({
+        exitCode: 1,
+        stderr: '\nbwrap: Cannot mkdir /run: permission denied\n',
+      }),
+    ).toEqual({
+      canStart: false,
+      reason: 'bwrapFailed',
+      detail: 'bwrap: Cannot mkdir /run: permission denied',
+    })
+  })
+})
+
+// Only the kernel refusing the user namespace proves Muse Code's sandbox
+// cannot start, whichever bwrap it runs; its own message names an embedded
+// fallback, so a missing or otherwise failing system bwrap must never be
+// said as cannot-start (RVSANDBOXSAY).
+describe('isLinuxSandboxBlocked', () => {
+  it('holds only for the proven user-namespace refusal', () => {
+    expect(
+      isLinuxSandboxBlocked({
+        canStart: false,
+        reason: 'userNamespacesBlocked',
+        detail: 'bwrap: No permissions to create new namespace, likely because …',
+      }),
+    ).toBe(true)
+    expect(
+      isLinuxSandboxBlocked({ canStart: false, reason: 'bwrapFailed', detail: 'bwrap: ENOENT' }),
+    ).toBe(false)
+    expect(isLinuxSandboxBlocked({ canStart: true, reason: undefined, detail: undefined })).toBe(
+      false,
+    )
+    expect(isLinuxSandboxBlocked(undefined)).toBe(false)
+  })
+})
+
+// The probe itself, against the machine's real bwrap (or its real absence).
+// The verdict depends on the machine, so this asserts only what must hold
+// everywhere: the promise resolves (never throws, never hangs past its
+// budget) and the shape is coherent. The success path needs a machine where
+// unprivileged user namespaces work (the lead's real-life scenario 4); the
+// argument list that makes success possible at all (--ro-bind / / into
+// bwrap's otherwise empty root, RVSANDBOXSAY P1) is exercised here either
+// way, because the refusal measured on blocked rigs happens after it.
+describe('probeLinuxSandboxShell', () => {
+  it('resolves with a coherent readiness against the real bwrap', async () => {
+    const readiness = await probeLinuxSandboxShell()
+    if (readiness.canStart) {
+      expect(readiness.reason).toBeUndefined()
+      expect(readiness.detail).toBeUndefined()
+    } else {
+      expect(['userNamespacesBlocked', 'bwrapFailed']).toContain(readiness.reason)
+    }
   })
 })

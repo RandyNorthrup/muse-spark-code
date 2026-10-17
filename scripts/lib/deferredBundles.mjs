@@ -691,7 +691,8 @@ export const ON_FIRST_USE = [
       'src/host/providers/copilotClient.ts',
     ],
   },
-  // The report dialog (M93, PLAN.md D72), split out from the start.
+  // The report dialog (M93, PLAN.md D72), split out from the start, and the
+  // Diagnostics command's report text (D14), loaded on that command's first run.
   {
     output: 'dist/report.js',
     metafile: 'dist/meta/report.json',
@@ -701,6 +702,7 @@ export const ON_FIRST_USE = [
       'src/host/conversation/reportProblemHandler.ts',
       'src/host/support/reportProblem.ts',
       'src/core/support/problemReport.ts',
+      'src/core/support/report.ts',
     ],
   },
   // The capacity estimator's engine (M117, PLAN.md D6, D97): the host, the
