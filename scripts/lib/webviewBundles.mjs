@@ -358,7 +358,9 @@ export const MODELS_DEFERRED_BUDGETS = [
   {
     name: 'models models section',
     entries: ['src/webview/models/ModelsSection.tsx'],
-    budgetKiB: 13,
+    // M95 (CM954 R4): the saved-model editor's validated per-model window
+    // field grew the chunk to 13,448 bytes; 14 KiB keeps the row tight.
+    budgetKiB: 14,
   },
 ]
 

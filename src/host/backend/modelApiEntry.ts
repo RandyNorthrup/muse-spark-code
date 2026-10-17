@@ -36,6 +36,7 @@ export {
   isModelApiError,
   rateLimitHeaders,
   parseJsonResponse,
+  readBoundedText,
   redactModelApiError,
   ignoreClosingError,
   redactSecrets,
