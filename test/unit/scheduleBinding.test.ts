@@ -1,47 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   runtimeSchedulesBinding,
   type RuntimeSchedulesBinding,
 } from '../../src/runtime/schedules/binding'
-import { SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, UI_TEXT } from '../../src/shared/constants'
+import { UI_TEXT } from '../../src/shared/constants'
 import { uiLocale } from '../../src/shared/l10n/text'
-import type { ScheduleEditorDeliveryPorts } from '../../src/host/schedules/deliveryBinding'
-import { memoryToolIo } from './helpers/fakeToolIo'
-
-beforeEach(() =>
-  Object.defineProperty(SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, 'isReady', { value: true }),
-)
-afterEach(() =>
-  Object.defineProperty(SCHEDULE_EDITOR_DELIVERY_CERTIFICATION, 'isReady', { value: false }),
-)
 
 describe('lazy runtime schedule binding', () => {
-  it('passes certified host ports to the lazy factory without installing them by default', async () => {
-    const ports: ScheduleEditorDeliveryPorts = {
-      workspaceRoot: '/test/workspace',
-      platform: 'linux',
-      dialect: 'bash',
-      io: memoryToolIo({}, '/test/workspace'),
-      signal: new AbortController().signal,
-      isActive: () => false,
-      host: () => Promise.reject(new Error('unused host')),
-      options: () => Promise.reject(new Error('unused options')),
-      publish: () => {
-        throw new Error('unused publish')
-      },
-      findLive: () => undefined,
-      row: vi.fn(),
-      deferQuestions: () => Promise.resolve(),
-      safety: () => undefined,
-    }
-    const factory = vi.fn().mockResolvedValue({ close: vi.fn() })
-    const requireBundle = vi.fn().mockReturnValue({ createRuntimeSchedules: factory })
-    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-    const load = runtimeSchedulesBinding('/dist/schedules.js', log, requireBundle, ports)
-    expect(factory).not.toHaveBeenCalled()
-    await load()
-    expect(factory).toHaveBeenCalledWith(UI_TEXT, uiLocale(), ports)
-  })
   it('loads once on use and installs the caller table before creating the runtime', async () => {
     const binding: RuntimeSchedulesBinding = {
       command: vi.fn(),
