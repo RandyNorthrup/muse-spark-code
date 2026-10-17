@@ -5,7 +5,6 @@ import * as z from 'zod/mini'
 import {
   CHECKPOINT_STORAGE_MODE,
   GIT_METADATA_OPTIONS,
-  GIT_TIMEOUT_MS,
   MCP_STDIO_ENV_ALLOWLIST,
   UI_TEXT,
 } from '../../shared/constants'
@@ -98,7 +97,6 @@ export class StagingCopy {
     return await this.git([...GIT_METADATA_OPTIONS, ...NO_PROGRAMS, ...args], {
       cwd: root,
       env: index === undefined ? this.env : { ...this.env, GIT_INDEX_FILE: index },
-      timeoutMs: GIT_TIMEOUT_MS,
       ...(input !== undefined && { input }),
     })
   }

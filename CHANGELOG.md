@@ -14,6 +14,10 @@ happened, not what was planned; superseded entries are kept.
   saved", although nothing was wrong with the ledger. Windows answers a lock
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
+- Git is waited on instead of killed after 15 seconds: status, diff and the
+  other readers name no deadline of their own, so a slow repository no
+  longer falls back to git-absent answers; a timeout a caller names still
+  applies, and team runs share the dispatching job's own bound.
 
 ### Pending
 

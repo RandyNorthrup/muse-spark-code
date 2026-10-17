@@ -13,7 +13,6 @@
 
 import path from 'node:path'
 import { isGitExitError, type GitProcess } from '../../host/git'
-import { GIT_TIMEOUT_MS } from '../../shared/constants'
 import { isPlainRefName, type HeadFacts, type RemoteFacts } from './pushPlan'
 
 /** Fixed arguments: the subcommand and every flag, no user text. */
@@ -263,7 +262,6 @@ export async function readConfigValue(
     const output = await run(['config', '--get', key], {
       cwd: context.cwd,
       env: context.env,
-      timeoutMs: GIT_TIMEOUT_MS,
       ...(context.signal !== undefined && { signal: context.signal }),
     })
     const value = output.toString('utf8').trim()
@@ -289,7 +287,6 @@ export async function readNativeRemotes(
   const namesBytes = await run(nativeRemoteNamesArgs(), {
     cwd: context.cwd,
     env: context.env,
-    timeoutMs: GIT_TIMEOUT_MS,
     ...(context.signal !== undefined && { signal: context.signal }),
   })
   const names = parseRemoteNames(namesBytes.toString('utf8'))
@@ -372,7 +369,6 @@ async function runText(
   const output = await run(args, {
     cwd: context.cwd,
     env: context.env,
-    timeoutMs: GIT_TIMEOUT_MS,
     ...(context.signal !== undefined && { signal: context.signal }),
   })
   return output.toString('utf8')
