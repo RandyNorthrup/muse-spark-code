@@ -1888,6 +1888,7 @@
     "merged": "Sloučeno",
     "released": "Vydáno",
     "complete": "Dokončeno",
+    "ended": "Ukončeno",
     "superseded": "Nahrazeno",
     "waiting": "Čeká",
     "blocked": "Blokováno",
@@ -1904,7 +1905,21 @@
     "added": "Přidáno",
     "removed": "Odstraněno",
     "changed": "Změněno",
-    "unchanged": "Beze změny"
+    "unchanged": "Beze změny",
+    "paused": "Pozastaveno",
+    "active": "Aktivní",
+    "all": "Vše",
+    "total": "Celkem",
+    "once": "Jednou",
+    "user": "Uživatel",
+    "hookVerification": "Ověření hooků"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "každých {everyMs} ms",
+    "triggerDaily": "každých {everyDays}d {times}x denně",
+    "triggerWeekdays": "{times}x ve všední dny",
+    "triggerWeekly": "{days}d týdně",
+    "scheduleGrant": "{rules} pravidel, {destinations} cílů, limit {cap}"
   },
   "reportKinds": {
     "project": "Projekt",
@@ -1998,6 +2013,9 @@
     "history": "Historie vybrané relace není dostupná."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Deník využití obsahuje poškozené, neúplné záznamy nebo záznamy novější verze; součty je nezahrnují.",
+    "sessionUsageUnavailable": "V uchovaném deníku nelze využití přiřadit této relaci; součty tokenů a nákladů nejsou dostupné.",
+    "budgetsUnavailable": "Snímky rozpočtu pro vybrané období nejsou dostupné.",
     "sessionTurnsUnavailable": "Historie relace neobsahuje žádné identifikátory tahů, takže tahy nelze spočítat.",
     "sessionApprovalsUnavailable": "Historie relace neobsahuje žádná rozhodnutí o schválení.",
     "toolBreakdownUnavailable": "Využití podle nástroje se v deníku využití nezaznamenává.",

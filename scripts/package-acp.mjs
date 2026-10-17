@@ -86,6 +86,7 @@ const BUNDLES = [
   'reporting.js',
   'reportingNetwork.js',
   'reportInputs.js',
+  'playbookSchedulesInputs.js',
   'reportingDestinations.js',
   'reference.js',
   'uiText.js',

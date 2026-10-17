@@ -1804,6 +1804,7 @@
     "merged": "已合并",
     "released": "已发布",
     "complete": "已完成",
+    "ended": "已结束",
     "superseded": "已取代",
     "waiting": "等待中",
     "blocked": "受阻",
@@ -1820,7 +1821,21 @@
     "added": "已添加",
     "removed": "已移除",
     "changed": "已更改",
-    "unchanged": "未更改"
+    "unchanged": "未更改",
+    "paused": "已暂停",
+    "active": "活跃",
+    "all": "全部",
+    "total": "总计",
+    "once": "一次",
+    "user": "用户",
+    "hookVerification": "钩子验证"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "每 {everyMs} 毫秒",
+    "triggerDaily": "每 {everyDays} 天每天 {times} 次",
+    "triggerWeekdays": "工作日 {times} 次",
+    "triggerWeekly": "每周 {days} 天",
+    "scheduleGrant": "{rules} 条规则、{destinations} 个目标、上限 {cap}"
   },
   "reportKinds": {
     "project": "项目",
@@ -1914,6 +1929,9 @@
     "history": "所选会话的历史记录不可用。"
   },
   "reportDetailReasons": {
+    "journalIncomplete": "使用日志包含损坏、不完整或较新版本的记录；总计不包含这些记录。",
+    "sessionUsageUnavailable": "保留的日志无法将使用量归属于此会话；令牌和费用总计不可用。",
+    "budgetsUnavailable": "所选期间的预算快照不可用。",
     "sessionTurnsUnavailable": "会话历史记录中没有轮次标识符，因此无法统计轮次。",
     "sessionApprovalsUnavailable": "会话历史记录中没有审批决定。",
     "toolBreakdownUnavailable": "使用日志中不记录按工具划分的使用量。",

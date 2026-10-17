@@ -1888,6 +1888,7 @@
     "merged": "Scalone",
     "released": "Wydane",
     "complete": "Ukończone",
+    "ended": "Zakończono",
     "superseded": "Zastąpione",
     "waiting": "Oczekujące",
     "blocked": "Zablokowane",
@@ -1904,7 +1905,21 @@
     "added": "Dodane",
     "removed": "Usunięte",
     "changed": "Zmienione",
-    "unchanged": "Bez zmian"
+    "unchanged": "Bez zmian",
+    "paused": "Wstrzymano",
+    "active": "Aktywny",
+    "all": "Wszystkie",
+    "total": "Razem",
+    "once": "Raz",
+    "user": "Użytkownik",
+    "hookVerification": "Weryfikacja hooków"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "co {everyMs} ms",
+    "triggerDaily": "co {everyDays}d {times}x dziennie",
+    "triggerWeekdays": "{times}x w dni powszednie",
+    "triggerWeekly": "{days}d tygodniowo",
+    "scheduleGrant": "{rules} reguł, {destinations} celów, limit {cap}"
   },
   "reportKinds": {
     "project": "Projekt",
@@ -1998,6 +2013,9 @@
     "history": "Historia wybranej sesji jest niedostępna."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Dziennik zawiera uszkodzone, niepełne wpisy lub wpisy nowszej wersji; sumy je pomijają.",
+    "sessionUsageUnavailable": "Nie można przypisać użycia do tej sesji w zachowanym dzienniku; sumy tokenów i kosztów są niedostępne.",
+    "budgetsUnavailable": "Migawki budżetu dla wybranego okresu są niedostępne.",
     "sessionTurnsUnavailable": "Historia sesji nie zawiera żadnych identyfikatorów tur, więc tur nie można policzyć.",
     "sessionApprovalsUnavailable": "Historia sesji nie zawiera żadnych decyzji zatwierdzających.",
     "toolBreakdownUnavailable": "Wykorzystanie według narzędzia nie jest rejestrowane w dzienniku użycia.",

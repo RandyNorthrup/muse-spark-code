@@ -1860,6 +1860,7 @@
     "merged": "Integrato",
     "released": "Pubblicato",
     "complete": "Completato",
+    "ended": "Terminato",
     "superseded": "Sostituito",
     "waiting": "In attesa",
     "blocked": "Bloccato",
@@ -1876,7 +1877,21 @@
     "added": "Aggiunto",
     "removed": "Rimosso",
     "changed": "Modificato",
-    "unchanged": "Invariato"
+    "unchanged": "Invariato",
+    "paused": "In pausa",
+    "active": "Attivo",
+    "all": "Tutti",
+    "total": "Totale",
+    "once": "Una volta",
+    "user": "Utente",
+    "hookVerification": "Verifica degli hook"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "ogni {everyMs} ms",
+    "triggerDaily": "ogni {everyDays} g, {times}x al giorno",
+    "triggerWeekdays": "{times}x nei giorni feriali",
+    "triggerWeekly": "{days}g settimanali",
+    "scheduleGrant": "{rules} regole, {destinations} destinazioni, limite {cap}"
   },
   "reportKinds": {
     "project": "Progetto",
@@ -1970,6 +1985,9 @@
     "history": "La cronologia della sessione selezionata non è disponibile."
   },
   "reportDetailReasons": {
+    "journalIncomplete": "Il registro contiene voci danneggiate, incomplete o di una versione più recente; i totali le escludono.",
+    "sessionUsageUnavailable": "L’utilizzo di questa sessione non è attribuibile nel registro conservato; i totali di token e costi non sono disponibili.",
+    "budgetsUnavailable": "Le istantanee del budget per il periodo selezionato non sono disponibili.",
     "sessionTurnsUnavailable": "La cronologia della sessione non contiene identificativi di turno, quindi i turni non possono essere contati.",
     "sessionApprovalsUnavailable": "La cronologia della sessione non contiene decisioni di approvazione.",
     "toolBreakdownUnavailable": "L'utilizzo per strumento non è registrato nel diario di utilizzo.",

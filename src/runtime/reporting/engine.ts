@@ -70,6 +70,8 @@ export interface ReportingContext {
   readonly security?: LocalReportSourceDeps['security']
   /** Normalized source ports shared by embedded hosts and engine certification. */
   readonly sources?: Partial<ReportSourcePorts>
+  readonly playbook?: LocalReportSourceDeps['playbook']
+  readonly schedules?: LocalReportSourceDeps['schedules']
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
   readonly network?:
     | Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>
@@ -140,6 +142,8 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.usage !== undefined && { usage: context.usage }),
               ...(context.accounts !== undefined && { accounts: context.accounts }),
               ...(context.security !== undefined && { security: context.security }),
+              ...(context.playbook !== undefined && { playbook: context.playbook }),
+              ...(context.schedules !== undefined && { schedules: context.schedules }),
             }).sources
       // One signal and one deadline for the whole generation: every source
       // observes the same abort and the same last instant for new work, and
@@ -170,9 +174,9 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         security: local?.security ?? unavailable('security'),
         accounts: local?.accounts ?? unavailable('accounts'),
         estimate: unavailable('estimate'),
-        playbook: unavailable('playbook'),
+        playbook: local?.playbook ?? unavailable('playbook'),
         issues: unavailable('issues'),
-        schedules: unavailable('schedules'),
+        schedules: local?.schedules ?? unavailable('schedules'),
         keybindings:
           context.keybindings === undefined
             ? unavailable('keybindings')

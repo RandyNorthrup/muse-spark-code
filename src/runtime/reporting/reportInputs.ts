@@ -9,7 +9,9 @@ import type { UiText } from '../../shared/l10n/en'
 // Every engine construction (VS Code, ACP, CLI) builds these from the same
 // durable sources: M84's session history and M102's usage journal through
 // aggregate.ts. Ships in dist/reportInputs.js; the hosts pass only identifiers
-// and directories, so activation carries no new import.
+// and directories, so activation carries no new import. The playbook and
+// schedules inputs ride their own chunk (dist/playbookSchedulesInputs.js,
+// M113 lane C-M113-4) beside this one.
 import { open, realpath } from 'node:fs/promises'
 import { constants as fsConstants, readFileSync } from 'node:fs'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'

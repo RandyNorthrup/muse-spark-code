@@ -87,6 +87,48 @@ happened, not what was planned; superseded entries are kept.
   fails outright keeps its own reason beside the rows the other sub-sources
   return. Hard-linked registry and audit files refuse like linked session
   files, and the vault view's state and tier validate before use.
+- **Schedule fence ownership is unforgeable and cleanups settle on timeout** (CM1134AR8).
+  The fence handle is issued only for a proved publication and release verifies
+  it, refusing forged, re-released or foreign handles. Cleanup retires the hint
+  before publishing the release and only on the completed path, never taking
+  another holder's hint. Takeover and queue cases register their settlement up
+  front so a timeout leaves nothing running, the queue test proves
+  non-overlapping critical sections across real processes, and migration
+  verifies from the completion snapshot with fewer journal transactions.
+
+- **A cancelled schedule contender can no longer release the winner's fence** (CM1134AR7).
+  Only the exclusive-publication success path constructs the release handle, and
+  an interrupted publication is claimed only when the stored bytes carry the
+  acquisition's token; a lost publication releases nothing. Heartbeats without
+  a fencing token are previous-version pulses and stay compatible, while a
+  present contradicting token stays invalid. Playbook goldens follow the
+  `hookVerification` rename, and translated tables keep the English key order.
+
+- **Cancelled schedules reads release their writer leases** (CM1134AR6).
+  Every storage step uses one stop rule, and release has its own short window
+  even when the read is cancelled. A waiting deadline ends busy; a cancelled
+  read leaves the next writer able to acquire immediately. A heartbeat that
+  contradicts any immutable lease identity reports invalid on the first
+  attempt. The real port and its in-memory twin share the same lifecycle;
+  completion drains a pending heartbeat before deciding success.
+
+- **Schedules report waits end busy and name corruption invalid** (CM1134AR5).
+  A source read that is cancelled or times out stops instead of publishing late:
+  the reader passes its signal and deadline to the lock acquisition, which
+  checks them on every turn and before every write. A lease held by a valid
+  writer past the wait reports Host busy, and repeated refreshes accumulate no
+  readers. A fence header that contradicts its file name reports invalid at
+  once instead of retrying as busy.
+
+- **Playbook and schedules reports reflect current state and their request language** (CM1134AR4).
+  Disabled rules replay the latest settings per team, with current actor, reason
+  and date. Schedule reports reconcile revisions around fire history, omit fired
+  one-shots and occurrences at or beyond their end date, and retry writer
+  contention as busy. Every recent-fire outcome uses the request's language;
+  overlapping reports retain their own table. The shipped report schema now
+  accepts every emitted label, including `ended`. The plan records the existing
+  59 KiB reader budget and translated labels/templates.
+
 - **Session and usage reports agree with their notes and show the shared daily budget everywhere** (CM1132R3).
   Session totals exclude rolled-up history and say so; budget stamps use the
   machine-local day like the report period; terminal and ACP usage reports show
@@ -253,6 +295,27 @@ happened, not what was planned; superseded entries are kept.
   inputs load lazily in `dist/reportInputs.js` (100 KiB budget), off the
   reporting engine's budget, and failures thrown across the bundle boundary
   keep their source code instead of degrading to a generic read failure.
+- **Playbook and schedules report kinds are real end to end** (M113 C-M113-4).
+  `/report playbook` reads M116's orchestrator journal through the owner's
+  replay, so strike counts per module and class match enforcement; design
+  decisions carry their outcomes, hook-verification receipts their pass/fail
+  results, and
+  every disabled rule its reason and actor, with route-around refusals in
+  their own section. Only true refusals are listed: admitted commands and
+  applied fallback reviewers never appear as refusals. `--module <glob>`
+  and `--milestone <id>` filter
+  modules while workspace-wide rows stay; `--milestone` matches whole
+  milestone tokens, never substrings. Paused schedules stay out of the
+  upcoming-fires timeline with their paused status shown. `/report schedules` reads M115's
+  store and fire record: upcoming fires with collisions, triggers, targets,
+  delivery, grants and creators, recent fires with outcomes, refused actions
+  and cost with a summed total. Until delivery is registered no v2 fire
+  exists, so the fire sections stay empty instead of invented. Both kinds
+  work in VS Code, ACP and the terminal without a model call, through a new
+  lazy `dist/playbookSchedulesInputs.js` chunk (50.9 KiB measured, 59 KiB
+  budget) beside the session/usage chunk, whose budget stays unchanged;
+  only their two kind-table lines changed, and every other kind still
+  reports unavailable as before.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and

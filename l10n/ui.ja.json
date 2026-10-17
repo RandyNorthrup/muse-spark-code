@@ -1804,6 +1804,7 @@
     "merged": "マージ済み",
     "released": "公開済み",
     "complete": "完了",
+    "ended": "終了",
     "superseded": "置換済み",
     "waiting": "待機中",
     "blocked": "ブロック中",
@@ -1820,7 +1821,21 @@
     "added": "追加",
     "removed": "削除",
     "changed": "変更",
-    "unchanged": "変更なし"
+    "unchanged": "変更なし",
+    "paused": "一時停止中",
+    "active": "アクティブ",
+    "all": "すべて",
+    "total": "合計",
+    "once": "1回",
+    "user": "ユーザー",
+    "hookVerification": "フック検証"
+  },
+  "reportScheduleCells": {
+    "triggerInterval": "{everyMs} ms ごと",
+    "triggerDaily": "{everyDays} 日ごとに1日 {times} 回",
+    "triggerWeekdays": "平日 {times} 回",
+    "triggerWeekly": "週 {days} 日",
+    "scheduleGrant": "ルール {rules} 件、宛先 {destinations} 件、上限 {cap}"
   },
   "reportKinds": {
     "project": "プロジェクト",
@@ -1914,6 +1929,9 @@
     "history": "選択したセッションの履歴は利用できません。"
   },
   "reportDetailReasons": {
+    "journalIncomplete": "使用状況の記録には破損、不完全、または新しいバージョンの項目が含まれています。合計からは除外されています。",
+    "sessionUsageUnavailable": "保存された記録ではこのセッションの使用状況を特定できないため、トークン数と費用の合計は利用できません。",
+    "budgetsUnavailable": "選択した期間の予算スナップショットは利用できません。",
     "sessionTurnsUnavailable": "セッション履歴にターン識別子がないため、ターンを数えられません。",
     "sessionApprovalsUnavailable": "セッション履歴に承認の決定がありません。",
     "toolBreakdownUnavailable": "ツール別の使用量は使用量ジャーナルに記録されません。",

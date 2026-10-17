@@ -166,6 +166,7 @@
             "merged",
             "released",
             "complete",
+            "ended",
             "superseded",
             "waiting",
             "blocked",
@@ -182,7 +183,14 @@
             "added",
             "removed",
             "changed",
-            "unchanged"
+            "unchanged",
+            "paused",
+            "active",
+            "all",
+            "total",
+            "once",
+            "user",
+            "hookVerification"
           ]
         },
         "sortKey": { "type": "string", "const": "key" },
@@ -308,6 +316,7 @@
                   "merged",
                   "released",
                   "complete",
+                  "ended",
                   "superseded",
                   "waiting",
                   "blocked",
@@ -324,7 +333,14 @@
                   "added",
                   "removed",
                   "changed",
-                  "unchanged"
+                  "unchanged",
+                  "paused",
+                  "active",
+                  "all",
+                  "total",
+                  "once",
+                  "user",
+                  "hookVerification"
                 ]
               }
             },
@@ -476,6 +492,7 @@
                             "merged",
                             "released",
                             "complete",
+                            "ended",
                             "superseded",
                             "waiting",
                             "blocked",
@@ -492,7 +509,14 @@
                             "added",
                             "removed",
                             "changed",
-                            "unchanged"
+                            "unchanged",
+                            "paused",
+                            "active",
+                            "all",
+                            "total",
+                            "once",
+                            "user",
+                            "hookVerification"
                           ]
                         }
                       },
@@ -732,6 +756,7 @@
               "merged",
               "released",
               "complete",
+              "ended",
               "superseded",
               "waiting",
               "blocked",
@@ -748,7 +773,14 @@
               "added",
               "removed",
               "changed",
-              "unchanged"
+              "unchanged",
+              "paused",
+              "active",
+              "all",
+              "total",
+              "once",
+              "user",
+              "hookVerification"
             ]
           },
           "sortKey": { "type": "string", "const": "key" },
@@ -874,6 +906,7 @@
                     "merged",
                     "released",
                     "complete",
+                    "ended",
                     "superseded",
                     "waiting",
                     "blocked",
@@ -890,7 +923,14 @@
                     "added",
                     "removed",
                     "changed",
-                    "unchanged"
+                    "unchanged",
+                    "paused",
+                    "active",
+                    "all",
+                    "total",
+                    "once",
+                    "user",
+                    "hookVerification"
                   ]
                 }
               },
@@ -1042,6 +1082,7 @@
                               "merged",
                               "released",
                               "complete",
+                              "ended",
                               "superseded",
                               "waiting",
                               "blocked",
@@ -1058,7 +1099,14 @@
                               "added",
                               "removed",
                               "changed",
-                              "unchanged"
+                              "unchanged",
+                              "paused",
+                              "active",
+                              "all",
+                              "total",
+                              "once",
+                              "user",
+                              "hookVerification"
                             ]
                           }
                         },
