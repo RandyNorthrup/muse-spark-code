@@ -2310,9 +2310,18 @@ body {
 
 .git-hold,
 .git-pr,
-.git-form {
+.git-form,
+.git-github {
   border-left: calc(var(--ms-space-4) - 1px) solid
     var(--vscode-editorWarning-foreground, var(--ms-focus));
+}
+
+/* The device-flow code (M123): typed on GitHub's page, so it reads large and selects whole. */
+.git-code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--ms-font-large);
+  letter-spacing: 0.1em;
+  user-select: all;
 }
 
 /* Someone else's code: the card carries the warning colour on its edge. */

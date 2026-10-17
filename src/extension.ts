@@ -79,6 +79,7 @@ import {
   MUSE_INIT_TIMEOUT_MS,
   MUSE_INSTALL_COMMANDS,
   RULES_FILE_BUNDLE_FILE,
+  NATIVE_GIT_BUNDLE_FILE,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
   PROMPT_BUNDLE_FILE,
@@ -2867,6 +2868,8 @@ async function activateWindow(
     hold: windowHold,
     registry: worktreeRegistry,
     workspaceState: context.workspaceState,
+    // Muse Spark's own GitHub sign-in keeps its token here (M123, D104 §2b).
+    secrets: context.secrets,
     fetch: liveFetch,
     userAgent: `${EXTENSION_NAME}/${version}`,
     runGit,
@@ -2874,8 +2877,11 @@ async function activateWindow(
     gitProcess: processGitProcess(),
     env: process.env,
     isCurrent: () => !nativeStarts.signal.aborted,
-    // M123's native route (a host without `vscode.git`) stops its git with the window.
+    // M123's native route (a host without `vscode.git`) stops its git with the window,
+    // and ships in its own bundle (PLAN.md D6).
     signal: nativeStarts.signal,
+    nativeGitBundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', NATIVE_GIT_BUNDLE_FILE)
+      .fsPath,
     // Commit and push run hooks, which can write the workspace: admitted as any such command is (M72).
     admit: (start) => backend.startWorkspaceCommand(start, nativeStarts.signal),
     restartBackends: (reason) => restartBackend(reason),

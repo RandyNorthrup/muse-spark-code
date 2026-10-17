@@ -3347,6 +3347,7 @@ export function App({
               onCreatePullRequest={onGitCreatePullRequest}
               onGenerate={onGitGenerate}
               onOpenLink={onOpenExternal}
+              onCopy={onCopy}
             />
           </>
         )}

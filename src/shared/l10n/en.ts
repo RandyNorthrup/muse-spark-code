@@ -444,6 +444,8 @@ export const EN = {
   referenceVaultLock: 'In progress.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
+  referenceAuthGitHub:
+    'Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.',
   referenceAccountsTitle: 'Several Accounts per Provider',
   referenceAccounts:
     'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.',
@@ -1927,6 +1929,12 @@ export const EN = {
   gitPullRequestItemDetail: 'On GitHub, as a draft or ready, linked to this conversation',
   gitCheckoutItem: 'Open a Pull Request in a Conversation…',
   gitCheckoutItemDetail: 'Check a pull request out in its own worktree and window',
+  gitHubSignInWithCodeItem: 'Sign In to GitHub With a Code',
+  gitHubSignInWithCodeDetail:
+    'Sign in to GitHub with a code you enter on github.com/login/device; the token stays in this computer’s credential store',
+  gitHubSignOutItem: 'Sign Out of GitHub',
+  gitHubSignOutItemDetail:
+    'Delete Muse Spark’s GitHub sign-in from this computer and open GitHub’s page where you revoke it',
   gitRestricted:
     'Git and pull requests are unavailable in Restricted Mode: git can run programs a repository’s configuration names. Trust the workspace to use them.',
   gitHeld: 'Git and pull requests wait until you trust this worktree in the card above.',
@@ -2036,6 +2044,24 @@ export const EN = {
   gitStatusNeedsSignIn: 'Sign in to GitHub to see its status.',
   gitCheckedAt: 'as of {time}',
   gitSignInGitHub: 'Sign In to GitHub',
+  // M123 (PLAN.md D104 §2): the panel's GitHub card.
+  gitHubCardLabel: 'GitHub sign-in',
+  // {url}: GitHub's https://github.com/login/device.
+  gitHubCardCode: 'Open {url} and enter this code:',
+  // {time}: when the code expires, in the user's locale.
+  gitHubCardExpires: 'The code expires at {time}.',
+  gitHubCopyCode: 'Copy Code',
+  gitHubOpenPage: 'Open GitHub',
+  // {login}: the GitHub account; {source}: one of gitHubSources.
+  gitHubAccount: 'GitHub: {login}, through {source}',
+  gitHubAccountNoLogin: 'GitHub: signed in through {source}',
+  gitHubSources: {
+    editorLease: 'the editor’s GitHub sign-in',
+    deviceFlow: 'Muse Spark’s GitHub sign-in',
+    ghLogin: 'the GitHub CLI (gh)',
+  },
+  gitHubSignOut: 'Sign Out',
+  gitHubSignOutFailed: 'GitHub sign-out could not finish. Try again.',
   gitRefresh: 'Refresh',
   gitOpenOnGitHub: 'Open on GitHub',
   gitWorktreeBranch: 'Worktree on {branch}, of {repository}',
@@ -5257,6 +5283,36 @@ export const EN = {
     failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
     storeUnavailable:
       'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+  },
+  // GitHub sign-in outside VS Code (M123 lane A, PLAN.md D104): the device
+  // flow's code, shown by the CLI, the ACP notice and the panel alike.
+  githubSignIn: {
+    usage: 'Usage: muse-spark-code-acp auth github login|logout|status',
+    // {url}: GitHub's https://github.com/login/device; {code}: the user code.
+    code: 'To sign in to GitHub, open {url} and enter the code {code}. Waiting for GitHub; press Ctrl+C to cancel.',
+    // {store}: where the token is kept (the credential store's name).
+    signedIn: 'Signed in to GitHub. The token is kept in {store}.',
+    notSignedIn:
+      'Not signed in to GitHub. Run muse-spark-code-acp auth github login to sign in with GitHub’s device flow.',
+    // {url}: the app's page on github.com, where the grant is revoked.
+    signedOut:
+      'Signed out of GitHub: the token was deleted from this computer. To revoke the app’s access as well, open {url} and choose Revoke.',
+    cancelled: 'GitHub sign-in was cancelled.',
+    failures: {
+      clientIdUnset: 'This build has no GitHub app client id, so GitHub sign-in is unavailable.',
+      verificationAddress:
+        'GitHub’s reply named a sign-in address other than github.com/login/device, so it was refused.',
+      userCode: 'GitHub’s reply held a code that cannot be shown safely, so it was refused.',
+      expired: 'The code expired before it was entered. Sign in again.',
+      denied: 'The sign-in was denied on GitHub.',
+      disabled: 'GitHub has the device flow turned off for this app.',
+      incorrectClient: 'GitHub did not recognize this app’s client id.',
+      incorrectDeviceCode: 'GitHub did not recognize the sign-in code. Sign in again.',
+      unsupportedGrant: 'GitHub refused the sign-in request.',
+      refreshRefused: 'GitHub refused to renew the sign-in. Sign in again.',
+      network: 'GitHub could not be reached. Check the connection and try again.',
+      reply: 'GitHub’s reply could not be read.',
+    },
   },
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.

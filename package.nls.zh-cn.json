@@ -228,6 +228,7 @@
   "config.accountSwap.description": "为兼容性保留；此偏好设置在此构建中不起作用。",
   "config.accountParallel.description": "为兼容性保留；此偏好设置在此构建中不起作用。",
   "config.accounts.severalOnThisDevice.description": "为兼容性保留；此偏好设置在此构建中不起作用。",
+  "config.github.useGhLogin.description": "允许拉取请求使用你现有的 GitHub CLI 登录（`gh auth token`），在编辑器的 GitHub 登录和 Muse Spark 的登录之后最后尝试。令牌每次只为一个请求读取，从不保存。默认关闭；仅限用户设置，因此仓库无法将其打开。",
   "command.vault.title": "凭据库",
   "command.lockVault.title": "立即锁定凭据库",
   "config.vault.description": "为兼容性保留；此偏好设置在此构建中不起作用。",

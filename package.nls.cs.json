@@ -228,6 +228,7 @@
   "config.accountSwap.description": "Uloženo kvůli kompatibilitě; tato předvolba nemá v tomto sestavení žádný účinek.",
   "config.accountParallel.description": "Uloženo kvůli kompatibilitě; tato předvolba nemá v tomto sestavení žádný účinek.",
   "config.accounts.severalOnThisDevice.description": "Uloženo kvůli kompatibilitě; tato předvolba nemá v tomto sestavení žádný účinek.",
+  "config.github.useGhLogin.description": "Umožní žádostem o přijetí změn použít stávající přihlášení GitHub CLI (`gh auth token`), zkoušené jako poslední, po přihlášení k GitHubu v editoru a přihlášení Muse Spark. Token se čte vždy jen pro jeden požadavek a nikdy se neukládá. Ve výchozím stavu vypnuto; pouze uživatelská nastavení, takže jej repozitář nemůže zapnout.",
   "command.vault.title": "Trezor",
   "command.lockVault.title": "Zamknout trezor nyní",
   "config.vault.description": "Uloženo kvůli kompatibilitě; tato předvolba nemá v tomto sestavení žádný účinek.",

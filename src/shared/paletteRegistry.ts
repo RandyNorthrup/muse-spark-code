@@ -432,6 +432,24 @@ export function buildPalette(
           detail: UI_TEXT.gitCheckoutItemDetail,
           action: { type: 'openPullRequestInConversation' },
         },
+        // M123 (PLAN.md D104 §2): GitHub's device flow, the code shown in the
+        // panel's card, wherever the editor has a sign-in of its own or not.
+        {
+          id: 'githubSignInWithCode',
+          label: UI_TEXT.gitHubSignInWithCodeItem,
+          tip: UI_TEXT.gitHubSignInWithCodeDetail,
+          slashName: SLASH_COMMAND_NAMES.githubLogin,
+          detail: UI_TEXT.gitHubSignInWithCodeDetail,
+          action: { type: 'gitAction', action: 'signInGitHubWithCode' },
+        },
+        {
+          id: 'githubSignOut',
+          label: UI_TEXT.gitHubSignOutItem,
+          tip: UI_TEXT.gitHubSignOutItemDetail,
+          slashName: SLASH_COMMAND_NAMES.githubLogout,
+          detail: UI_TEXT.gitHubSignOutItemDetail,
+          action: { type: 'gitAction', action: 'signOutGitHub' },
+        },
       ],
     },
     {

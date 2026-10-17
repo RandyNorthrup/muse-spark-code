@@ -8,11 +8,14 @@ import { isValidModelApiKey, type SecretStore } from '../host/auth/credentialSto
 import type { ProvidersFileRead } from '../core/providers/providersFile'
 import {
   CREDENTIAL_RECORD_VERSION,
+  type GITHUB_AUTH_ACTIONS,
   MUSE_LOGIN_ARGS,
   SECRET_KEYS,
   UI_TEXT,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
+import { signInFailureText } from '../core/git/deviceFlow'
+import type { DeviceFlowSource } from './github/deviceFlowSource'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
@@ -36,7 +39,7 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function unavailable(deps: AuthCommandDeps, error: unknown): number {
+function unavailable(deps: Pick<AuthCommandDeps, 'printError'>, error: unknown): number {
   deps.printError(fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }))
   return EXIT_FAILED
 }
@@ -247,4 +250,56 @@ export function login(deps: LoginDeps): Promise<number> {
     })
   const waitForLaunch = async (pending: Promise<ExitingProcess>) => await waitForExit(await pending)
   return child instanceof Promise ? waitForLaunch(child) : waitForExit(child)
+}
+
+export type GitHubAuthAction = (typeof GITHUB_AUTH_ACTIONS)[number]
+
+export interface GitHubAuthDeps {
+  readonly source: DeviceFlowSource
+  /** Where the token lives, as the user knows it (`credentialStoreName`). */
+  readonly storeName: string
+  /** Ctrl+C. */
+  readonly signal: AbortSignal
+  readonly print: (line: string) => void
+  readonly printError: (line: string) => void
+}
+
+/**
+ * `auth github login|logout|status` (M123, PLAN.md D104 source b): the
+ * device flow in this terminal, its code printed here; the token goes only
+ * into the credential store and is never printed.
+ */
+export async function authGitHub(action: GitHubAuthAction, deps: GitHubAuthDeps): Promise<number> {
+  const text = UI_TEXT.githubSignIn
+  try {
+    switch (action) {
+      case 'status': {
+        const isSignedIn = await deps.source.isSignedIn()
+        deps.print(isSignedIn ? fill(text.signedIn, { store: deps.storeName }) : text.notSignedIn)
+        return isSignedIn ? EXIT_OK : EXIT_FAILED
+      }
+      case 'logout': {
+        await deps.source.signOut()
+        return EXIT_OK
+      }
+      case 'login': {
+        const credential = await deps.source.credential('ask', deps.signal)
+        if (credential === undefined) {
+          deps.printError(text.notSignedIn)
+          return EXIT_FAILED
+        }
+        deps.print(fill(text.signedIn, { store: deps.storeName }))
+        return EXIT_OK
+      }
+    }
+  } catch (error: unknown) {
+    if (deps.signal.aborted) {
+      deps.printError(text.cancelled)
+      return EXIT_FAILED
+    }
+    const failure = signInFailureText(error)
+    if (failure === undefined) return unavailable(deps, error)
+    deps.printError(failure)
+    return EXIT_FAILED
+  }
 }

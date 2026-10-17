@@ -13,35 +13,42 @@ import * as vscode from 'vscode'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   GIT_PUSH_CREDENTIAL_VARIABLES,
-  M123_RELEASE,
   UI_TEXT,
 } from '../../shared/constants'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { fill, plural } from '../../shared/l10n/text'
-import { GitHubClient, type GitHubClientDeps } from '../../core/git/github'
+import { signInFailureText } from '../../core/git/deviceFlow'
+import { GitHubClient, GitHubError, type GitHubClientDeps } from '../../core/git/github'
+import type { GitHubSignIn } from '../../core/git/githubSignIn'
 import { newFileDiff } from '../../core/git/gitText'
 import type { RuntimeGitDeps } from '../../core/git/runtimeGit'
 import { processGitPath, type GitProcess } from '../git'
+import type { SecretStore } from '../auth/credentialStore'
 import type { Logger } from '../logger'
 import { loggedPopups } from '../popups'
 import { newWindowActions } from '../worktreeFeatures'
-import { githubTokenReader } from './githubSession'
+import { windowGitHubSignIn } from './githubSession'
 import { createHeldCheckout } from './heldCheckout'
 import { type LinkMemento, PullRequestLinks } from './pullRequestLinks'
 import { untrustedGitRunner } from './untrustedGit'
-import type {
-  CommitConfirmation,
-  GitWindow,
-  PushConfirmation,
-  UntrackedFile,
+import {
+  windowWorktreeState,
+  type CommitConfirmation,
+  type GitWindow,
+  type PushConfirmation,
+  type UntrackedFile,
 } from './conversationGit'
 import {
   captureGitOwner,
   GitUnavailableError,
+  isGitExtensionInstalled,
   loadGitApi,
   repositoryAt,
+  type CheckoutRepository,
   type GitRepository,
 } from './gitExtension'
+import { nativeGitLoader } from './nativeGitBundle'
+import { nativeCheckoutRepository } from './nativeRepository'
 import {
   confirmWorktreeTrust,
   openPullRequestInConversation,
@@ -56,7 +63,8 @@ export interface GitWindowDeps {
   readonly registry: WorktreeRegistry
   readonly links: PullRequestLinks
   readonly github: GitHubClient
-  readonly githubToken: (mode: 'ask' | 'silent') => Promise<string | undefined>
+  /** The window's GitHub sign-in over D104's sources (M123): every GitHub call's credential. */
+  readonly githubSignIn: GitHubSignIn
   readonly runGit: PullRequestCheckoutDeps['runGit']
   readonly checkOutHeld: PullRequestCheckoutDeps['checkOutHeld']
   /** This activation still owns the window, including across native metadata waits. */
@@ -71,6 +79,10 @@ export interface GitWindowDeps {
   readonly userAgent: string
   /** Aborts with the window: the native route's git stops with it (M123). */
   readonly signal: AbortSignal
+  /** dist/nativeGit.js: M123's native route, loaded only where `vscode.git` is missing. */
+  readonly nativeGitBundlePath: string
+  /** The checkout's repository through the user's own git, where `vscode.git` is missing (M123). */
+  readonly nativeCheckoutRepository: (root: string) => Promise<CheckoutRepository>
   readonly log: Logger
 }
 
@@ -87,8 +99,10 @@ export interface GitWindowFeatures {
  */
 export interface GitFeaturesDeps extends Omit<
   GitWindowDeps,
-  'links' | 'github' | 'githubToken' | 'checkOutHeld'
+  'links' | 'github' | 'githubSignIn' | 'checkOutHeld' | 'nativeCheckoutRepository'
 > {
+  /** VS Code's secret storage: where Muse Spark's own GitHub sign-in keeps its token (M123). */
+  readonly secrets: SecretStore
   /** The workspace state the conversations' pull request links are kept in. */
   readonly workspaceState: LinkMemento
   /** VS Code's proxy-aware fetch, as it stands at each request (M56, D43). */
@@ -103,13 +117,18 @@ export interface GitFeaturesDeps extends Omit<
 
 /** The window's git features from activation's primitives (M71). */
 export function createGitFeatures(deps: GitFeaturesDeps): GitWindowFeatures {
-  const { workspaceState, fetch, userAgent, gitProcess, env, ...windowDeps } = deps
+  const { workspaceState, fetch, userAgent, gitProcess, env, secrets, ...windowDeps } = deps
   return createGitWindow({
     ...windowDeps,
     userAgent,
     links: new PullRequestLinks(workspaceState),
     github: new GitHubClient({ fetch, userAgent, log: deps.log }),
-    githubToken: githubTokenReader(deps.log),
+    githubSignIn: windowGitHubSignIn({ secrets, fetch, userAgent, log: deps.log }),
+    nativeCheckoutRepository: nativeCheckoutRepository({
+      gitProcess,
+      env,
+      signal: deps.signal,
+    }),
     // Someone else's pull request: no git checkout; the extension writes its files (M71).
     checkOutHeld: createHeldCheckout({
       platform: process.platform,
@@ -306,14 +325,18 @@ function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps |
   return {
     repositoryRoot: root,
     gitPath,
-    // D104's sources arrive with lanes A and L; nothing here reads a token.
-    tokenSources: [],
+    // The same sign-in as the Git extension route: one card, one account.
+    github: deps.githubSignIn,
     links: {
       get: (_root, sessionId) => Promise.resolve(deps.links.get(sessionId)),
       set: (_root, sessionId, link) => deps.links.set(sessionId, link),
     },
     isTrusted: () => window.isWorkspaceTrusted() && deps.hold.current === undefined,
+    // The same card and worktree line as the Git extension route.
+    worktreeState: () => windowWorktreeState(window),
+    confirmWorktreeTrust: window.confirmWorktreeTrust,
     confirmPush: isPushConfirmed,
+    confirm: isModalConfirmed,
     pickRemote: window.pickRemote,
     userEnvironment: () => userEnvironment,
     admitWorkspaceCommand: deps.admit,
@@ -332,6 +355,21 @@ function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps |
 export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
   let isCheckingOut = false
   const popups = loggedPopups(deps.log)
+  // M123's native route, loaded the first time a conversation needs it.
+  const nativeBundle = nativeGitLoader({ bundlePath: deps.nativeGitBundlePath, log: deps.log })
+  // A token per GitHub call, in D104's order. A sign-in that failed is said
+  // in its fixed words (the conversation's own adapter says it in the panel).
+  const githubToken = async (mode: 'ask' | 'silent'): Promise<string | undefined> => {
+    try {
+      const credential = await deps.githubSignIn.credential(mode, deps.signal)
+      return credential?.bearer
+    } catch (error: unknown) {
+      if (!deps.signal.aborted) {
+        popups.showWarning(signInFailureText(error) ?? UI_TEXT.githubSignIn.cancelled)
+      }
+      return undefined
+    }
+  }
   const window: GitWindow = {
     workspaceRoot: deps.workspaceRoot,
     platform: process.platform,
@@ -342,7 +380,8 @@ export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
     repository,
     captureGitOwner,
     admit: deps.admit,
-    githubToken: deps.githubToken,
+    githubToken,
+    githubSignIn: deps.githubSignIn,
     github: deps.github,
     links: deps.links,
     confirmPush: isPushConfirmed,
@@ -367,8 +406,11 @@ export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
       }),
     now: () => Date.now(),
     log: deps.log,
-    // Off until M123 is complete (constants.ts, M123_RELEASE).
-    nativeGit: M123_RELEASE.isNativeGitRouteOn ? () => nativeGitDeps(deps, window) : undefined,
+    // A VS Code-family host without `vscode.git` (M123, D104 §1).
+    nativeGit: () => {
+      const native = nativeGitDeps(deps, window)
+      return native === undefined ? undefined : { deps: native, bundle: nativeBundle }
+    },
   }
   const checkoutDeps = (): PullRequestCheckoutDeps => ({
     workspaceRoot: deps.workspaceRoot,
@@ -376,12 +418,22 @@ export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
     isWorkspaceTrusted: () => deps.isCurrent() && vscode.workspace.isTrusted,
     isHeld: () => deps.hold.isHeld,
     storageRoot: deps.storageRoot,
-    repository,
+    // VS Code's Git where it is installed; the user's own git where it is not.
+    repository: isGitExtensionInstalled() ? repository : deps.nativeCheckoutRepository,
     captureGitOwner,
     runGit: deps.runGit,
     checkOutHeld: deps.checkOutHeld,
     admit: deps.admit,
-    githubToken: deps.githubToken,
+    githubToken,
+    // A 401 drops the refused credential at its source, as every other
+    // GitHub call of the window does (conversationGit.ts `dropRejected`).
+    dropRejectedGitHubToken: (token, error) => {
+      if (error instanceof GitHubError && error.kind === 'signIn') {
+        void deps.githubSignIn.rejectedBearer(token).catch(() => {
+          deps.log.warn('A refused GitHub sign-in could not be dropped')
+        })
+      }
+    },
     github: deps.github,
     registry: deps.registry,
     askPullRequest: async (validate) =>

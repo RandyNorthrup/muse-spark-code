@@ -23,34 +23,46 @@
 //   never does.
 // - Cancel, a session change and disposal abort the running operation's
 //   signal: pending git stops, and nothing new starts.
-// - The linked pull request shows from the runtime link store; its status
-//   and checks, the pull request form, creation and trust arrive with
-//   lane P. Until then those actions answer `gitHubSignInDeclined` (no
-//   sign-in was given, so nothing was sent) or `gitHeld`, never an empty
-//   success.
-// - Draft prompts for a commit message read the native diff and new files
-//   confined to the bound root; generations settle as the VS Code
-//   adapter's do.
+// - Pull requests (M71's flow, through lane P's `RuntimePullRequests` and
+//   the window's GitHub sign-in): the form names the GitHub repository (a
+//   fork's parent), the remote, the branch and the base; an open pull
+//   request for the branch is linked instead of a second one; Create signs
+//   in first, pushes the branch after its own confirmation, then opens the
+//   pull request after the confirmation of what goes out. The linked pull
+//   request shows from the runtime link store with its status and checks.
+// - The GitHub sign-in card (a device-flow code, the source and account,
+//   Sign out) is the window's (`GitHubSignIn`), shown in every
+//   conversation's panel.
+// - Draft prompts read the native diff and new files confined to the bound
+//   root (a commit message), or the branch's commit subjects and changed
+//   files since the base (a pull request); generations settle as the VS
+//   Code adapter's do.
 // - Git's words reach the panel redacted first, then cut to size.
 
 import type {
   ConversationGitPort,
   GitSurface,
+  NewPullRequestRequest,
 } from '../../../host/conversation/conversationController'
 import { isGitExitError } from '../../../host/git'
 import { redactSecrets } from '../../../core/redact'
-import { maskRemoteUrl } from '../../../core/git/githubRemote'
+import { isRangeSafeRefName } from '../../../core/git/diff'
+import { githubStateOf } from '../../../core/git/githubSignIn'
+import { githubRepositoryOf, maskRemoteUrl, repositoryLabel } from '../../../core/git/githubRemote'
 import {
   commitMessageFrom,
   commitMessagePrompt,
   gitDraftContract,
+  isPullRequestFormRefused,
+  pullRequestPrompt,
   pullRequestTextFrom,
   structuredGitDraft,
   type GitDraftOutputPort,
 } from '../../../core/git/gitText'
-import type { PushPlan } from '../../../core/git/pushPlan'
-import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
-import type { NativeStatusSnapshot } from '../../../core/git/status'
+import { isPlainRefName, type PushPlan } from '../../../core/git/pushPlan'
+import type { PullRequestLinkRecord, RuntimeGitDeps } from '../../../core/git/runtimeGit'
+import { toPushHead, type NativeStatusSnapshot } from '../../../core/git/status'
+import type { GitHubTokenSourceKind } from '../../../core/git/tokenSource'
 import { fill } from '../../../shared/l10n/text'
 import type { AgentEvent } from '../../../shared/agentEvents'
 import {
@@ -64,8 +76,14 @@ import type {
   GitAction,
   GitDraftKind,
   GitState,
+  PullRequestFormFacts,
   PullRequestView,
 } from '../../../shared/git'
+import {
+  RuntimePullRequests,
+  type PreparePullRequestResult,
+  type PullRequestDestination,
+} from '../pullRequests/pullRequests'
 import {
   CommitRefusedError,
   NativeGitRefusalError,
@@ -152,6 +170,29 @@ interface PendingDraft {
   settling?: boolean
 }
 
+/** The GitHub repository and branch a pull request would name. */
+interface PullRequestTarget {
+  readonly repository: NonNullable<ReturnType<typeof githubRepositoryOf>>
+  readonly plan: NativePushPlanResult
+  readonly remote: string
+  /** As git has it; masked wherever it is shown. */
+  readonly remoteUrl: string
+  readonly branch: string
+  /** The branch as the remote names it: the pull request's head. */
+  readonly head: string
+  readonly headOid: string | undefined
+}
+
+/** The open pull request form: what it showed, and where it opens. */
+interface OpenPullRequestForm {
+  readonly facts: PullRequestFormFacts
+  readonly destination: PullRequestDestination
+  readonly headOid: string | undefined
+}
+
+/** A linked pull request as the strip names it. */
+type LinkedPullRequest = Pick<PullRequestLinkRecord, 'repository' | 'number' | 'url' | 'title'>
+
 /**
  * The runtime Git adapter. Owns one conversation's forms, drafts and
  * link display; the service owns git itself. Trust, session and lifetime
@@ -178,6 +219,15 @@ export class RuntimeGit implements ConversationGitPort {
     string,
     { text: string | undefined; terminal: string | undefined }
   >()
+  private readonly pullRequests: RuntimePullRequests
+  /** The pull request linked to this conversation, as the strip shows it. */
+  private link: LinkedPullRequest | undefined
+  /** A pull request opened before the conversation had a session: linked once it does. */
+  private pendingLink: LinkedPullRequest | undefined
+  private pullRequestForm: OpenPullRequestForm | undefined
+  /** Ends a sign-in this conversation waits on when it closes. */
+  private readonly lifetime = new AbortController()
+  private readonly stopWatchingSignIn: () => void
 
   public constructor(
     private readonly surface: GitSurface,
@@ -185,15 +235,32 @@ export class RuntimeGit implements ConversationGitPort {
     options: NativeGitServiceOptions = {},
   ) {
     this.service = new NativeGitService(deps, options)
+    this.pullRequests = new RuntimePullRequests({
+      ...deps,
+      platform: process.platform,
+      now: () => Date.now(),
+    })
+    // The sign-in card (a code to enter, the account) shows in every conversation of the window.
+    this.stopWatchingSignIn = deps.github.onDidChange(() => {
+      this.postState()
+    })
   }
 
   private currentState(): GitState {
-    return this.view === undefined ? {} : { pullRequest: this.view }
+    return {
+      ...this.deps.worktreeState(),
+      ...(this.view !== undefined && { pullRequest: this.view }),
+      ...githubStateOf(this.deps.github),
+    }
   }
 
   private unavailableReason(): string | undefined {
     if (this.deps.repositoryRoot === '') {
       return UI_TEXT.noWorkspaceReason
+    }
+    // Someone else's pull request stays held until its card is trusted.
+    if (this.deps.worktreeState().hold !== undefined) {
+      return UI_TEXT.gitHeld
     }
     return this.deps.isTrusted() ? undefined : UI_TEXT.gitRestricted
   }
@@ -288,6 +355,7 @@ export class RuntimeGit implements ConversationGitPort {
     this.formAbort = new AbortController()
     this.formEpoch += 1
     this.commitStamp = undefined
+    this.pullRequestForm = undefined
   }
 
   private async openCommitForm(operation: NativeGitOperation): Promise<void> {
@@ -368,9 +436,19 @@ export class RuntimeGit implements ConversationGitPort {
       this.surface.notice(plan.refusal === 'upToDate' ? 'info' : 'warning', pushRefusalText(plan))
       return
     }
-    // Nothing goes before the user saw where, what and how many (D104,
-    // M71's push modal): the remote and every URL git pushes it to (its
-    // rewrites applied, masked), the target, the commits.
+    await this.pushConfirmed(plan, operation)
+  }
+
+  /**
+   * Asks for `plan` and pushes it; true once it went. Nothing goes before
+   * the user saw where, what and how many (D104, M71's push modal): the
+   * remote and every URL git pushes it to (its rewrites applied, masked),
+   * the target, the commits.
+   */
+  private async pushConfirmed(
+    plan: NativePushPlan,
+    operation: NativeGitOperation,
+  ): Promise<boolean> {
     const isConfirmed = await this.deps.confirmPush({
       remote: plan.remote,
       remoteUrl:
@@ -384,13 +462,13 @@ export class RuntimeGit implements ConversationGitPort {
     this.checkCurrent()
     if (!isConfirmed) {
       this.surface.notice('info', UI_TEXT.gitPushDeclined)
-      return
+      return false
     }
     try {
       await this.service.push(plan, operation)
     } catch (error: unknown) {
       await this.pushFailed(plan, error, operation)
-      return
+      return false
     }
     // The push went through: said as such even when Cancel came after it.
     if (this.canPost()) {
@@ -399,6 +477,7 @@ export class RuntimeGit implements ConversationGitPort {
         fill(UI_TEXT.gitPushed, { branch: plan.branch, remote: plan.remote }),
       )
     }
+    return true
   }
 
   /**
@@ -449,7 +528,8 @@ export class RuntimeGit implements ConversationGitPort {
     if (refusal === 'closed' || this.deps.signal.aborted) {
       return
     }
-    const notice = refusalNotice(refusal)
+    // The sign-in's own copy reads its failures (it may sit in another bundle).
+    const notice = refusalNotice(refusal) ?? this.deps.github.failureText(error)
     if (notice !== undefined) {
       this.surface.notice('warning', notice)
       return
@@ -567,12 +647,333 @@ export class RuntimeGit implements ConversationGitPort {
     }
   }
 
-  /** Lane P replaces this with the REST flow; the notice stays honest either way. */
-  private githubUnavailable(form?: 'pullRequest'): void {
-    this.surface.notice('warning', UI_TEXT.gitHubSignInDeclined)
-    if (form !== undefined) {
-      this.refuseForm(form)
+  /** A credential from the window's sign-in; a sign-in that did not finish is said here. */
+  private async signedIn(
+    mode: 'ask' | 'silent',
+    signal: AbortSignal,
+    askWith?: GitHubTokenSourceKind,
+  ): Promise<boolean> {
+    const { credential, isSaid } = await this.deps.github.credentialOrSaid(
+      { mode, signal, askWith },
+      (text) => {
+        if (this.canPost()) {
+          this.surface.notice('warning', text)
+        }
+      },
+    )
+    if (credential === undefined && !isSaid && mode === 'ask' && this.canPost()) {
+      this.surface.notice('info', UI_TEXT.gitHubSignInDeclined)
     }
+    return credential !== undefined
+  }
+
+  /** The GitHub repository and branch a pull request would name, or why none (said here). */
+  private async pullRequestTarget(
+    operation: NativeGitOperation,
+  ): Promise<PullRequestTarget | undefined> {
+    const { snapshot, remotes } = await this.service.status(operation)
+    this.checkCurrent()
+    const { branch } = snapshot
+    if (branch === undefined || !isPlainRefName(branch)) {
+      this.surface.notice(
+        'warning',
+        branch === undefined ? UI_TEXT.gitPushDetached : UI_TEXT.gitPushUnsafeName,
+      )
+      return undefined
+    }
+    const plan = await this.pushPlanFor(operation)
+    if (plan === undefined) {
+      return undefined
+    }
+    if (!plan.ok && plan.refusal !== 'behind' && plan.refusal !== 'upToDate') {
+      this.surface.notice('warning', pushRefusalText(plan))
+      return undefined
+    }
+    const head = toPushHead(snapshot, remotes)
+    const upstream = head.ok ? head.head.upstream : undefined
+    const remote = plan.ok ? plan.remote : upstream?.remote
+    const facts = remotes.find((candidate) => candidate.name === remote)
+    const remoteUrl = facts?.pushUrl ?? facts?.fetchUrl
+    const repository = remoteUrl === undefined ? undefined : githubRepositoryOf(remoteUrl)
+    if (remote === undefined || remoteUrl === undefined || repository === undefined) {
+      this.surface.notice('warning', fill(UI_TEXT.gitHubOnly, { remote: remote ?? '' }))
+      return undefined
+    }
+    return {
+      repository,
+      plan,
+      remote,
+      remoteUrl,
+      branch,
+      head: plan.ok ? plan.target : (upstream?.name ?? branch),
+      headOid: snapshot.headOid,
+    }
+  }
+
+  /** GitHub's or the service's refusal, in the panel only (GitHub's words can name accounts). */
+  private githubRefused(failure: Extract<PreparePullRequestResult, { ok: false }>): void {
+    if (this.canPost()) {
+      this.surface.say('warning', failure.reason)
+    }
+  }
+
+  private async openPullRequestForm(operation: NativeGitOperation): Promise<void> {
+    this.resetForm()
+    if (!this.usable()) {
+      return
+    }
+    const target = await this.pullRequestTarget(operation)
+    if (target === undefined) {
+      return
+    }
+    // GitHub's own sign-in first: the form names where it opens.
+    if (!(await this.signedIn('ask', operation.signal ?? this.lifetime.signal))) {
+      return
+    }
+    this.checkCurrent()
+    const sessionId = this.surface.sessionId()
+    const prepared = await this.pullRequests.prepare({
+      repository: target.repository,
+      head: target.head,
+      remote: target.remote,
+      remoteUrl: target.remoteUrl,
+      ...(sessionId !== undefined && { sessionId }),
+    })
+    this.checkCurrent()
+    if (!prepared.ok) {
+      this.githubRefused(prepared)
+      return
+    }
+    const { destination, existing } = prepared
+    if (existing !== undefined) {
+      this.surface.notice('info', fill(UI_TEXT.gitPullRequestExists, { number: existing.number }))
+      this.showLinked(
+        {
+          repository: repositoryLabel(destination.repository),
+          number: existing.number,
+          url: existing.url,
+          title: existing.title,
+        },
+        sessionId,
+      )
+      return
+    }
+    let push: PullRequestFormFacts['push'] = 'pushed'
+    if (target.plan.ok) {
+      push = 'needed'
+    } else if (target.plan.refusal === 'behind') {
+      push = 'behind'
+    }
+    const facts: PullRequestFormFacts = {
+      repository: repositoryLabel(destination.repository),
+      ...(destination.headRepository !== undefined && {
+        headRepository: destination.headRepository,
+      }),
+      remote: target.remote,
+      remoteUrl: destination.remoteUrl,
+      head: target.head,
+      base: destination.defaultBase,
+      push,
+      ...(target.plan.ok && target.plan.commits !== undefined && { commits: target.plan.commits }),
+    }
+    this.pullRequestForm = { facts, destination, headOid: target.headOid }
+    this.surface.post({ type: 'gitPullRequestForm', form: facts })
+  }
+
+  /**
+   * Shows `link` in the strip and reads its status. The service keeps it in
+   * the link store when the conversation has a session; one opened before
+   * that is kept once the session comes.
+   */
+  private showLinked(link: LinkedPullRequest, sessionId: string | undefined): void {
+    this.link = link
+    this.pendingLink = sessionId === undefined ? link : undefined
+    this.statusEpoch += 1
+    this.view = { ...link }
+    this.postState()
+    void this.refreshStatus('silent')
+  }
+
+  /** The linked pull request's state and checks from GitHub; `ask` may sign in. */
+  private async refreshStatus(mode: 'silent' | 'ask'): Promise<void> {
+    const link = this.link
+    if (link === undefined || this.unavailableReason() !== undefined || this.isDisposed) {
+      return
+    }
+    const epoch = ++this.statusEpoch
+    let read: Awaited<ReturnType<RuntimePullRequests['status']>>
+    try {
+      read = await this.pullRequests.status(link, mode)
+    } catch (error: unknown) {
+      // Disposal moves the epoch too.
+      if (this.statusEpoch === epoch) {
+        this.deps.log.info('The pull request status could not be read')
+        this.noticeFailure(error)
+      }
+      return
+    }
+    if (this.statusEpoch !== epoch) {
+      return
+    }
+    this.view = read.ok ? read.view : { ...link, problem: read.reason }
+    this.postState()
+  }
+
+  /** The strip's Sign In, or the source the user picked (the card's "With a Code"). */
+  private async signInWith(askWith?: GitHubTokenSourceKind): Promise<void> {
+    if (askWith === undefined && this.link !== undefined) {
+      await this.refreshStatus('ask')
+      return
+    }
+    if (!(await this.signedIn('ask', this.lifetime.signal, askWith))) {
+      return
+    }
+    // Which sign-in GitHub calls now use (D104's order).
+    const account = this.deps.github.accountText()
+    if (account !== undefined && this.canPost()) {
+      this.surface.notice('info', account)
+    }
+    await this.refreshStatus('silent')
+  }
+
+  /**
+   * Opens the pull request the form shows: the form's facts must still
+   * hold (the same branch, head commit, remote and URL), GitHub's sign-in
+   * comes first (so a declined one leaves nothing pushed), then the branch
+   * goes up after its own confirmation, then the pull request opens after
+   * the confirmation of what goes out (`RuntimePullRequests.create`).
+   */
+  private async createPullRequestNow(
+    request: NewPullRequestRequest,
+    operation: NativeGitOperation,
+  ): Promise<void> {
+    const form = this.pullRequestForm
+    if (form === undefined) {
+      this.surface.notice('warning', UI_TEXT.gitOpenPullRequestFirst)
+      this.refuseForm('pullRequest')
+      return
+    }
+    const title = request.title.trim()
+    const base = request.base.trim()
+    if (
+      isPullRequestFormRefused({ title, body: request.body, base }, this.surface) ||
+      !this.usable()
+    ) {
+      this.refuseForm('pullRequest')
+      return
+    }
+    const target = await this.pullRequestTarget(operation)
+    if (target === undefined) {
+      this.refuseForm('pullRequest')
+      return
+    }
+    if (
+      target.head !== request.head ||
+      target.head !== form.facts.head ||
+      target.remote !== form.facts.remote ||
+      maskRemoteUrl(target.remoteUrl) !== form.facts.remoteUrl ||
+      target.headOid !== form.headOid
+    ) {
+      this.surface.notice('warning', UI_TEXT.gitBranchChanged)
+      this.refuseForm('pullRequest')
+      return
+    }
+    if (!(await this.signedIn('ask', operation.signal ?? this.lifetime.signal))) {
+      this.refuseForm('pullRequest')
+      return
+    }
+    this.checkCurrent()
+    if (target.plan.ok && !(await this.pushConfirmed(target.plan, operation))) {
+      this.refuseForm('pullRequest')
+      return
+    }
+    this.checkCurrent()
+    const sessionId = this.surface.sessionId()
+    const created = await this.pullRequests.create({
+      destination: form.destination,
+      title,
+      body: request.body,
+      base,
+      isDraft: request.isDraft,
+      ...(sessionId !== undefined && { sessionId }),
+    })
+    if (!created.ok) {
+      if (created.masked !== undefined) {
+        this.surface.post({ type: 'gitDraft', draft: { kind: 'pullRequest', ...created.masked } })
+      }
+      if (this.canPost()) {
+        this.surface.say('warning', created.reason)
+      }
+      this.refuseForm('pullRequest')
+      return
+    }
+    // The POST completed: reported even if Cancel came after it.
+    this.surface.notice(
+      'info',
+      fill(request.isDraft ? UI_TEXT.gitDraftPullRequestOpened : UI_TEXT.gitPullRequestOpened, {
+        number: created.number,
+        url: created.url,
+      }),
+    )
+    this.resetForm()
+    this.draft?.output?.abort.abort()
+    this.draft = undefined
+    this.turnsSeen.clear()
+    this.answerForm('pullRequest', true)
+    this.showLinked(
+      {
+        repository: repositoryLabel(form.destination.repository),
+        number: created.number,
+        url: created.url,
+        title: created.title,
+      },
+      sessionId,
+    )
+  }
+
+  /** M71's pull request prompt: the branch's commit subjects and changed files since `base`. */
+  private async pullRequestDraftPrompt(
+    operation: NativeGitOperation,
+    base: string | undefined,
+  ): Promise<string> {
+    const form = this.pullRequestForm
+    if (form === undefined) {
+      throw new Error(UI_TEXT.gitOpenPullRequestFirst)
+    }
+    const comparison = base ?? form.facts.base
+    if (!isRangeSafeRefName(comparison)) {
+      throw new Error(UI_TEXT.gitBaseInvalid)
+    }
+    // The remote whose GitHub repository is where the pull request opens
+    // (a fork's parent, when there is one).
+    let since: Awaited<ReturnType<NativeGitService['branchSince']>>
+    try {
+      const { remotes } = await this.service.status(operation)
+      const remote = remotes.find((candidate) => {
+        const url = candidate.fetchUrl
+        const destination = url === undefined ? undefined : githubRepositoryOf(url)
+        return (
+          destination !== undefined &&
+          repositoryLabel(destination).toLowerCase() === form.facts.repository.toLowerCase()
+        )
+      })
+      if (remote === undefined || !isPlainRefName(remote.name)) {
+        throw new Error(UI_TEXT.gitDestinationBaseUnavailable)
+      }
+      since = await this.service.branchSince(remote.name, comparison, operation)
+    } catch (error: unknown) {
+      this.deps.log.warn('The branch’s commits could not be listed')
+      throw new Error(refusalNotice(refusalOf(error)) ?? UI_TEXT.gitDestinationBaseUnavailable, {
+        cause: error,
+      })
+    }
+    operation.check?.()
+    return pullRequestPrompt({
+      head: form.facts.head,
+      base: comparison,
+      commits: since.subjects,
+      files: since.files,
+    })
   }
 
   private seen(turnId: string): { text: string | undefined; terminal: string | undefined } {
@@ -706,20 +1107,26 @@ export class RuntimeGit implements ConversationGitPort {
     try {
       // The store's key is the root the service bound to.
       const root = await this.service.boundRoot()
-      const link = await this.deps.links.get(root, sessionId)
+      const stored = await this.deps.links.get(root, sessionId)
       if (this.statusEpoch !== epoch || this.isDisposed) {
         return
       }
-      this.view =
+      const pending = this.pendingLink
+      this.pendingLink = undefined
+      if (stored === undefined && pending !== undefined) {
+        // Opened before the session came: kept now.
+        await this.deps.links.set(root, sessionId, { ...pending, linkedAt: Date.now() })
+      }
+      const link = stored ?? pending
+      this.link =
         link === undefined
           ? undefined
-          : {
-              repository: link.repository,
-              number: link.number,
-              title: link.title,
-              url: link.url,
-            }
+          : { repository: link.repository, number: link.number, title: link.title, url: link.url }
+      this.view = this.link === undefined ? undefined : { ...this.link }
       this.postState()
+      if (this.link !== undefined) {
+        await this.refreshStatus('silent')
+      }
     } catch {
       this.deps.log.warn('The pull request link could not be read')
     }
@@ -729,17 +1136,20 @@ export class RuntimeGit implements ConversationGitPort {
     const handlers: Record<GitAction, () => Promise<void> | void> = {
       openCommit: () => this.exclusively((running) => this.openCommitForm(running)),
       push: () => this.exclusively((running) => this.pushAction(running)),
-      openPullRequest: () => {
-        this.githubUnavailable()
+      openPullRequest: () => this.exclusively((running) => this.openPullRequestForm(running)),
+      refreshPullRequest: () => this.refreshStatus('silent'),
+      signInGitHub: () => this.signInWith(),
+      signInGitHubWithCode: () => this.signInWith('deviceFlow'),
+      cancelGitHubSignIn: () => {
+        this.deps.github.cancel()
       },
-      refreshPullRequest: () => {
-        this.githubUnavailable()
-      },
-      signInGitHub: () => {
-        this.githubUnavailable()
-      },
-      trustWorktree: () => {
-        this.surface.notice('warning', UI_TEXT.gitHeld)
+      signOutGitHub: () =>
+        this.deps.github.signOutAndSay((level, text) => {
+          this.surface.notice(level, text)
+        }),
+      trustWorktree: async () => {
+        await this.deps.confirmWorktreeTrust()
+        this.postState()
       },
       cancel: () => {
         // Pending git stops: the running operation's signal aborts.
@@ -757,31 +1167,26 @@ export class RuntimeGit implements ConversationGitPort {
     await this.exclusively(operation, 'commit')
   }
 
-  public async createPullRequest(): Promise<void> {
-    const operation = (): Promise<void> => {
-      this.githubUnavailable('pullRequest')
-      return Promise.resolve()
-    }
-    await this.exclusively(operation, 'pullRequest')
+  public async createPullRequest(request: NewPullRequestRequest): Promise<void> {
+    await this.exclusively((running) => this.createPullRequestNow(request, running), 'pullRequest')
   }
 
   /**
    * What the model needs beside the user's own message asking for `kind`.
    * Throws with the reason in words when it cannot be built.
    */
-  public async promptFor(kind: GitDraftKind): Promise<string> {
+  public async promptFor(kind: GitDraftKind, base?: string): Promise<string> {
     const reason = this.unavailableReason()
     if (reason !== undefined) {
       throw new Error(reason)
     }
     const check = this.activityCheck()
     check()
-    if (kind === 'pullRequest') {
-      // The pull request form (lane P) names the branches first.
-      throw new Error(UI_TEXT.gitOpenPullRequestFirst)
-    }
     // The form's stop: Cancel or a session change ends the reads.
     const operation: NativeGitOperation = { signal: this.formAbort.signal, check }
+    if (kind === 'pullRequest') {
+      return await this.pullRequestDraftPrompt(operation, base)
+    }
     const failed = (error: unknown): Error => {
       this.deps.log.warn('A draft diff could not be read')
       return new Error(refusalNotice(refusalOf(error)) ?? nativeFailureText(error), {
@@ -903,9 +1308,8 @@ export class RuntimeGit implements ConversationGitPort {
 
   /**
    * The hold card and the pull request strip, sent when they change;
-   * `isSurfaceReady` for a surface that starts with none of them. Lane G
-   * shows the linked pull request; the hold and the worktree line arrive
-   * with lane P.
+   * `isSurfaceReady` for a surface that starts with none of them: the
+   * linked pull request and the window's GitHub sign-in card.
    */
   public postState(isSurfaceReady = false): void {
     if (this.isDisposed) {
@@ -934,6 +1338,8 @@ export class RuntimeGit implements ConversationGitPort {
     this.observedSessionId = sessionId
     if (sessionId === undefined) {
       this.view = undefined
+      this.link = undefined
+      this.pendingLink = undefined
       this.draft = undefined
       this.turnsSeen.clear()
     }
@@ -947,6 +1353,8 @@ export class RuntimeGit implements ConversationGitPort {
 
   public dispose(): void {
     this.isDisposed = true
+    this.stopWatchingSignIn()
+    this.lifetime.abort()
     this.stopOperation()
     this.statusEpoch += 1
     this.resetForm()

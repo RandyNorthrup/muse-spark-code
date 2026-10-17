@@ -1104,7 +1104,7 @@
         "museSpark.removeWorktree",
         "museSpark.openPullRequestInConversation"
       ],
-      "settings": [],
+      "settings": ["museSpark.github.useGhLogin"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#git-and-pull-requests",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -4082,6 +4082,17 @@
       "schema": { "type": "string", "enum": ["transcribe", "sendAudio"], "default": "transcribe" }
     },
     {
+      "id": "museSpark.github.useGhLogin",
+      "name": "museSpark.github.useGhLogin",
+      "description": "Lets pull requests use your existing GitHub CLI sign-in (`gh auth token`), tried last, after the editor's own GitHub sign-in and Muse Spark's. The token is read for one request at a time and never stored. Off by default; user settings only, so a repository cannot turn it on.",
+      "descriptionKey": "config.github.useGhLogin.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
+    },
+    {
       "text": {
         "conditions": [
           {
@@ -4159,6 +4170,26 @@
       },
       "backends": ["museCode", "modelApi"],
       "syntax": ["/checkout-pr"]
+    },
+    {
+      "name": "github-login",
+      "description": "Sign in to GitHub with a code you enter on github.com/login/device; the token stays in this computer’s credential store",
+      "descriptions": {
+        "museCode": { "ui": "gitHubSignInWithCodeDetail" },
+        "modelApi": { "ui": "gitHubSignInWithCodeDetail" }
+      },
+      "backends": ["museCode", "modelApi"],
+      "syntax": ["/github-login"]
+    },
+    {
+      "name": "github-logout",
+      "description": "Delete Muse Spark’s GitHub sign-in from this computer and open GitHub’s page where you revoke it",
+      "descriptions": {
+        "museCode": { "ui": "gitHubSignOutItemDetail" },
+        "modelApi": { "ui": "gitHubSignOutItemDetail" }
+      },
+      "backends": ["museCode", "modelApi"],
+      "syntax": ["/github-logout"]
     },
     {
       "name": "model",
@@ -4482,6 +4513,12 @@
       "name": "auth clear",
       "description": "Remove the stored Model API key.",
       "text": { "ui": "referenceAuthClear" }
+    },
+    {
+      "route": "authGitHub",
+      "name": "auth github login|logout|status",
+      "description": "Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.",
+      "text": { "ui": "referenceAuthGitHub" }
     },
     {
       "route": "setup",
