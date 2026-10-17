@@ -737,7 +737,7 @@
     {
       "id": "M99",
       "title": "What's New after updates",
-      "summary": "After an update, a What's New tab opens once while you are idle with each release's highlights and Try it buttons, and a fixes-only update shows a quiet notification instead.",
+      "summary": "After an update, a What's New tab opens once while you are idle with each release's highlights and Try it buttons, a fixes-only update shows a quiet notification instead, and ACP editors read the same notes with /whatsnew.",
       "area": "platform",
       "release": "0.13.0"
     },

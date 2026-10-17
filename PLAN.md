@@ -24336,7 +24336,13 @@ and is its own pull request, with its own capture and certification
 
 ### M99 — What's New after an update (D79)
 
-**Status 2026-10-04: built.**
+**Status 2026-10-04 (historical): built.**
+**Status 2026-10-17 (lane MSM99): complete.**
+
+Lane MSM99 reached the other editors: ACP's `/whatsnew` reads the package's
+own `dist/whatsNew.json` as text, answered locally with no model turn
+(`docs/certification/msm99.md`). The VS Code side is unchanged; the plan's
+acceptances still hold.
 
 - **Goal.** After an update the user sees what changed and can try it, once,
   in one window, without losing focus or interrupting a turn.

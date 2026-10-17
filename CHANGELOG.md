@@ -46,6 +46,9 @@ happened, not what was planned; superseded entries are kept.
   first, pushes the branch after its confirmation, then asks once more
   with what goes out before opening it. This route ships in its own bundle
   (`dist/nativeGit.js`), so VS Code with its Git extension never loads it.
+- In an ACP editor (Zed, Neovim, Emacs and the other ACP clients),
+  `/whatsnew` reads this version's release highlights and full notes as
+  text, answered locally with no model turn.
 
 ### Fixed
 
