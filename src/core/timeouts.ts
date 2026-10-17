@@ -40,44 +40,36 @@ export async function withDeadline<T>(
   }
 }
 
-/** A deadline that a start still under way may stretch once (`withSlowDeadline`). */
-interface SlowDeadline {
-  readonly firstMs: number
-  /** The whole wait, the first deadline's included; never shorter than it. */
-  readonly totalMs: number
-  /** Whether the work still goes on at the first deadline (its process has not exited). */
-  readonly isRunning: () => boolean
-  /** The failure's text for the deadline that passed. */
-  readonly message: (timeoutMs: number) => string
-  /** Told when the first deadline passed and the wait goes on. */
-  readonly onSlow: () => void
-}
-
 /**
- * `promise` within `firstMs`; past that, while the work still goes on,
- * within `totalMs` in all: one longer wait, so a slow start on a starved
- * machine is not taken for a stuck one, and a stuck one still ends. Work
- * that stopped fails at the first deadline, and a rejection of `promise`
- * (the process died) ends the wait at once.
+ * An answer with no deadline of its own (owner 2026-10-16: no arbitrary
+ * limits): `answer` until it settles, saying so out loud through `tell`
+ * every `everyMs` meanwhile (a notice cadence, not a limit). The wait
+ * itself ends only at the answer or at Stop (`signal` aborts: dispose, a
+ * newer attempt, the window closing), which throws `stopError`. Tests name
+ * short waits through `everyMs`.
  */
-export async function withSlowDeadline<T>(promise: Promise<T>, deadline: SlowDeadline): Promise<T> {
-  try {
-    return await withDeadline(promise, deadline.firstMs, deadline.message(deadline.firstMs))
-  } catch (error: unknown) {
-    if (
-      !(error instanceof DeadlineError) ||
-      deadline.totalMs <= deadline.firstMs ||
-      !deadline.isRunning()
-    ) {
-      throw error
+export async function waitForAnswer<T>(
+  answer: Promise<T>,
+  signal: AbortSignal,
+  stopError: () => Error,
+  tell: (elapsedMs: number) => void,
+  everyMs: number = STILL_WAITING_NOTICE_MS,
+): Promise<T> {
+  if (signal.aborted) throw stopError()
+  let onAbort: (() => void) | undefined
+  const stopped = new Promise<never>((_resolve, reject) => {
+    onAbort = () => {
+      reject(stopError())
     }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
+  const stopNoticing = startStillWaiting(tell, everyMs)
+  try {
+    return await Promise.race([answer, stopped])
+  } finally {
+    stopNoticing()
+    if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
   }
-  deadline.onSlow()
-  return await withDeadline(
-    promise,
-    deadline.totalMs - deadline.firstMs,
-    deadline.message(deadline.totalMs),
-  )
 }
 
 /**
