@@ -12,7 +12,6 @@ import {
   azureRetryAfterMs,
   openaiPacingLimits,
   resetDurationMs,
-  resetTimestampMs,
   xaiPacingLimits,
 } from '../../src/core/backends/modelapi/pacing'
 import { retryWaitMs } from '../../src/core/backends/modelapi/transport'
@@ -58,24 +57,31 @@ describe('resetDurationMs', () => {
 })
 
 describe('provider pacing readers', () => {
-  it('reads Groq limits with the longest captured reset as the window', () => {
+  it('derives Groq windows from the captured resets: requests per day, tokens per minute', () => {
+    // A reset is the time until the bucket is full again, not the window:
+    // window = reset * limit / (limit - remaining). Groq requests:
+    // 86.4 s * 1000 / 1 = 86_400_000 ms (one day); tokens:
+    // 15.254 s * 8000 / 2034 = about one minute. One shared window takes
+    // the slower bucket, so pacing never outruns the daily requests.
     const limits = openaiPacingLimits(capturedHeaders.groq)
     expect(limits).toMatchObject({
       requests: 1000,
       remainingRequests: 999,
       tokens: 8000,
       remainingTokens: 5966,
-      windowMs: 86_400,
+      windowMs: 86_400_000,
     })
   })
-  it('reads OpenAI limits with the longest captured reset as the window', () => {
+  it('derives OpenAI per-minute windows from the captured resets', () => {
+    // Requests: 120 ms * 500 / 1 = 60_000 ms; tokens:
+    // 225 ms * 500_000 / 1882 = about the same minute.
     const limits = openaiPacingLimits(capturedHeaders.openai)
     expect(limits).toMatchObject({
       requests: 500,
       remainingRequests: 499,
       tokens: 500_000,
       remainingTokens: 498_118,
-      windowMs: 225,
+      windowMs: 60_000,
     })
   })
   it('reads xAI limits with no reset, so the default window stands', () => {
@@ -100,9 +106,8 @@ describe('provider pacing readers', () => {
     })
     expect(limits?.windowMs).toBeUndefined()
   })
-  it('turns a future Anthropic reset into the milliseconds until it', () => {
+  it('reads a future Anthropic reset as a timestamp, never as the window length', () => {
     const reset = new Date(Date.now() + 45_000).toISOString()
-    expect(resetTimestampMs(reset)).toBeGreaterThan(Date.now())
     const headers = new Headers({
       'anthropic-ratelimit-requests-limit': '10000',
       'anthropic-ratelimit-requests-remaining': '9999',
@@ -113,9 +118,10 @@ describe('provider pacing readers', () => {
       'anthropic-ratelimit-input-tokens-reset': reset,
       'anthropic-ratelimit-output-tokens-reset': reset,
     })
-    const windowMs = anthropicPacingLimits(headers)?.windowMs ?? 0
-    expect(windowMs).toBeGreaterThan(40_000)
-    expect(windowMs).toBeLessThanOrEqual(45_000)
+    // Every captured Anthropic bucket resets at the same instant (a fixed
+    // window boundary), so the reset names when, not how long: the window
+    // stays the default instead of shrinking to the time left in it.
+    expect(anthropicPacingLimits(headers)?.windowMs).toBeUndefined()
   })
   it('fails closed on partial, zero or unreadable limit headers', () => {
     expect(openaiPacingLimits(new Headers())).toBeUndefined()
