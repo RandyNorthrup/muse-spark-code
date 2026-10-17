@@ -8,9 +8,8 @@ import {
   type SchedulesReportReader,
 } from '../../src/core/reporting/sources/schedules'
 import { UI_TEXT, SCHEDULE_FIRE_OUTCOMES } from '../../src/shared/constants'
-import { EN } from '../../src/shared/l10n/en'
+import { EN, type UiText } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { installGerman } from './helpers/germanTable'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import {
   scheduleFireRecordSchema,
@@ -43,8 +42,8 @@ const fire = scheduleFireRecordSchema.parse(
 const stored = <T>(value: T): T => structuredClone(value)
 
 const scrub = (text: string) => text.replaceAll('private-canary', '[redacted]')
-const context = (kind: 'schedules' | 'usage' = 'schedules') => ({
-  reportText: EN,
+const context = (kind: 'schedules' | 'usage' = 'schedules', reportText: UiText = EN) => ({
+  reportText,
   asOf: REPORT_FIXTURE_AS_OF,
   workspaceKey: 'fixture',
   options: reportOptions(kind),
@@ -83,10 +82,16 @@ describe('schedules source', () => {
     expect(cost.rows).toHaveLength(2)
   })
 
-  it('pre-renders trigger and grant prose in the installed language', async () => {
-    await installGerman(new FakeLogOutputChannel())
+  it('pre-renders trigger and grant prose in the request language', async () => {
+    const { table } = await loadUiTable({
+      language: 'de',
+      readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
+      log: new FakeLogOutputChannel(),
+    })
     try {
-      const result = await schedulesSource(reader([stored(schedule)], []), scrub).read(context())
+      const result = await schedulesSource(reader([stored(schedule)], []), scrub).read(
+        context('schedules', table),
+      )
       expect(result.record.status).toBe('ok')
       expect(sectionById(result.data, 'schedules/schedules').rows[0]!.cells).toMatchObject({
         trigger: { type: 'text', value: 'alle 3600000 ms' },
@@ -100,7 +105,11 @@ describe('schedules source', () => {
   })
 
   it('renders event triggers, targets, delivery and agent creators in German', async () => {
-    await installGerman(new FakeLogOutputChannel())
+    const { table } = await loadUiTable({
+      language: 'de',
+      readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
+      log: new FakeLogOutputChannel(),
+    })
     try {
       const job = scheduleV2Schema.parse(
         scheduleFixture(FIXTURE_WORKSPACE_KEY, {
@@ -119,10 +128,10 @@ describe('schedules source', () => {
         }),
       )
       const result = await schedulesSource(reader([structuredClone(job)], []), scrub).read(
-        context(),
+        context('schedules', table),
       )
       expect(result.record.status).toBe('ok')
-      // No English composed in code: every word comes from the installed
+      // No English composed in code: every word comes from the request
       // table and only the technical ids stay as they came.
       expect(sectionById(result.data, 'schedules/schedules').rows[0]!.cells).toMatchObject({
         trigger: { type: 'text', value: 'Bei einem Ereignis: github:pullRequestOpened' },
@@ -186,32 +195,51 @@ describe('schedules source', () => {
       expect.arrayContaining(deliveries),
     )
     const fires = SCHEDULE_FIRE_OUTCOMES.map((outcome) => fireFixture({ runId: outcome, outcome }))
-    await installGerman(new FakeLogOutputChannel())
-    const german = await schedulesSource(reader(schedules, fires), scrub).read(context())
-    const suspended = Promise.withResolvers<{
-      schedules: readonly unknown[]
-      fires: readonly unknown[]
-      observedAt: string
-    }>()
-    const pending = schedulesSource({ read: () => suspended.promise }, scrub).read(context())
-    setUiText(EN, 'en')
-    const english = await schedulesSource(reader(schedules, fires), scrub).read(context())
-    suspended.resolve({ schedules, fires, observedAt: REPORT_FIXTURE_AS_OF })
-    expect(await pending).toEqual(german)
-    expect(german.record.status).toBe('ok')
-    expect(english.record.status).toBe('ok')
-    expect(english).not.toEqual(german)
+    const { table } = await loadUiTable({
+      language: 'de',
+      readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
+      log: new FakeLogOutputChannel(),
+    })
+    try {
+      const german = await schedulesSource(reader(schedules, fires), scrub).read(
+        context('schedules', table),
+      )
+      const suspended = Promise.withResolvers<{
+        schedules: readonly unknown[]
+        fires: readonly unknown[]
+        observedAt: string
+      }>()
+      const pending = schedulesSource({ read: () => suspended.promise }, scrub).read(
+        context('schedules', table),
+      )
+      const english = await schedulesSource(reader(schedules, fires), scrub).read(context())
+      suspended.resolve({ schedules, fires, observedAt: REPORT_FIXTURE_AS_OF })
+      expect(await pending).toEqual(german)
+      expect(german.record.status).toBe('ok')
+      expect(english.record.status).toBe('ok')
+      expect(english).not.toEqual(german)
+    } finally {
+      setUiText(EN, 'en')
+    }
   })
 
   it('keeps a delayed source failure in the request language', async () => {
-    await installGerman(new FakeLogOutputChannel())
-    const expected = UI_TEXT.teamHostBusy
-    const suspended = Promise.withResolvers<never>()
-    const pending = schedulesSource({ read: () => suspended.promise }, scrub).read(context())
-    setUiText(EN, 'en')
-    suspended.reject(new LocalSourceError('busy'))
-    const result = await pending
-    expect(result.record.reason).toBe(expected)
+    const { table } = await loadUiTable({
+      language: 'de',
+      readExtensionFile: () => readFile(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8'),
+      log: new FakeLogOutputChannel(),
+    })
+    try {
+      const suspended = Promise.withResolvers<never>()
+      const pending = schedulesSource({ read: () => suspended.promise }, scrub).read(
+        context('schedules', table),
+      )
+      suspended.reject(new LocalSourceError('busy'))
+      const result = await pending
+      expect(result.record.reason).toBe(table.teamHostBusy)
+    } finally {
+      setUiText(EN, 'en')
+    }
   })
 
   it.each(TABLE_LOCALES)('translates every recent-fire outcome in %s', async (locale) => {
@@ -230,7 +258,7 @@ describe('schedules source', () => {
           outcomes.map((outcome) => fireFixture({ outcome, runId: outcome })),
         ),
         scrub,
-      ).read(context())
+      ).read({ ...context(), reportText: loaded.table })
       const rows = sectionById(result.data, 'schedules/fires').rows
       expect(rows).toHaveLength(outcomes.length)
       for (const outcome of outcomes) {
