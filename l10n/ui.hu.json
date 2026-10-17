@@ -3650,6 +3650,7 @@
   "reportExits": "Kilépési kódok: 0 ha a jelentés elkészült, 1 hiba esetén, 2 hibás használatnál.",
   "legalExits": "Kilépési kódok: 0 ha a vizsgálat blokkolók nélkül ér véget, 1 ha blokkolókat talál, 2 hiányos lefedettség vagy hibás használat esetén.",
   "genericExits": "Kilépési kódok: 0 siker esetén, 1 hiba esetén, 2 hibás használatnál.",
+  "sharingExits": "Kilépési kódok: 0 siker esetén, 7 megszakításkor vagy elutasításkor, 2 hibás használatnál, 1 hiba esetén.",
   "execSummary": "{status}; kérések {requests}; elszámolt {settled}; bizonytalan {uncertain}; képkérések {imageAttempts}; visszaadott {imagesReturned}; bizonytalan képek {imagesUncertain}",
   "execSummaryUpperBound": "{status}; kérések {requests}; elszámolt {settled}; bizonytalan {uncertain}; képkérések {imageAttempts}; visszaadott {imagesReturned}; bizonytalan képek {imagesUncertain}; A költség felső korlát.",
   "exportSessionLine": "Munkamenet: `{id}`",

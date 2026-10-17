@@ -3574,6 +3574,7 @@
   "reportExits": "終了コード: レポート作成で 0、失敗で 1、誤用で 2。",
   "legalExits": "終了コード: ブロッカーなしで完了して 0、ブロッカー検出で 1、カバレッジ不足または誤用で 2。",
   "genericExits": "終了コード: 成功で 0、失敗で 1、誤用で 2。",
+  "sharingExits": "終了コード: 成功で 0、中止または拒否で 7、誤用で 2、失敗で 1。",
   "execSummary": "{status}; リクエスト {requests}; 確定額 {settled}; 不確定額 {uncertain}; 画像試行 {imageAttempts}; 返却 {imagesReturned}; 不確定画像 {imagesUncertain}",
   "execSummaryUpperBound": "{status}; リクエスト {requests}; 確定額 {settled}; 不確定額 {uncertain}; 画像試行 {imageAttempts}; 返却 {imagesReturned}; 不確定画像 {imagesUncertain}; 費用は上限値です。",
   "exportSessionLine": "セッション: `{id}`",

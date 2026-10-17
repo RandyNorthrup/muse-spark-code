@@ -3650,6 +3650,7 @@
   "reportExits": "Çıkış kodları: rapor yazıldığında 0, başarısızlıkta 1, yanlış kullanımda 2.",
   "legalExits": "Çıkış kodları: tarama engelleyici olmadan tamamlanırsa 0, engelleyici bulunursa 1, eksik kapsama veya yanlış kullanımda 2.",
   "genericExits": "Çıkış kodları: başarıda 0, başarısızlıkta 1, yanlış kullanımda 2.",
+  "sharingExits": "Çıkış kodları: başarıda 0, iptal veya ret durumunda 7, yanlış kullanımda 2, başarısızlıkta 1.",
   "execSummary": "{status}; istekler {requests}; kesinleşen {settled}; belirsiz {uncertain}; görsel denemeleri {imageAttempts}; döndürülen {imagesReturned}; belirsiz görseller {imagesUncertain}",
   "execSummaryUpperBound": "{status}; istekler {requests}; kesinleşen {settled}; belirsiz {uncertain}; görsel denemeleri {imageAttempts}; döndürülen {imagesReturned}; belirsiz görseller {imagesUncertain}; Maliyet bir üst sınırdır.",
   "exportSessionLine": "Oturum: `{id}`",

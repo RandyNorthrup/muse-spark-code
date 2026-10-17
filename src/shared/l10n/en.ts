@@ -4429,6 +4429,8 @@ export const EN = {
     'Exits 0 when the scan completes with no blockers, 1 when blockers are found, 2 for incomplete coverage or misuse.',
   // The CLI-wide convention (CLI_EXIT) for commands with no exit table.
   genericExits: 'Exits 0 on success, 1 on failure, 2 for misuse.',
+  // share/prompts: a cancelled or refused share is EXEC_EXIT.denied (7).
+  sharingExits: 'Exits 0 on success, 7 when cancelled or refused, 2 for misuse, 1 on failure.',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
   execSummaryUpperBound:

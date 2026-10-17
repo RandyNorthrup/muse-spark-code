@@ -3574,6 +3574,7 @@
   "reportExits": "종료 코드: 보고서 작성 시 0, 실패 시 1, 잘못된 사용 시 2.",
   "legalExits": "종료 코드: 차단 항목 없이 완료되면 0, 차단 항목이 발견되면 1, 커버리지 부족 또는 잘못된 사용 시 2.",
   "genericExits": "종료 코드: 성공 시 0, 실패 시 1, 잘못된 사용 시 2.",
+  "sharingExits": "종료 코드: 성공 시 0, 취소 또는 거부 시 7, 잘못된 사용 시 2, 실패 시 1.",
   "execSummary": "{status}; 요청 {requests}; 확정 {settled}; 불확실 {uncertain}; 이미지 시도 {imageAttempts}; 반환 {imagesReturned}; 불확실 이미지 {imagesUncertain}",
   "execSummaryUpperBound": "{status}; 요청 {requests}; 확정 {settled}; 불확실 {uncertain}; 이미지 시도 {imageAttempts}; 반환 {imagesReturned}; 불확실 이미지 {imagesUncertain}; 비용은 상한값입니다.",
   "exportSessionLine": "세션: `{id}`",
