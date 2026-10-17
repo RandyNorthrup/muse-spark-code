@@ -1,5 +1,4 @@
 import { availableParallelism } from 'node:os'
-import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 // The coverage number measured fake-driven tests, so the gate is gone with
@@ -29,13 +28,6 @@ const WINDOWS_HOOK_TIMEOUT_MS = 30_000
 const IS_HOSTED_MAC = process.platform === 'darwin' && process.env['GITHUB_ACTIONS'] === 'true'
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      // `vscode` only exists inside the extension host. Unit tests get a
-      // hand-written mock that is type-checked against @types/vscode.
-      vscode: fileURLToPath(new URL('test/unit/mocks/vscode.ts', import.meta.url)),
-    },
-  },
   test: {
     include: ['test/unit/**/*.test.{ts,tsx,mjs}', 'test/e2e/**/*.test.ts'],
     environment: 'node',

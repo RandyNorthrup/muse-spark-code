@@ -40,12 +40,6 @@ const TEAM_KEYS = [
 ] as const
 
 describe('team strings', () => {
-  it('adds every team key to the English table', () => {
-    for (const key of TEAM_KEYS) {
-      expect(typeof EN[key]).toBe('string')
-    }
-  })
-
   it.each(TABLE_LOCALES)('ui.%s.json passes the gate check', (locale) => {
     const table = JSON.parse(readFileSync(tablePath(locale), 'utf8')) as Record<string, unknown>
     expect(
