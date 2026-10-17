@@ -598,3 +598,24 @@ runtime GENERIC 173→186 and SWALLOW 49→48 (the question-withdrawal catch
 now carries its disposition reason: CLEANUP), webview GENERIC 0→32,
 shared unchanged. `npm run check:catches` exits 0 on the regenerated tree.
 The folder-grouped burn-down list is `docs/catches-burndown.md`.
+
+## PR161FIN estimator panel budget re-baseline (2026-10-17, D119)
+
+`npm run build` failed on the webview estimator import closure: 26,410 bytes
+against the 25,600-byte row, `OVER dist/webview estimator panel: 25.8 KiB
+(budget 25 KiB)`. The +931 bytes over `main-now` (25,479) are the D119
+worded-refusal matcher (`isEstimateRefusal`/`estimateRefusalDetail` in
+`src/shared/estimate.ts` plus the `EstimatorPanel.tsx`/`composer.ts` catch
+sites), verified minified inside the closure's shared chunk
+(`dist/webview/chunks/RN4TH3UY.js`; closure files sum to exactly 26,410
+bytes). The matcher must run synchronously in those catch handlers — the
+lead's 2026-10-16 decision fixes money/consent failures in words, and the
+installed-language template match with schema-bounded detail is that fix —
+so no behaviour-preserving move recovers the 810 bytes: any module holding
+the matcher lands in the same lazy closure, and deferring it past a dynamic
+import would change the error path. The 25 KiB row is not owner-set; it is
+M117's split rule (measured plus 15%, rounded), so the row is re-baselined
+by the same rule: 26,410 x 1.15 = 30,371.5 bytes = 29.66 KiB, so 30 KiB
+(`scripts/lib/webviewBundles.mjs`, rationale beside the row and PLAN.md
+§2). The gate fired red on the old row on this tree before the change and
+is green after; no source bytes changed, only the row.

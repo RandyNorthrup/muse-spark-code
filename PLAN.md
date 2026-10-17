@@ -1529,7 +1529,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 
 **FIXM106L1 (2026-10-06):** the complete argument-preview UI entry is independently bounded at 25 KiB: 648 bytes measured, plus 15%, rounded to 25 KiB. Only its new entry moves out of the deferred group; shared/static dependencies retain their existing startup and deferred caps.
 
-**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group)
+**Webview estimator import closure budget rationale.** (M117: EstimatorPanel.tsx and its boundary; first split 9.6 KiB on 2026-10-06 by the same rule; separate from the unchanged unclassified deferred group; D119 re-baseline 2026-10-17: 26,410 bytes measured with the worded refusal in the closure, plus 15%, rounded up to 30 KiB)
 
 **`dist/reference.js` budget rationale.** (M117: the generated help reference; the estimator feature, command and settings rows bring it to 100.7 KiB on 2026-10-07, plus 15%, rounded up to 25 KiB)
 
@@ -33190,18 +33190,21 @@ lane A's first step.
 
 ## 7. Gates
 
-**Estimator panel bundle budget (open, needs owner's word).** `npm run build` on
-`fix/catch-money-final` reports `OVER dist/webview estimator panel: 25.8 KiB
-(budget 25 KiB)`: the lazy closure measures 26,410 bytes, 810 over the
-owner-set 25 KiB row (2026-10-06/07). Measured cause: the lane's D119
-estimate-refusal wording in `src/shared/estimate.ts`
-(`isEstimateRefusal`/`estimateRefusalDetail`),
-`src/webview/estimator/composer.ts` and
-`src/webview/estimator/EstimatorPanel.tsx` adds ~931 bytes minified (26,410 vs
-25,479 on `main-now`, which sits at 24.88 KiB with 121 bytes of headroom).
-Saving 810 bytes means cutting mandated refusal words; the row moves only on
-the owner's word (rule 2: 25 → 26 KiB fits with 214 bytes of headroom).
-Disposition: open; needs the budget decision or a scope cut before merge.
+**Estimator panel bundle budget (closed 2026-10-17, corrected).** The earlier
+version of this item wrongly called the 25 KiB row owner-set; it is M117's
+split rule (measured size plus 15%, rounded), not an owner-set cap, and the
+row is re-baselined by that same rule, not by owner word. `npm run build` on
+`fix/catch-money-final` reported `OVER dist/webview estimator panel: 25.8 KiB
+(budget 25 KiB)`: the lazy closure measures 26,410 bytes, against 25,479 on
+`main-now`. The D119 worded-refusal matcher (`isEstimateRefusal` /
+`estimateRefusalDetail` plus the panel's and composer's catch sites) adds the
+~931 bytes; the matcher must run synchronously in those catch handlers (lead
+decision 2026-10-16: money/consent failures reach the person in words), and
+any module it lives in lands in the same lazy closure (verified minified in
+`dist/webview/chunks/RN4TH3UY.js`), so no behaviour-preserving move recovers
+the 810 bytes. Re-baselined by the documented rule: 26,410 x 1.15 =
+30,371.5 bytes = 29.66 KiB, so 30 KiB (`scripts/lib/webviewBundles.mjs`).
+Disposition: closed; `npm run build` is green on the re-baselined tree.
 
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
