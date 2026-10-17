@@ -58,27 +58,6 @@ describe('team quota stash', () => {
   })
 })
 
-describe('team quota stash', () => {
-  it('carries the latest admitted digest', () => {
-    const quota = teamQuotaStash()
-    expect(quota.current()).toBeUndefined()
-    quota.noteAttempt('transport-digest')
-    expect(quota.current()).toBe('transport-digest')
-  })
-  it('an undefined admission never clears the carried digest', () => {
-    const quota = teamQuotaStash()
-    quota.noteAttempt('transport-digest')
-    quota.noteAttempt(undefined)
-    expect(quota.current()).toBe('transport-digest')
-  })
-  it('a newer attempt replaces the carried digest', () => {
-    const quota = teamQuotaStash()
-    quota.noteAttempt('first-digest')
-    quota.noteAttempt('second-digest')
-    expect(quota.current()).toBe('second-digest')
-  })
-})
-
 describe('stampQuotaRow', () => {
   // P2-4: a bring-your-own model attributes its quota to the credential
   // the attempt used; Meta keeps the reservation's budget identity (which
