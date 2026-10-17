@@ -634,3 +634,126 @@ test/e2e/execStdio.e2e.test.ts --maxWorkers=3`: 59 passed, exit 0 —
 - An actually-imported (`untrusted:true`) prompt was not rendered: no
   import path exists in the terminal sandbox; the branch is code-gated
   (`if (prompt.untrusted)`).
+
+# Lane CLIFLOWS2 (2026-10-17, rig linuxlt): terminal items the CLIFLOWSFIX review left open
+
+Branch `fix/cli-flows-2` from `95c52341f`. Merges: `cand/CLIFLOWS2/1`
+(`9f88eb854`), `main-now` twice (`eb5fd6148`, `02ae96c3d`, the second for
+PR #165 permissions and #174 decisions, both sides kept in CHANGELOG and
+PLAN, the reference regenerated). Worktree
+`/home/randy/lanes/CLIFLOWS2`; tests run as
+`npx vitest run <files> --maxWorkers=3` at the repo default timeout;
+commits carry `Co-Authored-By: Muse Spark (contributor) via Muse Code`.
+
+## Per-item record (packed `dist/acp.js` unless noted)
+
+- F43 keyless session start (`487541b83`). `ModelApiHost.startSession`
+  takes no account identity; identity-less touches persist nothing; the
+  strict save refuses without identity. Drill A (scratch HOME, bus to
+  nowhere, file-backed `ollama/llama3.1` provider): `session/new`
+  returns `{"sessionId":"521a8235-…"}`. Drill B: keyless
+  `exec --backend modelApi --max-budget-usd 1 "hi"` exits 3 with
+  `[error] This computer’s credential store is unavailable, so stored
+keys cannot be checked.` Drill C (pre-outage build): `--key-stdin`
+  reaches the wire (`ACCEPTED`, `requests 1`) against the
+  accept-and-destroy socket. Unit: `runtimeServices.test.ts` F43 cases,
+  19/19 at the default timeout.
+- P2 terminal Copilot (`b3b5cdcfa`). No shared adapter exists: the grant
+  comes only from VS Code's Language Model API
+  (`src/host/providers/copilotClient.ts`). The terminal says exactly
+  that (`copilotTerminalGrant`; absent-adapter `copilotHostGrant`).
+  Unit: `subscriptionCopilot.test.ts`, 2/2.
+- P3 per-command help, screens and exits (`e3ffcee3e`). Every topic
+  renders usage, its options, two real examples and `Exits:` from its
+  own exit table; `HELP_ONE_SCREEN_LINES=50`. Guard: 34 tests (35 with
+  3b), each leg broken on purpose to prove it fires.
+- P3 share/prompts registry (`adf016e22`, `3595d3dee`, `191c5c12f`).
+  `share`/`prompts` are help-only registry routes over the owner's own
+  flag tables (`src/shared/sharingFlags.ts`, read by both parser and
+  registry, zero jscpd clones): 14 share flags, 9 prompts flags, enum
+  values and defaults from the parser's constants, per-route
+  descriptions for the message range and machine JSON. The reference
+  grows 250 to 273 CLI rows; the generator no longer dates share's
+  message markers (`ShareRequest` range is message ids). Packed:
+  `share --help` (23 lines, exit 0) lists `--mode full|conversation
+(accepts …; default conversation)` and every parsed flag;
+  `prompts --help` (20 lines, exit 0) likewise. The mirror guard test
+  binds each registered flag to `parseSharingArgs` (accepted and
+  landed, bogus refused) and the screens to the parser's values; all
+  three guard legs were broken on purpose and failed as specified.
+- P3 `developer --help` (`b85ee3c69`). Was `SyntaxError` plus a stack
+  trace, exit 1. Now `--help`/`-h`/`help` prints the usage and the
+  unlock pointer, exit 0; other misuse prints the usage, exit 2; only
+  the parser's own usage text converts, so any other `SyntaxError`
+  still propagates. Packed: usage plus
+  `Run \`developer\` to unlock; …`exit 0;`--bogus`usage exit 2.
+Unit:`developerSurfaces.test.ts` 25/25, new test fires with the fix
+  disabled.
+- P3 F7 panel wording (`8501f4918`). Headless `exec` printed
+  `[info] Display language en-us: the panel is in English` where no
+  panel exists. `loadUiTable` takes `surface`: the extension keeps the
+  panel wording by default; the agent's three headless call sites pass
+  `terminal` and name the terminal's messages in all four log lines.
+  Packed keyless exec now prints
+  `[info] Display language en-us: messages are in English`, exit 3 with
+  the store sentence. Unit: `hostL10nTerminal.test.ts` 4/4 (real
+  logger, real `ui.de.json`, real shape check, both fallbacks) and
+  `hostL10n.test.ts` 16/16.
+- P3 stale `storeDown` (`0e100a44c`). The prompt turn runs no readiness
+  check, so `metaKeyProbe` could predate an unlocked store and the key
+  step reported it down forever. `getApiKey` re-reads once in that case
+  and heals the probe (key or absent) when the store answers again;
+  only a still-dead store throws; non-store failures propagate. The
+  packed real-store proof (daemon unlocked mid-session) was NOT run:
+  the run was denied at the approval gate on
+  `command -v dbus-run-session gnome-keyring-daemon secret-tool
+python3` ("tool denied: approval aborted"), so no OS-store operation
+  was attempted. Down-leg unchanged and re-proven packed (exit 3 above);
+  unit suites green; no store stand-in was written (project testing
+  rules forbid it).
+
+## Gates on the final tree (exit codes)
+
+- `npx prettier --check .`: exit 0.
+- Full ESLint (`lint:js` main, unit and tests; `lint:css`;
+  `lint:ps`): exit 0, zero warnings. Two lane scratch drills failed the
+  full-tree lint and were removed (untracked, git-ignored).
+- Typecheck all five projects (host, webview, unit, e2e,
+  integration): exit 0. The registry's first shape broke
+  `typecheck:webview` (`node:util` via the owner import); the shared
+  flag module fixed it.
+- `npx knip`: exit 0 (3 configuration hints). Found PR 162's four dead
+  `format*Help` exports; removed (`ac57fe5af`).
+- `node scripts/cycles.mjs`: exit 0, no circular dependencies.
+- `npx jscpd`: exit 0, 0 clones. Found the registry's copy of the
+  owner's flag table; single-sourced (`3595d3dee`).
+- `node scripts/check-l10n.mjs`: exit 0, 0 problems (18 new
+  `referenceCliOptions` keys with English values in all 14 tables,
+  allow-listed in `l10n/untranslated.json` for translators).
+- `npm run check:reference`: exit 0 (273 CLI, sharing matches catalog).
+- `node scripts/check-host-api.mjs`: exit 0, 0 problems.
+- `node scripts/check-plan.mjs`: exit 0, 0 drift (one `eslint-disable`
+  row added to the §8 register for the repeatable check).
+- `npm run build`: exit 0.
+- `SEMGREP_ENABLE_VERSION_CHECK=0 npm run security:sast`: exit 0,
+  533 rules on 3245 files, 0 findings.
+- Touched unit suites (default timeout): cliHelp 35, cliReference 2,
+  referenceEntry, providersModels 14, runtimeServices 19,
+  subscriptionCopilot 2, developerSurfaces 25, hostL10n 16,
+  hostL10nTerminal 4, sharingTerminal, acpPermissionAsk,
+  checkCommands — all green (2 pre-existing Windows-only skips in
+  checkCommands on this Linux rig).
+- Packed runs above, all on the final build unless noted.
+
+## Not run and why
+
+- Item 6's real-store mid-session drill: approval denied (see above).
+  Recipe for the lead: scratch HOME, `DBUS_SESSION_BUS_ADDRESS` to
+  nowhere, `session/new` (storeDown, opens); `dbus-run-session` with
+  `gnome-keyring-daemon --unlock` (throwaway password piped in);
+  repeat the key step and watch the sentence flip from store-down to
+  absent-key, then store a dummy key and watch readiness flip to ready.
+  No provider call in any step.
+- No live or paid model call anywhere (brief forbids it).
+- `test/a11y` harness looks: no visual surface changed (terminal text
+  only); README pictures untouched.
