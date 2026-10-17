@@ -23,7 +23,7 @@ client) reads this version's release notes without leaving the editor.
 - **ACP's `/whatsnew`** (`src/acp/agent.ts`): announced in
   `availableCommands` (line 551, beside `help`, `vault`, `accounts` — the same
   literal shape those commands use), kept out of the installed-skill list
-  (line 648), answered at line 1921: one `/whatsnew` text part ends the turn
+  (line 648), answered at line 1924: one `/whatsnew` text part ends the turn
   with `whatsNewText()` (lines 1225–1239), which reads `dist/whatsNew.json`
   beside the agent bundle (`WHATS_NEW_CONTENT_FILE`, `src/shared/constants.ts`
   line 1246), checks it with `parseWhatsNewContent`, and renders it for the
