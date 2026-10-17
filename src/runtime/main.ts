@@ -74,13 +74,8 @@ import { defaultServeOptions, sharingPorts, type SharingPortsDeps } from './shar
 import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
-import {
-  formatAcpUsage,
-  formatExecHelp,
-  formatReportHelp,
-  formatScanSecretsHelp,
-  formatSharingHelp,
-} from './cliOptions'
+import { formatAcpUsage } from './cliOptions'
+import { helpTopicNamed, renderTopHelp, renderTopicHelp } from './cliHelp'
 import { referenceLoader } from '../host/referenceLoader'
 import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -929,14 +924,14 @@ function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
 }
 
 async function main(): Promise<number> {
-  if (process.argv[2] === 'share' || process.argv[2] === 'prompts')
-    await loadUiTable({
-      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-      log: stderrLogger((line) => {
-        writeLine(process.stderr, line)
-      }, 'warn'),
-    })
+  // All parser refusals, including the early usage exit, read this locale.
+  await loadUiTable({
+    language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+    readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+    log: stderrLogger((line) => {
+      writeLine(process.stderr, line)
+    }, 'warn'),
+  })
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
   const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
@@ -1431,6 +1426,10 @@ async function main(): Promise<number> {
       const { providersAdd } = await import('./providersCommands')
       return await providersAdd(await providersDeps(), command.options)
     }
+    case 'providersModels': {
+      const { providersModels } = await import('./providersModelsCommand')
+      return await providersModels(await providersDeps(), command.options)
+    }
     case 'providersTest': {
       const { providersTest } = await import('./providersCommands')
       return await providersTest(await providersDeps(), command.provider)
@@ -1570,41 +1569,32 @@ async function main(): Promise<number> {
       return 0
     }
     case 'help': {
-      switch (command.topic) {
-        case 'scan-secrets': {
-          writeLine(process.stdout, formatScanSecretsHelp(UI_TEXT, ACP_AGENT_NAME))
-
-          break
-        }
-        case 'exec': {
-          writeLine(process.stdout, formatExecHelp(UI_TEXT, ACP_AGENT_NAME))
-
-          break
-        }
-        case 'report': {
-          writeLine(process.stdout, formatReportHelp(UI_TEXT, ACP_AGENT_NAME))
-
-          break
-        }
-        case 'sharing': {
-          writeLine(process.stdout, formatSharingHelp(UI_TEXT))
-
-          break
-        }
-        default: {
-          if (command.all === true) {
-            const reference = referenceLoader({
-              bundlePath: path.join(distDir, REFERENCE_BUNDLE_FILE),
-              log,
-            })().createReference(referenceTable, uiLocale())
-            const file = uiLocale() === 'en' ? 'package.nls.json' : `package.nls.${uiLocale()}.json`
-            const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
-            writeLine(process.stdout, reference.all(nls))
-          } else {
-            writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
-          }
-        }
+      if (command.all === true) {
+        const reference = referenceLoader({
+          bundlePath: path.join(distDir, REFERENCE_BUNDLE_FILE),
+          log,
+        })().createReference(referenceTable, uiLocale())
+        const file = uiLocale() === 'en' ? 'package.nls.json' : `package.nls.${uiLocale()}.json`
+        const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
+        writeLine(process.stdout, reference.all(nls))
+      } else {
+        writeLine(process.stdout, renderTopHelp(UI_TEXT, ACP_AGENT_NAME))
       }
+      return 0
+    }
+    case 'helpTopic': {
+      const topic = helpTopicNamed(command.topic)
+      if (topic === undefined) {
+        writeLine(
+          process.stderr,
+          fill(UI_TEXT.cliHelp.unknownTopic, {
+            topic: command.topic,
+            command: ACP_AGENT_NAME,
+          }),
+        )
+        return 2
+      }
+      writeLine(process.stdout, renderTopicHelp(UI_TEXT, ACP_AGENT_NAME, topic))
       return 0
     }
     case 'invalid': {

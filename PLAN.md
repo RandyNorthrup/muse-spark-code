@@ -14350,6 +14350,20 @@ cost and caution, never speed.
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
 
+### D117 — The terminal agent documents itself per command (lane CLIHELP, 2026-10-12)
+
+One table drives the terminal command parser and installed-language help.
+`<command> --help` and `help <command>` print that command's own help; `help --all`
+/ `help reference` retain the full reference. Wrong options and values exit 2
+with accepted options/values, without echoing secret-looking names. `providers
+models <entry>` edits models through the validated atomic provider-file
+commit; forced additions retain a reason and never read a key. The reference
+gate checks registry coverage and the README terminal topics. The thirteen
+help topics cover the registry routes except `estimate`; older non-registry
+grammars retain their own usage and are not help topics. Proof:
+`docs/certification/cli-help.md`. Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
 ### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
 
 The owner, verbatim: "get the useless tests get it streamlined and

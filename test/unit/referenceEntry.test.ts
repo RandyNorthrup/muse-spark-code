@@ -133,9 +133,9 @@ describe('reference host actions and command line', () => {
     ])
       expect(text).toContain(marker)
     expect(parseCommandLine(['help', '--all'])).toEqual({ command: 'help', all: true })
-    expect(parseCommandLine(['help'])).toEqual({ command: 'help', all: false })
+    expect(parseCommandLine(['help'])).toEqual({ command: 'help' })
     expect(parseCommandLine(['help', '--unknown'])).toMatchObject({ command: 'invalid' })
-    expect(parseCommandLine(['exec', '--help'])).toEqual({ command: 'help', topic: 'exec' })
+    expect(parseCommandLine(['exec', '--help'])).toEqual({ command: 'helpTopic', topic: 'exec' })
   })
 })
 
@@ -156,11 +156,14 @@ describe('RVHELPREF host and terminal regressions', () => {
       '/goal pause',
     ])
       expect(text).toContain(marker)
-    // Each headless command's --help is its own screen, never the reference.
-    for (const route of ['exec', 'report', 'scan-secrets'])
-      expect(parseCommandLine([route, '--help'])).toEqual({ command: 'help', topic: route })
-    for (const route of ['share', 'prompts'])
-      expect(parseCommandLine([route, '--help'])).toEqual({ command: 'help', topic: 'sharing' })
+    for (const [route, topic] of [
+      ['exec', 'exec'],
+      ['report', 'report'],
+      ['scan-secrets', 'scan-secrets'],
+      ['share', 'share'],
+      ['prompts', 'prompts'],
+    ] as const)
+      expect(parseCommandLine([route, '--help'])).toEqual({ command: 'helpTopic', topic })
   })
   it('R20 leaves an unsupported host value set empty without reading sensitive values', async () => {
     const bridge = host()

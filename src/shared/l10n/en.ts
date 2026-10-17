@@ -400,6 +400,11 @@ export const EN = {
     record: 'Refused for headless runs: nobody is there to preview a recording.',
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
+    add: '--add <model>: Offer this model on the entry; repeat the option for more models.',
+    remove:
+      '--remove <model>: Stop offering this model on the entry; repeat the option for more models.',
+    force:
+      '--force <reason>: Add a model the provider does not list; the reason is stored on the entry.',
     provider:
       '--provider <id>                   The provider the account belongs to (auth set/status/clear).',
     account: '--account <id>                    The account to use (auth set, exec).',
@@ -459,7 +464,7 @@ export const EN = {
   referenceExecContract:
     'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
   referenceBriefHelp:
-    'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
+    'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceKeyStdin:
     'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
   referenceModalKeys: 'Close the dialog or move focus within it.',
@@ -4190,9 +4195,81 @@ export const EN = {
     '  --no-facts           Leave the support facts out',
     '  --no-events          Leave the recent events out',
   ].join('\n'),
+  // The terminal agent's own help (PLAN.md D117): one topic per command,
+  // generated from the parser's option table, so help cannot drift from
+  // what the parser accepts. {command}: the executable's name; {cmd} and
+  // {topic}: the command as typed. Option names and values stay as typed.
+  cliHelp: {
+    usage: 'Usage:',
+    options: 'Options:',
+    examples: 'Examples:',
+    commands: 'Commands:',
+    // {command}: the executable's name.
+    topHint: "Run '{command} help <command>' for one command's own options and examples.",
+    // {command}: the executable's name.
+    allHint: "'{command} help --all' prints the full Help & Reference.",
+    // {value}: the default, as typed.
+    defaultIs: 'default {value}',
+    // {value}: the bound with its unit, as typed.
+    atMost: 'at most {value}',
+    // {values}: the accepted values, as typed.
+    accepts: 'accepts {values}',
+    repeatable: 'repeatable',
+    // {option}: the option as typed; {cmd}: the command; {accepted}: its options.
+    unknownOption: "Unknown option {option} for '{cmd}': {cmd} accepts {accepted}.",
+    // {cmd}: the command; {accepted}: its options. A secret-looking name is
+    // never repeated: the refusal says only what the command accepts.
+    unknownOptionHidden: "Unknown option for '{cmd}': {cmd} accepts {accepted}.",
+    // {nearest}: the closest valid option, as typed.
+    suggestOption: "Did you mean '{nearest}'?",
+    // {command}: the executable's name; {topic}: the command.
+    seeHelp: "See '{command} {topic} --help'.",
+    // {topic}: the unknown command; {command}: the executable's name.
+    unknownTopic: "Unknown command '{topic}': run '{command} help' for the command list.",
+    purposeServe: 'Serve the Agent Client Protocol on stdin and stdout.',
+    purposeLogin: 'Sign in to Muse Code in this terminal.',
+    purposeAuth: 'Store, check or remove keys in this computer’s credential store.',
+    authSetNote:
+      'auth set reads the key from standard input (your terminal, or a pipe); auth status prints whether a key is stored, never the key itself.',
+    purposeProviders: 'Manage model providers and their model lists.',
+    purposeExec: 'Run one headless turn.',
+    purposeScanSecrets: 'Count likely secrets in one file (prints only the number).',
+    purposeReport: 'Print a scrubbed problem report.',
+    purposeLegal: 'Run the read-only legal scan.',
+    purposeFonts: 'Install the optional fonts for standalone surfaces.',
+    purposePlaybook: 'Show or change the orchestrator playbook.',
+    purposeSetup: 'Run the Setup hooks and exit.',
+    purposeUsage: 'Show usage and cost across models.',
+    purposeResources: 'Show machine pressure and recent history.',
+    purposeShare: 'Share a conversation: copy it, save it to a file, or open it in a browser.',
+    purposePrompts: 'Save, list, use and share reusable prompt templates.',
+    // {entry}: the provider entry id.
+    modelsList: 'Models for {entry}:',
+    // {reason}: the user's one-line reason for forcing the model.
+    modelsForced: 'forced: {reason}',
+    modelsExtra: 'On the provider but not in the entry:',
+    modelsUnreadable: 'The provider list could not be read; showing the entry only.',
+    // {models}: the model ids; {entry}: the provider entry id.
+    modelsAdded: 'Added {models} to {entry}.',
+    // {models}: the model ids; {entry}: the provider entry id.
+    modelsRemoved: 'Removed {models} from {entry}.',
+    // {model}: the unknown id; {entry}: the entry; {closest}: the closest ids.
+    modelsUnknown: "Unknown model '{model}' for {entry}; the closest matches are: {closest}.",
+    // {entry}: the unknown id; {closest}: the configured entry ids.
+    modelsUnknownEntry: "Unknown provider entry '{entry}'; configured entries are: {closest}.",
+    modelsNeedsForce: "Use --force '<reason>' to add a model the provider does not list.",
+    modelsForceNeedsAdd: '--force needs --add: only added models can carry a reason.',
+    modelsCustomReadOnly:
+      'Custom provider model lists are read-only here; use the Models panel to set each model’s context window and output cap.',
+    // {command}: the executable's name.
+    modelsUsage:
+      'Usage: {command} providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]',
+  },
   // M80 (PLAN.md D65): the headless exec and scan-secrets commands.
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
+  execValueInvalid:
+    'Invalid value for {option}; run exec --help for the accepted values and bounds.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',

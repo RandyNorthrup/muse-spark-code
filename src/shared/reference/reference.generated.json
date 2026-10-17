@@ -75,13 +75,18 @@
           "conditions": [
             { "when": "outputMinimum=known", "text": { "ui": "referenceOutputCapMinimum" } }
           ]
-        }
+        },
+        { "ui": "customLimitsMissing" },
+        { "cli": "add" },
+        { "cli": "remove" },
+        { "cli": "force" }
       ],
       "facts": {
         "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
         "modelRequests": "modelApi"
       },
-      "editors": ["vscode", "acp"]
+      "editors": ["vscode", "acp"],
+      "cliRoutes": ["providersModels"]
     },
     {
       "id": "reports",
@@ -687,7 +692,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["acp:museCode", "acp:modelApi"],
-      "details": [],
+      "details": [{ "ui": "referenceBriefHelp" }],
       "facts": {
         "operations": [
           "initialize",
@@ -717,7 +722,8 @@
         },
         "editorMcp": { "museCode": ["stdio", "http"], "modelApi": [], "sse": false }
       },
-      "editors": ["acp"]
+      "editors": ["acp"],
+      "cliRoutes": ["helpTopic"]
     },
     {
       "id": "web-fetch",
@@ -4433,6 +4439,18 @@
       "text": { "ui": "referenceProviders" }
     },
     {
+      "route": "providersModels",
+      "name": "providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]",
+      "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "text": { "ui": "referenceProviders" }
+    },
+    {
+      "route": "helpTopic",
+      "name": "help <command>",
+      "description": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "ui": "referenceBriefHelp" }
+    },
+    {
       "route": "chatGptProvider",
       "name": "providers add|remove|status chatgpt",
       "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
@@ -4531,7 +4549,7 @@
     {
       "route": "help",
       "name": "help / --help / -h",
-      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "description": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "ui": "referenceBriefHelp" }
     },
     {
@@ -4663,6 +4681,34 @@
       "name": "providersAdd: --key-stdin",
       "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
       "text": { "cli": "key-stdin" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "providersModels",
+      "name": "providersModels: --add <value>",
+      "description": "--add <model>: Offer this model on the entry; repeat the option for more models.",
+      "text": { "cli": "add" },
+      "contract": { "type": "string", "repeatable": true }
+    },
+    {
+      "route": "providersModels",
+      "name": "providersModels: --remove <value>",
+      "description": "--remove <model>: Stop offering this model on the entry; repeat the option for more models.",
+      "text": { "cli": "remove" },
+      "contract": { "type": "string", "repeatable": true }
+    },
+    {
+      "route": "providersModels",
+      "name": "providersModels: --force <value>",
+      "description": "--force <reason>: Add a model the provider does not list; the reason is stored on the entry.",
+      "text": { "cli": "force" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "providersModels",
+      "name": "providersModels: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {

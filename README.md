@@ -883,7 +883,8 @@ before sending. Configured API-key and local providers share the captured
 Responses, Chat Completions, Anthropic, Gemini and Ollama codecs; redirects
 are refused and each request pins checked DNS answers. ACP reads the same
 user-level `providers.json`, using its own OS credential store. The terminal
-offers `providers list`, `providers add`, `providers test`, `providers remove`
+offers `providers list`, `providers add`, `providers test`, `providers remove`,
+`providers models <entry> [--add <model>] [--remove <model>]`
 and `auth set|status|clear --provider <id>`. Free checks use the shared
 transport; keys are entered through stdin and stored with their origin.
 Headless `exec --provider` validates configuration, credentials and endpoints,
@@ -4156,10 +4157,15 @@ ACP editors can send `/help` for the current installed-skill list and the
 [generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage`, `/questions`, `/answer` and
 installed skills; the linked panel slash commands and settings are extension
 workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
-reference in the installed language without a model call. `exec --help`,
-`report --help`, `scan-secrets --help`, `share --help` and `prompts --help`
-each print that command's own one screen; `--help` prints concise
-ACP usage. Terminal help states that VS Code current values are unavailable.
+reference in the installed language without a model call. Each command documents
+itself: `muse-spark-code-acp help <command>` (or `<command> --help`) prints that
+command's own usage, options with defaults and bounds, and two examples, for
+`serve`, `login`, `auth`, `providers`, `exec`, `scan-secrets`, `report`, `legal`,
+`fonts`, `playbook`, `setup`, `usage`, `resources`, `share` and `prompts`.
+`--help` prints concise ACP usage. `providers models <entry>` lists custom
+providers too, but custom model lists are read-only in the CLI: use the Models
+panel to set each model's context window and output cap. Terminal help states
+that VS Code current values are unavailable.
 
 Maintainers run `npm run reference:generate` after changes. The reference reads
 the complete contributed setting schema and palette conditions. The CLI parser,

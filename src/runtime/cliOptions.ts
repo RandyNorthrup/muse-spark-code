@@ -168,6 +168,14 @@ const FONTS_OPTIONS = {
 
 export const CLI_OPTION_REGISTRY = {
   providersAdd: { options: PROVIDER_OPTIONS },
+  providersModels: {
+    options: {
+      add: { type: 'string', multiple: true },
+      remove: { type: 'string', multiple: true },
+      force: { type: 'string' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  },
   usage: {
     options: {
       range: { type: 'string' },
@@ -269,6 +277,9 @@ export const CLI_OPTION_TEXT = {
   'no-events': 'no-events',
   fleet: 'fleet',
   seed: 'seed',
+  add: 'add',
+  remove: 'remove',
+  force: 'force',
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS
@@ -278,6 +289,7 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof REPORT_OPTIONS
     | keyof typeof CLI_OPTION_REGISTRY.usage.options
     | keyof typeof CLI_OPTION_REGISTRY.legal.options
+    | keyof typeof CLI_OPTION_REGISTRY.providersModels.options
     | keyof typeof FONTS_OPTIONS
     | keyof typeof ESTIMATE_OPTIONS,
     keyof UiText['referenceCliOptions']

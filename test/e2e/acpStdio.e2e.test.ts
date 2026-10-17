@@ -24,6 +24,7 @@ import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import { agentDataFolder } from '../../src/runtime/dataFolder'
 import { formatAcpUsage } from '../../src/runtime/cliOptions'
+import { renderTopHelp } from '../../src/runtime/cliHelp'
 import { webReadable } from '../../src/runtime/webStreams'
 import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
@@ -289,16 +290,22 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    const helpUsage = formatAcpUsage(UI_TEXT, ACP_AGENT_NAME)
-    expect(help.stdout.trim()).toBe(helpUsage)
+    // --help is the top-level help (D117): the compact usage, then every
+    // command's purpose.
+    expect(help.stdout.trim()).toBe(renderTopHelp(UI_TEXT, ACP_AGENT_NAME))
     expect(help.stdout).toContain(`${ACP_AGENT_NAME} help --all\n`)
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
-    expect(wrong.status).toBe(1)
+    // A usage refusal exits 2 (D117), as other terminal tools do.
+    expect(wrong.status).toBe(2)
+    // The refusal names the option and points at the command's own help
+    // instead of printing the whole usage (D117), and never offers a dormant
+    // flag (automatic compaction before its evaluation).
     expect(wrong.stderr).toContain('--colour')
-    expect(wrong.stderr).toContain(`${helpUsage}\n`)
+    expect(wrong.stderr).toContain(`${ACP_AGENT_NAME} serve --help`)
     expect(wrong.stderr).not.toMatch(/--(?:no-)?auto-compaction/)
+    expect(wrong.stderr).not.toContain('--scheduled-prompts')
   })
 
   it('prints the complete translated usage and reference hint from the installed table', async () => {
@@ -311,6 +318,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
           'memory-max': z.string(),
         }),
         acpChatGpt: z.object({ usage: z.string() }),
+        cliHelp: z.object({ commands: z.string() }),
         scheduleV2: z.object({ runtime: z.object({ usage: z.string() }) }),
         helpReferenceTitle: z.string(),
         referenceIntro: z.string(),
@@ -344,6 +352,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       ...translation,
       accounts: { ...UI_TEXT.accounts, ...accountTranslation.accounts },
       acpChatGpt: { ...UI_TEXT.acpChatGpt, ...translation.acpChatGpt },
+      cliHelp: { ...UI_TEXT.cliHelp, ...translation.cliHelp },
       referenceCliOptions: { ...UI_TEXT.referenceCliOptions, ...translation.referenceCliOptions },
       scheduleV2: {
         ...UI_TEXT.scheduleV2,
@@ -357,7 +366,11 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(verwendung)
+    // The installed German table drives the compact usage and the command
+    // list's heading that follows it (D117).
+    expect(help.stdout.trim().startsWith(`${verwendung}\n${translation.cliHelp.commands}\n`)).toBe(
+      true,
+    )
     expect(help.stdout).toContain(table.helpReferenceTitle)
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
   })

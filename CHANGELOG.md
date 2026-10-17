@@ -64,6 +64,28 @@ happened, not what was planned; superseded entries are kept.
   model-switch hooks or resets switch-related session state. ACP remembers
   backend-reported model and effort changes too, including changes received
   before a configuration command finishes.
+- Imported provider files reject blank force reasons, terminal controls and
+  line separators, matching the CLI's one-line reason requirement.
+
+- The feature catalogue links provider model editing and per-command help to
+  their CLI routes, with model add/remove/force details in the generated reference.
+
+- Forced-model annotations use the installed language in provider model lists.
+
+- The reference gate checks command topics only in the README's terminal-help
+  paragraph, so unrelated mentions cannot hide missing documentation.
+
+- Per-command help always shows declared value shapes, including provider
+  preset, id, address and privacy arguments.
+
+- Exit-2 CLI refusals load the display language before formatting the parser
+  error, without starting a backend or credential service.
+
+- CLI enum refusals list the accepted values from command help without
+  echoing the rejected value.
+
+- CLI review: custom provider model lists are explicitly read-only in the
+  terminal; edits require the Models panel's per-model context/output limits.
 
 - Activation budget: the Create AGENTS.md command, its rules template and
   their redaction load on the command's first run instead of at activation,
@@ -211,6 +233,21 @@ happened, not what was planned; superseded entries are kept.
   editor's qualification (lane Q). The pull-request checkout's own git
   launches are not yet under the resource governor; nothing in this release
   can start them, and the process inventory fails the day something could.
+
+### Added
+
+- The terminal agent documents itself per command for `serve`, `login`, `auth`,
+  `providers`, `exec`, `scan-secrets`, `report`, `legal`, `fonts`, `playbook`,
+  `setup`, `usage` and `resources`. `<command> --help` and
+  `muse-spark-code-acp help <command>` print that command's own usage, its
+  options with defaults and bounds, and two examples that run; the full
+  Help & Reference stays behind `help --all`. A wrong option or value exits
+  2, names the option and the accepted values, and suggests the nearest
+  valid option when the name is close. `providers models <entry>`
+  lists an entry's models (and which of the provider's models the entry
+  does not offer) and changes the list with `--add`/`--remove`; a model the
+  provider does not list needs `--force '<reason>'`, and the reason is kept
+  on the entry. All of this reads in the installed language.
 
 ## [0.18.2] - 2026-10-12
 
