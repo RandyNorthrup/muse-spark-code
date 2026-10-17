@@ -7483,11 +7483,9 @@ export type TeamExhaustedPolicy = (typeof TEAM_EXHAUSTED_POLICIES)[number]
 export const TEAM_EXHAUSTED_DEFAULT: TeamExhaustedPolicy = 'ask'
 // eslint-disable-next-line unicorn/consistent-boolean-name -- the Team region names every setting default TEAM_<SETTING>_DEFAULT (D75); a boolean prefix would break the scheme lane X reads.
 export const TEAM_CONTINUE_ON_NEXT_DEFAULT = false
-// `queue` waits for headroom at most this long, in a queue of at most this
-// many tasks, then asks; a spent `lifetime` cap never recovers, so it asks
-// at once (D75).
-export const TEAM_QUEUE_MAX_WAIT_MS = 3_600_000
-export const TEAM_QUEUE_MAX = 16
+// `queue` waits for headroom until it recovers, however many tasks wait and
+// however long it takes; a spent `lifetime` cap never recovers, so it asks
+// at once (D75; NOLIMITS4 C9: no 16-task, 1-hour queue bounds of ours).
 // A token cap below one request's minimum is refused by inline validation
 // (D75): the role's prefix plus this.
 export const TEAM_MIN_REQUEST_TOKENS = 2048

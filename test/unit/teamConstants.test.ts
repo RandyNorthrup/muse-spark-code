@@ -47,8 +47,6 @@ import {
   TEAM_PROCESS_WORKERS_MEM_PER_WORKER_BYTES,
   TEAM_PROCESS_WORKERS_MEM_RESERVE_BYTES,
   TEAM_PROMPT_CACHE_KEY_PREFIX,
-  TEAM_QUEUE_MAX,
-  TEAM_QUEUE_MAX_WAIT_MS,
   TEAM_READ_ONLY_COMMANDS,
   TEAM_READ_ONLY_REFUSED_OPTIONS,
   TEAM_REPORT_FENCE,
@@ -261,9 +259,10 @@ describe('team caps, intensity and machine values', () => {
     expect(TEAM_CONTINUE_ON_NEXT_DEFAULT).toBe(false)
   })
 
-  it('bounds queues, requests, briefs, pages and leases from D75', () => {
-    expect(TEAM_QUEUE_MAX_WAIT_MS).toBe(3_600_000)
-    expect(TEAM_QUEUE_MAX).toBe(16)
+  it('bounds requests, briefs, pages and leases from D75', () => {
+    // NOLIMITS4 C9: the queue itself is unbounded (every task waits until
+    // headroom recovers), so the removed TEAM_QUEUE_MAX / MAX_WAIT_MS have
+    // no assertions here; teamQueueNoCap.test.ts proves the behavior.
     expect(TEAM_MIN_REQUEST_TOKENS).toBe(2048)
     expect(TEAM_BRIEF_MAX_CHARS).toBe(8000)
     expect(TEAM_BRIEF_FILES_MAX_BYTES).toBe(65_536)
