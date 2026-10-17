@@ -1786,7 +1786,7 @@ Counts: 187 test files deleted (1943 test titles), 99 tests removed from 31 file
 
 - `lazy runtime schedule binding > loads once on use and installs the caller table before creating the runtime`
 - `lazy runtime schedule binding > rejects a missing factory and retries a failed engine creation`
-  - Pull request 207 (M115 schedules) put a test back in this file with no stand-in: the real loader, given a bundle path that is not on disk, refuses with the unavailable words on each call. The two claims above stay unproven.
+  - Pull request 207 (M115 schedules) rewrote this file on the real loader, but still handed it a hand-written log object in place of the log channel, so the merge with main kept main's deletion. Its claim stays here too: a bundle path that is not on disk refuses with the unavailable words, and each call tries the load again.
 
 ### test/unit/scheduleEvents.signals.test.ts
 
