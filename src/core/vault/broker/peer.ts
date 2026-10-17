@@ -32,7 +32,7 @@ export interface VaultSocketDescriptorPort {
   /** Native listener adapter's descriptor of this exact connected socket. Never a frame field. */
   descriptor(socket: Socket): number
 }
-/** @unwired M109 Unix vault peer verifier */
+/** Unix vault peer verifier, built by the POSIX client platform and the broker entry. */
 export class UnixVaultPeerVerifier implements VaultPeerVerifier {
   constructor(
     private readonly executable: string,
@@ -113,7 +113,7 @@ export interface WindowsVaultPipePort {
     socket: Duplex,
   ): Promise<VaultProcessIdentity & { remote: boolean; ownerOnlyDacl: boolean }>
 }
-/** @unwired M109 Windows vault peer verifier */
+/** @unwired M109 Windows vault peer verifier (waits on lane C-M109-1c's pipe helper) */
 export class WindowsVaultPeerVerifier implements VaultPeerVerifier {
   constructor(
     private readonly port: WindowsVaultPipePort,

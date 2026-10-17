@@ -71,10 +71,8 @@ export interface ModelsPanelDeps {
   readonly confirmImport: (preview: ImportPreview) => Promise<boolean>
   readonly onWizardSaved: (outcome: WizardSaveOutcome) => void
   /**
-   * The vault binding factory (C-M109-1 P1). Undefined until lanes (b)
-   * and (c) bind `vaultClientPlatform` and compose the broker: without it
-   * the section stays hidden and the vault keeps refusing with
-   * `vault.brokerBlocked`, as 0.17.0 does.
+   * The vault binding factory (C-M109-1 P1). Without it the section stays
+   * hidden; a factory that throws leaves the panel without the section too.
    */
   readonly vault?: ModelsVaultFactory | undefined
 }

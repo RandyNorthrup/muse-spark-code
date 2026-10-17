@@ -7,12 +7,72 @@ import * as vscode from 'vscode'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { VaultItem, VaultItemMetadata } from '../../shared/vault'
+import { generateEd25519Key, importSshKey, type SoftwareSshKey } from '../../core/vault/ssh/keys'
+import { sshFailure } from '../../core/vault/ssh/wire'
 import type { VaultPanelHostDeps } from './vaultPanelHost'
 import { editVaultItem, type VaultNativeInput } from './vaultNativeEditor'
 
 export interface VaultActionDialogDeps {
   readonly now: () => number
-  readonly sshKey: VaultNativeInput['sshKey']
+}
+
+type SshKeyResult = Awaited<ReturnType<VaultNativeInput['sshKey']>>
+/** S owns generation and import; this VS Code side only picks the source. */
+async function vscodeSshKey(): Promise<SshKeyResult> {
+  const picked = await vscode.window.showQuickPick(
+    [
+      { label: UI_TEXT.vault.generateSshKey, id: 'generate' },
+      { label: UI_TEXT.vault.importSshKeyFile, id: 'import' },
+    ],
+    { ignoreFocusOut: true },
+  )
+  if (picked === undefined) return null
+  // The private bytes transfer to the controller, which wipes after the
+  // transaction; every failure below wipes before it throws or stops.
+  const toMaterial = (key: SoftwareSshKey): Exclude<SshKeyResult, null> => ({
+    material: {
+      kind: 'sshKey',
+      storage: 'software',
+      privateKey: key.privateKey,
+      algorithm: key.algorithm,
+    },
+    publicKey: key.publicKey,
+    fingerprint: key.fingerprint,
+  })
+  if (picked.id === 'generate') return toMaterial(generateEd25519Key())
+  const [target] = (await vscode.window.showOpenDialog({ canSelectMany: false })) ?? []
+  if (target?.scheme !== 'file') return null
+  let raw: Uint8Array | undefined
+  try {
+    raw = await vscode.workspace.fs.readFile(target)
+  } catch {
+    throw sshFailure()
+  }
+  const fileBytes = Buffer.from(raw)
+  raw.fill(0)
+  try {
+    try {
+      return toMaterial(importSshKey(Buffer.from(fileBytes)))
+    } catch {
+      // An encrypted file fails without its passphrase: ask once, then stop.
+      const entered = await vscode.window.showInputBox({
+        prompt: UI_TEXT.vault.sshKeyPassphrase,
+        password: true,
+        ignoreFocusOut: true,
+      })
+      if (entered === undefined || entered === '') return null
+      const passphrase = Buffer.from(entered, 'utf8')
+      try {
+        return toMaterial(importSshKey(Buffer.from(fileBytes), passphrase))
+      } catch {
+        throw sshFailure()
+      } finally {
+        passphrase.fill(0)
+      }
+    }
+  } finally {
+    fileBytes.fill(0)
+  }
 }
 
 export function vaultActionDialogs(
@@ -87,7 +147,7 @@ export function vaultActionDialogs(
               )
               return picked?.id
             },
-            sshKey: deps.sshKey,
+            sshKey: vscodeSshKey,
             now: deps.now,
           },
           current,

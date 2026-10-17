@@ -1,9 +1,9 @@
 // The platform half of a vault connection, shared by dist/vaultRuntime.js
-// and the VS Code bundle (dist/vault.js). Lane C-M109-1b binds it on Linux
-// and macOS (owner-only run directory, peer.c peer check, node launch of
-// dist/vaultBroker.js); lane C-M109-1c on Windows (the pipe helper's
-// owner-only files, lock-bound pipe check). Until a lane binds this
-// platform and the reviewed availability switch is on, public callers refuse.
+// and the VS Code bundle (dist/vault.js). POSIX (Linux and macOS) is bound
+// here (owner-only run directory, peer.c peer check, node launch of
+// dist/vaultBroker.js); Windows follows through the pipe helper in lane
+// C-M109-1c. While the reviewed availability switch is off, public callers
+// refuse; every broker use still refuses while the broker is unavailable.
 
 import { uiLocale } from '../../shared/l10n/text'
 import { UI_TEXT, VAULT_AVAILABILITY } from '../../shared/constants'
