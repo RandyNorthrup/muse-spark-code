@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -15,7 +15,6 @@ import {
   runDeveloperCommand,
 } from '../../src/runtime/developer/developerCommand'
 import { runTerminalDeveloperCommand } from '../../src/runtime/providers/accountsEntry'
-import { memoryKeyring } from './helpers/keyring'
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -243,10 +242,14 @@ describe('Developer options on every surface', () => {
   it('answers developer --help before any owner work and reports misuse as usage', async () => {
     const folder = await mkdtemp(path.join(tmpdir(), 'cliflows2-developer-help-'))
     try {
-      const { openEntry } = memoryKeyring()
+      // Help and misuse settle before any store or confirmation work: both
+      // seams fail loud if reached instead of answering in a store's place.
+      const openEntry = (): never => {
+        throw new Error('must not open the credential store for help or misuse')
+      }
       const printed: string[] = []
       const owner = {
-        readLine: () => Promise.resolve(''),
+        readLine: () => Promise.reject(new Error('must not ask for help or misuse')),
         print: (line: string) => {
           printed.push(line)
         },
@@ -276,6 +279,32 @@ describe('Developer options on every surface', () => {
       expect(misuse.exitCode).toBe(2)
       expect(misuse.text).toBe(EN.developer.commandUsage)
       expect(printed).toEqual([])
+      // The same misuse over state written by another machine is still the
+      // usage with exit 2, never a stack trace: usage settles before the
+      // stored identity is read.
+      const stateDir = path.join(folder, 'developer')
+      await mkdir(stateDir, { recursive: true })
+      await writeFile(
+        path.join(stateDir, 'developer.json'),
+        JSON.stringify({
+          v: 1,
+          machineId: 'foreign-machine-1',
+          unlockedAt: null,
+          expiresAt: null,
+          isMultipleAccountsOn: false,
+          profiles: [],
+        }),
+      )
+      const foreign = await runTerminalDeveloperCommand(
+        EN,
+        'en',
+        input,
+        owner,
+        ['developer', '--bogus'],
+        'terminal-help',
+      )
+      expect(foreign.exitCode).toBe(2)
+      expect(foreign.text).toBe(EN.developer.commandUsage)
     } finally {
       await rm(folder, { recursive: true, force: true })
     }
