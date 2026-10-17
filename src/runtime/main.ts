@@ -79,6 +79,7 @@ import { acpSharingCommands } from '../acp/sharing'
 import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
+import { helpTopicNamed, renderTopHelp, renderTopicHelp } from './cliHelp'
 import { referenceLoader } from '../host/referenceLoader'
 import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -941,14 +942,15 @@ function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
 }
 
 async function main(): Promise<number> {
-  if (process.argv[2] === 'share' || process.argv[2] === 'prompts')
-    await loadUiTable({
-      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-      log: stderrLogger((line) => {
-        writeLine(process.stderr, line)
-      }, 'warn'),
-    })
+  // All parser refusals, including the early usage exit, read this locale.
+  await loadUiTable({
+    language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+    readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+    surface: 'terminal',
+    log: stderrLogger((line) => {
+      writeLine(process.stderr, line)
+    }, 'warn'),
+  })
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
   const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
@@ -1022,21 +1024,8 @@ async function main(): Promise<number> {
     })
     let headlessCode: number = EXEC_EXIT.internal
     try {
-      try {
-        await lifecycle.race(
-          loadUiTable({
-            language: displayLanguage(
-              process.env,
-              new Intl.DateTimeFormat().resolvedOptions().locale,
-            ),
-            readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-            log,
-          }),
-        )
-      } catch {
-        /* The bundled English table is already installed; stop still owns the deadline. */
-      }
-      setProviderPolicyText(UI_TEXT, uiLocale())
+      // The scanner has no translated output: stdout is a count, and even
+      // its refusal is exit-only. Do not emit panel language diagnostics.
       if (command.command === 'scan-secrets') {
         try {
           headlessCode = await lifecycle.race(
@@ -1055,6 +1044,22 @@ async function main(): Promise<number> {
           return headlessCode
         }
       }
+      try {
+        await lifecycle.race(
+          loadUiTable({
+            language: displayLanguage(
+              process.env,
+              new Intl.DateTimeFormat().resolvedOptions().locale,
+            ),
+            readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+            surface: 'terminal',
+            log,
+          }),
+        )
+      } catch {
+        /* The bundled English table is already installed; stop still owns the deadline. */
+      }
+      setProviderPolicyText(UI_TEXT, uiLocale())
       // The reserved read-only scan (M97 lane R): no backend, no auth, no
       // model. stdout carries only the rendered report; every other word
       // goes to stderr, as the sign-in commands' own output does.
@@ -1158,6 +1163,7 @@ async function main(): Promise<number> {
   await loadUiTable({
     language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
     readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+    surface: 'terminal',
     log,
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
@@ -1390,6 +1396,14 @@ async function main(): Promise<number> {
     case 'accounts': {
       return await loadAccountsBundle(log).runAccountsCommand(command.options, {
         ...loadAccounts(log).commands,
+        // The account service reads its own metadata rows, not the
+        // runner's providers file: advice for a provider the runner
+        // already added names the missing accounts, not another add.
+        isProviderConfigured: async (provider) => {
+          const userFile = await userProvidersFile()
+          const read = await userFile.readUserFile()
+          return read.ok && read.file.providers.some((entry) => entry.id === provider)
+        },
         print: (line) => {
           writeLine(process.stdout, line)
         },
@@ -1479,6 +1493,10 @@ async function main(): Promise<number> {
     case 'providersAdd': {
       const { providersAdd } = await import('./providersCommands')
       return await providersAdd(await providersDeps(), command.options)
+    }
+    case 'providersModels': {
+      const { providersModels } = await import('./providersModelsCommand')
+      return await providersModels(await providersDeps(), command.options)
     }
     case 'providersTest': {
       const { providersTest } = await import('./providersCommands')
@@ -1690,8 +1708,23 @@ async function main(): Promise<number> {
         const nls: unknown = JSON.parse(await readUiTableFile(packageRoot, [file]))
         writeLine(process.stdout, reference.all(nls))
       } else {
-        writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+        writeLine(process.stdout, renderTopHelp(UI_TEXT, ACP_AGENT_NAME))
       }
+      return 0
+    }
+    case 'helpTopic': {
+      const topic = helpTopicNamed(command.topic)
+      if (topic === undefined) {
+        writeLine(
+          process.stderr,
+          fill(UI_TEXT.cliHelp.unknownTopic, {
+            topic: command.topic,
+            command: ACP_AGENT_NAME,
+          }),
+        )
+        return 2
+      }
+      writeLine(process.stdout, renderTopicHelp(UI_TEXT, ACP_AGENT_NAME, topic))
       return 0
     }
     case 'invalid': {

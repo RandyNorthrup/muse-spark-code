@@ -18,6 +18,7 @@ import { signInFailureText } from '../core/git/deviceFlow'
 import type { DeviceFlowSource } from './github/deviceFlowSource'
 import {
   formatStoredProviderSecret,
+  isStoreUnavailable,
   parseStoredProviderSecret,
   providerSecretAccount,
 } from './keyStore'
@@ -40,7 +41,11 @@ function describe(error: unknown): string {
 }
 
 function unavailable(deps: Pick<AuthCommandDeps, 'printError'>, error: unknown): number {
-  deps.printError(fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }))
+  deps.printError(
+    isStoreUnavailable(error)
+      ? UI_TEXT.acpStoreDown
+      : fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+  )
   return EXIT_FAILED
 }
 
@@ -64,12 +69,21 @@ export async function authSet(deps: AuthCommandDeps): Promise<number> {
   return EXIT_OK
 }
 
+function storeDown(deps: AuthCommandDeps, error: unknown): number | undefined {
+  // A failed read cannot establish whether the store contains a key.
+  if (isStoreUnavailable(error)) {
+    deps.print(UI_TEXT.acpStoreDown)
+    return EXIT_FAILED
+  }
+  return undefined
+}
+
 export async function authStatus(deps: AuthCommandDeps): Promise<number> {
   let stored: string | undefined
   try {
     stored = await deps.secrets.get(SECRET_KEYS.modelApiKey)
   } catch (error: unknown) {
-    return unavailable(deps, error)
+    return storeDown(deps, error) ?? unavailable(deps, error)
   }
   if (stored === undefined || stored === '') {
     deps.print(UI_TEXT.acpKeyAbsent)
@@ -161,7 +175,7 @@ export async function authStatusProvider(
   try {
     stored = await deps.secrets.get(account)
   } catch (error: unknown) {
-    return unavailable(deps, error)
+    return storeDown(deps, error) ?? unavailable(deps, error)
   }
   if (stored === undefined || stored === '') {
     deps.print(fill(UI_TEXT.providerKeyAbsent, { provider: providerId }))

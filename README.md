@@ -191,6 +191,9 @@ hash verification and migrate when read.
 - **ACP and terminal.** Use local `/prompt` and `/share chat` commands in ACP
   editors, or `muse-spark-code-acp prompts` and `share chat` in the terminal.
   Help & Reference lists the commands and the opt-in prompt sync setting.
+  Terminal prompt commands print saved ids, matching prompts and prepared text;
+  add `--json` for their structured result. A terminal `use` prepares text only:
+  it does not insert into an editor or send a model request.
 
 ### Earlier in 0.14.3
 
@@ -923,7 +926,8 @@ before sending. Configured API-key and local providers share the captured
 Responses, Chat Completions, Anthropic, Gemini and Ollama codecs; redirects
 are refused and each request pins checked DNS answers. ACP reads the same
 user-level `providers.json`, using its own OS credential store. The terminal
-offers `providers list`, `providers add`, `providers test`, `providers remove`
+offers `providers list`, `providers add`, `providers test`, `providers remove`,
+`providers models <entry> [--add <model>] [--remove <model>]`
 and `auth set|status|clear --provider <id>`. Free checks use the shared
 transport; keys are entered through stdin and stored with their origin.
 Headless `exec --provider` validates configuration, credentials and endpoints,
@@ -1054,7 +1058,8 @@ bundled.
 ## Developer options
 
 `muse-spark-code-acp developer` opens the terminal's machine-local Developer
-options after typed confirmation; `developer status` shows its state. Testing mode is badged and audited, expires, and Reset stops and removes only
+options after typed confirmation; `developer status` shows its state.
+`developer --help` prints its usage; any other misuse reports the usage with exit 2. Testing mode is badged and audited, expires, and Reset stops and removes only
 its recorded profiles. Profile start and cleanup report unavailable until their
 resource owner is bound; no successful cleanup is claimed in its absence.
 Revoking testing authority closes admission immediately and attempts to stop
@@ -4280,9 +4285,15 @@ ACP editors can send `/help` for the current installed-skill list and the
 [generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage`, `/questions`, `/answer` and
 installed skills; the linked panel slash commands and settings are extension
 workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
-reference in the installed language without a model call. `exec --help`,
-`report --help` and `scan-secrets --help` also print it; `--help` prints concise
-ACP usage. Terminal help states that VS Code current values are unavailable.
+reference in the installed language without a model call. Each command documents
+itself: `muse-spark-code-acp help <command>` (or `<command> --help`) prints that
+command's own usage, options with defaults and bounds, and two examples, for
+`serve`, `login`, `auth`, `providers`, `exec`, `scan-secrets`, `report`, `legal`,
+`fonts`, `playbook`, `setup`, `usage`, `resources`, `share` and `prompts`.
+`--help` prints concise ACP usage. `providers models <entry>` lists custom
+providers too, but custom model lists are read-only in the CLI: use the Models
+panel to set each model's context window and output cap. Terminal help states
+that VS Code current values are unavailable.
 
 Maintainers run `npm run reference:generate` after changes. The reference reads
 the complete contributed setting schema and palette conditions. The CLI parser,
@@ -5033,6 +5044,26 @@ withheld whole.
 prints only a count and exits 0 when clean, 10 on matches or 2 on refusal or
 error. Its 30-second lifetime includes reading the key and flushing output.
 Only known literals and patterns are covered.
+
+`prompts use <id> [--chat active|new]` prints the prepared prompt text after
+one review of the filled variables; the terminal inserts nothing into an
+editor, so the review asks to print, not to insert. A script passes variables
+as repeatable `--var name=value` and confirms explicitly with `--confirm`:
+preview first without it (the run shows the text and stops, exit 7), then
+repeat with it.
+
+A ChatGPT plan model (`exec --backend modelApi --model chatgpt/…`) runs on
+the ChatGPT subscription sign-in through the same path as the editor
+protocol, with or without a Meta key; its attempts count against
+`--max-requests` at no USD reservation. Without a grant the refusal names
+the ChatGPT sign-in, never a Meta key.
+
+With no unlocked credential store (Linux without Secret Service) the agent
+still starts and the host opens: status commands and every refusal say
+stored keys cannot be checked. A session attributes its spend to an
+account, so with no readable store one starts only with a key passed for
+the run (`--key-stdin`) or a file-configured provider; nothing is ever
+written in plain text without an explicit choice.
 
 On Windows a forced stop (an output pipe closed, or output still queued when
 the cleanup grace runs out, or a distinct second signal's 300 ms grace ends)

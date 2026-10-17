@@ -242,6 +242,53 @@ happened, not what was planned; superseded entries are kept.
   own allow rules already cover still run without asking; that residual is
   recorded for the upstream report (sdk#86).
 
+- Terminal commands (CLIFLOWS): sharing answers accept `y`/`yes` in any
+  case and the answered process exits; `share`/`prompts` print their result
+  JSON only with `--json`, and the CLI reference documents the scripted
+  `--confirm` repeat; `prompts use` asks once, after the variables, and only
+  imported prompts are called untrusted; `scan-secrets` prints only the
+  number and its help names the exits (0 clean, 10 found, 2 misuse);
+  `playbook settings` no longer shows `(panel)`; each slash command is
+  announced once; one sentence reports a dead credential store everywhere;
+  the terminal lists Meta provider accounts; non-Meta accounts are not yet
+  bound to the provider configuration. Pre-session refusals name what is missing.
+- Terminal commands (CLIFLOWSFIX): an `exec` with a ChatGPT plan model runs
+  on the shared subscription path (no Meta key needed; attempts count
+  against `--max-requests` at no USD reservation; a missing grant names the
+  ChatGPT sign-in, and a Copilot plan model names Copilot, never a Meta
+  key); with no unlocked credential store the agent starts and the host
+  opens, steps that need a stored key refuse in the one store sentence, and
+  nothing is written in plain text; `providers accounts` advice follows the
+  runner's providers file (a configured provider without account metadata
+  says its accounts are not available in this terminal yet); `prompts use`
+  takes scripted `--var name=value` and `--confirm` and its review asks to
+  print, not insert; `scan-secrets --help`, `exec --help`, `report --help`,
+  `share --help` and `prompts --help` each print their own one screen. A
+  keyless session opens with no account identity; identity and spend
+  resolve at the first step that needs a provider, and a step that needs
+  a stored key refuses in the one store sentence; grant-backed dispatch
+  still needs the owner's real-life run.
+- Review (RVCLIFLOWS2): `share --help` and `prompts --help` name exit 7 for
+  a cancelled or refused share, from the sharing handler's own codes; a key
+  step whose credential store has recovered returns the key it re-read.
+- Terminal commands (CLIFLOWS2): `share --help` and `prompts --help` list
+  every parsed option with its accepted values and defaults from the
+  sharing parser's own tables, and the CLI reference grows 23 rows without
+  dating the message range; `developer --help` prints its usage instead of
+  a stack trace, and any other misuse reports the usage with exit 2;
+  headless runs say their messages are in English instead of naming a
+  panel; a key step re-reads the credential store before reporting it
+  down, so an unlock mid-session is found.
+- RVCLIFLOWS: retain headless request and USD limits for every Model API/BYO
+  run; a user-configurable provider id is not evidence of subscription billing.
+- RVCLIFLOWS: terminal prompt save/list/use retain readable results without
+  `--json`; cancellation explains itself on stderr instead of silently exiting.
+- RVCLIFLOWS: an exact slash-command selector is announced once even if
+  repeated entries have different descriptions or argument hints.
+- RVCLIFLOWS: an unavailable credential store says stored keys cannot be
+  checked, rather than falsely claiming no key is stored (all display languages).
+- RVCLIFLOWS: `scan-secrets` no longer emits a panel-language diagnostic on
+  stderr; successful scans print only their count.
 - All fourteen translated settings tables now say Muse Code asks before a
   command unless a permission rule allows it, matching the English modes.
 
@@ -268,6 +315,28 @@ happened, not what was planned; superseded entries are kept.
   model-switch hooks or resets switch-related session state. ACP remembers
   backend-reported model and effort changes too, including changes received
   before a configuration command finishes.
+- Imported provider files reject blank force reasons, terminal controls and
+  line separators, matching the CLI's one-line reason requirement.
+
+- The feature catalogue links provider model editing and per-command help to
+  their CLI routes, with model add/remove/force details in the generated reference.
+
+- Forced-model annotations use the installed language in provider model lists.
+
+- The reference gate checks command topics only in the README's terminal-help
+  paragraph, so unrelated mentions cannot hide missing documentation.
+
+- Per-command help always shows declared value shapes, including provider
+  preset, id, address and privacy arguments.
+
+- Exit-2 CLI refusals load the display language before formatting the parser
+  error, without starting a backend or credential service.
+
+- CLI enum refusals list the accepted values from command help without
+  echoing the rejected value.
+
+- CLI review: custom provider model lists are explicitly read-only in the
+  terminal; edits require the Models panel's per-model context/output limits.
 
 - Activation budget: the Create AGENTS.md command, its rules template and
   their redaction load on the command's first run instead of at activation,
@@ -414,6 +483,20 @@ happened, not what was planned; superseded entries are kept.
   editors get the Git panel with their M104 bridges, which are not in this
   build.
 
+### Added
+
+- The terminal agent documents itself per command for `serve`, `login`, `auth`,
+  `providers`, `exec`, `scan-secrets`, `report`, `legal`, `fonts`, `playbook`,
+  `setup`, `usage` and `resources`. `<command> --help` and
+  `muse-spark-code-acp help <command>` print that command's own usage, its
+  options with defaults and bounds, and two examples that run; the full
+  Help & Reference stays behind `help --all`. A wrong option or value exits
+  2, names the option and the accepted values, and suggests the nearest
+  valid option when the name is close. `providers models <entry>`
+  lists an entry's models (and which of the provider's models the entry
+  does not offer) and changes the list with `--add`/`--remove`; a model the
+  provider does not list needs `--force '<reason>'`, and the reason is kept
+  on the entry. All of this reads in the installed language.
 - Muse Code permissions: on the Muse Code backend one command is asked
   about once — the first answer is reused for later stages instead of
   asking again, and an answer given while a newer stage arrives is applied

@@ -40,6 +40,18 @@ export function cliCommands() {
       text: { ui: 'referenceProviders' },
     },
     {
+      route: 'providersModels',
+      name: 'providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]',
+      description: UI_TEXT.referenceProviders,
+      text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'helpTopic',
+      name: 'help <command>',
+      description: UI_TEXT.referenceBriefHelp,
+      text: { ui: 'referenceBriefHelp' },
+    },
+    {
       route: 'chatGptProvider',
       name: 'providers add|remove|status chatgpt',
       description: UI_TEXT.referenceProviders,

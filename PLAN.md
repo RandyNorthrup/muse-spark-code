@@ -1,5 +1,13 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**RVCLIFLOWS review repairs (2026-10-14).** Reuse the canonical sharing
+result formatter for terminal save/list/cancellation output, with prepared
+text printed as text rather than a claim to insert into an editor. Preserve
+explicit `--json` opt-in and exact-preview confirmation. Review credential
+ownership and plan-model headless accounting without bypassing either for
+readiness alone. Evidence and unresolved work: `docs/certification/cliflows.md`
+(review section); the handoff is `.lane/RVCLIFLOWS.report.md`.
+
 **PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
 with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
 in the existing ACP permission-answer cache, agent lifecycle and translated
@@ -13,6 +21,7 @@ lifecycle require the lead's real signed-in run. Run scoped static gates,
 all five typechecks, dependent/list-consuming unit suites, build and permitted
 packed-product commands. Evidence and postable replies: `.lane/PRTH165.report.md`
 and `docs/certification/muse-code-permissions.md`.
+
 **PRTH166 review repairs (2026-10-15).** Reuse the controller's opening
 and resumed-handle ownership checks and ACP's existing choice state. After
 merging main `d842cad5d`, address T1 stale attachment, T2 verification cleanup,
@@ -14472,6 +14481,20 @@ cost and caution, never speed.
   (2026-10-10), so the judge becomes one of two gates for skipping the
   reviewer on B1 and B2, never the only one and never an allow by itself.
   Everywhere else both stand unchanged.
+
+### D117 — The terminal agent documents itself per command (lane CLIHELP, 2026-10-12)
+
+One table drives the terminal command parser and installed-language help.
+`<command> --help` and `help <command>` print that command's own help; `help --all`
+/ `help reference` retain the full reference. Wrong options and values exit 2
+with accepted options/values, without echoing secret-looking names. `providers
+models <entry>` edits models through the validated atomic provider-file
+commit; forced additions retain a reason and never read a key. The reference
+gate checks registry coverage and the README terminal topics. The thirteen
+help topics cover the registry routes except `estimate`; older non-registry
+grammars retain their own usage and are not help topics. Proof:
+`docs/certification/cli-help.md`. Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D108 — Test overhaul: no stand-ins, a short gate, the real-life run (owner, 2026-10-12)
 
@@ -36106,10 +36129,11 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | --------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | M95 provider panel: `panelSeam.ts`, `wizardSave.ts` | RVPROVWIZ7C P2-1/P2-2; PROVSTORE-LOCKLIB after M123 | Two editor windows saving the same provider at the same moment: last writer wins for fields both changed; no secret is exposed; follow-up PROVSTORE-LOCKLIB moves the provider store and key rotation onto the shared lease after M123 lands on main. |
 
-| M123P9 location                                                    | Escape hatch                                | Reason                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------ | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/runtime/panel/pullRequests/records.ts`, `claim`               | `error.results as readonly Claimed[]`       | This catch surrounds only its own `mutate<Claimed>`; `make` errors are captured in `outcome`, and `mutate` constructs the error with its own `T[]` of attempted results. `instanceof` cannot retain that generic correlation. The unknown-claim regression verifies every potentially owned fence and cleanup. |
-| `src/runtime/panel/pullRequests/checkout.ts`, `reserveAndCheckout` | `error.results as readonly ReserveResult[]` | Only `reserve` and `supersede` mutations run in this try; the record store constructs this error from those methods' `ReserveResult` attempts. `instanceof` erases the generic payload type. The uncertain-write interleavings verify cleanup after either reservation operation lands and fails.              |
+| M123P9 location                                                    | Escape hatch                                                                                                                                     | Reason                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/runtime/panel/pullRequests/records.ts`, `claim`               | `error.results as readonly Claimed[]`                                                                                                            | This catch surrounds only its own `mutate<Claimed>`; `make` errors are captured in `outcome`, and `mutate` constructs the error with its own `T[]` of attempted results. `instanceof` cannot retain that generic correlation. The unknown-claim regression verifies every potentially owned fence and cleanup. |
+| `src/runtime/panel/pullRequests/checkout.ts`, `reserveAndCheckout` | `error.results as readonly ReserveResult[]`                                                                                                      | Only `reserve` and `supersede` mutations run in this try; the record store constructs this error from those methods' `ReserveResult` attempts. `instanceof` erases the generic payload type. The uncertain-write interleavings verify cleanup after either reservation operation lands and fails.              |
+| `src/runtime/cliHelp.ts`, `renderOptionRow` (CLIFLOWS2)            | eslint-disable `no-unnecessary-condition`, `no-unnecessary-boolean-literal-compare`, `no-unnecessary-boolean-comparison` on the repeatable check | The registry union's `multiple` is literal `true` today; the `=== true` stays so a future table that writes `multiple: false` explicitly still renders single rather than repeatable.                                                                                                                          |
 
 | M123 lane A location                                 | Escape hatch                         | Reason                                                                                                                                                                                                                                                                                                                                                                  | Removal                                                |
 | ---------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
@@ -36463,6 +36487,10 @@ before a repaired one loads (2026-09-30).
 | TRAINDIET location                                                                  | Escape hatch                                                                                          | Reason                                                                                                                                                                                                                                                   | Date       |
 | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (5 lines), `src/shared/browserCheckConstants.ts` (1 line) | `eslint-disable-next-line unicorn/prefer-string-raw` on plain-string Windows paths and one git regexp | `String.raw` is a call and pins the whole initialiser into every bundle importing the module; the plain strings are byte-identical (verified with node) and drop when unused. `test/unit/bundleDiet.test.ts` fails on any new non-droppable initialiser. | 2026-10-11 |
+
+| CLIFLOWS2 location                      | Escape hatch                               | Reason                                                                                                                                                                                                                                                                                               | Added      |
+| --------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/subscriptionCopilot.test.ts` | `{} as ProviderClient` for the Meta client | The Copilot branch under test throws before any Meta member runs; an invoked member would fail the test (no methods to answer with). Hand-implementing the ten members would be a stand-in provider, which the owner's rules forbid; the empty object with the cast cannot behave as one. Test-only. | 2026-10-17 |
 
 ## 9. Security assumptions and accepted residual risk
 

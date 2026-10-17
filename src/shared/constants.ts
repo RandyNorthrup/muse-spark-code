@@ -4188,6 +4188,22 @@ export const EXEC_ENDPOINTS = {
   imageGenerations: '/v1/images/generations',
   imageEdits: '/v1/images/edits',
 } as const
+/**
+ * One help screen, in lines: room for the longest full-options topic plus
+ * its exit row. The compact root usage is about twice this; the guard fails
+ * anything longer, so a command's help can never grow back into it.
+ */
+export const HELP_ONE_SCREEN_LINES = 50
+/**
+ * The exit convention main applies to every command: 0 success, 1 failure,
+ * 2 misuse. Commands with their own exit table (exec, report, scan-secrets,
+ * legal) name that table's codes instead.
+ */
+export const CLI_EXIT = {
+  ok: 0,
+  failure: 1,
+  usage: 2,
+} as const
 export const EXEC_EXIT = {
   ok: 0,
   internal: 1,
