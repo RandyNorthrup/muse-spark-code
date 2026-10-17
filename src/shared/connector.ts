@@ -131,16 +131,23 @@ const workspaceGrantSchema = z.strictObject({
   content: z.boolean(),
 })
 
+/**
+ * A connection's name. It is also a file name (the grant, its audit journal
+ * and its limits), so it admits no separator or dot: anything else is refused
+ * where the command is parsed, before any path is built from it.
+ */
+export const connectorConnectionIdSchema = z
+  .string()
+  .check(
+    z.minLength(1),
+    z.maxLength(CONNECTOR_LIMITS.connectionIdChars),
+    z.regex(/^[a-z\d][\w-]*$/u),
+  )
+
 /** The owner-created local grant (outside every repository, owner-only file). */
 export const connectorGrantSchema = z.strictObject({
   schemaVersion: z.literal(CONNECTOR_SCHEMA_VERSION),
-  connectionId: z
-    .string()
-    .check(
-      z.minLength(1),
-      z.maxLength(CONNECTOR_LIMITS.connectionIdChars),
-      z.regex(/^[a-z\d][\w-]*$/u),
-    ),
+  connectionId: connectorConnectionIdSchema,
   generation: connectorGenerationSchema,
   createdAt: z.iso.datetime({ offset: true }),
   revoked: z.boolean(),
