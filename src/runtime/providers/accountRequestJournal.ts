@@ -93,11 +93,10 @@ export class AccountRequestJournal implements AccountJournalReader {
     for (const name of readdirSync(this.directory)) {
       if (name.startsWith('claim-') || name.startsWith('event-') || name.startsWith('limit-')) {
         const value = this.load(name)
-        const row = name.startsWith('claim-')
-          ? rowSchema.parse(value)
-          : name.startsWith('event-')
-            ? accountEventSchema.parse(value)
-            : blockSchema.parse(value)
+        let row: Row | AccountEvent | Block
+        if (name.startsWith('claim-')) row = rowSchema.parse(value)
+        else if (name.startsWith('event-')) row = accountEventSchema.parse(value)
+        else row = blockSchema.parse(value)
         const bucket = 'time' in row ? row.time.slice(0, ISO_DATE_LENGTH) : 'limits'
         this.ensure(path.join(this.directory, bucket))
         renameSync(path.join(this.directory, name), path.join(this.directory, bucket, name))
