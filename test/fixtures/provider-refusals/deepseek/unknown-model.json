@@ -1,0 +1,30 @@
+{
+  "id": "unknown-model",
+  "provider": "deepseek",
+  "sentAt": "2026-10-13T01:28:26.084Z",
+  "method": "POST",
+  "url": "https://api.deepseek.com/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "no-such-model-real-life",
+    "max_tokens": 16,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with the one word OK."
+      }
+    ]
+  },
+  "status": 400,
+  "responseHeaders": {
+    "x-cache": "Error from cloudfront"
+  },
+  "response": {
+    "error": {
+      "message": "The supported API model names are deepseek-flash, deepseek-v4-pro, but you passed no-such-model-real-life. (request_id: a4f8df42-b712-4cbc-a3f2-d68c2f245ad5)",
+      "type": "invalid_request_error",
+      "param": null,
+      "code": "invalid_request_error"
+    }
+  }
+}

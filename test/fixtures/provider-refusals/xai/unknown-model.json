@@ -1,0 +1,20 @@
+{
+  "id": "unknown-model",
+  "provider": "xai",
+  "sentAt": "2026-10-13T01:28:31.333Z",
+  "method": "POST",
+  "url": "https://api.x.ai/v1/responses",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "no-such-model-real-life",
+    "input": "Reply with the one word OK.",
+    "max_output_tokens": 16
+  },
+  "status": 404,
+  "responseHeaders": {},
+  "response": {
+    "code": "not-found",
+    "error": "The model no-such-model-real-life does not exist or your team 00000000-0000-0000-0000-000000000000 does not have access to it. If you believe this is a mistake, please contact support and quote your team ID and the model name."
+  },
+  "maskedByTheLead": "the account (team) id in the provider's sentence was replaced with zeros"
+}

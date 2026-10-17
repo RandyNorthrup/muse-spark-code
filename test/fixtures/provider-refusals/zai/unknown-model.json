@@ -1,0 +1,28 @@
+{
+  "id": "unknown-model",
+  "provider": "zai",
+  "sentAt": "2026-10-13T01:28:31.769Z",
+  "method": "POST",
+  "url": "https://api.z.ai/api/paas/v4/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "no-such-model-real-life",
+    "max_tokens": 16,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with the one word OK."
+      }
+    ]
+  },
+  "status": 400,
+  "responseHeaders": {
+    "x-request-id": "56d9b10b-d5e6-4deb-aa9a-7a80d5f226c6"
+  },
+  "response": {
+    "error": {
+      "code": "1211",
+      "message": "Unknown Model, please check the model code."
+    }
+  }
+}

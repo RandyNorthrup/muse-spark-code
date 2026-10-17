@@ -1,0 +1,29 @@
+{
+  "id": "unknown-model",
+  "provider": "openai",
+  "sentAt": "2026-10-13T01:28:28.988Z",
+  "method": "POST",
+  "url": "https://api.openai.com/v1/responses",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "no-such-model-real-life",
+    "input": "Reply with the one word OK.",
+    "max_output_tokens": 16
+  },
+  "status": 404,
+  "responseHeaders": {
+    "openai-organization": "personal-ybynak",
+    "openai-processing-ms": "240",
+    "openai-project": "proj_d4FTro3nCFwPReU6fZR3thlT",
+    "openai-version": "2020-10-01",
+    "x-request-id": "req_2a8e6d17d4d246d0a86866f5e29b99ea"
+  },
+  "response": {
+    "error": {
+      "message": "The model `no-such-model-real-life` does not exist or you do not have access to it.",
+      "type": "invalid_request_error",
+      "param": null,
+      "code": "model_not_found"
+    }
+  }
+}

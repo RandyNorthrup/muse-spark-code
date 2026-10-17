@@ -123,6 +123,17 @@ export function networkFailureCodes(error: unknown): string {
   )
 }
 
+/**
+ * Whether `error` is a failure of the connection itself: Node, undici or a
+ * proxy refusing the tunnel name one with a string code somewhere in its
+ * causes (`ECONNRESET`, `UND_ERR_SOCKET`, `ERR_TLS_…`, `ERR_WEB_FETCH_NOT_TLS`).
+ * A refusal the product raises before sending (a budget stop, an endpoint
+ * pin) carries no such code and is never read, or retried, as one.
+ */
+export function isConnectionFailure(error: unknown): boolean {
+  return chainOf(error).some((link) => link.code !== undefined)
+}
+
 /** The advice for a kind, read when shown (PLAN.md D33); none for an unrecognised failure. */
 function adviceFor(failure: NetworkFailure, advice: NetworkAdvice): string | undefined {
   const isAgent = advice === 'agent'

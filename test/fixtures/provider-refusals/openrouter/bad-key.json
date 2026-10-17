@@ -1,0 +1,16 @@
+{
+  "id": "key-check-made-up-key",
+  "provider": "openrouter",
+  "sentAt": "2026-10-13T01:27:19.337Z",
+  "method": "GET",
+  "url": "https://openrouter.ai/api/v1/key",
+  "requestHeaders": {},
+  "status": 401,
+  "responseHeaders": {},
+  "response": {
+    "error": {
+      "message": "Missing Authentication header",
+      "code": 401
+    }
+  }
+}

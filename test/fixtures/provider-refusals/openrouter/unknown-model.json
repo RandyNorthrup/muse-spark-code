@@ -1,0 +1,28 @@
+{
+  "id": "unknown-model",
+  "provider": "openrouter",
+  "sentAt": "2026-10-13T01:28:29.677Z",
+  "method": "POST",
+  "url": "https://openrouter.ai/api/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "no-such-model-real-life",
+    "max_tokens": 16,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with the one word OK."
+      }
+    ]
+  },
+  "status": 400,
+  "responseHeaders": {},
+  "response": {
+    "error": {
+      "message": "no-such-model-real-life is not a valid model ID",
+      "code": 400
+    },
+    "user_id": "user_00000000000000000000000000"
+  },
+  "maskedByTheLead": "the account (user) id in the answer was replaced with zeros"
+}

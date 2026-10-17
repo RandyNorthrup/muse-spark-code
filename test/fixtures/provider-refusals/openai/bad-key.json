@@ -1,0 +1,22 @@
+{
+  "id": "models-list-made-up-key",
+  "provider": "openai",
+  "sentAt": "2026-10-13T01:27:17.279Z",
+  "method": "GET",
+  "url": "https://api.openai.com/v1/models",
+  "requestHeaders": {},
+  "status": 401,
+  "responseHeaders": {
+    "openai-processing-ms": "2",
+    "openai-version": "2020-10-01",
+    "x-request-id": "c96c37c4-c8ac-4a4d-80a9-553f96f299d0"
+  },
+  "response": {
+    "error": {
+      "message": "Incorrect API key provided: made-up-*************************-000. You can find your API key at https://platform.openai.com/account/api-keys.",
+      "type": "invalid_request_error",
+      "param": null,
+      "code": "invalid_api_key"
+    }
+  }
+}

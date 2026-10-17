@@ -82,6 +82,15 @@ export const USAGE_HEADER_ALLOW_LIST = [
   'anthropic-ratelimit-output-tokens-limit',
   'anthropic-ratelimit-output-tokens-remaining',
   'anthropic-ratelimit-output-tokens-reset',
+  // Anthropic's documented Priority Tier headers (GAPANTH-G20; read
+  // 2026-10-13, https://platform.claude.com/docs/en/api/rate-limits):
+  // kept, like the other rate-limit headers, never interpreted as a meter.
+  'anthropic-priority-input-tokens-limit',
+  'anthropic-priority-input-tokens-remaining',
+  'anthropic-priority-input-tokens-reset',
+  'anthropic-priority-output-tokens-limit',
+  'anthropic-priority-output-tokens-remaining',
+  'anthropic-priority-output-tokens-reset',
   'x-codex-primary-used-percent',
   'x-codex-primary-window-minutes',
   'x-codex-primary-reset-after-seconds',
@@ -91,6 +100,14 @@ export const USAGE_HEADER_ALLOW_LIST = [
   'ratelimit',
   'ratelimit-policy',
   'retry-after',
+  // Azure OpenAI's wait in milliseconds on a 429 (lane PROVERRORS, research
+  // azure-openai.md ZB2): kept beside `retry-after`, never a meter.
+  'retry-after-ms',
+  // The provider's request id (GAPANTH-G20; support asks for it — the
+  // refusal path already attaches it, this keeps it on usage records too).
+  // Provider-chosen, never credentials.
+  'request-id',
+  'x-request-id',
 ] as const
 export const usageHeadersSchema = /* @__PURE__ */ z.partialRecord(
   z.enum(USAGE_HEADER_ALLOW_LIST),

@@ -1,0 +1,32 @@
+{
+  "id": "unknown-model",
+  "provider": "together",
+  "sentAt": "2026-10-13T01:28:30.117Z",
+  "method": "POST",
+  "url": "https://api.together.ai/v1/chat/completions",
+  "requestHeaders": {},
+  "requestBody": {
+    "model": "no-such-model-real-life",
+    "max_tokens": 16,
+    "messages": [
+      {
+        "role": "user",
+        "content": "Reply with the one word OK."
+      }
+    ]
+  },
+  "status": 404,
+  "responseHeaders": {
+    "request-id": "p515nmi-2kFHot-a49a91690f620065",
+    "x-request-id": "p515nmi-2kFHot-a49a91690f620065"
+  },
+  "response": {
+    "id": "p515nmi-2kFHot-a49a91690f620065",
+    "error": {
+      "message": "Unable to access model no-such-model-real-life. Please visit https://api.together.ai/models to view the list of supported models.",
+      "type": "invalid_request_error",
+      "param": null,
+      "code": "model_not_available"
+    }
+  }
+}

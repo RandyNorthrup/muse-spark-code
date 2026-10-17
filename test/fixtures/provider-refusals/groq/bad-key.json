@@ -1,0 +1,19 @@
+{
+  "id": "models-list-made-up-key",
+  "provider": "groq",
+  "sentAt": "2026-10-13T01:27:19.811Z",
+  "method": "GET",
+  "url": "https://api.groq.com/openai/v1/models",
+  "requestHeaders": {},
+  "status": 401,
+  "responseHeaders": {
+    "x-request-id": "req_01m4sdy2qyexxsnrhhy96p2p30"
+  },
+  "response": {
+    "error": {
+      "message": "Invalid API Key",
+      "type": "invalid_request_error",
+      "code": "invalid_api_key"
+    }
+  }
+}

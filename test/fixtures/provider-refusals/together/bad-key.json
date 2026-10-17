@@ -1,0 +1,15 @@
+{
+  "id": "models-list-made-up-key",
+  "provider": "together",
+  "sentAt": "2026-10-13T01:27:21.299Z",
+  "method": "GET",
+  "url": "https://api.together.ai/v1/models",
+  "requestHeaders": {},
+  "status": 401,
+  "responseHeaders": {},
+  "response": {
+    "error": {
+      "message": "Unauthorized"
+    }
+  }
+}

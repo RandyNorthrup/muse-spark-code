@@ -1,0 +1,136 @@
+{
+  "lane": "PROVERRR2",
+  "date": "2026-10-13",
+  "note": "No model call and no request to any provider API from this lane. The lead sends each request below with their own key, saves the raw status line, response headers and body, and returns them. Bodies already recorded on 2026-10-12 live in test/fixtures/provider-refusals/ and are NOT repeated here.",
+  "requests": [
+    {
+      "id": "XAI-G10-429-rate",
+      "gap": "XAI-G10",
+      "provider": "xAI",
+      "model": "grok-4-1-fast-non-reasoning (or any key-listed model)",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/chat/completions",
+      "body": { "model": "<model>", "messages": [{ "role": "user", "content": "Say ok." }] },
+      "trigger": "Send in a tight loop until the first 429. Save status, ALL response headers, and the full body.",
+      "lookFor": "The exact 429 body for a rate limit (code and error string), and whether Retry-After or xai-* limit headers are present."
+    },
+    {
+      "id": "XAI-G10-429-quota",
+      "gap": "XAI-G10",
+      "provider": "xAI",
+      "model": "<same>",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/chat/completions",
+      "body": { "model": "<model>", "messages": [{ "role": "user", "content": "Say ok." }] },
+      "trigger": "A key whose prepaid credit is exhausted (or a team with a zero spend limit). Save status, headers, full body.",
+      "lookFor": "The exact 429 body for exhausted credit/quota: how it differs from XAI-G10-429-rate (code? error string?)."
+    },
+    {
+      "id": "OPENAI-G20-429-quota",
+      "gap": "OPENAI-G20",
+      "provider": "OpenAI",
+      "model": "gpt-5-mini (or any key-listed model)",
+      "method": "POST",
+      "path": "https://api.openai.com/v1/responses",
+      "body": { "model": "<model>", "input": "Say ok." },
+      "trigger": "A key with no credit / hard limit reached. Save status, headers, full body.",
+      "lookFor": "The envelope code (insufficient_quota? credit_balance_exhausted?) and type. Confirms the code the retry classifier must see."
+    },
+    {
+      "id": "GAPANTH-G20-429-spend-cap",
+      "gap": "GAPANTH-G20",
+      "provider": "Anthropic",
+      "model": "claude-haiku-4-5 (or any key-listed model)",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "body": {
+        "model": "<model>",
+        "max_tokens": 16,
+        "messages": [{ "role": "user", "content": "Say ok." }]
+      },
+      "trigger": "A key whose spend cap is enforced. Save status, ALL headers (request-id, anthropic-*), and the FULL body including any error.details object.",
+      "lookFor": "error.details.error_code (expect enforced_spend_limit_reached), the request-id header name and value, any anthropic-priority-* request/response headers."
+    },
+    {
+      "id": "GAPANTH-G20-429-rate",
+      "gap": "GAPANTH-G20",
+      "provider": "Anthropic",
+      "model": "<same>",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "body": {
+        "model": "<model>",
+        "max_tokens": 16,
+        "messages": [{ "role": "user", "content": "Say ok." }]
+      },
+      "trigger": "Burst until the first 429 on a key WITH credit remaining. Save status, headers, full body.",
+      "lookFor": "How a plain rate 429 differs from GAPANTH-G20-429-spend-cap (type? details? headers?). Decides retry vs never-retry."
+    },
+    {
+      "id": "GAPANTH-G11-max-tokens",
+      "gap": "GAPANTH-G11",
+      "provider": "Anthropic",
+      "model": "<same>",
+      "method": "POST",
+      "path": "https://api.anthropic.com/v1/messages",
+      "body": {
+        "model": "<model>",
+        "max_tokens": 32,
+        "tools": [
+          {
+            "name": "get_weather",
+            "description": "Get the weather.",
+            "input_schema": { "type": "object", "properties": { "city": { "type": "string" } } }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "What is the weather in Paris and London and Tokyo? Use the tool for each city."
+          }
+        ]
+      },
+      "trigger": "One send with max_tokens small enough to cut the reply off mid-tool-use. Save the full body: stop_reason, any incomplete/tool_use blocks.",
+      "lookFor": "stop_reason max_tokens with partial tool_use blocks present; then the documented continuation (resend with the partial content) — quote the doc page that describes it."
+    },
+    {
+      "id": "XAI-effort-400",
+      "gap": "XAI-G10",
+      "provider": "xAI",
+      "model": "grok-build-0.1",
+      "method": "POST",
+      "path": "https://api.x.ai/v1/chat/completions",
+      "body": {
+        "model": "grok-build-0.1",
+        "messages": [{ "role": "user", "content": "Say ok." }],
+        "reasoning_effort": "low"
+      },
+      "trigger": "One send with reasoning.effort on a build that does not support it (measured through the product 2026-10-12 as 400 invalid-argument, no fixture saved). Save status, headers, full body.",
+      "lookFor": "The exact 400 body (code? error string?) for an unsupported parameter. Settles the invalidRequest kind and never-retry."
+    },
+    {
+      "id": "GEMINI-429-quota-wording",
+      "gap": "none (round-2 finding 3)",
+      "provider": "Gemini",
+      "model": "any key-listed model",
+      "method": "POST",
+      "path": "https://generativelanguage.googleapis.com/v1beta/models/<model>:generateContent",
+      "body": { "contents": [{ "parts": [{ "text": "Say ok." }] }] },
+      "trigger": "Burst until the first per-minute 429 on a key WITH quota remaining. Save status, headers, FULL body including error.details.",
+      "lookFor": "Whether the 429 message mentions quota while details reason is a rate reason: decides rateLimited (retry) vs credit (never retry) for quota-worded limits."
+    },
+    {
+      "id": "AZURE-G06-content-filter",
+      "gap": "AZURE-G06",
+      "provider": "Azure OpenAI (route lands in feat/azure; if unreachable, record from Azure docs instead and keep UNVERIFIED)",
+      "model": "any deployed chat model",
+      "method": "POST",
+      "path": "https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=<pinned>",
+      "body": {
+        "messages": [{ "role": "user", "content": "<prompt the Azure docs name as filtered>" }]
+      },
+      "trigger": "A prompt Azure content management flags (hate/self-harm/sexual/violence or PII). Save status, headers, FULL body including content_filter_results / innererror.",
+      "lookFor": "The exact block shape: status, error code (content_filter?), content_filter_results categories and severities, whether finish_reason is content_filter with a 200."
+    }
+  ]
+}

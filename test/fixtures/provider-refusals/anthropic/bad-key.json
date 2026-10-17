@@ -1,0 +1,20 @@
+{
+  "id": "models-list-made-up-key",
+  "provider": "anthropic",
+  "sentAt": "2026-10-13T01:27:18.195Z",
+  "method": "GET",
+  "url": "https://api.anthropic.com/v1/models",
+  "requestHeaders": {},
+  "status": 401,
+  "responseHeaders": {
+    "request-id": "req_011CfyNFK2PBR8Taseg7Ttyz"
+  },
+  "response": {
+    "type": "error",
+    "error": {
+      "type": "authentication_error",
+      "message": "invalid x-api-key"
+    },
+    "request_id": "req_011CfyNFK2PBR8Taseg7Ttyz"
+  }
+}

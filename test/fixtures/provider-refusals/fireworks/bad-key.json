@@ -1,0 +1,21 @@
+{
+  "id": "models-list-made-up-key",
+  "provider": "fireworks",
+  "sentAt": "2026-10-13T01:27:21.729Z",
+  "method": "GET",
+  "url": "https://api.fireworks.ai/inference/v1/models",
+  "requestHeaders": {},
+  "status": 401,
+  "responseHeaders": {
+    "x-request-id": "83b89de4-5a72-4597-b48f-485c640082ab"
+  },
+  "response": {
+    "error": {
+      "message": "The API key you provided is invalid.",
+      "param": null,
+      "code": "UNAUTHORIZED",
+      "type": "error"
+    },
+    "request_id": "83b89de4-5a72-4597-b48f-485c640082ab"
+  }
+}
