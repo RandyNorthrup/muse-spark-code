@@ -14,11 +14,6 @@ import path from 'node:path'
 import { sameFile } from '../../core/fs/fileIdentity'
 import type { AtomicWriteOptions } from '../fsAtomic'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
-import type {
-  FileByteRange,
-  FileRangeRead,
-  SpliceFileOutcome,
-} from '../../core/backends/modelapi/fileRangeTools'
 import { PERMISSION_BITS } from '../fsAtomic'
 import {
   ATOMIC_TEMPORARY_SUFFIX,
@@ -89,12 +84,7 @@ export function createFileRangeIo(
     // shape is window-local (BOM only when the window covers byte 0, this
     // window's breaks only) and the fingerprint digests the returned window,
     // not the file.
-    async readFileRange(
-      absolutePath: string,
-      expectedCanonicalPath: string | undefined,
-      range: FileByteRange,
-      signal?: AbortSignal,
-    ): Promise<FileRangeRead | undefined> {
+    async readFileRange(absolutePath, expectedCanonicalPath, range, signal) {
       const offset = Math.max(Math.floor(range.offset), 0)
       const length = Math.min(Math.max(Math.floor(range.length), 0), TOOL_FILE_RANGE_MAX_BYTES)
       let file: FileHandle
@@ -185,18 +175,15 @@ export function createFileRangeIo(
     // the expected size and mtime, is gone, or an editor holds unsaved text;
     // other OS failures throw, naming the cause.
     async spliceFileRange(
-      absolutePath: string,
-      expectedCanonicalPath: string | undefined,
-      expected: { readonly size: number; readonly mtimeMs: number },
-      start: number,
-      end: number,
-      replacement: Uint8Array,
-      options: {
-        readonly unsavedAt: readonly string[]
-        readonly assertCanWrite?: () => void
-      },
-      signal?: AbortSignal,
-    ): Promise<SpliceFileOutcome> {
+      absolutePath,
+      expectedCanonicalPath,
+      expected,
+      start,
+      end,
+      replacement,
+      options,
+      signal,
+    ) {
       let file: FileHandle
       try {
         file = await open(absolutePath, 'r')

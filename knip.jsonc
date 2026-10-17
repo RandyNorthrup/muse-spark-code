@@ -110,6 +110,9 @@
     // The capacity estimator's engine (M117, PLAN.md D97), required by path
     // on the first estimate.
     "src/host/estimator/estimatorEntry.ts",
+    // The byte-range file execution (A9, limits-output), required by path on
+    // the first range addressed call.
+    "src/host/backend/toolRangeEntry.ts",
     // Both-backend extension hooks, required by path on first use (M91 E).
     "src/host/extensionHooksEntry.ts",
     // What's New (M99), required on the first page or notice, and its page script.

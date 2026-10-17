@@ -118,6 +118,7 @@
 !dist/modelApiHooks.js
 !dist/modelApiMcp.js
 !dist/modelApiTools.js
+!dist/toolRange.js
 
 !dist/reporting.js
 !dist/reportingPanel.js

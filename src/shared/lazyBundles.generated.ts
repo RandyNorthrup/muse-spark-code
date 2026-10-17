@@ -774,6 +774,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  {
+    file: 'toolRange.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/host/backend/toolIo.ts', symbol: 'fileRangeIo', side: ['acp', 'vscode'] },
+    ],
+  },
   { file: 'uiText.js', side: 'both', requestedBy: [] },
   { file: 'uiTextHooks.js', side: 'both', requestedBy: [] },
   { file: 'uiTextMedia.js', side: 'both', requestedBy: [] },
