@@ -16,10 +16,10 @@ import {
   ModelApiError,
   parseJsonResponse,
   readBoundedText,
-  redactModelApiError,
-  isModelApiError,
   redactStreamDiagnostics,
+  rethrowStreamError,
   type ConfirmedModelRequest,
+  type PaidRequestClaim,
   type ResponseAttemptGuard,
   type RetryBudget,
   type RetryNotice,
@@ -70,15 +70,6 @@ import { estimateCostUsd, formatUsd, type BillableUsage } from '../../usage/insi
 import { webSearchPriceUsd } from '../../paid/paidFeatures'
 import { modelApiPaidTier, type PaidQuote, type SearchSettlement } from '../../../shared/paid'
 import { Usd, sumUsd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
-
-/** The client needs admission and settlement, not the ledger's internal totals. */
-interface PaidRequestClaim {
-  readonly markSent?: () => void
-  readonly markUnsent?: () => void
-  readonly reservedUsd: UsdAmount
-  check(capUsd: UsdAmount): void
-  settle(actualCostUsd: UsdAmount, state?: 'settled' | 'uncertain' | 'released'): Promise<unknown>
-}
 
 import { redactSecrets } from '../../redact'
 import { fill } from '../../../shared/l10n/text'
@@ -749,16 +740,7 @@ export class ModelApiClient implements TransportProviderClient {
           )
         }
       } catch (error: unknown) {
-        // Local refusals keep their own sentence; the classifier rides the
-        // lazy provider bundle, keeping this bundle on its pin.
-        const { isUserRefusal } = await import('../../refusal')
-        if (
-          isUserRefusal(error) &&
-          !isModelApiError(error) &&
-          redact(error.message) === error.message
-        )
-          throw error
-        throw redactModelApiError(error, redact, response.status)
+        await rethrowStreamError(error, redact, response.status)
       } finally {
         // An early end (a malformed frame, a stall, the caller stopping)
         // closes the parser, which releases the response body (the review of

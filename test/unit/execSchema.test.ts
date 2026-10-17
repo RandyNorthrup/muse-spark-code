@@ -29,6 +29,16 @@ import { resultRecord } from './helpers/execContract'
 
 type JsonSchema = Readonly<Record<string, unknown>>
 
+function overageCost() {
+  return {
+    settled: Usd.from(2).toAmount(),
+    uncertain: Usd.from(0).toAmount(),
+    reserved: Usd.from(0).toAmount(),
+    total: Usd.from(2).toAmount(),
+    isUpperBound: false,
+  }
+}
+
 function isJsonType(value: unknown, type: unknown): boolean {
   switch (type) {
     case 'object': {
@@ -292,31 +302,13 @@ describe('M80 schemas (A15/A16/F1)', () => {
       { ...result, usage: { ...result.usage, costUsd: null } },
       { ...result, usage: { ...result.usage, requests: null } },
       { ...result, limits: { ...result.limits, budgetUsd: Usd.from(2).toAmount() } },
-      {
-        ...result,
-        usage: {
-          ...result.usage,
-          costUsd: {
-            settled: Usd.from(2).toAmount(),
-            uncertain: Usd.from(0).toAmount(),
-            reserved: Usd.from(0).toAmount(),
-            total: Usd.from(2).toAmount(),
-            isUpperBound: false,
-          },
-        },
-      },
+      { ...result, usage: { ...result.usage, costUsd: overageCost() } },
     ]
     for (const value of faults) expect(execResultSchema.safeParse(value).success).toBe(false)
   })
   it('permits an exact overage only with a stopped breach', () => {
     const result = resultRecord()
-    result.usage.costUsd = {
-      settled: Usd.from(2).toAmount(),
-      uncertain: Usd.from(0).toAmount(),
-      reserved: Usd.from(0).toAmount(),
-      total: Usd.from(2).toAmount(),
-      isUpperBound: false,
-    }
+    result.usage.costUsd = overageCost()
     expect(execResultSchema.safeParse(result).success).toBe(false)
     result.status = 'budget_exceeded'
     result.exitCode = 5

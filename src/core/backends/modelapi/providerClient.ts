@@ -9,8 +9,7 @@ import {
   RequestTransport,
   assertConfirmedAllowed,
   ignoreClosingError,
-  redactModelApiError,
-  isModelApiError,
+  rethrowStreamError,
   ModelApiError,
   parseJsonResponse,
   type TransportDeps,
@@ -238,16 +237,7 @@ export class CodecClient implements ProviderClient {
         yield validated
       }
     } catch (error: unknown) {
-      // Local refusals keep their own sentence; the classifier rides the
-      // lazy provider bundle, keeping this bundle on its pin.
-      const { isUserRefusal } = await import('../../refusal')
-      if (
-        isUserRefusal(error) &&
-        !isModelApiError(error) &&
-        redact(error.message) === error.message
-      )
-        throw error
-      throw redactModelApiError(error, redact, response.status)
+      await rethrowStreamError(error, redact, response.status)
     } finally {
       if (response.body !== null && !response.body.locked) {
         void response.body.cancel().catch(ignoreClosingError)

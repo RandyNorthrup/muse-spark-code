@@ -22,16 +22,11 @@ describe('unpriced path surfaces', () => {
     expect(UI_TEXT.execUnpricedModel).not.toContain('.config')
   })
 
-  it('the ACP catalogue sentence carries the model alone', () => {
-    const message = fill(UI_TEXT.execProviderNotCatalogue, { model: MODEL })
-    expect(message).toContain(MODEL)
-    expect(message).not.toContain('providers.json')
-    expect(message).not.toContain('.config')
-    expect(message).not.toContain(FILE)
-  })
-
-  it('the editor session sentence carries the model alone', () => {
-    const message = fill(UI_TEXT.sessionBudgetUnpriced, { model: MODEL })
+  it.each([
+    ['ACP catalogue', UI_TEXT.execProviderNotCatalogue],
+    ['editor session', UI_TEXT.sessionBudgetUnpriced],
+  ])('the %s sentence carries the model alone', (_surface, template) => {
+    const message = fill(template, { model: MODEL })
     expect(message).toContain(MODEL)
     expect(message).not.toContain('providers.json')
     expect(message).not.toContain('.config')
