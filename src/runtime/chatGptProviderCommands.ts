@@ -106,6 +106,16 @@ export interface ChatGptProviderCommandDeps {
   printError(line: string): void
 }
 
+/** Best-effort revocation after a failed setup: the setup failure dominates,
+ * so a revoke failure is attempted and dropped, never replacing the cause. */
+const revokeSignInQuietly = async (signIn: ChatGptSignIn): Promise<void> => {
+  try {
+    await signIn.remove()
+  } catch {
+    /* The failed setup still fails; revocation attempted and the local record deleted. */
+  }
+}
+
 export async function runChatGptProviderCommand(
   action: ChatGptProviderAction,
   deps: ChatGptProviderCommandDeps,
@@ -149,11 +159,7 @@ export async function runChatGptProviderCommand(
       try {
         await deps.providers.add(host)
       } catch (error) {
-        try {
-          await signIn.remove()
-        } catch {
-          /* The failed setup still fails; revocation attempted and the local record deleted. */
-        }
+        await revokeSignInQuietly(signIn)
         throw error
       }
       deps.print(fill(UI_TEXT.acpProviderAdded, { id: 'chatgpt' }))
