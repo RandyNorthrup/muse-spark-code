@@ -40,6 +40,15 @@ export async function runTerminalDeveloperCommand(
   clientId: string,
 ): Promise<{ readonly text: string; readonly exitCode: number }> {
   setUiText(table, locale)
+  // `developer --help` answers before any owner work: the usage plus the
+  // unlock pointer, exit 0.
+  const action = args[1]
+  if (action !== undefined && args.length === 2 && ['--help', '-h', 'help'].includes(action)) {
+    return {
+      text: `${UI_TEXT.developer.commandUsage}\n${UI_TEXT.developer.helpTerminal}`,
+      exitCode: 0,
+    }
+  }
   const services = createRuntimeAccountServices(input)
   try {
     const developer = await services.developer(owner)
@@ -48,6 +57,12 @@ export async function runTerminalDeveloperCommand(
       ? { text: UI_TEXT.developer[reply.code], exitCode: 1 }
       : { text: developerStatusText(reply), exitCode: 0 }
   } catch (error: unknown) {
+    // A usage refusal reports the usage with exit 2, never a stack trace.
+    // Only the parser's own usage text converts: any other SyntaxError (a
+    // corrupt state file parses below) still propagates.
+    if (error instanceof SyntaxError && error.message === UI_TEXT.developer.commandUsage) {
+      return { text: error.message, exitCode: 2 }
+    }
     // Stored state belongs to another machine identity: opening refuses, so
     // only Reset can recover (DEVID017B). Anything else names the identity
     // instead of reporting a generic failure.
