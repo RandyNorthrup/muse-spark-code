@@ -104,22 +104,6 @@ export class FakeWebview implements vscode.Webview {
   }
 }
 
-export class FakeWebviewView implements vscode.WebviewView {
-  public readonly viewType = 'fake.view'
-  public readonly webview = new FakeWebview()
-  public title = 'Fake view'
-  public description = ''
-  public badge: vscode.ViewBadge | undefined = undefined
-  public visible = true
-  public readonly disposed = new EventEmitter<void>()
-  public readonly onDidDispose = this.disposed.event
-  public readonly visibility = new EventEmitter<void>()
-  public readonly onDidChangeVisibility = this.visibility.event
-  public readonly show = vi.fn((_shouldPreserveFocus?: boolean): void => {
-    this.visible = true
-  })
-}
-
 export class FakeWebviewPanel implements vscode.WebviewPanel {
   public readonly webview = new FakeWebview()
   public readonly options: vscode.WebviewPanelOptions = {}
