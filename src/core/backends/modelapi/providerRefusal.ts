@@ -377,6 +377,30 @@ export function isRefusalRetryable(
   }).retry
 }
 
+/** An HTTP status a provider put in its stream error's `code` (OpenRouter's
+ * mid-stream error carries the status there). */
+const STATUS_CODE = /^[1-5]\d\d$/
+
+/**
+ * Whether an error the provider ended its stream with is worth sending the
+ * request again, judged as its status would be: the code is one the retry
+ * table retries (Anthropic's `overloaded_error`), or a status in the code
+ * that the table retries (OpenRouter's 429 or 503). A quota code never is.
+ * The caller sends again only when no content has arrived yet.
+ */
+export function isRetryableStreamFailure(
+  failure: RefusalCarrier,
+  table: RetryTables = RETRY_TABLES.responses,
+): boolean {
+  if (failure.kind !== 'streamError' || failure.code === undefined) return false
+  return classifyRetry(table, {
+    status: STATUS_CODE.test(failure.code) ? Number(failure.code) : failure.status,
+    kind: undefined,
+    code: failure.code,
+    message: '',
+  }).retry
+}
+
 /** The typed view of a refusal-carrying `ModelApiError`. A `streamError`
  * keeps its kind: the provider ended its answer with an error, and only that
  * context says so. Anything else classifies from status, type, code, reason

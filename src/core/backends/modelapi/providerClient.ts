@@ -18,8 +18,12 @@ import {
   type RetryNotice,
 } from './transport'
 import type { AuthSource } from './authSource'
-import { isRefusalRetryable } from './providerRefusal'
-import { MODEL_API_REQUEST_TIMEOUT_MS, UI_TEXT } from '../../../shared/constants'
+import { isRefusalRetryable, isRetryableStreamFailure } from './providerRefusal'
+import {
+  MODEL_API_MAX_RETRIES,
+  MODEL_API_REQUEST_TIMEOUT_MS,
+  UI_TEXT,
+} from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { streamEventSchema, usageSchema } from '../../../host/backend/modelApiEntry'
 
@@ -209,41 +213,73 @@ export class CodecClient implements ProviderClient {
     )
     const model = this.deps.modelFor(body.model)
     const request = this.deps.codec.encode(body, model)
-    const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
-      request.path,
-      {
-        body: request.body,
-        ...(request.headers !== undefined && { headers: request.headers }),
-        accept: this.provider.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',
-      },
-      signal,
-      onRetry,
-      budget,
-      admitAttempt,
-      confirmed,
-      this.deps.streamIdleMs,
-    )
-    try {
-      for await (const event of this.deps.codec.decode(response, model)) {
-        const parsed = parseCanonicalEvent(event)
-        // Arguments are executable payloads, not diagnostic text. Retain
-        // their bytes while keeping the codec's ordinary output redaction.
-        const safe: unknown = JSON.parse(JSON.stringify(parsed), (key, value: unknown) => {
-          if (typeof value !== 'string') return value
-          const isExecutable =
-            key === 'arguments' ||
-            (key === 'delta' && parsed.type === 'response.function_call_arguments.delta')
-          return isExecutable ? redactContent(value) : redact(value)
+    // HTTP retries inside each request and the stream retries below draw on
+    // one budget, as the turn's whole-stream retries do (the review of PR #28).
+    const retries = budget ?? { retriesUsed: 0 }
+    for (;;) {
+      const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
+        request.path,
+        {
+          body: request.body,
+          ...(request.headers !== undefined && { headers: request.headers }),
+          accept: this.provider.format === 'ollama' ? 'application/x-ndjson' : 'text/event-stream',
+        },
+        signal,
+        onRetry,
+        retries,
+        admitAttempt,
+        confirmed,
+        this.deps.streamIdleMs,
+      )
+      let hasContent = false
+      try {
+        for await (const event of this.deps.codec.decode(response, model)) {
+          const parsed = parseCanonicalEvent(event)
+          // Arguments are executable payloads, not diagnostic text. Retain
+          // their bytes while keeping the codec's ordinary output redaction.
+          const safe: unknown = JSON.parse(JSON.stringify(parsed), (key, value: unknown) => {
+            if (typeof value !== 'string') return value
+            const isExecutable =
+              key === 'arguments' ||
+              (key === 'delta' && parsed.type === 'response.function_call_arguments.delta')
+            return isExecutable ? redactContent(value) : redact(value)
+          })
+          const validated = parseCanonicalEvent(safe)
+          eventParsed(validated)
+          if (validated.type !== 'response.created' && validated.type !== 'response.in_progress')
+            hasContent = true
+          yield validated
+        }
+        return
+      } catch (error: unknown) {
+        const failure = redactModelApiError(error, redact, response.status)
+        // A retryable error the provider ended its stream with before any
+        // content (Anthropic's `overloaded_error`, "which would normally
+        // correspond to an HTTP 529"; OpenRouter's mid-stream 429 or 503)
+        // is sent again under the same policy as that status (lane
+        // PROVERRORS, research anthropic.md AB3, openrouter.md "Mid-stream
+        // 429"). Once content has arrived the turn ends with it, as before.
+        if (
+          hasContent ||
+          signal.aborted ||
+          retries.retriesUsed >= MODEL_API_MAX_RETRIES ||
+          !isRetryableStreamFailure(failure, this.deps.transport.retryTable)
+        )
+          throw failure
+        const attempt = retries.retriesUsed
+        retries.retriesUsed = attempt + 1
+        const delayMs = this.retryDelayMs(attempt)
+        onRetry?.({
+          attempt: attempt + 1,
+          maxAttempts: MODEL_API_MAX_RETRIES + 1,
+          delayMs,
+          reason: `${failure.code ?? ''}: ${failure.message}`,
         })
-        const validated = parseCanonicalEvent(safe)
-        eventParsed(validated)
-        yield validated
-      }
-    } catch (error: unknown) {
-      throw redactModelApiError(error, redact, response.status)
-    } finally {
-      if (response.body !== null && !response.body.locked) {
-        void response.body.cancel().catch(ignoreClosingError)
+        await this.waitBeforeRetry(delayMs, signal)
+      } finally {
+        if (response.body !== null && !response.body.locked) {
+          void response.body.cancel().catch(ignoreClosingError)
+        }
       }
     }
   }
