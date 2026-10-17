@@ -957,8 +957,15 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   }),
   // A `museSpark.*` setting changed while the webview was open.
   z.object({ type: z.literal('settingsChanged'), settings: settingsSnapshotSchema }),
-  // Move keyboard focus into the composer (Ctrl+Esc).
-  z.object({ type: z.literal('focusInput') }),
+  // Move keyboard focus into the composer (Ctrl+Esc). The host owns every
+  // request (panel-focus F3): its gate mints `token`/`issuedAt` and drops
+  // the ask when its panel is not active; the webview records only a
+  // tokened ask delivered within the window, ignoring anything else.
+  z.object({
+    type: z.literal('focusInput'),
+    token: z.optional(stringSchema),
+    issuedAt: z.optional(numberSchema),
+  }),
   // Open Account & usage (the Tab status menu's row, M94; RVM94HU 21).
   z.object({ type: z.literal('openUsage') }),
   // The host dropped this surface's conversation (M25): New Conversation

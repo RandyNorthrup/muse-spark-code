@@ -44,6 +44,18 @@
         "css": "#575d68",
         "variable": "--ms-muted"
       },
+      "colour.brand-mark": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.039216, 0.360784, 1], "alpha": 1 },
+        "css": "var(--ms-brand-mark-light)",
+        "variable": "--ms-brand-mark"
+      },
+      "colour.brand-mark-light": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.039216, 0.360784, 1], "alpha": 1 },
+        "css": "#0a5cff",
+        "variable": "--ms-brand-mark-light"
+      },
       "colour.accent": {
         "type": "color",
         "value": { "colorSpace": "srgb", "components": [0.039216, 0.360784, 1], "alpha": 1 },
@@ -153,36 +165,6 @@
         "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 0.30196078431372547 },
         "css": "#0000004d",
         "variable": "--ms-shadow"
-      },
-      "colour.meta-start": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.392157, 0.882353], "alpha": 1 },
-        "css": "#0064e1",
-        "variable": "--ms-meta-start"
-      },
-      "colour.meta-middle": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.45098, 0.933333], "alpha": 1 },
-        "css": "#0073ee",
-        "variable": "--ms-meta-middle"
-      },
-      "colour.meta-end": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.509804, 0.984314], "alpha": 1 },
-        "css": "#0082fb",
-        "variable": "--ms-meta-end"
-      },
-      "colour.meta-return": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.392157, 0.878431], "alpha": 1 },
-        "css": "#0064e0",
-        "variable": "--ms-meta-return"
-      },
-      "colour.meta-fill": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.505882, 0.984314], "alpha": 1 },
-        "css": "#0081fb",
-        "variable": "--ms-meta-fill"
       },
       "colour.status-low": {
         "type": "color",
@@ -842,6 +824,18 @@
         "css": "#aeb6c4",
         "variable": "--ms-muted"
       },
+      "colour.brand-mark": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.239216, 0.545098, 1], "alpha": 1 },
+        "css": "#3d8bff",
+        "variable": "--ms-brand-mark"
+      },
+      "colour.brand-mark-light": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.039216, 0.360784, 1], "alpha": 1 },
+        "css": "#0a5cff",
+        "variable": "--ms-brand-mark-light"
+      },
       "colour.accent": {
         "type": "color",
         "value": { "colorSpace": "srgb", "components": [0.039216, 0.360784, 1], "alpha": 1 },
@@ -955,36 +949,6 @@
         "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 0.30196078431372547 },
         "css": "#0000004d",
         "variable": "--ms-shadow"
-      },
-      "colour.meta-start": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.392157, 0.882353], "alpha": 1 },
-        "css": "#0064e1",
-        "variable": "--ms-meta-start"
-      },
-      "colour.meta-middle": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.45098, 0.933333], "alpha": 1 },
-        "css": "#0073ee",
-        "variable": "--ms-meta-middle"
-      },
-      "colour.meta-end": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.509804, 0.984314], "alpha": 1 },
-        "css": "#0082fb",
-        "variable": "--ms-meta-end"
-      },
-      "colour.meta-return": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.392157, 0.878431], "alpha": 1 },
-        "css": "#0064e0",
-        "variable": "--ms-meta-return"
-      },
-      "colour.meta-fill": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.505882, 0.984314], "alpha": 1 },
-        "css": "#0081fb",
-        "variable": "--ms-meta-fill"
       },
       "colour.status-low": {
         "type": "color",
@@ -1652,6 +1616,18 @@
         "css": "#292929",
         "variable": "--ms-muted"
       },
+      "colour.brand-mark": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "var(--ms-text)",
+        "variable": "--ms-brand-mark"
+      },
+      "colour.brand-mark-light": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "var(--ms-text)",
+        "variable": "--ms-brand-mark-light"
+      },
       "colour.accent": {
         "type": "color",
         "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
@@ -1761,36 +1737,6 @@
         "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 0.30196078431372547 },
         "css": "#0000004d",
         "variable": "--ms-shadow"
-      },
-      "colour.meta-start": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.392157, 0.882353], "alpha": 1 },
-        "css": "#0064e1",
-        "variable": "--ms-meta-start"
-      },
-      "colour.meta-middle": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.45098, 0.933333], "alpha": 1 },
-        "css": "#0073ee",
-        "variable": "--ms-meta-middle"
-      },
-      "colour.meta-end": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.509804, 0.984314], "alpha": 1 },
-        "css": "#0082fb",
-        "variable": "--ms-meta-end"
-      },
-      "colour.meta-return": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.392157, 0.878431], "alpha": 1 },
-        "css": "#0064e0",
-        "variable": "--ms-meta-return"
-      },
-      "colour.meta-fill": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.505882, 0.984314], "alpha": 1 },
-        "css": "#0081fb",
-        "variable": "--ms-meta-fill"
       },
       "colour.status-low": {
         "type": "color",
@@ -2410,6 +2356,18 @@
         "css": "#ffffff",
         "variable": "--ms-muted"
       },
+      "colour.brand-mark": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "var(--ms-text)",
+        "variable": "--ms-brand-mark"
+      },
+      "colour.brand-mark-light": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "var(--ms-text)",
+        "variable": "--ms-brand-mark-light"
+      },
       "colour.accent": {
         "type": "color",
         "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
@@ -2519,36 +2477,6 @@
         "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 0.30196078431372547 },
         "css": "#0000004d",
         "variable": "--ms-shadow"
-      },
-      "colour.meta-start": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.392157, 0.882353], "alpha": 1 },
-        "css": "#0064e1",
-        "variable": "--ms-meta-start"
-      },
-      "colour.meta-middle": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.45098, 0.933333], "alpha": 1 },
-        "css": "#0073ee",
-        "variable": "--ms-meta-middle"
-      },
-      "colour.meta-end": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.509804, 0.984314], "alpha": 1 },
-        "css": "#0082fb",
-        "variable": "--ms-meta-end"
-      },
-      "colour.meta-return": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.392157, 0.878431], "alpha": 1 },
-        "css": "#0064e0",
-        "variable": "--ms-meta-return"
-      },
-      "colour.meta-fill": {
-        "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0.505882, 0.984314], "alpha": 1 },
-        "css": "#0081fb",
-        "variable": "--ms-meta-fill"
       },
       "colour.status-low": {
         "type": "color",
@@ -3436,6 +3364,8 @@
     { "foreground": "colour.control-border", "background": "colour.surface", "usage": "ui" },
     { "foreground": "colour.control-border", "background": "colour.raised", "usage": "ui" },
     { "foreground": "colour.usage-purple", "background": "colour.editor-surface", "usage": "ui" },
-    { "foreground": "colour.usage-orange", "background": "colour.editor-surface", "usage": "ui" }
+    { "foreground": "colour.usage-orange", "background": "colour.editor-surface", "usage": "ui" },
+    { "foreground": "colour.brand-mark", "background": "colour.surface", "usage": "ui" },
+    { "foreground": "colour.brand-mark-light", "background": "colour.surface", "usage": "ui" }
   ]
 }

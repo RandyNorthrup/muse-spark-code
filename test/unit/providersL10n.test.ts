@@ -44,10 +44,11 @@ describe('provider localization', () => {
         'report [options]',
         'setup [--maintenance]',
         'legal [options]',
-        '--no-auto-compaction',
       ]) {
         expect.soft(help).toContain(command)
       }
+      // C-X-1: automatic compaction is inactive, so no table's help offers its opt-out.
+      expect.soft(help).not.toContain('--no-auto-compaction')
     },
   )
 

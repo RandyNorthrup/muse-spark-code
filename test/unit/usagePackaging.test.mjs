@@ -4,6 +4,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { brotliDecompressSync } from 'node:zlib'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { ACP_BUNDLES } from '../../scripts/lib/acpBundles.mjs'
 import { layOutAcpNativeSources } from './helpers/acpPackageSources'
 
 const folders = []
@@ -38,69 +39,8 @@ function fixture() {
       devDependencies: { '@napi-rs/keyring': '2.1.0' },
     }),
   )
-  for (const bundle of [
-    'acp',
-    'headless',
-    'devices',
-    'sharingRuntime',
-    'modelApi',
-    'modelApiHooks',
-    'modelApiMcp',
-    'runtimeAccounting',
-    'acpQuestions',
-    'acpPlaybook',
-    'runtimeQuestions',
-    'runtimeAccounts',
-    'questionNotes',
-    'mcpPool',
-    'exec',
-    'modelApiCodeIntel',
-    'structuredSchema',
-    'resourceAdmission',
-    'resourceGovernor',
-    'resourceProcess',
-    'resourceJournal',
-    'runtimeEngine',
-    'schedules',
-    'providerPolicy',
-    'modelApiBoundaries',
-    'vault',
-    'vaultBoundaries',
-    'estimator',
-    'estimateContracts',
-    'media',
-    'legalScan',
-    'imageResizeWorker',
-    'team',
-    'teamScheduler',
-    'teamRunners',
-    'providers',
-    'subscriptions',
-    'configuredProviders',
-    'reviewer',
-    'foreignHooks',
-    'hookRuntime',
-    'recorder',
-    'reference',
-    'uiText',
-    'uiTextRuntime',
-    'uiTextHooks',
-    'uiTextSurfaces',
-    'uiTextMedia',
-    'extensionHooks',
-    'validation',
-    'wire',
-    'searchWorker',
-    'pageWorker',
-    'usageService',
-    'usageCompanion',
-    'fontsInstall',
-    'scheduleBackground',
-    'reporting',
-    'reportingNetwork',
-    'reportingDestinations',
-  ])
-    put(`dist/${bundle}.js`, 'exports.EN = {}')
+  for (const bundle of ACP_BUNDLES)
+    if (bundle.endsWith('.js')) put(`dist/${bundle}`, 'exports.EN = {}')
   layOutAcpNativeSources(root, process.cwd())
   put('LICENSE', 'MIT')
   put('design/fonts/manifest.json', readFileSync('design/fonts/manifest.json', 'utf8'))

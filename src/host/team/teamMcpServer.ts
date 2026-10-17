@@ -91,6 +91,7 @@ function isSameSecret(presented: string, expected: string): boolean {
   )
 }
 
+/** @unwired M96 team MCP server */
 export class TeamMcpServer {
   private server: Server | undefined
   private url: string | undefined
