@@ -11,7 +11,11 @@ import {
   type RecordedCall,
 } from '../../src/core/usage/recording'
 import { PaidUsage } from '../../src/core/paid/paidFeatures'
-import { MODEL_API_CLOSE_SETTLE_MS, PAID_PRICES_USD } from '../../src/shared/constants'
+import {
+  MODEL_API_CLOSE_SETTLE_MS,
+  PAID_PRICES_USD,
+  USAGE_JOURNAL_VERSION,
+} from '../../src/shared/constants'
 import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
@@ -310,7 +314,12 @@ describe('recording taps', () => {
       source: 'openRouter',
       observedAt: 100,
       windows: [],
-      account: { usedUsd: 0.3, limitUsd: 1, remainingUsd: 0.7, period: 'month' },
+      account: {
+        usedUsd: Usd.from('0.3').toAmount(),
+        limitUsd: Usd.from(1).toAmount(),
+        remainingUsd: Usd.from('0.7').toAmount(),
+        period: 'month',
+      },
     })
     await port.flush()
     expect(load).not.toHaveBeenCalled()
@@ -319,7 +328,12 @@ describe('recording taps', () => {
         expect.objectContaining({ provider: 'museCode' }),
         expect.objectContaining({
           provider: 'openrouter',
-          account: { usedUsd: 0.3, limitUsd: 1, remainingUsd: 0.7, period: 'month' },
+          account: {
+            usedUsd: Usd.from('0.3').toAmount(),
+            limitUsd: Usd.from(1).toAmount(),
+            remainingUsd: Usd.from('0.7').toAmount(),
+            period: 'month',
+          },
         }),
       ]),
     )
@@ -354,7 +368,7 @@ describe('recording taps', () => {
   it('reads today from the journal and keeps old days out of the modal', async () => {
     const journal = writer()
     const base = usageRecordSchema.parse({
-      v: 1,
+      v: USAGE_JOURNAL_VERSION,
       type: 'usage',
       id: 'today',
       at: 100,
