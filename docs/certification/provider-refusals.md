@@ -205,3 +205,162 @@ commit), and the before-values above were measured on base the same way.
 2. One real out-of-credit refusal (the lead's account): the turn must end
    with the credit sentence naming the provider, requests 1, settled 0,
    uncertain 0 — never "not available in this build".
+
+## Lane PROVERRORS (2026-10-17): errors, retries and backoff per provider
+
+Branch `fix/provider-errors` continued in place on the Windows workstation
+(worktree `mx-proverrors`), after merging `origin/main` at `03ae95171b`
+(no `main-now` branch exists there). Source of truth: the provider research
+of PR #202 (`origin/research/claude-a:docs/research/providers/*.md`, read
+2026-10-17), each provider's page re-read on 2026-10-17 where a fix
+depended on it. Engine: Claude Opus 5.5.
+
+### Research rows fixed in this lane
+
+| Research file   | Row                                                              | What changed                                                                                                                                                                                                                                                             |
+| --------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| anthropic.md    | AB13, AD2 (the `Retry-After` half), §4.2 `retry-after` (d)       | The 60 s cap that refused a longer wait is gone (with its sentence in all 15 tables); the backoff no longer cuts a named wait to 60 s.                                                                                                                                   |
+| openai.md       | OD3 (the `Retry-After` half), §4 `Retry-After` (d)               | Same change.                                                                                                                                                                                                                                                             |
+| gemini.md       | GD4 (the `Retry-After` half), §4 `Retry-After` cap (d)           | Same change.                                                                                                                                                                                                                                                             |
+| groq.md         | §4 429 row, cap (d)                                              | Same change.                                                                                                                                                                                                                                                             |
+| azure-openai.md | ZB2 (the transport half), ZB5 (the wait half), §4 Retry guidance | `retry-after-ms` is read before `Retry-After` on every refusal and in the pacing observation, and kept on usage records. The reset headers (ZB2's pacing half) are lane PROVM95's.                                                                                       |
+| anthropic.md    | AB3                                                              | A retryable error a stream ends with before any content (Anthropic's `overloaded_error`) is sent again under the preset's table, as its 529 would be.                                                                                                                    |
+| openrouter.md   | ORB2 (the retry-table half), §3 Retry (b)                        | OpenRouter's own table: 429 and 503 retried; 502 and 408 no longer; the in-flight-budget 402 retried after its `Retry-After`.                                                                                                                                            |
+| openrouter.md   | ORB3, §3 Errors (b)                                              | `metadata.error_type` and `metadata.limit_source` are read; `provider_overloaded` is overload; the 403 budget limits read as usage limits.                                                                                                                               |
+| openrouter.md   | §3 Mid-stream 429 (b)                                            | The mid-stream error (status in `error.code`) is sent again before any content.                                                                                                                                                                                          |
+| zai.md          | ZB2, §4 Errors (b)                                               | 1308, 1309, 1310, 1313, 1314, 1316-1321 stop at once with their own sentence; 1113 credit; 1311 and 1315 permission; 1301 content filter; 1261 too large; 1305 overload (retried). `next_flush_time` is quoted in Z.ai's words, never parsed (its page gives no format). |
+| anthropic.md    | §4.1 Response headers, `request-id` (c)                          | Every refusal sentence ends with "(request id …)".                                                                                                                                                                                                                       |
+
+Beyond the research (current pages read 2026-10-17): Gemini's
+`quota_exceeded` (daily quota) is a usage limit, not credit; the Gemini
+table retries 408 ("Only retry on transient errors (like 429, 408, or
+5xx)"); the authentication, permission and not-found sentences said
+"nothing was sent" although the provider answered — they now say "nothing
+reached a model".
+
+### Research rows found already fixed on this branch (verified, not redone)
+
+anthropic.md AB2 (529/409: the configured path classifies with
+`quirksOf(preset).retry`), AB4 (`error.details.error_code`, with the
+spend-cap word as the 429 fallback); openai.md OB2 and the §4 401/403 and
+429-billing rows (the shape-driven extractor keeps `type`/`code`);
+gemini.md GB6; mistral.md "Chat retry table unused"; deepseek.md §4 Retry
+(the chat table now applies); xai.md §2 item 4 (the flat envelope is read);
+azure-openai.md ZC6 (`content_filter` has its own sentence).
+
+### The lead's addition: "Models & Agents is not available in this build"
+
+The six sites the lead named (on `main`) and what each says on this branch:
+
+| Site on main                                                           | Now                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `configured.ts:106` `fail()`                                           | Removed in round 2: each entry cause has its own sentence (`InvalidEntryCause`).                                                                                                                                                                                                                                                                                                                       |
+| `configured.ts:295`, the pinned send's catch                           | A native send failure goes to the transport as it is; a real connection failure (a string failure code in its causes) is retried as a transient send failure and, when it stops, reads "Could not reach \<provider\>: the connection failed (\<Node's codes\>), so whether the request arrived is unknown; …". A refusal of ours raised inside the send passes through unchanged and is never retried. |
+| `configured.ts:639`, the parser's default case                         | Removed in round 2: a total table per format; Anthropic goes through `parseAnthropicError` on the turn and the key check.                                                                                                                                                                                                                                                                              |
+| `configured.ts:997`, the paid probe detail                             | Round 2: the paid-test sentence; this lane: a no-answer probe failure shows the network codes or the entry's own cause.                                                                                                                                                                                                                                                                                |
+| `modelApiEntry.ts:179`, `:242`                                         | Round 2: `modelApiProvidersMissing` (the providers part really is missing there).                                                                                                                                                                                                                                                                                                                      |
+| The last-resort catch of the configured `streamResponse` (this branch) | It turned every non-`ModelApiError` into "the action failed", hiding the lead's `SessionBudgetExceededError`. Every refusal of ours now passes through unchanged, with its message and type.                                                                                                                                                                                                           |
+
+New on the same path: a connection lost after the 200 reads "The connection
+to \<provider\> was lost after it accepted the request (\<codes\>) …"; the
+runtime's `providers test` reads answers and send failures through the same
+reader (`providerFailureReader`). `modelsPanelUnavailable` remains only in
+the panel bundles' loaders and the panel's page.
+
+### Tests and drills
+
+- Deleted under the owner's no-invented-data rule: `providerRetry.test.ts`
+  (its header said "Fakes only."; synthetic failures) and, in
+  `providerRefusals.test.ts`, the documented-shape and invented cases. What
+  they covered (an OpenAI quota 429, a quota-worded Gemini 429, OpenAI's
+  `server_error` override, Anthropic's `details.error_code` spend cap, the
+  Azure filter, the xAI unsupported parameter) is listed for capture below.
+- `providerRefusals.test.ts` (recorded answers only, 27 tests) now asserts
+  the sentence carries the recorded request id. Drill: rendering the wait
+  fragment in its place failed 11 recorded cases (exit 1); restored, 27
+  pass.
+- The bundle-split gate caught `isRetryableStreamFailure` read from
+  `dist/modelApi.js` without an export (it would have been `undefined` in the
+  product); the export was added before any real use.
+
+### Real use (packed build of this tree, `node dist/acp.js`)
+
+Isolated: `XDG_CONFIG_HOME` and `LOCALAPPDATA` pointed at a scratch folder,
+an empty workspace, no stored key read or written (keys over stdin were
+made-up strings). Provider calls: 2, both to `api.anthropic.com`, both
+refused with 401 ($0).
+
+1. `providers add --preset ollama --as dead --address http://127.0.0.1:59321`
+   (a closed port): "Test failed: Could not reach dead: the connection failed
+   (fetch failed: ECONNREFUSED), so whether the request arrived is unknown;
+   check the network and the provider address." Before: "Test failed: The
+   provider could not be reached." (Port 9 is on the Fetch standard's
+   blocked list, "bad port", refused locally with no code; it keeps the
+   fixed sentence.)
+2. The lead's case, a budget stop: daily cap `{"paidDailyBudgetUsd":0.5}`,
+   `exec --backend modelApi --provider claude --model
+claude/claude-sonnet-4-5 --max-budget-usd 20 --key-stdin`: "Stopped: the
+   next request (about $3.40) would pass the session budget of $0.5000
+   ($0.0000 used). It was not sent." — requests 0, settled 0, uncertain 0,
+   exit 4.
+3. Anthropic's real 401 through the turn path: "Anthropic refused the
+   request: the stored key was rejected. Store a new Anthropic key from
+   Models & Agents; nothing reached a model and nothing was charged.
+   Anthropic said: invalid x-api-key (request id
+   req_011Cg8a5NHVbTToFjf2VYiyt)" — requests 1, never retried.
+
+### Findings for the lead (not fixed here: outside this lane)
+
+- **A refused request is booked as spent on the headless path.** Run 3
+  ended with `uncertain $3.393216`, and a later budget-stop run in the same
+  data folder read "($3.40 used)" with nothing ever billed:
+  `withRuntimeAccounting` (`src/runtime/runtimeAccountingEntry.ts`, its
+  `settle`) releases a reservation only for a 429, not for the other
+  definite refusals (`isDefiniteRefusal`). This contradicts the round-1
+  CHANGELOG claim ("settled and uncertain stay 0") on the headless path and
+  fills the session budget with phantom spend. The lead assigned reservation
+  logic to the budget lane.
+- A headless run on a custom Anthropic-format entry (person-set limits and
+  prices, loopback) stops before dispatch with "This model is not available
+  for this run." in two attempts (qualified and bare model id); cause
+  UNMEASURED. The turn path's connection failure could therefore not be
+  driven headlessly here.
+
+### Open, with the reason
+
+- Retry count (4) and backoff bounds (1 s to 60 s) — anthropic.md AD2/AB13,
+  openai.md OD3, azure-openai.md ZB5 (their count halves): the research says
+  "user settings", none by default; the providers' current pages ask for a
+  maximum ("Define a maximum number of retry attempts to prevent infinite
+  loops", Gemini troubleshooting; Azure "5–10"; Meta 3–5 attempts;
+  Anthropic's SDK "twice by default"; Gemini's SDK "up to four times …
+  approximately 1 second … maximum delay of 60 seconds"). Owner decision:
+  whether a provider's SDK default is "the limit set from the provider",
+  and where the person's retry limit lives.
+- Idle and request timeouts (300 s, 30 s): anthropic.md AD3, openai.md OD6,
+  gemini.md GD4 (idle half), azure-openai.md ZD3, chatgpt-codex.md CD2,
+  copilot.md CPD2, deepseek.md keep-alive, local-servers.md — timeouts, not
+  this lane's area; NOLIMITS2's C1 row (the same timeouts) never landed.
+- anthropic.md AC14 (retention 400): the invalid-request sentence already
+  quotes Anthropic's own words; a sentence of its own needs a captured
+  answer (no documented code).
+- azure-openai.md ZC9 (region 404): the Azure route cannot run
+  (`wireCapture: false`); lane PROVM95's Azure work.
+- mistral.md MC3: the exhaustion error is not documented; capture needed.
+- chatgpt-codex.md CB4, CC1, CC2, CC4: the plan route, lane PROVPLAN (the
+  same lines of `registry.ts`).
+- Rate-limit header readers (anthropic.md AC4, openai.md OB3, azure ZB1,
+  groq GQB1, fireworks FWB2, deepseek DB2, together TGB2, xai XB2,
+  openrouter ORB2's reader half): lane PROVM95.
+- Round-2 review finding 7 (the not-found sentence picks one of xAI's two
+  causes): a wording decision, still open.
+
+### Captures that would settle what is UNVERIFIED
+
+One real answer each (no model needs to run for most): a 429 per provider
+(rate vs quota, the headers sent); OpenRouter's in-flight-budget 402 and a
+mid-stream error chunk; Z.ai 1308, 1310 and 1316 (the `next_flush_time`
+format); Anthropic's mid-stream `overloaded_error` and its retention 400;
+Gemini's `quota_exceeded` body (the snake_case envelope); Azure's 429 with
+`retry-after-ms`; OpenAI's quota 429 and `server_error`; Anthropic's spend-cap
+429; Mistral's exhaustion error.
