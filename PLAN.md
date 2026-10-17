@@ -1,5 +1,18 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
+with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
+in the existing ACP permission-answer cache, agent lifecycle and translated
+manifest tables; no new abstraction or provider calls. T1 compares persistent
+rule identity and never falls back to a reused choice id; T2 remembers consent
+before dispatch; T4 awaits the queued mode notice; T5 retains mode across close;
+T6 aligns all fourteen manifest translations. T3 records the merged deletion
+and real-life replacement steps, never restores a stand-in. Pure-module proof
+and a byte-exact red drill cover rule identity; integration ordering and mode
+lifecycle require the lead's real signed-in run. Run scoped static gates,
+all five typechecks, dependent/list-consuming unit suites, build and permitted
+packed-product commands. Evidence and postable replies: `.lane/PRTH165.report.md`
+and `docs/certification/muse-code-permissions.md`.
 **PRTH166 review repairs (2026-10-15).** Reuse the controller's opening
 and resumed-handle ownership checks and ACP's existing choice state. After
 merging main `d842cad5d`, address T1 stale attachment, T2 verification cleanup,
@@ -14707,9 +14720,9 @@ INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): th
 | Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`).                                                                                                     | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
 | Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                                                                                                                                 | The shell tool's rules keep answering; only the verify loop's lapse.                    |
 
-### D108 — A chat surface takes the keyboard only while it holds it (panel-focus, 2026-10-12)
+### D116 — A chat surface takes the keyboard only while it holds it (panel-focus, 2026-10-12; numbered D108 until 2026-10-15, when that number was found shared with the test overhaul)
 
-**D108 — A chat surface takes the keyboard only while it holds it.** Focus
+**D116 — A chat surface takes the keyboard only while it holds it.** Focus
 moves only as the direct effect of something the person just did on that
 surface, and only while that surface still holds the keyboard when the focus
 would land. A webview never focuses its composer merely because it finished

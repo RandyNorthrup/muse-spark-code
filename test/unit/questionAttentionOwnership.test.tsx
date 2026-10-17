@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Panel-focus ownership for async arrivals (the review's finding on D108):
+// Panel-focus ownership for async arrivals (the review's finding on D116):
 // a question or approval card, and the legal report's arriving headings,
 // move the keyboard only while their surface already holds it. Through the
 // real components with the keyboard genuinely elsewhere (`document.hasFocus()`
@@ -132,7 +132,7 @@ function report(
   )
 }
 
-describe('async arrivals keep the keyboard where it is (D108)', () => {
+describe('async arrivals keep the keyboard where it is (D116)', () => {
   it('leaves focus untouched when a question arrives behind a file', () => {
     leaveKeyboardElsewhere()
     const view = render(dockedQuestion(group([])))
