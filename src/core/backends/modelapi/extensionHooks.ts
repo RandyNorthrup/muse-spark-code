@@ -719,7 +719,7 @@ export function elicitationResultFields(options: {
   }
 }
 
-/** @unwired M91 team hook idle field names */
+/** Team hook idle field names. */
 export function teammateIdleFields(options: {
   readonly name: string
   readonly siblingsRunning: number

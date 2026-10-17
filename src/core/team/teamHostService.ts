@@ -321,5 +321,5 @@ export interface TeamHostServiceDeps {
   }
 }
 
-/** Reads the stored team; undefined when none is stored or it does not parse. */
+/** @unwired M96 stored-team reader; undefined when none is stored or it does not parse. */
 export type TeamSnapshotReader = (state: TeamStatePort) => TeamSnapshot | undefined

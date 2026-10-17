@@ -269,6 +269,9 @@
     "src/host/team/teamLedger.ts",
     "src/host/team/windowHints.ts",
     "src/host/team/windowIdentity.ts",
+    // The first-use worker-operations chunk (dist/teamWorkerOps.js), bundled
+    // by path in scripts/build.mjs; the barrel is the chunk's API surface.
+    "src/core/team/workers/workerOpsEntry.ts",
     //
     // M115 (Scheduled prompts v2, D95): the v2 engine, grant, event-source
     // and editor pieces ahead of their schedule-use wiring. Wiring: the
