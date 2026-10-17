@@ -17,21 +17,29 @@ import { PaidUseConsent, type PaidUseAnswer } from '../core/paid/paidConsent'
 import { failureForLog } from '../core/backends/musecode/logText'
 import type { CoreLogger } from '../core/logging'
 import {
+  IS_AUTO_COMPACTION_EVALUATED,
   ACP_PAID_FEATURES,
   ACP_PAID_OPTIONS,
   type AcpPaidFeature,
   type PaidFeature,
   UI_TEXT,
 } from '../shared/constants'
-import type { PaidUseRequest } from '../shared/paid'
+import type { PaidUseRequest, PaidUseDecision } from '../shared/paid'
+import { PaidAuthority, type PaidGrant } from '../core/paid/paidAuthority'
+import type { PaidQuote } from '../shared/paid'
 
-/** Where "Allow always in this workspace" is kept, per folder. */
+/** Where "Allow Always in This Workspace" is kept, per folder. */
 export interface PaidGrantStore {
   readonly read: (workspaceRoot: string) => ReadonlySet<PaidFeature>
   /** Adds these features to the folder's grants, merged with the store as it then is. */
   readonly add: (workspaceRoot: string, features: readonly PaidFeature[]) => Promise<void>
   /** Takes these features out of every folder's grants. */
   readonly forget: (features: readonly PaidFeature[]) => Promise<void>
+  readonly nextQuoteOrder?: () => number
+  readonly prepareQuoteGeneration?: () => Promise<string>
+  readonly quoteGeneration?: () => string
+  readonly readQuote?: (workspaceRoot: string, quote: PaidQuote) => PaidGrant | undefined
+  readonly writeQuote?: (workspaceRoot: string, grant: PaidGrant) => Promise<void>
 }
 
 /** The question in one of the client's sessions; the agent attaches it (agent.ts). */
@@ -42,6 +50,7 @@ export type PaidUseAsker = (
 ) => Promise<PaidUseAnswer>
 
 export interface AcpPaidUseDeps {
+  readonly autoCompactionEvaluated?: () => boolean
   /** The features whose flags the editor gave. */
   readonly flagged: readonly AcpPaidFeature[]
   /** `--trust-workspace`: where "always" is offered and honoured. */
@@ -94,6 +103,8 @@ export function paidUseAnswer(
 }
 
 export class AcpPaidUse {
+  private readonly consents = new Map<string, PaidUseConsent>()
+  private readonly authority = new PaidAuthority()
   private asker: PaidUseAsker | undefined
   private readonly used = new Map<PaidFeature, number>()
 
@@ -132,10 +143,52 @@ export class AcpPaidUse {
     )
   }
 
+  private consentFor(workspaceRoot: string, sessionId: string): PaidUseConsent {
+    let consent = this.consents.get(workspaceRoot)
+    if (consent === undefined) {
+      consent = new PaidUseConsent({
+        authority: this.authorityFor(),
+        ...(this.deps.grants.nextQuoteOrder !== undefined && {
+          nextQuoteOrder: this.deps.grants.nextQuoteOrder,
+        }),
+        isOn: (feature) => this.isOn(feature),
+        windowOnceFeatures: new Set<PaidFeature>(['autoCompaction']),
+        canRemember: this.deps.canRemember,
+        ...(this.deps.grants.prepareQuoteGeneration !== undefined && {
+          prepareQuoteGeneration: this.deps.grants.prepareQuoteGeneration,
+        }),
+        ...(this.deps.grants.quoteGeneration !== undefined && {
+          quoteGeneration: this.deps.grants.quoteGeneration,
+        }),
+        ...(this.deps.grants.readQuote !== undefined && {
+          readQuoteGrant: (quote) => this.deps.grants.readQuote?.(workspaceRoot, quote),
+        }),
+        ...(this.deps.grants.writeQuote !== undefined && {
+          writeQuoteGrant: (grant) =>
+            this.deps.grants.writeQuote?.(workspaceRoot, grant) ?? Promise.resolve(),
+        }),
+        readGrants: () => this.deps.grants.read(workspaceRoot),
+        writeGrants: (grants) => this.keep(workspaceRoot, grants),
+        ask: (asked, canRemember) => this.ask(sessionId, asked, canRemember),
+        log: this.deps.log,
+      })
+      this.consents.set(workspaceRoot, consent)
+    }
+    return consent
+  }
+
   /** Whether the backend may use the feature at all: its flag given. */
+  public authorityFor(): PaidAuthority {
+    return this.authority
+  }
+
   public isOn(feature: PaidFeature): boolean {
     const flagged: readonly PaidFeature[] = this.deps.flagged
-    return flagged.includes(feature)
+    return (
+      flagged.includes(feature) &&
+      (feature !== 'autoCompaction' ||
+        (this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED))
+    )
   }
 
   /** The agent's way to ask; until it is attached, every use is denied. */
@@ -149,19 +202,19 @@ export class AcpPaidUse {
     sessionId: string,
     request: PaidUseRequest,
     requiresAsking: boolean,
-  ): Promise<boolean> {
-    if (this.deps.headless !== undefined) {
-      return this.isOn(request.feature) && (await this.deps.headless(request, requiresAsking))
-    }
-    const consent = new PaidUseConsent({
-      isOn: (feature) => this.isOn(feature),
-      canRemember: this.deps.canRemember,
-      readGrants: () => this.deps.grants.read(workspaceRoot),
-      writeGrants: (grants) => this.keep(workspaceRoot, grants),
-      ask: (asked, canRemember) => this.ask(sessionId, asked, canRemember),
-      log: this.deps.log,
-    })
-    return await consent.allows(request, requiresAsking)
+  ): Promise<PaidUseDecision> {
+    return this.deps.headless === undefined
+      ? await this.consentFor(workspaceRoot, sessionId).allows(
+          request,
+          requiresAsking,
+          (asked, canRemember) => this.ask(sessionId, asked, canRemember),
+        )
+      : this.isOn(request.feature) && (await this.deps.headless(request, requiresAsking))
+  }
+
+  /** A live fence for an admitted use in the folder's conversation. */
+  public fence(workspaceRoot: string, sessionId: string, feature: PaidFeature): () => boolean {
+    return this.consentFor(workspaceRoot, sessionId).fence(feature)
   }
 
   /** Whether the feature is on and allowed always in the folder, so it asks nothing. */
@@ -170,7 +223,9 @@ export class AcpPaidUse {
       this.deps.headless === undefined &&
       this.isOn(feature) &&
       this.deps.canRemember() &&
-      this.deps.grants.read(workspaceRoot).has(feature)
+      (feature === 'webSearch'
+        ? (this.consents.get(workspaceRoot)?.isRemembered(feature) ?? false)
+        : this.deps.grants.read(workspaceRoot).has(feature))
     )
   }
 
@@ -181,7 +236,7 @@ export class AcpPaidUse {
    */
   public async forgetUnflagged(): Promise<void> {
     if (this.deps.headless !== undefined) return
-    const unflagged = ACP_PAID_FEATURES.filter((feature) => !this.isOn(feature))
+    const unflagged = ACP_PAID_FEATURES.filter((feature) => !this.deps.flagged.includes(feature))
     if (unflagged.length === 0) {
       return
     }

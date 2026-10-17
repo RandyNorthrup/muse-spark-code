@@ -1,3 +1,26 @@
+import type { UsageCost } from '../shared/usageJournal'
+import { estimateCostUsd } from '../core/usage/insights'
+import { Usd } from '../shared/usd'
+import {
+  MODEL_API_PRICED_MODELS,
+  ACP_TOOL_OUTPUT_MAX_CHARS,
+  BASE64_INPUT_BLOCK_BYTES,
+  BASE64_OUTPUT_BLOCK_CHARS,
+  BYTES_PER_MIB,
+  FILE_EDIT_TOOLS,
+  FILE_READ_TOOLS,
+  IDE_CONTEXT_TAGS,
+  IMAGE_MAKING_TOOLS,
+  MAX_IMAGE_BYTES,
+  MAX_DOCUMENT_BYTES,
+  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
+  PDF_MEDIA_TYPE,
+  MODEL_API_WEB_SEARCH_TOOL,
+  SELECTION_TEXT_MAX_CHARS,
+  SHELL_TOOLS,
+  type PaidFeature,
+  UI_TEXT,
+} from '../shared/constants'
 // What an ACP client sees of a Muse Spark conversation (PLAN.md D62): the
 // panel's AgentEvents become `session/update` notifications, a prompt's
 // content blocks become turn parts, and the backend's approval choices
@@ -23,7 +46,9 @@ import type {
   ToolKind,
 } from '@agentclientprotocol/sdk'
 import type { SessionMcpServer, TurnPart } from '../core/agent/agentBackend'
+import { resolveWorkspacePath } from '../core/workspacePath'
 import { readImageInfo } from '../core/imageDimensions'
+import { isPdf, pdfPageCount } from '../core/pdf'
 import type {
   AgentEvent,
   ApprovalChoice,
@@ -31,20 +56,8 @@ import type {
   ItemSnapshot,
   TodoItem,
 } from '../shared/agentEvents'
-import {
-  ACP_TOOL_OUTPUT_MAX_CHARS,
-  FILE_EDIT_TOOLS,
-  FILE_READ_TOOLS,
-  IDE_CONTEXT_TAGS,
-  IMAGE_MAKING_TOOLS,
-  MAX_IMAGE_BYTES,
-  MODEL_API_WEB_SEARCH_TOOL,
-  SELECTION_TEXT_MAX_CHARS,
-  SHELL_TOOLS,
-  type PaidFeature,
-  UI_TEXT,
-} from '../shared/constants'
-import { fill } from '../shared/l10n/text'
+
+import { fill, formatBytes } from '../shared/l10n/text'
 import { formatMention } from '../shared/mentions'
 import { paidFeaturePrice } from '../shared/paid'
 
@@ -171,7 +184,9 @@ export function toolKind(tool: string): ToolKind {
 /** The file a call names, as the absolute path ACP asks for. */
 function toolLocations(args: Arguments | undefined, cwd: string): ToolCallLocation[] {
   const file = stringField(args, 'path')
-  return file === undefined ? [] : [{ path: path.resolve(cwd, file) }]
+  if (file === undefined) return []
+  const resolved = resolveWorkspacePath(cwd, file, process.platform)
+  return resolved.ok ? [{ path: resolved.absolute }] : []
 }
 
 function clippedOutput(text: string): string {
@@ -188,7 +203,9 @@ function editDiff(tool: string, args: Arguments | undefined, cwd: string): ToolC
   if (file === undefined || args === undefined || !FILE_EDIT_TOOLS.has(tool)) {
     return []
   }
-  const absolute = path.resolve(cwd, file)
+  const resolved = resolveWorkspacePath(cwd, file, process.platform)
+  if (!resolved.ok) return []
+  const absolute = resolved.absolute
   const oldText = args['old_str'] ?? args['old_string']
   const newText = args['new_str'] ?? args['new_string'] ?? args['content']
   if (typeof newText !== 'string') {
@@ -251,13 +268,19 @@ export class UpdateTranslator {
   private readonly summaryParts = new Map<string, number>()
   private readonly toolOutput = new Map<string, string>()
   private readonly announced = new Set<string>()
+  private readonly previewing = new Set<string>()
   /** Each item's kind, so a delta is routed by what it belongs to. */
   private readonly kinds = new Map<string, string>()
+  private tokens = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 }
+  private cost: UsageCost | undefined
+  private hasUnpricedUsage = false
 
   public constructor(
     private readonly cwd: string,
     /** Replaying a loaded history: the user's own messages go out too. */
     private readonly isReplay: boolean,
+    private readonly readCost?: () => UsageCost | undefined,
+    private readonly backend: 'modelApi' | 'museCode' = 'museCode',
   ) {}
 
   private deltaUpdates(itemId: string, field: string, delta: string): SessionUpdate[] {
@@ -303,7 +326,31 @@ export class UpdateTranslator {
       item.kind === 'subagent'
         ? `${toolName('subagent_spawn')}: ${item.objective ?? item.role ?? ''}`
         : withPrice(toolTitle(tool, args), item.paid)
-    const status = toolStatus(item.status, isCompleted)
+    const preview = item.argumentPreview
+    const wasPreview = this.previewing.has(item.itemId)
+    if (preview === undefined) this.previewing.delete(item.itemId)
+    else this.previewing.add(item.itemId)
+    const status = preview === undefined ? toolStatus(item.status, isCompleted) : 'pending'
+    const previewContent: ToolCallContent[] | undefined =
+      preview === undefined
+        ? undefined
+        : [
+            {
+              type: 'content',
+              content: {
+                type: 'text',
+                text: [
+                  UI_TEXT.toolArgumentPreviewLabel,
+                  preview.text,
+                  preview.frozen === true
+                    ? UI_TEXT.toolArgumentPreviewPreparing
+                    : UI_TEXT.toolArgumentPreviewPending,
+                  ...(preview.bytes === undefined ? [] : [formatBytes(preview.bytes)]),
+                  ...(preview.truncated ? [UI_TEXT.toolArgumentPreviewTruncated] : []),
+                ].join(PART_SEPARATOR),
+              },
+            },
+          ]
     const updates: SessionUpdate[] = []
     if (!this.announced.has(item.itemId)) {
       this.announced.add(item.itemId)
@@ -315,19 +362,29 @@ export class UpdateTranslator {
         status,
         locations: toolLocations(args, this.cwd),
         rawInput: args ?? item.args,
+        ...(previewContent !== undefined && { content: previewContent }),
       })
       if (!isCompleted) {
         return updates
       }
     }
-    const content = isCompleted
-      ? toolContent(item, this.toolOutput.get(item.itemId) ?? '', this.cwd)
-      : undefined
+    let content = previewContent
+    if (content === undefined && isCompleted) {
+      content = toolContent(item, this.toolOutput.get(item.itemId) ?? '', this.cwd)
+    } else if (content === undefined && wasPreview) {
+      content = []
+    }
     updates.push({
       sessionUpdate: 'tool_call_update',
       toolCallId: item.itemId,
       status,
       ...(content !== undefined && { content }),
+      ...(wasPreview &&
+        preview === undefined && {
+          rawInput: args ?? item.args,
+          title,
+          locations: toolLocations(args, this.cwd),
+        }),
       ...(item.kind === 'subagent' && item.result !== undefined && { rawOutput: item.result }),
     })
     if (isCompleted) {
@@ -338,8 +395,44 @@ export class UpdateTranslator {
 
   public updates(event: AgentEvent): SessionUpdate[] {
     switch (event.type) {
+      case 'tokenUsage': {
+        const priced: readonly string[] = Object.values(MODEL_API_PRICED_MODELS).flat()
+        const next = {
+          inputTokens: event.inputTokens,
+          outputTokens: event.outputTokens,
+          cachedTokens: event.cachedTokens ?? 0,
+        }
+        const delta = {
+          inputTokens: next.inputTokens - this.tokens.inputTokens,
+          outputTokens: next.outputTokens - this.tokens.outputTokens,
+          cachedTokens: next.cachedTokens - this.tokens.cachedTokens,
+        }
+        if (
+          this.backend === 'modelApi' &&
+          event.modelId !== undefined &&
+          priced.includes(event.modelId) &&
+          Object.values(delta).every((value) => Number.isSafeInteger(value) && value >= 0) &&
+          delta.cachedTokens <= delta.inputTokens &&
+          !this.hasUnpricedUsage
+        ) {
+          this.cost = {
+            certainty: 'computed',
+            usd: Usd.from(this.cost?.usd ?? 0)
+              .add(Usd.from(estimateCostUsd(delta, event.modelId)))
+              .toAmount(),
+          }
+        } else {
+          this.hasUnpricedUsage = true
+          this.cost = undefined
+        }
+        this.tokens = next
+        return []
+      }
       case 'itemStarted':
       case 'itemUpdated': {
+        return this.itemUpdates(event.item, false)
+      }
+      case 'toolArgumentPreview': {
         return this.itemUpdates(event.item, false)
       }
       case 'itemCompleted': {
@@ -355,12 +448,35 @@ export class UpdateTranslator {
         return [{ sessionUpdate: 'session_info_update', title: event.name }]
       }
       case 'contextUsage': {
+        const cost = this.readCost === undefined ? this.cost : this.readCost()
+        const hasCost =
+          cost?.usd !== undefined &&
+          cost.certainty !== 'unpriced' &&
+          cost.certainty !== 'uncertain' &&
+          cost.certainty !== 'plan'
         return event.windowTokens === undefined
           ? []
-          : [{ sessionUpdate: 'usage_update', used: event.usedTokens, size: event.windowTokens }]
+          : [
+              {
+                sessionUpdate: 'usage_update',
+                used: event.usedTokens,
+                size: event.windowTokens,
+                ...(hasCost && {
+                  // ACP's `amount` is a JSON number on the wire: the exact
+                  // decimal becomes a number only here, at that boundary.
+                  cost: { amount: Number(cost.usd ?? 0), currency: 'USD' },
+                  _meta: { museSpark: { costCertainty: cost.certainty } },
+                }),
+              },
+            ]
       }
       case 'backendNotice': {
         return [agentText(`${event.text}${PART_SEPARATOR}`)]
+      }
+      case 'messageAdmitted': {
+        // Nothing to send (M87): an ACP prompt is never queued behind
+        // another or taken back, so its reaching a request is no news.
+        return []
       }
       default: {
         return []
@@ -499,6 +615,11 @@ export type PromptResult =
   | { readonly ok: true; readonly parts: TurnPart[]; readonly displayText: string }
   | { readonly ok: false; readonly reason: string }
 
+/** Installed on first media use; each session binds its current model and approved sources. */
+export interface PromptMediaPort {
+  readonly block: (block: ContentBlock, signal: AbortSignal) => Promise<TurnPart | string>
+}
+
 /** A file the client attached, as context the model reads (clipped like a selection). */
 function attachedContext(uri: string, text: string): string {
   const body =
@@ -526,12 +647,33 @@ function linkText(uri: string, cwd: string): string {
     : formatMention(relative.split(path.sep).join('/'))
 }
 
-function imagePart(base64Data: string): TurnPart | string {
-  const bytes = Buffer.from(base64Data, 'base64')
-  if (bytes.byteLength > MAX_IMAGE_BYTES) {
-    return UI_TEXT.attachmentTooLarge
-  }
+/** Check the encoded cap before allocating; malformed base64 is never decoded lossily. */
+export function decodeAcpBlob(
+  data: string,
+  maxBytes: number,
+  mime: string,
+  tooLarge: string,
+): Uint8Array | string {
+  if (data.length > BASE64_OUTPUT_BLOCK_CHARS * Math.ceil(maxBytes / BASE64_INPUT_BLOCK_BYTES))
+    return tooLarge
+  const bytes = Buffer.from(data, 'base64')
+  if (bytes.length > maxBytes) return tooLarge
+  return bytes.toString('base64') === data
+    ? bytes
+    : fill(UI_TEXT.media.attachmentUnknownType, { type: mime })
+}
+
+function imagePart(base64Data: string, mime?: string): TurnPart | string {
+  const bytes = decodeAcpBlob(
+    base64Data,
+    MAX_IMAGE_BYTES,
+    mime ?? 'image',
+    UI_TEXT.attachmentTooLarge,
+  )
+  if (typeof bytes === 'string') return bytes
   const info = readImageInfo(bytes)
+  if (info !== undefined && mime !== undefined && mime !== info.mediaType)
+    return fill(UI_TEXT.media.attachmentUnknownType, { type: mime })
   return info === undefined
     ? UI_TEXT.attachmentUnsupported
     : {
@@ -544,27 +686,96 @@ function imagePart(base64Data: string): TurnPart | string {
 }
 
 /** One content block as a turn part; a string is why it was refused. */
-function blockPart(block: ContentBlock, cwd: string): TurnPart | string {
+async function blockPart(
+  block: ContentBlock,
+  cwd: string,
+  signal: AbortSignal,
+  media?: PromptMediaPort,
+  canAcceptDocuments = false,
+): Promise<TurnPart | string> {
   switch (block.type) {
     case 'text': {
       return { type: 'text', text: block.text }
     }
     case 'image': {
-      return imagePart(block.data)
+      return imagePart(block.data, block.mimeType)
     }
     case 'resource_link': {
-      return { type: 'text', text: linkText(block.uri, cwd) }
+      // Only media links reach the port: an ordinary context link must not
+      // become a file open once the factory binds (M105 E2 review).
+      if (!isMediaLink(block)) return { type: 'text', text: linkText(block.uri, cwd) }
+      if (media !== undefined) return await media.block(block, signal)
+      // No port on the Model API backend is an unbound pipeline, not a
+      // reason to switch backends (M105 E2 review).
+      return canAcceptDocuments ? UI_TEXT.media.uploadStorageUnknown : UI_TEXT.media.museCodeRefusal
     }
     case 'resource': {
       const { resource } = block
-      return 'text' in resource
-        ? { type: 'text', text: attachedContext(resource.uri, resource.text) }
-        : imagePart(resource.blob)
+      if ('text' in resource)
+        return { type: 'text', text: attachedContext(resource.uri, resource.text) }
+      const bytes = decodeAcpBlob(
+        resource.blob,
+        resource.mimeType === PDF_MEDIA_TYPE
+          ? MAX_DOCUMENT_BYTES
+          : MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
+        resource.mimeType ?? 'blob',
+        resource.mimeType === PDF_MEDIA_TYPE ? UI_TEXT.documentTooLarge : UI_TEXT.execFileTooLarge,
+      )
+      if (typeof bytes === 'string') return bytes
+      if (isPdf(bytes)) {
+        if (resource.mimeType != null && resource.mimeType !== PDF_MEDIA_TYPE)
+          return fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType })
+        if (!canAcceptDocuments) return UI_TEXT.pdfNeedsModelApi
+        if (bytes.length > MAX_DOCUMENT_BYTES) return UI_TEXT.documentTooLarge
+        return {
+          type: 'file',
+          name: resourceName(resource.uri),
+          mediaType: PDF_MEDIA_TYPE,
+          base64Data: resource.blob,
+          sizeBytes: bytes.length,
+          pageCount: pdfPageCount(bytes),
+        }
+      }
+      const image = readImageInfo(bytes)
+      if (image !== undefined) {
+        return resource.mimeType != null && resource.mimeType !== image.mediaType
+          ? fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType })
+          : imagePart(resource.blob)
+      }
+      return media === undefined
+        ? fill(UI_TEXT.media.attachmentUnknownType, { type: resource.mimeType ?? 'blob' })
+        : await media.block(block, signal)
+    }
+    case 'audio': {
+      if (media !== undefined) return await media.block(block, signal)
+      return canAcceptDocuments ? UI_TEXT.media.uploadStorageUnknown : UI_TEXT.media.museCodeRefusal
     }
     default: {
-      return UI_TEXT.attachmentUnsupported
+      return fill(UI_TEXT.media.attachmentUnknownType, { type: 'content' })
     }
   }
+}
+
+/** Only a display name; URI never grants access to a local file. */
+export function resourceName(uri: string): string {
+  try {
+    return path.posix.basename(decodeURIComponent(new URL(uri).pathname).replaceAll('\\', '/'))
+  } catch {
+    return path.posix.basename(uri.replaceAll('\\', '/'))
+  }
+}
+
+/**
+ * Whether a prompt link names media (M105 E2 review): only these route to
+ * the media port. Ordinary context links and URLs stay mentions/text even
+ * when the port is bound; binding the port must not file-open them.
+ */
+export function isMediaLink(block: Extract<ContentBlock, { type: 'resource_link' }>): boolean {
+  return (
+    /^(?:image|audio|video)\//u.test(block.mimeType ?? '') ||
+    block.mimeType === PDF_MEDIA_TYPE ||
+    /\.(?:pdf|png|jpe?g|gif|webp|mp4|mov|mp3|wav|webm|mkv|m4a)$/iu.test(resourceName(block.uri))
+  )
 }
 
 /**
@@ -572,10 +783,18 @@ function blockPart(block: ContentBlock, cwd: string): TurnPart | string {
  * take refuses the whole prompt, so nothing is sent half. `displayText` is
  * what the user typed, for the stored transcript.
  */
-export function promptParts(blocks: readonly ContentBlock[], cwd: string): PromptResult {
+export async function promptParts(
+  blocks: readonly ContentBlock[],
+  cwd: string,
+  media?: PromptMediaPort,
+  canAcceptDocuments = false,
+  signal: AbortSignal = new AbortController().signal,
+): Promise<PromptResult> {
   const parts: TurnPart[] = []
   for (const block of blocks) {
-    const part = blockPart(block, cwd)
+    signal.throwIfAborted()
+    const part = await blockPart(block, cwd, signal, media, canAcceptDocuments)
+    signal.throwIfAborted()
     if (typeof part === 'string') {
       return { ok: false, reason: part }
     }

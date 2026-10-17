@@ -89,7 +89,7 @@ describe('workflowLaunch (M47)', () => {
 
 describe('the words of a workflow run (M47)', () => {
   it('names the captured generated run and shows other entry IDs verbatim', () => {
-    expect(workflowName(entry({ entryId: 'generated.model-chosen' }))).toBe('Written for this task')
+    expect(workflowName(entry({ entryId: 'generated.model-chosen' }))).toBe('Written for This Task')
     expect(workflowName(entry({ entryId: 'generated.future-kind' }))).toBe('generated.future-kind')
     expect(workflowName(entry({ entryId: 'review-change' }))).toBe('review-change')
     expect(workflowName(entry({ fallbackText: 'Workflow: nightly audit' }))).toBe(
@@ -105,13 +105,13 @@ describe('the words of a workflow run (M47)', () => {
   })
 
   it('says an agent’s state: its outcome once it ended, else its status', () => {
-    expect(childStatusLabel(child({ status: 'scheduled' }))).toBe('queued')
-    expect(childStatusLabel(child({ status: 'started' }))).toBe('running')
-    expect(childStatusLabel(child({ status: 'usage' }))).toBe('running')
-    expect(childStatusLabel(child({ status: 'completed' }))).toBe('completed')
-    expect(childStatusLabel(child({ status: 'terminal', terminal: 'completed' }))).toBe('completed')
-    expect(childStatusLabel(child({ status: 'terminal', terminal: 'failed' }))).toBe('failed')
-    expect(childStatusLabel(child({ status: 'terminal' }))).toBe('finished')
+    expect(childStatusLabel(child({ status: 'scheduled' }))).toBe('Queued')
+    expect(childStatusLabel(child({ status: 'started' }))).toBe('Running')
+    expect(childStatusLabel(child({ status: 'usage' }))).toBe('Running')
+    expect(childStatusLabel(child({ status: 'completed' }))).toBe('Completed')
+    expect(childStatusLabel(child({ status: 'terminal', terminal: 'completed' }))).toBe('Completed')
+    expect(childStatusLabel(child({ status: 'terminal', terminal: 'failed' }))).toBe('Failed')
+    expect(childStatusLabel(child({ status: 'terminal' }))).toBe('Finished')
     expect(childStatusLabel(child({ status: 'waiting' }))).toBe('waiting')
   })
 

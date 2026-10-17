@@ -71,6 +71,8 @@ export interface SupportFacts {
   readonly backendSetting: string
   readonly shellSandboxSetting: string
   readonly shellSandboxPosture: string
+  /** The posture's sandbox: where Muse Code's file tools can write without asking. */
+  readonly isShellSandboxed: boolean
   /** `museSpark.sandboxNetwork`, and whether the next host gets it (M56). */
   readonly sandboxNetworkSetting: string
   readonly isSandboxNetworkApplied: boolean
@@ -216,6 +218,12 @@ export function renderSupportReport(facts: SupportFacts): string {
   const sandboxNetwork = facts.isSandboxNetworkApplied
     ? 'passed to muse serve'
     : 'not passed (Muse Code’s own default, or the shell sandbox is off)'
+  // Meta's permissions page and the 2026-10-04 probes (musecode-write-asks):
+  // without the sandbox the file tools are not confined, in any mode, Plan
+  // included; either way Muse Code asks only for .git, .muse and .agents.
+  const fileWrites = facts.isShellSandboxed
+    ? 'workspace only (writes outside it fail); inside it, only .git, .muse and .agents ask'
+    : 'anywhere this account can write, without asking, in every mode (shell sandbox off); only .git, .muse and .agents ask'
   const text = [
     `${PRODUCT_NAME} diagnostics`,
     `extension: ${facts.extensionVersion}`,
@@ -224,6 +232,7 @@ export function renderSupportReport(facts: SupportFacts): string {
     `workspace: ${facts.hasWorkspace ? 'open' : NONE}, trusted: ${yesNo(facts.isWorkspaceTrusted)}`,
     `backend setting: ${facts.backendSetting}`,
     `shell sandbox: setting ${facts.shellSandboxSetting}, posture ${facts.shellSandboxPosture}`,
+    `muse code file writes: ${fileWrites}`,
     `sandbox network: setting ${facts.sandboxNetworkSetting}, ${sandboxNetwork}`,
     `muse binary path configured: ${yesNo(facts.isBinaryPathConfigured)}; environment variables: ${String(facts.environmentVariableCount)}`,
     `muse cli: ${cli}`,

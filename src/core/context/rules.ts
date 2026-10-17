@@ -8,6 +8,7 @@
 // file that is not text, or leads outside the workspace through a link, is
 // skipped with the reason (D27). Pure: every read goes through `ContextIo`.
 
+import type { ContentSource } from '../schedules/provenance'
 import path from 'node:path'
 import {
   RULES_CONTEXT_MAX_BYTES,
@@ -18,6 +19,7 @@ import {
 import { type ContextIo, readContextText } from './contextFiles'
 
 export interface RuleFile {
+  readonly contentSource?: Extract<ContentSource, { kind: 'file' }>
   /** Workspace-relative, forward slashes (`AGENTS.md`, `src/CLAUDE.md`). */
   readonly path: string
   /** The directory the file governs, relative with forward slashes; `''` is the root. */
@@ -85,7 +87,15 @@ export async function loadRuleFile(
         warning: `rules file at ${relative} is ${String(bytes)} bytes, over the ${String(RULES_FILE_MAX_BYTES)} byte load limit; it is skipped for this session; trim it (or split it into smaller files) to load it`,
       }
     }
-    return { file: { path: relative, directory, text }, warning: undefined }
+    return {
+      file: {
+        path: relative,
+        directory,
+        text,
+        ...(read.contentSource !== undefined && { contentSource: read.contentSource }),
+      },
+      warning: undefined,
+    }
   }
   return { file: undefined, warning: undefined }
 }

@@ -9,6 +9,7 @@ import {
 } from '../../src/core/backends/modelapi/permissions'
 import { compilePolicy } from '../../src/core/backends/modelapi/permissionPolicy'
 import { isProtectedPath } from '../../src/core/protectedPaths'
+import { confineWorkspacePath, resolveWorkspacePath } from '../../src/core/workspacePath'
 import { APPROVAL_MODES, type ApprovalMode } from '../../src/shared/permissionModes'
 
 const CLASSES: readonly ToolClass[] = [
@@ -149,6 +150,139 @@ describe('isProtectedPath', () => {
   })
 })
 
+// Other coding agents' folders (2026-10-04): their hooks, MCP servers,
+// plugins and settings run outside this extension's approvals.
+describe('isProtectedPath: other coding agents’ folders', () => {
+  it.each([
+    ['.claude', ['.claude/settings.json', '.claude/settings.local.json', '.claude/agents/a.md']],
+    ['.codex', ['.codex/hooks.json', '.codex/config.toml']],
+    ['.cursor', ['.cursor/hooks.json', '.cursor/mcp.json', '.cursor/rules/a.mdc']],
+    ['.gemini', ['.gemini/settings.json']],
+    ['.github/hooks', ['.github/hooks/hooks.json']],
+    ['.github/copilot', ['.github/copilot/settings.json']],
+    ['.devin', ['.devin/hooks.json']],
+    ['.windsurf', ['.windsurf/hooks.json']],
+    ['.kiro', ['.kiro/hooks/lint.kiro.hook', '.kiro/settings/mcp.json']],
+    ['.clinerules', ['.clinerules/hooks/PreToolUse', '.clinerules']],
+    ['.amp', ['.amp/plugins/run.ts']],
+    ['.opencode', ['.opencode/plugin/run.ts', '.opencode/opencode.json']],
+  ])('protects %s, at any depth and in any case', (_folder, paths) => {
+    for (const path of paths) {
+      expect(isProtectedPath(path), path).toBe(true)
+      expect(isProtectedPath(`packages/app/${path.toUpperCase()}`), path).toBe(true)
+    }
+  })
+
+  it('protects mixed case and nesting', () => {
+    for (const path of [
+      '.Claude/settings.json',
+      'apps/web/.Cursor/mcp.json',
+      '.GitHub/Hooks/hooks.json',
+      'tools/.github/COPILOT/settings.json',
+    ]) {
+      expect(isProtectedPath(path), path).toBe(true)
+    }
+  })
+
+  it('judges a Windows path as the tools resolve it: backslashes separate only on Windows', () => {
+    const windows = resolveWorkspacePath(
+      String.raw`C:\ws`,
+      String.raw`.Claude\settings.json`,
+      'win32',
+    )
+    expect(windows).toMatchObject({ ok: true, canonical: '.Claude/settings.json' })
+    expect(windows.ok && isProtectedPath(windows.canonical)).toBe(true)
+    // On macOS and Linux the backslash is part of a file name at the root.
+    const posix = resolveWorkspacePath('/ws', String.raw`.Claude\settings.json`, 'linux')
+    expect(posix).toMatchObject({ ok: true, canonical: String.raw`.Claude\settings.json` })
+    expect(posix.ok && isProtectedPath(posix.canonical)).toBe(false)
+  })
+
+  it('judges the folder a link or junction leads to, not the name written', async () => {
+    const junction = await confineWorkspacePath(
+      String.raw`C:\ws`,
+      String.raw`cfg\settings.json`,
+      'win32',
+      {
+        realPath: (absolute) =>
+          Promise.resolve(absolute.replace(String.raw`C:\ws\cfg`, String.raw`C:\ws\.claude`)),
+      },
+    )
+    expect(junction).toMatchObject({ ok: true, relative: 'cfg/settings.json' })
+    expect(junction.ok && isProtectedPath(junction.relative)).toBe(false)
+    expect(junction.ok && isProtectedPath(junction.canonical)).toBe(true)
+  })
+
+  it('leaves look-alikes alone', () => {
+    for (const path of [
+      'notclaude/.claudex/file',
+      '.claude-backup.txt',
+      'claude/settings.json',
+      'docs/.claude.md',
+      'my.cursor/mcp.json',
+      '.cursorignore',
+      '.codex.bak/hooks.json',
+      '.geminiignore',
+      '.github/hooksmith/x.json',
+      'hooks/.github',
+      'copilot/.github',
+      '.kirox/hooks/a',
+      '.clinerules.md',
+      'amp/plugins/run.ts',
+      'opencode/plugin/run.ts',
+    ]) {
+      expect(isProtectedPath(path), path).toBe(false)
+    }
+  })
+})
+
+// The agents' own files outside those folders (2026-10-04): MCP servers they
+// start, and instructions that steer the next agent to read them.
+describe('isProtectedPath: other coding agents’ files', () => {
+  it.each([
+    ['.mcp.json', ['.mcp.json']],
+    ['GEMINI.md', ['GEMINI.md']],
+    ['AGENTS.md', ['AGENTS.md']],
+    ['CLAUDE.md', ['CLAUDE.md']],
+    ['.cursorrules', ['.cursorrules']],
+    ['.windsurfrules', ['.windsurfrules']],
+    ['.github/copilot-instructions.md', ['.github/copilot-instructions.md']],
+    ['opencode.json', ['opencode.json', 'opencode.jsonc']],
+    ['.roomodes', ['.roomodes']],
+    ['.clinerules as a file', ['.clinerules']],
+    ['.continue', ['.continue/rules/a.md', '.continue/mcpServers/run.yaml']],
+    ['.roo', ['.roo/mcp.json', '.roo/rules/a.md', '.roo/rules-code/a.md']],
+  ])('protects %s, at any depth and in any case', (_file, paths) => {
+    for (const path of paths) {
+      expect(isProtectedPath(path), path).toBe(true)
+      expect(isProtectedPath(`packages/app/${path.toUpperCase()}`), path).toBe(true)
+      expect(isProtectedPath(`src/${path.toLowerCase()}`), path).toBe(true)
+    }
+  })
+
+  it('leaves look-alikes alone', () => {
+    for (const path of [
+      '.mcp.json.bak',
+      'mcp.json',
+      'docs/GEMINI-notes.md',
+      'gemini.md.txt',
+      '.cursorrules.md',
+      'windsurfrules',
+      'copilot-instructions.md',
+      '.github/docs/copilot-instructions.md',
+      'my-opencode.json',
+      'opencode.json5',
+      '.roomodes.bak',
+      '.continuex/rules/a.md',
+      'continue/rules/a.md',
+      '.roo-backup/mcp.json',
+      'roo/mcp.json',
+    ]) {
+      expect(isProtectedPath(path), path).toBe(false)
+    }
+  })
+})
+
 describe('PermissionEngine', () => {
   it('applies session rules only where the mode would ask', () => {
     const engine = new PermissionEngine('promptUnmatched')
@@ -246,6 +380,22 @@ describe('web fetch (M69, PLAN.md D49)', () => {
     expect(choicesFor('web_fetch', 'docs.example.com')[1]).toMatchObject({
       label: 'Always allow in this session: docs.example.com',
     })
+  })
+
+  // M81: what widens a browser check beyond loopback when no card shows.
+  it('tells whether the user chose "always" for a host, whatever the mode says', () => {
+    const engine = new PermissionEngine('allowAll')
+    const check = {
+      toolName: 'browser_check',
+      toolClass: 'network',
+      command: 'intranet.example',
+    } as const
+    expect(engine.verdict(check)).toBe('allow')
+    expect(engine.isAllowedForSession(check)).toBe(false)
+    engine.allowForSession('browser_check', 'intranet.example')
+    expect(engine.isAllowedForSession(check)).toBe(true)
+    expect(engine.isAllowedForSession({ ...check, command: 'other.example' })).toBe(false)
+    expect(engine.isAllowedForSession({ ...check, toolName: 'web_fetch' })).toBe(false)
   })
 })
 
@@ -392,6 +542,74 @@ describe('PermissionEngine.judge: shell commands under the rules (M78)', () => {
     engine.allowForSession('bash', 'npm test')
     expect(engine.judge(bash('npm test'), policy).verdict).toBe('allow')
     expect(engine.judge(bash('npm test -- --watch'), policy).verdict).toBe('ask')
+  })
+})
+
+describe('secret-bearing shell commands (M92e, PLAN.md D71)', () => {
+  // Built at runtime: no secret-shaped literal sits in the repository.
+  const secretCommand = `deploy --token sk-${'k'.repeat(24)}`
+  const secretPolicy = compilePolicy(
+    {
+      commandRules: [{ pattern: ['deploy'], decision: 'allow', match: ['deploy --dry-run'] }],
+      profiles: {},
+      profile: '',
+      repositoryRules: {},
+    },
+    'linux',
+  )
+
+  it('asks with no session choice and nothing to review, even when an allow rule matches', () => {
+    expect(new PermissionEngine('onRequest').judge(bash(secretCommand), secretPolicy)).toEqual({
+      verdict: 'ask',
+      settledBy: 'secretDetected',
+      rule: secretPolicy.commandRules[0],
+      isReviewable: false,
+      hasSessionChoice: false,
+    })
+  })
+
+  it('is never answered by a session rule for its exact line', () => {
+    const engine = new PermissionEngine('onRequest')
+    engine.allowForSession('bash', secretCommand)
+    expect(engine.judge(bash(secretCommand), secretPolicy)).toMatchObject({
+      verdict: 'ask',
+      settledBy: 'secretDetected',
+      isReviewable: false,
+      hasSessionChoice: false,
+    })
+  })
+
+  it('asks in Bypass for secrets, while preserving forbids and denied modes (RVM92E P2)', () => {
+    expect(new PermissionEngine('allowAll').judge(bash(secretCommand), secretPolicy)).toMatchObject(
+      {
+        verdict: 'ask',
+        settledBy: 'secretDetected',
+        isReviewable: false,
+        hasSessionChoice: false,
+      },
+    )
+    expect(new PermissionEngine('denyUnmatched').judge(bash(secretCommand))).toMatchObject({
+      verdict: 'deny',
+    })
+    const denied = compilePolicy(
+      {
+        commandRules: [{ pattern: ['deploy'], decision: 'forbid', match: ['deploy --dry-run'] }],
+        profiles: {},
+        profile: '',
+        repositoryRules: {},
+      },
+      'linux',
+    )
+    expect(new PermissionEngine('allowAll').judge(bash(secretCommand), denied)).toMatchObject({
+      verdict: 'deny',
+      settledBy: 'forbidRule',
+    })
+  })
+
+  it('still runs a clean command the allow rule matches', () => {
+    expect(
+      new PermissionEngine('onRequest').judge(bash('deploy --dry-run'), secretPolicy),
+    ).toMatchObject({ verdict: 'allow', settledBy: 'allowRule' })
   })
 })
 

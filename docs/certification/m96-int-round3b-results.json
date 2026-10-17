@@ -1,0 +1,843 @@
+{
+  "date": "2026-10-05",
+  "rig": "macmini",
+  "branch": "m96/int3b",
+  "startingHead": "32caf103",
+  "classifierCommit": "fe38d355",
+  "merges": [
+    {
+      "branch": "m96/r-final",
+      "expectedHead": "3a2ef7cd",
+      "merge": "570c6922",
+      "secondParent": "3a2ef7cdcd0b5b3e163409ee07a2b472af15a4e2"
+    },
+    {
+      "branch": "m96/b-final",
+      "expectedHead": "b7d02eb3",
+      "merge": "dc7f0970",
+      "secondParent": "b7d02eb3179aacc7acac8ac785ca636c4bd59e6b"
+    },
+    {
+      "branch": "m96/k-final",
+      "expectedHead": "8186c96f",
+      "merge": "4adf07c8",
+      "secondParent": "8186c96f1a778d92b839a0551f8fea68a5321005"
+    },
+    {
+      "branch": "m96/w-redesign",
+      "expectedHead": "9b1a0f0d",
+      "merge": "7fd7613f",
+      "secondParent": "9b1a0f0de4a911ba63d98459396af7bebc8d98cc"
+    },
+    {
+      "branch": "m96/ifix-win2",
+      "expectedHead": "78d8a16c",
+      "merge": "37c2521d",
+      "secondParent": "78d8a16c739fa66405b7c03700b7af7a45da10cc"
+    },
+    {
+      "branch": "m96c/int",
+      "expectedHead": "e75a0f2b",
+      "merge": "7df88568",
+      "secondParent": "e75a0f2be65baa92832cb2f27bd68a3565d4d215"
+    }
+  ],
+  "scope": {
+    "liveModelAttempts": 0,
+    "paidCalls": 0,
+    "pushed": false,
+    "runtimeBindingComplete": false
+  },
+  "startup": {
+    "baseCommit": "e23ec61c",
+    "baseSourceFiles": 201,
+    "baseBytes": 604810,
+    "currentBytes": 596609,
+    "growthBytes": -8201,
+    "limitBytes": 4096,
+    "passed": true,
+    "baselineResolver": "pre-M96 shared English; no TRAIN13B validation split",
+    "currentResolver": "actual production shared English/shared validation/deferred team",
+    "ordinary": {
+      "activation": {
+        "teamModules": [],
+        "bytes": 596609
+      },
+      "modelApi": {
+        "teamModules": [],
+        "bytes": 445380
+      },
+      "acp": {
+        "teamModules": [],
+        "bytes": 823357
+      }
+    }
+  },
+  "goldenFixtures": [
+    {
+      "file": "test/fixtures/golden-requests/01-plain-turn.json",
+      "sha256": "b1b98610276a4e68ebf652b6484b9f9fcd4b77967ee73c5bbaa574751241662e",
+      "unchangedFrom": "32caf103"
+    },
+    {
+      "file": "test/fixtures/golden-requests/02-tool-call.json",
+      "sha256": "5ff1a9f3a7216389f655bda11c9fc24c8e1995ad394b260f4e7f4b065f2bc6a6",
+      "unchangedFrom": "32caf103"
+    },
+    {
+      "file": "test/fixtures/golden-requests/03-edit-then-run.json",
+      "sha256": "b29a4a4e7ad563b74d8fdf6dcc7d02de46c9a0ed6c3c07356d53d52ef887d7da",
+      "unchangedFrom": "32caf103"
+    },
+    {
+      "file": "test/fixtures/golden-requests/04-packed-output.json",
+      "sha256": "7cb9ffd78b23cf19c22c58594e8b604c22f08523ba7d686b2216bafc8a139764",
+      "unchangedFrom": "32caf103"
+    },
+    {
+      "file": "test/fixtures/golden-requests/05-manual-compaction.json",
+      "sha256": "d81a7dd91e01d956375b7e36cae959de7986075e9b1e2778e13924fd7237c6a5",
+      "unchangedFrom": "32caf103"
+    },
+    {
+      "file": "test/fixtures/golden-requests/06-subagent-child.json",
+      "sha256": "160679252b3fa702abe50233238faf86ad52ffd9127b76d89b0782c3fae91461",
+      "unchangedFrom": "32caf103"
+    },
+    {
+      "file": "test/fixtures/golden-requests/07-skills-and-rules.json",
+      "sha256": "d98a2739182330e30292ed0b121e42edc69bdaace580beab2871d55bf643ee97",
+      "unchangedFrom": "32caf103"
+    }
+  ],
+  "goldenRuntime": {
+    "exit": 1,
+    "failedAssertions": 64,
+    "reason": "D78 deferred recall_output and cache keys inherited through B; fixtures preserved pending lead decision"
+  },
+  "owningUnits": {
+    "files": 104,
+    "batches": 35,
+    "passed": 2079,
+    "failed": 1,
+    "platformSkipped": 2,
+    "batchResults": [
+      {
+        "files": [
+          "test/unit/TeamApp.test.tsx",
+          "test/unit/TeamCards.test.tsx",
+          "test/unit/TeamTree.test.tsx"
+        ],
+        "exit": 0,
+        "seconds": 6.39,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  41 passed (41)",
+          "Duration  5.19s (environment 36%, tests 28%, transform 22%, import 9%, setup 5%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-00.log"
+      },
+      {
+        "files": [
+          "test/unit/bridgeChecks.test.ts",
+          "test/unit/checkSlots.test.ts",
+          "test/unit/compressedEnglish.test.mjs"
+        ],
+        "exit": 0,
+        "seconds": 18.26,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  26 passed (26)",
+          "Duration  17.19s (tests 85%, transform 8%, import 4%, setup 3%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-01.log"
+      },
+      {
+        "files": [
+          "test/unit/customAgents.test.ts",
+          "test/unit/ideMcpServer.test.ts",
+          "test/unit/l10n.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.34,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  78 passed (78)",
+          "Duration  1.20s (transform 34%, setup 30%, import 19%, tests 16%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-02.log"
+      },
+      {
+        "files": [
+          "test/unit/mcpConnection.test.ts",
+          "test/unit/mcpPool.test.ts",
+          "test/unit/paidConsent.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 6.8,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  38 passed (38)",
+          "Duration  5.71s (tests 65%, transform 17%, setup 9%, import 9%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-03.log"
+      },
+      {
+        "files": [
+          "test/unit/paidFeatures.test.ts",
+          "test/unit/protocol.test.ts",
+          "test/unit/runnerHelperNative.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.18,
+        "summary": [
+          "Test Files  2 passed | 1 skipped (3)",
+          "Tests  164 passed | 2 skipped (166)",
+          "Duration  1.08s (transform 43%, setup 28%, import 24%, tests 3%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-04.log"
+      },
+      {
+        "files": [
+          "test/unit/runnerRouting.test.ts",
+          "test/unit/sshRunner.test.ts",
+          "test/unit/team/teamBuiltInRoles.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 48.53,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  37 passed (37)",
+          "Duration  47.41s (tests 95%, transform 2%, setup 1%, import 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-05.log"
+      },
+      {
+        "files": [
+          "test/unit/team/teamCapabilityCheck.test.ts",
+          "test/unit/team/teamCharter.test.ts",
+          "test/unit/team/teamConfig.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.48,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  24 passed (24)",
+          "Duration  1.19s (transform 43%, setup 39%, import 15%, tests 2%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-06.log"
+      },
+      {
+        "files": [
+          "test/unit/team/teamRoleResolution.test.ts",
+          "test/unit/team/teamRoles.test.ts",
+          "test/unit/team/teamSameModel.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.24,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  45 passed (45)",
+          "Duration  2.06s (transform 33%, tests 31%, setup 24%, import 11%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-07.log"
+      },
+      {
+        "files": [
+          "test/unit/team/teamTables.test.ts",
+          "test/unit/team/teamToolsets.test.ts",
+          "test/unit/teamAcpProcess.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.31,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  68 passed (68)",
+          "Duration  4.18s (tests 54%, transform 23%, setup 14%, import 9%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-08.log"
+      },
+      {
+        "files": [
+          "test/unit/teamAcpWorker.test.ts",
+          "test/unit/teamActivationGraph.test.ts",
+          "test/unit/teamAdmission.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.81,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  52 passed (52)",
+          "Duration  1.69s (transform 42%, setup 27%, tests 19%, import 11%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-09.log"
+      },
+      {
+        "files": [
+          "test/unit/teamAutofill.test.ts",
+          "test/unit/teamCapValidation.test.ts",
+          "test/unit/teamCeilings.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.72,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  41 passed (41)",
+          "Duration  1.32s (transform 46%, setup 22%, import 22%, tests 10%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-10.log"
+      },
+      {
+        "files": [
+          "test/unit/teamChangelog.test.ts",
+          "test/unit/teamClaimJournal.test.ts",
+          "test/unit/teamCleanup.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.58,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  26 passed (26)",
+          "Duration  2.18s (transform 38%, tests 27%, setup 22%, import 13%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-11.log"
+      },
+      {
+        "files": [
+          "test/unit/teamCollisionRepositories.test.ts",
+          "test/unit/teamCollisions.test.ts",
+          "test/unit/teamConflictPredict.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 8.43,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  22 passed (22)",
+          "Duration  7.25s (tests 76%, transform 11%, setup 8%, import 5%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-12.log"
+      },
+      {
+        "files": [
+          "test/unit/teamConstants.test.ts",
+          "test/unit/teamDeclaration.test.ts",
+          "test/unit/teamEngineWorker.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.1,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  92 passed (92)",
+          "Duration  3.77s (transform 66%, import 13%, setup 13%, tests 7%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-13.log"
+      },
+      {
+        "files": [
+          "test/unit/teamEntries.test.ts",
+          "test/unit/teamGitClassifier.test.ts",
+          "test/unit/teamGitIndexLock.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 18.37,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  38 passed (38)",
+          "Duration  17.07s (tests 84%, transform 9%, setup 4%, import 3%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-14.log"
+      },
+      {
+        "files": [
+          "test/unit/teamHarness.test.mjs",
+          "test/unit/teamHintsAndLoad.test.ts",
+          "test/unit/teamHistory.test.ts"
+        ],
+        "exit": 1,
+        "seconds": 42.41,
+        "summary": [
+          "Test Files  1 failed | 2 passed (3)",
+          "Tests  1 failed | 67 passed (68)",
+          "Duration  41.19s (tests 92%, transform 3%, import 3%, setup 2%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-15.log"
+      },
+      {
+        "files": [
+          "test/unit/teamIntensity.test.ts",
+          "test/unit/teamJsonTable.test.ts",
+          "test/unit/teamLanding.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 83.17,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  65 passed (65)",
+          "Duration  82.11s (tests 98%, transform 1%, setup 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-16.log"
+      },
+      {
+        "files": [
+          "test/unit/teamLedger.test.ts",
+          "test/unit/teamMcpBridge.test.ts",
+          "test/unit/teamMcpServer.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.42,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  93 passed (93)",
+          "Duration  4.29s (tests 55%, transform 29%, import 8%, setup 7%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-17.log"
+      },
+      {
+        "files": [
+          "test/unit/teamMerge.test.ts",
+          "test/unit/teamMergeBatchRepository.test.ts",
+          "test/unit/teamMergeQueue.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 42.14,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  67 passed (67)",
+          "Duration  41.19s (tests 97%, transform 2%, setup 1%, import 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-18.log"
+      },
+      {
+        "files": [
+          "test/unit/teamMeter.test.ts",
+          "test/unit/teamModelSettings.test.ts",
+          "test/unit/teamMuseCodeWorker.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 2.79,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  90 passed (90)",
+          "Duration  1.48s (transform 50%, setup 26%, import 17%, tests 6%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-19.log"
+      },
+      {
+        "files": [
+          "test/unit/teamNativeLifetime.test.ts",
+          "test/unit/teamOrchestratorSlot.test.ts",
+          "test/unit/teamPipelines.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 56.73,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  62 passed (62)",
+          "Duration  55.33s (tests 95%, transform 2%, setup 1%, import 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-20.log"
+      },
+      {
+        "files": [
+          "test/unit/teamPlanRecord.test.ts",
+          "test/unit/teamPool.test.ts",
+          "test/unit/teamPreview.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.84,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  33 passed (33)",
+          "Duration  2.27s (setup 37%, transform 36%, import 14%, tests 13%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-21.log"
+      },
+      {
+        "files": [
+          "test/unit/teamProcessLifetime.test.ts",
+          "test/unit/teamProcessOwnership.test.ts",
+          "test/unit/teamProtocolLoading.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 9.49,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  41 passed (41)",
+          "Duration  7.30s (tests 46%, transform 29%, setup 15%, import 10%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-22.log"
+      },
+      {
+        "files": [
+          "test/unit/teamRefFence.test.ts",
+          "test/unit/teamResources.test.ts",
+          "test/unit/teamReviewGate.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.55,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  160 passed (160)",
+          "Duration  1.52s (setup 42%, transform 39%, import 12%, tests 5%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-23.log"
+      },
+      {
+        "files": [
+          "test/unit/teamRoster.test.ts",
+          "test/unit/teamRuntimePackage.test.mjs",
+          "test/unit/teamSchedulerBoard.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.88,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  26 passed (26)",
+          "Duration  2.96s (transform 38%, tests 26%, setup 23%, import 13%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-24.log"
+      },
+      {
+        "files": [
+          "test/unit/teamSchedulerPick.test.ts",
+          "test/unit/teamSchedulerPool.test.ts",
+          "test/unit/teamSchedulerRetire.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 9.37,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  32 passed (32)",
+          "Duration  7.33s (tests 53%, transform 21%, setup 16%, import 9%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-25.log"
+      },
+      {
+        "files": [
+          "test/unit/teamSchedulerReview.test.ts",
+          "test/unit/teamSchedulerRoster.test.ts",
+          "test/unit/teamSchedulerSchemas.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.47,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  31 passed (31)",
+          "Duration  2.20s (transform 47%, setup 29%, import 21%, tests 3%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-26.log"
+      },
+      {
+        "files": [
+          "test/unit/teamSchedulerStalls.test.ts",
+          "test/unit/teamSchedulerText.test.ts",
+          "test/unit/teamSchedulerTools.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.39,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  39 passed (39)",
+          "Duration  3.05s (transform 32%, setup 27%, tests 24%, import 16%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-27.log"
+      },
+      {
+        "files": [
+          "test/unit/teamServerToolList.test.ts",
+          "test/unit/teamSettlement.test.ts",
+          "test/unit/teamSingleModel.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.38,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  24 passed (24)",
+          "Duration  3.06s (transform 42%, setup 32%, import 23%, tests 3%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-28.log"
+      },
+      {
+        "files": [
+          "test/unit/teamStagingCopy.test.ts",
+          "test/unit/teamStartup.test.mjs",
+          "test/unit/teamTemplates.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 14.71,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  28 passed (28)",
+          "Duration  12.46s (tests 77%, transform 11%, setup 9%, import 3%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-29.log"
+      },
+      {
+        "files": [
+          "test/unit/teamTools.test.ts",
+          "test/unit/teamTransfer.test.ts",
+          "test/unit/teamWindowsControl.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 4.86,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  49 passed (49)",
+          "Duration  3.03s (transform 49%, setup 24%, import 14%, tests 12%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-30.log"
+      },
+      {
+        "files": [
+          "test/unit/teamWorkerCertification.test.ts",
+          "test/unit/teamWorkerEnv.test.ts",
+          "test/unit/teamWorkerFence.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 3.91,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  43 passed (43)",
+          "Duration  1.99s (transform 37%, tests 29%, setup 24%, import 10%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-31.log"
+      },
+      {
+        "files": [
+          "test/unit/teamWorkerReport.test.ts",
+          "test/unit/teamWorkersPaid.test.ts",
+          "test/unit/teamWorkspaces.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 15.54,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  80 passed (80)",
+          "Duration  14.31s (tests 81%, transform 10%, setup 5%, import 3%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-32.log"
+      },
+      {
+        "files": [
+          "test/unit/trafficHandlers.test.ts",
+          "test/unit/trafficHarness.test.tsx",
+          "test/unit/trafficMetrics.test.ts"
+        ],
+        "exit": 0,
+        "seconds": 5.23,
+        "summary": [
+          "Test Files  3 passed (3)",
+          "Tests  67 passed (67)",
+          "Duration  3.92s (environment 37%, tests 21%, transform 19%, setup 13%, import 10%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-33.log"
+      },
+      {
+        "files": ["test/unit/trafficView.test.tsx", "test/unit/uiState.test.ts"],
+        "exit": 0,
+        "seconds": 5.12,
+        "summary": [
+          "Test Files  2 passed (2)",
+          "Tests  190 passed (190)",
+          "Duration  3.77s (tests 32%, environment 27%, transform 26%, import 8%, setup 7%, worker 1%)"
+        ],
+        "log": "temp/m96-int3b/lane-units-34.log"
+      }
+    ],
+    "followups": [
+      {
+        "files": ["teamMeter.test.ts", "teamSettlement.test.ts", "teamProcessLifetime.test.ts"],
+        "passed": 43,
+        "exit": 0
+      },
+      {
+        "files": [
+          "teamRuntimePackage.test.mjs",
+          "teamStartup.test.mjs",
+          "teamActivationGraph.test.ts"
+        ],
+        "passed": 7,
+        "exit": 0
+      },
+      {
+        "file": "teamHarness.test.mjs",
+        "exit": 1,
+        "passed": 21,
+        "failed": 1,
+        "trafficRoutesPassed": 5,
+        "remainingFailure": "restored deferred UI build exceeds unchanged 50 KiB cap; assertion is retained"
+      }
+    ]
+  },
+  "gates": {
+    "typecheckFiveProjects": 0,
+    "scopedLint": 0,
+    "formatInitial": 0,
+    "deadcode": 0,
+    "cycles": 0,
+    "duplication": 0,
+    "l10n": 0,
+    "hostApi": 0,
+    "hostGlobals": 0,
+    "bundleSplit": 0,
+    "notices": 0,
+    "accessibility": {
+      "exit": 0,
+      "pages": 596,
+      "scenarios": 149,
+      "themes": 4,
+      "violations": 0,
+      "undecided": 0,
+      "existingExemptions": 8,
+      "withoutResult": 0,
+      "focusedTrafficRunners": {
+        "exit": 0,
+        "pages": 20,
+        "violations": 0,
+        "undecided": 0,
+        "exemptions": 0,
+        "withoutResult": 0
+      },
+      "beforeHarnessRepair": {
+        "exit": 1,
+        "pages": 596,
+        "violations": 0,
+        "withoutResult": 17
+      }
+    },
+    "historySecrets": {
+      "exit": 1,
+      "commitsScanned": 1516,
+      "findings": [
+        {
+          "RuleID": "generic-api-key",
+          "File": "docs/certification/star-line.md",
+          "StartLine": 60,
+          "EndLine": 61,
+          "Commit": "9eedecba166ad8cd55f4f64ad260a7d4353b90de"
+        },
+        {
+          "RuleID": "generic-api-key",
+          "File": "docs/certification/m95-x.md",
+          "StartLine": 73,
+          "EndLine": 73,
+          "Commit": "0bffa2de1f7ac8929b3417a79beeda63230cb459"
+        },
+        {
+          "RuleID": "generic-api-key",
+          "File": "test/unit/authSource.test.ts",
+          "StartLine": 8,
+          "EndLine": 8,
+          "Commit": "8ff88046fd3b4d77ad6427f0112e9eb4d51a024e"
+        },
+        {
+          "RuleID": "generic-api-key",
+          "File": "test/unit/authSource.test.ts",
+          "StartLine": 7,
+          "EndLine": 7,
+          "Commit": "56f16e9b3971a4c5636112b79139a5808a96cf4a"
+        },
+        {
+          "RuleID": "generic-api-key",
+          "File": "test/unit/authSource.test.ts",
+          "StartLine": 7,
+          "EndLine": 7,
+          "Commit": "3ac94a4d304bffbe3f4e3940c181721455edd0de"
+        },
+        {
+          "RuleID": "generic-api-key",
+          "File": "test/unit/authSource.test.ts",
+          "StartLine": 7,
+          "EndLine": 7,
+          "Commit": "a3d14effbcf57f25290efd80e32e562e30186b7b"
+        },
+        {
+          "RuleID": "generic-api-key",
+          "File": "test/unit/authSource.test.ts",
+          "StartLine": 7,
+          "EndLine": 7,
+          "Commit": "de54295168f00474c4fe08bb47e4f17379097ad3"
+        }
+      ],
+      "redacted": true
+    },
+    "build": 1,
+    "buildReason": "deferred webview JS exceeds 50 KiB; all other caps pass",
+    "powerShell": "existing Windows platform gate",
+    "formatFinal": 0,
+    "typecheckHarness": 0,
+    "duplicationFiles": 1140
+  },
+  "bundlesBytes": {
+    "dist/acp.js": 823357,
+    "dist/agentImport.js": 73270,
+    "dist/browserCheck.js": 38524,
+    "dist/browserRuntime.js": 19762,
+    "dist/bundledSkills.js": 14483,
+    "dist/checkpointStore.js": 91289,
+    "dist/codeIntel.js": 39595,
+    "dist/extension.js": 596609,
+    "dist/modelApi.js": 445380,
+    "dist/museCodeReviewer.js": 18726,
+    "dist/pageWorker.js": 193171,
+    "dist/planMarkdown.js": 142363,
+    "dist/review.js": 29060,
+    "dist/reviewer.js": 13517,
+    "dist/searchWorker.js": 4969,
+    "dist/sessionBoard.js": 48450,
+    "dist/team.js": 47501,
+    "dist/teamRunners.js": 45642,
+    "dist/teamScheduler.js": 59190,
+    "dist/uiText.js": 60958,
+    "dist/validation.js": 41768,
+    "dist/voice.js": 18720,
+    "dist/webFetch.js": 36053,
+    "dist/whatsNew.js": 17162,
+    "webviewInitialBytes": 840377,
+    "webviewDeferredBytes": 56885
+  },
+  "packages": {
+    "helperlessVsix": {
+      "bytes": 2317922,
+      "sha256": "5ead2676bc4bc1e15f5d4c128d11afa8f6b6e38affb631fa7559546d4c725560",
+      "universal": false,
+      "published013HelperAbsent": true,
+      "budgetBytes": 2252800,
+      "requiredFiles": {
+        "dist/team.js": true,
+        "dist/teamScheduler.js": true,
+        "dist/teamRunners.js": true,
+        "native/runner/runner-helper.sh": true,
+        "native/runner/runner-helper.ps1": true
+      },
+      "macHelperPresent": false
+    },
+    "privateAcp": {
+      "bytes": 1295223,
+      "sha256": "516fb84a7f031df77327f58d36f6e98e6179acc981767fa9848d8a211d77116a",
+      "requiredFiles": {
+        "dist/team.js": true,
+        "dist/teamScheduler.js": true,
+        "dist/teamRunners.js": true,
+        "native/runner/runner-helper.sh": true,
+        "native/runner/runner-helper.ps1": true
+      }
+    }
+  },
+  "drills": {
+    "classifierAndReconciliation": "m96-int-round3b-drills.json",
+    "x2AndSettlement": "m96-int-round3b-x2-drills.json",
+    "count": 15,
+    "restoration": "SHA-256 equality for every mutation"
+  },
+  "blockers": [
+    "M95 Models & Agents shell and concrete window scheduler/accounting/launch/landing bindings absent in all six named heads",
+    "64 original golden assertions conflict with inherited D78 behavior",
+    "deferred browser JS exceeds unchanged 50 KiB cap",
+    "published 0.13.0 helper unavailable locally; download prohibited by shared rule and clarification pending",
+    "helperless VSIX already exceeds unchanged 2252800-byte cap; universal bytes unmeasured",
+    "complete-history secret scan reports seven inherited findings; no historical rewrite or ignore changes"
+  ],
+  "fullQuality": "Required once after final commit; actual exit and tail are supplied in the final reply. This preflight receipt is not full-quality certification.",
+  "sourceCommit": "db6edb6fc32ba8fc8004195fcfdd929ebef16589"
+}

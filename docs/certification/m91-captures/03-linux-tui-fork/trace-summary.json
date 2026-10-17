@@ -1,0 +1,18 @@
+{
+  "modelAttemptLines": 10,
+  "admissions": 5,
+  "byProviderModelPhaseOutcome": {
+    "unknown/unknown/admission/accepted": 5,
+    "unknown/unknown/terminal/completed": 5
+  },
+  "nonEchoAdmissions": 5,
+  "credentialStatus": [
+    "event=\"credential.status\" provider=\"meta\" source=\"unavailable\" available=false login_present=false masks_login=false duration_ms=0"
+  ],
+  "hookTraceLines": [
+    "event=\"hook.execution.terminal\" hook_event=\"session_start\" display_order=0 status=\"completed\" duration_ms=46 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"user_prompt_submit\" display_order=1 status=\"completed\" duration_ms=54 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"stop\" display_order=2 status=\"completed\" duration_ms=41 stdout_bytes=0 stderr_bytes=0 error_bytes=0",
+    "event=\"hook.execution.terminal\" hook_event=\"session_end\" display_order=3 status=\"completed\" duration_ms=42 stdout_bytes=0 stderr_bytes=0 error_bytes=0"
+  ]
+}

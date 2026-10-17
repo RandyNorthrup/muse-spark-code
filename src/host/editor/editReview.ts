@@ -149,7 +149,12 @@ export function stripExtendedLengthPrefix(filePath: string): string {
 /** Edit review (M5): each call returns the notices to show in the transcript. */
 export interface EditReviewActions {
   openDiff(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
-  revert(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]>
+  /**
+   * `check` is the caller's guard (M87: the conversation's session and no
+   * running turn), asked after every wait and, with the checkpoint
+   * admission's, just before each file changes; it throws to stop the Revert.
+   */
+  revert(itemId: string, patchJson: string, check?: () => void): Promise<readonly ReviewNotice[]>
   /** The review pane's files (M70): workspace-relative, or refused with the reason. */
   describe(patchJson: string): Promise<readonly DescribedFile[]>
   /** The review pane's Revert on one hunk (M70). */
@@ -186,7 +191,11 @@ export class EditReview implements EditReviewActions {
    * escapes: by text, then by the canonical forms, so a link inside the
    * workspace that leads outside it is refused (PLAN.md D24).
    */
-  private async resolve(workspaceRoot: string, file: PatchFile): Promise<ResolvedFile | undefined> {
+  private async resolve(
+    workspaceRoot: string,
+    file: PatchFile,
+    check?: () => void,
+  ): Promise<ResolvedFile | undefined> {
     const root = this.paths.resolve(stripExtendedLengthPrefix(workspaceRoot))
     const fsPath = this.paths.resolve(root, stripExtendedLengthPrefix(file.path))
     const relative = this.paths.relative(root, fsPath)
@@ -200,12 +209,14 @@ export class EditReview implements EditReviewActions {
         this.deps.realPath(root),
         this.deps.realPath(fsPath),
       ])
+      check?.()
       if (!this.isBelow(this.paths.relative(realRoot, realTarget))) {
         return undefined
       }
       canonicalPath = realTarget
       canonicalRelativePath = this.paths.relative(realRoot, realTarget).replaceAll('\\', '/')
     } catch (error: unknown) {
+      check?.()
       this.deps.log.warn(`Edit review could not resolve ${relative}: ${String(error)}`)
       return undefined
     }
@@ -235,7 +246,10 @@ export class EditReview implements EditReviewActions {
   }
 
   /** Resolves each file once, collecting folder, patch and confinement refusals. */
-  private async resolvePatch(patchJson: string): Promise<{
+  private async resolvePatch(
+    patchJson: string,
+    check?: () => void,
+  ): Promise<{
     resolved: ResolvedFile[]
     notices: ReviewNotice[]
   }> {
@@ -250,7 +264,9 @@ export class EditReview implements EditReviewActions {
     const resolvedFiles: ResolvedFile[] = []
     const notices: ReviewNotice[] = []
     for (const file of files) {
-      const resolved = await this.resolve(workspaceRoot, file)
+      check?.()
+      const resolved = await this.resolve(workspaceRoot, file, check)
+      check?.()
       if (resolved === undefined) {
         notices.push({
           level: 'warning',
@@ -297,10 +313,15 @@ export class EditReview implements EditReviewActions {
    * canonical target inside the workspace, and no editor holds unsaved text
    * for it.
    */
-  private async writeRefusal(resolved: ResolvedFile): Promise<ReviewNotice | undefined> {
+  private async writeRefusal(
+    resolved: ResolvedFile,
+    check?: () => void,
+  ): Promise<ReviewNotice | undefined> {
     const { workspaceRoot } = this.deps
     const checked =
-      workspaceRoot === undefined ? undefined : await this.resolve(workspaceRoot, resolved.file)
+      workspaceRoot === undefined
+        ? undefined
+        : await this.resolve(workspaceRoot, resolved.file, check)
     if (
       checked === undefined ||
       !isSamePath(checked.canonicalPath, resolved.canonicalPath, this.deps.platform)
@@ -319,11 +340,14 @@ export class EditReview implements EditReviewActions {
    * the editor checked again, and the result published only while the file
    * still holds what was read, so a save or a swap meanwhile refuses it.
    * Reverts of one file queue behind each other; a failure frees the lane.
+   * `check`, the caller's guard (M87), is asked after each wait, and with
+   * the admission's final word just before the change.
    */
   private async writeRevert(
     itemId: string,
     resolved: ResolvedFile,
     hunkIndex?: number,
+    check?: () => void,
   ): Promise<RevertResult> {
     const canonical = this.paths.normalize(resolved.canonicalPath)
     const key = this.deps.platform === 'win32' ? canonical.toLowerCase() : canonical
@@ -346,8 +370,16 @@ export class EditReview implements EditReviewActions {
     const outcome: { committed?: RevertResult } = {}
     try {
       await previous
+      check?.()
       return await this.deps.withAdmission(async (assertAdmitted) => {
-        const result = await this.revertAdmitted(itemId, resolved, assertAdmitted, hunkIndex)
+        const assertCanWrite =
+          check === undefined
+            ? assertAdmitted
+            : () => {
+                assertAdmitted()
+                check()
+              }
+        const result = await this.revertAdmitted(itemId, resolved, assertCanWrite, hunkIndex, check)
         if (result.isReverted) {
           outcome.committed = result
         }
@@ -375,13 +407,17 @@ export class EditReview implements EditReviewActions {
     resolved: ResolvedFile,
     assertAdmitted: () => void,
     hunkIndex: number | undefined,
+    check?: () => void,
   ): Promise<RevertResult> {
+    check?.()
     const raw = await this.deps.readFile(resolved.canonicalPath)
+    check?.()
     const rebuilt = this.rebuild(resolved, raw ?? '')
     if (!rebuilt.ok) {
       return { isReverted: false, notices: [rebuilt.notice] }
     }
-    const refusal = await this.writeRefusal(resolved)
+    const refusal = await this.writeRefusal(resolved, check)
+    check?.()
     if (refusal !== undefined) {
       return { isReverted: false, notices: [refusal] }
     }
@@ -533,11 +569,20 @@ export class EditReview implements EditReviewActions {
     return await this.writeRevert(itemId, resolved, hunkIndex)
   }
 
-  /** Writes the pre-edit text back (or trashes a created file); returns the notices. */
-  public async revert(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]> {
-    const { resolved, notices } = await this.resolvePatch(patchJson)
+  /**
+   * Writes the pre-edit text back (or trashes a created file); returns the
+   * notices. `check` (M87) throws to stop it before any further read or change.
+   */
+  public async revert(
+    itemId: string,
+    patchJson: string,
+    check?: () => void,
+  ): Promise<readonly ReviewNotice[]> {
+    check?.()
+    const { resolved, notices } = await this.resolvePatch(patchJson, check)
     for (const file of resolved) {
-      const result = await this.writeRevert(itemId, file)
+      check?.()
+      const result = await this.writeRevert(itemId, file, undefined, check)
       notices.push(...result.notices)
     }
     return notices

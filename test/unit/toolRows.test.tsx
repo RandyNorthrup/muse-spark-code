@@ -2,9 +2,34 @@
 // The rows of Muse Code's own tools (M43, PLAN.md D36). Every argument and
 // result below is the shape Muse Code 1.3.0 sent on 2026-09-25
 // (docs/certification/m43.md), trimmed to what the row reads.
-import { fireEvent, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
-import { renderTranscript, tool } from './helpers/transcriptFixtures'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { Clipped } from '../../src/webview/components/ToolBlocks'
+import {
+  renderSteps,
+  renderTranscript,
+  tool,
+  userShell,
+  warmRowMenus,
+} from './helpers/transcriptFixtures'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
+
+beforeAll(async () => {
+  await warmRowMenus()
+  renderTranscript([
+    tool({
+      tool: 'add_memory',
+      args: '{"content":"Warm body.","path":"warm.md","scope":"personal_project"}',
+      output:
+        '{"success":true,"scope":"personal_project","path":"warm.md","operation":"add","message":"memory note written"}',
+    }),
+  ])
+  openRow('Save Memory')
+  await screen.findByText('Warm body.')
+  cleanup()
+})
 
 const GOAL = {
   session_id: 's',
@@ -37,15 +62,97 @@ function openRow(label: string): HTMLElement {
   if (row === null) {
     throw new Error(`no row ${label}`)
   }
-  const toggle = within(row).queryAllByRole('button', { expanded: false })[0]
-  if (toggle !== undefined) {
+  const toggle = row.querySelector('.tool-toggle[aria-expanded="false"]')
+  if (toggle !== null) {
     fireEvent.click(toggle)
   }
   return row
 }
 
+describe('shell previews (M87)', () => {
+  const lines = 'first\nsecond\nthird\nfourth\nfifth\nsixth'
+
+  it('joins tool IN and OUT, clips each at five lines, and expands them independently', () => {
+    renderTranscript([
+      tool({ tool: 'powershell', args: JSON.stringify({ command: lines }), output: lines }),
+    ])
+    const row = openRow('PowerShell')
+    const boxes = row.querySelectorAll<HTMLElement>(':scope .shell > .shell-box')
+    expect(boxes).toHaveLength(2)
+    for (const box of boxes) {
+      expect(box.querySelector('pre')?.textContent).toBe('first\nsecond\nthird\nfourth\nfifth')
+      expect(within(box).getByRole('button', { name: 'Show More', expanded: false })).toBeTruthy()
+    }
+    fireEvent.click(within(boxes[0]!).getByRole('button', { name: 'Show More' }))
+    expect(boxes[0]!.querySelector('pre')?.textContent).toBe(lines)
+    expect(
+      within(boxes[0]!).getByRole('button', { name: 'Show Less', expanded: true }),
+    ).toBeTruthy()
+    expect(boxes[1]!.querySelector('pre')?.textContent).not.toContain('sixth')
+    fireEvent.click(within(boxes[0]!).getByRole('button', { name: 'Show Less' }))
+    expect(
+      within(boxes[0]!).getByRole('button', { name: 'Show More', expanded: false }),
+    ).toBeTruthy()
+  })
+
+  it('gives user commands the same two previews and opens full output in the editor', () => {
+    const props = renderTranscript([userShell({ command: lines, output: lines })])
+    const boxes = document.querySelectorAll<HTMLElement>('.user-shell .shell > .shell-box')
+    expect(boxes).toHaveLength(2)
+    expect(within(boxes[0]!).getByText('IN')).toBeTruthy()
+    expect(within(boxes[1]!).getByText('OUT')).toBeTruthy()
+    for (const box of boxes) {
+      expect(box.querySelector('pre')?.textContent).toBe('first\nsecond\nthird\nfourth\nfifth')
+      fireEvent.click(within(box).getByRole('button', { name: 'Show More', expanded: false }))
+      expect(box.querySelector('pre')?.textContent).toBe(lines)
+    }
+    fireEvent.keyDown(within(boxes[1]!).getByTitle('Click to open the output in an editor'), {
+      key: 'Enter',
+    })
+    expect(props.onOpenOutput).toHaveBeenCalledWith('u', 'You Ran', lines, undefined)
+  })
+
+  it('shows user IN before any output arrives without an empty OUT part', () => {
+    renderTranscript([userShell({ command: lines, output: '', status: 'inProgress' })])
+    const boxes = document.querySelectorAll<HTMLElement>('.user-shell .shell > .shell-box')
+    expect(boxes).toHaveLength(1)
+    expect(within(boxes[0]!).getByText('IN')).toBeTruthy()
+    expect(within(boxes[0]!).queryByText('OUT')).toBeNull()
+  })
+
+  it('keeps the 2,000-character cap on a shell command', () => {
+    renderTranscript([
+      tool({ tool: 'powershell', args: JSON.stringify({ command: 'x'.repeat(2001) }) }),
+    ])
+    const row = openRow('PowerShell')
+    expect(row.querySelector(':scope .shell pre')?.textContent).toBe(`${'x'.repeat(2000)}…`)
+    fireEvent.click(within(row).getByRole('button', { name: 'Show More', expanded: false }))
+    expect(row.querySelector(':scope .shell pre')?.textContent).toBe('x'.repeat(2001))
+  })
+
+  it('keeps other outputs at twelve lines and toggles accessible expanded state', () => {
+    const text = Array.from({ length: 13 }, (_, index) => `line ${String(index + 1)}`).join('\n')
+    const { container } = render(<Clipped text={text} className="tool-output" />)
+    expect(container.querySelector('pre')?.textContent.split('\n')).toHaveLength(12)
+    fireEvent.click(screen.getByRole('button', { name: 'Show More', expanded: false }))
+    expect(container.querySelector('pre')?.textContent).toBe(text)
+    expect(screen.getByRole('button', { name: 'Show Less', expanded: true })).toBeTruthy()
+  })
+
+  it('shows no toggle for exactly five shell lines or 2,000 characters', () => {
+    renderTranscript([
+      tool({
+        tool: 'powershell',
+        args: JSON.stringify({ command: 'x'.repeat(2000) }),
+        output: '1\n2\n3\n4\n5',
+      }),
+    ])
+    expect(within(openRow('PowerShell')).queryByRole('button', { name: 'Show More' })).toBeNull()
+  })
+})
+
 describe('memory rows (M43)', () => {
-  it('shows the note saved, where it lives, and the path beside the label', () => {
+  it('shows the note saved, where it lives, and the path beside the label', async () => {
     renderTranscript([
       tool({
         tool: 'add_memory',
@@ -55,8 +162,8 @@ describe('memory rows (M43)', () => {
       }),
     ])
     expect(screen.getByText('palette.md')).toBeTruthy()
-    const row = openRow('Save memory')
-    expect(within(row).getByText('Your memory for this project')).toBeTruthy()
+    const row = openRow('Save Memory')
+    expect(await within(row).findByText('Your Memory for This Project')).toBeTruthy()
     expect(within(row).getByText('The favourite colour is teal.')).toBeTruthy()
     expect(within(row).queryByText(/memory note written/)).toBeNull()
   })
@@ -70,8 +177,8 @@ describe('memory rows (M43)', () => {
           '{"success":true,"scope":"project","path":"palette.md","start_line_number":1,"content":"The favourite colour is teal.","truncated":false}',
       }),
     ])
-    const row = openRow('Read memory')
-    expect(within(row).getByText('Project memory, shared with the repository')).toBeTruthy()
+    const row = openRow('Read Memory')
+    expect(within(row).getByText('Project Memory, Shared With the Repository')).toBeTruthy()
     expect(within(row).getByText('The favourite colour is teal.')).toBeTruthy()
     expect(within(row).queryByText(/start_line_number/)).toBeNull()
   })
@@ -85,15 +192,15 @@ describe('memory rows (M43)', () => {
         output: '{"success":true,"operation":"edit","message":"memory note edited"}',
       }),
     ])
-    openRow('Edit memory')
+    openRow('Edit Memory')
     expect(container.querySelector('.diff-remove')?.textContent).toContain('teal')
     expect(container.querySelector('.diff-add')?.textContent).toContain('navy')
-    expect(screen.getByText('Your memory for every project')).toBeTruthy()
+    expect(screen.getByText('Your Memory for Every Project')).toBeTruthy()
   })
 })
 
 describe('goal rows (M43)', () => {
-  it('shows the goal, its status, progress, current and next work, and the tokens', () => {
+  it('shows the goal, its status, progress, current and next work, and the tokens', async () => {
     renderTranscript([
       tool({
         tool: 'report_progress',
@@ -102,10 +209,10 @@ describe('goal rows (M43)', () => {
       }),
     ])
     expect(screen.getAllByText('Saying hello')).toHaveLength(1)
-    const row = openRow('Goal progress')
-    expect(within(row).getByText('Say hello in one word')).toBeTruthy()
+    const row = openRow('Goal Progress')
+    expect(await within(row).findByText('Say hello in one word')).toBeTruthy()
     expect(within(row).getByText('Active · 50% done')).toBeTruthy()
-    const bar = within(row).getByRole('progressbar', { name: 'Goal progress' })
+    const bar = within(row).getByRole('progressbar', { name: 'Goal Progress' })
     expect(bar.getAttribute('value')).toBe('50')
     expect(within(row).getByText('Mark complete')).toBeTruthy()
     expect(within(row).getByText('24,331')).toBeTruthy()
@@ -135,13 +242,13 @@ describe('goal rows (M43)', () => {
 
   it('falls back to the text when a goal tool answers something else', () => {
     renderTranscript([tool({ tool: 'get_goal', args: '{}', output: 'No goal is set.' })])
-    const row = openRow('Check goal')
+    const row = openRow('Check Goal')
     expect(within(row).getByText('No goal is set.')).toBeTruthy()
   })
 })
 
 describe('schedule rows (M43)', () => {
-  it('shows the prompt, its schedule and that it runs once', () => {
+  it('shows the prompt, its schedule and that it runs once', async () => {
     renderTranscript([
       tool({
         tool: 'cron_create',
@@ -149,9 +256,10 @@ describe('schedule rows (M43)', () => {
         output: 'Scheduled 2ef46218 (59 23 31 12 *, once)',
       }),
     ])
-    const row = openRow('Schedule prompt')
-    expect(within(row).getAllByText('say hi').length).toBeGreaterThan(0)
-    expect(within(row).getByText('59 23 31 12 * · Once')).toBeTruthy()
+    const row = openRow('Schedule Prompt')
+    const prompts = await within(row).findAllByText('say hi')
+    expect(prompts.length).toBeGreaterThan(0)
+    expect(await within(row).findByText('59 23 31 12 * · Once')).toBeTruthy()
     expect(within(row).getByText('Scheduled 2ef46218 (59 23 31 12 *, once)')).toBeTruthy()
   })
 
@@ -174,7 +282,7 @@ describe('schedule rows (M43)', () => {
         }),
       }),
     ])
-    const row = openRow('Scheduled prompts')
+    const row = openRow('Scheduled Prompts')
     expect(within(row).getByText('check the build')).toBeTruthy()
     const facts = within(row).getByText(/\*\/10 \* \* \* \* · Repeats · Next run .+ · Ran 3 times/)
     expect(facts).toBeTruthy()
@@ -182,20 +290,20 @@ describe('schedule rows (M43)', () => {
 
   it('shows a list it cannot read as its text, never as "no scheduled prompts" (the review of PR #29)', () => {
     renderTranscript([tool({ tool: 'cron_list', args: '{}', output: 'scheduler unavailable' })])
-    const row = openRow('Scheduled prompts')
+    const row = openRow('Scheduled Prompts')
     expect(within(row).getByText('scheduler unavailable')).toBeTruthy()
     expect(within(row).queryByText('No scheduled prompts')).toBeNull()
   })
 
   it('says when there is nothing scheduled', () => {
     renderTranscript([tool({ tool: 'cron_list', args: '{}', output: '{"jobs":[]}' })])
-    const row = openRow('Scheduled prompts')
+    const row = openRow('Scheduled Prompts')
     expect(within(row).getByText('No scheduled prompts')).toBeTruthy()
   })
 })
 
 describe('web search rows (M43)', () => {
-  it('lists the results as links that open in the browser, with their snippets', () => {
+  it('lists the results as links that open in the browser, with their snippets', async () => {
     const props = renderTranscript([
       tool({
         tool: 'web_search',
@@ -204,8 +312,8 @@ describe('web search rows (M43)', () => {
       }),
     ])
     expect(screen.getByText('Keep a Changelog 1.1.0')).toBeTruthy()
-    const row = openRow('Web search')
-    fireEvent.click(within(row).getByRole('link', { name: 'Keep a Changelog' }))
+    const row = openRow('Web Search')
+    fireEvent.click(await within(row).findByRole('link', { name: 'Keep a Changelog' }))
     expect(props.onOpenLink).toHaveBeenCalledWith('https://keepachangelog.com/en/1.1.0/')
     expect(within(row).getByText(/dump git logs/)).toBeTruthy()
     expect(within(row).queryByText(/page_last_modified/)).toBeNull()
@@ -217,14 +325,14 @@ describe('web search rows (M43)', () => {
       [tool({ tool: 'web_search', args: '{"query":"x"}', output: JSON.stringify(SEARCH) })],
       { onRefuseLink },
     )
-    const row = openRow('Web search')
+    const row = openRow('Web Search')
     fireEvent.click(within(row).getByRole('link', { name: 'Not a page' }))
     expect(onRefuseLink).toHaveBeenCalledOnce()
     expect(props.onOpenLink).not.toHaveBeenCalled()
   })
 
   it('says a search found nothing, and shows any other result as text', () => {
-    renderTranscript([
+    renderSteps([
       tool({
         id: 'w1',
         tool: 'web_search',
@@ -233,7 +341,7 @@ describe('web search rows (M43)', () => {
       }),
       tool({ id: 'w2', tool: 'web_search', args: '{"query":"b"}', output: 'search is off' }),
     ])
-    const toggles = screen.getAllByRole('button', { name: /Web search/ })
+    const toggles = screen.getAllByRole('button', { name: /Web Search/ })
     for (const toggle of toggles) {
       fireEvent.click(toggle)
     }
@@ -261,7 +369,7 @@ describe('web fetch rows (M69)', () => {
     ])
     expect(screen.getByText('https://docs.example.com/guide')).toBeTruthy()
     expect(screen.getByText('Fetched 48.2 kB (text/html)')).toBeTruthy()
-    const row = openRow('Fetch page')
+    const row = openRow('Fetch Page')
     expect(within(row).getByText(/# Guide/)).toBeTruthy()
   })
 
@@ -324,7 +432,7 @@ describe('background work (M43)', () => {
 })
 
 describe('labels (M43)', () => {
-  it('names an MCP server’s tool by the tool and its server, its JSON indented', () => {
+  it('names an MCP Server’s tool by the tool and its server, its JSON indented', () => {
     renderTranscript([
       tool({ tool: 'mcp__github__create_issue', args: '{"title":"x"}', output: '[1,2]' }),
     ])
@@ -348,7 +456,7 @@ describe('labels (M43)', () => {
 })
 
 describe('pictures a tool read or made (M43)', () => {
-  it('asks the host once for the picture a completed read names, then shows it', () => {
+  it('asks the host once for the picture a completed read names, then shows it', async () => {
     const entry = tool({
       id: 'r1',
       tool: 'read_file',
@@ -357,13 +465,15 @@ describe('pictures a tool read or made (M43)', () => {
     })
     const onReadImage = vi.fn()
     renderTranscript([entry], { onReadImage })
-    expect(onReadImage).toHaveBeenCalledExactlyOnceWith('r1', 'dot.png')
+    await waitFor(() => {
+      expect(onReadImage).toHaveBeenCalledExactlyOnceWith('r1', 'dot.png')
+    })
     expect(screen.getByText('Loading…')).toBeTruthy()
   })
 
   it('shows a loaded picture, opens its file on click, and says why one failed', () => {
     const onOpenFile = vi.fn()
-    renderTranscript(
+    renderSteps(
       [
         tool({
           id: 'i1',
@@ -429,7 +539,7 @@ describe('image rows (M44)', () => {
         output: '',
       }),
     ])
-    const row = openRow('Edit image')
+    const row = openRow('Edit Image')
     expect(within(row).getByText('media/fox-hat.png')).toBeTruthy()
     expect(within(row).getByText('Add a red hat')).toBeTruthy()
     expect(within(row).getByText('media/fox.png, media/hat.webp')).toBeTruthy()

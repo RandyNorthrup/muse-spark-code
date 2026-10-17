@@ -1,0 +1,23 @@
+[
+  {
+    "file": "muse-spark-code-0.14.0.vsix",
+    "manifestVersion": "0.14.0",
+    "badgeUrls": [
+      "https://img.shields.io/badge/Marketplace-v0.14.0-2b7de9",
+      "https://img.shields.io/badge/Open%20VSX-v0.14.0-3b6"
+    ],
+    "bytes": 2168278,
+    "sha256": "39a8c854c9f4c5d85e77f1d22118398aa3b99276af10dbde631f11e34cb63a4f",
+    "compiledMacHelper": false
+  },
+  {
+    "file": "dist/muse-spark-code-acp-0.14.0.tgz",
+    "manifestVersion": "0.14.0",
+    "badgeUrls": [
+      "https://img.shields.io/badge/npm-v0.14.0-3b6cf6",
+      "https://img.shields.io/badge/GitHub%20release-v0.14.0-3b6cf6"
+    ],
+    "bytes": 1295446,
+    "sha256": "55b7ae9bce6380bb8a7a1e85d85d9a53b9267b96541a8fe3a36cab444b5e57a5"
+  }
+]

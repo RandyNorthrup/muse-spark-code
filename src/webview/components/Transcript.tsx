@@ -1,42 +1,105 @@
 // The conversation: user cards with their image chips, assistant markdown,
 // reasoning rows, tool rows (with approval / question cards), generic items,
-// errors and notices, and the status line while a turn runs. Focus view
-// collapses tool and reasoning rows behind one expandable row per run.
+// errors and notices, and the status line while a turn runs. A run of two or
+// more finished steps folds under one summary row (M87); Focus view folds
+// every step that is not waiting on the user.
 //
 // Every row is memoised and every callback the app passes is stable (M25), so
 // a keystroke in the composer renders no row and a streamed delta renders
 // only the row it changes. The rows carry no alert roles: the app's single
 // live region reads failures and turn ends out once (M25).
 
-import { memo, type ReactNode, useDeferredValue, useMemo, useRef, useState } from 'react'
+import {
+  lazy,
+  Suspense,
+  memo,
+  type ReactNode,
+  useDeferredValue,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
-import { fill, plural } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
-import { formatUsd } from '../../core/usage/insights'
-import { hasFileAttachment } from '../state/transcriptEntries'
+import {
+  fill,
+  formatDateTime,
+  formatFullDateTime,
+  formatTime,
+  isSameLocalDay,
+  plural,
+} from '../../shared/l10n/text'
+import { isFinishedStep, type StepEntry, stepSummary, stepSummaryText } from '../stepSummary'
+import { useReplyUsageText } from '../moneyHooks'
+import type { UsdAmount } from '../../shared/usdSchema'
+
+/**
+ * A reply's usage line with its exact cost (STARTUP017): the line appears
+ * once the lazy money chunk arrives, never with a guessed cost. The tokens
+ * are known at startup; the exact dollars are not.
+ */
+function ReplyUsage({
+  inputTokens,
+  outputTokens,
+  costUsd,
+}: {
+  readonly inputTokens: number
+  readonly outputTokens: number
+  readonly costUsd: UsdAmount
+}) {
+  const text = useReplyUsageText(inputTokens, outputTokens, costUsd)
+  return text === undefined ? null : <div className="response-usage">{text}</div>
+}
+import { hasFileAttachment, STEERED_DISPOSITION } from '../state/transcriptEntries'
 import {
   forkCutBefore,
   type OutputPage,
   outputPageKey,
   type TranscriptEntry,
 } from '../state/uiState'
-import type { NoticeAction } from '../../shared/protocol'
+import type { NoticeAction, ReportEventRef } from '../../shared/protocol'
 import { splitForStreaming, splitOpenFence } from '../streamSplit'
-import { useDismiss } from '../useDismiss'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { useCopiedFlag } from '../useCopiedFlag'
 import { CodeBlock } from './CodeBlock'
 import { ExternalLink } from './ExternalLink'
-import { CheckIcon, CopyIcon, FileIcon, ImageIcon, MoreIcon, ReplyIcon, RewindIcon } from './icons'
+import {
+  CheckIcon,
+  CopyIcon,
+  ExpandChevron,
+  FileIcon,
+  ImageIcon,
+  ReplyIcon,
+  RewindIcon,
+} from './icons'
 import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
-import { ToolRow, type ToolRowProps } from './ToolRow'
+import type { TeamCardActions } from './TeamCards'
+import type { ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
-import { WorkflowRunView } from './WorkflowRun'
+import { deferred } from './DeferredSurface'
+
 import { PaidBadge } from './PaidBadge'
+import { type GooeyItem, useRowMenu } from './GooeyMenu'
+import type { MenuPoint } from '../gooeyLayout'
+
+const ToolRow = deferred<ToolRowProps>(async () => {
+  const module = await import('./ToolRow')
+  return { default: module.ToolRow }
+})
+
+const TeamCard = lazy(async () => {
+  const module = await import('./TeamUi')
+  return { default: module.TeamCard }
+})
+
+const WorkflowRunView = deferred(async () => {
+  const module = await import('./WorkflowRun')
+  return { default: module.WorkflowRunView }
+})
 
 export interface TranscriptProps {
   readonly entries: readonly TranscriptEntry[]
@@ -60,6 +123,10 @@ export interface TranscriptProps {
   /** The question card's Cancel (M16), and its Explain instead (M46). */
   readonly onCancelQuestion: (userInputId: string) => void
   readonly onClarifyQuestion: ToolRowProps['onClarifyQuestion']
+  /** An elicitation form's Send, Decline and Cancel (M91 lane M). */
+  readonly onAcceptElicitation: ToolRowProps['onAcceptElicitation']
+  readonly onDeclineElicitation: ToolRowProps['onDeclineElicitation']
+  readonly onCancelElicitation: ToolRowProps['onCancelElicitation']
   /** A running command to the background, a task's Stop (M46). */
   readonly onMoveToBackground: ToolRowProps['onMoveToBackground']
   readonly onStopTask: ToolRowProps['onStopTask']
@@ -68,6 +135,8 @@ export interface TranscriptProps {
   /** Code block Apply (M5); absent as `onInsert` is. */
   readonly onApply: ((text: string) => void) | undefined
   readonly onOpenEditDiff: (itemId: string, outputRef: string) => void
+  /** An edit row's Revert (M87); absent in imported history or without a session. */
+  readonly onRevertEdit?: ToolRowProps['onRevertEdit']
   /** A tool row's path, or a reply's relative link: the file (M16, M25). */
   readonly onOpenFile: ToolRowProps['onOpenFile']
   /** A reply's link to a file outside the workspace (M25). */
@@ -75,12 +144,12 @@ export interface TranscriptProps {
   /** The user card's menu (M6, M13); absent while no session exists. */
   readonly onFork?: ((entryId: string) => void) | undefined
   readonly onRewind?: ((entryId: string) => void) | undefined
-  /** "Fork conversation and rewind code": one host action, the rewind then the fork (M72). */
+  /** "Fork and Rewind": one host action, the rewind then the fork (M72). */
   readonly onForkRewind?: ((entryId: string) => void) | undefined
   readonly onRewindConversation?: ((entryId: string) => void) | undefined
   /**
-   * Turn checkpoints (M72): the turns with one, their card's "Restore files"
-   * and "Rewind conversation and restore files", and a restore's Redo.
+   * Turn checkpoints (M72): the turns with one, their card's "Restore Files"
+   * and "Rewind Conversation and Restore Files", and a restore's Redo.
    */
   readonly checkpointTurnIds?: ReadonlySet<string> | undefined
   readonly legacyCheckpointTurnIds?: ReadonlySet<string> | undefined
@@ -89,6 +158,12 @@ export interface TranscriptProps {
   readonly onRedo?: ((entryId: string, restoreId: string) => void) | undefined
   /** A Muse Code fault's way on (D26): Restart now, New conversation. */
   readonly onNoticeAction?: ((entryId: string, action: NoticeAction) => void) | undefined
+  /**
+   * "Report This" on a failure the host recorded (M93 lane W): hands the
+   * row's sanitized event reference to the report workflow, never its text.
+   * Rows offer it only while they carry a reference.
+   */
+  readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
   /** Why the menu offers no file restore (Restricted Mode, the setting), or none. */
   readonly restoreNote?: string | undefined
   /** Why the menu offers no conversation rewind (Muse Code on Windows, D26), or none. */
@@ -106,16 +181,44 @@ export interface TranscriptProps {
   readonly onImplementPlan?: ((entryId: string) => void) | undefined
   /** The row whose highlighted text has the Copy / Ask / Comment menu open (M17). */
   readonly quoteMenuEntryId?: string | undefined
+  readonly quoteMenuOrigin?: MenuPoint | HTMLElement | undefined
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
+  /**
+   * The team's waiting and merge cards' answers (M96 lane U2); absent
+   * where the host takes none (history, single-model mode): the cards read
+   * only then.
+   */
+  readonly teamActions?: TeamCardActions | undefined
+  /**
+   * Edit on a queued card (M87, PLAN.md D66): the ids the host gave it, for
+   * `withdrawQueued`. Absent while nothing can take a message back.
+   */
+  /** M118-P-REACT-BRIDGE: same handler as the native Save Prompt command. */
+  readonly onSharePrompt?: ((text: string) => void) | undefined
+  readonly onSavePrompt?: ((text: string) => void) | undefined
+  readonly onEditQueued?: ((card: QueuedCardRef) => void) | undefined
+  /**
+   * Whether a steered message can still be taken back before a request reads
+   * it: the Model API's can; Muse Code's is delivered at once, and its card's
+   * menu says so instead (D66).
+   */
+  readonly canEditSteered?: boolean | undefined
+}
+
+/** A queued card as `withdrawQueued` names it (M87). */
+export interface QueuedCardRef {
+  readonly localId: string
+  readonly turnId: string
+  readonly userMessageId: string | undefined
 }
 
 type RewindChoice = 'fork' | 'conversation' | 'restore' | 'rewind' | 'restoreBoth' | 'forkRewind'
 
 /**
  * The rows of the user card's menu, in Claude Code's order. A turn with a
- * checkpoint (M72) offers "Restore files" and the conversation rewind with
+ * checkpoint (M72) offers "Restore Files" and the conversation rewind with
  * it; one without keeps M13's fork and code rewind together.
  */
 function rewindMenu(): readonly { readonly id: RewindChoice; readonly label: string }[] {
@@ -144,9 +247,7 @@ function turnOpeners(entries: readonly TranscriptEntry[]): ReadonlySet<string> {
   return openers
 }
 
-type StepEntry = Extract<TranscriptEntry, { kind: 'tool' | 'reasoning' }>
-
-/** Consecutive tool/reasoning rows folded into one group for Focus view. */
+/** Consecutive tool/reasoning rows folded into one group under a summary (M16, M87). */
 type Segment =
   | { readonly kind: 'entry'; readonly entry: TranscriptEntry }
   | { readonly kind: 'steps'; readonly id: string; readonly steps: readonly StepEntry[] }
@@ -160,11 +261,12 @@ function isWaiting(entry: StepEntry): boolean {
   return entry.kind === 'tool' && (entry.approval !== undefined || entry.question !== undefined)
 }
 
-export function segment(entries: readonly TranscriptEntry[], isFocusView: boolean): Segment[] {
+/** Focus view (M16): every step not waiting on the user folds, a waiting one splits the run. */
+function focusSegments(entries: readonly TranscriptEntry[]): Segment[] {
   const segments: Segment[] = []
   for (const entry of entries) {
     const last = segments.at(-1)
-    if (isFocusView && isStep(entry) && !isWaiting(entry)) {
+    if (isStep(entry) && !isWaiting(entry)) {
       if (last?.kind === 'steps') {
         segments[segments.length - 1] = { ...last, steps: [...last.steps, entry] }
       } else {
@@ -177,15 +279,69 @@ export function segment(entries: readonly TranscriptEntry[], isFocusView: boolea
   return segments
 }
 
-/** Escape inside an open menu closes it and stays inside the row. */
-function closeOnEscape(isOpen: boolean, close: () => void) {
-  return (event: React.KeyboardEvent<HTMLElement>) => {
-    if (!isOpen || event.key !== 'Escape') {
-      return
+/**
+ * The default view (M87, PLAN.md D66): in a run of steps with no other row
+ * between them, two or more finished steps fold into one group. A step
+ * waiting on the user never folds, and a running one stays below the group
+ * until it finishes; one finished step alone stays as it is.
+ */
+function defaultSegments(entries: readonly TranscriptEntry[]): Segment[] {
+  const segments: Segment[] = []
+  let run: StepEntry[] = []
+  const flush = () => {
+    const folded = run.filter((step) => isFinishedStep(step) && !isWaiting(step))
+    const first = folded[0]
+    if (first !== undefined && folded.length >= 2) {
+      segments.push({ kind: 'steps', id: `steps:${first.id}`, steps: folded })
+      run = run.filter((step) => !folded.includes(step))
     }
-    event.stopPropagation()
-    close()
+    segments.push(...run.map((step): Segment => ({ kind: 'entry', entry: step })))
+    run = []
   }
+  for (const entry of entries) {
+    if (isStep(entry)) {
+      run.push(entry)
+      continue
+    }
+    flush()
+    segments.push({ kind: 'entry', entry })
+  }
+  flush()
+  return segments
+}
+
+export function segment(entries: readonly TranscriptEntry[], isFocusView: boolean): Segment[] {
+  return isFocusView ? focusSegments(entries) : defaultSegments(entries)
+}
+
+/**
+ * A message's time at its card's corner (M87, PLAN.md D66): the time alone
+ * for today, else the date and time, in the display language; the full date
+ * and time in its title. Revealed on hover and on focus inside the card; a
+ * card with no button of its own makes the time itself a keyboard stop.
+ */
+function MessageTime({
+  atMs,
+  template,
+  isFocusable,
+}: {
+  readonly atMs: number
+  readonly template: string
+  readonly isFocusable: boolean
+}) {
+  // "Today" is judged when the card mounts: one left open past midnight keeps
+  // its time-only label, and its title still names the day (D66).
+  const [renderedAtMs] = useState(Date.now)
+  return (
+    <time
+      className="message-time"
+      dateTime={new Date(atMs).toISOString()}
+      title={fill(template, { time: formatFullDateTime(atMs) })}
+      tabIndex={isFocusable ? 0 : undefined}
+    >
+      {isSameLocalDay(atMs, renderedAtMs) ? formatTime(atMs) : formatDateTime(atMs)}
+    </time>
+  )
 }
 
 const UserCard = memo(function UserCard({
@@ -199,6 +355,10 @@ const UserCard = memo(function UserCard({
   restoreNote,
   conversationNote,
   quoteMenu,
+  onSharePrompt,
+  onSavePrompt,
+  onEditQueued,
+  canEditSteered,
 }: {
   readonly entry: Extract<TranscriptEntry, { kind: 'user' }>
   readonly onFork: ((entryId: string) => void) | undefined
@@ -210,19 +370,28 @@ const UserCard = memo(function UserCard({
   readonly restoreNote: string | undefined
   readonly conversationNote: string | undefined
   readonly quoteMenu: ReactNode
+  readonly onSharePrompt: ((text: string) => void) | undefined
+  readonly onSavePrompt: ((text: string) => void) | undefined
+  readonly onEditQueued: ((card: QueuedCardRef) => void) | undefined
+  readonly canEditSteered: boolean
 }) {
   const hasChips =
     entry.attachments.length > 0 ||
     entry.contextLabel !== undefined ||
     entry.referenceLabel !== undefined
-  const [isMenuOpen, setMenuOpen] = useState(false)
-  const menuArea = useRef<HTMLDivElement>(null)
-  const closeMenu = () => {
-    setMenuOpen(false)
-  }
-  const onMenuBlur = useDismiss(menuArea, isMenuOpen, closeMenu)
   // Without fork (a host that refuses it, D26) the menu offers the rewind alone.
   const hasMenu = onRewind !== undefined && entry.status === 'sent'
+  // A queued card's menu (M87): Edit, or the note that a steer was delivered.
+  const { turnId } = entry
+  const isQueued = entry.status === 'queued' && turnId !== undefined
+  const isDelivered = isQueued && entry.disposition === STEERED_DISPOSITION && !canEditSteered
+  const hasQueuedMenu = isQueued && (isDelivered || onEditQueued !== undefined)
+  const editQueued = () => {
+    menu.close()
+    if (turnId !== undefined) {
+      onEditQueued?.({ localId: entry.id, turnId, userMessageId: entry.replayItemId })
+    }
+  }
   const offered: Readonly<Record<RewindChoice, boolean>> = {
     fork: onFork !== undefined,
     conversation: onRewindConversation !== undefined,
@@ -234,7 +403,7 @@ const UserCard = memo(function UserCard({
   const menuRows = rewindMenu().filter((row) => offered[row.id])
   const notes = [restoreNote, conversationNote].filter((note) => note !== undefined)
   const choose = (choice: RewindChoice) => {
-    setMenuOpen(false)
+    menu.close()
     switch (choice) {
       case 'conversation': {
         onRewindConversation?.(entry.id)
@@ -262,12 +431,103 @@ const UserCard = memo(function UserCard({
       }
     }
   }
+  const rewindItems = menuRows
+    .filter((row) => row.id !== 'fork' && row.id !== 'forkRewind')
+    .map((row) => ({
+      id: row.id,
+      label: row.label,
+      icon: <RewindIcon />,
+      onSelect: () => {
+        choose(row.id)
+      },
+    }))
+  let items: GooeyItem[] = []
+  if (hasMenu) {
+    items = [
+      ...menuRows
+        .filter((row) => row.id === 'fork' || row.id === 'forkRewind')
+        .map((row) => ({
+          id: row.id,
+          label: row.label,
+          icon: <ReplyIcon />,
+          onSelect: () => {
+            choose(row.id)
+          },
+        })),
+      {
+        id: 'rewindGroup',
+        label: UI_TEXT.rowRewindGroup,
+        icon: <RewindIcon />,
+        children: [
+          ...rewindItems,
+          ...notes.map((note) => ({
+            id: note,
+            label: note,
+            icon: <RewindIcon />,
+            disabled: true,
+            onSelect: () => {
+              menu.close()
+            },
+          })),
+        ],
+      },
+    ]
+  } else if (hasQueuedMenu) {
+    items = [
+      {
+        id: 'queued',
+        label: isDelivered ? UI_TEXT.queuedDelivered : UI_TEXT.queuedEdit,
+        title: isDelivered ? undefined : UI_TEXT.queuedEditTitle,
+        icon: <ReplyIcon />,
+        disabled: isDelivered,
+        onSelect: editQueued,
+      },
+    ]
+  }
+  if (onSavePrompt !== undefined)
+    items = [
+      ...items,
+      {
+        id: 'prompt.save.message',
+        label: UI_TEXT.promptSave,
+        icon: <ReplyIcon />,
+        onSelect: () => {
+          menu.close()
+          onSavePrompt(entry.text)
+        },
+      },
+    ]
+  if (onSharePrompt !== undefined)
+    items = [
+      ...items,
+      {
+        id: 'prompt.share.message',
+        label: UI_TEXT.sharePrompt,
+        icon: <ReplyIcon />,
+        onSelect: () => {
+          menu.close()
+          onSharePrompt(entry.text)
+        },
+      },
+    ]
+  const menu = useRowMenu(
+    items,
+    hasQueuedMenu ? UI_TEXT.queuedMenuLabel : UI_TEXT.rewindMenuLabel,
+    quoteMenu,
+  )
   return (
     <li
       className={`message message-user message-${entry.status}`}
       data-entry-id={entry.id}
       data-role="user"
-      onKeyDown={closeOnEscape(isMenuOpen, closeMenu)}
+      data-vscode-context={JSON.stringify({
+        'museSpark.promptSource': 'userMessage',
+        'museSpark.promptText': entry.text,
+        'museSpark.transcriptRole': 'user',
+        'museSpark.messageIsOwn': true,
+        'museSpark.chatAvailable': true,
+      })}
+      {...menu.rowProps}
     >
       {hasChips ? (
         <ul className="chips chips-strip" aria-label={UI_TEXT.attachmentsLabel}>
@@ -301,51 +561,20 @@ const UserCard = memo(function UserCard({
       <div className="message-text" dir="auto">
         {entry.text}
       </div>
-      {entry.status === 'failed' ? <div className="message-error">{entry.reason}</div> : null}
-      {hasMenu ? (
-        <div ref={menuArea} className="rewind" onBlur={onMenuBlur}>
-          <button
-            type="button"
-            className="rewind-button"
-            title={UI_TEXT.rewindMenuLabel}
-            aria-label={UI_TEXT.rewindMenuLabel}
-            aria-haspopup="menu"
-            aria-expanded={isMenuOpen}
-            onClick={() => {
-              setMenuOpen((isOpen) => !isOpen)
-            }}
-          >
-            <RewindIcon />
-          </button>
-          {isMenuOpen ? (
-            <div className="rewind-menu" role="menu" aria-label={UI_TEXT.rewindMenuLabel}>
-              {menuRows.map((row) => (
-                <button
-                  key={row.id}
-                  type="button"
-                  role="menuitem"
-                  className="rewind-menu-item"
-                  onClick={() => {
-                    choose(row.id)
-                  }}
-                >
-                  {row.label}
-                </button>
-              ))}
-              {notes.map((note) => (
-                <div
-                  key={note}
-                  role="menuitem"
-                  aria-disabled="true"
-                  className="rewind-menu-item rewind-menu-note"
-                >
-                  {note}
-                </div>
-              ))}
-            </div>
-          ) : null}
+      {isQueued && !isDelivered ? (
+        <div className="message-queued-badge">
+          <span className="badge">{UI_TEXT.queuedLabel}</span>
         </div>
       ) : null}
+      {entry.status === 'failed' ? <div className="message-error">{entry.reason}</div> : null}
+      {entry.atMs === undefined ? null : (
+        <MessageTime
+          atMs={entry.atMs}
+          template={UI_TEXT.messageSentAt}
+          isFocusable={!hasMenu && !hasQueuedMenu}
+        />
+      )}
+      {menu.menu}
       {quoteMenu}
     </li>
   )
@@ -402,7 +631,7 @@ interface AssistantRowProps {
   /** Absent in a conversation that holds imported history (M84). */
   readonly onInsert: ((text: string) => void) | undefined
   readonly onApply: ((text: string) => void) | undefined
-  /** The actions menu's "Reply to this output" (M17); absent while no session exists. */
+  /** The actions menu's "Reply to This Output" (M17); absent while no session exists. */
   readonly onReply: ((entryId: string) => void) | undefined
   /** Tokens and the dollar estimate under the reply (M82); hidden while off. */
   readonly showReplyUsage: boolean
@@ -413,7 +642,30 @@ interface AssistantRowProps {
   readonly quoteMenu: ReactNode
 }
 
-/** "Save plan" and "Implement in a fresh conversation" under a Plan-mode reply (M79). */
+/**
+ * A MessageDisplay hook's display-only rewrite (M91, PLAN.md D70): the panel
+ * marks it whenever the hook's version differs from the reply, outside the
+ * Markdown the hook wrote, so no hook can hide the marker. The original is
+ * one click away; copy, history and export always use the original.
+ */
+function HookEditedMarker({
+  isOriginalShown,
+  onToggle,
+}: {
+  readonly isOriginalShown: boolean
+  readonly onToggle: () => void
+}) {
+  return (
+    <div className="hook-edited" role="note">
+      <span>{UI_TEXT.hookMessageEdited}</span>
+      <button type="button" className="button-secondary chat-control" onClick={onToggle}>
+        {isOriginalShown ? UI_TEXT.hookMessageShowEdited : UI_TEXT.hookMessageShowOriginal}
+      </button>
+    </div>
+  )
+}
+
+/** "Save Plan" and "Implement in a Fresh Conversation" under a Plan-mode reply (M79). */
 function PlanActions({
   entryId,
   onSavePlan,
@@ -463,29 +715,71 @@ const AssistantRow = memo(function AssistantRow({
   onImplementPlan,
   quoteMenu,
 }: AssistantRowProps) {
-  const text = useDeferredValue(entry.text)
+  const [isOriginalShown, setOriginalShown] = useState(false)
+  const isHookEdited =
+    !entry.isStreaming && entry.displayText !== undefined && entry.displayText !== entry.text
+  const text = useDeferredValue(
+    isHookEdited && !isOriginalShown ? (entry.displayText ?? entry.text) : entry.text,
+  )
   const { head, tail } = entry.isStreaming ? splitForStreaming(text) : { head: '', tail: text }
   const { closed, open } = entry.isStreaming
     ? splitOpenFence(tail)
     : { closed: tail, open: undefined }
   const actions = { onOpenLink, onOpenFile, onRefuseLink, onCopy, onInsert, onApply }
   const [isCopied, markCopied] = useCopiedFlag()
-  const [isMenuOpen, setMenuOpen] = useState(false)
-  const menuArea = useRef<HTMLDivElement>(null)
-  const closeMenu = () => {
-    setMenuOpen(false)
-  }
-  const onMenuBlur = useDismiss(menuArea, isMenuOpen, closeMenu)
+  const items: GooeyItem[] = entry.isStreaming
+    ? []
+    : [
+        {
+          id: 'copy',
+          label: UI_TEXT.copyResponse,
+          title: isCopied ? UI_TEXT.copiedCode : UI_TEXT.copyResponse,
+          icon: isCopied ? <CheckIcon /> : <CopyIcon />,
+          onSelect: () => {
+            onCopy(entry.text)
+            markCopied()
+            menu.close()
+          },
+        },
+        ...(onReply === undefined
+          ? []
+          : [
+              {
+                id: 'reply',
+                label: UI_TEXT.replyToOutput,
+                icon: <ReplyIcon />,
+                onSelect: () => {
+                  onReply(entry.id)
+                  menu.close()
+                },
+              },
+            ]),
+      ]
+  // The menu closes on Copy, so its "Copied" shows on the row's "…" (the review of F2).
+  const menu = useRowMenu(
+    items,
+    UI_TEXT.messageActions,
+    quoteMenu,
+    isCopied ? { icon: <CheckIcon />, title: UI_TEXT.copiedCode } : undefined,
+  )
   return (
     <li
       className="message message-assistant"
       aria-busy={entry.isStreaming}
       data-entry-id={entry.id}
       data-role="assistant"
-      onKeyDown={closeOnEscape(isMenuOpen, closeMenu)}
+      {...menu.rowProps}
     >
       <span className="tool-dot tool-dot-muted" aria-hidden="true" />
-      <div className="message-body">
+      <div className="message-body" inert={menu.isOpen}>
+        {isHookEdited ? (
+          <HookEditedMarker
+            isOriginalShown={isOriginalShown}
+            onToggle={() => {
+              setOriginalShown((shown) => !shown)
+            }}
+          />
+        ) : null}
         {head === '' ? null : <MarkdownView text={head} {...actions} />}
         {closed === '' ? null : (
           // The reply a plan action would save is shown as its brief would read (M79).
@@ -512,13 +806,11 @@ const AssistantRow = memo(function AssistantRow({
           />
         )}
         {showReplyUsage && entry.usage !== undefined && entry.costUsd !== undefined ? (
-          <div className="response-usage">
-            {fill(UI_TEXT.replyUsage, {
-              input: formatTokenWindow(entry.usage.inputTokens),
-              output: formatTokenWindow(entry.usage.outputTokens),
-              cost: formatUsd(entry.costUsd),
-            })}
-          </div>
+          <ReplyUsage
+            inputTokens={entry.usage.inputTokens}
+            outputTokens={entry.usage.outputTokens}
+            costUsd={entry.costUsd}
+          />
         ) : null}
         {onSavePlan === undefined || entry.isStreaming ? null : (
           <PlanActions
@@ -528,52 +820,15 @@ const AssistantRow = memo(function AssistantRow({
           />
         )}
       </div>
-      {entry.isStreaming ? null : (
-        <div ref={menuArea} className="response-actions" onBlur={onMenuBlur}>
-          <button
-            type="button"
-            className="rewind-button response-copy"
-            aria-label={UI_TEXT.copyResponse}
-            title={isCopied ? UI_TEXT.copiedCode : UI_TEXT.copyResponse}
-            onClick={() => {
-              onCopy(entry.text)
-              markCopied()
-            }}
-          >
-            {isCopied ? <CheckIcon /> : <CopyIcon />}
-          </button>
-          {onReply === undefined ? null : (
-            <button
-              type="button"
-              className="rewind-button response-menu-button"
-              aria-label={UI_TEXT.messageActions}
-              title={UI_TEXT.messageActions}
-              aria-haspopup="menu"
-              aria-expanded={isMenuOpen}
-              onClick={() => {
-                setMenuOpen((isOpen) => !isOpen)
-              }}
-            >
-              <MoreIcon />
-            </button>
-          )}
-          {isMenuOpen ? (
-            <div className="rewind-menu" role="menu" aria-label={UI_TEXT.messageActions}>
-              <button
-                type="button"
-                role="menuitem"
-                className="rewind-menu-item"
-                onClick={() => {
-                  setMenuOpen(false)
-                  onReply?.(entry.id)
-                }}
-              >
-                {UI_TEXT.replyToOutput}
-              </button>
-            </div>
-          ) : null}
-        </div>
+      {entry.atMs === undefined ? null : (
+        // A reply still streaming has no button of its own: the time is the keyboard stop.
+        <MessageTime
+          atMs={entry.atMs}
+          template={UI_TEXT.messageReceivedAt}
+          isFocusable={entry.isStreaming}
+        />
       )}
+      {menu.menu}
       {quoteMenu}
     </li>
   )
@@ -587,20 +842,33 @@ function StepsGroup({
   readonly render: (entry: StepEntry) => React.ReactNode
 }) {
   const [isOpen, setIsOpen] = useState(false)
-  const count = group.steps.length
+  const listId = useId()
+  const summary = stepSummary(group.steps)
+  // A failure folds but is never hidden: the summary names it and carries its dot.
+  const hasFailure = summary.failed > 0
   return (
     <li className="steps">
       <button
         type="button"
-        className="steps-toggle"
+        className="steps-toggle chat-control"
         aria-expanded={isOpen}
+        aria-controls={listId}
         onClick={() => {
           setIsOpen(!isOpen)
         }}
       >
-        {plural(isOpen ? UI_TEXT.hideHiddenSteps : UI_TEXT.showHiddenSteps, count)}
+        <span
+          className={hasFailure ? 'tool-dot tool-dot-failed' : 'tool-dot tool-dot-muted'}
+          aria-hidden="true"
+        />
+        <span className="steps-summary">{stepSummaryText(summary)}</span>
+        <ExpandChevron isOpen={isOpen} />
       </button>
-      {isOpen ? <ul className="steps-list">{group.steps.map((step) => render(step))}</ul> : null}
+      {isOpen ? (
+        <ul id={listId} className="steps-list">
+          {group.steps.map((step) => render(step))}
+        </ul>
+      ) : null}
     </li>
   )
 }
@@ -626,13 +894,53 @@ const WorkflowRow = memo(function WorkflowRow({
   )
 })
 
+/**
+ * "Report This" on a recorded failure (M93): posts the row's sanitized event
+ * reference — which journal event it means, never its text. Nothing renders
+ * for a row without one, or without a handler.
+ */
+function ReportThisButton({
+  entry,
+  onReportProblem,
+}: {
+  readonly entry: { readonly id: string; readonly reportRef?: ReportEventRef | undefined }
+  readonly onReportProblem: ((entryId: string, ref: ReportEventRef) => void) | undefined
+}) {
+  const { reportRef } = entry
+  return onReportProblem === undefined || reportRef === undefined ? null : (
+    <button
+      type="button"
+      className="notice-action chat-control"
+      onClick={() => {
+        onReportProblem(entry.id, reportRef)
+      }}
+    >
+      {UI_TEXT.reportThisAction}
+    </button>
+  )
+}
+
 function OtherRow({
   entry,
+  onReportProblem,
 }: {
   readonly entry: Exclude<
     TranscriptEntry,
-    StepEntry | { kind: 'user' | 'assistant' | 'userShell' | 'workflow' }
+    | StepEntry
+    | {
+        kind:
+          | 'user'
+          | 'assistant'
+          | 'userShell'
+          | 'workflow'
+          | 'teamPlan'
+          | 'teamSwitch'
+          | 'teamWaiting'
+          | 'teamMerge'
+          | 'teamReport'
+      }
   >
+  readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
 }) {
   switch (entry.kind) {
     case 'subagent': {
@@ -665,13 +973,19 @@ function OtherRow({
       )
     }
     case 'error': {
-      return <li className="message message-error-card">{entry.text}</li>
+      return (
+        <li className="message message-error-card">
+          {entry.text}
+          <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
+        </li>
+      )
     }
     case 'notice': {
       return (
         <li className={`notice notice-${entry.level}`}>
           {entry.text}
           <RepeatCount count={entry.repeatCount} />
+          <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
         </li>
       )
     }
@@ -713,23 +1027,28 @@ const RestoreNotice = memo(function RestoreNotice({
   readonly restoreId: string
   readonly onRedo: (entryId: string, restoreId: string) => void
 }) {
+  const menu = useRowMenu(
+    entry.isRedoUsed === true
+      ? []
+      : [
+          {
+            id: 'redo',
+            label: UI_TEXT.redoAction,
+            title: UI_TEXT.redoLabel,
+            icon: <RewindIcon />,
+            disabled: entry.isRedoPending === true,
+            onSelect: () => {
+              menu.close()
+              onRedo(entry.id, restoreId)
+            },
+          },
+        ],
+    UI_TEXT.messageActions,
+  )
   return (
-    <li className={`notice notice-${entry.level}`}>
+    <li className={`notice notice-${entry.level} row-with-actions`} {...menu.rowProps}>
       {entry.text}
-      {entry.isRedoUsed === true ? null : (
-        <button
-          type="button"
-          className="notice-action"
-          title={UI_TEXT.redoLabel}
-          aria-label={UI_TEXT.redoLabel}
-          disabled={entry.isRedoPending === true}
-          onClick={() => {
-            onRedo(entry.id, restoreId)
-          }}
-        >
-          {UI_TEXT.redoAction}
-        </button>
-      )}
+      {menu.menu}
     </li>
   )
 })
@@ -737,6 +1056,9 @@ const RestoreNotice = memo(function RestoreNotice({
 /** A button's label for each way on a notice offers. */
 function noticeActionLabel(action: NoticeAction): string {
   switch (action) {
+    case 'openModelApiStatus': {
+      return UI_TEXT.modelApiStatusOpen
+    }
     case 'restartMuseCode': {
       return UI_TEXT.restartNow
     }
@@ -760,10 +1082,12 @@ const ActionNotice = memo(function ActionNotice({
   entry,
   actions,
   onAction,
+  onReportProblem,
 }: {
   readonly entry: Extract<TranscriptEntry, { kind: 'notice' }>
   readonly actions: readonly NoticeAction[]
   readonly onAction: (entryId: string, action: NoticeAction) => void
+  readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
 }) {
   const spent = useRef(false)
   const [isSpent, setIsSpent] = useState(false)
@@ -775,7 +1099,7 @@ const ActionNotice = memo(function ActionNotice({
         <button
           key={action}
           type="button"
-          className="notice-action"
+          className="notice-action chat-control"
           disabled={isSpent}
           onClick={() => {
             if (spent.current) {
@@ -789,6 +1113,7 @@ const ActionNotice = memo(function ActionNotice({
           {noticeActionLabel(action)}
         </button>
       ))}
+      <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
     </li>
   )
 })
@@ -809,11 +1134,15 @@ function TranscriptList(props: TranscriptProps) {
     onAnswer,
     onCancelQuestion,
     onClarifyQuestion,
+    onAcceptElicitation,
+    onDeclineElicitation,
+    onCancelElicitation,
     onMoveToBackground,
     onStopTask,
     canStopUserShell,
     onApply,
     onOpenEditDiff,
+    onRevertEdit,
     onOpenFile,
     onRefuseLink,
     onFork,
@@ -826,6 +1155,7 @@ function TranscriptList(props: TranscriptProps) {
     onRestoreBoth,
     onRedo,
     onNoticeAction,
+    onReportProblem,
     restoreNote,
     conversationNote,
     activeTurnId,
@@ -835,9 +1165,15 @@ function TranscriptList(props: TranscriptProps) {
     onSavePlan,
     onImplementPlan,
     quoteMenuEntryId,
+    quoteMenuOrigin,
     onQuote,
     onCopyQuote,
     onCloseQuoteMenu,
+    teamActions,
+    onSharePrompt,
+    onSavePrompt,
+    onEditQueued,
+    canEditSteered = false,
   } = props
   const openers = useMemo(() => turnOpeners(entries), [entries])
   const quoteMenuFor = (entryId: string): ReactNode =>
@@ -845,13 +1181,20 @@ function TranscriptList(props: TranscriptProps) {
     onQuote !== undefined &&
     onCopyQuote !== undefined &&
     onCloseQuoteMenu !== undefined ? (
-      <QuoteMenu onChoose={onQuote} onCopy={onCopyQuote} onClose={onCloseQuoteMenu} />
+      <QuoteMenu
+        onChoose={onQuote}
+        onCopy={onCopyQuote}
+        onClose={onCloseQuoteMenu}
+        origin={quoteMenuOrigin}
+      />
     ) : null
   const renderStep = (entry: StepEntry) =>
     entry.kind === 'reasoning' ? (
       <ReasoningRow key={entry.id} entry={entry} />
     ) : (
       <ToolRow
+        asListItem
+        keepFocus
         key={entry.id}
         entry={entry}
         isRunning={isRunning}
@@ -865,7 +1208,11 @@ function TranscriptList(props: TranscriptProps) {
         onAnswer={onAnswer}
         onCancelQuestion={onCancelQuestion}
         onClarifyQuestion={onClarifyQuestion}
+        onAcceptElicitation={onAcceptElicitation}
+        onDeclineElicitation={onDeclineElicitation}
+        onCancelElicitation={onCancelElicitation}
         onOpenEditDiff={onOpenEditDiff}
+        onRevertEdit={onRevertEdit}
         onOpenFile={onOpenFile}
         onOpenLink={onOpenLink}
         onRefuseLink={onRefuseLink}
@@ -905,6 +1252,10 @@ function TranscriptList(props: TranscriptProps) {
             }
             conversationNote={conversationNote}
             quoteMenu={quoteMenuFor(entry.id)}
+            onSharePrompt={onSharePrompt}
+            onSavePrompt={onSavePrompt}
+            onEditQueued={onEditQueued}
+            canEditSteered={canEditSteered}
           />
         )
       }
@@ -946,6 +1297,22 @@ function TranscriptList(props: TranscriptProps) {
       case 'workflow': {
         return <WorkflowRow key={entry.id} entry={entry} />
       }
+      case 'teamPlan':
+      case 'teamSwitch':
+      case 'teamWaiting':
+      case 'teamMerge':
+      case 'teamReport': {
+        return (
+          <Suspense key={entry.id} fallback={null}>
+            <TeamCard entry={entry} actions={teamActions} />
+          </Suspense>
+        )
+      }
+      case 'subagent':
+      case 'item':
+      case 'error': {
+        return <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
+      }
       case 'notice': {
         if (onNoticeAction !== undefined && entry.actions !== undefined) {
           return (
@@ -954,11 +1321,12 @@ function TranscriptList(props: TranscriptProps) {
               entry={entry}
               actions={entry.actions}
               onAction={onNoticeAction}
+              onReportProblem={onReportProblem}
             />
           )
         }
         return onRedo === undefined || entry.redoRestoreId === undefined ? (
-          <MemoOtherRow key={entry.id} entry={entry} />
+          <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
         ) : (
           <RestoreNotice
             key={entry.id}
@@ -967,9 +1335,6 @@ function TranscriptList(props: TranscriptProps) {
             onRedo={onRedo}
           />
         )
-      }
-      default: {
-        return <MemoOtherRow key={entry.id} entry={entry} />
       }
     }
   }

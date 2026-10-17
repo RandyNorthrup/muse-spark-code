@@ -7,6 +7,7 @@
 // interaction is injected.
 
 import type { MemoryNote, MemoryStore } from '../../core/memory/memoryStore'
+import { redactSecrets } from '../../core/redact'
 import {
   MEMORY_INDEX_FILE,
   MEMORY_NOTE_EXTENSION,
@@ -57,7 +58,7 @@ const DELETE = 'delete'
 const EXTENSION = /\.[^./\\]+$/
 
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
 function noteItem(note: MemoryNote, index: number): PickItem {

@@ -1,0 +1,462 @@
+[
+  {
+    "guard": "inbound-value-rejection",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "rejects secret-shaped",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "generation-barrier",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "lock retires a pending password box",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "physical-commit-authorization",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "physical commit callback",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "lock-failure-barrier",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "failed Lock keeps controls locked",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "native-cancellation",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "cancellation reaches native entry",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "rollback-epoch",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "rejects epoch rollback",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "wipe-on-write",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "wipes entered bytes",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "selected-edit-id",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "edits only the selected id",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "remove-confirmation",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "imports only discovered paths",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "standing-grant-authority",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "standing grants require panel authority",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "answer-digest",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "rejects wrong, late, unknown",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "answer-expiry",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "rejects wrong, late, unknown",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "answer-epoch",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "rejects wrong, late, unknown",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "answer-replay",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "replay is refused",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "session-mode",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "session answers are bounded",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "session-identity",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "session answers are bounded",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "session-taint",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "session answers are bounded",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "session-disclosure",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "session answers are bounded",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "clipboard-public-key",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "clipboard accepts only an SSH public key",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "import-path",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "imports only discovered paths",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059",
+    "afterSha256": "5ca6886f3a2bd9348eff6e318db0fffdfe3ee5c557fa6bf74b3210bf376f0059"
+  },
+  {
+    "guard": "native-password-box",
+    "source": "src/host/vault/vaultNativeEditor.ts",
+    "test": "test/unit/vault/vaultNativeEditor.test.ts",
+    "assertion": "all sensitive inputs are password boxes",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "f5455b4133150734e87fda6adde333d0e2b01988d2860a1d366671c3bbdf0ca7",
+    "afterSha256": "f5455b4133150734e87fda6adde333d0e2b01988d2860a1d366671c3bbdf0ca7"
+  },
+  {
+    "guard": "native-item-validation",
+    "source": "src/host/vault/vaultNativeEditor.ts",
+    "test": "test/unit/vault/vaultNativeEditor.test.ts",
+    "assertion": "validation failure erases transferred SSH",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "f5455b4133150734e87fda6adde333d0e2b01988d2860a1d366671c3bbdf0ca7",
+    "afterSha256": "f5455b4133150734e87fda6adde333d0e2b01988d2860a1d366671c3bbdf0ca7"
+  },
+  {
+    "guard": "native-wipe",
+    "source": "src/host/vault/vaultNativeEditor.ts",
+    "test": "test/unit/vault/vaultNativeEditor.test.ts",
+    "assertion": "validation failure erases transferred SSH",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "f5455b4133150734e87fda6adde333d0e2b01988d2860a1d366671c3bbdf0ca7",
+    "afterSha256": "f5455b4133150734e87fda6adde333d0e2b01988d2860a1d366671c3bbdf0ca7"
+  },
+  {
+    "guard": "native-cancel-check",
+    "source": "src/host/vault/vaultNativeEditor.ts",
+    "test": "test/unit/vault/vaultNativeEditor.test.ts",
+    "assertion": "cancellation after acquiring SSH",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "f5455b4133150734e87fda6adde333d0e2b01988d2860a1d366671c3bbdf0ca7",
+    "afterSha256": "f5455b4133150734e87fda6adde333d0e2b01988d2860a1d366671c3bbdf0ca7"
+  },
+  {
+    "guard": "ui-exact-deadline",
+    "source": "src/webview/components/VaultApprovalCard.tsx",
+    "test": "test/unit/vault/vaultPanel.test.tsx",
+    "assertion": "late click never answers",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "8440cfbdf3fe090cbb1525204e04e6712ad1a9e5c103b2dbac764ebf8fdc7c1c",
+    "afterSha256": "8440cfbdf3fe090cbb1525204e04e6712ad1a9e5c103b2dbac764ebf8fdc7c1c"
+  },
+  {
+    "guard": "ui-single-answer",
+    "source": "src/webview/components/VaultApprovalCard.tsx",
+    "test": "test/unit/vault/vaultPanel.test.tsx",
+    "assertion": "returns only the bound answer",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "8440cfbdf3fe090cbb1525204e04e6712ad1a9e5c103b2dbac764ebf8fdc7c1c",
+    "afterSha256": "8440cfbdf3fe090cbb1525204e04e6712ad1a9e5c103b2dbac764ebf8fdc7c1c"
+  },
+  {
+    "guard": "ui-session-scope",
+    "source": "src/webview/models/sections/vault/vaultPresentation.tsx",
+    "test": "test/unit/vault/vaultPanel.test.tsx",
+    "assertion": "only offers session consent",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "f2c031ba053d83941a344abad3248d13873d03f495a86136cedbff8dac66a90a",
+    "afterSha256": "f2c031ba053d83941a344abad3248d13873d03f495a86136cedbff8dac66a90a"
+  },
+  {
+    "guard": "ui-process-warning",
+    "source": "src/webview/components/VaultApprovalCard.tsx",
+    "test": "test/unit/vault/vaultPanel.test.tsx",
+    "assertion": "returns only the bound answer",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "8440cfbdf3fe090cbb1525204e04e6712ad1a9e5c103b2dbac764ebf8fdc7c1c",
+    "afterSha256": "8440cfbdf3fe090cbb1525204e04e6712ad1a9e5c103b2dbac764ebf8fdc7c1c"
+  },
+  {
+    "guard": "ui-presence-note",
+    "source": "src/webview/components/VaultApprovalCard.tsx",
+    "test": "test/unit/vault/vaultPanel.test.tsx",
+    "assertion": "presence, unproven SSH destination",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "8440cfbdf3fe090cbb1525204e04e6712ad1a9e5c103b2dbac764ebf8fdc7c1c",
+    "afterSha256": "8440cfbdf3fe090cbb1525204e04e6712ad1a9e5c103b2dbac764ebf8fdc7c1c"
+  },
+  {
+    "guard": "ui-locked-cards",
+    "source": "src/webview/models/sections/vault/VaultSurface.tsx",
+    "test": "test/unit/vault/vaultPanel.test.tsx",
+    "assertion": "locked state disables management",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "49ce2b58420b348ab7fc19a0724aa54347a95ba35d8ff612e2ac80573368526a",
+    "afterSha256": "49ce2b58420b348ab7fc19a0724aa54347a95ba35d8ff612e2ac80573368526a"
+  },
+  {
+    "guard": "ui-value-free-boundary",
+    "source": "src/webview/models/sections/vault/VaultSurface.tsx",
+    "test": "test/unit/vault/vaultPanel.test.tsx",
+    "assertion": "rejects a malformed snapshot",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "49ce2b58420b348ab7fc19a0724aa54347a95ba35d8ff612e2ac80573368526a",
+    "afterSha256": "49ce2b58420b348ab7fc19a0724aa54347a95ba35d8ff612e2ac80573368526a"
+  },
+  {
+    "guard": "grant-validation",
+    "source": "src/webview/models/sections/vault/VaultGrantEditor.tsx",
+    "test": "test/unit/vault/vaultPanel.test.tsx",
+    "assertion": "validates complete grant scopes",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "e19441ea55232f74734c842084eacbb834556be83677026a41d8920f00df74cc",
+    "afterSha256": "e19441ea55232f74734c842084eacbb834556be83677026a41d8920f00df74cc"
+  },
+  {
+    "guard": "host-budget",
+    "source": "src/shared/constants.ts",
+    "test": "test/unit/vault/vaultPanelBuild.test.ts",
+    "assertion": "hard 50 KiB cap",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "e57921c43d015a569e04555e586eca536d8e65951ce2eacf18032b8ca77b5469",
+    "afterSha256": "e57921c43d015a569e04555e586eca536d8e65951ce2eacf18032b8ca77b5469"
+  },
+  {
+    "guard": "snapshot-validation",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "validates every snapshot",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3",
+    "afterSha256": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3"
+  },
+  {
+    "guard": "external-lock-revoke-barrier",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "external lock/revoke",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3",
+    "afterSha256": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3"
+  },
+  {
+    "guard": "notification-validation",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "malformed and older-epoch notifications",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3",
+    "afterSha256": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3"
+  },
+  {
+    "guard": "notification-epoch",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "malformed and older-epoch notifications",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3",
+    "afterSha256": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3"
+  },
+  {
+    "guard": "command-lazy-load",
+    "source": "src/host/vault/vaultPanelBundle.ts",
+    "test": "test/unit/vault/vaultNativeEditor.test.ts",
+    "assertion": "commands and status",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "dc3186ad77f15e24d88b2139a3501b76969831c786a5a63352a38df9f52bb33d",
+    "afterSha256": "dc3186ad77f15e24d88b2139a3501b76969831c786a5a63352a38df9f52bb33d"
+  },
+  {
+    "guard": "native-first-party-policy",
+    "source": "src/host/vault/vaultNativeEditor.ts",
+    "test": "test/unit/vault/vaultNativeEditor.test.ts",
+    "assertion": "first-party edits remain hidden",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "b48855a0cd33ac81b863df686e816b9f625d0cd00915177513f85a15f39892d8",
+    "afterSha256": "b48855a0cd33ac81b863df686e816b9f625d0cd00915177513f85a15f39892d8"
+  },
+  {
+    "guard": "axe-overflow",
+    "source": "src/webview/models/sections/vault/vault.css",
+    "test": "test/harness/vault/run.mjs --drill",
+    "assertion": "\"overflow\":true",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "22553c32d8fe236d99d591c3f7a7c407110def70d080034b9df62e410e9a3043",
+    "afterSha256": "22553c32d8fe236d99d591c3f7a7c407110def70d080034b9df62e410e9a3043"
+  },
+  {
+    "guard": "axe-button-name",
+    "source": "src/webview/models/sections/vault/VaultSection.tsx",
+    "test": "test/harness/vault/run.mjs --drill",
+    "assertion": "button-name",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "49f21e48b6dc0ffc65809df35cd201db292f20f2172b6789a811dcb4a33f76eb",
+    "afterSha256": "49f21e48b6dc0ffc65809df35cd201db292f20f2172b6789a811dcb4a33f76eb"
+  },
+  {
+    "guard": "ui-lazy-split",
+    "source": "src/webview/models/sections/vault/VaultSurface.tsx",
+    "test": "test/unit/vault/vaultPanelBuild.test.ts",
+    "assertion": "activation shares no Vault UI input",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "26f9910bcc98ad6add0bedd52e15fd1b22243bfff9e2e22116b280cf2da52c7e",
+    "afterSha256": "26f9910bcc98ad6add0bedd52e15fd1b22243bfff9e2e22116b280cf2da52c7e"
+  },
+  {
+    "guard": "panel-budget",
+    "source": "src/shared/constants.ts",
+    "test": "test/unit/vault/vaultPanelBuild.test.ts",
+    "assertion": "hard 75 KiB cap",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "e57921c43d015a569e04555e586eca536d8e65951ce2eacf18032b8ca77b5469",
+    "afterSha256": "e57921c43d015a569e04555e586eca536d8e65951ce2eacf18032b8ca77b5469"
+  },
+  {
+    "guard": "external-native-cancellation",
+    "source": "src/host/vault/vaultPanelHost.ts",
+    "test": "test/unit/vault/vaultPanelHost.test.ts",
+    "assertion": "external lock/revoke",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3",
+    "afterSha256": "e469e1abbaa34163af3ead33a1559a1a9dcf1fcbf0784189ba77c791fe96cac3"
+  },
+  {
+    "guard": "tier-banner",
+    "source": "src/webview/models/sections/vault/VaultSection.tsx",
+    "test": "test/unit/vault/vaultPanel.test.tsx",
+    "assertion": "banners name every tier",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "49f21e48b6dc0ffc65809df35cd201db292f20f2172b6789a811dcb4a33f76eb",
+    "afterSha256": "49f21e48b6dc0ffc65809df35cd201db292f20f2172b6789a811dcb4a33f76eb"
+  },
+  {
+    "guard": "host-no-broker",
+    "source": "src/host/vault/vaultPanelEntry.ts",
+    "test": "test/unit/vault/vaultPanelBuild.test.ts",
+    "assertion": "does not carry a broker",
+    "exitCode": 1,
+    "observedFailure": true,
+    "beforeSha256": "534ba3c26c058a31ea187a478b3840bb38ac34a4a485bac09d3790d625e084b5",
+    "afterSha256": "534ba3c26c058a31ea187a478b3840bb38ac34a4a485bac09d3790d625e084b5"
+  }
+]

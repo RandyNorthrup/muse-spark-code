@@ -1,0 +1,19 @@
+{
+  "rig": "macmini",
+  "node": "v24.21.0",
+  "os": "24.6.0",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "ownerOnlySocket": {
+    "connected": false,
+    "errno": 13
+  },
+  "peerCredentials": {
+    "connected": true,
+    "peerUidMatchesOwner": false,
+    "peerPidMatchesConnectingProcess": true,
+    "helperExit": 0,
+    "nonblockingRestored": true
+  },
+  "sourceSha256": "ee9d11491ff3f603f1f56a224a06f80d106ec9c507d3a3b85e4ff59db2cd50d2"
+}

@@ -1,0 +1,40 @@
+[
+  {
+    "name": "prompt-escaping",
+    "file": "src/core/prompts/promptPrivacy.ts",
+    "test": "test/unit/promptPrivacy.test.ts",
+    "exit": 1,
+    "beforeSha256": "cf672b333ddbbf43ca8c09938a415439a3cc3a9bad1f066d66d176331998e62e",
+    "restoredSha256": "cf672b333ddbbf43ca8c09938a415439a3cc3a9bad1f066d66d176331998e62e"
+  },
+  {
+    "name": "chat-escaping",
+    "file": "src/core/sharing/privacy.ts",
+    "test": "test/unit/chatShareScrub.test.ts",
+    "exit": 1,
+    "beforeSha256": "f91e3319bcd0baabb63b7f0851f3c52e7a7ca30599108d45ba512134ba8ef8e8",
+    "restoredSha256": "f91e3319bcd0baabb63b7f0851f3c52e7a7ca30599108d45ba512134ba8ef8e8"
+  },
+  {
+    "name": "html-encoding",
+    "file": "src/core/sharing/html.ts",
+    "test": "test/unit/chatShareFormats.test.ts",
+    "exit": 1,
+    "beforeSha256": "4b36a3e0a39f5f527dba212806ec199a4107c5100dc02394c70fc0dd64db0403",
+    "restoredSha256": "4b36a3e0a39f5f527dba212806ec199a4107c5100dc02394c70fc0dd64db0403"
+  },
+  {
+    "name": "help-table-stripping",
+    "file": "scripts/check-ui-text.mjs",
+    "exit": 1,
+    "beforeSha256": "84f3bdd8a6a7ec540d9f6f3fe84b23824156c09622cc80bbfdd8d38cf6ca2f88",
+    "restoredSha256": "84f3bdd8a6a7ec540d9f6f3fe84b23824156c09622cc80bbfdd8d38cf6ca2f88"
+  },
+  {
+    "name": "help-missing-translation-key",
+    "file": "installed/l10n/ui.fr.json",
+    "exit": 1,
+    "beforeSha256": "dd6e2e91561aa3314939d1b88d3551032eed40873b2be8a705dba8c2d0e52cd9",
+    "restoredSha256": "dd6e2e91561aa3314939d1b88d3551032eed40873b2be8a705dba8c2d0e52cd9"
+  }
+]

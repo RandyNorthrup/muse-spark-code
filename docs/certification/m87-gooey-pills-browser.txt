@@ -1,0 +1,157 @@
+# M87 gooey pills: browser checks on the Windows host's Chrome, dev build (2026-10-04)
+# Per page: pills inside the viewport and apart, 40 px high, 20 px radius, opacity 1, goo on (off under reduced motion / forced colours), text contrast >= 4.5, no page errors.
+## en
+rewind-dark-320: menu="Fork or rewind" 3 pills ok
+rewind-group-dark-320: menu="Rewind" 2 pills ok
+chat-tool-menu-dark-320: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-dark-320: menu="Rewind" 3 pills ok
+reply-menu-dark-320: menu="Message actions" 2 pills ok
+quote-menu-dark-320: menu="Highlighted text" 3 pills ok
+rewind-dark-690: menu="Fork or rewind" 3 pills ok
+rewind-group-dark-690: menu="Rewind" 2 pills ok
+chat-tool-menu-dark-690: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-dark-690: menu="Rewind" 3 pills ok
+reply-menu-dark-690: menu="Message actions" 2 pills ok
+quote-menu-dark-690: menu="Highlighted text" 3 pills ok
+rewind-light-320: menu="Fork or rewind" 3 pills ok
+rewind-group-light-320: menu="Rewind" 2 pills ok
+chat-tool-menu-light-320: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-light-320: menu="Rewind" 3 pills ok
+reply-menu-light-320: menu="Message actions" 2 pills ok
+quote-menu-light-320: menu="Highlighted text" 3 pills ok
+rewind-light-690: menu="Fork or rewind" 3 pills ok
+rewind-group-light-690: menu="Rewind" 2 pills ok
+chat-tool-menu-light-690: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-light-690: menu="Rewind" 3 pills ok
+reply-menu-light-690: menu="Message actions" 2 pills ok
+quote-menu-light-690: menu="Highlighted text" 3 pills ok
+rewind-hc-dark-320: menu="Fork or rewind" 3 pills ok
+rewind-group-hc-dark-320: menu="Rewind" 2 pills ok
+chat-tool-menu-hc-dark-320: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-hc-dark-320: menu="Rewind" 3 pills ok
+reply-menu-hc-dark-320: menu="Message actions" 2 pills ok
+quote-menu-hc-dark-320: menu="Highlighted text" 3 pills ok
+rewind-hc-dark-690: menu="Fork or rewind" 3 pills ok
+rewind-group-hc-dark-690: menu="Rewind" 2 pills ok
+chat-tool-menu-hc-dark-690: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-hc-dark-690: menu="Rewind" 3 pills ok
+reply-menu-hc-dark-690: menu="Message actions" 2 pills ok
+quote-menu-hc-dark-690: menu="Highlighted text" 3 pills ok
+rewind-hc-light-320: menu="Fork or rewind" 3 pills ok
+rewind-group-hc-light-320: menu="Rewind" 2 pills ok
+chat-tool-menu-hc-light-320: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-hc-light-320: menu="Rewind" 3 pills ok
+reply-menu-hc-light-320: menu="Message actions" 2 pills ok
+quote-menu-hc-light-320: menu="Highlighted text" 3 pills ok
+rewind-hc-light-690: menu="Fork or rewind" 3 pills ok
+rewind-group-hc-light-690: menu="Rewind" 2 pills ok
+chat-tool-menu-hc-light-690: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-hc-light-690: menu="Rewind" 3 pills ok
+reply-menu-hc-light-690: menu="Message actions" 2 pills ok
+quote-menu-hc-light-690: menu="Highlighted text" 3 pills ok
+problems: 0
+clipped at 320 px: Rewinding the conversation is not available with Muse Code on Windows clipped, title: Rewinding the conversation is not available with Muse Code on Windows
+## pseudo
+rewind-dark-320-pseudo: menu="⟦Fórk ór réwíñd ẋẋẋẋẋ⟧" 3 pills ok
+rewind-group-dark-320-pseudo: menu="⟦Réwíñd ẋẋ⟧" 2 pills ok
+chat-tool-menu-dark-320-pseudo: menu="⟦Méššágé áçtíóñš ẋẋẋẋẋ⟧" 3 pills ok
+checkpoint-restricted-group-dark-320-pseudo: menu="⟦Réwíñd ẋẋ⟧" 3 pills ok
+reply-menu-dark-320-pseudo: menu="⟦Méššágé áçtíóñš ẋẋẋẋẋ⟧" 2 pills ok
+quote-menu-dark-320-pseudo: menu="⟦Híghlíghtéd téxt ẋẋẋẋẋ⟧" 3 pills ok
+rewind-dark-690-pseudo: menu="⟦Fórk ór réwíñd ẋẋẋẋẋ⟧" 3 pills ok
+rewind-group-dark-690-pseudo: menu="⟦Réwíñd ẋẋ⟧" 2 pills ok
+chat-tool-menu-dark-690-pseudo: menu="⟦Méššágé áçtíóñš ẋẋẋẋẋ⟧" 3 pills ok
+checkpoint-restricted-group-dark-690-pseudo: menu="⟦Réwíñd ẋẋ⟧" 3 pills ok
+reply-menu-dark-690-pseudo: menu="⟦Méššágé áçtíóñš ẋẋẋẋẋ⟧" 2 pills ok
+quote-menu-dark-690-pseudo: menu="⟦Híghlíghtéd téxt ẋẋẋẋẋ⟧" 3 pills ok
+rewind-light-320-pseudo: menu="⟦Fórk ór réwíñd ẋẋẋẋẋ⟧" 3 pills ok
+rewind-group-light-320-pseudo: menu="⟦Réwíñd ẋẋ⟧" 2 pills ok
+chat-tool-menu-light-320-pseudo: menu="⟦Méššágé áçtíóñš ẋẋẋẋẋ⟧" 3 pills ok
+checkpoint-restricted-group-light-320-pseudo: menu="⟦Réwíñd ẋẋ⟧" 3 pills ok
+reply-menu-light-320-pseudo: menu="⟦Méššágé áçtíóñš ẋẋẋẋẋ⟧" 2 pills ok
+quote-menu-light-320-pseudo: menu="⟦Híghlíghtéd téxt ẋẋẋẋẋ⟧" 3 pills ok
+rewind-light-690-pseudo: menu="⟦Fórk ór réwíñd ẋẋẋẋẋ⟧" 3 pills ok
+rewind-group-light-690-pseudo: menu="⟦Réwíñd ẋẋ⟧" 2 pills ok
+chat-tool-menu-light-690-pseudo: menu="⟦Méššágé áçtíóñš ẋẋẋẋẋ⟧" 3 pills ok
+checkpoint-restricted-group-light-690-pseudo: menu="⟦Réwíñd ẋẋ⟧" 3 pills ok
+reply-menu-light-690-pseudo: menu="⟦Méššágé áçtíóñš ẋẋẋẋẋ⟧" 2 pills ok
+quote-menu-light-690-pseudo: menu="⟦Híghlíghtéd téxt ẋẋẋẋẋ⟧" 3 pills ok
+problems: 0
+clipped at 320 px: ⟦Fílé çhéçkpóíñtš áré óff íñ Réštríçtéd Módé ẋẋẋẋẋ ẋẋẋẋẋ ẋ⟧ clipped, title: ⟦Fílé çhéçkpóíñtš áré óff íñ Réštríçtéd Módé ẋẋẋẋẋ ẋẋẋẋẋ ẋ⟧
+clipped at 320 px: ⟦Fórk çóñvéršátíóñ áñd réwíñd çódé ẋẋẋẋẋ ẋẋẋẋ⟧ clipped, title: ⟦Fórk çóñvéršátíóñ áñd réwíñd çódé ẋẋẋẋẋ ẋẋẋẋ⟧
+clipped at 320 px: ⟦Réwíñdíñg thé çóñvéršátíóñ íš ñót áváíláblé wíth Múšé Çódé óñ Wíñdówš ẋẋẋẋẋ ẋẋẋẋẋ ẋẋẋẋẋ ẋẋẋ⟧ clipped, title: ⟦Réwíñdíñg thé çóñvéršátíóñ íš ñót áváíláblé wíth Múšé Çódé óñ Wíñdówš ẋẋẋẋẋ ẋẋẋẋẋ ẋẋẋẋẋ ẋẋẋ⟧
+## de
+rewind-dark-320-de: menu="Abzweigen oder zurücksetzen" 3 pills ok
+rewind-group-dark-320-de: menu="Zurücksetzen" 2 pills ok
+chat-tool-menu-dark-320-de: menu="Nachrichtenaktionen" 3 pills ok
+checkpoint-restricted-group-dark-320-de: menu="Zurücksetzen" 3 pills ok
+reply-menu-dark-320-de: menu="Nachrichtenaktionen" 2 pills ok
+quote-menu-dark-320-de: menu="Markierter Text" 3 pills ok
+rewind-dark-690-de: menu="Abzweigen oder zurücksetzen" 3 pills ok
+rewind-group-dark-690-de: menu="Zurücksetzen" 2 pills ok
+chat-tool-menu-dark-690-de: menu="Nachrichtenaktionen" 3 pills ok
+checkpoint-restricted-group-dark-690-de: menu="Zurücksetzen" 3 pills ok
+reply-menu-dark-690-de: menu="Nachrichtenaktionen" 2 pills ok
+quote-menu-dark-690-de: menu="Markierter Text" 3 pills ok
+problems: 0
+clipped at 320 px: Das Zurückspulen der Unterhaltung ist mit Muse Code unter Windows nicht verfügbar clipped, title: Das Zurückspulen der Unterhaltung ist mit Muse Code unter Windows nicht verfügbar
+clipped at 320 px: Dateiprüfpunkte sind im eingeschränkten Modus aus clipped, title: Dateiprüfpunkte sind im eingeschränkten Modus aus
+clipped at 320 px: Unterhaltung abzweigen und Code zurücksetzen clipped, title: Unterhaltung abzweigen und Code zurücksetzen
+## ru
+rewind-dark-320-ru: menu="Ответвить или откатить" 3 pills ok
+rewind-group-dark-320-ru: menu="Вернуться назад" 2 pills ok
+chat-tool-menu-dark-320-ru: menu="Действия с сообщением" 3 pills ok
+checkpoint-restricted-group-dark-320-ru: menu="Вернуться назад" 3 pills ok
+reply-menu-dark-320-ru: menu="Действия с сообщением" 2 pills ok
+quote-menu-dark-320-ru: menu="Выделенный текст" 3 pills ok
+rewind-dark-690-ru: menu="Ответвить или откатить" 3 pills ok
+rewind-group-dark-690-ru: menu="Вернуться назад" 2 pills ok
+chat-tool-menu-dark-690-ru: menu="Действия с сообщением" 3 pills ok
+checkpoint-restricted-group-dark-690-ru: menu="Вернуться назад" 3 pills ok
+reply-menu-dark-690-ru: menu="Действия с сообщением" 2 pills ok
+quote-menu-dark-690-ru: menu="Выделенный текст" 3 pills ok
+problems: 0
+clipped at 320 px: Контрольные точки файлов отключены в ограниченном режиме clipped, title: Контрольные точки файлов отключены в ограниченном режиме
+clipped at 320 px: Откат беседы недоступен с Muse Code в Windows clipped, title: Откат беседы недоступен с Muse Code в Windows
+## reduced
+rewind-dark-320-reduced: menu="Fork or rewind" 3 pills ok
+rewind-group-dark-320-reduced: menu="Rewind" 2 pills ok
+chat-tool-menu-dark-320-reduced: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-dark-320-reduced: menu="Rewind" 3 pills ok
+reply-menu-dark-320-reduced: menu="Message actions" 2 pills ok
+quote-menu-dark-320-reduced: menu="Highlighted text" 3 pills ok
+rewind-dark-690-reduced: menu="Fork or rewind" 3 pills ok
+rewind-group-dark-690-reduced: menu="Rewind" 2 pills ok
+chat-tool-menu-dark-690-reduced: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-dark-690-reduced: menu="Rewind" 3 pills ok
+reply-menu-dark-690-reduced: menu="Message actions" 2 pills ok
+quote-menu-dark-690-reduced: menu="Highlighted text" 3 pills ok
+problems: 0
+clipped at 320 px: Rewinding the conversation is not available with Muse Code on Windows clipped, title: Rewinding the conversation is not available with Muse Code on Windows
+## forced
+rewind-dark-320-forced: menu="Fork or rewind" 3 pills ok
+rewind-group-dark-320-forced: menu="Rewind" 2 pills ok
+chat-tool-menu-dark-320-forced: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-dark-320-forced: menu="Rewind" 3 pills ok
+reply-menu-dark-320-forced: menu="Message actions" 2 pills ok
+quote-menu-dark-320-forced: menu="Highlighted text" 3 pills ok
+rewind-dark-690-forced: menu="Fork or rewind" 3 pills ok
+rewind-group-dark-690-forced: menu="Rewind" 2 pills ok
+chat-tool-menu-dark-690-forced: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-dark-690-forced: menu="Rewind" 3 pills ok
+reply-menu-dark-690-forced: menu="Message actions" 2 pills ok
+quote-menu-dark-690-forced: menu="Highlighted text" 3 pills ok
+rewind-light-320-forced: menu="Fork or rewind" 3 pills ok
+rewind-group-light-320-forced: menu="Rewind" 2 pills ok
+chat-tool-menu-light-320-forced: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-light-320-forced: menu="Rewind" 3 pills ok
+reply-menu-light-320-forced: menu="Message actions" 2 pills ok
+quote-menu-light-320-forced: menu="Highlighted text" 3 pills ok
+rewind-light-690-forced: menu="Fork or rewind" 3 pills ok
+rewind-group-light-690-forced: menu="Rewind" 2 pills ok
+chat-tool-menu-light-690-forced: menu="Message actions" 3 pills ok
+checkpoint-restricted-group-light-690-forced: menu="Rewind" 3 pills ok
+reply-menu-light-690-forced: menu="Message actions" 2 pills ok
+quote-menu-light-690-forced: menu="Highlighted text" 3 pills ok
+problems: 0
+clipped at 320 px: Rewinding the conversation is not available with Muse Code on Windows clipped, title: Rewinding the conversation is not available with Muse Code on Windows

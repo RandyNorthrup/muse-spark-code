@@ -13,7 +13,14 @@ import {
   renderWhatsNewPage,
   type WhatsNewPageOptions,
 } from '../../src/host/whatsNew/whatsNewHtml'
-import { UI_TEXT, WHATS_NEW_CHANGELOG_URL, WHATS_NEW_README_URL } from '../../src/shared/constants'
+import {
+  UI_TEXT,
+  WHATS_NEW_CHANGELOG_URL,
+  WHATS_NEW_README_URL,
+  WHATS_NEW_REPOSITORY_URL,
+} from '../../src/shared/constants'
+import { EN } from '../../src/shared/l10n/en'
+import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 
 const NONCE = 'n0nce-for-tests'
 const CSP_SOURCE = 'vscode-webview://fake'
@@ -123,6 +130,7 @@ describe('renderWhatsNewPage', () => {
     const scripts = page.querySelectorAll('script')
     expect(scripts).toHaveLength(1)
     expect(scripts[0]?.getAttribute('nonce')).toBe(NONCE)
+    expect(scripts[0]?.getAttribute('type')).toBe('module')
     expect(scripts[0]?.getAttribute('src')).toBe('webview/dist/webview/whatsNew.js')
     expect(page.querySelector('link[rel="stylesheet"]')?.getAttribute('href')).toBe(
       'webview/dist/webview/whatsNew.css',
@@ -159,12 +167,13 @@ describe('renderWhatsNewPage', () => {
     expect(documentOf(page.html).querySelector(`#${described}`)?.textContent).toBe('New page.')
   })
 
-  it('links by index: the notes’ web links, then the full changelog and the README', () => {
+  it('links by index: the notes’ web links, then the full changelog, README and repository', () => {
     const page = render()
     expect(page.links).toEqual([
       'https://example.com/a?b=1&c=2',
       WHATS_NEW_CHANGELOG_URL,
       WHATS_NEW_README_URL,
+      WHATS_NEW_REPOSITORY_URL,
     ])
     const anchors = [...documentOf(page.html).querySelectorAll<HTMLElement>('a[data-link]')]
     expect(anchors.map((anchor) => [anchor.dataset['link'], anchor.getAttribute('href')])).toEqual(
@@ -200,7 +209,38 @@ describe('renderWhatsNewPage', () => {
       locale: 'en',
     })
     expect(odd.html).not.toContain('javascript:')
-    expect(odd.links).toEqual([WHATS_NEW_CHANGELOG_URL, WHATS_NEW_README_URL])
+    expect(odd.links).toEqual([
+      WHATS_NEW_CHANGELOG_URL,
+      WHATS_NEW_README_URL,
+      WHATS_NEW_REPOSITORY_URL,
+    ])
+  })
+
+  it('renders one quiet, indexed star link in the footer', () => {
+    const { html, links } = render()
+    const anchors = [...documentOf(html).querySelectorAll<HTMLAnchorElement>(':scope footer a')]
+    const stars = anchors.filter((anchor) => anchor.href === WHATS_NEW_REPOSITORY_URL)
+    expect(stars).toHaveLength(1)
+    expect(stars[0]?.textContent).toBe(
+      'Enjoying Muse Spark Code? A star on GitHub helps other people find it.',
+    )
+    expect(stars[0]?.dataset['link']).toBe(String(links.indexOf(WHATS_NEW_REPOSITORY_URL)))
+  })
+
+  it('reads the installed star sentence at render time and escapes it', () => {
+    const sentence = 'Gefällt Ihnen Muse Spark Code? <img src=x onerror="bad"> & \'GitHub\''
+    setUiText({ ...EN, whatsNewStarGithub: sentence }, 'de')
+    try {
+      const { html } = render({ locale: 'de' })
+      const anchor = [
+        ...documentOf(html).querySelectorAll<HTMLAnchorElement>(':scope footer a'),
+      ].find((candidate) => candidate.href === WHATS_NEW_REPOSITORY_URL)
+      expect(anchor?.textContent).toBe(sentence)
+      expect(anchor?.querySelector('img')).toBeNull()
+      expect(html).toContain('&lt;img src=x onerror=&quot;bad&quot;&gt; &amp; &#39;GitHub&#39;')
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
   })
 
   it('heads the page, each release and each section in order, the notes marked English', () => {
@@ -241,6 +281,25 @@ describe('renderWhatsNewPage', () => {
     expect(page.body.querySelector(':scope > main > p:not(.lead)')?.textContent).toBe(
       'No release notes ship with version 0.13.0.',
     )
+  })
+
+  it('points at the full changelog only when older notes were shortened or left out', () => {
+    expect(render().html).not.toContain(UI_TEXT.whatsNewEarlierNotes)
+    const html = render({ isShortened: true }).html
+    expect(html).toContain(`<p>${UI_TEXT.whatsNewEarlierNotes}</p>`)
+    // After the releases, before the footer.
+    expect(html.indexOf(UI_TEXT.whatsNewEarlierNotes)).toBeGreaterThan(html.indexOf('0.12.1'))
+    expect(html.indexOf(UI_TEXT.whatsNewEarlierNotes)).toBeLessThan(html.indexOf('<footer>'))
+  })
+
+  it('reads the installed Earlier-notes line at render time', () => {
+    const sentence = 'Frühere Hinweise: siehe das vollständige Änderungsprotokoll'
+    setUiText({ ...EN, whatsNewEarlierNotes: sentence }, 'de')
+    try {
+      expect(render({ isShortened: true, locale: 'de' }).html).toContain(sentence)
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
   })
 
   it('has no accessibility violation axe can see without colours', async () => {

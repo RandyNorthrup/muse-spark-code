@@ -1,0 +1,535 @@
+{
+  "provider": "anthropic",
+  "step": "tool-result-stream",
+  "capturedAt": "2026-10-04",
+  "billed": true,
+  "request": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "headers": {
+      "authorization": "<redacted>",
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "claude-sonnet-5-5",
+      "max_tokens": 2048,
+      "system": [
+        {
+          "type": "text",
+          "text": "You are a capture assistant for an API wire-format test. When the user asks for the time, call the get_time tool, then answer in one short sentence.\n\nHouse rule 1: when a request mentions item 1, answer briefly, name the source of each fact, and never invent a value for field 1 or option 7.\nHouse rule 2: when a request mentions item 2, answer briefly, name the source of each fact, and never invent a value for field 2 or option 14.\nHouse rule 3: when a request mentions item 3, answer briefly, name the source of each fact, and never invent a value for field 3 or option 21.\nHouse rule 4: when a request mentions item 4, answer briefly, name the source of each fact, and never invent a value for field 4 or option 5.\nHouse rule 5: when a request mentions item 5, answer briefly, name the source of each fact, and never invent a value for field 5 or option 12.\nHouse rule 6: when a request mentions item 6, answer briefly, name the source of each fact, and never invent a value for field 6 or option 19.\nHouse rule 7: when a request mentions item 7, answer briefly, name the source of each fact, and never invent a value for field 7 or option 3.\nHouse rule 8: when a request mentions item 8, answer briefly, name the source of each fact, and never invent a value for field 8 or option 10.\nHouse rule 9: when a request mentions item 9, answer briefly, name the source of each fact, and never invent a value for field 9 or option 17.\nHouse rule 10: when a request mentions item 10, answer briefly, name the source of each fact, and never invent a value for field 10 or option 1.\nHouse rule 11: when a request mentions item 11, answer briefly, name the source of each fact, and never invent a value for field 11 or option 8.\nHouse rule 12: when a request mentions item 12, answer briefly, name the source of each fact, and never invent a value for field 12 or option 15.\nHouse rule 13: when a request mentions item 13, answer briefly, name the source of each fact, and never invent a value for field 13 or option 22.\nHouse rule 14: when a request mentions item 14, answer briefly, name the source of each fact, and never invent a value for field 14 or option 6.\nHouse rule 15: when a request mentions item 15, answer briefly, name the source of each fact, and never invent a value for field 15 or option 13.\nHouse rule 16: when a request mentions item 16, answer briefly, name the source of each fact, and never invent a value for field 16 or option 20.\nHouse rule 17: when a request mentions item 17, answer briefly, name the source of each fact, and never invent a value for field 0 or option 4.\nHouse rule 18: when a request mentions item 18, answer briefly, name the source of each fact, and never invent a value for field 1 or option 11.\nHouse rule 19: when a request mentions item 19, answer briefly, name the source of each fact, and never invent a value for field 2 or option 18.\nHouse rule 20: when a request mentions item 20, answer briefly, name the source of each fact, and never invent a value for field 3 or option 2.\nHouse rule 21: when a request mentions item 21, answer briefly, name the source of each fact, and never invent a value for field 4 or option 9.\nHouse rule 22: when a request mentions item 22, answer briefly, name the source of each fact, and never invent a value for field 5 or option 16.\nHouse rule 23: when a request mentions item 23, answer briefly, name the source of each fact, and never invent a value for field 6 or option 0.\nHouse rule 24: when a request mentions item 24, answer briefly, name the source of each fact, and never invent a value for field 7 or option 7.\nHouse rule 25: when a request mentions item 25, answer briefly, name the source of each fact, and never invent a value for field 8 or option 14.\nHouse rule 26: when a request mentions item 26, answer briefly, name the source of each fact, and never invent a value for field 9 or option 21.\nHouse rule 27: when a request mentions item 27, answer briefly, name the source of each fact, and never invent a value for field 10 or option 5.\nHouse rule 28: when a request mentions item 28, answer briefly, name the source of each fact, and never invent a value for field 11 or option 12.\nHouse rule 29: when a request mentions item 29, answer briefly, name the source of each fact, and never invent a value for field 12 or option 19.\nHouse rule 30: when a request mentions item 30, answer briefly, name the source of each fact, and never invent a value for field 13 or option 3.\nHouse rule 31: when a request mentions item 31, answer briefly, name the source of each fact, and never invent a value for field 14 or option 10.\nHouse rule 32: when a request mentions item 32, answer briefly, name the source of each fact, and never invent a value for field 15 or option 17.\nHouse rule 33: when a request mentions item 33, answer briefly, name the source of each fact, and never invent a value for field 16 or option 1.\nHouse rule 34: when a request mentions item 34, answer briefly, name the source of each fact, and never invent a value for field 0 or option 8.\nHouse rule 35: when a request mentions item 35, answer briefly, name the source of each fact, and never invent a value for field 1 or option 15.\nHouse rule 36: when a request mentions item 36, answer briefly, name the source of each fact, and never invent a value for field 2 or option 22.",
+          "cache_control": {
+            "type": "ephemeral"
+          }
+        }
+      ],
+      "messages": [
+        {
+          "role": "user",
+          "content": "Work out the IANA time zone of the city that hosted the Summer Olympics two editions after the 1984 Games, then call get_time for that zone and tell me the local time in one sentence."
+        },
+        {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "",
+              "signature": "CAQS0AUKEAgSGAI4AUIIdGhpbmtpbmcSDNY1FO1TCUKtRQDHhBoMF2FAiCsSX3rHcqpHIjDIHJiUhXKm0Iam4f5CAzH/Gqpa444iLWdZP5QHF8Q3kYch0vynhtJCHQSADXPEg7cq7QQD6nez6+1RXX+UEtmgkFHOVd7WSeoZ5hZOju2rddrtIN01pH+cd7r/NWqvhgDb8GJPvGsdg1PUGQ6uZlUwhcHRP3kg7n8gDwQk47i11fAcDAQ/SkPjy/cFJ6btD0WSXmAQ7Wuu0dqc+2TzrRWqT8mWhZp3CPAipi0QeVCUQl52snB1oSVacCsMTHWria1oHAyaLWKa+qvuiTPdnFVzf7fw+rXcdHlmu+XRdM4qYOdabHjhc3cJKhwmJdKVrKGRHTK6YmruQkvdAoK3LBVG3fF8IvbKf95fZDZtQO09wzDTmuwMf6SEX5s7SZ+zrt5vJczWaxEX1sOZjmZi4PbCQNsifqufSGBjgNDZRXIyL8/8eNQ5h2HyibKFKgviuz0UUPa9tW4RTLKlEcwNB/irDfnAo9pGhQ3yqp1YqqyY4MvfmIIpv/Uj31AUeZ57cLrG4hA/iihv325T/mHoGI571HnSI92T9zJ7CGMpEvyzF5+A84BjQS1yiUESi45HI2pZQ6Rt7Ykk4ryWzCfM95lVN9HCK3UUDsmtBsYxSUYrggRt1ICKqU6kXQ6PPkV/NB0Z/Ok9B/p7J2VphKX9YNHne9zchAH4lTa0bTowGspr/spmMGVYDUgByxuqLWkqVfkxU1/4VX5RHRUNcF+RPqEm3ywy6fnnXhYGsQnkNcI7WYstrwLdRcOzDfKftRiSv/T2vGB/p2wfpRv1SIdzcg0xcPMZVHE/aWD7+/2GyLMr0MBt81mUbh/rp/ej93Y4NjwvUJhzN9v0ZcGNMjglAMIdlPONr3t7B7LzwSuOmhsir5x+EhQmRti64m8M/FkQ3DAYAQ=="
+            },
+            {
+              "type": "tool_use",
+              "id": "toolu_0173GbP7P4PLgVmAyCao7fD4",
+              "name": "get_time",
+              "input": {
+                "timezone": "Europe/Madrid"
+              },
+              "caller": {
+                "type": "direct"
+              }
+            }
+          ]
+        },
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "toolu_0173GbP7P4PLgVmAyCao7fD4",
+              "content": "{\"timezone\":\"UTC\",\"time\":\"2026-10-04T12:00:00Z\"}"
+            }
+          ]
+        }
+      ],
+      "tools": [
+        {
+          "name": "get_time",
+          "description": "Returns the current time in the given IANA time zone.",
+          "input_schema": {
+            "type": "object",
+            "properties": {
+              "timezone": {
+                "type": "string",
+                "description": "An IANA time zone such as UTC."
+              }
+            },
+            "required": ["timezone"]
+          }
+        }
+      ],
+      "tool_choice": {
+        "type": "auto"
+      },
+      "stream": true,
+      "thinking": {
+        "type": "adaptive"
+      },
+      "output_config": {
+        "effort": "high"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "anthropic-organization-id": "<redacted>",
+      "anthropic-ratelimit-input-tokens-limit": "10000000",
+      "anthropic-ratelimit-input-tokens-remaining": "9999000",
+      "anthropic-ratelimit-input-tokens-reset": "2026-10-04T22:47:22Z",
+      "anthropic-ratelimit-output-tokens-limit": "2000000",
+      "anthropic-ratelimit-output-tokens-remaining": "2000000",
+      "anthropic-ratelimit-output-tokens-reset": "2026-10-04T22:47:22Z",
+      "anthropic-ratelimit-requests-limit": "10000",
+      "anthropic-ratelimit-requests-remaining": "9999",
+      "anthropic-ratelimit-requests-reset": "2026-10-04T22:47:22Z",
+      "anthropic-ratelimit-tokens-limit": "12000000",
+      "anthropic-ratelimit-tokens-remaining": "11999000",
+      "anthropic-ratelimit-tokens-reset": "2026-10-04T22:47:22Z",
+      "anthropic-workspace-id": "<redacted>",
+      "cache-control": "no-cache",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a457ba58d975b3d0-LAX",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "content-type": "text/event-stream; charset=utf-8",
+      "date": "Sun, 04 Oct 2026 22:47:23 GMT",
+      "request-id": "req_011Cfi1aXrqXyAQ7Gt5yEwPp",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+      "traceresponse": "00-8dc98b99fbc7037bc99e3ea66a396c62-5b24ec9909cab1a3-01",
+      "transfer-encoding": "chunked",
+      "vary": "Accept-Encoding",
+      "x-robots-tag": "none"
+    },
+    "events": [
+      {
+        "event": "message_start",
+        "data": {
+          "type": "message_start",
+          "message": {
+            "model": "claude-sonnet-5-5",
+            "id": "msg_011Cfi1aZ5Fmqe6tyRjNoWPe",
+            "type": "message",
+            "role": "assistant",
+            "content": [],
+            "container": null,
+            "stop_reason": null,
+            "stop_sequence": null,
+            "stop_details": null,
+            "usage": {
+              "input_tokens": 295,
+              "cache_creation_input_tokens": 0,
+              "cache_read_input_tokens": 2054,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 0,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "output_tokens": 6,
+              "service_tier": "standard",
+              "inference_geo": "global"
+            },
+            "diagnostics": null
+          }
+        }
+      },
+      {
+        "event": "content_block_start",
+        "data": {
+          "type": "content_block_start",
+          "index": 0,
+          "content_block": {
+            "type": "thinking",
+            "thinking": "",
+            "signature": ""
+          }
+        }
+      },
+      {
+        "event": "ping",
+        "data": {
+          "type": "ping"
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "thinking_delta",
+            "thinking": ""
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 0,
+          "delta": {
+            "type": "signature_delta",
+            "signature": "CAQSnAcKEAgSGAI4AUIIdGhpbmtpbmcSDIPl8/NgCfAXP33dtxoMmH+xGFv/8X5yTGL4IjDxH/SdE0Psn9pwhZMfQ/jgZOapk7d30C2oV4G2feSp5zSaONm/vSlYRC7tylSnFV8quQbicrkr1aq1tTVDWUzjqfEiAAtYOO06SJYNLr4rF26W5WXDIDBqHqWZsbNlzEIKIR6ZYiAim1xOz65x1XUoAGzZbtDASVcRLt8FXc3aEdg1wS5u/kU9Hzowbo+ngcdq1KUjrslb7nJlHg7lbIrduAHQtOH1SP2vzMnFvdFJjQ0eLSs2wwOocQL5b3tI2ATH4+yuRwGMFEY00jP1q4+Hyof+dGh1iqYf9zskovxQvMu26cUHu2YhXkdNTKiy8wDXK+KXPunRdTr58E84Dyo6GUU/SYrgAFCGuSTt2iAMeHsI7VYS+O2XJUep30i/wvdVD4csClwMHDG7QsqsfALEgv/gQDupRwKqetk75vQ1+npRixMxgRneUVbnbiSdSDUazr5yNoMQO6gZzWkjZtEaJ2vJA09dpSPNsG+KKQMbAjl1qVPSDfHBFbR6vj2HvZJQMv//0NbREqP525aDTpgxHgJRwOgCfERXB8lwku3HQWm4nDgKudu8NS4lSXxEzfXU0LbaYvHZW/i19dGry4x2LWP/C5+uluiVeAo3POLeqO4PwECIZYgsYSlr10eQ6cfp+TBVEsEG6mD0aeelD6WCcD+3DyDjF95KFbBVLhksAFAcbW26PQeMLOr7uD716XIdl+YNCA8pc2Q/tu+iERyNqQ7JtoNZIlmu3evZPgxryItFRVD5lPSUyzviEGP8OsjLleF7mc5vDn6uWC3P9KRdEmCSwuGJBGHU3a9ruU3AJK9+K/Jq82kML2khAkUVi2feE32FDgGB9CzFBCILOoGYNlUOwiVo+SfGQVVk3ZKgblOrkY03nwfVOkR3YqTPtZvHQOsyfc9gyfHe34C9RoTzyWk+IENxUH7EO/XTatIbaOiasUabzcxuitkXQy7lVWOEEyJqGKRrHMBUUgPEIvh9b6eH1gpprwEZ4/y2W9YQy2KK5xDy+NzBtYLHuvBYuRLyESAlFxSrOGCY7VVnNiOhf4Wm3/IgXUJOuYwDD4J7SRtmkbQMeW8OYoPpapoWX8F+ceBp7Hv+e08j3CRbieTtJGeTNnZdTD1yx15cc860XxMq/74HNgV8W1EIXYO6XGaaZuGJeq8lKEXoN4cYAQ=="
+          }
+        }
+      },
+      {
+        "event": "content_block_stop",
+        "data": {
+          "type": "content_block_stop",
+          "index": 0
+        }
+      },
+      {
+        "event": "content_block_start",
+        "data": {
+          "type": "content_block_start",
+          "index": 1,
+          "content_block": {
+            "type": "text",
+            "text": ""
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "The"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " 1992 Bar"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "celona Games"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " came"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " two editions after "
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "1984, so I"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " used Europe/Madr"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "id. The tool returned "
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "12:00 UTC on"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " 2"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "026-10-04 inst"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "ead of Mad"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "rid local"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " time."
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " Applying Mad"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "rid's summer-"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "time offset of UTC+"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "2,"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " which"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " is"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " my own con"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "version and"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": " not t"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "ool output, g"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "ives about 14:00 C"
+          }
+        }
+      },
+      {
+        "event": "content_block_delta",
+        "data": {
+          "type": "content_block_delta",
+          "index": 1,
+          "delta": {
+            "type": "text_delta",
+            "text": "EST."
+          }
+        }
+      },
+      {
+        "event": "content_block_stop",
+        "data": {
+          "type": "content_block_stop",
+          "index": 1
+        }
+      },
+      {
+        "event": "message_delta",
+        "data": {
+          "type": "message_delta",
+          "delta": {
+            "stop_reason": "end_turn",
+            "stop_sequence": null,
+            "stop_details": null,
+            "container": null
+          },
+          "usage": {
+            "input_tokens": 295,
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 2054,
+            "output_tokens": 227,
+            "output_tokens_details": {
+              "thinking_tokens": 114
+            }
+          }
+        }
+      },
+      {
+        "event": "message_stop",
+        "data": {
+          "type": "message_stop"
+        }
+      }
+    ]
+  }
+}

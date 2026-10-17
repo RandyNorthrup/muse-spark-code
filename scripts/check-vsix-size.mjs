@@ -1,15 +1,21 @@
-// Compressed universal package budget: 1,631,349 bytes + 15%, rounded up to 25 KiB.
-// Measured with the real universal macOS helper, 2026-10-02; PLAN.md D6.
+// REL0160B: measured universal VSIX 2,911,436 bytes +5%, rounded up
+// to 25 KiB = 3,072,000 bytes. Authorized rebuild budget (PLAN.md D6).
+// CAPS017 (0.17.0), PROVISIONAL: 3,272,933 bytes on Kubuntu with the real x64
+// Linux helper but an empty arm64 helper and no macOS artifacts; D6's
+// 25 x ceil(3,196.2 KiB x 1.15 / 25) = 3700 KiB. The hosted CI universal
+// VSIX on the release PR sets the final cap (lead decision, PLAN.md D6).
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const MAX_VSIX_BYTES = 2200 * 1024
+export const MAX_VSIX_BYTES = 3700 * 1024
 
 export function checkVsixSize(file) {
   const size = statSync(file).size
   if (size > MAX_VSIX_BYTES) {
-    throw new Error(`VSIX is ${size} bytes; budget is ${MAX_VSIX_BYTES} bytes (2200 KiB)`)
+    throw new Error(
+      `VSIX is ${size} bytes; budget is ${MAX_VSIX_BYTES} bytes (${MAX_VSIX_BYTES / 1024} KiB)`,
+    )
   }
   return size
 }

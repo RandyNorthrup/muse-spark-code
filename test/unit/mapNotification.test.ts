@@ -58,6 +58,16 @@ const mappedSubject = {
 }
 
 describe('mapNotification', () => {
+  it('rejects negative and fractional cumulative usage before delta accounting', () => {
+    for (const promptTokens of [-1, 1.5]) {
+      expect(
+        mapNotification({
+          method: 'session/tokenUsage',
+          params: { sessionId, cumulative: { promptTokens, outputTokens: 1, totalTokens: 2 } },
+        }),
+      ).toBe(MALFORMED_PARAMS)
+    }
+  })
   it.each([
     [
       'turn/started',
@@ -562,6 +572,8 @@ describe('mapNotification: the M46 capture', () => {
           kind: 'userShell',
           status: 'inProgress',
           commandText: "Write-Output 'hello-m46'",
+          // The item's recorded time, as captured (M87: the message timestamps).
+          recordedAt: '2026-09-25T19:13:49.136845Z',
         },
       },
     })
@@ -577,6 +589,7 @@ describe('mapNotification: the M46 capture', () => {
           visibleOutput: 'tool failed: exit code: 3\nstdout:\nfailing-m46\r\n',
           exitCode: 3,
           durationMs: 617,
+          recordedAt: '2026-09-25T19:13:50.354709Z',
         },
       },
     })
@@ -608,4 +621,14 @@ describe('mapNotification: the M46 capture', () => {
       },
     })
   })
+})
+
+it('redacts failed-turn diagnostics before MSP event subscribers receive them', () => {
+  const secret = `ghp_${'a'.repeat(36)}`
+  const mapped = mapNotification({
+    method: 'turn/completed',
+    params: { sessionId: 's1', turnId: 't1', terminal: 'failed', reason: secret },
+  })
+  expect(mapped).toMatchObject({ event: { type: 'turnCompleted', reason: '[redacted]' } })
+  expect(JSON.stringify(mapped)).not.toContain(secret)
 })

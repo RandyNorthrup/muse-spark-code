@@ -30,6 +30,7 @@
 // addresses does. Giving the name instead would let the proxy resolve it
 // again, which pinning exists to prevent, so the address stays.
 
+import { Buffer } from 'node:buffer'
 import type { ClientRequest, IncomingMessage } from 'node:http'
 import { request as httpsRequest, type RequestOptions } from 'node:https'
 import type { Socket } from 'node:net'
@@ -69,6 +70,25 @@ export function pinnedOptions(target: PinnedTarget, signal: AbortSignal): Reques
       'accept-encoding': WEB_FETCH_ACCEPT_ENCODING,
     },
     signal,
+  }
+}
+
+/** The request options for a pinned POST: the address to connect to, the name to verify. */
+export function pinnedPostOptions(
+  target: PinnedTarget,
+  body: string,
+  headers: Readonly<Record<string, string>>,
+  signal: AbortSignal,
+): RequestOptions {
+  const base = pinnedOptions(target, signal)
+  return {
+    ...base,
+    method: 'POST',
+    headers: {
+      host: target.url.host,
+      ...headers,
+      'content-length': String(Buffer.byteLength(body)),
+    },
   }
 }
 
@@ -148,8 +168,50 @@ export function pinnedHttpsRequest(
   request: RequestFunction = httpsRequest,
   isTlsRequired = true,
 ): Promise<PinnedResponse> {
+  return sendPinnedRequest(
+    pinnedOptions(target, signal),
+    undefined,
+    target,
+    onConnected,
+    request,
+    isTlsRequired,
+  )
+}
+
+/**
+ * One pinned POST; `onConnected` once its connection is up. Follows no
+ * redirect: the first response is the answer. Rejects as the GET does.
+ * `isTlsRequired` is off only for the tests' plain loopback server.
+ */
+export function pinnedPostRequest(
+  target: PinnedTarget,
+  body: string,
+  headers: Readonly<Record<string, string>>,
+  signal: AbortSignal,
+  onConnected: () => void,
+  request: RequestFunction = httpsRequest,
+  isTlsRequired = true,
+): Promise<PinnedResponse> {
+  return sendPinnedRequest(
+    pinnedPostOptions(target, body, headers, signal),
+    body,
+    target,
+    onConnected,
+    request,
+    isTlsRequired,
+  )
+}
+
+function sendPinnedRequest(
+  options: RequestOptions,
+  body: string | undefined,
+  target: PinnedTarget,
+  onConnected: () => void,
+  request: RequestFunction,
+  isTlsRequired: boolean,
+): Promise<PinnedResponse> {
   return new Promise((resolve, reject) => {
-    const outgoing = request(pinnedOptions(target, signal), (response) => {
+    const outgoing = request(options, (response) => {
       if (isTlsRequired && !isOverTls(response.socket)) {
         response.destroy()
         outgoing.destroy()
@@ -168,6 +230,10 @@ export function pinnedHttpsRequest(
     })
     watchConnection(outgoing, isTlsRequired, onConnected)
     outgoing.on('error', reject)
-    outgoing.end()
+    if (body === undefined) {
+      outgoing.end()
+    } else {
+      outgoing.end(body)
+    }
   })
 }

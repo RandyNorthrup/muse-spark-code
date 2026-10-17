@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// A fake Muse Code CLI for the process-level e2e tests (test/e2e): `muse
+// A fake Muse Code CLI for the host checks (test/hosts, LIST in the test
+// overhaul; the process-level e2e tests that also used it are deleted): `muse
 // serve` as the extension sees it, a JSON-RPC 2.0 NDJSON host over stdio
 // speaking the Muse Session Protocol subset the extension uses (PLAN.md D11,
 // shapes verified against Muse Code 1.3.0). It is deliberately small and
@@ -10,6 +11,8 @@
 // Prompt scripts (the first text part of `turn/start`):
 //   tool: <command>   a `powershell` tool call, gated by the approval mode
 //   slow              a turn that waits for `turn/cancel`
+//   question-idle / question-running: M46's question and clarify frames;
+//                     the latter remains active for a captured turn/steer.
 //   die               exit 1 after `turn/started` (host-death drill)
 //   malformed         an `item/delta` without its itemId, then a reply
 //   subagents         two native subagents (running, then done) with child
@@ -18,6 +21,9 @@
 //   long: <cmd>       a `powershell` call that runs until `task/background`
 //                     moves it (M46); `task/stop` then ends it
 //   anything else     "echo: <text>" streamed in two deltas
+//
+// A `turn/start` while a turn runs is queued behind it and launches when it
+// ends; `turn/unqueue` reclaims a queued one (M87, as captured 2026-10-04).
 //
 // Environment: MUSE_FAKE_FINGERPRINT (the SDK's pinned schema fingerprint,
 // so the handshake raises no warning), MUSE_FAKE_START=crash (exit 3 before
@@ -144,6 +150,13 @@ const state = {
   nextId: 0,
   /** The turn in flight, if any: { sessionId, turnId, onCancel } */
   running: undefined,
+  /**
+   * Submits queued behind it (M87, `ifBusy: "queue"`, the default):
+   * { session, turnId, text, commandId }, launched in order as each turn ends.
+   */
+  queue: [],
+  /** Turns a `turn/unqueue` reclaimed: a second reclaim is `already_applied`. */
+  reclaimed: new Set(),
   /** The approval in flight, if any: { resolve } */
   pendingApproval: undefined,
   /** Long tool calls by item (M46): { sessionId, call, isBackground, onBackground } */
@@ -232,6 +245,29 @@ function completeTurn(session, turnId, terminal, extra = {}) {
   }
   notify('usage/changed', state.usage)
   state.running = undefined
+  launchNext()
+}
+
+/**
+ * The next queued submit launches as the running turn ends, as captured on
+ * 2026-10-04 (docs/certification/m87-c.md): `turn/started` at the launch,
+ * then its `userMessage` item.
+ */
+function launchNext() {
+  const next = state.queue.shift()
+  if (next === undefined) {
+    return
+  }
+  startTurn(next.session, next.turnId, next.text)
+}
+
+function startTurn(session, turnId, text) {
+  session.record.status = 'running'
+  session.record.activeTurnId = turnId
+  state.running = { sessionId: session.record.sessionId, turnId, onCancel: undefined }
+  setImmediate(() => {
+    void runTurn(session, turnId, text)
+  })
 }
 
 function awaitDecision() {
@@ -599,6 +635,37 @@ async function runTurn(session, turnId, text) {
   notify('turn/started', { sessionId, turnId })
   notify('session/statusChanged', { sessionId, status: 'running' })
   emitItem(sessionId, item(session, { kind: 'userMessage', turnId, text }))
+  if (text === 'question-idle' || text === 'question-running') {
+    const userInputId = id('question')
+    const itemId = id('item')
+    await new Promise((resolve) => {
+      state.pendingQuestion = { sessionId, userInputId, resolve }
+      // M46 capture, 2026-09-25, docs/certification/m46.md; same fields as
+      // unit/museCodeQuestionDeferral.test.ts, with synthetic ids/text only.
+      notify('userInput/requested', {
+        sessionId,
+        userInputId,
+        itemId,
+        questions: [
+          {
+            id: 'colour',
+            header: 'Colour',
+            question: 'Which colour?',
+            options: [{ label: 'Blue' }, { label: 'Green' }],
+            selection: { mode: 'single' },
+          },
+        ],
+      })
+    })
+    streamReply(session, turnId, 'Continuing independent work.')
+    if (text === 'question-running') {
+      await new Promise((resolve) => {
+        state.running.onCancel = resolve
+      })
+    }
+    completeTurn(session, turnId, 'completed')
+    return
+  }
   if (text === 'die') {
     stderr.write('fake muse: dying on purpose\n')
     exit(DIE_EXIT_CODE)
@@ -712,20 +779,26 @@ const handlers = {
     return { commandId: params.commandId, session: record(session), viewCursor: `v:${sessionId}:0` }
   },
   'turn/start': (params) => {
-    if (state.running !== undefined) {
-      throw new Error('a turn is already running')
-    }
     const session = sessionFor(params)
     const turnId = id('turn')
     const text = params.input.find((part) => part.type === 'text')?.text ?? ''
-    session.record.status = 'running'
-    session.record.activeTurnId = turnId
     session.record.firstUserPrompt ??= text
     session.record.title ??= text
-    state.running = { sessionId: session.record.sessionId, turnId, onCancel: undefined }
-    setImmediate(() => {
-      void runTurn(session, turnId, text)
-    })
+    // Busy: queued behind the running turn (M87), the CLI's default `ifBusy`.
+    if (state.running !== undefined) {
+      if ((params.ifBusy ?? 'queue') !== 'queue') {
+        throw new Error('a turn is already running')
+      }
+      state.queue.push({ session, turnId, text, commandId: params.commandId })
+      return {
+        commandId: params.commandId,
+        turnId,
+        status: 'accepted',
+        disposition: 'queued',
+        startedNewTurn: false,
+      }
+    }
+    startTurn(session, turnId, text)
     return {
       commandId: params.commandId,
       turnId,
@@ -734,11 +807,59 @@ const handlers = {
       startedNewTurn: true,
     }
   },
+  // A queued submit reclaimed before it launches (M87), as captured on
+  // 2026-10-04: `turn/unqueued` (with the queueing `turn/start`'s commandId)
+  // went out before the ack; a reclaim after the launch was refused
+  // `run_active`, a second one `already_applied`.
+  'turn/unqueue': (params) => {
+    const index = state.queue.findIndex(
+      (queued) =>
+        queued.turnId === params.turnId && queued.session.record.sessionId === params.sessionId,
+    )
+    const [queued] = index === -1 ? [] : state.queue.splice(index, 1)
+    if (queued === undefined) {
+      throw rejected(state.reclaimed.has(params.turnId) ? 'already_applied' : 'run_active')
+    }
+    state.reclaimed.add(queued.turnId)
+    notify('turn/unqueued', {
+      sessionId: params.sessionId,
+      turnId: queued.turnId,
+      commandId: queued.commandId,
+      viewCursor: `v:${params.sessionId}:unqueued`,
+    })
+    return { commandId: params.commandId, status: 'accepted', turnId: queued.turnId }
+  },
   'turn/cancel': (params) => {
     state.running?.onCancel?.()
     return { commandId: params.commandId, status: 'accepted' }
   },
   'turn/interrupt': (params) => handlers['turn/cancel'](params),
+  'userInput/clarify': (params) => {
+    const pending = state.pendingQuestion
+    if (pending?.userInputId !== params.userInputId) throw new Error('no question is pending')
+    state.pendingQuestion = undefined
+    // QUESTION_CLARIFIED in unit/helpers/m46Capture.ts, preserving its shape.
+    notify('userInput/settled', {
+      sessionId: pending.sessionId,
+      userInputId: pending.userInputId,
+      outcome: 'clarified',
+      answers: [],
+      clarification: params.clarification,
+    })
+    pending.resolve()
+    return { commandId: params.commandId, status: 'accepted' }
+  },
+  'turn/steer': (params) => {
+    if (state.running?.turnId !== params.expectedTurnId) throw new Error('turn is not active')
+    const session = sessionFor(params)
+    const text = params.input.find((part) => part.type === 'text')?.text ?? ''
+    emitItem(
+      params.sessionId,
+      item(session, { kind: 'userMessage', turnId: params.expectedTurnId, text }),
+    )
+    // Existing captured ack, unit/MuseCodeHost.test.ts: commandId, turnId, status.
+    return { commandId: params.commandId, turnId: params.expectedTurnId, status: 'accepted' }
+  },
   'approval/decide': (params) => {
     if (state.pendingApproval === undefined) {
       throw new Error('no approval is pending')

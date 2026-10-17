@@ -1,0 +1,70 @@
+{
+  "provider": "openrouter",
+  "step": "key-usage",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "https://openrouter.ai/api/v1/key",
+    "headers": {
+      "authorization": "<redacted>",
+      "HTTP-Referer": "https://github.com/RandyNorthrup/muse-spark-code",
+      "X-OpenRouter-Title": "Muse Spark Code (Unofficial)",
+      "X-OpenRouter-Categories": "ide-extension"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "access-control-allow-origin": "*",
+      "access-control-expose-headers": "X-Generation-Id,X-Provider-Name,request-id,cf-ray",
+      "cache-control": "private, no-store",
+      "cf-ray": "a457b598ced9295e-LAX",
+      "connection": "keep-alive",
+      "content-encoding": "gzip",
+      "content-type": "application/json",
+      "date": "Sun, 04 Oct 2026 22:44:07 GMT",
+      "permissions-policy": "payment=(self \"https://checkout.stripe.com\" \"https://connect-js.stripe.com\" \"https://js.stripe.com\" \"https://*.js.stripe.com\" \"https://hooks.stripe.com\")",
+      "referrer-policy": "no-referrer, strict-origin-when-cross-origin",
+      "server": "cloudflare",
+      "set-cookie": "<redacted>",
+      "transfer-encoding": "chunked",
+      "x-content-type-options": "nosniff"
+    },
+    "body": {
+      "data": {
+        "label": "<redacted>",
+        "is_management_key": false,
+        "is_provisioning_key": false,
+        "limit": 2,
+        "limit_reset": null,
+        "limit_remaining": 2,
+        "include_byok_in_limit": false,
+        "usage": 0,
+        "usage_daily": 0,
+        "usage_weekly": 0,
+        "usage_monthly": 0,
+        "byok_usage": 0,
+        "byok_usage_daily": 0,
+        "byok_usage_weekly": 0,
+        "byok_usage_monthly": 0,
+        "is_free_tier": false,
+        "expires_at": "2026-11-03T21:35:00.422Z",
+        "creator_user_id": "<redacted>",
+        "organization_id": null,
+        "workspace_id": "<redacted>",
+        "allowed_data_regions": ["global"],
+        "free_model_daily_requests": {
+          "used": 0,
+          "limit": 50,
+          "remaining": 50
+        },
+        "rate_limit": {
+          "requests": -1,
+          "interval": "10s",
+          "note": "This field is deprecated and safe to ignore."
+        }
+      }
+    }
+  }
+}

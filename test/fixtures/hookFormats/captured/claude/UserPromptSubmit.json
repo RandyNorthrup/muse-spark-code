@@ -1,0 +1,9 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--workspace\\session-0001.jsonl",
+  "cwd": "C:\\workspace",
+  "prompt_id": "prompt-0001",
+  "permission_mode": "default",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "Read hello.txt, then run the shell command: echo hi. Reply with one word."
+}

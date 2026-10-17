@@ -1,0 +1,38 @@
+base=/Users/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=macmini slot=finm96k2-red snapshot=e17452f9 base=/Users/randy/gates/base-c78aedc3ea0dab3c
+
+ RUN  v5.0.2 /Users/randy/gates.noindex/rt-finm96k2-red
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+ ❯ test/unit/teamSettlement.test.ts (6 tests | 1 failed) 15ms
+
+   ❯ M96 K injected D78 settlement (6)
+     ✓ finds a lost reported acknowledgement after restart without another charge or credit 5ms
+     × finds a lost nonsent acknowledgement after restart without another charge or credit 5ms
+     ✓ retains an unacknowledged intent and the whole unknown allowance; conflicts never refund it 1ms
+     ✓ settles before-midnight claims to their own day and keeps latest day on clock rollback 1ms
+     ✓ two windows share team and other-paid spend; lowered limits refuse dispatch without losing existing claims 1ms
+     ✓ refuses missing or mismatched ids and every conflicting outcome component 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamSettlement.test.ts > M96 K injected D78 settlement > finds a lost nonsent acknowledgement after restart without another charge or credit
+AssertionError: expected [ 'claim', 'lookup', 'settle' ] to include 'refund'
+ ❯ test/unit/teamSettlement.test.ts:185:29
+    183|         'Lost acknowledgement',
+    184|       )
+    185|       expect(journal.calls).toContain(kind === 'nonsent' ? 'refund' : …
+       |                             ^
+    186|       const restarted = new MemoryClaims(journal.state)
+    187|       await settleTeamJournalClaim(restarted, first.reservation.id, ou…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  09:06:17
+   Duration  626ms (transform 47%, setup 25%, import 24%, tests 3%, worker 1%)
+

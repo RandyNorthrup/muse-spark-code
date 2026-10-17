@@ -1,0 +1,82 @@
+[
+  {
+    "language": "en",
+    "theme": "light",
+    "viewport": 320,
+    "documentClient": 320,
+    "documentScroll": 320,
+    "surfaceClient": 320,
+    "surfaceScroll": 320,
+    "violations": 0
+  },
+  {
+    "language": "en",
+    "theme": "dark",
+    "viewport": 320,
+    "documentClient": 320,
+    "documentScroll": 320,
+    "surfaceClient": 320,
+    "surfaceScroll": 320,
+    "violations": 0
+  },
+  {
+    "language": "en",
+    "theme": "hc-dark",
+    "viewport": 320,
+    "documentClient": 320,
+    "documentScroll": 320,
+    "surfaceClient": 320,
+    "surfaceScroll": 320,
+    "violations": 0
+  },
+  {
+    "language": "en",
+    "theme": "hc-light",
+    "viewport": 320,
+    "documentClient": 320,
+    "documentScroll": 320,
+    "surfaceClient": 320,
+    "surfaceScroll": 320,
+    "violations": 0
+  },
+  {
+    "language": "pseudo",
+    "theme": "light",
+    "viewport": 320,
+    "documentClient": 320,
+    "documentScroll": 320,
+    "surfaceClient": 320,
+    "surfaceScroll": 320,
+    "violations": 0
+  },
+  {
+    "language": "pseudo",
+    "theme": "dark",
+    "viewport": 320,
+    "documentClient": 320,
+    "documentScroll": 320,
+    "surfaceClient": 320,
+    "surfaceScroll": 320,
+    "violations": 0
+  },
+  {
+    "language": "pseudo",
+    "theme": "hc-dark",
+    "viewport": 320,
+    "documentClient": 320,
+    "documentScroll": 320,
+    "surfaceClient": 320,
+    "surfaceScroll": 320,
+    "violations": 0
+  },
+  {
+    "language": "pseudo",
+    "theme": "hc-light",
+    "viewport": 320,
+    "documentClient": 320,
+    "documentScroll": 320,
+    "surfaceClient": 320,
+    "surfaceScroll": 320,
+    "violations": 0
+  }
+]

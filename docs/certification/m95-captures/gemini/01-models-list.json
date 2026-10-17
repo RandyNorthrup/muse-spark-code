@@ -1,0 +1,107 @@
+{
+  "provider": "gemini",
+  "step": "models-list",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "GET",
+    "url": "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+    "headers": {
+      "x-goog-api-key": "<redacted>"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "alt-svc": "h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000",
+      "content-encoding": "gzip",
+      "content-type": "application/json; charset=UTF-8",
+      "date": "Sun, 04 Oct 2026 22:43:30 GMT",
+      "server": "scaffolding on HTTPServer2",
+      "server-timing": "gfet4t7; dur=95",
+      "transfer-encoding": "chunked",
+      "vary": "Origin, X-Origin, Referer",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "SAMEORIGIN",
+      "x-xss-protection": "0"
+    },
+    "bodySummary": {
+      "note": "trimmed: count, keys and sample entries",
+      "count": 61,
+      "topLevelKeys": ["models"],
+      "entryKeys": [
+        "description",
+        "displayName",
+        "inputTokenLimit",
+        "maxTemperature",
+        "name",
+        "outputTokenLimit",
+        "supportedGenerationMethods",
+        "temperature",
+        "thinking",
+        "topK",
+        "topP",
+        "version"
+      ],
+      "sample": [
+        {
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "displayName": "Gemini 2.5 Flash",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "temperature": 1,
+          "topP": 0.95,
+          "topK": 64,
+          "maxTemperature": 2,
+          "thinking": true
+        },
+        {
+          "name": "models/gemini-2.5-pro",
+          "version": "2.5",
+          "displayName": "Gemini 2.5 Pro",
+          "description": "Stable release (June 17th, 2025) of Gemini 2.5 Pro",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "temperature": 1,
+          "topP": 0.95,
+          "topK": 64,
+          "maxTemperature": 2,
+          "thinking": true
+        },
+        {
+          "name": "models/gemini-3.5-flash-lite",
+          "version": "3.5-flash-lite-07-2026",
+          "displayName": "Gemini 3.5 Flash Lite",
+          "description": "Gemini 3.5 Flash Lite",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "temperature": 1,
+          "topP": 0.95,
+          "topK": 64,
+          "maxTemperature": 2,
+          "thinking": true
+        }
+      ]
+    }
+  }
+}

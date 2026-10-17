@@ -1,0 +1,35 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamHintsAndLoad.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamHintsAndLoad.test.ts (18 tests | 1 failed) 94ms
+   ❯ M96 K orphan decisions (2)
+     × finds marked descendants even when direct child ended; does not stop without click 10ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamHintsAndLoad.test.ts > M96 K orphan decisions > finds marked descendants even when direct child ended; does not stop without click
+AssertionError: expected 'stopped' to be 'kept' // Object.is equality
+
+Expected: "kept"
+Received: "stopped"
+
+ ❯ test/unit/teamHintsAndLoad.test.ts:462:51
+    460|     expect(found).toHaveLength(2)
+    461|     expect(found[1]).toMatchObject({ pid: 43, match: 'matched' })
+    462|     expect(await recovery.stop(found[0]!, false)).toBe('kept')
+       |                                                   ^
+    463|     expect(signal).not.toHaveBeenCalled()
+    464|     expect(observe).not.toHaveBeenCalled()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  12:50:47
+   Duration  829ms (transform 46%, import 22%, setup 19%, tests 14%, worker 1%)

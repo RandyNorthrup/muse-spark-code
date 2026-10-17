@@ -1,0 +1,27 @@
+// Every disclosure probe in the three review reports, plus JSON grammar
+// errors that must freeze before an attacker-selected later field is read.
+export const ARGUMENT_PREVIEW_PROBES = [
+  '{"count":9876543210,"path":"safe"}',
+  String.raw`{"\u0070assword":"dummy-first\ndummy-second","path":"safe"}`,
+  String.raw`{"password":"dummy-first\"dummy-second\nend","path":"safe"}`,
+  String.raw`{"ｐａｓｓｗｏｒｄ":"dummy-first\ndummy-second","path":"safe"}`,
+  String.raw`{"password":{"private-name":"dummy-first\ndummy-second"},"path":"safe"}`,
+  String.raw`{"password":["dummy-first\ndummy-second"],"path":"safe"}`,
+  String.raw`{"PASSWORD":[[{"private-name":"dummy-first\ndummy-second"}]],"path":"safe"}`,
+  '{"nested":{"path":"dummy-first"},"path":"safe"}',
+  '{"nested":[{"path":"dummy-first"}],"path":"safe"}',
+  '{"password":[0},"dummy-first"]}',
+  '{"password":{"value":0],"dummy-first"}}',
+  '{"password":[0]],"path":"dummy-first"}',
+  '{"password" "dummy-first","path":"dummy-second"}',
+  String.raw`{"password":"bad\q","path":"dummy-first"}`,
+  '{"password":"dummy-first',
+  '{"password":"hidden","password":"hidden","path":"dummy-first"}',
+  '{"password":[1,],"path":"dummy-first"}',
+  '{"password":{"a":1,},"path":"dummy-first"}',
+  '{"password":01,"path":"dummy-first"}',
+  '{"password":truth,"path":"dummy-first"}',
+  '{"password":1 2,"path":"dummy-first"}',
+  '{"password":false "path":"dummy-first"}',
+  '{"password":null,"path":"safe"} {"path":"dummy-first"}',
+]

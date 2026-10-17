@@ -1,0 +1,9 @@
+{
+  "drill": "capped-viewport",
+  "exit": 1,
+  "failedTests": [
+    "FAIL  test/unit/visualCapture.test.mjs > M114 real visual capture driver > settles the empty busy composer with its own resize handler at the final width"
+  ],
+  "source": "test/harness/goldens/capture.mjs",
+  "restoredSha256": "70da9dc4b5ebd4f8bc667d29457193687df0181875577d5305cdb1d7229f40eb"
+}

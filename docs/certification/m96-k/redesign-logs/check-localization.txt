@@ -1,0 +1,1 @@
+l10n: 14 tables, 120 manifest strings, 425 source files; 0 problems

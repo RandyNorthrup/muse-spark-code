@@ -11,6 +11,7 @@
 // log.
 
 import { Worker, type WorkerOptions } from 'node:worker_threads'
+import { withoutCredentials } from '../../core/credentialEnvironment'
 import * as z from 'zod/mini'
 import type { HtmlConversion, HtmlConverter, HtmlJob } from '../../core/web/htmlConversion'
 import {
@@ -163,6 +164,7 @@ function convertOnWorker(conversion: Conversion): Promise<HtmlConversion> {
     try {
       worker = startWorker(workerPath, {
         workerData: job,
+        env: withoutCredentials(process.env),
         resourceLimits: { maxOldGenerationSizeMb: limits.maxHeapMib },
       })
     } catch (error: unknown) {

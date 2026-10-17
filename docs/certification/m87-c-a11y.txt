@@ -1,0 +1,4 @@
+
+Not measured, as axe cannot: the contrast of 0 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 4 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's).
+
+a11y: 16 pages (4 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result

@@ -8,6 +8,8 @@ describe('M80 scanner (A21)', () => {
     ['ordinary hex 0123456789abcdef', 0],
     [`ghp_${'a'.repeat(400)}`, 10],
     ['LLM|123|key%punctuation', 10],
+    // A Muse Gadgets SDK token (M92), built at runtime: one match, exit 10.
+    [`mgst_${'A'.repeat(42)}A`, 10],
   ])('counts without excerpts: %s', async (text, code) => {
     const out = outputWriter()
     const controller = new AbortController()

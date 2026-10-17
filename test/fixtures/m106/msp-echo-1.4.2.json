@@ -1,0 +1,24 @@
+{
+  "provenance": {
+    "timestamp": "2026-10-06T15:44:56.558Z",
+    "workspace": "C:\\lanes\\M106S\\temp\\m106-s\\echo-capture\\workspace",
+    "provider": "echo",
+    "modelAttempts": 0,
+    "sourceSha256": "b90c696223ef7c69221a91aee9173833e752701f452af22736546bbfef24c2ca",
+    "projection": true
+  },
+  "initialize": {
+    "serverInfo": {
+      "name": "muse",
+      "version": "1.4.2"
+    },
+    "schema": {
+      "version": 1,
+      "fingerprint": "sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2"
+    },
+    "grantedCapabilities": ["sessionListStream"]
+  },
+  "modelList": {
+    "models": []
+  }
+}

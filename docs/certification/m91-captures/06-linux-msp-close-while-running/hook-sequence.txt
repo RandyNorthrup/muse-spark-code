@@ -1,0 +1,23 @@
+2026-10-04T19:16:46.150Z #1 SessionStart label=SessionStart mode=log
+2026-10-04T19:16:46.150Z #1 exit 0
+2026-10-04T19:16:46.197Z #2 UserPromptSubmit label=UserPromptSubmit mode=log
+2026-10-04T19:16:46.198Z #2 exit 0
+2026-10-04T19:16:46.256Z #3 PreLLMCall label=PreLLMCall mode=log
+2026-10-04T19:16:46.257Z #3 exit 0
+2026-10-04T19:16:46.260Z #4 SubagentStart label=SubagentStart mode=log
+2026-10-04T19:16:46.260Z #4 exit 0
+2026-10-04T19:16:46.312Z #5 PostLLMCall label=PostLLMCall mode=log
+2026-10-04T19:16:46.312Z #5 exit 0
+2026-10-04T19:16:46.317Z #6 PreLLMCall label=PreLLMCall mode=log
+2026-10-04T19:16:46.318Z #6 exit 0
+2026-10-04T19:16:46.357Z #7 Stop label=Stop mode=log
+2026-10-04T19:16:46.358Z #7 exit 0
+2026-10-04T19:16:46.365Z #8 PostLLMCall label=PostLLMCall mode=log
+2026-10-04T19:16:46.365Z #8 exit 0
+2026-10-04T19:16:46.412Z #9 SubagentStart label=SubagentStart mode=log
+2026-10-04T19:16:46.413Z #9 exit 0
+2026-10-04T19:16:49.478Z #10 UserPromptSubmit label=UserPromptSubmit mode=sleep:10
+2026-10-04T19:16:54.999Z #11 Interrupt label=Interrupt mode=log
+2026-10-04T19:16:54.999Z #11 exit 0
+2026-10-04T19:16:55.004Z #12 SessionEnd label=SessionEnd mode=log
+2026-10-04T19:16:55.005Z #12 exit 0

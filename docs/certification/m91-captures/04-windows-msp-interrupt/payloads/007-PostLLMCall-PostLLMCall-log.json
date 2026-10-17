@@ -1,0 +1,66 @@
+{
+  "hook_event_name": "PostLLMCall",
+  "provider": "model.unknown.response",
+  "request_id": "aeed0c69-de29-419a-994e-33d3ddc60525:0:1",
+  "attempt": 1,
+  "step": 0,
+  "status": "success",
+  "response_id": "muse-tui-echo",
+  "usage": {
+    "input_tokens": 0,
+    "output_tokens": 0,
+    "cached_tokens": 0,
+    "reasoning_tokens": 0
+  },
+  "finish_reason": null,
+  "error": null,
+  "output_text_preview": "echo: You are a reminder observer for the main agent.\nDo not answer the user. Record exactly one decision this round by calling submit_reminder_decision. Use decision=\"remind\" only when the remind condition stated in your duty is met; otherwise use decisio...[truncated]",
+  "tool_call_count": 0,
+  "messages": [
+    {
+      "role": "developer",
+      "content": [
+        {
+          "type": "text",
+          "text": "Decide whether the main agent should be reminded to load a relevant skill."
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "You are a reminder observer for the main agent.\nDo not answer the user. Record exactly one decision this round by calling submit_reminder_decision. Use decision=\"remind\" only when the remind condition stated in your duty is met; otherwise use decision=\"non...[truncated]"
+        }
+      ]
+    }
+  ],
+  "message_count": 2,
+  "tools": [
+    {
+      "name": "submit_reminder_decision",
+      "description": "Submit this reminder child's explicit decision.",
+      "has_parameters": true,
+      "strict": true
+    }
+  ],
+  "tool_count": 1,
+  "options": {
+    "anthropic.output_config.effort": "low",
+    "anthropic.thinking": "enabled",
+    "anthropic.thinking.budget_tokens": 4096,
+    "local.reasoning.effort": "low",
+    "meta.reasoning.effort": "low",
+    "meta.session_id": "aeed0c69-de29-419a-994e-33d3ddc60525",
+    "meta.traceparent": "00-aeed0c69de29419a994e33d3ddc60525-cc3d0029c3da5d75-01",
+    "openai.reasoning.effort": "low",
+    "openrouter.reasoning.effort": "low"
+  },
+  "session_id": "aeed0c69-de29-419a-994e-33d3ddc60525",
+  "turn_id": "aeed0c69-de29-419a-994e-33d3ddc60525",
+  "cwd": "<workspace>",
+  "transcript_path": null,
+  "model": "echo",
+  "permission_mode": "default"
+}

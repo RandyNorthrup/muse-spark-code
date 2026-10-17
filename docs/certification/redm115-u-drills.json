@@ -1,0 +1,90 @@
+{
+  "rig": "kubuntu",
+  "date": "2026-10-06",
+  "base": "f7575b3b6",
+  "receipts": [
+    {
+      "guard": "skip-generation",
+      "file": "src/core/schedules/sessionOwner.ts",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/scheduleSessionOwner.test.ts",
+        "--maxWorkers=3"
+      ],
+      "namedFailure": "RVM115U3 P1-1: a pre-claim mode waiter cannot install Bypass after restoration",
+      "exitCode": 1,
+      "beforeSha256": "8de084cb1267a08c4524c98b569cd274abacebde0260fa6220405d72ecceffab",
+      "restoredSha256": "8de084cb1267a08c4524c98b569cd274abacebde0260fa6220405d72ecceffab",
+      "byteExact": true,
+      "repositoryDefaultTimeout": true
+    },
+    {
+      "guard": "object-identity",
+      "file": "src/core/schedules/provenance.ts",
+      "command": ["npx", "vitest", "run", "test/unit/scheduleProvenance.test.ts", "--maxWorkers=3"],
+      "namedFailure": "RVM115U3 P2-7: equal bytes in different buffers and replay objects retain proof by SHA-256",
+      "exitCode": 1,
+      "beforeSha256": "7ec787484ee0a4a31d89f71c82729c4c0be1566dfbbb3a52e85896a3443242e2",
+      "restoredSha256": "7ec787484ee0a4a31d89f71c82729c4c0be1566dfbbb3a52e85896a3443242e2",
+      "byteExact": true,
+      "repositoryDefaultTimeout": true
+    },
+    {
+      "guard": "opaque-decision",
+      "file": "src/core/schedules/provenance.ts",
+      "command": ["npx", "vitest", "run", "test/unit/scheduleProvenance.test.ts", "--maxWorkers=3"],
+      "namedFailure": "RVM115U3 P1-2: opaque content cannot claim a decision or authorize a transformation",
+      "exitCode": 1,
+      "beforeSha256": "7ec787484ee0a4a31d89f71c82729c4c0be1566dfbbb3a52e85896a3443242e2",
+      "restoredSha256": "7ec787484ee0a4a31d89f71c82729c4c0be1566dfbbb3a52e85896a3443242e2",
+      "byteExact": true,
+      "repositoryDefaultTimeout": true
+    },
+    {
+      "guard": "native-id-precision",
+      "file": "src/core/fs/fileIdentity.ts",
+      "command": ["npx", "vitest", "run", "test/unit/fileIdentity.test.ts", "--maxWorkers=3"],
+      "namedFailure": "retains exact source IDs and nanosecond timestamps above the Number precision boundary",
+      "exitCode": 1,
+      "beforeSha256": "f3aefc3309e85834b8b8cf2595eec68018b107f5e676faffd47cbedbb390c8e7",
+      "restoredSha256": "f3aefc3309e85834b8b8cf2595eec68018b107f5e676faffd47cbedbb390c8e7",
+      "byteExact": true,
+      "repositoryDefaultTimeout": true
+    },
+    {
+      "guard": "first-dispatch-steer",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "command": ["npx", "vitest", "run", "test/unit/unattendedBackends.test.ts", "--maxWorkers=3"],
+      "namedFailure": "REDM115U: a scheduled steer before the ordinary first dispatch refuses before acceptance and queues honestly",
+      "exitCode": 1,
+      "beforeSha256": "0efbb5944eb1bea770da0104da8a7e7a2f66c02a4bd9b8a7270eda9b5abcceb1",
+      "restoredSha256": "0efbb5944eb1bea770da0104da8a7e7a2f66c02a4bd9b8a7270eda9b5abcceb1",
+      "byteExact": true,
+      "repositoryDefaultTimeout": true
+    },
+    {
+      "guard": "http-retry-handoff",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "command": ["npx", "vitest", "run", "test/unit/unattendedBackends.test.ts", "--maxWorkers=3"],
+      "namedFailure": "REDM115U: a generation-invalidated ordinary HTTP retry hands an accepted steer to its fire",
+      "exitCode": 1,
+      "beforeSha256": "0efbb5944eb1bea770da0104da8a7e7a2f66c02a4bd9b8a7270eda9b5abcceb1",
+      "restoredSha256": "0efbb5944eb1bea770da0104da8a7e7a2f66c02a4bd9b8a7270eda9b5abcceb1",
+      "byteExact": true,
+      "repositoryDefaultTimeout": true
+    },
+    {
+      "guard": "stream-retry-adoption",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "command": ["npx", "vitest", "run", "test/unit/unattendedBackends.test.ts", "--maxWorkers=3"],
+      "namedFailure": "REDM115U: a generation-invalidated ordinary stream retry hands an accepted steer to its fire",
+      "exitCode": 1,
+      "beforeSha256": "0efbb5944eb1bea770da0104da8a7e7a2f66c02a4bd9b8a7270eda9b5abcceb1",
+      "restoredSha256": "0efbb5944eb1bea770da0104da8a7e7a2f66c02a4bd9b8a7270eda9b5abcceb1",
+      "byteExact": true,
+      "repositoryDefaultTimeout": true
+    }
+  ]
+}

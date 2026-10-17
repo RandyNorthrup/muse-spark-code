@@ -1,0 +1,940 @@
+{
+  "date": "2026-10-05",
+  "rig": "win11",
+  "worktree": "C:/lanes/M96INT",
+  "branch": "m96/int",
+  "base": "0e6686f3",
+  "validatedSourceHead": "149f6bacd1b27178ce45d8755cb53d6740c3e9a6",
+  "initialUnitRunHead": "fd86cc9c337e9b9a794c2954bc42a6d62f67837f",
+  "merges": [
+    {
+      "lane": "T",
+      "branch": "m96/tfix",
+      "mergeCommit": "3424bfa84bb661d0af6f9afbaf0c0f1478bb1fd5",
+      "firstParent": "0e6686f3b7134f16e277eeb4d5f28ea5b0f8dc68",
+      "branchHead": "bc03485b7d71759dcca2637cc3235cf6e8368b71"
+    },
+    {
+      "lane": "W",
+      "branch": "m96/wfix",
+      "mergeCommit": "f061093f9f6d63b62ff9a8d1c36266ba2aec4ba5",
+      "firstParent": "3424bfa84bb661d0af6f9afbaf0c0f1478bb1fd5",
+      "branchHead": "a0b38c0dc6d26058fd3a749ffae9cef03e29fed4"
+    },
+    {
+      "lane": "I",
+      "branch": "m96/ifix",
+      "mergeCommit": "07108533b34459ea3241bc133bd42a60697acbb1",
+      "firstParent": "f061093f9f6d63b62ff9a8d1c36266ba2aec4ba5",
+      "branchHead": "56fa6af47b12421c60049c123d3a6e4db0676675"
+    },
+    {
+      "lane": "U2",
+      "branch": "m96/u2fix",
+      "mergeCommit": "1a33c8b64b6637d57a7ef5f6ef2587dbd740e524",
+      "firstParent": "07108533b34459ea3241bc133bd42a60697acbb1",
+      "branchHead": "c0a3adf360d3be10bc76d9b0fd242e5a369ae3ed"
+    },
+    {
+      "lane": "L",
+      "branch": "m96/lfix",
+      "mergeCommit": "257fc3d6d223a9df06a4a844f2a17a41cb19a1e3",
+      "firstParent": "1a33c8b64b6637d57a7ef5f6ef2587dbd740e524",
+      "branchHead": "00c601c845d22544fdf5882f67f202f1a50877ef"
+    }
+  ],
+  "unitCommand": "npx.cmd vitest run <1-3 files> --maxWorkers=3 --testTimeout=120000",
+  "unitTotals": {
+    "files": 75,
+    "tests": 2208,
+    "passed": 2208,
+    "failed": 0,
+    "pending": 0
+  },
+  "units": [
+    {
+      "files": [
+        "test/unit/AgentMap.test.tsx",
+        "test/unit/ApprovalDock.test.tsx",
+        "test/unit/TeamApp.test.tsx"
+      ],
+      "tests": 32,
+      "passed": 32,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/TeamCards.test.tsx",
+        "test/unit/TeamTree.test.tsx",
+        "test/unit/Transcript.test.tsx"
+      ],
+      "tests": 82,
+      "passed": 82,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/UsageDialog.test.tsx",
+        "test/unit/conversationController.test.ts",
+        "test/unit/customAgents.test.ts"
+      ],
+      "tests": 571,
+      "passed": 571,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/fileSessionStore.test.ts",
+        "test/unit/highlight.test.ts",
+        "test/unit/highlightBuild.test.mjs"
+      ],
+      "tests": 15,
+      "passed": 15,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0,
+      "initialTests": 12,
+      "supersedingReport": "final-highlight-batch"
+    },
+    {
+      "files": [
+        "test/unit/html.test.ts",
+        "test/unit/ideMcpServer.test.ts",
+        "test/unit/instructions.test.ts"
+      ],
+      "tests": 26,
+      "passed": 26,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/l10n.test.ts",
+        "test/unit/mcpConnection.test.ts",
+        "test/unit/mcpPool.test.ts"
+      ],
+      "tests": 43,
+      "passed": 43,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/modelApiPolicyFence.test.ts",
+        "test/unit/modelApiTools.test.ts"
+      ],
+      "tests": 213,
+      "passed": 213,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/paidConsent.test.ts",
+        "test/unit/paidFeatures.test.ts",
+        "test/unit/protocol.test.ts"
+      ],
+      "tests": 143,
+      "passed": 143,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/sessionStore.test.ts",
+        "test/unit/team/teamBuiltInRoles.test.ts",
+        "test/unit/team/teamCapabilityCheck.test.ts"
+      ],
+      "tests": 27,
+      "passed": 27,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/team/teamCharter.test.ts",
+        "test/unit/team/teamConfig.test.ts",
+        "test/unit/team/teamRoles.test.ts"
+      ],
+      "tests": 37,
+      "passed": 37,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/team/teamSameModel.test.ts",
+        "test/unit/team/teamTables.test.ts",
+        "test/unit/team/teamToolsets.test.ts"
+      ],
+      "tests": 36,
+      "passed": 36,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamAcpProcess.test.ts",
+        "test/unit/teamAcpWorker.test.ts",
+        "test/unit/teamActivationGraph.test.ts"
+      ],
+      "tests": 61,
+      "passed": 61,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamAdmission.test.ts",
+        "test/unit/teamAutofill.test.ts",
+        "test/unit/teamCapValidation.test.ts"
+      ],
+      "tests": 42,
+      "passed": 42,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamCeilings.test.ts",
+        "test/unit/teamClaimJournal.test.ts",
+        "test/unit/teamConstants.test.ts"
+      ],
+      "tests": 73,
+      "passed": 73,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamDeclaration.test.ts",
+        "test/unit/teamEngineWorker.test.ts",
+        "test/unit/teamEntries.test.ts"
+      ],
+      "tests": 55,
+      "passed": 55,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamHarness.test.mjs",
+        "test/unit/teamHistory.test.ts",
+        "test/unit/teamIntensity.test.ts"
+      ],
+      "tests": 60,
+      "passed": 60,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamLedger.test.ts",
+        "test/unit/teamMcpBridge.test.ts",
+        "test/unit/teamMcpServer.test.ts"
+      ],
+      "tests": 69,
+      "passed": 69,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamMerge.test.ts",
+        "test/unit/teamMeter.test.ts",
+        "test/unit/teamModelSettings.test.ts"
+      ],
+      "tests": 58,
+      "passed": 58,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamMuseCodeWorker.test.ts",
+        "test/unit/teamOrchestratorSlot.test.ts",
+        "test/unit/teamPipelines.test.ts"
+      ],
+      "tests": 107,
+      "passed": 107,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamPlanRecord.test.ts",
+        "test/unit/teamPool.test.ts",
+        "test/unit/teamPreview.test.ts"
+      ],
+      "tests": 31,
+      "passed": 31,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamProtocolLoading.test.ts",
+        "test/unit/teamRefFence.test.ts",
+        "test/unit/teamResources.test.ts"
+      ],
+      "tests": 118,
+      "passed": 118,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamReviewGate.test.ts",
+        "test/unit/teamRoster.test.ts",
+        "test/unit/teamSingleModel.test.ts"
+      ],
+      "tests": 39,
+      "passed": 39,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamTemplates.test.ts",
+        "test/unit/teamTools.test.ts",
+        "test/unit/teamTransfer.test.ts"
+      ],
+      "tests": 59,
+      "passed": 59,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamWorkerEnv.test.ts",
+        "test/unit/teamWorkerReport.test.ts",
+        "test/unit/teamWorkersPaid.test.ts"
+      ],
+      "tests": 29,
+      "passed": 29,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "files": [
+        "test/unit/teamWorkspaces.test.ts",
+        "test/unit/uiState.test.ts",
+        "test/unit/webviewSetup.test.ts"
+      ],
+      "tests": 182,
+      "passed": 182,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0,
+      "initialTests": 181,
+      "supersedingReport": "final-windows"
+    }
+  ],
+  "finalReruns": [
+    {
+      "name": "cleanup",
+      "files": [
+        "test/unit/modelApiPolicyFence.test.ts",
+        "test/unit/teamPipelines.test.ts",
+        "test/unit/TeamTree.test.tsx"
+      ],
+      "tests": 156,
+      "passed": 156,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "name": "highlight",
+      "files": ["test/unit/highlightBuild.test.mjs"],
+      "tests": 5,
+      "passed": 5,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "name": "single-model-restored",
+      "files": [
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/teamActivationGraph.test.ts",
+        "test/unit/teamDeclaration.test.ts"
+      ],
+      "tests": 91,
+      "passed": 91,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "name": "boundaries-restored",
+      "files": [
+        "test/unit/highlightBuild.test.mjs",
+        "test/unit/teamProtocolLoading.test.ts",
+        "test/unit/teamWorkerEnv.test.ts"
+      ],
+      "tests": 15,
+      "passed": 15,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    },
+    {
+      "name": "windows-restored",
+      "files": ["test/unit/teamWorkspaces.test.ts"],
+      "tests": 26,
+      "passed": 26,
+      "failed": 0,
+      "pending": 0,
+      "exit": 0
+    }
+  ],
+  "gates": [
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "name": "format",
+      "command": "npm run format:check",
+      "exit": 0
+    },
+    {
+      "name": "lint",
+      "command": "npm run lint",
+      "exit": 0
+    },
+    {
+      "name": "deadcode",
+      "command": "npm run deadcode",
+      "exit": 0
+    },
+    {
+      "name": "duplication",
+      "command": "npm run duplication",
+      "exit": 0
+    },
+    {
+      "name": "l10n",
+      "command": "npm run check:l10n",
+      "exit": 0
+    },
+    {
+      "name": "cycles",
+      "command": "npm run cycles",
+      "exit": 0
+    },
+    {
+      "name": "host-api-write",
+      "command": "npm run check:host-api -- --write",
+      "exit": 0
+    },
+    {
+      "name": "host-api",
+      "command": "npm run check:host-api",
+      "exit": 0
+    },
+    {
+      "name": "notices-write",
+      "command": "node scripts/third-party-notices.mjs --write",
+      "exit": 0
+    },
+    {
+      "name": "build",
+      "command": "npm run build",
+      "exit": 0
+    }
+  ],
+  "subsequentChecks": [
+    {
+      "name": "highlight-batch-restored",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/fileSessionStore.test.ts test/unit/highlight.test.ts test/unit/highlightBuild.test.mjs --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=temp/final-highlight-batch.json",
+      "exit": 0
+    },
+    {
+      "name": "windows-restored",
+      "command": "node node_modules/vitest/vitest.mjs run test/unit/teamWorkspaces.test.ts --maxWorkers=3 --testTimeout=120000 --reporter=json --outputFile=temp/final-windows-restored.json",
+      "exit": 0
+    },
+    {
+      "name": "unit-typecheck",
+      "command": "node C:\\Users\\Randy\\gates\\tools\\node\\node_modules\\npm\\bin\\npm-cli.js run typecheck:unit",
+      "exit": 0
+    },
+    {
+      "name": "changed-lint",
+      "command": "node node_modules/eslint/bin/eslint.js src/core/team/pipelines.ts test/unit/teamPipelines.test.ts test/unit/modelApiPolicyFence.test.ts test/unit/TeamTree.test.tsx test/unit/highlightBuild.test.mjs test/unit/teamWorkspaces.test.ts --max-warnings=0",
+      "exit": 0
+    },
+    {
+      "name": "changed-format",
+      "command": "node node_modules/prettier/bin/prettier.cjs --check src/core/team/pipelines.ts test/unit/teamPipelines.test.ts test/unit/modelApiPolicyFence.test.ts test/unit/TeamTree.test.tsx test/unit/highlightBuild.test.mjs test/unit/teamWorkspaces.test.ts PLAN.md",
+      "exit": 0
+    },
+    {
+      "name": "duplication-after-windows",
+      "command": "node C:\\Users\\Randy\\gates\\tools\\node\\node_modules\\npm\\bin\\npm-cli.js run duplication",
+      "exit": 0
+    },
+    {
+      "name": "package-windows",
+      "command": "node C:\\Users\\Randy\\gates\\tools\\node\\node_modules\\npm\\bin\\npm-cli.js run package -- --target win32-x64 --out temp/m96int-round2-win32-x64.vsix",
+      "exit": 0
+    },
+    {
+      "name": "vsix-cap",
+      "command": "node scripts/check-vsix-size.mjs temp/m96int-round2-win32-x64.vsix",
+      "exit": 0
+    },
+    {
+      "name": "acp-notices",
+      "command": "node scripts/third-party-notices.mjs --acp temp/round2-acp-notices.txt",
+      "exit": 0
+    }
+  ],
+  "singleModel": {
+    "ordinaryGraphs": [
+      {
+        "name": "activation",
+        "metafile": "dist/meta/extension.json",
+        "forbiddenTeamRuntimeInputs": [],
+        "sharedTeamInputs": ["src/shared/teamView.ts"]
+      },
+      {
+        "name": "modelApi",
+        "metafile": "dist/meta/modelApi.json",
+        "forbiddenTeamRuntimeInputs": [],
+        "sharedTeamInputs": ["src/shared/teamView.ts", "src/shared/teamConversation.ts"]
+      },
+      {
+        "name": "acp",
+        "metafile": "dist/meta-acp/acp.json",
+        "forbiddenTeamRuntimeInputs": [],
+        "sharedTeamInputs": ["src/shared/teamView.ts"]
+      }
+    ],
+    "unchangedOriginalGoldenFixtures": [
+      {
+        "path": "test/fixtures/golden-requests/01-plain-turn.json",
+        "baseGitBlob": "6163fb7cef3343dd8805d50fbfb87a269094af3d",
+        "currentGitBlob": "6163fb7cef3343dd8805d50fbfb87a269094af3d",
+        "equal": true
+      },
+      {
+        "path": "test/fixtures/golden-requests/02-tool-call.json",
+        "baseGitBlob": "2f5de5c39e76f93ad3a4ac2bc63ad84726695d86",
+        "currentGitBlob": "2f5de5c39e76f93ad3a4ac2bc63ad84726695d86",
+        "equal": true
+      },
+      {
+        "path": "test/fixtures/golden-requests/03-edit-then-run.json",
+        "baseGitBlob": "6694f9ef190b2950fdd6616805134ea1808ec545",
+        "currentGitBlob": "6694f9ef190b2950fdd6616805134ea1808ec545",
+        "equal": true
+      },
+      {
+        "path": "test/fixtures/golden-requests/04-packed-output.json",
+        "baseGitBlob": "7d93dd5e3edba86b97d7225e53944b812fd95b1f",
+        "currentGitBlob": "7d93dd5e3edba86b97d7225e53944b812fd95b1f",
+        "equal": true
+      },
+      {
+        "path": "test/fixtures/golden-requests/05-manual-compaction.json",
+        "baseGitBlob": "bff218990228a2b4a3f50230a772b75e66227eb2",
+        "currentGitBlob": "bff218990228a2b4a3f50230a772b75e66227eb2",
+        "equal": true
+      },
+      {
+        "path": "test/fixtures/golden-requests/06-subagent-child.json",
+        "baseGitBlob": "723f982d307281134191c9092c967c6571bd9e06",
+        "currentGitBlob": "723f982d307281134191c9092c967c6571bd9e06",
+        "equal": true
+      },
+      {
+        "path": "test/fixtures/golden-requests/07-skills-and-rules.json",
+        "baseGitBlob": "a9b6c333b4eee60217ed79b66bcedc8ab1d65b02",
+        "currentGitBlob": "a9b6c333b4eee60217ed79b66bcedc8ab1d65b02",
+        "equal": true
+      }
+    ],
+    "rawScenarios": 7,
+    "singleModelConfigurations": 9,
+    "rawScenarioAssertions": 63,
+    "goldenSuiteTotalTests": 69,
+    "normalization": "Only generated item ids; preserves raw key order, escaping and whitespace. Round 1 independently built the pre-M96 source and proved the same original fixtures."
+  },
+  "windows": {
+    "teamRefFence": 89,
+    "teamWorkspaces": 26,
+    "teamMerge": 35,
+    "teamReviewGate": 16,
+    "total": 166,
+    "nativeWindowsOnlyJunctionBodiesExecuted": 2,
+    "nativeWindowsCaseAliasBodyExecuted": 1
+  },
+  "drills": [
+    {
+      "name": "single-model-loader",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/modelApiGoldenRequests.test.ts",
+      "exit": 1,
+      "failed": 63,
+      "passed": 6,
+      "before": "f0da4f9848d3b67fa13ac1e2063d7bf911937aa3ffafd070a3e0c3a5f736e591",
+      "after": "f0da4f9848d3b67fa13ac1e2063d7bf911937aa3ffafd070a3e0c3a5f736e591",
+      "failures": [
+        "M91-G golden requests: no team source records a plain one-turn reply",
+        "M91-G golden requests: no team source records a turn with one tool call and its result",
+        "M91-G golden requests: no team source records an edit_file with then_run",
+        "M91-G golden requests: no team source records a long tool output whole twice, then as a placeholder",
+        "M91-G golden requests: no team source records a manual compaction and the turn after it",
+        "M91-G golden requests: no team source records a subagent child turn",
+        "M91-G golden requests: no team source records a turn with skills and rules loaded",
+        "M91-G golden requests: team off records a plain one-turn reply",
+        "M91-G golden requests: team off records a turn with one tool call and its result",
+        "M91-G golden requests: team off records an edit_file with then_run",
+        "M91-G golden requests: team off records a long tool output whole twice, then as a placeholder",
+        "M91-G golden requests: team off records a manual compaction and the turn after it",
+        "M91-G golden requests: team off records a subagent child turn",
+        "M91-G golden requests: team off records a turn with skills and rules loaded",
+        "M91-G golden requests: Solo records a plain one-turn reply",
+        "M91-G golden requests: Solo records a turn with one tool call and its result",
+        "M91-G golden requests: Solo records an edit_file with then_run",
+        "M91-G golden requests: Solo records a long tool output whole twice, then as a placeholder",
+        "M91-G golden requests: Solo records a manual compaction and the turn after it",
+        "M91-G golden requests: Solo records a subagent child turn",
+        "M91-G golden requests: Solo records a turn with skills and rules loaded",
+        "M91-G golden requests: only Default records a plain one-turn reply",
+        "M91-G golden requests: only Default records a turn with one tool call and its result",
+        "M91-G golden requests: only Default records an edit_file with then_run",
+        "M91-G golden requests: only Default records a long tool output whole twice, then as a placeholder",
+        "M91-G golden requests: only Default records a manual compaction and the turn after it",
+        "M91-G golden requests: only Default records a subagent child turn",
+        "M91-G golden requests: only Default records a turn with skills and rules loaded",
+        "M91-G golden requests: key entries off records a plain one-turn reply",
+        "M91-G golden requests: key entries off records a turn with one tool call and its result",
+        "M91-G golden requests: key entries off records an edit_file with then_run",
+        "M91-G golden requests: key entries off records a long tool output whole twice, then as a placeholder",
+        "M91-G golden requests: key entries off records a manual compaction and the turn after it",
+        "M91-G golden requests: key entries off records a subagent child turn",
+        "M91-G golden requests: key entries off records a turn with skills and rules loaded",
+        "M91-G golden requests: duplicate models records a plain one-turn reply",
+        "M91-G golden requests: duplicate models records a turn with one tool call and its result",
+        "M91-G golden requests: duplicate models records an edit_file with then_run",
+        "M91-G golden requests: duplicate models records a long tool output whole twice, then as a placeholder",
+        "M91-G golden requests: duplicate models records a manual compaction and the turn after it",
+        "M91-G golden requests: duplicate models records a subagent child turn",
+        "M91-G golden requests: duplicate models records a turn with skills and rules loaded",
+        "M91-G golden requests: unavailable records a plain one-turn reply",
+        "M91-G golden requests: unavailable records a turn with one tool call and its result",
+        "M91-G golden requests: unavailable records an edit_file with then_run",
+        "M91-G golden requests: unavailable records a long tool output whole twice, then as a placeholder",
+        "M91-G golden requests: unavailable records a manual compaction and the turn after it",
+        "M91-G golden requests: unavailable records a subagent child turn",
+        "M91-G golden requests: unavailable records a turn with skills and rules loaded",
+        "M91-G golden requests: failed probe records a plain one-turn reply",
+        "M91-G golden requests: failed probe records a turn with one tool call and its result",
+        "M91-G golden requests: failed probe records an edit_file with then_run",
+        "M91-G golden requests: failed probe records a long tool output whole twice, then as a placeholder",
+        "M91-G golden requests: failed probe records a manual compaction and the turn after it",
+        "M91-G golden requests: failed probe records a subagent child turn",
+        "M91-G golden requests: failed probe records a turn with skills and rules loaded",
+        "M91-G golden requests: not loaded records a plain one-turn reply",
+        "M91-G golden requests: not loaded records a turn with one tool call and its result",
+        "M91-G golden requests: not loaded records an edit_file with then_run",
+        "M91-G golden requests: not loaded records a long tool output whole twice, then as a placeholder",
+        "M91-G golden requests: not loaded records a manual compaction and the turn after it",
+        "M91-G golden requests: not loaded records a subagent child turn",
+        "M91-G golden requests: not loaded records a turn with skills and rules loaded"
+      ]
+    },
+    {
+      "name": "eager-team-module",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/teamActivationGraph.test.ts",
+      "exit": 1,
+      "failed": 1,
+      "passed": 0,
+      "before": "f0da4f9848d3b67fa13ac1e2063d7bf911937aa3ffafd070a3e0c3a5f736e591",
+      "after": "f0da4f9848d3b67fa13ac1e2063d7bf911937aa3ffafd070a3e0c3a5f736e591",
+      "failures": ["ordinary activation, backend and ACP graphs have no team runtime modules"]
+    },
+    {
+      "name": "durable-claims-through-lazy-factory",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/teamDeclaration.test.ts",
+      "exit": 1,
+      "failed": 2,
+      "passed": 19,
+      "before": "f0da4f9848d3b67fa13ac1e2063d7bf911937aa3ffafd070a3e0c3a5f736e591",
+      "after": "f0da4f9848d3b67fa13ac1e2063d7bf911937aa3ffafd070a3e0c3a5f736e591",
+      "failures": [
+        "team storage does not start delegation cancelled while its durable claim is saving",
+        "team storage persists pending delegation before dispatch and refuses its retry after reopening"
+      ]
+    },
+    {
+      "name": "installed-view-schema",
+      "file": "src/shared/team.ts",
+      "test": "test/unit/teamProtocolLoading.test.ts",
+      "exit": 1,
+      "failed": 1,
+      "passed": 2,
+      "before": "b31eba12958181d47e2005f00f5edf4d7ed3d3a33be436e9e937081744166ba8",
+      "after": "b31eba12958181d47e2005f00f5edf4d7ed3d3a33be436e9e937081744166ba8",
+      "failures": [
+        "lazy team protocol validators validates both team directions after the lazy factory installs their schemas"
+      ]
+    },
+    {
+      "name": "mandatory-worker-loader-exclusion",
+      "file": "src/core/team/refFence.ts",
+      "test": "test/unit/teamWorkerEnv.test.ts",
+      "exit": 1,
+      "failed": 1,
+      "passed": 6,
+      "before": "61b4d3a5c4b89feba005c29ce419d02b55f21603eae17ab1e91d9c093337f539",
+      "after": "61b4d3a5c4b89feba005c29ce419d02b55f21603eae17ab1e91d9c093337f539",
+      "failures": [
+        "scrubWorkerEnv RVM96A-5 cannot restore Git config or credential transports through passthrough"
+      ]
+    },
+    {
+      "name": "vendor-grammar-cardinality",
+      "file": "scripts/lib/highlightGrammar.mjs",
+      "test": "test/unit/highlightBuild.test.mjs",
+      "exit": 1,
+      "failed": 3,
+      "passed": 2,
+      "before": "6cb8d6e05cc13ecbda1f30fe7adb86f0e778e9dac786cffe1afa7cdd6890dfb5",
+      "after": "6cb8d6e05cc13ecbda1f30fe7adb86f0e778e9dac786cffe1afa7cdd6890dfb5",
+      "failures": [
+        "refuses a vendor grammar with missing embedded JavaScript",
+        "refuses a vendor grammar with duplicate embedded JavaScript",
+        "refuses a vendor grammar with missing standalone JavaScript"
+      ]
+    },
+    {
+      "name": "vendor-grammar-equality",
+      "file": "scripts/lib/highlightGrammar.mjs",
+      "test": "test/unit/highlightBuild.test.mjs",
+      "exit": 1,
+      "failed": 1,
+      "passed": 4,
+      "before": "6cb8d6e05cc13ecbda1f30fe7adb86f0e778e9dac786cffe1afa7cdd6890dfb5",
+      "after": "6cb8d6e05cc13ecbda1f30fe7adb86f0e778e9dac786cffe1afa7cdd6890dfb5",
+      "failures": ["refuses a vendor grammar with different embedded JavaScript"]
+    },
+    {
+      "name": "windows-storage-case-canonicality",
+      "file": "src/core/team/teamWorkspaces.ts",
+      "test": "test/unit/teamWorkspaces.test.ts",
+      "mutation": "canonicalize the supplied storage spelling before checking it",
+      "exit": 1,
+      "failed": 1,
+      "passed": 25,
+      "before": "759b371a5f45cbd7806d9478e86411bfa9b24bbf4f9a3ebf8e8f69bafa437725",
+      "after": "759b371a5f45cbd7806d9478e86411bfa9b24bbf4f9a3ebf8e8f69bafa437725",
+      "failures": [
+        "removeTeamWorkspace refuses a noncanonical Windows case spelling without deleting the task"
+      ]
+    }
+  ],
+  "bundles": [
+    {
+      "path": "dist/extension.js",
+      "bytes": 611874,
+      "capBytes": 614400,
+      "outputs": ["dist/extension.js"]
+    },
+    {
+      "path": "dist/modelApi.js",
+      "bytes": 452044,
+      "capBytes": 486400,
+      "outputs": ["dist/modelApi.js"]
+    },
+    {
+      "path": "dist/review.js",
+      "bytes": 45158,
+      "capBytes": 51200,
+      "outputs": ["dist/review.js"]
+    },
+    {
+      "path": "dist/sessionBoard.js",
+      "bytes": 66968,
+      "capBytes": 76800,
+      "outputs": ["dist/sessionBoard.js"]
+    },
+    {
+      "path": "dist/reviewer.js",
+      "bytes": 57027,
+      "capBytes": 76800,
+      "outputs": ["dist/reviewer.js"]
+    },
+    {
+      "path": "dist/team.js",
+      "bytes": 48760,
+      "capBytes": 76800,
+      "outputs": ["dist/team.js"]
+    },
+    {
+      "path": "dist/planMarkdown.js",
+      "bytes": 142363,
+      "capBytes": 153600,
+      "outputs": ["dist/planMarkdown.js"]
+    },
+    {
+      "path": "dist/checkpointStore.js",
+      "bytes": 139905,
+      "capBytes": 230400,
+      "outputs": ["dist/checkpointStore.js"]
+    },
+    {
+      "path": "dist/agentImport.js",
+      "bytes": 119399,
+      "capBytes": 128000,
+      "outputs": ["dist/agentImport.js"]
+    },
+    {
+      "path": "dist/bundledSkills.js",
+      "bytes": 24388,
+      "capBytes": 51200,
+      "outputs": ["dist/bundledSkills.js"]
+    },
+    {
+      "path": "dist/codeIntel.js",
+      "bytes": 79483,
+      "capBytes": 102400,
+      "outputs": ["dist/codeIntel.js"]
+    },
+    {
+      "path": "dist/voice.js",
+      "bytes": 36485,
+      "capBytes": 51200,
+      "outputs": ["dist/voice.js"]
+    },
+    {
+      "path": "dist/museCodeReviewer.js",
+      "bytes": 44712,
+      "capBytes": 76800,
+      "outputs": ["dist/museCodeReviewer.js"]
+    },
+    {
+      "path": "dist/uiText.js",
+      "bytes": 123611,
+      "capBytes": 128000,
+      "outputs": ["dist/uiText.js"]
+    },
+    {
+      "path": "dist/searchWorker.js",
+      "bytes": 18571,
+      "capBytes": 51200,
+      "outputs": ["dist/searchWorker.js"]
+    },
+    {
+      "path": "dist/pageWorker.js",
+      "bytes": 208040,
+      "capBytes": 307200,
+      "outputs": ["dist/pageWorker.js"]
+    },
+    {
+      "path": "dist/webview/main.js",
+      "bytes": 921336,
+      "capBytes": 921600,
+      "outputs": [
+        "dist/webview/main.js",
+        "dist/webview/chunks/TeamCards-UOGWZB52.js",
+        "dist/webview/chunks/TeamTree-OPWZGXG4.js",
+        "dist/webview/chunks/chunk-LKNGXNPO.js",
+        "dist/webview/chunks/chunk-KNNPQBNB.js",
+        "dist/webview/chunks/chunk-OHAB4IYY.js"
+      ]
+    },
+    {
+      "path": "dist/acp.js",
+      "bytes": 824068,
+      "capBytes": 870400,
+      "outputs": ["dist/acp.js"]
+    }
+  ],
+  "vsix": {
+    "path": "temp/m96int-round2-win32-x64.vsix",
+    "target": "win32-x64",
+    "bytes": 2243169,
+    "capBytes": 2252800,
+    "macOSHelperPresent": false,
+    "universalPackageVerified": false
+  },
+  "remainingAcceptanceItems": [
+    {
+      "id": "M96INT-R2-ACTIVATION-GROWTH",
+      "acceptance": "M96 item 31 activation growth <=4096 bytes",
+      "measurement": {
+        "base": "e23ec61c",
+        "baseBytes": 604810,
+        "currentBytes": 611874,
+        "growthBytes": 7064,
+        "acceptanceMaxGrowthBytes": 4096,
+        "withinGrowthTarget": false
+      },
+      "reason": "Hard 600 KiB cap passes; combined transport/schema and review additions exceed the separate pre-M96 growth target. Keep target unchanged for lead follow-up before M96 certification."
+    },
+    {
+      "id": "M96INT-R2-UNIVERSAL-VSIX",
+      "acceptance": "Universal package including compiled macOS helper",
+      "reason": "This Windows rig has no native/darwin/muse-dictate. Only the actual win32-x64 VSIX was packaged and cap-checked; universal packaging remains unverified."
+    }
+  ],
+  "excludedByBrief": [
+    "m96/afix second round",
+    "lane K",
+    "M96c scheduler lanes",
+    "main 0.13.0/0.14.0",
+    "full npm run quality"
+  ],
+  "counts": {
+    "liveModelAttempts": 0,
+    "paidCalls": 0,
+    "credentialReads": 0,
+    "pushes": 0,
+    "gateThresholdChanges": 0
+  },
+  "hookEnvironment": "Portable Git lacks bash; a process-local temporary npx shim invokes the unchanged installed npm npx-cli. Both lint-staged and gitleaks run normally, PATH restored in finally.",
+  "lintEnvironment": "The full lint child prepends the rig existing PSScriptAnalyzer 1.25.0 module root in its own PSModulePath; no machine/user settings or installs.",
+  "finalDocumentChecks": {
+    "files": ["test/unit/teamConstants.test.ts", "test/unit/teamPlanRecord.test.ts"],
+    "tests": 50,
+    "passed": 50,
+    "failed": 0,
+    "pending": 0,
+    "exit": 0
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "session_id": "session-0002",
+  "transcript_path": "/home/user/.gemini/tmp/workspace/chats/session-0002.jsonl",
+  "cwd": "/workspace",
+  "hook_event_name": "AfterTool",
+  "timestamp": "2026-10-05T02:43:29.919Z",
+  "tool_name": "list_directory",
+  "tool_input": {
+    "dir_path": "."
+  },
+  "tool_response": {
+    "llmContent": "Directory listing for /workspace:\n[DIR] .gemini\n[DIR] captures\n[DIR] out\nhello.txt (14 bytes)\nprobe.js (1135 bytes)\nrec.js (1315 bytes)",
+    "returnDisplay": {
+      "summary": "Found 6 item(s).",
+      "files": ["[DIR] .gemini", "[DIR] captures", "[DIR] out", "hello.txt", "probe.js", "rec.js"]
+    }
+  }
+}

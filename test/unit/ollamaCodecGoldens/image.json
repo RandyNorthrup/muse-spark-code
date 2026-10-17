@@ -1,0 +1,1 @@
+"{\"model\":\"qwen3:4b-instruct-2507-q4_K_M\",\"messages\":[{\"role\":\"system\",\"content\":\"Be brief.\"},{\"role\":\"user\",\"content\":\"What is this?\",\"images\":[\"aGVsbG8=\"]}],\"options\":{\"num_ctx\":32768,\"num_predict\":1024},\"think\":false,\"stream\":true}"

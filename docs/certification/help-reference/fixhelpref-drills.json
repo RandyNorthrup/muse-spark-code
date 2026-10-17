@@ -1,0 +1,943 @@
+{
+  "rig": "kubuntu",
+  "base": "6d39a3bf",
+  "runs": 59,
+  "allRestoredByteExact": true,
+  "receipts": [
+    {
+      "id": "R01",
+      "file": "package.nls.json",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R01 preserves",
+      "description": "Restore generic read-only Plan claim",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R01 preserves backend-specific Plan and Auto safety limits"
+      ],
+      "beforeSha256": "ddd4c83a603dbea3fa4eb11b00d81a645a01cfc993e34045601a73b9a6fa1e95",
+      "afterSha256": "ddd4c83a603dbea3fa4eb11b00d81a645a01cfc993e34045601a73b9a6fa1e95",
+      "restored": true,
+      "seconds": 12.39
+    },
+    {
+      "id": "R02",
+      "file": "src/shared/featureCatalog.ts",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R02 explains",
+      "description": "Replace effort explanation with display label",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R02 explains that Thinking changes requested reasoning effort"
+      ],
+      "beforeSha256": "6297c4ee5d393c27b6402a192f39a3c674c05b5e90231ef9f796214c7094b3e7",
+      "afterSha256": "6297c4ee5d393c27b6402a192f39a3c674c05b5e90231ef9f796214c7094b3e7",
+      "restored": true,
+      "seconds": 12.01
+    },
+    {
+      "id": "R03",
+      "file": "src/shared/featureCatalog.ts",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R03 describes",
+      "description": "Describe Manual rather than Setup init",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R03 describes Setup init rather than Manual hooks"
+      ],
+      "beforeSha256": "6297c4ee5d393c27b6402a192f39a3c674c05b5e90231ef9f796214c7094b3e7",
+      "afterSha256": "6297c4ee5d393c27b6402a192f39a3c674c05b5e90231ef9f796214c7094b3e7",
+      "restored": true,
+      "seconds": 12.15
+    },
+    {
+      "id": "R04",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R04 separates",
+      "description": "Mislabel cache as paid; semantic paid gate rejects it",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R04 separates subscription review and controls from paid extras"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 5.13
+    },
+    {
+      "id": "R05",
+      "file": "src/shared/l10n/en.ts",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R05 uses",
+      "description": "Flatten paid consent/default/budget contexts",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R05 uses explicit paid host/backend pairs and distinct ledgers"
+      ],
+      "beforeSha256": "3e7b0ae53b7a0958f3e50cb667f2b92d3d308ab20c4b9879e8f069cb82a3a063",
+      "afterSha256": "3e7b0ae53b7a0958f3e50cb667f2b92d3d308ab20c4b9879e8f069cb82a3a063",
+      "restored": true,
+      "seconds": 11.97
+    },
+    {
+      "id": "R06",
+      "file": "src/shared/featureCatalog.ts",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R06 restricts",
+      "description": "Restore default ACP Cartesian applicability",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R06 restricts panel workflows and settings to implementing hosts"
+      ],
+      "beforeSha256": "6297c4ee5d393c27b6402a192f39a3c674c05b5e90231ef9f796214c7094b3e7",
+      "afterSha256": "6297c4ee5d393c27b6402a192f39a3c674c05b5e90231ef9f796214c7094b3e7",
+      "restored": true,
+      "seconds": 5.36
+    },
+    {
+      "id": "R07",
+      "file": "src/shared/l10n/en.ts",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R07 distinguishes",
+      "description": "Restore single-backend MCP ownership claim",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R07 distinguishes CLI-owned MCP and skill management from Model API loading"
+      ],
+      "beforeSha256": "3e7b0ae53b7a0958f3e50cb667f2b92d3d308ab20c4b9879e8f069cb82a3a063",
+      "afterSha256": "3e7b0ae53b7a0958f3e50cb667f2b92d3d308ab20c4b9879e8f069cb82a3a063",
+      "restored": true,
+      "seconds": 12.27
+    },
+    {
+      "id": "R08",
+      "file": "src/shared/featureCatalog.ts",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R08 documents",
+      "description": "Remove distinct paid Best-of-N feature",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R08 documents paid candidates independently of the free session board"
+      ],
+      "beforeSha256": "6297c4ee5d393c27b6402a192f39a3c674c05b5e90231ef9f796214c7094b3e7",
+      "afterSha256": "6297c4ee5d393c27b6402a192f39a3c674c05b5e90231ef9f796214c7094b3e7",
+      "restored": true,
+      "seconds": 5.37
+    },
+    {
+      "id": "R09",
+      "file": "package.nls.json",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R09 states",
+      "description": "Restore automatic/default/backend Tab claim",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R09 states Invoke by default and either chat backend for Tab"
+      ],
+      "beforeSha256": "ddd4c83a603dbea3fa4eb11b00d81a645a01cfc993e34045601a73b9a6fa1e95",
+      "afterSha256": "ddd4c83a603dbea3fa4eb11b00d81a645a01cfc993e34045601a73b9a6fa1e95",
+      "restored": true,
+      "seconds": 13.87
+    },
+    {
+      "id": "R10",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R10 records",
+      "description": "Claim paid Model API voice is available",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R10 records actual local voice availability, including zero-cap Model API refusal"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.46
+    },
+    {
+      "id": "R11",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R11 inventories",
+      "description": "Drop source-derived headless request bound",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R11 inventories CLI flags, aliases, ranges and mutually exclusive sources"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.27
+    },
+    {
+      "id": "R12",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R12 retains",
+      "description": "Lose the goal-pause grammar",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R12 retains slash grammar and states the installed-skill limitation"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.1
+    },
+    {
+      "id": "R13",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R13 explains",
+      "description": "Lose attachment limit fact",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R13 explains attachments, agent workflows and conversation actions"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 11.3
+    },
+    {
+      "id": "R14",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R14 retains",
+      "description": "Drop nested required fields",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R14 retains nested setting structures and runtime refinements"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.62
+    },
+    {
+      "id": "R15",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R15 retains",
+      "description": "Drop commandPalette prerequisites",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R15 retains command menu conditions and component keyboard actions"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.16
+    },
+    {
+      "id": "R16",
+      "file": "src/shared/reference/referenceEntry.ts",
+      "tests": ["test/unit/referenceEntry.test.ts"],
+      "needle": "R16 prints",
+      "description": "Omit terminal current-values limitation",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF host and terminal regressions R16 prints applicability, billing, setting type, CLI contracts and unavailable values"
+      ],
+      "beforeSha256": "c74245c030056e8ab18431a89e23cbb7ba2557a3db8abae3eee841fc2e14078b",
+      "afterSha256": "c74245c030056e8ab18431a89e23cbb7ba2557a3db8abae3eee841fc2e14078b",
+      "restored": true,
+      "seconds": 2.79
+    },
+    {
+      "id": "R16-page",
+      "file": "src/webview/components/ReferencePage.tsx",
+      "tests": ["test/unit/ReferencePage.test.tsx"],
+      "needle": "R16",
+      "description": "Drop page CLI inventory",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF page parity and errors R16 searches CLI options, slash grammar and structural bounds"
+      ],
+      "beforeSha256": "fac3e868f4827f74d55c9948c85da7aa75cb60eb85af1d947474c2289aa5c7dd",
+      "afterSha256": "fac3e868f4827f74d55c9948c85da7aa75cb60eb85af1d947474c2289aa5c7dd",
+      "restored": true,
+      "seconds": 6.83
+    },
+    {
+      "id": "R17",
+      "file": "src/acp/agent.ts",
+      "tests": ["test/unit/acpAgent.test.ts"],
+      "needle": "R17 refreshes",
+      "description": "Skip installed-skill refresh on first help",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "the ACP agent (M63) R17 refreshes installed skills before the first local help reply"
+      ],
+      "beforeSha256": "52bd3fb51016961c3a90407e78bfc994dff26e61b75a5c732be544180727619b",
+      "afterSha256": "52bd3fb51016961c3a90407e78bfc994dff26e61b75a5c732be544180727619b",
+      "restored": true,
+      "seconds": 7.31
+    },
+    {
+      "id": "R18-features",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects missing",
+      "description": "Disable independent feature coverage",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R18 rejects missing features, fabricated billing/hosts and new parser options"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.16
+    },
+    {
+      "id": "R18-paid",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects missing",
+      "description": "Disable paid claim validation",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R18 rejects missing features, fabricated billing/hosts and new parser options"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.58
+    },
+    {
+      "id": "R18-hosts",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects missing",
+      "description": "Disable explicit pair validation",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R18 rejects missing features, fabricated billing/hosts and new parser options"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.28
+    },
+    {
+      "id": "R18-flags",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects missing",
+      "description": "Disable undocumented option contracts",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R18 rejects missing features, fabricated billing/hosts and new parser options"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.66
+    },
+    {
+      "id": "R18-defaults",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects source drift",
+      "description": "Disable source default validation",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R18 rejects source drift in defaults, scalar enums, actions, keyboards and adapters"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.92
+    },
+    {
+      "id": "R18-actions",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects source drift",
+      "description": "Disable protocol/host-action coverage",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R18 rejects source drift in defaults, scalar enums, actions, keyboards and adapters"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 11.88
+    },
+    {
+      "id": "R18-keyboards",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects source drift",
+      "description": "Disable component key coverage",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R18 rejects source drift in defaults, scalar enums, actions, keyboards and adapters"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.5
+    },
+    {
+      "id": "R18-adapters",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects source drift",
+      "description": "Disable runtime admission/adapter witnesses",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R18 rejects source drift in defaults, scalar enums, actions, keyboards and adapters"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 11.86
+    },
+    {
+      "id": "R18-bounds",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects numeric bounds",
+      "description": "Disable scalar bound validation",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R18 rejects numeric bounds that the runtime refuses"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 11.93
+    },
+    {
+      "id": "R18-refinements",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects lost",
+      "description": "Disable boolean-map refinement validation",
+      "exit": 1,
+      "fired": true,
+      "failedTests": ["RVHELPREF truth regressions R18 rejects lost runtime refinements"],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 11.98
+    },
+    {
+      "id": "R19",
+      "file": "CHANGELOG.md",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R19 records",
+      "description": "Move Help back under released 0.14.0",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R19 records Help under Unreleased rather than a shipped release"
+      ],
+      "beforeSha256": "c9d2b39a885f70fbf8065982f56b20473479a8ec6815c734d25c84868626ba42",
+      "afterSha256": "c9d2b39a885f70fbf8065982f56b20473479a8ec6815c734d25c84868626ba42",
+      "restored": true,
+      "seconds": 12.34
+    },
+    {
+      "id": "R20",
+      "file": "src/shared/reference/referenceEntry.ts",
+      "tests": ["test/unit/referenceEntry.test.ts", "test/unit/ReferencePage.test.tsx"],
+      "needle": "R20",
+      "description": "Restore placeholders for undefined host values",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF page parity and errors R20 shows the unavailable notice for the actual unsupported-host response",
+        "RVHELPREF host and terminal regressions R20 leaves an unsupported host value set empty without reading sensitive values"
+      ],
+      "beforeSha256": "c74245c030056e8ab18431a89e23cbb7ba2557a3db8abae3eee841fc2e14078b",
+      "afterSha256": "c74245c030056e8ab18431a89e23cbb7ba2557a3db8abae3eee841fc2e14078b",
+      "restored": true,
+      "seconds": 6.86
+    },
+    {
+      "id": "R21-host",
+      "file": "src/shared/reference/referenceEntry.ts",
+      "tests": ["test/unit/referenceEntry.test.ts"],
+      "needle": "R21 answers",
+      "description": "Drop explicit read-error flag",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF host and terminal regressions R21 answers malformed or unreadable NLS with an explicit retryable error"
+      ],
+      "beforeSha256": "c74245c030056e8ab18431a89e23cbb7ba2557a3db8abae3eee841fc2e14078b",
+      "afterSha256": "c74245c030056e8ab18431a89e23cbb7ba2557a3db8abae3eee841fc2e14078b",
+      "restored": true,
+      "seconds": 2.4
+    },
+    {
+      "id": "R21-load",
+      "file": "src/extension.ts",
+      "tests": ["test/unit/referenceEntry.test.ts"],
+      "needle": "R21 reports",
+      "description": "Drop bundle-load error reply",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "R21 reports a synchronous lazy bundle failure through the real activation wiring"
+      ],
+      "beforeSha256": "87c24b450d217bad873585e04c83525919d372ec51cd316c9f167b79aa366aa8",
+      "afterSha256": "87c24b450d217bad873585e04c83525919d372ec51cd316c9f167b79aa366aa8",
+      "restored": true,
+      "seconds": 3.34
+    },
+    {
+      "id": "R21-page",
+      "file": "src/webview/components/ReferencePage.tsx",
+      "tests": ["test/unit/ReferencePage.test.tsx"],
+      "needle": "R21",
+      "description": "Keep the spinner after failure",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF page parity and errors R21 renders a retryable failure and recovers after a new valid response",
+        "RVHELPREF page parity and errors R21 turns malformed lazy model data into a visible error"
+      ],
+      "beforeSha256": "fac3e868f4827f74d55c9948c85da7aa75cb60eb85af1d947474c2289aa5c7dd",
+      "afterSha256": "fac3e868f4827f74d55c9948c85da7aa75cb60eb85af1d947474c2289aa5c7dd",
+      "restored": true,
+      "seconds": 7.19
+    },
+    {
+      "id": "R22",
+      "file": "src/shared/reference/referenceEntry.ts",
+      "tests": ["test/unit/referenceEntry.test.ts"],
+      "needle": "R22 uses",
+      "description": "Ignore installed manifest translations",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF host and terminal regressions R22 uses installed manifest titles, setting prose and enum translations in full help"
+      ],
+      "beforeSha256": "c74245c030056e8ab18431a89e23cbb7ba2557a3db8abae3eee841fc2e14078b",
+      "afterSha256": "c74245c030056e8ab18431a89e23cbb7ba2557a3db8abae3eee841fc2e14078b",
+      "restored": true,
+      "seconds": 2.64
+    },
+    {
+      "id": "R23",
+      "file": "src/shared/featureCatalog.ts",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R23 describes",
+      "description": "Restore availability prose for Install command",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R23 describes specific setup, skill, browser and Tab command effects"
+      ],
+      "beforeSha256": "6297c4ee5d393c27b6402a192f39a3c674c05b5e90231ef9f796214c7094b3e7",
+      "afterSha256": "6297c4ee5d393c27b6402a192f39a3c674c05b5e90231ef9f796214c7094b3e7",
+      "restored": true,
+      "seconds": 11.81
+    },
+    {
+      "id": "packing",
+      "file": "src/shared/reference/reference.generated.ts",
+      "tests": ["test/unit/referenceEntry.test.ts"],
+      "needle": "round-trips",
+      "description": "Corrupt a valid expanded fact; round-trip test detects it",
+      "exit": 1,
+      "fired": true,
+      "failedTests": ["round-trips the entire compressed reference without losing any fact"],
+      "beforeSha256": "a6cb39e12aa6fb22635b40a2304d5d504a879bd64c8a496efa02d0fef02b5407",
+      "afterSha256": "a6cb39e12aa6fb22635b40a2304d5d504a879bd64c8a496efa02d0fef02b5407",
+      "restored": true,
+      "seconds": 2.56
+    },
+    {
+      "id": "R18-tools",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects an implemented tool",
+      "description": "Disable independent model-tool coverage",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R18 rejects an implemented tool without feature coverage"
+      ],
+      "beforeSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "afterSha256": "9de9d06e3853b0dce2fa88d80a4c772d1f542edb47fbf54dae33d2e9e98f22d2",
+      "restored": true,
+      "seconds": 12.52
+    },
+    {
+      "id": "R18-refinements",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects lost",
+      "description": "Disable boolean-map refinement validation",
+      "exit": 1,
+      "fired": true,
+      "failedTests": ["RVHELPREF truth regressions R18 rejects lost runtime refinements"],
+      "beforeSha256": "db4d83bb22c235838955daca71fa21e28ce8ceb6733d42ab4bda21a88916a444",
+      "afterSha256": "db4d83bb22c235838955daca71fa21e28ce8ceb6733d42ab4bda21a88916a444",
+      "restored": true,
+      "seconds": 13.23
+    },
+    {
+      "id": "R10-platforms",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R10 records",
+      "description": "Conflate paid recording platforms with free OS recognition",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R10 records actual local voice availability, including zero-cap Model API refusal"
+      ],
+      "beforeSha256": "db4d83bb22c235838955daca71fa21e28ce8ceb6733d42ab4bda21a88916a444",
+      "afterSha256": "db4d83bb22c235838955daca71fa21e28ce8ceb6733d42ab4bda21a88916a444",
+      "restored": true,
+      "seconds": 12.55
+    },
+    {
+      "id": "source-cli",
+      "file": "src/runtime/cliArgs.ts",
+      "expected": "CLI option lacks contract: --undocumented",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "3e9cf19371b08cd75228cd7475534fa31245cb813352610d93b40fa41e0dc562",
+      "afterSha256": "3e9cf19371b08cd75228cd7475534fa31245cb813352610d93b40fa41e0dc562",
+      "restored": true,
+      "seconds": 0.92
+    },
+    {
+      "id": "source-actions",
+      "file": "src/shared/protocol.ts",
+      "expected": "Uncovered host action: undocumentedAction",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "a92418c7f053a543886625055108a9a4e02cf79392b73cf9a8363adb1903349b",
+      "afterSha256": "a92418c7f053a543886625055108a9a4e02cf79392b73cf9a8363adb1903349b",
+      "restored": true,
+      "seconds": 0.92
+    },
+    {
+      "id": "source-tools",
+      "file": "src/shared/constants.ts",
+      "expected": "Uncovered model tool: undocumented_tool",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "3ec3c6c610e3475c904ffc0c351a24eada328772aa403acc48ce520c23435b9e",
+      "afterSha256": "3ec3c6c610e3475c904ffc0c351a24eada328772aa403acc48ce520c23435b9e",
+      "restored": true,
+      "seconds": 0.96
+    },
+    {
+      "id": "source-keyboards",
+      "file": "src/webview/components/Header.tsx",
+      "expected": "Undocumented keyboard action",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "c5f3d3c02a3dff3749dd0bacd31591505629f1face83da8dcdfe86097abd99c5",
+      "afterSha256": "c5f3d3c02a3dff3749dd0bacd31591505629f1face83da8dcdfe86097abd99c5",
+      "restored": true,
+      "seconds": 0.94
+    },
+    {
+      "id": "source-adapters",
+      "file": "src/runtime/backends.ts",
+      "expected": "Host capability witness changed",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "466c83589f23d51c445355e6cf3031a13f46054003f2c53faf7b6e8b706f5a07",
+      "afterSha256": "466c83589f23d51c445355e6cf3031a13f46054003f2c53faf7b6e8b706f5a07",
+      "restored": true,
+      "seconds": 0.92
+    },
+    {
+      "id": "source-bounds",
+      "file": "package.json",
+      "expected": "Runtime bound mismatch: museSpark.tabDailyBudgetUsd",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "af49691fff07e2ab8cf2b528128f2483d842fa68a5d216ccc56baac5f5432b9b",
+      "afterSha256": "af49691fff07e2ab8cf2b528128f2483d842fa68a5d216ccc56baac5f5432b9b",
+      "restored": true,
+      "seconds": 0.92
+    },
+    {
+      "id": "source-refinements",
+      "file": "src/host/settings.ts",
+      "expected": "Runtime refinement mismatch: values:boolean",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "7907b76ed6e217a1885b2254837c11a9bf4d49aee8a31cb20dfb093ea6410a64",
+      "afterSha256": "7907b76ed6e217a1885b2254837c11a9bf4d49aee8a31cb20dfb093ea6410a64",
+      "restored": true,
+      "seconds": 0.93
+    },
+    {
+      "id": "source-facts",
+      "file": "src/shared/constants.ts",
+      "expected": "Stale reference",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "3ec3c6c610e3475c904ffc0c351a24eada328772aa403acc48ce520c23435b9e",
+      "afterSha256": "3ec3c6c610e3475c904ffc0c351a24eada328772aa403acc48ce520c23435b9e",
+      "restored": true,
+      "seconds": 2.03
+    },
+    {
+      "id": "source-platforms",
+      "file": "src/core/voice/helperLocation.ts",
+      "expected": "Stale reference",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "83a9d5367ee0649c79fa958cb6b56213020ad5681f0142243d2f10b2535f8e9b",
+      "afterSha256": "83a9d5367ee0649c79fa958cb6b56213020ad5681f0142243d2f10b2535f8e9b",
+      "restored": true,
+      "seconds": 1.89
+    },
+    {
+      "id": "source-collision",
+      "file": "src/shared/l10n/en.ts",
+      "expected": "Reserved reference token",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "844892acb59a091098bf2da644344b148f3f188c51913ff1b4c14ff006b8d505",
+      "afterSha256": "844892acb59a091098bf2da644344b148f3f188c51913ff1b4c14ff006b8d505",
+      "restored": true,
+      "seconds": 0.93
+    },
+    {
+      "id": "R18-direct-flags",
+      "file": "scripts/lib/reference.mjs",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R18 rejects an undocumented direct CLI flag",
+      "description": "Disable direct-branch flag coverage",
+      "exit": 1,
+      "fired": true,
+      "failedTests": ["RVHELPREF truth regressions R18 rejects an undocumented direct CLI flag"],
+      "beforeSha256": "f0c57b27fd9ec8fb45fa00e9d79e97eaf65a68d99a6f11ec695b32126b63df9d",
+      "afterSha256": "f0c57b27fd9ec8fb45fa00e9d79e97eaf65a68d99a6f11ec695b32126b63df9d",
+      "restored": true,
+      "seconds": 14.32
+    },
+    {
+      "id": "source-direct-cli",
+      "file": "src/runtime/cliArgs.ts",
+      "expected": "CLI direct flag lacks entry: --undocumented",
+      "exit": 1,
+      "fired": true,
+      "beforeSha256": "3e9cf19371b08cd75228cd7475534fa31245cb813352610d93b40fa41e0dc562",
+      "afterSha256": "3e9cf19371b08cd75228cd7475534fa31245cb813352610d93b40fa41e0dc562",
+      "restored": true,
+      "seconds": 2.29
+    },
+    {
+      "id": "R13-slots",
+      "file": "src/shared/featureCatalog.ts",
+      "description": "Reintroduce an unfilled server template into static question help",
+      "tests": ["test/unit/referenceGenerator.test.mjs"],
+      "needle": "R13 explains",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R13 explains attachments, agent workflows and conversation actions"
+      ],
+      "beforeSha256": "38c9010a382d3f4ebfe042d5be7b5a22d0cc92cb52d494f8543aca09d18a0f37",
+      "afterSha256": "38c9010a382d3f4ebfe042d5be7b5a22d0cc92cb52d494f8543aca09d18a0f37",
+      "restored": true,
+      "seconds": 12.24
+    },
+    {
+      "id": "R06-acp-operations",
+      "file": "scripts/lib/reference.mjs",
+      "description": "Invalidate the derived ACP capability inventory",
+      "tests": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceGenerator.test.mjs",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXHELPREF/temp/fixhelpref-drills-acp/R06-acp-operations.json"
+      ],
+      "needle": "R06 restricts",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R06 restricts panel workflows and settings to implementing hosts"
+      ],
+      "beforeSha256": "a63af524820479d95dee4aa7d456a1af7133bd07cad5e7ad8a507bc36678909f",
+      "afterSha256": "a63af524820479d95dee4aa7d456a1af7133bd07cad5e7ad8a507bc36678909f",
+      "restored": true,
+      "seconds": 13.37
+    },
+    {
+      "id": "R06-acp-client",
+      "file": "scripts/lib/reference.mjs",
+      "description": "Invalidate the derived ACP capability inventory",
+      "tests": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceGenerator.test.mjs",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXHELPREF/temp/fixhelpref-drills-acp/R06-acp-client.json"
+      ],
+      "needle": "R06 restricts",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R06 restricts panel workflows and settings to implementing hosts"
+      ],
+      "beforeSha256": "a63af524820479d95dee4aa7d456a1af7133bd07cad5e7ad8a507bc36678909f",
+      "afterSha256": "a63af524820479d95dee4aa7d456a1af7133bd07cad5e7ad8a507bc36678909f",
+      "restored": true,
+      "seconds": 13.51
+    },
+    {
+      "id": "source-acp-operations",
+      "file": "src/acp/agent.ts",
+      "description": "Invalidate the derived ACP capability inventory",
+      "tests": ["npm", "run", "check:reference"],
+      "needle": "Stale reference:",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [],
+      "beforeSha256": "52bd3fb51016961c3a90407e78bfc994dff26e61b75a5c732be544180727619b",
+      "afterSha256": "52bd3fb51016961c3a90407e78bfc994dff26e61b75a5c732be544180727619b",
+      "restored": true,
+      "seconds": 1.77
+    },
+    {
+      "id": "R11-markdown-slots",
+      "file": "scripts/lib/reference.mjs",
+      "description": "Restore unfilled executable templates in generated Markdown",
+      "tests": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceGenerator.test.mjs",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXHELPREF/temp/fixhelpref-drills-cli-slots/R11-markdown-slots.json"
+      ],
+      "needle": "R11 inventories",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R11 inventories CLI flags, aliases, ranges and mutually exclusive sources"
+      ],
+      "beforeSha256": "06f2bc8896481900a24ce8486d579b62bf199ce8b367f2cae5adcb382c5c048a",
+      "afterSha256": "06f2bc8896481900a24ce8486d579b62bf199ce8b367f2cae5adcb382c5c048a",
+      "restored": true,
+      "seconds": 14.59
+    },
+    {
+      "id": "R11-key-stdin",
+      "file": "scripts/lib/reference.mjs",
+      "description": "Restore the unrelated scanner usage as the exec private-stdin description",
+      "tests": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceGenerator.test.mjs",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXHELPREF/temp/fixhelpref-drills-key-stdin/R11-key-stdin.json"
+      ],
+      "needle": "R11 inventories",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R11 inventories CLI flags, aliases, ranges and mutually exclusive sources"
+      ],
+      "beforeSha256": "06f2bc8896481900a24ce8486d579b62bf199ce8b367f2cae5adcb382c5c048a",
+      "afterSha256": "06f2bc8896481900a24ce8486d579b62bf199ce8b367f2cae5adcb382c5c048a",
+      "restored": true,
+      "seconds": 14.29
+    },
+    {
+      "id": "R11-flag-description",
+      "file": "scripts/lib/reference.mjs",
+      "description": "Restore the Setup usage as the ordinary trust flag description",
+      "tests": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceGenerator.test.mjs",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXHELPREF/temp/fixhelpref-drills-cli-selector/R11-flag-description.json"
+      ],
+      "needle": "R11 inventories",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R11 inventories CLI flags, aliases, ranges and mutually exclusive sources"
+      ],
+      "beforeSha256": "741db82551fed715dcdee2814083864c4d84f9fe29496c37d8b8de3028a021de",
+      "afterSha256": "741db82551fed715dcdee2814083864c4d84f9fe29496c37d8b8de3028a021de",
+      "restored": true,
+      "seconds": 14.58
+    },
+    {
+      "id": "R11-unused-options",
+      "file": "scripts/lib/reference.mjs",
+      "description": "Claim ignored login/setup options enable their serving behavior",
+      "tests": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/referenceGenerator.test.mjs",
+        "--maxWorkers=3",
+        "--testTimeout=120000",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/FIXHELPREF/temp/fixhelpref-drills-unused/R11-unused-options.json"
+      ],
+      "needle": "R11 inventories",
+      "exit": 1,
+      "fired": true,
+      "failedTests": [
+        "RVHELPREF truth regressions R11 inventories CLI flags, aliases, ranges and mutually exclusive sources"
+      ],
+      "beforeSha256": "0b9ea777555aeb91ee875d725acb67f85761e779767ab960caf7ac83d6ca9ed8",
+      "afterSha256": "0b9ea777555aeb91ee875d725acb67f85761e779767ab960caf7ac83d6ca9ed8",
+      "restored": true,
+      "seconds": 14.23
+    }
+  ]
+}

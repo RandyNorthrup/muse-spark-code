@@ -1,0 +1,11 @@
+{
+  "cwd": "<workspace>",
+  "hook_event_name": "Stop",
+  "last_assistant_message": "echo: m91 capture: UserPromptSubmit refuseContinue",
+  "model": "echo",
+  "permission_mode": "default",
+  "session_id": "01a10858-6094-7390-8685-60a37851fb0e",
+  "stop_hook_active": false,
+  "transcript_path": null,
+  "turn_id": "01a10858-7aea-7000-be33-817b0709e178"
+}

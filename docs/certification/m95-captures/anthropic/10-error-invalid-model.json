@@ -1,0 +1,56 @@
+{
+  "provider": "anthropic",
+  "step": "error-invalid-model",
+  "capturedAt": "2026-10-04",
+  "billed": false,
+  "request": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "headers": {
+      "authorization": "<redacted>",
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json"
+    },
+    "body": {
+      "model": "no-such-model-m95",
+      "max_tokens": 16,
+      "messages": [
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ],
+      "stream": true
+    }
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "anthropic-organization-id": "<redacted>",
+      "anthropic-workspace-id": "<redacted>",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "a457b737a9abfc03-LAX",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "content-type": "application/json",
+      "date": "Sun, 04 Oct 2026 22:45:13 GMT",
+      "request-id": "req_011Cfi1R5Sr4YPXBcYfczm7q",
+      "server": "cloudflare",
+      "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+      "traceresponse": "00-18fd8d1a0317eba8c84f7e8fc780ae73-c646c8191b3577b1-01",
+      "transfer-encoding": "chunked",
+      "vary": "Accept-Encoding",
+      "x-robots-tag": "none",
+      "x-should-retry": "false"
+    },
+    "body": {
+      "type": "error",
+      "error": {
+        "type": "not_found_error",
+        "message": "model: no-such-model-m95"
+      },
+      "request_id": "req_011Cfi1R5Sr4YPXBcYfczm7q"
+    }
+  }
+}

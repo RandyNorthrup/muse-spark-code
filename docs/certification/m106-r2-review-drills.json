@@ -1,0 +1,121 @@
+[
+  {
+    "drill": "response-body-idle",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "times out a stalled HTTP 504 error body at the repository idle deadline",
+    "exit": 1,
+    "failedTests": [
+      "times out a stalled HTTP 401 error body at the repository idle deadline",
+      "times out a stalled HTTP 504 error body at the repository idle deadline",
+      "stops a stalled error-body read immediately even when the transport ignores abort",
+      "bounds a stalled successful JSON read on models",
+      "bounds a stalled successful JSON read on input_tokens",
+      "bounds a stalled successful JSON read on images/generations",
+      "bounds a stalled successful JSON read on images/edits",
+      "bounds a stalled successful JSON read on status",
+      "ends a reply stream that sends nothing for the idle time, and aborts its request"
+    ],
+    "beforeSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a",
+    "afterSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a"
+  },
+  {
+    "drill": "error-body-timeout-propagation",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "times out a stalled HTTP 504 error body at the repository idle deadline",
+    "exit": 1,
+    "failedTests": [
+      "times out a stalled HTTP 401 error body at the repository idle deadline",
+      "times out a stalled HTTP 504 error body at the repository idle deadline"
+    ],
+    "beforeSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a",
+    "afterSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a"
+  },
+  {
+    "drill": "deadline-aborts-dispatch",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "times out a stalled HTTP 504 error body at the repository idle deadline",
+    "exit": 1,
+    "failedTests": [
+      "times out a stalled HTTP 401 error body at the repository idle deadline",
+      "times out a stalled HTTP 504 error body at the repository idle deadline",
+      "bounds a stalled successful JSON read on models",
+      "bounds a stalled successful JSON read on input_tokens",
+      "bounds a stalled successful JSON read on images/generations",
+      "bounds a stalled successful JSON read on images/edits",
+      "bounds a stalled successful JSON read on status",
+      "starts the provider idle deadline at dispatch when response headers never arrive",
+      "ends a reply stream that sends nothing for the idle time, and aborts its request"
+    ],
+    "beforeSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a",
+    "afterSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a"
+  },
+  {
+    "drill": "stop-bounds-body",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "stops a stalled error-body read immediately even when the transport ignores abort",
+    "exit": 1,
+    "failedTests": [
+      "stops a stalled error-body read immediately even when the transport ignores abort"
+    ],
+    "beforeSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a",
+    "afterSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a"
+  },
+  {
+    "drill": "rejected-health-body-cancel",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "cancels a rejected public status body without reading provider prose",
+    "exit": 1,
+    "failedTests": ["cancels a rejected public status body without reading provider prose"],
+    "beforeSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a",
+    "afterSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a"
+  },
+  {
+    "drill": "successful-response-bytes",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "keeps successful SSE events unchanged while chunks arrive within each idle deadline",
+    "exit": 1,
+    "failedTests": [
+      "keeps successful SSE events unchanged while chunks arrive within each idle deadline",
+      "gives each retry fresh network deadlines without timing the retry pause",
+      "dispatches six one-RPM background requests after admission without starting provider idle timing in the queue",
+      "allows a foreground request immediately after a background burst without exhausting provider tokens",
+      "reads the captured public status without retrieving or transmitting a credential",
+      "taps captured headers before reading streamed and token-count bodies",
+      "paces every subagents request using its existing admission tag",
+      "paces every bestOfN request using its existing admission tag",
+      "paces every scheduledPrompts request using its existing admission tag",
+      "paces every judge request using its existing admission tag",
+      "sends a foreground request while a fan-out request remains queued",
+      "retries 504 with jitter, fresh admission and budget re-reservation before the next fetch",
+      "observes every actual fetch and retry after one preflight and body build each",
+      "sends the bearer key and lists the catalogue ids",
+      "observes every actual response fetch and retry once at the dispatch boundary",
+      "releases the response body when a frame is malformed or the caller stops reading",
+      "counts input tokens without the stream flag",
+      "streams the documented events in order, skipping unknown types",
+      "retries 429 / 500 / 503 with backoff honouring Retry-After, then gives up",
+      "announces each retry and stops waiting when the turn is stopped (D25)",
+      "does not retry 400 / 401 and reports the envelope",
+      "retries a failed send, and stops when the caller aborted",
+      "refuses without a key and fails on frames it cannot trust"
+    ],
+    "beforeSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a",
+    "afterSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a"
+  },
+  {
+    "drill": "retry-pause-excluded",
+    "file": "src/core/backends/modelapi/client.ts",
+    "test": "test/unit/modelApiClient.test.ts",
+    "namedTest": "gives each retry fresh network deadlines without timing the retry pause",
+    "exit": 1,
+    "failedTests": ["gives each retry fresh network deadlines without timing the retry pause"],
+    "beforeSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a",
+    "afterSha256": "585a84d058ae2f49252c7850d145b3e30718581ce71ba4d84fc32d7aa9bbde8a"
+  }
+]

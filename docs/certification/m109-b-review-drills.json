@@ -1,0 +1,182 @@
+[
+  {
+    "guard": "P1-1-schema",
+    "file": "src/shared/vault.ts",
+    "sourceSha256": "9ba15feb506eb75551c32da5cf7ce80ffae142c842f2895c1c8dbb08325eede4",
+    "mutatedSha256": "aab65e64269c6ecc11f8d9476c790b13366538c67be311a1b533a66858a76388",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P1-1 disclosure cannot express a model or agent recipient"
+    ],
+    "restoredSha256": "9ba15feb506eb75551c32da5cf7ce80ffae142c842f2895c1c8dbb08325eede4"
+  },
+  {
+    "guard": "P1-1-presence",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "bfe47f5152d10bea6fb7c44d69b6930544f41ec3761bd0dad200c895174d9953",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P1-1 person disclosure requires fresh presence even on a non-presence item"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P1-2-deadline",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "d209579bf3f639e9d4e2b1c00bbe748e2bb6ce00f0a20ee5652b63196d13ed21",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P1-2 an answer expiring during metadata validation caches no session consent",
+      "RVM109B lifecycle regressions P1-2 expiry during the ticket audit cannot cache session consent"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P1-2-cache",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "d229e08f94c47b5460434242be53fc60e91ecbd61d14230f9402f6184e21d93b",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P1-2 expiry during the ticket audit cannot cache session consent"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P1-3-item-expiry",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "5f0a2783cd3603c9e9fedc60b85672a218528ae697abd863f9831e05c15b2d36",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P1-3 item expiry is enforced at redemption",
+      "RVM109B lifecycle regressions P1-3 item expiry is enforced at release"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P1-3-release-grant",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "0ad103379768b88d9c929d846c9753504764fddd553898c93ab08abd2b89cc89",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P1-3 grant expiry between redemption and material release denies the destination"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P1-4-generation",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "845612a278eb76acf85c3993f71b4ae607a722ea58e4030f7aec6eda29852f4e",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P1-4 a failed epoch write still defeats an in-flight unlock"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P1-4-owner-epoch",
+    "file": "src/core/vault/broker/queue.ts",
+    "sourceSha256": "d342e6f852397e42a040067d5d1dab823f826fdbf183455daaf0b56ba02cf957",
+    "mutatedSha256": "f26d6b5484335b0b999c59abce11b848666e890d835e50260da436962d51ea4d",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P1-4 a failed epoch write still defeats an in-flight unlock"
+    ],
+    "restoredSha256": "d342e6f852397e42a040067d5d1dab823f826fdbf183455daaf0b56ba02cf957"
+  },
+  {
+    "guard": "P1-5-invalidate-first",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "c8574e8162977c64355d085ea4d3d4a96f2642ed734d32d6db8fc57cacc8739f",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P1-5 revoke wipes every active use before termination can wait",
+      "RVM109B lifecycle regressions P1-5 revoke wipes every active use before termination can reject",
+      "RVM109B lifecycle regressions P1-5 a second material read is denied while the first termination is waiting"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P2-6-opening-key",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "20f74c69f2083930d24ac6cd49109643dca98c4df02bfc76baee07bb62663df2",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P2-6 lock erases temporary unwrap and repository keys while open is pending"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P2-6-opened-store",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "63f3c06d5aea991b41dc05c5f149d55bbeb673bdbc9fd24074e259616765fe3b",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P2-6 final epoch read failure locks the newly opened store"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P2-7-channel-signal",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "efd31fb7bf95fd1ff88498ce606aafc945ebd01b6a3dd418e525b289598a06dd",
+    "mutatedSha256": "ff02253fba1f2d1bb8ea458a9537bdd1efcb06513313ce72ce1c2f371879672d",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel P2-7 closing a private connection cancels presence and erases its pending material"
+    ],
+    "restoredSha256": "efd31fb7bf95fd1ff88498ce606aafc945ebd01b6a3dd418e525b289598a06dd"
+  },
+  {
+    "guard": "P2-7-cancel-wait",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "28a52566093ef1482c18790533a3ab819c57251463f5bb52207d55c56a49d393",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel P2-7 closing a private connection cancels presence and erases its pending material"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P2-8-item-scope",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "67bf14afea99f18b33e98abc8f66f07e6641606207cfa88ebbd035d2d1e628df",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P2-8 revoking A preserves B requesters and approvals"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P2-9-lock-audit",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "8f0c6ab425ca4954624dd1a763af5e8422e88db759fc246cfbe0070738bdb1cd",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P2-9 lock explicitly audits pending approvals and unused tickets"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  },
+  {
+    "guard": "P2-9-cancel-audit",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974",
+    "mutatedSha256": "38d769bcd3c47fc270d41daa2dda991aab823557550e783282e35ba516819f1e",
+    "exitCode": 1,
+    "failedTests": [
+      "RVM109B lifecycle regressions P2-9 cancel explicitly audits pending approvals and unused tickets"
+    ],
+    "restoredSha256": "4b01f0daa59f03558e622b536b18c9cda407f8e5a47a5a65e8c3b49a23f1a974"
+  }
+]
