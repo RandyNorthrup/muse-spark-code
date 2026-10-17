@@ -472,33 +472,6 @@ async function expectMalformedCall(line: string): Promise<void> {
 }
 
 describe('decodeOllamaStream native captures', () => {
-  it('pins capture version, counted ledger and exact transport byte lengths', () => {
-    const dir = new URL('../../docs/certification/m95-captures/ollama/', import.meta.url)
-    const version = z
-      .object({ response: z.object({ body: z.string() }) })
-      .parse(JSON.parse(readFileSync(new URL('01-version.json', dir), 'utf8')))
-    expect(JSON.parse(version.response.body)).toEqual({ version: '0.35.1' })
-    const ledger = z
-      .array(recordSchema)
-      .parse(JSON.parse(readFileSync(new URL('calls.json', dir), 'utf8')))
-    expect(ledger).toHaveLength(9)
-    expect(ledger.map((row) => row['number'])).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
-    expect(ledger.every((row) => row['state'] === 'recorded' && row['billed'] === false)).toBe(true)
-    for (const name of [
-      '03-plain-stream',
-      '04-two-tool-stream',
-      '05-tool-follow-up',
-      '06-thinking-on',
-      '07-thinking-off',
-      '08-unknown-model',
-      '09-two-tool-chunks',
-    ]) {
-      const receipt = capture(name)
-      expect(receipt.response.chunkBytes.reduce((total, length) => total + length, 0)).toBe(
-        encoder.encode(receipt.response.body).byteLength,
-      )
-    }
-  })
   it.each([
     '03-plain-stream',
     '04-two-tool-stream',

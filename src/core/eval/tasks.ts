@@ -352,7 +352,8 @@ export const EVAL_TASKS: readonly EvalTask[] = [
   },
 ]
 
-/** The task set's slice for one split, in task-set order. */
+/** The task set's slice for one split, in task-set order.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function evalTasksOfSplit(split: EvalSplit): readonly EvalTask[] {
   return EVAL_TASKS.filter((task) => task.split === split)
 }
