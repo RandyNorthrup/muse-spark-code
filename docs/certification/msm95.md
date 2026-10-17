@@ -167,6 +167,127 @@ model and effort updates`) is uncovered after accepting main's
   account per headless run by design (D88.5), so multi-account dispatch
   stays unavailable until the profile broker lands.
 
+## PROVM95 — provider records, rate limits, media, Azure (lane commits on ms/msm95)
+
+Source of truth used: PR #202 (`research/claude-a`) is not fetchable
+from this rig (no remote, no branch), so every value below comes from
+the repo's own 2026-10-04 research (`docs/certification/m95-research.md`,
+§1 with [O/AZ/X/D/G/M/T/F/H/Z] keys) and the recorded 2026-10-04
+captures (`docs/certification/m95-captures.md` plus the frames). Where
+that research is silent, no value was invented: the code reads the
+provider's live answer and the capture that would settle it is listed
+under Open below.
+
+### Fixed rows (file and evidence)
+
+- Catalogue freshness: `vendor/models-dev/snapshot.json` +
+  `VENDOR.json` re-sealed from the live `models.dev/api.json` with the
+  repo's own `scripts/sync-provider-catalog.mjs --sync --date 2026-10-17
+--sha256 dae7c0c7…` (reviewed digest from `--fetch`, which writes
+  nothing). Every record now resolves against 2026-10-17 lists, not the
+  2026-10-05 snapshot. Fallout: one stale expectation
+  (`ministral-3b-latest` 128000 → 131072), corroborated by Mistral's own
+  captured list (`m95-captures/mistral`, `max_context_length: 131072`).
+- Live-list fields the record reader ignored
+  (`src/core/providers/modelMetadata.ts`, frames cited inline):
+  Fireworks `supports_tools` → tools.calling and
+  `supports_image_input` → image yes/no; DeepSeek `max_output_tokens`
+  and `effort.supported_levels` → output cap and effort levels. Listed
+  Fireworks/DeepSeek models no longer sit unknown where the live list
+  answers.
+- Rate-limit headers with their real meaning
+  (`src/core/backends/modelapi/pacing.ts`, `transport.ts`,
+  `src/core/providers/configured.ts`, `src/shared/usageJournal.ts`):
+  OpenAI/Groq `x-ratelimit-{limit,remaining}-{requests,tokens}` with
+  Go-duration resets (`120ms`…`1m26.4s`, captured values) as the
+  window; xAI limits with no reset (default window); Anthropic
+  `anthropic-ratelimit-{requests,tokens,input-tokens,output-tokens}-{limit,remaining,reset}`
+  with RFC 3339 resets as the window (token bucket is the all-tokens
+  total); Azure `retry-after-ms` honored wherever `retry-after` is read
+  (research §1.2 [AZ5]), standard header keeping precedence. The entry
+  now supplies its own reader through the `pacingProvider` port
+  (previously only Meta's reader existed and only Meta paths observed
+  anything); presets with no captured limit headers keep live 429-pause
+  behavior, and the journal stores `retry-after-ms`.
+- Meta default off other providers' media
+  (`src/core/backends/modelapi/mediaBudget.ts`): `assertMessageFits`
+  threw Meta's 50-slot `documentsOverBudget` for every request; the slot
+  throw now runs only for Meta (or with no record). A listed provider's
+  fresh media rides to the provider, which answers for its own counts;
+  replay elision still honors the recorded `maxCount`, and the
+  pipeline's aggregate byte bound still applies to all.
+- Azure requests (`src/core/providers/*`, `src/runtime/exec/*`,
+  `src/host/models/modelsPanel.ts`): the wizard's deployment now
+  persists on the entry (schema requires it for `azure`); records
+  resolve by the ticked model family against the live catalogue;
+  `wireModelFor` sends `model: <deployment>`; the list
+  (`/openai/v1/models`) and Responses (`/openai/v1/responses`) paths sit
+  below the entry's `/openai/v1` root on both the editor and exec sides
+  (research §1.2 [AZ1, AZ3, AZ6]); the exec pin allows exactly those
+  paths; terminal adds keep the `/openai/v1` address. Dispatch still
+  refuses before send until Azure's own capture lands (rule 13,
+  `wireCapture` stays false), proven by test.
+
+### Tests (repo default 5 s timeout, `--maxWorkers=3`, no raised timeout)
+
+- `providerPacing.test.ts` (new, 10 tests): captured header values
+  through the real readers, duration/timestamp parsing, fail-closed
+  cases, Azure ms precedence. Seen to fail (broken `s` unit fails the
+  duration and Groq-window tests); reverted, 10 pass.
+- `capabilityRecord.test.ts` +1 captured-rows test (Fireworks/DeepSeek
+  frames through the real chat parser into evidence). Seen to fail twice
+  (pre-fix missing `max_output_tokens`; reads-disabled drill); 37 pass.
+- `mediaBudget.test.ts` +1 (51 fresh images with a BYO record ride
+  through; without a record they throw). Seen to fail (gate forced on);
+  reverted, 12 pass.
+- `providersPresets.test.ts` +1 (`wireModelFor` deployment/family/
+  missing). Seen to fail (broken passthrough); reverted, all pass.
+- `providersX.test.ts` +1 Azure resolve (research path, pin allows the
+  two `/openai/v1/*` paths and refuses `/v1/responses`). Failed first on
+  a real bug (list allow-path missed the address prefix; fixed in
+  `providerModelsPath`); 37 pass.
+- `configuredProviders.test.ts` +1 (Azure row by family from the live
+  catalogue; resolve refuses before send, send uncalled); 47 pass.
+- Full `test:unit` stays BLOCKED on this rig (review-browser server in
+  `globalSetup`, as recorded above); targeted suites above are green.
+
+### Gates on the PROVM95 tree (exit codes)
+
+`format:check` 0 · `lint` 0 (full repo, zero warnings) ·
+`typecheck` 0 · `knip` 0 ·
+`cycles` 0 · `duplication` 0 after removing 3 test clones of the new
+code · `check:l10n` 0 · `check:reference` 0 · `check:plan` 0 ·
+`check:roadmap` 0 · `check:host-api` 0 · `check:tokens` 0 ·
+`check:badges` 0 · `npm run build` 0 (production + size + split
+checks) · `security:audit` 0 (2 advisories, 1 exceptioned).
+`security:sast` was not runnable here (see Open).
+
+### Open (why, exactly)
+
+- **PR #202 research rows.** The lane brief's (b)/(c)/(d) rows live in
+  `docs/research/providers/*.md`, which exists on neither this rig nor
+  any local branch. Everything above is grounded in the in-repo
+  2026-10-04 research and captures instead; a lead with the PR branch
+  should diff its rows against this record.
+- **Groq per-day scope, xAI per-second scope, DeepSeek concurrency,
+  Azure 1/10 s windows.** Named in the brief but neither the in-repo
+  research nor the captures name them; the code reads the live headers
+  and a capture naming them (a 429 sequence per provider) would settle
+  each.
+- **Azure live send.** Built and shape-proven against the documented
+  API, but never sent: no Azure resource/key on this rig, and no paid
+  calls allowed. Needs the owner's resource, which also produces the
+  capture that lists Azure.
+- **Anthropic per-request image count.** Research says "100 or 600 per
+  request" without saying which; no `maxCount` was encoded. Needs the
+  provider doc or a limit-reaching capture.
+- **Non-image media caps and the 48 M-char pipeline bound.** The byte
+  bound is the pipeline's own safety (constants say so), kept for all
+  requests; per-provider byte totals are not in the research and were
+  not encoded.
+- **`security:sast`.** Not run on the final tree here (semgrep
+  crashes on this rig, recorded above); the lead runs it off-sandbox.
+
 ## APP PROBLEMS
 
 1. `npm run lint` fails on `temp/l10n-builds-*` scratch that the l10n

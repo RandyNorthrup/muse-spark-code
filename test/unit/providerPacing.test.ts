@@ -17,18 +17,24 @@ import {
 } from '../../src/core/backends/modelapi/pacing'
 import { retryWaitMs } from '../../src/core/backends/modelapi/transport'
 
-function captureHeaders(provider: string, file: string): Headers {
-  const raw: unknown = JSON.parse(
-    readFileSync(
-      new URL(`../../docs/certification/m95-captures/${provider}/${file}`, import.meta.url),
-      'utf8',
-    ),
-  )
-  if (typeof raw !== 'object' || raw === null || !('response' in raw))
-    throw new Error('No response')
-  const response = raw.response as { headers?: Record<string, string> }
-  return new Headers(response.headers ?? {})
-}
+const CAPTURE_FILES = {
+  groq: '02-tool-call-stream.json',
+  openai: '02-tool-call-stream.json',
+  xai: '03-tool-call-stream.json',
+  anthropic: '03-tool-call-stream.json',
+} as const
+
+const capturedHeaders = Object.fromEntries(
+  Object.entries(CAPTURE_FILES).map(([provider, file]) => {
+    const frame = JSON.parse(
+      readFileSync(
+        new URL(`../../docs/certification/m95-captures/${provider}/${file}`, import.meta.url),
+        'utf8',
+      ),
+    ) as { response: { headers: Record<string, string> } }
+    return [provider, new Headers(frame.response.headers)] as const
+  }),
+) as Record<keyof typeof CAPTURE_FILES, Headers>
 
 describe('resetDurationMs', () => {
   it('reads the captured OpenAI/Groq durations as milliseconds until reset', () => {
@@ -53,7 +59,7 @@ describe('resetDurationMs', () => {
 
 describe('provider pacing readers', () => {
   it('reads Groq limits with the longest captured reset as the window', () => {
-    const limits = openaiPacingLimits(captureHeaders('groq', '02-tool-call-stream.json'))
+    const limits = openaiPacingLimits(capturedHeaders.groq)
     expect(limits).toMatchObject({
       requests: 1000,
       remainingRequests: 999,
@@ -63,7 +69,7 @@ describe('provider pacing readers', () => {
     })
   })
   it('reads OpenAI limits with the longest captured reset as the window', () => {
-    const limits = openaiPacingLimits(captureHeaders('openai', '02-tool-call-stream.json'))
+    const limits = openaiPacingLimits(capturedHeaders.openai)
     expect(limits).toMatchObject({
       requests: 500,
       remainingRequests: 499,
@@ -73,7 +79,7 @@ describe('provider pacing readers', () => {
     })
   })
   it('reads xAI limits with no reset, so the default window stands', () => {
-    const limits = xaiPacingLimits(captureHeaders('xai', '03-tool-call-stream.json'))
+    const limits = xaiPacingLimits(capturedHeaders.xai)
     expect(limits).toMatchObject({
       requests: 1800,
       remainingRequests: 1800,
@@ -85,7 +91,7 @@ describe('provider pacing readers', () => {
   it('reads Anthropic request and total-token buckets from the captured frame', () => {
     // The captured resets are past, so the window stays default; the
     // future-reset case below proves the timestamp meaning.
-    const limits = anthropicPacingLimits(captureHeaders('anthropic', '03-tool-call-stream.json'))
+    const limits = anthropicPacingLimits(capturedHeaders.anthropic)
     expect(limits).toMatchObject({
       requests: 10_000,
       remainingRequests: 9999,
