@@ -25,6 +25,10 @@ import { PowerView } from '../devices/power/PowerView'
 import { BlockedSetup } from '../devices/setup/BlockedSetup'
 import './devices.css'
 
+function newViewId(): string {
+  return crypto.randomUUID().replaceAll('-', '')
+}
+
 export function DevicesView({
   message,
   port,
@@ -103,8 +107,8 @@ export function DevicesView({
     if (activeRequest.current !== undefined) return { ok: false, reason: 'busy' }
     let requestId: string
     try {
-      live.viewId ??= crypto.randomUUID().replaceAll('-', '')
-      requestId = crypto.randomUUID().replaceAll('-', '')
+      live.viewId ??= newViewId()
+      requestId = newViewId()
     } catch {
       setInvalid(true)
       return { ok: false, reason: 'failed' }
