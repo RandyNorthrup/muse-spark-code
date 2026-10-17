@@ -62,7 +62,11 @@ this file or in PLAN.md that disagrees loses.
   cpu cap when this cap is triggered the orchistrator should get a
   notification so it can assess what needs to be done if jobs should be paused
   or moved etc, and this should be true for all of the different caps and
-  restrictions that can be set by the user".
+  restrictions that can be set by the user". A static cap is a fixed ceiling
+  ("dont use more than this many agents"). A dynamic cap on a live reading
+  fires only when the reading stays over its threshold for the duration the
+  person set with it ("you dont want to trigger a stop for like breif
+  spikes"), and clears only when it stays back under.
 - **Every job through our own app.** Coding and review jobs run through Muse
   Spark Code itself, so its gaps show; a gap found that way is fixed in the
   product.
