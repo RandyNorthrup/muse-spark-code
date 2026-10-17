@@ -280,11 +280,15 @@ describe('runUploadsCommand cancellation', () => {
   })
 })
 
-function connectedUploads(uploads?: AcpUploadsPort) {
+function connectedUploads(
+  uploads?: AcpUploadsPort,
+  answerPermission?: Parameters<typeof connectedAgent>[0]['answerPermission'],
+) {
   const h = connectedAgent({
     editor: 'uploads-editor',
     version: 'uploads-test',
     ...(uploads !== undefined && { extra: { uploads } }),
+    ...(answerPermission !== undefined && { answerPermission }),
   })
   const texts = () =>
     h.updates.flatMap((update) =>
@@ -292,7 +296,15 @@ function connectedUploads(uploads?: AcpUploadsPort) {
         ? [update.content.text]
         : [],
     )
-  return { ...h, texts }
+  const deleteOther = () =>
+    h.run(async (connection, id) => {
+      const answer = await connection.request('session/prompt', {
+        sessionId: id,
+        prompt: [{ type: 'text', text: '/uploads delete file-other' }],
+      })
+      expect(answer.stopReason).toBe('end_turn')
+    })
+  return { ...h, texts, deleteOther }
 }
 
 describe('/uploads through the agent', () => {
@@ -338,22 +350,11 @@ describe('/uploads through the agent', () => {
   it('confirms and deletes a foreign file through the editor permission', async () => {
     const files = fakePort()
     const asked: unknown[] = []
-    const h = connectedAgent({
-      editor: 'uploads-editor',
-      version: 'uploads-test',
-      extra: { uploads: files },
-      answerPermission: (params) => {
-        asked.push(params)
-        return { outcome: { outcome: 'selected', optionId: 'uploads-foreign-allow' } }
-      },
+    const h = connectedUploads(files, (params) => {
+      asked.push(params)
+      return { outcome: { outcome: 'selected', optionId: 'uploads-foreign-allow' } }
     })
-    await h.run(async (connection, id) => {
-      const answer = await connection.request('session/prompt', {
-        sessionId: id,
-        prompt: [{ type: 'text', text: '/uploads delete file-other' }],
-      })
-      expect(answer.stopReason).toBe('end_turn')
-    })
+    await h.deleteOther()
     expect(files.deleteFile).toHaveBeenCalledWith(
       'file-other',
       expect.any(Function),
@@ -366,13 +367,7 @@ describe('/uploads through the agent', () => {
   it('keeps a foreign file when the editor cannot answer the permission', async () => {
     const files = fakePort()
     const h = connectedUploads(files)
-    await h.run(async (connection, id) => {
-      const answer = await connection.request('session/prompt', {
-        sessionId: id,
-        prompt: [{ type: 'text', text: '/uploads delete file-other' }],
-      })
-      expect(answer.stopReason).toBe('end_turn')
-    })
+    await h.deleteOther()
     expect(files.deleteFile).not.toHaveBeenCalled()
     expect(h.texts().join('\n')).toContain('other.pdf')
   })

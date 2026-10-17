@@ -5,36 +5,12 @@
 // actually calls. Each view is the same mock function.
 
 import type * as vscode from 'vscode'
-import { vi } from 'vitest'
-import { window, workspace } from 'vscode'
+import { window } from 'vscode'
 
-type PickManyView = (
-  items: readonly vscode.QuickPickItem[],
-  options: vscode.QuickPickOptions & { canPickMany: true },
-) => Thenable<vscode.QuickPickItem[] | undefined>
-type PickOneView = (
-  items: readonly vscode.QuickPickItem[],
-  options?: vscode.QuickPickOptions,
-) => Thenable<vscode.QuickPickItem | undefined>
-type InformView = (message: string, ...items: string[]) => Thenable<string | undefined>
 type ConfirmView = (
   message: string,
   options: vscode.MessageOptions,
   ...items: string[]
 ) => Thenable<string | undefined>
 
-export const pickMany: PickManyView = window.showQuickPick
-export const pickOne: PickOneView = window.showQuickPick
-export const inform: InformView = window.showInformationMessage
 export const confirmModal: ConfirmView = window.showWarningMessage
-
-/** Clears what the Memory view's tests set on the editor mock: picks, boxes, popups and the trash. */
-export function resetMemoryViewMocks(): void {
-  vi.mocked(window.showQuickPick).mockReset()
-  vi.mocked(window.showInputBox).mockReset()
-  vi.mocked(window.showWarningMessage).mockReset()
-  vi.mocked(window.showTextDocument).mockReset()
-  vi.mocked(window.showErrorMessage).mockReset()
-  vi.mocked(window.showInformationMessage).mockReset()
-  vi.mocked(workspace.fs.delete).mockReset()
-}

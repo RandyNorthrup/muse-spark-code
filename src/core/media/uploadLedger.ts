@@ -23,7 +23,11 @@ import {
   type UploadedMediaRef,
 } from '../../shared/media'
 import { isModelApiError } from '../backends/modelapi/client'
-import { UploadCleanupPendingError, type UploadSource } from '../backends/modelapi/files'
+import {
+  UploadCleanupPendingError,
+  type FilesApi,
+  type UploadSource,
+} from '../backends/modelapi/files'
 
 // USE BEATS INTENT (round 4, P1-1): every ledger entry carries a use
 // generation that rises on each session (re)use. A delete intent records
@@ -189,13 +193,7 @@ function defaultLedgerSleep(ms: number, signal?: AbortSignal): Promise<void> {
 /** Captured provider adapters normalize metadata; this ledger has no vendor wire. */
 interface FilesForLedger {
   forAccount(accountId: string): FilesForLedger
-  upload(
-    source: UploadSource,
-    signal: AbortSignal,
-    onProgress?: (uploaded: number, total: number) => void,
-    expectedSha256?: string,
-    onReceipt?: (fileId: string) => Promise<void>,
-  ): Promise<UploadedMediaRef>
+  upload: FilesApi['upload']
   retrieve(fileId: string, signal?: AbortSignal): Promise<unknown>
   accountFiles(): Promise<readonly z.infer<typeof accountFileSchema>[]>
   delete(fileId: string, signal?: AbortSignal): Promise<void>

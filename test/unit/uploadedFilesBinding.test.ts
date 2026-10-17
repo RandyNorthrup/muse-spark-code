@@ -5,22 +5,27 @@ import {
 } from '../../src/host/conversation/uploadedFilesBinding'
 import { UploadLedger } from '../../src/core/media/uploadLedger'
 import { UI_TEXT } from '../../src/shared/constants'
+import type { UploadedFilesReport } from '../../src/shared/media'
 import { type FakeUploadedFilesLedger, uploadedFilesReportFixture } from './helpers/uploadedFiles'
 
 const report = uploadedFilesReportFixture()
 
-function setup(options?: { missingAccount?: boolean }) {
-  const ledger: Pick<
-    FakeUploadedFilesLedger,
-    'accountReport' | 'deleteFile' | 'deleteAllOurs' | 'consumeDeleteNotice'
-  > = {
-    accountReport: vi.fn(() => Promise.resolve(report)),
-    deleteFile: vi.fn((_id: string, _isConfirmed: (name: string) => Promise<boolean>) =>
-      Promise.resolve(),
-    ),
+type StubLedger = Pick<
+  FakeUploadedFilesLedger,
+  'accountReport' | 'deleteFile' | 'deleteAllOurs' | 'consumeDeleteNotice'
+>
+
+function stubLedger(reportOverride?: UploadedFilesReport): StubLedger {
+  return {
+    accountReport: vi.fn(() => Promise.resolve(reportOverride ?? report)),
+    deleteFile: vi.fn(() => Promise.resolve()),
     deleteAllOurs: vi.fn(() => Promise.resolve()),
     consumeDeleteNotice: vi.fn(() => Promise.resolve(undefined)),
   }
+}
+
+function setup(options?: { missingAccount?: boolean }) {
+  const ledger = stubLedger()
   const uploads = vi.fn(() => Promise.resolve(ledger))
   const post = vi.fn()
   const binding = createUploadedFilesBinding({
@@ -241,10 +246,8 @@ describe('uploaded-files host binding', () => {
     const accountA = 'a'.repeat(64)
     const accountB = 'b'.repeat(64)
     let resolutions = 0
-    const ledger: Pick<
-      FakeUploadedFilesLedger,
-      'accountReport' | 'deleteFile' | 'deleteAllOurs' | 'consumeDeleteNotice'
-    > = {
+    const ledger: StubLedger = {
+      ...stubLedger(),
       accountReport: vi.fn(
         () =>
           new Promise<typeof report>((resolve) => {
@@ -253,9 +256,6 @@ describe('uploaded-files host binding', () => {
             }, 20)
           }),
       ),
-      deleteFile: vi.fn(() => Promise.resolve()),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-      consumeDeleteNotice: vi.fn(() => Promise.resolve(undefined)),
     }
     const binding = createUploadedFilesBinding({
       uploads: vi.fn(() => Promise.resolve(ledger)),
@@ -273,15 +273,7 @@ describe('uploaded-files host binding', () => {
   it('recovers the last account ledger once the key is gone', async () => {
     // Finding 6: the opener serves the persisted last account when no key
     // backs the ledger, instead of reading empty.
-    const ledger: Pick<
-      FakeUploadedFilesLedger,
-      'accountReport' | 'deleteFile' | 'deleteAllOurs' | 'consumeDeleteNotice'
-    > = {
-      accountReport: vi.fn(() => Promise.resolve({ ...report, isReadOnly: true })),
-      deleteFile: vi.fn(() => Promise.resolve()),
-      deleteAllOurs: vi.fn(() => Promise.resolve()),
-      consumeDeleteNotice: vi.fn(() => Promise.resolve(undefined)),
-    }
+    const ledger = stubLedger({ ...report, isReadOnly: true })
     const uploads = vi.fn(() => Promise.resolve(ledger))
     const openLastUploads = vi.fn(() => Promise.resolve(ledger))
     const binding = createUploadedFilesBinding({

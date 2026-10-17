@@ -173,3 +173,16 @@ export function nativeCallId(callId: string, format: CallIdFormat): string {
  * the subscriptions bundle) import it there instead (RVCM1054D P2).
  */
 export { ChatCodecError, isChatCodecError } from '../../../media/codecRefusal'
+import type { CreateResponseBody } from '../schemas'
+
+/**
+ * M105 lane V R2 (RVCM1054 finding 2): a held video has no shape on a vendor
+ * route without a vendor capture behind it, so the codec refuses it before
+ * any other validation instead of dropping it while the rest sends. Each
+ * codec throws its own sentence; this only answers whether one is held.
+ */
+export function hasHeldVideo(body: CreateResponseBody): boolean {
+  return body.input.some(
+    (item) => item.type === 'message' && item.content.some((part) => part.type === 'input_video'),
+  )
+}

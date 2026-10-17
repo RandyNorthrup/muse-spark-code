@@ -32,7 +32,7 @@ import {
 } from '../schemas'
 import { parseSse } from '../sse'
 import { fill, UI_TEXT } from '../../../../shared/l10n/text'
-import { ChatCodecError, cleanWireText, isBlankWireText } from './shared'
+import { ChatCodecError, cleanWireText, hasHeldVideo, isBlankWireText } from './shared'
 
 export type ResponsesCodecQuirks =
   | {
@@ -423,12 +423,8 @@ export function createResponsesCodec(
       // M105 lane V R2 (RVCM1054 finding 2): the ChatGPT route sends its
       // input without the replay mapping below, so a held video is refused
       // here with the model's own reason instead of going out uncaptured.
-      if (isChatgpt) {
-        for (const item of body.input) {
-          if (item.type === 'message' && item.content.some((part) => part.type === 'input_video')) {
-            throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
-          }
-        }
+      if (isChatgpt && hasHeldVideo(body)) {
+        throw new ChatCodecError(fill(UI_TEXT.media.videoUnknown, { model }))
       }
       const capabilities = capabilitiesForModel?.(body.model)
       const effective =
