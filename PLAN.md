@@ -33190,6 +33190,19 @@ lane A's first step.
 
 ## 7. Gates
 
+**Estimator panel bundle budget (open, needs owner's word).** `npm run build` on
+`fix/catch-money-final` reports `OVER dist/webview estimator panel: 25.8 KiB
+(budget 25 KiB)`: the lazy closure measures 26,410 bytes, 810 over the
+owner-set 25 KiB row (2026-10-06/07). Measured cause: the lane's D119
+estimate-refusal wording in `src/shared/estimate.ts`
+(`isEstimateRefusal`/`estimateRefusalDetail`),
+`src/webview/estimator/composer.ts` and
+`src/webview/estimator/EstimatorPanel.tsx` adds ~931 bytes minified (26,410 vs
+25,479 on `main-now`, which sits at 24.88 KiB with 121 bytes of headroom).
+Saving 810 bytes means cutting mandated refusal words; the row moves only on
+the owner's word (rule 2: 25 → 26 KiB fits with 214 bytes of headroom).
+Disposition: open; needs the budget decision or a scope cut before merge.
+
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
 modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
