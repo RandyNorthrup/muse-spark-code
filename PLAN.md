@@ -31418,7 +31418,13 @@ qualification). Waiting on other milestones: the report action's `reports`
 port (M113 lane Q's full-destination authority, leases, previews and scrub),
 the `schedule_report` agent tool (G's charter and destination enforcement),
 further event sources, targets and editor rows as their milestones merge, and
-M115w (needs M96c, M113 N and M109 T).
+M115w (needs M96c, M113 N and M109 T). Fix lane MSM115FIX (2026-10-17):
+close-time background reconciliation no longer touches the OS entry when no
+consent was ever recorded, so terminal `schedule` management
+(add/list/timeline/remove) exits on its merits with no user bus; the review's
+exit-3 finding is fixed and regression-tested
+(`test/unit/scheduleBackgroundReconcile.test.ts`). The commands stay out of
+help and the catalog until certification.
 
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron

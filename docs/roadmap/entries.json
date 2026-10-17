@@ -842,9 +842,8 @@
     {
       "id": "M115",
       "title": "Scheduled prompts v2",
-      "summary": "Joined VS Code, ACP and terminal candidates share core-owned durable settlement, owner-only output and paid consent; automatic delivery is disabled: the running editor neither asks for v2 consent nor reserves paid caps pending cross-platform certification.",
-      "area": "agents",
-      "release": "0.17.0"
+      "summary": "Scheduled prompts v2 is in progress.",
+      "area": "agents"
     },
     {
       "id": "M116",

@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Closing the schedules runtime no longer touches the native background entry
+  when no background consent was ever recorded, so terminal `schedule`
+  management (`add`, `list`, `timeline`, `remove`) exits on its merits even
+  on a machine with no user bus or background runner; before, every
+  invocation ended with exit 3 and a cleanup-failed warning.
+
 - A v2 `/loop` draft no longer stamps in an end seven days out; how long a
   schedule lives is set in the editor the draft opens. The unused duplicate
   loop adapter that carried the same seven-day default is removed.
