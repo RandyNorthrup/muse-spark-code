@@ -3406,8 +3406,8 @@ with the theme's focus border; Escape closes the view and focuses the composer.
 For a local visual check, `npm run ui:look -- share` renders the scene
 from the built webview into `temp/ui-look/`.
 The picker reads a local `file:` URI on the extension host through one
-checked descriptor, whole at any size; the transcript schema still bounds
-its item count. Other file providers are explicitly refused because this
+checked descriptor, whole at any size and at any transcript item count.
+Other file providers are explicitly refused because this
 reader cannot bound their allocations.
 Validation notices use localized refusals: JSON parser snippets are never
 shown, and reported field names are scrubbed before their bounded display.

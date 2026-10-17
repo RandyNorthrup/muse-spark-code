@@ -26,6 +26,17 @@ bound, `WEB_FETCH_MAX_BYTES`). `promptLimits` removed from English and all
 131,073-tag prompt; `promptImport.test.ts` previews a past-cap portable
 file. Real-use proof with the built product: see §N6.
 
+### §N2 — transcript item count removed (A30fix)
+
+`SESSION_EXPORT_MAX_ITEMS` (20,000) deleted from `src/shared/constants.ts`;
+`buildChatShare` renders, `sessionExportSchema` parses and `exportJson`
+writes at any item count; the `tooLarge` export outcome, its notice and
+both refusal strings (`shareTooLarge`, `exportTooLarge`) are gone from
+English and all 14 tables. The share view still pages 200 items at a time,
+which refuses nothing. Proof tests: `sessionTransfer.test.ts` parses a
+20,001-item transcript; `chatShareRange.test.ts` shares 20,001 items.
+Real-use proof with the built product: see §N6.
+
 ## Correction review (2026-10-16 continuation)
 
 The first nine commits (A7, A8, A11, A13, A21–A25) were re-checked against
@@ -48,24 +59,25 @@ unbounded loop in `hookModelEntry.ts`) plus the real-life check below.
 
 ## Per-row table
 
-| id     | what it was                                      | decision                                | evidence                                                                                                                                                                                          | commit                           |
-| ------ | ------------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| A7     | Best-of-N ≤5 attempts, 5–50 requests/attempt     | removed                                 | No provider documents a cap; both numbers are the person's per-run choice (dialog defaults 3 × 20 stay)                                                                                           | `25c7906`                        |
-| A8     | Headless exec ≤500 max requests, ≤$20 budget     | removed (person's flags stay)           | No provider documents them; `--max-requests` (default 30) and `--max-budget-usd` stay with no ceiling of ours                                                                                     | `c1e9450` + correction below     |
-| A11    | `RENAME_MAX_FILES` = 200                         | removed                                 | A count, not about a model; the language service names the files                                                                                                                                  | `d3ef3d0`                        |
-| A13    | `HOOK_AGENT_MAX_STEPS` = 5                       | removed                                 | Our bound on a model loop, no provider documents one; loops until the model stops calling tools (Stop aborts)                                                                                     | `a82c59e`                        |
-| A21    | Goal objective ≤4000 chars                       | removed                                 | Invented (Muse Code states no limit); only a blank objective refuses                                                                                                                              | `e40fd20`                        |
-| A22    | Plan ≤50 steps, plan file ≤256 KiB               | removed                                 | Not about a model; every step kept, plans and handoff briefs save/read at any size                                                                                                                | `2f2d7fb`                        |
-| A23    | Saved prompts ≤200/scope, title ≤80, body ≤10000 | removed                                 | Not about a model; only a blank title refuses; the prompt file bound stays                                                                                                                        | `cedd6b4` + correction `aa7517e` |
-| A23fix | Prompt file ≤128 KiB (`PROMPT_LIMITS.fileBytes`) | removed (NOLIMITS1FIX §N1)              | Not about a model; files read/import/share at any size; link imports read under web fetch's own 5 MiB body bound; only a blank title refuses (`promptTitleRequired`)                              | see §N1                          |
-| A24    | Image prompt ≤4000 chars, ≤4 edit sources        | removed (nothing local enforced)        | Meta documents no prompt length and 1–10 edit items (dev.meta.ai/docs/image-generation, read 2026-10-16); the capability record carries neither, so Meta's own refusal answers oversize calls     | `b02b72b`                        |
-| A25    | Accounts ≤64 per provider                        | removed                                 | A count, not about a model; duplicate ids still refuse                                                                                                                                            | `be5e655`                        |
-| A26    | Check commands ≤8, each ≤600 s                   | removed                                 | Not about a model; any number of checks, each naming any positive `timeoutSeconds` (300 unless set); `package.json` maxItems/maximum went with them                                               | `471d80c`                        |
-| A27    | Subagents ≤64/conversation                       | removed                                 | A child count, not about a model; paid consent still asks per spawn; the 8-at-once queue (C6) untouched                                                                                           | `47361c8` + README `971419e`     |
-| A28    | Team ≤6 tasks per `delegate`, engine ceiling 20  | removed                                 | Ours, not the platform's; engines are bounded by the documented Meta per-team limits, live 429 adaptation and the machine                                                                         | `f345149`                        |
-| A29    | Import replay ≈768 KiB                           | SAFETY RULE — kept, listed for the lead | Window-minus-reserve against the model's documented 1 MiB window (dev.meta.ai/docs/models); removing it breaks every later message past the window instead of refusing once at import — see below | none (no change)                 |
-| A30    | Export/share ≤16 MiB                             | removed                                 | A file size, not about a model; write and read back at any byte size; the transcript item count still bounds all three paths; the report reader keeps its bound as `REPORT_SOURCE_MAX_BYTES`      | `8fe5418`                        |
-| A35    | Held PR checkout ≤20000 entries / ≤250 MB        | removed                                 | Not about a model; tree parses and checkout writes at any size; unreadable listings, unsafe and colliding paths still refuse                                                                      | `1f9c0f5`                        |
+| id     | what it was                                                    | decision                                | evidence                                                                                                                                                                                          | commit                           |
+| ------ | -------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| A7     | Best-of-N ≤5 attempts, 5–50 requests/attempt                   | removed                                 | No provider documents a cap; both numbers are the person's per-run choice (dialog defaults 3 × 20 stay)                                                                                           | `25c7906`                        |
+| A8     | Headless exec ≤500 max requests, ≤$20 budget                   | removed (person's flags stay)           | No provider documents them; `--max-requests` (default 30) and `--max-budget-usd` stay with no ceiling of ours                                                                                     | `c1e9450` + correction below     |
+| A11    | `RENAME_MAX_FILES` = 200                                       | removed                                 | A count, not about a model; the language service names the files                                                                                                                                  | `d3ef3d0`                        |
+| A13    | `HOOK_AGENT_MAX_STEPS` = 5                                     | removed                                 | Our bound on a model loop, no provider documents one; loops until the model stops calling tools (Stop aborts)                                                                                     | `a82c59e`                        |
+| A21    | Goal objective ≤4000 chars                                     | removed                                 | Invented (Muse Code states no limit); only a blank objective refuses                                                                                                                              | `e40fd20`                        |
+| A22    | Plan ≤50 steps, plan file ≤256 KiB                             | removed                                 | Not about a model; every step kept, plans and handoff briefs save/read at any size                                                                                                                | `2f2d7fb`                        |
+| A23    | Saved prompts ≤200/scope, title ≤80, body ≤10000               | removed                                 | Not about a model; only a blank title refuses; the prompt file bound stays                                                                                                                        | `cedd6b4` + correction `aa7517e` |
+| A23fix | Prompt file ≤128 KiB (`PROMPT_LIMITS.fileBytes`)               | removed (NOLIMITS1FIX §N1)              | Not about a model; files read/import/share at any size; link imports read under web fetch's own 5 MiB body bound; only a blank title refuses (`promptTitleRequired`)                              | see §N1                          |
+| A24    | Image prompt ≤4000 chars, ≤4 edit sources                      | removed (nothing local enforced)        | Meta documents no prompt length and 1–10 edit items (dev.meta.ai/docs/image-generation, read 2026-10-16); the capability record carries neither, so Meta's own refusal answers oversize calls     | `b02b72b`                        |
+| A25    | Accounts ≤64 per provider                                      | removed                                 | A count, not about a model; duplicate ids still refuse                                                                                                                                            | `be5e655`                        |
+| A26    | Check commands ≤8, each ≤600 s                                 | removed                                 | Not about a model; any number of checks, each naming any positive `timeoutSeconds` (300 unless set); `package.json` maxItems/maximum went with them                                               | `471d80c`                        |
+| A27    | Subagents ≤64/conversation                                     | removed                                 | A child count, not about a model; paid consent still asks per spawn; the 8-at-once queue (C6) untouched                                                                                           | `47361c8` + README `971419e`     |
+| A28    | Team ≤6 tasks per `delegate`, engine ceiling 20                | removed                                 | Ours, not the platform's; engines are bounded by the documented Meta per-team limits, live 429 adaptation and the machine                                                                         | `f345149`                        |
+| A29    | Import replay ≈768 KiB                                         | SAFETY RULE — kept, listed for the lead | Window-minus-reserve against the model's documented 1 MiB window (dev.meta.ai/docs/models); removing it breaks every later message past the window instead of refusing once at import — see below | none (no change)                 |
+| A30    | Export/share ≤16 MiB                                           | removed                                 | A file size, not about a model; write and read back at any byte size; the transcript item count still bounds all three paths; the report reader keeps its bound as `REPORT_SOURCE_MAX_BYTES`      | `8fe5418`                        |
+| A30fix | Export/share/import ≤20,000 items (`SESSION_EXPORT_MAX_ITEMS`) | removed (NOLIMITS1FIX §N2)              | A count, not about a model; files write, render and parse at any item count; the `tooLarge` outcome and `shareTooLarge`/`exportTooLarge` are gone                                                 | see §N2                          |
+| A35    | Held PR checkout ≤20000 entries / ≤250 MB                      | removed                                 | Not about a model; tree parses and checkout writes at any size; unreadable listings, unsafe and colliding paths still refuse                                                                      | `1f9c0f5`                        |
 
 ## A29 detail (for the lead)
 
@@ -91,6 +103,12 @@ commits (A21, A22, A23, A35); `node scripts/check-l10n.mjs` is green.
 `shareTooLarge` stays: it still fires for the transcript item count.
 `transferTooLarge` stays: the picker's size branch is now unreachable
 through size but the shape is unchanged.
+
+NOLIMITS1FIX: `promptLimits` is gone from all 15 tables (§N1, blank titles
+refuse with the new `promptTitleRequired`); `shareTooLarge` and
+`exportTooLarge` are gone from all 15 tables (§N2);
+`node scripts/check-l10n.mjs` is green. `transferTooLarge` still stays
+(the picker's branch is unchanged).
 
 ## Gates (final tree, exit codes)
 
@@ -138,6 +156,10 @@ in code: `PROMPT_LIMITS.fileBytes` (128 KiB per prompt file — so A23's
 (20,000 transcript items — A30 removed the byte ceiling, not the count),
 and the report reader's 16 MiB bound renamed `REPORT_SOURCE_MAX_BYTES`
 (pre-existing under the removed constant's name, not a new cap).
+
+NOLIMITS1FIX removes all three plus A29 in this lane's brief: the prompt
+file bound (§N1) and the transcript item count (§N2) are already gone; the
+report reader bound and A29 follow (§N3, §N4).
 
 ## APP PROBLEMS
 

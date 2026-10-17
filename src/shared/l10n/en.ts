@@ -210,7 +210,6 @@ export const EN = {
   shareAllMessages: 'All Messages',
   shareAttachmentContents: 'Include Selected Attachment Contents',
   shareRangeInvalid: 'Choose an ordered range of messages from this conversation.',
-  shareTooLarge: 'This share exceeds the file size or transcript limit.',
   shareAttachmentUnavailable: 'Selected attachment content is unavailable in this range.',
   sharePreviewExpired: 'The preview changed or expired. Preview again before sharing.',
   // M117 / D97: portable estimator surfaces, help and future manifest copy.
@@ -1528,7 +1527,6 @@ export const EN = {
   }),
   exportPreviewKnownCredentials:
     'Known credential shapes (API keys, tokens, passwords, private keys) and the key digest are always removed. A secret in another shape stays: read the file before you share it.',
-  exportTooLarge: 'This conversation is too long for a session export file.',
   importPreviewTitle: 'Import Session',
   // {source}: the backend label; {messages}: a message-count line; {model}:
   // the model id; {mode}: Manual or Plan in the display language.

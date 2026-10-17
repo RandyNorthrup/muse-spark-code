@@ -5589,19 +5589,18 @@ export const SHARE_DESTINATIONS = [
   'email',
 ] as const
 export const SHARE_LOCAL_DESTINATIONS = ['copy', 'file', 'browser'] as const
-// The most transcript items a file may hold; a long agentic session has a few thousand.
-// (D121: the removed 16 MiB file ceiling was invented; files write and read
-// back at any byte size.)
-export const SESSION_EXPORT_MAX_ITEMS = 20_000
+// NOLIMITS1FIX: the removed 16 MiB file ceiling and the 20,000-item ceiling
+// were both invented — files write and read back at any byte size and any
+// item count. A long agentic session has a few thousand items.
 // How many characters an export scrubs before it lets the extension host's
 // event loop run (RV84 #9). Measured 2026-10-01: a 4 MiB conversation held
 // the loop at most 11 ms (Mac mini) and 14 ms (Windows 11 VM) per slice,
 // where scrubbing it in one go held it 1.4 s and 2.5 s.
 export const SESSION_EXPORT_SCRUB_SLICE_CHARS = 64 * 1024
 // The share view renders this many of a file's items at first, and this many
-// more each time Show more is pressed (RV84 #14): all 20,000 at once took
-// 18 s in jsdom (about 0.9 ms an item), and the panel cannot answer while it
-// renders.
+// more each time Show more is pressed (RV84 #14): rendering a 20,000-item
+// file at once took 18 s in jsdom (about 0.9 ms an item), and the panel
+// cannot answer while it renders.
 export const SHARE_VIEW_PAGE_ITEMS = 200
 // The most text an imported conversation may hand the model (RV84 #10),
 // counted high as named text attachments are: one token per UTF-8 byte, so

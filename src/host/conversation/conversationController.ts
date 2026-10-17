@@ -901,7 +901,6 @@ function exportNotice(outcome: ExportOutcome): ExportNotice | undefined {
     logUnavailable: { level: 'warning', text: UI_TEXT.exportLogUnavailable },
     historyUnavailable: { level: 'warning', text: UI_TEXT.exportHistoryUnavailable },
     empty: { level: 'info', text: UI_TEXT.exportNothing },
-    tooLarge: { level: 'warning', text: UI_TEXT.exportTooLarge },
   }
   return notices[outcome]
 }

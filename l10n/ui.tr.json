@@ -159,7 +159,6 @@
   "shareAllMessages": "Tüm mesajlar",
   "shareAttachmentContents": "Seçilen eklerin içeriğini dahil et",
   "shareRangeInvalid": "Bu konuşmadan sıralı bir mesaj aralığı seçin.",
-  "shareTooLarge": "Paylaşım, dosya boyutu veya döküm sınırını aşıyor.",
   "shareAttachmentUnavailable": "Seçilen ekin içeriği bu aralıkta kullanılamıyor.",
   "sharePreviewExpired": "Önizleme değişti veya süresi doldu. Paylaşmadan önce yeniden önizleyin.",
   "estimateTitle": "Kapasite tahmincisi",
@@ -1257,7 +1256,6 @@
     "other": "{count} kimlik bilgisi veya anahtar özeti kaldırıldı"
   },
   "exportPreviewKnownCredentials": "Bilinen biçimlerdeki kimlik bilgileri (API anahtarları, belirteçler, parolalar, özel anahtarlar) ve anahtar özeti her zaman kaldırılır. Başka biçimdeki bir gizli bilgi kalır: paylaşmadan önce dosyayı okuyun.",
-  "exportTooLarge": "Bu konuşma bir oturum dışa aktarma dosyası için çok uzun.",
   "importPreviewTitle": "Oturumu içe aktar",
   "importPreviewDetail": "{source} kaynağından: {messages}. {model} ile devam eder ve {mode} kipinde başlar; oturum kuralları, hedefler, zamanlamalar ve yamalar atılır ve içe aktarılan geçmiş güvenilmez kabul edilir.",
   "importSessionFailed": "Oturum içe aktarılamadı",

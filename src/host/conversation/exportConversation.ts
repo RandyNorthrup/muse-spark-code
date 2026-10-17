@@ -21,7 +21,6 @@ import {
   EXPORT_FILE_EXTENSIONS,
   EXPORT_TITLE_MAX_CHARS,
   type ExportFormat,
-  SESSION_EXPORT_MAX_ITEMS,
   UI_TEXT,
 } from '../../shared/constants'
 import type { ItemSnapshot } from '../../shared/agentEvents'
@@ -94,11 +93,12 @@ export async function previewConversationShare(
  * `historyUnavailable`: Muse Code answered with history mode `none` (a
  * conversation past its replay budget), so an export would hold nothing but
  * its header; the session log still has everything. `empty`: nothing has
- * been said yet. `tooLarge`: the portable file would be past what an import
- * reads, so it is not written. `dismissed`: the preview was closed.
+ * been said yet. `dismissed`: the preview was closed. NOLIMITS1FIX: the
+ * `tooLarge` outcome went with the removed 20,000-item bound — an export
+ * writes at any item count.
  */
 export type ExportOutcome =
-  'exported' | 'logUnavailable' | 'historyUnavailable' | 'empty' | 'tooLarge' | 'dismissed'
+  'exported' | 'logUnavailable' | 'historyUnavailable' | 'empty' | 'dismissed'
 
 const USER_MESSAGE = 'userMessage'
 // MSP `session/read` history mode when it returns no items (a budget, D26).
@@ -118,7 +118,8 @@ function titleOf(name: string | undefined, items: readonly ItemSnapshot[]): stri
 
 /**
  * The portable file's text at any byte size (D121: the removed 16 MiB
- * ceiling was invented); the item count in `exportJson` still bounds it.
+ * ceiling was invented); NOLIMITS1FIX: the removed 20,000-item ceiling was
+ * invented too — the file writes at any item count.
  */
 async function portableFile(
   source: SessionExportSource,
@@ -148,9 +149,6 @@ async function exportJson(
   }
   if (history.items.length === 0) {
     return 'empty'
-  }
-  if (history.items.length > SESSION_EXPORT_MAX_ITEMS) {
-    return 'tooLarge'
   }
   const source: SessionExportSource = {
     backend: host.info.kind,

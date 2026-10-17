@@ -159,7 +159,6 @@
   "shareAllMessages": "Minden üzenet",
   "shareAttachmentContents": "A kiválasztott mellékletek tartalmának hozzáadása",
   "shareRangeInvalid": "Válasszon időrendben következő üzenettartományt ebből a beszélgetésből.",
-  "shareTooLarge": "A megosztás meghaladja a fájlméret vagy az átirat korlátját.",
   "shareAttachmentUnavailable": "A kiválasztott melléklet tartalma ebben a tartományban nem érhető el.",
   "sharePreviewExpired": "Az előnézet megváltozott vagy lejárt. Megosztás előtt nyissa meg újra.",
   "estimateTitle": "Kapacitásbecslő",
@@ -1257,7 +1256,6 @@
     "other": "{count} hitelesítő adat vagy kulcskivonat eltávolítva"
   },
   "exportPreviewKnownCredentials": "Az ismert formájú hitelesítő adatok (API-kulcsok, tokenek, jelszavak, privát kulcsok) és a kulcskivonat mindig törlődnek. Más formájú titok megmarad: megosztás előtt olvassa át a fájlt.",
-  "exportTooLarge": "Ez a beszélgetés túl hosszú egy munkamenet-exportfájlhoz.",
   "importPreviewTitle": "Munkamenet importálása",
   "importPreviewDetail": "Innen: {source}: {messages}. A(z) {model} modellel folytatódik, és {mode} módban indul; a munkamenetszabályok, célok, ütemezések és javítások eldobásra kerülnek, és az importált előzmények nem megbízhatóként kezelendők.",
   "importSessionFailed": "A munkamenetet nem sikerült importálni",
