@@ -14397,14 +14397,33 @@ resolved against the plan's user-visible promise, not against the tag:
   (`src/core/paid/paidConsent.ts`, the schedule scope); `paidAccountQuestion`
   and `AccountPaidUseConsent` are M108 lane P's per-account consent. The
   tag keeps knip honest until their lanes land.
-- **Fail-closed meanwhile is verified, not assumed:** paid V2 drafts stay
-  refused without caller budget (`schedulesBridge.ts`, `surface.ts`,
-  `control.ts`); a firing run without current consent is refused before
-  any reservation. `test/unit/schedulePaidConsent.test.ts` locks this.
+- **Fail-closed meanwhile, at the sites a person can reach:** a paid V2
+  draft is refused unless the trusted caller carries `scheduledPrompts`
+  and a budget at least its cap (`src/runtime/schedules/surface.ts`,
+  again in `control.ts`); the panel's caller carries neither
+  (`runtime.ts`, `scheduledPrompts: false`), and the editor's default
+  draft cap is 0 (`schedulesBridge.ts`). A CLI/ACP caller with the flag
+  and budget can create a paid draft today, but it cannot spend: no
+  production code constructs `createSchedulePaidScope` or calls
+  `reserveSchedule`, `UnattendedRun` is never constructed, and the one
+  `ScheduleDelivery` composition (`engine.ts`) has no session target
+  (`find` returns nothing, `open`/`fresh`/`runs` throw
+  target-unavailable). Lane U therefore wires creation consent, the run
+  scope and the reservation **before** any delivery target; nothing here
+  claims a firing V2 run checks consent today (corrected by RVMSM58M69,
+  which also added the surface-refusal tests to
+  `test/unit/schedulePaidConsent.test.ts`; that file's helper tests prove
+  only the unwired helpers' own logic).
 - **Refusals stay default-off:** web fetch keeps refusing private/local
-  addresses and credentialed URLs; a per-role permission for the person's
-  own network is not built (belongs to the model role settings with the
-  refuse sites in `src/core/web/webFetch.ts`).
+  addresses and credentialed URLs. A per-role permission for the person's
+  own network is NOT FIXED and not built (owner's choice of 2026-10-16
+  allows one in the model role settings, which have no web-fetch entry
+  today); when it is built, the refuse sites are `checkPageUrl`
+  (`src/core/web/pageUrl.ts`), `isPublicAddress`
+  (`src/core/web/publicAddress.ts`) and the pin in
+  `src/core/web/webFetch.ts`, and every caller (VS Code, ACP/headless,
+  both backends) must pass the role's answer through. MSM58M69 shipped
+  no behaviour change for it.
 
 ## 3. Open questions (need the owner)
 

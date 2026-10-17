@@ -16,10 +16,11 @@ happened, not what was planned; superseded entries are kept.
 - Paid-use consent audit: the four unused consent helpers for scheduled
   runs and per-account consent stay unwired until their owning milestones
   land (M115 Lane U's per-schedule consent; M108 lane P's per-account
-  consent). Verified fail-closed meanwhile: paid schedule drafts are
-  refused without caller budget, every reachable paid use still asks the
-  popup, and a new unit suite locks the refusal contract. No behaviour
-  change.
+  consent). Meanwhile a paid schedule draft from the panel is refused
+  (its caller carries no paid flag or budget) and every reachable paid
+  use still asks the popup; a unit suite now tests that surface refusal
+  through the real surface, separately from the unwired helpers' logic
+  (RVMSM58M69). No behaviour change.
 
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
