@@ -35,6 +35,10 @@ happened, not what was planned; superseded entries are kept.
   keeps its own 16 MiB bound under a new name); a held pull request checks
   out past 20000 entries and 250 MB (an unreadable listing still refuses;
   unsafe and colliding paths still refuse before anything is written).
+- NOLIMITS1FIX (same owner rule: the review's kept bounds go too): a saved
+  prompt file reads, imports and shares at any size instead of refusing past
+  128 KiB — only a blank title still refuses ("A title is required."); a link
+  import reads under web fetch's own 5 MiB body bound.
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

@@ -14414,7 +14414,10 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   save and read at any size (the shared constant's handoff checks go with it).
 - A23 (NOLIMITS1): `PROMPT_LIMITS` per-scope 200, title 80 and body 10000
   removed — not about a model; only a blank title refuses and the prompt
-  file bound stays (untouched by this lane).
+  file bound stays (untouched by this lane). NOLIMITS1FIX: the 128 KiB
+  prompt file bound is removed too — not about a model; prompt files read,
+  import and share at any size, and a link import reads under web fetch's
+  own 5 MiB body bound. Only a blank title refuses.
 - A24 (NOLIMITS1): `IMAGE_PROMPT_MAX_CHARS` = 4000 and
   `IMAGE_EDIT_MAX_SOURCES` = 4 removed — invented; Meta documents no prompt
   length and 1–10 edit items (dev.meta.ai/docs/image-generation, read
@@ -14459,6 +14462,9 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   `REPORT_SOURCE_MAX_BYTES` by A30 (pre-existing, not a new cap; the report
   reader was not this lane's row). None is a provider's documented limit or
   a person's setting; each needs the lead's keep-or-remove decision.
+  NOLIMITS1FIX (this lane's brief): the prompt file bound is REMOVED (see
+  A23 above); the transcript item count and the report reader bound follow
+  in this same lane.
 
 ## 3. Open questions (need the owner)
 
