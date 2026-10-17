@@ -24458,6 +24458,15 @@ Until then nothing is built for it.
 
 **Status 2026-10-09: built.** Phase 2 accepted, not yet merged.
 
+**Status 2026-10-17: merged and connected (lane MSM100).** main-now
+`3d30a7321` merged in; the Devices tab, window, lazy `devices.js` entry,
+ACP bundle membership, Help inventory (`docs/devices-reference.md`) and
+README section are on the joined tree with gates green. Pairing, offers,
+remote execution and per-action approvals refuse explicitly until lane K's
+owner binding (M95 review question, M108 account surface, lead's
+installed four-device qualification, D140 physical executors and
+simulators). D140 renumbered from D83 (M103 makers owns D83).
+
 **PORTM100 release-base port (2026-10-11, before follow-up repairs).** Merge
 0.17.1 `35d7b6f54280e6b6235ae4b90e079b865c3e4ff4` into accepted phase 2
 `1630f022d`, retaining both behaviours and every existing cap. Preserve the
