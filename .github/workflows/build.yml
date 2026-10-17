@@ -230,8 +230,57 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run test:integration
 
+  # AGENTS.md rule 2 at the merge door (docs/certification/rule2-gate.md): no
+  # attempt after the first passes, and every other workflow run on the same
+  # head (Hosts, Browser check, Forks, a second CI run) must be complete and
+  # green on its first attempt; one still in progress is waited for, and the
+  # head is read once more immediately before passing, so a run started after
+  # the judged set was read refuses. It needs every
+  # job, so starting any of them again starts this one again, and it names
+  # the job and step of the first attempt that was not green. Its output is
+  # the attempt it judged: the required names below pass only for that one.
+  first-attempt:
+    name: first attempt, every run green (rule 2)
+    if: always()
+    needs:
+      [
+        checks,
+        unit,
+        accessibility,
+        integration,
+        native-build,
+        linux-native-build,
+        packages,
+        secrets,
+        sast,
+      ]
+    runs-on: ubuntu-latest
+    # The wait for a run still in progress is bounded at 60 minutes.
+    timeout-minutes: 75
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      attempt: ${{ steps.gate.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: nothing was started again, and every other run on this head is green
+        id: gate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RULE2_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node scripts/rule2-gate.mjs run
+          echo "attempt=$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+
   # The matrix emits the five existing non-security required names on BOTH
-  # events. Every name rejects a failed/cancelled/missing selected-tier job.
+  # events. Every name rejects a failed/cancelled/missing selected-tier job
+  # and every attempt the first-attempt job did not judge and pass (rule 2:
+  # these are the names the main ruleset requires, so a run that was started
+  # again cannot merge, whichever of its jobs ran again).
   required:
     name: ${{ matrix.check }}
     if: always()
@@ -246,6 +295,7 @@ jobs:
         packages,
         secrets,
         sast,
+        first-attempt,
       ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -263,6 +313,7 @@ jobs:
         shell: bash
         env:
           FAST: ${{ inputs.fast }}
+          ATTEMPT: ${{ github.run_attempt }}
           EVENT: ${{ github.event_name }}
           CHECKS: ${{ needs.checks.result }}
           UNIT: ${{ needs.unit.result }}
@@ -273,11 +324,20 @@ jobs:
           PACKAGES: ${{ needs.packages.result }}
           SECRETS: ${{ needs.secrets.result }}
           SAST: ${{ needs.sast.result }}
+          FIRST_ATTEMPT: ${{ needs.first-attempt.result }}
+          JUDGED_ATTEMPT: ${{ needs.first-attempt.outputs.attempt }}
         run: |
           test "$CHECKS" = success
           test "$UNIT" = success
           test "$SECRETS" = success
           test "$SAST" = success
+          test "$FIRST_ATTEMPT" = success
+          # A result of the first-attempt job carried over from an earlier
+          # attempt does not count: it must have judged this very attempt.
+          if [ "$JUDGED_ATTEMPT" != "$ATTEMPT" ]; then
+            echo "::error::This is attempt $ATTEMPT of the run and the first-attempt job judged attempt $JUDGED_ATTEMPT: nothing is started again on the same commit (AGENTS.md rule 2). Push a new commit that says what happened; its run decides." >&2
+            exit 1
+          fi
           if [ "$FAST" != true ]; then
             test "$INTEGRATION" = success
             test "$HELPER" = success

@@ -128,15 +128,23 @@ above.
    code comments.
 2. **Gates are not optional.** Hosted CI is the gate for a release: every job
    green on the commit that merges, and a red job is read and its cause
-   measured, never rerun into green. Local runs are for fast feedback: format,
-   lint, typecheck, the suites you touched and the packed product itself
-   (its commands, its help, its errors, its files on disk). Before a release,
-   real conversations go through the packed product in the real-life run
-   (CONTRIBUTING.md, "Before you open a pull request"). Never weaken a gate
-   (rule levels, ignores) to get green; fix the code or record a justified
-   deferral in `PLAN.md` §7. An exact-size assertion may move with the
-   measured number and a one-line reason in the same change. A limit on what
-   the product does follows the standing rule above (models only).
+   measured, never rerun into green. Nothing is started again on the same
+   commit, whatever the cause: a runner fault is answered like any red, by a
+   new commit that names the run and the job, and its run decides. Two doors
+   hold this (`scripts/rule2-gate.mjs`, `docs/certification/rule2-gate.md`):
+   CI's required names fail on every attempt after the run's first execution
+   (an outside contributor's run executes as attempt 2, after the approval
+   wait) and unless every other workflow run on the head is green on its
+   first, and the release workflow refuses a tag unless every run on the
+   tagged commit and on its pull request's head is. Local runs are for fast
+   feedback: format, lint, typecheck, the suites you touched and the packed
+   product itself (its commands, its help, its errors, its files on disk).
+   Before a release, real conversations go through the packed product in the
+   real-life run (CONTRIBUTING.md, "Before you open a pull request"). Never
+   weaken a gate (rule levels, ignores) to get green; fix the code or record
+   a justified deferral in `PLAN.md` §7. An exact-size assertion may move with
+   the measured number and a one-line reason in the same change. A limit on
+   what the product does follows the standing rule above (models only).
 3. **Prove new gates and tests fire.** A test or lint rule that has never been
    seen to fail is a decoration. Break the thing on purpose, watch it fail,
    revert, and note it in the milestone's certification record under

@@ -9,6 +9,24 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Rule-2 certification now records deliberately failing parser and
+  per-commit evidence drills, with byte-exact restoration and green reruns.
+
+- Rule-2 workflow identity strips the API's `@ref` suffix too, so prior
+  release runs do not incorrectly block fresh artifact-only recovery.
+
+- Rule 2 refuses a second run ID for the same workflow and unchanged head,
+  including a close/reopen run on attempt 1; different workflows still run once.
+
+- Skipped or neutral workflows no longer count as green rule-2 results;
+  every release commit needs an actually successful hosted run.
+
+- The rule-2 release door rereads hosted evidence immediately before passing;
+  a late pending run, rerun or deleted evidence refuses publication.
+
+- The rule-2 release door now refuses re-executed verification. Publication
+  recovery uses a fresh artifact-only run, not another attempt of a failed run.
+
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
@@ -245,6 +263,15 @@ happened, not what was planned; superseded entries are kept.
   only say that a frame had changed against the frame accepted before it,
   never that what a frame showed was wrong: Meta's logo was in the accepted
   frames.
+- Rule 2 (nothing is started again on the same commit) now holds
+  mechanically at both doors (`docs/certification/rule2-gate.md`). The merge
+  job refuses any attempt after the run's first execution and refuses unless
+  every other run on the head is complete and green on its first attempt; it
+  reads the head once more immediately before passing, so a run started late
+  refuses. The release job stops a release unless every run on the tagged
+  commit and on the merged pull request's head is, and each of those commits
+  needs runs of its own. Wire answers the gate cannot read fail closed
+  instead of checking fewer runs.
 
 ## [0.18.1] - 2026-10-12
 
