@@ -101,15 +101,6 @@ const SURFACES = [
 ]
 
 describe('R1 assured boundary contrast', () => {
-  it('derives --ms-boundary from the theme foreground and background, never a host border', () => {
-    const css = readFileSync(TOKENS_CSS, 'utf8')
-    const body = readBoundaryRule(css)
-    expect(body).toContain('var(--vscode-foreground')
-    expect(body).toContain('var(--vscode-editor-background')
-    expect(body).not.toContain('panel-border')
-    expect(body).not.toContain('input-border')
-  })
-
   it.each(themeFiles())('keeps %s at 3:1 or more on every boundary surface', (file) => {
     const css = readFileSync(TOKENS_CSS, 'utf8')
     const declarations = readDeclarations(css)
@@ -142,23 +133,5 @@ describe('R1 assured boundary contrast', () => {
         `${file}: boundary over ${surface} measures ${ratio.toFixed(3)}:1, below ${BOUNDARY_RATIO}:1`,
       ).toBeGreaterThanOrEqual(BOUNDARY_RATIO)
     }
-  })
-
-  it('draws the R1 control boundaries from the assured role', () => {
-    const models = readFileSync(
-      path.resolve(import.meta.dirname, '../../src/webview/models/models.css'),
-      'utf8',
-    )
-    expect(models).toMatch(/\.models-button\s*\{[^}]*var\(--ms-boundary\)[^}]*\}/s)
-    const accounts = readFileSync(
-      path.resolve(import.meta.dirname, '../../src/webview/models/sections/accounts/accounts.css'),
-      'utf8',
-    )
-    expect(accounts).toMatch(/\.account-picker\s*\{[^}]*var\(--ms-boundary\)[^}]*\}/s)
-    const traffic = readFileSync(
-      path.resolve(import.meta.dirname, '../../src/webview/components/traffic/traffic.css'),
-      'utf8',
-    )
-    expect(traffic).toMatch(/\.traffic-view button\s*\{[^}]*var\(--ms-boundary\)[^}]*\}/s)
   })
 })

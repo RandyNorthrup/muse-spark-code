@@ -207,6 +207,7 @@ function ownedKey(key: KeyObject): SoftwareSshKey {
     exported.fill(0)
   }
 }
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function generateEd25519Key(): SoftwareSshKey {
   return ownedKey(generateKeyPairSync('ed25519').privateKey)
 }
