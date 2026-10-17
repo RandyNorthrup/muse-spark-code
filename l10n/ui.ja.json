@@ -3419,6 +3419,7 @@
   "execBudgetQuote": "入力 {inputTokens}（{inputCost}）+ 出力上限 {outputTokens}（{outputCost}）= {estimate}。実行予算 {cap}、使用済み {spent}。リクエストは送信されていません。",
   "execBudgetRequired": "Model API には --max-budget-usd が必要です。",
   "execNumberInvalid": "数値または上限が無効です。USD 予算の小数部は6桁までです。",
+  "execLimitInvalid": "{flag} の数値または上限が無効です。",
   "execTrustRefused": "ヘッドレス実行ではワークスペースの信頼と権限の回避を許可しません。",
   "execModeRefused": "ヘッドレス実行で許可されるのは plan または acceptEdits のみです。",
   "execWebSearchUnbounded": "ホスト型ウェブ検索には保証された上限がないため拒否します。",

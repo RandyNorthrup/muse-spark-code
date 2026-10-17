@@ -249,17 +249,16 @@ export function parseExec(
           Number.MAX_SAFE_INTEGER,
         )
   if (rawMaxOutput !== undefined && maxOutputTokens === undefined)
-    return invalid(UI_TEXT.execNumberInvalid)
+    return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--max-output-tokens' }))
   if (maxOutputTokens !== undefined && maxOutputTokens > MODEL_API_MAX_OUTPUT_TOKENS)
     return invalid(
       fill(UI_TEXT.execOutputCapExceeded, { cap: String(MODEL_API_MAX_OUTPUT_TOKENS) }),
     )
+  if (timeout === undefined) return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--timeout' }))
+  if (maxRequests === undefined)
+    return invalid(fill(UI_TEXT.execLimitInvalid, { flag: '--max-requests' }))
   const budgetUsd = budgetUnits(values['max-budget-usd'])
-  if (
-    timeout === undefined ||
-    maxRequests === undefined ||
-    (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
-  )
+  if (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
     return invalid(UI_TEXT.execNumberInvalid)
   if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)
   if (

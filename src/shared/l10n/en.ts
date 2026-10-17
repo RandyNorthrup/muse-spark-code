@@ -4229,6 +4229,7 @@ export const EN = {
     'Input {inputTokens} ({inputCost}) + output cap {outputTokens} ({outputCost}) = {estimate}; run cap {cap}, {spent} used. Request not sent.',
   execBudgetRequired: 'Model API requires --max-budget-usd.',
   execNumberInvalid: 'Invalid number or limit; the USD budget accepts at most six decimal places.',
+  execLimitInvalid: 'Invalid number or limit for {flag}.',
   execTrustRefused: 'Headless runs refuse workspace trust and bypass permissions.',
   execModeRefused: 'Headless runs permit only plan or acceptEdits.',
   execWebSearchUnbounded: 'Hosted web search has no bounded allowance and is refused.',

@@ -3494,6 +3494,7 @@
   "execBudgetQuote": "Eingabe {inputTokens} ({inputCost}) + Ausgabelimit {outputTokens} ({outputCost}) = {estimate}; Laufbudget {cap}, {spent} verbraucht. Anfrage nicht gesendet.",
   "execBudgetRequired": "Die Model API benötigt --max-budget-usd.",
   "execNumberInvalid": "Ungültige Zahl oder Grenze; das USD-Budget erlaubt höchstens sechs Nachkommastellen.",
+  "execLimitInvalid": "Ungültige Zahl oder Grenze für {flag}.",
   "execTrustRefused": "Ausführungen ohne Oberfläche verweigern Workspace-Vertrauen und das Umgehen von Berechtigungen.",
   "execModeRefused": "Ohne Oberfläche sind nur plan oder acceptEdits erlaubt.",
   "execWebSearchUnbounded": "Gehostete Websuche hat keine begrenzte Freigabe und wird verweigert.",

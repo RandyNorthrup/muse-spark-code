@@ -3644,6 +3644,7 @@
   "execBudgetQuote": "Ввод: {inputTokens} ({inputCost}) + лимит вывода: {outputTokens} ({outputCost}) = {estimate}; бюджет запуска {cap}, использовано {spent}. Запрос не отправлен.",
   "execBudgetRequired": "Model API требует --max-budget-usd.",
   "execNumberInvalid": "Недопустимое число или ограничение; бюджет в USD допускает не более шести знаков после запятой.",
+  "execLimitInvalid": "Недопустимое число или ограничение для {flag}.",
   "execTrustRefused": "Запуски без интерфейса запрещают доверие рабочей области и обход разрешений.",
   "execModeRefused": "Без интерфейса разрешены только plan и acceptEdits.",
   "execWebSearchUnbounded": "Серверный веб-поиск не имеет гарантированного ограничения и запрещён.",

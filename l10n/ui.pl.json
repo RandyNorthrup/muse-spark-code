@@ -3644,6 +3644,7 @@
   "execBudgetQuote": "Wejście: {inputTokens} ({inputCost}) + limit wyjścia: {outputTokens} ({outputCost}) = {estimate}; budżet uruchomienia {cap}, wykorzystano {spent}. Żądanie nie zostało wysłane.",
   "execBudgetRequired": "Model API wymaga --max-budget-usd.",
   "execNumberInvalid": "Nieprawidłowa liczba lub limit; budżet w USD dopuszcza najwyżej sześć miejsc po przecinku.",
+  "execLimitInvalid": "Nieprawidłowa liczba lub limit dla {flag}.",
   "execTrustRefused": "Uruchomienia bez interfejsu odmawiają zaufania obszarowi roboczemu i omijania uprawnień.",
   "execModeRefused": "Bez interfejsu dozwolone są tylko plan lub acceptEdits.",
   "execWebSearchUnbounded": "Hostowane wyszukiwanie w sieci nie ma gwarantowanego limitu i jest odrzucane.",

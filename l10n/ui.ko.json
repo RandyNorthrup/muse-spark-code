@@ -3419,6 +3419,7 @@
   "execBudgetQuote": "입력 {inputTokens}({inputCost}) + 출력 한도 {outputTokens}({outputCost}) = {estimate}; 실행 예산 {cap}, 사용액 {spent}. 요청을 보내지 않았습니다.",
   "execBudgetRequired": "Model API에는 --max-budget-usd가 필요합니다.",
   "execNumberInvalid": "숫자 또는 한도가 잘못되었습니다. USD 예산은 소수점 이하 여섯 자리까지 허용합니다.",
+  "execLimitInvalid": "{flag}에 대한 숫자 또는 한도가 올바르지 않습니다.",
   "execTrustRefused": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다.",
   "execModeRefused": "헤드리스 실행에서는 plan 또는 acceptEdits만 허용합니다.",
   "execWebSearchUnbounded": "호스팅 웹 검색에는 보장된 한도가 없어 거부합니다.",
