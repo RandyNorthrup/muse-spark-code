@@ -435,5 +435,3 @@ export class AccountRequestJournal implements AccountJournalReader {
     return score
   }
 }
-
-export { rowSchema as accountRequestRowSchema, blockSchema as accountRequestBlockSchema }
