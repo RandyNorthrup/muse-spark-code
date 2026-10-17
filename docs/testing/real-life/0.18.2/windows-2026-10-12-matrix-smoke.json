@@ -1,0 +1,273 @@
+{
+  "artefact": {
+    "name": "muse-spark-code-acp-0.18.2.tgz",
+    "sha256": "0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea",
+    "package": "muse-spark-code-acp",
+    "version": "0.18.2"
+  },
+  "os": "Windows_NT 10.0.26200 x64",
+  "node": "v24.20.0",
+  "startedAt": "2026-10-13T01:12:39.416Z",
+  "endedAt": "2026-10-13T01:13:17.363Z",
+  "caps": {
+    "requests": 10,
+    "usd": "0.050000"
+  },
+  "totals": {
+    "passed": 5,
+    "failed": 0,
+    "notRun": 0,
+    "requests": 6,
+    "usd": "0.001664",
+    "uncertainUsd": "0.000000",
+    "productUsage": {
+      "requests": 0,
+      "usd": "0.000000"
+    }
+  },
+  "routes": [
+    {
+      "id": "openai",
+      "wire": "OpenAI Responses",
+      "model": "gpt-5.6-luna",
+      "state": "added as rl-openai; Key works · 1 model."
+    },
+    {
+      "id": "meta",
+      "wire": "Meta Model API",
+      "model": "muse-spark-1.3-contributor",
+      "state": "the key goes to each terminal command on standard input; stored with auth set for the editor sessions, removed afterwards"
+    }
+  ],
+  "results": [
+    {
+      "scenario": "add-provider",
+      "claims": [
+        "ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin",
+        "ref/cli/providersTest/providers-test-id",
+        "ref/feature/providers"
+      ],
+      "route": "provider",
+      "model": "gpt-5-nano (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw providers add takes the key and ends with exit code 0: Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com. | saw providers test says the key works: Key works · 1 model.",
+      "requests": 0,
+      "usd": "0.000000",
+      "seconds": 2.6600489,
+      "title": "A provider is added with its key, and the key is checked",
+      "vendor": "openai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "providers add takes the key and ends with exit code 0",
+          "ok": true,
+          "saw": "Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com."
+        },
+        {
+          "what": "providers test says the key works",
+          "ok": true,
+          "saw": "Key works · 1 model."
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-E3F60FFD | saw the result names the model the person chose: rl-openai/gpt-5.6-luna | saw one request was made and it cost more than nothing: 1 request(s), $0.000264 of reported usage, $0 booked with no usage | saw before anything is sent the product names the model that was asked for: rl-openai/gpt-5.6-luna | saw the product takes the run under the most a terminal run may be given: taken with a budget of $0.25; turned away with nothing sent at $0.05 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000264",
+      "seconds": 3.8647158,
+      "title": "A plain turn completes",
+      "vendor": "openai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-E3F60FFD"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "rl-openai/gpt-5.6-luna"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000264 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "before anything is sent the product names the model that was asked for",
+          "ok": true,
+          "saw": "rl-openai/gpt-5.6-luna"
+        },
+        {
+          "what": "the product takes the run under the most a terminal run may be given",
+          "ok": true,
+          "saw": "taken with a budget of $0.25; turned away with nothing sent at $0.05"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "provider",
+      "model": "gpt-5.6-luna (OpenAI Responses)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-59B0531A | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw before anything is sent the product names the model that was asked for: rl-openai/gpt-5.6-luna | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000374",
+      "seconds": 5.055910600000001,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "openai",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-59B0531A"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "before anything is sent the product names the model that was asked for",
+          "ok": true,
+          "saw": "rl-openai/gpt-5.6-luna"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    },
+    {
+      "scenario": "plain-turn",
+      "claims": [
+        "ref/cli/exec/exec",
+        "ref/cli/exec/exec---model-value",
+        "ref/cli/exec/exec---output-value"
+      ],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the answer carries the word that was asked for: RL-68814435 | saw the result names the model the person chose: muse-spark-1.3-contributor | saw one request was made and it cost more than nothing: 1 request(s), $0.000436 of reported usage, $0 booked with no usage | saw before anything is sent the product names the model that was asked for: muse-spark-1.3-contributor | saw the product takes the run under the most a terminal run may be given: taken with a budget of $0.25; turned away with nothing sent at $0.05 | saw it made no more requests than it said it may: 1 of at most 1",
+      "requests": 1,
+      "usd": "0.000436",
+      "seconds": 14.7234636,
+      "title": "A plain turn completes",
+      "vendor": "meta",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the answer carries the word that was asked for",
+          "ok": true,
+          "saw": "RL-68814435"
+        },
+        {
+          "what": "the result names the model the person chose",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor"
+        },
+        {
+          "what": "one request was made and it cost more than nothing",
+          "ok": true,
+          "saw": "1 request(s), $0.000436 of reported usage, $0 booked with no usage"
+        },
+        {
+          "what": "before anything is sent the product names the model that was asked for",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor"
+        },
+        {
+          "what": "the product takes the run under the most a terminal run may be given",
+          "ok": true,
+          "saw": "taken with a budget of $0.25; turned away with nothing sent at $0.05"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "1 of at most 1"
+        }
+      ]
+    },
+    {
+      "scenario": "tool-write",
+      "claims": ["ref/cli/exec/exec---permission-mode-value", "ref/cli/exec/exec"],
+      "route": "modelapi",
+      "model": "muse-spark-1.3-contributor (Meta Model API)",
+      "surface": "exec",
+      "outcome": "pass",
+      "observed": "saw the command ends with exit code 0: exit 0 | saw the file is on disk with the content asked for: RL-5F7F23D8 | saw the result lists the file as changed: [\"real-life-note.txt\"] | saw before anything is sent the product names the model that was asked for: muse-spark-1.3-contributor | saw it made no more requests than it said it may: 2 of at most 4",
+      "requests": 2,
+      "usd": "0.000590",
+      "seconds": 5.8463266,
+      "title": "A tool turn writes a file after an approval",
+      "vendor": "meta",
+      "uncertainUsd": "0.000000",
+      "seen": [
+        {
+          "what": "the command ends with exit code 0",
+          "ok": true,
+          "saw": "exit 0"
+        },
+        {
+          "what": "the file is on disk with the content asked for",
+          "ok": true,
+          "saw": "RL-5F7F23D8"
+        },
+        {
+          "what": "the result lists the file as changed",
+          "ok": true,
+          "saw": "[\"real-life-note.txt\"]"
+        },
+        {
+          "what": "before anything is sent the product names the model that was asked for",
+          "ok": true,
+          "saw": "muse-spark-1.3-contributor"
+        },
+        {
+          "what": "it made no more requests than it said it may",
+          "ok": true,
+          "saw": "2 of at most 4"
+        }
+      ]
+    }
+  ],
+  "notRun": [],
+  "keysLeftInTheCredentialStore": []
+}

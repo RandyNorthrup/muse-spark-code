@@ -1,0 +1,260 @@
+Real-life run of muse-spark-code-acp-0.18.1.tgz (muse-spark-code-acp 0.18.1)
+SHA-256 0bc828d09c75123c4bd5ea736b1cf31569201f209406cce1268683dd8c90a1cb
+Windows_NT 10.0.26200 x64, Node v24.20.0; 2026-10-12T21:07:46.084Z to 2026-10-12T21:11:29.761Z
+Caps: 70 requests, $1.000000. Made: 46 requests, $0.008298 by the product's own count.
+The product's own usage for this home afterwards: 32 requests, $0.005642.
+Scenario runs: 25 passed, 8 failed, 0 not run.
+
+Route meta (Meta Model API, muse-spark-1.3-contributor): the key goes to each terminal command on standard input; stored with auth set for the editor sessions, removed afterwards
+Route zai (chat completions (Z.ai), glm-5.3-flash): added as rl-zai; Key works · 11 models.
+
+PASS  plain-turn · meta · exec · 1 req · $0.000277 · 2.3 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      saw     the command ends with exit code 0: exit 0
+      saw     the answer carries the word that was asked for: RL-99FE86BD
+      saw     the result names the model the person chose: muse-spark-1.3-contributor
+      saw     one request was made and it cost more than nothing: 1 request(s), $0.000277
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  plain-turn · meta · acp · 1 req · $0.000280 · 3.7 s
+      A plain turn completes [ref/feature/acp, ref/feature/chat]
+      saw     the turn ends as a finished turn: end_turn
+      saw     the answer carries the word that was asked for: Automatic compaction is awaiting evaluation and is inactive. RL-96660C11
+      saw     the session runs on the model the person chose: muse-spark-1.3-contributor
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  cancel · meta · acp · 2 req · $0.000455 · 7.6 s
+      A turn is cancelled in the middle [ref/feature/acp]
+      saw     the turn ends as cancelled: cancelled
+      saw     the answer stopped before its end: 62 characters arrived
+      saw     the conversation takes the next message and answers it: end_turn: OK
+      saw     it made no more requests than it said it may: 2 of at most 2
+PASS  capped-run · meta · exec · 1 req · $0.000305 · 4.0 s
+      A capped run stops at its cap and says so [ref/cli/exec/exec---max-requests-value, ref/feature/budget]
+      saw     exactly one model request was made: 1 request(s)
+      saw     the result says the request cap stopped it: status request_cap
+      saw     the command ends with exit code 5: exit 5
+      saw     the person is told the cap was reached: The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Model API stream events of type response.content_part.added are ignored [info…
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  compact · meta · exec · 0 req · $0.000000 · 1.3 s
+      /compact works [ref/slash/compact]
+      saw     no model request was made: 0 request(s)
+      saw     the result says there was nothing to compact: exit 8, status incomplete, no_compactable_history
+      saw     it made no more requests than it said it may: 0 of at most 0
+FAIL  compact · meta · acp · 5 req · $0.001020 · 18.5 s
+      /compact works [ref/slash/compact, ref/feature/compaction]
+      saw     the first turn completed: end_turn
+      saw     the second turn completed: end_turn
+      saw     /compact ends as a finished turn: end_turn
+      MISSING the person is told what /compact did: nothing was shown
+      saw     the conversation goes on after it: end_turn
+      saw     and still knows what was said before: RL-41029C5E
+      saw     it made no more requests than it said it may: 5 of at most 8
+      | [info] Display language en-us: the panel is in English
+      | [info] muse-spark-code-acp 0.18.1 serving ACP on stdio (modelApi)
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [info] Model API stream events of type response.content_part.added are ignored
+      | [info] Model API stream events of type response.content_part.done are ignored
+      | [info] Model API stream events of type response.reasoning_summary_part.added are ignored
+      | [info] Model API stream events of type response.reasoning_summary_text.done are ignored
+      | [info] Model API stream events of type response.reasoning_summary_part.done are ignored
+      | [warn] Prompt cache missed 2,766 reusable input tokens.
+FAIL  exec-help · meta · exec · 0 req · $0.000000 · 0.3 s
+      exec --help says how exec is used [ref/cli/exec/exec---help---h]
+      saw     the command ends with exit code 0: exit 0
+      saw     it names --max-requests: 158621 characters of help
+      saw     it names --max-budget-usd: 158621 characters of help
+      saw     it names --permission-mode: 158621 characters of help
+      saw     it names --output: 158621 characters of help
+      MISSING it is short enough to read at a terminal (at most 80 lines): 1375 lines
+      saw     it made no more requests than it said it may: 0 of at most 0
+PASS  model-switch · meta · acp · 1 req · $0.000273 · 2.3 s
+      The model list and a model switch [ref/slash/model, ref/feature/providers, ref/feature/acp]
+      saw     the list offers the model of this route: muse-spark-1.3-contributor, muse-spark-1.3, muse-spark-1.2-contributor, muse-spark-1.2, muse-spark-1.1
+      saw     the session moves to another listed model: muse-spark-1.3
+      saw     the session moves to the model the person picks: muse-spark-1.3-contributor
+      saw     a turn completes on it: Automatic compaction is awaiting evaluation and is inactive. RL-979AF5BD
+      saw     the usage names that model for the turn: muse-spark-1.3-contributor
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  refused-approval · meta · exec · 2 req · $0.000449 · 9.7 s
+      A refused approval changes nothing [ref/cli/exec/exec---permission-mode-value]
+      saw     no file was written: no file
+      saw     the result lists no changed file: []
+      saw     the command ends with a result: exit 0, status completed
+      saw     it made no more requests than it said it may: 2 of at most 3
+PASS  refused-approval · meta · acp · 2 req · $0.000643 · 5.7 s
+      A refused approval changes nothing [ref/feature/permissions, ref/feature/acp]
+      saw     the agent asked before it wrote: Write: real-life-refused.txt
+      saw     no file was written: no file
+      saw     the turn still ends: end_turn: Automatic compaction is awaiting evaluation and is inactive. Creating your file now.Failed to create the file. - Tried `real-life-refused.txt` with content `RL-63CB286B` via file tool. - Tool returned: `write_file rejected by the user`. - No file was created or modified. Cannot verify crea…
+      saw     it made no more requests than it said it may: 2 of at most 3
+PASS  session-continues · meta · acp · 2 req · $0.000383 · 7.1 s
+      A session is saved, the process ends, the session loads and continues [ref/feature/history, ref/feature/acp]
+      saw     the first turn completed: end_turn
+      saw     the agent ends when the editor closes it: exit 0
+      saw     the new process lists the conversation: 1 listed
+      saw     loading it shows what was said before: 2 updates replayed
+      saw     the conversation goes on: end_turn
+      saw     and knows what was said before the process ended: Automatic compaction is awaiting evaluation and is inactive. RL-AC8AD285
+      saw     it made no more requests than it said it may: 2 of at most 2
+PASS  tool-write · meta · exec · 2 req · $0.000342 · 4.6 s
+      A tool turn writes a file after an approval [ref/cli/exec/exec---permission-mode-value, ref/cli/exec/exec]
+      saw     the command ends with exit code 0: exit 0
+      saw     the file is on disk with the content asked for: RL-20AAFA8D
+      saw     the result lists the file as changed: ["real-life-note.txt"]
+      saw     it made no more requests than it said it may: 2 of at most 4
+PASS  tool-write · meta · acp · 2 req · $0.000392 · 4.2 s
+      A tool turn writes a file after an approval [ref/feature/permissions, ref/feature/acp]
+      saw     the agent asked before it wrote: Write: real-life-note.txt
+      saw     the turn ends as a finished turn: end_turn
+      saw     the file is on disk with the content asked for: RL-819262D6
+      saw     it made no more requests than it said it may: 2 of at most 4
+FAIL  usage · meta · exec · 1 req · $0.000273 · 2.9 s
+      /usage shows the requests and what they cost [ref/cli/usage/usage---json, ref/cli/usage/usage-summarydailymodelslimitsexportopenserve-options----usage---json, ref/feature/usage]
+      saw     the turn completed: exit 0
+      MISSING the usage lists the request of that turn: 0 of 15 recorded request(s) belong to the turn
+      MISSING that request has a cost above zero: undefined
+      MISSING the text a person reads counts one request more than before the turn: 15 request(s) before, 15 after
+      saw     it made no more requests than it said it may: 1 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [info] Model API stream events of type response.content_part.added are ignored
+      | [info] Model API stream events of type response.content_part.done are ignored
+      | [info] Completed; requests 1; settled $0.000273; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+PASS  usage · meta · acp · 1 req · $0.000276 · 1.9 s
+      /usage shows the requests and what they cost [ref/slash/usage, ref/feature/usage]
+      saw     the turn completed: end_turn
+      saw     the answer counts at least one request: - Requests: 16 requests
+      saw     the answer shows a cost above zero: - Total Cost: $0.0038
+      saw     it made no more requests than it said it may: 1 of at most 1
+FAIL  unknown-model · meta · exec · 0 req · $0.000000 · 0.9 s
+      An unknown model is refused with its reason [ref/cli/exec/exec---model-value]
+      saw     the command does not end with exit code 0: exit 2
+      saw     no model request was made: 0 request(s)
+      MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run.
+      saw     it made no more requests than it said it may: 0 of at most 0
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [error] This model is not available for this run.
+PASS  add-provider · zai · exec · 0 req · $0.000000 · 1.4 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: zai Code goes to: https://api.z.ai Models: glm-5.3-flash Default model: suggested Added rl-zai; code goes to https://api.z.ai.
+      saw     providers test says the key works: Key works · 11 models.
+PASS  plain-turn · zai · exec · 1 req · $0.000305 · 5.5 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      saw     the command ends with exit code 0: exit 0
+      saw     the answer carries the word that was asked for: RL-15AFF875
+      saw     the result names the model the person chose: rl-zai/glm-5.3-flash
+      saw     one request was made and it cost more than nothing: 1 request(s), $0.000305
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  plain-turn · zai · acp · 1 req · $0.000306 · 5.6 s
+      A plain turn completes [ref/feature/acp, ref/feature/chat]
+      saw     the turn ends as a finished turn: end_turn
+      saw     the answer carries the word that was asked for: Automatic compaction is awaiting evaluation and is inactive. RL-9A302BF9
+      saw     the session runs on the model the person chose: rl-zai/glm-5.3-flash
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  cancel · zai · acp · 2 req · $0.000120 · 5.4 s
+      A turn is cancelled in the middle [ref/feature/acp]
+      saw     the turn ends as cancelled: cancelled
+      saw     the answer stopped before its end: 62 characters arrived
+      saw     the conversation takes the next message and answers it: end_turn: OK
+      saw     it made no more requests than it said it may: 2 of at most 2
+PASS  capped-run · zai · exec · 1 req · $0.000127 · 5.4 s
+      A capped run stops at its cap and says so [ref/cli/exec/exec---max-requests-value, ref/feature/budget]
+      saw     exactly one model request was made: 1 request(s)
+      saw     the result says the request cap stopped it: status request_cap
+      saw     the command ends with exit code 5: exit 5
+      saw     the person is told the cap was reached: The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Request Cap Reached; requests 1; settled $0.000127; uncertain $0.000000; imag…
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  compact · zai · exec · 0 req · $0.000000 · 0.7 s
+      /compact works [ref/slash/compact]
+      saw     no model request was made: 0 request(s)
+      saw     the result says there was nothing to compact: exit 8, status incomplete, no_compactable_history
+      saw     it made no more requests than it said it may: 0 of at most 0
+FAIL  compact · zai · acp · 5 req · $0.000624 · 21.4 s
+      /compact works [ref/slash/compact, ref/feature/compaction]
+      saw     the first turn completed: end_turn
+      saw     the second turn completed: end_turn
+      saw     /compact ends as a finished turn: end_turn
+      MISSING the person is told what /compact did: nothing was shown
+      saw     the conversation goes on after it: end_turn
+      saw     and still knows what was said before: RL-899BEF95
+      saw     it made no more requests than it said it may: 5 of at most 8
+      | [info] Display language en-us: the panel is in English
+      | [info] muse-spark-code-acp 0.18.1 serving ACP on stdio (modelApi)
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+FAIL  exec-help · zai · exec · 0 req · $0.000000 · 0.3 s
+      exec --help says how exec is used [ref/cli/exec/exec---help---h]
+      saw     the command ends with exit code 0: exit 0
+      saw     it names --max-requests: 158621 characters of help
+      saw     it names --max-budget-usd: 158621 characters of help
+      saw     it names --permission-mode: 158621 characters of help
+      saw     it names --output: 158621 characters of help
+      MISSING it is short enough to read at a terminal (at most 80 lines): 1375 lines
+      saw     it made no more requests than it said it may: 0 of at most 0
+PASS  model-switch · zai · acp · 1 req · $0.000113 · 5.6 s
+      The model list and a model switch [ref/slash/model, ref/feature/providers, ref/feature/acp]
+      saw     the list offers the model of this route: muse-spark-1.3, muse-spark-1.2, muse-spark-1.1, rl-zai/glm-5.3-flash
+      saw     the session moves to another listed model: muse-spark-1.3
+      saw     the session moves to the model the person picks: rl-zai/glm-5.3-flash
+      saw     a turn completes on it: Automatic compaction is awaiting evaluation and is inactive. RL-0E28AA92
+      saw     the usage names that model for the turn: rl-zai/glm-5.3-flash
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  refused-approval · zai · exec · 2 req · $0.000254 · 10.6 s
+      A refused approval changes nothing [ref/cli/exec/exec---permission-mode-value]
+      saw     no file was written: no file
+      saw     the result lists no changed file: []
+      saw     the command ends with a result: exit 0, status completed
+      saw     it made no more requests than it said it may: 2 of at most 3
+PASS  refused-approval · zai · acp · 2 req · $0.000233 · 10.7 s
+      A refused approval changes nothing [ref/feature/permissions, ref/feature/acp]
+      saw     the agent asked before it wrote: Write: real-life-refused.txt
+      saw     no file was written: no file
+      saw     the turn still ends: end_turn: Automatic compaction is awaiting evaluation and is inactive. The `write_file` call for `real-life-refused.txt` was rejected by the user, so the file was not created. I won't retry the refused action — let me know if you'd like me to try again or take a different approach.
+      saw     it made no more requests than it said it may: 2 of at most 3
+PASS  session-continues · zai · acp · 2 req · $0.000191 · 11.5 s
+      A session is saved, the process ends, the session loads and continues [ref/feature/history, ref/feature/acp]
+      saw     the first turn completed: end_turn
+      saw     the agent ends when the editor closes it: exit 0
+      saw     the new process lists the conversation: 1 listed
+      saw     loading it shows what was said before: 3 updates replayed
+      saw     the conversation goes on: end_turn
+      saw     and knows what was said before the process ended: Automatic compaction is awaiting evaluation and is inactive. RL-5198FF18
+      saw     it made no more requests than it said it may: 2 of at most 2
+PASS  tool-write · zai · exec · 2 req · $0.000200 · 9.6 s
+      A tool turn writes a file after an approval [ref/cli/exec/exec---permission-mode-value, ref/cli/exec/exec]
+      saw     the command ends with exit code 0: exit 0
+      saw     the file is on disk with the content asked for: RL-B6059303
+      saw     the result lists the file as changed: ["real-life-note.txt"]
+      saw     it made no more requests than it said it may: 2 of at most 4
+PASS  tool-write · zai · acp · 2 req · $0.000198 · 9.7 s
+      A tool turn writes a file after an approval [ref/feature/permissions, ref/feature/acp]
+      saw     the agent asked before it wrote: Write: real-life-note.txt
+      saw     the turn ends as a finished turn: end_turn
+      saw     the file is on disk with the content asked for: RL-BF51A9D0
+      saw     it made no more requests than it said it may: 2 of at most 4
+FAIL  usage · zai · exec · 1 req · $0.000124 · 6.6 s
+      /usage shows the requests and what they cost [ref/cli/usage/usage---json, ref/cli/usage/usage-summarydailymodelslimitsexportopenserve-options----usage---json, ref/feature/usage]
+      saw     the turn completed: exit 0
+      MISSING the usage lists the request of that turn: 0 of 31 recorded request(s) belong to the turn
+      MISSING that request has a cost above zero: undefined
+      MISSING the text a person reads counts one request more than before the turn: 31 request(s) before, 31 after
+      saw     it made no more requests than it said it may: 1 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [info] Completed; requests 1; settled $0.000124; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+PASS  usage · zai · acp · 1 req · $0.000135 · 6.2 s
+      /usage shows the requests and what they cost [ref/slash/usage, ref/feature/usage]
+      saw     the turn completed: end_turn
+      saw     the answer counts at least one request: - Requests: 32 requests
+      saw     the answer shows a cost above zero: - Total Cost: $0.0057
+      saw     it made no more requests than it said it may: 1 of at most 1
+FAIL  unknown-model · zai · exec · 0 req · $0.000000 · 0.8 s
+      An unknown model is refused with its reason [ref/cli/exec/exec---model-value]
+      saw     the command does not end with exit code 0: exit 2
+      saw     no model request was made: 0 request(s)
+      MISSING the refusal names the model that was asked for: [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [error] This model is not available for this run.
+      saw     it made no more requests than it said it may: 0 of at most 0
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [error] This model is not available for this run.

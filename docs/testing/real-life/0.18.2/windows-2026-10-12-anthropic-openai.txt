@@ -1,0 +1,240 @@
+Real-life run of muse-spark-code-acp-0.18.2.tgz (muse-spark-code-acp 0.18.2)
+SHA-256 0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea
+Windows_NT 10.0.26200 x64, Node v24.20.0; 2026-10-13T00:41:37.375Z to 2026-10-13T00:43:57.187Z
+Caps: 64 requests, $0.660000. Made: 48 requests, $0.080806 by the product's own count.
+The product's own usage for this home afterwards: 34 requests, $0.058543.
+Scenario runs: 25 passed, 7 failed, 0 not run.
+
+Route anthropic (Anthropic Messages, claude-haiku-4-5): added as rl-anthropic; Key works · 13 models.
+Route openai (OpenAI Responses, gpt-5.6-luna): added as rl-openai; Key works · 1 model.
+
+PASS  add-provider · anthropic · exec · 0 req · $0.000000 · 1.6 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-haiku-4-5 Default model: suggested Added rl-anthropic; code goes to https://api.anthropic.com.
+      saw     providers test says the key works: Key works · 13 models.
+PASS  plain-turn · anthropic · exec · 1 req · $0.002663 · 1.6 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      saw     the command ends with exit code 0: exit 0
+      saw     the answer carries the word that was asked for: RL-0B21AA06
+      saw     the result names the model the person chose: rl-anthropic/claude-haiku-4-5
+      saw     one request was made and it cost more than nothing: 1 request(s), $0.002663
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  plain-turn · anthropic · acp · 1 req · $0.002664 · 1.6 s
+      A plain turn completes [ref/feature/acp, ref/feature/chat]
+      saw     the turn ends as a finished turn: end_turn
+      saw     the answer carries the word that was asked for: Automatic compaction is awaiting evaluation and is inactive. RL-DE3482B2
+      saw     the session runs on the model the person chose: rl-anthropic/claude-haiku-4-5
+      saw     it made no more requests than it said it may: 1 of at most 1
+FAIL  cancel · anthropic · acp · 3 req · $0.014995 · 13.1 s
+      A turn is cancelled in the middle [ref/feature/acp]
+      saw     the turn ends as cancelled: cancelled
+      saw     the answer stopped before its end: 62 characters arrived
+      saw     the conversation takes the next message and answers it: end_turn: I'll create a file with numbers 1 to 300 in words, one per line.OK
+      MISSING it made no more requests than it said it may: 3 of at most 2
+      | [info] Display language en-us: the panel is in English
+      | [info] muse-spark-code-acp 0.18.2 serving ACP on stdio (modelApi)
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+PASS  capped-run · anthropic · exec · 1 req · $0.003345 · 2.5 s
+      A capped run stops at its cap and says so [ref/cli/exec/exec---max-requests-value, ref/feature/budget]
+      saw     exactly one model request was made: 1 request(s)
+      saw     the result says the request cap stopped it: status request_cap
+      saw     the command ends with exit code 5: exit 5
+      saw     the person is told the cap was reached: The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Request Cap Reached; requests 1; settled $0.003345; uncertain $0.000000; imag…
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  compact · anthropic · exec · 0 req · $0.000000 · 0.7 s
+      /compact works [ref/slash/compact]
+      saw     no model request was made: 0 request(s)
+      saw     the result says there was nothing to compact: exit 8, status incomplete, no_compactable_history
+      saw     it made no more requests than it said it may: 0 of at most 0
+FAIL  compact · anthropic · acp · 6 req · $0.015250 · 10.9 s
+      /compact works [ref/slash/compact, ref/feature/compaction]
+      saw     the first turn completed: end_turn
+      saw     the second turn completed: end_turn
+      saw     /compact ends as a finished turn: end_turn
+      MISSING the person is told what /compact did: nothing was shown
+      saw     the conversation goes on after it: end_turn
+      saw     and still knows what was said before: RL-D5F8593A
+      saw     it made no more requests than it said it may: 6 of at most 8
+      | [info] Display language en-us: the panel is in English
+      | [info] muse-spark-code-acp 0.18.2 serving ACP on stdio (modelApi)
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+FAIL  exec-help · anthropic · exec · 0 req · $0.000000 · 0.4 s
+      exec --help says how exec is used [ref/cli/exec/exec---help---h]
+      saw     the command ends with exit code 0: exit 0
+      saw     it names --max-requests: 158621 characters of help
+      saw     it names --max-budget-usd: 158621 characters of help
+      saw     it names --permission-mode: 158621 characters of help
+      saw     it names --output: 158621 characters of help
+      MISSING it is short enough to read at a terminal (at most 80 lines): 1375 lines
+      saw     it made no more requests than it said it may: 0 of at most 0
+PASS  model-switch · anthropic · acp · 1 req · $0.002658 · 2.0 s
+      The model list and a model switch [ref/slash/model, ref/feature/providers, ref/feature/acp]
+      saw     the list offers the model of this route: rl-anthropic/claude-haiku-4-5
+      saw     the session moves to the model the person picks: rl-anthropic/claude-haiku-4-5
+      saw     a turn completes on it: Automatic compaction is awaiting evaluation and is inactive. RL-CB59719B
+      saw     the usage names that model for the turn: rl-anthropic/claude-haiku-4-5
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  refused-approval · anthropic · exec · 2 req · $0.006043 · 3.3 s
+      A refused approval changes nothing [ref/cli/exec/exec---permission-mode-value]
+      saw     no file was written: no file
+      saw     the result lists no changed file: []
+      saw     the command ends with a result: exit 0, status completed
+      saw     it made no more requests than it said it may: 2 of at most 3
+PASS  refused-approval · anthropic · acp · 2 req · $0.005922 · 3.1 s
+      A refused approval changes nothing [ref/feature/permissions, ref/feature/acp]
+      saw     the agent asked before it wrote: Write: real-life-refused.txt
+      saw     no file was written: no file
+      saw     the turn still ends: end_turn: Automatic compaction is awaiting evaluation and is inactive. The write_file action was refused by the user. I cannot create this file without their approval.
+      saw     it made no more requests than it said it may: 2 of at most 3
+PASS  session-continues · anthropic · acp · 2 req · $0.005332 · 3.0 s
+      A session is saved, the process ends, the session loads and continues [ref/feature/history, ref/feature/acp]
+      saw     the first turn completed: end_turn
+      saw     the agent ends when the editor closes it: exit 0
+      saw     the new process lists the conversation: 1 listed
+      saw     loading it shows what was said before: 2 updates replayed
+      saw     the conversation goes on: end_turn
+      saw     and knows what was said before the process ended: Automatic compaction is awaiting evaluation and is inactive. RL-796BCFA6
+      saw     it made no more requests than it said it may: 2 of at most 2
+PASS  tool-write · anthropic · exec · 2 req · $0.005815 · 2.9 s
+      A tool turn writes a file after an approval [ref/cli/exec/exec---permission-mode-value, ref/cli/exec/exec]
+      saw     the command ends with exit code 0: exit 0
+      saw     the file is on disk with the content asked for: RL-ABE74ACB
+      saw     the result lists the file as changed: ["real-life-note.txt"]
+      saw     it made no more requests than it said it may: 2 of at most 4
+PASS  tool-write · anthropic · acp · 2 req · $0.005817 · 2.8 s
+      A tool turn writes a file after an approval [ref/feature/permissions, ref/feature/acp]
+      saw     the agent asked before it wrote: Write: real-life-note.txt
+      saw     the turn ends as a finished turn: end_turn
+      saw     the file is on disk with the content asked for: RL-A3FFD426
+      saw     it made no more requests than it said it may: 2 of at most 4
+FAIL  usage · anthropic · exec · 1 req · $0.002649 · 2.7 s
+      /usage shows the requests and what they cost [ref/cli/usage/usage---json, ref/cli/usage/usage-summarydailymodelslimitsexportopenserve-options----usage---json, ref/feature/usage]
+      saw     the turn completed: exit 0
+      MISSING the usage lists the request of that turn: 0 of 17 recorded request(s) belong to the turn
+      MISSING that request has a cost above zero: $undefined for it in the usage
+      MISSING the text a person reads counts one request more than before the turn: 17 request(s) before, 17 after
+      saw     it made no more requests than it said it may: 1 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [info] Completed; requests 1; settled $0.002649; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+PASS  usage · anthropic · acp · 1 req · $0.002668 · 1.6 s
+      /usage shows the requests and what they cost [ref/slash/usage, ref/feature/usage]
+      saw     the turn completed: end_turn
+      saw     the answer counts at least one request: - Requests: 18 requests
+      saw     the answer shows a cost above zero: - Total Cost: $0.06
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  add-provider · openai · exec · 0 req · $0.000000 · 2.0 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com.
+      saw     providers test says the key works: Key works · 1 model.
+PASS  plain-turn · openai · exec · 1 req · $0.000266 · 2.6 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      saw     the command ends with exit code 0: exit 0
+      saw     the answer carries the word that was asked for: RL-EE79BE0F
+      saw     the result names the model the person chose: rl-openai/gpt-5.6-luna
+      saw     one request was made and it cost more than nothing: 1 request(s), $0.000266
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  plain-turn · openai · acp · 1 req · $0.000263 · 2.9 s
+      A plain turn completes [ref/feature/acp, ref/feature/chat]
+      saw     the turn ends as a finished turn: end_turn
+      saw     the answer carries the word that was asked for: Automatic compaction is awaiting evaluation and is inactive. RL-158F53AB
+      saw     the session runs on the model the person chose: rl-openai/gpt-5.6-luna
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  cancel · openai · acp · 2 req · $0.000299 · 2.7 s
+      A turn is cancelled in the middle [ref/feature/acp]
+      saw     the turn ends as cancelled: cancelled
+      saw     the answer stopped before its end: 62 characters arrived
+      saw     the conversation takes the next message and answers it: end_turn: OK
+      saw     it made no more requests than it said it may: 2 of at most 2
+PASS  capped-run · openai · exec · 1 req · $0.000338 · 3.5 s
+      A capped run stops at its cap and says so [ref/cli/exec/exec---max-requests-value, ref/feature/budget]
+      saw     exactly one model request was made: 1 request(s)
+      saw     the result says the request cap stopped it: status request_cap
+      saw     the command ends with exit code 5: exit 5
+      saw     the person is told the cap was reached: The request cap of 1 attempt was reached. [info] Display language en-us: the panel is in English [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay) [warn] Usage history could not be recorded [info] Request Cap Reached; requests 1; settled $0.000338; uncertain $0.000000; imag…
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  compact · openai · exec · 0 req · $0.000000 · 0.8 s
+      /compact works [ref/slash/compact]
+      saw     no model request was made: 0 request(s)
+      saw     the result says there was nothing to compact: exit 8, status incomplete, no_compactable_history
+      saw     it made no more requests than it said it may: 0 of at most 0
+FAIL  compact · openai · acp · 5 req · $0.001014 · 10.4 s
+      /compact works [ref/slash/compact, ref/feature/compaction]
+      saw     the first turn completed: end_turn
+      saw     the second turn completed: end_turn
+      saw     /compact ends as a finished turn: end_turn
+      MISSING the person is told what /compact did: nothing was shown
+      saw     the conversation goes on after it: end_turn
+      saw     and still knows what was said before: RL-817C01D9
+      saw     it made no more requests than it said it may: 5 of at most 8
+      | [info] Display language en-us: the panel is in English
+      | [info] muse-spark-code-acp 0.18.2 serving ACP on stdio (modelApi)
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+FAIL  exec-help · openai · exec · 0 req · $0.000000 · 0.3 s
+      exec --help says how exec is used [ref/cli/exec/exec---help---h]
+      saw     the command ends with exit code 0: exit 0
+      saw     it names --max-requests: 158621 characters of help
+      saw     it names --max-budget-usd: 158621 characters of help
+      saw     it names --permission-mode: 158621 characters of help
+      saw     it names --output: 158621 characters of help
+      MISSING it is short enough to read at a terminal (at most 80 lines): 1375 lines
+      saw     it made no more requests than it said it may: 0 of at most 0
+PASS  model-switch · openai · acp · 1 req · $0.000265 · 2.4 s
+      The model list and a model switch [ref/slash/model, ref/feature/providers, ref/feature/acp]
+      saw     the list offers the model of this route: rl-anthropic/claude-haiku-4-5, rl-openai/gpt-5.6-luna
+      saw     the session moves to another listed model: rl-anthropic/claude-haiku-4-5
+      saw     the session moves to the model the person picks: rl-openai/gpt-5.6-luna
+      saw     a turn completes on it: Automatic compaction is awaiting evaluation and is inactive. RL-C04F08B0
+      saw     the usage names that model for the turn: rl-openai/gpt-5.6-luna
+      saw     it made no more requests than it said it may: 1 of at most 1
+PASS  refused-approval · openai · exec · 2 req · $0.000490 · 5.5 s
+      A refused approval changes nothing [ref/cli/exec/exec---permission-mode-value]
+      saw     no file was written: no file
+      saw     the result lists no changed file: []
+      saw     the command ends with a result: exit 0, status completed
+      saw     it made no more requests than it said it may: 2 of at most 3
+PASS  refused-approval · openai · acp · 2 req · $0.000439 · 5.3 s
+      A refused approval changes nothing [ref/feature/permissions, ref/feature/acp]
+      saw     the agent asked before it wrote: Write: real-life-refused.txt
+      saw     no file was written: no file
+      saw     the turn still ends: end_turn: Automatic compaction is awaiting evaluation and is inactive. I couldn’t create `real-life-refused.txt` because the file operation was rejected by the user.
+      saw     it made no more requests than it said it may: 2 of at most 3
+PASS  session-continues · openai · acp · 2 req · $0.000319 · 3.9 s
+      A session is saved, the process ends, the session loads and continues [ref/feature/history, ref/feature/acp]
+      saw     the first turn completed: end_turn
+      saw     the agent ends when the editor closes it: exit 0
+      saw     the new process lists the conversation: 1 listed
+      saw     loading it shows what was said before: 2 updates replayed
+      saw     the conversation goes on: end_turn
+      saw     and knows what was said before the process ended: Automatic compaction is awaiting evaluation and is inactive. RL-FCE3E10E
+      saw     it made no more requests than it said it may: 2 of at most 2
+PASS  tool-write · openai · exec · 2 req · $0.000388 · 4.7 s
+      A tool turn writes a file after an approval [ref/cli/exec/exec---permission-mode-value, ref/cli/exec/exec]
+      saw     the command ends with exit code 0: exit 0
+      saw     the file is on disk with the content asked for: RL-11647F34
+      saw     the result lists the file as changed: ["real-life-note.txt"]
+      saw     it made no more requests than it said it may: 2 of at most 4
+PASS  tool-write · openai · acp · 2 req · $0.000375 · 4.2 s
+      A tool turn writes a file after an approval [ref/feature/permissions, ref/feature/acp]
+      saw     the agent asked before it wrote: Write: real-life-note.txt
+      saw     the turn ends as a finished turn: end_turn
+      saw     the file is on disk with the content asked for: RL-EAD6AC47
+      saw     it made no more requests than it said it may: 2 of at most 4
+FAIL  usage · openai · exec · 1 req · $0.000266 · 3.0 s
+      /usage shows the requests and what they cost [ref/cli/usage/usage---json, ref/cli/usage/usage-summarydailymodelslimitsexportopenserve-options----usage---json, ref/feature/usage]
+      saw     the turn completed: exit 0
+      MISSING the usage lists the request of that turn: 0 of 33 recorded request(s) belong to the turn
+      MISSING that request has a cost above zero: $undefined for it in the usage
+      MISSING the text a person reads counts one request more than before the turn: 33 request(s) before, 33 after
+      saw     it made no more requests than it said it may: 1 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [info] Completed; requests 1; settled $0.000266; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+PASS  usage · openai · acp · 1 req · $0.000263 · 1.9 s
+      /usage shows the requests and what they cost [ref/slash/usage, ref/feature/usage]
+      saw     the turn completed: end_turn
+      saw     the answer counts at least one request: - Requests: 34 requests
+      saw     the answer shows a cost above zero: - Total Cost: $0.06
+      saw     it made no more requests than it said it may: 1 of at most 1

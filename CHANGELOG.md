@@ -9,6 +9,40 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Real-life run: product children explicitly use English, so usage-label
+  scenarios do not fail because the release machine uses another locale.
+
+- Real-life run: `--model` rejects a misspelled or unselected route instead
+  of silently running the selected route's default model.
+
+- Real-life run: npm and installed-product children no longer inherit
+  `NODE_OPTIONS` or `NODE_PATH`, including differently cased Windows names.
+
+- Real-life run: help, preflight and records describe request admission
+  honestly, not as an enforceable in-flight ACP cap. A scenario exceeding
+  its declared requests fails and prevents any further scenario admission.
+
+- Real-life run: every cell, matrix turns included, reconciles terminal
+  totals with journal usage. Missing or incomplete exec results fail the
+  cell and stop further admission instead of counting a crash as free.
+  An in-flight terminal command is already unknown at scenario timeout;
+  a late scenario continuation cannot dispatch another terminal request.
+
+- Real-life run: configured providers use per-invocation credential names,
+  so concurrent runs cannot overwrite or delete each other's route keys.
+  Key-free recovery notes retain the names if a run is ended outright.
+
+- Real-life run: unread daily-ledger claims now fail the run and are named
+  as unknown liability in the text record, including null claim files.
+
+- Real-life run: every requested route setup failure, including an occupied
+  provider credential name, fails the exit code rather than passing with
+  all of that route's scenarios skipped.
+
+- Real-life run: a failed credential deletion is unknown cleanup, not proof
+  that the key is absent. The run retries it at final cleanup and fails if
+  no deletion succeeded, retaining Meta's recovery note when uncertain.
+
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
@@ -29,6 +63,12 @@ happened, not what was planned; superseded entries are kept.
   `docs/real-life/unproven.md`, the backlog for proof by real use.
 
 ### Pending
+
+- The real-life run (`npm run real-life`, `docs/testing/real-life.md`):
+  the packed product installed into a new empty folder and used for real,
+  against real providers on their cheapest models. A full run spends real
+  money up to a stated request and dollar cap, needs real keys, and writes
+  its record under `docs/testing/real-life/` with the release.
 
 - All fourteen translated settings tables now say Muse Code asks before a
   command unless a permission rule allows it, matching the English modes.

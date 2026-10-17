@@ -1,0 +1,343 @@
+Real-life run of muse-spark-code-acp-0.18.2.tgz (muse-spark-code-acp 0.18.2)
+SHA-256 0ffd42d4a5fac87f172b0b50a326281b67d69ccc0f214544cca565b05ed096ea
+Windows_NT 10.0.26200 x64, Node v24.20.0; 2026-10-13T01:14:15.264Z to 2026-10-13T01:14:59.207Z
+Caps: 234 requests, $0.990000 of reported usage. Made: 0 requests, $0.000000 of usage the providers reported.
+Booked by the product for requests that ended with no usage report (no charge anyone made): $0.000000.
+The product's own usage for this home afterwards: 0 requests, $0.000000.
+Scenario runs: 6 passed, 16 failed, 78 not run.
+
+Route anthropic (Anthropic Messages, 12 models): added as rl-anthropic; Key works · 13 models.
+Route openai (OpenAI Responses, gpt-5.6-luna): added as rl-openai; Key works · 1 model.
+Route xai (OpenAI Responses (xAI), 7 models): added as rl-xai; Key works · 14 models.
+Route zai (chat completions (Z.ai), 11 models): added as rl-zai; Key works · 11 models.
+Route deepseek (chat completions (DeepSeek), 2 models): added as rl-deepseek; Key works · 2 models.
+Route mistral (chat completions (Mistral), 13 models): added as rl-mistral; Key works · 55 models.
+Route meta (Meta Model API, muse-spark-1.3-contributor): the key goes to each terminal command on standard input
+
+PASS  add-provider · anthropic · 12 models (Anthropic Messages) · exec · 0 req · $0.000000 · 1.7 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: anthropic Code goes to: https://api.anthropic.com Models: claude-sonnet-5-5, claude-opus-5-5, claude-fable-5-1, claude-opus-5, claude-sonnet-5, claude-fable-5, claude-opus-4-8, claude-opus-4-7, claude-sonnet-4-6, claude-opus-4-6, claude-opus-4-5-20251101, claude-haiku-4-5-20251001 Default …
+      saw     providers test says the key works: Key works · 13 models.
+FAIL  plain-turn · anthropic · claude-sonnet-5-5 (Anthropic Messages) · exec · 0 req · $0.000000 · 2.8 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-anthropic/claude-sonnet-5-5
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     before anything is sent the product names the model that was asked for: rl-anthropic/claude-sonnet-5-5
+      saw     the product takes the run under the most a terminal run may be given: taken with a budget of $0.25; turned away with nothing sent at $0.05
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [info] Budget Exceeded; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [info] Budget Exceeded; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn e8b69987-818d-4338-9b76-3bcf21428339 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+FAIL  plain-turn · anthropic · claude-opus-5-5 (Anthropic Messages) · exec · 0 req · $0.000000 · 1.0 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-anthropic/claude-opus-5-5
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 26a801d2-257c-42f0-aa28-438bd15ecd77 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+FAIL  plain-turn · anthropic · claude-fable-5-1 (Anthropic Messages) · exec · 0 req · $0.000000 · 1.0 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-anthropic/claude-fable-5-1
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 0ec9fa43-3ab8-4224-a20e-aec3daa2c88e failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+PASS  add-provider · openai · gpt-5.6-luna (OpenAI Responses) · exec · 0 req · $0.000000 · 2.6 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: openai Code goes to: https://api.openai.com Models: gpt-5.6-luna Default model: suggested Added rl-openai; code goes to https://api.openai.com.
+      saw     providers test says the key works: Key works · 1 model.
+FAIL  plain-turn · openai · gpt-5.6-luna (OpenAI Responses) · exec · 0 req · $0.000000 · 1.9 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-openai/gpt-5.6-luna
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     before anything is sent the product names the model that was asked for: rl-openai/gpt-5.6-luna
+      saw     the product takes the run under the most a terminal run may be given: taken with a budget of $0.05
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [info] Budget Exceeded; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 70134a51-14df-4eaf-8f77-595518e970f0 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+PASS  add-provider · xai · 7 models (OpenAI Responses (xAI)) · exec · 0 req · $0.000000 · 1.5 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: xai Code goes to: https://api.x.ai Models: grok-4.20-0309-non-reasoning, grok-4.20-0309-reasoning, grok-4.3, grok-4.5, grok-4.6, grok-4.7, grok-build-0.1 Default model: suggested Added rl-xai; code goes to https://api.x.ai.
+      saw     providers test says the key works: Key works · 14 models.
+FAIL  plain-turn · xai · grok-4.20-0309-non-reasoning (OpenAI Responses (xAI)) · exec · 0 req · $0.000000 · 0.9 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-xai/grok-4.20-0309-non-reasoning
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn ef35a3ad-a2dd-4913-8ab2-229ee2f1cc9a failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+FAIL  plain-turn · xai · grok-4.20-0309-reasoning (OpenAI Responses (xAI)) · exec · 0 req · $0.000000 · 1.0 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-xai/grok-4.20-0309-reasoning
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 9b81252e-129a-4aff-ba5c-272295657801 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+FAIL  plain-turn · xai · grok-4.3 (OpenAI Responses (xAI)) · exec · 0 req · $0.000000 · 1.0 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-xai/grok-4.3
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 0a0e76fa-fffc-4d63-bb91-2dc66bca8d01 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+PASS  add-provider · zai · 11 models (chat completions (Z.ai)) · exec · 0 req · $0.000000 · 1.5 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: zai Code goes to: https://api.z.ai Models: glm-4.5, glm-4.5-air, glm-4.6, glm-4.7, glm-5, glm-5-turbo, glm-5.1, glm-5.2, glm-5.3, glm-5.3-flash, glm-5.3-flashx Default model: suggested Added rl-zai; code goes to https://api.z.ai.
+      saw     providers test says the key works: Key works · 11 models.
+FAIL  plain-turn · zai · glm-4.5 (chat completions (Z.ai)) · exec · 0 req · $0.000000 · 1.9 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-zai/glm-4.5
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     before anything is sent the product names the model that was asked for: rl-zai/glm-4.5
+      saw     the product takes the run under the most a terminal run may be given: taken with a budget of $0.05
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [info] Budget Exceeded; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn a8cef957-5061-45f7-82be-6e55dcd6d60f failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+FAIL  plain-turn · zai · glm-4.5-air (chat completions (Z.ai)) · exec · 0 req · $0.000000 · 1.8 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-zai/glm-4.5-air
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     before anything is sent the product names the model that was asked for: rl-zai/glm-4.5-air
+      saw     the product takes the run under the most a terminal run may be given: taken with a budget of $0.05
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [info] Budget Exceeded; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 1f4572e1-a63b-4415-a357-30e2049f7776 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+FAIL  plain-turn · zai · glm-4.6 (chat completions (Z.ai)) · exec · 0 req · $0.000000 · 0.9 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-zai/glm-4.6
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 4c0465e7-d57e-4faf-b7b9-1b01074dc5d8 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+PASS  add-provider · deepseek · 2 models (chat completions (DeepSeek)) · exec · 0 req · $0.000000 · 1.6 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: deepseek Code goes to: https://api.deepseek.com Models: deepseek-flash, deepseek-v4-pro Default model: suggested Added rl-deepseek; code goes to https://api.deepseek.com.
+      saw     providers test says the key works: Key works · 2 models.
+FAIL  plain-turn · deepseek · deepseek-flash (chat completions (DeepSeek)) · exec · 0 req · $0.000000 · 0.9 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-deepseek/deepseek-flash
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn b50d2b93-47dd-4266-b7fe-97bc6b404ea8 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+FAIL  plain-turn · deepseek · deepseek-v4-pro (chat completions (DeepSeek)) · exec · 0 req · $0.000000 · 0.9 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-deepseek/deepseek-v4-pro
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 6be0f74d-17da-4ac8-a9ab-3be9d525e791 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+PASS  add-provider · mistral · 13 models (chat completions (Mistral)) · exec · 0 req · $0.000000 · 1.9 s
+      A provider is added with its key, and the key is checked [ref/cli/providersAdd/providers-add---preset-preset---as-id---address-url---model-model---privacy-policy---private-ok---key-stdin, ref/cli/providersTest/providers-test-id, ref/feature/providers]
+      saw     providers add takes the key and ends with exit code 0: Provider: mistral Code goes to: https://api.mistral.ai Models: codestral-latest, zai-glm-5-2, zai-glm-5-3, ministral-3b-latest, ministral-8b-latest, mistral-large-2512, mistral-large-latest, mistral-medium-latest, mistral-medium-2604, magistral-medium-latest, mistral-small-2603, mistral-small-latest…
+      saw     providers test says the key works: Key works · 55 models.
+FAIL  plain-turn · mistral · codestral-latest (chat completions (Mistral)) · exec · 0 req · $0.000000 · 0.9 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-mistral/codestral-latest
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn fb1c7098-1eff-4207-a73c-a838d8ee783b failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+FAIL  plain-turn · mistral · zai-glm-5-2 (chat completions (Mistral)) · exec · 0 req · $0.000000 · 0.9 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-mistral/zai-glm-5-2
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn 273e07bf-4fe5-462c-bdda-16c969ea431c failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+FAIL  plain-turn · mistral · zai-glm-5-3 (chat completions (Mistral)) · exec · 0 req · $0.000000 · 1.0 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: rl-mistral/zai-glm-5-3
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn a58f7df8-602a-401e-88ea-a86caa75b849 failed: Models & Agents is not available in this build.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+FAIL  plain-turn · meta · muse-spark-1.3-contributor (Meta Model API) · exec · 0 req · $0.000000 · 3.2 s
+      A plain turn completes [ref/cli/exec/exec, ref/cli/exec/exec---model-value, ref/cli/exec/exec---output-value]
+      MISSING the command ends with exit code 0: exit 4
+      MISSING the answer carries the word that was asked for: message withheld: the response did not complete
+      saw     the result names the model the person chose: muse-spark-1.3-contributor
+      MISSING one request was made and it cost more than nothing: 0 request(s), $0 of reported usage, $0 booked with no usage
+      saw     before anything is sent the product names the model that was asked for: muse-spark-1.3-contributor
+      saw     the product takes the run under the most a terminal run may be given: taken with a budget of $0.25; turned away with nothing sent at $0.05
+      saw     it made no more requests than it said it may: 0 of at most 1
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [info] Budget Exceeded; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [info] Budget Exceeded; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0; Cost is an upper bound.
+      | [info] Display language en-us: the panel is in English
+      | [info] Model API backend ready (api.meta.ai/v1, stateless reasoning replay)
+      | [warn] Usage history could not be recorded
+      | [warn] Model API turn a8074773-f36a-4ef1-bf4b-47cfa0265e27 failed: Stopped: the next request (about $0.1082) would pass the session budget of $5.00 ($4.96 used). It was not sent.
+      | [info] Failed; requests 0; settled $0.000000; uncertain $0.000000; image attempts 0; returned 0; uncertain images 0
+
+Not run:
+      tool-write · anthropic · claude-sonnet-5-5 (Anthropic Messages) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · anthropic · claude-opus-5-5 (Anthropic Messages) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · anthropic · claude-fable-5-1 (Anthropic Messages) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      plain-turn · anthropic · claude-opus-5 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · anthropic · claude-opus-5 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · anthropic · claude-sonnet-5 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · anthropic · claude-sonnet-5 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · anthropic · claude-fable-5 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · anthropic · claude-fable-5 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · anthropic · claude-opus-4-8 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · anthropic · claude-opus-4-8 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · anthropic · claude-opus-4-7 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · anthropic · claude-opus-4-7 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · anthropic · claude-sonnet-4-6 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · anthropic · claude-sonnet-4-6 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · anthropic · claude-opus-4-6 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · anthropic · claude-opus-4-6 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · anthropic · claude-opus-4-5-20251101 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · anthropic · claude-opus-4-5-20251101 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · anthropic · claude-haiku-4-5-20251001 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · anthropic · claude-haiku-4-5-20251001 (Anthropic Messages) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · openai · gpt-5.6-luna (OpenAI Responses) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · xai · grok-4.20-0309-non-reasoning (OpenAI Responses (xAI)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · xai · grok-4.20-0309-reasoning (OpenAI Responses (xAI)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · xai · grok-4.3 (OpenAI Responses (xAI)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      plain-turn · xai · grok-4.5 (OpenAI Responses (xAI)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · xai · grok-4.5 (OpenAI Responses (xAI)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · xai · grok-4.6 (OpenAI Responses (xAI)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · xai · grok-4.6 (OpenAI Responses (xAI)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · xai · grok-4.7 (OpenAI Responses (xAI)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · xai · grok-4.7 (OpenAI Responses (xAI)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · xai · grok-build-0.1 (OpenAI Responses (xAI)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · xai · grok-build-0.1 (OpenAI Responses (xAI)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · zai · glm-4.5 (chat completions (Z.ai)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · zai · glm-4.5-air (chat completions (Z.ai)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · zai · glm-4.6 (chat completions (Z.ai)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      plain-turn · zai · glm-4.7 (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · zai · glm-4.7 (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · zai · glm-5 (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · zai · glm-5 (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · zai · glm-5-turbo (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · zai · glm-5-turbo (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · zai · glm-5.1 (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · zai · glm-5.1 (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · zai · glm-5.2 (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · zai · glm-5.2 (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · zai · glm-5.3 (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · zai · glm-5.3 (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · zai · glm-5.3-flash (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · zai · glm-5.3-flash (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · zai · glm-5.3-flashx (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · zai · glm-5.3-flashx (chat completions (Z.ai)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · deepseek · deepseek-flash (chat completions (DeepSeek)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · deepseek · deepseek-v4-pro (chat completions (DeepSeek)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · mistral · codestral-latest (chat completions (Mistral)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · mistral · zai-glm-5-2 (chat completions (Mistral)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      tool-write · mistral · zai-glm-5-3 (chat completions (Mistral)) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
+      plain-turn · mistral · ministral-3b-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · mistral · ministral-3b-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · mistral · ministral-8b-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · mistral · ministral-8b-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · mistral · mistral-large-2512 (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · mistral · mistral-large-2512 (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · mistral · mistral-large-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · mistral · mistral-large-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · mistral · mistral-medium-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · mistral · mistral-medium-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · mistral · mistral-medium-2604 (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · mistral · mistral-medium-2604 (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · mistral · magistral-medium-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · mistral · magistral-medium-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · mistral · mistral-small-2603 (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · mistral · mistral-small-2603 (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · mistral · mistral-small-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · mistral · mistral-small-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      plain-turn · mistral · voxtral-small-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · mistral · voxtral-small-latest (chat completions (Mistral)) · exec: not run: the first 3 models of this route failed with no usage reported: an account or a key that does not work, not a model
+      tool-write · meta · muse-spark-1.3-contributor (Meta Model API) · exec: not run: the plain turn failed on this model, so nothing else that costs a request was tried
