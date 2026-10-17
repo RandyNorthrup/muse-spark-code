@@ -1091,6 +1091,13 @@ export const EN = {
     copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
     // Said when a confidential workspace refuses Copilot sign-in.
     copilotConfidential: 'Copilot is unavailable while this workspace is confidential.',
+    // Said where the Copilot dispatch adapter cannot be reached (the
+    // terminal): the grant lives in VS Code, so no terminal can use it.
+    copilotTerminalGrant:
+      'Copilot models run only in VS Code, through the Copilot extension; this terminal cannot reach that grant.',
+    // Said where the adapter is absent on a non-terminal host: same source.
+    copilotHostGrant:
+      'Copilot models run only in VS Code, through the Copilot extension, which this host cannot reach.',
     // What Copilot uses and who bills it: VS Code's granted models, the Copilot plan.
     copilotNotice: 'Copilot models granted to VS Code, billed to your Copilot plan or AI credits.',
     expired: 'ChatGPT granted too little time to finish this request. Sign in again.',

@@ -902,6 +902,8 @@
     "copilotRateLimit": "Copilot istek sıklığını sınırlıyor. Daha sonra tekrar deneyin.",
     "copilotConsent": "Devam etmek için Copilot onay penceresinde erişime izin verin.",
     "copilotConfidential": "Bu çalışma alanı gizliyken Copilot kullanılamıyor.",
+    "copilotTerminalGrant": "Copilot modelleri yalnızca Copilot uzantısı üzerinden VS Code'da çalışır; bu terminal bu yetkiye erişemez.",
+    "copilotHostGrant": "Copilot modelleri yalnızca Copilot uzantısı üzerinden VS Code'da çalışır; bu ana bilgisayar bu yetkiye erişemez.",
     "copilotNotice": "VS Code’a tahsis edilen Copilot modelleri, Copilot planınıza veya yapay zekâ kredilerinize faturalandırılır.",
     "expired": "ChatGPT bu istek için çok kısa bir geçerlilik süresi verdi. Yeniden oturum açın.",
     "retry": "ChatGPT geçici olarak kullanılamıyor. Tekrar deneyin.",

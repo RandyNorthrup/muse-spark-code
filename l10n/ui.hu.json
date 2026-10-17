@@ -902,6 +902,8 @@
     "copilotRateLimit": "A Copilot korlátozza a kérések gyakoriságát. Próbálja később.",
     "copilotConsent": "A folytatáshoz engedélyezze a hozzáférést a Copilot beleegyezési ablakában.",
     "copilotConfidential": "A Copilot nem érhető el, amíg ez a munkaterület bizalmas.",
+    "copilotTerminalGrant": "A Copilot-modellek csak a VS Code-ban futnak, a Copilot-bővítményen keresztül; ez a terminál nem éri el azt a jogosultságot.",
+    "copilotHostGrant": "A Copilot-modellek csak a VS Code-ban futnak, a Copilot-bővítményen keresztül, amelyet ez a gazdagép nem ér el.",
     "copilotNotice": "A VS Code számára biztosított Copilot-modellek, a Copilot-előfizetése vagy AI-kreditjei terhére.",
     "expired": "A ChatGPT túl rövid érvényességet adott a kéréshez. Jelentkezzen be újra.",
     "retry": "A ChatGPT átmenetileg nem érhető el. Próbálja újra.",

@@ -902,6 +902,8 @@
     "copilotRateLimit": "Copilot begrenzt die Anfragerate. Versuchen Sie es später erneut.",
     "copilotConsent": "Erlauben Sie den Zugriff im Zustimmungsdialog von Copilot.",
     "copilotConfidential": "Copilot ist nicht verfügbar, solange dieser Arbeitsbereich vertraulich ist.",
+    "copilotTerminalGrant": "Copilot-Modelle laufen nur in VS Code über die Copilot-Erweiterung; dieses Terminal kann diese Berechtigung nicht erreichen.",
+    "copilotHostGrant": "Copilot-Modelle laufen nur in VS Code über die Copilot-Erweiterung, die dieser Host nicht erreichen kann.",
     "copilotNotice": "Copilot-Modelle für VS Code, abgerechnet über Ihren Copilot-Plan oder AI-Credits.",
     "expired": "ChatGPT hat eine zu kurze Gültigkeit für diese Anfrage gewährt. Melden Sie sich erneut an.",
     "retry": "ChatGPT ist vorübergehend nicht verfügbar. Versuchen Sie es erneut.",
