@@ -724,8 +724,14 @@ async function serve(
     })
     // The ACP-side engine module; the schedules bundle never loads it from
     // VS Code, so the VSIX need not carry the runtime engine for schedules.
-    const scheduleEngine = await import('./runtimeEngineEntry')
-    scheduleEngine.setUiText(UI_TEXT, uiLocale())
+    // Its members are read by name so the bundle-split gate can compare them
+    // with the engine bundle's exports; the module never crosses whole.
+    const engineModule = await import('./runtimeEngineEntry')
+    engineModule.setUiText(UI_TEXT, uiLocale())
+    const scheduleEngine = {
+      createRuntimeScheduleDelivery: engineModule.createRuntimeScheduleDelivery,
+      setUiText: engineModule.setUiText,
+    }
     const loadSchedules = runtimeSchedulesBinding(
       path.join(distDir, 'schedules.js'),
       log,
@@ -1301,8 +1307,13 @@ async function main(): Promise<number> {
         log,
         allowsContributorModels: false,
       })
-      const scheduleEngine = await import('./runtimeEngineEntry')
-      scheduleEngine.setUiText(UI_TEXT, uiLocale())
+      // As above: read the engine's members by name for the split gate.
+      const engineModule = await import('./runtimeEngineEntry')
+      engineModule.setUiText(UI_TEXT, uiLocale())
+      const scheduleEngine = {
+        createRuntimeScheduleDelivery: engineModule.createRuntimeScheduleDelivery,
+        setUiText: engineModule.setUiText,
+      }
       const load = runtimeSchedulesBinding(
         path.join(distDir, 'schedules.js'),
         log,
