@@ -17535,6 +17535,15 @@ sessions:
 
 **Status 2026-09-22: built.**
 
+**Status 2026-10-17 (MSM9M35): complete.** Free dictation is connected on
+Windows/macOS (OS engine) and local Linux x64/arm64 (offline Whisper tiny.en
+after one consent card, D140; `linuxDictationModel=false` removes helper,
+model and partials). Linux's driver ships as `dist/voiceLinux.js` on the
+first Linux recording (D6; `voice.js` back inside its unchanged 50 KiB cap).
+ACP/CLI dictation exists as the held companion page only
+(`COMPANION_VOICE_RELEASE` still closed; mic receipts on Mac/Windows owed).
+Full record: `docs/certification/msm9m35.md`.
+
 **CM9LNX scope accepted 2026-10-10:** the owner supersedes Q4's Linux-only
 third-party prohibition and authorizes a bundled permissive, offline CPU
 recognizer. Compare whisper.cpp tiny.en/base.en and Vosk small English on
@@ -17726,6 +17735,12 @@ and deliberate SHA-256-restored failures are recorded in the certification.
 ### M35 — Muse Voice dictation, paid and opt-in (D30)
 
 **Status 2026-10-11: built.**
+
+**Status 2026-10-17 (MSM9M35): complete.** Paid realtime dictation stays
+connected on the Model API backend with the CM352 bounds (one owner per
+recording, 3-minute bound, admission before capture, settle from reported
+duration). The companion's paid route stays behind the release hold with it.
+Full record: `docs/certification/msm9m35.md`.
 
 - RVCM352 repair: recording-owned helpers/callbacks and serialized restarts;
   no microphone before both admissions; awaited shutdown and closed-tab drains;
