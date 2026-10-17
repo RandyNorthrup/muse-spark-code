@@ -105,7 +105,7 @@ describe('ApprovalDock (D26)', () => {
   })
 
   it('moves focus to an arriving card, onto the card and not a choice', () => {
-    // The panel holds the keyboard (D108: a card takes it only then; the
+    // The panel holds the keyboard (D116: a card takes it only then; the
     // unowned case is questionAttentionOwnership.test.tsx), on a control
     // that is not a text field, so the person is not typing.
     const control = document.createElement('button')
