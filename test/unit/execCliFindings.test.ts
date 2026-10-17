@@ -296,6 +296,8 @@ describe('a listed model no run can price warns at list and test time (D4)', () 
     expect(quiet.printed.some((line) => line.includes('price card'))).toBe(false)
   })
 
+  // The first probe loads the Model API bundle entry (its transport and
+  // auth sources) inside the test: a genuinely long one-off module load.
   it('warns on providers test for the same unpriced model', async () => {
     const warned = providersDeps(groqFile(), {
       secrets: groqSecrets('https://api.groq.com'),
@@ -307,7 +309,7 @@ describe('a listed model no run can price warns at list and test time (D4)', () 
         line.includes(fill(UI_TEXT.providerModelNoPrice, { ref: 'groq/m1' })),
       ),
     ).toBe(true)
-  })
+  }, 30_000)
 
   it('never warns for custom, keyless or user-priced models', () => {
     const catalog = parseCatalogPresence({ providers: { groq: { models: {} } } })
