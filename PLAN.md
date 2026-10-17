@@ -14393,6 +14393,10 @@ and thats it." A thousand-test suite kept shipping broken code as
   real code over recorded data.
 - Record: `docs/testing/test-overhaul-2026-10-12.md` (before/after
   1,321 → 524 files, 27,650 → 8,988 tests, ~26 → ~5.5 wall minutes).
+- Invariants lane: `test/unit/invariants.test.ts` re-guards the SoL-Pi
+  request-shape and savings invariants with real modules only (certification:
+  `docs/certification/invariants.md`); the full loopback golden stays listed
+  for the lead until recorded exchanges exist per golden scenario.
 
 ## 3. Open questions (need the owner)
 
