@@ -73,6 +73,17 @@ describe('stderrForLog', () => {
       'tbh serve: startup model-catalog fetch failed (failed to fetch model catalog: transport error: error sending request for url (https://api.meta.ai/muse-code/models)); no cached default — composing the logged-out fallback',
       'the startup model-catalog fetch failed',
     ],
+    // As captured from `muse serve` 1.4.10-R6427.1 on 2026-10-17 (F94):
+    // a meta entry without the fields the CLI requires exits 3 before
+    // `initialize` with this line (throwaway homes, dummy values).
+    [
+      'compose serve model client: malformed auth file at C:\\Users\\someone\\cfg\\muse\\auth.json: missing field `obtained_via`',
+      'the credential file is malformed (missing field `obtained_via`)',
+    ],
+    [
+      'compose serve model client: malformed auth file at /home/someone/.config/muse/auth.json: providers.meta.api_key must be a string',
+      'the credential file is malformed (providers.meta.api_key must be a string)',
+    ],
   ])('names the captured line %s in fixed words', (line, logged) => {
     expect(stderrForLog(`${line}\n`)).toBe(logged)
   })
