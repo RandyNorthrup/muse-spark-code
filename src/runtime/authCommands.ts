@@ -61,21 +61,6 @@ export async function authSet(deps: AuthCommandDeps): Promise<number> {
   return EXIT_OK
 }
 
-export async function authStatus(deps: AuthCommandDeps): Promise<number> {
-  let stored: string | undefined
-  try {
-    stored = await deps.secrets.get(SECRET_KEYS.modelApiKey)
-  } catch (error: unknown) {
-    return unavailable(deps, error)
-  }
-  if (stored === undefined || stored === '') {
-    deps.print(UI_TEXT.acpKeyAbsent)
-    return EXIT_FAILED
-  }
-  deps.print(fill(UI_TEXT.acpKeyPresent, { store: deps.storeName }))
-  return EXIT_OK
-}
-
 /**
  * D6: bare `auth status` answers every credential, not only the Meta key.
  * Exits 0 when any key is stored (Meta or provider), 1 when none is or the
