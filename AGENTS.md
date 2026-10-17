@@ -46,12 +46,23 @@ this file or in PLAN.md that disagrees loses.
   captured it. A test that only checks that some text, key or file exists is
   not a test. When only a real run proves something (hosted CI, the packed
   product, a real provider call at release), the real run is the proof.
-- **Limits only about models (2026-10-16).** A limit or cap exists in the
-  product only when the model's platform sets it, or when the person sets it
-  by hand in the model role settings (where a model's limits and permissions
-  are set). Every other limit is removed. Caps used to run this project's own
-  work never go into the repository. No time box, turn cap or tool cap stops a
-  job mid-run.
+- **Limits (2026-10-16, 2026-10-17).** The only hard-coded limits are each
+  provider's own, per provider and per model ("the limits we set on our agents
+  hardcoded are **ONLY** the limit set from the providers"). Every other limit
+  or threshold is one the person sets in the app, none by default: per agent
+  or role (the model role settings), per team, and for their machine's
+  resources ("the limits are supposed to be setable in the app to prevent
+  overconsumption or use"). Caps used to run this project's own work never go
+  into the repository. No time box, turn cap or tool cap of ours stops a job
+  mid-run.
+- **Every cap the person sets is static or dynamic, and a cap that fires
+  notifies the orchestrator (2026-10-17).** The owner: "the caps should be
+  dynamic and static ie if we set a dynamic cap lets say 80 perct cpu cap that
+  should allow as many agents as the role limits allow up until it hits the
+  cpu cap when this cap is triggered the orchistrator should get a
+  notification so it can assess what needs to be done if jobs should be paused
+  or moved etc, and this should be true for all of the different caps and
+  restrictions that can be set by the user".
 - **Every job through our own app.** Coding and review jobs run through Muse
   Spark Code itself, so its gaps show; a gap found that way is fixed in the
   product.
