@@ -1,13 +1,13 @@
 {
-  "companionVoiceTitle": "音声入力",
   "companionVoiceCancel": "キャンセル",
   "companionVoiceFailed": "音声入力に失敗したか拒否されました。マイクの権限、選択したエンジン、1日の予算を確認し、再録音してください。送信済みの有料リクエストには料金が発生する場合があります。",
   "companionVoiceFree": "OS（無料）",
-  "companionVoiceReview": "送信前に文字起こしを確認",
   "companionVoiceLimit": "最大{seconds}秒。文字起こし後に音声を削除します。",
-  "companionVoicePaidSummary": "有料音声：{duration}。",
   "companionVoiceOpen": "音声入力の連携ページを開く",
+  "companionVoicePaidSummary": "有料音声：{duration}。",
   "companionVoiceReference": "ブラウザーで音声入力し、自分のACPセッションまたは端末へ送信する前にテキストを確認します。WindowsとmacOSのOS音声認識は無料です。Muse Voiceは有料で、同意を求め、共通の日次予算を使用します。",
+  "companionVoiceReview": "送信前に文字起こしを確認",
+  "companionVoiceTitle": "音声入力",
   "resourceTitle": "リソース",
   "resourceHarnessInTree": "停止を保留しました。制御プロセスがまだこのツリー内にあります。管理は保持されます。停止を再試行してください。",
   "resourceCgroupChanged": "停止を拒否しました。このツリーの cgroup が削除または置換されました。管理は保持されます。",
@@ -289,6 +289,7 @@
   "referenceExecImages": "ヘッドレス画像には --image-generation、acceptEdits、十分な厳格な予算が必要です。価格の確認は表示されず、許可が必要な要求は拒否されます。",
   "referenceProviders": "モデルプロバイダーを一覧表示、追加、テスト、削除します。キーは資格情報ストアを使用します。有料トークンの検査にはエディターが必要で、CLI は拒否します。",
   "referenceCliOptions": {
+    "muse-voice": "--muse-voice: 音声入力ページで有料のMuse Voiceを許可します。初回課金前に同意を求め、共通の日次予算を使用します。",
     "resource-governor": "--resource-governor on|off: エージェント実行環境が開始した処理を遅くするか延期して、このマシンの応答性を保ちます。既定で有効です。",
     "cpu-max": "--cpu-max <percent>: マシンの CPU 使用率がこの割合を30秒間超えた場合、処理を抑制します。",
     "memory-max": "--memory-max <percent>: 使用中のメモリが2回連続の測定でこの割合を超えた場合、処理を抑制します。",
@@ -351,8 +352,7 @@
     "estimate-by": "--by <date>: 期限",
     "fleet": "--fleet current|minimum|optimum: 現在のマシン群 / 最小構成 / 最適構成",
     "estimate-format": "--format md|html|json|text: 出力形式",
-    "seed": "--seed <seed>: シミュレーションのシード",
-    "muse-voice": "--muse-voice: 音声入力ページで有料のMuse Voiceを許可します。初回課金前に同意を求め、共通の日次予算を使用します。"
+    "seed": "--seed <seed>: シミュレーションのシード"
   },
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "referenceVault": "進行中.",
@@ -3828,6 +3828,12 @@
   "dictationPaidTitle": "Muse Voice (有料): {price}、Model API キーに請求されます。タップまたは長押しで録音 (Ctrl+D)",
   "museVoiceNoKey": "Muse Voice には Meta Model API キーが必要です。会話で別のプロバイダーやローカルモデルを使用する場合もキーを追加してください。",
   "museVoiceNoAnswer": "Muse Voice から応答がありませんでした。接続を確認して、もう一度お試しください。",
+  "museVoiceIdle": "音声がリアルタイムのペースで届かなくなったため、Muse Voice は録音を終了しました。",
+  "museVoiceTransportFailed": "Muse Voice への接続に失敗し、録音を停止しました。",
+  "museVoiceInvalidDuration": "Muse Voice が無効な音声時間を報告したため、録音を停止しました。",
+  "museVoiceUsageReported": "Muse Voice：{duration}、報告された時間による推定料金 {cost}。提供元の請求額は取得できません。",
+  "museVoiceUsageEstimated": "Muse Voice：{duration}、送信した音声による推定料金 {cost}。最終時間が届かず、予約額全体が不確定のまま残ります。提供元の請求額は取得できません。",
+  "museVoiceUsageEmpty": "Muse Voice：{duration}、推定料金 {cost}。音声を送信していないため、音声料金は発生しない見込みです。提供元の請求額は取得できません。",
   "museVoiceNoFinal": "Muse Voice から文字起こし結果が時間内に届きませんでした。もう一度お試しください。",
   "museVoiceMalformed": "Muse Voice から JSON ではないデータが届いたため、録音は破棄されました。",
   "museVoiceRefused": "Muse Voice が録音を拒否しました",
@@ -5163,11 +5169,5 @@
     "grantsCount": {
       "other": "{count} 件の許可"
     }
-  },
-  "museVoiceIdle": "音声がリアルタイムのペースで届かなくなったため、Muse Voice は録音を終了しました。",
-  "museVoiceTransportFailed": "Muse Voice への接続に失敗し、録音を停止しました。",
-  "museVoiceInvalidDuration": "Muse Voice が無効な音声時間を報告したため、録音を停止しました。",
-  "museVoiceUsageReported": "Muse Voice：{duration}、報告された時間による推定料金 {cost}。提供元の請求額は取得できません。",
-  "museVoiceUsageEstimated": "Muse Voice：{duration}、送信した音声による推定料金 {cost}。最終時間が届かず、予約額全体が不確定のまま残ります。提供元の請求額は取得できません。",
-  "museVoiceUsageEmpty": "Muse Voice：{duration}、推定料金 {cost}。音声を送信していないため、音声料金は発生しない見込みです。提供元の請求額は取得できません。"
+  }
 }

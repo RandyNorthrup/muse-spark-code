@@ -1,13 +1,13 @@
 {
-  "companionVoiceTitle": "Diktálás",
   "companionVoiceCancel": "Mégse",
   "companionVoiceFailed": "A diktálás sikertelen vagy elutasított. Ellenőrizze a mikrofonengedélyt, a választott motort és a napi keretet, majd rögzítsen újra. A már elküldött fizetős kérésért még díjat számíthatnak fel.",
   "companionVoiceFree": "Operációs rendszer (ingyenes)",
-  "companionVoiceReview": "Küldés előtt ellenőrizze az átiratot",
   "companionVoiceLimit": "Legfeljebb {seconds} másodperc. A hang az átírás után törlődik.",
-  "companionVoicePaidSummary": "Fizetős hang: {duration}.",
   "companionVoiceOpen": "Diktálási kísérőoldal megnyitása",
+  "companionVoicePaidSummary": "Fizetős hang: {duration}.",
   "companionVoiceReference": "Diktálás a böngészőben, majd a szöveg ellenőrzése a saját ACP-munkamenetbe vagy terminálba küldés előtt. A rendszer felismerése Windowson és macOS-en ingyenes; a Muse Voice fizetős, hozzájárulást kér és a közös napi keretet használja.",
+  "companionVoiceReview": "Küldés előtt ellenőrizze az átiratot",
+  "companionVoiceTitle": "Diktálás",
   "resourceTitle": "Erőforrások",
   "resourceHarnessInTree": "A leállítás szünetel: a vezérlőfolyamat még ebben a fában van. A felügyelet megmarad; próbálja újra a leállítást.",
   "resourceCgroupChanged": "A leállítás megtagadva: a fa cgroup csoportját eltávolították vagy lecserélték. A felügyelet megmarad.",
@@ -289,6 +289,7 @@
   "referenceExecImages": "A felület nélküli képekhez --image-generation, acceptEdits és elegendő szigorú keret szükséges. Nincs árjóváhagyási kérdés; az engedélyköteles kérések elutasításra kerülnek.",
   "referenceProviders": "Modellszolgáltatók listázása, hozzáadása, tesztelése vagy eltávolítása. A kulcsok a hitelesítőadat-tárolóba kerülnek. A fizetős tokentesztekhez szerkesztő kell; a CLI elutasítja őket.",
   "referenceCliOptions": {
+    "muse-voice": "--muse-voice: Fizetős Muse Voice engedélyezése a diktálás kísérőoldalán; az első terhelés előtt hozzájárulást kér, és a közös napi keretet használja.",
     "resource-governor": "--resource-governor on|off: Az ügynökkörnyezet által indított munka lassításával vagy elhalasztásával megőrzi a gép válaszkészségét. Alapértelmezés szerint bekapcsolva.",
     "cpu-max": "--cpu-max <percent>: Lassít, ha a gép CPU-használata 30 másodpercig e százalék fölött marad.",
     "memory-max": "--memory-max <percent>: Lassít, ha a használt memória két egymást követő mérésben e százalék fölött marad.",
@@ -351,8 +352,7 @@
     "estimate-by": "--by <date>: Határidő",
     "fleet": "--fleet current|minimum|optimum: Jelenlegi géppark / Minimális összeállítás / Optimális összeállítás",
     "estimate-format": "--format md|html|json|text: Kimeneti formátum",
-    "seed": "--seed <seed>: Szimulációs kezdőérték",
-    "muse-voice": "--muse-voice: Fizetős Muse Voice engedélyezése a diktálás kísérőoldalán; az első terhelés előtt hozzájárulást kér, és a közös napi keretet használja."
+    "seed": "--seed <seed>: Szimulációs kezdőérték"
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Folyamatban.",
@@ -3923,6 +3923,12 @@
   "dictationPaidTitle": "Muse Voice, fizetős: {price}, a Model API-kulcsára számlázva. Koppintson vagy tartsa lenyomva a felvételhez (Ctrl+D)",
   "museVoiceNoKey": "A Muse Voice használatához Meta Model API-kulcs szükséges; akkor is adjon hozzá egyet, ha a beszélgetés más szolgáltatót vagy helyi modellt használ.",
   "museVoiceNoAnswer": "A Muse Voice nem válaszolt; ellenőrizze a kapcsolatot, és próbálja újra.",
+  "museVoiceIdle": "A Muse Voice lezárta a felvételt, mert a hang már nem valós idejű ütemben érkezett.",
+  "museVoiceTransportFailed": "A Muse Voice kapcsolata megszakadt; a felvétel leállt.",
+  "museVoiceInvalidDuration": "A Muse Voice érvénytelen hangidőt jelzett; a felvétel leállt.",
+  "museVoiceUsageReported": "Muse Voice: {duration}, becsült költség {cost} a jelzett idő alapján. A szolgáltató számlája nem olvasható vissza.",
+  "museVoiceUsageEstimated": "Muse Voice: {duration}, becsült költség {cost} az elküldött hang alapján. Nem érkezett végleges idő; a teljes foglalás bizonytalan marad. A szolgáltató számlája nem olvasható vissza.",
+  "museVoiceUsageEmpty": "Muse Voice: {duration}, becsült költség {cost}. Nem ment el hang; hangdíj nem várható. A szolgáltató számlája nem olvasható vissza.",
   "museVoiceNoFinal": "A Muse Voice nem küldte el időben az átiratot; próbálja újra.",
   "museVoiceMalformed": "A Muse Voice nem JSON formátumú adatot küldött, ezért a felvétel elveszett.",
   "museVoiceRefused": "A Muse Voice elutasította a felvételt",
@@ -5317,11 +5323,5 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  },
-  "museVoiceIdle": "A Muse Voice lezárta a felvételt, mert a hang már nem valós idejű ütemben érkezett.",
-  "museVoiceTransportFailed": "A Muse Voice kapcsolata megszakadt; a felvétel leállt.",
-  "museVoiceInvalidDuration": "A Muse Voice érvénytelen hangidőt jelzett; a felvétel leállt.",
-  "museVoiceUsageReported": "Muse Voice: {duration}, becsült költség {cost} a jelzett idő alapján. A szolgáltató számlája nem olvasható vissza.",
-  "museVoiceUsageEstimated": "Muse Voice: {duration}, becsült költség {cost} az elküldött hang alapján. Nem érkezett végleges idő; a teljes foglalás bizonytalan marad. A szolgáltató számlája nem olvasható vissza.",
-  "museVoiceUsageEmpty": "Muse Voice: {duration}, becsült költség {cost}. Nem ment el hang; hangdíj nem várható. A szolgáltató számlája nem olvasható vissza."
+  }
 }

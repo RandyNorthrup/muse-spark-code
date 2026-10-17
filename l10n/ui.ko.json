@@ -1,13 +1,13 @@
 {
-  "companionVoiceTitle": "받아쓰기",
   "companionVoiceCancel": "취소",
   "companionVoiceFailed": "받아쓰기에 실패했거나 거부되었습니다. 마이크 권한, 선택한 엔진과 일일 예산을 확인한 후 다시 녹음하세요. 이미 전송된 유료 요청에는 요금이 부과될 수 있습니다.",
   "companionVoiceFree": "운영 체제 (무료)",
-  "companionVoiceReview": "보내기 전에 전사 내용 검토",
   "companionVoiceLimit": "최대 {seconds}초. 전사 후 오디오가 삭제됩니다.",
-  "companionVoicePaidSummary": "유료 오디오: {duration}.",
   "companionVoiceOpen": "받아쓰기 연동 페이지 열기",
+  "companionVoicePaidSummary": "유료 오디오: {duration}.",
   "companionVoiceReference": "브라우저에서 음성을 입력하고 자신의 ACP 세션 또는 터미널로 보내기 전에 텍스트를 검토합니다. Windows와 macOS의 시스템 음성 인식은 무료입니다. Muse Voice는 유료이며 동의를 요청하고 공통 일일 예산을 사용합니다.",
+  "companionVoiceReview": "보내기 전에 전사 내용 검토",
+  "companionVoiceTitle": "받아쓰기",
   "resourceTitle": "리소스",
   "resourceHarnessInTree": "중지가 보류되었습니다. 제어 프로세스가 아직 이 트리 안에 있습니다. 관리 권한은 유지됩니다. 중지를 다시 시도하세요.",
   "resourceCgroupChanged": "중지가 거부되었습니다. 이 트리의 cgroup이 삭제되거나 교체되었습니다. 관리 권한은 유지됩니다.",
@@ -289,6 +289,7 @@
   "referenceExecImages": "헤드리스 이미지에는 --image-generation, acceptEdits 및 충분한 엄격한 예산이 필요합니다. 가격 확인 질문은 표시되지 않으며 권한이 필요한 요청은 거부됩니다.",
   "referenceProviders": "모델 공급자를 나열, 추가, 테스트 또는 제거합니다. 키는 자격 증명 저장소를 사용합니다. 유료 토큰 검사는 편집기가 필요하며 CLI는 이를 거부합니다.",
   "referenceCliOptions": {
+    "muse-voice": "--muse-voice: 음성 입력 페이지에서 유료 Muse Voice를 허용합니다. 첫 과금 전에 동의를 요청하고 공통 일일 예산을 사용합니다.",
     "resource-governor": "--resource-governor on|off: 에이전트 실행 환경이 시작한 작업을 늦추거나 연기하여 컴퓨터의 응답성을 유지합니다. 기본적으로 켜져 있습니다.",
     "cpu-max": "--cpu-max <percent>: 컴퓨터의 CPU 사용량이 30초 동안 이 비율을 넘으면 처리를 제한합니다.",
     "memory-max": "--memory-max <percent>: 사용 중인 메모리가 연속 두 번의 측정에서 이 비율을 넘으면 처리를 제한합니다.",
@@ -351,8 +352,7 @@
     "estimate-by": "--by <date>: 마감일",
     "fleet": "--fleet current|minimum|optimum: 현재 장비 구성 / 최소 구성 / 최적 구성",
     "estimate-format": "--format md|html|json|text: 출력 형식",
-    "seed": "--seed <seed>: 시뮬레이션 시드",
-    "muse-voice": "--muse-voice: 음성 입력 페이지에서 유료 Muse Voice를 허용합니다. 첫 과금 전에 동의를 요청하고 공통 일일 예산을 사용합니다."
+    "seed": "--seed <seed>: 시뮬레이션 시드"
   },
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "referenceVault": "진행 중.",
@@ -3828,6 +3828,12 @@
   "dictationPaidTitle": "Muse Voice(유료): {price}, Model API 키에 청구됨. 탭하거나 길게 눌러 녹음(Ctrl+D)",
   "museVoiceNoKey": "Muse Voice에는 Meta Model API 키가 필요합니다. 대화에서 다른 제공업체나 로컬 모델을 사용해도 키를 추가하세요.",
   "museVoiceNoAnswer": "Muse Voice가 응답하지 않았습니다. 연결을 확인하고 다시 시도하세요.",
+  "museVoiceIdle": "오디오가 실시간 속도로 도착하지 않아 Muse Voice가 녹음을 종료했습니다.",
+  "museVoiceTransportFailed": "Muse Voice 연결에 실패하여 녹음을 중지했습니다.",
+  "museVoiceInvalidDuration": "Muse Voice가 잘못된 오디오 시간을 보고하여 녹음을 중지했습니다.",
+  "museVoiceUsageReported": "Muse Voice: {duration}, 보고된 시간 기준 예상 요금 {cost}. 제공업체의 청구서는 조회할 수 없습니다.",
+  "museVoiceUsageEstimated": "Muse Voice: {duration}, 전송한 오디오 기준 예상 요금 {cost}. 최종 시간이 도착하지 않아 예약액 전체가 불확실하게 남습니다. 제공업체의 청구서는 조회할 수 없습니다.",
+  "museVoiceUsageEmpty": "Muse Voice: {duration}, 예상 요금 {cost}. 오디오를 보내지 않아 오디오 요금이 발생하지 않을 것으로 예상됩니다. 제공업체의 청구서는 조회할 수 없습니다.",
   "museVoiceNoFinal": "Muse Voice가 제시간에 받아쓰기 결과를 보내지 않았습니다. 다시 시도하세요.",
   "museVoiceMalformed": "Muse Voice가 JSON이 아닌 데이터를 보내서 녹음이 삭제되었습니다.",
   "museVoiceRefused": "Muse Voice가 녹음을 거부했습니다",
@@ -5163,11 +5169,5 @@
     "grantsCount": {
       "other": "{count} 개 권한"
     }
-  },
-  "museVoiceIdle": "오디오가 실시간 속도로 도착하지 않아 Muse Voice가 녹음을 종료했습니다.",
-  "museVoiceTransportFailed": "Muse Voice 연결에 실패하여 녹음을 중지했습니다.",
-  "museVoiceInvalidDuration": "Muse Voice가 잘못된 오디오 시간을 보고하여 녹음을 중지했습니다.",
-  "museVoiceUsageReported": "Muse Voice: {duration}, 보고된 시간 기준 예상 요금 {cost}. 제공업체의 청구서는 조회할 수 없습니다.",
-  "museVoiceUsageEstimated": "Muse Voice: {duration}, 전송한 오디오 기준 예상 요금 {cost}. 최종 시간이 도착하지 않아 예약액 전체가 불확실하게 남습니다. 제공업체의 청구서는 조회할 수 없습니다.",
-  "museVoiceUsageEmpty": "Muse Voice: {duration}, 예상 요금 {cost}. 오디오를 보내지 않아 오디오 요금이 발생하지 않을 것으로 예상됩니다. 제공업체의 청구서는 조회할 수 없습니다."
+  }
 }

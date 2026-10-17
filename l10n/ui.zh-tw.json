@@ -1,13 +1,13 @@
 {
-  "companionVoiceTitle": "聽寫",
   "companionVoiceCancel": "取消",
   "companionVoiceFailed": "聽寫失敗或遭拒絕。請檢查麥克風權限、所選引擎和每日預算，然後重新錄音。已傳送的付費請求仍可能產生費用。",
   "companionVoiceFree": "作業系統（免費）",
-  "companionVoiceReview": "傳送前檢查轉錄文字",
   "companionVoiceLimit": "最多 {seconds} 秒。轉錄後刪除音訊。",
-  "companionVoicePaidSummary": "付費音訊：{duration}。",
   "companionVoiceOpen": "開啟聽寫配套頁面",
+  "companionVoicePaidSummary": "付費音訊：{duration}。",
   "companionVoiceReference": "在瀏覽器中聽寫，檢查文字後再傳送至自己的 ACP 工作階段或終端機。Windows 和 macOS 的系統語音辨識免費；Muse Voice 需付費，會徵求同意並使用共用每日預算。",
+  "companionVoiceReview": "傳送前檢查轉錄文字",
+  "companionVoiceTitle": "聽寫",
   "resourceTitle": "資源",
   "resourceHarnessInTree": "停止已暫停：控制程序仍在此程序樹中。管理權將保留，請重試停止。",
   "resourceCgroupChanged": "停止遭拒：此程序樹的 cgroup 已被刪除或替換。管理權將保留。",
@@ -289,6 +289,7 @@
   "referenceExecImages": "無介面圖像需要 --image-generation、acceptEdits 和充足的硬性預算。不顯示價格確認問題；需要許可的請求會被拒絕。",
   "referenceProviders": "列出、新增、測試或移除模型供應商。金鑰儲存在認證存放區。付費權杖探測需要編輯器；CLI 會拒絕這些探測。",
   "referenceCliOptions": {
+    "muse-voice": "--muse-voice：允許在聽寫頁面使用付費 Muse Voice；首次收費前徵求同意，並使用共用每日預算。",
     "resource-governor": "--resource-governor on|off: 透過減慢或延後代理程式執行環境啟動的工作，保持此電腦回應順暢。預設開啟。",
     "cpu-max": "--cpu-max <percent>: 當電腦的 CPU 使用率持續30秒超過此百分比時降速。",
     "memory-max": "--memory-max <percent>: 當已用記憶體連續兩次取樣超過此百分比時降速。",
@@ -351,8 +352,7 @@
     "estimate-by": "--by <date>: 截止日期",
     "fleet": "--fleet current|minimum|optimum: 目前設備群 / 最小組態 / 最佳組態",
     "estimate-format": "--format md|html|json|text: 輸出格式",
-    "seed": "--seed <seed>: 模擬種子",
-    "muse-voice": "--muse-voice：允許在聽寫頁面使用付費 Muse Voice；首次收費前徵求同意，並使用共用每日預算。"
+    "seed": "--seed <seed>: 模擬種子"
   },
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
   "referenceVault": "進行中.",
@@ -3828,6 +3828,12 @@
   "dictationPaidTitle": "Muse Voice，付費：{price}，向您的 Model API 金鑰計費。點一下或按住以錄音（Ctrl+D）",
   "museVoiceNoKey": "Muse Voice 需要 Meta Model API 金鑰；即使對話使用其他供應商或本機模型，也請新增此金鑰。",
   "museVoiceNoAnswer": "Muse Voice 沒有回應；請檢查連線後再試一次。",
+  "museVoiceIdle": "音訊不再以即時速度抵達，因此 Muse Voice 關閉了錄音。",
+  "museVoiceTransportFailed": "Muse Voice 連線失敗，錄音已停止。",
+  "museVoiceInvalidDuration": "Muse Voice 回報了無效的音訊時長，錄音已停止。",
+  "museVoiceUsageReported": "Muse Voice：{duration}，根據回報時長估算費用為 {cost}。無法讀取服務供應商的帳單。",
+  "museVoiceUsageEstimated": "Muse Voice：{duration}，根據已傳送音訊估算費用為 {cost}。未收到最終時長，全部預留金額仍屬於不確定費用。無法讀取服務供應商的帳單。",
+  "museVoiceUsageEmpty": "Muse Voice：{duration}，估算費用 {cost}。未傳送音訊，預計不會產生音訊費用。無法讀取服務供應商的帳單。",
   "museVoiceNoFinal": "Muse Voice 未及時傳送轉錄結果；請再試一次。",
   "museVoiceMalformed": "Muse Voice 傳送的內容不是 JSON，因此已捨棄該錄音。",
   "museVoiceRefused": "Muse Voice 拒絕了該錄音",
@@ -5163,11 +5169,5 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  },
-  "museVoiceIdle": "音訊不再以即時速度抵達，因此 Muse Voice 關閉了錄音。",
-  "museVoiceTransportFailed": "Muse Voice 連線失敗，錄音已停止。",
-  "museVoiceInvalidDuration": "Muse Voice 回報了無效的音訊時長，錄音已停止。",
-  "museVoiceUsageReported": "Muse Voice：{duration}，根據回報時長估算費用為 {cost}。無法讀取服務供應商的帳單。",
-  "museVoiceUsageEstimated": "Muse Voice：{duration}，根據已傳送音訊估算費用為 {cost}。未收到最終時長，全部預留金額仍屬於不確定費用。無法讀取服務供應商的帳單。",
-  "museVoiceUsageEmpty": "Muse Voice：{duration}，估算費用 {cost}。未傳送音訊，預計不會產生音訊費用。無法讀取服務供應商的帳單。"
+  }
 }

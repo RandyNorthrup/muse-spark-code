@@ -1,13 +1,13 @@
 {
-  "companionVoiceTitle": "Dikte et",
   "companionVoiceCancel": "İptal",
   "companionVoiceFailed": "Dikte başarısız oldu veya reddedildi. Mikrofon iznini, seçilen motoru ve günlük bütçeyi kontrol edip yeniden kaydedin. Gönderilmiş ücretli bir istek yine de ücretlendirilebilir.",
   "companionVoiceFree": "İşletim sistemi (ücretsiz)",
-  "companionVoiceReview": "Göndermeden önce dökümü gözden geçir",
   "companionVoiceLimit": "En fazla {seconds} saniye. Ses, dökümden sonra silinir.",
-  "companionVoicePaidSummary": "Ücretli ses: {duration}.",
   "companionVoiceOpen": "Dikte yardımcı sayfasını aç",
+  "companionVoicePaidSummary": "Ücretli ses: {duration}.",
   "companionVoiceReference": "Tarayıcıda dikte edin ve kendi ACP oturumunuza veya terminale göndermeden önce metni gözden geçirin. Windows ve macOS sistem tanıması ücretsizdir; Muse Voice ücretlidir, onay ister ve ortak günlük bütçeyi kullanır.",
+  "companionVoiceReview": "Göndermeden önce dökümü gözden geçir",
+  "companionVoiceTitle": "Dikte et",
   "resourceTitle": "Kaynaklar",
   "resourceHarnessInTree": "Durdurma bekletildi: denetim süreci hâlâ bu ağaçta. Denetim korunuyor; durdurmayı yeniden deneyin.",
   "resourceCgroupChanged": "Durdurma reddedildi: bu ağacın cgroup grubu kaldırılmış veya değiştirilmiş. Denetim korunuyor.",
@@ -289,6 +289,7 @@
   "referenceExecImages": "Arayüzsüz görüntüler --image-generation, acceptEdits ve yeterli kesin bütçe gerektirir. Fiyat sorusu gösterilmez; izin gerektiren istekler reddedilir.",
   "referenceProviders": "Model sağlayıcılarını listeleyin, ekleyin, test edin veya kaldırın. Anahtarlar kimlik bilgisi deposunu kullanır. Ücretli token testleri editör gerektirir; CLI bunları reddeder.",
   "referenceCliOptions": {
+    "muse-voice": "--muse-voice: Dikte sayfasında ücretli Muse Voice kullanımına izin verin; ilk ücretlendirmeden önce onay ister ve ortak günlük bütçeyi kullanır.",
     "resource-governor": "--resource-governor on|off: Ajan ortamının başlattığı işi yavaşlatarak veya erteleyerek makinenin yanıt verebilirliğini korur. Varsayılan olarak açık.",
     "cpu-max": "--cpu-max <percent>: Makinenin CPU kullanımı 30 saniye boyunca bu yüzdenin üzerinde kaldığında yavaşlatır.",
     "memory-max": "--memory-max <percent>: Kullanılan bellek art arda iki örnekte bu yüzdenin üzerinde kaldığında yavaşlatır.",
@@ -351,8 +352,7 @@
     "estimate-by": "--by <date>: Son tarih",
     "fleet": "--fleet current|minimum|optimum: Mevcut makine grubu / Asgari kurulum / En uygun kurulum",
     "estimate-format": "--format md|html|json|text: Çıktı biçimi",
-    "seed": "--seed <seed>: Simülasyon tohumu",
-    "muse-voice": "--muse-voice: Dikte sayfasında ücretli Muse Voice kullanımına izin verin; ilk ücretlendirmeden önce onay ister ve ortak günlük bütçeyi kullanır."
+    "seed": "--seed <seed>: Simülasyon tohumu"
   },
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Devam ediyor.",
@@ -3923,6 +3923,12 @@
   "dictationPaidTitle": "Muse Voice, ücretli: {price}, Model API anahtarınıza faturalandırılır. Kaydetmek için dokunun veya basılı tutun (Ctrl+D)",
   "museVoiceNoKey": "Muse Voice bir Meta Model API anahtarı gerektirir; konuşmanız başka bir sağlayıcı veya yerel model kullansa da bir anahtar ekleyin.",
   "museVoiceNoAnswer": "Muse Voice yanıt vermedi; bağlantıyı denetleyin ve yeniden deneyin.",
+  "museVoiceIdle": "Muse Voice, ses gerçek zamanlı hızda gelmediği için kaydı kapattı.",
+  "museVoiceTransportFailed": "Muse Voice bağlantısı başarısız oldu; kayıt durdu.",
+  "museVoiceInvalidDuration": "Muse Voice geçersiz bir ses süresi bildirdi; kayıt durdu.",
+  "museVoiceUsageReported": "Muse Voice: {duration}, bildirilen süreye göre tahmini {cost}. Sağlayıcının faturası geri okunamaz.",
+  "museVoiceUsageEstimated": "Muse Voice: {duration}, gönderilen sese göre tahmini {cost}. Son süre gelmedi; tüm rezerv belirsiz kalır. Sağlayıcının faturası geri okunamaz.",
+  "museVoiceUsageEmpty": "Muse Voice: {duration}, tahmini {cost}. Ses gönderilmedi; ses ücreti beklenmiyor. Sağlayıcının faturası geri okunamaz.",
   "museVoiceNoFinal": "Muse Voice dökümü zamanında göndermedi; yeniden deneyin.",
   "museVoiceMalformed": "Muse Voice JSON olmayan bir şey gönderdi, bu nedenle kayıt atıldı.",
   "museVoiceRefused": "Muse Voice kaydı reddetti",
@@ -5317,11 +5323,5 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  },
-  "museVoiceIdle": "Muse Voice, ses gerçek zamanlı hızda gelmediği için kaydı kapattı.",
-  "museVoiceTransportFailed": "Muse Voice bağlantısı başarısız oldu; kayıt durdu.",
-  "museVoiceInvalidDuration": "Muse Voice geçersiz bir ses süresi bildirdi; kayıt durdu.",
-  "museVoiceUsageReported": "Muse Voice: {duration}, bildirilen süreye göre tahmini {cost}. Sağlayıcının faturası geri okunamaz.",
-  "museVoiceUsageEstimated": "Muse Voice: {duration}, gönderilen sese göre tahmini {cost}. Son süre gelmedi; tüm rezerv belirsiz kalır. Sağlayıcının faturası geri okunamaz.",
-  "museVoiceUsageEmpty": "Muse Voice: {duration}, tahmini {cost}. Ses gönderilmedi; ses ücreti beklenmiyor. Sağlayıcının faturası geri okunamaz."
+  }
 }
