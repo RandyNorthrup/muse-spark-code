@@ -41,7 +41,7 @@ happened, not what was planned; superseded entries are kept.
   what it stands for (a copyright notice, a list marker, a name); a
   sentence, a condition or prose in any language never vanishes into a
   match. Anything else is reported as differing from the template at a
-  quoted span, for human review. The 20 templates ship beside the scanner,
+  quoted span, for human review. The 21 templates ship beside the scanner,
   byte-identical and verified by SHA-256 before use. GPL-family texts match
   their version stem; `-only`/`-or-later` comes only from the project's own
   grant (manifest, README, source `SPDX-License-Identifier` headers, GNU
