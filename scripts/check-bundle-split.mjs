@@ -333,6 +333,22 @@ for (const source of [
     if (inputsOf(bundle).has(source))
       problems.push(`${bundle.output} carries lazy sharing implementation ${source}`)
 }
+// M124 (D106): the MCP connector loads only on `muse-spark-code-acp mcp`;
+// dist/acp.js keeps the loader alone, and activation carries none of it.
+const CONNECTOR = { output: 'dist/connector.js', metafile: 'dist/meta/connector.json' }
+for (const source of [
+  'src/runtime/connector/entry.ts',
+  'src/core/connector/registry.ts',
+  'src/core/connector/approval.ts',
+  'src/core/connector/protocol.ts',
+  'src/runtime/connector/approvalPage.ts',
+]) {
+  if (!inputsOf(CONNECTOR).has(source))
+    problems.push(`${CONNECTOR.output} no longer carries ${source}`)
+  for (const bundle of [BUNDLES.activation, BUNDLES.acp, BUNDLES.modelApi])
+    if (inputsOf(bundle).has(source))
+      problems.push(`${bundle.output} carries lazy connector implementation ${source}`)
+}
 const promptInputs = inputsOf(PROMPTS)
 for (const source of [
   'src/host/prompts/promptEntry.ts',
@@ -640,6 +656,7 @@ for (const bundle of [
   CHECKPOINT_STORE,
   PROMPTS,
   SHARING_RUNTIME,
+  CONNECTOR,
   REVIEW,
   ...DEFERRED,
   AGENT_IMPORT,
@@ -1144,6 +1161,8 @@ const TEXT_BLOCKS = [
     readers: [
       PROMPTS.output,
       SHARING_RUNTIME.output,
+      // M124's prompt share preview reuses M118's share contract with it.
+      CONNECTOR.output,
       'dist/conversation.js',
       BUNDLES.modelApi.output,
       'dist/reporting.js',
@@ -1249,6 +1268,12 @@ const TEXT_BLOCKS = [
     block: 'JUDGE_MODEL_TEXT',
     sentinels: ['judgeSystemInstruction', 'judgeStandaloneTurn'],
     readers: ['dist/judge.js'],
+  },
+  // M124: what another agent's model reads from the connector, `mcp` only.
+  {
+    block: 'CONNECTOR_MODEL_TEXT',
+    sentinels: ['reasonNoFleetStore', 'reasonScheduleGrant'],
+    readers: [CONNECTOR.output],
   },
 ].map((entry) => ({
   ...entry,

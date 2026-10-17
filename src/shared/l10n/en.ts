@@ -6312,6 +6312,57 @@ export const EN = {
     commandUsage:
       'Usage: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]',
   },
+  // M124 (D106): the connector's Help & Reference rows.
+  mcpConnectorTitle: 'MCP connector for other agents',
+  referenceMcpCommand:
+    'Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.',
+  // M124 (D106): the MCP connector’s approval page and its `mcp` terminal commands
+  // (the runtime region, dist/uiTextRuntime.js: activation never reads them).
+  acpConnector: {
+    title: 'Approve connector requests',
+    intro:
+      'Another agent asked Muse Spark Code to do the following. Nothing happens until you approve it here; that agent’s own Allow, Auto or Bypass settings cannot approve it.',
+    loading: 'Loading requests…',
+    empty: 'No requests are waiting.',
+    failed: 'The request list could not be loaded.',
+    retry: 'Retry',
+    approve: 'Approve once',
+    deny: 'Deny',
+    approved: 'Approved.',
+    denied: 'Denied.',
+    decisionFailed: 'That request changed or expired. Nothing was done.',
+    client: 'Client (as it names itself)',
+    connection: 'Connection',
+    workspace: 'Workspace',
+    operation: 'Operation',
+    generation: 'Target generation',
+    price: 'Price',
+    free: 'Free',
+    expires: 'Expires',
+    fieldTitle: 'Title',
+    fieldScope: 'Scope',
+    fieldTags: 'Tags',
+    fieldBody: 'Text',
+    grantConfirm: 'Grant connection {connection}: {summary}? (y/N)',
+    grantSaved: 'Connection {connection} is granted. Its workspaces: {workspaces}',
+    grantNeedsTerminal:
+      'Run this in your own terminal: a grant needs you to type the confirmation.',
+    grantInvalid: 'The grant could not be made: {reason}',
+    notConfirmed: 'Nothing was changed.',
+    revoked: 'Connection {connection} is revoked.',
+    killOn: 'The connector is switched off. New effects are refused; Stop still works.',
+    killOff: 'The connector is switched on again.',
+    statusOn: 'Connector: on',
+    statusOff: 'Connector: switched off',
+    statusGrant: 'Connection {connection}{revoked}: {scopes}',
+    statusRevoked: ' (revoked)',
+    statusWorkspace: '  {id}: {root}{content}',
+    statusContent: ' (content)',
+    noGrants: 'No connection grants yet.',
+    unavailable: 'The connector could not start.',
+    usage:
+      'muse-spark-code-acp mcp [--connection ID]\nmuse-spark-code-acp mcp grant [--connection ID] --workspace FOLDER… [--scope SCOPE…] [--content] [--user-library]\nmuse-spark-code-acp mcp revoke [--connection ID]\nmuse-spark-code-acp mcp kill | resume | status',
+  },
   // M109: read each key through UI_TEXT.vault at use time.
   vault: {
     title: 'Vault',

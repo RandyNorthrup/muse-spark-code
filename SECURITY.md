@@ -807,3 +807,38 @@ Native attachment bridge frames carry metadata/tokens, never file bytes or
 credentials. Production mounting waits for M104's guarded launch exchange and
 private storage; provider consumption waits for captured capability, consent,
 exact budget and Files ledger bindings. Missing ports refuse explicitly.
+
+## MCP connector boundary (M124 local phase, PLAN D106)
+
+- **Authority stays here.** A connection grant (workspaces, scope
+  families, content, user library) is created only with a typed
+  confirmation in an interactive terminal and stored owner-only outside
+  every repository; launching `mcp` or trusting a repository grants
+  nothing. Re-enabling after the kill switch needs the same confirmation;
+  revoking and switching off never ask.
+- **Our approval decides effects.** Every write returns `awaitingApproval`
+  and takes effect only when our loopback approval page (M104 C's
+  companion server: one-use launch code in the URL fragment, a per-window
+  bearer kept in page memory, exact Host/Origin, Fetch-Metadata and CSP)
+  posts a decision for the digest it showed. The digest binds principal,
+  grant generation, workspace, tool, exact payload, target generation,
+  price and a 120-second expiry; the dispatch re-reads them and consumes the
+  approval once. MCP arguments (strict schemas refuse unknown fields such
+  as `confirm`), client responses, elicitation answers and tool annotations
+  never reach the decision. No tool answers approvals, edits grants or
+  exposes a shell, files, credentials or OAuth administration.
+- **Residual:** another process running as the same OS user could open the
+  approval page if it obtained a launch code (it passes once through the
+  OS browser opener's arguments) or edit the owner-only grant files; the
+  connector does not isolate same-user processes, as D106 states.
+- **Stop is never gated.** `muse_stop` and `muse_schedule_cancel` skip the
+  call limiter, the kill switch, the approval queue and audit failure; they
+  still require a live grant and the workspace.
+- **Bounded and audited.** 64 KiB frames (refused before parsing) and
+  results, 60 calls a minute per connection with a burst of 10, 4 reads at
+  once, 2 pending approvals, a 2-second poll floor and a 15-second call
+  deadline. Reads and writes fail closed when their audit line cannot be
+  written. Paid authority is zero; `paid:request` cannot be granted.
+- **Child processes.** The runtime removes credential variables from its
+  environment before the connector loads; the only process the connector
+  starts is the fixed OS opener with the checked loopback URL.

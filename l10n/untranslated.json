@@ -76,7 +76,9 @@
       "referenceLatestRecording",
       "referenceUploadedFiles",
       "referenceWindowsPaths",
-      "referenceWindowsPathsDetail"
+      "referenceWindowsPathsDetail",
+      "acpConnector.usage",
+      "acpConnector.statusWorkspace"
     ],
     "cs": [
       "groupModel",

@@ -49,6 +49,7 @@ import {
   REFERENCE_BUNDLE_FILE,
   SESSION_EXPORT_MAX_BYTES,
   REPORT_SOURCE_TIMEOUT_MS,
+  CONNECTOR_BUNDLE_FILE,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
@@ -127,7 +128,8 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { reportsLoader } from './reporting/reportsLoader'
 import type { createRuntimeReports } from './reporting/reportsEntry'
-import { runtimeSchedulesBinding } from './schedules/binding'
+import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
+import { connectorLoader } from './connector/connectorBundle'
 import { settleScheduleCommand } from './schedules/settle'
 
 import { lazyRuntimeResources } from './resources/load'
@@ -470,7 +472,20 @@ function resourcesFor(
 }
 
 /** No account or backend is touched; W ships this entry in its own lazy chunk. */
-function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeReports> {
+/** The connector's reads keep no history and make no network request (M124). */
+interface ReportsPolicy {
+  readonly keepHistory: boolean
+  readonly allowEgress: () => Promise<boolean>
+}
+const CLI_REPORTS: ReportsPolicy = {
+  keepHistory: true,
+  allowEgress: () => Promise.resolve(process.env['CI'] === undefined),
+}
+
+function runtimeReports(
+  log: Logger,
+  policy: ReportsPolicy = CLI_REPORTS,
+): () => ReturnType<typeof createRuntimeReports> {
   const load = reportsLoader({ bundlePath: path.join(distDir, 'reporting.js'), log })
   let reports: ReturnType<typeof createRuntimeReports> | undefined
   return () => {
@@ -482,7 +497,7 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
       roots: [homedir()],
       servicesFor: (cwd, _sessionId, language) =>
         Promise.resolve({
-          keepHistory: true,
+          keepHistory: policy.keepHistory,
           services: load().createReportingServices({
             workspaceRoot: cwd,
             log,
@@ -493,14 +508,14 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
             }),
             l10n: language ?? { table: UI_TEXT, locale: uiLocale() },
             generatorVersion: packageVersion(),
-            keepHistory: true,
+            keepHistory: policy.keepHistory,
             enabledAgents: [],
             network: {
               policy: {
                 surface: 'terminal',
                 mode: 'always',
                 githubSignedIn: false,
-                allowEgress: () => Promise.resolve(process.env['CI'] === undefined),
+                allowEgress: policy.allowEgress,
               },
             },
           }),
@@ -1598,6 +1613,68 @@ async function main(): Promise<number> {
         UI_TEXT,
         uiLocale(),
       )
+    }
+    case 'mcp': {
+      // M124: stdout is the MCP stream from here on; words go to stderr.
+      const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      let schedules: RuntimeSchedulesBinding | undefined
+      const scheduleAnswer = async (
+        root: string,
+        options: Parameters<RuntimeSchedulesBinding['command']>[0],
+      ): Promise<unknown> => {
+        schedules ??= await loadSchedules()
+        const result = await schedules.command(options, root, false)
+        const answer: unknown = JSON.parse(result.output)
+        return answer
+      }
+      const reports = runtimeReports(log, {
+        keepHistory: false,
+        allowEgress: () => Promise.resolve(false),
+      })
+      try {
+        return await connectorLoader(path.join(distDir, CONNECTOR_BUNDLE_FILE), log)().runConnector(
+          {
+            argv: command.argv,
+            table: UI_TEXT,
+            locale: uiLocale(),
+            dataFolder: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            homeDir: homedir(),
+            version: packageVersion(),
+            stdin: process.stdin,
+            stdout: process.stdout,
+            stderr: process.stderr,
+            isInteractive: process.stdin.isTTY,
+            registered: () => sharingCredentials.map((variable) => variable.value),
+            openBrowser: openUsageBrowser,
+            schedules: {
+              list: (root) => scheduleAnswer(root, { operation: 'list', isJson: true }),
+              pause: (root, id) => scheduleAnswer(root, { operation: 'pause', id, isJson: true }),
+            },
+            reports: {
+              generate: async (root, kind, subjectId, signal) => {
+                // M113's own grammar: a positional subject, except playbook's --milestone.
+                let subject: string[] = []
+                if (subjectId !== undefined)
+                  subject = kind === 'playbook' ? ['--milestone', subjectId] : [subjectId]
+                const result = await reports().acp.execute([kind, ...subject].join(' '), {
+                  cwd: root,
+                  sessionId: 'connector',
+                  format: 'md',
+                  signal,
+                })
+                if (result.code !== 0) throw new Error(UI_TEXT.reportUi.generationFailed)
+                return result.text
+              },
+            },
+          },
+        )
+      } finally {
+        await schedules?.close()
+      }
     }
     case 'vaultHelp': {
       writeLine(process.stdout, vaultUsage())

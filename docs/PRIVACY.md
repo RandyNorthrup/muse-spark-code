@@ -1138,3 +1138,28 @@ system sound require separate opt-ins, and Attach follows a private preview.
 Discard deletes local temporary bytes. Unknown storage billing refuses upload;
 batch transcription requires price/budget consent before any paid request.
 See [M105 certification](certification/m105.md) for the missing bindings.
+
+## MCP connector for other agents (M124, local phase in progress)
+
+`muse-spark-code-acp mcp` answers another agent on your machine (Codex,
+Claude Code, Gemini CLI) over MCP on stdio. It reads only what a
+connection grant you made in your own terminal allows: named workspaces and
+tool families. By default that is metadata (prompt titles and tags,
+schedule names and times, operation states, deterministic reports); prompt
+bodies and share previews need the grant's content flag for that
+workspace, and a confidential workspace shares nothing. What it returns
+goes into the other agent's conversation and may be kept by that agent and
+its provider; your registered credentials, recognised key patterns, your
+home folder and other absolute paths are scrubbed first, and a result whose
+final scrub still finds something is withheld. Known-pattern redaction
+cannot recognise every private fact, so grant content only where you would
+paste it yourself.
+
+No model is called, no key is read and nothing is sent anywhere by the
+connector itself. Writes happen only after you approve them on the local
+approval page. Each call leaves a line in `connector/audit/` in the agent's
+data folder with times, tool, workspace id, outcome and a keyed digest of
+the request, never its text; the file rotates at 10 MiB and the older
+segment is removed after 30 days. Grants, the kill switch and the audit key
+are owner-only files there too. `muse-spark-code-acp mcp revoke` and
+`mcp kill` stop a connection at once. See [mcp.md](mcp.md).

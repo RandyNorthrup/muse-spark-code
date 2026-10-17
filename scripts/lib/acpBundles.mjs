@@ -54,6 +54,8 @@ export const ACP_BUNDLES = [
   'estimator.js',
   'headless.js',
   'sharingRuntime.js',
+  // M124 (D106): the MCP connector ships in the ACP package; `mcp` loads it on use.
+  'connector.js',
   'acpQuestions.js',
   'acpPlaybook.js',
   'runtimeQuestions.js',

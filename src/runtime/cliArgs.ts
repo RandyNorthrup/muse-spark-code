@@ -143,6 +143,7 @@ export type RuntimeCommand =
   | { readonly command: 'reports'; readonly args: readonly string[] }
   | { readonly command: 'fontsInstall'; readonly sourceDirectory: string | undefined }
   | { readonly command: 'playbook'; readonly argv: readonly string[] }
+  | { readonly command: 'mcp'; readonly argv: readonly string[] }
   | { readonly command: 'estimate'; readonly argv: readonly string[] }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
@@ -320,6 +321,8 @@ export function parseCommandLine<T>(
   if (argv[0] === 'legal') return parseLegalCommand(argv)
   if (argv[0] === 'fonts') return parseFonts(argv.slice(1))
   if (argv[0] === 'playbook') return { command: 'playbook', argv: argv.slice(1) }
+  // M124: the connector parses its own words in its lazy bundle.
+  if (argv[0] === 'mcp') return { command: 'mcp', argv: argv.slice(1) }
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)

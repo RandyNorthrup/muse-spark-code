@@ -1499,6 +1499,14 @@ Surfaces: acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#orchestrator-playbook-policy-m116)
 
+### MCP connector for other agents
+
+Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.
+
+Surfaces: acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#mcp-connector-for-other-agents-m124)
+
 ### Support
 
 Report an issue.
@@ -3669,5 +3677,6 @@ These are defaults; editor customizations take precedence.
 - `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets <file> [--key-stdin]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
 - `playbook <status|record|settings ...>`: Show or change the orchestrator playbook journal for this workspace (starts no backend).
+- `mcp [--connection ID] | mcp <grant|revoke|kill|resume|status ...>`: Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.
 
 For full headless argument syntax, run `muse-spark-code-acp exec --help`, or see [the ACP guide](acp.md) and [headless/CI contract](ci.md).
