@@ -5742,9 +5742,9 @@ default drive the effort dots, keyboard stepping, the palette and ACP
 admission, with unfamiliar tiers shown and disabled. A reply's actions menu
 offers Send feedback to Muse Code: a note with its classification, previewed
 scrubbed before consent and uploaded without files or session record.
-Record-attached feedback outcomes and permanent deletion have no recorded
-frame, so they refuse before dispatch with the upstream request; History
-stays archive-only. This release is unofficial.
+Permanent deletion has no recorded frame, so it refuses before dispatch;
+a receipt that reports a session record attached is never shown as a
+verified upload. History stays archive-only. This release is unofficial.
 
 ### Models and providers
 
