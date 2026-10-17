@@ -30103,12 +30103,15 @@ merges before its contracts freeze.
 
 ### M112 — Questions that never block (D92)
 
-**Status 2026-10-17 (MSM112): built.** Current main merged; every M112
-behaviour is connected and reachable (panel, ACP/terminal, headless, help,
-settings); the kept suites pass; l10n, reference, host-api and plan gates
-pass; the build passes with the question wiring in `dist`. The live model
-checks, installed-editor runs and native-host/TUI/Desktop rows remain with
-the lead and their owning lanes. Record: `docs/certification/msm112.md`.
+**Status 2026-10-17 (MSM112): building.** No completion claim: the
+connection audit traces every M112 behaviour to its handler in source
+(panel, ACP/terminal, headless, help, settings); the kept suites pass; l10n,
+reference, host-api and plan gates pass; the build passes with the question
+wiring in `dist`. NOT yet proven: the real extension-host integration test
+was not run, and the live model checks, installed-editor runs and
+native-host/TUI/Desktop rows remain with the lead and their owning lanes.
+The milestone stays provisional until those recorded checks exist.
+Record: `docs/certification/msm112.md`.
 Small: about 48 lane-hours in lane 0 and
 three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
 ready together). Lanes Q, U and A start together once lane 0's contracts
