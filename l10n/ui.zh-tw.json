@@ -4558,6 +4558,7 @@
   "legalConfidenceLabel": "信心度：{confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "用法：/legal [相對於工作區的路徑 …]。不支援選項。",
+  "legalScanReceiptHelp": "本機授權條款掃描；選用的 licence-review.json 紀錄將已審查的 SPDX 授權條款及其理由與套件、確切版本和 SHA-256 綁定。位元組或版本變更後需重新審查。",
   "legalScanItemDetail": "掃描工作區中的授權、署名和標頭問題",
   "legalScanBusy": "目前回合結束後才會開始法律掃描。",
   "legalScanUntrusted": "法律掃描需要讀取工作區，但限制模式不允許。信任此工作區即可使用。",
@@ -4864,6 +4865,9 @@
       "other": "{v0} 還有 {count} 則建議未列出；沒有省略其他內容。"
     },
     "m210": "掃描較少的路徑以列出它們。",
+    "reviewedReceipt": "依據審查紀錄確認: {reason}",
+    "receiptRenew": "新版本或授權條款位元組變更需要重新審查並提供紀錄。",
+    "invalidReceipt": "未檢查: {file} 不是有效的授權條款審查紀錄檔案",
     "unknown": "未知",
     "unresolved": "未解析",
     "noLicense": "無授權條款",
@@ -4884,10 +4888,7 @@
     "licenseFile": "授權條款檔案",
     "bundleLoad": "無法載入 {file}",
     "bundleShape": "{file} 結構不符合預期",
-    "invalidResult": "掃描傳回無效結果",
-    "reviewedReceipt": "依據審查紀錄確認: {reason}",
-    "receiptRenew": "新版本或授權條款位元組變更需要重新審查並提供紀錄。",
-    "invalidReceipt": "未檢查: {file} 不是有效的授權條款審查紀錄檔案"
+    "invalidResult": "掃描傳回無效結果"
   },
   "legalScanAgain": "重新掃描",
   "accounts": {
@@ -5159,6 +5160,5 @@
     "grantsCount": {
       "other": "{count} 個授權"
     }
-  },
-  "legalScanReceiptHelp": "本機授權條款掃描；選用的 licence-review.json 紀錄將已審查的 SPDX 授權條款及其理由與套件、確切版本和 SHA-256 綁定。位元組或版本變更後需重新審查。"
+  }
 }

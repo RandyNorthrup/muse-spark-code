@@ -4800,6 +4800,7 @@
   "legalConfidenceLabel": "Confiance : {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Utilisation : /legal [chemin relatif à l’espace de travail …]. Les options ne sont pas prises en charge.",
+  "legalScanReceiptHelp": "Analyse locale des licences ; les justificatifs facultatifs de licence-review.json associent une licence SPDX examinée à son paquet, sa version exacte et son SHA-256, avec un motif. Tout changement d’octets ou de version nécessite un nouvel examen.",
   "legalScanItemDetail": "Analyser l’espace de travail à la recherche de constats de licence, d’attribution et d’en-tête",
   "legalScanBusy": "L’analyse juridique démarrera une fois le tour en cours terminé.",
   "legalScanUntrusted": "L’analyse juridique lit l’espace de travail, ce que le mode restreint ne permet pas. Faites confiance à l’espace de travail pour l’utiliser.",
@@ -5162,6 +5163,9 @@
       "many": "D’autres conseils pour {v0} ({count}) ne sont pas listés ; rien d’autre n’a été omis."
     },
     "m210": "Analysez un ensemble de chemins plus réduit pour les lister.",
+    "reviewedReceipt": "Examiné sur justificatif : {reason}",
+    "receiptRenew": "Une nouvelle version ou des octets de licence modifiés nécessitent un nouvel examen et un nouveau justificatif.",
+    "invalidReceipt": "non vérifié : {file} n’est pas un fichier valide de justificatifs d’examen des licences",
     "unknown": "inconnu",
     "unresolved": "non résolu",
     "noLicense": "aucune licence",
@@ -5186,10 +5190,7 @@
     "licenseFile": "un fichier de licence",
     "bundleLoad": "{file} n’a pas pu être chargé",
     "bundleShape": "{file} a une structure inattendue",
-    "invalidResult": "l’analyse a renvoyé un résultat invalide",
-    "reviewedReceipt": "Examiné sur justificatif : {reason}",
-    "receiptRenew": "Une nouvelle version ou des octets de licence modifiés nécessitent un nouvel examen et un nouveau justificatif.",
-    "invalidReceipt": "non vérifié : {file} n’est pas un fichier valide de justificatifs d’examen des licences"
+    "invalidResult": "l’analyse a renvoyé un résultat invalide"
   },
   "legalScanAgain": "Analyser à nouveau",
   "accounts": {
@@ -5469,6 +5470,5 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  },
-  "legalScanReceiptHelp": "Analyse locale des licences ; les justificatifs facultatifs de licence-review.json associent une licence SPDX examinée à son paquet, sa version exacte et son SHA-256, avec un motif. Tout changement d’octets ou de version nécessite un nouvel examen."
+  }
 }

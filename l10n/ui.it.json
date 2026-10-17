@@ -4800,6 +4800,7 @@
   "legalConfidenceLabel": "Affidabilità: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Uso: /legal [percorso relativo all’area di lavoro …]. Le opzioni non sono supportate.",
+  "legalScanReceiptHelp": "Analisi locale delle licenze; le attestazioni facoltative di licence-review.json collegano una licenza SPDX esaminata al pacchetto, alla versione esatta e allo SHA-256, con una motivazione. Modifiche ai byte o alle versioni richiedono un nuovo esame.",
   "legalScanItemDetail": "Analizza l’area di lavoro alla ricerca di risultati su licenze, attribuzioni e intestazioni",
   "legalScanBusy": "L’analisi legale inizia al termine del turno corrente.",
   "legalScanUntrusted": "L’analisi legale legge l’area di lavoro, cosa che la modalità con restrizioni non consente. Considera attendibile l’area di lavoro per usarla.",
@@ -5162,6 +5163,9 @@
       "many": "Altri avvisi per {v0} ({count}) non sono elencati; nient’altro è stato omesso."
     },
     "m210": "Analizza un insieme più piccolo di percorsi per elencarli.",
+    "reviewedReceipt": "Esaminato tramite attestazione: {reason}",
+    "receiptRenew": "Una nuova versione o modifiche ai byte della licenza richiedono un nuovo esame e una nuova attestazione.",
+    "invalidReceipt": "non verificato: {file} non è un file valido di attestazioni di esame delle licenze",
     "unknown": "sconosciuto",
     "unresolved": "non risolto",
     "noLicense": "nessuna licenza",
@@ -5186,10 +5190,7 @@
     "licenseFile": "un file di licenza",
     "bundleLoad": "impossibile caricare {file}",
     "bundleShape": "{file} ha una struttura inattesa",
-    "invalidResult": "l’analisi ha restituito un risultato non valido",
-    "reviewedReceipt": "Esaminato tramite attestazione: {reason}",
-    "receiptRenew": "Una nuova versione o modifiche ai byte della licenza richiedono un nuovo esame e una nuova attestazione.",
-    "invalidReceipt": "non verificato: {file} non è un file valido di attestazioni di esame delle licenze"
+    "invalidResult": "l’analisi ha restituito un risultato non valido"
   },
   "legalScanAgain": "Analizza di nuovo",
   "accounts": {
@@ -5469,6 +5470,5 @@
       "other": "{count} autorizzazioni",
       "many": "{count} autorizzazioni"
     }
-  },
-  "legalScanReceiptHelp": "Analisi locale delle licenze; le attestazioni facoltative di licence-review.json collegano una licenza SPDX esaminata al pacchetto, alla versione esatta e allo SHA-256, con una motivazione. Modifiche ai byte o alle versioni richiedono un nuovo esame."
+  }
 }

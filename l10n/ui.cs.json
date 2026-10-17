@@ -4921,6 +4921,7 @@
   "legalConfidenceLabel": "Jistota: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Použití: /legal [cesta relativní k pracovnímu prostoru …]. Volby nejsou podporovány.",
+  "legalScanReceiptHelp": "Místní kontrola licencí; volitelné záznamy v licence-review.json vážou zkontrolovanou licenci SPDX na balíček, přesnou verzi a SHA-256 s uvedením důvodu. Změna bajtů nebo verze vyžaduje novou kontrolu.",
   "legalScanItemDetail": "Zkontrolovat pracovní prostor z hlediska licencí, uvedení autorů a nálezů v hlavičkách",
   "legalScanBusy": "Právní kontrola začne, až skončí aktuální kolo.",
   "legalScanUntrusted": "Právní kontrola čte pracovní prostor, což omezený režim neumožňuje. Chcete-li ji použít, označte pracovní prostor jako důvěryhodný.",
@@ -5311,6 +5312,9 @@
       "many": "Další doporučení pro {v0} ({count}) nejsou vypsána; nic jiného nebylo vynecháno."
     },
     "m210": "Pro jejich výpis zkontrolujte menší sadu cest.",
+    "reviewedReceipt": "Zkontrolováno podle záznamu: {reason}",
+    "receiptRenew": "Nová verze nebo změněné bajty licence vyžadují novou kontrolu a záznam.",
+    "invalidReceipt": "nezkontrolováno: {file} není platný soubor záznamů o kontrole licencí",
     "unknown": "neznámé",
     "unresolved": "nevyřešené",
     "noLicense": "bez licence",
@@ -5337,10 +5341,7 @@
     "licenseFile": "soubor licence",
     "bundleLoad": "nelze načíst {file}",
     "bundleShape": "{file} má neočekávanou strukturu",
-    "invalidResult": "kontrola vrátila neplatný výsledek",
-    "reviewedReceipt": "Zkontrolováno podle záznamu: {reason}",
-    "receiptRenew": "Nová verze nebo změněné bajty licence vyžadují novou kontrolu a záznam.",
-    "invalidReceipt": "nezkontrolováno: {file} není platný soubor záznamů o kontrole licencí"
+    "invalidResult": "kontrola vrátila neplatný výsledek"
   },
   "legalScanAgain": "Skenovat znovu",
   "accounts": {
@@ -5624,6 +5625,5 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  },
-  "legalScanReceiptHelp": "Místní kontrola licencí; volitelné záznamy v licence-review.json vážou zkontrolovanou licenci SPDX na balíček, přesnou verzi a SHA-256 s uvedením důvodu. Změna bajtů nebo verze vyžaduje novou kontrolu."
+  }
 }

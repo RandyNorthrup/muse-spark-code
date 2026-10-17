@@ -4679,6 +4679,7 @@
   "legalConfidenceLabel": "Megbízhatóság: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Használat: /legal [munkaterülethez viszonyított útvonal …]. A kapcsolók nem támogatottak.",
+  "legalScanReceiptHelp": "Helyi licencvizsgálat; a licence-review.json választható bizonylatai indoklással kötik a felülvizsgált SPDX-licencet a csomaghoz, a pontos verzióhoz és a SHA-256 értékhez. Megváltozott bájtok vagy verziók új felülvizsgálatot igényelnek.",
   "legalScanItemDetail": "A munkaterület átvizsgálása licencelési, szerzőfeltüntetési és fejléc-megállapítások után",
   "legalScanBusy": "A jogi ellenőrzés az aktuális kör befejeződése után indul.",
   "legalScanUntrusted": "A jogi ellenőrzés a munkaterületet olvassa, amit a korlátozott mód nem engedélyez. A használatához jelölje megbízhatónak a munkaterületet.",
@@ -5013,6 +5014,9 @@
       "other": "További tanácsok ({count}) ehhez nincsenek felsorolva: {v0}; más nem maradt ki."
     },
     "m210": "A felsoroláshoz vizsgáljon kisebb útvonalkészletet.",
+    "reviewedReceipt": "Felülvizsgálati bizonylattal ellenőrizve: {reason}",
+    "receiptRenew": "Új verzió vagy megváltozott licencbájtok esetén új felülvizsgálat és bizonylat szükséges.",
+    "invalidReceipt": "nincs ellenőrizve: {file} nem érvényes licencfelülvizsgálati bizonylatfájl",
     "unknown": "ismeretlen",
     "unresolved": "feloldatlan",
     "noLicense": "nincs licenc",
@@ -5035,10 +5039,7 @@
     "licenseFile": "licencfájl",
     "bundleLoad": "{file} nem tölthető be",
     "bundleShape": "{file} szerkezete váratlan",
-    "invalidResult": "a vizsgálat érvénytelen eredményt adott",
-    "reviewedReceipt": "Felülvizsgálati bizonylattal ellenőrizve: {reason}",
-    "receiptRenew": "Új verzió vagy megváltozott licencbájtok esetén új felülvizsgálat és bizonylat szükséges.",
-    "invalidReceipt": "nincs ellenőrizve: {file} nem érvényes licencfelülvizsgálati bizonylatfájl"
+    "invalidResult": "a vizsgálat érvénytelen eredményt adott"
   },
   "legalScanAgain": "Új vizsgálat",
   "accounts": {
@@ -5314,6 +5315,5 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  },
-  "legalScanReceiptHelp": "Helyi licencvizsgálat; a licence-review.json választható bizonylatai indoklással kötik a felülvizsgált SPDX-licencet a csomaghoz, a pontos verzióhoz és a SHA-256 értékhez. Megváltozott bájtok vagy verziók új felülvizsgálatot igényelnek."
+  }
 }

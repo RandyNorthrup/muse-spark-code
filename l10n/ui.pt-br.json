@@ -4800,6 +4800,7 @@
   "legalConfidenceLabel": "Confiança: {confidence}",
   "legalScanItem": "/legal",
   "legalCommandUsage": "Uso: /legal [caminho relativo ao espaço de trabalho …]. Opções não são aceitas.",
+  "legalScanReceiptHelp": "Análise local de licenças; comprovantes opcionais em licence-review.json vinculam uma licença SPDX revisada ao pacote, à versão exata e ao SHA-256, com um motivo. Alterações nos bytes ou nas versões exigem nova revisão.",
   "legalScanItemDetail": "Verificar o workspace quanto a achados de licenciamento, atribuição e cabeçalhos",
   "legalScanBusy": "A verificação legal começa quando o turno atual terminar.",
   "legalScanUntrusted": "A verificação legal lê o workspace, o que o modo restrito não permite. Confie no workspace para usá-la.",
@@ -5162,6 +5163,9 @@
       "many": "Mais avisos para {v0} ({count}) não estão listados; nada mais foi omitido."
     },
     "m210": "Verifique um conjunto menor de caminhos para listá-los.",
+    "reviewedReceipt": "Revisado por comprovante: {reason}",
+    "receiptRenew": "Uma nova versão ou alterações nos bytes da licença exigem nova revisão e comprovante.",
+    "invalidReceipt": "não verificado: {file} não é um arquivo válido de comprovantes de revisão de licenças",
     "unknown": "desconhecido",
     "unresolved": "não resolvido",
     "noLicense": "sem licença",
@@ -5186,10 +5190,7 @@
     "licenseFile": "um arquivo de licença",
     "bundleLoad": "não foi possível carregar {file}",
     "bundleShape": "{file} tem estrutura inesperada",
-    "invalidResult": "a análise retornou um resultado inválido",
-    "reviewedReceipt": "Revisado por comprovante: {reason}",
-    "receiptRenew": "Uma nova versão ou alterações nos bytes da licença exigem nova revisão e comprovante.",
-    "invalidReceipt": "não verificado: {file} não é um arquivo válido de comprovantes de revisão de licenças"
+    "invalidResult": "a análise retornou um resultado inválido"
   },
   "legalScanAgain": "Verificar novamente",
   "accounts": {
@@ -5469,6 +5470,5 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  },
-  "legalScanReceiptHelp": "Análise local de licenças; comprovantes opcionais em licence-review.json vinculam uma licença SPDX revisada ao pacote, à versão exata e ao SHA-256, com um motivo. Alterações nos bytes ou nas versões exigem nova revisão."
+  }
 }
