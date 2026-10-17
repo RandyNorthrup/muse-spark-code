@@ -244,6 +244,21 @@ export class GitHubSignIn {
   }
 
   /**
+   * The account line in the user's words (`GitHub: <login>, through <the
+   * source>`), or undefined before any GitHub call had a credential.
+   */
+  public accountText(): string | undefined {
+    const account = this.view().account
+    if (account === undefined) {
+      return undefined
+    }
+    const source = UI_TEXT.gitHubSources[account.source]
+    return account.login === undefined
+      ? fill(UI_TEXT.gitHubAccountNoLogin, { source })
+      : fill(UI_TEXT.gitHubAccount, { login: account.login, source })
+  }
+
+  /**
    * A sign-in failure in the user's fixed words, or undefined for anything
    * else. A method, so the failure is recognised by the module copy that
    * threw it, whichever bundle asks.
