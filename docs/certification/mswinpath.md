@@ -18,7 +18,7 @@ GO):
 
 - `src/runtime/windowsTrustedPath.ts` (`stepsBelow`, now exported): the
   escape check was `relative.startsWith('..')`, so a folder literally named
-  `..foo` (or `...`) directly under the trusted root was refused as
+  `..foo` directly under the trusted root was refused as
   "outside its trusted root". Only `..` itself or a leading `..\` leaves
   the root now; genuine escapes (`..\other`, siblings, other drives) still
   fail closed. Commit `24cbe24b6`.
@@ -116,10 +116,10 @@ cases still pass; the fix restores green. No source bytes beyond the fix.
 | `npm run check:plan`                                                                                                | 0 drift, exit 0                                                        |
 | `npm run check:roadmap`                                                                                             | current, exit 0                                                        |
 | `npm run build`                                                                                                     | exit 0                                                                 |
-| `security:sast` (`SEMGREP_ENABLE_VERSION_CHECK=0`)                                                                  | exit 0                                                                 |
+| `security:sast` (`SEMGREP_ENABLE_VERSION_CHECK=0`)                                                                  | exit 0 earlier; exit 2 post-change (semgrep crash, above)              |
 | Full `npm run test:unit`                                                                                            | 525 files / 9,131 tests pass; 23 files / 76 tests fail (below), exit 1 |
 
-## Full-suite failures: pre-existing rig-load failures, not this change
+## Full-suite failures: cause UNMEASURED except where a base check ran
 
 Two complete runs (1,534 s and 1,989 s wall — the rig is heavily loaded by
 concurrent lanes). Failing files are process/filesystem/packaging suites
@@ -161,6 +161,26 @@ suites pass (85 passed, 2 skipped), all 5 typechecks exit 0,
 `check:plan` 0 drift. The pre-merge full-suite and static-gate receipts
 above stand for the lane's own diff, which the merge does not touch
 (43 merged files: PR #165 permissions work; disjoint paths).
+
+## Review RVMSWINPATH (2026-10-17, linuxlt)
+
+- The same `startsWith('..')` defect survived in six more relative-path
+  checks (`agentImport`, playbook `modules`, Tab context, ZIP extraction,
+  host frame paths, the schedule store) and as a substring refusal in the
+  schedule file-watch schema; all now test a whole `..` segment. Proven
+  red then green through the real modules (`agentImport`, `zipExtract`,
+  new `dotDotPrefixedNames` for the schedule store and playbook). Commit
+  `1c3e953ac`.
+- Claim corrections in this record and the CHANGELOG: a folder named
+  `...` is not an end-to-end case (Win32 drops trailing dots; the spelling
+  layer still refuses it), the full-suite failure cause is UNMEASURED
+  except the `fileLease` base check, and the SAST row now matches the
+  post-change exit 2 recorded above.
+- Gates re-run on the reviewed tree (main `898a26c5e` already an
+  ancestor): typecheck, eslint, prettier, deadcode, cycles, duplication,
+  `check:l10n`, `check:reference`, build and SAST (533 rules, 0 findings)
+  all exit 0; the lane's and the review's suites pass (23 + 82 + 27
+  tests). The built `dist/acp.js --help` exits 0.
 
 ## Real-life steps for the lead (Windows 11 host)
 
