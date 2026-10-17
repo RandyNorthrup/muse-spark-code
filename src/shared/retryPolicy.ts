@@ -51,8 +51,10 @@ const QUOTA_ERROR_KINDS: readonly string[] = [
  * server errors; dev.meta.ai/docs/error-handling), unchanged from the
  * constants this replaces; `chat` adds the compatible APIs' documented
  * timeout/conflict retries; `anthropic` adds its 529 overload and 504
- * gateway with `overloaded_error`; `gemini` and `ollama` keep the
- * conservative base set, nothing priced locally retries billing.
+ * gateway with `overloaded_error`; `gemini` retries what Google lists as
+ * transient ("429, 408, or 5xx"; ai.google.dev/gemini-api/docs/
+ * troubleshooting, read 2026-10-17, lane PROVERRORS); `ollama` keeps the
+ * conservative base set; nothing priced locally retries billing.
  */
 export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
   responses: {
@@ -95,6 +97,7 @@ export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
   },
   gemini: {
     statuses: [
+      PROVIDER_RETRY_HTTP_STATUS.requestTimeout,
       PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
       PROVIDER_RETRY_HTTP_STATUS.internalServerError,
       PROVIDER_RETRY_HTTP_STATUS.badGateway,
