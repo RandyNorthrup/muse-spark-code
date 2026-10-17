@@ -36,7 +36,6 @@ export {
   type RetryBudget,
   type RetryNotice,
   type ResponseObservation,
-  rateLimitHeaders,
 } from './transport'
 import type { ProviderClient as TransportProviderClient } from './providerClient'
 import type { PlanUsageRow } from '../../../shared/usage'
