@@ -19,6 +19,7 @@ import {
   isInvalidProvidersFileError,
   type AccountUsagePort,
 } from './accountText'
+import type { AccountsPanelHandler } from '../host/models/accountsHandler'
 
 export { accountErrorText, isAccountSwitchRefusedError } from './accountText'
 
@@ -35,13 +36,15 @@ export interface AccountsSessionPort extends AccountUsagePort {
 
 /** U's panel dispatcher, also used by the authenticated companion bridge.
  * M104 owns origin/permission/envelope checks; this is the inner payload port.
- * @unwired M104 companion bridge for accounts */
+ * @unwired M104 companion bridge for accounts: the installed route awaits
+ * W's panel mount and P's admission binding (M108 handoffs). */
 export interface AccountsPanelPort {
   dispatch(request: AccountsRequest): Promise<AccountsReply>
   subscribe(listener: (reply: AccountsReply) => void): () => void
 }
 /** The companion's validated panel skin over the inner payload port.
- * @unwired M104 companion bridge for accounts */
+ * @unwired M104 companion bridge for accounts: the installed route awaits
+ * W's panel mount and P's admission binding (M108 handoffs). */
 export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPort {
   return {
     async dispatch(request) {
@@ -68,6 +71,40 @@ export function companionAccountsPanel(port: AccountsPanelPort): AccountsPanelPo
       }
     },
   }
+}
+
+/** Bind U's Models & Agents dispatcher to the companion's validated panel
+ * skin (M104): successful snapshots map to `accounts/state`; the
+ * dispatcher's fixed error replies pass through untouched, and the skin
+ * re-validates both directions. M104 owns the authenticated
+ * origin/permission/envelope checks around this port and the subscription
+ * lifecycle; the dispatcher owns the account store and policy admission.
+ * The `subscribe` source is the panel's notice publisher, supplied by the
+ * composer that owns the dispatcher.
+ * @unwired M104 companion bridge for accounts: the installed route awaits
+ * W's panel mount and P's admission binding (M108 handoffs). */
+export function bindAccountsPanelPort(
+  handler: Pick<AccountsPanelHandler, 'handle'>,
+  subscribe: AccountsPanelPort['subscribe'],
+): AccountsPanelPort {
+  return companionAccountsPanel({
+    async dispatch(request) {
+      const reply = await handler.handle(request)
+      // Error replies carry `type`; a snapshot never does. A malformed
+      // snapshot maps to unknown fields and fails the skin's reply
+      // validation below, which answers `unavailable`.
+      if ('type' in reply) return reply
+      return {
+        type: 'accounts/state',
+        provider: reply.provider,
+        accounts: reply.accounts,
+        currentAccount: reply.currentAccount,
+        isSwapOn: reply.isSwapOn,
+        isParallelOn: reply.isParallelOn,
+      }
+    },
+    subscribe,
+  })
 }
 
 function parseState(value: unknown): AccountsState {

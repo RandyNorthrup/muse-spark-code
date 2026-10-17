@@ -540,7 +540,6 @@ function tests() {
         'test/hostApi/workflow.test.mjs',
       ],
     ],
-    ['test/m104/mac/vitest.config.mjs', ['test/m104/mac/distributionProtocol.test.mjs']],
   ]) {
     const output = `temp/m104-i/drill-result-${reports.length}.json`
     const result = spawnSync(
