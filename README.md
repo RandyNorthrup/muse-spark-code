@@ -1015,7 +1015,8 @@ bundled.
 ## Developer options
 
 `muse-spark-code-acp developer` opens the terminal's machine-local Developer
-options after typed confirmation; `developer status` shows its state. Testing mode is badged and audited, expires, and Reset stops and removes only
+options after typed confirmation; `developer status` shows its state.
+`developer --help` prints its usage; any other misuse reports the usage with exit 2. Testing mode is badged and audited, expires, and Reset stops and removes only
 its recorded profiles. Profile start and cleanup report unavailable until their
 resource owner is bound; no successful cleanup is claimed in its absence.
 Revoking testing authority closes admission immediately and attempts to stop

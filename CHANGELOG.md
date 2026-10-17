@@ -39,9 +39,18 @@ happened, not what was planned; superseded entries are kept.
   takes scripted `--var name=value` and `--confirm` and its review asks to
   print, not insert; `scan-secrets --help`, `exec --help`, `report --help`,
   `share --help` and `prompts --help` each print their own one screen. A
-  fully-keyless session still cannot attribute spend, so the start refuses
-  at account identity, in store words; grant-backed dispatch and a
-  stdin-key session start still need the owner's real-life run.
+  keyless session opens with no account identity; identity and spend
+  resolve at the first step that needs a provider, and a step that needs
+  a stored key refuses in the one store sentence; grant-backed dispatch
+  still needs the owner's real-life run.
+- Terminal commands (CLIFLOWS2): `share --help` and `prompts --help` list
+  every parsed option with its accepted values and defaults from the
+  sharing parser's own tables, and the CLI reference grows 23 rows without
+  dating the message range; `developer --help` prints its usage instead of
+  a stack trace, and any other misuse reports the usage with exit 2;
+  headless runs say their messages are in English instead of naming a
+  panel; a key step re-reads the credential store before reporting it
+  down, so an unlock mid-session is found.
 - RVCLIFLOWS: retain headless request and USD limits for every Model API/BYO
   run; a user-configurable provider id is not evidence of subscription billing.
 - RVCLIFLOWS: terminal prompt save/list/use retain readable results without
