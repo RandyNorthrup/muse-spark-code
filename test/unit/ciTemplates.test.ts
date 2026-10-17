@@ -376,6 +376,23 @@ describe('Azure expressions', () => {
   })
 })
 
+describe('generated scripts stay parseable on every rig shell', () => {
+  it.each([...SYSTEMS])(
+    '%s: no case statement inside the setup command substitution (macOS bash 3.2 parses it only at run time, then fails)',
+    (system) => {
+      const lines = bootstrapOf(system).split('\n')
+      const open = lines.findIndex((line) => line.includes('muse_ci_internal_setup="$('))
+      expect(open).toBeGreaterThanOrEqual(0)
+      const close = lines.findIndex((line, index) => index > open && line.trim() === ')"')
+      expect(close).toBeGreaterThan(open)
+      const region = lines.slice(open + 1, close)
+      for (const line of region) {
+        expect(line, line).not.toMatch(/^\s*case\s/)
+      }
+    },
+  )
+})
+
 describe('the launcher ships in the package', () => {
   it('package-acp.mjs copies action/lib and action/prompts into ci/ and lists it in files', () => {
     expect(CI_LAUNCHER_SOURCES).toEqual([

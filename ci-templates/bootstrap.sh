@@ -9,14 +9,15 @@ umask 077
 for muse_ci_internal_alias in ${MUSE_CI_KEY_ALIASES:-}; do
   case "$muse_ci_internal_alias" in ''|[0-9]*|*[!A-Za-z0-9_]*|muse_ci_internal_*|MUSE_CI_*|MUSE_INPUT_*|MUSE_AGENT_*) echo 'muse-spark: invalid or reserved key alias name' >&2; exit 1;; esac
 done
+# Extra bindings must be declared by NAME, never by value. The launcher
+# reads this same name list and also scrubs every copy of the value. Every
+# name was validated by the reserved-prefix loop above (its shape check
+# subsumes the old inner one); macOS sh (bash 3.2) cannot parse case inside
+# $( ), so only the value removals stay in this subshell, keeping the
+# download children blind to every declared copy.
 muse_ci_internal_setup="$(
   unset @MUSE_KEY_NAMES@
-  # Extra bindings must be declared by NAME, never by value. The launcher
-  # reads this same name list and also scrubs every copy of the value.
-  for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do
-    case "$muse_alias" in ''|[0-9]*|*[!A-Za-z0-9_]*) echo 'muse-spark: invalid key alias name' >&2; exit 1;; esac
-    unset "$muse_alias"
-  done
+  for muse_alias in ${MUSE_CI_KEY_ALIASES:-}; do unset "$muse_alias"; done
   if [ -z "${MUSE_AGENT_VERSION:-}" ] || [ -z "${MUSE_INPUT_AGENT_PACKAGE_SHA256:-}" ]; then echo 'muse-spark: pin MUSE_AGENT_VERSION and MUSE_INPUT_AGENT_PACKAGE_SHA256' >&2; exit 1; fi
   muse_start_ms=$(($(date +%s) * 1000))
   muse_dir="$(mktemp -d)"
