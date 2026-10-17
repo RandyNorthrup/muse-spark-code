@@ -39,6 +39,7 @@ export {
   assertConfirmedAllowed,
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
+  retryAfterMs,
 } from '../../core/backends/modelapi/transport'
 export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
 export { parseNdjson } from '../../core/backends/modelapi/ndjson'

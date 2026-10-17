@@ -19,8 +19,15 @@ export async function createTeamHost(
 }
 
 // The lazy file adapter shares this grant authority, including its WeakMap.
+// The engine chunk reads the rest of the authority surface through this
+// bundle, so every fence member it imports is exported here: the split
+// gate fails a member this list lacks.
 export {
+  assertWorkerRoot,
+  bindWorkerPathIo,
   confineWorkerPath,
   MuseWorkerFolderError,
+  recheckWorkerRoot,
   withWorkerFile,
+  WORKER_NATIVE_IO,
 } from '../../core/team/workers/workerFence'
