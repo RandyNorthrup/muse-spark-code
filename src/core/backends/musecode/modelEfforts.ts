@@ -7,7 +7,8 @@ import type { MuseCodeEffortInfo, MuseCodeFeaturePorts } from './MuseCodeHost'
 // `variants` in catalogue order, `reasoningEffortVariants` tier descriptions
 // and `defaultReasoningEffort`. Tiers are preserved verbatim, including
 // future strings the slider shows as they arrive; the explicit `unknown`
-// catalogue keeps the legacy family table. Rows without extras read as
+// catalogue offers no selectable tier through `servedEffortLevels`.
+// Rows without extras read as
 // before; malformed extras throw, and the host isolates that throw to the
 // row instead of failing the whole catalogue.
 
