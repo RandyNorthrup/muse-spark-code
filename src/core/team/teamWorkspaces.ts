@@ -11,6 +11,7 @@ import {
 } from '../../shared/constants'
 import { pathModule } from '../workspaceRoot'
 import { teamAgentsRef, teamBranchName, workerEnvironment } from './refFence'
+import { isTeamGitError, type TeamGit } from './teamGit'
 // Team workspaces (M96 lane I, PLAN.md D75): the base commit, shared clones
 // under the extension's storage with no remote, the `agents/<role>/<task-id>`
 // branches and the extension's own `agents/` refs in the user's repository,
@@ -24,42 +25,6 @@ import { teamAgentsRef, teamBranchName, workerEnvironment } from './refFence'
 // these functions. No `vscode` here.
 
 import path from 'node:path'
-
-/** git ended non-zero: the code and what it said. */
-export class TeamGitError extends Error {
-  public constructor(
-    public readonly exitCode: number,
-    public readonly stderr: string,
-    command: string,
-  ) {
-    super(`git ${command} exited with code ${String(exitCode)}: ${stderr.trim()}`)
-    this.name = 'TeamGitError'
-  }
-}
-
-export function isTeamGitError(value: unknown): value is TeamGitError {
-  return (
-    value instanceof Error &&
-    value.name === 'TeamGitError' &&
-    'exitCode' in value &&
-    typeof value.exitCode === 'number' &&
-    Number.isSafeInteger(value.exitCode)
-  )
-}
-
-/**
- * One git command's stdout as bytes (binary-safe for blobs); rejects with
- * `TeamGitError` on a non-zero exit. The host adapts its git process to
- * this; tests run real git through `execFile`. The adapter MUST honour an
- * explicit environment: automatic worker-copy calls supply credential-free
- * `workerEnvironment`, never the host's inherited environment.
- */
-export type TeamGit = (
-  args: readonly string[],
-  cwd: string,
-  input?: string,
-  env?: NodeJS.ProcessEnv,
-) => Promise<Uint8Array>
 
 /** One shared policy for every extension-owned Git call in a worker copy. */
 export function teamProgramFreeGit(runGit: TeamGit): TeamGit {

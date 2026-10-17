@@ -40,8 +40,8 @@ import {
   resolveBaseCommit,
   scratchBreach,
   startTeamWorkspace,
-  type TeamGit,
 } from '../../core/team/teamWorkspaces'
+import type { TeamGit } from '../../core/team/teamGit'
 import { runEngineWorker } from '../../core/team/workers/engineWorker'
 import { WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
 import type { WorkerReportOutcome } from '../../core/team/workers/report'
