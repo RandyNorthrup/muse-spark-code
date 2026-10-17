@@ -1,0 +1,65 @@
+[
+  {
+    "commandId": "01a14b18-a74b-75a0-bede-89d58fb4db23",
+    "itemId": "a005e5af-8efb-4d03-8572-392a1d4aaee1",
+    "kind": "userMessage",
+    "recordedAt": "2026-10-17T18:21:09.331076Z",
+    "revision": 1,
+    "status": "completed",
+    "text": "say hi",
+    "turnId": "01a14b18-a74b-75a0-bede-89d58fb4db23"
+  },
+  {
+    "itemId": "e810048d-f8d6-4d70-87d0-6b098a08ea23",
+    "kind": "agentMessage",
+    "messagePhase": "finalAnswer",
+    "recordedAt": "2026-10-17T18:21:09.354394Z",
+    "revision": 2,
+    "status": "completed",
+    "text": "echo: say hi",
+    "turnId": "01a14b18-a74b-75a0-bede-89d58fb4db23"
+  },
+  {
+    "childSessionId": "01a14b18-a75e-7fa0-ba27-bde1e3d7bb94",
+    "fallbackText": "Reminder child session",
+    "generationId": 1,
+    "itemId": "01a14b18-a75f-7f72-baa7-b5733d9cd3bb",
+    "kind": "reminderChild",
+    "recordedAt": "2026-10-17T18:21:09.386135Z",
+    "reminderAgentId": "skill-reminder",
+    "revision": 2,
+    "status": "completed",
+    "taskId": "01a14b18-a75e-7fa0-ba27-bdd2a04a86b0",
+    "turnId": "01a14b18-a74b-75a0-bede-89d58fb4db23"
+  },
+  {
+    "blocking": true,
+    "childSessionId": "01a14b18-a76b-7b02-9826-d55b790c1442",
+    "failureReason": "invalid run configuration: provider does not support base instructions",
+    "fallbackText": "Reminder child session",
+    "generationId": 1,
+    "itemId": "01a14b18-a76c-7513-93d3-90508346d150",
+    "kind": "reminderChild",
+    "recordedAt": "2026-10-17T18:21:09.388138Z",
+    "reminderAgentId": "goal-reminder",
+    "revision": 2,
+    "status": "failed",
+    "taskId": "01a14b18-a76b-7b02-9826-d540276685ea",
+    "turnId": "01a14b18-a74b-75a0-bede-89d58fb4db23"
+  },
+  {
+    "blocking": true,
+    "childSessionId": "01a14b18-a76c-7513-93d3-908c52ef4f7d",
+    "failureReason": "invalid run configuration: provider does not support base instructions",
+    "fallbackText": "Reminder child session",
+    "generationId": 1,
+    "itemId": "01a14b18-a76e-7a63-9cf5-fab2ef737c29",
+    "kind": "reminderChild",
+    "recordedAt": "2026-10-17T18:21:09.388419Z",
+    "reminderAgentId": "verify-reminder",
+    "revision": 2,
+    "status": "failed",
+    "taskId": "01a14b18-a76c-7513-93d3-907b31fd9bed",
+    "turnId": "01a14b18-a74b-75a0-bede-89d58fb4db23"
+  }
+]

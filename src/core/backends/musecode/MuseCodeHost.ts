@@ -148,6 +148,10 @@ export interface MspHost {
 /** The MSP host's identity plus what the extension logs about it. */
 export interface MuseHostInfo extends HostInfo {
   readonly museHome: string
+  /** Whether the host can enforce the sandbox (1.4.7); unknown when the host predates the field. */
+  readonly sandboxAvailability?: string | undefined
+  /** Why enforcement is impossible; set only when unavailable. */
+  readonly sandboxUnavailableReason?: string | undefined
 }
 
 export interface MuseCodeEffortInfo {
@@ -191,6 +195,11 @@ const initializeResultSchema = z.object({
   serverInfo: z.object({ name: z.string(), version: z.string() }),
   museHome: z.string(),
   grantedCapabilities: z.optional(z.array(z.string())),
+  // Whether this host can enforce the sandbox (1.4.7): absent reads as
+  // unknown, never as available. Served 2026-10-17 by 1.4.9-R6297.1.
+  sandboxAvailability: z.optional(z.string()),
+  // Sent only when enforcement is impossible; never inferred when absent.
+  sandboxUnavailableReason: z.optional(z.string()),
   // Logged once per start (D26); `platformOs` also gates rename and fork.
   platformOs: z.optional(z.string()),
   schema: z.optional(
@@ -284,23 +293,67 @@ function unqueueRefusal(error: unknown): string | undefined {
   return typeof reason === 'string' ? reason : undefined
 }
 
-const modelListResultSchema = z.object({
+/** Exported for the M126 capture tests: parses the recorded `model/list` result. */
+export const modelListResultSchema = z.object({
   models: z.array(
     z.looseObject({
       modelId: z.string(),
       displayLabel: z.string(),
       contextLimit: z.nullable(z.number()),
+      // The row's `outputLimit` (M126): `null` when the catalog source
+      // declared nothing; absent on older hosts. Served 2026-10-17 by
+      // 1.4.9-R6297.1 (`muse schema generate-json-schema`).
+      outputLimit: z.optional(z.nullable(z.number())),
       isDefault: z.boolean(),
       isActive: z.optional(z.boolean()),
     }),
   ),
 })
 
-const skillListResultSchema = z.object({
+/**
+ * One recorded `model/list` row as the summary the picker reads (M126):
+ * `null` limits read as absent. Exported for the capture tests.
+ */
+export function toModelSummary(
+  model: z.infer<typeof modelListResultSchema>['models'][number],
+  modelEfforts?: { parseModel(row: unknown): MuseCodeEffortInfo },
+): MuseCodeModelSummary {
+  return {
+    modelId: model.modelId,
+    displayLabel: model.displayLabel,
+    contextLimit: model.contextLimit ?? undefined,
+    outputLimit: model.outputLimit ?? undefined,
+    isDefault: model.isDefault,
+    isActive: model.isActive ?? false,
+    ...modelEfforts?.parseModel(model),
+  }
+}
+
+/**
+ * One recorded `skill/list` row as the summary the palette reads (M126):
+ * the declared `title` rides along only when the skill sets one.
+ */
+export function toSkillSummary(
+  skill: z.infer<typeof skillListResultSchema>['skills'][number],
+): SkillSummary {
+  return {
+    selector: skill.selector,
+    displayName: skill.displayName,
+    ...(skill.title !== undefined && { title: skill.title }),
+    description: skill.description,
+    argumentHint: skill.argumentHint,
+  }
+}
+
+/** Exported for the M126 capture tests: parses the recorded `skill/list` result. */
+export const skillListResultSchema = z.object({
   skills: z.array(
     z.object({
       selector: z.string(),
       displayName: z.string(),
+      // The skill's declared human-readable name (1.4.7
+      // `metadata.display-name`); absent when the skill declares none.
+      title: z.optional(z.string()),
       description: z.string(),
       argumentHint: z.optional(z.string()),
     }),
@@ -1918,12 +1971,7 @@ export class MuseSession implements ScheduledAgentSession {
   /** The user-invocable skills in this session's workspace and plugins. */
   public async listSkills(): Promise<readonly SkillSummary[]> {
     const result = await this.command('skill/list', {})
-    return skillListResultSchema.parse(result).skills.map((skill) => ({
-      selector: skill.selector,
-      displayName: skill.displayName,
-      description: skill.description,
-      argumentHint: skill.argumentHint,
-    }))
+    return skillListResultSchema.parse(result).skills.map((skill) => toSkillSummary(skill))
   }
 
   /** Releases this surface's hold; the last one forgets the session (D25). */
@@ -2035,6 +2083,12 @@ export class MuseCodeHost implements AgentHost {
       serverVersion,
       museHome: parsed.museHome,
       grantedCapabilities: parsed.grantedCapabilities ?? [],
+      ...(parsed.sandboxAvailability !== undefined && {
+        sandboxAvailability: parsed.sandboxAvailability,
+      }),
+      ...(parsed.sandboxUnavailableReason !== undefined && {
+        sandboxUnavailableReason: parsed.sandboxUnavailableReason,
+      }),
       // Muse Code refuses `session/rename` and `session/fork` on Windows
       // (meta-models/muse-code-sdk#30, #31): verified on 1.3.0 (2026-09-22)
       // and 1.4.0 (2026-09-27), still refused on 1.4.3 (2026-10-05,
@@ -2588,12 +2642,18 @@ export class MuseCodeHost implements AgentHost {
     sessionId: string,
     modelId: string,
     mcpServers?: Readonly<Record<string, SessionMcpServer>>,
+    options?: { readonly requireSideChat?: boolean; readonly permissionProfile?: string },
   ): Promise<LoadedSession> {
     const { loaded, hasPending } = await this.opened(async () => {
       const envelope = sessionEnvelopeSchema.parse(
         await this.command('session/resume', {
           sessionId,
           history: HISTORY_PREFERENCE_SNAPSHOT,
+          // The launch permission-profile pick (1.4.8): refused before
+          // anything is written when the host does not offer it.
+          ...(options?.permissionProfile !== undefined && {
+            permissionProfile: options.permissionProfile,
+          }),
           ...this.mcpConfig(mcpServers),
         }),
       )
@@ -2670,14 +2730,9 @@ export class MuseCodeHost implements AgentHost {
     const result = await this.command('model/list', {
       ...(sessionId !== undefined && { sessionId }),
     })
-    return modelListResultSchema.parse(result).models.map((model) => ({
-      modelId: model.modelId,
-      displayLabel: model.displayLabel,
-      contextLimit: model.contextLimit ?? undefined,
-      isDefault: model.isDefault,
-      isActive: model.isActive ?? false,
-      ...this.features.modelEfforts?.parseModel(model),
-    }))
+    return modelListResultSchema
+      .parse(result)
+      .models.map((model) => toModelSummary(model, this.features.modelEfforts))
   }
 
   /** Registered literal secrets remain in the host; only the scrubbed note is previewed. */
@@ -2727,6 +2782,10 @@ export class MuseCodeHost implements AgentHost {
           workspaceRoot: options.workspaceRoot,
           modelId: options.modelId,
           approvalMode: options.approvalMode,
+          // The initial permission profile (1.4.6): select, never create.
+          ...(options.permissionProfile !== undefined && {
+            permissionProfile: options.permissionProfile,
+          }),
           ...this.mcpConfig(options.mcpServers),
         })
       } catch (error: unknown) {

@@ -2477,6 +2477,8 @@
   "vaultSessionLogUnavailable": "保管库安全的会话日志导出不可用。",
   "turnUnqueued": "未发送：排队的消息已撤回",
   "turnRetracted": "另一个 Muse Code 客户端从此对话中撤回了一条消息；请从历史记录中重新打开对话，以查看已存储的版本。",
+  "turnRetractDeclined": "撤回消息的请求被拒绝，因此该轮次将继续保留该消息。",
+  "approvalReviewing": "安全检查正在审核此批准。",
   "modelRouteUnserved": "已登录的账户无法为此对话的模型提供服务；请从模型菜单中选择其他模型。",
   "viewGapReloaded": "遗漏了来自 Muse Code 的部分更新，因此已重新加载对话。",
   "viewGapReloadFailed": "遗漏了来自 Muse Code 的部分更新，且无法重新加载对话",

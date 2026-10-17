@@ -2585,6 +2585,8 @@
   "vaultSessionLogUnavailable": "La exportación del registro de sesión segura del almacén no está disponible.",
   "turnUnqueued": "No enviado: se retiró el mensaje en cola",
   "turnRetracted": "Otro cliente de Muse Code retiró un mensaje de esta conversación; vuelva a abrirla desde el historial para verla tal como está guardada.",
+  "turnRetractDeclined": "Se rechazó la retirada del mensaje, por lo que el turno continúa con él en su lugar.",
+  "approvalReviewing": "La comprobación de seguridad está revisando esta aprobación.",
   "modelRouteUnserved": "La cuenta con la que inició sesión no puede usar el modelo de esta conversación; elija otro modelo en el menú de modelos.",
   "viewGapReloaded": "Se perdieron algunas actualizaciones de Muse Code, así que se volvió a cargar la conversación.",
   "viewGapReloadFailed": "Se perdieron algunas actualizaciones de Muse Code y no se pudo volver a cargar la conversación",

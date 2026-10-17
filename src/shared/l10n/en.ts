@@ -3048,6 +3048,9 @@ export const EN = {
   turnUnqueued: 'Not sent: the queued message was withdrawn',
   turnRetracted:
     'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',
+  turnRetractDeclined:
+    'Withdrawing the message was declined, so the turn continues with it still in place.',
+  approvalReviewing: 'The Safety Check is reviewing this approval.',
   modelRouteUnserved:
     'The signed-in account cannot serve this conversation’s model; choose another model from the model menu.',
   viewGapReloaded: 'Some updates from Muse Code were missed, so the conversation was reloaded.',

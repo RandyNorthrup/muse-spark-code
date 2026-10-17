@@ -2639,6 +2639,8 @@
   "vaultSessionLogUnavailable": "Export protokolu relace bezpečného pro trezor není dostupný.",
   "turnUnqueued": "Neodesláno: zpráva ve frontě byla stažena",
   "turnRetracted": "Jiný klient Muse Code z této konverzace stáhl zprávu; otevřete ji znovu z Historie, abyste ji viděli tak, jak je uložena.",
+  "turnRetractDeclined": "Stažení zprávy bylo odmítnuto, takže tah pokračuje s ní na místě.",
+  "approvalReviewing": "Bezpečnostní kontrola přezkoumává toto schválení.",
   "modelRouteUnserved": "Přihlášený účet nemůže obsluhovat model této konverzace; vyberte jiný model z nabídky modelů.",
   "viewGapReloaded": "Některé aktualizace z Muse Code byly zmeškány, proto byla konverzace znovu načtena.",
   "viewGapReloadFailed": "Některé aktualizace z Muse Code byly zmeškány a konverzaci se nepodařilo znovu načíst",

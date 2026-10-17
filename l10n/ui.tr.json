@@ -2531,6 +2531,8 @@
   "vaultSessionLogUnavailable": "Kasaya güvenli oturum günlüğü dışa aktarımı kullanılamıyor.",
   "turnUnqueued": "Gönderilmedi: kuyruktaki mesaj geri çekildi",
   "turnRetracted": "Başka bir Muse Code istemcisi bu konuşmadan bir mesajı geri çekti; depolandığı haliyle görmek için Geçmiş'ten yeniden açın.",
+  "turnRetractDeclined": "Mesajın geri çekilmesi reddedildi, bu nedenle tur olduğu gibi devam ediyor.",
+  "approvalReviewing": "Güvenlik Denetimi bu onayı inceliyor.",
   "modelRouteUnserved": "Oturum açılan hesap bu konuşmanın modeline hizmet veremiyor; model menüsünden başka bir model seçin.",
   "viewGapReloaded": "Muse Code'dan gelen bazı güncellemeler kaçırıldı, bu nedenle konuşma yeniden yüklendi.",
   "viewGapReloadFailed": "Muse Code'dan gelen bazı güncellemeler kaçırıldı ve konuşma yeniden yüklenemedi",

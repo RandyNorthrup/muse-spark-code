@@ -1,0 +1,22 @@
+[
+  {
+    "commandId": "01a14b18-a74b-75a0-bede-89d58fb4db23",
+    "sessionId": "01a14b18-a6b1-70b1-98d7-305e708aac00",
+    "sourceRange": {
+      "first": {
+        "id": "01a14b18-a753-7402-b886-b0efb72eefea",
+        "sequence": 14
+      },
+      "last": {
+        "id": "01a14b18-a753-7402-b886-b0efb72eefea",
+        "sequence": 14
+      },
+      "stream": {
+        "id": "01a14b18-a6b1-70b1-98d7-305e708aac00",
+        "kind": "session"
+      }
+    },
+    "turnId": "01a14b18-a74b-75a0-bede-89d58fb4db23",
+    "viewCursor": "v4:01a14b18-a6b1-70b1-98d7-305e708aac00:3"
+  }
+]

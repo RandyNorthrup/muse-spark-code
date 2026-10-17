@@ -2477,6 +2477,8 @@
   "vaultSessionLogUnavailable": "Vault セーフなセッションログのエクスポートは利用できません。",
   "turnUnqueued": "未送信: キュー内のメッセージは取り消されました",
   "turnRetracted": "別の Muse Code クライアントがこの会話からメッセージを取り消しました。保存されている状態を表示するには、履歴から開き直してください。",
+  "turnRetractDeclined": "メッセージの取り下げは拒否されたため、ターンはそのまま続行されます。",
+  "approvalReviewing": "セーフティチェックがこの承認を確認しています。",
   "modelRouteUnserved": "サインインしているアカウントでは、この会話のモデルを利用できません。モデル メニューから別のモデルを選択してください。",
   "viewGapReloaded": "Muse Code からの更新の一部を受信できなかったため、会話を再読み込みしました。",
   "viewGapReloadFailed": "Muse Code からの更新の一部を受信できず、会話を再読み込みできませんでした",

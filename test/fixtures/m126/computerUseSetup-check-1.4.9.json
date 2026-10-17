@@ -1,0 +1,12 @@
+{
+  "error": {
+    "code": -32033,
+    "data": {
+      "kind": "computerUseUnavailable",
+      "retryable": false
+    },
+    "message": "computerUseSetup: computer use is unavailable on this host"
+  },
+  "id": 6,
+  "jsonrpc": "2.0"
+}

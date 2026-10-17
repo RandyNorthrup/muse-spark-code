@@ -2477,6 +2477,8 @@
   "vaultSessionLogUnavailable": "保管庫安全的作業階段記錄匯出無法使用。",
   "turnUnqueued": "未傳送：排入佇列的訊息已撤回",
   "turnRetracted": "另一個 Muse Code 用戶端從此對話撤回了一則訊息；請從歷程記錄重新開啟對話，以檢視已儲存的版本。",
+  "turnRetractDeclined": "撤回訊息的要求被拒絕，因此該輪次將繼續保留該訊息。",
+  "approvalReviewing": "安全檢查正在審核此批准。",
   "modelRouteUnserved": "已登入的帳戶無法為此對話的模型提供服務；請從模型功能表選擇其他模型。",
   "viewGapReloaded": "漏掉了部分來自 Muse Code 的更新，因此已重新載入對話。",
   "viewGapReloadFailed": "漏掉了部分來自 Muse Code 的更新，且無法重新載入對話",

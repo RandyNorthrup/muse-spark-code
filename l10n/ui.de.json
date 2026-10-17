@@ -2531,6 +2531,8 @@
   "vaultSessionLogUnavailable": "Der Tresor-sichere Sitzungsprotokollexport ist nicht verfügbar.",
   "turnUnqueued": "Nicht gesendet: Die eingereihte Nachricht wurde zurückgezogen",
   "turnRetracted": "Ein anderer Muse Code-Client hat eine Nachricht aus dieser Unterhaltung zurückgezogen; öffnen Sie sie erneut über den Verlauf, um sie wie gespeichert zu sehen.",
+  "turnRetractDeclined": "Das Zurückziehen der Nachricht wurde abgelehnt, daher läuft der Durchgang mit ihr weiter.",
+  "approvalReviewing": "Die Sicherheitsprüfung prüft diese Genehmigung.",
   "modelRouteUnserved": "Das angemeldete Konto kann das Modell dieser Unterhaltung nicht bereitstellen; wählen Sie im Modellmenü ein anderes Modell.",
   "viewGapReloaded": "Einige Aktualisierungen von Muse Code wurden verpasst, daher wurde die Unterhaltung neu geladen.",
   "viewGapReloadFailed": "Einige Aktualisierungen von Muse Code wurden verpasst, und die Unterhaltung konnte nicht neu geladen werden",
