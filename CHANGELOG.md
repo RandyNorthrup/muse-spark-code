@@ -131,6 +131,20 @@ happened, not what was planned; superseded entries are kept.
   features' API surface leaves in wired files is measured in
   docs/testing/test-overhaul-2026-10-12.md for the per-feature owners.
 
+- Panel plain words (lane PANELTEXT, findings F59–F71): the Getting Started
+  rows are grid columns that can never overlap, at any sidebar width; the
+  empty composer invites a message and names only this machine's focus key
+  ("Ask Muse… (Ctrl+Esc to focus)" on Linux, Cmd+Esc on macOS,
+  Ctrl+Alt+Esc on Windows); the Share Chat destination group is headed
+  "Share as"; Muse Code skill rows show the skill's title ("Run the {name}
+  skill."), never SKILL.md's model-facing instructions; a palette tip that
+  repeats its row's detail reads once; the Backend row says which engine
+  runs the conversation instead of the raw setting id; the model picker
+  marks contributor-suffixed models; the pill says "Checking sign-in…"
+  while the sign-in facts are read, and a signed-in credential file shows
+  at once, before the rest of the sign-in facts are read; a skills "Not now" is
+  remembered even when the click reaches a window that never showed the
+  notice.
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

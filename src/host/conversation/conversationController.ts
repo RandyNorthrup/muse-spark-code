@@ -3860,7 +3860,13 @@ export class ConversationController {
       }),
       ...(model.isPinned === true && { isPinned: model.isPinned }),
       ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
-      ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
+      // The contributor state travels with the model (F62): the CLI's list
+      // names no tier, but a `-contributor` id trains on what it is sent by
+      // definition, so the picker's tier mark and the contributor switch
+      // (F8 lane) read the same fact from `trainsOnContent`.
+      ...((model.trainsOnContent === true || isContributorModel(model.modelId)) && {
+        trainsOnContent: true,
+      }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })
   }

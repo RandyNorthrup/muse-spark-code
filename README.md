@@ -2865,7 +2865,11 @@ The panel follows your editor's theme and UI/code fonts. Shared tokens give
 our cards, menus and dialogs consistent radii, focus rings, elevation and
 control states; high contrast uses borders and opaque surfaces. Reduced
 motion stops interaction animations. Native editor prompts, including paid
-consent, keep the editor's appearance and existing behavior.
+consent, keep the editor's appearance and existing behavior. Panel words stay
+plain: the empty composer invites a message with only this machine's focus
+key, Getting Started keys never overlap their text, and the palette shows
+person-facing rows (skill titles, plain engine names) with each description
+once.
 
 The [token contract](design/tokens/README.md) is shared with other hosts.
 Standalone surfaces have an optional pinned OFL font pack (Inter, JetBrains

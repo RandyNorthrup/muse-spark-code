@@ -303,6 +303,10 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
       },
     ]
   }
+  // A person-facing line only (F68): the skill's title, never the
+  // description its SKILL.md wrote for the model (`read_skill` calls and
+  // other assistant instructions). The model still reads the description
+  // from the skill file itself when the skill runs.
   return skills
     .filter(
       (skill) =>
@@ -313,11 +317,11 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
     .map((skill) => ({
       id: `skill:${skill.selector}`,
       label: `/${skill.selector}`,
-      tip: skill.description.trim() || fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
+      tip: fill(UI_TEXT.paletteSkillTip, { name: skill.displayName }),
       detail:
         skill.argumentHint === undefined
-          ? skill.description
-          : `${skill.description} — ${skill.argumentHint}`,
+          ? skill.displayName
+          : `${skill.displayName} — ${skill.argumentHint}`,
       action: { type: 'insertSkill', selector: skill.selector },
     }))
 }
