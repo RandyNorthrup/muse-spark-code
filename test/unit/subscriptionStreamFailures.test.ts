@@ -38,7 +38,7 @@ function entry(id: string, modelId: string) {
     id,
     preset: id,
     address: id === 'chatgpt' ? 'https://api.openai.com' : 'https://github.com/copilot',
-    format: id === 'chatgpt' ? 'responses' : 'chat',
+    format: id === 'chatgpt' ? ('responses' as const) : ('chat' as const),
     auth: 'subscription' as const,
     models: [modelId],
   }
