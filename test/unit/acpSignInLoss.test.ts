@@ -15,6 +15,10 @@ describe('signInLossText', () => {
     expect(text).toContain(REASON)
     expect(text).toContain('muse login')
     expect(text).toContain('META_API_KEY')
+    // The cause already names Muse Code (`describeExit`): the sentence
+    // around it must not name it again.
+    expect(text).not.toContain('Muse Code Muse Code')
+    expect(text?.startsWith(CAUSE)).toBe(true)
   })
 
   it('is undefined with no restart behind the failure, or another failure kind', () => {

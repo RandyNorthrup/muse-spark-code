@@ -2581,7 +2581,7 @@
   "museCodeUnresponsiveTurn": "O Muse Code parou de responder enquanto um turno está em execução. Reiniciá-lo interrompe esse turno; a conversa continua com sua próxima mensagem.",
   "museCodeRestarted": "O Muse Code foi reiniciado. Sua próxima mensagem continua esta conversa.",
   "sessionLogDamaged": "O log do Muse Code desta conversa está danificado (uma falha do Muse Code), então ela não pode receber novas mensagens. Comece uma nova conversa; esta continua no Histórico.",
-  "museSignInLostOnRestart": "O Muse Code {exit} e não está mais conectado, então este turno não pôde ser executado ({detail}). Entre novamente com “muse login” em um terminal, ou defina META_API_KEY para a CLI, e envie novamente.",
+  "museSignInLostOnRestart": "{exit} e não está mais conectado, então este turno não pôde ser executado ({detail}). Entre novamente com “muse login” em um terminal, ou defina META_API_KEY para a CLI, e envie novamente.",
   "vaultScrubUnavailable": "O serviço de depuração do cofre está indisponível.",
   "vaultSessionLogUnavailable": "A exportação do registro de sessão segura do cofre está indisponível.",
   "turnUnqueued": "Não enviada: a mensagem da fila foi retirada",
