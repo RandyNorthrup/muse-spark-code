@@ -40,9 +40,10 @@ happened, not what was planned; superseded entries are kept.
   128 KiB — only a blank title still refuses ("A title is required."); a link
   import reads under web fetch's own 5 MiB body bound. Exports, shares and
   imports take any transcript item count instead of refusing past 20,000.
-  Report sources read at any size instead of refusing past 16 MiB. A session
   import is refused only past the provider's own documented context window
-  instead of the window-minus-reserve formula.
+  instead of the window-minus-reserve formula. A check's long
+  `timeoutSeconds` waits its whole length instead of firing at once past
+  Node's 2^31-1 ms timer maximum (timers re-arm in slices; no cap added).
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock

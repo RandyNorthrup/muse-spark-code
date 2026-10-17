@@ -14429,7 +14429,11 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
 - A26 (NOLIMITS1): `CHECK_COMMANDS_MAX` = 8 and `CHECK_MAX_TIMEOUT_SECONDS`
   = 600 removed — not about a model; any number of checks, each naming any
   positive `timeoutSeconds` (300 unless set; `package.json` maxItems and
-  maximum go with them).
+  maximum go with them). NOLIMITS1FIX: a long `timeoutSeconds` waits its
+  whole length — Node timers stop at 2^31-1 ms (about 24.8 days, a platform
+  fact; observed: 2^31 warns `TimeoutOverflowWarning` and fires at once),
+  so the shell runner re-arms its timer in slices of at most
+  `NODE_MAX_TIMER_MS`. No cap is added.
 - A27 (NOLIMITS1): `SUBAGENT_MAX_PER_CONVERSATION` = 64 removed — not about
   a model; a conversation spawns without a count of ours (paid consent
   still asks per spawn; the 8-at-once queue is C6, untouched).

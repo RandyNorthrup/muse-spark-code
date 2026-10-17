@@ -61,6 +61,19 @@ capability record stays lane L2's. Proof test: `sessionTransfer.test.ts`
 imports half a window and refuses a replay past the full window, naming
 both sizes. Real-use proof with the built product: see §N6.
 
+### §N5 — long timeouts chained past Node's timer maximum
+
+Node timers stop at 2^31-1 ms (about 24.8 days, a platform fact —
+observed on this rig: `setTimeout(..., 2 ** 31)` warns
+`TimeoutOverflowWarning: ... set to 1` and fires after ~14 ms, which
+would end a person's month-long check at once as a false timeout). The
+shell runner (`runCommand` in `src/host/backend/toolIo.ts`, the funnel
+for check, shell-tool and hook runs) now arms `setChainedTimeout`, which
+re-arms in slices of at most `NODE_MAX_TIMER_MS`. No cap is added.
+Proof test: `chainedTimeout.test.ts` fires once after the whole delay
+across 10 ms slices (elapsed ≥ 90 ms for a 100 ms delay), fires a short
+delay, and never fires after `clear()` — real timers throughout.
+
 ## Correction review (2026-10-16 continuation)
 
 The first nine commits (A7, A8, A11, A13, A21–A25) were re-checked against
