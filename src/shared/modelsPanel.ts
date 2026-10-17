@@ -28,6 +28,12 @@ import { legacyUsdSchema } from './usdSchema'
 
 import * as z from 'zod/mini'
 
+/** Positive safe whole-token counts shared by manual entry and the strict panel wire. */
+const contextWindowSchema = z.int().check(z.positive())
+const panelModelLimitsSchema = z
+  .strictObject({ contextTokens: contextWindowSchema, outputTokens: contextWindowSchema })
+  .check(z.refine((limits) => limits.outputTokens <= limits.contextTokens))
+
 /** The panel's sections; M96 registers `roles` and `agents` beside these. */
 export const modelsPanelSectionSchema = z.enum(['providers', 'models'])
 export type ModelsPanelSection = z.infer<typeof modelsPanelSectionSchema>
@@ -137,6 +143,7 @@ export const providerStateSchema = z.strictObject({
   test: providerTestSchema,
   /** The chosen models (`<modelId>` as the provider lists them). */
   models: z.array(z.string()),
+  modelLimits: z.optional(z.record(z.string(), panelModelLimitsSchema)),
   /** Pinned favourites, first in the composer's picker. */
   pinned: z.array(z.string()),
   keyUsage: z.optional(providerKeyUsageSchema),
@@ -431,6 +438,12 @@ export type TickScope = z.infer<typeof tickScopeSchema>
 
 /** What the panel posts to the host. */
 export const panelToHostMessageSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('models/contextWindow'),
+    scope: tickScopeSchema,
+    ref: z.string(),
+    contextTokens: contextWindowSchema,
+  }),
   z.strictObject({ type: z.literal('modelsPanel/ready') }),
   // The shared shape with protocol.ts: http(s) opens in the browser
   // through the host, anything else is refused there.

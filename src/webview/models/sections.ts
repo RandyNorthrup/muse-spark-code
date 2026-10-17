@@ -12,9 +12,14 @@ import type {
   PanelToHostMessage,
 } from '../../shared/modelsPanel'
 import { CodeIcon, PlusIcon } from '../components/icons'
-import { ModelsSection } from './ModelsSection'
+import { deferred } from '../components/DeferredSurface'
 import { ProvidersSection } from './ProvidersSection'
 import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
+
+const ModelsSection = deferred(async () => {
+  const { ModelsSection } = await import('./ModelsSection')
+  return { default: ModelsSection }
+}, false)
 
 export interface SectionProps {
   readonly panelState: ModelsPanelState

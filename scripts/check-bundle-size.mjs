@@ -339,14 +339,21 @@ for (const { path, budgetKiB } of BUDGETS) {
 // TRAIN15H: optional surfaces' English has its own measured closure cap in
 // webviewBundles.mjs, following measured +15%, rounded up to 25 KiB.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-for (const { name, source, budgetKiB } of [
+for (const { name, page, source, budgetKiB } of [
   // TRAIN15G: full lazy closure 56.3 KiB +15%, rounded up to 25 KiB.
-  { name: 'models', source: 'src/webview/models/panel.tsx', budgetKiB: 75 },
+  { name: 'models', page: 'models', source: 'src/webview/models/panel.tsx', budgetKiB: 75 },
+  // CM954R4: first-use table closure, measured +15%, rounded up to 25 KiB.
+  {
+    name: 'local model table',
+    page: 'models',
+    source: 'src/webview/models/ModelsSection.tsx',
+    budgetKiB: 25,
+  },
   // TRAIN15G: full lazy closure 35.4 KiB +15%, rounded up to 25 KiB.
-  { name: 'usage', source: 'src/webview/usage/UsageApp.tsx', budgetKiB: 50 },
+  { name: 'usage', page: 'usage', source: 'src/webview/usage/UsageApp.tsx', budgetKiB: 50 },
 ]) {
-  const meta = JSON.parse(readFileSync(`dist/meta/${name}Webview.json`, 'utf8'))
-  const files = webviewPanelOutputs(meta, `dist/webview/${name}.js`, source)
+  const meta = JSON.parse(readFileSync(`dist/meta/${page}Webview.json`, 'utf8'))
+  const files = webviewPanelOutputs(meta, `dist/webview/${page}.js`, source)
   const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(

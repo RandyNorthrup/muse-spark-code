@@ -340,7 +340,8 @@
     "estimate-by": "--by <date>: Son tarih",
     "fleet": "--fleet current|minimum|optimum: Mevcut makine grubu / Asgari kurulum / En uygun kurulum",
     "estimate-format": "--format md|html|json|text: Çıktı biçimi",
-    "seed": "--seed <seed>: Simülasyon tohumu"
+    "seed": "--seed <seed>: Simülasyon tohumu",
+    "context-window": "--context-window <tokens>: Yerel sunucuda yüklenen bağlam penceresini girin. Elle girilen değerler taranan sınırların yerine geçer."
   },
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Devam ediyor.",
@@ -4124,6 +4125,9 @@
   "providerTestPaid": "Bu denetim bir jeton gönderir ve yaklaşık {cost} tutar.",
   "providerTestFailed": "Denetim başarısız: {detail}",
   "scanFailed": "Tarama başarısız: {detail}",
+  "llamacppScanMissingWindow": "llama.cpp model listesi etkin bir bağlam penceresi bildirmiyor (yakalanan derleme {build}).",
+  "localModelWindowUnknown": "{model} modelinin bağlam penceresi bilinmiyor. Yüklenen pencereyi sağlayıcı sihirbazında, Modeller panelinde veya providers add --context-window ile girin.",
+  "providerNeedsKey": "{id} sağlayıcısı bir anahtar gerektiriyor.",
   "wizardPickProvider": "Bir sağlayıcı seçin",
   "providerFields": {
     "provider": "Sağlayıcı",
@@ -5286,5 +5290,8 @@
       "one": "{count} izin",
       "other": "{count} izin"
     }
-  }
+  },
+  "localContextWindow": "Bağlam penceresi (token)",
+  "localContextWindowHint": "Yerel sunucuda yüklenen bağlam penceresini girin. Elle girilen değerler taranan sınırların yerine geçer.",
+  "localContextWindowInvalid": "Pozitif bir tam sayı olarak token sayısını girin."
 }

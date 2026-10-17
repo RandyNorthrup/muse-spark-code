@@ -2,6 +2,7 @@
 // every send rechecks configuration, credential origin and pinned DNS answers.
 import { createHash, randomUUID } from 'node:crypto'
 import { lookup } from 'node:dns/promises'
+import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { request as httpRequest } from 'node:http'
@@ -47,6 +48,7 @@ import {
 } from '../backends/modelapi/transport'
 import { withDeadline, unlessAborted } from '../timeouts'
 import { Usd } from '../../shared/usd'
+import { fill } from '../../shared/l10n/text'
 import {
   ADDRESS_FAMILIES,
   ANTHROPIC_MAX_ARGUMENT_BYTES,
@@ -248,7 +250,11 @@ export function createConfiguredProviderServices(
     const configuredUrl = new URL(entry.address ?? fail())
     const base = new URL(keyTestOrigin ?? configuredUrl.href)
     if (
-      (!preset.wireCapture && entry.preset !== 'custom' && entry.auth !== 'none') ||
+      // No capture, no calls (rule 13): `custom` is the user's own server,
+      // but an uncaptured preset stays refused even when keyless
+      // (C-M95-4 R2: the old `auth !== 'none'` escape let a picked vLLM or
+      // Ollama entry send chat with no capture behind it).
+      (!preset.wireCapture && entry.preset !== 'custom') ||
       (preset.origin.kind === 'fixed' && configuredUrl.origin !== preset.origin.origin) ||
       (keyTestOrigin !== undefined &&
         (preset.keyTest.kind !== 'provider-key' || preset.keyTest.origin !== keyTestOrigin))
@@ -583,9 +589,9 @@ export function createConfiguredProviderServices(
     let reasoningParam: chat.ChatPresetQuirks['reasoningParam'] = 'none'
     if (record.reasoning.effortLevels.state === 'yes')
       reasoningParam = preset.id === 'openrouter' ? 'effort-object' : 'effort-flat'
-    let replayField: chat.ChatPresetQuirks['replayField'] = 'none'
-    if (preset.quirks.reasoningField === 'reasoning_details') replayField = 'details'
-    else if (preset.quirks.reasoningField === 'reasoning_content') replayField = 'content'
+    // C-M95-4 R2: local presets never replay thinking (fail closed on
+    // unversioned servers); see `replayFieldFor`.
+    const replayField = presets.replayFieldFor(preset)
     const quirks: chat.ChatPresetQuirks = {
       presetId: preset.id.replace('-plan', ''),
       providerId: entry.id,
@@ -816,6 +822,14 @@ export function createConfiguredProviderServices(
         )
         if (body.max_output_tokens < minimum)
           throw new RangeError(outputTokenMinimumMessage(minimum))
+        // C-M95-4 R3: a local server's report is its only window. A
+        // windowless local model refuses here with a plain reason instead
+        // of sending Meta-sized history at a small server. Before the
+        // `try`, so the reason reaches the caller instead of `fail()`.
+        const windowTokens =
+          entry.modelLimits?.[native]?.contextTokens ?? record.limits.contextTokens
+        if (windowTokens === undefined && entry.auth === 'none' && preset.wireCapture)
+          throw new Error(fill(UI_TEXT.localModelWindowUnknown, { model: ref }))
         let usage: Usage | undefined
         const dispatch = { attempts: 0 }
         const observe = Object.assign(
@@ -892,6 +906,50 @@ export function createConfiguredProviderServices(
       presets.planKeyPresetById(records.get(ref)?.entry.preset ?? '') !== undefined ||
       meta?.isPlanModel?.(ref) === true,
     readPlanUsage: () => [...(meta?.readPlanUsage?.() ?? []), ...plans],
+    // C-M95-4 R5: the saved record read at use time, for compaction
+    // sizing (the host's `contextModel` seam is synchronous). The file is
+    // tiny; a synchronous parse keeps every writer (panel, wizard, CLI,
+    // ACP) current with no snapshot to invalidate. A carried
+    // `modelLimits` window wins; otherwise the last listing's catalogue
+    // window stands (catalogue records are static). An unlisted model or
+    // an unknown window reads undefined.
+    peekContextModel: (ref) => {
+      const parsed = modelRef.parseModelRef(ref)
+      const native = parsed?.modelId
+      if (parsed === undefined || native === undefined) return
+      try {
+        const saved = providersFile.providersFileSchema.safeParse(
+          JSON.parse(readFileSync(options.configFile, 'utf8')) as unknown,
+        )
+        if (parsed.providerId !== 'meta' && saved.success) {
+          const entry = saved.data.providers.find((row) => row.id === parsed.providerId)
+          const windowTokens = entry?.modelLimits?.[native]?.contextTokens
+          if (
+            entry !== undefined &&
+            windowTokens !== undefined &&
+            Number.isSafeInteger(windowTokens) &&
+            windowTokens > 0
+          ) {
+            const format = providersFile.providerFormatSchema.safeParse(
+              entry.format ?? presetFor(entry).format,
+            )
+            if (format.success) return { format: format.data, contextTokens: windowTokens }
+          }
+        }
+      } catch {
+        // An unreadable file keeps the last listing's answer below.
+      }
+      const bound = records.get(ref)
+      if (bound === undefined) return
+      const windowTokens =
+        bound.entry.modelLimits?.[native]?.contextTokens ?? bound.record.limits.contextTokens
+      if (windowTokens === undefined || !Number.isSafeInteger(windowTokens) || windowTokens <= 0)
+        return
+      const format = providersFile.providerFormatSchema.safeParse(
+        bound.entry.format ?? presetFor(bound.entry).format,
+      )
+      return format.success ? { format: format.data, contextTokens: windowTokens } : undefined
+    },
     streamResponse: async function* (body, ...args) {
       if (body.model.includes('/') && !meta?.isPlanModel?.(body.model)) {
         const resolved = await registry.resolve(body.model)
@@ -1013,6 +1071,25 @@ export function createConfiguredProviderServices(
           .string()
           .check(z.minLength(1))
           .parse(native['id'] ?? native['name'])
+        // C-M95-4 R2: the quirks above were captured against
+        // `capturedBuild`, whose list carries the live window as
+        // `meta.n_ctx`. A list without it is an unknown build: offering
+        // its models with an unknown window would let manual compact
+        // assume Meta's window, so the scan fails closed instead.
+        if (preset.id === 'llamacpp') {
+          const meta = native['meta']
+          const live =
+            typeof meta === 'object' && meta !== null && 'n_ctx' in meta
+              ? Reflect.get(meta, 'n_ctx')
+              : undefined
+          if (typeof live !== 'number' || !(live > 0)) {
+            throw new Error(
+              fill(UI_TEXT.llamacppScanMissingWindow, {
+                build: preset.capturedBuild ?? preset.id,
+              }),
+            )
+          }
+        }
         const source = { kind: 'models-list' as const, ref: entry.address ?? fail() }
         const known = catalogue.providers[preset.id.replace('-plan', '')]?.models[id]
         const record = capabilities.resolveModelCapabilities(

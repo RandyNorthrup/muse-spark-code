@@ -20,7 +20,7 @@ import type {
 } from '../../src/shared/modelsPanel'
 import { ModelsSection } from '../../src/webview/models/ModelsSection'
 import { ProvidersSection } from '../../src/webview/models/ProvidersSection'
-import type { SectionProps } from '../../src/webview/models/sections'
+import { MODEL_SECTIONS, type SectionProps } from '../../src/webview/models/sections'
 import { Wizard } from '../../src/webview/models/Wizard'
 import { loadMoneyDisplay } from '../../src/webview/money'
 import {
@@ -886,4 +886,117 @@ describe('ModelsSection', () => {
       ticked: true,
     })
   })
+})
+
+describe('manual local context fields', () => {
+  it('offers a labelled window for selected wizard models and blocks invalid bridge values', () => {
+    const post = vi.fn()
+    const draft = makeDraft({
+      step: 'models',
+      presetId: 'ollama',
+      auth: 'none',
+      models: ['qwen3:8b'],
+    })
+    const state = makeState({ models: [makeRow({ contextTokens: undefined })] })
+    render(
+      <Wizard
+        panelState={state}
+        draft={draft}
+        post={post}
+        life={OPEN_WIZARD}
+        onNavigateModels={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('checkbox')).toHaveProperty('checked', true)
+    const input = screen.getByRole('spinbutton', {
+      name: `${UI_TEXT.localContextWindow} (qwen3:8b)`,
+    })
+    for (const value of ['0', '1.5']) {
+      fireEvent.change(input, { target: { value } })
+      fireEvent.blur(input)
+      expect(input.getAttribute('aria-invalid')).toBe('true')
+      expect(screen.getByRole('alert').textContent).toBe(UI_TEXT.localContextWindowInvalid)
+      expect(post).not.toHaveBeenCalled()
+    }
+    for (const value of ['8', '81', '819', '8192']) {
+      fireEvent.change(input, { target: { value } })
+      expect(post).not.toHaveBeenCalled()
+    }
+    fireEvent.blur(input)
+    expect(post).toHaveBeenLastCalledWith({
+      type: 'models/contextWindow',
+      scope: { scope: 'wizard' },
+      ref: 'ollama/qwen3:8b',
+      contextTokens: 8192,
+    })
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(post).toHaveBeenLastCalledWith({
+      type: 'models/tick',
+      scope: { scope: 'wizard' },
+      ref: 'ollama/qwen3:8b',
+      ticked: false,
+    })
+  })
+
+  it('shows and edits a saved local window in the Models panel', () => {
+    const post = vi.fn()
+    render(
+      <ModelsSection
+        {...props(
+          makeState({ models: [makeRow({ priceNote: 'local', contextTokens: 4096 })] }),
+          post,
+        )}
+      />,
+    )
+    const input = screen.getByRole('spinbutton', {
+      name: `${UI_TEXT.localContextWindow} (ollama/qwen3:8b)`,
+    })
+    expect(input).toHaveProperty('value', '4096')
+    input.focus()
+    fireEvent.change(input, { target: { value: '2048' } })
+    expect(post).not.toHaveBeenCalled()
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(post).toHaveBeenLastCalledWith({
+      type: 'models/contextWindow',
+      scope: { scope: 'provider', providerId: 'ollama' },
+      ref: 'ollama/qwen3:8b',
+      contextTokens: 2048,
+    })
+  })
+})
+
+it('edits the loaded window of an existing local provider without rescanning', () => {
+  const post = vi.fn()
+  const state = makeState({
+    providers: [makeProvider()],
+    drafts: {
+      edits: {
+        ollama: makeDraft({
+          auth: 'none',
+          models: ['qwen3:8b'],
+          modelLimits: { 'qwen3:8b': { contextTokens: 4096, outputTokens: 4096 } },
+        }),
+      },
+    },
+  })
+  render(<ProvidersSection {...props(state, post)} />)
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.providerEdit }))
+  const input = screen.getByRole('spinbutton', { name: `${UI_TEXT.localContextWindow} (qwen3:8b)` })
+  fireEvent.change(input, { target: { value: '8192' } })
+  fireEvent.blur(input)
+  expect(post).toHaveBeenLastCalledWith({
+    type: 'models/contextWindow',
+    scope: { scope: 'wizard', providerId: 'ollama' },
+    ref: 'ollama/qwen3:8b',
+    contextTokens: 8192,
+  })
+})
+
+it('loads the registered Models table on first use with an accessible status', async () => {
+  const Section = MODEL_SECTIONS.find((section) => section.id === 'models')?.Component
+  if (Section === undefined) throw new Error('Missing Models section')
+  render(<Section {...props(makeState({ models: [makeRow()], totalModels: 1 }), vi.fn())} />)
+  expect(screen.getByRole('status').textContent).toBe(UI_TEXT.loadingOutput)
+  expect(await screen.findByRole('grid')).toBeTruthy()
 })

@@ -64,6 +64,10 @@ function samples(provider: string, file = '01-models-list.json'): unknown {
   return summary.sample
 }
 
+const contextOf = (row: unknown) =>
+  nativeCapabilityEvidence('llamacpp', row, { kind: 'models-list', ref: 'test' }).fields.limits
+    ?.contextTokens
+
 function catalogueModel(provider: string, id: string): unknown {
   const snapshot: unknown = JSON.parse(
     readFileSync(new URL('../../vendor/models-dev/snapshot.json', import.meta.url), 'utf8'),
@@ -613,6 +617,16 @@ describe('native metadata and reasoning encoding', () => {
     ]
     expect(parseOllamaModelsList({ models: rows })).toEqual(rows)
     expect(() => parseOllamaModelsList({ models: [{ name: 1 }] })).toThrow()
+  })
+  it('reads local server windows: llama.cpp live meta.n_ctx first, vLLM max_model_len', () => {
+    // C-M95-4 R2: the llama.cpp list names `n_ctx` as the window but the
+    // scan never read it, so a 4096-token server kept an unknown window
+    // and manual compact assumed Meta's. The live `--ctx-size` window wins
+    // over the trained one; a list with no window stays unknown.
+    expect(contextOf({ id: 'm', meta: { n_ctx: 4096, n_ctx_train: 40_960 } })).toBe(4096)
+    expect(contextOf({ id: 'm', meta: { n_ctx_train: 40_960 } })).toBe(40_960)
+    expect(contextOf({ id: 'm', max_model_len: 8192 })).toBe(8192)
+    expect(contextOf({ id: 'm', owned_by: 'llmster' })).toBeUndefined()
   })
 })
 

@@ -85,3 +85,22 @@ export function providerOutputMinimum(
     return minimum
   }
 }
+
+/**
+ * Limits exist only for ticked models (C-M95-4 R5): keep an entry's
+ * `modelLimits` for models in its list and drop the rest, so a stale
+ * window an untick left behind can never win over a later scan. Listed
+ * custom models' required limits are intact. Structural on purpose: both
+ * the file schema's entry and the host's entry satisfy it, and panel
+ * bundles import this shared module without pulling provider core.
+ */
+export function pruneModelLimits(
+  models: readonly string[],
+  modelLimits:
+    | Readonly<Record<string, { readonly contextTokens: number; readonly outputTokens: number }>>
+    | undefined,
+): Record<string, { contextTokens: number; outputTokens: number }> | undefined {
+  return modelLimits === undefined
+    ? undefined
+    : Object.fromEntries(Object.entries(modelLimits).filter(([id]) => models.includes(id)))
+}

@@ -41,6 +41,7 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
+import { modelLimitsSchema } from '../shared/providerRouting'
 import type { ProvidersAddOptions } from './cliArgs'
 import {
   formatStoredProviderSecret,
@@ -551,6 +552,16 @@ export async function providersAdd(
   if (preset === undefined) {
     return failed(deps, fill(UI_TEXT.providerUnknown, { provider: options.preset }))
   }
+  if (
+    options.contextWindow !== undefined &&
+    (preset.category !== 'local' ||
+      !modelLimitsSchema.shape.contextTokens.safeParse(options.contextWindow).success)
+  ) {
+    return failed(deps, UI_TEXT.localContextWindowInvalid)
+  }
+  if (preset.category === 'local' && options.contextWindow === undefined) {
+    return failed(deps, fill(UI_TEXT.localModelWindowUnknown, { model: options.models.join(', ') }))
+  }
   if (preset.id === 'custom' && options.as === undefined) {
     return failed(deps, fill(UI_TEXT.providerUnknown, { provider: 'custom (pass --as <id>)' }))
   }
@@ -721,6 +732,7 @@ export async function providersAdd(
       state.error ?? fill(UI_TEXT.providerTestFailed, { detail: blockers[0] ?? 'confirm' }),
     )
   }
+  const contextWindow = options.contextWindow
   const entry: ProviderEntry = {
     id,
     preset: preset.id,
@@ -728,6 +740,14 @@ export async function providersAdd(
     ...(preset.id === 'custom' && options.format !== undefined && { format: options.format }),
     auth: preset.auth,
     models: [...models],
+    ...(contextWindow !== undefined && {
+      modelLimits: Object.fromEntries(
+        models.map((model) => [
+          model,
+          { contextTokens: contextWindow, outputTokens: contextWindow },
+        ]),
+      ),
+    }),
     ...(preset.id === 'openrouter' && {
       routing: { privacy: options.privacy ?? 'zdr', allowFallbacks: true },
     }),

@@ -1,4 +1,10 @@
-import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../shared/constants'
+import {
+  MODEL_API_CONTEXT_WINDOW,
+  MODEL_API_LEGACY_CONTEXT_MODELS,
+  MODEL_API_MAX_RETRIES,
+  UI_TEXT,
+} from '../../shared/constants'
+import type { ContextModel } from '../../core/context/overflow'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import {
   type ResponseAttemptGuard,
@@ -121,6 +127,19 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   }
   const meta = new ModelApiClient(deps.client)
   const client = (await deps.createProviderClient?.(meta)) ?? meta
+  // C-M95-4 R3: the configured registry owns every M95 model's live
+  // window (scanned locals carry their server's report in `modelLimits`).
+  // The host sizes compaction from `contextModel`, so feed it from the
+  // registry's synchronous peek; an explicitly supplied one still wins,
+  // and an unlisted model keeps the previous fallback.
+  const peekContextModel = 'peekContextModel' in client ? client.peekContextModel : undefined
+  // The legacy Meta window the host applied before the registry seam;
+  // installing the seam must never unlist it (the host's own legacy
+  // branch only fires while `contextModel` is absent entirely).
+  const legacyContextModel = (modelId: string): ContextModel | undefined =>
+    MODEL_API_LEGACY_CONTEXT_MODELS.includes(modelId)
+      ? { format: 'responses', contextTokens: MODEL_API_CONTEXT_WINDOW }
+      : undefined
   const mcp =
     deps.createMcpServers === undefined
       ? undefined
@@ -132,6 +151,10 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
     modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,
     client,
+    ...(peekContextModel !== undefined &&
+      hostDeps.contextModel === undefined && {
+        contextModel: (modelId: string) => peekContextModel(modelId) ?? legacyContextModel(modelId),
+      }),
     ...('models' in client && { models: client.models }),
     ...(deps.createProviders !== undefined && {
       models: {

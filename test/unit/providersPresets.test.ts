@@ -17,6 +17,7 @@ import {
   presetsByCategory,
   PRESETS,
   quirksOf,
+  replayFieldFor,
   isKeyShape,
   FORMAT_QUIRKS,
   type ProviderPreset,
@@ -55,10 +56,13 @@ describe('the preset table', () => {
       'fireworks',
       'huggingface',
       'zai',
+      // C-M95-4: live captures in docs/certification/m95-captures/<llamacpp|lmstudio>/.
+      'lmstudio',
+      'llamacpp',
     ]) {
       expect(listed).toContain(id)
     }
-    for (const id of ['azure', 'ollama', 'lmstudio', 'vllm', 'llamacpp', 'custom']) {
+    for (const id of ['azure', 'ollama', 'vllm', 'custom']) {
       expect(listed).not.toContain(id)
     }
   })
@@ -150,9 +154,14 @@ describe('the preset table', () => {
     })
     expect(quirksOf(preset('openrouter')).reasoningField).toBe('reasoning_details')
     expect(quirksOf(preset('deepseek')).reasoningField).toBe('reasoning_content')
+    // C-M95-4: LM Studio streams `reasoning_content` (capture 02-plain-reply).
+    expect(quirksOf(preset('lmstudio')).reasoningField).toBe('reasoning_content')
+    // C-M95-4: LM Studio's list carries no window (capture 01-models-list).
+    expect(preset('lmstudio').modelsList.windowField).toBeUndefined()
     expect(quirksOf(preset('gemini')).reasoningField).toBe('thoughtSignature')
     expect(quirksOf(preset('anthropic')).reasoningField).toBe('thinking')
-    expect(quirksOf(preset('llamacpp')).toolChoice).toBe('string-only')
+    // C-M95-4: b11541 accepts the object form (capture 12-toolchoice-object).
+    expect(quirksOf(preset('llamacpp')).toolChoice).toBe('auto')
     expect(quirksOf(preset('together')).outputCapParam).toBe('max_tokens')
     for (const candidate of PRESETS) {
       expect(quirksOf(candidate).neverSendEmptyTools).toBe(true)
@@ -199,6 +208,30 @@ describe('the preset table', () => {
     expect(azureOrigin('has space')).toBeUndefined()
     expect(azureOrigin('ab')).toBeUndefined()
     expect(azureOrigin('has.dot')).toBeUndefined()
+  })
+
+  it('never replays thinking to an unversioned local server (fail closed)', () => {
+    // C-M95-4 R2: neither local list carries a version, so a build older
+    // or newer than the capture may not understand the captured replay
+    // field. Local presets replay nothing; the decoder still displays
+    // every reasoning field.
+    for (const id of ['ollama', 'lmstudio', 'vllm', 'llamacpp']) {
+      expect(replayFieldFor(preset(id))).toBe('none')
+    }
+    expect(replayFieldFor(preset('openrouter'))).toBe('details')
+    expect(replayFieldFor(preset('deepseek'))).toBe('content')
+    expect(replayFieldFor(preset('openai'))).toBe('none')
+    expect(replayFieldFor(preset('groq'))).toBe('none')
+  })
+
+  it('stamps the captured server build on captured local presets only', () => {
+    // C-M95-4 R2: the stamp names what the quirks were proven against
+    // (the capture ledgers); the scan names it when it fails closed.
+    expect(preset('llamacpp').capturedBuild).toBe('b11541 (0.6.0-dev, commit f2918cabb)')
+    expect(preset('lmstudio').capturedBuild).toBe('llmster 0.0.25-1')
+    for (const id of ['openai', 'ollama', 'vllm', 'custom']) {
+      expect(preset(id).capturedBuild).toBeUndefined()
+    }
   })
 })
 

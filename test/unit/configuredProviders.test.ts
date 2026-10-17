@@ -36,6 +36,7 @@ import {
   SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
 } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 
 const roots: string[] = []
 afterEach(async () => {
@@ -200,6 +201,15 @@ async function fixture() {
     catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
   }
 }
+const windowedLocalEntry = (contextTokens: number) =>
+  providerEntrySchema.parse({
+    id: 'llamacpp',
+    preset: 'llamacpp',
+    address: 'http://127.0.0.1:8080',
+    auth: 'none',
+    models: ['Qwen3-0.6B-Q8_0'],
+    modelLimits: { 'Qwen3-0.6B-Q8_0': { contextTokens, outputTokens: contextTokens } },
+  })
 const body = (): CreateResponseBody => ({
   model: REF,
   instructions: 'Test',
@@ -287,7 +297,10 @@ describe('configured provider production transport', () => {
     ['openai', 'responses', '02-tool-call-stream.json', 'gpt-5.6-luna'],
     ['anthropic', 'anthropic', '03-tool-call-stream.json', 'claude-haiku-4-5-20251001'],
     ['gemini', 'gemini', '02-tool-call-stream.json', 'gemini-3.5-flash-lite'],
-    ['ollama', 'ollama', '04-two-tool-stream.json', 'qwen3:4b-instruct-2507-q4_K_M'],
+    // C-M95-4 R2: the ollama row was an uncaptured preset dispatched with
+    // no capture behind it (rule 13); the captured llama.cpp row covers
+    // keyless local dispatch instead.
+    ['llamacpp', 'chat', '04-one-tool.json', 'Qwen3-0.6B-Q8_0'],
     ['openrouter', 'chat', '04-tool-call-stream.json', 'openai/gpt-oss-20b'],
   ])(
     'dispatches the captured %s format with native auth and model identity',
@@ -321,11 +334,15 @@ describe('configured provider production transport', () => {
       const entry = providerEntrySchema.parse({
         id: preset,
         preset,
-        auth: preset === 'ollama' ? 'none' : 'apiKey',
+        auth: preset === 'llamacpp' ? 'none' : 'apiKey',
         address,
         format,
         models: [native],
-        numCtx: { [native]: 32_768 },
+        // C-M95-4 R3: a saved local model carries its server's reported
+        // window; the request refuses without one (next test).
+        ...(preset === 'llamacpp' && {
+          modelLimits: { [native]: { contextTokens: 4096, outputTokens: 4096 } },
+        }),
       })
       await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
       f.values.set(
@@ -377,7 +394,7 @@ describe('configured provider production transport', () => {
           expect(headers).toMatchObject({ 'x-goog-api-key': 'test-format-key' })
           break
         }
-        case 'ollama': {
+        case 'llamacpp': {
           expect(headers).not.toHaveProperty('authorization')
           break
         }
@@ -387,6 +404,232 @@ describe('configured provider production transport', () => {
       }
     },
   )
+
+  it('refuses uncaptured local presets even when keyless (rule 13)', async () => {
+    // C-M95-4 R2: the wire-capture refusal skipped `auth === 'none'`, so a
+    // picked vLLM or Ollama entry sent chat with no capture behind it.
+    const f = await fixture()
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['127.0.0.1']),
+    })
+    for (const [id, address] of [
+      ['ollama', 'http://127.0.0.1:11434'],
+      ['vllm', 'http://127.0.0.1:8000'],
+    ] as const) {
+      const entry = providerEntrySchema.parse({
+        id,
+        preset: id,
+        address,
+        auth: 'none',
+        models: ['m'],
+      })
+      await expect(services.test(entry, 'unused-key')).rejects.toThrow(
+        UI_TEXT.modelsPanelUnavailable,
+      )
+    }
+  })
+
+  it('fails a llama.cpp scan closed when the list carries no live window', async () => {
+    // C-M95-4 R2: the quirks were captured against a build whose list
+    // carries `meta.n_ctx`. A list without it is an unknown build: its
+    // models stay unoffered instead of windowless (manual compact would
+    // size them at Meta's window).
+    const f = await fixture()
+    const entry = providerEntrySchema.parse({
+      id: 'llamacpp',
+      preset: 'llamacpp',
+      address: 'http://127.0.0.1:8080',
+      auth: 'none',
+      models: ['qwen3-0.6b'],
+    })
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+    const rowsFor = (data: unknown) =>
+      createConfiguredProviderServices(undefined, {
+        ...f,
+        resolve: () => Promise.resolve(['127.0.0.1']),
+        send: () => Promise.resolve(response(Buffer.from(JSON.stringify(data)))),
+      }).scanRows(entry)
+    const good = await rowsFor({
+      data: [{ id: 'qwen3-0.6b', meta: { n_ctx: 4096, n_ctx_train: 40_960 } }],
+    })
+    expect(good.map((row) => row.context)).toEqual([4096])
+    // C-M95-4 R3: the closed-scan reason lives in the UI table (Add Model
+    // Provider shows it), not in a thrown English sentence. The build names
+    // the preset's `capturedBuild`, mirroring the production fill.
+    await expect(
+      rowsFor({ data: [{ id: 'qwen3-0.6b', meta: { n_ctx_train: 40_960 } }] }),
+    ).rejects.toThrow(
+      fill(UI_TEXT.llamacppScanMissingWindow, {
+        build: 'b11541 (0.6.0-dev, commit f2918cabb)',
+      }),
+    )
+  })
+
+  it('refuses a windowless local request with a plain reason', async () => {
+    // C-M95-4 R3: a scanned local model saved without its server's window
+    // never reaches the wire Meta-sized; the request refuses instead.
+    const f = await fixture()
+    const entry = providerEntrySchema.parse({
+      id: 'llamacpp',
+      preset: 'llamacpp',
+      address: 'http://127.0.0.1:8080',
+      auth: 'none',
+      models: ['Qwen3-0.6B-Q8_0'],
+    })
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+    const send = vi.fn<NonNullable<ConfiguredProviderOptions['send']>>(() =>
+      Promise.resolve(response(Buffer.from(''))),
+    )
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['127.0.0.1']),
+      send,
+    })
+    const ref = 'llamacpp/Qwen3-0.6B-Q8_0'
+    const model = await services.registry.resolve(ref)
+    await expect(
+      consume(model.client.streamResponse({ ...body(), model: ref }, new AbortController().signal)),
+    ).rejects.toThrow(fill(UI_TEXT.localModelWindowUnknown, { model: ref }))
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('peeks the saved local window at use time, with no listing in between', async () => {
+    // C-M95-4 R5 (RVCM954C finding 1): one resolver read at use time. The
+    // peek reads through to providers.json, so a Models-table edit after a
+    // warm listing is what compaction and the request path size from; no
+    // new listing is needed. Unlisted models and unknown windows read
+    // undefined (the request refuses instead).
+    const f = await fixture()
+    const carried = providerEntrySchema.parse({
+      id: 'llamacpp',
+      preset: 'llamacpp',
+      address: 'http://127.0.0.1:8080',
+      auth: 'none',
+      models: ['Qwen3-0.6B-Q8_0'],
+      modelLimits: { 'Qwen3-0.6B-Q8_0': { contextTokens: 4096, outputTokens: 4096 } },
+    })
+    const bare = providerEntrySchema.parse({
+      id: 'llamacpp-bare',
+      preset: 'llamacpp',
+      address: 'http://127.0.0.1:8080',
+      auth: 'none',
+      models: ['Qwen3-0.6B-Q8_0'],
+    })
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [carried, bare] })
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['127.0.0.1']),
+      send: () => Promise.resolve(response(Buffer.from(''))),
+    })
+    expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')).toEqual({
+      format: 'chat',
+      contextTokens: 4096,
+    })
+    const resolved = await services.registry.resolve('llamacpp/Qwen3-0.6B-Q8_0')
+    expect(resolved.contextTokens).toBe(4096)
+    await services.registry.resolve('llamacpp-bare/Qwen3-0.6B-Q8_0')
+    expect(services.client.peekContextModel?.('llamacpp-bare/Qwen3-0.6B-Q8_0')).toBeUndefined()
+    expect(services.client.peekContextModel?.('llamacpp/unknown')).toBeUndefined()
+  })
+
+  it('follows a providers.json window edit with no new listing', async () => {
+    // C-M95-4 R5 (RVCM954C findings 1-2): the listing is warm at 4096,
+    // then the file is edited. Growing and shrinking must both show up in
+    // the peek at once: the next compact and send size from the new
+    // window, never from a snapshot or a cached cap.
+    const f = await fixture()
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [windowedLocalEntry(4096)] })
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['127.0.0.1']),
+      send: () => Promise.resolve(response(Buffer.from(''))),
+    })
+    await services.registry.resolve('llamacpp/Qwen3-0.6B-Q8_0')
+    expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')?.contextTokens).toBe(4096)
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [windowedLocalEntry(8192)] })
+    expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')?.contextTokens).toBe(8192)
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [windowedLocalEntry(2048)] })
+    expect(services.client.peekContextModel?.('llamacpp/Qwen3-0.6B-Q8_0')?.contextTokens).toBe(2048)
+  })
+
+  it('never replays thinking to a local server, even one that streams it', async () => {
+    // C-M95-4 R2: LM Studio streams `reasoning_content` but carries no
+    // version, so an older or newer build may not understand a replay.
+    // The turn's thinking still displays; it just never rides the next
+    // request to an unversioned server.
+    const f = await fixture()
+    const frame = JSON.parse(
+      await readFile('docs/certification/m95-captures/lmstudio/03-one-tool.json', 'utf8'),
+    ) as unknown
+    const events = z
+      .object({ response: z.object({ events: z.array(z.object({ data: z.json() })) }) })
+      .parse(frame).response.events
+    const wire = `${events.map((event) => `data: ${JSON.stringify(event.data)}\n\n`).join('')}data: [DONE]\n\n`
+    const sent: string[] = []
+    const entry = providerEntrySchema.parse({
+      id: 'lmstudio-local',
+      preset: 'lmstudio',
+      address: 'http://127.0.0.1:1234',
+      format: 'chat',
+      auth: 'none',
+      models: ['qwen3-0.6b'],
+      // C-M95-4 R3: requests need a known window; the value below is
+      // incidental to this replay assertion (the LM Studio list reports
+      // none, so a real save carries none and refuses).
+      modelLimits: { 'qwen3-0.6b': { contextTokens: 4096, outputTokens: 4096 } },
+    })
+    await writeProvidersFileAtomic(f.configFile, { v: 1, providers: [entry] })
+    const services = createConfiguredProviderServices(undefined, {
+      ...f,
+      resolve: () => Promise.resolve(['127.0.0.1']),
+      send: (_target, body) => {
+        sent.push(body ?? '')
+        return Promise.resolve(response(Buffer.from(wire)))
+      },
+    })
+    const ref = 'lmstudio-local/qwen3-0.6b'
+    const model = await services.registry.resolve(ref)
+    await consume(
+      model.client.streamResponse(
+        {
+          ...body(),
+          model: ref,
+          input: [
+            {
+              type: 'reasoning',
+              summary: [{ type: 'summary_text', text: 'prior thinking' }],
+              encrypted_content: JSON.stringify({
+                chat: {
+                  v: 1,
+                  provider: 'lmstudio-local',
+                  model: 'qwen3-0.6b',
+                  text: 'prior thinking',
+                },
+              }),
+            },
+            {
+              type: 'message',
+              role: 'assistant',
+              content: [{ type: 'input_text', text: 'prior answer' }],
+            },
+            ...body().input,
+          ],
+        },
+        new AbortController().signal,
+      ),
+    )
+    const messages = (
+      JSON.parse(sent[0] ?? '{}') as {
+        messages: { role: string; reasoning_content?: unknown; reasoning?: unknown }[]
+      }
+    ).messages.filter((message) => message.role === 'assistant')
+    expect(messages.length).toBeGreaterThan(0)
+    for (const message of messages) {
+      expect(message).not.toHaveProperty('reasoning_content')
+      expect(message).not.toHaveProperty('reasoning')
+    }
+  })
 
   it('preserves bare Meta resolution with configured plan-key providers present', async () => {
     const f = await fixture()

@@ -110,6 +110,8 @@ export interface ProvidersAddOptions {
   readonly format?: 'chat' | 'responses' | 'anthropic' | undefined
   /** The models to offer (`<modelId>` as the provider lists them). */
   readonly models: readonly string[]
+  /** Validated window applied to each selected local-server model. */
+  readonly contextWindow?: number | undefined
   /** OpenRouter's privacy routing; the default stays `zdr` (D74). */
   readonly privacy?: OpenRouterPrivacy | undefined
   /** Confirm a private-network address (asked once, D74). */
@@ -208,6 +210,7 @@ const PROVIDER_AUTH_OPTIONS = [
   'privacy',
   'private-ok',
   'key-stdin',
+  'context-window',
 ] as const
 const NON_SERVE_OPTIONS = ['provider', ...PROVIDER_AUTH_OPTIONS] as const
 
@@ -535,6 +538,11 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
     return invalid('providers add')
   }
   const rawModels = values.model ?? []
+  const rawWindow = values['context-window']
+  const contextWindow = rawWindow === undefined ? undefined : Number(rawWindow)
+  if (contextWindow !== undefined && (!Number.isSafeInteger(contextWindow) || contextWindow <= 0)) {
+    return { command: 'invalid', reason: UI_TEXT.localContextWindowInvalid }
+  }
   if (rawModels.some((model) => typeof model !== 'string' || model === '')) {
     return invalid('providers add')
   }
@@ -546,6 +554,7 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
         'address',
         'format',
         'model',
+        'context-window',
         'privacy',
         'key-stdin',
         'private-ok',
@@ -562,6 +571,7 @@ function parseProvidersAdd(values: StrictValues, rest: readonly string[]): Runti
       ...(address !== undefined && { address }),
       ...(formatOption !== undefined && { format: formatOption }),
       models: rawModels,
+      ...(contextWindow !== undefined && { contextWindow }),
       ...(privacyOption !== undefined && { privacy: privacyOption }),
       privateOk: values['private-ok'] === true,
       keyFromStdin: values['key-stdin'] === true,

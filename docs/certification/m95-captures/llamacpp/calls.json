@@ -1,0 +1,209 @@
+[
+  {
+    "number": 1,
+    "step": "models-list",
+    "method": "GET",
+    "path": "/v1/models",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)"
+  },
+  {
+    "number": 2,
+    "step": "props",
+    "method": "GET",
+    "path": "/props",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)"
+  },
+  {
+    "number": 3,
+    "step": "plain-reply",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 4,
+    "step": "one-tool",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 5,
+    "step": "parallel-tools",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 6,
+    "step": "reasoning",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 7,
+    "step": "invalid-model-ignored",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "no-such-model-m95"
+  },
+  {
+    "number": 8,
+    "step": "max-tokens-capped",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 9,
+    "step": "responses-probe",
+    "method": "POST",
+    "path": "/v1/responses",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 10,
+    "step": "toolchoice-none",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 11,
+    "step": "toolchoice-required",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 12,
+    "step": "toolchoice-object",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 13,
+    "step": "parallel-flag-false",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 14,
+    "step": "reasoning-replay",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 15,
+    "step": "overflow-long-prompt",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 400,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 16,
+    "step": "malformed-temperature",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 400,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 17,
+    "step": "max-completion-tokens",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 18,
+    "step": "empty-tools",
+    "method": "POST",
+    "path": "/v1/chat/completions",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  },
+  {
+    "number": 19,
+    "step": "responses-tools",
+    "method": "POST",
+    "path": "/v1/responses",
+    "billed": false,
+    "state": "recorded",
+    "status": 200,
+    "serverVersion": "b11541 (0.6.0-dev, commit f2918cabb)",
+    "model": "Qwen3-0.6B-Q8_0"
+  }
+]
