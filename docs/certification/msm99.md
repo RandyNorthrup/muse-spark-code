@@ -97,6 +97,33 @@ the e2e fixture instead.
    an ACP editor at it (Zed, Neovim + CodeCompanion, Emacs — `docs/acp.md`).
 2. Open the editor's slash-command menu: `/whatsnew` is listed.
 3. Send `/whatsnew`: the reply is this version's highlights and full notes as
-   text, ending the turn with no model call (no key, no spend, works signed
-   out of everything).
+   text, ending the turn with no model call and no spend. The editor still
+   opens a session first, which on either backend needs its usual sign-in
+   (Muse Code's, or the stored Model API key): a signed-out editor is
+   asked to sign in at `session/new`, before any prompt — the command
+   itself never reaches a model.
 4. Send `/help`: the command list names `/whatsnew`.
+
+## RVMSM99 review addendum (2026-10-17)
+
+Review lane `rv/msm99` (Muse Wonder Full) re-ran the claims above; the full
+record is the lane report (`RVMSM99.report.md`). Fixed on the review branch:
+
+- **F1**: `whatsNewTextForContent` rendered every release the content file
+  ships; it now selects with `releasesToShow` exactly as the page's manual
+  open does, so "this version's notes" is true. New unit case (8 in the
+  suite); the e2e fixture's laid-out package now carries the repository
+  version its notes cover (a `0.0.0-e2e` package honestly has no notes).
+- **F2**: `/whatsnew` with trailing words fell through to a model turn
+  (proven red: the backend echoed the prompt). The reserved name now
+  answers locally for anything after it, decided on the one typed text.
+- **F3**: the packaging suite now asserts `package/dist/whatsNew.json` is
+  in the tarball; before, it only had to be present as a fixture input.
+
+What "proven" means here, restated: `/whatsnew` and its `/help` listing are
+proven over real ACP stdio against the built agent (on the fake Muse Code
+CLI the stdio suite uses; the asserted notes text is content that fake
+never produces). No real editor ran `/whatsnew` on either lane: Zed,
+Neovim and Emacs are the already-proven ACP hosts of record
+(`docs/ide-compatibility/hosts.md`, Preview), and step 1–4 above remain the
+lead's real-editor run.
