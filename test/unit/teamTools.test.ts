@@ -426,7 +426,7 @@ describe('shared team argument size limits', () => {
     })
     const tasks = TEAM_TOOL_SCHEMAS.delegate.properties['tasks']
     expect(tasks).toMatchObject({ minItems: 1 })
-    expect('maxItems' in tasks).toBe(false)
+    expect(tasks).not.toMatchObject({ maxItems: expect.anything() })
     expect(tasks).toMatchObject({
       items: {
         properties: {
