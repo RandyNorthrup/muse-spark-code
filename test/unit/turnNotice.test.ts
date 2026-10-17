@@ -7,16 +7,18 @@ import {
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import {
-  type AttentionNotice,
+  NoticeMemory,
   attentionNotice,
-  BackgroundNotifier,
   notifyOpenQuestions,
 } from '../../src/host/conversation/turnNotifications'
-import type { Logger } from '../../src/host/logger'
 
 // M82: background-turn notices through the real modules. Events are parsed
 // by the real wire schema, so a shape the backend cannot send fails here
-// instead of reaching the notifier.
+// instead of reaching the notifier. This file proves only port-free policy
+// (`attentionNotice`, `notifyOpenQuestions`, `NoticeMemory`): the
+// notifier's editor-host ports (setting, focus, VS Code's notification)
+// are proven in the real Extension Development Host by
+// test/integration/backgroundNotice.test.ts, never by scripted closures.
 function turnEvent(terminal: string, durationMs?: number): AgentEvent {
   return agentEventSchema.parse({
     type: 'turnCompleted',
@@ -49,45 +51,6 @@ function questionEvent(isReplayed?: boolean): AgentEvent {
     itemId: 'item-1',
     questions: [],
     ...(isReplayed !== undefined && { isReplayed }),
-  })
-}
-
-function ignore(): void {
-  // The harness asserts on `shown` instead of the reveal callback.
-}
-
-interface Harness {
-  notifier: BackgroundNotifier
-  shown: string[]
-  revealed: string[]
-}
-
-function makeHarness(overrides?: {
-  isEnabled?: () => boolean
-  isWindowFocused?: () => boolean
-}): Harness {
-  const shown: string[] = []
-  const revealed: string[] = []
-  const log: Logger = { trace: ignore, info: ignore, warn: ignore, error: ignore }
-  const notifier = new BackgroundNotifier({
-    isEnabled: overrides?.isEnabled ?? (() => true),
-    isWindowFocused: overrides?.isWindowFocused ?? (() => false),
-    show: (message: string) => {
-      shown.push(message)
-      return Promise.resolve(true)
-    },
-    log,
-  })
-  return { notifier, shown, revealed }
-}
-
-function notice(key: string): AttentionNotice {
-  return { key, message: `notice ${key}` }
-}
-
-function flush(): Promise<void> {
-  return new Promise((resolve) => {
-    setImmediate(resolve)
   })
 }
 
@@ -142,54 +105,21 @@ describe('attentionNotice', () => {
   })
 })
 
-describe('BackgroundNotifier', () => {
-  beforeEach(() => {
-    setUiText(EN, BASE_LOCALE)
+describe('NoticeMemory', () => {
+  it('takes each key once', () => {
+    const memory = new NoticeMemory()
+    expect(memory.take('s1:turn:t1')).toBe(true)
+    expect(memory.take('s1:turn:t1')).toBe(false)
+    expect(memory.take('s1:turn:t2')).toBe(true)
   })
 
-  it('raises each key once and reveals the conversation on request', async () => {
-    const { notifier, shown, revealed } = makeHarness()
-    notifier.notify(notice('s1:turn:t1'), () => void revealed.push('s1'))
-    notifier.notify(notice('s1:turn:t1'), () => void revealed.push('s1'))
-    await flush()
-    expect(shown).toEqual(['notice s1:turn:t1'])
-    expect(revealed).toEqual(['s1'])
-  })
-
-  it('stays quiet while the window is focused or the setting is off', async () => {
-    const focused = makeHarness({ isWindowFocused: () => true })
-    focused.notifier.notify(notice('s1:turn:t1'), ignore)
-    const off = makeHarness({ isEnabled: () => false })
-    off.notifier.notify(notice('s1:turn:t1'), ignore)
-    await flush()
-    expect([...focused.shown, ...off.shown]).toEqual([])
-  })
-
-  it('logs a show failure instead of throwing', async () => {
-    const errors: string[] = []
-    const notifier = new BackgroundNotifier({
-      isEnabled: () => true,
-      isWindowFocused: () => false,
-      show: () => Promise.reject(new Error('gone')),
-      log: {
-        trace: ignore,
-        info: ignore,
-        warn: ignore,
-        error: (message: string) => void errors.push(message),
-      },
-    })
-    notifier.notify(notice('s1:turn:t1'), ignore)
-    await flush()
-    expect(errors.length).toBe(1)
-  })
-
-  it('forgets the oldest key past its bounded memory', async () => {
-    const { notifier, shown } = makeHarness()
+  it('forgets the oldest key past its bounded memory', () => {
+    const memory = new NoticeMemory()
     for (let index = 0; index <= BACKGROUND_NOTICE_KEYS_MAX; index += 1) {
-      notifier.notify(notice(`s1:turn:t${String(index)}`), ignore)
+      expect(memory.take(`s1:turn:t${String(index)}`)).toBe(true)
     }
-    notifier.notify(notice('s1:turn:t0'), ignore)
-    await flush()
-    expect(shown.filter((message) => message === 'notice s1:turn:t0').length).toBe(2)
+    // The first key fell out when the bound was passed; a recent one holds.
+    expect(memory.take('s1:turn:t0')).toBe(true)
+    expect(memory.take(`s1:turn:t${String(BACKGROUND_NOTICE_KEYS_MAX)}`)).toBe(false)
   })
 })

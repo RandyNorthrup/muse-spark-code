@@ -218,6 +218,7 @@ import type {
 import { conversationLoader } from './host/conversation/conversationBundle'
 import { restartConversationBackends } from './host/conversation/conversationBackends'
 import { BackgroundNotifier } from './host/conversation/turnNotifications'
+import { vscodeBackgroundNoticeDeps } from './host/conversation/vscodeBackgroundNotices'
 import type { ReportDataSource } from './host/conversation/reportProblemHandler'
 import { canonicalPath } from './host/canonicalPath'
 import { loadToolImage } from './core/toolImages'
@@ -3195,15 +3196,9 @@ async function activateWindow(
   }
 
   // One per window (M82): a notice two surfaces on one session receive is
-  // raised once, and only while the window is unfocused.
-  const backgroundNotifier = new BackgroundNotifier({
-    isEnabled: () => currentSettings().notifyOnBackgroundTurn,
-    isWindowFocused: () => vscode.window.state.focused,
-    show: async (message) =>
-      (await vscode.window.showInformationMessage(message, UI_TEXT.notifyShowConversation)) ===
-      UI_TEXT.notifyShowConversation,
-    log,
-  })
+  // raised once, and only while the window is unfocused. The ports read
+  // the live host (setting, focus, VS Code's own notification).
+  const backgroundNotifier = new BackgroundNotifier(vscodeBackgroundNoticeDeps(log))
 
   // Extension hooks on both backends (M91 lane E, PLAN.md D70): FileChanged,
   // ConfigChange, Setup, Manual and DirectoryAdded fire from the window, so
