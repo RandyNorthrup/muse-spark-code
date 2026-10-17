@@ -108,6 +108,16 @@ test; the big read carries the sanctioned named per-test timeout
   times: it keeps going until the model stops (A13; no unit test can prove
   this without a stand-in for the model, so it is a live check only).
 
+## Kept bounds, listed for the lead (RVNOLIMITS1 review)
+
+The lane kept three bounds without an outcome-4 listing; they are now
+listed in PLAN.md D121 for the lead's keep-or-remove decision, unchanged
+in code: `PROMPT_LIMITS.fileBytes` (128 KiB per prompt file — so A23's
+"any title/body" holds only while the file fits), `SESSION_EXPORT_MAX_ITEMS`
+(20,000 transcript items — A30 removed the byte ceiling, not the count),
+and the report reader's 16 MiB bound renamed `REPORT_SOURCE_MAX_BYTES`
+(pre-existing under the removed constant's name, not a new cap).
+
 ## APP PROBLEMS
 
 None found in this lane's rows. Two neighbouring observations, not
