@@ -75,4 +75,5 @@ export const STATUS_PHRASES: Readonly<Record<string, PlanMilestone['status'] | u
   'M63a built and certified': 'built',
   'planned, documentation only': 'planned',
   'planned, as soon as possible': 'planned',
+  'merged and connected (lane MSM100)': 'built',
 }
