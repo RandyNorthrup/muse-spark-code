@@ -246,7 +246,8 @@ The seven required names stay: `build / quality (ubuntu-latest)`,
 `build / gitleaks`, `build / semgrep`, `build / dictation helper (macos)` and
 `build / package (.vsix)`. The quality/helper/package names come from one
 aggregate job that fails unless every job of the selected tier succeeded
-(failed, cancelled and unexpectedly skipped all fail). On a fast PR run they
+(failed, cancelled and unexpectedly skipped all fail; on a run that uses the
+capacity repository, below, its run is one of those jobs). On a fast PR run they
 mean the fast tier passed; in the queue, the full tier. Artifact names and
 contents stay unchanged. Hosts and Action check are not required by the main
 ruleset and keep their existing triggers.
@@ -292,6 +293,106 @@ documentation offers merge queues only in organization-owned repositories,
 and this one belongs to a user account: until the owner decides otherwise,
 PRs keep the full tier. Settings and evidence:
 [`docs/certification/ciflow.md`](docs/certification/ciflow.md).
+
+### The capacity repository (D122)
+
+GitHub runs at most five macOS jobs at a time per account, and a full run
+has twelve. The organization `scnetsolutions` lends its own five: while the
+repository variable `ORG_CI` is `on` and the capacity app's key reaches the
+run, a pull request from a branch of this repository runs part `home`.
+Every job runs here except the Windows and macOS unit shards; in their place
+the `org` job pushes the pull request's merge commit to
+[`scnetsolutions/muse-spark-code-ci`](https://github.com/scnetsolutions/muse-spark-code-ci)
+as `ci/pr-<number>`, where the same `ci.yml` runs those sixteen shards on
+the organization's runners (part `org`), and waits for that run. Its
+result feeds every required name, so a pull request merges only when those
+shards passed there; its summary lists each shard with a link. Both
+accounts' runners work on one pull request at once. A newer push replaces the
+branch, and the capacity repository cancels the older run. Forks, Dependabot,
+merge groups, manual runs and every pull request while `ORG_CI` is not `on`
+keep every job here (part `all`): GitHub passes them no key. Nothing waits
+on anyone's computer: `gh variable delete ORG_CI` sends the next run back to
+part `all`. The project, its pull requests, releases and `main` stay here;
+the capacity repository's `main` holds only a README, and it holds no secret.
+
+The owner's one-time setup (no step pushes code or changes this repository's
+ruleset):
+
+1. Create a GitHub App owned by the organization
+   (`https://github.com/organizations/scnetsolutions/settings/apps/new`):
+   any name, this repository as its homepage, the webhook's **Active** box
+   cleared, repository permissions **Contents: Read and write** and
+   **Workflows: Read and write** (Metadata read-only comes with them),
+   nothing else, installable **Only on this account**. Contents lets the job
+   push a branch; Workflows lets that push carry `.github/workflows` files,
+   which GitHub refuses otherwise.
+   Done 2026-10-17: the app is `msc-ci-capacity` (App ID 5362310, owned by
+   `scnetsolutions`).
+2. On the app's page, copy its **Client ID** and **Generate a private key**
+   (a `.pem` file downloads). Done 2026-10-17.
+3. **Install App** on `scnetsolutions`, **Only select repositories**:
+   `muse-spark-code-ci`. The key then reaches nothing else.
+   Done 2026-10-17: installed on that repository only.
+4. Here, as Actions settings (not Dependabot's):
+   `gh variable set ORG_CI_APP_CLIENT_ID --body <client id>`,
+   `gh secret set ORG_CI_APP_PRIVATE_KEY < <file>.pem` (then delete the
+   file), and last `gh variable set ORG_CI --body on`.
+   Done 2026-10-17: the client-ID variable and the private-key secret are
+   set, and `ORG_CI` is `on`.
+5. Keep `scnetsolutions/muse-spark-code-ci` public with Actions on: public
+   repositories use standard runners free (a private one would draw on the
+   free organization's 2,000 included minutes a month, and one of its runs
+   is sixteen shard jobs of up to 25 minutes), and the `org` job reads the
+   run there with its own read-only token. The first hosted split run is the
+   proof that read works with the job's token
+   (`docs/certification/ciflow.md`, D122).
+6. Warm the capacity repository's npm cache. A cache restores only from the
+   current or the default branch (the dependency-caching reference), and a
+   `ci/pr-<number>` branch is neither, so every new pull request's shards
+   would otherwise start cold; a cold `npm ci` is about a minute on top of
+   shards that measured up to 19 warm minutes under their 25-minute `org`
+   bound. Add this file once as `.github/workflows/seed-cache.yml` on the
+   capacity repository's `main` branch (nothing else ever lives there) and
+   run it once by hand (Actions, "seed npm cache", Run workflow); the weekly
+   schedule keeps it fresh. It checks out only this repository's
+   `package.json` and `package-lock.json`, warms one npm cache per
+   capacity OS, and holds no secret:
+
+   ```yaml
+   # One npm cache per capacity OS, saved on the default branch so the
+   # ci/pr-<number> runs restore it. Uses this repository's own lockfile,
+   # read-only; holds no secret.
+   name: seed npm cache
+   on:
+     schedule:
+       - cron: '23 4 * * 0'
+     workflow_dispatch:
+   permissions:
+     contents: read
+   jobs:
+     seed:
+       strategy:
+         fail-fast: false
+         matrix:
+           os: [windows-latest, macos-latest]
+       runs-on: ${{ matrix.os }}
+       timeout-minutes: 15
+       steps:
+         - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+           with:
+             repository: RandyNorthrup/muse-spark-code
+             ref: main
+             sparse-checkout: |
+               package.json
+               package-lock.json
+             sparse-checkout-cone-mode: false
+             persist-credentials: false
+         - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+           with:
+             node-version: 22
+             cache: npm
+         - run: npm ci --ignore-scripts --no-audit --no-fund
+   ```
 
 ## The public roadmap (M122)
 
