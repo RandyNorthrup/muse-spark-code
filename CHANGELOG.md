@@ -15,6 +15,17 @@ happened, not what was planned; superseded entries are kept.
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
 
+- When Muse Code failed and was restarted, the next turn could fail with a
+  bare "missing meta credentials" and nothing said the sign-in had been lost
+  across the restart. The replacement now carries how the failed run ended,
+  and the first turn refused for the lost sign-in names the restart and the
+  way back (`muse login` or `META_API_KEY`) in the panel and, over the
+  editor protocol, as an `authRequired` error. A credential file whose
+  `api_key` is not a string, or that carries only an `access_token`, is no
+  longer read as a sign-in (current Muse Code refuses both); its verdict
+  is left to the CLI. Muse Code's "malformed auth file" start refusal is
+  named in the log in fixed words, without the file's path.
+
 ### Pending
 
 - All fourteen translated settings tables now say Muse Code asks before a
