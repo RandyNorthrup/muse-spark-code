@@ -32,10 +32,3 @@ export const SANCTIONED_ESTIMATOR: PlanCitation = {
   phrase:
     "(4) the estimator's demand quantities (RVM121A P3-3, 2026-10-09: `accountUsdPerHour` and the `usd` rate read from it)",
 }
-
-export const MONEY_PLAN_CITATIONS: readonly PlanCitation[] = [
-  SANCTIONED_RATE,
-  SANCTIONED_WIRE,
-  SANCTIONED_SETTING,
-  SANCTIONED_ESTIMATOR,
-]
