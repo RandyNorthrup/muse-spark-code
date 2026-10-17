@@ -176,6 +176,15 @@ describe('money hooks', () => {
     expect(result.current).toBeUndefined()
   })
 
+  it('a price failure keeps its kind: an unusable web-search quote says so', () => {
+    // The tariff states every price it can compute and throws when it
+    // cannot (D119): the hooks above never map a failure to undefined, so
+    // the boundary says this sentence instead of showing no price.
+    expect(() => paidFeaturePrice('webSearch', Usd.from(-1).toAmount())).toThrow(
+      UI_TEXT.sessionBudgetSearchUnavailable,
+    )
+  })
+
   it('leaves the price out when the tariff refuses, without throwing', async () => {
     const money = await loadMoneyDisplay()
     const refused = vi.fn((_feature: PaidFeature): string => {
