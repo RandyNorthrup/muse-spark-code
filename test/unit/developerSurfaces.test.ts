@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import {
   developerBadge,
@@ -11,6 +14,8 @@ import {
   parseDeveloperCommand,
   runDeveloperCommand,
 } from '../../src/runtime/developer/developerCommand'
+import { runTerminalDeveloperCommand } from '../../src/runtime/providers/accountsEntry'
+import { memoryKeyring } from './helpers/keyring'
 import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -232,6 +237,47 @@ describe('Developer options on every surface', () => {
       )
     } finally {
       setUiText(EN, 'en')
+    }
+  })
+
+  it('answers developer --help before any owner work and reports misuse as usage', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'cliflows2-developer-help-'))
+    try {
+      const { openEntry } = memoryKeyring()
+      const printed: string[] = []
+      const owner = {
+        readLine: () => Promise.resolve(''),
+        print: (line: string) => {
+          printed.push(line)
+        },
+      }
+      const input = { dataDir: folder, openEntry }
+      for (const flag of ['--help', '-h', 'help']) {
+        const help = await runTerminalDeveloperCommand(
+          EN,
+          'en',
+          input,
+          owner,
+          ['developer', flag],
+          'terminal-help',
+        )
+        expect(help.exitCode).toBe(0)
+        expect(help.text).toContain(EN.developer.commandUsage)
+        expect(help.text).toContain(EN.developer.helpTerminal)
+      }
+      const misuse = await runTerminalDeveloperCommand(
+        EN,
+        'en',
+        input,
+        owner,
+        ['developer', '--bogus'],
+        'terminal-help',
+      )
+      expect(misuse.exitCode).toBe(2)
+      expect(misuse.text).toBe(EN.developer.commandUsage)
+      expect(printed).toEqual([])
+    } finally {
+      await rm(folder, { recursive: true, force: true })
     }
   })
 })
