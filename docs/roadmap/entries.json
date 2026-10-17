@@ -828,7 +828,7 @@
     {
       "id": "M113",
       "title": "Deterministic reports",
-      "summary": "Run /report for project, quality, milestone, release, change, session, usage, playbook and schedules facts as Markdown, HTML, JSON or text, with current rules, consistent snapshots, immediate lease release on cancellation and no model call.",
+      "summary": "Run /report for project, quality, milestone, release, change, session, usage, keybindings, accounts, security, estimate, playbook, schedules as Markdown, HTML, JSON or text, with snapshots, lease release on cancellation and no model call.",
       "area": "platform",
       "release": "0.17.0"
     },

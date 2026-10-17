@@ -31108,6 +31108,24 @@ M110, and fake providers for every adapter.
   | `dist/uiText.js`               |                              ≤ 0.5 KiB | 125 KiB, unchanged (labels in their own table family)   |
 
 - **Size.** M–L: about 168 lane-hours, and M113d's 40 later.
+
+**MSM113 finish (2026-10-17, linuxlt).** Merged `main-now` and flipped the
+estimate, playbook and schedules kinds to working end to end: thirteen
+working kinds (project, milestone, release, changes, quality, usage, session,
+keybindings, accounts, security, estimate, playbook, schedules); fleet (lane
+CM1135B) and issues stay dormant. Request language rides the read context
+with its locale (D33; `SourceReadContext.locale`); the estimate refusal path
+no longer reads the installed table. The estimate source restores the
+estimator's disclosure pointers whole after the export scrub (E23: the
+scrubber reads multi-segment JSON Pointers as POSIX paths). Row-duplication
+coverage binds every collector row call including the forwarded estimate,
+playbook and schedules builders (19 new explicit cases; the probe suspends
+duplication around builder runs). Packed proof: `report estimate` renders a
+real forecast through `dist/acp.js`; reports.e2e 27 pass through the real
+CLI. Record: `docs/certification/msm113.md`. Known deferrals (all
+pre-existing on main, §7): the bundle-split reporting backend, the
+estimator shared-module cycle, and six jscpd clones.
+
 - **Certification checklist** (§6.0, plus):
   - [ ] `check:plan` green over this repository's plan with no baseline, and
         each drift kind drilled
@@ -33558,6 +33576,33 @@ lane A's first step.
 
 ## 7. Gates
 
+**Bundle-split reporting backend (pre-existing, deferred).** `npm run build`
+ends in `check-bundle-split.mjs` rc=1: `dist/reporting.js` and
+`dist/reportingNetwork.js` carry `src/core/backends/musecode/launch.ts`
+via `reportsEntry → engine → reporting/history → resources/launcher →
+resourceProcessEntry → resources/commands → launch`. Every file in that
+chain is byte-identical on `main-now` (verified 2026-10-17 by bundling
+main's own `reportsEntry.ts`: it carries `launch.ts` too), so the failure
+predates this lane and belongs to the resources lane's architecture, not
+M113. Disposition: deferred; this lane records it and moves on.
+
+**Estimator shared-module cycle (pre-existing, deferred).** `npm run cycles`
+(dpdm) rc=1: `src/shared/estimateDiagnostic.ts -> src/shared/estimate.ts`
+(the diagnostic module imports the section schema; `estimate.ts` lazily
+imports the diagnostic at its failure boundary). Neither file is touched by
+this lane; the same pair fails identically on pristine `main-now` (verified
+2026-10-17 in a clean worktree). Disposition: deferred to the estimator
+lane; this lane records it and moves on.
+
+**Six jscpd clones (pre-existing, deferred).** `npm run duplication` rc=1
+with 6 clones, all byte-identical on pristine `main-now` (verified
+2026-10-17 in a clean worktree): the playbook collector/test-helper pair,
+two estimate-source blocks, the forward-admission/record-boundary pair, and
+three schedules-source blocks. None is code this lane added. Disposition:
+deferred; this lane records it and moves on. (The unused
+`mixedUnitLimitRows` helper this lane removed had pointed at the same
+collector/scrub duplication; both suites already inline their own literals.)
+
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
 modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
@@ -35728,6 +35773,10 @@ removes it); the vault lane owns removing this row. Evidence:
 | `test/unit/playbookSchedulesInputs.test.ts` `recordOf`/`readJsonRecord`: `as Record<string, unknown>`            | Forged store JSON has no schema; the casts only reach into the envelope the store itself wrote, to corrupt one field per error word. Each forged file is read back by the production reader, which classifies it. Test-only cast; no runtime boundary changes.                       |
 | `test/unit/playbookSchedulesInputs.test.ts` per-case 30 s deadline (held production lease, queued memory reader) | Each case waits out the production 5 s reader wait against a gated lock: the verdict under test only exists after the full window elapses. A shorter wait would test a different (uncontended) path; fakes would remove the production store, reader and source the review requires. |
 | `test/unit/playbookSchedulesInputs.test.ts` per-case 60 s deadline (five sequential refreshes)                   | The ruling prescribes five sequential refreshes against a persistent holder; each refresh waits its own full 5 s window, about 25 s back to back. Parallel refreshes would not match the prescribed sequence; shortening any wait would abandon the reviewer's scenario.             |
+
+| MSM113 escape (2026-10-17)                                                                                                                                | Reason                                                                                                                                                                                                                                                                                                                               |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/core/reporting/collect/playbook.ts` `isModuleMatch`: `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` | Every glob segment passes `escapeGlob` before fixed character classes, anchors and `**` crossings are added; user text cannot introduce regex operators or groups. The module-glob table covers literal `.`, `+`, `()` and the `*`-cannot-cross-`/` rule; neutering the escaper fails exactly those three cases (proven 2026-10-17). |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
