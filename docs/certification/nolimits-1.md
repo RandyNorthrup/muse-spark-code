@@ -125,12 +125,13 @@ window), which refuses nothing the person sees. Regression test:
 `runLedger.test.ts` quotes $0.108135 past a $0.10 run cap; the W-low-budget
 e2e passes again.
 
-Left for the lead (M80, not this lane): exec now accepts budget strings
-past $20 while the Action's `budgetString` (`action/lib/tools.mjs`)
-still refuses them, so `actionInputs.test.ts` "accepts exactly the budget
-strings exec accepts" fails deterministically (`20.000001`). The Action's
-cap and its parity test stay M80's — not touched, per the lane brief and
-the M80 freeze.
+Review fix (RVNOLIMITS1): exec accepted budget strings past $20 while the
+Action's `budgetString` (`action/lib/tools.mjs`) still refused them, so
+`actionInputs.test.ts` "accepts exactly the budget strings exec accepts"
+failed deterministically (`20.000001`) — a red test on the lane tree. The
+Action's $20 and 500-request caps are the same invented ceilings as A8's,
+so the review removed both (`action/lib/tools.mjs`, `action/action.yml`,
+`docs/ci.md`); the parity test passes and 501 requests parse.
 
 ## Full-suite triage (2026-10-17, `npm run test:unit`: 531 files passed,
 
@@ -139,7 +140,7 @@ the M80 freeze.
 - Fixed by this lane: `BestOfNDialog.test.tsx` (A7's component test still
   asserted the removed 2–5 range; updated to the 1-or-more contract) and
   the W-low-budget e2e above.
-- Reported, not touched: `actionInputs.test.ts` budget parity (M80, above).
+- Fixed in the RVNOLIMITS1 review: `actionInputs.test.ts` budget parity (above).
 - Load timeouts, all passing in isolation afterwards: ResourcesSection,
   attachments (2), browserUiText (see below), checkTokens (2),
   colourLiteralRule, cyclesRoots, legalLocalization, modelsApp, tokens

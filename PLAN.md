@@ -14397,8 +14397,9 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   below-minimum refusal (the W-low-budget e2e went incomplete instead of
   budget-exceeded). The preview now caps at the most one response can
   cost at the tier's prices (full-window charge, platform numbers only);
-  it refuses nothing the person sees. The Action's own 20-cap
-  (`action/lib/tools.mjs`) and its parity test stay M80's — reported.
+  it refuses nothing the person sees. The Action's own $20 and 500 caps
+  (`action/lib/tools.mjs`) went in the RVNOLIMITS1 review fix: the same
+  invented ceilings, and its F1 parity test with exec passes again.
 - A11 (NOLIMITS1): `RENAME_MAX_FILES` = 200 removed — not about a model; a
   rename touches as many files as the language service names.
 - A13 (NOLIMITS1): `HOOK_AGENT_MAX_STEPS` = 5 removed — our own bound on a

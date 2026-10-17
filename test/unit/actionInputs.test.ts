@@ -121,6 +121,8 @@ describe('Action inputs', () => {
       expect(isAccepted, JSON.stringify(value)).toBe(exec.ok)
     }
     expect(() => parseActionInputs({})).toThrow(/max-budget-usd/)
+    // D121: a request count past the removed 500 ceiling stands, as in exec.
+    expect(parseActionInputs({ ...BUDGET, MUSE_INPUT_MAX_REQUESTS: '501' }).maxRequests).toBe(501)
   })
 
   it('refuses every malformed input by name', () => {
@@ -128,8 +130,7 @@ describe('Action inputs', () => {
       ['MUSE_INPUT_MODE', 'auto', /mode/],
       ['MUSE_INPUT_IMAGE_GENERATION', 'True', /true or false/],
       ['MUSE_INPUT_POST_COMMENT', 'yes', /true or false/],
-      ['MUSE_INPUT_MAX_REQUESTS', '0', /between 1 and 500/],
-      ['MUSE_INPUT_MAX_REQUESTS', '501', /between 1 and 500/],
+      ['MUSE_INPUT_MAX_REQUESTS', '0', /between 1 and/],
       ['MUSE_INPUT_TIMEOUT_MINUTES', '361', /between 1 and 360/],
       ['MUSE_INPUT_TIMEOUT_MINUTES', '1.5', /integer/],
       ['MUSE_INPUT_MAX_DIFF_BYTES', '1048577', /between 1 and 1048576/],
