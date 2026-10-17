@@ -52,6 +52,18 @@ m9-linux (`1437fc9c5`), m35-mic (`05a5636b6`).
   `e52d1eee…cb04c`).
 - `ce34d417f` — removes `linuxHelperBytes`, orphaned by the fake-test
   deletion (knip).
+- `4eada1533` — companion tunables move `src/shared/constants.ts` →
+  `src/shared/companionVoice.ts` (D6 activation diet; ~60 B).
+- `14b1520ae` — `voiceLinuxEntry`, companion `voiceEntry` and webview
+  companion registered in `cycles.json`, spawn inventory and the INT0170
+  combined record.
+- `4bf0e74c3` — PLAN §7 deferral entry (see Gates).
+- Diet attempt reverted: moving the Linux download-consent card into
+  `dist/voiceLinux.js` saved 456 B of activation but broke `npm run build`
+  (`vscode` is deliberately not external to deferred bundles — a stray
+  import fails the build by design) and fought the M93 precedent (host
+  capabilities arrive as parameters, here `LinuxDictationDeps.consent`).
+  Reverted byte-identical; consent stays an activation closure.
 - `4a8279e10` — every UI table's key order matches EN recursively
   (companion block, `muse-voice` cli option, museVoice block); the archive
   restores in EN order, so the vsix round-trip failed until this.
@@ -96,6 +108,15 @@ m9-linux (`1437fc9c5`), m35-mic (`05a5636b6`).
 - New-gate fire proof: the `companionWav` red drills above; the l10n
   round-trip failures (15) caused by this lane's own merges, fixed by
   `4a8279e10`; knip's `linuxHelperBytes` flag from the fake-test deletion.
+- RED, deferred in PLAN §7 (no gate weakened, lead-owned):
+  `test/unit/modelsActivationBudget.test.ts` — baseline 561,352 B,
+  current 568,566 B, growth 7,214 B vs the 3,072 B lane-K cap.
+  `main-now` 3d30a7321 alone measures 564,215 B (growth 2,863 B, passes
+  with 209 B headroom; verified in a scratch worktree at that ref, then
+  removed), so the lane's specified M9/M35 activation behaviour (Linux
+  probe, disabled-model cleanup, Linux loader, M35 paid scope, D140 pins)
+  adds 4,351 B no behaviour-adding milestone can fit. Lead either revisits
+  the cap (M78b precedent, Q-M78b) or accepts the deferral.
 
 ## Real-life steps for the lead
 
