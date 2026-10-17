@@ -2352,12 +2352,25 @@ export type PromptCacheRetention = (typeof PROMPT_CACHE_RETENTIONS)[number]
 // here already does. The per-format status tables moved into the shared
 // retry policy (M101 BYO 5); the providers bundle carries them in
 // `FormatQuirks`.
+// ChatGPT plan route (developers.openai.com/siwc/token-sharing-open-source/
+// errors-and-recovery, read 2026-10-17): these answers mean "preserve
+// credentials and retry (later) with bounded backoff", before a stream opens
+// (HTTP 503) or as `response.failed` after it began. The direct-route 503
+// carries no code, only `{"detail": …}`; this app names it with the last one.
+export const CHATGPT_DIRECT_UNAVAILABLE_CODE = 'chatgpt_direct_route_unavailable'
+export const CHATGPT_PLAN_RETRYABLE_CODES: readonly string[] = [
+  'subscription_sharing_usage_unavailable',
+  'subscription_sharing_user_unavailable',
+  CHATGPT_DIRECT_UNAVAILABLE_CODE,
+]
 // A stream that ends with an `error` event of these codes (the instance shut
-// down or was overloaded mid-reply) is retried whole, as the guide says.
+// down or was overloaded mid-reply) is retried whole, as the guide says; the
+// ChatGPT plan's documented retry answers ride the same bounded retry.
 export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
   'server_shutting_down',
   'service_overloaded',
   'backend_unavailable',
+  ...CHATGPT_PLAN_RETRYABLE_CODES,
 ])
 export const MODEL_API_MAX_RETRIES = 4
 export const MODEL_API_RETRY_BASE_MS = 1000
@@ -7258,6 +7271,9 @@ export const CHATGPT_PLAN_NOTICE_STORAGE_KEY = 'museSpark.chatGptPlanNotice.v1'
 // Owner capture M95B-FINDINGS.md, 2026-10-05: SSE error inside HTTP 200.
 export const CHATGPT_PLAN_LIMIT_MESSAGE = 'Subscription Sharing usage limit'
 export const CHATGPT_PLAN_LIMIT_ERROR_KIND = 'subscription_sharing_usage_limit_exceeded'
+// SIWC errors and recovery (2026-10-17), HTTP 403: plan use is unavailable for
+// the user, workspace or policy. Explained once; never retried, never OAuth again.
+export const CHATGPT_PLAN_NOT_ELIGIBLE_CODE = 'subscription_sharing_user_not_eligible'
 export const SUBSCRIPTION_STREAM_MAX_BYTES = 16 * 1024 * 1024
 // A credential record's version (`{v, auth, origin, …}`, bound to the exact
 // origin it was obtained for).

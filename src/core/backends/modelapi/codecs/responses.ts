@@ -6,7 +6,11 @@ import { Usd, type UsdAmount } from '../../../../shared/usd'
 
 import type { ModelCapabilities } from '../../../providers/capabilities'
 import * as z from 'zod/mini'
-import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
+import {
+  CHATGPT_PLAN_RETRYABLE_CODES,
+  CODEC_EMPTY_TOOL_OUTPUT,
+  CODEC_IMAGE_WITHOUT_VISION,
+} from '../../../../shared/constants'
 export { parseNativeModelsList as parseResponsesModelsList } from '../../../providers/modelMetadata'
 import {
   type CreateResponseBody,
@@ -488,6 +492,19 @@ export function createResponsesCodec(
             parsed.data.response.error?.code === CHATGPT_PLAN_LIMIT_CODE
           ) {
             throw new ChatgptPlanLimitError(parsed.data.response.error.message)
+          }
+          // "Usage availability could not be checked" can arrive after the
+          // stream began; the documented recovery is the bounded retry, so
+          // it reaches the turn as a retryable error, not a failed reply.
+          const failure = parsed.data.response.error
+          if (
+            quirks.profile === 'chatgpt' &&
+            known.data.type === 'response.failed' &&
+            failure?.code != null &&
+            CHATGPT_PLAN_RETRYABLE_CODES.includes(failure.code)
+          ) {
+            yield { type: 'error', code: failure.code, message: failure.message }
+            continue
           }
           if (!hasReportedCost && TERMINAL_WITH_USAGE.has(known.data.type)) {
             const costUsd = settledCostOf(parsed.data.response.usage)

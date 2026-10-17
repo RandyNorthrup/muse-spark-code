@@ -928,6 +928,7 @@
     "reportContent": "Denunciar conteúdo prejudicial",
     "fastDetail": "{description}. Desativado por padrão: usa mais da sua cota do plano.",
     "requestFailed": "A solicitação do plano ChatGPT falhou: {message}",
+    "notEligible": "A OpenAI não permite o uso do plano do ChatGPT nesta conta, neste espaço de trabalho ou nesta política. Escolha um modelo com chave de API.",
     "requestNotBuilt": "Este app não conseguiu preparar a solicitação do plano do ChatGPT ({reason}). Nada foi enviado."
   },
   "untitledConversation": "Sem título",

@@ -928,6 +928,7 @@
     "reportContent": "Signaler du contenu nuisible",
     "fastDetail": "{description}. Désactivé par défaut : cela utilise davantage votre quota de forfait.",
     "requestFailed": "La requête au forfait ChatGPT a échoué : {message}",
+    "notEligible": "OpenAI n’autorise pas l’utilisation de l’abonnement ChatGPT pour ce compte, cet espace de travail ou cette politique. Choisissez un modèle avec une clé API.",
     "requestNotBuilt": "Cette application n’a pas pu préparer la requête du forfait ChatGPT ({reason}). Rien n’a été envoyé."
   },
   "untitledConversation": "Sans titre",

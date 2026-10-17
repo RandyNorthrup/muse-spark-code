@@ -11,16 +11,24 @@ import { responses, modelRef, recordPlanUsage } from '../../../host/backend/prov
 const { ChatgptPlanLimitError, createResponsesCodec, ResponsesDecodeError } = responses
 const { parseModelRef } = modelRef
 import {
+  CHATGPT_DIRECT_UNAVAILABLE_CODE,
+  CHATGPT_PLAN_LIMIT_ERROR_KIND,
+  CHATGPT_PLAN_NOT_ELIGIBLE_CODE,
+  CHATGPT_PLAN_RETRYABLE_CODES,
   CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
+  HTTP_TOO_MANY_REQUESTS,
   MILLISECONDS_PER_SECOND,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
+  PROVIDER_RETRY_HTTP_STATUS,
   UI_TEXT,
 } from '../../../shared/constants'
 import {
   assertConfirmedAllowed,
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
+  rateLimitHeaders,
+  type ResponseAttemptGuard,
 } from '../../backends/modelapi/transport'
 import { fill } from '../../../shared/l10n/text'
 import { DeadlineError, withDeadline } from '../../timeouts'
@@ -79,13 +87,25 @@ export async function chatGptModels(
 }
 
 /**
- * A non-OK answer from the plan route. Its message is OpenAI's own
- * `error.message` where the body carries one, never a header or a token,
- * so the turn below yields it instead of the standing retry sentence. The
- * client sends the request once; a 4xx other than 429 is terminal and
- * never retried.
+ * A non-OK answer from the plan route, handled as OpenAI's errors and
+ * recovery page says (read 2026-10-17). `code` is OpenAI's own `error.code`
+ * (or this app's name for the code-less direct-route 503), and the message
+ * is what the person reads: OpenAI's own `error.message` or `detail` for a
+ * refusal, never a header or a token. The usage limit is the plan-limit
+ * answer; a 503 rides the turn's bounded retry with the credentials kept;
+ * every other refusal is terminal and is never retried.
  */
-class ChatgptPlanRequestError extends Error {}
+class ChatgptPlanRequestError extends Error {
+  public constructor(
+    message: string,
+    public readonly code: string,
+  ) {
+    super(message)
+  }
+}
+
+/** A direct-route admission refusal before any Responses request: diagnostic text, no code. */
+const directAdmissionSchema = z.object({ detail: z.string() })
 
 /**
  * The one sentence for a failed ChatGPT sign-in, refresh or lock, shared by
@@ -138,15 +158,52 @@ export function chatGptFailureText(code: ChatGptSignInError['code'], reason?: st
   }
 }
 
-async function planRequestError(response: Response): Promise<Error> {
+async function planRequestError(response: Response): Promise<ChatgptPlanRequestError> {
+  let body: unknown
   try {
-    const parsed = errorBodySchema.safeParse(await response.json())
-    const message = parsed.success ? parsed.data.error.message : ''
-    return new ChatgptPlanRequestError(
-      message === '' ? UI_TEXT.planUi.retry : fill(UI_TEXT.planUi.requestFailed, { message }),
-    )
+    body = await response.json()
   } catch {
-    return new ChatgptPlanRequestError(UI_TEXT.planUi.retry)
+    body = undefined
+  }
+  const envelope = errorBodySchema.safeParse(body)
+  const code = envelope.success ? (envelope.data.error.code ?? undefined) : undefined
+  if (code === CHATGPT_PLAN_LIMIT_ERROR_KIND) {
+    return new ChatgptPlanRequestError(UI_TEXT.planUi.limitDetail, code)
+  }
+  const isRetryCode = code !== undefined && CHATGPT_PLAN_RETRYABLE_CODES.includes(code)
+  if (isRetryCode || response.status === PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable) {
+    return new ChatgptPlanRequestError(
+      UI_TEXT.planUi.retry,
+      isRetryCode ? code : CHATGPT_DIRECT_UNAVAILABLE_CODE,
+    )
+  }
+  if (code === CHATGPT_PLAN_NOT_ELIGIBLE_CODE) {
+    return new ChatgptPlanRequestError(UI_TEXT.planUi.notEligible, code)
+  }
+  const admission = directAdmissionSchema.safeParse(body)
+  let detail = ''
+  if (envelope.success) detail = envelope.data.error.message
+  else if (admission.success) detail = admission.data.detail
+  return new ChatgptPlanRequestError(
+    detail === '' ? UI_TEXT.planUi.retry : fill(UI_TEXT.planUi.requestFailed, { message: detail }),
+    code ?? 'request-failed',
+  )
+}
+
+/**
+ * What the plan route reports in its headers is kept as reported, through
+ * the usage journal's allow list; nothing is read as a meter or a reset
+ * time (OpenAI documents none for this route, and the 2026-10-05 capture
+ * carries none). An observation failure never changes the request.
+ */
+function observePlanAnswer(guard: ResponseAttemptGuard | undefined, response: Response): void {
+  try {
+    guard?.observe?.({
+      headers: rateLimitHeaders(response.headers),
+      ...(!response.ok && { rateLimited: response.status === HTTP_TOO_MANY_REQUESTS }),
+    })
+  } catch {
+    /* The journal's own refusal is not the plan request's. */
   }
 }
 
@@ -413,6 +470,7 @@ export function createSubscriptionClient(
           }),
         )
         lastEventAt = Date.now()
+        observePlanAnswer(admitAttempt, response)
         if (!response.ok) throw await planRequestError(response)
         if (response.body === null) throw new Error(UI_TEXT.acpChatGpt.failure)
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
@@ -440,7 +498,13 @@ export function createSubscriptionClient(
           for await (const event of codec.decodeStream(bytes())) {
             lastEventAt = Date.now()
             note(event)
-            yield event
+            // A documented retry answer keeps OpenAI's code for the retry
+            // notice; the person reads the standing retry sentence.
+            yield event.type === 'error' &&
+            event.code != null &&
+            CHATGPT_PLAN_RETRYABLE_CODES.includes(event.code)
+              ? { ...event, message: UI_TEXT.planUi.retry }
+              : event
           }
         } catch (error) {
           if (error instanceof ChatgptPlanLimitError) {
@@ -467,7 +531,7 @@ export function createSubscriptionClient(
           return
         }
         if (error instanceof ChatgptPlanRequestError) {
-          yield { type: 'error', code: 'request-failed', message: error.message }
+          yield { type: 'error', code: error.code, message: error.message }
           return
         }
         // This app's own refusal to build the request (a tool it cannot

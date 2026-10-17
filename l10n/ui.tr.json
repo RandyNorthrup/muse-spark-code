@@ -924,6 +924,7 @@
     "reportContent": "Zararlı içeriği bildir",
     "fastDetail": "{description}. Varsayılan olarak kapalı: plan kotanızdan daha fazla kullanır.",
     "requestFailed": "ChatGPT plan isteği başarısız oldu: {message}",
+    "notEligible": "OpenAI bu hesap, çalışma alanı veya ilke için ChatGPT planının kullanılmasına izin vermiyor. API anahtarı kullanan bir model seçin.",
     "requestNotBuilt": "Bu uygulama ChatGPT planı isteğini hazırlayamadı ({reason}). Hiçbir şey gönderilmedi."
   },
   "untitledConversation": "Adsız",

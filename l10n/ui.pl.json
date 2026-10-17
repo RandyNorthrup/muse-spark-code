@@ -932,6 +932,7 @@
     "reportContent": "Zgłoś szkodliwe treści",
     "fastDetail": "{description}. Domyślnie wyłączone: zużywa więcej limitu Twojego planu.",
     "requestFailed": "Żądanie planu ChatGPT nie powiodło się: {message}",
+    "notEligible": "OpenAI nie zezwala na korzystanie z planu ChatGPT na tym koncie, w tym obszarze roboczym lub przy tych zasadach. Wybierz model z kluczem API.",
     "requestNotBuilt": "Ta aplikacja nie mogła przygotować żądania planu ChatGPT ({reason}). Nic nie zostało wysłane."
   },
   "untitledConversation": "Bez tytułu",

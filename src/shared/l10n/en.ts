@@ -1120,6 +1120,9 @@ export const EN = {
     fastDetail: '{description}. Off by default: it uses more of your plan allowance.',
     // {message}: OpenAI's own error message for the failed plan request.
     requestFailed: 'The ChatGPT plan request failed: {message}',
+    // OpenAI's 403 subscription_sharing_user_not_eligible: retrying or signing in again cannot fix it.
+    notEligible:
+      'OpenAI does not allow ChatGPT plan use for this account, workspace or policy. Choose an API-key model.',
     // {reason}: this app's own word for what it could not build or read.
     requestNotBuilt:
       'This app could not prepare the ChatGPT plan request ({reason}). Nothing was sent.',
