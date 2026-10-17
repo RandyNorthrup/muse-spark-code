@@ -293,6 +293,43 @@ function pushRefusalText(plan: Extract<PushPlan, { ok: false }>): string {
   return texts[plan.refusal]
 }
 
+/**
+ * The window's held-worktree card and the worktree line, as the panel shows
+ * them: the same in every conversation of the window, on both routes.
+ */
+export function windowWorktreeState(
+  window: Pick<GitWindow, 'hold' | 'worktree' | 'isWorkspaceTrusted'>,
+): Pick<GitState, 'hold' | 'worktree'> {
+  const hold = window.hold()
+  const worktree = window.worktree()
+  const pullRequest = hold?.pullRequest
+  return {
+    ...(hold !== undefined && {
+      hold: {
+        isRestricted: !window.isWorkspaceTrusted(),
+        ...(pullRequest !== undefined && {
+          pullRequest: {
+            repository: pullRequest.repository,
+            number: pullRequest.number,
+            title: pullRequest.title,
+            author: pullRequest.author,
+            url: pullRequest.url,
+          },
+        }),
+      },
+    }),
+    ...(worktree !== undefined && {
+      worktree: {
+        repositoryRoot: worktree.repositoryRoot,
+        ...(worktree.branch !== undefined && { branch: worktree.branch }),
+        ...(worktree.pullRequest !== undefined && {
+          pullRequestNumber: worktree.pullRequest.number,
+        }),
+      },
+    }),
+  }
+}
+
 export class ConversationGit implements ConversationGitPort {
   private generation: Generation | undefined
   private generationEpoch = 0
@@ -333,33 +370,8 @@ export class ConversationGit implements ConversationGitPort {
   }
 
   private currentState(): GitState {
-    const hold = this.window.hold()
-    const worktree = this.window.worktree()
-    const pullRequest = hold?.pullRequest
     return {
-      ...(hold !== undefined && {
-        hold: {
-          isRestricted: !this.window.isWorkspaceTrusted(),
-          ...(pullRequest !== undefined && {
-            pullRequest: {
-              repository: pullRequest.repository,
-              number: pullRequest.number,
-              title: pullRequest.title,
-              author: pullRequest.author,
-              url: pullRequest.url,
-            },
-          }),
-        },
-      }),
-      ...(worktree !== undefined && {
-        worktree: {
-          repositoryRoot: worktree.repositoryRoot,
-          ...(worktree.branch !== undefined && { branch: worktree.branch }),
-          ...(worktree.pullRequest !== undefined && {
-            pullRequestNumber: worktree.pullRequest.number,
-          }),
-        },
-      }),
+      ...windowWorktreeState(this.window),
       ...(this.view !== undefined && { pullRequest: this.view }),
       ...githubStateOf(this.window.githubSignIn),
     }

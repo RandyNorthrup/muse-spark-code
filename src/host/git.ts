@@ -383,7 +383,12 @@ export interface GitProcessOptions {
   readonly env: NodeJS.ProcessEnv
   /** Written to stdin, which is then closed; stdin is empty without it. */
   readonly input?: string | Uint8Array
-  readonly timeoutMs: number
+  /**
+   * The deadline, or undefined for none (M123's native route: a push, a
+   * fetch or a commit's hooks run as long as they take; Cancel and the
+   * window's closing stop them through `signal`).
+   */
+  readonly timeoutMs: number | undefined
   /** Aborting ends the command (the window closing). */
   readonly signal?: AbortSignal
   /**
@@ -558,9 +563,13 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
             })
           stopping.abort()
         }
-        const timer = setTimeout(() => {
-          fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
-        }, options.timeoutMs)
+        const { timeoutMs } = options
+        const timer =
+          timeoutMs === undefined
+            ? undefined
+            : setTimeout(() => {
+                fail(new Error(`git ${command} timed out after ${String(timeoutMs)} ms`))
+              }, timeoutMs)
         const onAbort = () => {
           fail(new Error(`git ${command} was stopped: the window is closing`))
         }

@@ -249,6 +249,7 @@ export class RuntimeGit implements ConversationGitPort {
 
   private currentState(): GitState {
     return {
+      ...this.deps.worktreeState(),
       ...(this.view !== undefined && { pullRequest: this.view }),
       ...githubStateOf(this.deps.github),
     }
@@ -257,6 +258,10 @@ export class RuntimeGit implements ConversationGitPort {
   private unavailableReason(): string | undefined {
     if (this.deps.repositoryRoot === '') {
       return UI_TEXT.noWorkspaceReason
+    }
+    // Someone else's pull request stays held until its card is trusted.
+    if (this.deps.worktreeState().hold !== undefined) {
+      return UI_TEXT.gitHeld
     }
     return this.deps.isTrusted() ? undefined : UI_TEXT.gitRestricted
   }
@@ -1152,8 +1157,9 @@ export class RuntimeGit implements ConversationGitPort {
         this.deps.github.signOutAndSay((level, text) => {
           this.surface.notice(level, text)
         }),
-      trustWorktree: () => {
-        this.surface.notice('warning', UI_TEXT.gitHeld)
+      trustWorktree: async () => {
+        await this.deps.confirmWorktreeTrust()
+        this.postState()
       },
       cancel: () => {
         // Pending git stops: the running operation's signal aborts.
