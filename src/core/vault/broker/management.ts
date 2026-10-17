@@ -355,6 +355,7 @@ export class VaultManagement implements VaultManagementPort {
         items: [],
         grants: [],
         pending: [],
+        pendingReceipts: [],
       }
     if (pending === null && broker.state !== 'unlocked') {
       const anchored = await this.anchoredId()
