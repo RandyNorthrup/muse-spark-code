@@ -2522,25 +2522,14 @@ class AgentState {
     const { host, models } = await this.openHost(cwd)
     const modelId = startingModel(models)
     const mcpServers = this.forwardedMcp(host, requestedMcp)
-    let session: AgentSession
-    try {
-      session = await host.startSession({
-        workspaceRoot: cwd,
-        modelId,
-        approvalMode: approvalModeFor(this.deps.options.initialMode, true),
-        ...(mcpServers !== undefined && { mcpServers }),
-      })
-    } catch (error: unknown) {
-      // No account identity without a readable store or key: the session
-      // cannot attribute spend, so it cannot start — but the refusal names
-      // the dead store, never a missing sign-in the person cannot perform.
-      if (error instanceof Error && error.message === UI_TEXT.notSignedInReason) {
-        const readiness = await this.deps.backend.readiness(false)
-        if (readiness.state === 'signedOut' && readiness.storeDown === true)
-          throw RequestError.authRequired(undefined, UI_TEXT.acpStoreDown)
-      }
-      throw error
-    }
+    // The start carries no account identity: a step that needs a stored key
+    // refuses then, in the one store sentence, never at the open.
+    const session = await host.startSession({
+      workspaceRoot: cwd,
+      modelId,
+      approvalMode: approvalModeFor(this.deps.options.initialMode, true),
+      ...(mcpServers !== undefined && { mcpServers }),
+    })
     // The mode and model went with the start; the effort is set here.
     const claim = this.claimSession(session.sessionId)
     const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
