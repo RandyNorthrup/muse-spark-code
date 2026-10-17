@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- On Windows, a folder literally named `..foo` (or `...`) directly under a
+  trusted root was refused as outside its trusted root, so native schedules
+  and helpers would not trust it. Only `..` itself or a leading `..\` leaves
+  the root now; genuine escapes still fail closed.
+
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or
   saved", although nothing was wrong with the ledger. Windows answers a lock
