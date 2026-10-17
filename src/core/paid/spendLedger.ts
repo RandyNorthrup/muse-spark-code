@@ -187,6 +187,11 @@ function withEntry(state: State, entry: LedgerEntry): State {
     }
   }
 }
+// Same-scope operation queues, one per directory for the whole process:
+// separate ledger instances in one process (one per bundle copy or caller)
+// queue here instead of contending with themselves through the file lock.
+const operationTails = new Map<string, Promise<void>>()
+
 /** A complete immutable owner note publishes the lock; no holder ever owns an empty lock. */
 export function createSpendLedger(deps: SpendLedgerDeps) {
   const own = currentProcessOwner()
@@ -409,13 +414,12 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
     return state
   }
   // One process never contends with itself through the filesystem lock:
-  // same-scope operations from this instance queue here first, so the
-  // on-disk lock only ever arbitrates between processes and a holder in
-  // this process can never make its own next operation refuse as busy.
-  const tails = new Map<string, Promise<void>>()
+  // same-scope operations queue here first, so the on-disk lock only ever
+  // arbitrates between processes and a holder in this process can never
+  // make its own next operation refuse as busy.
   const serialise = async <T>(scope: LedgerScope, operation: () => Promise<T>): Promise<T> => {
     const key = scope.directory
-    const previous = tails.get(key) ?? Promise.resolve()
+    const previous = operationTails.get(key) ?? Promise.resolve()
     // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
     let releaseGate: (() => void) | undefined
     // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Node 20 (VS Code 1.99's host) lacks Promise.withResolvers (PLAN.md §8); the executor assigns the resolver synchronously, so releaseGate?.() in finally always releases the next operation.
@@ -426,13 +430,13 @@ export function createSpendLedger(deps: SpendLedgerDeps) {
       await previous
       await gate
     })()
-    tails.set(key, tail)
+    operationTails.set(key, tail)
     await previous
     try {
       return await operation()
     } finally {
       releaseGate?.()
-      if (tails.get(key) === tail) tails.delete(key)
+      if (operationTails.get(key) === tail) operationTails.delete(key)
     }
   }
   const lockOperation = async <T>(

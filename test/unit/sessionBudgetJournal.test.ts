@@ -82,6 +82,12 @@ const oldApiSchema = z.object({
   >((value) => typeof value === 'function'),
 })
 const oldReaderPort: { factory?: z.infer<typeof oldApiSchema>['createSessionBudgetJournal'] } = {}
+// Building the captured old reader bundles the full constants table with
+// esbuild: a genuinely long one-off build, not per-test work.
+const BUILD_HOOK_TIMEOUT_MS = 60_000
+// Writing and reading the lead's 556-row legacy fixture is thousands of
+// real file operations; removing it afterwards is the same again.
+const FIXTURE_HOOK_TIMEOUT_MS = 60_000
 beforeAll(async () => {
   const out = path.join(directory(), 'old.cjs')
   const source = execFileSync(
@@ -115,10 +121,10 @@ beforeAll(async () => {
     ],
   })
   oldReaderPort.factory = oldApiSchema.parse(require(out)).createSessionBudgetJournal
-})
+}, BUILD_HOOK_TIMEOUT_MS)
 afterAll(async () => {
   for (const root of roots) await removeFolder(root)
-})
+}, FIXTURE_HOOK_TIMEOUT_MS)
 describe('session adapter and captured old data', () => {
   describe.each([1, 2])('captured v%i migration', (version) => {
     let root = ''
@@ -139,7 +145,7 @@ describe('session adapter and captured old data', () => {
       })
       const initialOldTotal = await oldReader.read(SESSION, ACCOUNT)
       oldBefore = initialOldTotal.spentUsd
-    })
+    }, FIXTURE_HOOK_TIMEOUT_MS)
     it('migrates 556 rows once without changing old-reader totals or files', async () => {
       if (oldReader === undefined) throw new Error('old reader not initialized')
       const fresh = journal(root)
