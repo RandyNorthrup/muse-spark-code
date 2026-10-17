@@ -105,36 +105,3 @@ export function raceUpdated(sessionId: string, waiting: number): Record<string, 
     viewCursor: `v:${String(waiting + 1)}`,
   }
 }
-
-/** A decision's refusal frame, thrown from a fake MSP handler. */
-function mspFailure(code: number, message: string, data: Record<string, unknown>): never {
-  throw Object.assign(new Error(message), { code, kind: data['kind'], data })
-}
-
-/**
- * The decision for stage 4 refused: 1.4.2 had resolved it by the stage-0
- * rule, waits on stage 5, and never says so with an `approval/updated`.
- */
-export function staleRefusal(waiting: number): () => never {
-  return () =>
-    mspFailure(-32_053, `approval ${RACE_APPROVAL_ID} requirement is stale`, {
-      kind: 'approvalRequirementStale',
-      retryable: false,
-      approvalId: RACE_APPROVAL_ID,
-      currentRequirementId: requirement(waiting),
-    })
-}
-
-/** Every `turn/start` after a turn was cancelled under the part-decided approval. */
-export const REPLAY_FAULT_MESSAGE =
-  'turn/start runtime submit failed: approval replay failed: decision stage evidence contains an unrecorded human resolution'
-export function replayFault(): never {
-  return mspFailure(-32_603, REPLAY_FAULT_MESSAGE, { kind: 'internal', retryable: false })
-}
-
-/** Every `approval/decide` of that session after a restart; the decision applies. */
-export const LEDGER_FAULT_MESSAGE =
-  'approval decide settlement failed: approval ledger durability fence: background task failed: retained acknowledgement fence left records unflushed (failed=0, pending=3)'
-export function ledgerFault(): never {
-  return mspFailure(-32_603, LEDGER_FAULT_MESSAGE, { kind: 'internal', retryable: true })
-}

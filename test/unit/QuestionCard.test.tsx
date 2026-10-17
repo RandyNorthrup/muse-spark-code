@@ -114,13 +114,13 @@ describe('QuestionCard (M16)', () => {
   })
 })
 
-describe('QuestionCard: Explain instead (M46)', () => {
+describe('QuestionCard: Explain Instead (M46)', () => {
   it('sends an explanation in place of the options, trimmed, up to the limit', () => {
     const props = renderCard([colour])
-    fireEvent.click(screen.getByRole('button', { name: 'Explain instead' }))
-    const box = screen.getByLabelText('Your explanation')
+    fireEvent.click(screen.getByRole('button', { name: 'Explain Instead' }))
+    const box = screen.getByLabelText('Your Explanation')
     expect(box).toHaveAttribute('maxLength', String(CLARIFICATION_MAX_CHARS))
-    const send = screen.getByRole('button', { name: 'Send explanation' })
+    const send = screen.getByRole('button', { name: 'Send Explanation' })
     expect(send).toBeDisabled()
     fireEvent.change(box, { target: { value: ' '.repeat(3) } })
     expect(send).toBeDisabled()
@@ -132,8 +132,8 @@ describe('QuestionCard: Explain instead (M46)', () => {
 
   it('goes back to the choices, and locks while the host settles it', () => {
     renderCard([colour])
-    fireEvent.click(screen.getByRole('button', { name: 'Explain instead' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Back to the choices' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Explain Instead' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the Choices' }))
     expect(submit()).toBeInTheDocument()
     const locked = render(
       <QuestionCard
@@ -148,6 +148,6 @@ describe('QuestionCard: Explain instead (M46)', () => {
     expect(card.getByRole('radio', { name: 'Redwarm' })).toBeDisabled()
     expect(card.getByRole('button', { name: 'Submit' })).toBeDisabled()
     expect(card.getByRole('button', { name: 'Cancel' })).toBeDisabled()
-    expect(card.getByRole('button', { name: 'Explain instead' })).toBeDisabled()
+    expect(card.getByRole('button', { name: 'Explain Instead' })).toBeDisabled()
   })
 })

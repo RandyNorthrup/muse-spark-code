@@ -75,4 +75,33 @@ describe('maskRemoteUrl (M71)', () => {
       'ssh://[redacted]@github.com/o/r.git',
     )
   })
+
+  it('R11: masks every query value, whatever the name or its percent-encoded spelling', () => {
+    const marker = 'synthetic-probe-marker'
+    for (const url of [
+      `https://example.invalid/r.git?%74oken=${marker}`,
+      `https://example.invalid/r.git?token=${marker}`,
+      `https://example.invalid/r.git?access_token=${marker}&x=1`,
+      `https://example.invalid/r.git?%61ccess%5Ftoken=${marker}`,
+      `https://example.invalid/r.git#${marker}`,
+      // A name no redactor knows: its value is masked all the same.
+      `https://example.invalid/r.git?x=${marker}`,
+      `https://user:${marker}@example.invalid/r.git?sig=${marker}`,
+    ]) {
+      expect(maskRemoteUrl(url).includes(marker), url).toBe(false)
+    }
+    // The names stay readable; a local path is shown as it is.
+    expect(maskRemoteUrl('https://example.invalid/r.git?%74oken=v')).toBe(
+      'https://example.invalid/r.git?token=[redacted]',
+    )
+    expect(maskRemoteUrl('/srv/git/repo.git')).toBe('/srv/git/repo.git')
+    expect(maskRemoteUrl(String.raw`C:\srv\repo.git`)).toBe(String.raw`C:\srv\repo.git`)
+  })
+
+  it('R11: masks a credential shape that only its percent-decoded spelling shows', () => {
+    const token = `ghp_${'0'.repeat(36)}`
+    const encoded = `https://github.com/o/${encodeURIComponent(token).replace('g', '%67')}.git`
+    expect(maskRemoteUrl(encoded).includes(token)).toBe(false)
+    expect(maskRemoteUrl(encoded).includes('0'.repeat(36))).toBe(false)
+  })
 })

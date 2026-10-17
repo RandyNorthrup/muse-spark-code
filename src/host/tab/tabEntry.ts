@@ -7,6 +7,7 @@
 // keeps its own installed-language state beside the activation's.
 
 import { createTabEngine } from '../../core/tab/tabEngine'
+import { createTabHooks, type TabHooksDeps } from '../../core/tab/tabHooks'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import {
@@ -63,7 +64,45 @@ export function createTabServices(deps: TabServicesDeps): TabServices {
 
 export function createTabProvider(deps: TabProviderDeps & TabBundleTable): TabProviderHandle {
   setUiText(deps.uiTable, deps.locale)
-  return createProvider(deps)
+  if (deps.hooks !== undefined || deps.hookDispatch === undefined) return createProvider(deps)
+  const dispatch = deps.hookDispatch
+  let runner: Awaited<ReturnType<Extract<typeof dispatch, { load: unknown }>['load']>>
+  const hookDispatch: Omit<TabHooksDeps, 'isWorkspaceTrusted' | 'log'> =
+    'load' in dispatch
+      ? {
+          isHooksEnabled: dispatch.isHooksEnabled,
+          configurationVersion: () => runner?.configurationVersion() ?? '',
+          isReloading: () => runner?.isReloading() ?? false,
+          hookState: async (event) => {
+            runner = await dispatch.load()
+            if (runner === undefined) throw new Error('Tab hook dispatch unavailable')
+            return await runner.tabHookState(event)
+          },
+          run: async (request) => {
+            runner = await dispatch.load()
+            return await runner?.runTab(request)
+          },
+        }
+      : dispatch
+  const hooks = createTabHooks({
+    ...hookDispatch,
+    isWorkspaceTrusted: deps.isTrusted,
+    log: (message) => {
+      deps.log.info(message)
+    },
+  })
+  return createProvider({
+    ...deps,
+    hooks: {
+      beforeRead: hooks.beforeRead,
+      afterEdit: (edit) => {
+        hooks.afterEdit({ ...edit, acceptance: edit.inferred ? 'partial' : 'full' }, edit)
+      },
+      bindPolicy: hooks.bindPolicy,
+      policyKey: hooks.policyKey,
+      dispose: hooks.dispose,
+    },
+  })
 }
 
 export async function showTabMenu(deps: TabStatusDeps & TabBundleTable): Promise<void> {
