@@ -258,6 +258,7 @@ export function parseExec(
       'ephemeral',
       'key-stdin',
       'image-generation',
+      'auto-compaction',
       'output-schema',
       'output-schema-outside',
     ].some((key) => values[key] !== undefined && values[key] !== false)
