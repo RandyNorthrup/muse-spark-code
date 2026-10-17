@@ -531,6 +531,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
       { importer: 'src/runtime/resources/load.ts', symbol: 'lazyRuntimeResources', side: ['acp'] },
+      {
+        importer: 'src/runtime/vault/vaultBrokerEntry.ts',
+        symbol: 'main',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   { file: 'resourceJournal.js', side: 'both', requestedBy: [] },
@@ -812,17 +817,59 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   { file: 'validation.js', side: 'both', requestedBy: [] },
   {
     file: 'vault.js',
-    side: 'both',
+    side: 'vscode',
     requestedBy: [
-      {
-        importer: 'src/runtime/vault/vaultRuntime.ts',
-        symbol: 'runtimeVaultLoader',
-        side: ['acp'],
-      },
       { importer: 'src/shared/constants.ts', symbol: 'VAULT_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
+  {
+    file: 'vaultActions.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'VAULT_ACTIONS_BUNDLE_FILE',
+        side: ['vscode'],
+      },
+    ],
+  },
   { file: 'vaultBoundaries.js', side: 'both', requestedBy: [] },
+  {
+    file: 'vaultBroker.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/vault/posixClientPlatform.ts',
+        symbol: 'posixVaultClientPlatform',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'vaultBrokerBindings.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/vault/vaultRuntimeEntry.ts',
+        symbol: 'createVaultBrokerBindings',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  { file: 'vaultPosix.js', side: 'both', requestedBy: [] },
+  {
+    file: 'vaultRuntime.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/vault/vaultBrokerEntry.ts',
+        symbol: 'main',
+        side: ['acp', 'vscode'],
+      },
+      { importer: 'src/shared/constants.ts', symbol: 'VAULT_RUNTIME_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  { file: 'vaultStore.js', side: 'both', requestedBy: [] },
   {
     file: 'voice.js',
     side: 'vscode',

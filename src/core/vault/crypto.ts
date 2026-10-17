@@ -17,7 +17,7 @@ import {
 } from '../../shared/constants'
 import { vaultEncodedSchema, vaultMaterialSchema, type VaultItem } from '../../shared/vault'
 import type { VaultBrokerResponse } from '../../shared/vaultProtocol'
-import { fill, formatDateTime, formatNumber } from '../../shared/l10n/text'
+import { vaultWriterDetail } from '../../shared/vaultRefusals'
 
 /** Safe codes for callers; exceptions never include a value or parser input. */
 export class VaultError extends Error {
@@ -44,14 +44,9 @@ export class VaultWriterError extends VaultError {
     >,
   ) {
     super('busy')
-    const text = UI_TEXT.vault
-    if (writer.kind === 'held') {
-      const detail = fill(writer.otherMachine ? text.busyOtherMachine : text.busyHolder, {
-        pid: formatNumber(writer.pid),
-        since: formatDateTime(writer.acquiredAt),
-      })
-      this.message = writer.machineLabel ? writer.machineLabel + ': ' + detail : detail
-    } else this.message = text[writer.kind]
+    // The sentence lives in the shared refusals so hosts without the
+    // write-only crypto name the same holder.
+    this.message = vaultWriterDetail(writer)
   }
 }
 

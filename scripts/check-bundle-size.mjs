@@ -222,10 +222,14 @@ const BUDGETS = [
   { path: 'dist/vaultActions.js', budgetKiB: 25 },
   // INT0180: shared vault boundary closure; measured plus D6 headroom.
   { path: 'dist/vaultBoundaries.js', budgetKiB: 50 },
-  // C-M109-1b: 103,730 bytes measured on Kubuntu; exactly 15% headroom, rounded to one byte.
-  { path: 'dist/vaultBroker.js', budgetKiB: 119_290 / 1024 },
+  // MSM109: 120,644 bytes measured on linuxlt after the joined lease/store
+  // reviews (owner-death-only takeover, staged publication, confirmed
+  // recovery); exactly 15% headroom, rounded to one byte.
+  { path: 'dist/vaultBroker.js', budgetKiB: 138_741 / 1024 },
   { path: 'dist/vaultBrokerBindings.js', budgetKiB: 32 },
-  { path: 'dist/vaultStore.js', budgetKiB: 50 },
+  // MSM109: 58,130 bytes measured on linuxlt after the joined lease/store
+  // reviews; exactly 15% headroom, rounded to one byte.
+  { path: 'dist/vaultStore.js', budgetKiB: 66_850 / 1024 },
   { path: 'dist/vaultPosix.js', budgetKiB: 25 },
   // The report dialog (M93): the builder, its second scrub, the export paths
   // and the handler, loaded on the first open. 63.6 KiB when split out (its
