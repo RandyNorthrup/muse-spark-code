@@ -60,7 +60,6 @@ interface Harness {
   notifier: BackgroundNotifier
   shown: string[]
   revealed: string[]
-  errors: string[]
 }
 
 function makeHarness(overrides?: {
@@ -69,13 +68,7 @@ function makeHarness(overrides?: {
 }): Harness {
   const shown: string[] = []
   const revealed: string[] = []
-  const errors: string[] = []
-  const log: Logger = {
-    trace: (message: string) => void errors.push(`trace:${message}`),
-    info: (message: string) => void errors.push(`info:${message}`),
-    warn: (message: string) => void errors.push(`warn:${message}`),
-    error: (message: string) => void errors.push(message),
-  }
+  const log: Logger = { trace: ignore, info: ignore, warn: ignore, error: ignore }
   const notifier = new BackgroundNotifier({
     isEnabled: overrides?.isEnabled ?? (() => true),
     isWindowFocused: overrides?.isWindowFocused ?? (() => false),
@@ -85,7 +78,7 @@ function makeHarness(overrides?: {
     },
     log,
   })
-  return { notifier, shown, revealed, errors }
+  return { notifier, shown, revealed }
 }
 
 function notice(key: string): AttentionNotice {
