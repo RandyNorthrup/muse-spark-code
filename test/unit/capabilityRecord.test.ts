@@ -590,6 +590,31 @@ describe('native metadata and reasoning encoding', () => {
       effortLevels: { value: ['max', 'xhigh', 'high', 'medium', 'low'] },
     })
   })
+  it('reads captured Fireworks tools/image flags and DeepSeek effort levels', () => {
+    // Captured 2026-10-04 list rows, through the real chat parser: without
+    // these fields a listed Fireworks model kept unknown tools and vision,
+    // and a listed DeepSeek model kept unknown effort levels, so supported
+    // features were never offered and images threw before send.
+    const fireworks = parseChatModelsList({ data: samples('fireworks') })
+    const gptOss = fireworks.find((row) => row['id'] === 'accounts/fireworks/models/gpt-oss-120b')
+    const fireworksEvidence = nativeCapabilityEvidence('fireworks', gptOss, {
+      kind: 'models-list',
+    }).fields
+    expect(fireworksEvidence.tools?.calling).toMatchObject({ state: 'yes', value: true })
+    expect(fireworksEvidence.modalities?.image).toMatchObject({ state: 'no' })
+    expect(fireworksEvidence.limits?.contextTokens).toBe(131_072)
+    const deepseek = parseChatModelsList({ data: samples('deepseek') })
+    const flash = deepseek.find((row) => row['id'] === 'deepseek-flash')
+    const deepseekEvidence = nativeCapabilityEvidence('deepseek', flash, {
+      kind: 'models-list',
+    }).fields
+    expect(deepseekEvidence.reasoning?.effortLevels).toMatchObject({
+      value: ['low', 'high', 'max'],
+    })
+    expect(deepseekEvidence.modalities?.image).toMatchObject({ state: 'yes' })
+    expect(deepseekEvidence.limits?.contextTokens).toBe(1_048_576)
+    expect(deepseekEvidence.output?.maxTokens).toBe(393_216)
+  })
   it('re-parses sealed catalogue efforts and partial budget bounds', () => {
     const entries = [
       ['openai', 'gpt-5.4', ['none', 'low', 'medium', 'high', 'xhigh']],

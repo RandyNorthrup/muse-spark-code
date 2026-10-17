@@ -73,6 +73,9 @@ export function nativeCapabilityEvidence(
     read(numeric, 'limit', 'output') ??
     read(numeric, 'max_tokens') ??
     read(numeric, 'outputTokenLimit') ??
+    // DeepSeek lists `max_output_tokens` per model (captured 2026-10-04,
+    // docs/certification/m95-captures/deepseek/01-models-list.json).
+    read(numeric, 'max_output_tokens') ??
     read(numeric, 'max_completion_tokens') ??
     read(numeric, 'top_provider', 'max_completion_tokens')
   const maxInput =
@@ -88,7 +91,11 @@ export function nativeCapabilityEvidence(
   const parameters = read(strings, 'supported_parameters') ?? read(strings, 'supported_features')
   const samplingParameters = read(strings, 'supported_sampling_parameters') ?? parameters
   const toolCalling =
-    read(z.boolean(), 'tool_call') ?? read(z.boolean(), 'capabilities', 'function_calling')
+    read(z.boolean(), 'tool_call') ??
+    // Fireworks lists `supports_tools` per model (captured 2026-10-04,
+    // docs/certification/m95-captures/fireworks/01-models-list.json).
+    read(z.boolean(), 'supports_tools') ??
+    read(z.boolean(), 'capabilities', 'function_calling')
   if (toolCalling !== undefined) tools.calling = flag(toolCalling)
   else if (parameters !== undefined) tools.calling = flag(parameters.includes('tools'))
   if (parameters?.includes('parallel_tool_calls') === true) tools.parallel = yes(true)
@@ -102,7 +109,10 @@ export function nativeCapabilityEvidence(
   const efforts =
     reasoningOptions?.find((option) => option.type === 'effort')?.values ??
     read(strings, 'capabilities', 'reasoning_effort') ??
-    read(strings, 'reasoning', 'supported_efforts')
+    read(strings, 'reasoning', 'supported_efforts') ??
+    // DeepSeek lists `effort.supported_levels` per model (captured
+    // 2026-10-04, docs/certification/m95-captures/deepseek/01-models-list.json).
+    read(strings, 'effort', 'supported_levels')
   if (efforts !== undefined) {
     reasoning.effortLevels = yes(efforts)
     if (efforts.some((effort) => effort !== 'none')) {
@@ -136,6 +146,11 @@ export function nativeCapabilityEvidence(
   }
   const vision = read(z.boolean(), 'capabilities', 'vision')
   if (vision !== undefined) modalities.image = vision ? yes(imagePolicy) : { state: 'no', source }
+  // Fireworks lists `supports_image_input` per model (captured 2026-10-04,
+  // docs/certification/m95-captures/fireworks/01-models-list.json).
+  const supportsImageInput = read(z.boolean(), 'supports_image_input')
+  if (supportsImageInput !== undefined)
+    modalities.image = supportsImageInput ? yes(imagePolicy) : { state: 'no', source }
   const temperature = native['temperature']
   if (typeof temperature === 'boolean') sampling.temperature = flag(temperature)
   if (typeof temperature === 'number' || read(numeric, 'default_model_temperature') !== undefined)
