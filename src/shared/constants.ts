@@ -812,6 +812,11 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiShellKeepsDirectory',
   'modelApiHookModels',
   'hookHttpAllowedHosts',
+  // M126: what runs hooks and subagents, and how much of each at once, is
+  // the user's choice, never a repository's.
+  'hooksMaxStopContinuations',
+  'hooksMaxRunningCommands',
+  'subagentMaxConcurrent',
   'modelApiCommandRules',
   'modelApiPermissionProfiles',
   'modelApiPermissionProfile',
