@@ -15,6 +15,7 @@ import {
 } from '../../shared/constants'
 import {
   CONNECTOR_SCOPES,
+  connectorConnectionIdSchema,
   connectorGrantSchema,
   type ConnectorGrant,
   type ConnectorScope,
@@ -96,6 +97,8 @@ export function parseConnectorCommand(argv: readonly string[]): ConnectorCommand
       values['user-library'] !== undefined
     if (hasGrantOptions && action !== 'grant') return undefined
     const connectionId = values.connection ?? CONNECTOR_DEFAULT_CONNECTION
+    // The name becomes file paths in the store; nothing else may reach them.
+    if (!connectorConnectionIdSchema.safeParse(connectionId).success) return undefined
     switch (action) {
       case 'serve': {
         return { kind: 'serve', connectionId }
