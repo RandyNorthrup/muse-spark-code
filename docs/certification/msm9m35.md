@@ -90,7 +90,9 @@ m9-linux (`1437fc9c5`), m35-mic (`05a5636b6`).
   helperLocation/acpPackageFixtures 172/172; `usagePackaging` 9–11/12 —
   remaining failures are 5 s-timeout flakes on 7–10 s packaging cases;
   unmodified main fails the same 5 cases on this rig (environmental).
-- `test/e2e/acpStdio`: 13/13. `test/e2e/execStdio`: PENDING (running).
+- `test/e2e/acpStdio`: 13/13. `test/e2e/execStdio`: 46/46 pass; the
+  file-level `afterAll` cleanup hook exceeds its 10 s timeout on this rig
+  (environmental, unrelated to the product).
 - New-gate fire proof: the `companionWav` red drills above; the l10n
   round-trip failures (15) caused by this lane's own merges, fixed by
   `4a8279e10`; knip's `linuxHelperBytes` flag from the fake-test deletion.
