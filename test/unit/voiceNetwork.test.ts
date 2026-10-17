@@ -22,4 +22,13 @@ describe('voiceNetworkRefusal', () => {
     expect(voiceNetworkRefusal(true, 'notRouted', false)).toBeUndefined()
     expect(voiceNetworkRefusal(true, 'routed', false)).toBeUndefined()
   })
+
+  // The host rebuilds the setup when `http.proxy` flips while the window
+  // is open, so the refusal must follow the current value in both
+  // directions, not the one read at activation.
+  it('follows a proxy set and then unset while the window is open', () => {
+    expect(voiceNetworkRefusal(true, 'notRouted', true)).toBe('proxy')
+    expect(voiceNetworkRefusal(true, 'notRouted', false)).toBeUndefined()
+    expect(voiceNetworkRefusal(true, 'notRouted', true)).toBe('proxy')
+  })
 })
