@@ -56,7 +56,6 @@ export function approval(): VaultApprovalRequest {
     digest: 'b'.repeat(64),
     nonce: 'c'.repeat(32),
     createdAt: 0,
-    expiresAt: 120_000,
     lockEpoch: 0,
     taint: { tainted: false, reasons: [] },
   }
@@ -71,7 +70,7 @@ export function ticket(): VaultTicket {
     digest: request.digest,
     nonce: request.nonce,
     issuedAt: request.createdAt,
-    expiresAt: request.expiresAt,
+    expiresAt: request.item.dates.expiresAt,
     lockEpoch: request.lockEpoch,
     maxUses: 1,
   }

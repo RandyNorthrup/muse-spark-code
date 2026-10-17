@@ -81,7 +81,10 @@ export function governedMcpVaultStart(
       if (
         input.isCancelled() ||
         controller.signal.aborted ||
-        leases.some((lease) => lease.revoked.aborted || lease.expiresAt <= Date.now())
+        leases.some(
+          (lease) =>
+            lease.revoked.aborted || (lease.expiresAt !== null && lease.expiresAt <= Date.now()),
+        )
       )
         throw new Error(UI_TEXT.vault.noAccess)
     }
@@ -118,10 +121,13 @@ export function governedMcpVaultStart(
         assembly,
       )
       const process = child
-      expiry = setTimeout(
-        revoked,
-        Math.max(0, Math.min(...leases.map((lease) => lease.expiresAt)) - Date.now()),
-      )
+      // Only lifetimes the ticket, material or item name end the server
+      // (owner 2026-10-16); unbounded leases run until revoked or stopped.
+      const bounded = leases
+        .map((lease) => lease.expiresAt)
+        .filter((expiresAt): expiresAt is number => expiresAt !== null)
+      if (bounded.length > 0)
+        expiry = setTimeout(revoked, Math.max(0, Math.min(...bounded) - Date.now()))
       const out = scrubber.stream()
       const err = scrubber.stream()
       const stdout = new StringDecoder('utf8')
