@@ -359,6 +359,8 @@ Proofs:
 
 ## D108 panel-focus design record (2026-10-14, lane PRFIX160)
 
+Renumbered D116 on 2026-10-15: D108 was also the test overhaul's decision, and both merged with pull request 172. The archived body below the hashed markers keeps its original text.
+
 `npm run plan:archive -- move decisions --heading "D108 — A chat surface takes
 the keyboard only while it holds it (panel-focus, 2026-10-12)" --lines
 14637-14673 --summary <lane-private summary file> --allow-fact-change`

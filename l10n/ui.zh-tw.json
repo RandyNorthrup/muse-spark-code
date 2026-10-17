@@ -399,7 +399,7 @@
   "referenceConversationActions": "重新命名、分叉或回退對話。回退可復原記錄的編輯和歷程；之後已變更的檔案會保留，命令列變更不在範圍內。輪次執行時的新訊息用於引導。Model API訊息可在下次請求前撤回；Muse Code引導會立即送達，因此只能撤回排隊的訊息。側聊複製已完成的輪次、清除目標並保持Plan；Muse Code檔案工具在Plan中仍可編輯。選取文字可回覆、詢問、評論或複製。",
   "referenceQuestions": "選擇答案並提交、用自己的話說明，或取消。提交的答案及說明會在對話中傳給 Muse。",
   "referenceQuestionsDeferral": "每個問題或 MCP 表單都有一張卡片，固定在訊息輸入欄上方。聊天記錄中待回答問題標記的回答按鈕會開啟或展開卡片，並聚焦第一個控制項，延後後也一樣。提交的答案及說明會在對話中傳給 Muse。超過 museSpark.questions.deferAfterSeconds（預設 60 秒；0 無限期等待）後，Muse 會繼續不依賴答案的工作；你可稍後回答或關閉卡片。延後回答是你自己的訊息，不會核准任何操作。下一個待回答的問題／上一個待回答的問題可切換卡片。排程的提示會立即延後問題，無介面的 exec 會拒絕問題。ACP：--questions-defer-after 設定期限；/questions 列出待回答的問題；/answer <n> <text> 回答其中一個。",
-  "referencePermissionLimits": "museCode:manual: Muse 會在執行命令前詢問；Muse Code 會直接編輯工作區檔案，不會詢問\nmuseCode:acceptEdits: 在 Muse Code 上與手動相同：Muse Code 會直接編輯工作區檔案，不會詢問，並在執行命令前詢問\nmuseCode:plan: Muse 會先進行規劃；Muse Code 會拒絕命令，但它的檔案工具仍可不經詢問地編輯檔案\nmuseCode:bypassPermissions: Muse 會直接編輯檔案及執行命令，不會詢問\nmodelApi:manual: Muse 會在每次編輯和每個命令前要求核准\nmodelApi:acceptEdits: Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問\nmodelApi:plan: Muse 會先探索程式碼並提出計畫，再進行編輯\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code 會直接執行它判斷為簡單的命令，不會詢問，其餘命令執行前會詢問\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code 會直接執行它判斷為簡單的命令，不會詢問；審查器可能會允許其他部分命令執行一次，其餘命令會詢問您\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse 會直接編輯檔案（受保護的檔案除外），不會詢問，並在執行命令前詢問\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse 會直接編輯檔案（受保護的檔案除外），不會詢問；付費審查器可能會允許部分命令執行一次，其餘命令會詢問您\n這些 Auto 說明適用於尚未由規則決定的請求。Model API 審核器還需要付費使用同意及預算准入。審核被拒絕或失敗時，由你決定。一般 ACP 不提供這兩種審核器。",
+  "referencePermissionLimits": "museCode:manual: Muse 會在執行每個命令前詢問，但其權限規則已允許的命令除外；Muse Code 會直接編輯工作區檔案，不會詢問\nmuseCode:acceptEdits: 在 Muse Code 上與手動相同：Muse Code 會直接編輯工作區檔案，不會詢問，並在執行每個命令前詢問，但其權限規則已允許的命令除外\nmuseCode:plan: Muse 會先進行規劃；Muse Code 會拒絕命令，但它的檔案工具仍可不經詢問地編輯檔案\nmuseCode:bypassPermissions: Muse 會直接編輯檔案及執行命令，不會詢問\nmodelApi:manual: Muse 會在每次編輯和每個命令前要求核准\nmodelApi:acceptEdits: Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問\nmodelApi:plan: Muse 會先探索程式碼並提出計畫，再進行編輯\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code 會直接執行它判斷為簡單的命令，不會詢問，其餘命令執行前會詢問\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code 會直接執行它判斷為簡單的命令，不會詢問；審查器可能會允許其他部分命令執行一次，其餘命令會詢問您\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse 會直接編輯檔案（受保護的檔案除外），不會詢問，並在執行命令前詢問\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse 會直接編輯檔案（受保護的檔案除外），不會詢問；付費審查器可能會允許部分命令執行一次，其餘命令會詢問您\n這些 Auto 說明適用於尚未由規則決定的請求。Model API 審核器還需要付費使用同意及預算准入。審核被拒絕或失敗時，由你決定。一般 ACP 不提供這兩種審核器。",
   "referenceElicitationTitle": "MCP 表單",
   "referenceElicitation": "MCP 表單為提出請求的 MCP 伺服器收集資訊。提交的表單值傳給該伺服器，不進入模型對話或記錄。伺服器可能將這些值包含在後續工具輸出中。請勿輸入密碼或金鑰。",
   "referenceSecretPrompt": "如果在提示中偵測到秘密資訊，對話記錄會將其遮蔽，並詢問是仍然傳送還是返回編輯。",
@@ -996,6 +996,7 @@
   "sessionResumesOnSend": "下一則訊息會恢復此工作階段。",
   "sessionContinued": "重新啟動後已繼續對話。",
   "sessionNotContinued": "重新啟動後無法繼續對話，因此這則訊息會開始新的對話",
+  "modelNotKeptAfterRestart": "Muse Code 回報此對話實際執行於 {active} 而非 {wanted}，因此訊息未傳送。請重新選擇模型並重新傳送以繼續。",
   "surfaceClosed": "面板已關閉",
   "hostStartFailed": "後端無法啟動",
   "decisionErrorNotice": "Muse Code 回報此決定發生錯誤（工具可能仍已執行）",
@@ -3069,8 +3070,8 @@
     "bypassPermissions": "略過權限"
   },
   "permissionModeDetails": {
-    "manual": "Muse 會在執行命令前詢問；Muse Code 會直接編輯工作區檔案，不會詢問",
-    "acceptEdits": "在 Muse Code 上與手動相同：Muse Code 會直接編輯工作區檔案，不會詢問，並在執行命令前詢問",
+    "manual": "Muse 會在執行每個命令前詢問，但其權限規則已允許的命令除外；Muse Code 會直接編輯工作區檔案，不會詢問",
+    "acceptEdits": "在 Muse Code 上與手動相同：Muse Code 會直接編輯工作區檔案，不會詢問，並在執行每個命令前詢問，但其權限規則已允許的命令除外",
     "plan": "Muse 會先進行規劃；Muse Code 會拒絕命令，但它的檔案工具仍可不經詢問地編輯檔案",
     "auto": "Muse Code 會直接執行它判斷為簡單的命令，不會詢問，其餘命令執行前會詢問",
     "bypassPermissions": "Muse 會直接編輯檔案及執行命令，不會詢問"

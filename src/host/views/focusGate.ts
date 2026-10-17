@@ -1,4 +1,4 @@
-// The host's side of the panel-focus drop rule (PLAN.md D108, the review's
+// The host's side of the panel-focus drop rule (PLAN.md D116, the review's
 // F3): the host owns every focus request it sends, and delivers one only
 // while its panel is the active one. Pure decisions over injected values, so
 // they are unit-tested without VS Code; `configureWebview` (webviewSetup.ts)
