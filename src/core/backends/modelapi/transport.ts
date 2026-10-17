@@ -351,10 +351,78 @@ export interface ConfirmedModelRequest {
   readonly keyDigest: string
   readonly providerId?: string | undefined
   readonly origin?: string | undefined
+  /**
+   * Which confirmed run this identity belongs to. Stale-identity refusals
+   * keep the schedule guidance for scheduled prompts and name the hook call
+   * for model-hook runs.
+   */
+  readonly runKind?: 'scheduled' | 'review' | 'hookModel' | undefined
   /** The paid gate and session model must still match before every HTTP try. */
   readonly isStillAllowed: () => boolean
   /** Only after identity and gate checks, immediately before the first HTTP try. */
   readonly onRequestStarted: () => void
+}
+
+/**
+ * A stale-identity refusal that names the confirmed run: scheduled prompts
+ * keep the schedule guidance, model-hook runs name the hook call.
+ */
+export function staleConfirmedError(confirmed: ConfirmedModelRequest): Error {
+  return new Error(
+    confirmed.runKind === 'hookModel'
+      ? UI_TEXT.requestStaleHookModel
+      : UI_TEXT.scheduleConfirmationExpired,
+  )
+}
+
+/**
+ * Whether an error is a lapsed-confirmation refusal carrying the run's own
+ * guidance. Branches whose catch maps failures to branch text (the plan
+ * retry sentence, the adapter's failure text) let these through unchanged,
+ * so a lapsed hook, schedule or review says what lapsed.
+ */
+export function isStaleConfirmedError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === UI_TEXT.requestStaleHookModel ||
+      error.message === UI_TEXT.scheduleConfirmationExpired)
+  )
+}
+
+/**
+ * The one confirmed-dispatch gate every provider branch runs: proceed while
+ * the confirmation names this model and is still allowed, and refuse with
+ * the run's own guidance otherwise. Branches that accept more than the bare
+ * session model id (a catalogue id, a provider, an origin) check those
+ * fields themselves and pass `isSameModel` for the model half, so a future
+ * branch cannot miss a step by hand-copying the condition.
+ */
+export function assertConfirmedAllowed(
+  requestModel: string,
+  confirmed: ConfirmedModelRequest | undefined,
+  isSameModel: (confirmedModelId: string, requestModel: string) => boolean = (left, right) =>
+    left === right,
+): void {
+  if (
+    confirmed !== undefined &&
+    (!isSameModel(confirmed.modelId, requestModel) || !confirmed.isStillAllowed())
+  ) {
+    throw staleConfirmedError(confirmed)
+  }
+}
+
+/**
+ * Mark a confirmed dispatch started: the start receipt and the
+ * scheduled-prompt use tally run exactly once, adjacent to the send, with
+ * the admission observer right after. Call sites invoke this once per
+ * dispatch, after the final gate re-check.
+ */
+export function noteConfirmedRequestStarted(
+  confirmed: ConfirmedModelRequest | undefined,
+  admitAttempt: Pick<ResponseAttemptGuard, 'onRequestStarted'> | undefined,
+): void {
+  confirmed?.onRequestStarted()
+  admitAttempt?.onRequestStarted?.()
 }
 
 /** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
@@ -399,6 +467,8 @@ export interface ResponseAttemptGuard {
   readonly paidFeature?: PaidFeature
   readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
+  /** Pure request-policy fence after admission waits and last before dispatch; never reserves. */
+  readonly check?: () => void
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
   readonly observe?: (observation: ResponseObservation) => void
@@ -823,17 +893,19 @@ export class RequestTransport {
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
+      admitAttempt?.check?.()
       await this.deps.verifyEndpoint?.(url)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
+      admitAttempt?.check?.()
       if (
         confirmed !== undefined &&
         (credentials.keyDigest !== confirmed.keyDigest ||
           (confirmed.origin !== undefined && confirmed.origin !== new URL(url).origin) ||
           !confirmed.isStillAllowed())
       ) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
+        throw staleConfirmedError(confirmed)
       }
       // A scheduled fire's authority is live: checked before pacing and again
       // after it, since revocation or a key change can land during the wait.
@@ -874,6 +946,7 @@ export class RequestTransport {
         } finally {
           admission.abort()
         }
+        admitAttempt?.check?.()
         if (kind !== 'foreground' && credentials.keyDigest !== (await this.currentKeyDigest()))
           throw new Error(UI_TEXT.notSignedInReason)
       }
@@ -883,6 +956,7 @@ export class RequestTransport {
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
       await admitAttempt?.prepare?.()
+      admitAttempt?.check?.()
       if (init.paid !== undefined) {
         if (init.paid.isSent) {
           throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
@@ -901,7 +975,7 @@ export class RequestTransport {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
       if (confirmed !== undefined && !confirmed.isStillAllowed()) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
+        throw staleConfirmedError(confirmed)
       }
       if (
         wireBody !== undefined &&
@@ -940,8 +1014,8 @@ export class RequestTransport {
         ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
-      confirmed?.onRequestStarted()
-      admitAttempt?.onRequestStarted?.()
+      admitAttempt?.check?.()
+      noteConfirmedRequestStarted(confirmed, admitAttempt)
       if (init.paid !== undefined) {
         init.paid.isSent = true
       }

@@ -7,7 +7,7 @@
 // started on. Pure: workspace state arrives structurally (core never imports
 // `vscode`), and the backend switch itself stays with M95's lane U.
 
-import { teamSnapshotSchema, type TeamModelSettings } from '../../shared/teamConfig'
+import { teamSnapshotSchema, type TeamModelSettings } from '../../shared/team'
 import { TEAM_WORKSPACE_KEYS } from '../../shared/teamConversation'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'

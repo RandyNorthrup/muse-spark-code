@@ -45,18 +45,42 @@ wire contract, credential or paid dispatch changes.
 ## Findings, regression guards and red drills
 
 Every mutation ran a complete owning file at repository-default deadlines,
-`npx vitest run <file> --maxWorkers=3`, then restored the exact original bytes.
-No timeout override or filtered test was used. SHA-256 values below matched
-before and after each restoration; subsequent complete files pass.
+`npx vitest run <file> --maxWorkers=3`, then restored the bytes it started
+from. No timeout override or filtered test was used. Each SHA-256 below is
+the file as it stood when its drill ran, the same before and after the
+restoration; subsequent complete files pass. The drills ran across this
+round's work, so a value recorded before a later edit of the same file is
+not the committed file (review RVMODELSPLIT4). The committed files at
+`b92fab054` are:
 
-| Finding                              | Fix and named regression                                                                                                                                                        | Deliberate break and observed failure                                                               | Restored SHA-256                                                                            |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| 1: loading collapse                  | Stable `SectionFrame`, transitions, remembered skeleton; `keeps Providers visible throughout a held Models transition and announces its pending tab` and reverse Providers hold | Remove the local transition: both held-navigation tests fail (2 failed, 6 passed)                   | `632473f4851c73eeddd9d77b31dbc3fcd9b2c44877989dfc7d710f90256df378` (`panel.tsx`)            |
-| 1: reload first paint                | `uses the saved measured height while Providers is held on reload`; settled-box persistence and refused-storage guards                                                          | Ignore saved height: the remembered-height test fails (1 failed, 7 passed)                          | `6abce44c0d7a410f2b253d73b07aa3763345e5bceb14bd99e03d3ab13293ad79` (`DeferredSections.tsx`) |
-| 2: ineffective identity test         | Real `ModelsApp` receives validated changed host state; changed provider label, scan status and `$1.20` must arrive before identity is checked                                  | Key the section by provider label: updated content arrives but identity fails (1 failed, 7 passed)  | `632473f4851c73eeddd9d77b31dbc3fcd9b2c44877989dfc7d710f90256df378` (`panel.tsx`)            |
-| 3: absent filtered baseline          | `includes reviewed filtered Models frames for the entire visual matrix` requires the audit scene and every theme/width/state key                                                | Remove the audit scene: the new guard and existing complete-matrix guard fail (2 failed, 11 passed) | `89839edb30c09931e287aba513be7a59acfba1b1c61b0050f26fc17c5ecfa858` (`m114-audit.json`)      |
-| 4: missing money readiness           | Mark usage amounts, model rates, test disclosures and budget suggestions; `marks every key usage amount until the held money chunk has formatted it`                            | Remove usage deferred markers: the amount-readiness test fails (1 failed, 5 passed)                 | `469df363b8535ac537177e37e78a7c60a21e5ea5f2e607b3cbd83d688c40e355` (`ProvidersSection.tsx`) |
-| 4: waiter returns with requests open | Always drain tracked requests; `waits for an outstanding lazy chunk even without a loading marker`                                                                              | Remove the unconditional drains: the no-marker held-request guard fails (1 failed, 3 passed)        | `b647632b83f3358460fe578ff40d6562146dd44aae8663eb38641b1261204436` (`capture.mjs`)          |
+| File                   | SHA-256 at `b92fab054`                                             | Rows below that carry this value |
+| ---------------------- | ------------------------------------------------------------------ | -------------------------------- |
+| `panel.tsx`            | `a8253182668158ce0af9cedb1cda1718d4ca51d011d19c1853c6a46d17916a56` | none                             |
+| `DeferredSections.tsx` | `6de406c31b5b503dd0bddde6f676bc3bf0389090cd10c658de4226453fa4a64c` | the invalid-height guard         |
+| `m114-audit.json`      | `0a2767bc95c0c84e048d6c9b1946eca545f5d823a50a0540c1cb63ae296eb2f2` | none                             |
+| `ProvidersSection.tsx` | `469df363b8535ac537177e37e78a7c60a21e5ea5f2e607b3cbd83d688c40e355` | finding 4, money readiness       |
+| `capture.mjs`          | `98f69953a7e98d21189cd3c3c4ff73f83b99cd668aa677dc504c86d9ac466960` | the counted-actions guard        |
+
+The first drill's count also belongs to the suite of its moment. On the
+committed suite, removing the local transition fails three tests and passes
+seven: both held-navigation tests, and `keeps a failed section from feeding
+its own larger box into the reserve` (review RVMODELSPLIT4, an in-memory
+transform with no file written). The guards fail closed on the committed
+bytes. The merge into the release train changed `ProvidersSection.tsx` (the
+usage amount takes the exact-money type) and refreshed `m114-audit.json`, so
+neither has either hash there. The train's wizard states its budget in an
+exact text field (M121) and renders no budget suggestion card, so finding 4's
+marker for budget suggestions has nothing to mark there; `Wizard.tsx` and
+`SuggestionCard.tsx` are the train's.
+
+| Finding                              | Fix and named regression                                                                                                                                                        | Deliberate break and observed failure                                                                                                    | Restored SHA-256                                                                            |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 1: loading collapse                  | Stable `SectionFrame`, transitions, remembered skeleton; `keeps Providers visible throughout a held Models transition and announces its pending tab` and reverse Providers hold | Remove the local transition: both held-navigation tests fail (2 failed, 6 passed when it ran; 3 failed, 7 passed on the committed suite) | `632473f4851c73eeddd9d77b31dbc3fcd9b2c44877989dfc7d710f90256df378` (`panel.tsx`)            |
+| 1: reload first paint                | `uses the saved measured height while Providers is held on reload`; settled-box persistence and refused-storage guards                                                          | Ignore saved height: the remembered-height test fails (1 failed, 7 passed)                                                               | `6abce44c0d7a410f2b253d73b07aa3763345e5bceb14bd99e03d3ab13293ad79` (`DeferredSections.tsx`) |
+| 2: ineffective identity test         | Real `ModelsApp` receives validated changed host state; changed provider label, scan status and `$1.20` must arrive before identity is checked                                  | Key the section by provider label: updated content arrives but identity fails (1 failed, 7 passed)                                       | `632473f4851c73eeddd9d77b31dbc3fcd9b2c44877989dfc7d710f90256df378` (`panel.tsx`)            |
+| 3: absent filtered baseline          | `includes reviewed filtered Models frames for the entire visual matrix` requires the audit scene and every theme/width/state key                                                | Remove the audit scene: the new guard and existing complete-matrix guard fail (2 failed, 11 passed)                                      | `89839edb30c09931e287aba513be7a59acfba1b1c61b0050f26fc17c5ecfa858` (`m114-audit.json`)      |
+| 4: missing money readiness           | Mark usage amounts, model rates, test disclosures and budget suggestions; `marks every key usage amount until the held money chunk has formatted it`                            | Remove usage deferred markers: the amount-readiness test fails (1 failed, 5 passed)                                                      | `469df363b8535ac537177e37e78a7c60a21e5ea5f2e607b3cbd83d688c40e355` (`ProvidersSection.tsx`) |
+| 4: waiter returns with requests open | Always drain tracked requests; `waits for an outstanding lazy chunk even without a loading marker`                                                                              | Remove the unconditional drains: the no-marker held-request guard fails (1 failed, 3 passed)                                             | `b647632b83f3358460fe578ff40d6562146dd44aae8663eb38641b1261204436` (`capture.mjs`)          |
 
 Additional guards found while exercising the whole loading class:
 
@@ -153,3 +177,37 @@ missing chunks, sections compiled into the body, exact-cap passes and one-byte
 overflow failures. Earlier byte-exact MISS and static-import drills are retained
 in commits `b9a91e7a6` and `a2b681712`; the invalid reserve/marker-only layout
 claims in `2fd9b58cd` and `069eedf1b` are superseded by this record.
+
+## The providers section row on the release train (2026-10-11)
+
+The lane measured its caps on 0.17.0. On the release train the providers
+section's closure is larger, because the train's wizard carries 0.17.1's
+repairs and exact money (M121): **32,197 B** at the merge of `b92fab054` onto
+`acf388a14` (macbook rig, production build), 453 B over the lane's 31 KiB.
+
+| Input (bytes in the section's chunks) |  Bytes |
+| ------------------------------------- | -----: |
+| `Wizard.tsx`                          | 15,397 |
+| `ProvidersSection.tsx`                |  9,553 |
+| `components/SearchableSelect.tsx`     |  2,292 |
+| `components/ScanStatus.tsx`           |  1,371 |
+| `components/CostNotice.tsx`           |    820 |
+| `components/SuggestionCard.tsx`       |    650 |
+| `components/KeyState.tsx`             |    434 |
+| `components/UndoBar.tsx`              |    406 |
+| keybindings (`models.select`)         |    323 |
+| `components/InlineError.tsx`          |    269 |
+| `listNavigation.ts`                   |    142 |
+
+Both section rows are new with this split and exist nowhere else, so the
+lead set the providers row where it first lands, by the precedent for a new
+chunk: the bytes measured on the landing tree plus 15 percent, rounded up to
+a whole KiB. 32,197 × 1.15 = 37,026.6 B = 36.16 KiB, so the row is **37
+KiB** (`MODELS_DEFERRED_BUDGETS` in `scripts/lib/webviewBundles.mjs`). No
+existing row changed. The models section measured 12,074 B on the train and
+keeps 13 KiB; the panel body went from 69.0 KiB to 28.4 KiB of its 75.
+`test/unit/bundleSize.test.mjs` pins 37 and 13, their exact-cap passes and
+their one-byte overflows, in place of the 31/13 named above.
+
+The row tightens when the wizard, which opens on demand, moves out of the
+section chunk (planned separately).

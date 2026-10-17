@@ -26,7 +26,7 @@ beforeAll(async () => {
         '{"success":true,"scope":"personal_project","path":"warm.md","operation":"add","message":"memory note written"}',
     }),
   ])
-  openRow('Save memory')
+  openRow('Save Memory')
   await screen.findByText('Warm body.')
   cleanup()
 })
@@ -81,17 +81,17 @@ describe('shell previews (M87)', () => {
     expect(boxes).toHaveLength(2)
     for (const box of boxes) {
       expect(box.querySelector('pre')?.textContent).toBe('first\nsecond\nthird\nfourth\nfifth')
-      expect(within(box).getByRole('button', { name: 'Show more', expanded: false })).toBeTruthy()
+      expect(within(box).getByRole('button', { name: 'Show More', expanded: false })).toBeTruthy()
     }
-    fireEvent.click(within(boxes[0]!).getByRole('button', { name: 'Show more' }))
+    fireEvent.click(within(boxes[0]!).getByRole('button', { name: 'Show More' }))
     expect(boxes[0]!.querySelector('pre')?.textContent).toBe(lines)
     expect(
-      within(boxes[0]!).getByRole('button', { name: 'Show less', expanded: true }),
+      within(boxes[0]!).getByRole('button', { name: 'Show Less', expanded: true }),
     ).toBeTruthy()
     expect(boxes[1]!.querySelector('pre')?.textContent).not.toContain('sixth')
-    fireEvent.click(within(boxes[0]!).getByRole('button', { name: 'Show less' }))
+    fireEvent.click(within(boxes[0]!).getByRole('button', { name: 'Show Less' }))
     expect(
-      within(boxes[0]!).getByRole('button', { name: 'Show more', expanded: false }),
+      within(boxes[0]!).getByRole('button', { name: 'Show More', expanded: false }),
     ).toBeTruthy()
   })
 
@@ -103,13 +103,13 @@ describe('shell previews (M87)', () => {
     expect(within(boxes[1]!).getByText('OUT')).toBeTruthy()
     for (const box of boxes) {
       expect(box.querySelector('pre')?.textContent).toBe('first\nsecond\nthird\nfourth\nfifth')
-      fireEvent.click(within(box).getByRole('button', { name: 'Show more', expanded: false }))
+      fireEvent.click(within(box).getByRole('button', { name: 'Show More', expanded: false }))
       expect(box.querySelector('pre')?.textContent).toBe(lines)
     }
     fireEvent.keyDown(within(boxes[1]!).getByTitle('Click to open the output in an editor'), {
       key: 'Enter',
     })
-    expect(props.onOpenOutput).toHaveBeenCalledWith('u', 'You ran', lines, undefined)
+    expect(props.onOpenOutput).toHaveBeenCalledWith('u', 'You Ran', lines, undefined)
   })
 
   it('shows user IN before any output arrives without an empty OUT part', () => {
@@ -126,7 +126,7 @@ describe('shell previews (M87)', () => {
     ])
     const row = openRow('PowerShell')
     expect(row.querySelector(':scope .shell pre')?.textContent).toBe(`${'x'.repeat(2000)}…`)
-    fireEvent.click(within(row).getByRole('button', { name: 'Show more', expanded: false }))
+    fireEvent.click(within(row).getByRole('button', { name: 'Show More', expanded: false }))
     expect(row.querySelector(':scope .shell pre')?.textContent).toBe('x'.repeat(2001))
   })
 
@@ -134,9 +134,9 @@ describe('shell previews (M87)', () => {
     const text = Array.from({ length: 13 }, (_, index) => `line ${String(index + 1)}`).join('\n')
     const { container } = render(<Clipped text={text} className="tool-output" />)
     expect(container.querySelector('pre')?.textContent.split('\n')).toHaveLength(12)
-    fireEvent.click(screen.getByRole('button', { name: 'Show more', expanded: false }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show More', expanded: false }))
     expect(container.querySelector('pre')?.textContent).toBe(text)
-    expect(screen.getByRole('button', { name: 'Show less', expanded: true })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Show Less', expanded: true })).toBeTruthy()
   })
 
   it('shows no toggle for exactly five shell lines or 2,000 characters', () => {
@@ -147,7 +147,7 @@ describe('shell previews (M87)', () => {
         output: '1\n2\n3\n4\n5',
       }),
     ])
-    expect(within(openRow('PowerShell')).queryByRole('button', { name: 'Show more' })).toBeNull()
+    expect(within(openRow('PowerShell')).queryByRole('button', { name: 'Show More' })).toBeNull()
   })
 })
 
@@ -162,8 +162,8 @@ describe('memory rows (M43)', () => {
       }),
     ])
     expect(screen.getByText('palette.md')).toBeTruthy()
-    const row = openRow('Save memory')
-    expect(await within(row).findByText('Your memory for this project')).toBeTruthy()
+    const row = openRow('Save Memory')
+    expect(await within(row).findByText('Your Memory for This Project')).toBeTruthy()
     expect(within(row).getByText('The favourite colour is teal.')).toBeTruthy()
     expect(within(row).queryByText(/memory note written/)).toBeNull()
   })
@@ -177,8 +177,8 @@ describe('memory rows (M43)', () => {
           '{"success":true,"scope":"project","path":"palette.md","start_line_number":1,"content":"The favourite colour is teal.","truncated":false}',
       }),
     ])
-    const row = openRow('Read memory')
-    expect(within(row).getByText('Project memory, shared with the repository')).toBeTruthy()
+    const row = openRow('Read Memory')
+    expect(within(row).getByText('Project Memory, Shared With the Repository')).toBeTruthy()
     expect(within(row).getByText('The favourite colour is teal.')).toBeTruthy()
     expect(within(row).queryByText(/start_line_number/)).toBeNull()
   })
@@ -192,10 +192,10 @@ describe('memory rows (M43)', () => {
         output: '{"success":true,"operation":"edit","message":"memory note edited"}',
       }),
     ])
-    openRow('Edit memory')
+    openRow('Edit Memory')
     expect(container.querySelector('.diff-remove')?.textContent).toContain('teal')
     expect(container.querySelector('.diff-add')?.textContent).toContain('navy')
-    expect(screen.getByText('Your memory for every project')).toBeTruthy()
+    expect(screen.getByText('Your Memory for Every Project')).toBeTruthy()
   })
 })
 
@@ -209,10 +209,10 @@ describe('goal rows (M43)', () => {
       }),
     ])
     expect(screen.getAllByText('Saying hello')).toHaveLength(1)
-    const row = openRow('Goal progress')
+    const row = openRow('Goal Progress')
     expect(await within(row).findByText('Say hello in one word')).toBeTruthy()
     expect(within(row).getByText('Active · 50% done')).toBeTruthy()
-    const bar = within(row).getByRole('progressbar', { name: 'Goal progress' })
+    const bar = within(row).getByRole('progressbar', { name: 'Goal Progress' })
     expect(bar.getAttribute('value')).toBe('50')
     expect(within(row).getByText('Mark complete')).toBeTruthy()
     expect(within(row).getByText('24,331')).toBeTruthy()
@@ -242,7 +242,7 @@ describe('goal rows (M43)', () => {
 
   it('falls back to the text when a goal tool answers something else', () => {
     renderTranscript([tool({ tool: 'get_goal', args: '{}', output: 'No goal is set.' })])
-    const row = openRow('Check goal')
+    const row = openRow('Check Goal')
     expect(within(row).getByText('No goal is set.')).toBeTruthy()
   })
 })
@@ -256,7 +256,7 @@ describe('schedule rows (M43)', () => {
         output: 'Scheduled 2ef46218 (59 23 31 12 *, once)',
       }),
     ])
-    const row = openRow('Schedule prompt')
+    const row = openRow('Schedule Prompt')
     const prompts = await within(row).findAllByText('say hi')
     expect(prompts.length).toBeGreaterThan(0)
     expect(await within(row).findByText('59 23 31 12 * · Once')).toBeTruthy()
@@ -282,7 +282,7 @@ describe('schedule rows (M43)', () => {
         }),
       }),
     ])
-    const row = openRow('Scheduled prompts')
+    const row = openRow('Scheduled Prompts')
     expect(within(row).getByText('check the build')).toBeTruthy()
     const facts = within(row).getByText(/\*\/10 \* \* \* \* · Repeats · Next run .+ · Ran 3 times/)
     expect(facts).toBeTruthy()
@@ -290,14 +290,14 @@ describe('schedule rows (M43)', () => {
 
   it('shows a list it cannot read as its text, never as "no scheduled prompts" (the review of PR #29)', () => {
     renderTranscript([tool({ tool: 'cron_list', args: '{}', output: 'scheduler unavailable' })])
-    const row = openRow('Scheduled prompts')
+    const row = openRow('Scheduled Prompts')
     expect(within(row).getByText('scheduler unavailable')).toBeTruthy()
     expect(within(row).queryByText('No scheduled prompts')).toBeNull()
   })
 
   it('says when there is nothing scheduled', () => {
     renderTranscript([tool({ tool: 'cron_list', args: '{}', output: '{"jobs":[]}' })])
-    const row = openRow('Scheduled prompts')
+    const row = openRow('Scheduled Prompts')
     expect(within(row).getByText('No scheduled prompts')).toBeTruthy()
   })
 })
@@ -312,7 +312,7 @@ describe('web search rows (M43)', () => {
       }),
     ])
     expect(screen.getByText('Keep a Changelog 1.1.0')).toBeTruthy()
-    const row = openRow('Web search')
+    const row = openRow('Web Search')
     fireEvent.click(await within(row).findByRole('link', { name: 'Keep a Changelog' }))
     expect(props.onOpenLink).toHaveBeenCalledWith('https://keepachangelog.com/en/1.1.0/')
     expect(within(row).getByText(/dump git logs/)).toBeTruthy()
@@ -325,7 +325,7 @@ describe('web search rows (M43)', () => {
       [tool({ tool: 'web_search', args: '{"query":"x"}', output: JSON.stringify(SEARCH) })],
       { onRefuseLink },
     )
-    const row = openRow('Web search')
+    const row = openRow('Web Search')
     fireEvent.click(within(row).getByRole('link', { name: 'Not a page' }))
     expect(onRefuseLink).toHaveBeenCalledOnce()
     expect(props.onOpenLink).not.toHaveBeenCalled()
@@ -341,7 +341,7 @@ describe('web search rows (M43)', () => {
       }),
       tool({ id: 'w2', tool: 'web_search', args: '{"query":"b"}', output: 'search is off' }),
     ])
-    const toggles = screen.getAllByRole('button', { name: /Web search/ })
+    const toggles = screen.getAllByRole('button', { name: /Web Search/ })
     for (const toggle of toggles) {
       fireEvent.click(toggle)
     }
@@ -369,7 +369,7 @@ describe('web fetch rows (M69)', () => {
     ])
     expect(screen.getByText('https://docs.example.com/guide')).toBeTruthy()
     expect(screen.getByText('Fetched 48.2 kB (text/html)')).toBeTruthy()
-    const row = openRow('Fetch page')
+    const row = openRow('Fetch Page')
     expect(within(row).getByText(/# Guide/)).toBeTruthy()
   })
 
@@ -432,7 +432,7 @@ describe('background work (M43)', () => {
 })
 
 describe('labels (M43)', () => {
-  it('names an MCP server’s tool by the tool and its server, its JSON indented', () => {
+  it('names an MCP Server’s tool by the tool and its server, its JSON indented', () => {
     renderTranscript([
       tool({ tool: 'mcp__github__create_issue', args: '{"title":"x"}', output: '[1,2]' }),
     ])
@@ -539,7 +539,7 @@ describe('image rows (M44)', () => {
         output: '',
       }),
     ])
-    const row = openRow('Edit image')
+    const row = openRow('Edit Image')
     expect(within(row).getByText('media/fox-hat.png')).toBeTruthy()
     expect(within(row).getByText('Add a red hat')).toBeTruthy()
     expect(within(row).getByText('media/fox.png, media/hat.webp')).toBeTruthy()

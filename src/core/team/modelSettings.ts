@@ -19,7 +19,7 @@ import {
 } from '../../shared/constants'
 import { knownEffortTiers } from '../../shared/effort'
 import { fill } from '../../shared/l10n/text'
-import type { TeamModelSettings } from '../../shared/teamConfig'
+import type { TeamModelSettings } from '../../shared/team'
 import type { ModelCapabilityRecord } from '../providers/capabilityRecord'
 
 /**

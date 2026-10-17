@@ -371,17 +371,28 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
 
 // MODELSPLIT: the Models panel's deferred sections, out of the panel body
 // (2026-10-10). The lane's brief caps each group at its measured closure
-// plus 15% with no 25 KiB rounding: the providers section (with the wizard)
-// measured 28,146 bytes (27.5 KiB; +15% is 32,367 bytes, cap 31 KiB) and the
-// models section 11,685 bytes (11.4 KiB; +15% is 13,437 bytes, cap 13 KiB).
+// plus 15% with no 25 KiB rounding: on the lane's base (0.17.0) the providers
+// section (with the wizard) measured 28,146 bytes and the models section
+// 11,685 bytes (11.4 KiB; +15% is 13,437 bytes, cap 13 KiB).
 // Each closure charges the sections' shared InlineError/ScanStatus chunk,
 // following the same shared-imports convention as the chat's deferred
 // groups; chunks the panel body also imports stay charged to the body.
+//
+// Both rows are new with this split. The providers row takes its first value
+// where it first lands (lead ruling, 2026-10-11, the precedent for a new
+// chunk): the production bytes measured on the landing tree plus 15 percent,
+// rounded up to a whole KiB. On the release train (the merge of b92fab054
+// onto acf388a14, macbook rig) the closure is 32,197 bytes, 4,051 more than
+// on 0.17.0 because the train's wizard carries 0.17.1's repairs and exact
+// money (M121); 32,197 x 1.15 = 37,026.6 bytes = 36.16 KiB, so 37 KiB. The
+// models section measured 12,074 bytes there and keeps 13 KiB. The row
+// tightens when the wizard (15,397 bytes, opened on demand) moves out of
+// the section chunk.
 export const MODELS_DEFERRED_BUDGETS = [
   {
     name: 'models providers section',
     entries: ['src/webview/models/ProvidersSection.tsx', 'src/webview/models/Wizard.tsx'],
-    budgetKiB: 31,
+    budgetKiB: 37,
   },
   {
     name: 'models models section',

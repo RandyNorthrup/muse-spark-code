@@ -23,6 +23,8 @@ import {
 import { fill } from '../../shared/l10n/text'
 import { approvalModeFor } from '../../shared/permissionModes'
 import type { TeamAgentRef, TeamReport, TeamUsage } from '../../shared/team'
+import { sumUsd } from '../../shared/usd'
+import { canonicalUsd } from '../../shared/usdSchema'
 import type { SubagentUsage } from '../../shared/paid'
 import type { AgentSession } from '../../core/agent/agentBackend'
 import type { CoreLogger } from '../../core/logging'
@@ -156,7 +158,10 @@ function addUsage(total: TeamUsage, usage: SubagentUsage): TeamUsage {
     reasoning: total.reasoning,
     modelCalls: total.modelCalls + 1,
     ...((total.costUsd !== undefined || usage.costUsd !== undefined) && {
-      costUsd: (total.costUsd ?? 0) + Number(usage.costUsd ?? 0),
+      costUsd: sumUsd(
+        ...(total.costUsd === undefined ? [] : [total.costUsd]),
+        canonicalUsd(usage.costUsd ?? 0),
+      ),
     }),
     estimated: total.estimated,
   }
@@ -315,7 +320,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
             output: maximum.outputTokens,
             modelCalls: 1,
             estimated: true,
-            ...(maximum.costUsd !== undefined && { costUsd: Number(maximum.costUsd) }),
+            ...(maximum.costUsd !== undefined && { costUsd: canonicalUsd(maximum.costUsd) }),
           })
           hasReservations = true
           // The host's final synchronous fence runs after it owns this callback.
@@ -335,16 +340,18 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
                     output: maximum.outputTokens,
                     modelCalls: 1,
                     estimated: true,
-                    ...(maximum.costUsd !== undefined && { costUsd: Number(maximum.costUsd) }),
+                    ...(maximum.costUsd !== undefined && {
+                      costUsd: canonicalUsd(maximum.costUsd),
+                    }),
                   }),
                   ...(reported !== undefined && {
                     input: reported.inputTokens,
                     cachedInput: reported.cachedTokens,
                     output: reported.outputTokens,
                     modelCalls: 1,
-                    ...(reported.costUsd !== undefined && { costUsd: Number(reported.costUsd) }),
+                    ...(reported.costUsd !== undefined && { costUsd: reported.costUsd }),
                   }),
-                  ...(outcome.kind === 'released' && { costUsd: 0 }),
+                  ...(outcome.kind === 'released' && { costUsd: canonicalUsd(0) }),
                 },
                 true,
               ),

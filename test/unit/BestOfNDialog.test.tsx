@@ -95,7 +95,7 @@ describe('BestOfNDialog', () => {
     const props = renderDialog({ run: runWith() })
     expect(screen.getByText('Running…')).toBeDefined()
     expect(screen.getByText('best-of-n/bon-1/0')).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel run' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel Run' }))
     expect(props.onCancelRun).toHaveBeenCalled()
   })
 
@@ -128,7 +128,7 @@ describe('BestOfNDialog', () => {
     expect(screen.getAllByText('Done')).toHaveLength(3)
     expect(screen.getByText(/2 requests/)).toBeDefined()
     expect(screen.getByText(/stopped at the request ceiling/)).toBeDefined()
-    const takes = screen.getAllByRole('button', { name: /^Apply and stage:/ })
+    const takes = screen.getAllByRole('button', { name: /^Apply and Stage:/ })
     expect(takes).toHaveLength(2)
     fireEvent.click(takes[0]!)
     expect(props.onTake).toHaveBeenCalledWith('0')
@@ -147,7 +147,7 @@ describe('BestOfNDialog', () => {
     expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled()
     t.update(runWith())
     expect(screen.queryByLabelText('Prompt')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Cancel run' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Cancel Run' })).toBeDefined()
   })
 
   it('keeps a reopened form over the finished run when the host refuses its Start', () => {
@@ -190,7 +190,7 @@ describe('BestOfNDialog', () => {
       run: runWith({ status: 'completed', takenBranch: 'best-of-n/bon-1/0' }),
     })
     expect(screen.getByText(/Took best-of-n\/bon-1\/0/)).toBeDefined()
-    expect(screen.queryByRole('button', { name: /^Apply and stage:/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Apply and Stage:/ })).toBeNull()
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
     expect(props.onClose).toHaveBeenCalled()
   })

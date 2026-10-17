@@ -344,6 +344,15 @@
   color: var(--vscode-descriptionForeground);
 }
 
+.models-select-list [role='option'][aria-disabled='true'] {
+  opacity: 60%;
+}
+
+.models-select-reason {
+  display: block;
+  color: var(--vscode-descriptionForeground);
+}
+
 .models-select-list [aria-selected='true'] .models-select-description {
   color: inherit;
 }

@@ -20,10 +20,16 @@ describe('messageText', () => {
   })
 })
 
-it('preserves normalized provider dollars and rejects negative or non-finite cost before accounting', () => {
+it('reads normalized provider dollars as exact amounts and rejects negative or non-finite cost before accounting', () => {
   const counts = { input_tokens: 10, output_tokens: 2 }
-  for (const cost of [0, 0.125]) {
-    expect(usageSchema.parse({ ...counts, provider_cost_usd: cost }).provider_cost_usd).toBe(cost)
+  // M121: the receipt is an exact decimal string, never a binary number.
+  for (const [cost, exact] of [
+    [0, '0'],
+    [0.125, '0.125'],
+    [0.1 + 0.2, '0.30000000000000004'],
+    ['0.123456789012', '0.123456789012'],
+  ] as const) {
+    expect(usageSchema.parse({ ...counts, provider_cost_usd: cost }).provider_cost_usd).toBe(exact)
   }
   for (const cost of [-1, NaN, Infinity]) {
     expect(usageSchema.safeParse({ ...counts, provider_cost_usd: cost }).success).toBe(false)

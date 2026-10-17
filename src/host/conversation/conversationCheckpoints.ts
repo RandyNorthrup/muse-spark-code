@@ -1,7 +1,7 @@
 // One conversation's side of turn checkpoints (M72, M86; PLAN.md D51, D63):
-// which of its turns offer "Restore files" (a Model API turn with a record)
+// which of its turns offer "Restore Files" (a Model API turn with a record)
 // and which an earlier version recorded (listed, never restored), the
-// running marks of its turns, "Restore files" with its confirmation and
+// running marks of its turns, "Restore Files" with its confirmation and
 // report, and Redo. The controller tells it what the conversation does; it
 // tells the panel.
 //
@@ -42,7 +42,7 @@ const PENDING_MARKER = 'pending:'
 
 /**
  * A restore's result: whether it ran, whether every file it meant to
- * change was changed (so "Rewind conversation and restore files" may go
+ * change was changed (so "Rewind Conversation and Restore Files" may go
  * on), and its notices, posted when the caller says (after a fork, so the
  * new transcript shows them).
  */
@@ -413,7 +413,7 @@ export class ConversationCheckpoints {
     }
   }
 
-  /** The confirmation before "Restore files" or "Rewind conversation and restore files". */
+  /** The confirmation before "Restore Files" or "Rewind Conversation and Restore Files". */
   public async confirmRestore(isWithRewind: boolean): Promise<boolean> {
     const blocker = this.restoreBlocker()
     if (blocker !== undefined) {

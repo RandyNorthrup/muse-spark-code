@@ -15,7 +15,7 @@ import {
   teamModelSettingsSchema,
   teamRoleConfigSchema,
   teamSnapshotSchema,
-} from './teamConfig'
+} from './team'
 import { teamTreeSchema } from './teamView'
 
 const id = z.string().check(z.minLength(1))

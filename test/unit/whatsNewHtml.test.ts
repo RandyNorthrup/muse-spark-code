@@ -283,6 +283,25 @@ describe('renderWhatsNewPage', () => {
     )
   })
 
+  it('points at the full changelog only when older notes were shortened or left out', () => {
+    expect(render().html).not.toContain(UI_TEXT.whatsNewEarlierNotes)
+    const html = render({ isShortened: true }).html
+    expect(html).toContain(`<p>${UI_TEXT.whatsNewEarlierNotes}</p>`)
+    // After the releases, before the footer.
+    expect(html.indexOf(UI_TEXT.whatsNewEarlierNotes)).toBeGreaterThan(html.indexOf('0.12.1'))
+    expect(html.indexOf(UI_TEXT.whatsNewEarlierNotes)).toBeLessThan(html.indexOf('<footer>'))
+  })
+
+  it('reads the installed Earlier-notes line at render time', () => {
+    const sentence = 'Frühere Hinweise: siehe das vollständige Änderungsprotokoll'
+    setUiText({ ...EN, whatsNewEarlierNotes: sentence }, 'de')
+    try {
+      expect(render({ isShortened: true, locale: 'de' }).html).toContain(sentence)
+    } finally {
+      setUiText(EN, BASE_LOCALE)
+    }
+  })
+
   it('has no accessibility violation axe can see without colours', async () => {
     const html = render({ from: '0.12.1' }).html
     document.replaceChild(

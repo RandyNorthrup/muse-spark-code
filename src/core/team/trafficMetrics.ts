@@ -1,4 +1,5 @@
 import { DAYS_PER_WEEK, TEAM_SCHED_HISTORY_MAX } from '../../shared/constants'
+import { Usd } from '../../shared/usd'
 import {
   teamTrafficMetricsSchema,
   type TeamAttempt,
@@ -215,7 +216,9 @@ export function trafficMetrics(
   }
   if (queueDepth.length === 0) sampleQueue(start)
   const merged = tasks.filter((task) => task.mergedAt !== undefined && isInPeriod(task.mergedAt))
-  const costs = { reportedCostUsd: 0, estimatedCostUsd: 0, reportedTokens: 0, estimatedTokens: 0 }
+  let reportedUsd = Usd.from(0)
+  let estimatedUsd = Usd.from(0)
+  const costs = { reportedTokens: 0, estimatedTokens: 0 }
   for (const task of merged) {
     const charges = task.attempts
       .filter((attempt) => isMatchingAttempt(attempt))
@@ -230,10 +233,10 @@ export function trafficMetrics(
       // Cached input is a subset of input; reasoning is a subset of output.
       const tokens = usage.inputTokens + usage.outputTokens
       if (usage.accuracy === 'reported') {
-        costs.reportedCostUsd += usage.costUsd
+        reportedUsd = reportedUsd.add(Usd.from(usage.costUsd))
         costs.reportedTokens += tokens
       } else {
-        costs.estimatedCostUsd += usage.costUsd
+        estimatedUsd = estimatedUsd.add(Usd.from(usage.costUsd))
         costs.estimatedTokens += tokens
       }
     }
@@ -263,6 +266,8 @@ export function trafficMetrics(
     candidatesReturned: periodEvents.filter((event) => event.kind === 'candidateReturned').length,
     mergedChanges: merged.length,
     ...costs,
+    reportedCostUsd: reportedUsd.toAmount(),
+    estimatedCostUsd: estimatedUsd.toAmount(),
     timeToMergeMedianMs: median(merged.map((task) => (task.mergedAt ?? now) - task.createdAt)),
   })
   return { ...metrics, taskCount: active.length }
