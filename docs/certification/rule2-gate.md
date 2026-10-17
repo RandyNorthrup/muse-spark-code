@@ -102,6 +102,13 @@ Break on purpose: removing `JUDGED_ATTEMPT` from the required aggregate in
 only when its whole tier succeeded", exit 1). Restoring it turned it green
 (exit 0).
 
+Main deleted `test/unit/manifest.test.ts` on 2026-10-17 with every test
+that only checked text in a workflow (the owner: "there can be no more fakes
+at all"). Merging main into this pull request kept that deletion, so the
+drill above is history. The aggregate's wiring is proven by its hosted runs
+(below), and the claims this pull request had added to the deleted file are
+listed under it in `docs/real-life/unproven.md`.
+
 ## First hosted execution (pull request 158, head fb8d0ff84)
 
 CI run 38597656750, attempt 1:

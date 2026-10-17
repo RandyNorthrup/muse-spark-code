@@ -80,9 +80,8 @@ After the tag, manifest, `main` ancestry and browser-pin checks, the
 workflow's first job runs `node scripts/rule2-gate.mjs release` (`AGENTS.md`
 rule 2). It reads every workflow run on the tagged commit (the Hosts run a
 merge to `main` starts, and any scheduled or manual run that landed on it)
-and on the head of the pull request that merged as that commit (CI, Hosts,
-Action check), and goes on only when each is complete and green on its first
-attempt. A run still in progress is waited for, up to 60 minutes. A red run,
+and on the head of the pull request that merged as that commit (CI, Hosts),
+and goes on only when each is complete and green on its first attempt. A run still in progress is waited for, up to 60 minutes. A red run,
 a cancelled one or one that was started again stops the release before
 anything is built or published, with the run, the job and the step named; so
 does a commit with no hosted run at all. Only runs of this repository's own

@@ -185,10 +185,9 @@ Use this order for a candidate branch:
   that needs a true 320 px viewport says so and is opened at that width by
   both scripts. Scenarios drive the real App through the fake host's
   messages; none mounts a component on its own.
-- Motion respects `prefers-reduced-motion`: `test/unit/reducedMotion.test.ts`
-  reads `src/webview/styles.css` and fails when any selector with an
-  `animation` or `transition` is not set to none in the closing
-  reduced-motion block. A new animation adds its selector there.
+- Motion respects `prefers-reduced-motion`: every selector of
+  `src/webview/styles.css` with an `animation` or `transition` is set to none
+  in the closing reduced-motion block. A new animation adds its selector there.
 - Refresh the README's screenshots with `npm run readme:shots`, which
   renders each image in `scripts/readme-shots.json` from its harness
   scenario at its declared theme, size and language. `readme:shots --list`
@@ -262,8 +261,8 @@ no repository setting changes:
   starting any of them again starts it again. It runs
   `node scripts/rule2-gate.mjs run`: on a later attempt it names the job and
   step of the earlier attempt that was not green; on the first it reads every
-  other workflow run on the same head commit (Hosts, Action check, Browser
-  check, Forks, a second CI run) and fails unless each is complete and green
+  other workflow run on the same head commit (Hosts, Browser check, Forks, a
+  second CI run) and fails unless each is complete and green
   on its own first attempt. A run still in progress is waited for, up to 60
   minutes. A second CI run on the same head (closing and reopening the pull
   request, a manual dispatch) does not turn a red into green either: the
@@ -379,8 +378,7 @@ To archive:
    `<!-- plan-archive:begin id="…" lines="…" at="…" bytes="…" sha256="…" -->`
    and `<!-- plan-archive:end id="…" -->`, with one blank line inside each
    marker (`at` is the commit the line numbers refer to; the first move's
-   blocks carry none). `test/unit/planArchive.test.ts` hashes every block;
-   never edit inside one.
+   blocks carry none). Never edit inside one.
 4. Write each decision's summary from the decision itself, amendments
    included, and nothing beyond it. Lanes read it first and act on it.
 5. Prove nothing was lost and nothing got harder: rebuild the old `PLAN.md`
@@ -390,8 +388,7 @@ To archive:
 6. Run `npm run check:plan`, `npm run roadmap:generate` (`ROADMAP.md` must not
    change), `npm run check:reference`, `prettier --check` on `PLAN.md` and
    the archive files, and the suites that read the plan (`planReader`,
-   `checkPlan`, `planArchive`, `planCitation`, `autoCompact`, `geminiCodec`,
-   `m113cLaneClosure`, `teamPlanRecord`, `paidMoneyStructure`).
+   `planCitation`, `autoCompact`, `paidMoneyStructure`).
 7. Record the bytes before and after, the bytes moved per section and the
    proofs in [`docs/certification/plan-archive.md`](docs/certification/plan-archive.md).
 
@@ -671,34 +668,22 @@ as [docs/contributor-vetting.md](docs/contributor-vetting.md) sets out:
 By contributing you agree that your contribution is licensed under the MIT
 licence of this repository.
 
-## M80 implementation lanes and fake-only verification
+## M80 implementation lanes
 
 M80 v4 plus F1/F2 rulings assigns A contracts, B engine, C Action and D packaging/
 docs/process/hosts. Implementing lanes run owned focused files serially on rigs;
-hosted CI gates the exact integrated tree: the build.yml, hosts.yml and
-action-check.yml OS matrices.
+hosted CI gates the exact integrated tree: the build.yml and hosts.yml OS
+matrices.
 No lane's focused pass certifies integrated behavior or the release.
 
-Focused D command: `npx vitest run test/e2e/execStdio.e2e.test.ts` (on a rig).
-Its package guards and the built-process rows E1–E7 always run. With an
-installed package, set `MUSE_ACP_PACKAGE_DIR` to its absolute root. Host checks:
-`sh test/hosts/exec.sh <installed-package-root>`; add `--store` only in isolated,
-unlocked OS store. Host refuses existing credential and unavailable store before
-fake auth mutation, and traps cleanup. Windows standalone POSIX signals remain
-explicit skips, not green acceptance.
-
-After production package, `node scripts/package-acp-test.mjs` builds C's
-`test/action/exec-test-launcher.ts` into private fake-only variant. It preserves
-production stage/tarball bytes and emits `dist/muse-spark-code-acp-test-<version>.tgz`.
-Installed identity stays muse-spark-code-acp for the ordinary candidate path;
-manifest bin points to test launcher and private=true prevents npm publication.
-Separate name/digest; never release it. Test fetch/keyring loaders live only in
-test code, never production flags. C's focused action tests and action-check.yml
-exercise W-review/text/image, low-budget, trusted gate and exact bare-repo apply.
-Locally, `npx vitest run test/e2e/execTestLauncher.e2e.test.ts` (on a rig) packs
-the real launcher in its own tree and rehearses all four W scenarios through
-the real run-exec entry, judged by `test/action/w-check.mjs` as the workflow
-does.
+Host checks on an installed package: `sh test/hosts/exec.sh <installed-package-root>`
+(the agent's headless help and its trust-flag refusal) and
+`sh test/hosts/keystore.sh <agent>` (the key's round trip, only in an isolated,
+unlocked OS store). The fake-only suites (the stdio suites over the fake Muse
+Code CLI, the fake-only Action test package with its packer and the Action check
+that ran it) were deleted on 2026-10-17 (owner: no fakes); what they covered is
+listed in [`docs/real-life/unproven.md`](docs/real-life/unproven.md). The Action
+itself is proven by its live receipt (`action-live.yml`).
 
 Every new guard needs green → deliberate wrong behavior → intended failure →
 byte-exact SHA-256 restoration → restored green. Record mutated/restored hashes,
