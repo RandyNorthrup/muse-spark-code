@@ -1,8 +1,8 @@
 // The native files the ACP agent's npm package requires beside its bundles,
 // one list for the packager (scripts/package-acp.mjs) and for every test that
-// runs it over a test-owned source tree (test/unit/helpers/acpPackageSources.ts),
-// so a fixture cannot lack a file the package copies (CIFIX017R3: three
-// fixtures each kept a hand list, and one missed the launcher below).
+// runs it over a test-owned source tree, so a fixture cannot lack a file the
+// package copies (CIFIX017R3: three fixtures each kept a hand list, and one
+// missed the launcher below).
 import path from 'node:path'
 
 // The C# of the Windows job helpers, compiled on first use, as the extension

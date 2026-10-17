@@ -162,37 +162,6 @@
     // Native loader regression child, run by both package scripts after build.
     "test/packaging/moduleExports.test.mjs",
     "test/e2e/**/*.test.ts",
-    // The Win11 OS-entry hosts script starts this wake fixture by path
-    // (import.meta.resolve, which knip does not trace).
-    "test/unit/helpers/fakeScheduleWake.mjs",
-    // The hosts scripts copy this fake CLI by path (test/hosts/fake-muse.sh,
-    // a shell cp knip does not trace).
-    "test/e2e/fake-muse/serve.mjs",
-    // M115's concurrent durable-claim worker is bundled and forked by path.
-    "test/e2e/scheduleClaimWorker.ts",
-    // M115's fake runtime delivery fixture is bundled and spawned by stdio tests.
-    "test/e2e/scheduleRuntimeWorker.ts",
-    // M115 join crash worker is built and forked by the recovery proof.
-    "test/e2e/scheduleSettlementWorker.ts",
-    // The fake stdio MCP server the M50 tests start as a child process.
-    "test/unit/helpers/fakeMcpServer.mjs",
-    // M123's fake GitHub CLI, started by path as the runtime starts `gh`.
-    "test/fixtures/github/fake-gh.mjs",
-    // The fake stdio ACP agent the M96 lane W tests start as a child process.
-    "test/unit/helpers/fakeTeamAcpAgent.mjs",
-    // A bounded orphan-child process drill, launched by path at runtime.
-    "test/unit/helpers/fakeMcpOrphan.mjs",
-    // The Windows job drills launch these finite binary, owner-exit and
-    // no-GO marker processes by path; they are real test entrypoints.
-    "test/unit/helpers/fakeMcpBinary.mjs",
-    "test/unit/helpers/fakeMcpLauncherParent.mjs",
-    "test/unit/helpers/fakeMcpPrebindParent.mjs",
-    "test/unit/helpers/fakeMcpStartMarker.mjs",
-    // ACP crash regression bundles this child by path; esbuild entries are not traced.
-    "test/unit/helpers/questions/queuedTurnCrash.ts",
-    // The never-ending monitor the M92b bounded-run proof starts by path.
-    "test/fixtures/never-ending-monitor.mjs",
-    "test/fixtures/inspect-helper.mjs",
     // The reports e2e bundles this entry with esbuild by path
     // (test/e2e/reports.e2e.test.ts), which knip does not trace.
     "test/e2e/reportsEntry.ts",
@@ -212,10 +181,8 @@
     // The GitHub Action's scripts (M80): each composite step runs one by path.
     "action/lib/*.mjs",
     "action/apply/lib/*.mjs",
-    // The Action tests' fake agent, fake npm and Git sentinel, started by path.
+    // The live Action receipt's judge (action-live.yml), started by path.
     "test/action/*.mjs",
-    // The fake-only test package's bin, bundled by scripts/package-acp-test.mjs (M80 W).
-    "test/action/exec-test-launcher.ts",
     "scripts/**/*.mjs",
     ".vscode-test.mjs",
 
@@ -374,7 +341,7 @@
     // of phase-1 wiring (M104 uses the token file for its companion).
     // Wiring: the judge entry and the companion launch.
     "src/core/eval/judgeReplay.ts",
-    "src/runtime/tokenFile.ts"
+    "src/runtime/tokenFile.ts",
 
     // TESTCUTFIN2 (2026-10-14, the owner's ruling: built features are NEVER
     // deleted to make this gate pass). The same unfinished features' API
@@ -444,6 +411,46 @@
     //
     // M84 (Session export and local share file, D49): the conversation
     // share preview ahead of its panel wiring — not wired yet.
+
+    // M71's recorded GitHub REST capture (2026-09-28, `gh api -i`): the source
+    // the GitHub schemas in src/core/git/github.ts and
+    // src/core/reporting/sources/github.ts were written from (AGENTS.md rule
+    // 14). Its tests were deleted on 2026-10-17; the recording stays.
+    "test/unit/helpers/githubCapture.ts",
+
+    // Product code whose only importers were the fake and text-only tests
+    // deleted on 2026-10-17 (owner: "no more fakes at all"; chore/no-fakes).
+    // Kept, never deleted for a gate: no product entry reaches these files.
+    // Each waits for real-use proof (docs/real-life/unproven.md) or the
+    // lead's decision to wire or remove it. Nothing else may enter this block.
+    "src/core/legal/index.ts",
+    "src/core/resources/trees/linuxLaunch.ts",
+    "src/core/schedules/events/dependencies.ts",
+    "src/core/schedules/events/network.ts",
+    "src/core/schedules/events/plan.ts",
+    "src/core/team/conflictPredict.ts",
+    "src/core/team/mergeQueue.ts",
+    "src/core/team/mergeRoutine.ts",
+    "src/core/team/scheduler/retire.ts",
+    "src/core/team/scheduler/reviewFlow.ts",
+    "src/core/team/scheduler/stalls.ts",
+    "src/core/team/teamMerge.ts",
+    "src/core/team/teamWorkspaces.ts",
+    "src/host/auth/metaAccountKey.ts",
+    "src/host/team/gitIndexLock.ts",
+    "src/host/team/landingJournal.ts",
+    "src/host/team/mcpBridge.ts",
+    "src/host/team/stagingCopy.ts",
+    "src/host/team/teamCleanup.ts",
+    "src/host/team/teamMcpServer.ts",
+    "src/host/vault/brokerClient.ts",
+    "src/runtime/providers/accountStore.ts",
+    "src/runtime/sharing/bridge.ts",
+    "src/webview/components/AttachmentSound.tsx",
+    "src/webview/components/AudioAttachmentActions.tsx",
+    "src/webview/developer/DeveloperOptionsPage.tsx",
+    "src/webview/media/toolEntry.tsx",
+    "src/webview/media/ToolVideo.tsx"
   ],
 
   "project": [

@@ -74,9 +74,3 @@ it('P1 the delivered Linux helper admits an ordinary shell with the governor off
     .toEqual([])
   expect(fixture.errors).toEqual([])
 })
-it('P3 the security guide reflects repaired DK guards and the precise qualifications', () => {
-  const security = readFileSync('SECURITY.md', 'utf8')
-  expect(security).toContain('The final DK repair is joined')
-  expect(security).toContain('final same-user empty-name window')
-  expect(security).not.toContain('FIXM107DK4 is separately assigned')
-})

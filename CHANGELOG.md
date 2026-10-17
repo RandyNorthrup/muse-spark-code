@@ -599,6 +599,19 @@ happened, not what was planned; superseded entries are kept.
   that is just being released differently from one that is held; the product
   now waits for both the same way, within the same one-second bound.
 
+### Release infrastructure
+
+- Every fake test is gone (the owner's order: "there can be no more fakes at
+  all"). Deleted: the tests that used stand-ins or invented data (`vi.fn`
+  answers, the hand-written `vscode` module and its alias, the fake Muse Code
+  CLI, the fake Model API, Git, GitHub and MCP helpers, the Action's fake
+  agent), the tests that only checked that some text, key or file exists, the
+  editor host checks that drove the fake CLI (code-server, Eclipse Theia,
+  JupyterLab, Emacs, Neovim), the fake-only Action check and its test package
+  (`scripts/package-acp-test.mjs`), and the Model API live sweep built on
+  fakes. No product code was deleted. What each deleted test covered is in
+  `docs/real-life/unproven.md`, the backlog for proof by real use.
+
 ### Pending
 
 - All fourteen translated settings tables now say Muse Code asks before a

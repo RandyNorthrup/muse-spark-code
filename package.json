@@ -1828,7 +1828,6 @@
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run",
     "test:e2e:live": "vitest run test/e2e/live.e2e.test.ts",
-    "test:e2e:live:modelapi": "vitest run test/e2e/modelApi.live.e2e.test.ts",
     "test:e2e:live:eval": "vitest run test/e2e/eval.live.e2e.test.ts",
     "test:integration": "run-s build:dev test:integration:run",
     "test:integration:run": "vscode-test",
