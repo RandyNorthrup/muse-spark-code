@@ -35415,20 +35415,6 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
-**MSM101 knip deferral (2026-10-17, linuxlt).** Plain `knip` exits 1 on
-the lane tree with two findings, both outside M101 and both inherited,
-so this lane does not touch them: (1) unused file
-`test/unit/helpers/recordingLogger.ts`, orphaned by M123's
-`c3a827b24` refactor (2026-10-10) inherited from the lane base — the
-file does not exist on main; (2) unused export
-`AccountSwitchRefusedError` at `src/acp/accounts.ts:25`, residue of
-main's TESTCUT re-export pass (`23580f0c3`, M108 accounts area;
-main's pass deliberately tags planned exports `@unwired`). Deleting
-another lane's helper or a deliberately tagged export from this lane
-risks breaking M108/M123 work. Disposition: deferred to the owning
-lanes (or the lead at integration); the gate stays as-is, unweakened.
-Detail: `docs/certification/msm101.md` §6.
-
 ## 8. Escape hatches register
 
 | Location                                            | Residual / follow-up                                | Lead decision (2026-10-09)                                                                                                                                                                                                                            |

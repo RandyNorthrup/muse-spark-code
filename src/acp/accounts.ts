@@ -20,11 +20,7 @@ import {
   type AccountUsagePort,
 } from './accountText'
 
-export {
-  accountErrorText,
-  AccountSwitchRefusedError,
-  isAccountSwitchRefusedError,
-} from './accountText'
+export { accountErrorText, isAccountSwitchRefusedError } from './accountText'
 
 type AccountsState = Extract<AccountsReply, { type: 'accounts/state' }>
 export interface AccountsSessionPort extends AccountUsagePort {
