@@ -85,7 +85,6 @@ export interface RefusalSignals {
 // 2026-10-17) is the same fact in its own code.
 const QUOTA_KINDS = new Set([
   'insufficient_quota',
-  'quota_exceeded',
   'credit_balance_exhausted',
   'organization_spend_limit_exceeded',
   'project_spend_limit_exceeded',
@@ -103,8 +102,11 @@ const QUOTA_KINDS = new Set([
 // shown as Z.ai wrote it, never parsed.
 // OpenRouter's budget limits (`metadata.limit_source` on its 403 budget
 // errors, each with `resets_at`; https://openrouter.ai/docs/api-reference/errors,
-// read 2026-10-17) are the same fact.
+// read 2026-10-17) are the same fact, as is Gemini's `quota_exceeded` (429,
+// "You have exceeded your daily quota … Wait until the quota resets";
+// https://ai.google.dev/gemini-api/docs/api-errors, read 2026-10-17).
 const USAGE_LIMIT_CODES = new Set([
+  'quota_exceeded',
   'openrouter_guardrail_budget',
   'openrouter_workspace_budget',
   'openrouter_key_limit',
