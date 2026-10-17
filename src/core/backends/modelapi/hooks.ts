@@ -1179,6 +1179,8 @@ interface HookWaiter {
   readonly reject: (error: Error) => void
   readonly signal: AbortSignal | undefined
   readonly onAbort: () => void
+  /** The cap its own dispatch asked for; a freed slot is handed over only under it. */
+  readonly maxRunningCommands: number
 }
 
 interface HookCommandState {
@@ -1189,13 +1191,24 @@ const commandState: HookCommandState = { running: 0, waiters: [] }
 const processState: HookCommandState = { running: 0, waiters: [] }
 
 function releaseCommand(state: HookCommandState): void {
-  const next = state.waiters.shift()
-  if (next === undefined) {
-    state.running -= 1
-    return
+  state.running -= 1
+  // Hand freed room to queued waiters in order, each under its own cap: a
+  // dispatch whose cap was lowered after others started (the setting is
+  // read per dispatch) waits until the running count is under its cap,
+  // instead of inheriting a slot freed above it.
+  for (;;) {
+    const next = state.waiters[0]
+    if (
+      next === undefined ||
+      (next.maxRunningCommands !== 0 && state.running >= next.maxRunningCommands)
+    ) {
+      return
+    }
+    state.waiters.shift()
+    state.running += 1
+    next.signal?.removeEventListener('abort', next.onAbort)
+    next.resolve()
   }
-  next.signal?.removeEventListener('abort', next.onAbort)
-  next.resolve()
 }
 
 /**
@@ -1224,7 +1237,7 @@ async function acquireCommand(
       }
       reject(new Error('hook command cancelled'))
     }
-    const waiter: HookWaiter = { resolve, reject, signal, onAbort }
+    const waiter: HookWaiter = { resolve, reject, signal, onAbort, maxRunningCommands }
     state.waiters.push(waiter)
     signal?.addEventListener('abort', onAbort, { once: true })
     if (signal?.aborted === true) {
