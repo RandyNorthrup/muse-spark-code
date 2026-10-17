@@ -186,7 +186,7 @@ describe('M124 connector over real stdio', () => {
     ).toEqual([-32_700, -32_001])
   })
 
-  it('serves granted reads scrubbed, refuses ungranted writes, and keeps Stop under the kill switch', async () => {
+  it('serves granted reads scrubbed and refuses ungranted writes', async () => {
     await grant(['prompts:read', 'content:read', 'operations:read', 'control:stop'])
     const id = 'prompt-canary'
     const prompts = path.join(dataFolder(), PROMPT_USER_FOLDER)
@@ -235,7 +235,13 @@ describe('M124 connector over real stdio', () => {
     const everything = result.lines.join('\n') + result.stderr
     expect(everything).not.toContain(CANARY)
     expect(everything).not.toContain(path.join(directory, 'private'))
+  })
 
+  // Split from the case above by RVMSM124: together they ran past the
+  // repository's 5-second test timeout on a loaded rig (five agent
+  // processes in one case). Each case keeps every assertion it had.
+  it('keeps Stop working under the kill switch and refuses widening without a terminal', async () => {
+    await grant(['prompts:read', 'content:read', 'operations:read', 'control:stop'])
     const kill = spawnSync(process.execPath, [agent, 'mcp', 'kill'], { env, encoding: 'utf8' })
     expect(kill.status).toBe(0)
     expect(kill.stdout).toContain(UI_TEXT.acpConnector.killOn)
@@ -265,26 +271,27 @@ describe('M124 connector over real stdio', () => {
     expect(grantAttempt.stderr).toContain(UI_TEXT.acpConnector.grantNeedsTerminal)
   })
 
-  it('generates every offered report kind through the real runtime adapter (RVM124 P2-11)', async () => {
-    // Its own connection: limits are kept per grant, across processes.
-    await grant(['reports:read', 'content:read'], true, 'reports')
-    await rm(path.join(dataFolder(), 'connector', 'kill-switch.json'), { force: true })
-    const kinds: readonly (readonly [string, string?])[] = [
-      ['project'],
-      ['milestone', 'M1'],
-      ['release'],
-      ['release', 'latest'],
-      ['estimate', 'M1'],
-      ['playbook'],
-      ['playbook', 'M1'],
-      ['changes'],
-      ['usage'],
-      ['schedules'],
-    ]
-    const answers: Record<string, unknown>[] = []
-    // At most four reads run at once per grant.
-    for (let start = 0; start < kinds.length; start += CONNECTOR_LIMITS.activeReads) {
-      const batch = kinds.slice(start, start + CONNECTOR_LIMITS.activeReads)
+  // One case per batch (RVMSM124): all ten kinds in one case ran past the
+  // repository's 5-second timeout on a loaded rig (three agent processes
+  // and ten real report generations). Every kind is still generated.
+  const REPORT_KINDS: readonly (readonly [string, string?])[] = [
+    ['project'],
+    ['milestone', 'M1'],
+    ['release'],
+    ['release', 'latest'],
+    ['estimate', 'M1'],
+    ['playbook'],
+    ['playbook', 'M1'],
+    ['changes'],
+    ['usage'],
+    ['schedules'],
+  ]
+  for (let start = 0; start < REPORT_KINDS.length; start += CONNECTOR_LIMITS.activeReads) {
+    const batch = REPORT_KINDS.slice(start, start + CONNECTOR_LIMITS.activeReads)
+    it(`generates report kinds ${batch.map(([kind]) => kind).join(', ')} through the real runtime adapter (RVM124 P2-11)`, async () => {
+      // Its own connection: limits are kept per grant, across processes.
+      await grant(['reports:read', 'content:read'], true, 'reports')
+      await rm(path.join(dataFolder(), 'connector', 'kill-switch.json'), { force: true })
       const result = await session(
         [
           INIT,
@@ -301,8 +308,8 @@ describe('M124 connector over real stdio', () => {
         'reports',
       )
       const replies = byId(result.lines)
-      answers.push(...batch.map((_, index) => structured(replies.get(index + 1))))
-    }
-    expect(answers.map((answer) => answer['status'])).toEqual(kinds.map(() => 'ok'))
-  })
+      const answers = batch.map((_, index) => structured(replies.get(index + 1)))
+      expect(answers.map((answer) => answer['status'])).toEqual(batch.map(() => 'ok'))
+    })
+  }
 })
