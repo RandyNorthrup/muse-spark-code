@@ -17336,6 +17336,12 @@ export class ModelApiHost implements AgentHost {
     if (store === undefined) {
       return isStrict ? Promise.reject(new Error(UI_TEXT.historyUnavailable)) : Promise.resolve()
     }
+    // No account identity yet: nothing has been attributed to anyone, so a
+    // touch writes nothing durable. The next touch after identity resolves
+    // saves as usual. A strict save without an owner refuses as unsigned in.
+    if (this.accountIdValue === undefined) {
+      return isStrict ? Promise.reject(new Error(UI_TEXT.notSignedInReason)) : Promise.resolve()
+    }
     const snapshot = this.ownedSnapshot(session.snapshot())
     // A turn-start user message can be saved, but a function call without
     // its output cannot be replayed after a crash. Goal/settings touches
@@ -17772,8 +17778,10 @@ export class ModelApiHost implements AgentHost {
     }
     const hooks = options.sideChat === true ? [] : await this.sessionHooks()
     const extensionHooks = options.sideChat === true ? [] : await this.sessionExtensionHooks()
-    // Loading the hooks may outlast a sign-out or the host closing.
-    await this.requireAccountId()
+    // A new session opens with no key and no account identity: identity is
+    // resolved at the first step that needs a provider, and spend is
+    // attributed to the identity resolved at that moment. Loading the hooks
+    // may outlast a sign-out or the host closing.
     this.refuseWhileClosing()
     const session = this.create(
       options.modelId,
@@ -17786,7 +17794,6 @@ export class ModelApiHost implements AgentHost {
     )
     try {
       await session.startHooks()
-      await this.requireAccountId()
       this.refuseWhileClosing()
     } catch (error: unknown) {
       session.dispose()
