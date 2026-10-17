@@ -7548,10 +7548,10 @@ and the two hook points.
   fields. Each VS Code release's notes are checked for it, and §3 holds it as
   a watch item (Q-M94d).
 
-### D83 — Physical device safety (M100 integration, owner brief 2026-10-06)
+### D140 — Physical device safety (M100 integration, owner brief 2026-10-06; numbered D83 until 2026-10-17, when that number was found shared with M103 makers)
 
 The M100I brief supplies this policy; none of the four input branches contains
-an earlier D83 decision or a printer/CNC/MCU executor. Simulators are the
+a paired-device safety decision or a printer/CNC/MCU executor. Simulators are the
 qualification rule: the owner’s physical devices are too old for these drills.
 Every physical action needs a fresh receiver-local approval of the exact payload;
 no unattended action, ordinary approval, pairing grant or Bypass substitutes.
@@ -24492,7 +24492,7 @@ The inherited stalled-handshake test waits a real 10 s against Vitest's 5 s
 default; retain real TCP with one named per-test timeout and its explicit
 reason, as the rig brief permits for a genuinely long operation. Fake JavaScript
 timers cannot drive Node's internal TLS timer; no global timeout is changed.
-M95/M96, S/G, QR/mDNS bindings, native Windows protection and the D83 physical
+M95/M96, S/G, QR/mDNS bindings, native Windows protection and the D140 physical
 executors/simulators are absent from the supplied branches. Do not invent these
 prerequisites or register a listening product command before qualification.
 Document those exact limits in README, privacy/security and the help catalog.
@@ -24552,7 +24552,7 @@ that ignore cancellation; the dedicated parent accepts replies only for a
 registered live view instance. Regressions exercise stale Pair/import data
 and a pending embedded request with a surviving parent. Record each red
 mutation and byte-exact restoration in `docs/certification/m100-u.md`.
-Physical execution/Stop (D83) is unchanged; this lane supplies no physical
+Physical execution/Stop (D140) is unchanged; this lane supplies no physical
 adapter. No dependency, guard waiver or integration-owned registration.
 
 **FIXM100L0 review repair (2026-10-06).** RVM100L0 identified three P2s:
@@ -24600,7 +24600,7 @@ start confirmation; cancelled pending dispatches cannot launch later. E owns
 the necessary `deviceChannel.ts` control-path change and its regressions for
 this repair. Each finding gets a regression and byte-exact red/restored drill
 in `docs/certification/m100-e.md`. No new dependency or physical-action
-adapter is introduced; D83's concrete physical-action UI remains unqualified.
+adapter is introduced; D140's concrete physical-action UI remains unqualified.
 
 **FIXM100E3 fail-safe repair (2026-10-06).** Repair RVM100E3's remaining
 P2 without widening capacity or validation: decode each frame independently,
@@ -36480,7 +36480,7 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   reporting; overflow refuses each data frame and continues through Stop.
   E's receiver and journal remain unshipped; scoped software/TLS-channel tests
   do not qualify a concrete physical-action descriptor/nonce, receiver-local
-  physical approval UI or unattended device operation under D83. Safe for
+  physical approval UI or unattended device operation under D140. Safe for
   this isolated lane because it registers no production execution adapter,
   listener or command. Follow-up: I/M96 bind and independently qualify those
   physical-action authorities, Windows/native storage, the real lazy Devices
@@ -36515,13 +36515,13 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   Evidence and per-guard red/restored receipts: `docs/certification/m100-u.md`.
 
 - **M100-U-PHYSICAL-QUALIFICATION (RVM100U2).** The review cannot certify
-  D83's always-visible, ungated physical Stop or exact-payload approvals:
-  this base has no D83 decision, physical action, Stop request or execution
+  D140's always-visible, ungated physical Stop or exact-payload approvals:
+  this base has no D140 decision, physical action, Stop request or execution
   adapter. No demonstrated execution bypass was found and this repair adds
   no physical execution or permission. Safe only for this UI-only unshipped
   slice; Pause offers is not a physical Stop. Follow-up: the owning physical
   integration must supply and drill those controls before claiming physical
-  safety support. This lane changes no D83 policy or Stop gate.
+  safety support. This lane changes no D140 policy or Stop gate.
 
 - **M100-U-INTEGRATION (FIXM100U).** All five RVM100U P2s and its P3 are
   repaired; none is silently deferred. The remaining shipment obligations

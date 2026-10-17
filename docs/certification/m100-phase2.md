@@ -5219,7 +5219,7 @@ in the RVM100W fix round below.)
 
 Machines: Windows PC, Kubuntu VM, Mac mini, Win11 VM. Prerequisites: lane
 K bound (pairing setup facts, execution, policy, source, snapshot) and the
-M96 engine adapters; simulators rule where hardware is missing (D83).
+M96 engine adapters; simulators rule where hardware is missing (D140).
 Record for each machine: actual listener address/port, OS permission and
 firewall facts, and who authorized each step.
 
@@ -5249,7 +5249,7 @@ firewall facts, and who authorized each step.
    content-addressed and acknowledged once. Cancel: Stop reaches the local
    cancellation port first, without waiting for approval or persistence;
    cancellation proves neither retirement nor release.
-5. **D83 physical-safety refusals (needs K).** Attempt a physical/maker
+5. **D140 physical-safety refusals (needs K).** Attempt a physical/maker
    action. Expected: a fresh receiver-local approval of the exact payload
    every time — no unattended action, ordinary approval, pairing grant or
    Bypass substitutes; `Waiting for approval on {device}` shows while
