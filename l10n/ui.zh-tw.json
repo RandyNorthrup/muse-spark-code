@@ -5030,6 +5030,7 @@
     "busyHolder": "保管庫自 {since} 起由程序 {pid} 持有。請在該程序結束後重試。",
     "busyOtherMachine": "保管庫自 {since} 起由另一台電腦上的程序 {pid} 持有。此處無法確認該程序已終止。",
     "ownerUnknown": "無法確定作業系統記錄的此程序的精確建立時間，因此無法取得保管庫寫入權限。請重試。",
+    "unreadable": "寫入鎖定無法讀取，且不會自動清除。請重設憑證庫以重新開始。",
     "importedLabel": "匯入的 {source} 憑證 {number}",
     "importedSummary": "已匯入憑證庫：{names}",
     "importKeepOrDelete": "保留原始檔案，還是在其憑證已存入憑證庫後將其刪除？",

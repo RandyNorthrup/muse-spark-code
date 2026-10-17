@@ -6262,6 +6262,7 @@ export const EN = {
       'The vault is held on another machine by process {pid} since {since}. Its death cannot be established here.',
     ownerUnknown:
       'The vault cannot acquire a writer because this process’s exact operating-system birth could not be established. Try again.',
+    unreadable: 'The writer lock is unreadable and will not clear. Reset the vault to start again.',
     // C-M109-1: import and Reset Vault (lead decisions, 2026-10-10).
     importedLabel: 'Imported {source} credential {number}',
     importedSummary: 'Imported into the vault: {names}',

@@ -5330,6 +5330,7 @@
     "busyHolder": "Le coffre est détenu par le processus {pid} depuis {since}. Réessayez après la fin de ce processus.",
     "busyOtherMachine": "Le coffre est détenu sur une autre machine par le processus {pid} depuis {since}. Sa fin ne peut pas être établie ici.",
     "ownerUnknown": "Le coffre ne peut pas obtenir un accès en écriture car la date exacte de création de ce processus par le système ne peut pas être établie. Réessayez.",
+    "unreadable": "Le verrou d’écriture est illisible et ne se libérera pas seul. Réinitialisez le coffre-fort pour recommencer.",
     "importedLabel": "Identifiant {source} importé {number}",
     "importedSummary": "Importé dans le coffre-fort : {names}",
     "importKeepOrDelete": "Conserver le fichier d’origine ou le supprimer maintenant que ses identifiants sont dans le coffre-fort ?",

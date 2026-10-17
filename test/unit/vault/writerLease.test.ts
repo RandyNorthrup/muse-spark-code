@@ -15,8 +15,18 @@ import {
 import { KeyringVaultAnchor } from '../../../src/runtime/vault/keyringAnchor'
 import { nodeLeasePort } from '../../../src/core/locks/nodeLeasePort'
 import { createRecoverySlot } from '../../../src/core/vault/keyslots'
-import { VAULT_WRITER_LEASE_MS, VAULT_WRITER_RENEW_MS } from '../../../src/shared/constants'
+import { VaultWriterError } from '../../../src/core/vault/crypto'
+import { createEncryptedBackup, restoreEncryptedBackup } from '../../../src/core/vault/backup'
+import { exactCurrentProcessOwner } from '../../../src/core/locks/processOwner'
+import {
+  VAULT_WRITER_LEASE_MS,
+  VAULT_WRITER_RENEW_MS,
+  UI_TEXT,
+} from '../../../src/shared/constants'
 import { removeFolder } from '../helpers/temporaryFolders'
+import { exitedProcessId } from '../helpers/leaseFs'
+import { item } from '../helpers/vault/fixtures'
+import { MemoryVaultAnchor } from './storeFixtures'
 
 // Only generated vault material and a file-backed fake anchor. The writer,
 // copy, intent, recovery and fence are production code; native DACL/OS-store
@@ -115,12 +125,23 @@ const stateSchema = z.strictObject({
   stateDigest: z.string(),
 })
 
+function stageNote(owner: unknown, id: string) {
+  return JSON.stringify({ owner, id, renewal: 0, acquiredAt: Date.now(), leaseMs: 1000 })
+}
+
 describe('production vault writer across process death', () => {
   let root: string
   let entry: string
   const children: ChildProcess[] = []
   beforeAll(async () => {
     root = await mkdtemp(path.join(await realpath(tmpdir()), 'm109-writer-'))
+    // The writer's installation identity must never touch the developer's
+    // real data folder: every platform's folder resolves under this test's
+    // own directory (Linux XDG_DATA_HOME, Windows LOCALAPPDATA, macOS HOME).
+    const machineScope = await mkdtemp(path.join(root, 'machine-scope-'))
+    process.env['XDG_DATA_HOME'] = machineScope
+    process.env['LOCALAPPDATA'] = machineScope
+    process.env['HOME'] = machineScope
     entry = path.join(root, 'writer.cjs')
     await build({
       stdin: { contents: childSource, resolveDir: process.cwd(), loader: 'ts' },
@@ -480,5 +501,75 @@ describe('production vault writer across process death', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+  it('refuses an unreadable writer with its own Reset sentence, not the busy window', () => {
+    const refusal = new VaultWriterError({ kind: 'unreadable' })
+    expect(refusal.code).toBe('busy')
+    expect(refusal.message).toBe(UI_TEXT.vault.unreadable)
+    expect(refusal.message).toContain('Reset')
+    expect(refusal.message).not.toBe(UI_TEXT.vault.busy)
+  })
+  it('confirmed encrypted-backup restore replaces an unreadable writer through the real entry point', async () => {
+    const folder = await mkdtemp(path.join(root, 'backup-'))
+    const files = new NodeVaultFiles(folder, 1024 * 1024, {
+      protect: () => Promise.resolve(),
+      verify: () => Promise.resolve(),
+    })
+    const anchor = new MemoryVaultAnchor()
+    const key = Buffer.alloc(32, 7)
+    const vaultId = 'b'.repeat(32)
+    const options = { files, anchor, key }
+    try {
+      const { slot } = createRecoverySlot(key, vaultId, { now: () => 0 })
+      const created = await VaultStore.create(options, vaultId, [slot])
+      const secret = item()
+      await created.write(secret)
+      const backup = await createEncryptedBackup(created, key, slot)
+      created.lock()
+      await writeFile(path.join(folder, 'writer.lock'), 'truncated')
+      await expect(restoreEncryptedBackup(options, backup, 1024 * 1024, true)).rejects.toThrow(
+        UI_TEXT.vault.unreadable,
+      )
+      const recovery = await files.writerRecovery()
+      if (!recovery) throw new Error('unreadable writer offered no recovery')
+      const restored = await restoreEncryptedBackup(
+        options,
+        backup,
+        1024 * 1024,
+        true,
+        recovery.token,
+      )
+      expect(await restored.read(secret.metadata.id)).toEqual(secret)
+      restored.lock()
+      const reopened = await VaultStore.open(options, vaultId)
+      expect(await reopened.read(secret.metadata.id)).toEqual(secret)
+      reopened.lock()
+    } finally {
+      key.fill(0)
+    }
+  })
+  it('sweeps abandoned writer stages of gone owners while keeping a live one', async () => {
+    const folder = await mkdtemp(path.join(root, 'stages-'))
+    const files = new NodeVaultFiles(folder, 1024 * 1024, {
+      protect: () => Promise.resolve(),
+      verify: () => Promise.resolve(),
+    })
+    const self = await exactCurrentProcessOwner()
+    if (!self?.machineId || !self.bootId || !self.pidNamespace || !self.exactBirth)
+      throw new Error('exact owner evidence unavailable')
+    const deadPid = await exitedProcessId()
+    await writeFile(
+      path.join(folder, 'writer.lock.dead-note.stage'),
+      stageNote({ ...self, pid: deadPid, exactBirth: 'dead', processStart: 0 }, 'dead-note'),
+    )
+    await writeFile(path.join(folder, 'writer.lock.live-note.stage'), stageNote(self, 'live-note'))
+    await writeFile(path.join(folder, 'writer.lock.torn.stage'), '{')
+    await writeFile(path.join(folder, 'vault.v1.decoy.stage'), '{}')
+    await files.withWriter(() => Promise.resolve())
+    const names = await readdir(folder)
+    expect(names).not.toContain('writer.lock.dead-note.stage')
+    expect(names).toContain('writer.lock.live-note.stage')
+    expect(names).toContain('writer.lock.torn.stage')
+    expect(names).toContain('vault.v1.decoy.stage')
   })
 })
