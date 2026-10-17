@@ -9,7 +9,6 @@ import {
   TEAM_EXTERNAL_AGENT_DEFAULT,
   TEAM_ENGINE_HARD_CEILING,
   TEAM_EXTERNAL_AGENT_CEILING,
-  TEAM_MUSE_CODE_HOST_CEILING,
   TEAM_META_CONTRIBUTOR_RPM,
   TEAM_META_CONTRIBUTOR_TPM,
   TEAM_META_STANDARD_RPM,
@@ -18,6 +17,7 @@ import {
   TEAM_THROTTLE_HEADROOM_LOW,
   TEAM_WORKER_RPM_ESTIMATE,
   TEAM_WORKER_TPM_ESTIMATE,
+  museCodeLoadedSessionCeiling,
 } from '../../shared/constants'
 import type { TeamAgentKind } from './teamPool'
 
@@ -42,6 +42,8 @@ export interface TeamCeilingSource {
   readonly workerTpm: number | undefined
   /** The machine side: `museSpark.teamMaxWorkers` for engines, `teamMaxProcessWorkers` otherwise. */
   readonly machineLimit: number
+  /** The serving CLI's version for `museCode` entries: its documented loaded-session bound applies. */
+  readonly museCodeVersion?: string | undefined
 }
 
 /**
@@ -55,7 +57,7 @@ export function computeTeamCeiling(source: TeamCeilingSource): number {
     0,
     Math.min(
       providerCeilingSide(source),
-      hardCeilingSide(source.kind),
+      hardCeilingSide(source.kind, source),
       Math.floor(source.machineLimit),
     ),
   )
@@ -65,7 +67,7 @@ export function computeTeamCeiling(source: TeamCeilingSource): number {
 function providerCeilingSide(source: TeamCeilingSource): number {
   switch (source.kind) {
     case 'museCode': {
-      return TEAM_MUSE_CODE_HOST_CEILING
+      return museCodeLoadedSessionCeiling(source.museCodeVersion)
     }
     case 'external': {
       return TEAM_EXTERNAL_AGENT_DEFAULT
@@ -85,14 +87,18 @@ function providerCeilingSide(source: TeamCeilingSource): number {
   }
 }
 
-/** Our hard ceiling for the kind: no level and no edit passes it. */
-function hardCeilingSide(kind: TeamAgentKind): number {
+/**
+ * Our hard ceiling for the kind: no level and no edit passes it. Muse Code
+ * documents its own bound per release, so both sides read the served
+ * version (M127): there is no ceiling of ours on a `muse serve`.
+ */
+function hardCeilingSide(kind: TeamAgentKind, source: TeamCeilingSource): number {
   switch (kind) {
     case 'engine': {
       return TEAM_ENGINE_HARD_CEILING
     }
     case 'museCode': {
-      return TEAM_MUSE_CODE_HOST_CEILING
+      return museCodeLoadedSessionCeiling(source.museCodeVersion)
     }
     case 'external': {
       return TEAM_EXTERNAL_AGENT_CEILING

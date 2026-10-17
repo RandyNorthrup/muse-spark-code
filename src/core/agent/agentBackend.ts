@@ -254,6 +254,8 @@ export interface ModelSummary {
   readonly modelId: string
   readonly displayLabel: string
   readonly contextLimit: number | undefined
+  /** The row's `outputLimit` (M127): `null` on the wire reads as absent. */
+  readonly outputLimit?: number | undefined
   readonly isDefault: boolean
   readonly isActive: boolean
   /**
@@ -276,8 +278,37 @@ export interface ModelSummary {
 export interface SkillSummary {
   readonly selector: string
   readonly displayName: string
+  /** The skill's declared human-readable name (1.4.7 `metadata.display-name`); absent when undeclared. */
+  readonly title?: string | undefined
   readonly description: string
   readonly argumentHint: string | undefined
+}
+
+/**
+ * One background-task row (M127, MSP `task/list`): `kind` is an open
+ * vocabulary, `status` the host's lifecycle word.
+ */
+export interface BackgroundTaskSummary {
+  readonly taskId: string
+  readonly kind: string
+  readonly status: string
+  readonly startedAt?: string | undefined
+}
+
+/** One installed hook row (M127, MSP `hook/list`): `event` is open. */
+export interface SessionHookRow {
+  readonly key: string
+  readonly event: string
+  readonly handlerKind: string
+  readonly enabled: boolean
+}
+
+/** One installed plugin record (M127, MSP `plugin/list`); `source` stays opaque. */
+export interface SessionPluginRow {
+  readonly id: string
+  readonly version: string
+  readonly enabled: boolean
+  readonly source: unknown
 }
 
 /** A per-session MCP server over streamable HTTP (MSP `SessionMcpServerConfig`). */
@@ -303,6 +334,12 @@ export interface StartSessionOptions {
   readonly mcpServers?: Readonly<Record<string, SessionMcpServer>>
   /** A new conversation kept in a side-chat surface (M53). */
   readonly sideChat?: boolean
+  /**
+   * The launch permission-profile pick (1.4.6): a profile id the host
+   * catalog already admits; select, never create. Omitted keeps the host's
+   * configured default.
+   */
+  readonly permissionProfile?: string | undefined
 }
 
 /**
@@ -565,6 +602,21 @@ export interface AgentSession {
   }
   readOutput(request: OutputPageRequest): Promise<OutputPage>
   listSkills(): Promise<readonly SkillSummary[]>
+  /**
+   * The session's live background-task inventory, oldest first (M127, MSP
+   * `task/list`). Absent where the backend keeps none.
+   */
+  readonly listBackgroundTasks?: () => Promise<readonly BackgroundTaskSummary[]>
+  /**
+   * The session's installed hook rows (M127, MSP `hook/list`). Absent
+   * where the backend keeps none.
+   */
+  readonly listSessionHooks?: () => Promise<readonly SessionHookRow[]>
+  /**
+   * The installed plugin records (M127, MSP `plugin/list`). Absent where
+   * the backend keeps none.
+   */
+  readonly listSessionPlugins?: () => Promise<readonly SessionPluginRow[]>
   /** Resolves to the canonical name, or undefined when it arrives as an event. */
   rename(name: string): Promise<string | undefined>
   /**
@@ -629,7 +681,7 @@ export interface AgentHost {
     sessionId: string,
     modelId: string,
     mcpServers?: Readonly<Record<string, SessionMcpServer>>,
-    options?: { readonly requireSideChat?: boolean },
+    options?: { readonly requireSideChat?: boolean; readonly permissionProfile?: string },
   ): Promise<LoadedSession>
   forkSession(
     sessionId: string,

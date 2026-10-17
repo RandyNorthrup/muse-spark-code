@@ -7,6 +7,23 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- The Muse Code backend tracks the latest CLI and SDK (1.4.10): new
+  session-protocol notifications (model retries, Auto-review holds, plugin
+  changes, declined retracts, branch and view-health moves, foreground
+  completions) now reach the conversation. Per-model output limits, skill
+  titles and each host's sandbox posture are read from Muse Code onto the
+  backend's summaries (no surface displays them yet), a launch
+  permission-profile pick is forwarded when one is supplied, and
+  background-task, hook and plugin inventories, foreign skill import,
+  workflow resume, session recaps and the computer-use setup check are
+  wrapped on the Muse Code backend (their panels are owner design work,
+  still to come). Three machine settings replace fixed numbers with Muse
+  Code's own defaults: `museSpark.hooksMaxStopContinuations` (8),
+  `museSpark.hooksMaxRunningCommands` (0, starts them all at once, as Muse
+  Code does), and `museSpark.subagentMaxConcurrent` (8, within 1–64).
+
 ### Fixed
 
 - On Windows, two requests that reserve session spend at the same moment

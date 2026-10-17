@@ -50,6 +50,14 @@ const COMMAND_ID = {
   description: 'Optional request id; spawn reuses an existing child when the same id is retried',
 }
 
+/**
+ * The spawn tool's description for this many concurrent subagents (M127):
+ * the setting's live value, defaulting to Muse Code's own default 8.
+ */
+export function subagentSpawnDescription(capacity: number = SUBAGENT_CAPACITY): string {
+  return `Start a subagent: another agent with a conversation of its own that works on one objective in this workspace, with your tools except these and the same approvals, while you carry on. Use it for independent, bounded work that gains from running in parallel; do quick or sequential work yourself. To run a custom agent from your instructions' Agents list (or a built-in), pass its id as agent: its prompt, tools, model, effort and permissions then narrow this session's. Spawn follows the current approval mode. Up to ${String(capacity)} work at once; later ones queue.`
+}
+
 export const SUBAGENT_TOOL_DEFINITIONS: readonly {
   readonly name: string
   readonly description: string
@@ -58,7 +66,7 @@ export const SUBAGENT_TOOL_DEFINITIONS: readonly {
 }[] = [
   {
     name: MODEL_API_SUBAGENT_TOOLS.spawn,
-    description: `Start a subagent: another agent with a conversation of its own that works on one objective in this workspace, with your tools except these and the same approvals, while you carry on. Use it for independent, bounded work that gains from running in parallel; do quick or sequential work yourself. To run a custom agent from your instructions' Agents list (or a built-in), pass its id as agent: its prompt, tools, model, effort and permissions then narrow this session's. Spawn follows the current approval mode. Up to ${String(SUBAGENT_CAPACITY)} work at once; later ones queue.`,
+    description: subagentSpawnDescription(),
     properties: {
       role: {
         type: 'string',

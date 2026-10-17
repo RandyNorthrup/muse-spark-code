@@ -515,6 +515,9 @@ function modelApiManager(
     strictTools: () => SETTING_DEFAULTS.modelApiStrictTools,
     parallelReads: () => SETTING_DEFAULTS.modelApiParallelReads,
     webSearchMaxPerRequest: () => SETTING_DEFAULTS.webSearchMaxPerRequest,
+    hookMaxStopContinuations: () => SETTING_DEFAULTS.hooksMaxStopContinuations,
+    hookMaxRunningCommands: () => SETTING_DEFAULTS.hooksMaxRunningCommands,
+    subagentMaxConcurrent: () => SETTING_DEFAULTS.subagentMaxConcurrent,
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,

@@ -66,6 +66,10 @@ export const HOOK_EVENTS = [
   'Notification',
   'Interrupt',
   'SessionFork',
+  // ToolUseStart (MSP `toolUseStart`, D-HOOKREF: observe-only, no block, no
+  // context, no stop) parses but fires nothing until the runner gains a
+  // tool-start firing point, like SessionFork above.
+  'ToolUseStart',
 ] as const
 
 export type HookEvent = (typeof HOOK_EVENTS)[number]
@@ -423,6 +427,7 @@ const WIRED_EVENTS = new Set<HookEvent>([
   'Notification',
   'Interrupt',
   'SessionFork',
+  'ToolUseStart',
 ])
 
 function isRecord(value: unknown): value is HookRecord {
@@ -1174,6 +1179,8 @@ interface HookWaiter {
   readonly reject: (error: Error) => void
   readonly signal: AbortSignal | undefined
   readonly onAbort: () => void
+  /** The cap its own dispatch asked for; a freed slot is handed over only under it. */
+  readonly maxRunningCommands: number
 }
 
 interface HookCommandState {
@@ -1184,24 +1191,39 @@ const commandState: HookCommandState = { running: 0, waiters: [] }
 const processState: HookCommandState = { running: 0, waiters: [] }
 
 function releaseCommand(state: HookCommandState): void {
-  const next = state.waiters.shift()
-  if (next === undefined) {
-    state.running -= 1
-    return
+  state.running -= 1
+  // Hand freed room to queued waiters in order, each under its own cap: a
+  // dispatch whose cap was lowered after others started (the setting is
+  // read per dispatch) waits until the running count is under its cap,
+  // instead of inheriting a slot freed above it.
+  for (;;) {
+    const next = state.waiters[0]
+    if (
+      next === undefined ||
+      (next.maxRunningCommands !== 0 && state.running >= next.maxRunningCommands)
+    ) {
+      return
+    }
+    state.waiters.shift()
+    state.running += 1
+    next.signal?.removeEventListener('abort', next.onAbort)
+    next.resolve()
   }
-  next.signal?.removeEventListener('abort', next.onAbort)
-  next.resolve()
 }
 
-/** One extension-host-wide cap: several sessions cannot spawn unlimited hooks. */
+/**
+ * One extension-host-wide cap (M127): 0 runs everything at once, as Muse
+ * Code starts all matching handlers at once; otherwise at most this many.
+ */
 async function acquireCommand(
   signal: AbortSignal | undefined,
   state: HookCommandState = commandState,
+  maxRunningCommands: number = HOOK_MAX_RUNNING_COMMANDS,
 ): Promise<() => void> {
   if (signal?.aborted === true) {
     throw new Error('hook command cancelled')
   }
-  if (state.running < HOOK_MAX_RUNNING_COMMANDS) {
+  if (maxRunningCommands === 0 || state.running < maxRunningCommands) {
     state.running += 1
     return () => {
       releaseCommand(state)
@@ -1215,7 +1237,7 @@ async function acquireCommand(
       }
       reject(new Error('hook command cancelled'))
     }
-    const waiter: HookWaiter = { resolve, reject, signal, onAbort }
+    const waiter: HookWaiter = { resolve, reject, signal, onAbort, maxRunningCommands }
     state.waiters.push(waiter)
     signal?.addEventListener('abort', onAbort, { once: true })
     if (signal?.aborted === true) {
@@ -1238,8 +1260,9 @@ async function runBoundedHook(
   cwd: string,
   runner: NonNullable<ToolIo['runHook']>,
   signal: AbortSignal | undefined,
+  maxRunningCommands: number,
 ): Promise<ShellResult> {
-  const release = await acquireCommand(signal)
+  const release = await acquireCommand(signal, commandState, maxRunningCommands)
   try {
     return await runner(
       hook.command,
@@ -1264,6 +1287,7 @@ async function runTypedHook(
   typed: TypedHookHandlers | undefined,
   signal: AbortSignal | undefined,
   warn: (message: string) => void,
+  maxRunningCommands: number,
 ): Promise<HookAnswer | undefined> {
   const type = hook.type ?? 'command'
   if (type === 'command') {
@@ -1281,7 +1305,7 @@ async function runTypedHook(
   const runFallback = (): Promise<HookAnswer | undefined> =>
     runner === undefined || hook.onFailure === undefined
       ? Promise.resolve(undefined)
-      : runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn)
+      : runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn, maxRunningCommands)
   let answer: HookAnswer | undefined
   try {
     combined.throwIfAborted()
@@ -1342,13 +1366,14 @@ async function runHandler(
   runner: NonNullable<ToolIo['runHook']>,
   signal: AbortSignal | undefined,
   warn: (message: string) => void,
+  maxRunningCommands: number,
 ): Promise<HookAnswer | undefined> {
   if ((hook.type ?? 'command') !== 'command') {
     throw new Error('a typed handler never reaches the command runner')
   }
   let result: ShellResult
   try {
-    result = await runBoundedHook(hook, serialized, cwd, runner, signal)
+    result = await runBoundedHook(hook, serialized, cwd, runner, signal, maxRunningCommands)
   } catch {
     if (signal?.aborted === true) {
       return undefined
@@ -1358,7 +1383,16 @@ async function runHandler(
     warn(`${event}: ${hook.source} hook could not start`)
     return hook.onFailure === undefined
       ? undefined
-      : await runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn)
+      : await runHandler(
+          hook.onFailure,
+          event,
+          serialized,
+          cwd,
+          runner,
+          signal,
+          warn,
+          maxRunningCommands,
+        )
   }
   if (result.isCancelled) {
     return undefined
@@ -1369,13 +1403,31 @@ async function runHandler(
     )
     return hook.onFailure === undefined
       ? undefined
-      : await runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn)
+      : await runHandler(
+          hook.onFailure,
+          event,
+          serialized,
+          cwd,
+          runner,
+          signal,
+          warn,
+          maxRunningCommands,
+        )
   }
   const answer = parseHookAnswer(event, result.exitCode, result.stdout, result.stderr)
   if (answer.status === 'failed') {
     warn(`${event}: ${hook.source} hook failed (exit ${String(result.exitCode)})`)
     return result.exitCode !== 0 && hook.onFailure !== undefined
-      ? await runHandler(hook.onFailure, event, serialized, cwd, runner, signal, warn)
+      ? await runHandler(
+          hook.onFailure,
+          event,
+          serialized,
+          cwd,
+          runner,
+          signal,
+          warn,
+          maxRunningCommands,
+        )
       : undefined
   }
   return answer
@@ -1440,6 +1492,7 @@ async function runForeignHandler(
   adapter: ForeignHookAdapter,
   context: ForeignDispatchContext | undefined,
   warn: (message: string) => void,
+  maxRunningCommands: number,
 ): Promise<HookAnswer | undefined> {
   const label = `${event}: ${spec.format}-format ${hook.source} hook`
   const judgeAnswer = (given: HookAnswer): HookAnswer | undefined => {
@@ -1483,7 +1536,14 @@ async function runForeignHandler(
   let result: ShellResult
   try {
     const run = prepared.command === undefined ? hook : { ...hook, command: prepared.command }
-    result = await runBoundedHook(run, prepared.stdin, prepared.cwd, runner, signal)
+    result = await runBoundedHook(
+      run,
+      prepared.stdin,
+      prepared.cwd,
+      runner,
+      signal,
+      maxRunningCommands,
+    )
   } catch {
     if (signal?.aborted === true) {
       return undefined
@@ -1526,7 +1586,11 @@ export async function dispatchHooks(
   adapter?: ForeignHookAdapter,
   context?: ForeignDispatchContext,
   trackAsync?: (execution: Promise<unknown>) => void,
+  // 0 runs every handler's command at once, as Muse Code does (M127
+  // setting); absent keeps the extension-host fallback cap.
+  options?: { readonly maxRunningCommands?: number },
 ): Promise<HookDispatch> {
+  const maxRunningCommands = options?.maxRunningCommands ?? HOOK_MAX_RUNNING_COMMANDS
   const selected = matchingHooks(hooks, event, matcherValue, warn)
   const serialized = JSON.stringify(payload)
   if (Buffer.byteLength(serialized) > HOOK_STDIN_MAX_BYTES) {
@@ -1573,6 +1637,7 @@ export async function dispatchHooks(
               adapter,
               context,
               warn,
+              maxRunningCommands,
             )
           }
           if ((hook.type ?? 'command') === 'command') {
@@ -1586,6 +1651,7 @@ export async function dispatchHooks(
                   runner,
                   signal,
                   warn,
+                  maxRunningCommands,
                 )
           }
           return await runTypedHook(
@@ -1597,6 +1663,7 @@ export async function dispatchHooks(
             typed,
             signal,
             warn,
+            maxRunningCommands,
           )
         })
   for (const [index, execution] of executions.entries()) {

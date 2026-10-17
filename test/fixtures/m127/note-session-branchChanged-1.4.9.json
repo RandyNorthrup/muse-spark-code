@@ -1,0 +1,44 @@
+[
+  {
+    "branch": "feat/muse-code-latest",
+    "sessionId": "01a14b18-a6b1-70b1-98d7-305e708aac00",
+    "sourceRange": {
+      "first": {
+        "id": "01a14b18-a6b3-7533-ad37-e761cacdaa93",
+        "sequence": 4
+      },
+      "last": {
+        "id": "01a14b18-a6b3-7533-ad37-e761cacdaa93",
+        "sequence": 4
+      },
+      "stream": {
+        "id": "01a14b18-a6b1-70b1-98d7-305e708aac00",
+        "kind": "session"
+      }
+    },
+    "vcs": "git",
+    "viewCursor": "v4:01a14b18-a6b1-70b1-98d7-305e708aac00:1",
+    "workspaceRoot": "/home/randy/lanes/MUSEUPDATE"
+  },
+  {
+    "branch": "feat/muse-code-latest",
+    "sessionId": "01a14b18-a6b1-70b1-98d7-305e708aac00",
+    "sourceRange": {
+      "first": {
+        "id": "01a14b18-a74e-7d93-a6e6-cd906156bc4a",
+        "sequence": 12
+      },
+      "last": {
+        "id": "01a14b18-a74e-7d93-a6e6-cd906156bc4a",
+        "sequence": 12
+      },
+      "stream": {
+        "id": "01a14b18-a6b1-70b1-98d7-305e708aac00",
+        "kind": "session"
+      }
+    },
+    "vcs": "git",
+    "viewCursor": "v4:01a14b18-a6b1-70b1-98d7-305e708aac00:2",
+    "workspaceRoot": "/home/randy/lanes/MUSEUPDATE"
+  }
+]

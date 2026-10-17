@@ -1,0 +1,18 @@
+{
+  "experimentalApi": false,
+  "grantedCapabilities": ["userShell", "sessionMcp", "sessionListStream"],
+  "museHome": "/home/randy/lanes/MUSEUPDATE.app/home/data/muse",
+  "platformFamily": "unix",
+  "platformOs": "linux",
+  "sandboxAvailability": "available",
+  "schema": {
+    "fingerprint": "sha256:5d3b43e5ccdb7dc4f5a32c380f5f2cde0f10e3059b93610afb2e73f73b1d914c",
+    "version": 1
+  },
+  "serverInfo": {
+    "name": "muse",
+    "version": "1.4.9"
+  },
+  "sessionDurability": "ephemeral",
+  "userAgent": "muse-build/1.4.9 (serve; linux-x86_64; build dd233a1bd0d2c2e0e3071c02aca0eb4e421709a1)"
+}
