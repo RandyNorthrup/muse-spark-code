@@ -4,11 +4,7 @@ import { execResourceFile } from '../../resources/launcher'
 import { stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import {
-  GIT_OUTPUT_MAX_BYTES,
-  GIT_TIMEOUT_MS,
-  SCHEDULE_EVENT_FIELD_MAX_CHARS,
-} from '../../../shared/constants'
+import { GIT_OUTPUT_MAX_BYTES, SCHEDULE_EVENT_FIELD_MAX_CHARS } from '../../../shared/constants'
 import {
   scheduleEventSchema,
   type ScheduleEvent,
@@ -50,9 +46,10 @@ export function localGitRefs(
     read: async () => {
       const available = capability()
       if (!available.available) throw new Error(available.reason)
+      // No timeout of our own: the probe waits for git's answer under the
+      // resource launcher's own bound (owner 2026-10-16: no invented kill).
       const options = {
         env: withoutCredentials(process.env),
-        timeout: GIT_TIMEOUT_MS,
         maxBuffer: GIT_OUTPUT_MAX_BYTES,
         windowsHide: true,
       }

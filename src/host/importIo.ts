@@ -38,7 +38,6 @@ import {
   ATOMIC_TEMPORARY_SUFFIX,
   GIT_METADATA_OPTIONS,
   AGENT_IMPORT_GIT_NOT_REPOSITORY_EXIT,
-  GIT_TIMEOUT_MS,
   RULES_FILE_MAX_BYTES,
 } from '../shared/constants'
 import { canonicalPath, isMissingPath } from './canonicalPath'
@@ -74,7 +73,6 @@ async function isImportIgnored(absolutePath: string, workspaceRoot: string): Pro
   const options = {
     cwd,
     env: { ...env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' },
-    timeoutMs: GIT_TIMEOUT_MS,
   }
   try {
     await importGit([...GIT_METADATA_OPTIONS, 'rev-parse', '--is-inside-work-tree'], options)

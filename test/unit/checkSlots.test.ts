@@ -108,7 +108,7 @@ describe('persistent check slots', () => {
     await expect(slots.run(job)).rejects.toThrow('All slots busy')
   })
   it('snapshots working edits and untracked files without touching the real index or refs', async () => {
-    const { deps, worker, folder } = await fixture()
+    const { deps, worker, folder, job } = await fixture()
     const index = await readFile(path.join(worker, '.git', 'index'))
     const refs = await git(worker, 'show-ref')
     const snapshot = await captureCheckSnapshot(
@@ -116,6 +116,7 @@ describe('persistent check slots', () => {
       path.join(folder, 'scratch'),
       deps,
       () => undefined,
+      job.timeoutMs,
     )
     expect(await git(worker, 'show', `${snapshot}:tracked.txt`)).toBe('working-edit')
     expect(await git(worker, 'show', `${snapshot}:untracked.txt`)).toBe('untracked')

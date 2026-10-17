@@ -1517,8 +1517,12 @@ export const GIT_LS_FILES_ARGS = [
 ] as const
 // `git ls-files` on a large monorepo can exceed Node's 1 MiB default.
 export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
-// A git call that has not answered by then (a hung network drive, a lock)
-// is killed; the callers fall back as if git were absent (PLAN.md D24).
+// Synchronous spawns name this bound in their own options (the playbook's
+// contained/sync hooks): a hung child under `spawnSync` would freeze the
+// host thread with no Stop able to reach it, so the bound stays exactly
+// there. Every stoppable git wait names no deadline of its own: it ends at
+// git's answer or its abort, and a real failure still falls back as if git
+// were absent (PLAN.md D24; owner 2026-10-16: no arbitrary limits).
 export const GIT_TIMEOUT_MS = 15_000
 /** Boolean fsmonitor=false is supported from Git 2.36. */
 export const UNTRUSTED_CHECKOUT_MIN_GIT_MINOR = 36
