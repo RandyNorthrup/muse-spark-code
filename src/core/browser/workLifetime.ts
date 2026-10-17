@@ -1,11 +1,13 @@
 // A bounded, cancellable piece of work (M81 A1, design spec v4 §§4.1, 6.3):
-// the runtime's preparation (15 minutes) and the check itself (60 seconds)
-// are two separate instances, never one deadline spanning both. The first
-// end wins (the deadline, any joined signal, or `end()`), aborts the signal
-// every step sees, rejects every step still waiting at that moment, and runs
-// the registered cleanups once, newest first, within their own bound. A
-// step started after the end is refused; a step whose answer arrives after
-// the end has what it returned closed, or disposed by its step, so a late
+// the runtime's preparation (15 minutes) and the check itself are two
+// separate instances, never one deadline spanning both. The check names no
+// deadline of its own (owner 2026-10-16): it ends at its signals or its
+// owner's `end()`, unless a test shortens it. The first end wins (a named
+// deadline, any joined signal, or `end()`), aborts the signal every step
+// sees, rejects every step still waiting at that moment, and runs the
+// registered cleanups once, newest first, within their own bound. A step
+// started after the end is refused; a step whose answer arrives after the
+// end has what it returned closed, or disposed by its step, so a late
 // download, verification or consent can start nothing.
 
 import type { WorkLifetime } from './runtimeTypes'
@@ -50,11 +52,13 @@ async function quietly(work: () => Promise<unknown>): Promise<void> {
 const ENDED = Symbol('ended')
 
 /**
- * A lifetime of `ms` from now, ended early by any of `signals`. Cleanups get
- * `cleanupMs` in all; one that hangs is left behind, not waited for.
+ * A lifetime of `ms` from now, ended early by any of `signals`; undefined
+ * names no deadline (owner 2026-10-16) and the lifetime ends only at its
+ * signals or its owner's `end()`. Cleanups get `cleanupMs` in all; one
+ * that hangs is left behind, not waited for.
  */
 export function createLifetime(
-  ms: number,
+  ms: number | undefined,
   signals: readonly AbortSignal[],
   cleanupMs: number,
   now: () => number = () => performance.now(),
@@ -89,7 +93,7 @@ export function createLifetime(
       return
     }
     endedBy = why
-    clearTimeout(deadline)
+    if (deadline !== undefined) clearTimeout(deadline)
     for (const signal of signals) {
       signal.removeEventListener('abort', onAbort)
     }
@@ -98,9 +102,13 @@ export function createLifetime(
   const onAbort = (): void => {
     finish('aborted')
   }
-  const deadline = setTimeout(() => {
-    finish('deadline')
-  }, ms)
+  // A deadline only the caller names; unnamed, signals and `end()` end it.
+  const deadline =
+    ms === undefined
+      ? undefined
+      : setTimeout(() => {
+          finish('deadline')
+        }, ms)
   for (const signal of signals) {
     signal.addEventListener('abort', onAbort, { once: true })
   }
@@ -109,7 +117,7 @@ export function createLifetime(
   }
   return {
     signal: controller.signal,
-    deadlineAt: now() + ms,
+    deadlineAt: ms === undefined ? undefined : now() + ms,
     get endedBy() {
       return endedBy
     },

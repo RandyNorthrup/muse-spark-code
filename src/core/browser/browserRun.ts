@@ -178,7 +178,7 @@ export type ConfinementFailure =
 export type PageEnd =
   /** The page's own navigation was blocked: it went beyond the approved hosts. */
   | 'pageBlocked'
-  /** The 60-second check lifetime ended. */
+  /** A named check deadline ended it; production names none (NOLIMITS2 A34). */
   | 'timedOut'
   /** A request, redirect or socket reached beyond the approved hosts: nothing is returned. */
   | 'leaked'
@@ -742,8 +742,11 @@ export async function runBrowserCheck(
   if (ready !== undefined) {
     return { ok: false, failure: ready }
   }
+  // No deadline of our own (owner 2026-10-16): the check runs until it
+  // finishes or its signals stop it. Only a test names one, through
+  // `timings.checkMs` (the live suite's shortened deadline).
   const lifetime = createLifetime(
-    timings.checkMs,
+    deps.timings?.checkMs,
     [request.signal, options.admissionSignal],
     BROWSER_CHECK_TEARDOWN_MS,
   )

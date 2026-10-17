@@ -336,7 +336,6 @@ export function referenceFacts(source) {
     },
     browser: {
       actions: ['click', 'type'],
-      maxActions: source.BROWSER_CHECK_MAX_ACTIONS,
       results: ['consoleErrors', 'failedRequests'],
       screenshot: { modelApi: 'PNG', museCode: false },
     },

@@ -2763,9 +2763,9 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   20 of each; on the Model API backend also a screenshot, which the model
   sees as it sees an image `read_file` read. Muse Code gets text only until
   a capture shows that an `ide` tool's image reaches its model. Before the
-  page is read, the model may run up to eight click or type steps, each
-  naming a CSS selector. A check ends after 60 seconds; a page still loading
-  after 15 is read as it stands.
+  page is read, the model may run any number of click or type steps, each
+  naming a CSS selector. A check runs until it finishes or is stopped; a
+  page still loading after 15 seconds is read as it stands.
 - **The browser.** Google's Chrome for Testing headless shell, one exact
   version pinned by each extension release (now 154.0.8037.92), on Windows
   x64, Linux x64 and macOS (Intel and Apple silicon; the Apple silicon build
@@ -2777,8 +2777,8 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   pins, and `off` turns the check off and downloads nothing. The download,
   and each file of it, is checked against the pinned length and SHA-256
   before anything runs, and the browser's own file again before each check.
-  Getting it ready has its own 15 minutes; the check's 60 seconds start
-  after. A pinned version serves for 45 days after Google published it;
+  Getting it ready has its own 15 minutes; the check itself names no
+  deadline and starts after. A pinned version serves for 45 days after Google published it;
   after that the check refuses until an extension update pins a newer one.
   Each version stays in that storage until you remove it. The browser runs
   headless, talks to the extension over its debugging pipe and never opens

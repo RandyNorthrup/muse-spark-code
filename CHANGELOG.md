@@ -22,6 +22,10 @@ happened, not what was planned; superseded entries are kept.
   120-second second chance: the handshake runs until the server answers or
   the wait is stopped, saying so in the log each minute, and a server that
   never finishes is still closed rather than left behind.
+- The browser check runs until it finishes or is stopped instead of ending
+  at 60 seconds, and takes any number of click or type steps instead of at
+  most eight. Loopback-only addressing, the per-call extra-hosts approval
+  and the 45-day runtime expiry are unchanged.
 
 ### Pending
 
