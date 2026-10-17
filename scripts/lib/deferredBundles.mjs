@@ -687,6 +687,20 @@ export const ON_FIRST_USE = [
       'src/core/estimator/provision/start.ts',
     ],
   },
+  // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97): the
+  // host, the CLI and the ACP agent require it the first time an estimate
+  // needs a plan snapshot. It carries M113's plan reader beside the shared
+  // core adapter; the reader stays listed under the reporting bundle too.
+  {
+    output: 'dist/planSnapshot.js',
+    metafile: 'dist/meta/planSnapshot.json',
+    use: 'the first estimate needing a plan snapshot',
+    files: [
+      'src/host/estimator/planSnapshotEntry.ts',
+      'src/host/estimator/planSnapshotSource.ts',
+      'src/core/estimator/planSnapshot.ts',
+    ],
+  },
   // The flight recorder's journal (M93, PLAN.md D6, D72): activation keeps
   // only the front that answers and queues; the journal, its policy and the
   // frame mapping load just after activation or at the first failure.

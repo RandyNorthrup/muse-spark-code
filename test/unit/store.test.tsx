@@ -369,13 +369,16 @@ it('validates a first-use estimator frame before updating the store', async () =
     await waitFor(() => {
       expect(report).toHaveBeenCalled()
     })
-    expect(store.getState().estimator).toBeUndefined()
+    expect(store.getState().estimator).toEqual({
+      status: 'failed',
+      diagnostic: { estimateDiagnostic: 'invalid-input' },
+    })
     const section = fakeEstimate()
     window.dispatchEvent(
       new MessageEvent('message', { data: { type: 'estimatorSection', section } }),
     )
     await waitFor(() => {
-      expect(store.getState().estimator).toEqual(section)
+      expect(store.getState().estimator).toEqual({ status: 'showing', section })
     })
   } finally {
     stop()
@@ -391,5 +394,64 @@ it('discards an estimator frame whose listener closes during first-use loading',
   stop()
   await import('../../src/shared/estimatorProtocol')
   await Promise.resolve()
-  expect(store.getState().estimator).toBeUndefined()
+  expect(store.getState().estimator).toEqual({ status: 'idle' })
+})
+
+it('matches first-wave failures to the active start and clears the old rows', () => {
+  const store = createUiStore(initialUiState)
+  const section = fakeEstimate()
+  store.dispatch({ type: 'hostMessage', at: 0, message: { type: 'estimatorSection', section } })
+  store.dispatch({ type: 'estimatorStarting', requestId: 'start' })
+  store.dispatch({
+    type: 'hostMessage',
+    at: 0,
+    message: {
+      type: 'estimatorStarted',
+      requestId: 'old',
+      diagnostic: { estimateDiagnostic: 'prerequisites' },
+    },
+  })
+  expect(store.getState().estimator).toEqual({ status: 'showing', section })
+  store.dispatch({
+    type: 'hostMessage',
+    at: 0,
+    message: {
+      type: 'estimatorStarted',
+      requestId: 'start',
+      diagnostic: { estimateDiagnostic: 'prerequisites' },
+    },
+  })
+  expect(store.getState().estimator).toEqual({
+    status: 'failed',
+    diagnostic: { estimateDiagnostic: 'prerequisites' },
+  })
+})
+
+it('drops replies when the conversation closes during asynchronous diagnostic validation', async () => {
+  const parser = await import('../../src/shared/estimatorProtocol')
+  for (const close of ['clear', 'unsubscribe']) {
+    const validation =
+      Promise.withResolvers<Awaited<ReturnType<typeof parser.parseHostToEstimatorMessage>>>()
+    const parse = vi
+      .spyOn(parser, 'parseHostToEstimatorMessage')
+      .mockReturnValueOnce(validation.promise)
+    const store = createUiStore(initialUiState)
+    const stop = listenToHost(store, window, () => 0, vi.fn())
+    const message = {
+      type: 'estimatorFailure',
+      diagnostic: { estimateDiagnostic: 'cycle: Q' },
+    } as const
+    deliver(message)
+    await vi.waitFor(() => {
+      expect(parse).toHaveBeenCalled()
+    })
+    if (close === 'clear') deliver({ type: 'conversationCleared', attachmentEpoch: 1 })
+    else stop()
+    validation.resolve({ ok: true, message })
+    await validation.promise
+    await Promise.resolve()
+    expect(store.getState().estimator).toEqual({ status: 'idle' })
+    stop()
+    parse.mockRestore()
+  }
 })

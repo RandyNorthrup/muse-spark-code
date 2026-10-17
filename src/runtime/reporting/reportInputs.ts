@@ -51,9 +51,11 @@ import {
   securityAuditRowSchema,
   securityDeveloperAuditRowSchema,
 } from '../../core/reporting/sources/security'
+import type { ReportEstimateReader } from '../../core/reporting/sources/estimate'
 import type { ReportSessionReader } from '../../core/reporting/sources/session'
 import type { ReportAccountsReader } from '../../core/reporting/sources/accounts'
 import type { ReportSecurityReader } from '../../core/reporting/sources/security'
+import type { EstimateRequest } from '../../shared/estimate'
 import type { LocalReportSourceDeps } from '../../core/reporting/sources'
 import type {
   AccountsFacts,
@@ -488,6 +490,44 @@ export async function readStoredReportSession(
     ...(session.name !== undefined && { name: session.name }),
     items: session.transcript.map((entry) => entry.item),
     turnIds: session.turnIds,
+  }
+}
+
+/**
+ * The reporting `estimate` source from M117's run: the host owns the engine
+ * (VS Code's lazy estimator bundle, the headless one per workspace root), so
+ * only the validated request crosses into this bundle and only the run's
+ * result crosses back. The core source validates, scrubs and projects it.
+ */
+export function createEstimateReportReader(
+  input: {
+    readonly run: (request: EstimateRequest, signal: AbortSignal) => Promise<unknown>
+  },
+  table?: UiText,
+  locale?: string,
+): ReportEstimateReader {
+  return {
+    read: async (request, context) => {
+      const section = await input.run(request, context.signal)
+      // The observation is the request's own validated stamp, never the
+      // wall clock: the same generation seals the same bytes, and the
+      // source reads fresh at age zero instead of unknown.
+      return { section, observedAt: request.asOf }
+    },
+    // The report's refusal language, captured once when the request starts
+    // (RVCM1134G P2): the source renders refusals only from these strings,
+    // so another generation's `setUiText` while the estimator runs cannot
+    // move the language under this one.
+    ...(table !== undefined &&
+      locale !== undefined && {
+        text: {
+          failed: table.estimateFailed,
+          noCapacity: table.estimateNoCapacity,
+          notFound: table.estimateNotFound,
+          missingMore: table.estimateMissingMore,
+          locale,
+        },
+      }),
   }
 }
 

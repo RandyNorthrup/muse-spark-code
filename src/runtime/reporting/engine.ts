@@ -72,6 +72,7 @@ export interface ReportingContext {
   readonly sources?: Partial<ReportSourcePorts>
   readonly playbook?: LocalReportSourceDeps['playbook']
   readonly schedules?: LocalReportSourceDeps['schedules']
+  readonly estimate?: LocalReportSourceDeps['estimate']
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
   readonly network?:
     | Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>
@@ -144,6 +145,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.security !== undefined && { security: context.security }),
               ...(context.playbook !== undefined && { playbook: context.playbook }),
               ...(context.schedules !== undefined && { schedules: context.schedules }),
+              ...(context.estimate !== undefined && { estimate: context.estimate }),
             }).sources
       // One signal and one deadline for the whole generation: every source
       // observes the same abort and the same last instant for new work, and
@@ -173,7 +175,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         fleet: unavailable('fleet'),
         security: local?.security ?? unavailable('security'),
         accounts: local?.accounts ?? unavailable('accounts'),
-        estimate: unavailable('estimate'),
+        estimate: local?.estimate ?? unavailable('estimate'),
         playbook: local?.playbook ?? unavailable('playbook'),
         issues: unavailable('issues'),
         schedules: local?.schedules ?? unavailable('schedules'),

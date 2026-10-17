@@ -37,11 +37,14 @@ import {
   CONVERSATION_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
   ESTIMATOR_BUNDLE_FILE,
+  PLAN_SNAPSHOT_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
   WHATS_NEW_BUNDLE_FILE,
   WHATS_NEW_CLAIMS_DIR,
   WHATS_NEW_CONTENT_FILE,
   OUTPUT_CHANNEL_SCHEME,
+  GITHUB_AUTH_PROVIDER,
+  GITHUB_AUTH_SCOPES,
   CHECKPOINT_STORE_BUNDLE_FILE,
   BROWSER_CHECK_BUNDLE_FILE,
   BROWSER_RUNTIME_BUNDLE_FILE,
@@ -273,6 +276,7 @@ import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { lazyEstimator } from './host/estimator/estimatorBundle'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
+import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
 import { createMemoryFeatures } from './host/memoryFeatures'
@@ -2325,22 +2329,77 @@ async function activateWindow(
   })
 
   // The capacity estimator (M117, PLAN.md D97): its engine loads the first
-  // time an estimate runs. The snapshot, board, broker and catalog bindings
-  // belong to unmerged milestones (M113, M96, M109, M110) and refuse with
-  // their handoff names until those merge; the fleet is this machine,
-  // measured. History appends arrive with M115's lane-finished trigger.
+  // time an estimate runs. The snapshot reads the first folder's PLAN.md
+  // with its git and `gh` evidence through the shared core adapter; the
+  // board, broker and catalog bindings belong to unmerged milestones (M96,
+  // M109, M110) and refuse with their handoff names until those merge; the
+  // fleet is this machine, measured. History appends arrive with M115's
+  // lane-finished trigger.
+  // The plan snapshot's bundle beside the extension's own (M117 C-M117-1,
+  // PLAN.md D6): required the first time an estimate needs a snapshot, never
+  // at activation.
+  const snapshotBundlePath = vscode.Uri.joinPath(
+    context.extensionUri,
+    'dist',
+    PLAN_SNAPSHOT_BUNDLE_FILE,
+  ).fsPath
+  let estimatorAuthenticationRevision = 0
+  context.subscriptions.push(
+    vscode.authentication.onDidChangeSessions((event) => {
+      if (event.provider.id === GITHUB_AUTH_PROVIDER) estimatorAuthenticationRevision += 1
+    }),
+  )
   const estimator = lazyEstimator({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', ESTIMATOR_BUNDLE_FILE).fsPath,
     log,
     ports: () => {
-      const settings = currentSettings()
-      return estimatorSourcePorts(() => ({
-        // No catalogs are pinned until M113 merges its Reports catalogs.
-        enabled: settings['estimator.priceLookup'],
-        networkAllowed: settings.sandboxNetwork !== SANDBOX_NETWORK_DENIED,
-        maxAgeMs: 0,
-        catalogUrls: [],
-      }))
+      let signedInRevision = -1
+      const snapshot = planSnapshotLoader({
+        bundlePath: snapshotBundlePath,
+        log,
+        root: firstFolderPath() ?? '',
+        networkPolicy: async () => {
+          const revision = estimatorAuthenticationRevision
+          const session =
+            currentSettings()['reports.network'] === 'off'
+              ? undefined
+              : await vscode.authentication.getSession(
+                  GITHUB_AUTH_PROVIDER,
+                  [...GITHUB_AUTH_SCOPES],
+                  { silent: true },
+                )
+          signedInRevision = session === undefined ? -1 : revision
+          return {
+            surface: 'editor',
+            get mode() {
+              return currentSettings()['reports.network']
+            },
+            get githubSignedIn() {
+              return session !== undefined && revision === estimatorAuthenticationRevision
+            },
+            allowEgress: () =>
+              Promise.resolve(
+                vscode.workspace.isTrusted &&
+                  currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED,
+              ),
+          }
+        },
+      })
+      return estimatorSourcePorts(
+        () => ({
+          // No catalogs are pinned until M113 merges its Reports catalogs.
+          enabled: currentSettings()['estimator.priceLookup'],
+          networkAllowed:
+            vscode.workspace.isTrusted &&
+            currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED &&
+            (currentSettings()['reports.network'] === 'always' ||
+              (currentSettings()['reports.network'] === 'whenSignedIn' &&
+                signedInRevision === estimatorAuthenticationRevision)),
+          maxAgeMs: 0,
+          catalogUrls: [],
+        }),
+        snapshot,
+      )
     },
   })
 
@@ -3336,6 +3395,10 @@ async function activateWindow(
                 ? (reportController?.reportingSessionHistory() ?? Promise.resolve(null))
                 : Promise.resolve(null),
           }),
+          // M113 C-M113-4: the estimate report runs M117's engine for the
+          // validated request through the lazy estimator bundle, in every
+          // window. The bundle loads on the first estimate report only.
+          reportEstimateRun: (request, signal) => estimator.estimate(request, signal),
           ...(context.storageUri !== undefined && {
             reportStoredSessionDir: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
           }),

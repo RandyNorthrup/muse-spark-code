@@ -244,6 +244,7 @@ export const CLI_OPTION_TEXT = {
   'no-events': 'no-events',
   fleet: 'fleet',
   seed: 'seed',
+  'check-plan': 'estimate-check-plan',
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS

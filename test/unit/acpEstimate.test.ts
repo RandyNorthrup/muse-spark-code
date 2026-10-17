@@ -1,4 +1,5 @@
 import * as acp from '@agentclientprotocol/sdk'
+import { ESTIMATE_DIAGNOSTIC_CASES, diagnosticSentence } from './helpers/estimator/diagnosticMatrix'
 import { describe, expect, it, vi } from 'vitest'
 import { createAcpEstimate, type AcpEstimatePort } from '../../src/acp/estimate'
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
@@ -58,6 +59,25 @@ function messages(updates: acp.SessionUpdate[]): string {
 }
 
 describe('M117 ACP estimate', () => {
+  it.each(ESTIMATE_DIAGNOSTIC_CASES)(
+    '$code survives the real ACP transport after success',
+    async ({ code, diagnostic }) => {
+      const run = vi
+        .fn<() => Promise<string>>()
+        .mockResolvedValueOnce('previous forecast')
+        .mockRejectedValue(diagnostic)
+      const h = harness({ run })
+      await h.run(async (client, sessionId) => {
+        await prompt(client, sessionId, '/estimate M117')
+        expect(messages(h.updates)).toBe('previous forecast')
+        h.updates.length = 0
+        await prompt(client, sessionId, '/estimate M117')
+      })
+      expect(messages(h.updates)).toBe(diagnosticSentence(code))
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    },
+  )
+
   it('handles a goal locally, announces the command and never starts a model turn', async () => {
     const section = fakeEstimate()
     const port = createAcpEstimate({

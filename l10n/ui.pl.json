@@ -191,6 +191,12 @@
   "estimateSeed": "Ziarno symulacji",
   "estimateAsOf": "Czas migawki",
   "estimateMarginal": "Czas zaoszczędzony dzięki tej dodatkowej maszynie",
+  "estimateMissingMore": {
+    "one": "i {count} kolejny",
+    "few": "i {count} kolejne",
+    "many": "i {count} kolejnych",
+    "other": "i {count} kolejnych"
+  },
   "estimateHourly": "Cena za godzinę",
   "estimateCatalog": "Cena katalogowa z dnia {date}, nie oferta.",
   "estimateNoPrice": "Brak dostępnej publicznej ceny katalogowej.",
@@ -341,6 +347,7 @@
     "estimate-by": "--by <date>: Termin",
     "fleet": "--fleet current|minimum|optimum: Obecna flota / Minimalna konfiguracja / Optymalna konfiguracja",
     "estimate-format": "--format md|html|json|text: Format wyjściowy",
+    "estimate-check-plan": "--check-plan: Wyświetl wszystkie problemy planu zamiast tworzyć oszacowanie",
     "seed": "--seed <seed>: Ziarno symulacji"
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
@@ -441,7 +448,8 @@
   "referenceDiagnostics": "Pokaż lokalną diagnostykę backendu i rozszerzenia.",
   "referenceReport": "Wyświetl oczyszczony raport przed zapisaniem lub wysłaniem.",
   "referenceInProgress": "W toku.",
-  "referenceEstimate": "W toku.",
+  "estimateDiagnosticHelp": "Odmowy planu i silnika pokazują tę samą nazwaną diagnozę w panelu, CLI i ACP; błędy zewnętrzne ukrywają prywatne szczegóły. Odmowa oszacowania, odświeżenia lub uruchomienia zastępuje poprzednią prognozę tą diagnozą.",
+  "referenceEstimate": "Szacuje, kiedy cel będzie gotowy przy obecnej flocie, albo jakiej konfiguracji wymaga termin.",
   "referenceTerminal": "Otwórz CLI Muse Code w terminalu edytora.",
   "referenceRules": "Utwórz lub otwórz AGENTS.md w katalogu głównym obszaru roboczego.",
   "referenceWalkthrough": "Otwórz przewodnik wprowadzający.",

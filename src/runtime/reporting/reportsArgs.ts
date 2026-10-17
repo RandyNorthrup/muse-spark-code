@@ -9,6 +9,7 @@ import {
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
+import { estimateDeadline } from '../../shared/estimate'
 import { reportOptionsSchema, type ReportKind, type ReportOptions } from '../../shared/reportSchema'
 
 export { reportArguments } from '../../acp/reports'
@@ -83,7 +84,10 @@ export function parseReportsArguments(argv: readonly string[]): ReportsRequest {
   if (isHistory) {
     if (args.length > 0) throw new Error(reportsUsage())
   } else if (kind === 'estimate') {
-    deadline = by === undefined ? undefined : `${by}T23:59:59+00:00`
+    // `--by` is the estimator's date: date-only means midnight UTC, exactly
+    // as `/estimate` reads it, so both paths ask for the same instant.
+    deadline = by === undefined ? undefined : estimateDeadline(by)
+    if (by !== undefined && deadline === undefined) throw new Error(reportsUsage())
     by = undefined
     if (scope === '') throw new Error(reportsUsage())
   } else if (kind === 'changes' && args.length > 0) {

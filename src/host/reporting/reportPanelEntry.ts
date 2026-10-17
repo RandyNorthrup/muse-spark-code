@@ -21,6 +21,7 @@ import type {
   SecurityVaultSnapshot,
   SessionHistoryInput,
 } from '../../runtime/reporting/reportInputs'
+import type { EstimateRequest } from '../../shared/estimate'
 import { readSettings } from '../settings'
 import * as vscode from 'vscode'
 import { ReportPanel, type ReportPanelDeps } from './reportPanel'
@@ -53,6 +54,12 @@ export interface ReportingWindowDeps extends Pick<
    */
   readonly reportSessionHistory?: () => Promise<SessionHistoryInput | null>
   readonly reportStoredSessionDir?: string | undefined
+  /**
+   * M113 C-M113-4: M117's run for the estimate kind, through the extension's
+   * lazy estimator bundle. Absent until the estimator binds it; the kind
+   * then reports unavailable, never a guess.
+   */
+  readonly reportEstimateRun?: (request: EstimateRequest, signal: AbortSignal) => Promise<unknown>
   readonly reportBeforeRead: () => Promise<void>
   readonly reportReadBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly reportUsageDataFolder: string
@@ -238,6 +245,25 @@ export function createReportingWindow(
                 )
                 .read(context),
           },
+          // M113 C-M113-4: the estimate kind runs M117's engine through the
+          // extension's lazy estimator bundle. Only estimate reports load
+          // it; every other kind leaves the reader untouched.
+          ...(deps.reportEstimateRun !== undefined && {
+            estimate: {
+              read: (request, context) =>
+                loadInputs()
+                  .createEstimateReportReader(
+                    {
+                      run: (runRequest, signal) =>
+                        deps.reportEstimateRun?.(runRequest, signal) ??
+                        Promise.reject(new Error(UI_TEXT.reportUi.generationFailed)),
+                    },
+                    table,
+                    locale,
+                  )
+                  .read(request, context),
+            },
+          }),
           workspaceKey,
           l10n: deps.context.l10n,
           log: deps.context.log,

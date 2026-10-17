@@ -41,6 +41,7 @@ const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
   'estimator.js',
+  'planSnapshot.js',
   'headless.js',
   'sharingRuntime.js',
   'acpQuestions.js',

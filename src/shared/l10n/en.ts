@@ -270,6 +270,9 @@ export const EN = {
   estimateWaiting: 'Waiting for {dependency}.',
   estimateRunning: 'Estimating…',
   estimateFailed: 'Estimate failed: {detail}',
+  // A refused estimate's omitted lanes: {count} is the lanes the estimator
+  // did not name, rendered in the report's language from that number.
+  estimateMissingMore: forms({ one: 'and {count} more', other: 'and {count} more' }),
   estimateSchedule: 'Lane Schedule',
   estimateGantt: 'Schedule for {goal}, with the critical path and P50 and P90 finish marks.',
   estimateOptimizeDescription:
@@ -426,6 +429,7 @@ export const EN = {
     'estimate-by': '--by <date>: Deadline',
     fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
     'estimate-format': '--format md|html|json|text: Output format',
+    'estimate-check-plan': '--check-plan: List every plan problem instead of estimating',
     seed: '--seed <seed>: Simulation seed',
   },
   referenceScanSecrets:
@@ -575,7 +579,10 @@ export const EN = {
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
   referenceInProgress: 'In progress.',
-  referenceEstimate: 'In progress.',
+  estimateDiagnosticHelp:
+    'Plan and engine refusals show the same named diagnostic in the panel, CLI and ACP; external errors hide private details. A refused estimate, refresh or start replaces the previous forecast with that diagnostic.',
+  referenceEstimate:
+    'Ship-date forecast for a goal from the current fleet, or the setup a target date needs.',
   referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',
   referenceRules: 'Create or open AGENTS.md in the workspace root.',
   referenceWalkthrough: 'Open the Getting Started walkthrough.',

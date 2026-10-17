@@ -23,8 +23,16 @@ const QUESTION_UI_BUDGET_KIB = 25
  */
 const BUDGETS = [
   // M113 W: new entries, each measured +15%, rounded to 25 KiB.
-  { path: 'dist/reporting.js', budgetKiB: 175 },
-  { path: 'dist/reportingNetwork.js', budgetKiB: 75 },
+  // MSM113 (estimate kind wired end to end): 220.4 KiB measured +15% =
+  // 253.5 KiB, rounded to 250 KiB. The kind's source, collector, typed
+  // refusal diagnostics and validated section schemas ride the reporting
+  // bundle because the engine reads every source eagerly; no lighter
+  // placement exists without engine surgery.
+  { path: 'dist/reporting.js', budgetKiB: 250 },
+  // MSM113 (estimate kind): 88.2 KiB measured +15% = 101.4 KiB, rounded
+  // to 100 KiB. Same cause: the runtime sources barrel constructs every
+  // local source, estimate included.
+  { path: 'dist/reportingNetwork.js', budgetKiB: 100 },
   // C-M113-2: session and usage inputs, 84.1 KiB measured +15%, rounded up.
   { path: 'dist/reportInputs.js', budgetKiB: 100 },
   // C-M113-4: playbook and schedules inputs, 52090 bytes (50.9 KiB)
@@ -223,6 +231,11 @@ const BUDGETS = [
   { path: 'dist/estimator.js', budgetKiB: 75 },
   // INT0180: estimator application contracts, measured with D6 headroom.
   { path: 'dist/estimateContracts.js', budgetKiB: 25 },
+  // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded
+  // on the first estimate needing a plan snapshot: the shared core adapter
+  // over M113's plan reader with the host's git and `gh` reads. 61.5 KiB
+  // when split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/planSnapshot.js', budgetKiB: 75 },
   // The flight recorder's journal (M93), loaded just after activation or at
   // the first failure: 51.3 KiB when split out (the journal, its policy and
   // the shared protocol it validates against), plus 15%, rounded up to 25 KiB

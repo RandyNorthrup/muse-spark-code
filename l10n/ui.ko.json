@@ -191,6 +191,9 @@
   "estimateSeed": "시뮬레이션 시드",
   "estimateAsOf": "스냅샷 시각",
   "estimateMarginal": "이 머신을 추가하여 절약되는 시간",
+  "estimateMissingMore": {
+    "other": "외 {count}개"
+  },
   "estimateHourly": "시간당 가격",
   "estimateCatalog": "{date}의 카탈로그 가격이며 견적이 아닙니다.",
   "estimateNoPrice": "공개 카탈로그 가격이 없습니다.",
@@ -341,6 +344,7 @@
     "estimate-by": "--by <date>: 마감일",
     "fleet": "--fleet current|minimum|optimum: 현재 장비 구성 / 최소 구성 / 최적 구성",
     "estimate-format": "--format md|html|json|text: 출력 형식",
+    "estimate-check-plan": "--check-plan: 추정하는 대신 계획의 모든 문제 나열",
     "seed": "--seed <seed>: 시뮬레이션 시드"
   },
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
@@ -441,7 +445,8 @@
   "referenceDiagnostics": "로컬 백엔드 및 확장 진단 정보를 표시합니다.",
   "referenceReport": "저장하거나 보내기 전에 민감한 정보를 제거한 문제 보고서를 확인합니다.",
   "referenceInProgress": "진행 중.",
-  "referenceEstimate": "진행 중.",
+  "estimateDiagnosticHelp": "계획 및 엔진의 거부는 패널, CLI, ACP에서 같은 이름의 진단을 표시합니다. 외부 오류는 비공개 세부 정보를 숨깁니다. 추정, 새로 고침 또는 시작이 거부되면 이전 예측이 해당 진단으로 대체됩니다.",
+  "referenceEstimate": "현재 플릿으로 목표가 언제 완료되는지, 또는 특정 날짜에 필요한 구성을 추정합니다.",
   "referenceTerminal": "편집기 터미널에서 Muse Code CLI를 엽니다.",
   "referenceRules": "작업 공간 루트에 AGENTS.md를 만들거나 엽니다.",
   "referenceWalkthrough": "시작 가이드를 엽니다.",

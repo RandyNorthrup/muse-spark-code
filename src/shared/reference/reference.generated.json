@@ -90,7 +90,6 @@
       "description": { "ui": "reportSlashDescription" },
       "commands": ["museSpark.showReport"],
       "settings": [
-        "museSpark.reports.network",
         "museSpark.reports.keepHistory",
         "museSpark.reports.agentSources",
         "museSpark.usageHistory",
@@ -3936,50 +3935,6 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": false }
-    },
-    {
-      "text": {
-        "conditions": [
-          { "when": "reportsNetwork&githubSignIn", "text": { "setting": "reports.network" } }
-        ]
-      },
-      "id": "museSpark.reports.network",
-      "name": "museSpark.reports.network",
-      "description": "Choose when reports may read GitHub. Terminal reports use the network only with --network.",
-      "descriptionKey": "config.reports.network.description",
-      "type": "string",
-      "default": "whenSignedIn",
-      "enum": ["whenSignedIn", "always", "off"],
-      "enumDescriptions": [
-        "Read GitHub while signed in to GitHub.",
-        "Allow network sources for reports.",
-        "Read local sources only."
-      ],
-      "enumDescriptionKeys": [
-        "config.reports.network.enumDescriptions.whenSignedIn",
-        "config.reports.network.enumDescriptions.always",
-        "config.reports.network.enumDescriptions.off"
-      ],
-      "enumTexts": {
-        "0": {
-          "conditions": [
-            {
-              "when": "reportsNetwork&githubSignIn",
-              "text": {
-                "fallbackKey": "config.reports.network.enumDescriptions.whenSignedIn",
-                "fallback": "Read GitHub while signed in to GitHub."
-              }
-            }
-          ]
-        }
-      },
-      "scope": "machine",
-      "refinements": [],
-      "schema": {
-        "type": "string",
-        "enum": ["whenSignedIn", "always", "off"],
-        "default": "whenSignedIn"
-      }
     },
     {
       "id": "museSpark.reports.keepHistory",

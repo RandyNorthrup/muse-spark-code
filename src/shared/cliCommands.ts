@@ -117,6 +117,12 @@ export function cliCommands() {
       text: { ui: 'estimateCliHelp' },
     },
     {
+      route: 'estimate',
+      name: 'estimate --check-plan',
+      description: UI_TEXT.referenceCliOptions['estimate-check-plan'],
+      text: { cli: 'estimate-check-plan' },
+    },
+    {
       route: 'report',
       name: 'report',
       description: UI_TEXT.reportUsage,

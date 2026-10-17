@@ -24,6 +24,7 @@ import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
   ESTIMATOR_BUNDLE_FILE,
+  PLAN_SNAPSHOT_BUNDLE_FILE,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
   PLAYBOOK_BUNDLE_FILE,
   RUNTIME_ACCOUNTS_BUNDLE_FILE,
@@ -78,7 +79,12 @@ import { boundedAcpStream } from '../shared/acpStream'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
-import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
+import {
+  createRuntimeEstimate,
+  runRuntimeEstimateCommand,
+  runtimeEstimatorPorts,
+} from './estimator/ports'
+import { lazyEstimator } from '../host/estimator/estimatorBundle'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
@@ -501,6 +507,25 @@ function runtimeReports(
     bundlePath: path.join(distDir, 'playbookSchedulesInputs.js'),
     log,
   })
+  // M113 C-M113-4: one estimator per requesting workspace root, like the
+  // headless estimate command; the estimate report kind runs the same run.
+  const reportEstimators = new Map<string, ReturnType<typeof lazyEstimator>>()
+  const reportEstimatorFor = (cwd: string): ReturnType<typeof lazyEstimator> => {
+    const known = reportEstimators.get(cwd)
+    if (known !== undefined) return known
+    const estimator = lazyEstimator({
+      bundlePath: path.join(distDir, ESTIMATOR_BUNDLE_FILE),
+      log,
+      ports: () =>
+        runtimeEstimatorPorts({
+          snapshotBundlePath: path.join(distDir, PLAN_SNAPSHOT_BUNDLE_FILE),
+          log,
+          root: cwd,
+        }),
+    })
+    reportEstimators.set(cwd, estimator)
+    return estimator
+  }
   let reports: ReturnType<typeof createRuntimeReports> | undefined
   return () => {
     reports ??= load().createRuntimeReports({
@@ -655,6 +680,22 @@ function runtimeReports(
                     l10n.locale,
                   )
                   .read(context),
+            },
+            // M113 C-M113-4: the estimate report kind runs the headless
+            // estimator for the report's workspace root. Only estimate
+            // reports load it; networked reads stay off headless (D65).
+            estimate: {
+              read: (request, context) =>
+                inputs()
+                  .createEstimateReportReader(
+                    {
+                      run: (runRequest, signal) =>
+                        reportEstimatorFor(cwd).estimate(runRequest, signal),
+                    },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(request, context),
             },
             network: {
               policy: {

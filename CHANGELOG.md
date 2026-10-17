@@ -163,6 +163,27 @@ happened, not what was planned; superseded entries are kept.
   caller's language and load only for consuming kinds; primary history is bound
   in ACP and CLI, questions stay session-scoped, and closed chats stay closed.
   CLI end-to-end builds use production resource admission.
+- **Estimator refusal state** (M117 CM1171R7). Typed diagnostics survive the
+  webview boundary and appear unchanged in the real card, including first-wave
+  refusals. One shared display state replaces old forecasts on every failed
+  estimate or refresh in the panel, view session and terminal. The diagnostic
+  inventory is crossed with all six surfaces in regression tests.
+
+- **Estimator refusal diagnostics** (M117 CM1171R6). Late self dependencies
+  and cycles retain their named reason across the panel, CLI, ACP and TUI.
+  All estimator guards and schema failures carry typed diagnostics through
+  one localized renderer; raw external errors hide private details. A core
+  throw-site inventory rejects new untyped refusals.
+
+- **Estimator plan grammar and boundaries** (M117 CM1171R5). Explicit local
+  M-number lanes retain their prerequisites; ordering cannot hide in notes.
+  Every row is parsed before closure validation, so unrelated reader drift and
+  invalid identities do not block clean goals. Self prerequisites reach the DAG
+  guard, and unknown milestone references are reported together. Whole-plan
+  checks reject missing structure. Restored plan ordering is pinned by a reviewed
+  prerequisite fixture. Command parsing runs in the lazy host bundle within the
+  unchanged browser cap. Check-mode help is translated in all fourteen languages,
+  and the CLI/ACP guide documents its exclusive syntax and verdicts.
 
 ### Added
 
@@ -280,6 +301,33 @@ happened, not what was planned; superseded entries are kept.
   or unbound vault leaves the vault facets empty and named; the developer
   audit still reports. A canary test plants secrets in vault records and
   proves none reaches any report output.
+- **Estimate report kind is real end to end** (M113 C-M113-4, part B).
+  `/report estimate <goal>` runs M117's estimator for the D97.2 goal in the
+  report scope with `--by <date>` as the deadline and `--fleet
+  current|minimum|optimum` as the fleet, and reports P50 and P90, the
+  critical path, the limiting resource, the setups with their marginal
+  values, the inputs and the calibration sample sizes. Any D97.2 goal text
+  parses; goals the estimator refuses (unfinished lanes with no hours,
+  unknown goals, prerequisites, rigs, releases and plan problems, missing
+  capacity, infeasible schedules) fail the source with the estimator's own
+  typed diagnostic — the same refusal code and parameters `/estimate`
+  names — rendered in the report's language (capacity and goal refusals
+  keep their named sentences; a `missing-estimate` refusal re-renders its
+  lane list and omitted count from that data in the report's language),
+  instead of invented rows or a guess. A refusal without a valid typed
+  diagnostic stays generic on both surfaces: `/estimate` prints `Estimate
+  failed: estimate-unavailable` while the report records the failed code
+  with its table sentence. `--by <date>` means midnight UTC
+  (`2026-11-01` asks for `2026-11-01T00:00:00.000Z`) on the terminal, in VS
+  Code and through ACP, exactly as `/estimate` reads it, so every path asks
+  for the same instant; offset stamps the report schema accepts (`--as-of`
+  everywhere, `--by` in the editor) are normalized to the same UTC instant
+  the estimator requires, and the run is stamped at the request instant,
+  so the same generation seals identical bytes. The report forecasts cost
+  on every editor so the numbers match.
+  Works in VS Code (through the lazy estimator bundle), ACP and
+  the terminal (through the headless estimator for the report's workspace
+  root) without a model call.
 - **Session and usage report kinds are real end to end** (M113 C-M113-2).
   `/report session` reads the current conversation in the editor, or a stored
   Model API session by id (`--session <id>` in the terminal and ACP); turns
@@ -316,6 +364,29 @@ happened, not what was planned; superseded entries are kept.
   budget) beside the session/usage chunk, whose budget stays unchanged;
   only their two kind-table lines changed, and every other kind still
   reports unavailable as before.
+- **Estimator plan snapshots** (M117 C-M117-1). `/estimate` goals now resolve
+  from your workspace `PLAN.md` with its git and `gh` evidence — lane hours,
+  Starts dependencies, rigs, file affinities, the delivery order and §10
+  releases — in the VS Code extension and headless, instead of refusing with
+  `M117-W-M113-plan-reader`. A goal whose lanes lack hour estimates is refused
+  naming the lanes; per-lane metered demands the plan never carries are
+  disclosed zero-sample assumptions until calibration replaces them per kind.
+  Starting lanes, price catalogs, history and multi-machine fleets still refuse
+  with their handoff names until their lanes land.
+- **`estimate --check-plan`** (M117 CM1171R4). The headless `estimate` command
+  and the ACP agent's `/estimate` accept `--check-plan`, which lists every
+  estimator plan problem in `PLAN.md` — duplicate lanes, malformed `Starts`
+  cells (naming cell and line), unknown prerequisites, unknown rigs and
+  unknown release members — one per line, printing nothing when the plan is
+  clean. The exit code carries the verdict: 0 clean, 1 problems, 2 usage.
+- **Strict `Starts` grammar** (M117 CM1171R4). A `Starts` cell is `day 0`,
+  `first`, `last`, or `after` lane, qualified-lane and whole-milestone refs;
+  parenthetical text is a note without ordering words; anything else refuses with
+  `malformed-starts` instead of inventing or dropping dependencies. Strictness
+  applies to the goal's dependency closure, so rows outside it never block a
+  forecast. A planned lane with `Hours 0` is refused as a missing estimate,
+  and a `MERGED` pull request without a merge timestamp is refused as
+  malformed evidence.
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
   above the composer between turns. Its popover shows CPU, memory in use and
@@ -394,6 +465,32 @@ happened, not what was planned; superseded entries are kept.
   also refuses directory entries shaped like session files, so a folder
   named `*.jsonl` can no longer mark a usage read partial (C-M113-1,
   RVM113S tie-breaks, RVCM1131 findings 1–3).
+- **Strict estimator snapshots** (M117 C-M117-1R3). Unresolved prerequisites,
+  release members and unfinished rig names now refuse together by name;
+  duplicate lane identities cannot merge silently. Completion follows origin's
+  default branch and current lane evidence, while completed goals and
+  prerequisites retain zero remaining work without placement. Failed or capped
+  evidence collection refuses explicitly. Every estimate rereads Reports
+  network, sign-in and trust admission; unused issue collection is removed.
+  ACP, CLI and TUI retain safe named diagnostics. Portable M103/M104 forecast
+  goldens and per-finding red drills cover the review repairs.
+
+- Estimator plan snapshots refuse loudly instead of accepting or inventing
+  data (M117 C-M117-1R2). The fleet is stamped with the request's `asOf`
+  instead of a second clock, so production estimates pass input validation.
+  ACP and headless estimates read the requesting session's workspace root
+  (one cached estimator per root), never the process working directory.
+  Release membership comes from the delivery-order titles, not prerequisites.
+  A `last` lane depends on every other unfinished lane of its milestone; an
+  unknown prerequisite, any plan-reader drift record and an unknown rig each
+  fail with a named diagnostic. Issue and label goals are refused naming the
+  missing lane associations until M113 N links them. A lane's state comes
+  from its current branch or PR, never an older merged PR, and merged lanes
+  without hour estimates stay out instead of blocking unfinished work. The
+  networked `gh` collection runs only while the host allows it, cancellation
+  reaches the snapshot reads, and a PR goal without PR evidence refuses
+  instead of reporting not found. The snapshot bundle installs the caller's
+  language table before first use.
 
 - Tab's Help description and all 14 translations now explain that only
   **Allow always in this workspace** saves the model and price; **Allow once**

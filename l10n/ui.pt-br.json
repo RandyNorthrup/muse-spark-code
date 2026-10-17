@@ -191,6 +191,11 @@
   "estimateSeed": "Semente da simulação",
   "estimateAsOf": "Hora do retrato dos dados",
   "estimateMarginal": "Tempo economizado com esta máquina adicional",
+  "estimateMissingMore": {
+    "one": "e {count} outro",
+    "many": "e {count} outros",
+    "other": "e {count} outros"
+  },
   "estimateHourly": "Preço por hora",
   "estimateCatalog": "Um preço de catálogo em {date}, não uma cotação.",
   "estimateNoPrice": "Nenhum preço de catálogo público disponível.",
@@ -341,6 +346,7 @@
     "estimate-by": "--by <date>: Prazo",
     "fleet": "--fleet current|minimum|optimum: Frota atual / Configuração mínima / Configuração ideal",
     "estimate-format": "--format md|html|json|text: Formato de saída",
+    "estimate-check-plan": "--check-plan: Listar todos os problemas do plano em vez de estimar",
     "seed": "--seed <seed>: Semente da simulação"
   },
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
@@ -441,7 +447,8 @@
   "referenceDiagnostics": "Exibir o diagnóstico local do backend e da extensão.",
   "referenceReport": "Revisar um relatório sanitizado antes de salvá-lo ou enviá-lo.",
   "referenceInProgress": "Em andamento.",
-  "referenceEstimate": "Em andamento.",
+  "estimateDiagnosticHelp": "As recusas do plano e do mecanismo mostram o mesmo diagnóstico identificado no painel, na CLI e no ACP; erros externos ocultam detalhes privados. Uma estimativa, atualização ou inicialização recusada substitui a previsão anterior por esse diagnóstico.",
+  "referenceEstimate": "Estima quando uma meta será concluída com a frota atual, ou a configuração de que uma data precisa.",
   "referenceTerminal": "Abrir a CLI do Muse Code no terminal do editor.",
   "referenceRules": "Criar ou abrir AGENTS.md na raiz do espaço de trabalho.",
   "referenceWalkthrough": "Abrir o guia de primeiros passos.",

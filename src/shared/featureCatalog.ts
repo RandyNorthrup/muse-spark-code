@@ -1073,7 +1073,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'estimateTitle' },
       { ui: 'referenceEstimate' },
       ['estimate'],
-      ['estimator.optimize', 'estimator.priceLookup'],
+      ['estimator.optimize', 'estimator.priceLookup', 'reports.network'],
       'estimates',
       ['museCode', 'modelApi'],
       false,
@@ -1159,7 +1159,8 @@ const REFERENCE_DETAILS: Readonly<
     'privacyNoRetentionDetail',
     'referenceOutputCapMinimum',
   ],
-  estimator: ['estimateCliHelp'],
+  // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS.
+  estimator: ['estimateDiagnosticHelp', 'estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

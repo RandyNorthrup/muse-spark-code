@@ -108,6 +108,9 @@
     // The capacity estimator's engine (M117, PLAN.md D97), required by path
     // on the first estimate.
     "src/host/estimator/estimatorEntry.ts",
+    // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6), required by
+    // path the first time an estimate needs a plan snapshot.
+    "src/host/estimator/planSnapshotEntry.ts",
     // Both-backend extension hooks, required by path on first use (M91 E).
     "src/host/extensionHooksEntry.ts",
     // What's New (M99), required on the first page or notice, and its page script.

@@ -1,14 +1,24 @@
+import {
+  estimateFailureText,
+  failedEstimate,
+  type EstimateViewState,
+} from '../../src/shared/estimateDiagnostic'
+import { collectEstimateView, estimateSectionSchema } from '../../src/shared/estimate'
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import EstimatorPanel, { type EstimatorPanelPort } from '../../src/webview/estimator/EstimatorPanel'
 import { type EstimateRequest, type EstimateSection } from '../../src/shared/estimate'
-import { UI_TEXT } from '../../src/shared/l10n/text'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText, BASE_LOCALE, UI_TEXT } from '../../src/shared/l10n/text'
 import { fakeEstimate } from './helpers/estimator/fixtures'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  setUiText(EN, BASE_LOCALE)
+})
 function harness() {
-  let listener: (value: unknown) => void = vi.fn()
+  let listener: (value: EstimateViewState) => void = vi.fn()
   const unsubscribe = vi.fn()
   const estimate = vi.fn((request: EstimateRequest, _signal: AbortSignal) => {
     const section = fakeEstimate()
@@ -30,10 +40,21 @@ function harness() {
     estimate,
     unsubscribe,
     emit: (value: unknown) => {
-      listener(value)
+      const parsed = estimateSectionSchema.safeParse(value)
+      listener(
+        parsed.success
+          ? { status: 'showing', section: parsed.data }
+          : failedEstimate({ estimateDiagnostic: 'invalid-input' }),
+      )
     },
   }
 }
+async function waitForDispatch(adapter: ReturnType<typeof harness>) {
+  await waitFor(() => {
+    expect(adapter.estimate).toHaveBeenCalledTimes(1)
+  })
+}
+
 async function start(port: EstimatorPanelPort) {
   render(<EstimatorPanel port={port} initial={fakeEstimate().inputs.request} />)
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
@@ -57,10 +78,10 @@ async function mountReady(
   return { first, initial, mounted }
 }
 
-async function refuseForecast() {
+async function refuseForecast(detail = 'invalid-input') {
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
   await waitFor(() => {
-    expect(screen.getByRole('alert').textContent).toContain('estimate-unavailable')
+    expect(screen.getByRole('alert').textContent).toContain(detail)
   })
   expect(screen.queryByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeNull()
 }
@@ -79,7 +100,7 @@ describe('M117 Estimator panel', () => {
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRefresh }))
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',
-      UI_TEXT.estimateInvalidGoal,
+      estimateFailureText({ estimateDiagnostic: 'invalid-input' }),
     )
     expect(h.estimate).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeNull()
@@ -140,7 +161,7 @@ describe('M117 Estimator panel', () => {
     fireEvent.submit(screen.getByRole('button', { name: UI_TEXT.estimateRun }).closest('form')!)
     expect(await screen.findByRole('alert')).toHaveProperty(
       'textContent',
-      UI_TEXT.estimateInvalidGoal,
+      estimateFailureText({ estimateDiagnostic: 'invalid-input' }),
     )
     expect(h.estimate).not.toHaveBeenCalled()
     fireEvent.change(screen.getByLabelText(UI_TEXT.estimateGoal), { target: { value: 'M117' } })
@@ -151,7 +172,7 @@ describe('M117 Estimator panel', () => {
       section.inputs.request.fleet = 'optimum'
       return Promise.resolve(section)
     })
-    await refuseForecast()
+    await refuseForecast('request-mismatch')
   })
 
   it('refuses an adapter that mutates the submitted request', async () => {
@@ -163,7 +184,7 @@ describe('M117 Estimator panel', () => {
       return Promise.resolve(section)
     })
     render(<EstimatorPanel port={h.port} initial={fakeEstimate().inputs.request} />)
-    await refuseForecast()
+    await refuseForecast('request-mismatch')
   })
 
   it('accepts newer matching refreshes and shows drift while ignoring stale or unrelated updates', async () => {
@@ -203,7 +224,9 @@ describe('M117 Estimator panel', () => {
     act(() => {
       h.emit({})
     })
-    expect(screen.getByRole('alert').textContent).toBe(UI_TEXT.estimateDisclosureMissing)
+    expect(screen.getByRole('alert').textContent).toBe(
+      estimateFailureText({ estimateDiagnostic: 'invalid-input' }),
+    )
   })
 
   it('selects the first available setup when the section has no current fleet', async () => {
@@ -219,7 +242,7 @@ describe('M117 Estimator panel', () => {
       <EstimatorPanel
         port={{ ...h.port, startExisting }}
         initial={section.inputs.request}
-        initialSection={section}
+        initialState={{ status: 'showing', section }}
       />,
     )
     await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
@@ -238,12 +261,70 @@ describe('M117 Estimator panel', () => {
     )
   })
 
+  it('reports a named refusal when the deferred boundary fails', async () => {
+    const boundary = await import('../../src/shared/estimateDiagnostic')
+    const collector = vi
+      .spyOn(boundary, 'collectEstimateView')
+      .mockRejectedValueOnce(new Error('/private/chunk-location'))
+    try {
+      expect(
+        await collectEstimateView(
+          fakeEstimate().inputs.request,
+          () => Promise.resolve(fakeEstimate()),
+          new AbortController().signal,
+        ),
+      ).toEqual({ status: 'failed', diagnostic: { estimateDiagnostic: 'source-unavailable' } })
+    } finally {
+      collector.mockRestore()
+    }
+  })
+
+  it('shared collector refuses an unsafe current setup diagnostic', async () => {
+    const section = fakeEstimate()
+    section.currentRefusal = 'self-dependency: /private/account'
+    expect(
+      await collectEstimateView(
+        section.inputs.request,
+        () => Promise.resolve(section),
+        new AbortController().signal,
+      ),
+    ).toEqual({ status: 'failed', diagnostic: { estimateDiagnostic: 'invalid-input' } })
+  })
+
+  it('shared collector discards a malformed reply after cancellation', async () => {
+    const reply = Promise.withResolvers<unknown>()
+    const controller = new AbortController()
+    const result = collectEstimateView(
+      fakeEstimate().inputs.request,
+      () => reply.promise,
+      controller.signal,
+    )
+    controller.abort()
+    reply.resolve({})
+    expect(await result).toEqual({ status: 'idle' })
+  })
+
+  it('returns to idle after an adapter cancellation and permits retry', async () => {
+    const h = harness()
+    h.estimate.mockRejectedValueOnce(new DOMException('cancelled', 'AbortError'))
+    render(<EstimatorPanel port={h.port} initial={fakeEstimate().inputs.request} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: UI_TEXT.estimateRun })).not.toBeDisabled()
+    })
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+  })
+
   it('aborts in-flight work and unsubscribes when the panel closes', async () => {
     const pending = Promise.withResolvers<EstimateSection>()
     const h = harness()
     h.estimate.mockImplementation(() => pending.promise)
     const mounted = render(<EstimatorPanel port={h.port} initial={fakeEstimate().inputs.request} />)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    await waitForDispatch(h)
     const signal = h.estimate.mock.calls[0]?.[1]
     mounted.unmount()
     expect(signal?.aborted).toBe(true)
@@ -260,6 +341,7 @@ describe('M117 Estimator panel', () => {
     h.estimate.mockImplementation(() => pending.promise)
     render(<EstimatorPanel port={h.port} initial={fakeEstimate().inputs.request} />)
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRun }))
+    await waitForDispatch(h)
     const next = fakeEstimate()
     next.asOf = '2026-10-06T12:30:00.000Z'
     next.inputs.request.asOf = next.asOf
@@ -271,10 +353,30 @@ describe('M117 Estimator panel', () => {
     expect(h.estimate.mock.calls[0]?.[1].aborted).toBe(true)
     expect(screen.getByText(/newer-fixture/)).toBeTruthy()
     await act(async () => {
-      pending.resolve(fakeEstimate())
+      pending.resolve({ ...fakeEstimate(), disclosures: [] })
       await pending.promise
     })
     expect(screen.getByText(/newer-fixture/)).toBeTruthy()
+  })
+
+  it('keeps start eligibility independent of localized availability copy', () => {
+    setUiText({ ...EN, estimateAdvice: '' }, BASE_LOCALE)
+    const first = fakeEstimate()
+    const advice = first.setups[0]
+    if (advice === undefined) throw new Error('missing fixture setup')
+    advice.provisioning = 'adviceOnly'
+    const h = harness()
+    const spinUp = vi.fn(() => Promise.resolve())
+    render(
+      <EstimatorPanel
+        port={{ ...h.port, provision: { state: 'ready', spinUp } }}
+        initialState={{ status: 'showing', section: first }}
+      />,
+    )
+    const button = screen.getByRole('button', { name: UI_TEXT.estimateSpinUp })
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(spinUp).not.toHaveBeenCalled()
   })
 
   it('keeps advice-only rentals disabled and hands an eligible setup to the injected P port', async () => {
@@ -316,6 +418,7 @@ describe('M117 Estimator panel', () => {
     expect(screen.getByRole('button', { name: UI_TEXT.estimateRun }).hasAttribute('disabled')).toBe(
       true,
     )
+    await waitForDispatch(first)
     const second = harness()
     mounted.rerender(<EstimatorPanel port={second.port} initial={initial} />)
     expect(first.estimate.mock.calls[0]?.[1].aborted).toBe(true)
@@ -351,6 +454,24 @@ describe('M117 Estimator panel', () => {
     expect(secondSpin).not.toHaveBeenCalled()
   })
 
+  it('ignores a late spin-up refusal after a newer estimate succeeds', async () => {
+    const gate = Promise.withResolvers<undefined>()
+    await mountReady(() => gate.promise)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateSpinUp }))
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.estimateRefresh }))
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    await act(async () => {
+      gate.reject({ estimateDiagnostic: 'dispatch-uncertain' })
+      try {
+        await gate.promise
+      } catch {
+        /* A superseded start cannot affect the new estimate. */
+      }
+    })
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeTruthy()
+  })
+
   it('ignores a late provisioning failure from a replaced adapter', async () => {
     const gate = Promise.withResolvers<undefined>()
     const { initial, mounted } = await mountReady(async () => {
@@ -374,7 +495,13 @@ describe('M117 Estimator panel', () => {
 it('shows the first chat estimate before any refresh subscription fires', () => {
   const h = harness()
   const section = fakeEstimate()
-  render(<EstimatorPanel port={h.port} initial={section.inputs.request} initialSection={section} />)
+  render(
+    <EstimatorPanel
+      port={h.port}
+      initial={section.inputs.request}
+      initialState={{ status: 'showing', section }}
+    />,
+  )
   expect(screen.getByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeVisible()
   expect(screen.getByText(UI_TEXT.estimateP90)).toBeVisible()
   expect(h.estimate).not.toHaveBeenCalled()
