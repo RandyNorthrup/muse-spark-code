@@ -22,22 +22,14 @@ import {
   EXEC_USD_DECIMALS,
   HTTP_TOO_MANY_REQUESTS,
   PAID_DAILY_BUDGET,
-  RUNTIME_SETTINGS_FILE,
-  SETTING_DEFAULTS,
   TOKENS_PER_MILLION,
   UI_TEXT,
 } from '../shared/constants'
 import { storeErrorCode } from '../host/backend/storeErrors'
+import { runtimeDailyBudgetUsd } from './dailyBudgetSetting'
 import type { RunLedger, ResponseTicket } from './exec/runLedger'
 import type { LastResponse, Refusal } from './exec/execProtocol'
 
-const settingsSchema = z.strictObject({
-  paidDailyBudgetUsd: z.optional(
-    z
-      .number()
-      .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
-  ),
-})
 const dailyLimitSchema = z.object({ limitUsd: legacyUsdSchema, stopped: z.boolean() })
 const ceilUsd = (cost: UsdAmount) => Usd.from(cost).ceiling(EXEC_USD_DECIMALS).toAmount()
 
@@ -56,18 +48,7 @@ export function createRuntimeDailyBudget(deps: {
     const date = new Date(deps.now())
     return [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
   }
-  const capUsd = () => {
-    try {
-      return (
-        settingsSchema.parse(
-          JSON.parse(readFileSync(path.join(deps.dataFolder, RUNTIME_SETTINGS_FILE), 'utf8')),
-        ).paidDailyBudgetUsd ?? SETTING_DEFAULTS.paidDailyBudgetUsd
-      )
-    } catch (error: unknown) {
-      if (storeErrorCode(error) === 'ENOENT') return SETTING_DEFAULTS.paidDailyBudgetUsd
-      throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
-    }
-  }
+  const capUsd = () => runtimeDailyBudgetUsd(deps.dataFolder)
   const dailyCapUsd = (scope: string) => {
     const directory = path.join(deps.dataFolder, PAID_DAILY_BUDGET.directory, scope)
     let isStopped = true
