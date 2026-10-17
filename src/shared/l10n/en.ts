@@ -16,17 +16,17 @@
 import { forms } from './forms'
 
 export const EN = {
-  companionVoiceTitle: 'Dictate',
   companionVoiceCancel: 'Cancel',
   companionVoiceFailed:
     'Dictation failed or was refused. Check microphone permission, the selected engine and the daily budget, then record again. A paid request already sent may still be charged.',
   companionVoiceFree: 'Operating system (free)',
-  companionVoiceReview: 'Review transcript before sending',
   companionVoiceLimit: '{seconds} seconds maximum. Audio is removed after transcription.',
-  companionVoicePaidSummary: 'Paid audio: {duration}.',
   companionVoiceOpen: 'Open dictation companion',
+  companionVoicePaidSummary: 'Paid audio: {duration}.',
   companionVoiceReference:
     'Dictate in the browser and review before sending to your owning ACP session or terminal. System recognition is free on Windows and macOS; paid Muse Voice asks for consent and shares the daily budget.',
+  companionVoiceReview: 'Review transcript before sending',
+  companionVoiceTitle: 'Dictate',
   // M107 / D87: resource surfaces and manifest-ready settings text.
   resourceTitle: 'Resources',
   resourceHarnessInTree:

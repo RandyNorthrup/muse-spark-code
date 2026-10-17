@@ -1,13 +1,13 @@
 {
-  "companionVoiceTitle": "Diktovat",
   "companionVoiceCancel": "Zrušit",
   "companionVoiceFailed": "Diktování selhalo nebo bylo odmítnuto. Zkontrolujte oprávnění mikrofonu, vybraný modul a denní rozpočet, potom nahrávejte znovu. Již odeslaný placený požadavek může být účtován.",
   "companionVoiceFree": "Operační systém (zdarma)",
-  "companionVoiceReview": "Před odesláním zkontrolujte přepis",
   "companionVoiceLimit": "Nejvýše {seconds} sekund. Zvuk se po přepisu odstraní.",
-  "companionVoicePaidSummary": "Placený zvuk: {duration}.",
   "companionVoiceOpen": "Otevřít doprovodnou stránku diktování",
+  "companionVoicePaidSummary": "Placený zvuk: {duration}.",
   "companionVoiceReference": "Diktování v prohlížeči s kontrolou před odesláním do vlastní relace ACP nebo terminálu. Rozpoznávání systému je ve Windows a macOS zdarma; Muse Voice je placený, žádá souhlas a sdílí denní rozpočet.",
+  "companionVoiceReview": "Před odesláním zkontrolujte přepis",
+  "companionVoiceTitle": "Diktovat",
   "resourceTitle": "Prostředky",
   "resourceHarnessInTree": "Zastavení pozastaveno: řídicí proces je stále v tomto stromu. Vlastnictví je zachováno; zkuste zastavení znovu.",
   "resourceCgroupChanged": "Zastavení odmítnuto: cgroup tohoto stromu byla odstraněna nebo nahrazena. Vlastnictví je zachováno.",
@@ -289,6 +289,7 @@
   "referenceExecImages": "Obrázky bez rozhraní vyžadují --image-generation, acceptEdits a dostatečný pevný rozpočet. Cena se nepotvrzuje; požadavky vyžadující oprávnění jsou odmítnuty.",
   "referenceProviders": "Vypisujte, přidávejte, testujte nebo odebírejte poskytovatele modelů. Klíče využívají úložiště přihlašovacích údajů. Placené testy tokenů vyžadují editor; CLI je odmítá.",
   "referenceCliOptions": {
+    "muse-voice": "--muse-voice: Povolit placený Muse Voice v doprovodné stránce diktování; před první platbou žádá souhlas a sdílí denní rozpočet.",
     "resource-governor": "--resource-governor on|off: Udržuje odezvu počítače zpomalením nebo odložením práce spuštěné prostředím agenta. Ve výchozím nastavení zapnuto.",
     "cpu-max": "--cpu-max <percent>: Omezí práci, když využití procesoru překračuje toto procento po dobu 30 sekund.",
     "memory-max": "--memory-max <percent>: Omezí práci, když využitá paměť překračuje toto procento ve dvou po sobě jdoucích vzorcích.",
@@ -351,8 +352,7 @@
     "estimate-by": "--by <date>: Termín",
     "fleet": "--fleet current|minimum|optimum: Aktuální flotila / Minimální sestava / Optimální sestava",
     "estimate-format": "--format md|html|json|text: Výstupní formát",
-    "seed": "--seed <seed>: Počáteční hodnota simulace",
-    "muse-voice": "--muse-voice: Povolit placený Muse Voice v doprovodné stránce diktování; před první platbou žádá souhlas a sdílí denní rozpočet."
+    "seed": "--seed <seed>: Počáteční hodnota simulace"
   },
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "referenceVault": "Probíhá.",
@@ -4113,6 +4113,12 @@
   "dictationPaidTitle": "Muse Voice, placené: {price}, účtuje se na váš klíč Model API. Klepnutím nebo podržením spustíte nahrávání (Ctrl+D)",
   "museVoiceNoKey": "Muse Voice potřebuje klíč Meta Model API; přidejte ho i tehdy, když konverzace používá jiného poskytovatele nebo místní model.",
   "museVoiceNoAnswer": "Muse Voice neodpovídá; zkontrolujte připojení a zkuste to znovu.",
+  "museVoiceIdle": "Muse Voice ukončil nahrávání, protože zvuk přestal přicházet v reálném čase.",
+  "museVoiceTransportFailed": "Spojení s Muse Voice selhalo; nahrávání se zastavilo.",
+  "museVoiceInvalidDuration": "Muse Voice nahlásil neplatnou délku zvuku; nahrávání se zastavilo.",
+  "museVoiceUsageReported": "Muse Voice: {duration}, odhad {cost} podle nahlášené délky. Fakturu poskytovatele nelze načíst.",
+  "museVoiceUsageEstimated": "Muse Voice: {duration}, odhad {cost} podle odeslaného zvuku. Konečná délka nepřišla; celá rezervace zůstává nejistá. Fakturu poskytovatele nelze načíst.",
+  "museVoiceUsageEmpty": "Muse Voice: {duration}, odhad {cost}. Nebyl odeslán zvuk; žádný poplatek za zvuk se neočekává. Fakturu poskytovatele nelze načíst.",
   "museVoiceNoFinal": "Přepis z Muse Voice nedorazil včas; zkuste to znovu.",
   "museVoiceMalformed": "Muse Voice poslal něco, co není JSON, proto byla nahrávka zahozena.",
   "museVoiceRefused": "Muse Voice nahrávku odmítl",
@@ -5625,11 +5631,5 @@
       "few": "{count} oprávnění",
       "many": "{count} oprávnění"
     }
-  },
-  "museVoiceIdle": "Muse Voice ukončil nahrávání, protože zvuk přestal přicházet v reálném čase.",
-  "museVoiceTransportFailed": "Spojení s Muse Voice selhalo; nahrávání se zastavilo.",
-  "museVoiceInvalidDuration": "Muse Voice nahlásil neplatnou délku zvuku; nahrávání se zastavilo.",
-  "museVoiceUsageReported": "Muse Voice: {duration}, odhad {cost} podle nahlášené délky. Fakturu poskytovatele nelze načíst.",
-  "museVoiceUsageEstimated": "Muse Voice: {duration}, odhad {cost} podle odeslaného zvuku. Konečná délka nepřišla; celá rezervace zůstává nejistá. Fakturu poskytovatele nelze načíst.",
-  "museVoiceUsageEmpty": "Muse Voice: {duration}, odhad {cost}. Nebyl odeslán zvuk; žádný poplatek za zvuk se neočekává. Fakturu poskytovatele nelze načíst."
+  }
 }

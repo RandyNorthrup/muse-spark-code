@@ -1,13 +1,13 @@
 {
-  "companionVoiceTitle": "Ditar",
   "companionVoiceCancel": "Cancelar",
   "companionVoiceFailed": "O ditado falhou ou foi recusado. Confira a permissão do microfone, o mecanismo escolhido e o orçamento diário e grave novamente. Uma solicitação paga já enviada ainda pode ser cobrada.",
   "companionVoiceFree": "Sistema operacional (grátis)",
-  "companionVoiceReview": "Revisar a transcrição antes de enviar",
   "companionVoiceLimit": "Máximo de {seconds} segundos. O áudio é removido após a transcrição.",
-  "companionVoicePaidSummary": "Áudio pago: {duration}.",
   "companionVoiceOpen": "Abrir página complementar de ditado",
+  "companionVoicePaidSummary": "Áudio pago: {duration}.",
   "companionVoiceReference": "Ditar no navegador e revisar o texto antes de enviá-lo à própria sessão ACP ou ao terminal. O reconhecimento do sistema é gratuito no Windows e macOS; Muse Voice é pago, pede consentimento e compartilha o orçamento diário.",
+  "companionVoiceReview": "Revisar a transcrição antes de enviar",
+  "companionVoiceTitle": "Ditar",
   "resourceTitle": "Recursos",
   "resourceHarnessInTree": "Parada pausada: o processo de controle ainda está nesta árvore. O controle é mantido; tente parar novamente.",
   "resourceCgroupChanged": "Parada recusada: o cgroup desta árvore foi removido ou substituído. O controle é mantido.",
@@ -289,6 +289,7 @@
   "referenceExecImages": "Imagens sem interface exigem --image-generation, acceptEdits e um orçamento rígido suficiente. Não há pergunta sobre o preço; solicitações que exigem permissão são recusadas.",
   "referenceProviders": "Listar, adicionar, testar ou remover provedores de modelos. As chaves usam o armazenamento de credenciais. Testes de tokens pagos exigem o editor; a CLI os recusa.",
   "referenceCliOptions": {
+    "muse-voice": "--muse-voice: Permitir Muse Voice pago na página de ditado; pede consentimento antes da primeira cobrança e compartilha o orçamento diário.",
     "resource-governor": "--resource-governor on|off: Mantém esta máquina responsiva ao reduzir a velocidade ou adiar trabalhos iniciados pelo ambiente do agente. Ativado por padrão.",
     "cpu-max": "--cpu-max <percent>: Limita quando o uso da CPU permanece acima desta porcentagem por 30 segundos.",
     "memory-max": "--memory-max <percent>: Limita quando a memória em uso permanece acima desta porcentagem por duas amostras.",
@@ -351,8 +352,7 @@
     "estimate-by": "--by <date>: Prazo",
     "fleet": "--fleet current|minimum|optimum: Frota atual / Configuração mínima / Configuração ideal",
     "estimate-format": "--format md|html|json|text: Formato de saída",
-    "seed": "--seed <seed>: Semente da simulação",
-    "muse-voice": "--muse-voice: Permitir Muse Voice pago na página de ditado; pede consentimento antes da primeira cobrança e compartilha o orçamento diário."
+    "seed": "--seed <seed>: Semente da simulação"
   },
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
   "referenceVault": "Em andamento.",
@@ -4018,6 +4018,12 @@
   "dictationPaidTitle": "Muse Voice, pago: {price}, cobrado da sua chave da Model API. Toque ou mantenha pressionado para gravar (Ctrl+D)",
   "museVoiceNoKey": "O Muse Voice precisa de uma chave da Meta Model API; adicione uma mesmo quando a conversa usar outro provedor ou um modelo local.",
   "museVoiceNoAnswer": "O Muse Voice não respondeu; verifique a conexão e tente novamente.",
+  "museVoiceIdle": "O Muse Voice encerrou a gravação porque o áudio deixou de chegar em ritmo de tempo real.",
+  "museVoiceTransportFailed": "A conexão com o Muse Voice falhou; a gravação parou.",
+  "museVoiceInvalidDuration": "O Muse Voice informou uma duração de áudio inválida; a gravação parou.",
+  "museVoiceUsageReported": "Muse Voice: {duration}, estimativa de {cost} pela duração informada. Não é possível consultar a fatura do provedor.",
+  "museVoiceUsageEstimated": "Muse Voice: {duration}, estimativa de {cost} pelo áudio enviado. Nenhuma duração final chegou; toda a reserva continua incerta. Não é possível consultar a fatura do provedor.",
+  "museVoiceUsageEmpty": "Muse Voice: {duration}, estimativa de {cost}. Nenhum áudio enviado; nenhuma cobrança de áudio esperada. Não é possível consultar a fatura do provedor.",
   "museVoiceNoFinal": "O Muse Voice não enviou a transcrição a tempo; tente novamente.",
   "museVoiceMalformed": "O Muse Voice enviou algo que não é JSON, então a gravação foi descartada.",
   "museVoiceRefused": "O Muse Voice recusou a gravação",
@@ -5471,11 +5477,5 @@
       "other": "{count} autorizações",
       "many": "{count} autorizações"
     }
-  },
-  "museVoiceIdle": "O Muse Voice encerrou a gravação porque o áudio deixou de chegar em ritmo de tempo real.",
-  "museVoiceTransportFailed": "A conexão com o Muse Voice falhou; a gravação parou.",
-  "museVoiceInvalidDuration": "O Muse Voice informou uma duração de áudio inválida; a gravação parou.",
-  "museVoiceUsageReported": "Muse Voice: {duration}, estimativa de {cost} pela duração informada. Não é possível consultar a fatura do provedor.",
-  "museVoiceUsageEstimated": "Muse Voice: {duration}, estimativa de {cost} pelo áudio enviado. Nenhuma duração final chegou; toda a reserva continua incerta. Não é possível consultar a fatura do provedor.",
-  "museVoiceUsageEmpty": "Muse Voice: {duration}, estimativa de {cost}. Nenhum áudio enviado; nenhuma cobrança de áudio esperada. Não é possível consultar a fatura do provedor."
+  }
 }
