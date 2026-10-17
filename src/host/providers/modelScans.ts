@@ -79,7 +79,8 @@ export function diffScans(
   }
 }
 
-/** The diff in the panel's words; empty when nothing changed. */
+/** The diff in the panel's words; empty when nothing changed.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function scanDiffLines(diff: ScanDiff): readonly string[] {
   const lines: string[] = []
   if (diff.added.length > 0) {
