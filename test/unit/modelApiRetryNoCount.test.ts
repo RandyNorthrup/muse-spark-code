@@ -1,24 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { RequestTransport, type TransportDeps } from '../../src/core/backends/modelapi/transport'
+import { transportTestDeps } from './helpers/modelApiTransport'
 
 function deps(
   overrides: Partial<TransportDeps> & { fetch: TransportDeps['fetch'] },
 ): TransportDeps {
-  return {
-    baseUrl: 'https://model.test',
+  return transportTestDeps({
     // No waiting between attempts: the test counts tries, not time.
     sleep: () => Promise.resolve(),
-    now: () => Date.now(),
     random: () => 0,
     apiKey: () => Promise.resolve('test-key'),
-    log: {
-      trace: (_message: string) => undefined,
-      info: (_message: string) => undefined,
-      warn: (_message: string) => undefined,
-      error: (_message: string) => undefined,
-    },
     ...overrides,
-  }
+  })
 }
 
 function failure(status: number): Response {
