@@ -584,10 +584,8 @@ export class VaultManagement implements VaultManagementPort {
           () => {
             this.assertSameLock(generation)
           },
-          async () => {
-            await this.deps.anchor.reset(anchored, expected, () => {
-              this.assertSameLock(generation)
-            })
+          async (assertHeld) => {
+            await this.deps.anchor.reset(anchored, expected, assertHeld)
           },
           this.deps.anchor,
           expected,

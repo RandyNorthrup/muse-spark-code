@@ -207,7 +207,9 @@ describe('RVCM1091A', () => {
     await f.management.add(added)
     const original = f.files.withWriter.bind(f.files)
     let isArmed = true
-    f.files.withWriter = async <T>(operation: () => Promise<T>): Promise<T> => {
+    f.files.withWriter = async <T>(
+      operation: (assertHeld: () => void) => Promise<T>,
+    ): Promise<T> => {
       const result = await original(operation)
       if (isArmed) {
         isArmed = false

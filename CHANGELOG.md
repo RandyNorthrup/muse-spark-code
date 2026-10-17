@@ -232,6 +232,16 @@ happened, not what was planned; superseded entries are kept.
   past add's pre-check reports a collision; unopenable vaults name no
   protection; and setup confirmation broadcasts once, so its unlock no
   longer loses the writer to a mid-flight snapshot.
+- Vault writers use the shared owner-bound, renewing file lease. A broker
+  terminated inside Reset or Restore no longer leaves an ownerless writer
+  lock blocking every later operation. A new writer recovers incomplete
+  retention and authenticated intents; lost fences refuse file publication,
+  removal and protected-anchor dispatch. Installed vault bindings stay pending.
+
+- Windows vault reset and restore retain a complete private copy of a
+  damaged document without adding a hard link. The original remains until
+  the copy is flushed and published; owner-only path and link guards stay
+  enforced. Installed broker and panel bindings remain pending.
 
 - Review repairs (RVCM1091F, CM1091DR4): the vault section's host is one
   explicit view state machine instead of a flag, so a lock from anywhere

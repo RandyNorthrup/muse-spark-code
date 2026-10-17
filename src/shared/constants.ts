@@ -1710,6 +1710,56 @@ export const HELD_FILE_MODE = 0o666
 export const HELD_EXECUTABLE_MODE = 0o777
 // The conversations whose pull request is remembered, newest first.
 export const PULL_REQUEST_LINKS_KEPT = 200
+// A worktree-record mutation that lost its generation to another window
+// (the fencing check) is read again and applied again this many times;
+// then it fails loudly, never writing over what it did not read (M123).
+export const WORKTREE_RECORD_SAVE_ATTEMPTS = 3
+// The worktree records' file lease (M123, PLAN.md M123's lock protocol,
+// src/core/locks/fileLease.ts), every duration on the monotonic clock: a
+// waiter gives up loudly past the timeout; a holder holds for its lease,
+// and a waiter takes over an instance it has itself watched unchanged for
+// that lease (never more than the lease below, whatever a note asks); an
+// instance whose owner note is missing or torn (a crash between create and
+// write) is taken over once watched for the unreadable bound.
+export const WORKTREE_RECORD_LOCK_TIMEOUT_MS = 10_000
+export const WORKTREE_RECORD_LOCK_POLL_MS = 10
+export const WORKTREE_RECORD_LOCK_LEASE_MS = 30_000
+export const WORKTREE_RECORD_LOCK_UNREADABLE_MS = 2000
+// Two readings of one process's birth in epoch milliseconds (Windows,
+// macOS) agree within this; a live process id whose birth is further off
+// belongs to another process. Linux births (ticks since boot) compare exactly.
+export const PROCESS_START_TOLERANCE_MS = 1000
+// Reading another process's birth (Windows PowerShell, macOS `ps`) gives
+// up after this.
+export const PROCESS_START_QUERY_TIMEOUT_MS = 10_000
+// A pending checkout whose folder never appeared is someone's crash after
+// this long, even while its process id looks alive (a reused id whose
+// start time cannot be read): every step before the folder exists is
+// bounded far below it (M123).
+export const PENDING_CHECKOUT_RECOVERY_MS = 60 * 60 * 1000
+// A file lease's newest fences kept beside its lock (src/core/locks/
+// fileLease.ts); older ones are removed by the next acquisition. Only the
+// highest is ever compared.
+export const FILE_LEASE_FENCES_KEPT = 8
+// M109: writer transactions renew their owner-bound lease until settlement.
+export const VAULT_WRITER_LEASE_MS = 30_000
+export const VAULT_WRITER_RENEW_MS = 10_000
+export const VAULT_WRITER_UNREADABLE_MS = 2000
+// The newest record generations kept; older ones, and stage or retired-lock
+// files older than the sweep age (a crash's leftovers), are removed.
+export const WORKTREE_RECORD_GENERATIONS_KEPT = 8
+export const WORKTREE_RECORD_SWEEP_AGE_MS = 60_000
+// A killed batch child is observed this long before the checkout settles
+// anyway: a helper holding the pipes cannot keep it pending (M123).
+export const GIT_BATCH_KILL_GRACE_MS = 1000
+// A failed held checkout waits this long for a file writer already in
+// flight to stop; past it the failure returns and the writer's cleanup runs
+// when it stops, the record staying pending (held) until then (M123).
+export const HELD_WRITER_DRAIN_GRACE_MS = 5000
+// A failed held checkout's `git worktree remove`, run even after Cancel,
+// and the folder removal behind it (Windows retries a held file).
+export const HELD_CLEANUP_TIMEOUT_MS = 60_000
+export const HELD_CLEANUP_REMOVE_RETRIES = 5
 // --- Review (M70, PLAN.md D49) ---
 
 // `/review …` in the prompt. The command and its keywords are commands, like

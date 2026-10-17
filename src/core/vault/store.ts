@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
 import { renameSync, unlinkSync } from 'node:fs'
-import { link, lstat, mkdir, open, realpath, rename, unlink } from 'node:fs/promises'
+import { copyFile, link, lstat, mkdir, open, readdir, realpath } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import {
   VAULT_KDF,
@@ -11,6 +12,9 @@ import {
   VAULT_NONCE_BYTES,
   VAULT_STORE_FORMAT_VERSION,
   VAULT_TAG_BYTES,
+  VAULT_WRITER_LEASE_MS,
+  VAULT_WRITER_RENEW_MS,
+  VAULT_WRITER_UNREADABLE_MS,
 } from '../../shared/constants'
 import {
   vaultGrantSchema,
@@ -22,7 +26,10 @@ import {
   type VaultSlotRecord,
   type VaultStorePort,
 } from '../../shared/vault'
-import { handleIdentity, lstatIdentity, sameFile } from '../fs/fileIdentity'
+import { handleIdentity, lstatIdentity, sameFile, isSameVolume } from '../fs/fileIdentity'
+import { acquireFileLease, LeaseBusyError } from '../locks/fileLease'
+import { nodeLeasePort } from '../locks/nodeLeasePort'
+import { currentProcessOwner, isProcessOwnerGone } from '../locks/processOwner'
 import {
   decodeVaultBytes,
   decodeVaultMaterial,
@@ -52,7 +59,7 @@ export interface VaultFilePort {
   /** Retain any displaced document durably without reading it or removing its current path. */
   quarantine(name: 'vault.v1', authorize?: () => void): Promise<void>
   remove(name: VaultFileName, authorize?: () => void): Promise<void>
-  withWriter<T>(operation: () => Promise<T>): Promise<T>
+  withWriter<T>(operation: (assertHeld: () => void) => Promise<T>): Promise<T>
 }
 export interface VaultGenerationState {
   generation: number
@@ -68,6 +75,7 @@ export interface VaultGenerationPort {
     vaultId: string,
     state: VaultGenerationState,
     prior: VaultGenerationState | null,
+    assertHeld?: () => void,
   ): Promise<void>
 }
 /** Mandatory on Windows. P verifies/protects owner-only DACLs without inventing a helper frame here. */
@@ -77,6 +85,7 @@ export interface VaultFileSecurityPort {
 }
 
 export class NodeVaultFiles implements VaultFilePort {
+  private writer: (() => void) | undefined
   constructor(
     private readonly root: string,
     readonly maxBytes: number,
@@ -90,6 +99,9 @@ export class NodeVaultFiles implements VaultFilePort {
       (platform === 'win32' && !security)
     )
       throw new VaultError('invalid')
+  }
+  private assertWriter(): void {
+    this.writer?.()
   }
   private async verify(path: string, kind: 'directory' | 'file'): Promise<void> {
     const sample = await lstat(path)
@@ -179,16 +191,15 @@ export class NodeVaultFiles implements VaultFilePort {
       await handle.sync()
       await handle.close()
       if (!sameFile(identity, await lstatIdentity(stage))) throw new VaultError('io')
-      if (commit) {
-        // Synchronous from the check to the rename: no task can retire authority between them.
-        try {
-          commit()
-        } catch (error: unknown) {
-          refusal = { error }
-          throw error
-        }
-        renameSync(stage, path.join(this.root, name))
-      } else await rename(stage, path.join(this.root, name))
+      // Both the lease fence and request authority are synchronous through publication.
+      try {
+        this.assertWriter()
+        commit?.()
+      } catch (error: unknown) {
+        refusal = { error }
+        throw error
+      }
+      renameSync(stage, path.join(this.root, name))
       await this.verify(path.join(this.root, name), 'file')
       await this.syncDirectory()
     } catch {
@@ -197,7 +208,10 @@ export class NodeVaultFiles implements VaultFilePort {
     } finally {
       await handle.close()
       try {
-        if (sameFile(identity, await lstatIdentity(stage))) await unlink(stage)
+        if (sameFile(identity, await lstatIdentity(stage))) {
+          this.assertWriter()
+          unlinkSync(stage)
+        }
       } catch {
         /* A published or replaced stage is never deleted. */
       }
@@ -208,6 +222,7 @@ export class NodeVaultFiles implements VaultFilePort {
     const file = path.join(this.root, name)
     await this.verify(file, 'file')
     authorize?.()
+    this.assertWriter()
     unlinkSync(file)
     await this.syncDirectory()
   }
@@ -228,39 +243,143 @@ export class NodeVaultFiles implements VaultFilePort {
       `${name}.${randomVaultBytes(VAULT_LIMITS.idBytes).toString('hex')}.quarantine`,
     )
     authorize?.()
+    this.assertWriter()
+    let refusal: { error: unknown } | undefined
     try {
-      // Hard links preserve unreadable bytes and the old path until atomic publication replaces it.
-      await link(file, retained)
-      if (
-        !sameFile(identity, await lstatIdentity(retained)) ||
-        !sameFile(identity, await lstatIdentity(file))
-      )
-        throw new VaultError('io')
+      if (this.platform === 'win32') {
+        // Windows requires single-link files. Keep the original through copy,
+        // flush and publication; an interrupted stage is never a quarantine.
+        const stage = `${retained}.stage`
+        await copyFile(file, stage, constants.COPYFILE_EXCL)
+        await this.security?.protect(stage, 'file')
+        await this.verify(stage, 'file')
+        const copy = await open(stage, 'r+')
+        let copied
+        try {
+          copied = await handleIdentity(copy)
+          if (!isSameVolume(copied, identity) || copied.size !== identity.size)
+            throw new VaultError('io')
+          await copy.sync()
+        } finally {
+          await copy.close()
+        }
+        await this.verify(file, 'file')
+        await this.verify(stage, 'file')
+        if (
+          !sameFile(identity, await lstatIdentity(file)) ||
+          !sameFile(copied, await lstatIdentity(stage))
+        )
+          throw new VaultError('io')
+        try {
+          this.assertWriter()
+          authorize?.()
+        } catch (error: unknown) {
+          refusal = { error }
+          throw error
+        }
+        renameSync(stage, retained)
+      } else {
+        // Hard links preserve unreadable bytes and the old path until atomic publication replaces it.
+        await link(file, retained)
+        if (
+          !sameFile(identity, await lstatIdentity(retained)) ||
+          !sameFile(identity, await lstatIdentity(file))
+        )
+          throw new VaultError('io')
+      }
       await this.verify(retained, 'file')
       await this.syncDirectory()
     } catch {
+      if (refusal) throw refusal.error
       throw new VaultError('io')
     }
   }
-  async withWriter<T>(operation: () => Promise<T>): Promise<T> {
+  async withWriter<T>(operation: (assertHeld: () => void) => Promise<T>): Promise<T> {
     await this.directory()
-    const file = path.join(this.root, 'writer.lock')
-    let handle
+    let lease
     try {
-      handle = await open(file, 'wx', constants.S_IRUSR | constants.S_IWUSR)
-    } catch {
+      lease = await acquireFileLease(path.join(this.root, 'writer.lock'), {
+        port: {
+          ...nodeLeasePort,
+          mkdir: async (folder) => {
+            const created = await mkdir(folder, {
+              recursive: true,
+              mode: constants.S_IRWXU,
+            })
+            if (created !== undefined) await this.security?.protect(folder, 'directory')
+            await this.verify(folder, 'directory')
+          },
+          createExclusive: async (file, content, durability) => {
+            const handle = await open(file, 'wx', constants.S_IRUSR | constants.S_IWUSR)
+            try {
+              await this.security?.protect(file, 'file')
+              await this.verify(file, 'file')
+              await handle.writeFile(content)
+              if (durability === 'flushed') await handle.sync()
+            } finally {
+              await handle.close()
+            }
+          },
+        },
+        owner: await currentProcessOwner(),
+        isOwnerGone: isProcessOwnerGone,
+        now: Date.now,
+        monotonic: () => performance.now(),
+        sleep: delay,
+        leaseMs: VAULT_WRITER_LEASE_MS,
+        honoredLeaseMs: VAULT_WRITER_LEASE_MS,
+        unreadableMs: VAULT_WRITER_UNREADABLE_MS,
+        timeoutMs: 0,
+        pollMs: 0,
+      })
+    } catch (error: unknown) {
+      throw new VaultError(error instanceof LeaseBusyError ? 'busy' : 'io')
+    }
+    if (this.writer) {
+      await lease.release()
       throw new VaultError('busy')
     }
-    const identity = await handleIdentity(handle)
+    let isLost = false
+    let renewing: Promise<void> | undefined
+    const assertHeld = () => {
+      if (isLost || !lease.isHeldSync()) throw new VaultError('busy')
+    }
+    this.writer = assertHeld
+    const renew = async () => {
+      try {
+        if (!(await lease.renew())) isLost = true
+      } catch {
+        isLost = true
+      } finally {
+        renewing = undefined
+      }
+    }
+    const timer = setInterval(() => {
+      renewing ??= renew()
+    }, VAULT_WRITER_RENEW_MS)
     try {
-      await this.security?.protect(file, 'file')
-      await this.verify(file, 'file')
-      await handle.sync()
-      return await operation()
+      // A copied-but-unpublished quarantine is rolled back only while its original survives.
+      const names = await readdir(this.root)
+      for (const name of names) {
+        if (!/^vault\.v1\.[a-f0-9]{32}\.quarantine\.stage$/u.test(name)) continue
+        const original = path.join(this.root, 'vault.v1')
+        const stage = path.join(this.root, name)
+        await this.verify(original, 'file')
+        const identity = await lstatIdentity(original)
+        await this.verify(stage, 'file')
+        if (!sameFile(identity, await lstatIdentity(original))) throw new VaultError('io')
+        assertHeld()
+        unlinkSync(stage)
+      }
+      assertHeld()
+      const result = await operation(assertHeld)
+      assertHeld()
+      return result
     } finally {
-      await handle.close()
-      if (sameFile(identity, await lstatIdentity(file))) await unlink(file)
-      else await Promise.reject(new VaultError('io'))
+      clearInterval(timer)
+      await renewing
+      this.writer = undefined
+      await lease.release()
     }
   }
 }
@@ -602,7 +721,7 @@ export class VaultStore implements VaultStorePort {
   ): Promise<VaultStore> {
     const store = new VaultStore(options, vaultId)
     try {
-      await options.files.withWriter(async () => {
+      await store.withWriter(async () => {
         const document = await options.files.read('vault.v1')
         const slots = await options.files.read('slots.v1')
         const pending = await options.files.read('pending.v1')
@@ -684,50 +803,55 @@ export class VaultStore implements VaultStorePort {
     anchoredId: string,
     auditLine: string,
     authorize: () => void,
-    retireAnchor: () => Promise<void>,
+    retireAnchor: (assertHeld: () => void) => Promise<void>,
     anchor: VaultGenerationPort,
     expected: VaultGenerationState | null,
   ): Promise<void> {
-    await files.withWriter(async () => {
+    await files.withWriter(async (assertHeld) => {
+      const authorizeWriter = () => {
+        authorize()
+        assertHeld()
+      }
       const current = await anchor.minimum(anchoredId)
-      authorize()
+      authorizeWriter()
       if (!isSameState(current, expected)) throw new VaultError('rollback')
       // Rechecked under the writer: a vault that became openable is never reset.
       if (await isVaultOpenable(files, anchoredId, current)) throw new VaultError('invalid')
-      authorize()
+      authorizeWriter()
       const previous = await files.read('reset.v1')
       try {
-        authorize()
+        authorizeWriter()
         const line = Buffer.from(`${auditLine}\n`, 'utf8')
         // A Lock while staging must stop the reset before its audit or file removal.
         await files.writeAtomic(
           'reset.v1',
           Buffer.concat([previous ?? Buffer.alloc(0), line]),
-          authorize,
+          authorizeWriter,
         )
       } finally {
         previous?.fill(0)
       }
-      authorize()
+      authorizeWriter()
       const document = await files.read('vault.v1')
-      authorize()
+      authorizeWriter()
       if (document) {
         document.fill(0)
-        await files.quarantine('vault.v1', authorize)
-        authorize()
-        await files.remove('vault.v1', authorize)
-        authorize()
+        await files.quarantine('vault.v1', authorizeWriter)
+        authorizeWriter()
+        await files.remove('vault.v1', authorizeWriter)
+        authorizeWriter()
       }
       for (const name of ['slots.v1', 'pending.v1'] as const) {
         const bytes = await files.read(name)
-        authorize()
+        authorizeWriter()
         if (!bytes) continue
         bytes.fill(0)
-        await files.remove(name, authorize)
-        authorize()
+        await files.remove(name, authorizeWriter)
+        authorizeWriter()
       }
-      await retireAnchor()
-      authorize()
+      authorizeWriter()
+      await retireAnchor(authorizeWriter)
+      authorizeWriter()
     })
   }
   /** Whether any vault document exists here: the setup flow's "uncreated" test. */
@@ -746,7 +870,7 @@ export class VaultStore implements VaultStorePort {
   static async open(options: VaultStoreOptions, vaultId: string): Promise<VaultStore> {
     const store = new VaultStore(options, vaultId)
     try {
-      await options.files.withWriter(async () => {
+      await store.withWriter(async () => {
         await store.load()
       })
       return store
@@ -768,7 +892,7 @@ export class VaultStore implements VaultStorePort {
     const validated = validateSnapshot(options.key, shape.data)
     const store = new VaultStore(options, validated.snapshot.document.vaultId)
     try {
-      await options.files.withWriter(async () => {
+      await store.withWriter(async () => {
         const recovered = await store.recoverPending()
         const source = stateOf(validated.snapshot.slots)
         if (recovered === source.stateDigest) return
@@ -819,6 +943,11 @@ export class VaultStore implements VaultStorePort {
   private readonly key: Buffer
   private locked = false
   private readonly options: Omit<VaultStoreOptions, 'key'>
+  private checkWriter: (() => void) | undefined
+  private assertWriter = (): void => {
+    if (!this.checkWriter) throw new VaultError('busy')
+    this.checkWriter()
+  }
   private constructor(
     options: VaultStoreOptions,
     readonly vaultId: string,
@@ -826,6 +955,16 @@ export class VaultStore implements VaultStorePort {
     if (options.key.byteLength !== VAULT_KEY_BYTES) throw new VaultError('invalid')
     this.key = ownedBytes(options.key)
     this.options = { files: options.files, anchor: options.anchor }
+  }
+  private async withWriter<T>(operation: () => Promise<T>): Promise<T> {
+    return await this.options.files.withWriter(async (assertHeld) => {
+      this.checkWriter = assertHeld
+      try {
+        return await operation()
+      } finally {
+        this.checkWriter = undefined
+      }
+    })
   }
   private active(): Buffer {
     if (this.locked) throw new VaultError('locked')
@@ -877,8 +1016,10 @@ export class VaultStore implements VaultStorePort {
         throw new VaultError('rollback')
       for (const item of index.items)
         eraseVaultMaterial(this.material(snapshot.document, index, item.metadata.id).material)
-      if (!isSameState(minimum, next))
-        await this.options.anchor.advance(this.vaultId, next, intent.prior)
+      if (!isSameState(minimum, next)) {
+        this.assertWriter()
+        await this.options.anchor.advance(this.vaultId, next, intent.prior, this.assertWriter)
+      }
       this.active()
       await this.options.files.writeAtomic('slots.v1', encodeVaultJson(snapshot.slots))
       this.active()
@@ -981,7 +1122,8 @@ export class VaultStore implements VaultStorePort {
       // Committed: the rest only completes the durable intent with bytes
       // already sealed. A Lock arriving now must not report a failure for a
       // change that recovery would install anyway (RVCM1091B 1).
-      await this.options.anchor.advance(this.vaultId, stateOf(slots), previous)
+      this.assertWriter()
+      await this.options.anchor.advance(this.vaultId, stateOf(slots), previous, this.assertWriter)
       await this.options.files.writeAtomic('slots.v1', slotBytes)
       await this.options.files.writeAtomic('vault.v1', documentBytes)
       await this.options.files.remove('pending.v1')
@@ -1053,7 +1195,7 @@ export class VaultStore implements VaultStorePort {
     this.key.fill(0)
   }
   async list() {
-    const result = await this.options.files.withWriter(async () => {
+    const result = await this.withWriter(async () => {
       const loaded = await this.load()
       return loaded.index.items.map((item) => item.metadata)
     })
@@ -1063,7 +1205,7 @@ export class VaultStore implements VaultStorePort {
   async read(id: string): Promise<VaultItem> {
     let item: VaultItem | undefined
     try {
-      await this.options.files.withWriter(async () => {
+      await this.withWriter(async () => {
         const { snapshot, index } = await this.load()
         item = this.material(snapshot.document, index, id)
       })
@@ -1086,7 +1228,7 @@ export class VaultStore implements VaultStorePort {
     if (!parsed.success) throw new VaultError('invalid')
     const plaintext = encodeVaultMaterial(parsed.data.material)
     try {
-      await this.options.files.withWriter(async () => {
+      await this.withWriter(async () => {
         const { snapshot, index } = await this.load()
         const { metadata } = parsed.data
         const current = index.items.find((item) => item.metadata.id === metadata.id)
@@ -1109,7 +1251,7 @@ export class VaultStore implements VaultStorePort {
     const parsed = vaultItemMetadataSchema.safeParse(input)
     if (!parsed.success) throw new VaultError('invalid')
     const metadata = parsed.data
-    await this.options.files.withWriter(async () => {
+    await this.withWriter(async () => {
       const { snapshot, index } = await this.load()
       const current = index.items.find((item) => item.metadata.id === metadata.id)
       const remaining = index.items.filter((item) => item.metadata.id !== metadata.id)
@@ -1129,7 +1271,7 @@ export class VaultStore implements VaultStorePort {
     })
   }
   async remove(id: string): Promise<void> {
-    await this.options.files.withWriter(async () => {
+    await this.withWriter(async () => {
       const { snapshot, index } = await this.load()
       if (index.items.every((item) => item.metadata.id !== id)) throw new VaultError('invalid')
       await this.publish(
@@ -1146,7 +1288,7 @@ export class VaultStore implements VaultStorePort {
   }
 
   async grants(): Promise<readonly VaultGrant[]> {
-    const result = await this.options.files.withWriter(async () => {
+    const result = await this.withWriter(async () => {
       const loaded = await this.load()
       return loaded.index.grants
     })
@@ -1158,7 +1300,7 @@ export class VaultStore implements VaultStorePort {
     const parsed = vaultGrantSchema.safeParse(input)
     if (!parsed.success) throw new VaultError('invalid')
     const grant = parsed.data
-    await this.options.files.withWriter(async () => {
+    await this.withWriter(async () => {
       const { snapshot, index } = await this.load()
       const others = index.grants.filter((entry) => entry.id !== grant.id)
       if (
@@ -1179,7 +1321,7 @@ export class VaultStore implements VaultStorePort {
   }
   /** Idempotent: an absent grant is already revoked. */
   async removeGrant(id: string): Promise<void> {
-    await this.options.files.withWriter(async () => {
+    await this.withWriter(async () => {
       const { snapshot, index } = await this.load()
       if (index.grants.every((grant) => grant.id !== id)) return
       await this.publish(
@@ -1191,7 +1333,7 @@ export class VaultStore implements VaultStorePort {
   }
   /** Spends one use under the cross-process writer; false without spending when exhausted. */
   async consumeGrant(id: string, now: number): Promise<boolean> {
-    const isSpent = await this.options.files.withWriter(async () => {
+    const isSpent = await this.withWriter(async () => {
       const { snapshot, index } = await this.load()
       const grant = index.grants.find((entry) => entry.id === id)
       if (
@@ -1239,7 +1381,7 @@ export class VaultStore implements VaultStorePort {
     })
     const plaintexts = parsed.map((entry) => encodeVaultMaterial(entry.material))
     try {
-      await this.options.files.withWriter(async () => {
+      await this.withWriter(async () => {
         const { snapshot, index } = await this.load()
         const ids = new Set(parsed.map((entry) => entry.metadata.id))
         const names = new Set(parsed.map((entry) => entry.metadata.name))
@@ -1291,7 +1433,7 @@ export class VaultStore implements VaultStorePort {
     }
   }
   async readReceipt(id: string): Promise<string | null> {
-    const result = await this.options.files.withWriter(async () => {
+    const result = await this.withWriter(async () => {
       const { index } = await this.load()
       return index.receipts.find((entry) => entry.id === id)?.record ?? null
     })
@@ -1309,7 +1451,7 @@ export class VaultStore implements VaultStorePort {
   }
   /** Idempotent; authorize runs at the commit. */
   async forgetReceipt(id: string, authorize: () => void): Promise<void> {
-    await this.options.files.withWriter(async () => {
+    await this.withWriter(async () => {
       const { snapshot, index } = await this.load()
       if (index.receipts.every((entry) => entry.id !== id)) return
       await this.publish(
@@ -1324,7 +1466,7 @@ export class VaultStore implements VaultStorePort {
   async setSlots(records: readonly VaultSlotRecord[]): Promise<void> {
     const parsed = z.array(vaultSlotRecordSchema).safeParse(records)
     if (!parsed.success) throw new VaultError('invalid')
-    await this.options.files.withWriter(async () => {
+    await this.withWriter(async () => {
       const { snapshot, index } = await this.load()
       await this.publish(index, snapshot.document.items, {
         ...snapshot.slots,
@@ -1335,7 +1477,7 @@ export class VaultStore implements VaultStorePort {
   async commitAudit(auditGeneration: number, auditHead: string): Promise<void> {
     if (!generation.safeParse(auditGeneration).success || !digest.safeParse(auditHead).success)
       throw new VaultError('invalid')
-    await this.options.files.withWriter(async () => {
+    await this.withWriter(async () => {
       const { snapshot, index } = await this.load()
       if (auditGeneration <= snapshot.slots.auditGeneration) throw new VaultError('rollback')
       await this.publish(index, snapshot.document.items, {
@@ -1346,7 +1488,7 @@ export class VaultStore implements VaultStorePort {
     })
   }
   async exportSnapshot(): Promise<VaultSnapshot> {
-    const result = await this.options.files.withWriter(async () => {
+    const result = await this.withWriter(async () => {
       const loaded = await this.load()
       for (const item of loaded.index.items)
         eraseVaultMaterial(

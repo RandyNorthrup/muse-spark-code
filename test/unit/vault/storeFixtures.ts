@@ -57,11 +57,13 @@ export class MemoryVaultFiles implements VaultFilePort {
     if (bytes) this.quarantined.push(ownedBytes(bytes))
     return Promise.resolve()
   }
-  async withWriter<T>(operation: () => Promise<T>): Promise<T> {
+  async withWriter<T>(operation: (assertHeld: () => void) => Promise<T>): Promise<T> {
     if (this.writing) throw new VaultError('busy')
     this.writing = true
     try {
-      return await operation()
+      return await operation(() => {
+        if (!this.writing) throw new VaultError('busy')
+      })
     } finally {
       this.writing = false
     }

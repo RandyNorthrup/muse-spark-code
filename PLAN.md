@@ -19208,6 +19208,33 @@ acceptance now observes the exact concurrent sampler work, names only this
 fatal. Both native receipts and final helper-tree/temp-file retirement checks
 exit 0; the installed product bundles are not patched by acceptance. This
 replaces the round-2 sampler deferral; no production resource guard changes.
+**CM109JOINA joined-build placement (2026-10-11).** The production build's
+existing usagePanel cap is exceeded by 27 bytes; its deferred surface-English
+closure also exceeds the existing 25 KiB cap. Vault, vaultRuntime, activation,
+Model API and checkpoint caps pass. Further placement changes concern the
+train's usage/optional-surface owners, beyond this Windows writer join.
+Prefer moving those readers into their existing lazy owners; alternatively,
+a new independently measured English chunk needs its loading and failure
+contract. No cap is raised and no new split is guessed here. Exact bytes,
+complete-file receipts and remaining checks are in m109 certification.
+
+**CM1091CR2 round-3 native reset blocker (resolved by CM1091CR3, 2026-10-11).** A real
+lost-vault reset with a retained damaged document fails at
+`NodeVaultFiles.quarantine`: the shared port creates a hard link, while the
+mandatory Windows path guard correctly refuses files with more than one
+link. Reset has already written `reset.v1` before that refusal; the document,
+slot file and anchor remain. The existing native store suite's Windows
+pass-through security port hides this composition defect. A generated,
+isolated reproduction and its source hash are in the round-3 M109 receipt;
+no credential or personal vault is touched. Part (a)'s shared core files are
+retained in the round-3 commit, and no guard is weakened. Round 4 reproduces
+the failure and repairs `NodeVaultFiles.quarantine`: Windows stages an
+exclusive independent copy, verifies and flushes it, binds both identities
+on the same volume, checks authority again, then publishes the quarantine
+while the original remains. Interruptions leave the original openable;
+next-open recovery never relies on an incomplete stage. Native missing and
+damaged reset, encrypted receipts and exact anchor retirement are qualified
+in M109's round-4 record. Installed binding remains the lead's separate step.
 
 **C-M109-1b integration receipt (2026-10-10).** Part (a) must provide the
 installed `vaultRuntime.js` broker-binding factory (audit, identity/launch
@@ -33194,6 +33221,43 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**CM109JOINA writer lease (2026-10-11, lead design).** Replace the bare
+writer.lock with the shared file lease: host, PID and OS birth identity,
+renewal while a transaction runs, and a synchronous fence before file
+removal, quarantine publication, write-ahead/slot/document publication and
+protected-anchor write/delete dispatch. Only a proven-dead holder or an
+unchanged expired lease permits takeover; unknown live identity is not death
+proof. Request-time Lock authority remains separate and required. The new
+writer first rolls back incomplete quarantine stages while the original
+exists; otherwise it retains them and refuses. Authenticated pending intents
+keep their existing completion rules under the acquired writer. Real child
+processes are terminated inside production Reset/Restore at four boundaries;
+new processes retry/recover, a live holder excludes another process, and a
+lost fence refuses publication and destructive/anchor steps. Every added
+guard has a removal drill and byte-exact restoration in m109 certification.
+No vault binding is enabled; Linux joins broker/slots, panel and migration
+codecs from this head next. Scoped rig gates replace aggregate quality under
+the brief. check:plan awaits the lead-authorized closed-record archive; no
+cap, gate, deadline or dependency changes.
+
+The joined independent host initially measures 51,260 bytes against its
+unchanged 51,200-byte cap. Group the existing refusal cases whose names
+already equal their localized keys; resolve that narrowed key at call time.
+This removes repeated switch returns without a new layer, changed message,
+weakened validation or availability change. Replay the complete budget and
+refusal owners after this small integration repair.
+
+Writer cleanup also belongs to its own callback: after an old lease moves
+its lock aside, a new transaction may acquire the same file port before
+the old release settles. That old cleanup must not clear the new writer's
+fence callback. Pause the actual shared lease's retired-file cleanup,
+admit its successor, then lose the successor's fence and prove its file
+publication still refuses. Clear the settled operation's callback before
+awaiting lease release. Admission on one file port refuses while another
+operation's callback remains active, even if its lease file was displaced:
+an expired operation never adopts a successor's authority. Both placement
+and admission have deliberate failing regressions.
+
 **Status 2026-10-09: released.** Shipped in 0.17.0 (merged via INT0180).
 
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
@@ -38339,6 +38403,74 @@ launch guarantee. No production resource accounting guard is changed.
 Availability stays off. The 17 writer
 crash cases remain skipped for CM109LEASE/join; the store/shared lock helpers
 are unchanged. No hook, assertion, budget or timeout is weakened.
+**CM109JOINA scoped Win11 qualification (2026-10-11).** The rig/common brief
+requires complete vault/lease files in batches of three and the named static
+and production-build gates, leaving aggregate quality with the lead. Native
+Credential Manager and foreign-user launch checks retain their documented
+noninteractive-logon failures; no policy or desktop-token workaround is
+authorized. check:plan also refuses the joined text at its unchanged 85%
+threshold. The lead must supply the vault closed-design-record archive
+command; no history is deleted and no threshold is raised. Independent gates
+and writer crash/fence drills continue. Receipts: docs/certification/m109.md
+and m109-join-tests.json / m109-join-drills.json.
+
+The complete vault run also records sshImport's unchanged fixture setup
+failure: Windows ssh-keygen exits 255 without stdout/stderr under its
+restricted environment, leaving two tests unexecuted. The four previously
+documented native logon failures remain unqualified. Full production build
+stops at the usagePanel/surface-English caps named in §3; later split,
+globals and notice checks run separately. Duplication reports two test
+clones in modelApiHost/modelApiLoopGuarantees; both files match snap/train's
+Git blobs exactly. Their test restructuring is deferred to the train owner,
+with no ignore or threshold change. Knip's two unused type declarations
+are removed, preserving their schemas and runtime behavior.
+
+**CM1091CR2 round-3 qualification scope (2026-10-10, Win11).** The rig
+brief requires the `bdda4382f` core merge, completed as `501682b3b`, and
+direct Windows owning-suite/static/build checks; aggregate quality remains
+lead-owned. Core files are retained. A complete native-channel fixture's
+first preparation faults because it probes before installing an accept
+handler; the first repair exposes a wrong server-check call signature, and
+the second exposes invalid hello ids. Stop that new fixture path under the
+shared two-failed-fixes rule, remove it, and retain the attempt receipts.
+The existing native transport harness independently proves unchanged v2
+request/response bytes, and core management tests exercise the operations.
+`test/unit/vault/channel.test.ts` requires its Unix peer fixture and is not
+claimed as a Windows manage-only replay; full native channel composition
+remains with the lead after the stopped fixture path.
+Native Credential Manager qualification uses the existing interactive
+desktop runner; the network-logon failure is retained, not skipped or fixed
+by changing policy. The damaged-document quarantine/reset conflict in §3
+remains an installed-binding blocker. No gate, timeout, assertion, native
+hard-link refusal or production security port is weakened.
+
+**C-M109-1c scoped qualification (2026-10-10).** The lane/common brief
+reserves aggregate `npm run quality` and release qualification for the lead.
+Run complete owning files directly on Win11 at repository deadlines,
+changed-file lint/format, all five typechecks, localization, reference,
+roadmap, host API, dead code, duplication and the capped production build.
+Retain the logon-session failures and unstable timing receipt (§3) explicitly,
+without a skip, deadline change, fake substitution or security-policy edit.
+The new Windows paths cannot be activated until those receipts, the timing
+budget and the
+binding lane's private-file/launcher composition pass.
+CM1091CR2 qualifies generated OS-store keys and both identity directions in
+the existing interactive desktop session. It records the array validation,
+ownership/erasure, retired-frame admission and native-probe guard drills,
+with byte-exact restoration, without changing deadlines or the five-ms bound.
+
+The initial production build's Models panel body failed its existing 75 KiB cap.
+An isolated rebuild using the exact interface-base English table (only
+this lane's two new keys removed; Models sources/imports unchanged) still
+measures 77,652 bytes against 76,800. The English file is restored with
+matching SHA-256 values. This is an inherited budget failure, assigned to
+the lead's joined-tree gate; this Windows-native lane changes no Models
+code, cap or ignore. Record the final delta and the independent split,
+host-global and notice checks in the certification receipt. No release
+qualification or aggregate quality pass is claimed.
+After CM1091CR2's required `6319cdcd5` core merge, the complete production
+build passes unchanged caps, including the Models body at 72.9 KiB / 75 KiB.
+The earlier 77,652-byte receipt remains historical; no budget is raised.
 
 **C-M109-1b scoped qualification (2026-10-10, Kubuntu).** The lane brief
 reserves full quality for the lead. Targeted types, lint, formatting, dead code,

@@ -508,10 +508,11 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:process`           | 16    |
 | `node:readline`          | 1     |
 | `node:readline/promises` | 1     |
-| `node:stream`            | 23    |
+| `node:stream`            | 22    |
 | `node:stream/promises`   | 3     |
 | `node:string_decoder`    | 3     |
 | `node:timers/promises`   | 27    |
+| `node:timers/promises`   | 26    |
 | `node:tls`               | 1     |
 | `node:url`               | 8     |
 | `node:util`              | 10    |

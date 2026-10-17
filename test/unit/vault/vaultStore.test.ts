@@ -1,5 +1,6 @@
 import { chmod, lstat, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import * as filesystem from 'node:fs/promises'
+import type { PathLike } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -18,6 +19,7 @@ import {
   PassphraseVaultSlot,
 } from '../../../src/core/vault/keyslots'
 import * as vaultCrypto from '../../../src/core/vault/crypto'
+import * as fileIdentity from '../../../src/core/fs/fileIdentity'
 import { VAULT_LIMITS } from '../../../src/shared/constants'
 import { item } from '../helpers/vault/fixtures'
 import { FakeVaultClock } from '../helpers/vault/core'
@@ -37,6 +39,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     rename: vi.fn(original.rename),
     lstat: vi.fn(original.lstat),
     link: vi.fn(original.link),
+    copyFile: vi.fn(original.copyFile),
   }
 })
 async function directory(): Promise<string> {
@@ -58,6 +61,7 @@ afterEach(async () => {
   vi.mocked(filesystem.rename).mockImplementation(original.rename)
   vi.mocked(filesystem.lstat).mockImplementation(original.lstat)
   vi.mocked(filesystem.link).mockImplementation(original.link)
+  vi.mocked(filesystem.copyFile).mockImplementation(original.copyFile)
   for (const root of directories.splice(0)) await rm(root, { recursive: true, force: true })
 })
 
@@ -592,15 +596,22 @@ describe('native files and platform ports', () => {
     const quarantine = await quarantinePath(root)
     const identity = await lstat(path.join(root, 'vault.v1'), { bigint: true })
     const saved = await lstat(quarantine, { bigint: true })
-    expect({ dev: saved.dev, ino: saved.ino }).toEqual({ dev: identity.dev, ino: identity.ino })
+    expect(saved.dev).toBe(identity.dev)
+    if (process.platform === 'win32') {
+      expect(saved.ino).not.toBe(identity.ino)
+      expect(saved.nlink).toBe(1n)
+      expect(identity.nlink).toBe(1n)
+    } else expect(saved.ino).toBe(identity.ino)
     const entered = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
-    const original = await vi.importActual<typeof filesystem>('node:fs/promises')
-    const nativeRename = original.rename
-    vi.spyOn(filesystem, 'rename').mockImplementation(async (source, destination) => {
-      entered.resolve(undefined)
-      await release.promise
-      await nativeRename(source, destination)
+    const nativeIdentity = fileIdentity.lstatIdentity
+    vi.spyOn(fileIdentity, 'lstatIdentity').mockImplementation(async (file) => {
+      if (file.endsWith('.stage')) {
+        expect(await readFile(file, 'utf8')).toBe('complete-new')
+        entered.resolve(undefined)
+        await release.promise
+      }
+      return await nativeIdentity(file)
     })
     const writing = files.writeAtomic('vault.v1', Buffer.from('complete-new'))
     await entered.promise
@@ -644,20 +655,123 @@ describe('native files and platform ports', () => {
     if (typeof process.getuid !== 'function') throw new Error('fixture uid')
     expect(sample.uid).toBe(process.getuid())
   })
-  it('refuses quarantine after destination identity changes during link creation', async () => {
+  it('refuses quarantine after source identity changes during retention', async () => {
     const root = await directory()
     const files = nativeFiles(root, 1024)
     await files.writeAtomic('vault.v1', Buffer.from('old-document'))
     const original = await vi.importActual<typeof filesystem>('node:fs/promises')
-    vi.mocked(filesystem.link).mockImplementationOnce(async (source, destination) => {
-      await original.link(source, destination)
+    const replaceSource = async (source: PathLike) => {
       const replacement = path.join(root, 'replacement')
       await writeFile(replacement, Buffer.from('replacement-document'), { mode: 0o600 })
       await original.rename(replacement, source)
-    })
+    }
+    if (process.platform === 'win32')
+      vi.mocked(filesystem.copyFile).mockImplementationOnce(async (source, destination, flags) => {
+        await original.copyFile(source, destination, flags)
+        await replaceSource(source)
+      })
+    else
+      vi.mocked(filesystem.link).mockImplementationOnce(async (source, destination) => {
+        await original.link(source, destination)
+        await replaceSource(source)
+      })
     await expect(files.quarantine('vault.v1')).rejects.toMatchObject({ code: 'io' })
     expect(await readFile(path.join(root, 'vault.v1'))).toEqual(Buffer.from('replacement-document'))
   })
+  it.each(['copy', 'sync', 'commit', 'retained'] as const)(
+    'Windows quarantine keeps the original openable across interruption at %s and retries safely',
+    async (phase) => {
+      const root = await directory()
+      const original = await vi.importActual<typeof filesystem>('node:fs/promises')
+      let isInterrupted = true
+      const refusal = new Error('generated retention interruption')
+      const security = {
+        protect: () => Promise.resolve(),
+        verify: async (file: string, kind: 'directory' | 'file') => {
+          if (kind === 'file') {
+            const sample = await original.lstat(file)
+            if (sample.nlink !== 1) throw refusal
+          }
+          if (isInterrupted && phase === 'retained' && file.endsWith('.quarantine')) throw refusal
+        },
+      }
+      const files = new NodeVaultFiles(root, VAULT_LIMITS.frameBytes, security, 'win32')
+      const vault = await freshVault(files)
+      const before = await readFile(path.join(root, 'vault.v1'))
+      if (phase === 'copy')
+        vi.mocked(filesystem.copyFile).mockImplementationOnce(async (_source, destination) => {
+          await writeFile(destination, Buffer.from('partial'))
+          throw refusal
+        })
+      else if (phase === 'sync')
+        vi.spyOn(filesystem, 'open').mockImplementation(async (...args) => {
+          const handle = await original.open(...args)
+          if (isInterrupted && String(args[0]).endsWith('.quarantine.stage'))
+            vi.spyOn(handle, 'sync').mockRejectedValueOnce(refusal)
+          return handle
+        })
+      // The second authority check is after the private copy has been flushed.
+      let checks = 0
+      const authorize = () => {
+        checks += 1
+        if (isInterrupted && phase === 'commit' && checks > 1) throw refusal
+      }
+      try {
+        const failed = files.quarantine('vault.v1', authorize)
+        if (phase === 'commit') await expect(failed).rejects.toBe(refusal)
+        else await expect(failed).rejects.toMatchObject({ code: 'io' })
+        isInterrupted = false
+        expect(await readFile(path.join(root, 'vault.v1'))).toEqual(before)
+        const sourceSample = await lstat(path.join(root, 'vault.v1'))
+        expect(sourceSample.nlink).toBe(1)
+        const reopened = await VaultStore.open(vault.options, vault.vaultId)
+        expect(await reopened.list()).toEqual([])
+        reopened.lock()
+        await files.quarantine('vault.v1', authorize)
+        const entries = await readdir(root)
+        const retained = entries.filter((entry) => entry.endsWith('.quarantine'))
+        expect(retained.length).toBeGreaterThan(0)
+        for (const name of retained) expect(await readFile(path.join(root, name))).toEqual(before)
+      } finally {
+        vault.store.lock()
+        vault.key.fill(0)
+      }
+    },
+  )
+  it.each(['volume', 'size', 'stage'] as const)(
+    'Windows quarantine refuses a changed %s before publishing retained bytes',
+    async (changed) => {
+      const root = await directory()
+      let stageChecks = 0
+      const original = await vi.importActual<typeof filesystem>('node:fs/promises')
+      const security = {
+        protect: () => Promise.resolve(),
+        verify: async (file: string) => {
+          if (changed !== 'stage' || !file.endsWith('.quarantine.stage')) return
+          stageChecks += 1
+          if (stageChecks !== 2) return
+          const replacement = path.join(root, 'replacement')
+          await writeFile(replacement, Buffer.from('swapped'))
+          await original.rename(replacement, file)
+        },
+      }
+      const files = new NodeVaultFiles(root, VAULT_LIMITS.frameBytes, security, 'win32')
+      await files.writeAtomic('vault.v1', Buffer.from('original'))
+      if (changed !== 'stage') {
+        const sampleIdentity = fileIdentity.handleIdentity
+        vi.spyOn(fileIdentity, 'handleIdentity').mockImplementation(async (handle) => {
+          const sample = await sampleIdentity(handle)
+          const field = changed === 'volume' ? 'dev' : 'size'
+          Reflect.set(sample, field, sample[field] + 1n)
+          return sample
+        })
+      }
+      await expect(files.quarantine('vault.v1')).rejects.toMatchObject({ code: 'io' })
+      expect(await readFile(path.join(root, 'vault.v1'))).toEqual(Buffer.from('original'))
+      const entries = await readdir(root)
+      expect(entries.some((name) => name.endsWith('.quarantine'))).toBe(false)
+    },
+  )
   it('writes owner-only files with synced atomic replacement and no plaintext in any file', async () => {
     const root = await directory()
     const files = nativeFiles(path.join(root, 'vault'), 4 * 1024 * 1024)
@@ -670,8 +784,14 @@ describe('native files and platform ports', () => {
     expect(listing.toSorted((left, right) => left.localeCompare(right))).toEqual([
       'slots.v1',
       'vault.v1',
+      'writer.lock.fences',
     ])
-    for (const file of listing) {
+    const fences = await readdir(path.join(root, 'vault', 'writer.lock.fences'))
+    expect(fences.length).toBeGreaterThan(0)
+    for (const file of [
+      ...listing.filter((file) => file !== 'writer.lock.fences'),
+      ...fences.map((file) => path.join('writer.lock.fences', file)),
+    ]) {
       const bytes = await readFile(path.join(root, 'vault', file))
       expect(bytes.includes(secret.metadata.name)).toBe(false)
       expect(bytes.includes(secret.metadata.label)).toBe(false)
@@ -707,7 +827,7 @@ describe('native files and platform ports', () => {
       files.withWriter(() => Promise.reject(new Error('generated failure'))),
     ).rejects.toThrow()
     await files.withWriter(() => Promise.resolve())
-    expect(await readdir(root)).toEqual([])
+    expect(await readdir(root)).toEqual(['writer.lock.fences'])
     await writeFile(path.join(root, 'writer.lock'), '', { mode: 0o600 })
     await expect(files.withWriter(() => Promise.resolve())).rejects.toMatchObject({ code: 'busy' })
   })
