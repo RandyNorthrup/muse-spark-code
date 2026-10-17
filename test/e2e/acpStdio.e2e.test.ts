@@ -57,7 +57,13 @@ const INSTALLED = process.env['MUSE_ACP_PACKAGE_DIR']
 const PACKAGE = INSTALLED ?? mkdtempSync(path.join(tmpdir(), 'acp-package-'))
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
 const NODE_PATH = INSTALLED === undefined ? path.join(ROOT, 'node_modules') : ''
-const LAID_OUT_VERSION = '0.0.0-e2e'
+// The laid-out package carries this repository's own version, as a published
+// package does: its What's New notes are generated from this CHANGELOG, and
+// the selection for a version no release covers is honestly empty (M99).
+const manifestJson: unknown = JSON.parse(
+  readFileSync(new URL('../../package.json', import.meta.url), 'utf8'),
+)
+const LAID_OUT_VERSION = z.object({ version: z.string() }).parse(manifestJson).version
 
 const fake = installFakeMuse()
 const signedIn = installFakeCredential()
