@@ -495,6 +495,14 @@ export interface AgentSession {
    */
   readonly review?: (parts: readonly TurnPart[], displayText: string) => Promise<TurnSubmission>
   /**
+   * A `/playback` turn stating the agent's own understanding from working
+   * memory, with no tools (D203). The Model API backend offers none and
+   * refuses every call in code; Muse Code, which has no such turn, holds an
+   * ordinary turn in Plan mode instead (the surface stops it at the first
+   * tool use), so sessions without it use `sendTurn` under a hold.
+   */
+  readonly playback?: (parts: readonly TurnPart[], displayText: string) => Promise<TurnSubmission>
+  /**
    * Inject input into the running turn. A `SteerRefusedError` says none of
    * it was taken (no turn to steer); any other failure may have reached it.
    */

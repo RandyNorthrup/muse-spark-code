@@ -1374,6 +1374,20 @@ export class ConversationController {
    */
   private reviewStart: Promise<void> | undefined
   /**
+   * A `/playback` on its way (D203): the agent states its own
+   * understanding from working memory, with no tools for the turn. One at
+   * a time; a message must not steer into its turn, so the send barrier
+   * waits for it as for a review starting.
+   */
+  private playbackStart: Promise<void> | undefined
+  /**
+   * The running playback turn and the session to stop: while set, any tool
+   * item of this turn stops it at once (the Model API backend refuses the
+   * call itself; on Muse Code the turn is cancelled instead).
+   */
+  private playbackTurn:
+    { readonly session: AgentSession; readonly turnId: string; stopped: boolean } | undefined
+  /**
    * A `/legal` scan on its way (M97): the deterministic scan, no turn — one
    * at a time. Its signal stops when the session goes (`dropSession`), so a
    * scan never answers for a conversation that moved on.
@@ -1936,6 +1950,10 @@ export class ConversationController {
       // A review starting in the old conversation answers its own card; the
       // next conversation neither waits for it nor is refused because of it.
       this.reviewStart = undefined
+      // A playback starting there answers its own card too, and its turn is
+      // the old conversation's: nothing of it is watched anymore.
+      this.playbackStart = undefined
+      this.playbackTurn = undefined
     }
     const { session } = this
     if (isTurnCancelled && session !== undefined && this.activeTurnId !== undefined) {
@@ -2651,6 +2669,7 @@ export class ConversationController {
         break
       }
       case 'turnWithdrawn': {
+        this.forgetPlaybackTurn(event.turnId)
         this.forgetQueuedTurn(event.turnId)
         // It will never run: a late acceptance must not make it the running turn.
         this.finishedTurns.add(event.turnId)
@@ -2664,6 +2683,7 @@ export class ConversationController {
         break
       }
       case 'turnCompleted': {
+        this.forgetPlaybackTurn(event.turnId)
         this.forgetQueuedTurn(event.turnId, true)
         if (!this.isChildTurn(event.turnId)) {
           this.admittedEarly.clear()
@@ -2745,6 +2765,7 @@ export class ConversationController {
         this.noteFileCard(event.item)
         this.noteForegroundShell(event.item)
         this.noteSubagentRow(event.item)
+        this.watchPlaybackItem(event.item)
         break
       }
       case 'itemUpdated':
@@ -2757,6 +2778,7 @@ export class ConversationController {
         if (event.type === 'itemCompleted') {
           this.noteReviewCall(event.item)
         }
+        this.watchPlaybackItem(event.item)
         this.noteForegroundShell(event.item)
         this.noteSubagentRow(event.item)
         this.noteSandboxFailure(event.item.failureReason)
@@ -4307,6 +4329,7 @@ export class ConversationController {
     for (;;) {
       const held = this.planHold
       const starting = this.reviewStart
+      const playing = this.playbackStart
       const scanning = this.legalScanStart
       try {
         await this.reviewModeSettling
@@ -4314,6 +4337,7 @@ export class ConversationController {
         // The mode owner handles the failure and may retire this session.
       }
       await starting
+      await playing
       await scanning
       await held?.hold.waitForModeChange()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
@@ -4322,6 +4346,7 @@ export class ConversationController {
       if (
         this.reviewModeSettling === undefined &&
         this.reviewStart === undefined &&
+        this.playbackStart === undefined &&
         this.legalScanStart === undefined &&
         (this.planHold === held || this.planHold === undefined)
       ) {
@@ -6968,6 +6993,44 @@ export class ConversationController {
   }
 
   /**
+   * A restricted turn's admission (a review's, a playback's): signed in
+   * with a folder, the backend reachable, and no turn, restricted start or
+   * mode hold in the way. A refusal is posted on the card; the workspace
+   * root is answered admitted. A review starting while a playback or scan
+   * starts is refused too: either will hold Plan mode.
+   */
+  private workspaceForRestrictedTurn(localId: string, busyReason: string): string | undefined {
+    // Says why when it refuses (signed out, no folder), as a message's card does.
+    const refusal = this.refuseAction(localId)
+    const { workspaceRoot } = this.deps
+    if (refusal !== undefined || workspaceRoot === undefined) {
+      return undefined
+    }
+    // Refused before any git or Muse Code command, as a message is (CLI recovery).
+    const damaged = this.damagedTarget()
+    if (damaged !== undefined) {
+      this.refuseDamaged(damaged, localId, true)
+      return undefined
+    }
+    if (
+      this.activeTurnId !== undefined ||
+      this.reviewStart !== undefined ||
+      this.playbackStart !== undefined ||
+      this.legalScanStart !== undefined ||
+      this.planHold !== undefined
+    ) {
+      this.post({ type: 'sendFailed', localId, reason: busyReason })
+      return undefined
+    }
+    // Revert owns turn admission until its file I/O settles (M87).
+    if (this.revertsInFlight > 0) {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.restoreTurnRunning })
+      return undefined
+    }
+    return workspaceRoot
+  }
+
+  /**
    * `/review` (M70, PLAN.md D49). Git's changes need a trusted workspace
    * (Restricted Mode runs no git); custom instructions do not. The material
    * goes between markers that call it untrusted. On the Model API the turn
@@ -6977,29 +7040,8 @@ export class ConversationController {
    * message's is: accepted, or failed with the reason.
    */
   private async startReview(localId: string, text: string, request: ReviewRequest): Promise<void> {
-    // Says why when it refuses (signed out, no folder), as a message's card does.
-    const refusal = this.refuseAction(localId)
-    const { workspaceRoot } = this.deps
-    if (refusal !== undefined || workspaceRoot === undefined) {
-      return
-    }
-    // Refused before any git or Muse Code command, as a message is (CLI recovery).
-    const damaged = this.damagedTarget()
-    if (damaged !== undefined) {
-      this.refuseDamaged(damaged, localId, true)
-      return
-    }
-    if (
-      this.activeTurnId !== undefined ||
-      this.reviewStart !== undefined ||
-      this.planHold !== undefined
-    ) {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.reviewBusy })
-      return
-    }
-    // Revert owns turn admission until its file I/O settles (M87).
-    if (this.revertsInFlight > 0) {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.restoreTurnRunning })
+    const workspaceRoot = this.workspaceForRestrictedTurn(localId, UI_TEXT.reviewBusy)
+    if (workspaceRoot === undefined) {
       return
     }
     const gitRefusal = isGitReview(request)
@@ -7384,6 +7426,39 @@ export class ConversationController {
       )
     }
     const bypassEpoch = this.bypassRevocationEpoch
+    return await this.withPlaybookReview(
+      session,
+      parts,
+      reviewFiles,
+      async (admitted) =>
+        await this.sendHeldTurn(
+          session,
+          admitted,
+          text,
+          generation,
+          previousMode,
+          bypassEpoch,
+          isCurrent,
+        ),
+    )
+  }
+
+  /**
+   * A restricted turn held in Plan mode (a review's, a playback's): the
+   * hold, the mode the user had, the panel in Plan until it comes back.
+   * Auto is left for the held turn: what the Auto reviewer holds is the
+   * user's (M90). Plan mode was refused (nothing to put back), or the send
+   * failed and the hold put the mode back already.
+   */
+  private async sendHeldTurn(
+    session: AgentSession,
+    parts: readonly TurnPart[],
+    text: string,
+    generation: number,
+    previousMode: PermissionMode,
+    bypassEpoch: number,
+    isCurrent: () => boolean,
+  ): Promise<TurnSubmission> {
     const hold = this.takePlanHold(
       (holdDeps) => this.deps.review.createHold(holdDeps),
       session,
@@ -7391,22 +7466,13 @@ export class ConversationController {
       previousMode,
       bypassEpoch,
     )
-    // Auto is left for the review turn: what the Auto reviewer holds is the user's (M90).
     this.reviews?.release()
     try {
-      return await this.withPlaybookReview(
-        session,
-        parts,
-        reviewFiles,
-        async (admitted) =>
-          await hold.send(session, admitted, text, () => {
-            this.requireNonConfidentialModel(session.modelId)
-            return isCurrent()
-          }),
-      )
+      return await hold.send(session, parts, text, () => {
+        this.requireNonConfidentialModel(session.modelId)
+        return isCurrent()
+      })
     } catch (error: unknown) {
-      // Plan mode was refused (nothing to put back), or the send failed and
-      // the hold put the mode back already.
       this.dropFailedHold(hold, session, generation)
       throw error
     }
@@ -7468,6 +7534,177 @@ export class ConversationController {
       (!this.deps.isBypassAllowed() || bypassEpoch !== this.bypassRevocationEpoch)
       ? FALLBACK_MODE
       : mode
+  }
+
+  // --- Playback (D203) ---
+
+  /**
+   * `/playback` (D203). The card is the webview's own, as a message's is:
+   * accepted, or failed with the reason. On the Model API the turn runs
+   * with no tools, refused in code; on Muse Code it is an ordinary turn
+   * held in Plan mode and stopped at the first tool use. Either way it is
+   * a turn of this conversation, part of the user's own, so nothing asks
+   * for payment.
+   */
+  private async startPlayback(localId: string, text: string): Promise<void> {
+    const workspaceRoot = this.workspaceForRestrictedTurn(localId, UI_TEXT.playbackBusy)
+    if (workspaceRoot === undefined) {
+      return
+    }
+    const running = this.runPlayback(localId, text, workspaceRoot)
+    this.playbackStart = running
+    try {
+      await running
+    } finally {
+      // A newer conversation's playback may hold the barrier by now.
+      if (this.playbackStart === running) {
+        this.playbackStart = undefined
+      }
+    }
+  }
+
+  /** The playback's asynchronous part: it answers its own failures on the card and never rejects. */
+  private async runPlayback(localId: string, text: string, workspaceRoot: string): Promise<void> {
+    const refuse = (reason: string) => {
+      this.post({ type: 'sendFailed', localId, reason })
+    }
+    const generation = this.sendInvalidationEpoch
+    // The running mark this playback's turn takes over (M72), dropped if it is not sent.
+    let checkpoint: PendingMark | undefined
+    try {
+      const session = await this.ensureSession(workspaceRoot)
+      if (!this.isCurrentSessionAction(session, generation)) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      const host = await this.deps.ensureHost()
+      if (
+        !this.isCurrentSessionAction(session, generation) ||
+        this.sessionKind !== host.info.kind
+      ) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      // A playback's turn is marked running before it is sent and takes over
+      // that mark, as a message's does (M72): a Plan-held playback on Muse
+      // Code is not strictly tool-free, and another window must refuse a
+      // restore from the moment its turn can act.
+      if (!this.isSideChat) {
+        checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
+      }
+      // A turn may have started while the mark was published.
+      if (this.isTurnRunning()) {
+        this.checkpoints.dropPending(checkpoint)
+        refuse(UI_TEXT.playbackBusy)
+        return
+      }
+      // The turn's text loads with the review bundle, as a review's does
+      // (M70): a playback that cannot load it is refused with the reason.
+      const parts: readonly TurnPart[] = [{ type: 'text', text: this.deps.review.playbackText() }]
+      this.deps.log.info('Playback starting')
+      let submittedSession = session
+      const submission = await this.runResuming(host, session, (current) => {
+        submittedSession = current
+        return this.submitPlayback(current, parts, text, generation)
+      })
+      // A dropped session's pending command may still acknowledge its turn.
+      if (!this.isCurrentSessionAction(submittedSession, generation)) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      this.checkpoints.accepted(
+        checkpoint,
+        submission.turnId,
+        submission.disposition !== QUEUED_DISPOSITION &&
+          submission.disposition !== STEERED_DISPOSITION,
+      )
+      this.acceptSubmission(localId, text, submission)
+      // A queued or steered playback answers from the turn it joins; only a
+      // started one is watched on its own. And only a Plan-held playback is
+      // watched at all: the backend's own no-tools turn refuses the call
+      // itself (its item is emitted before the refusal), so stopping there
+      // would kill a turn that was handling it correctly.
+      if (
+        submission.disposition !== QUEUED_DISPOSITION &&
+        submission.disposition !== STEERED_DISPOSITION &&
+        submittedSession.playback === undefined
+      ) {
+        this.playbackTurn = { session: submittedSession, turnId: submission.turnId, stopped: false }
+      }
+    } catch (error: unknown) {
+      this.checkpoints.dropPending(checkpoint)
+      const reason = describe(error)
+      // The user's card says why; the log keeps the kind, never text a backend chose.
+      this.deps.log.error(`startPlayback failed: ${errorKind(error)}`)
+      refuse(reason)
+    }
+  }
+
+  /**
+   * Submit the playback turn: the backend's own no-tools turn where it has
+   * one (the Model API's), else an ordinary turn held in Plan mode, stopped
+   * at the first tool use.
+   */
+  private async submitPlayback(
+    session: AgentSession,
+    parts: readonly TurnPart[],
+    text: string,
+    generation: number,
+  ): Promise<TurnSubmission> {
+    const isCurrent = () => this.isCurrentSessionAction(session, generation)
+    // The panel's Plan label can precede its backend admission.
+    while (this.reviewModeSettling !== undefined) {
+      await this.reviewModeSettling
+    }
+    if (!isCurrent()) {
+      throw new Error(UI_TEXT.turnStoppedByRestart)
+    }
+    this.requireNonConfidentialModel(session.modelId)
+    const playback = session.playback
+    if (playback !== undefined) {
+      return await playback.call(session, parts, text)
+    }
+    this.notice('info', UI_TEXT.playbackPlanModeNotice)
+    const previousMode = this.permissionMode
+    return previousMode === 'plan'
+      ? await session.sendTurn(parts, text)
+      : await this.sendHeldTurn(
+          session,
+          parts,
+          text,
+          generation,
+          previousMode,
+          this.bypassRevocationEpoch,
+          isCurrent,
+        )
+  }
+
+  /**
+   * A tool item of the running playback turn (D203): the Model API backend
+   * refuses the call itself, so this only ever fires on Muse Code, where
+   * the turn is stopped at once and the person is told why. Never silent.
+   */
+  private watchPlaybackItem(item: ItemSnapshot): void {
+    const watched = this.playbackTurn
+    if (
+      watched === undefined ||
+      watched.stopped ||
+      item.kind !== TOOL_CALL_KIND ||
+      item.turnId === undefined ||
+      item.turnId !== watched.turnId
+    ) {
+      return
+    }
+    watched.stopped = true
+    this.deps.log.info(`Playback turn ${watched.turnId} used a tool; stopping it`)
+    this.notice('warning', UI_TEXT.playbackStoppedTools)
+    void watched.session.cancel().catch((error: unknown) => {
+      this.deps.log.warn(`Stopping the playback turn failed: ${errorKind(error)}`)
+    })
+  }
+
+  /** A playback turn ended: nothing more to watch. */
+  private forgetPlaybackTurn(turnId: string): void {
+    if (this.playbackTurn?.turnId === turnId) {
+      this.playbackTurn = undefined
+    }
   }
 
   /** Called only after the failed mode request's live session/generation fence. */
@@ -10179,6 +10416,10 @@ export class ConversationController {
       }
       case 'startReview': {
         await this.startReview(message.localId, message.text, message.request)
+        break
+      }
+      case 'startPlayback': {
+        await this.startPlayback(message.localId, message.text)
         break
       }
       case 'requestLegalScan': {

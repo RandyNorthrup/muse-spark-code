@@ -499,7 +499,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Help & Reference
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 ```json
 {
@@ -824,6 +824,14 @@ Ask Muse to review your changes, or what you describe.
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#review)
+
+### /playback
+
+Muse states its own understanding of the goal, from memory only, with no tools
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#playback)
 
 ### Plans…
 
@@ -1495,7 +1503,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Report an issue.
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -1522,6 +1530,7 @@ Availability depends on the backend. Installed skills also add their own slash c
 - `/compact`: museCode: Summarise older context to free the window; modelApi: Summarise older context to free the window
 - `/handoff [goal]`: museCode: Distil this conversation into a brief for a fresh one; modelApi: Distil this conversation into a brief for a fresh one
 - `/goal <objective>` | `/goal edit <objective>` | `/goal pause` | `/goal resume` | `/goal clear`: museCode: Set a goal Muse keeps working toward: /goal &lt;objective&gt;; modelApi: Set a goal Muse keeps working toward: /goal &lt;objective&gt;
+- `/playback`: museCode: Muse states its own understanding of the goal, from memory only, with no tools; modelApi: Muse states its own understanding of the goal, from memory only, with no tools
 - `/legal [workspace-relative path ...]`: museCode: Scan the workspace for licensing, attribution and header findings; modelApi: Scan the workspace for licensing, attribution and header findings
 - `/export`: museCode: Save this conversation as a Markdown file; modelApi: Save this conversation as a Markdown file
 - `/clear`: museCode: Clear Conversation; modelApi: Clear Conversation

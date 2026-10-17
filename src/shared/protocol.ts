@@ -741,6 +741,14 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     text: stringSchema,
     request: reviewRequestSchema,
   }),
+  // `/playback` or the palette playback row (D203): the card the webview
+  // already shows is `localId`, reading `text`; answered by turnAccepted or
+  // sendFailed. The turn answers from working memory only, with no tools.
+  z.object({
+    type: z.literal('startPlayback'),
+    localId: stringSchema,
+    text: stringSchema,
+  }),
   // The review pane opened (M70): the conversation's edits, oldest first.
   z.object({
     type: z.literal('readReviewChanges'),

@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- `/playback`: ask the agent to state its own understanding of the goal and
+  instructions, from its working memory only, with no tools for the turn.
+  The reply opens with `My playback — my own understanding, from memory
+  only:`, so the person can compare it with what they asked and correct it
+  in the next message. On the Model API backend the turn is offered no
+  tools and every call is refused in code; on Muse Code it runs in Plan
+  mode and stops at the first tool use. It runs on the panel, the terminal
+  and ACP editors, in all fourteen languages.
+
 ### Fixed
 
 - On Windows, two requests that reserve session spend at the same moment
