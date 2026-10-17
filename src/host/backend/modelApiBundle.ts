@@ -44,7 +44,11 @@ export interface ModelApiBundleDeps {
   /** Admission is constructed only after this backend loads, in editor and runtime. */
   readonly autoCompaction?: Pick<
     ModelApiBackendManagerDeps,
-    'autoCompactionAccounting' | 'reserveAutoCompaction' | 'paidUseFence' | 'paidDailyBudgetUsd'
+    | 'autoCompactionAccounting'
+    | 'autoCompactionTrusted'
+    | 'reserveAutoCompaction'
+    | 'paidUseFence'
+    | 'paidDailyBudgetUsd'
   >
   /** Muse Code's settings file, read for hooks while `host.isHooksEnabled` says so (M51). */
   readonly hookSettingsPath: string | undefined
