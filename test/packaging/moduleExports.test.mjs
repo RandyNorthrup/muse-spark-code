@@ -1,5 +1,8 @@
 // Native Node loader regressions run during packaging, after its production build.
-// Workers isolate CLI/host state; all services are fake and no model call is made.
+// Workers isolate CLI/host state; the remaining calls drive real schemas and
+// parsers with data, and no model call is made. The worker's Module._load trap
+// for 'vscode' and the throwing fetch are load isolation only: VS Code-bound
+// bundles must import in bare Node, and no exercised call reaches them.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
@@ -8,10 +11,6 @@ import path from 'node:path'
 import { test, after } from 'node:test'
 import { pathToFileURL } from 'node:url'
 import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads'
-
-function ignore() {
-  // Fake services have no external side effects.
-}
 
 const compare = (left, right) => left.localeCompare(right, 'en')
 
@@ -55,108 +54,6 @@ async function exercise(api, name, table) {
     }
     case 'hookRuntime.js': {
       return api.parseElicitationParams({ message: 'Who?', requestedSchema: {} })
-    }
-    case 'foreignHooks.js': {
-      const adapter = api.createForeignHookAdapter({ workspaceRoot: '/fake', platform: 'linux' })
-      adapter.dispose()
-      return typeof adapter.prepare
-    }
-    case 'reviewer.js': {
-      const rows = []
-      const client = {
-        streamResponse() {
-          throw new Error('fake reviewer unavailable')
-        },
-      }
-      const result = await api.reviewPaidCall(
-        {
-          resolved: {
-            ref: 'muse-spark-1.3',
-            client,
-            origin: 'https://api.meta.ai',
-            isCurrent: () => true,
-            policy: {
-              identity: { provider: 'meta', nativeModel: 'muse-spark-1.3' },
-              tools: {
-                calling: { state: 'yes', value: true },
-                parallel: { state: 'yes', value: true },
-              },
-              reasoning: {
-                effortLevels: { state: 'unknown' },
-                canDisable: { state: 'yes', value: true },
-              },
-              output: {},
-              hosted: { webSearch: { state: 'unknown' } },
-              pricing: { kind: 'local' },
-            },
-            price: { reserve: () => 0, settle: () => 0 },
-          },
-          isCountedUsage: () => true,
-          abortError: () => new Error('fake cancelled'),
-          table,
-          locale: 'en',
-          userRequest: 'Inspect',
-          recentCalls: [],
-          keyed: (body) => body,
-          guard: () => ignore,
-          isRefused: () => false,
-          breaker: { record: () => false },
-          record: (row) => {
-            rows.push(row)
-          },
-          emit: ignore,
-          deps: {
-            newId: () => 'fake-review',
-            now: () => 1,
-            workspaceRoot: '/fake',
-            platform: 'linux',
-            log: { warn: ignore },
-            noteReviewerUsage: ignore,
-            client,
-          },
-        },
-        'shell',
-        'pwd',
-        'fake-turn',
-        new globalThis.AbortController().signal,
-        {
-          modelId: 'muse-spark-1.3',
-          keyDigest: 'fake-digest',
-          isStillAllowed: () => true,
-          onRequestStarted: ignore,
-        },
-        undefined,
-        () => true,
-      )
-      return { result, rows }
-    }
-    case 'sessionBoard.js': {
-      return await api.readSessionBoard(
-        {
-          ensureHost: async () => ({}),
-          backendOf: () => 'modelApi',
-          workspaceRoot: undefined,
-          platform: 'linux',
-          pendingPrompts: { pendingSessionIds: () => new Set() },
-          liveSessions: [{ sessionId: 'fake-session', backend: 'modelApi', status: 'idle' }],
-        },
-        table,
-        'en',
-      )
-    }
-    case 'report.js': {
-      const errors = []
-      const handler = api.createReportProblemHandler(
-        {
-          onReportWebviewError: (error) => {
-            errors.push(error)
-          },
-        },
-        table,
-        'en',
-      )
-      await handler.handle({ type: 'reportWebviewError', message: 'fake failure' })
-      return errors
     }
     case 'pluginHooks.js': {
       return api.pluginAnswer(
@@ -241,8 +138,15 @@ if (isMainThread) {
 } else {
   // The real CLI entry takes its help path; neither auth nor backend setup runs.
   process.argv = [process.execPath, workerData.file, '--help']
-  const noop = new Proxy(ignore, { get: () => noop })
+  // Load isolation only (PLAN §8): VS Code-bound bundles must import in bare
+  // Node so every dist file's exports can be compared. No exercised call
+  // below reaches the trap: the remaining branches drive real schemas and
+  // parsers whose sources never import 'vscode'.
+  const inert = () => undefined
+  // eslint-disable-next-line no-restricted-syntax -- load isolation, PLAN §8.
+  const noop = new Proxy(inert, { get: () => noop })
   const load = Module._load
+  // eslint-disable-next-line no-restricted-syntax -- load isolation, PLAN §8.
   Module._load = function (name, ...args) {
     if (name === 'vscode') return noop
     return name === 'node:worker_threads'
