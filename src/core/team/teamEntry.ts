@@ -20,6 +20,9 @@ export function createTeamViewSchemas() {
   return { teamTreeSchema, teamUsageSchema, teamItemFields }
 }
 
+/** New conversations validate a saved orchestrator override through the team chunk. */
+export { validateOrchestratorSettings } from './orchestratorSlot'
+
 export function createTeamRuntime(table: UiText, locale: string) {
   setUiText(table, locale)
   return {
