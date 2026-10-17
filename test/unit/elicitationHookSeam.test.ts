@@ -12,12 +12,15 @@ import {
   dispatchExtensionHooks,
   elicitationFields,
   elicitationResultFields,
+  elicitationVerdictFromDispatch,
   extensionHookPayload,
   parseSparkHooksConfig,
   teammateIdleFields,
   type ExtensionHookDefinition,
+  type ExtensionHookDispatch,
+  type ExtensionHookEvent,
 } from '../../src/core/backends/modelapi/extensionHooks'
-import { elicitationVerdictFromDispatch } from '../../src/core/backends/modelapi/mcp/elicitation'
+import type { ElicitationHookVerdict } from '../../src/core/backends/modelapi/mcp/elicitation'
 import type { ShellResult } from '../../src/core/shellResult'
 
 const SERVER = 'calendar'
@@ -112,6 +115,48 @@ function parseHooks(
   return parsed.hooks
 }
 
+/** One real dispatch: parsed hooks, the production envelope, a real child. */
+async function dispatchFor(
+  hooks: readonly ExtensionHookDefinition[],
+  event: ExtensionHookEvent,
+  dir: string,
+  fields: Readonly<Record<string, unknown>>,
+  matcherValue: string,
+  warnings: string[],
+): Promise<ExtensionHookDispatch> {
+  return await dispatchExtensionHooks({
+    hooks,
+    event,
+    payload: extensionHookPayload(event, { sessionId: 'session-1', workspaceRoot: dir }, fields),
+    matcherValue,
+    io: { runHook: spawnHookResult },
+    cwd: dir,
+    signal: undefined,
+    warn: (message) => {
+      warnings.push(message)
+    },
+  })
+}
+
+/** A hook that records its stdin to a fresh file, for payload observation. */
+function recordingHook(): {
+  readonly command: string
+  readonly dir: string
+  readonly seen: string
+} {
+  const seenDir = mkdtempSync(path.join(tmpdir(), 'm91-seen-'))
+  const seen = path.join(seenDir, 'stdin.json')
+  const hook = writeHook('true')
+  writeFileSync(path.join(hook.dir, 'hook.sh'), `#!/bin/sh\ncat > "${seen}"\n`, {
+    mode: 0o755,
+  })
+  return { command: hook.command, dir: hook.dir, seen }
+}
+
+function observedStdin(seen: string): Record<string, unknown> {
+  return JSON.parse(readFileSync(seen, 'utf8')) as Record<string, unknown>
+}
+
 describe('elicitation hook payloads', () => {
   it('tells an Elicitation hook the server, message and field names', () => {
     const fields = elicitationFields(SERVER, 'Enter the code', ['code'], ['code'])
@@ -163,302 +208,173 @@ describe('elicitation hook payloads', () => {
 })
 
 describe.runIf(process.platform !== 'win32')('elicitation hooks through real processes', () => {
-  it('a project refusal declines with the hook reason', async () => {
-    const hook = writeHook('echo "too sensitive for this repo" >&2\nexit 2')
-    const hooks = parseHooks('Elicitation', hook.command, 'project')
-    const warnings: string[] = []
-    const policy = await dispatchExtensionHooks({
-      hooks,
-      event: 'Elicitation',
-      payload: extensionHookPayload(
-        'Elicitation',
-        { sessionId: 'session-1', workspaceRoot: hook.dir },
-        elicitationFields(SERVER, 'Enter the code', ['code'], ['code']),
-      ),
-      matcherValue: SERVER,
-      io: { runHook: spawnHookResult },
-      cwd: hook.dir,
-      signal: undefined,
-      warn: (message) => {
-        warnings.push(message)
-      },
-    })
-    expect(warnings).toEqual([])
-    expect(policy.refusedReason).toBe('too sensitive for this repo')
-    expect(elicitationVerdictFromDispatch(policy, undefined)).toEqual({
-      decision: 'decline',
-      source: 'project',
-      reason: 'too sensitive for this repo',
-    })
-  })
+  interface VerdictCase {
+    readonly name: string
+    readonly policyScript?: string
+    readonly userScript?: string
+    readonly matcher?: string
+    readonly warningCount: number
+    readonly expectPolicyAnswer?: boolean
+    readonly expected: ElicitationHookVerdict
+  }
 
-  it('a project refusal wins over a user answer', async () => {
-    const policyHook = writeHook('echo "repo policy says no" >&2\nexit 2')
-    const userHook = writeHook('echo \'{"answer": {"code": "1234"}}\'')
-    const warnings: string[] = []
-    const io = { runHook: spawnHookResult }
-    const fields = elicitationFields(SERVER, 'Enter the code', ['code'], ['code'])
-    const policy = await dispatchExtensionHooks({
-      hooks: parseHooks('Elicitation', policyHook.command, 'project'),
-      event: 'Elicitation',
-      payload: extensionHookPayload(
-        'Elicitation',
-        { sessionId: 'session-1', workspaceRoot: policyHook.dir },
-        fields,
-      ),
-      matcherValue: SERVER,
-      io,
-      cwd: policyHook.dir,
-      signal: undefined,
-      warn: (message) => {
-        warnings.push(message)
+  const VERDICT_CASES: readonly VerdictCase[] = [
+    {
+      name: 'a project refusal declines with the hook reason',
+      policyScript: 'echo "too sensitive for this repo" >&2\nexit 2',
+      warningCount: 0,
+      expected: {
+        decision: 'decline',
+        source: 'project',
+        reason: 'too sensitive for this repo',
       },
-    })
-    const personal = await dispatchExtensionHooks({
-      hooks: parseHooks('Elicitation', userHook.command, 'user'),
-      event: 'Elicitation',
-      payload: extensionHookPayload(
-        'Elicitation',
-        { sessionId: 'session-1', workspaceRoot: userHook.dir },
-        fields,
-      ),
-      matcherValue: SERVER,
-      io,
-      cwd: userHook.dir,
-      signal: undefined,
-      warn: (message) => {
-        warnings.push(message)
-      },
-    })
-    expect(personal.hasAnswer).toBe(true)
-    expect(warnings).toEqual([])
-    expect(elicitationVerdictFromDispatch(policy, personal)).toEqual({
-      decision: 'decline',
-      source: 'project',
-      reason: 'repo policy says no',
-    })
-  })
+    },
+    {
+      name: 'a project refusal wins over a user answer',
+      policyScript: 'echo "repo policy says no" >&2\nexit 2',
+      userScript: 'echo \'{"answer": {"code": "1234"}}\'',
+      warningCount: 0,
+      expected: { decision: 'decline', source: 'project', reason: 'repo policy says no' },
+    },
+    {
+      name: 'a user answer carries its values to the caller',
+      userScript: 'echo \'{"answer": {"code": "1234"}}\'',
+      warningCount: 0,
+      expected: { decision: 'answer', source: 'user', values: { code: '1234' } },
+    },
+    {
+      name: 'a user answer that is not a record declines instead of guessing',
+      userScript: 'echo \'{"answer": 42}\'',
+      warningCount: 0,
+      expected: { decision: 'decline', source: 'user', reason: 'hook answer is not a record' },
+    },
+    {
+      name: 'a project answer never reaches the caller',
+      policyScript: 'echo \'{"answer": {"code": "1234"}}\'',
+      warningCount: 0,
+      expectPolicyAnswer: true,
+      expected: { decision: 'proceed' },
+    },
+    {
+      name: 'a crashed hook does not block the form',
+      userScript: 'exit 1',
+      warningCount: 1,
+      expected: { decision: 'proceed' },
+    },
+    {
+      name: 'with no hooks the form simply shows',
+      warningCount: 0,
+      expected: { decision: 'proceed' },
+    },
+    {
+      name: 'a matcher selects the server the hook watches',
+      policyScript: 'echo "not this server" >&2\nexit 2',
+      matcher: 'otherserver',
+      warningCount: 0,
+      expected: { decision: 'proceed' },
+    },
+  ]
 
-  it('a user answer carries its values to the caller', async () => {
-    const hook = writeHook('echo \'{"answer": {"code": "1234"}}\'')
-    const personal = await dispatchExtensionHooks({
-      hooks: parseHooks('Elicitation', hook.command, 'user'),
-      event: 'Elicitation',
-      payload: extensionHookPayload(
-        'Elicitation',
-        { sessionId: 'session-1', workspaceRoot: hook.dir },
-        elicitationFields(SERVER, 'Enter the code', ['code'], ['code']),
-      ),
-      matcherValue: SERVER,
-      io: { runHook: spawnHookResult },
-      cwd: hook.dir,
-      signal: undefined,
-      warn: () => {
-        // The verdict (or observed stdin) below is the assertion.
-      },
+  for (const kase of VERDICT_CASES) {
+    it(kase.name, async () => {
+      const warnings: string[] = []
+      const fields = elicitationFields(SERVER, 'Enter the code', ['code'], ['code'])
+      let policy: ExtensionHookDispatch | undefined
+      let personal: ExtensionHookDispatch | undefined
+      if (kase.policyScript !== undefined) {
+        const hook = writeHook(kase.policyScript)
+        policy = await dispatchFor(
+          parseHooks('Elicitation', hook.command, 'project', kase.matcher),
+          'Elicitation',
+          hook.dir,
+          fields,
+          SERVER,
+          warnings,
+        )
+      }
+      if (kase.userScript !== undefined) {
+        const hook = writeHook(kase.userScript)
+        personal = await dispatchFor(
+          parseHooks('Elicitation', hook.command, 'user'),
+          'Elicitation',
+          hook.dir,
+          fields,
+          SERVER,
+          warnings,
+        )
+      }
+      expect(warnings).toHaveLength(kase.warningCount)
+      if (kase.expectPolicyAnswer === true) expect(policy?.hasAnswer).toBe(true)
+      expect(elicitationVerdictFromDispatch(policy, personal)).toEqual(kase.expected)
     })
-    expect(elicitationVerdictFromDispatch(undefined, personal)).toEqual({
-      decision: 'answer',
-      source: 'user',
-      values: { code: '1234' },
-    })
-  })
+  }
 
-  it('a user answer that is not a record declines instead of guessing', async () => {
-    const hook = writeHook('echo \'{"answer": 42}\'')
-    const personal = await dispatchExtensionHooks({
-      hooks: parseHooks('Elicitation', hook.command, 'user'),
-      event: 'Elicitation',
-      payload: extensionHookPayload(
-        'Elicitation',
-        { sessionId: 'session-1', workspaceRoot: hook.dir },
-        elicitationFields(SERVER, 'Enter the code', ['code'], ['code']),
-      ),
-      matcherValue: SERVER,
-      io: { runHook: spawnHookResult },
-      cwd: hook.dir,
-      signal: undefined,
-      warn: () => {
-        // The verdict (or observed stdin) below is the assertion.
-      },
-    })
-    expect(personal.hasAnswer).toBe(true)
-    expect(elicitationVerdictFromDispatch(undefined, personal)).toEqual({
-      decision: 'decline',
-      source: 'user',
-      reason: 'hook answer is not a record',
-    })
-  })
+  interface ObservedCase {
+    readonly name: string
+    readonly event: 'ElicitationResult' | 'TeammateIdle'
+    readonly scope: 'user' | 'project'
+    readonly fields: Readonly<Record<string, unknown>>
+    readonly matcherValue: string
+    readonly expected: Record<string, unknown>
+    readonly forbidden?: string
+  }
 
-  it('a project answer never reaches the caller', async () => {
-    const hook = writeHook('echo \'{"answer": {"code": "1234"}}\'')
-    const policy = await dispatchExtensionHooks({
-      hooks: parseHooks('Elicitation', hook.command, 'project'),
-      event: 'Elicitation',
-      payload: extensionHookPayload(
-        'Elicitation',
-        { sessionId: 'session-1', workspaceRoot: hook.dir },
-        elicitationFields(SERVER, 'Enter the code', ['code'], ['code']),
-      ),
-      matcherValue: SERVER,
-      io: { runHook: spawnHookResult },
-      cwd: hook.dir,
-      signal: undefined,
-      warn: () => {
-        // The verdict (or observed stdin) below is the assertion.
-      },
-    })
-    expect(policy.hasAnswer).toBe(true)
-    expect(elicitationVerdictFromDispatch(policy, undefined)).toEqual({ decision: 'proceed' })
-  })
-
-  it('a crashed hook does not block the form', async () => {
-    const hook = writeHook('exit 1')
-    const warnings: string[] = []
-    const personal = await dispatchExtensionHooks({
-      hooks: parseHooks('Elicitation', hook.command, 'user'),
-      event: 'Elicitation',
-      payload: extensionHookPayload(
-        'Elicitation',
-        { sessionId: 'session-1', workspaceRoot: hook.dir },
-        elicitationFields(SERVER, 'Enter the code', ['code'], ['code']),
-      ),
-      matcherValue: SERVER,
-      io: { runHook: spawnHookResult },
-      cwd: hook.dir,
-      signal: undefined,
-      warn: (message) => {
-        warnings.push(message)
-      },
-    })
-    expect(personal.refusedReason).toBeUndefined()
-    expect(warnings).toHaveLength(1)
-    expect(elicitationVerdictFromDispatch(undefined, personal)).toEqual({ decision: 'proceed' })
-  })
-
-  it('with no hooks the form simply shows', () => {
-    expect(elicitationVerdictFromDispatch(undefined, undefined)).toEqual({ decision: 'proceed' })
-  })
-
-  it('a matcher selects the server the hook watches', async () => {
-    const hook = writeHook('echo "not this server" >&2\nexit 2')
-    const other = await dispatchExtensionHooks({
-      hooks: parseHooks('Elicitation', hook.command, 'project', 'otherserver'),
-      event: 'Elicitation',
-      payload: extensionHookPayload(
-        'Elicitation',
-        { sessionId: 'session-1', workspaceRoot: hook.dir },
-        elicitationFields(SERVER, 'Enter the code', ['code'], ['code']),
-      ),
-      matcherValue: SERVER,
-      io: { runHook: spawnHookResult },
-      cwd: hook.dir,
-      signal: undefined,
-      warn: () => {
-        // The verdict (or observed stdin) below is the assertion.
-      },
-    })
-    expect(other.refusedReason).toBeUndefined()
-    expect(elicitationVerdictFromDispatch(other, undefined)).toEqual({ decision: 'proceed' })
-  })
-
-  it('ElicitationResult shows a project hook names and action only', async () => {
-    const seenDir = mkdtempSync(path.join(tmpdir(), 'm91-seen-'))
-    const seen = path.join(seenDir, 'stdin.json')
-    const hook = writeHook('true')
-    writeFileSync(path.join(hook.dir, 'hook.sh'), `#!/bin/sh\ncat > "${seen}"\n`, {
-      mode: 0o755,
-    })
-    await dispatchExtensionHooks({
-      hooks: parseHooks('ElicitationResult', hook.command, 'project'),
+  const OBSERVED_CASES: readonly ObservedCase[] = [
+    {
+      name: 'ElicitationResult shows a project hook names and action only',
       event: 'ElicitationResult',
-      payload: extensionHookPayload(
-        'ElicitationResult',
-        { sessionId: 'session-1', workspaceRoot: hook.dir },
-        elicitationResultFields({
-          server: SERVER,
-          action: 'accept',
-          fieldNames: ['code'],
-          values: { code: '1234' },
-        }),
-      ),
+      scope: 'project',
+      fields: elicitationResultFields({ server: SERVER, action: 'accept', fieldNames: ['code'] }),
       matcherValue: SERVER,
-      io: { runHook: spawnHookResult },
-      cwd: hook.dir,
-      signal: undefined,
-      warn: () => {
-        // The verdict (or observed stdin) below is the assertion.
+      expected: {
+        hook_event_name: 'ElicitationResult',
+        server: SERVER,
+        action: 'accept',
+        fields: ['code'],
       },
-    })
-    expect(JSON.parse(readFileSync(seen, 'utf8'))).toMatchObject({
-      hook_event_name: 'ElicitationResult',
-      server: SERVER,
-      action: 'accept',
-      fields: ['code'],
-    })
-    expect(JSON.parse(readFileSync(seen, 'utf8'))).not.toContain('1234')
-  })
-
-  it('ElicitationResult shows a user hook the accepted values', async () => {
-    const seenDir = mkdtempSync(path.join(tmpdir(), 'm91-seen-'))
-    const seen = path.join(seenDir, 'stdin.json')
-    const hook = writeHook('true')
-    writeFileSync(path.join(hook.dir, 'hook.sh'), `#!/bin/sh\ncat > "${seen}"\n`, {
-      mode: 0o755,
-    })
-    await dispatchExtensionHooks({
-      hooks: parseHooks('ElicitationResult', hook.command, 'user'),
+      forbidden: '1234',
+    },
+    {
+      name: 'ElicitationResult shows a user hook the accepted values',
       event: 'ElicitationResult',
-      payload: extensionHookPayload(
-        'ElicitationResult',
-        { sessionId: 'session-1', workspaceRoot: hook.dir },
-        elicitationResultFields({
-          server: SERVER,
-          action: 'accept',
-          fieldNames: ['code'],
-          values: { code: '1234' },
-        }),
-      ),
+      scope: 'user',
+      fields: elicitationResultFields({
+        server: SERVER,
+        action: 'accept',
+        fieldNames: ['code'],
+        values: { code: '1234' },
+      }),
       matcherValue: SERVER,
-      io: { runHook: spawnHookResult },
-      cwd: hook.dir,
-      signal: undefined,
-      warn: () => {
-        // The verdict (or observed stdin) below is the assertion.
-      },
-    })
-    expect(JSON.parse(readFileSync(seen, 'utf8'))).toMatchObject({
-      values: { code: '1234' },
-    })
-  })
-
-  it('TeammateIdle reaches the hook with the idle task and sibling count', async () => {
-    const seenDir = mkdtempSync(path.join(tmpdir(), 'm91-seen-'))
-    const seen = path.join(seenDir, 'stdin.json')
-    const hook = writeHook('true')
-    writeFileSync(path.join(hook.dir, 'hook.sh'), `#!/bin/sh\ncat > "${seen}"\n`, {
-      mode: 0o755,
-    })
-    await dispatchExtensionHooks({
-      hooks: parseHooks('TeammateIdle', hook.command, 'user'),
+      expected: { values: { code: '1234' } },
+    },
+    {
+      name: 'TeammateIdle reaches the hook with the idle task and sibling count',
       event: 'TeammateIdle',
-      payload: extensionHookPayload(
-        'TeammateIdle',
-        { sessionId: 'session-1', workspaceRoot: hook.dir },
-        teammateIdleFields({ name: 'task-7', siblingsRunning: 2 }),
-      ),
+      scope: 'user',
+      fields: teammateIdleFields({ name: 'task-7', siblingsRunning: 2 }),
       matcherValue: 'task-7',
-      io: { runHook: spawnHookResult },
-      cwd: hook.dir,
-      signal: undefined,
-      warn: () => {
-        // The verdict (or observed stdin) below is the assertion.
-      },
+      expected: { hook_event_name: 'TeammateIdle', name: 'task-7', siblings_running: 2 },
+    },
+  ]
+
+  for (const kase of OBSERVED_CASES) {
+    it(kase.name, async () => {
+      const hook = recordingHook()
+      const warnings: string[] = []
+      await dispatchFor(
+        parseHooks(kase.event, hook.command, kase.scope),
+        kase.event,
+        hook.dir,
+        kase.fields,
+        kase.matcherValue,
+        warnings,
+      )
+      expect(warnings).toEqual([])
+      const seen = observedStdin(hook.seen)
+      expect(seen).toMatchObject(kase.expected)
+      if (kase.forbidden !== undefined) {
+        expect(JSON.stringify(seen)).not.toContain(kase.forbidden)
+      }
     })
-    expect(JSON.parse(readFileSync(seen, 'utf8'))).toMatchObject({
-      hook_event_name: 'TeammateIdle',
-      name: 'task-7',
-      siblings_running: 2,
-    })
-  })
+  }
 })

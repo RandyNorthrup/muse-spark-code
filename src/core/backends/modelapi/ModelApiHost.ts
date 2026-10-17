@@ -380,6 +380,7 @@ import {
   createFileChangedThrottle,
   elicitationFields,
   elicitationResultFields,
+  elicitationVerdictFromDispatch,
   emptyExtensionDispatch,
   extensionHookPayload,
   fileChangedFields,
@@ -441,7 +442,6 @@ import {
   elicitationFieldNames,
   type ElicitationOutcome,
   type ElicitationResultInput,
-  elicitationVerdictFromDispatch,
 } from './mcp/elicitation'
 import type {
   McpElicitationHandler,

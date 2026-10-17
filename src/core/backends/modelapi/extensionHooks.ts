@@ -54,6 +54,7 @@ import {
 } from './hooks'
 import { sparkHooksFiles } from './hookNames'
 import { compileGlob } from './globLimits'
+import type { ElicitationHookVerdict } from './mcp/elicitation'
 import { boundedHookText } from './toolHookPayload'
 import type { ContextIo } from '../../context/contextFiles'
 import { decodeContextText } from '../../context/contextFiles'
@@ -717,6 +718,36 @@ export function teammateIdleFields(options: {
   readonly siblingsRunning: number
 }): Readonly<Record<string, unknown>> {
   return { name: options.name, siblings_running: options.siblingsRunning }
+}
+
+function isVerdictAnswerRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * The Elicitation verdict from the two scope-grouped dispatches (M91 D70).
+ * Policy hooks (project, managed) run first and can only decline; the
+ * user's own hooks run next and may also answer. A refusal declines with
+ * the hook's reason; cancel stays the caller's own stop/timeout path,
+ * because the hook protocol carries a single refusal. A user answer that
+ * is not a record declines rather than guessing.
+ */
+export function elicitationVerdictFromDispatch(
+  policy: ExtensionHookDispatch | undefined,
+  personal: ExtensionHookDispatch | undefined,
+): ElicitationHookVerdict {
+  if (policy?.refusedReason !== undefined) {
+    return { decision: 'decline', source: 'project', reason: policy.refusedReason }
+  }
+  if (personal?.refusedReason !== undefined) {
+    return { decision: 'decline', source: 'user', reason: personal.refusedReason }
+  }
+  if (personal?.hasAnswer === true) {
+    return isVerdictAnswerRecord(personal.answer)
+      ? { decision: 'answer', source: 'user', values: personal.answer }
+      : { decision: 'decline', source: 'user', reason: 'hook answer is not a record' }
+  }
+  return { decision: 'proceed' }
 }
 
 export function messageDisplayFields(message: string): Readonly<Record<string, unknown>> {
