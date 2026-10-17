@@ -24,6 +24,7 @@ import type {
   OutputItem,
   StreamEvent,
 } from '../../core/backends/modelapi/schemas'
+import { CopilotFailureError } from '../../core/providers/subscriptions/copilotFailure'
 
 /** The M95 ProviderClient seam, absent from this base; no image-generation calls. */
 type ProviderClient = Pick<
@@ -131,8 +132,6 @@ function failureCode(error: unknown): CopilotFailure {
   return codes.includes('NotFound') ? 'unavailable' : 'request-failed'
 }
 
-class CopilotFailureError extends Error {}
-
 /**
  * Copilot's model tolerance for the shared confirmed-dispatch gate: the
  * session stores `copilot/<id>` while a request may carry the catalogue
@@ -158,8 +157,8 @@ class CopilotClient implements ProviderClient {
     private readonly api: CopilotPort,
   ) {}
 
-  private fail(code: CopilotFailure): Error {
-    return new CopilotFailureError(this.deps.failureText(code))
+  private fail(code: CopilotFailure, options?: { cause?: unknown }): Error {
+    return new CopilotFailureError(this.deps.failureText(code), options)
   }
   /**
    * The pre-dispatch gate with Copilot's model tolerance: the session stores
@@ -280,7 +279,7 @@ class CopilotClient implements ProviderClient {
       return tokenCountSchema.parse(count)
     } catch (error) {
       if (error instanceof CopilotFailureError) throw error
-      throw this.fail('request-failed')
+      throw this.fail('request-failed', { cause: error })
     }
   }
   public listModels(): Promise<readonly string[]> {
@@ -427,11 +426,12 @@ class CopilotClient implements ProviderClient {
         }
       else yield { type: 'response.completed', response: final }
     } catch (error) {
-      if (isAborted(signal)) throw this.fail('cancelled')
+      if (signal.aborted) throw this.fail('cancelled')
       // A mid-flight gate lapse keeps the run's own guidance instead of the
-      // adapter's failure text, like the registry's plan branches.
+      // adapter's failure text, like the registry's plan branches. Anything
+      // else keeps its kind on the failure (D119).
       if (error instanceof CopilotFailureError || isStaleConfirmedError(error)) throw error
-      throw this.fail(failureCode(error))
+      throw this.fail(failureCode(error), { cause: error })
     } finally {
       signal.removeEventListener('abort', abort)
       cancellation.cancel()
