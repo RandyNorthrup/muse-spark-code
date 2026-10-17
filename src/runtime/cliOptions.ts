@@ -166,6 +166,41 @@ const FONTS_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
+// The sharing commands' flags, mirroring the owner parser in sharing/args.ts
+// (parseCommandLine hands sharing argv to the owner before its own strict
+// parse, so this route only drives help, the reference and the guard). The
+// per-action shapes differ inside the owner (prompts save takes a repeated
+// --tag, list a single one; share takes a confirmation value, use a bare
+// --confirm): the registry keeps the widest shape the screen can render.
+const SHARE_OPTIONS = {
+  cwd: { type: 'string' },
+  json: { type: 'boolean' },
+  mode: { type: 'string' },
+  format: { type: 'string' },
+  destination: { type: 'string' },
+  out: { type: 'string' },
+  from: { type: 'string' },
+  to: { type: 'string' },
+  'no-code-blocks': { type: 'boolean' },
+  'no-attachment-names': { type: 'boolean' },
+  diffs: { type: 'boolean' },
+  'attachment-content': { type: 'string', multiple: true },
+  'exported-at': { type: 'string' },
+  confirm: { type: 'string' },
+} as const satisfies CliParserOptions
+
+const PROMPTS_OPTIONS = {
+  cwd: { type: 'string' },
+  json: { type: 'boolean' },
+  scope: { type: 'string' },
+  search: { type: 'string' },
+  tag: { type: 'string', multiple: true },
+  title: { type: 'string' },
+  chat: { type: 'string' },
+  var: { type: 'string', multiple: true },
+  confirm: { type: 'boolean' },
+} as const satisfies CliParserOptions
+
 export const CLI_OPTION_REGISTRY = {
   providersAdd: { options: PROVIDER_OPTIONS },
   providersModels: {
@@ -210,6 +245,11 @@ export const CLI_OPTION_REGISTRY = {
   resources: { options: { json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } } },
   fontsInstall: { options: FONTS_OPTIONS },
   estimate: { options: ESTIMATE_OPTIONS, text: { by: 'estimate-by', format: 'estimate-format' } },
+  share: {
+    options: SHARE_OPTIONS,
+    text: { from: 'share-from', to: 'share-to', out: 'share-out', json: 'sharing-json' },
+  },
+  prompts: { options: PROMPTS_OPTIONS, text: { json: 'sharing-json' } },
 } as const
 
 // The description map is exhaustive over the parser's option names. It never
@@ -280,6 +320,20 @@ export const CLI_OPTION_TEXT = {
   add: 'add',
   remove: 'remove',
   force: 'force',
+  mode: 'mode',
+  destination: 'destination',
+  scope: 'scope',
+  search: 'search',
+  tag: 'tag',
+  title: 'title',
+  var: 'var',
+  chat: 'chat',
+  confirm: 'confirm',
+  diffs: 'diffs',
+  'no-code-blocks': 'no-code-blocks',
+  'no-attachment-names': 'no-attachment-names',
+  'attachment-content': 'attachment-content',
+  'exported-at': 'exported-at',
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS
@@ -291,7 +345,9 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof CLI_OPTION_REGISTRY.legal.options
     | keyof typeof CLI_OPTION_REGISTRY.providersModels.options
     | keyof typeof FONTS_OPTIONS
-    | keyof typeof ESTIMATE_OPTIONS,
+    | keyof typeof ESTIMATE_OPTIONS
+    | keyof typeof SHARE_OPTIONS
+    | keyof typeof PROMPTS_OPTIONS,
     keyof UiText['referenceCliOptions']
   >
 >

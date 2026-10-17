@@ -3658,6 +3658,29 @@ These are defaults; editor customizations take precedence.
 - `resources: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `fontsInstall: --from <value>`: --from &lt;value&gt;: From `{"type":"string","repeatable":false,"format":"YYYY-MM-DD"}`
 - `fontsInstall: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `share: --cwd <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false}`
+- `share: --json`: --json: Print the machine-readable result instead of the human preview. `{"type":"boolean","repeatable":false,"output":"json","default":false}`
+- `share: --mode <value>`: --mode full|conversation: Share the full session or the conversation only. `{"type":"string","repeatable":false}`
+- `share: --format <value>`: --format &lt;format&gt;: Export `{"type":"string","repeatable":false}`
+- `share: --destination <value>`: --destination copy|file|browser: Copy to the clipboard, write a file, or open a browser. `{"type":"string","repeatable":false}`
+- `share: --out <value>`: --out &lt;file&gt;: Write the shared text to a file instead of stdout. `{"type":"string","repeatable":false}`
+- `share: --from <value>`: --from &lt;message&gt;: First message to include. `{"type":"string","repeatable":false}`
+- `share: --to <value>`: --to &lt;message&gt;: Last message to include. `{"type":"string","repeatable":false}`
+- `share: --no-code-blocks`: --no-code-blocks: Omit code blocks from the shared text. `{"type":"boolean","repeatable":false,"default":false}`
+- `share: --no-attachment-names`: --no-attachment-names: Omit attachment names from the shared text. `{"type":"boolean","repeatable":false,"default":false}`
+- `share: --diffs`: --diffs: Include the session diff in the shared text. `{"type":"boolean","repeatable":false,"default":false}`
+- `share: --attachment-content <value>`: --attachment-content &lt;kind&gt;: Include attachment contents; repeat for more. `{"type":"string","repeatable":true}`
+- `share: --exported-at <value>`: --exported-at &lt;time&gt;: Timestamp of the confirmed export. `{"type":"string","repeatable":false}`
+- `share: --confirm <value>`: --confirm: Confirm without asking. `{"type":"string","repeatable":false}`
+- `prompts: --cwd <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false}`
+- `prompts: --json`: --json: Print the machine-readable result instead of the human preview. `{"type":"boolean","repeatable":false,"output":"json","default":false}`
+- `prompts: --scope <value>`: --scope user|workspace: Save the prompt for this user or this workspace. `{"type":"string","repeatable":false}`
+- `prompts: --search <value>`: --search &lt;text&gt;: List only prompts matching this text. `{"type":"string","repeatable":false}`
+- `prompts: --tag <value>`: --tag &lt;tag&gt;: Filter by tag, or tag the saved prompt. `{"type":"string","repeatable":true}`
+- `prompts: --title <value>`: --title &lt;title&gt;: Title for the saved prompt. `{"type":"string","repeatable":false}`
+- `prompts: --chat <value>`: --chat active|new: Use the prompt in the active chat or a new one. `{"type":"string","repeatable":false}`
+- `prompts: --var <value>`: --var &lt;name=value&gt;: Set a prompt variable; repeat for more. `{"type":"string","repeatable":true}`
+- `prompts: --confirm`: --confirm: Confirm without asking. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets <file> [--key-stdin]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
 - `playbook <status|record|settings ...>`: Show or change the orchestrator playbook journal for this workspace (starts no backend).

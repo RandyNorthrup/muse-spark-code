@@ -48,6 +48,20 @@ export function localArgumentError(argument: string): Error {
   return new Error(fill(UI_TEXT.acpUnknownArgument, { argument }))
 }
 
+/** The accepted values behind the sharing flags; the help facts read these. */
+export const SHARE_MODES = ['full', 'conversation'] as const
+export const SHARE_FORMATS = ['md', 'html', 'json'] as const
+export const SHARE_DESTINATIONS = ['copy', 'file', 'browser'] as const
+export const PROMPT_SCOPES = ['user', 'workspace'] as const
+export const PROMPT_CHATS = ['active', 'new'] as const
+/** The parser-effective defaults behind the sharing enum facts. */
+export const SHARING_DEFAULTS = {
+  mode: 'conversation',
+  format: 'md',
+  scope: 'user',
+  chat: 'active',
+} as const
+
 function oneOf<T extends string>(value: string, allowed: readonly T[]): T {
   const found = allowed.find((candidate) => candidate === value)
   if (found === undefined) throw localArgumentError(value)
@@ -129,7 +143,7 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
       tag: flag('tag'),
     }
   }
-  const scope = oneOf(flag('scope') ?? 'user', ['user', 'workspace'])
+  const scope = oneOf(flag('scope') ?? SHARING_DEFAULTS.scope, PROMPT_SCOPES)
   const title = flag('title')
   if (action === 'save' && root === 'prompts' && id === undefined && title !== undefined) {
     return {
@@ -156,7 +170,7 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
       json: isJson,
       promptId: id,
       scope,
-      chat: oneOf(flag('chat') ?? 'active', ['active', 'new']),
+      chat: oneOf(flag('chat') ?? SHARING_DEFAULTS.chat, PROMPT_CHATS),
       vars,
       confirmed: values['confirm'] === true,
     }
@@ -173,15 +187,14 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
   let selectedDestination = destinationFlag
   if (selectedDestination === 'save') selectedDestination = 'file'
   if (selectedDestination === 'open') selectedDestination = 'browser'
-  const destination = oneOf(selectedDestination ?? (flag('out') === undefined ? 'copy' : 'file'), [
-    'copy',
-    'file',
-    'browser',
-  ])
+  const destination = oneOf(
+    selectedDestination ?? (flag('out') === undefined ? 'copy' : 'file'),
+    SHARE_DESTINATIONS,
+  )
   if (destination !== 'file' && flag('out') !== undefined) throw localArgumentError('--out')
   const common = {
-    mode: oneOf(flag('mode') ?? 'conversation', ['full', 'conversation']),
-    format: oneOf(flag('format') ?? 'md', ['md', 'html', 'json']),
+    mode: oneOf(flag('mode') ?? SHARING_DEFAULTS.mode, SHARE_MODES),
+    format: oneOf(flag('format') ?? SHARING_DEFAULTS.format, SHARE_FORMATS),
     destination,
     options: {
       codeBlocks: values['no-code-blocks'] !== true,
