@@ -167,6 +167,7 @@ type BridgeAnswer =
   | { readonly tools: readonly BridgeToolListing[] }
   | { readonly error: { readonly code: number; readonly message: string } }
 
+/** @unwired M96 team MCP bridge */
 export class TeamMcpBridge {
   private readonly callers = new Map<string, LiveCaller>()
   private server: Server | undefined
