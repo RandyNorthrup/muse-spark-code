@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Carrying a pre-version schedule store into `schedules/v1` merges folders
+  entry by entry when the versioned root already holds that folder, and
+  never overwrites a file already in `v1`; before, the same folder on both
+  sides failed the carry with a not-empty error and a stale legacy file
+  could replace the current one on POSIX.
+
 - The shared schedule store has one versioned root (`schedules/v1`); the
   first start on it carries pre-version entries across once, idempotently.
   The `/schedule` prompt mapping loads lazily on first use. Delivery remains
