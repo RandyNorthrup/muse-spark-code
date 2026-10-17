@@ -68,8 +68,8 @@ import {
 } from '../../core/agent/agentBackend'
 import {
   editAutomaticallyChoice,
-  isApprovingChoice,
   isReviewableApproval,
+  isSideChatClickRefused,
   sideChatRefusalChoice,
 } from '../../core/agent/approvalRules'
 import { scrubSecretApproval } from '../../core/agent/approvalSecrets'
@@ -2107,7 +2107,9 @@ export class ConversationController {
    * with the policy and its reason.
    */
   private async refuseSideChatApproval(
-    event: Extract<AgentEvent, { type: 'approvalRequested' }>,
+    event:
+      | Extract<AgentEvent, { type: 'approvalRequested' }>
+      | Extract<AgentEvent, { type: 'approvalUpdated' }>,
     refusal: ApprovalChoice,
   ): Promise<void> {
     const session = this.session
@@ -2127,7 +2129,11 @@ export class ConversationController {
     } catch (error: unknown) {
       this.sideRefused.delete(event.approvalId)
       this.deps.log.warn(`The side-chat policy could not refuse: ${describeForLog(error)}`)
-      this.forward(scrubSecretApproval(event))
+      // The session may have ended while the refusal waited: its card does
+      // not belong in whatever conversation this surface shows now.
+      if (this.session === session) {
+        this.forward(scrubSecretApproval(event))
+      }
     }
   }
 
@@ -2514,6 +2520,15 @@ export class ConversationController {
         }
         this.judgeCards.get(event.approvalId)?.discard()
         this.judgeCards.delete(event.approvalId)
+        // The next stage is refused as the first was, when it offers a
+        // refusal; the stage is not shown for the user to approve.
+        if (retained !== undefined && this.isSideChat && this.sessionKind === 'museCode') {
+          const refusal = this.session === undefined ? undefined : sideChatRefusalChoice(event)
+          if (refusal !== undefined) {
+            void this.refuseSideChatApproval(event, refusal)
+            return
+          }
+        }
         if (this.reviews?.updated(event) === true) {
           return
         }
@@ -3016,8 +3031,7 @@ export class ConversationController {
     // the user can still refuse it. A reject click passes through below.
     if (this.isSideChat && this.sessionKind === 'museCode') {
       const card = this.sideChatCards.get(message.approvalId)
-      const choice = card?.availableChoices.find((held) => held.choiceId === message.choiceId)
-      if (choice !== undefined && isApprovingChoice(choice)) {
+      if (isSideChatClickRefused(card?.availableChoices, message.choiceId)) {
         this.deps.log.info(
           `Approval ${message.approvalId} kept read-only: an approving side-chat click was refused`,
         )
