@@ -4,31 +4,6 @@ import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
 
-/** One screen for `scan-secrets --help`: its own usage, options and exit codes. */
-export function formatScanSecretsHelp(table: UiText, command: string): string {
-  return [
-    `${command} ${table.execScanUsage}`,
-    table.referenceScanSecrets,
-    table.referenceCliOptions['key-stdin'],
-    table.scanSecretsExits,
-  ].join('\n')
-}
-
-/** One screen for `exec --help`: its own usage, contract and exit codes. */
-export function formatExecHelp(table: UiText, command: string): string {
-  return [`${command} ${table.execUsage}`, table.referenceExecContract, table.execExits].join('\n')
-}
-
-/** One screen for `report --help`: its own usage, options and exit codes. */
-export function formatReportHelp(table: UiText, command: string): string {
-  return [fill(table.reportUsage, { command }), table.reportExits].join('\n')
-}
-
-/** One screen for `share --help` / `prompts --help`: the sharing commands' own syntax lines. */
-export function formatSharingHelp(table: UiText): string {
-  return sharingHelp(table)
-}
-
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
   const options = {
