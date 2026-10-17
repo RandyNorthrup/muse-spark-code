@@ -3732,6 +3732,8 @@
   "bestOfNApprovalsDenied": {
     "other": "拒否された承認{count}件"
   },
+  "bestOfNAttemptCost": "報告済み支出 {cost}",
+  "bestOfNAttemptCostPartial": "{cost}を報告、残りは保留中",
   "bestOfNAttemptFailed": "失敗: {reason}",
   "bestOfNTakenMark": "採用: {branch}",
   "bestOfNDiffClipped": "差分は省略されました。",
@@ -3752,6 +3754,8 @@
   "bestOfNAttemptNotDone": "完了した試行のみ採用できます。",
   "bestOfNWorktreeFailed": "試行のワークツリーを作成できませんでした: {reason}",
   "bestOfNTaken": "{branch} のプレビューを適用してステージしました。",
+  "bestOfNTakenSpend": "{branch} のプレビューを適用してステージしました。報告済み使用量：{tokens}。",
+  "bestOfNTakenSpendCost": "{branch} のプレビューを適用してステージしました。報告済み使用量：{tokens}、報告済み支出{cost}。",
   "bestOfNTakeFailed": "{branch} を適用してステージできませんでした。再試行前に作業コピーを確認してください: {reason}",
   "paidConfirmAccept": "オンにする",
   "paidBadge": "有料: {features}",

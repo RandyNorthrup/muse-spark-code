@@ -672,7 +672,7 @@ export class PaidUsage {
 }
 
 /** Validate counts separately from the exact provider receipt. */
-function isValidTaskUsage(usage: SubagentUsage, shouldRequireIntegers = true): boolean {
+export function isValidTaskUsage(usage: SubagentUsage, shouldRequireIntegers = true): boolean {
   const { costUsd, ...tokens } = usage
   return (
     Object.values(tokens).every(

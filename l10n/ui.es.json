@@ -3912,6 +3912,8 @@
     "other": "{count} aprobaciones rechazadas",
     "many": "{count} aprobaciones rechazadas"
   },
+  "bestOfNAttemptCost": "gasto comunicado {cost}",
+  "bestOfNAttemptCostPartial": "{cost} comunicados, más pendientes",
   "bestOfNAttemptFailed": "Falló: {reason}",
   "bestOfNTakenMark": "Elegido: {branch}",
   "bestOfNDiffClipped": "Diff recortado.",
@@ -3932,6 +3934,8 @@
   "bestOfNAttemptNotDone": "Solo se puede elegir un intento terminado.",
   "bestOfNWorktreeFailed": "No se pudieron crear los árboles de trabajo de los intentos: {reason}",
   "bestOfNTaken": "Se aplicó y preparó la vista previa de {branch}.",
+  "bestOfNTakenSpend": "Se aplicó y preparó la vista previa de {branch}. Uso comunicado: {tokens}.",
+  "bestOfNTakenSpendCost": "Se aplicó y preparó la vista previa de {branch}. Uso comunicado: {tokens}, gasto comunicado {cost}.",
   "bestOfNTakeFailed": "No se pudo aplicar y preparar {branch}. Revisa la copia de trabajo antes de reintentar: {reason}",
   "paidConfirmAccept": "Activar",
   "paidBadge": "De pago: {features}",

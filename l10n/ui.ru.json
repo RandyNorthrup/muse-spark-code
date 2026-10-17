@@ -4002,6 +4002,8 @@
     "few": "{count} отклонённых одобрения",
     "many": "{count} отклонённых одобрений"
   },
+  "bestOfNAttemptCost": "зарегистрированные расходы {cost}",
+  "bestOfNAttemptCostPartial": "{cost} зарегистрировано, остальное ожидается",
   "bestOfNAttemptFailed": "Сбой: {reason}",
   "bestOfNTakenMark": "Взято: {branch}",
   "bestOfNDiffClipped": "Diff обрезан.",
@@ -4022,6 +4024,8 @@
   "bestOfNAttemptNotDone": "Взять можно только завершённую попытку.",
   "bestOfNWorktreeFailed": "Не удалось создать рабочие деревья попыток: {reason}",
   "bestOfNTaken": "Просмотр из {branch} применён и добавлен в индекс.",
+  "bestOfNTakenSpend": "Просмотр из {branch} применён и добавлен в индекс. Зарегистрированное использование: {tokens}.",
+  "bestOfNTakenSpendCost": "Просмотр из {branch} применён и добавлен в индекс. Зарегистрированное использование: {tokens}, зарегистрированные расходы {cost}.",
   "bestOfNTakeFailed": "Не удалось применить и индексировать {branch}. Перед повтором проверьте рабочую копию: {reason}",
   "paidConfirmAccept": "Включить",
   "paidBadge": "Платно: {features}",

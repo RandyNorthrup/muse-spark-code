@@ -2561,7 +2561,11 @@ symlinks and 8.3 repository aliases are refused too. A changed target
 refuses the action. Failed, cancelled or unreadable attempts cannot be taken.
 An apply failure is reported without claiming success; inspect your checkout
 before retrying. **Open in New Window** opens an attempt's owned worktree,
-its uncommitted work included. Account & usage lists reported attempt tokens and their
+its uncommitted work included. The comparison names each attempt's reported tokens
+and, when the provider reported one, its reported cost; an attempt with responses
+still missing a reported cost says more is pending instead of stating a partial
+total as the price. The take notice names the taken attempt's reported use, with
+its reported cost when complete. Account & usage lists reported attempt tokens and their
 estimated cost separately; requests without usage reports remain unknown,
 even if they failed. They are not claimed as included in the parent estimate.
 **Cancel Run** stops unfinished attempts, including
