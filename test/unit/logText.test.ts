@@ -84,6 +84,12 @@ describe('stderrForLog', () => {
       'compose serve model client: malformed auth file at /home/someone/.config/muse/auth.json: providers.meta.api_key must be a string',
       'the credential file is malformed (providers.meta.api_key must be a string)',
     ],
+    // A POSIX path may itself contain ": ": the reason still names the
+    // file's fault, never a fragment of the path.
+    [
+      'compose serve model client: malformed auth file at /home/a: b/.config/muse/auth.json: missing field `obtained_via`',
+      'the credential file is malformed (missing field `obtained_via`)',
+    ],
   ])('names the captured line %s in fixed words', (line, logged) => {
     expect(stderrForLog(`${line}\n`)).toBe(logged)
   })
