@@ -13,8 +13,12 @@ happened, not what was planned; superseded entries are kept.
   output limits and skill titles from Muse Code, the launch
   permission-profile pick, the sandbox posture of each host, and new
   session-protocol notifications (model retries, Auto-review holds, plugin
-  changes, declined retracts). Three machine settings replace fixed numbers
-  with Muse Code's own defaults: `museSpark.hooksMaxStopContinuations` (8),
+  changes, declined retracts, branch and view-health moves, foreground
+  completions). Background-task, hook and plugin inventories, foreign
+  skill import, workflow resume, session recaps and the computer-use
+  setup check are wrapped on the Muse Code backend. Three machine
+  settings replace fixed numbers with Muse Code's own defaults:
+  `museSpark.hooksMaxStopContinuations` (8),
   `museSpark.hooksMaxRunningCommands` (0, starts them all at once, as Muse
   Code does), and `museSpark.subagentMaxConcurrent` (8, within 1–64).
 
