@@ -1,8 +1,10 @@
 // D117: one table drives parsing and help for the terminal agent. Each
 // command's `--help` and `help <command>` print that command's own usage,
-// options with defaults and bounds, and two real examples; a wrong option
-// exits 2 naming the option, the accepted values and the nearest match.
+// options with defaults and bounds, two real examples and its exit codes; a
+// wrong option exits 2 naming the option, the accepted values and the
+// nearest match.
 import { describe, expect, it } from 'vitest'
+import { HELP_ONE_SCREEN_LINES } from '../../src/shared/constants'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import {
   CLI_HELP_TOPICS,
@@ -331,3 +333,29 @@ function probeArgv(topic: string, name: string): string[] | undefined {
     }
   }
 }
+
+describe('every topic is its own screen', () => {
+  const root = renderTopHelp(EN, COMMAND)
+  const texts = new Map<string, string>()
+  it.each(CLI_HELP_TOPICS.map((topic) => topic.name))(
+    'help %s is one screen with its own exit codes',
+    (name) => {
+      const topic = helpTopicNamed(name)
+      if (topic === undefined) throw new Error(`missing help topic ${name}`)
+      const text = renderTopicHelp(EN, COMMAND, topic)
+      // Never the compact root usage, never longer than one screen.
+      expect(text).not.toEqual(root)
+      expect(text.split('\n').length).toBeLessThanOrEqual(HELP_ONE_SCREEN_LINES)
+      // The sentence names exactly the command's own exit table: no code
+      // typed by hand, none missing, none the table does not hold.
+      const named = (topic.exits(EN).match(/\d+/g) ?? []).map(Number)
+      expect([...new Set(named)].toSorted((a, b) => a - b)).toEqual(
+        [...topic.exitCodes].toSorted((a, b) => a - b),
+      )
+      texts.set(name, text)
+    },
+  )
+  it('no two topics share a screen', () => {
+    expect(new Set(texts.values()).size).toBe(CLI_HELP_TOPICS.length)
+  })
+})

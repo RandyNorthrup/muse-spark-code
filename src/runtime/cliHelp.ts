@@ -1,14 +1,16 @@
 // The terminal agent's command table (PLAN.md D117): one topic per
-// command with its positional syntax, its parser routes, and two real
-// examples. The option rows render from CLI_OPTION_REGISTRY (the exact
-// tables parseArgs receives) with their referenceCliOptions meaning and
-// bounds from shared constants, so help cannot drift from what runs: an
-// option parsed but missing here fails the guard test. Reads UI_TEXT only
-// when rendering, never at module load.
+// command with its positional syntax, its parser routes, two real examples
+// and its exit codes. The option rows render from CLI_OPTION_REGISTRY (the
+// exact tables parseArgs receives) with their referenceCliOptions meaning
+// and bounds from shared constants, and the exit codes come from the
+// command's own exit table, so help cannot drift from what runs: an option
+// parsed but missing here, or an exit code the table does not hold, fails
+// the guard test. Reads UI_TEXT only when rendering, never at module load.
 
 import {
   ACP_BACKENDS,
   ACP_DEFAULT_BACKEND,
+  CLI_EXIT,
   EFFORT_LEVELS,
   EXEC_DEFAULT_MAX_REQUESTS,
   EXEC_DEFAULT_MODE,
@@ -20,7 +22,11 @@ import {
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MODES,
   EXEC_OUTPUTS,
+  EXEC_SCAN_EXIT_FOUND,
+  EXEC_EXIT,
   isAutoCompactionEvaluated,
+  LEGAL_EXIT,
+  REPORT_EXIT_CODES,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
 } from '../shared/constants'
@@ -64,6 +70,14 @@ export interface CliHelpTopic {
   readonly options: readonly CliHelpOption[]
   /** Two real, runnable examples, with the executable's name filled in. */
   readonly examples: readonly ((command: string) => string)[]
+  /**
+   * The command's exit sentence, with its codes. The codes come from the
+   * command's own exit table (EXEC_EXIT, REPORT_EXIT_CODES, LEGAL_EXIT, or
+   * the CLI-wide CLI_EXIT), never typed by hand; the guard test fails when
+   * the sentence names a code the table does not hold, or misses one.
+   */
+  readonly exits: (table: UiText) => string
+  readonly exitCodes: readonly number[]
 }
 
 /**
@@ -158,6 +172,12 @@ const SERVE_FAMILY_OPTIONS: readonly CliHelpOption[] = [
   { name: 'usage-history', shape: '', fact: factFor('usage-history') },
 ]
 
+/** The exit row for commands with no exit table of their own (CLI_EXIT). */
+const GENERIC_EXITS = {
+  exits: (table: UiText) => table.genericExits,
+  exitCodes: [CLI_EXIT.ok, CLI_EXIT.failure, CLI_EXIT.usage],
+} as const
+
 /** The one table behind parsing and help: topic names, in help order. */
 export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
   {
@@ -176,6 +196,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => command,
       (command) => `${command} --backend modelApi --trust-workspace`,
     ],
+    ...GENERIC_EXITS,
   },
   {
     name: 'login',
@@ -184,6 +205,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     routes: ['login'],
     options: [...SERVE_FAMILY_OPTIONS, { name: 'help', shape: '' }, { name: 'version', shape: '' }],
     examples: [(command) => `${command} login`, (command) => `${command} --backend modelApi login`],
+    ...GENERIC_EXITS,
   },
   {
     name: 'auth',
@@ -204,6 +226,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} auth status`,
       (command) => `${command} auth status --provider openrouter`,
     ],
+    ...GENERIC_EXITS,
   },
   {
     name: 'providers',
@@ -240,6 +263,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} providers list`,
       (command) => `${command} providers models openrouter`,
     ],
+    ...GENERIC_EXITS,
   },
   {
     name: 'exec',
@@ -287,6 +311,8 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} exec --backend modelApi --max-budget-usd 1 'Summarise this repo'`,
       (command) => `${command} exec --permission-mode plan --output json 'List the risks'`,
     ],
+    exits: (table) => table.execExits,
+    exitCodes: Object.values(EXEC_EXIT),
   },
   {
     name: 'scan-secrets',
@@ -301,6 +327,8 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} scan-secrets patch.diff`,
       (command) => `${command} scan-secrets patch.diff --key-stdin < key.txt`,
     ],
+    exits: (table) => table.scanSecretsExits,
+    exitCodes: [CLI_EXIT.ok, EXEC_SCAN_EXIT_FOUND, CLI_EXIT.usage],
   },
   {
     name: 'report',
@@ -318,6 +346,8 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} report`,
       (command) => `${command} report --out report.md --description 'Panel froze on startup'`,
     ],
+    exits: (table) => table.reportExits,
+    exitCodes: [REPORT_EXIT_CODES.generated, REPORT_EXIT_CODES.failed, REPORT_EXIT_CODES.usage],
   },
   {
     name: 'legal',
@@ -335,6 +365,8 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} legal`,
       (command) => `${command} legal --format json --out legal.json`,
     ],
+    exits: (table) => table.legalExits,
+    exitCodes: Object.values(LEGAL_EXIT),
   },
   {
     name: 'fonts',
@@ -349,6 +381,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} fonts install`,
       (command) => `${command} fonts install --from ~/fonts`,
     ],
+    ...GENERIC_EXITS,
   },
   {
     name: 'playbook',
@@ -360,6 +393,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} playbook status`,
       (command) => `${command} playbook settings`,
     ],
+    ...GENERIC_EXITS,
   },
   {
     name: 'setup',
@@ -377,6 +411,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} --trust-workspace setup`,
       (command) => `${command} --trust-workspace setup --maintenance`,
     ],
+    ...GENERIC_EXITS,
   },
   {
     name: 'usage',
@@ -398,6 +433,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} usage`,
       (command) => `${command} usage models --range 7d --json`,
     ],
+    ...GENERIC_EXITS,
   },
   {
     name: 'resources',
@@ -412,6 +448,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} resources`,
       (command) => `${command} resources history --json`,
     ],
+    ...GENERIC_EXITS,
   },
   // The sharing commands are parsed by the injected sharing parser, not by
   // the strict table, so they carry no registry routes yet: usage, purpose
@@ -429,6 +466,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} share chat --mode conversation`,
       (command) => `${command} share chat --destination file --out chat.md`,
     ],
+    ...GENERIC_EXITS,
   },
   {
     name: 'prompts',
@@ -444,6 +482,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} prompts list --search deploy`,
       (command) => `${command} prompts use standup --var name=Ana --confirm`,
     ],
+    ...GENERIC_EXITS,
   },
 ]
 
@@ -549,6 +588,7 @@ export function renderTopicHelp(table: UiText, command: string, topic: CliHelpTo
   }
   lines.push(table.cliHelp.examples)
   for (const example of topic.examples) lines.push(`  ${example(command)}`)
+  lines.push(table.cliHelp.exits, `  ${topic.exits(table)}`)
   return lines.join('\n')
 }
 
