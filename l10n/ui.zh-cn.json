@@ -351,6 +351,7 @@
   "referenceVaultLock": "进行中.",
   "referenceAuthClear": "删除已存储的 Model API 密钥。",
   "referenceAuthStatus": "检查是否存储了 Model API 密钥。",
+  "referenceAccountRequests": "ACP 的原生 Meta 请求在每次请求开始时选择账户。无界面运行通过 --account-pool 启用账户池；账户限额和共享预算仍然有效。",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "管理同一提供商的账号：列出、添加、删除、排序和阈值。凭据仅来自标准输入。计费到默认账号的付费使用沿用此工作区的同意；其他账号的首次付费使用会针对该账号重新询问，并说明其价格和共享每日预算。",
   "referenceDeveloper": "显示或解锁本机开发者选项。配置文件操作需要连接资源管理组件。",
@@ -4875,6 +4876,7 @@
   },
   "legalScanAgain": "重新扫描",
   "accounts": {
+    "certificationPending": "账号切换和跨账号请求分配正在等待认证。",
     "none": "未选择账户",
     "id": "账户 ID",
     "use": "使用账户",
@@ -4967,8 +4969,7 @@
     "usageThreshold": "{period}的{metric}上限：{threshold}",
     "usageEvents": "账户事件",
     "usageRateTokens": "令牌数",
-    "usageUnavailable": "暂无当前使用情况数据。",
-    "certificationPending": "账号切换和跨账号请求分配正在等待认证。"
+    "usageUnavailable": "暂无当前使用情况数据。"
   },
   "developer": {
     "title": "开发者选项",
@@ -5146,6 +5147,5 @@
     "grantsCount": {
       "other": "{count} 个授权"
     }
-  },
-  "referenceAccountRequests": "ACP 的原生 Meta 请求在每次请求开始时选择账户。无界面运行通过 --account-pool 启用账户池；账户限额和共享预算仍然有效。"
+  }
 }

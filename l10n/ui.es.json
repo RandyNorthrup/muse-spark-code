@@ -351,6 +351,7 @@
   "referenceVaultLock": "En curso.",
   "referenceAuthClear": "Eliminar la clave Model API guardada.",
   "referenceAuthStatus": "Comprobar si hay una clave Model API guardada.",
+  "referenceAccountRequests": "Las solicitudes nativas de Meta en ACP eligen cuentas al iniciar cada solicitud. En modo sin interfaz, --account-pool activa el grupo; siguen vigentes los límites por cuenta y los presupuestos compartidos.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Gestiona las cuentas de un proveedor: listar, añadir, eliminar, ordenar y umbrales. Las credenciales solo provienen de la entrada estándar. Los usos de pago facturados a la cuenta predeterminada mantienen el consentimiento de este espacio de trabajo; el primer uso de pago de otra cuenta vuelve a preguntar para esa cuenta e indica su precio y el presupuesto diario compartido.",
   "referenceDeveloper": "Muestra o desbloquea las opciones de desarrollador de esta máquina. Las operaciones de perfiles requieren un gestor de recursos conectado.",
@@ -5175,6 +5176,7 @@
   },
   "legalScanAgain": "Analizar de nuevo",
   "accounts": {
+    "certificationPending": "El cambio de cuenta y el reparto de solicitudes entre cuentas están pendientes de certificación.",
     "none": "Ninguna cuenta seleccionada",
     "id": "ID de la cuenta",
     "use": "Usar cuenta",
@@ -5269,8 +5271,7 @@
     "usageThreshold": "Límite de {metric} para {period}: {threshold}",
     "usageEvents": "Eventos de cuentas",
     "usageRateTokens": "Tokens de uso",
-    "usageUnavailable": "No hay datos de uso actuales.",
-    "certificationPending": "El cambio de cuenta y el reparto de solicitudes entre cuentas están pendientes de certificación."
+    "usageUnavailable": "No hay datos de uso actuales."
   },
   "developer": {
     "title": "Opciones de desarrollador",
@@ -5454,6 +5455,5 @@
       "other": "{count} autorizaciones",
       "many": "{count} autorizaciones"
     }
-  },
-  "referenceAccountRequests": "Las solicitudes nativas de Meta en ACP eligen cuentas al iniciar cada solicitud. En modo sin interfaz, --account-pool activa el grupo; siguen vigentes los límites por cuenta y los presupuestos compartidos."
+  }
 }

@@ -351,6 +351,7 @@
   "referenceVaultLock": "In Arbeit.",
   "referenceAuthClear": "Den gespeicherten Model API-Schlüssel entfernen.",
   "referenceAuthStatus": "Prüfen, ob ein Model API-Schlüssel gespeichert ist.",
+  "referenceAccountRequests": "Native Meta-Anfragen in ACP wählen Konten an der Anfragegrenze. Im Headless-Modus aktiviert --account-pool den Pool; Kontolimits und gemeinsame Budgets gelten weiterhin.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Verwaltet die Konten eines Anbieters: Auflisten, Hinzufügen, Entfernen, Reihenfolge und Schwellenwerte. Zugangsdaten kommen nur aus der Standardeingabe. Kostenpflichtige Nutzungen des Standardkontos behalten die Zustimmung dieses Arbeitsbereichs; die erste kostenpflichtige Nutzung eines anderen Kontos fragt für dieses Konto erneut und nennt seinen Preis und das gemeinsame Tagesbudget.",
   "referenceDeveloper": "Maschinenlokale Entwickleroptionen anzeigen oder entsperren. Profilaktionen erfordern einen angebundenen Ressourcenverwalter.",
@@ -5025,6 +5026,7 @@
   },
   "legalScanAgain": "Erneut scannen",
   "accounts": {
+    "certificationPending": "Kontowechsel und die Verteilung von Anfragen auf Konten warten auf die Zertifizierung.",
     "none": "Kein Konto ausgewählt",
     "id": "Konto-ID",
     "use": "Konto verwenden",
@@ -5118,8 +5120,7 @@
     "usageThreshold": "Limit für {metric} im Zeitraum {period}: {threshold}",
     "usageEvents": "Kontoereignisse",
     "usageRateTokens": "Tokenanzahl",
-    "usageUnavailable": "Keine aktuellen Nutzungsdaten.",
-    "certificationPending": "Kontowechsel und die Verteilung von Anfragen auf Konten warten auf die Zertifizierung."
+    "usageUnavailable": "Keine aktuellen Nutzungsdaten."
   },
   "developer": {
     "title": "Entwickleroptionen",
@@ -5300,6 +5301,5 @@
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
     }
-  },
-  "referenceAccountRequests": "Native Meta-Anfragen in ACP wählen Konten an der Anfragegrenze. Im Headless-Modus aktiviert --account-pool den Pool; Kontolimits und gemeinsame Budgets gelten weiterhin."
+  }
 }

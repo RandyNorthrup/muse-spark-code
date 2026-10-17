@@ -351,6 +351,7 @@
   "referenceVaultLock": "Folyamatban.",
   "referenceAuthClear": "Eltávolítja a tárolt Model API-kulcsot.",
   "referenceAuthStatus": "Ellenőrzi, hogy van-e tárolt Model API-kulcs.",
+  "referenceAccountRequests": "Az ACP natív Meta-kérései a kérés kezdetén választanak fiókot. Felület nélküli futtatáskor az --account-pool engedélyezi a közös készletet; a fiókkorlátok és a megosztott keretek továbbra is érvényesek.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Egy szolgáltató fiókjainak kezelése: listázás, hozzáadás, eltávolítás, sorrend és küszöbértékek. A hitelesítő adatok csak a standard bemenetről érkeznek. Az alapértelmezett fióknak számlázott fizetős használat megtartja ennek a munkaterületnek a hozzájárulását; egy másik fiók első fizetős használata újra rákérdez arra a fiókra, megnevezve az árát és a közös napi keretet.",
   "referenceDeveloper": "Megjeleníti vagy feloldja a gép helyi fejlesztői beállításait. A profilműveletekhez csatlakoztatott erőforrás-kezelő szükséges.",
@@ -5025,6 +5026,7 @@
   },
   "legalScanAgain": "Új vizsgálat",
   "accounts": {
+    "certificationPending": "A fiókváltás és a kérelmek fiókok közötti elosztása tanúsításra vár.",
     "none": "Nincs kiválasztott fiók",
     "id": "Fiókazonosító",
     "use": "Fiók használata",
@@ -5118,8 +5120,7 @@
     "usageThreshold": "{metric} korlátja a következő időszakra: {period}: {threshold}",
     "usageEvents": "Fiókesemények",
     "usageRateTokens": "Tokenek",
-    "usageUnavailable": "Nincsenek aktuális használati adatok.",
-    "certificationPending": "A fiókváltás és a kérelmek fiókok közötti elosztása tanúsításra vár."
+    "usageUnavailable": "Nincsenek aktuális használati adatok."
   },
   "developer": {
     "title": "Fejlesztői beállítások",
@@ -5300,6 +5301,5 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  },
-  "referenceAccountRequests": "Az ACP natív Meta-kérései a kérés kezdetén választanak fiókot. Felület nélküli futtatáskor az --account-pool engedélyezi a közös készletet; a fiókkorlátok és a megosztott keretek továbbra is érvényesek."
+  }
 }

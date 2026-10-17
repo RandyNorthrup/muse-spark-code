@@ -351,6 +351,7 @@
   "referenceVaultLock": "En cours.",
   "referenceAuthClear": "Supprimer la clé Model API enregistrée.",
   "referenceAuthStatus": "Vérifier si une clé Model API est enregistrée.",
+  "referenceAccountRequests": "Les requêtes Meta natives dans ACP choisissent un compte au début de chaque requête. En mode sans interface, --account-pool active le groupe ; les plafonds des comptes et les budgets partagés restent applicables.",
   "referenceAccountsTitle": "Several accounts per provider",
   "referenceAccounts": "Gère les comptes d’un fournisseur : lister, ajouter, supprimer, ordonner et seuils. Les identifiants proviennent uniquement de l’entrée standard. Les usages payants facturés au compte par défaut gardent le consentement de cet espace de travail ; le premier usage payant d’un autre compte redemande pour ce compte, avec son prix et le budget quotidien partagé.",
   "referenceDeveloper": "Affiche ou déverrouille les options développeur propres à cette machine. Les opérations sur les profils exigent un gestionnaire de ressources connecté.",
@@ -5175,6 +5176,7 @@
   },
   "legalScanAgain": "Analyser à nouveau",
   "accounts": {
+    "certificationPending": "Le changement de compte et la répartition des requêtes entre comptes attendent la certification.",
     "none": "Aucun compte sélectionné",
     "id": "Identifiant du compte",
     "use": "Utiliser le compte",
@@ -5269,8 +5271,7 @@
     "usageThreshold": "Limite de {metric} pour {period} : {threshold}",
     "usageEvents": "Événements des comptes",
     "usageRateTokens": "Jetons",
-    "usageUnavailable": "Aucun relevé actuel d’utilisation.",
-    "certificationPending": "Le changement de compte et la répartition des requêtes entre comptes attendent la certification."
+    "usageUnavailable": "Aucun relevé actuel d’utilisation."
   },
   "developer": {
     "title": "Options de développement",
@@ -5454,6 +5455,5 @@
       "other": "{count} autorisations",
       "many": "{count} autorisations"
     }
-  },
-  "referenceAccountRequests": "Les requêtes Meta natives dans ACP choisissent un compte au début de chaque requête. En mode sans interface, --account-pool active le groupe ; les plafonds des comptes et les budgets partagés restent applicables."
+  }
 }
