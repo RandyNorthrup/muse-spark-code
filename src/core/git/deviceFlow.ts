@@ -42,11 +42,6 @@ export interface DeviceFlowDeps {
   readonly now: () => number
   /** Resolves after `ms`; rejects with the signal's reason when it aborts. */
   readonly sleep: (ms: number, signal: AbortSignal) => Promise<void>
-  /** The registered app's id; tests pass the fake server's. */
-  readonly clientId?: string
-  /** GitHub's endpoints; tests point them at the fake server. */
-  readonly deviceCodeUrl?: string
-  readonly tokenUrl?: string
 }
 
 /** What the user is shown: the code to type, where, and until when. */
@@ -188,10 +183,10 @@ export async function signInWithDeviceFlow(
   signal: AbortSignal,
 ): Promise<DeviceFlowTokens> {
   assertPermittedScopes(scopes)
-  const clientId = requireOAuthClientId(deps.clientId)
+  const clientId = requireOAuthClientId()
   const raw = await post(
     deps,
-    deps.deviceCodeUrl ?? GITHUB_DEVICE_CODE_URL,
+    GITHUB_DEVICE_CODE_URL,
     { client_id: clientId, scope: scopes.join(' ') },
     signal,
   )
@@ -218,7 +213,7 @@ export async function signInWithDeviceFlow(
     if (deps.now() >= expiresAt) throw new DeviceFlowFailure('expired')
     const reply = await post(
       deps,
-      deps.tokenUrl ?? GITHUB_DEVICE_TOKEN_URL,
+      GITHUB_DEVICE_TOKEN_URL,
       { client_id: clientId, device_code: code.device_code, grant_type: GITHUB_DEVICE_GRANT_TYPE },
       signal,
     )
@@ -242,10 +237,10 @@ export async function refreshDeviceFlowToken(
   refreshToken: string,
   signal: AbortSignal,
 ): Promise<DeviceFlowTokens> {
-  const clientId = requireOAuthClientId(deps.clientId)
+  const clientId = requireOAuthClientId()
   const reply = await post(
     deps,
-    deps.tokenUrl ?? GITHUB_DEVICE_TOKEN_URL,
+    GITHUB_DEVICE_TOKEN_URL,
     { client_id: clientId, grant_type: GITHUB_REFRESH_GRANT_TYPE, refresh_token: refreshToken },
     signal,
   )

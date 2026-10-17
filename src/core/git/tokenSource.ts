@@ -176,11 +176,11 @@ export function missingScopes(
 }
 
 /** The OAuth App's client id (Q-M123); an empty one is refused, so no request goes out without it. */
-export function requireOAuthClientId(clientId: string = GITHUB_OAUTH_CLIENT_ID): string {
-  if (clientId.trim() === '') {
+export function requireOAuthClientId(): string {
+  if (GITHUB_OAUTH_CLIENT_ID.trim() === '') {
     throw new GitHubTokenSourceError('clientIdUnset')
   }
-  return clientId
+  return GITHUB_OAUTH_CLIENT_ID
 }
 
 /** A setting's values by scope, as an editor's `inspect` reports them. */
