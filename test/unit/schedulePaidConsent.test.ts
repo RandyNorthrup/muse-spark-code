@@ -1,8 +1,17 @@
-// Schedule paid consent stays fail-closed until M115 Lane U wires it
-// (MSM58M69, PLAN.md D140): creation/renewal asks through
-// `askSchedulePaidConsent`, a firing run spends only through
-// `createSchedulePaidScope`, and both refuse before any popup, grant or
-// ledger access when the consent is missing, stale or the gate is off.
+// Schedule paid consent until M115 Lane U wires it (MSM58M69, PLAN.md
+// D140). Two contracts, kept apart (RVMSM58M69):
+//
+// - The unwired helpers' own logic (`askSchedulePaidConsent`,
+//   `createSchedulePaidScope`, `paidAccountQuestion`): no production
+//   caller constructs them yet, so these tests prove only that the logic
+//   Lane U / M108 lane P will bind refuses when consent is missing, stale
+//   or the gate is off. They prove nothing about a firing run.
+// - The production refusal a person can reach today: `ScheduleSurface`
+//   refuses a paid V2 create/update unless the trusted caller carries
+//   `scheduledPrompts` and a budget at least the draft's cap (the panel's
+//   caller carries neither, `src/runtime/schedules/runtime.ts`). That is
+//   the fail-closed claim, and it is tested through the real surface.
+//
 // Real modules, values passed in as data; a dependency that must never be
 // reached throws instead of standing in for the ledger or the popup.
 import { describe, expect, it } from 'vitest'
@@ -15,7 +24,16 @@ import {
   type ScheduleConsent,
   type SchedulePaidIdentity,
 } from '../../src/core/paid/paidConsent'
-import { scheduleV2Schema, type ScheduleV2 } from '../../src/shared/scheduleV2'
+import { ScheduleBackgroundCoordinator } from '../../src/runtime/schedules/background'
+import { ScheduleSurface } from '../../src/runtime/schedules/surface'
+import type { ScheduleCallerContext } from '../../src/runtime/schedules/args'
+import { UI_TEXT } from '../../src/shared/constants'
+import {
+  scheduleDraftSchema,
+  scheduleV2Schema,
+  type ScheduleDraft,
+  type ScheduleV2,
+} from '../../src/shared/scheduleV2'
 import { canonicalUsd } from '../../src/shared/usdSchema'
 
 const NOW = 1_790_000_000_000
@@ -196,5 +214,118 @@ describe('account paid-use question names its own account (M58/D140)', () => {
     expect(question).toContain('test-account')
     expect(question).toContain('$1.00 per run')
     expect(question).toContain('$2.00')
+  })
+})
+
+function draftWith(paidCapUsd: string, grantCapUsd: string): ScheduleDraft {
+  return scheduleDraftSchema.parse({
+    name: 'Test schedule',
+    action: { kind: 'prompt', prompt: 'Summarize the inbox' },
+    trigger: { kind: 'once', atMs: AT },
+    target: { kind: 'conversation', sessionId: 'test-session', backend: 'modelApi' },
+    delivery: 'whenIdle',
+    whenClosed: 'open',
+    catchUp: 'runOnce',
+    mode: 'manual',
+    grant: { rules: [], destinationIds: [], paidCapUsd: canonicalUsd(grantCapUsd) },
+    paidCapUsd: canonicalUsd(paidCapUsd),
+    parallel: false,
+    zone: 'America/Los_Angeles',
+    pinned: false,
+  })
+}
+
+// The real surface over a real background coordinator; every port past
+// the paid gate must stay unreached on a refusal, so it throws.
+function surface(): ScheduleSurface {
+  return new ScheduleSurface({
+    request: neverReached('forward'),
+    background: new ScheduleBackgroundCoordinator({
+      entry: {
+        status: neverReached('background status'),
+        register: neverReached('background register'),
+        remove: neverReached('background remove'),
+      },
+      consent: { exclusive: neverReached('background consent') },
+      now: () => NOW,
+      nextWakeAtMs: neverReached('next wake'),
+    }),
+    askBackground: neverReached('askBackground'),
+    notice: neverReached('notice'),
+  })
+}
+
+async function createOnSurface(
+  draft: ScheduleDraft,
+  caller: ScheduleCallerContext,
+  forward: () => Promise<unknown> = neverReached('forward'),
+) {
+  return await surface().request(
+    { method: 'schedules/create', workspaceKey: 'test-workspace', draft },
+    'test-workspace',
+    forward,
+    caller,
+  )
+}
+
+describe('the production surface refuses a paid V2 draft without caller budget (M58/D140)', () => {
+  // The panel's caller, word for word (`ScheduleRuntime.message`).
+  const panelCaller: ScheduleCallerContext = {
+    source: 'interactive',
+    isInteractive: true,
+    scheduledPrompts: false,
+  }
+
+  it('a paid draft from the panel is refused before anything is forwarded', async () => {
+    const result = await createOnSurface(draftWith('1', '1'), panelCaller)
+    expect(result).toEqual({
+      kind: 'refused',
+      reason: UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired,
+    })
+  })
+
+  it('a cap carried only by the grant is refused the same way', async () => {
+    const result = await createOnSurface(draftWith('0', '1'), panelCaller)
+    expect(result).toEqual({
+      kind: 'refused',
+      reason: UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired,
+    })
+  })
+
+  it('a caller budget below the cap is refused', async () => {
+    const result = await createOnSurface(draftWith('1', '1'), {
+      source: 'cli',
+      isInteractive: false,
+      scheduledPrompts: true,
+      maxBudgetUsd: canonicalUsd('0.5'),
+    })
+    expect(result).toEqual({
+      kind: 'refused',
+      reason: UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired,
+    })
+  })
+
+  it('a caller with the flag and enough budget passes the surface gate', async () => {
+    let wasReached = false
+    const result = await createOnSurface(
+      draftWith('1', '1'),
+      {
+        source: 'cli',
+        isInteractive: false,
+        scheduledPrompts: true,
+        maxBudgetUsd: canonicalUsd('2'),
+      },
+      () => {
+        wasReached = true
+        throw new Error('forward reached')
+      },
+    )
+    // The surface turns the forward's failure into its unavailable refusal;
+    // what matters is that the paid gate let the request through to it.
+    expect(wasReached).toBe(true)
+    expect(result).toEqual({
+      kind: 'refused',
+      reason: UI_TEXT.scheduleV2.runtime.unavailable,
+    })
   })
 })
