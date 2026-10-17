@@ -72,111 +72,84 @@ function scheduleWith(consent: ScheduleConsent | undefined): ScheduleV2 {
   })
 }
 
-function unreachable(name: string): never {
-  throw new Error(`must not reach ${name}`)
+/** A port that must never be reached: throws instead of standing in. */
+function neverReached(name: string): () => never {
+  return () => {
+    throw new Error(`must not reach ${name}`)
+  }
+}
+
+function answerWith(answer: PaidUseAnswer, asked: { count: number }): () => Promise<PaidUseAnswer> {
+  return () => {
+    asked.count += 1
+    return Promise.resolve(answer)
+  }
+}
+
+function askDeps(schedule: ScheduleV2, ask: () => Promise<PaidUseAnswer>, isOn = true) {
+  return {
+    schedule,
+    identity,
+    cadence: 'once',
+    extras: [],
+    now: () => NOW,
+    isOn: () => isOn,
+    isCurrent: () => true,
+    ask,
+    remember: neverReached('remember'),
+  }
+}
+
+function scopeDeps(schedule: ScheduleV2, current: SchedulePaidIdentity) {
+  return {
+    backend: 'modelApi' as const,
+    schedule,
+    identity,
+    currentIdentity: () => current,
+    isCurrent: () => true,
+    isOn: () => true,
+    estimate: neverReached('estimate'),
+    reserve: neverReached('reserve'),
+  }
 }
 
 describe('schedule paid consent is fail-closed (M58/D140)', () => {
   it('a denied answer stores no consent', async () => {
-    let asked = 0
-    const consent = await askSchedulePaidConsent({
-      schedule: scheduleWith(undefined),
-      identity,
-      cadence: 'once',
-      extras: [],
-      now: () => NOW,
-      isOn: () => true,
-      isCurrent: () => true,
-      ask: (): Promise<PaidUseAnswer> => {
-        asked += 1
-        return Promise.resolve('deny')
-      },
-      remember: () => {
-        unreachable('remember')
-      },
-    })
+    const asked = { count: 0 }
+    const consent = await askSchedulePaidConsent(
+      askDeps(scheduleWith(undefined), answerWith('deny', asked)),
+    )
     expect(consent).toBeUndefined()
-    expect(asked).toBe(1)
+    expect(asked.count).toBe(1)
   })
 
   it('a current consent is reused without asking again', async () => {
     const stored = consentFor(identity.modelId)
-    const consent = await askSchedulePaidConsent({
-      schedule: scheduleWith(stored),
-      identity,
-      cadence: 'once',
-      extras: [],
-      now: () => NOW,
-      isOn: () => true,
-      isCurrent: () => true,
-      ask: () => {
-        unreachable('ask')
-      },
-      remember: () => {
-        unreachable('remember')
-      },
-    })
+    const consent = await askSchedulePaidConsent(askDeps(scheduleWith(stored), neverReached('ask')))
     expect(consent).toEqual(stored)
   })
 
   it('a changed model asks again and consents the new one', async () => {
-    let asked = 0
+    const asked = { count: 0 }
     const next: SchedulePaidIdentity = { ...identity, modelId: 'test-model-b' }
     const consent = await askSchedulePaidConsent({
-      schedule: scheduleWith(consentFor(identity.modelId)),
+      ...askDeps(scheduleWith(consentFor(identity.modelId)), answerWith('once', asked)),
       identity: next,
-      cadence: 'once',
-      extras: [],
-      now: () => NOW,
-      isOn: () => true,
-      isCurrent: () => true,
-      ask: (): Promise<PaidUseAnswer> => {
-        asked += 1
-        return Promise.resolve('once')
-      },
-      remember: () => {
-        unreachable('remember')
-      },
     })
-    expect(asked).toBe(1)
+    expect(asked.count).toBe(1)
     expect(consent?.modelId).toBe('test-model-b')
     expect(isScheduleConsentCurrent(scheduleWith(consent), next)).toBe(true)
   })
 
   it('no popup opens while the paid gate is off', async () => {
-    const consent = await askSchedulePaidConsent({
-      schedule: scheduleWith(undefined),
-      identity,
-      cadence: 'once',
-      extras: [],
-      now: () => NOW,
-      isOn: () => false,
-      isCurrent: () => true,
-      ask: () => {
-        unreachable('ask')
-      },
-      remember: () => {
-        unreachable('remember')
-      },
-    })
+    const consent = await askSchedulePaidConsent(
+      askDeps(scheduleWith(undefined), neverReached('ask'), false),
+    )
     expect(consent).toBeUndefined()
   })
 
   it('a run without consent is refused before any reservation', async () => {
-    const scope = createSchedulePaidScope({
-      backend: 'modelApi',
-      schedule: scheduleWith(undefined),
-      identity,
-      currentIdentity: () => identity,
-      isCurrent: () => true,
-      isOn: () => true,
-      estimate: () => {
-        unreachable('estimate')
-      },
-      reserve: () => {
-        unreachable('reserve')
-      },
-    })
+    const scope = createSchedulePaidScope(scopeDeps(scheduleWith(undefined), identity))
     expect(scope.allows('scheduledPrompts')).toBe(false)
     await expect(
       scope.reserve(
@@ -196,38 +169,16 @@ describe('schedule paid consent is fail-closed (M58/D140)', () => {
 
   it('a run past a changed model is refused before any reservation', () => {
     const next: SchedulePaidIdentity = { ...identity, modelId: 'test-model-b' }
-    const scope = createSchedulePaidScope({
-      backend: 'modelApi',
-      schedule: scheduleWith(consentFor(identity.modelId)),
-      identity,
-      currentIdentity: () => next,
-      isCurrent: () => true,
-      isOn: () => true,
-      estimate: () => {
-        unreachable('estimate')
-      },
-      reserve: () => {
-        unreachable('reserve')
-      },
-    })
+    const scope = createSchedulePaidScope(
+      scopeDeps(scheduleWith(consentFor(identity.modelId)), next),
+    )
     expect(scope.allows('scheduledPrompts')).toBe(false)
   })
 
   it('a current consent allows only the prompt run, not unconsented extras', () => {
-    const scope = createSchedulePaidScope({
-      backend: 'modelApi',
-      schedule: scheduleWith(consentFor(identity.modelId)),
-      identity,
-      currentIdentity: () => identity,
-      isCurrent: () => true,
-      isOn: () => true,
-      estimate: () => {
-        unreachable('estimate')
-      },
-      reserve: () => {
-        unreachable('reserve')
-      },
-    })
+    const scope = createSchedulePaidScope(
+      scopeDeps(scheduleWith(consentFor(identity.modelId)), identity),
+    )
     expect(scope.allows('scheduledPrompts')).toBe(true)
     expect(scope.allows('imageGeneration')).toBe(false)
   })
