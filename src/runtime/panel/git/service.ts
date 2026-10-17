@@ -24,9 +24,9 @@
 //
 // Around it:
 // - The user's `git` (`RuntimeGitDeps.gitPath`, absolute) runs through the
-//   bounded runner (`createGitProcess`: output caps, deadlines, M107
-//   admission, whole-tree stop), with explicit argument arrays and no
-//   shell. Every argument list passes `assertNativeGitArgs`.
+//   bounded runner (`createGitProcess`: output caps, M107 admission,
+//   whole-tree stop on Cancel or the window's closing; no deadline of ours),
+//   with explicit argument arrays and no shell. Every argument list passes `assertNativeGitArgs`.
 // - Environments are allow-lists per operation: reads, commits and
 //   worktrees get no credential variable; a confirmed push and a pull
 //   request fetch get only GIT_PUSH_CREDENTIAL_VARIABLES, as captured at
@@ -102,7 +102,6 @@ import { newFileDiff } from '../../../core/git/gitText'
 import type { RuntimeGitDeps } from '../../../core/git/runtimeGit'
 import {
   GIT_PUSH_CREDENTIAL_VARIABLES,
-  GIT_TIMEOUT_MS,
   PULL_REQUEST_WORKTREES_DIR,
 } from '../../../shared/constants'
 import {
@@ -668,7 +667,9 @@ export class NativeGitService {
         env: isUserEnvironment
           ? nativePushEnvironment(this.deps.userEnvironment())
           : quietGitEnvironment(process.env),
-        timeoutMs: GIT_TIMEOUT_MS,
+        // No deadline of ours: a push, a fetch or a commit's hooks take what
+        // they take, as in VS Code's own Git; Cancel and the window stop it.
+        timeoutMs: undefined,
         signal: guard.signal,
         beforeRun: this.atSpawn(args, root, guard, held),
         ...(isUserEnvironment && { credentialRoutes: GIT_PUSH_CREDENTIAL_VARIABLES }),

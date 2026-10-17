@@ -7,6 +7,7 @@
 //
 // Types only: nothing here runs.
 
+import type { GitState } from '../../shared/git'
 import type { CoreLogger } from '../logging'
 import type { GitHubSignIn } from './githubSignIn'
 
@@ -63,6 +64,14 @@ export interface RuntimeGitDeps {
   readonly links: PullRequestLinkStore
   /** The editor's trust (MHP `workspace/trust`, or the runtime's record); checked after every await. */
   readonly isTrusted: () => boolean
+  /**
+   * The hold on someone else's pull request and the worktree the window is
+   * on, as the panel's card and worktree line show them (D104 §3: held by
+   * location in every host); empty when neither.
+   */
+  readonly worktreeState: () => Pick<GitState, 'hold' | 'worktree'>
+  /** The held card's "Trust This Worktree…": asks, and lets the hold go on a yes. */
+  readonly confirmWorktreeTrust: () => Promise<void>
   /**
    * The push modal: the remote and its (masked) URL, the branch and its
    * target, the commit count, never a force, and that hooks and credential

@@ -31,19 +31,23 @@ import { windowGitHubSignIn } from './githubSession'
 import { createHeldCheckout } from './heldCheckout'
 import { type LinkMemento, PullRequestLinks } from './pullRequestLinks'
 import { untrustedGitRunner } from './untrustedGit'
-import type {
-  CommitConfirmation,
-  GitWindow,
-  PushConfirmation,
-  UntrackedFile,
+import {
+  windowWorktreeState,
+  type CommitConfirmation,
+  type GitWindow,
+  type PushConfirmation,
+  type UntrackedFile,
 } from './conversationGit'
 import {
   captureGitOwner,
   GitUnavailableError,
+  isGitExtensionInstalled,
   loadGitApi,
   repositoryAt,
+  type CheckoutRepository,
   type GitRepository,
 } from './gitExtension'
+import { nativeCheckoutRepository } from './nativeRepository'
 import {
   confirmWorktreeTrust,
   openPullRequestInConversation,
@@ -76,6 +80,8 @@ export interface GitWindowDeps {
   readonly signal: AbortSignal
   /** dist/nativeGit.js: M123's native route, loaded only where `vscode.git` is missing. */
   readonly nativeGitBundlePath: string
+  /** The checkout's repository through the user's own git, where `vscode.git` is missing (M123). */
+  readonly nativeCheckoutRepository: (root: string) => Promise<CheckoutRepository>
   readonly log: Logger
 }
 
@@ -92,7 +98,7 @@ export interface GitWindowFeatures {
  */
 export interface GitFeaturesDeps extends Omit<
   GitWindowDeps,
-  'links' | 'github' | 'githubSignIn' | 'checkOutHeld'
+  'links' | 'github' | 'githubSignIn' | 'checkOutHeld' | 'nativeCheckoutRepository'
 > {
   /** VS Code's secret storage: where Muse Spark's own GitHub sign-in keeps its token (M123). */
   readonly secrets: SecretStore
@@ -117,6 +123,11 @@ export function createGitFeatures(deps: GitFeaturesDeps): GitWindowFeatures {
     links: new PullRequestLinks(workspaceState),
     github: new GitHubClient({ fetch, userAgent, log: deps.log }),
     githubSignIn: windowGitHubSignIn({ secrets, fetch, userAgent, log: deps.log }),
+    nativeCheckoutRepository: nativeCheckoutRepository({
+      gitProcess,
+      env,
+      signal: deps.signal,
+    }),
     // Someone else's pull request: no git checkout; the extension writes its files (M71).
     checkOutHeld: createHeldCheckout({
       platform: process.platform,
@@ -320,6 +331,9 @@ function nativeGitDeps(deps: GitWindowDeps, window: GitWindow): RuntimeGitDeps |
       set: (_root, sessionId, link) => deps.links.set(sessionId, link),
     },
     isTrusted: () => window.isWorkspaceTrusted() && deps.hold.current === undefined,
+    // The same card and worktree line as the Git extension route.
+    worktreeState: () => windowWorktreeState(window),
+    confirmWorktreeTrust: window.confirmWorktreeTrust,
     confirmPush: isPushConfirmed,
     confirm: isModalConfirmed,
     pickRemote: window.pickRemote,
@@ -403,7 +417,8 @@ export function createGitWindow(deps: GitWindowDeps): GitWindowFeatures {
     isWorkspaceTrusted: () => deps.isCurrent() && vscode.workspace.isTrusted,
     isHeld: () => deps.hold.isHeld,
     storageRoot: deps.storageRoot,
-    repository,
+    // VS Code's Git where it is installed; the user's own git where it is not.
+    repository: isGitExtensionInstalled() ? repository : deps.nativeCheckoutRepository,
     captureGitOwner,
     runGit: deps.runGit,
     checkOutHeld: deps.checkOutHeld,
