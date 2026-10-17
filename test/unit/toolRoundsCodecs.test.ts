@@ -215,15 +215,14 @@ describe('wrap-up requests across codec families', () => {
         sendPromptCacheRetention: false,
       }).encodeRequest(wrap),
       createResponsesCodec({ profile: 'chatgpt', toolNamespace: 'functions' }).encodeRequest(wrap),
-      encodeChatRequest(wrap, 'review-model', { ...CHAT, toolChoice: 'auto' }).body as Record<
-        string,
-        unknown
-      >,
-      encodeAnthropicRequest(wrap, {
-        model: 'claude-sonnet-5-5',
-        maxTokens: 256,
-        effort: 'low',
-      }).body as Record<string, unknown>,
+      object.parse(encodeChatRequest(wrap, 'review-model', { ...CHAT, toolChoice: 'auto' }).body),
+      object.parse(
+        encodeAnthropicRequest(wrap, {
+          model: 'claude-sonnet-5-5',
+          maxTokens: 256,
+          effort: 'low',
+        }).body,
+      ),
       encodeGeminiRequest(wrap, 'gemini-3.5-flash-lite').body,
       JSON.parse(
         encodeOllamaRequest(wrap, {
