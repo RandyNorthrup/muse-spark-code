@@ -212,6 +212,7 @@ export function ModelsPanel({
         pendingSection={pendingSection}
         pendingShown={pendingShown}
         navigate={panelState === undefined ? undefined : navigate}
+        sections={visible}
       />
       {/* A failed money load (costs, budgets, rates, key usage) is said once
           for every section, with Retry; Accept stays unavailable meanwhile. */}
