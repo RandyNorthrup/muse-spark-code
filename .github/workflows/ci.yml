@@ -1,28 +1,29 @@
 # Pull requests, merge-queue groups and manual branch runs call the shared
 # build (build.yml): the fast tier for a pull request once the merge queue is
 # on, the full tier for everything else. The required checks are the same
-# eight names on every event.
+# seven names on every event.
 #
 # CI capacity (D122): GitHub runs at most five macOS jobs at a time per
 # account, and a full run has twelve. While the repository variable ORG_CI is
-# `on`, a same-repository pull request runs its Ubuntu and shared jobs here
-# (part `home`); the maintainer's relay (scripts/ci-org-relay.mjs) pushes the
-# pull request's merge commit to the capacity repository
-# scnetsolutions/muse-spark-code-ci as ci/head-<head sha>, where this same
-# file runs the Windows and macOS unit shards (part `org`), and posts that
-# run's result onto the head commit as the required status
-# `build / org part`. Forks, Dependabot, merge groups, manual runs and every
-# pull request while ORG_CI is not `on` keep every job here (part `all`),
-# where `build / org part` comes from this run's own aggregate.
+# `on` and the capacity app's key reaches the run, a same-repository pull
+# request runs part `home`: every job here except the Windows and macOS unit
+# shards, plus build.yml's `org` job, which pushes the pull request's merge
+# commit to the capacity repository scnetsolutions/muse-spark-code-ci as
+# ci/pr-<number>, where this same file runs those shards on the
+# organization's runners (part `org`), and waits for that run. The required
+# names fold in its result. Forks, Dependabot, merge groups, manual runs and
+# every pull request while ORG_CI is not `on` keep every job here (part
+# `all`): none of them gets the key.
 name: CI
 
 on:
   pull_request:
   merge_group:
   workflow_dispatch:
-  # Runs only in the capacity repository (the relay pushes ci/head-<sha>).
+  # Runs only in the capacity repository, where build.yml's `org` job pushes
+  # ci/pr-<number>; route skips it anywhere else.
   push:
-    branches: ['ci/head-*']
+    branches: ['ci/pr-*']
 
 permissions:
   contents: read
@@ -47,24 +48,41 @@ jobs:
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
           ORG_CI: ${{ vars.ORG_CI }}
           FAST: ${{ github.event_name == 'pull_request' && vars.CI_MERGE_QUEUE == 'on' }}
+          # GitHub passes no Actions secret to a fork's or Dependabot's run,
+          # so this is false there whatever ORG_CI says.
+          HAS_KEY: ${{ secrets.ORG_CI_APP_PRIVATE_KEY != '' }}
           REF: ${{ github.ref_name }}
         run: |
           if [ "$EVENT" = push ]; then
-            [[ "${REF#ci/head-}" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::branch $REF does not name a head commit"; exit 1; }
+            [[ "$REF" =~ ^ci/pr-[0-9]+$ ]] || { echo "::error::branch $REF is not ci/pr-<number>"; exit 1; }
             part=org
-          elif [ "$EVENT" = pull_request ] && [ "$SAME_REPO" = true ] && [ "$ORG_CI" = on ] && [ "$FAST" != true ]; then
-            part=home
-          else
+            why="the merge commit of pull request #${REF#ci/pr-}"
+          elif [ "$EVENT" != pull_request ]; then
             part=all
+            why="a $EVENT run keeps every job here"
+          elif [ "$ORG_CI" != on ]; then
+            part=all
+            why="ORG_CI is not on"
+          elif [ "$FAST" = true ]; then
+            part=all
+            why="the fast tier runs on Ubuntu only"
+          elif [ "$SAME_REPO" != true ] || [ "$HAS_KEY" != true ]; then
+            part=all
+            why="no capacity app key reaches this run: a fork, Dependabot, or ORG_CI_APP_PRIVATE_KEY unset"
+          else
+            part=home
+            why="the Windows and macOS unit shards run in scnetsolutions/muse-spark-code-ci"
           fi
           echo "part=$part" >> "$GITHUB_OUTPUT"
-          echo "This run's part: $part"
+          echo "This run's part: $part ($why)"
 
   build:
     needs: route
-    # Same-repository reusable workflow: GITHUB_TOKEN reaches it on its own;
-    # no other secret is passed (least privilege).
     uses: ./.github/workflows/build.yml
+    # The capacity app's key, read only by build.yml's `org` job in a `home`
+    # run; empty wherever GitHub withholds secrets. No other secret is passed.
+    secrets:
+      org-ci-app-private-key: ${{ secrets.ORG_CI_APP_PRIVATE_KEY }}
     with:
       # The fast PR tier is safe only while the merge queue runs the full one
       # before anything lands. Until the maintainer has turned the queue on in
