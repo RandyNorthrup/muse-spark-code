@@ -16,8 +16,3 @@ export function transportTestDeps(
     ...overrides,
   }
 }
-
-/** A body that never yields: the read waits until it is stopped. */
-export function hangingBody(): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>()
-}
