@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   checkCommandLine,
   checkCommandsSchema,
@@ -150,6 +150,22 @@ describe('checkCommandLine', () => {
     )
     return JSON.parse(output.trim())
   }
+
+  // Windows PowerShell's first start on a fresh hosted runner took over the
+  // 15 s test budget once (PR 165, windows-latest shard 5, 2026-10-16) while
+  // it takes about 0.4 s on a warm machine. These cases check how paths reach
+  // a program, not how fast PowerShell starts, so the cold start happens here
+  // with its time printed and no time limit (owner 2026-10-16: no limits that
+  // are not about a model), and the cases keep the repository's own budget.
+  beforeAll(() => {
+    if (!isWindows) return
+    const powershell = path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
+    const started = Date.now()
+    execFileSync(powershell, ['-NoProfile', '-NonInteractive', '-Command', 'exit 0'], {
+      stdio: 'ignore',
+    })
+    process.stdout.write(`Windows PowerShell cold start: ${String(Date.now() - started)} ms\n`)
+  }, 0)
 
   it.skipIf(!isWindows)('hands a native program each path as one argument', () => {
     expect(throughPowerShell(`& '${process.execPath}' ${NODE_ARGV}`, SAFE_ON_WINDOWS)).toEqual([
