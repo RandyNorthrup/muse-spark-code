@@ -15940,6 +15940,21 @@ local stdio phase. The owner, 2026-10-09: the local phase starts now; the
 hosted phase (ChatGPT/claude.ai OAuth over HTTPS) waits for M110, the
 orchestrator-link contract and a domain/OAuth choice.
 
+**MSM124 finish record (2026-10-17): local phase built, merged
+with main, awaiting integration.** Round 7 (`e1ecb32e1`) merged with
+`main-now` (`821566c0f`); the merged tree builds with
+`dist/connector.js` at 99.6 KiB of 100 KiB and passes typecheck, lint,
+format, knip, cycles, duplication, l10n, reference, host-api, plan,
+roadmap, lazy-registry, audit and the registry/entry/runtime suites;
+the built `dist/acp.js mcp` was driven over real stdio (negotiation,
+empty tool list and scrubbed refusals without a grant, parse error,
+per-event audit). Still with the lead: hosted phase (blocked above),
+RVM124 finding 15, shared approval UI, real-client qualification, the
+SAST run (sandbox CA crash), and reruns of `connectorLimitsLock` and
+`connectorStdio.e2e`, which fail on the macmini sandbox exactly as on
+the untouched base (slow TMPDIR, 5 s timeouts under load). Record:
+`docs/certification/msm124.md`.
+
 **Provenance.** The documentation-only M119PLAN lane planned this on
 2026-10-07 under the numbers D102/M119 (commits `b27ad09a9`, `00e825dfa` and
 `ebcefbb1a` on `plan/m119-connector`, from base `ccce6e6ac`). Main has since
