@@ -17,13 +17,17 @@ export type RetryFormat = 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollam
 export interface RetryTables {
   /** HTTP statuses worth one more try. */
   readonly statuses: readonly number[]
-  /** Envelope error type/code values worth one more try where the status is not. */
+  /**
+   * Envelope error type/code values the provider documents as worth one
+   * more try, whatever the status (OpenRouter's in-flight-budget 402).
+   */
   readonly errorKinds: readonly string[]
   /** Envelope error type/code values never retried, whatever the status (quota). */
   readonly quotaKinds: readonly string[]
 }
 
-/** 402 means the account cannot pay: never retried on any format. */
+/** 402 means the account cannot pay: never retried, unless the provider
+ * documents that very code as worth asking again (`errorKinds`). */
 const HTTP_PAYMENT_REQUIRED = PROVIDER_RETRY_HTTP_STATUS.paymentRequired
 
 /**
@@ -139,28 +143,31 @@ function isMatchingKind(kinds: readonly string[], value: string | undefined): bo
 }
 
 /**
- * Whether to try again after `failure` under `tables`. Quota (402, a quota
- * kind or code, quota wording) never retries; otherwise a listed status, or
- * a listed error kind where the status is not listed, retries.
+ * Whether to try again after `failure` under `tables`. A quota kind or code
+ * never retries; a code the provider documents as worth asking again does,
+ * whatever its status; otherwise 402 and quota wording never retry, and a
+ * listed status does.
  */
 export function classifyRetry(tables: RetryTables, failure: RetryFailure): RetryDecision {
-  if (failure.status === HTTP_PAYMENT_REQUIRED) {
-    return { retry: false, reason: 'quota' }
-  }
   if (
     isMatchingKind(tables.quotaKinds, failure.kind) ||
     isMatchingKind(tables.quotaKinds, failure.code)
   ) {
     return { retry: false, reason: 'quota' }
   }
+  if (
+    isMatchingKind(tables.errorKinds, failure.kind) ||
+    isMatchingKind(tables.errorKinds, failure.code)
+  ) {
+    return { retry: true }
+  }
+  if (failure.status === HTTP_PAYMENT_REQUIRED) {
+    return { retry: false, reason: 'quota' }
+  }
   if (QUOTA_MESSAGE.test(failure.message)) {
     return { retry: false, reason: 'quota' }
   }
-  if (tables.statuses.includes(failure.status)) {
-    return { retry: true }
-  }
-  return isMatchingKind(tables.errorKinds, failure.kind) ||
-    isMatchingKind(tables.errorKinds, failure.code)
+  return tables.statuses.includes(failure.status)
     ? { retry: true }
     : { retry: false, reason: 'not-retryable' }
 }
