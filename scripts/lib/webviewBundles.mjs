@@ -319,6 +319,11 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     // The capacity estimator's panel and submit composer (M117): 9.6 KiB
     // when split out (2026-10-06); the composer loads on the first
     // `/estimate` ahead of the panel; plus 15%, rounded up to 25 KiB.
+    // D119 (2026-10-17): the estimator's own worded refusal
+    // (`isEstimateRefusal`/`estimateRefusalDetail` in `src/shared/estimate.ts`)
+    // runs in the panel's and composer's catch handlers, so it stays in this
+    // closure: 26,410 bytes measured on `fix/catch-money-final` x 1.15 =
+    // 30,371.5 bytes = 29.66 KiB, so 30 KiB by the same rule.
     name: 'estimator panel',
     entries: [
       'src/webview/estimator/EstimatorPanel.tsx',
@@ -326,7 +331,7 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
       'src/shared/estimate.ts',
       'src/shared/estimatorProtocol.ts',
     ],
-    budgetKiB: 25,
+    budgetKiB: 30,
   },
 ]
 

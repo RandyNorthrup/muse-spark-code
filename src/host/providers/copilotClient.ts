@@ -24,7 +24,7 @@ import type {
   OutputItem,
   StreamEvent,
 } from '../../core/backends/modelapi/schemas'
-import { CopilotFailureError } from '../../core/providers/subscriptions/copilotFailure'
+import { CopilotFailureError } from '../backend/subscriptionsEntry'
 
 /** The M95 ProviderClient seam, absent from this base; no image-generation calls. */
 type ProviderClient = Pick<
