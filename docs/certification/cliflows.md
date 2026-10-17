@@ -757,3 +757,64 @@ python3` ("tool denied: approval aborted"), so no OS-store operation
 - No live or paid model call anywhere (brief forbids it).
 - `test/a11y` harness looks: no visual surface changed (terminal text
   only); README pictures untouched.
+
+# Review RVCLIFLOWS2 (2026-10-17, rig linuxlt, branch `rv/cliflows2` from `df3fa8eca`)
+
+Review that fixes, by Muse Wonder Full (contributor). Four fixes, each in
+its own commit; `git merge --no-ff main-now` answered "Already up to date"
+(main-now is the lane's base, 0.18.2 `898a26c5e` an ancestor).
+
+- Healed re-read returns its key (`32fca54c4`). Item 6's re-read healed
+  `metaKeyProbe` to `key` but the step still returned an absent-key read,
+  so the first key step after a mid-session unlock refused as if no key
+  were stored. The reread value is returned to that step now. The
+  real-store mid-session proof stays the lead's real-life step; the
+  down-leg is unchanged (packed exit 3, below).
+- Sharing help names exit 7 (`b24a908a3`). `share`/`prompts` topics
+  spread the CLI-wide 0/1/2 row while the handler returns
+  `EXEC_EXIT.denied` (7) for a cancelled or refused share. Both topics
+  now carry a sharing row from the handler's codes, with a
+  `sharingExits` sentence in all 15 tables. Gate-fire proof: naming 8
+  instead of 7 fails `cliHelp.test.ts` (`expected [0,1,2,8] to deeply
+equal [0,1,2,7]`), reverted.
+- Developer usage settles first (`93be98914`). Over state written by
+  another machine, `developer --bogus` threw the usage `SyntaxError` as
+  a stack trace (the differentMachine catch re-parsed uncaught). Usage
+  is parsed before any state work. Proof: the extended test, over a
+  real foreign `developer.json`, fails on the lane code with that
+  `SyntaxError` and passes fixed.
+- Fake-store tests removed or rewritten (`42670dc8d`, `93be98914`): the
+  F43 unit case handed the backend a hand-written secrets object
+  (deleted; F43 is proven packed, below), and the developer help case
+  dropped its in-memory keyring for fail-loud seams. No other lane test
+  uses a mock, fake timer or stand-in (scanned: no `vi.mock`, `doMock`,
+  `stubGlobal`, fake timers, behaviour-replacing spies in the lane's
+  test diff).
+
+Packed drills (final build, scratch HOME, bus to nowhere): `share
+--help` 23 lines and `prompts --help` 20 lines, exit 0, both naming
+exit 7; `developer --help` exit 0, `developer --bogus` usage exit 2;
+`scan-secrets` clean 0/exit 0 and canary 1/exit 10, number only, empty
+stderr; keyless `exec --backend modelApi` exit 3 with the one store
+sentence and `messages are in English`; ACP `session/new` on a dead
+store with a file-backed `ollama/llama3.1` provider returned
+`{"sessionId":"b332db5c-…"}` with no prompt sent (F43).
+
+Gates (exit codes): typecheck (5 projects) 0; ESLint changed files 0;
+Prettier 0; deadcode (knip, 3 hints) 0; cycles 0; duplication 0 clones;
+check:l10n 0; check:reference 0 (273 CLI); check:host-api 0;
+check:plan 0; check:roadmap 0; build 0; SAST 0 (533 rules, 3245 files,
+0 findings); security:audit 0. Unit at repo-default timeouts: cliHelp
+35, runtimeServices 18, developerSurfaces+hostL10nTerminal+
+subscriptionCopilot 31, sharingTerminal+providersModels+scanSecrets
+33, accountsCommand+runtimeAccountsService+referenceEntry 58,
+cliReference+skillDedupe+legalArgs 25, fontCli+hostL10n 19; the packed
+help e2e case 1 passed (12 environment-skipped).
+
+Removals audit (detail in the review report): no file is deleted net;
+the four `format*Help` helpers are used by no unmerged ref except the
+`ms/msm118` snapshot, whose `help sharing` caller is superseded by the
+topics; `execScanMatches` and `acpChatGpt.storeUnavailable` readers on
+unmerged refs are the base readers, not new work. Item 6's real-store
+proof and grant-backed dispatch stay the owner's real-life steps; no
+live or paid model call was made.
