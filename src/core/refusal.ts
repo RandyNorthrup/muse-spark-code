@@ -1,5 +1,5 @@
 import { isSpendLedgerError } from './paid/spendLedgerError'
-import { UI_TEXT } from '../shared/constants'
+import { NON_BILLABLE_HTTP_REJECTIONS, UI_TEXT } from '../shared/constants'
 
 /**
  * A paid stop (daily, run, session or account cap) is never retried as a
@@ -57,5 +57,30 @@ export function isRequestNotSent(error: unknown): error is Error {
     error.name === 'UserRefusalError' &&
     'code' in error &&
     error.code === 'not_sent'
+  )
+}
+
+/**
+ * A side call (hook model, reviewer) counts as refused before sending when
+ * the dispatcher says so, when a local refusal arrived before any response
+ * frame and no sent mark exists, or when the provider's first answer is a
+ * non-billable rejection and no usage arrived.
+ */
+export function isUnsentSideCall(
+  error: unknown,
+  hasResponseFrame: boolean,
+  wasSent: boolean,
+  hasUsage: boolean,
+  isRefused: (error: unknown) => boolean,
+): boolean {
+  return (
+    isRequestNotSent(error) ||
+    (!hasResponseFrame && !wasSent && isRefused(error)) ||
+    (!hasResponseFrame &&
+      !hasUsage &&
+      error instanceof Error &&
+      'status' in error &&
+      typeof error.status === 'number' &&
+      NON_BILLABLE_HTTP_REJECTIONS.has(error.status))
   )
 }

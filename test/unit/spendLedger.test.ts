@@ -9,15 +9,17 @@ import { currentProcessOwner } from '../../src/core/locks/processOwner'
 import { Usd } from '../../src/shared/usd'
 const roots: string[] = []
 const usd = (value: string | number) => Usd.from(value).toAmount()
+function freshLedger() {
+  return createSpendLedger({
+    sleep: delay,
+    initial: () => Promise.resolve({ settled: usd(0), unknownHistory: false }),
+  })
+}
 function setup() {
   const directory = mkdtempSync(path.join(tmpdir(), 'ledger-v3-'))
   roots.push(directory)
   const scope: LedgerScope = { directory, id: 'day' }
-  const ledger = createSpendLedger({
-    sleep: delay,
-    initial: () => Promise.resolve({ settled: usd(0), unknownHistory: false }),
-  })
-  return { scope, ledger }
+  return { scope, ledger: freshLedger() }
 }
 afterAll(() => {
   for (const directory of roots) rmSync(directory, { recursive: true, force: true })
@@ -132,10 +134,7 @@ describe('one spend ledger', () => {
       .parse(JSON.parse(readFileSync(stateFile, 'utf8')))
     for (const entry of snapshot.open) entry.owner.pid = 2_147_483_647
     writeFileSync(stateFile, JSON.stringify(snapshot))
-    const recovering = createSpendLedger({
-      sleep: delay,
-      initial: () => Promise.resolve({ settled: usd(0), unknownHistory: false }),
-    })
+    const recovering = freshLedger()
     expect(await recovering.read(scope)).toMatchObject({
       spentUsd: '2',
       uncertainUsd: '2',
@@ -147,10 +146,7 @@ describe('one spend ledger', () => {
   it('keeps unverifiable owners reserved without an age heuristic', async () => {
     const { scope, ledger } = setup()
     await ledger.admit(scope, usd(1), usd(2))
-    const recovering = createSpendLedger({
-      sleep: delay,
-      initial: () => Promise.resolve({ settled: usd(0), unknownHistory: false }),
-    })
+    const recovering = freshLedger()
     expect(await recovering.read(scope)).toMatchObject({
       spentUsd: '1',
       heldUsd: '1',

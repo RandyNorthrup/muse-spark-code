@@ -67,18 +67,19 @@ export function createPaidDailyBudget(deps: {
   const stopPath = (scope: string) =>
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.stopDirectory)
   const readLimit = (scope: string, isDisplay = false) => {
+    const settingsFailure = (error: unknown): never => {
+      throw new SpendLedgerError(
+        storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
+        { scope, file: 'daily settings', errno: storeErrorCode(error) },
+        error,
+      )
+    }
     let isStopped = false
     try {
       statSync(stopPath(scope))
       isStopped = true
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT') {
-        throw new SpendLedgerError(
-          storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
-          { scope, file: 'daily settings', errno: storeErrorCode(error) },
-          error,
-        )
-      }
+      if (storeErrorCode(error) !== 'ENOENT') settingsFailure(error)
     }
     if (isStopped && !isDisplay)
       throw new UserRefusalError(UI_TEXT.paidDailyStopped, 'daily_stopped')
@@ -86,13 +87,7 @@ export function createPaidDailyBudget(deps: {
     try {
       limit = limitSchema.parse(JSON.parse(readFileSync(limitPath(scope), 'utf8')))
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== 'ENOENT') {
-        throw new SpendLedgerError(
-          storeErrorCode(error) === undefined ? 'damaged' : 'unreadable',
-          { scope, file: 'daily settings', errno: storeErrorCode(error) },
-          error,
-        )
-      }
+      if (storeErrorCode(error) !== 'ENOENT') settingsFailure(error)
       limit = { limitUsd: deps.capUsd(), stopped: false }
     }
     if (!isDisplay && limit.stopped)

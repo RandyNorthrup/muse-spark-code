@@ -1,4 +1,4 @@
-import { isRequestNotSent } from '../../refusal'
+import { isUnsentSideCall } from '../../refusal'
 import { Usd, isPositiveUsd } from '../../../shared/usd'
 import type { ResponseObservation, ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 // Paid Auto review execution: loaded only after the paid-use popup allows it.
@@ -39,14 +39,17 @@ import {
   AUTO_REVIEWER_MODEL_TEXT,
   AUTO_REVIEWER_TIMEOUT_MS,
   MODEL_API_EFFORT_OFF,
-  MODEL_API_MAX_RETRIES,
-  NON_BILLABLE_HTTP_REJECTIONS,
   UI_TEXT,
 } from '../../../shared/constants'
 import { fill, setUiText } from '../../../shared/l10n/text'
 import type { UiText } from '../../../shared/l10n/en'
 import { reviewerAnswerSchema } from '../../../shared/sideCallSchemas'
-import { sideCallBody, structuredSideCall, type SideCallAttempt } from './structuredOutput'
+import {
+  sideCallBody,
+  sideCallEvents,
+  structuredSideCall,
+  type SideCallAttempt,
+} from './structuredOutput'
 
 // M91 hook model turns share the paid helper bundle and its existing lazy boundary.
 export { runHookModelTurn } from './hookModelEntry'
@@ -331,19 +334,13 @@ async function requestReviewer(
         },
       },
     )
-    const events = context.resolved.client.streamResponse(
+    const events = sideCallEvents(
+      context.resolved.client,
       body,
-      AbortSignal.any([signal, AbortSignal.timeout(AUTO_REVIEWER_TIMEOUT_MS)]),
-      undefined,
-      // No transport retry; structured repair is separately admitted and settled.
-      { retriesUsed: MODEL_API_MAX_RETRIES },
+      signal,
+      AUTO_REVIEWER_TIMEOUT_MS,
       admission,
-      {
-        ...confirmed,
-        onRequestStarted: () => {
-          // The combined admission observer above counts this paid use once.
-        },
-      },
+      confirmed,
     )
     for await (const event of events) {
       hasResponseFrame = true
@@ -376,15 +373,13 @@ async function requestReviewer(
     outcome = 'completed'
   } catch (error: unknown) {
     if (signal.aborted) outcome = 'cancelled'
-    wasRefused =
-      isRequestNotSent(error) ||
-      (!hasResponseFrame && directBudget?.isSent !== true && context.isRefused(error)) ||
-      (!hasResponseFrame &&
-        usage == null &&
-        error instanceof Error &&
-        'status' in error &&
-        typeof error.status === 'number' &&
-        NON_BILLABLE_HTTP_REJECTIONS.has(error.status))
+    wasRefused = isUnsentSideCall(
+      error,
+      hasResponseFrame,
+      directBudget?.isSent === true,
+      usage != null,
+      (candidate) => context.isRefused(candidate),
+    )
     if (signal.aborted) {
       throw context.abortError()
     }

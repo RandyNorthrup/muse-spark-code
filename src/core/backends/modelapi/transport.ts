@@ -30,7 +30,8 @@ import {
 // M95-T: the existing retry/admission loop, shared by Meta and injected codecs.
 import { createHash } from 'node:crypto'
 
-interface PaidRequestClaim {
+/** The client and transport need admission and settlement, not ledger totals. */
+export interface PaidRequestClaim {
   readonly markSent?: () => void
   readonly markUnsent?: () => void
   readonly reservedUsd: UsdAmount
@@ -245,6 +246,22 @@ export function redactModelApiError(
     isModelApiError(error) && error.kind !== undefined ? redact(error.kind) : undefined,
     isModelApiError(error) && error.code !== undefined ? redact(error.code) : undefined,
   )
+}
+
+/**
+ * Local refusals keep their own sentence; the classifier rides the lazy
+ * provider bundle, keeping this bundle on its pin. Everything else leaves
+ * redacted, at the response's status.
+ */
+export async function rethrowStreamError(
+  error: unknown,
+  redact: (text: string) => string,
+  status: number,
+): Promise<never> {
+  const { isUserRefusal } = await import('../../refusal')
+  if (isUserRefusal(error) && !isModelApiError(error) && redact(error.message) === error.message)
+    throw error
+  throw redactModelApiError(error, redact, status)
 }
 
 /** Thrown when the key is absent: the caller decides how to prompt. */
