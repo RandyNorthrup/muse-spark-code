@@ -191,7 +191,27 @@ bundle, size/split/globals gates inside). Real-use steps for the lead:
   from the SDK and schema. The lead's rigs should move to 1.4.10.
 - The `l10n-pack-diag.mjs` order check named in the lane brief is not on
   this rig; key order was verified programmatically instead (all 14
-  tables place the two new keys directly after `turnRetracted`, as in
-  English). The lead runs the pack check at release.
+  tables place the three new keys directly after `turnRetracted`, as
+  in English). The lead runs the pack check at release.
 - The `min-release-age=0` one-shot override for the SDK install is
   recorded here; `.npmrc` keeps the 7-day rule.
+
+## Final gates on the finished tree (2026-10-17, exit 0 throughout)
+
+- `npm run lint` (eslint zero warnings + prettier + ps-skip on Linux),
+  `format:check`, `typecheck` (all four projects), knip (3 config hints
+  only), cycles (none), duplication (0 clones), `check:l10n`
+  (0 problems), `check:reference` (92 settings, current),
+  `check:host-api` (0 problems), `check:plan` (219, 0 drift),
+  `check:roadmap` (219 entries, current), `npm run build` (budgets in),
+  `security:audit` (2 advisories under the exceptions file).
+- The final typecheck caught 7 indexed-access narrowings in
+  `museCodeLatest.test.ts` (`rows[0]`, `settlements[0]` under
+  `noUncheckedIndexedAccess`); fixed with the `!` precedent from
+  `importHookSources.test.ts`, re-greened, then committed.
+- Tests on the finished tree, repo default timeout, no overrides:
+  `museCodeLatest.test.ts` 33/33; neighbors `mapNotification`,
+  `teamCeilings`, `manifest` 91/91.
+- `security:sast` still skips on this rig (semgrep not installable:
+  read-only FS blocks pip, scratch venv has no wheel support); the gate
+  runs in hosted CI.

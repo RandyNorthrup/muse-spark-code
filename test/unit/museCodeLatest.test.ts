@@ -405,12 +405,12 @@ describe('session inventories (task/hook/plugin)', () => {
     const rows = hookListResultSchema.parse(fixture('hook-list-1.4.9.json')).hooks
     expect(rows).toHaveLength(1)
     // Served camelCase on the wire (HookEventName is PascalCase): kept verbatim.
-    expect(toSessionHookRow(rows[0])).toMatchObject({
+    expect(toSessionHookRow(rows[0]!)).toMatchObject({
       event: 'sessionStart',
       handlerKind: 'project',
       enabled: false,
     })
-    expect(toSessionHookRow(rows[0]).key).toContain('session_start')
+    expect(toSessionHookRow(rows[0]!).key).toContain('session_start')
   })
 
   it('maps running task and installed plugin rows per the CLI schema', () => {
@@ -470,8 +470,8 @@ describe('recap, computer-use and workflow shapes', () => {
     }[]
     expect(ack.result.status).toBe('accepted')
     expect(settlements).toHaveLength(1)
-    expect(settlements[0].commandId).toBe(ack.result.commandId)
-    expect(settlements[0]).toMatchObject({ outcome: 'failed', reason: 'providerFailed' })
+    expect(settlements[0]!.commandId).toBe(ack.result.commandId)
+    expect(settlements[0]!).toMatchObject({ outcome: 'failed', reason: 'providerFailed' })
   })
 
   it('settles a requested recap by commandId and leaves the rest unclaimed', () => {
@@ -486,13 +486,13 @@ describe('recap, computer-use and workflow shapes', () => {
       { readonly sessionId: string; readonly settle: (recap: unknown) => void }
     >()
     let settled: unknown
-    pending.set(settlements[0].commandId, {
-      sessionId: settlements[0].sessionId,
+    pending.set(settlements[0]!.commandId, {
+      sessionId: settlements[0]!.sessionId,
       settle: (recap) => {
         settled = recap
       },
     })
-    expect(claimRecapSettlement(pending, settlements[0])).toEqual({
+    expect(claimRecapSettlement(pending, settlements[0]!)).toEqual({
       outcome: 'failed',
       reason: 'providerFailed',
     })
@@ -500,7 +500,7 @@ describe('recap, computer-use and workflow shapes', () => {
     expect(pending.size).toBe(0)
     // A late settlement past the wait, or one nobody asked for, stays
     // unclaimed for the notice mapping.
-    expect(claimRecapSettlement(pending, settlements[0])).toBeUndefined()
+    expect(claimRecapSettlement(pending, settlements[0]!)).toBeUndefined()
   })
 
   it('refuses computer-use setup on this host with the documented kind', () => {
