@@ -421,8 +421,8 @@ jobs:
             file="${spec#*:}"
             cp "native/linux/$arch/$file" "helper-assets/linux-$arch-$file"
           done
-          unzip -p ./*.vsix extension/dist/voice.js > "$RUNNER_TEMP/voice.js"
-          node scripts/check-linux-helper-pins.mjs --bundle "$RUNNER_TEMP/voice.js" --assets helper-assets
+          unzip -p ./*.vsix extension/dist/voiceLinux.js > "$RUNNER_TEMP/voiceLinux.js"
+          node scripts/check-linux-helper-pins.mjs --bundle "$RUNNER_TEMP/voiceLinux.js" --assets helper-assets
       # What must be inside the package: the licence, the third-party
       # notices, the native helpers and every runtime bundle (the webview
       # loads main.css beside main.js; the extension requires modelApi.js

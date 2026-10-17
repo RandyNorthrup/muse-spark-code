@@ -314,6 +314,10 @@ jobs:
             fi
           done
           if [ "$staged" = 1 ]; then
+            # The tagged source carries unset pins by design; measure the
+            # staged helpers (and this tag) into the checker's own copy so
+            # it verifies the VSIX against real bytes, not empty pins.
+            node scripts/build-linux-helper-pins.mjs helpers/x64 helpers/arm64
             unzip -p release/*.vsix extension/dist/voiceLinux.js > release/voiceLinux.js
             node scripts/check-linux-helper-pins.mjs --bundle release/voiceLinux.js --assets release/helpers
             rm release/voiceLinux.js

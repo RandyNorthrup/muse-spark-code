@@ -61,7 +61,8 @@ export function checkShape(pins) {
       const url = pins.linuxHelperUrl?.(pin)
       if (
         typeof url !== 'string' ||
-        !url.startsWith('https://github.com/RandyNorthrup/muse-spark-code/releases/') ||
+        !url.startsWith('https://github.com/RandyNorthrup/muse-spark-code/releases/download/') ||
+        url.includes('/latest/') ||
         !url.endsWith(`/${asset}`)
       )
         failures.push(`${arch}/${file}: bad asset URL ${String(url)}`)
@@ -79,6 +80,11 @@ export function checkValues(pins) {
         failures.push(`${arch}/${pin.file}: unset bytes`)
       if (!/^[0-9a-f]{64}$/.test(pin.sha256 ?? ''))
         failures.push(`${arch}/${pin.file}: unset sha256`)
+      // Set pins must download from their own release tag, never "latest":
+      // a later release's helpers have different digests than these pins.
+      const url = pins.linuxHelperUrl?.(pin)
+      if (typeof url !== 'string' || !/\/releases\/download\/v\d+\.\d+\.\d+\//.test(url))
+        failures.push(`${arch}/${pin.file}: asset URL is not a same-tag release URL`)
     }
   }
   return failures
