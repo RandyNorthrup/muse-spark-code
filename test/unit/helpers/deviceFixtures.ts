@@ -15,6 +15,12 @@ import {
 import { DEVICE_LIMITS } from '../../../src/shared/constants'
 import type { DeviceGrant } from '../../../src/core/devices/grants'
 import type { DeviceDispatch } from '../../../src/shared/devices'
+import type * as vscode from 'vscode'
+import { EN } from '../../../src/shared/l10n/en'
+import { BASE_LOCALE } from '../../../src/shared/l10n/text'
+import type { WebviewHostContext } from '../../../src/host/views/webviewSetup'
+import { EventEmitter, FakeUri, Uri } from '../mocks/vscode'
+import { FakeLogOutputChannel } from './fakes'
 
 export const deviceCaps = {
   workers: 2,
@@ -384,5 +390,65 @@ export function fakeDeviceStorage(base?: DeviceStorageProtection) {
     refuse(name: ProtectionStep) {
       refused.add(name)
     },
+  }
+}
+
+/**
+ * Device-scoped webview fakes. The shared helpers carry no panel fake (the
+ * test overhaul removed it as orphaned); the Devices tab suite owns its own.
+ * Complete means every member of the real interface is implemented, so the
+ * compiler reports when the API changes.
+ */
+function acceptDeviceMessage(): Thenable<boolean> {
+  return Promise.resolve(true)
+}
+
+export class FakeDeviceWebview implements vscode.Webview {
+  public options: vscode.WebviewOptions = {}
+  public html = ''
+  public readonly cspSource = 'vscode-webview://fake'
+  public readonly messages = new EventEmitter<unknown>()
+  public readonly onDidReceiveMessage = this.messages.event
+  public readonly postMessage = vi.fn(acceptDeviceMessage)
+
+  public asWebviewUri(localResource: vscode.Uri): vscode.Uri {
+    return new FakeUri(`webview${localResource.path}`)
+  }
+}
+
+export class FakeDeviceWebviewPanel implements vscode.WebviewPanel {
+  public readonly webview = new FakeDeviceWebview()
+  public readonly options: vscode.WebviewPanelOptions = {}
+  public iconPath?: NonNullable<vscode.WebviewPanel['iconPath']>
+  public viewColumn: vscode.ViewColumn | undefined = undefined
+  public active = true
+  public visible = true
+  public readonly disposed = new EventEmitter<void>()
+  public readonly onDidDispose = this.disposed.event
+  public readonly viewStateChanges =
+    new EventEmitter<vscode.WebviewPanelOnDidChangeViewStateEvent>()
+  public readonly onDidChangeViewState = this.viewStateChanges.event
+  public readonly reveal = vi.fn(
+    (_viewColumn?: vscode.ViewColumn, _shouldPreserveFocus?: boolean): void => {
+      this.visible = true
+    },
+  )
+
+  public constructor(
+    public readonly viewType: string,
+    public title: string,
+  ) {}
+
+  public dispose(): void {
+    this.disposed.fire()
+  }
+}
+
+/** The Devices tab's host context: extension root, installed English, a log. */
+export function fakeDeviceHostContext(): Pick<WebviewHostContext, 'extensionUri' | 'l10n' | 'log'> {
+  return {
+    extensionUri: Uri.file('/ext'),
+    l10n: { locale: BASE_LOCALE, table: EN },
+    log: new FakeLogOutputChannel(),
   }
 }

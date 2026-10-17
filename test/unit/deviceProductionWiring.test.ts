@@ -10,7 +10,13 @@ import path from 'node:path'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DevicePairingError } from '../../src/core/devices/pairing'
 import type { DeviceFrame } from '../../src/shared/devices'
-import { deviceCheck, deviceGrant, fakeDevicesBundle } from './helpers/deviceFixtures'
+import {
+  FakeDeviceWebviewPanel,
+  deviceCheck,
+  deviceGrant,
+  fakeDeviceHostContext,
+  fakeDevicesBundle,
+} from './helpers/deviceFixtures'
 import type { DeviceStorageProtection } from '../../src/core/devices/storageProtection'
 import type { AttemptJournalOwner } from '../../src/core/devices/attemptJournal'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
@@ -34,12 +40,7 @@ import {
   type DeviceProductionBundle,
   type DeviceProductionContext,
 } from '../../src/host/devices/deviceProduction'
-import {
-  FakeLogOutputChannel,
-  FakeWebviewPanel,
-  fakeHostContext,
-  memorySecrets,
-} from './helpers/fakes'
+import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
 import { window as fakeWindow } from './mocks/vscode'
 
 vi.mock('vscode', async () => await import('./mocks/vscode'))
@@ -574,21 +575,21 @@ describe('M100/W Devices panel tab', () => {
   beforeEach(() => {
     fakeWindow.createWebviewPanel.mockReset()
     fakeWindow.createWebviewPanel.mockImplementation(
-      (type, title) => new FakeWebviewPanel(type, title),
+      (type, title) => new FakeDeviceWebviewPanel(type, title),
     )
   })
 
   function open(service: () => Promise<{ request(input: unknown): Promise<DeviceHostMessage> }>): {
     tab: DevicesPanelTab
-    panel: FakeWebviewPanel
-    context: ReturnType<typeof fakeHostContext>
+    panel: FakeDeviceWebviewPanel
+    context: ReturnType<typeof fakeDeviceHostContext>
   } {
-    const context = fakeHostContext()
+    const context = fakeDeviceHostContext()
     const disposed = vi.fn()
     const tab = new DevicesPanelTab(context, service, disposed)
     tab.open()
     const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
-    if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('expected fake panel')
+    if (!(panel instanceof FakeDeviceWebviewPanel)) throw new TypeError('expected fake panel')
     return { tab, panel, context }
   }
 
@@ -649,7 +650,7 @@ describe('M100/W Devices panel tab', () => {
 
   it('releases the tab reference on disposal', () => {
     const disposed = vi.fn()
-    const context = fakeHostContext()
+    const context = fakeDeviceHostContext()
     const tab = new DevicesPanelTab(
       context,
       () => Promise.resolve({ request: () => Promise.resolve(readyState) }),
@@ -657,7 +658,7 @@ describe('M100/W Devices panel tab', () => {
     )
     tab.open()
     const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
-    if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('expected fake panel')
+    if (!(panel instanceof FakeDeviceWebviewPanel)) throw new TypeError('expected fake panel')
     panel.dispose()
     expect(disposed).toHaveBeenCalledOnce()
     tab.dispose()
@@ -666,11 +667,11 @@ describe('M100/W Devices panel tab', () => {
 
 function openRefusing(error: Error) {
   const service = vi.fn(() => Promise.reject(error))
-  const context = fakeHostContext()
+  const context = fakeDeviceHostContext()
   const tab = new DevicesPanelTab(context, service)
   tab.open()
   const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
-  if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('expected fake panel')
+  if (!(panel instanceof FakeDeviceWebviewPanel)) throw new TypeError('expected fake panel')
   return { tab, panel, service, context }
 }
 
@@ -678,7 +679,7 @@ describe('M100/W Devices tab when the service cannot open', () => {
   beforeEach(() => {
     fakeWindow.createWebviewPanel.mockReset()
     fakeWindow.createWebviewPanel.mockImplementation(
-      (type, title) => new FakeWebviewPanel(type, title),
+      (type, title) => new FakeDeviceWebviewPanel(type, title),
     )
   })
   const viewId = 'a'.repeat(32)
@@ -756,7 +757,7 @@ function production(directory: string) {
 /** The window with its tab open and the document ready; `closed` sees the tab end. */
 async function readyWindow(bundle: unknown) {
   const devices = devicesWindow({
-    hostContext: fakeHostContext(),
+    hostContext: fakeDeviceHostContext(),
     bundlePath: 'devices.js',
     log: new FakeLogOutputChannel(),
     production: production(await lane()),
@@ -764,7 +765,7 @@ async function readyWindow(bundle: unknown) {
   })
   devices.open()
   const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
-  if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('expected fake panel')
+  if (!(panel instanceof FakeDeviceWebviewPanel)) throw new TypeError('expected fake panel')
   const closed = vi.fn()
   panel.onDidDispose(closed)
   panel.webview.messages.fire({ type: 'devicesReady' })
@@ -775,7 +776,7 @@ describe('M100/W window-owned Devices service', () => {
   beforeEach(() => {
     fakeWindow.createWebviewPanel.mockReset()
     fakeWindow.createWebviewPanel.mockImplementation(
-      (type, title) => new FakeWebviewPanel(type, title),
+      (type, title) => new FakeDeviceWebviewPanel(type, title),
     )
   })
 
