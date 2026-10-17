@@ -91,17 +91,17 @@ Intermediate (merged tree `5f940132b`, macmini, repo timeouts; every
 
 Tests (merged tree, `npx vitest run <files> --maxWorkers=3`, repo timeouts):
 
-| Files                                | Result                                         |
-| ------------------------------------ | ---------------------------------------------- |
-| execArgs/execOutput/execSchema       | 128/128 pass                                   |
-| runLedger/scanSecrets/untrustedInput | 53/53 pass                                     |
-| redact/execKeyInput                  | 167/167 pass                                   |
-| ciTemplates                          | 31/31 pass                                     |
-| ciReference (new)                    | 1/1 pass                                       |
-| ciRun (post-fix run)                 | 31/39; all 8 failures deadline-driven (see §5) |
-| ciTemplatesRun (post-fix run)        | 42/43; bitbucket key case passes solo (see §5) |
+| Files                                | Result                                                  |
+| ------------------------------------ | ------------------------------------------------------- |
+| execArgs/execOutput/execSchema       | 128/128 pass                                            |
+| runLedger/scanSecrets/untrustedInput | 53/53 pass                                              |
+| redact/execKeyInput                  | 167/167 pass                                            |
+| ciTemplates                          | 31/31 pass                                              |
+| ciReference (new)                    | 1/1 pass                                                |
+| ciRun (runs 2–3, both fixes)         | 31/39 then 30/39; all failures deadline-driven (see §5) |
+| ciTemplatesRun (final, both fixes)   | 43/43 pass, exit 0, 244 s (see §5)                      |
 
-Still to run: `ciRun` and `ciTemplatesRun` to green in a quiet window.
+Still to run: `ciRun` to green in a quiet window.
 The packed-product rehearsal is blocked on this rig: `npm run package:acp`
 refuses without the built Darwin dictation helper
 (`native/darwin/muse-dictate`, compiled from another milestone's Swift
@@ -135,12 +135,17 @@ launcher/rehearsal path; the W live/hosted receipts stay lead-owned.
 2. **`ciTemplatesRun`'s 18 failures were two real bugs, not load**
    (found 2026-10-17 ~10:30–11:00): the macOS-sh `case`-in-`$()` parse
    failure, fixed in `ed8e7dcaa`, and the bare-`exec`+trap exit-0 quirk,
-   fixed in `2b757acf2`. Post-fix full run: **42/43**; the one failure
-   (bitbucket key case, cleanup-deadline warning under load 18) passes
-   solo. `ciRun` post-fix: **31/39** with all 8 failures deadline-driven
-   (60 s test / 5 s cleanup / 10 s hook timeouts under load 7–13; the
-   gitlab/azure/bitbucket launcher e2e passed this time). A single quiet
-   full-green run of each suite is still wanted before closing.
+   fixed in `2b757acf2`. Final full run with both fixes: **43/43 pass,
+   exit 0 in 244 s** (the earlier 42/43 miss was the bitbucket key case's
+   cleanup-deadline warning under load 18; it passes solo and in the
+   final run). `ciRun` post-fix runs 2–3: **31/39** then **30/39**, every
+   failure deadline-driven (60 s test / 5 s cleanup / 10 s hook timeouts,
+   plus 5 s-default timeouts on tight R4 cases, under load 7–30; each run
+   passes a rotating subset of the launcher e2e, which is the load lottery,
+   not code). A quiet full-green run is still wanted. The exec-to-plain change also
+   needed its R4 static assertion updated to pin the plain launcher call
+   and refuse `exec node` (drilled red ×4 on the exec form, green on the
+   fix, in `a7eadc4e3`).
 3. **170 tracked test files deleted from the worktree at ~08:41 by an
    unknown process** (no delete command from this lane; `ps` is sandbox
    blocked). Restored byte-exact with `git checkout -- test/` (status clean,
