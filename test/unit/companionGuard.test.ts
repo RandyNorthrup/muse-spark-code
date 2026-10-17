@@ -1,8 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { IncomingMessage, ServerResponse } from 'node:http'
 import { Socket } from 'node:net'
-import { Readable } from 'node:stream'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
   isSameOrigin,
   readJson,
@@ -129,8 +128,8 @@ describe('companion guard', () => {
   })
   it('refuses a non-buffer stream chunk with the boundary error', async () => {
     const value = request(['Content-Type', 'application/json'], Buffer.from('{}'))
-    const wrong = Readable.from(['unexpected'], { objectMode: true }).iterator()
-    vi.spyOn(value, 'iterator').mockReturnValue(wrong)
+    // A real stream in string mode yields string chunks, not Buffers.
+    value.setEncoding('utf8')
     await expect(readJson(value, 100)).rejects.toThrow('EPANEL_BODY')
   })
   it.each([

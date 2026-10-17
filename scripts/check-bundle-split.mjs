@@ -525,6 +525,7 @@ const MODEL_API_SESSIONS = {
   output: 'dist/modelApiSessions.js',
   metafile: 'dist/meta/modelApiSessions.json',
 }
+const RULES_FILE = { output: 'dist/rulesFile.js', metafile: 'dist/meta/rulesFile.json' }
 const BUNDLED_SKILLS = {
   output: 'dist/bundledSkills.js',
   metafile: 'dist/meta/bundledSkills.json',
@@ -808,6 +809,27 @@ for (const file of MODEL_API_SESSIONS_ONLY) {
   }
   if (!modelApiSessions.has(file)) {
     problems.push(`${MODEL_API_SESSIONS.output} no longer carries ${file}`)
+  }
+}
+
+// ACTROOM: the Create AGENTS.md command loads when that command runs;
+// activation keeps the checked loader and the command's types.
+const RULES_FILE_ONLY = [
+  'src/host/commands/createRulesFile.ts',
+  'src/host/commands/rulesFileEntry.ts',
+  'src/core/context/rulesTemplate.ts',
+]
+const rulesFile = inputsOf(RULES_FILE)
+for (const file of RULES_FILE_ONLY) {
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(file)) {
+      problems.push(
+        `${bundle.output} carries ${file}, which loads only with the rules-file command`,
+      )
+    }
+  }
+  if (!rulesFile.has(file)) {
+    problems.push(`${RULES_FILE.output} no longer carries ${file}`)
   }
 }
 

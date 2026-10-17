@@ -16,12 +16,15 @@ repository. This file adds only Claude-specific notes.
   non-zero exit, revert, and record it in `docs/certification/<milestone>.md`.
 - Never modify `~/.claude`, global VS Code settings, or any machine-wide
   configuration from this project.
-- Tests stand on the built product wherever the behaviour is the product's.
-  A stand-in is allowed for the outside world only (for example a server
-  replaying a recorded exchange), never for our own code. Hosted CI needs no
-  key. Before a release, real conversations run through the packed product
-  on the cheapest models (the Meta contributor model by its explicit name;
-  never a request whose tier is unknown): state the expected number of calls
-  and a dollar cap first, run in an empty workspace, count the calls
-  afterwards and report them. Buying credits, paid plans and legal terms are
-  the owner's.
+- Tests run real code only, no exceptions: no stand-in for our modules, a
+  provider, the CLI, GitHub, an MCP server, the editor API or a store, no
+  local server answering as a provider with hand-written answers, no
+  screenshot or frame comparison of any kind. A UI change gets one small
+  local look (`npm run ui:look -- <scene>`); the packed product's real-life
+  run is the product's test. Hosted CI needs no key. Before a release, real
+  conversations run through the packed product on the cheapest models (the
+  Meta contributor model by its explicit name; never a request whose tier is
+  unknown): state the expected number of calls and a dollar cap first, run
+  in an empty workspace, count the calls afterwards and report them.
+  Buying credits, paid plans and legal terms are the owner's. Never mint
+  credentials or install without asking.

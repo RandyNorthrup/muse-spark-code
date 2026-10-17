@@ -542,7 +542,8 @@ function reportParts(input: ProblemReportInput): { title: string; text: string }
   }
 }
 
-/** Existing synchronous builder for callers with no vault. */
+/** Existing synchronous builder for callers with no vault.
+ * @unwired M93 report-a-problem draft without vault */
 export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
   const parts = reportParts(input)
   return sealReportDraft(
