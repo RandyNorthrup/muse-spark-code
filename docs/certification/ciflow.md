@@ -428,3 +428,18 @@ here and the capacity repository's run, linked, with wall times against a
 part `all` run. Optional hardening of something older than this change: the
 main ruleset's seven checks name no expected source, so any writer's status
 could satisfy them; naming GitHub Actions as their source closes that.
+
+**What the design assumes.** The capacity comes from two accounts: the
+concurrency limits are per account, so the pull request's repository and the
+capacity repository must belong to different ones. On 2026-10-17 GitHub
+refused the merge-queue rule on this repository (422 "Invalid rule
+'merge_queue'"): merge queues are "available in any public repository owned
+by an organization" (`github/docs`, `data/reusables/gated-features/merge-queue.md`).
+If this repository moves into `scnetsolutions` for the queue, both
+repositories share that free organization's 20 jobs and five macOS slots,
+the split gains nothing, and `ORG_CI` should be deleted; the capacity
+repository would then belong in the personal account (Pro: 40 jobs, five
+macOS), behind an App that account owns, with the two hard-coded names in
+`ci.yml` and `build.yml` changed. With the queue on, pull requests take the
+fast tier and `merge_group` runs carry the full one, which `route` keeps on
+part `all` today.
