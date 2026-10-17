@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useId, useRef, useState, type SubmitEvent } from 'react'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { deviceCapsSchema, deviceEndpointSchema, type DeviceCaps } from '../../../../shared/devices'
 import { fill, formatBytes, formatNumber, plural } from '../../../../shared/l10n/text'
@@ -255,6 +255,12 @@ function capLabel(key: string): string {
   }
 }
 
+/** Both card editors read their submit this way: no navigation, then the form. */
+function readSubmitForm(event: SubmitEvent<HTMLFormElement>): FormData {
+  event.preventDefault()
+  return new FormData(event.currentTarget)
+}
+
 function AddressEditor({
   device,
   busy,
@@ -268,8 +274,7 @@ function AddressEditor({
   return (
     <form
       onSubmit={(event) => {
-        event.preventDefault()
-        const form = new FormData(event.currentTarget)
+        const form = readSubmitForm(event)
         const parsed = deviceEndpointSchema.safeParse({
           address: form.get('address'),
           port: Number(form.get('port')),
@@ -344,8 +349,7 @@ function OfferEditor({
   return (
     <form
       onSubmit={(event) => {
-        event.preventDefault()
-        const form = new FormData(event.currentTarget)
+        const form = readSubmitForm(event)
         const hasLanes = form.has('lanes')
         const hasChecks = form.has('checks')
         const parsed = deviceCapsSchema.safeParse(
