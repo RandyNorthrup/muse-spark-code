@@ -2581,6 +2581,7 @@
   "museCodeUnresponsiveTurn": "Muse Code ha smesso di rispondere mentre è in corso un turno. Riavviarlo interrompe quel turno; la conversazione continua con il tuo prossimo messaggio.",
   "museCodeRestarted": "Muse Code è stato riavviato. Il tuo prossimo messaggio continua questa conversazione.",
   "sessionLogDamaged": "Il registro di Muse Code di questa conversazione è danneggiato (un difetto di Muse Code), quindi non può ricevere nuovi messaggi. Inizia una nuova conversazione; questa resta nella Cronologia.",
+  "museSignInLostOnRestart": "Muse Code {exit} e non ha più effettuato l’accesso, quindi questo turno non può essere eseguito ({detail}). Accedi di nuovo con «muse login» in un terminale, oppure imposta META_API_KEY per la CLI, quindi invia di nuovo.",
   "vaultScrubUnavailable": "Il servizio di pulizia del vault non è disponibile.",
   "vaultSessionLogUnavailable": "L'esportazione del registro di sessione sicura per il vault non è disponibile.",
   "turnUnqueued": "Non inviato: il messaggio in coda è stato ritirato",

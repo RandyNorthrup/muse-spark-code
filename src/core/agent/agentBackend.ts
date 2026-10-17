@@ -615,6 +615,13 @@ export interface AgentSession {
 export interface AgentHost {
   readonly info: HostInfo
   onExit(listener: (exit: HostExit) => void): () => void
+  /**
+   * Why the host this one replaced went away, if it did so on its own
+   * (a crash, not a requested stop): read once, so the first turn that
+   * fails for a lost sign-in can name the restart, and later turns cannot
+   * blame it. Absent where nothing replaced anything.
+   */
+  takeRestartCause?(): string | undefined
   listModels(sessionId?: string): Promise<readonly ModelSummary[]>
   startSession(options: StartSessionOptions): Promise<AgentSession>
   listSessions(options: ListSessionsOptions): Promise<SessionPage>

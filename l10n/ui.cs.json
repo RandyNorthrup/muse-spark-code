@@ -2635,6 +2635,7 @@
   "museCodeUnresponsiveTurn": "Muse Code přestal odpovídat během probíhajícího tahu. Restart tento tah zastaví; konverzace bude pokračovat vaší další zprávou.",
   "museCodeRestarted": "Muse Code byl restartován. Vaše další zpráva bude pokračovat v této konverzaci.",
   "sessionLogDamaged": "Protokol Muse Code této konverzace je poškozený (chyba v Muse Code), takže nemůže přijímat nové zprávy. Začněte novou konverzaci; tato zůstane v Historii.",
+  "museSignInLostOnRestart": "Muse Code {exit} a již není přihlášen, takže tento tah nebylo možné provést ({detail}). Přihlaste se znovu příkazem „muse login“ v terminálu, nebo nastavte META_API_KEY pro CLI, a odešlete znovu.",
   "vaultScrubUnavailable": "Služba čištění trezoru není dostupná.",
   "vaultSessionLogUnavailable": "Export protokolu relace bezpečného pro trezor není dostupný.",
   "turnUnqueued": "Neodesláno: zpráva ve frontě byla stažena",

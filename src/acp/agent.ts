@@ -22,6 +22,7 @@ import { compactReference } from '../shared/cliCommands'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
+import { signInLossFailure } from './signInLoss'
 import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
@@ -70,6 +71,7 @@ import {
   ACP_QUESTIONS_BUNDLE_FILE,
   ACP_SESSION_LIST_LIMIT,
   type AcpBackendKind,
+  AUTH_REQUIRED_ERROR_KIND,
   type ReportEventKind,
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
@@ -928,11 +930,32 @@ class AcpSession {
       return
     }
     if (event.terminal === FAILED_TERMINAL) {
+      // A restarted backend whose replacement lost the sign-in says so
+      // loudly (F94): an `authRequired` turn names the restart and the way
+      // back, instead of failing as just another turn.
+      const restartCause =
+        event.errorKind === AUTH_REQUIRED_ERROR_KIND ? this.host.takeRestartCause?.() : undefined
+      const loud =
+        restartCause === undefined
+          ? undefined
+          : signInLossFailure({
+              errorKind: event.errorKind,
+              reason: event.reason,
+              restartCause,
+            })
+      if (loud !== undefined) {
+        this.deps.log.warn(`ACP session ${this.sessionId}: ${loud.message}`)
+        pending.reject(loud)
+        return
+      }
       pending.reject(
         RequestError.internalError(undefined, event.reason ?? event.errorKind ?? event.terminal),
       )
       return
     }
+    // A turn that ran to completion proves the host: no later failure blames
+    // the restart this host replaced.
+    this.host.takeRestartCause?.()
     pending.resolve('end_turn')
   }
 
