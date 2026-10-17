@@ -12,7 +12,7 @@ to forget previously received context. The operating system and logged-in
 account are trusted: same-user processes, administrators and a compromised
 editor can inspect in-memory keys or act through local authorities. Native
 Windows protection and physical-action qualification remain open. See
-[M100 certification](docs/certification/m100.md) and PLAN D80/D83/§9.
+[M100 certification](docs/certification/m100.md) and PLAN D80/D140/§9.
 
 Muse Spark Code (Unofficial) runs a coding agent inside VS Code: it reads
 and edits files in your workspace, runs shell commands with your approval,

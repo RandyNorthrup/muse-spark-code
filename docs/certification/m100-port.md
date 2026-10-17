@@ -111,7 +111,7 @@ three complete files, `--maxWorkers=3`, repository-default timeouts.
    Kubuntu VM, Mac mini and Win11 VM: lazy/off zero traffic, mutual fingerprint
    confirmation, QR/manual pairing, opt-in mDNS, approved snapshot/offer,
    disconnect/reconcile/replay/cancel/results and owner/grant isolation.
-4. Lead supplies D83 concrete executors, exact-payload approval UI and
+4. Lead supplies D140 concrete executors, exact-payload approval UI and
    printer/CNC/MCU simulator receipts before offering physical actions.
    Simulator receipts never qualify real hardware; no unattended actuation.
 5. Lead completes joined aggregate/coverage/accessibility, hosted and
