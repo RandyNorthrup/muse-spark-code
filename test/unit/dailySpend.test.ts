@@ -79,7 +79,7 @@ describe('daily running total', () => {
         .times(PROCESSES * CALLS)
         .toAmount(),
     )
-    expect(total.unknownCostCalls).toBe(PROCESSES * UNKNOWN_CALLS)
+    expect(total.unknownChargeCalls).toBe(PROCESSES * UNKNOWN_CALLS)
     // One file per process, no lock, no journal and no staged leftovers.
     const names = readdirSync(path.join(directory, scope, DAILY_SPEND_FOLDER))
     expect(names).toHaveLength(PROCESSES)
@@ -92,16 +92,16 @@ describe('daily running total', () => {
     const spend = createDailySpend({ directory, sleep })
     expect(await spend.add('2026-10-17', Usd.from(0).toAmount())).toEqual({
       spentUsd: '0',
-      unknownCostCalls: 0,
+      unknownChargeCalls: 0,
     })
     expect(existsSync(directory)).toBe(false)
     expect(await spend.add('2026-10-17', undefined)).toEqual({
       spentUsd: '0',
-      unknownCostCalls: 1,
+      unknownChargeCalls: 1,
     })
     expect(await spend.add('2026-10-17', Usd.from('0.25').toAmount())).toEqual({
       spentUsd: '0.25',
-      unknownCostCalls: 1,
+      unknownChargeCalls: 1,
     })
   })
 

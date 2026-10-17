@@ -601,7 +601,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'runtimeAccounting.js',
-    side: 'both',
+    side: 'acp',
     requestedBy: [
       { importer: 'src/runtime/backends.ts', symbol: 'accountingEntry', side: ['acp'] },
     ],
