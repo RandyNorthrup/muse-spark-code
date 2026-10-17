@@ -55,7 +55,7 @@ import {
 import { uiLocale } from '../../shared/l10n/text'
 import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type { AutoCompactionLedgerClaim } from '../../core/backends/modelapi/autoCompactionAdmission'
+import type { SpendClaim } from '../../core/paid/spendClaim'
 import {
   isModelApiBundle,
   type McpPoolFactory,
@@ -184,10 +184,9 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly autoCompactionAccounting?: 'transport'
   /** The current shared daily cap, quoted before the first charge. */
   readonly paidDailyBudgetUsd?: () => UsdAmount | Promise<UsdAmount>
-  /** D78 claim per attempt; without either owner there is no automatic admission. */
+  /** A person-set D78 daily limit per attempt; without either owner there is no automatic admission. */
   readonly reserveAutoCompaction?:
-    | ((amount: UsdAmount, signal: AbortSignal) => Promise<AutoCompactionLedgerClaim | undefined>)
-    | undefined
+    ((amount: UsdAmount, signal: AbortSignal) => Promise<SpendClaim | undefined>) | undefined
   readonly sessionWorkspaceRoot?: string | undefined
   /** Runtime owners refuse a retargeted or replaced workspace before use. */
   readonly assertWorkspaceCurrent?: (() => void) | undefined
@@ -541,8 +540,8 @@ export class ModelApiBackendManager {
     noteUsage?: (modelId: string, usage: SubagentUsage) => void,
     budgetScope?: OwnedSessionBudgetScope,
   ): Promise<ModelApiHost> {
-    // A finite cap requires the parent's owned journal; a temporary host
-    // cannot create another allowance or save its transcript under the parent ID.
+    // A limit is the parent conversation's, checked and charged through its
+    // scope (D121); a temporary host never gets an allowance of its own.
     if (
       budgetScope === undefined &&
       Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0

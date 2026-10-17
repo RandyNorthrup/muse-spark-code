@@ -1318,7 +1318,7 @@ Commands: —. Settings: `museSpark.modelApiPromptCacheRetention`. [Documentatio
 
 Shared daily budget for interactive paid extras: USD.
 
-Shared daily budget: museSpark.paidDailyBudgetUsd; the session cap also applies. Tab has its own separate budget. Requests are admitted atomically. Ambiguous attempts keep their full reservations; only provably dead owners’ unsent claims are released. Provider estimates can exceed the cap on the last request; recorded overages stop the next request.
+Shared daily budget: museSpark.paidDailyBudgetUsd, a limit you set (none by default); a session limit you set also applies. Tab has its own separate budget. Nothing is held for a request in flight: a request without reported usage counts as cost unknown, never as its estimate. A response can cost more than its estimate; the next request is then stopped.
 
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -2415,7 +2415,7 @@ Type: `"boolean"`. Default: `true`. Scope: `window`.
 
 ### museSpark.modelApiSessionBudgetUsd
 
-sessionBudget: Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.
+sessionBudget: Spending limit in US dollars that you set for each Model API conversation; 0 (the default) means none, and then nothing is checked before a request. With a limit, the conversation keeps a running total from the usage each call reports, saved with the conversation; a request whose estimate would pass what is left is not sent, and a response that ended without its usage counts as cost unknown, never as its estimate. Input estimates may differ from billed usage. Web search and paid Muse Voice are unavailable while a limit is set because their billed amounts have no verified bound. Separate paid consent still applies.
 
 Type: `"number"`. Default: `0`. Scope: `machine`.
 
@@ -2744,14 +2744,13 @@ Type: `"string"`. Default: `"ask"`. Scope: `machine`.
 
 Shared daily budget for interactive paid extras: USD.
 
-Type: `"number"`. Default: `5`. Scope: `machine`.
+Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ```json
 {
   "type": "number",
-  "default": 5,
-  "minimum": 0.5,
-  "maximum": 500
+  "default": 0,
+  "minimum": 0
 }
 ```
 

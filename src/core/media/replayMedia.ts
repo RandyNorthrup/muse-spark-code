@@ -172,7 +172,7 @@ export class ReplayMedia {
     return parts
   }
 
-  public async reserveRequest(
+  public reserveRequest(
     body: CreateResponseBody,
     request: Omit<Parameters<typeof reserveMediaRequest>[0], 'items' | 'estimator'>,
   ) {
@@ -184,7 +184,7 @@ export class ReplayMedia {
     const estimator = this.deps.estimator
     if (estimator === undefined)
       throw new Error(fill(UI_TEXT.media.cappedRateUnknown, { model: body.model }))
-    return await reserveMediaRequest({ ...request, items, estimator })
+    return reserveMediaRequest({ ...request, items, estimator })
   }
 
   public pending(input: readonly InputItem[]): InputContentPart[] {

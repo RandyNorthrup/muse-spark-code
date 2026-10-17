@@ -14,7 +14,7 @@ import {
 import { confineWorkspacePath, isBelow, type RealPathIo } from '../workspacePath'
 import { isProtectedPath } from '../protectedPaths'
 import type { ScheduleGrantAudit } from './grantAudit'
-import type { SessionBudgetClaim } from '../backends/modelapi/sessionBudget'
+import type { SpendClaim } from '../paid/spendClaim'
 import type { ModelApiClientDeps } from '../backends/modelapi/client'
 import nodePath from 'node:path'
 import type { ContentSource } from './provenance'
@@ -59,7 +59,7 @@ export interface ScheduleRunDeps {
       estimatedInputTokens: number | undefined,
       signal: AbortSignal,
       reservationUsd?: UsdAmount,
-    ): Promise<SessionBudgetClaim>
+    ): Promise<SpendClaim>
   }
 }
 

@@ -34,7 +34,6 @@ import type { QuestionStore } from '../../shared/questions'
 import { writeFileAtomically } from '../fsAtomic'
 import type { Logger } from '../logger'
 import { describeStoreError, storeErrorCode } from './storeErrors'
-import { createSessionBudgetJournal, type SessionBudgetJournalDeps } from './sessionBudgetJournal'
 import type { SessionUploadLifecycle, SessionUploadOwnership } from '../../core/media/uploadLedger'
 import type { UploadedMediaRef } from '../../shared/media'
 import { FifoLimiter } from '../../core/fifoLimiter'
@@ -358,17 +357,6 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     }
   }
 
-  const journalDeps: SessionBudgetJournalDeps = {
-    directory: deps.directory,
-    loadSession: async (sessionId) => {
-      assertSessionId(sessionId)
-      return await readOne(`${sessionId}${FILE_EXTENSION}`)
-    },
-    sleep: deps.sleep,
-    ...(deps.rename !== undefined && { rename: deps.rename }),
-  }
-  const budget = createSessionBudgetJournal(journalDeps)
-
   /** A temporary file older than any save in flight is a crash's leftover. */
   const removeIfStale = async (name: string): Promise<void> => {
     const file = path.join(deps.directory, name)
@@ -408,7 +396,6 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
   }
 
   return {
-    budget,
     async list() {
       let names: string[]
       try {
@@ -476,16 +463,7 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
     },
     async load(sessionId) {
       assertSessionId(sessionId)
-      const session = await readOne(`${sessionId}${FILE_EXTENSION}`)
-      if (session === undefined) {
-        return
-      }
-      // Freeze existing account-owned legacy evidence before another
-      // window's whole-session save can replace its transcript or spend.
-      if (session.accountId !== undefined) {
-        await budget.read(sessionId, session.accountId)
-      }
-      return await budget.project(session)
+      return await readOne(`${sessionId}${FILE_EXTENSION}`)
     },
     async save(session) {
       assertSessionId(session.sessionId)
@@ -506,33 +484,17 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
           ) {
             throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
           }
-          // Seed from the fresh file before a stale DTO can discard historical
-          // paid rows or nested children. The raw loader avoids projection recursion.
-          if (previous?.accountId !== undefined) {
-            await budget.read(previous.sessionId, previous.accountId)
-          }
-          // Before journal activation, keep fresh legacy spend when an older
-          // snapshot arrives. Once active, only the journal supplies this field.
+          if (!isCurrent()) return
+          // The running total only grows (D121): a snapshot older than the
+          // file, from another window, never lowers what a newer save wrote.
           const previousSpend = previous?.budgetSpentUsd
           const incomingSpend = session.budgetSpentUsd
-          const withLegacySpend =
-            previousSpend === undefined && incomingSpend === undefined
+          const projected =
+            previousSpend === undefined ||
+            (incomingSpend !== undefined &&
+              Usd.from(incomingSpend).compare(Usd.from(previousSpend)) >= 0)
               ? session
-              : {
-                  ...session,
-                  budgetSpentUsd:
-                    Usd.from(previousSpend ?? 0).compare(Usd.from(incomingSpend ?? 0)) > 0
-                      ? Usd.from(previousSpend ?? 0).toAmount()
-                      : Usd.from(incomingSpend ?? 0).toAmount(),
-                }
-          const projected = await budget.project(withLegacySpend)
-          if (
-            projected.budgetSpentUsd !== undefined &&
-            Usd.from(projected.budgetSpentUsd).compare(Usd.from(0)) < 0
-          ) {
-            throw new SpendLedgerError('integrity', { scope: 'session', file: 'fileSessionStore' })
-          }
-          if (!isCurrent()) return
+              : { ...session, budgetSpentUsd: previousSpend }
           if (uploads !== undefined && projected.accountId !== undefined)
             await writeIntent(session.sessionId, projected.accountId, 'save')
           // Retain both snapshots until the durable rename; a failed save cannot
@@ -548,9 +510,6 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
           })
           await uploads?.syncSession(session.sessionId, fileRefsOf(projected), isCurrent)
           if (isCurrent()) await rm(intentFor(session.sessionId), { force: true })
-          if (previous === undefined && projected.accountId !== undefined) {
-            await budget.read(projected.sessionId, projected.accountId)
-          }
         },
       )
     },

@@ -1,4 +1,3 @@
-import { isSpendLedgerError } from '../paid/spendLedgerError'
 import { Usd } from '../../shared/usd'
 // Muse Voice (M35, PLAN.md D30): the paid, opt-in dictation engine. The
 // microphone's audio comes from a capture helper (the same resident-helper
@@ -21,10 +20,7 @@ import { Usd } from '../../shared/usd'
 
 import * as z from 'zod/mini'
 import { createHash } from 'node:crypto'
-import type {
-  OwnedSessionBudgetScope,
-  SessionBudgetClaim,
-} from '../backends/modelapi/sessionBudget'
+import type { OwnedSessionBudgetScope } from '../backends/modelapi/sessionBudget'
 import {
   MUSE_VOICE_AUDIO_ENCODING,
   MUSE_VOICE_BYTES_PER_SECOND,
@@ -34,8 +30,6 @@ import {
   MUSE_VOICE_MODE,
   MUSE_VOICE_MODEL,
   MUSE_VOICE_PARTIAL_MODE,
-  PAID_PRICES_USD,
-  SECONDS_PER_HOUR,
   UI_TEXT,
   WEBSOCKET_CLOSE_NORMAL,
 } from '../../shared/constants'
@@ -257,11 +251,6 @@ export class MuseVoiceStream {
     this.fail(closeReason(code, reason))
   }
 
-  /** Locally sent audio bytes, used for the exact local cost estimate. */
-  public get audioBytes(): number {
-    return this.bytesSent
-  }
-
   /** Whole locally sent seconds, retained for the window's existing estimate. */
   public get seconds(): number {
     return Math.floor(this.bytesSent / MUSE_VOICE_BYTES_PER_SECOND)
@@ -344,7 +333,6 @@ export interface MuseVoiceDeps {
 
 interface VoiceBudgetState {
   scope: OwnedSessionBudgetScope | undefined
-  claim: SessionBudgetClaim | undefined
   keyDigest: string | undefined
   hasAuthorizationStarted: boolean
   isSettled: boolean
@@ -406,7 +394,7 @@ export class MuseVoiceDictation implements DictationHandle {
     const budget = this.budgets.get(stream)
     this.budgets.delete(stream)
     if (budget !== undefined) {
-      void this.settleBudget(budget, stream.audioBytes)
+      this.settleBudget(budget)
     }
   }
 
@@ -414,29 +402,17 @@ export class MuseVoiceDictation implements DictationHandle {
     return this.open.has(stream) && !this.isDisposed
   }
 
-  private async settleBudget(state: VoiceBudgetState, bytes: number): Promise<void> {
-    if (state.claim === undefined || state.isSettled) {
+  /**
+   * A recording that reached Meta joins the conversation's running total as
+   * cost unknown: Muse Voice reports no billed duration, and a local
+   * estimate is never counted as spent (D121). Its seconds are tallied apart.
+   */
+  private settleBudget(state: VoiceBudgetState): void {
+    if (state.scope === undefined || state.isSettled) {
       return
     }
     state.isSettled = true
-    try {
-      const estimateUsd = state.hasAuthorizationStarted
-        ? Usd.from(PAID_PRICES_USD.voicePerHour)
-            .times(bytes)
-            .divideIntegerCeiling(SECONDS_PER_HOUR * MUSE_VOICE_BYTES_PER_SECOND)
-            .toAmount()
-        : Usd.from(0).toAmount()
-      if (state.hasAuthorizationStarted) await state.claim.settle(estimateUsd, 'reserved')
-      await state.claim.settle(
-        estimateUsd,
-        state.hasAuthorizationStarted ? 'uncertain' : 'released',
-      )
-    } catch (error: unknown) {
-      this.deps.log.warn('Muse Voice spend was not saved')
-      this.listener.onError(
-        isSpendLedgerError(error) ? error.message : UI_TEXT.sessionBudgetStoreUnavailable,
-      )
-    }
+    if (state.hasAuthorizationStarted) state.scope.charge(undefined)
   }
 
   private async prepareStream(
@@ -451,29 +427,12 @@ export class MuseVoiceDictation implements DictationHandle {
       if (!this.isStreamOpen(stream)) {
         return
       }
-      if (state.scope !== undefined) {
-        if (Usd.from(state.scope.capUsd()).compare(Usd.from(0)) > 0) {
-          throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
-        }
-        state.claim = await state.scope.journal.reserve(
-          state.scope.sessionId,
-          state.scope.accountId,
-          Usd.from(0).toAmount(),
-          Usd.from(0).toAmount(),
-          'unknown',
-        )
+      // Its billed duration has no verified bound, so a person-set limit
+      // cannot be kept for it (D121).
+      if (state.scope !== undefined && Usd.from(state.scope.capUsd()).compare(Usd.from(0)) > 0) {
+        throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
       }
-      if (!this.isStreamOpen(stream)) {
-        await this.settleBudget(state, 0)
-        return
-      }
-      // The durable write may have waited while SecretStorage changed.
-      // An owned recording reads the actual key again after that await.
-      const sendingKey = state.scope === undefined ? apiKey : await this.deps.apiKey()
-      if (!this.isStreamOpen(stream)) {
-        await this.settleBudget(state, 0)
-        return
-      }
+      const sendingKey = apiKey
       if (sendingKey === undefined) {
         stream.fail(UI_TEXT.museVoiceNoKey)
         return
@@ -481,12 +440,11 @@ export class MuseVoiceDictation implements DictationHandle {
       state.keyDigest = createHash('sha256').update(sendingKey).digest('hex')
       consentFence?.(state.keyDigest, true)
       this.admitBudgetSend(state)
-      state.claim?.markSent?.()
       stream.start(sendingKey)
     } catch (error: unknown) {
       stream.fail(error instanceof Error ? error.message : String(error))
       if (!this.open.has(stream)) {
-        await this.settleBudget(state, stream.audioBytes)
+        this.settleBudget(state)
       }
     }
   }
@@ -510,7 +468,6 @@ export class MuseVoiceDictation implements DictationHandle {
     const consentFence = this.listener.voiceConsentFence?.()
     const state: VoiceBudgetState = {
       scope: undefined,
-      claim: undefined,
       keyDigest: undefined,
       hasAuthorizationStarted: false,
       isSettled: false,

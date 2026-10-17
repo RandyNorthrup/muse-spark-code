@@ -2,7 +2,6 @@ import { UserRefusalError } from '../../refusal'
 import { notify } from '../../events/notify'
 import type { PaidAuthority } from '../../paid/paidAuthority'
 import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
-import { Usd, type UsdAmount } from '../../../shared/usd'
 import {
   ModelApiPacing,
   metaPacingLimits,
@@ -30,14 +29,7 @@ import {
 // M95-T: the existing retry/admission loop, shared by Meta and injected codecs.
 import { createHash } from 'node:crypto'
 
-/** The client and transport need admission and settlement, not ledger totals. */
-export interface PaidRequestClaim {
-  readonly markSent?: () => void
-  readonly markUnsent?: () => void
-  readonly reservedUsd: UsdAmount
-  check(capUsd: UsdAmount): void
-  settle(actualCostUsd: UsdAmount, state?: 'settled' | 'uncertain' | 'released'): Promise<unknown>
-}
+import type { SpendClaim } from '../../paid/spendClaim'
 import type { MediaRequestAccounting } from '../../media/mediaCost'
 import { fill } from '../../../shared/l10n/text'
 import { classifyRetry, RETRY_TABLES } from '../../../shared/retryPolicy'
@@ -689,7 +681,7 @@ export class RequestTransport {
       readonly estimatedTokens?: number
       readonly accept: string
       readonly paid?: {
-        readonly claim: PaidRequestClaim
+        readonly claim: SpendClaim
         readonly run?: UnattendedRun | undefined
         isSent: boolean
       }
@@ -831,7 +823,7 @@ export class RequestTransport {
       readonly headers?: Readonly<Record<string, string>>
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {
-        readonly claim: PaidRequestClaim
+        readonly claim: SpendClaim
         readonly run?: UnattendedRun | undefined
         isSent: boolean
       }
@@ -977,7 +969,7 @@ export class RequestTransport {
         if (init.paid.isSent) {
           throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
         }
-        init.paid.claim.check(Usd.from(0).toAmount())
+        init.paid.claim.check()
       }
       if (
         admitAttempt?.searchQuote !== undefined &&
@@ -1030,7 +1022,6 @@ export class RequestTransport {
         ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
-      init.paid?.claim.markSent?.()
       admitAttempt?.check?.()
       noteConfirmedRequestStarted(confirmed, admitAttempt)
       if (init.paid !== undefined) {
@@ -1050,16 +1041,11 @@ export class RequestTransport {
         ) {
           if (init.paid !== undefined) {
             init.paid.isSent = false
-            try {
-              init.paid.claim.markUnsent?.()
-            } catch {
-              /* The client's queued zero-cost settlement preserves the refund. */
-            }
           }
           admitAttempt?.mediaAccounting?.refused()
           throw error
         }
-        // P2-3/D1: a dispatch-time paid stop (the daily claim's check runs
+        // P2-3/D1: a dispatch-time paid stop (a daily limit's check runs
         // inside the pinned fetch) is never a send failure: no log line, no
         // retry, and never a network-failure replacement. The classifier
         // rides the lazy provider bundle, keeping this bundle on its pin.

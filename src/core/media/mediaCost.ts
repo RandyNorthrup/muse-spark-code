@@ -204,20 +204,18 @@ export class MediaCostEstimator {
   }
 }
 
-/** Metadata, selected-model tariff and both existing ledgers are injected. */
+/** A scheduled run's own day claim for a media request (D95): checked before the send, settled after. */
 export interface MediaCostClaim {
   check(): void
-  readonly markSent?: () => void
-  settle(costUsd: UsdAmount, state?: 'settled' | 'uncertain' | 'released'): Promise<unknown>
-}
-export interface MediaCostLedger {
-  reserve(costUsd: UsdAmount): Promise<MediaCostClaim>
+  /** Its cost from the reported usage; `undefined` when it went out and none came back. */
+  settle(costUsd: UsdAmount | undefined): Promise<unknown>
 }
 export interface MediaRequestAccounting {
   readonly modelId: string
   readonly maxOutputTokens: number
   readonly inputTokens: number
-  readonly reservedUsd: UsdAmount
+  /** The whole request at list price: compared with a limit, never counted as spent (D121). */
+  readonly estimateUsd: UsdAmount
   check(): void
   started(): void
   refused(): void
@@ -226,8 +224,8 @@ export interface MediaRequestAccounting {
   finish(): Promise<void>
 }
 
-/** Reserve the whole request at list price; cache discounts only settle bills. */
-export async function reserveMediaRequest(request: {
+/** Estimate the whole request at list price; cache discounts only settle bills. */
+export function reserveMediaRequest(request: {
   readonly provider: string
   readonly modelId: string
   readonly items: readonly MediaCostItem[]
@@ -241,9 +239,7 @@ export async function reserveMediaRequest(request: {
     readonly output: UsdAmount
     readonly cachedInput: UsdAmount
   }
-  readonly session: MediaCostLedger
-  readonly daily?: MediaCostLedger
-}): Promise<MediaRequestAccounting> {
+}): MediaRequestAccounting {
   // Snapshot what is admitted, so later model/attachment changes cannot
   // alter a dispatched request's tariff or calibration observation.
   request = {
@@ -272,28 +268,21 @@ export async function reserveMediaRequest(request: {
     output: Usd.from(request.prices.output),
     cachedInput: Usd.from(request.prices.cachedInput),
   }
-  const reservedUsd = prices.input
+  const estimateUsd = prices.input
     .times(inputTokens)
     .add(prices.output.times(request.maxOutputTokens))
     .divide(TOKENS_PER_MILLION)
     .toAmount()
   if (prices.cachedInput.compare(prices.input) > 0)
     throw new Error('Cache tariff exceeds list price')
-  const session = await request.session.reserve(reservedUsd)
+  // A scheduled run binds its own day claim before the send (rebindDaily).
   let daily: MediaCostClaim | undefined
-  try {
-    daily = await request.daily?.reserve(reservedUsd)
-  } catch (error: unknown) {
-    await session.settle(Usd.from(0).toAmount())
-    throw error
-  }
   let wasSent = false
   let isRebinding = false
-  const closed = new Set<MediaCostClaim>()
+  let isDailyClosed = false
   // Selecting the terminal outcome is synchronous. Every settle/finish caller
-  // then shares its write; a failed ledger write retries only unclosed claims.
-  let settled:
-    { costUsd: UsdAmount; state: 'settled' | 'uncertain' | 'released'; usage?: Usage } | undefined
+  // then shares its write; a failed write retries on the next call.
+  let settled: { costUsd: UsdAmount | undefined; usage?: Usage } | undefined
   let completion: Promise<void> | undefined
   const complete = () => {
     if (completion !== undefined) return completion
@@ -303,15 +292,10 @@ export async function reserveMediaRequest(request: {
       // Publish completion before a ledger can reenter settle/finish.
       await Promise.resolve()
       try {
-        const results = await Promise.allSettled(
-          [session, ...(daily === undefined ? [] : [daily])]
-            .filter((claim) => !closed.has(claim))
-            .map(async (claim) => {
-              await claim.settle(bill.costUsd, bill.state)
-              closed.add(claim)
-            }),
-        )
-        for (const result of results) if (result.status === 'rejected') throw result.reason
+        if (daily !== undefined && !isDailyClosed) {
+          await daily.settle(bill.costUsd)
+          isDailyClosed = true
+        }
         if (bill.usage !== undefined) {
           try {
             await request.estimator.observe(
@@ -339,58 +323,31 @@ export async function reserveMediaRequest(request: {
     modelId: request.modelId,
     maxOutputTokens: request.maxOutputTokens,
     inputTokens,
-    reservedUsd,
+    estimateUsd,
     async rebindDaily(reserve) {
-      // The schedule replaces the shared-day claim; retaining both would double charge.
-      if (
-        wasSent ||
-        settled !== undefined ||
-        isRebinding ||
-        (daily !== undefined && closed.has(daily))
-      )
-        throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
+      // One day claim per request, bound before it is sent.
+      if (wasSent || settled !== undefined || isRebinding || daily !== undefined)
+        throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       isRebinding = true
       try {
-        const replacement = await reserve()
-        try {
-          await daily?.settle(Usd.from(0).toAmount())
-        } catch (error: unknown) {
-          await replacement.settle(Usd.from(0).toAmount())
-          throw error
-        }
-        if (daily !== undefined) closed.add(daily)
-        daily = replacement
+        daily = await reserve()
       } finally {
         isRebinding = false
       }
     },
     check() {
-      // An uncertain first dispatch never spends the same claims on a retry.
-      if (
-        wasSent ||
-        settled !== undefined ||
-        isRebinding ||
-        (daily !== undefined && closed.has(daily))
-      )
-        throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
-      session.check()
+      if (settled !== undefined || isRebinding)
+        throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       daily?.check()
     },
     started() {
-      if (
-        wasSent ||
-        settled !== undefined ||
-        isRebinding ||
-        (daily !== undefined && closed.has(daily))
-      )
-        throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
-      session.markSent?.()
-      daily?.markSent?.()
+      if (settled !== undefined || isRebinding)
+        throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       wasSent = true
     },
     refused() {
       if (settled !== undefined)
-        throw new UserRefusalError(UI_TEXT.sessionBudgetRetryUnavailable, 'retry_unbounded')
+        throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       wasSent = false
     },
     async settle(usage) {
@@ -410,14 +367,12 @@ export async function reserveMediaRequest(request: {
         .add(prices.output.times(output))
         .divide(TOKENS_PER_MILLION)
         .toAmount()
-      settled = { costUsd, state: 'settled', usage: reported }
+      settled = { costUsd, usage: reported }
       await complete()
     },
     async finish() {
-      settled ??= {
-        costUsd: wasSent ? reservedUsd : Usd.from(0).toAmount(),
-        state: wasSent ? 'uncertain' : 'released',
-      }
+      // Sent with no usage: its cost is unknown, never its estimate (D121).
+      settled ??= { costUsd: wasSent ? undefined : Usd.from(0).toAmount() }
       await complete()
     },
   }

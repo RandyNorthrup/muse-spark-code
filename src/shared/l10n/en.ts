@@ -528,7 +528,7 @@ export const EN = {
   referenceBrowser:
     'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts. The browser check is off in Restricted Mode. Trust the workspace to use it.',
   referenceBudget:
-    'Shared daily budget: museSpark.paidDailyBudgetUsd; the session cap also applies. Tab has its own separate budget. Requests are admitted atomically. Ambiguous attempts keep their full reservations; only provably dead owners’ unsent claims are released. Provider estimates can exceed the cap on the last request; recorded overages stop the next request.',
+    'Shared daily budget: museSpark.paidDailyBudgetUsd, a limit you set (none by default); a session limit you set also applies. Tab has its own separate budget. Nothing is held for a request in flight: a request without reported usage counts as cost unknown, never as its estimate. A response can cost more than its estimate; the next request is then stopped.',
   referenceCache: 'Settings (modelApiPromptCacheRetention).',
   referenceMcp:
     'MCP servers: Muse Code runs its own servers; on Model API this window runs configured servers. ACP Model API has no editor MCP servers.',
@@ -1070,16 +1070,18 @@ export const EN = {
   },
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
+  // D121: a daily budget shown where none is set; the person sets one, none by default.
+  paidDailyBudgetNone: 'none set',
   paidDailyLedgerUnavailable:
     'The daily paid spend ledger is unavailable. Repair it before another paid request.',
   paidDailyStopped: 'Paid extras are stopped until tomorrow.',
   paidDailyReached: 'Daily paid budget reached',
   paidDailyReachedDetail:
-    'Today’s limit is {budget}. This request and existing reservations need {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
+    'Today’s limit is {budget}. What is spent today plus this request’s estimate comes to {needed}. Raise the limit for today, or stop paid extras until tomorrow.',
   paidDailyRaise: 'Raise for Today',
   paidDailyStop: 'Stop Until Tomorrow',
   paidDailyRaisePrompt:
-    'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
+    'Enter today’s limit in USD, at least what is spent today plus this request’s estimate.',
   planUi: {
     copilotConnect: 'Use My Copilot Models',
     copilotUnavailable: 'Copilot models are unavailable. Enable Copilot and try again.',
@@ -3091,22 +3093,23 @@ export const EN = {
   autoCompactionAwaitingEvaluation: 'Automatic compaction is awaiting evaluation and is inactive.',
   autoCompactionFailed: 'Automatic compaction failed; continuing with the original context.',
   contextWindowFull: 'Context window full: /compact or /handoff',
-  // The Model API session budget (M82): a request that cannot fit is not
-  // sent, and the turn's cost is shown against the cap afterwards.
+  // The Model API session budget (M82, D121): a limit the person set. A
+  // request whose estimate would pass it is not sent, and the turn's cost is
+  // shown against it afterwards.
   sessionBudgetStopped:
     'Stopped: the next request (about {estimate}) would pass the session budget of {cap} ({spent} used). It was not sent.',
-  spendLedgerBudget:
-    'The {scope} budget would be exceeded: {total} committed plus {bound} for this request exceeds {cap}. Nothing was sent; raise the limit or reduce the request.',
-  spendLedgerBusy:
-    'Another Muse Spark Code process holds the {scope} spend ledger. Nothing was sent; retry when it finishes.',
+  // D121: said once when what is left no longer fits a request like the last one.
+  sessionBudgetNearLimit:
+    'Session budget: {spent} of {cap} used. What is left may not fit the next request.',
+  // D121: a response that ended without its usage adds nothing; {spent} is what the conversation counts.
+  sessionBudgetCostUnknown:
+    'A response ended without reporting its usage, so its cost is unknown. It was not added to what this conversation spent ({spent} so far).',
   spendLedgerDamaged:
     'The {scope} spend ledger is damaged ({file}). No new request can be sent; restore or repair this ledger.',
   spendLedgerUnreadable:
     'The {scope} spend ledger cannot be read or saved ({file}: {errno}). No new request can be sent; correct the file access or storage problem.',
   spendLedgerIntegrity:
     'The {scope} spend ledger has conflicting ownership or amounts ({file}). No new request can be sent; repair this ledger.',
-  spendLedgerRecovery:
-    'The {scope} spend ledger is recovering. No new request can be sent; retry after recovery finishes.',
   spendLedgerMidnight:
     'Local midnight passed. Nothing was sent; restart with today’s daily budget.',
   execContextLimit:
@@ -3117,20 +3120,10 @@ export const EN = {
     'Input reservation: provider estimate + {margin}, capped by the upper bound from size.',
   sessionBudgetStoreUnavailable:
     'The session spend ledger could not be read or saved. No new request can be sent until it is available.',
-  // EXECPROV round 7 (R0): only fact (b) refuses — money no record
-  // bounds. {scope} is the day or conversation ledger, {spent} what it
-  // counts so far. The remedy requires evidence; age alone never clears a hold.
-  // closes ownerless holds on its own, the owning run settles its own, and
-  // no cap always admits. A new conversation is never offered: it does not
-  // clear a shared ledger.
-  sessionBudgetLegacyFeesUnknown:
-    'The spend ledger for {scope} includes charges without a verified bound ({spent} counted so far). Nothing was sent; reconcile those charges before using a spend cap.',
-  sessionBudgetConversationFeesUnknown:
-    'The spend ledger for {scope} includes charges without a verified bound ({spent} counted so far). Nothing was sent; reconcile those charges before using a spend cap.',
   sessionBudgetSearchUnavailable:
     'Web search is unavailable under a finite spend cap: its billed query count has no verified limit. Ordinary chat and free web fetch remain available.',
   sessionBudgetRetryUnavailable:
-    'The previous request may have been billed. Its full reservation was kept; send a new prompt to retry with a fresh allowance.',
+    'The previous request may have been billed, so it is not sent again. Send a new prompt to retry.',
   sessionBudgetUnknownCharge:
     'Usage was not verified. {amount} remains reserved as a possible charge; this is not a confirmed bill.',
   sessionBudgetVoiceUnavailable:
@@ -4292,15 +4285,11 @@ export const EN = {
     'This model has no known tariff, so a capped run cannot reserve for {model}. Add a price for this model in {file}, or choose a priced model.',
   execUnpricedModel:
     'This model has no known tariff, so a capped run cannot reserve for it. Choose a priced model.',
-  // D1: a daily paid stop names its numbers: the limit, what is spent, what
-  // open requests still hold (and how many), when the day resets, and the
-  // setting that raises it. {requests} is a pre-pluralised open-request count.
+  // D1, D121: a daily stop names its numbers: the request's estimate, the
+  // limit the person set, what is spent today, when the day resets, and the
+  // setting that raises it. Nothing is held, so nothing else is counted.
   execPaidDailyStopped:
-    'Paid extras stopped: daily budget {cap} reached ({spent} spent, {held} held by {requests}); resets {reset}. Raise {setting} to continue.',
-  execPaidOpenRequests: forms({
-    one: '{count} open request',
-    other: '{count} open requests',
-  }),
+    'Stopped: the next request (about {estimate}) would pass the daily budget of {cap} ({spent} used today). It was not sent. The budget resets {reset}; raise {setting} to continue.',
   // D3: a budget-stopped turn keeps its work; the final message says what was
   // reached ({count} is the completed request count).
   execBudgetProgress: forms({

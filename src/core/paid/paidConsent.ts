@@ -31,7 +31,7 @@ import {
   DEFAULT_MODEL_ID,
 } from '../../shared/constants'
 import { fill, uiLocale } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
 import {
   paidFeaturePrice,
   freezePaidQuote,
@@ -42,7 +42,7 @@ import {
 } from '../../shared/paid'
 import { Usd, minUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
-import type { SessionBudgetClaim, SpendState } from '../backends/modelapi/sessionBudget'
+import type { SpendClaim } from './spendClaim'
 
 // zod/mini, which the Node bundles read from dist/validation.js: classic zod
 // carried 444 KiB and its `navigator` sniff into dist/extension.js (INT0170).
@@ -152,7 +152,7 @@ export async function askSchedulePaidConsent(deps: {
         price: identity.price,
         cadence: deps.cadence,
         cap: formatUsd(consent.dailyCapUsd, 2),
-        budget: formatUsd(identity.sharedDailyBudgetUsd, 2),
+        budget: formatDailyBudget(identity.sharedDailyBudgetUsd),
       }) +
       (deps.extras.length === 0
         ? ''
@@ -163,7 +163,7 @@ export async function askSchedulePaidConsent(deps: {
   return deps.isOn() && deps.isCurrent() ? consent : undefined
 }
 
-/** The run's paid port: live identity/gates plus a hard, noninteractive reservation.
+/** The run's paid port: live identity/gates plus its noninteractive limit check (D121).
  * @unwired M58 schedule paid scope
  */
 export function createSchedulePaidScope(deps: {
@@ -181,7 +181,7 @@ export function createSchedulePaidScope(deps: {
     schedule: ScheduleV2,
     costUsd: UsdAmount,
     signal: AbortSignal,
-  ) => Promise<SessionBudgetClaim>
+  ) => Promise<SpendClaim>
 }) {
   const isValid = () =>
     deps.isCurrent() && isScheduleConsentCurrent(deps.schedule, deps.currentIdentity())
@@ -192,32 +192,26 @@ export function createSchedulePaidScope(deps: {
     (feature === 'scheduledPrompts'
       ? deps.backend === 'modelApi'
       : deps.schedule.paidConsent?.extras.includes(feature) === true)
-  const claims = new Map<string, { usd: UsdAmount; settled: boolean }>()
+  const open = new Set<SpendClaim>()
   let settledUsd = Usd.from(0)
   let hasUnknown = false
   return {
     modelId: deps.identity.modelId,
     accountId: deps.identity.accountId,
     allows: canUse,
-    cost: (): ScheduleFireRecord['cost'] => {
-      let retainedLiabilityUsd = Usd.from(0)
-      for (const claim of claims.values()) {
-        if (!claim.settled) retainedLiabilityUsd = retainedLiabilityUsd.add(Usd.from(claim.usd))
-      }
-      // Fire records persist exact settled and retained amounts.
-      return {
-        usd: settledUsd.toAmount(),
-        certainty:
-          hasUnknown || retainedLiabilityUsd.compare(Usd.from(0)) > 0 ? 'unknown' : 'exact',
-        retainedLiabilityUsd: retainedLiabilityUsd.toAmount(),
-      }
-    },
+    cost: (): ScheduleFireRecord['cost'] => ({
+      // Fire records keep what the calls reported; nothing is held (D121), so
+      // a call still open or one that reported no usage makes the cost unknown.
+      usd: settledUsd.toAmount(),
+      certainty: hasUnknown || open.size > 0 ? 'unknown' : 'exact',
+      retainedLiabilityUsd: Usd.from(0).toAmount(),
+    }),
     reserve: async (
       body: CreateResponseBody | CreateImageBody,
       inputTokens: number | undefined,
       signal: AbortSignal,
       reservationUsd?: UsdAmount,
-    ): Promise<SessionBudgetClaim> => {
+    ): Promise<SpendClaim> => {
       signal.throwIfAborted()
       if (
         !canUse('input' in body ? 'scheduledPrompts' : 'imageGeneration') ||
@@ -229,26 +223,17 @@ export function createSchedulePaidScope(deps: {
       if (Usd.from(costUsd).compare(Usd.from(0)) <= 0)
         throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
       const claim = await deps.reserve(deps.schedule, costUsd, signal)
-      claims.set(claim.claimId, { usd: claim.reservedUsd, settled: false })
+      open.add(claim)
       const check = () => {
         signal.throwIfAborted()
         if (!canUse(feature)) throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
-        return claim.check(Usd.from(0).toAmount())
+        claim.check()
       }
-      const settle = async (actualCostUsd: UsdAmount, state: SpendState = 'settled') => {
-        // D95.3: a hard cap never accepts spend beyond the admitted claim.
-        if (Usd.from(actualCostUsd).compare(Usd.from(claim.reservedUsd)) > 0)
-          throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
-        const total = await claim.settle(actualCostUsd, state)
-        const own = claims.get(claim.claimId)
-        if (own !== undefined && !own.settled) {
-          const isKnownFinal = state === 'settled' || state === 'released'
-          own.settled = isKnownFinal
-          own.usd = actualCostUsd
-          if (state === 'settled') settledUsd = settledUsd.add(Usd.from(actualCostUsd))
-          hasUnknown ||= state === 'uncertain'
-        }
-        return total
+      const settle = async (actualCostUsd: UsdAmount | undefined) => {
+        await claim.settle(actualCostUsd)
+        if (!open.delete(claim)) return
+        if (actualCostUsd === undefined) hasUnknown = true
+        else settledUsd = settledUsd.add(Usd.from(actualCostUsd))
       }
       try {
         check()
@@ -256,7 +241,7 @@ export function createSchedulePaidScope(deps: {
         await settle(Usd.from(0).toAmount())
         throw error
       }
-      return { ...claim, check, settle }
+      return { estimateUsd: claim.estimateUsd, check, settle }
     },
   }
 }
@@ -869,7 +854,7 @@ export function paidAccountQuestion(binding: PaidAccountBinding): string {
     provider: binding.provider,
     account: binding.account,
     price: binding.price,
-    budget: formatUsd(binding.dailyBudgetUsd, 2),
+    budget: formatDailyBudget(binding.dailyBudgetUsd),
   })
 }
 

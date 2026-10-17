@@ -1264,9 +1264,8 @@
         },
         "museSpark.paidDailyBudgetUsd": {
           "type": "number",
-          "default": 5,
-          "minimum": 0.5,
-          "maximum": 500,
+          "default": 0,
+          "minimum": 0,
           "description": "%config.paidDailyBudgetUsd.description%",
           "scope": "machine",
           "markdownDescription": "%config.paidDailyBudgetUsd%"
