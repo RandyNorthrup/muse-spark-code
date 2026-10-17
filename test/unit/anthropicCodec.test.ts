@@ -431,7 +431,11 @@ describe('prefix stability (acceptance 4)', () => {
           name: 'get_time',
           arguments: '{"timezone":"UTC"}',
         },
-        { type: 'function_call_output', call_id: 'toolu_01a', output: '{"time":"12:00"}' },
+        {
+          type: 'function_call_output',
+          call_id: 'toolu_01a',
+          output: restoredToolText('{"time":"12:00"}'),
+        },
       ],
     })
     const firstNative = encodeAnthropicRequest(first, BASE_OPTIONS).body
@@ -571,7 +575,11 @@ describe('stream decoding from the captures', () => {
             name: call.name,
             arguments: call.arguments,
           },
-          { type: 'function_call_output', call_id: call.call_id, output: '{"timezone":"UTC"}' },
+          {
+            type: 'function_call_output',
+            call_id: call.call_id,
+            output: restoredToolText('{"timezone":"UTC"}'),
+          },
         ],
       }),
       {
@@ -997,7 +1005,7 @@ describe('encode guards', () => {
         instructions: '',
         input: [
           { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'a' }] },
-          { type: 'function_call_output', call_id: 't1', output: 'out' },
+          { type: 'function_call_output', call_id: 't1', output: restoredToolText('out') },
           { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'b' }] },
         ],
       }),
@@ -1077,7 +1085,7 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 8, 13)', () => {
         instructions: '',
         input: [
           { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'hi' }] },
-          { type: 'function_call_output', call_id: 'toolu_01e', output: '' },
+          { type: 'function_call_output', call_id: 'toolu_01e', output: restoredToolText('') },
         ],
       }),
       { ...BASE_OPTIONS, effort: 'none' },
@@ -1128,7 +1136,7 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 8, 13)', () => {
             name: 'get_time',
             arguments: '{}',
           },
-          { type: 'function_call_output', call_id: 'call:1/abc', output: 'noon' },
+          { type: 'function_call_output', call_id: 'call:1/abc', output: restoredToolText('noon') },
         ],
       }),
       { ...BASE_OPTIONS, effort: 'none' },
@@ -1596,7 +1604,11 @@ describe('review regressions (RVM95AO)', () => {
       [],
       [
         { type: 'function_call', call_id: 'rolling-call', name: 'get_time', arguments: '{}' },
-        { type: 'function_call_output', call_id: 'rolling-call', output: '{"time":"12:00"}' },
+        {
+          type: 'function_call_output',
+          call_id: 'rolling-call',
+          output: restoredToolText('{"time":"12:00"}'),
+        },
       ],
       [
         {

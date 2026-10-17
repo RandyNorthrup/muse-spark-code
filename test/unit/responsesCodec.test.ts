@@ -18,6 +18,7 @@ import {
   type CreateResponseBody,
   functionCallItemSchema,
   reasoningItemSchema,
+  restoredToolText,
   type StreamEvent,
 } from '../../src/core/backends/modelapi/schemas'
 
@@ -155,7 +156,7 @@ function scenarioBody(scenario: string, model: string): CreateResponseBody {
     {
       type: 'function_call_output',
       call_id: 'call_1',
-      output: scenario === 'packed-output' ? '[packed:27 words kept]' : 'A typo.',
+      output: restoredToolText(scenario === 'packed-output' ? '[packed:27 words kept]' : 'A typo.'),
     },
   ]
   return { ...body, input, ...(scenario === 'compaction' && { max_output_tokens: 512 }) }
@@ -345,7 +346,11 @@ describe('responsesCodec encodeRequest', () => {
         ...firstTurnBody().input,
         reasoning,
         tool,
-        { type: 'function_call_output', call_id: tool.call_id, output: '12:00 UTC' },
+        {
+          type: 'function_call_output',
+          call_id: tool.call_id,
+          output: restoredToolText('12:00 UTC'),
+        },
       ],
     }
     expect(JSON.stringify(createResponsesCodec(withRetention).encodeRequest(body)['input'])).toBe(
@@ -370,7 +375,7 @@ function callBody(callId: string, id: string | undefined): CreateResponseBody {
         name: 'get_time',
         arguments: '{"timezone":"UTC"}',
       },
-      { type: 'function_call_output', call_id: callId, output: 'noon' },
+      { type: 'function_call_output', call_id: callId, output: restoredToolText('noon') },
     ],
   }
 }
@@ -411,7 +416,7 @@ describe('M101 lane P1 history hardening (BYO items 1, 2, 13)', () => {
           ],
         },
         { type: 'function_call', call_id: 'call_1', name: 'get_time', arguments: '{}' },
-        { type: 'function_call_output', call_id: 'call_1', output: '' },
+        { type: 'function_call_output', call_id: 'call_1', output: restoredToolText('') },
       ],
     }
     const text = JSON.stringify(codec.encodeRequest(body)['input'])
