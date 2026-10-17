@@ -101,9 +101,12 @@ Tests (merged tree, `npx vitest run <files> --maxWorkers=3`, repo timeouts):
 | ciRun                                | 13 pass; 11 time out, all environmental (see §5) |
 | ciTemplatesRun (post-fix run)        | 42/43; bitbucket key case passes solo (see §5)   |
 
-Still to run: `ciRun` and `ciTemplatesRun` to green in a quiet window;
-the W rehearsal (`test/e2e/execTestLauncher.e2e.test.ts`) through the packed
-product after `npm run package:acp`.
+Still to run: `ciRun` and `ciTemplatesRun` to green in a quiet window.
+The packed-product rehearsal is blocked on this rig: `npm run package:acp`
+refuses without the built Darwin dictation helper
+(`native/darwin/muse-dictate`, compiled from another milestone's Swift
+sources; no prebuilt copy in the tree). Kubuntu certified the
+launcher/rehearsal path; the W live/hosted receipts stay lead-owned.
 
 ## 4. Real-life steps for the lead
 
