@@ -2851,3 +2851,17 @@ These tests drove real code but through stand-ins (`vi.fn` and mock return value
 - denial, changed preview and live admission loss each prevent publication
 - rechecks admission between patches and reports per-file failures
 - refuses evidence changes during ownership approval
+
+## Removed when the host budget needed the editor host (PR #207 follow-up)
+
+`src/host/paid/paidDailyBudget.ts` imports the `vscode` module, so no unit
+test can load it with real code only (the hand-written `vscode` stand-in was
+deleted as a fake on 2026-10-17). The runtime-family half of the claim below
+is proven by `test/unit/runtimeDailyBudget.test.ts` over the real journal;
+the host half leaves the suite here until a real-use run proves it.
+
+### test/unit/scheduleLegacyDailyBudget.test.ts
+
+- carries earlier window spend and retained liability once into an already opened common day
+- migrates the legacy window directory exactly once across repeated reads
+- shares the remaining cap with the runtime family against the one ledger
