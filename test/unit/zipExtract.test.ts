@@ -275,4 +275,10 @@ describe('the runtime’s ZIP reader (M81 A1)', () => {
     const destination = await extract(buildZip(files), planFor(files, []))
     expect(existsSync(path.join(destination, 'shell/empty'))).toBe(true)
   })
+
+  it('extracts a folder whose name only starts with two dots', async () => {
+    const files: ZipFileSpec[] = [{ name: '..foo/file.txt', data: Buffer.from('x'), method: 0 }]
+    const destination = await extract(buildZip(files), planFor(files, []))
+    expect(readFileSync(path.join(destination, '..foo/file.txt'), 'utf8')).toBe('x')
+  })
 })

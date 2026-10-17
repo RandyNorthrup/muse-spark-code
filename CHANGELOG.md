@@ -21,6 +21,15 @@ happened, not what was planned; superseded entries are kept.
   use still asks the popup; a unit suite now tests that surface refusal
   through the real surface, separately from the unwired helpers' logic
   (RVMSM58M69). No behaviour change.
+- On Windows, a folder literally named `..foo` directly under a trusted
+  root was refused as outside its trusted root, so native schedules
+  and helpers would not trust it. Only `..` itself or a leading `..\` leaves
+  the root now; genuine escapes still fail closed.
+- The same `..foo` mistake in the import preview, the playbook's file
+  identities, Tab's context, the browser runtime's ZIP extraction, problem
+  reports' frame paths, the schedule store and schedule file watches: a
+  name that only starts with two dots is an ordinary folder there too now,
+  and a genuine `..` segment still fails closed.
 
 - On Windows, two requests that reserve session spend at the same moment
   could end one of them with "The session spend ledger could not be read or

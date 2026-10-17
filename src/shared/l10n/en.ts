@@ -334,6 +334,9 @@ export const EN = {
     'Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.',
   referenceWindowsSessions:
     'Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).',
+  referenceWindowsPaths: 'Safer Windows paths',
+  referenceWindowsPathsDetail:
+    'On Windows, ambiguous spellings — device paths and namespaces, alternate streams, drive-relative paths, trailing dots or spaces, and reserved names — are refused at admission, or need a one-time manual answer for flagged writes. Ordinary workspaces on any drive keep working; schedules, helpers, and vault paths verify against the folder their caller owns.',
   referencePaletteKeys:
     'Navigate items, choose or complete a selection, or close the list. Choose how much effort Muse puts into each reply.',
   referenceServe:

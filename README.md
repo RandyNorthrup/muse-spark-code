@@ -4603,6 +4603,18 @@ stopped and the next message resumes the same session.
   nonce, no remote origins, no inline styles); every message between host and
   webview is validated with a zod schema.
 
+### Safer Windows paths
+
+On Windows, ambiguous spellings are refused at workspace, checkpoint and
+worker admission: device paths and namespaces, alternate data streams,
+drive-relative paths, trailing dots or spaces, and reserved names. A
+flagged write asks for a one-time manual answer instead. Ordinary
+workspaces on any drive keep working, and a UNC path is admitted only
+inside a UNC workspace. Schedules, helpers and vault paths verify against
+the folder their caller owns: links at or above it are accepted by
+resolved identity (a relocated profile stays trusted), and everything
+below it must be a plain file or folder.
+
 ## Troubleshooting
 
 - **What happened, in order** — **Muse Spark: Show Logs** opens the log.

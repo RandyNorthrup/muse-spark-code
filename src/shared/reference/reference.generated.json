@@ -959,6 +959,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "windows-paths",
+      "name": { "ui": "referenceWindowsPaths" },
+      "summary": { "ui": "referenceWindowsPathsDetail" },
+      "description": { "ui": "referenceWindowsPathsDetail" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#safer-windows-paths",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "context",
       "name": { "ui": "mentionFile" },
       "summary": { "tip": "mentionFile" },
