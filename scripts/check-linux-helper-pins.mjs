@@ -8,13 +8,14 @@
 // - `--assets <dir>`: every asset file in the directory matches its pin's
 //   bytes and SHA-256; anything else (a swapped, partial or missing file)
 //   fails. The release job runs this against the uploaded assets.
-// - `--bundle <file> --assets <dir>`: the built voice bundle embeds every
-//   pinned digest, so a VSIX whose pins do not match the uploaded assets
-//   fails. The release job extracts dist/voice.js from the VSIX for this.
+// - `--bundle <file> --assets <dir>`: the built Linux voice bundle embeds
+//   every pinned digest, so a VSIX whose pins do not match the uploaded
+//   assets fails. The release job extracts dist/voiceLinux.js from the VSIX
+//   for this.
 //
 //   node scripts/check-linux-helper-pins.mjs --require-values --assets release/helpers
-//   unzip -p package.vsix extension/dist/voice.js > /tmp/voice.js
-//   node scripts/check-linux-helper-pins.mjs --bundle /tmp/voice.js --assets release/helpers
+//   unzip -p package.vsix extension/dist/voiceLinux.js > /tmp/voiceLinux.js
+//   node scripts/check-linux-helper-pins.mjs --bundle /tmp/voiceLinux.js --assets release/helpers
 import { createHash } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import { build } from 'esbuild'

@@ -197,6 +197,8 @@ const CODE_INTEL_ENTRY = 'src/host/ide/codeIntelEntry.ts'
 const CODE_INTEL_OUTFILE = 'dist/codeIntel.js'
 const VOICE_ENTRY = 'src/host/voice/voiceEntry.ts'
 const VOICE_OUTFILE = 'dist/voice.js'
+const VOICE_LINUX_ENTRY = 'src/host/voice/voiceLinuxEntry.ts'
+const VOICE_LINUX_OUTFILE = 'dist/voiceLinux.js'
 const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
@@ -611,6 +613,13 @@ const voiceOptions = {
   ...planMarkdownOptions,
   entryPoints: [VOICE_ENTRY],
   outfile: VOICE_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const voiceLinuxOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [VOICE_LINUX_ENTRY],
+  outfile: VOICE_LINUX_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1289,6 +1298,7 @@ if (isWatch) {
     esbuild.context(legalScanOptions),
     esbuild.context(codeIntelOptions),
     esbuild.context(voiceOptions),
+    esbuild.context(voiceLinuxOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(mcpVaultOptions),
     esbuild.context(museCodeReviewerOptions),
@@ -1408,6 +1418,7 @@ if (isWatch) {
     legalScan: esbuild.build(legalScanOptions),
     codeIntel: esbuild.build(codeIntelOptions),
     voice: esbuild.build(voiceOptions),
+    voiceLinux: esbuild.build(voiceLinuxOptions),
     webFetch: esbuild.build(webFetchOptions),
     mcpVault: esbuild.build(mcpVaultOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
@@ -1541,6 +1552,7 @@ if (isWatch) {
   reportSize(LEGAL_SCAN_OUTFILE)
   reportSize(CODE_INTEL_OUTFILE)
   reportSize(VOICE_OUTFILE)
+  reportSize(VOICE_LINUX_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)

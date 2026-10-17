@@ -653,7 +653,19 @@ export const ON_FIRST_USE = [
       'src/core/voice/dictation.ts',
       'src/core/voice/museVoice.ts',
       'src/core/voice/recorderHelper.ts',
+    ],
+  },
+  // Linux's offline voice driver (M9, D140), split out of dist/voice.js:
+  // the driver glue and its helper/model acquisition load only on the first
+  // Linux recording, keeping voice.js inside its cap.
+  {
+    output: 'dist/voiceLinux.js',
+    metafile: 'dist/meta/voiceLinux.json',
+    use: 'the first Linux recording',
+    files: [
+      'src/host/voice/voiceLinuxEntry.ts',
       'src/core/voice/linuxDictation.ts',
+      'src/core/voice/linuxHelper.ts',
       'src/core/voice/linuxModel.ts',
     ],
   },

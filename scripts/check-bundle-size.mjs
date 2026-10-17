@@ -206,6 +206,10 @@ const BUDGETS = [
   { path: 'dist/legalScan.js', budgetKiB: 150 },
   { path: 'dist/codeIntel.js', budgetKiB: 100 },
   { path: 'dist/voice.js', budgetKiB: 50 },
+  // Linux's offline voice driver (M9, D140), split out of dist/voice.js on
+  // the first Linux recording: 35,907 B measured, plus 15%, rounded up to
+  // 25 KiB (PLAN.md D6).
+  { path: 'dist/voiceLinux.js', budgetKiB: 50 },
   // The window's web fetch (M69), loaded on the first fetch: each hop's
   // checks and pins, the pinned transport, the decoders and the failures'
   // words. 46.7 KiB when split out on 2026-10-04, plus 15%, rounded up to
