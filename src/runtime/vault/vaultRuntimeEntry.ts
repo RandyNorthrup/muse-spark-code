@@ -1,8 +1,8 @@
 // dist/vaultRuntime.js (lead decision 5, 2026-10-10): the CLI, the ACP agent
 // and headless runs load this on first vault need. No `vscode` import. The
 // platform's connection (discovery, broker launch and peer check) comes from
-// vaultClientPlatform, which lanes C-M109-1b (POSIX) and C-M109-1c (Windows)
-// bind; availability remains off pending the reviewed shared-lease/platform join.
+// vaultClientPlatform (POSIX bound; Windows follows in lane C-M109-1c).
+// The write-only crypto loads with the first session, never with the agent.
 
 import { createRequire } from 'node:module'
 import path from 'node:path'

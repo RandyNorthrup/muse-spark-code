@@ -17,7 +17,7 @@ import type {
   VaultResetChallenge,
 } from '../../../shared/vaultProtocol'
 import { fill } from '../../../shared/l10n/text'
-import { VaultWriterError } from '../crypto'
+import { vaultWriterDetail } from '../../../shared/vaultRefusals'
 import type { VaultBrokerClient } from './client'
 import type { VaultChannelResponse } from './frames'
 import type { VaultImportReport, VaultManagementRefusal } from './ports'
@@ -31,7 +31,7 @@ export function vaultRefusalMessage(
   reason: VaultManagementRefusal,
   writer?: Extract<VaultChannelResponse['response'], { kind: 'refused' }>['writer'],
 ): string {
-  if (reason === 'busy' && writer) return new VaultWriterError(writer).message
+  if (reason === 'busy' && writer) return vaultWriterDetail(writer)
   const text = UI_TEXT.vault
   if (reason === 'uncreated') return text.setupNeeded
   if (reason === 'exists') return text.setupExists
@@ -42,7 +42,7 @@ export function vaultRefusalMessage(
 /** Value-free owner facts and the explicit loss warning, shared by every host. */
 export function vaultWriterRecoveryMessage(writer: VaultResetChallenge['writer']): string {
   return writer
-    ? fill(UI_TEXT.vault.writerRecoveryWarning, { holder: new VaultWriterError(writer).message })
+    ? fill(UI_TEXT.vault.writerRecoveryWarning, { holder: vaultWriterDetail(writer) })
     : ''
 }
 
