@@ -21,6 +21,7 @@ import {
   type ExtensionHookEvent,
 } from '../../src/core/backends/modelapi/extensionHooks'
 import type { ElicitationHookVerdict } from '../../src/core/backends/modelapi/mcp/elicitation'
+import { posixQuoted } from '../../src/core/shellQuote'
 import type { ShellResult } from '../../src/core/shellResult'
 
 const SERVER = 'calendar'
@@ -82,12 +83,12 @@ function spawnHookResult(
   })
 }
 
-/** A real executable hook script in a fresh temp dir. */
+/** A real executable hook script in a fresh temp dir. The command is shell-quoted: a temp path may contain spaces. */
 function writeHook(body: string): { readonly dir: string; readonly command: string } {
   const dir = mkdtempSync(path.join(tmpdir(), 'm91-elicitation-'))
   const file = path.join(dir, 'hook.sh')
   writeFileSync(file, `#!/bin/sh\n${body}\n`, { mode: 0o755 })
-  return { dir, command: file }
+  return { dir, command: posixQuoted(file) }
 }
 
 function parseHooks(
@@ -146,10 +147,7 @@ function recordingHook(): {
 } {
   const seenDir = mkdtempSync(path.join(tmpdir(), 'm91-seen-'))
   const seen = path.join(seenDir, 'stdin.json')
-  const hook = writeHook('true')
-  writeFileSync(path.join(hook.dir, 'hook.sh'), `#!/bin/sh\ncat > "${seen}"\n`, {
-    mode: 0o755,
-  })
+  const hook = writeHook(`cat > ${posixQuoted(seen)}`)
   return { command: hook.command, dir: hook.dir, seen }
 }
 
