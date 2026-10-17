@@ -146,7 +146,6 @@ export function leaseExpiresAt(grantedAt: number, expiresAt: number | undefined)
 /**
  * The scopes a request may ask for: `repo`, and `read:org` once a lane has
  * proved the need. Anything else (`workflow`, `admin:*`, `gist`…) is refused.
- * @unwired M123 permitted GitHub scope guard
  */
 export function assertPermittedScopes(scopes: readonly string[]): void {
   if (scopes.some((scope) => !GITHUB_PERMITTED_SCOPES.includes(scope))) {
@@ -195,7 +194,6 @@ export interface SettingInspection {
  * Whether `museSpark.github.useGhLogin` is on: only the user's (or the
  * machine's) own `true` counts. A repository's or folder's value is ignored,
  * whatever it says, so a cloned project cannot read the user's `gh` token.
- * @unwired M123 gh login setting reader
  */
 export function isGhLoginEnabled(setting: SettingInspection | undefined): boolean {
   return setting?.globalValue === true

@@ -169,15 +169,11 @@ function isAllowedConfigRead(rest: readonly string[]): boolean {
   )
 }
 
-/** A pull request base as `refs/remotes/<remote>/<base>`, every part plain and range-safe. */
+/** A pull request base as `refs/remotes/<remote>/<base>`, range-safe in every segment. */
 function isRemoteBaseRef(ref: string | undefined): boolean {
   const prefix = remoteBaseRef('', '').slice(0, -1)
-  return (
-    ref !== undefined &&
-    ref.startsWith(prefix) &&
-    ref.slice(prefix.length).includes('/') &&
-    isRangeSafeRefName(ref.slice(prefix.length))
-  )
+  const name = ref?.startsWith(prefix) === true ? ref.slice(prefix.length) : ''
+  return name.includes('/') && isRangeSafeRefName(name)
 }
 
 /** The fixed flags before a branch read's names: every argument but the last one (log) or two (diff). */
@@ -540,6 +536,23 @@ function headBranch(gitDir: string): string | undefined {
   }
 }
 
+/**
+ * What the service reads of the host's deps: the bound root and its git,
+ * the window's signal and trust, the push's environment, the host's
+ * admission, the data folder for held checkouts, and the log.
+ */
+export type NativeGitServiceDeps = Pick<
+  RuntimeGitDeps,
+  | 'repositoryRoot'
+  | 'gitPath'
+  | 'signal'
+  | 'isTrusted'
+  | 'userEnvironment'
+  | 'admitWorkspaceCommand'
+  | 'dataFolder'
+  | 'log'
+>
+
 export interface NativeGitServiceOptions {
   /** The bounded runner; the production `createGitProcess` wiring unless a test passes its own. */
   readonly run?: GitProcess | undefined
@@ -573,7 +586,7 @@ export class NativeGitService {
   private readonly bound: Promise<ConfinedRoot | undefined>
 
   public constructor(
-    private readonly deps: RuntimeGitDeps,
+    private readonly deps: NativeGitServiceDeps,
     options: NativeGitServiceOptions = {},
   ) {
     this.run =

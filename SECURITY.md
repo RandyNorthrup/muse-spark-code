@@ -164,10 +164,33 @@ Releases and npm.
   force mode, refuses a branch behind its upstream, and refuses a branch,
   upstream or remote whose name git would read as an option or a force
   (`+`, `-`, `:`, whitespace). Pull requests go to `api.github.com` only,
-  with VS Code's GitHub sign-in token read per call; every GitHub reply is
-  validated against a captured shape. Credential-shaped strings in a commit
-  message or pull request are masked and returned to the form before
-  anything is sent.
+  with a token read per call from the window's GitHub sign-in; every GitHub
+  reply is validated against a captured shape. Credential-shaped strings in
+  a commit message or pull request are masked and returned to the form
+  before anything is sent.
+- **GitHub sign-in (M123, D104).** Three sources, first available wins:
+  the editor's own GitHub session; Muse Spark's device-flow sign-in with
+  the project's public OAuth App (no client secret exists; scope `repo`
+  only; only `https://github.com/login/device` is ever shown or opened,
+  and a user code that is not plain letters, digits and hyphens is
+  refused, so a reply cannot put terminal or markup text on screen; the
+  token pair is kept only in the editor's secret storage or the OS
+  credential store, registered with the redactor, and a sign-out barrier
+  keeps any token issued before a sign-out from being served after it);
+  and the user's `gh` login, only when `museSpark.github.useGhLogin` is on
+  in user or machine settings (a repository's value is ignored), read with
+  fixed arguments through the governed launcher, with none of our
+  credential variables, for one call. A 401 drops the refused token. No
+  token reaches a child process, a model, a log or the panel; the panel
+  shows the source and the account's login only.
+- **Without VS Code's Git extension (M123).** Commit, push and pull
+  requests run the user's own `git` (an absolute PATH entry) with fixed
+  argument lists that a check refuses in any other shape; a base branch git
+  would read as an option or a range is refused before any git starts. One
+  pipeline per mutation (plan, confirmation, the repository's lock across
+  windows, a final revalidation of everything confirmed, then the spawn),
+  never a force-push; only the confirmed push and a base fetch get the
+  user's Git credential routes.
 - **Someone else's pull request.** "Open a pull request in a conversation"
   checks a pull request by another author out under the extension's own
   storage. A window whose folder is anywhere under that storage is held,
