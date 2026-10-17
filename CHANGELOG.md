@@ -20,7 +20,8 @@ happened, not what was planned; superseded entries are kept.
   past 4000 characters; a plan keeps every step past 50 and saves and reads
   back at any size instead of refusing past 256 KB (handoff briefs too);
   a saved prompt keeps any title, body and per-scope count past 200, 80
-  and 10000 characters; image generation takes a prompt of any length and
+  and 10000 characters (the prompt file itself stays bounded at 128 KiB);
+  the proposal Action's same $20 and 500-request caps went too; image generation takes a prompt of any length and
   any number of edit sources past 4000 characters and 4 (Meta documents no
   prompt length and 1–10 edit items — its own refusal answers oversize calls);
   a provider holds any number of accounts past 64 per provider; check

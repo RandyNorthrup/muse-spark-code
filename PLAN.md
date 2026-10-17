@@ -14450,6 +14450,15 @@ heading; the other NOLIMITS lanes add no PLAN.md lines).
   that fits can still answer; removing it breaks every later message past
   the window instead of refusing once at import. Rewiring the window to the
   per-model record is lane L2's.
+- Kept bounds, listed for the lead (RVNOLIMITS1 review, outcome 4 — the lane
+  kept them without listing them): the prompt file bound
+  `PROMPT_LIMITS.fileBytes` (128 KiB, A23: title/body past 80/10000 stand
+  only while the serialised file fits), the transcript item count
+  `SESSION_EXPORT_MAX_ITEMS` = 20000 (A30: byte size is unbounded, item
+  count is not), and the report reader's 16 MiB bound, renamed
+  `REPORT_SOURCE_MAX_BYTES` by A30 (pre-existing, not a new cap; the report
+  reader was not this lane's row). None is a provider's documented limit or
+  a person's setting; each needs the lead's keep-or-remove decision.
 
 ## 3. Open questions (need the owner)
 
