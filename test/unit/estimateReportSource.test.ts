@@ -1,7 +1,8 @@
 // M113 C-M113-4: the estimate report kind runs M117's engine through the
 // injected reader and projects the six D93.4 facets. Engine failures stay
 // failures with their code; rows are never invented.
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { stderrLogger } from '../../src/runtime/stderrLog'
 import { estimateReportSections } from '../../src/core/reporting/collect/estimate'
 import {
   estimateSource,
@@ -18,9 +19,7 @@ function textCell(entry: ReportRow, key: string): string | undefined {
   return cell?.type === 'text' ? cell.value : undefined
 }
 import { readFileSync } from 'node:fs'
-import { fakeEstimate } from './helpers/estimator/kindFixtures'
-import { ESTIMATOR_AS_OF } from './helpers/estimator/kindFakes'
-import { FakeLogOutputChannel } from './helpers/fakes'
+import { ESTIMATOR_AS_OF, sectionVector } from './helpers/estimator/sectionVectors'
 import { installGerman, restoreEnglish } from './helpers/kindGermanTable'
 import germanTable from '../../l10n/ui.de.json'
 import { loadUiTable } from '../../src/host/l10n'
@@ -61,8 +60,26 @@ function estimateContext(options?: {
   }
 }
 
-function readerFor(section: unknown, observedAt = ESTIMATOR_AS_OF): ReportEstimateReader {
-  return { read: () => Promise.resolve({ section, observedAt }) }
+function readerFor(
+  section: unknown,
+  observedAt = ESTIMATOR_AS_OF,
+): ReportEstimateReader & { readonly requests: readonly EstimateRequest[] } {
+  const requests: EstimateRequest[] = []
+  return {
+    requests,
+    read: (request: EstimateRequest) => {
+      requests.push(request)
+      return Promise.resolve({ section, observedAt })
+    },
+  }
+}
+
+// The agent's own logger (src/runtime/stderrLog.ts), its lines kept here.
+function agentLog() {
+  const logged: string[] = []
+  return stderrLogger((line) => {
+    logged.push(line)
+  }, 'warn')
 }
 
 function sectionIds(data: readonly { id: string }[]): string[] {
@@ -96,7 +113,7 @@ describe('estimate report source', () => {
   })
 
   it('E2 stays out of other kinds as not applicable', async () => {
-    const result = await estimateSource(readerFor(fakeEstimate()), scrub).read(
+    const result = await estimateSource(readerFor(sectionVector()), scrub).read(
       estimateContext({ kind: 'project' }),
     )
     expect(result.record.status).toBe('notApplicable')
@@ -105,24 +122,24 @@ describe('estimate report source', () => {
   })
 
   it('E3 refuses a scope that is no D97.2 goal as invalid', async () => {
-    const read = vi.fn()
-    const result = await estimateSource({ read }, scrub).read(
+    const reader = readerFor(sectionVector())
+    const result = await estimateSource(reader, scrub).read(
       estimateContext({ scope: '!!! not a goal !!!' }),
     )
-    expect(read).not.toHaveBeenCalled()
+    expect(reader.requests).toHaveLength(0)
     expect(result.record.status).toBe('unavailable')
     expect(result.record.reason).toBe(UI_TEXT.reportSourceReasons.invalid)
     expect(result.data).toBeNull()
   })
 
   it('E4 projects the six D93.4 facets from the engine run', async () => {
-    const section = fakeEstimate()
-    const read = vi.fn().mockResolvedValue({ section, observedAt: ESTIMATOR_AS_OF })
-    const result = await estimateSource({ read }, scrub).read(estimateContext())
+    const section = sectionVector()
+    const reader = readerFor(section, ESTIMATOR_AS_OF)
+    const result = await estimateSource(reader, scrub).read(estimateContext())
     expect(result.record.status).toBe('ok')
     // The validated request crosses into the engine: milestone goal, the
     // generation stamp, the current fleet, cost optimization.
-    const request: EstimateRequest = read.mock.calls[0]?.[0]
+    const request: EstimateRequest | undefined = reader.requests[0]
     expect(request).toEqual({
       goal: { kind: 'milestone', milestoneId: 'M117' },
       asOf: ESTIMATOR_AS_OF,
@@ -166,7 +183,7 @@ describe('estimate report source', () => {
 
   it('E5 carries --by and --fleet into the request and checks the echo', async () => {
     const deadline = '2026-12-01T23:59:59+00:00'
-    const base = fakeEstimate()
+    const base = sectionVector()
     const section: EstimateSection = {
       ...base,
       inputs: {
@@ -180,31 +197,31 @@ describe('estimate report source', () => {
         },
       },
     }
-    const read = vi.fn().mockResolvedValue({ section, observedAt: ESTIMATOR_AS_OF })
-    const result = await estimateSource({ read }, scrub).read(
+    const reader = readerFor(section, ESTIMATOR_AS_OF)
+    const result = await estimateSource(reader, scrub).read(
       estimateContext({ fleet: 'minimum', deadline }),
     )
     expect(result.record.status).toBe('ok')
     // The estimator's instants end in Z: the `+00:00` deadline `--by`
     // builds crosses normalized to the same UTC instant.
-    expect(read.mock.calls[0]?.[0]).toMatchObject({
+    expect(reader.requests[0]).toMatchObject({
       fleet: 'minimum',
       deadline: '2026-12-01T23:59:59.000Z',
     })
   })
 
   it('E5b normalizes an offset report stamp to the same UTC instant', async () => {
-    const section = fakeEstimate()
-    const read = vi.fn().mockResolvedValue({ section, observedAt: ESTIMATOR_AS_OF })
-    const result = await estimateSource({ read }, scrub).read(
+    const section = sectionVector()
+    const reader = readerFor(section, ESTIMATOR_AS_OF)
+    const result = await estimateSource(reader, scrub).read(
       estimateContext({ asOf: REPORT_FIXTURE_AS_OF }),
     )
     expect(result.record.status).toBe('ok')
-    expect(read.mock.calls[0]?.[0]).toMatchObject({ asOf: ESTIMATOR_AS_OF })
+    expect(reader.requests[0]).toMatchObject({ asOf: ESTIMATOR_AS_OF })
   })
 
   it('E6 refuses a run that answers another request instead of inventing rows', async () => {
-    const result = await estimateSource(readerFor(fakeEstimate()), scrub).read(
+    const result = await estimateSource(readerFor(sectionVector()), scrub).read(
       estimateContext({ fleet: 'minimum' }),
     )
     expect(result.record.status).toBe('unavailable')
@@ -243,7 +260,7 @@ describe('estimate report source', () => {
       {
         read: () =>
           Promise.resolve({
-            section: fakeEstimate(),
+            section: sectionVector(),
             observedAt: ESTIMATOR_AS_OF,
             partial: 'private-canary note',
           }),
@@ -430,7 +447,7 @@ describe('estimate report source', () => {
         english: () => fill(EN.estimateNotFound, { goal: goalJson }),
       },
     ]
-    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    expect(await installGerman(agentLog())).toBe('de')
     const germanContext = () => estimateContext({ reportText: germanTable, locale: 'de' })
     try {
       for (const refusal of refusals) {
@@ -463,12 +480,12 @@ describe('estimate report source', () => {
     expect(await estimateReason(new Error('Estimate failed: ../../etc/passwd'))).toBe(
       UI_TEXT.reportSourceReasons.failed,
     )
-    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    expect(await installGerman(agentLog())).toBe('de')
     const { table } = await loadUiTable({
       language: 'de',
       readExtensionFile: () =>
         Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
-      log: new FakeLogOutputChannel(),
+      log: agentLog(),
     })
     const germanContext = () => estimateContext({ reportText: table, locale: 'de' })
     try {
@@ -542,12 +559,12 @@ describe('estimate report source', () => {
         Object.assign(new Error('Estimate failed: garbage'), { estimateDiagnostic: 'garbage' }),
       ],
     ]
-    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    expect(await installGerman(agentLog())).toBe('de')
     const { table } = await loadUiTable({
       language: 'de',
       readExtensionFile: () =>
         Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
-      log: new FakeLogOutputChannel(),
+      log: agentLog(),
     })
     try {
       for (const [name, error] of refusals) {
@@ -577,7 +594,7 @@ describe('estimate report source', () => {
       language: 'de',
       readExtensionFile: () =>
         Promise.resolve(readFileSync(new URL('../../l10n/ui.de.json', import.meta.url), 'utf8')),
-      log: new FakeLogOutputChannel(),
+      log: agentLog(),
     })
     if (loaded.locale !== 'de') throw new Error('German table failed to load')
     const germanTableText: UiText = loaded.table
@@ -677,7 +694,7 @@ Release notes.
     const hostile = Object.assign(new Error(`Schätzung fehlgeschlagen: ${diagnostic}`), {
       estimateDiagnostic: diagnostic,
     })
-    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    expect(await installGerman(agentLog())).toBe('de')
     try {
       // The lanes and the count cross as data; the report renders its own
       // words around them — no English `and 2 more` in a German reason.
@@ -706,7 +723,7 @@ Release notes.
     // whole (they carry no user text) so the schema still validates and a
     // real forecast renders instead of refusing.
     const { reportScrubber } = await import('../../src/core/reporting/render/redaction')
-    const section = fakeEstimate()
+    const section = sectionVector()
     const pointers = section.disclosures.map((disclosure) => disclosure.path)
     expect(pointers.some((path) => path.split('/').length > 2)).toBe(true)
     const result = await estimateSource(
@@ -721,10 +738,10 @@ Release notes.
   })
 
   it('E19 projects sections from codes only: the installed language changes no byte', async () => {
-    const section = fakeEstimate()
+    const section = sectionVector()
     const options = reportOptions('estimate', { scope: 'M117' })
     const collected = estimateReportSections(section, options)
-    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    expect(await installGerman(agentLog())).toBe('de')
     try {
       // Labels, units, bottleneck names and assumptions cross from the
       // estimator as codes; the report renderer owns the words.
@@ -748,7 +765,7 @@ Release notes.
   })
 
   it('E16 stamps the run at the request instant, so the report reads fresh', async () => {
-    const section = fakeEstimate()
+    const section = sectionVector()
     const result = await estimateSource(
       { read: () => Promise.resolve({ section, observedAt: ESTIMATOR_AS_OF }) },
       scrub,
@@ -759,7 +776,7 @@ Release notes.
   })
 
   it('E10 orders content-addressed rows by key whatever order the engine lists them in', () => {
-    const base = fakeEstimate()
+    const base = sectionVector()
     const reversed: EstimateSection = {
       ...base,
       calibration: base.calibration.toReversed(),
@@ -771,8 +788,12 @@ Release notes.
 
 describe('estimate report inputs', () => {
   it('E11 runs the validated request through the host engine', async () => {
-    const section = fakeEstimate()
-    const run = vi.fn().mockResolvedValue(section)
+    const section = sectionVector()
+    const calls: { request: EstimateRequest; signal: AbortSignal }[] = []
+    const run = (request: EstimateRequest, signal: AbortSignal) => {
+      calls.push({ request, signal })
+      return Promise.resolve(section)
+    }
     const context = estimateContext()
     const request: EstimateRequest = {
       goal: { kind: 'milestone', milestoneId: 'M117' },
@@ -781,13 +802,13 @@ describe('estimate report inputs', () => {
       optimize: 'cost',
     }
     const result = await createEstimateReportReader({ run }).read(request, context)
-    expect(run).toHaveBeenCalledWith(request, context.signal)
+    expect(calls).toEqual([{ request, signal: context.signal }])
     expect(result).toEqual({ section, observedAt: ESTIMATOR_AS_OF })
   })
 
   it('E12 propagates the engine failure instead of masking it', async () => {
     const failure = new Error('missing-estimate: M117:C-M117-9')
-    const run = vi.fn().mockRejectedValue(failure)
+    const run = () => Promise.reject(failure)
     await expect(
       createEstimateReportReader({ run }).read(
         {
@@ -806,7 +827,7 @@ describe('estimate report collection', () => {
   it('E13 collects the estimate kind end to end and renders every format', () => {
     const options = reportOptions('estimate', { scope: 'M117' })
     const snapshot = fullSnapshot()
-    const sections = estimateReportSections(fakeEstimate(), options)
+    const sections = estimateReportSections(sectionVector(), options)
     // The production finalizer, like the engine: timestamp cells are
     // rewritten at the report offset before the hash is sealed.
     const document = renderTestCollector(
@@ -838,7 +859,7 @@ describe('estimate report collection', () => {
   })
 
   it('E14 caps long lane lists with an omitted-row count instead of dropping them silently', () => {
-    const base = fakeEstimate()
+    const base = sectionVector()
     const [firstLane] = base.inputs.lanes
     if (firstLane === undefined) throw new Error('Missing estimate fixture lane')
     const lanes = Array.from({ length: 12 }, (_, index) => ({
