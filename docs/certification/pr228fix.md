@@ -70,6 +70,25 @@ settled $0.000000):
    recorded exchange. Fix: replace with recorded above-ceiling inputs
    (`20.01`, `250.50`), keeping above-ceiling coverage.
 
+## Corroboration on rig macbook (lane PR228W1, production build of e090e9aec)
+
+`node dist/acp.js exec --backend modelApi --max-budget-usd <b> 'hi'`, no key
+stored, so every run stops past arg validation with no paid call:
+
+- `250.50`, `20.01`, `9007199254.740992` → exit 3 (`Backend Unavailable`,
+  requests 0, settled $0.000000): above-$20 and exact-BigInt budgets pass
+  real arg validation, matching the macmini record.
+- `0` → exit 2 (usage error): invalid budgets still fail arg validation.
+
+Amount-form note (thread 5 probe): every `UsdAmount` the runtime emits is
+canonical (`Usd.toString` strips trailing zeros, so `250.50` travels as
+`250.5`), and the Action's decimal grammar accepts exactly that canonical
+form — `microUsd('9007199254.740992')` is `9007199254740992n`, invalid
+spellings (`abc`, 7dp, signs, whitespace) stay `undefined`. The low-budget
+minimum comparison itself is covered by the `$0.01`
+`previewResponseReservation` unit case; no key on this rig means the live
+`budget_exceeded` path cannot run here.
+
 ## Base-code failures (new assertions run against the untouched base)
 
 Via a throwaway clone of this branch's base with only the updated
