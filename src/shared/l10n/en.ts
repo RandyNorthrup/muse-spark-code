@@ -6487,7 +6487,7 @@ export const EN = {
       'The vault cannot be opened because files are missing or damaged, or writer ownership cannot be established. Review Reset to start again.',
     // RVCM1091B 4: the OS store's fixed repair, never native text.
     storeUnavailable:
-      "The operating system's credential store is not available. On Linux, sign in to a desktop session with an unlocked keyring (the Secret Service); on macOS, unlock the login Keychain; on Windows, sign in interactively. Then try again.",
+      'The operating system’s credential store is not available: either this build does not include its credential-store component, or the store is locked. Where the component is missing, the vault can only use a hardware slot where the machine seals; otherwise, on Linux sign in to a desktop session with an unlocked keyring (the Secret Service); on macOS unlock the login Keychain; on Windows sign in interactively. Then try again.',
     remoteWarning:
       'Only a signature or a one-time code may be requested from another device. Its user must approve each use there.',
     approvalExpired: 'This approval expired. Request the use again.',
