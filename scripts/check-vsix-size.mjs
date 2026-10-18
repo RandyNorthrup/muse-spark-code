@@ -25,8 +25,12 @@ if (
   import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href
 ) {
   try {
-    if (process.argv.length !== 3) throw new Error('Exactly one VSIX path required')
-    console.log(`VSIX: ${checkVsixSize(process.argv[2])} bytes (budget ${MAX_VSIX_BYTES})`)
+    // One package per platform: every target meets the same unchanged
+    // budget, so every artifact is checked, not just one.
+    const artifacts = process.argv.slice(2)
+    if (artifacts.length === 0) throw new Error('At least one VSIX path required')
+    for (const artifact of artifacts)
+      console.log(`VSIX: ${checkVsixSize(artifact)} bytes (budget ${MAX_VSIX_BYTES})`)
   } catch (error) {
     console.error(error.message)
     process.exitCode = 1
