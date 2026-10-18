@@ -17441,12 +17441,41 @@ export class ModelApiHost implements AgentHost {
     if (store === undefined) {
       return isStrict ? Promise.reject(new Error(UI_TEXT.historyUnavailable)) : Promise.resolve()
     }
-    // No account identity yet: nothing has been attributed to anyone, so a
-    // touch writes nothing durable. The next touch after identity resolves
-    // saves as usual. A strict save without an owner refuses as unsigned in.
-    if (this.accountIdValue === undefined) {
-      return isStrict ? Promise.reject(new Error(UI_TEXT.notSignedInReason)) : Promise.resolve()
+    // No account identity pinned yet: a keyless session's first
+    // provider-backed step resolves it before its persistence lands
+    // (persistUnowned). A strict save with no identity to resolve refuses
+    // as unsigned in.
+    return this.accountIdValue === undefined
+      ? this.persistUnowned(session, store, isStrict)
+      : this.persistOwned(session, store, isStrict)
+  }
+
+  /**
+   * A touch on a host whose identity the first provider-backed step has not
+   * pinned yet (a session created keyless, then prompted at once): resolve
+   * and pin the provider identity first, so that step's persistence lands
+   * under its owner instead of writing nothing (Codex on PR #213). Still
+   * silent where no identity exists: pre-provider touches save nothing.
+   */
+  private async persistUnowned(
+    session: ModelApiSession,
+    store: NonNullable<ModelApiHostDeps['store']>,
+    isStrict: boolean,
+  ): Promise<void> {
+    try {
+      await this.requireAccountId()
+    } catch {
+      if (isStrict) throw new Error(UI_TEXT.notSignedInReason)
+      return
     }
+    await this.persistOwned(session, store, isStrict)
+  }
+
+  private persistOwned(
+    session: ModelApiSession,
+    store: NonNullable<ModelApiHostDeps['store']>,
+    isStrict: boolean,
+  ): Promise<void> {
     const snapshot = this.ownedSnapshot(session.snapshot())
     // A turn-start user message can be saved, but a function call without
     // its output cannot be replayed after a crash. Goal/settings touches
