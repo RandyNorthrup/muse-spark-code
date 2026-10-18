@@ -603,21 +603,78 @@ anthropic/claude-haiku-4-5 --max-budget-usd 5 --key-stdin`: "Anthropic
 The four unresolved Codex threads at `e6b2d3948d`, one line each:
 
 1. `src/core/providers/configured.ts:371` (configured models retry by
-   Meta's limit): fix. `boundClient()` spread `base`, whose `maxRetries`
-   delegates to the Meta client; the bound client now answers from its own
-   `CodecClient` (the preset's documented limit, or the person's setting).
+   Meta's limit): fixed in `dfe495a437`. `boundClient()` spread `base`,
+   whose `maxRetries` delegates to the Meta client (or throws when there
+   is none, so the turn loop rethrew without any retry); the bound client
+   now answers from its own `CodecClient` (`configured.ts:1048`: the
+   preset's documented limit, or the person's setting).
 2. `src/shared/retryPolicy.ts:202` (an uncapped delay overflows the timer):
-   fix. The transport's wait sleeps in abortable pieces no longer than the
-   timer's own maximum (2^31 − 1 ms, Node.js timers documentation), so
-   the logical delay stays whole and never collapses to 1 ms.
-3. `test/unit/providerRetryLimits.test.ts:87` (invented retry inputs): fix.
-   Every hand-written limit, the made-up 5-second provider wait and the
-   synthetic jitter sample go; what stays reads only the presets' real
-   documented tables and the real random source. No recorded real exchange
-   with a `Retry-After` header exists in the repository (`grep -ril
-retry-after test/` finds none in any capture), so the named-wait rule
-   is proved by the packed-product run, not by a test.
+   fixed in `c9171e323b`. `RequestTransport.pause` (`transport.ts:750`,
+   the one wait every retry, turn resend and pacing hold goes through)
+   sleeps in abortable
+   pieces of at most `MODEL_API_TIMER_MAX_MS` (2^31 − 1 ms: "When `delay`
+   is larger than `2147483647` … the `delay` will be set to `1`",
+   nodejs.org/api/timers.html, Node.js v26.12.0, read 2026-10-17). The
+   logical delay stays whole, so neither an uncapped backoff nor a
+   provider's `Retry-After` date weeks away collapses to 1 ms.
+3. `test/unit/providerRetryLimits.test.ts:87` (invented retry inputs):
+   fixed in `c9171e323b`. The made-up 5-second provider wait, the
+   synthetic jitter samples, the hand-written limit records and the
+   fabricated preset (count 9) are gone. Every input is now a preset's real documented record, Meta's
+   documented record, the product's own `RequestTransport` with the
+   platform's random source and timer, and the agent's own
+   `stderrLogger`. The named-wait rule has no test: the repository holds no
+   recorded real exchange with a `Retry-After` header (a case-insensitive
+   search of `test/` finds it only in two `sources.json` source snapshots
+   and in hand-written header values of the usage-journal tests, no
+   capture), so the packed product's real-life run proves it.
 4. `src/extension.ts:2054` (the setting never reaches the conversation
-   client): fix. `ModelApiBackendManager` passes the live
-   `personMaxRetries` into the conversation client it builds, so
-   `museSpark.modelApiMaxRetries: 0` stops ordinary Meta turns too.
+   client): fixed in `dfe495a437`.
+   `ModelApiBackendManagerDeps.personMaxRetries`
+   (`modelApiBackendManager.ts:140`) is passed into the conversation
+   client the backend builds (`:347`), and the extension hands it the live
+   setting (`extension.ts:2629`), so `museSpark.modelApiMaxRetries: 0`
+   stops ordinary Meta turns too.
+
+Tests and drills:
+
+- The suite drives the real transport: documented backoff per preset with
+  the real jitter (bounds, not a sample), and the overflow case: an
+  undocumented provider's 23rd try (`backoffMs(22)`, about 4.19 × 10^9 ms)
+  is still waiting when a Stop comes 200 ms later. 8 tests, exit 0.
+- Drill (run twice, on the first and the final form of the test): `pause`
+  with the pieces removed (`piece = remaining`). Node printed its
+  `TimeoutOverflowWarning` for the delay (4194304443 ms on the final
+  run), the wait ended after 7 ms and the overflow test failed ("promise
+  resolved "undefined" instead of rejecting", exit 1). Restored
+  byte-identical (`cmp` exit 0), green again.
+- No unit test for threads 1 and 4: the configured services need a
+  secret store (`ConfiguredProviderOptions.secrets` is required) and the
+  backend manager is built from the editor's settings and services. Each
+  could only be built in a unit test on a stand-in, which the owner's rule
+  forbids, so the real-life steps below are their proof.
+
+What the lead must run (packed product, adds to the list above):
+
+1. VS Code, `museSpark.modelApiMaxRetries: 0`, Meta backend, the network
+   cut (for example `http.proxy` pointed at a closed port): one send and
+   the failure at once, no "Retrying" notice. Unset it: Meta's four
+   retries with their notices.
+2. Thread 1 changes what the turn loop reads for a configured model,
+   which is the media-recovery resend gate: configured streams never
+   reach the loop as a `RetryableStreamError` (`configured.ts:994-1007`
+   throws a stream error as a `ModelApiError`), and their own resends in
+   `CodecClient` already read the preset's limit through the transport.
+   Real-life: a configured Anthropic model whose provider refuses an
+   attached image for its size after its own retries are spent (2): no
+   recovery resend follows, where Meta's 4 used to allow one.
+
+Still open:
+
+- `createSubscriptionClient` (`subscriptions/registry.ts:183`) answers
+  `maxRetries` from the Meta client for ChatGPT-plan and Copilot models as
+  well. The host's turn loop reads it only for a `RetryableStreamError`
+  (never raised on those routes) and for the media-recovery gate. Fixing it
+  needs a per-model `maxRetries`, which `ProviderClient` does not have.
+  Not changed here.
+- ACP/headless still pass no `personMaxRetries` (see above).
