@@ -79,14 +79,18 @@ suite('M82 background notices in the real host', () => {
         },
       })
       const notice = { key: 's1:turn:t1', message: 'M82 quiet probe' }
-      notifier.notify(notice, () => {
-        assert.fail('reveal must not run while the setting is off')
-      })
-      notifier.notify(notice, () => {
-        assert.fail('reveal must not run while the setting is off')
-      })
+      // Counted, not asserted inline: `raise` catches every error from the
+      // reveal callback and only logs it, so an `assert.fail` there could
+      // never fail this test.
+      let revealCalls = 0
+      const reveal = (): void => {
+        revealCalls += 1
+      }
+      notifier.notify(notice, reveal)
+      notifier.notify(notice, reveal)
       await delay(SETTLE_MS)
       assert.equal(showCalls, 0)
+      assert.equal(revealCalls, 0)
     } finally {
       await vscode.workspace
         .getConfiguration(SETTINGS_SECTION)
