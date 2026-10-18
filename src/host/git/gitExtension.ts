@@ -17,7 +17,7 @@ import {
 } from '../../core/fs/fileIdentity'
 import { GIT_API_VERSION, GIT_EXTENSION_ID, UI_TEXT } from '../../shared/constants'
 import { isSameFolder } from '../../core/worktrees'
-import { canonicalPath } from '../canonicalPath'
+import { canonicalPath, isMissingPath } from '../canonicalPath'
 
 export interface GitChange {
   readonly uri: { readonly fsPath: string }
@@ -101,8 +101,18 @@ export const captureGitOwner: CaptureGitOwner = async (root, check) => {
           const current = statIdentitySync(directory)
           return current.isDirectory() && sameFile(current, identity)
         })
-      } catch {
-        isOwned = false
+      } catch (error: unknown) {
+        // A failed check, or a folder that vanished, is not current: the
+        // operation is already refused elsewhere. Anything else is not
+        // this predicate's to hide.
+        if (error instanceof GitUnavailableError) {
+          isOwned = false
+        } else {
+          if (!isMissingPath(error)) {
+            throw error
+          }
+          isOwned = false
+        }
       }
       return isOwned
     },
