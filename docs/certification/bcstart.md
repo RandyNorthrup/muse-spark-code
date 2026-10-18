@@ -38,7 +38,7 @@ in the passing and failing runs. The `routeUnconfirmed` of run 39069570760
 (train 2026-10-17-2) is a different end: it did not reproduce in more than
 250 local checks, and this record does not claim it.
 
-## The fix
+## The fix (round 0, as first built; superseded by review round 1 below)
 
 `holdToContract` now takes the service's id through `startedNetworkServiceId`
 (`src/core/browser/browserRun.ts`): it asks `SystemInfo.getProcessInfo` again
@@ -52,7 +52,12 @@ The bound comes from a measurement: over 90 launches of the production
 command line under three-way contention, the service was listed within 25 ms
 of the browser's first answer in all but one, which took 1,217 ms.
 
-## Proof, on real Chrome through the real check
+**Superseded in review round 1 (`0b1782b067`, below):** the 5 s bound and
+`BROWSER_NETWORK_SERVICE_START_MS` are deleted. At that head the wait has
+no bound of its own, and a service that never starts ends the check
+`timedOut` or `cancelled` on the check's lifetime, not `unrecognized`.
+
+## Proof, on real Chrome through the real check (round 0)
 
 Each line is 120 checks of the product's `runBrowserCheck` with its host
 deps, three batches of 40 at once on this Windows 11 PC, on Playwright's
@@ -78,7 +83,7 @@ restart capture and the live suite on the pinned 154.0.8037.92); the pin is
 not installed on this PC, so the live suite and R51 skip here, and nothing
 local stands in for that run.
 
-## Gates (2026-10-18, branch `fix/browser-check-route`)
+## Gates (2026-10-18, branch `fix/browser-check-route`; round 0)
 
 | Gate                                                                                          | Exit                                             |
 | --------------------------------------------------------------------------------------------- | ------------------------------------------------ |
