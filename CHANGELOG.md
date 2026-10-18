@@ -27,6 +27,20 @@ happened, not what was planned; superseded entries are kept.
   the Windows sandbox check and setup, and the `muse` and `git` lookups
   themselves: directories inside the workspace are never probed, so a
   planted program on an absolute workspace PATH entry never resolves.
+  Device (`\\.\`), trailing-dot (`repo.\…`) and dot-dot (`..\…`) spellings
+  of the workspace compare as the workspace itself before comparing, and
+  the same exclusion (resolved through links) now covers every other
+  product lookup: `git` (all runners, the M123 native route and the report
+  source), the plugin runtimes (`node`, `bun`, `prlimit`), MCP server
+  commands, the shell and hook interpreters (`bash`, `sh`, `cmd`), the
+  usage opener (`xdg-open`, `open`, `rundll32.exe`), the Linux voice
+  recorders (`arecord`, `parec`) and the team worker launcher. Every child
+  started with the workspace as its working directory also gets the
+  guarded PATH plus `NoDefaultCurrentDirectoryInExePath` on Windows, so a
+  planted helper (`ssh`, `git-remote-https`) never runs either. A new
+  inventory test enumerates every process start in `src/` from the source
+  itself and fails on any start outside the guarded routes or the short
+  reviewed list (fixed OS paths, the person's own terminal).
   Real use showed Muse Code 1.4.9 running a planted `<workspace>/bin/bwrap`
   twice at serve start, before any prompt or approval
   (`docs/certification/pathguard.md`).
