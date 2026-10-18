@@ -71,6 +71,7 @@ import { copyCatalogToDist } from './sync-provider-catalog.mjs'
 import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 import { deferredTeamView } from './lib/deferredTeamView.mjs'
 import { HOST_PLUGINS } from './lib/hostPlugins.mjs'
+import { runBuildPool } from './lib/buildPool.mjs'
 import {
   sharedUiText,
   sharedValidation,
@@ -1317,139 +1318,167 @@ if (isWatch) {
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
 } else {
-  const shipped = {
-    questionNotes: esbuild.build({
-      ...modelApiOptions,
-      entryPoints: ['src/core/questions/deferralEntry.ts'],
-      outfile: 'dist/questionNotes.js',
-    }),
-    mcpPool: esbuild.build(mcpPoolOptions),
-    modelApiCodeIntel: esbuild.build(modelApiCodeIntelOptions),
-    structuredSchema: esbuild.build(structuredSchemaOptions),
-    extension: esbuild.build(hostOptions),
-    conversation: esbuild.build(conversationOptions),
-    tab: esbuild.build(tabOptions),
-    prompts: esbuild.build(promptsOptions),
-    sharingRuntime: esbuild.build(sharingRuntimeOptions),
-    modelApi: esbuild.build(modelApiOptions),
-    resourceGovernor: esbuild.build(resourceGovernorOptions),
-    resourceProcess: esbuild.build(resourceProcessOptions),
-    resourceJournal: esbuild.build(resourceJournalOptions),
-    resourceAdmission: esbuild.build(resourceAdmissionOptions),
-    providers: esbuild.build(providersOptions),
-    subscriptions: esbuild.build(subscriptionsOptions),
-    configuredProviders: esbuild.build(configuredOptions),
-    review: esbuild.build(reviewOptions),
-    sessionBoard: esbuild.build(sessionBoardOptions),
-    reporting: esbuild.build(reportingOptions),
-    reportingNetwork: esbuild.build(reportingNetworkOptions),
-    reportingDestinations: esbuild.build(reportingDestinationsOptions),
-    reportingPanel: esbuild.build(reportingPanelOptions),
-    reference: esbuild.build(referenceOptions),
-    schedules: esbuild.build(schedulesOptions),
-    reviewer: esbuild.build(reviewerOptions),
-    team: esbuild.build(teamOptions),
-    teamRunners: esbuild.build(teamRunnersOptions),
-    teamScheduler: esbuild.build(teamSchedulerOptions),
-    foreignHooks: esbuild.build(foreignHooksOptions),
-    modelApiHooks: esbuild.build({
-      ...modelApiOptions,
-      entryPoints: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
-      outfile: 'dist/modelApiHooks.js',
-    }),
-    modelApiMcp: esbuild.build({
-      ...modelApiOptions,
-      entryPoints: ['src/core/backends/modelapi/modelApiMcpEntry.ts'],
-      outfile: 'dist/modelApiMcp.js',
-    }),
-    runtimeAccounting: esbuild.build({
-      ...modelApiOptions,
-      entryPoints: ['src/runtime/runtimeAccountingEntry.ts'],
-      outfile: 'dist/runtimeAccounting.js',
-    }),
-    providerPolicy: esbuild.build({
-      ...modelApiOptions,
-      entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
-      outfile: 'dist/providerPolicy.js',
-    }),
-    runtimeEngine: esbuild.build({
-      ...acpOptions,
-      entryPoints: ['src/runtime/runtimeEngineEntry.ts'],
-      outfile: 'dist/runtimeEngine.js',
-    }),
-    hookRuntime: esbuild.build(hookRuntimeOptions),
-    pluginHooks: esbuild.build(pluginHooksOptions),
-    modelApiTools: esbuild.build(modelApiToolsOptions),
-    planMarkdown: esbuild.build(planMarkdownOptions),
-    checkpointStore: esbuild.build(checkpointStoreOptions),
-    media: esbuild.build(mediaOptions),
-    screenRecord: esbuild.build(screenRecordOptions),
-    agentImport: esbuild.build(agentImportOptions),
-    conversationGit: esbuild.build(conversationGitOptions),
-    modelApiSessions: esbuild.build(modelApiSessionsOptions),
-    rulesFile: esbuild.build(rulesFileOptions),
-    bundledSkills: esbuild.build(bundledSkillsOptions),
-    legalScan: esbuild.build(legalScanOptions),
-    codeIntel: esbuild.build(codeIntelOptions),
-    voice: esbuild.build(voiceOptions),
-    webFetch: esbuild.build(webFetchOptions),
-    mcpVault: esbuild.build(mcpVaultOptions),
-    museCodeReviewer: esbuild.build(museCodeReviewerOptions),
-    modelsPanel: esbuild.build(modelsPanelOptions),
-    modelsSubscriptions: esbuild.build(modelsSubscriptionsOptions),
-    usageService: esbuild.build(usageServiceOptions),
-    usageCompanion: esbuild.build(usageCompanionOptions),
-    usagePanel: esbuild.build(usagePanelOptions),
-    extensionHooks: esbuild.build(extensionHooksOptions),
-    vault: esbuild.build(vaultOptions),
-    report: esbuild.build(reportOptions),
-    estimator: esbuild.build(estimatorOptions),
-    recorder: esbuild.build(recorderOptions),
-    whatsNew: esbuild.build(whatsNewOptions),
-    judge: esbuild.build(judgeOptions),
-    scheduleBackground: esbuild.build(scheduleBackgroundOptions),
-    uiText: esbuild.build(uiTextOptions),
+  // F6 (2026-10-17, msm112 cert): starting every bundle at once (~90
+  // concurrent builds through one esbuild service) failed under machine load
+  // with an error that named no file, then left the service wedged. Hold each
+  // bundle's options as a thunk and start a bounded pool instead; a failure
+  // names its bundle, and the pool's caller stops the service so the process
+  // exits with the true error instead of hanging on in-flight builds.
+  const BUILD_POOL_SIZE = 8
+  const shippedSpecs = {
+    questionNotes: () =>
+      esbuild.build({
+        ...modelApiOptions,
+        entryPoints: ['src/core/questions/deferralEntry.ts'],
+        outfile: 'dist/questionNotes.js',
+      }),
+    mcpPool: () => esbuild.build(mcpPoolOptions),
+    modelApiCodeIntel: () => esbuild.build(modelApiCodeIntelOptions),
+    structuredSchema: () => esbuild.build(structuredSchemaOptions),
+    extension: () => esbuild.build(hostOptions),
+    conversation: () => esbuild.build(conversationOptions),
+    tab: () => esbuild.build(tabOptions),
+    prompts: () => esbuild.build(promptsOptions),
+    sharingRuntime: () => esbuild.build(sharingRuntimeOptions),
+    modelApi: () => esbuild.build(modelApiOptions),
+    resourceGovernor: () => esbuild.build(resourceGovernorOptions),
+    resourceProcess: () => esbuild.build(resourceProcessOptions),
+    resourceJournal: () => esbuild.build(resourceJournalOptions),
+    resourceAdmission: () => esbuild.build(resourceAdmissionOptions),
+    providers: () => esbuild.build(providersOptions),
+    subscriptions: () => esbuild.build(subscriptionsOptions),
+    configuredProviders: () => esbuild.build(configuredOptions),
+    review: () => esbuild.build(reviewOptions),
+    sessionBoard: () => esbuild.build(sessionBoardOptions),
+    reporting: () => esbuild.build(reportingOptions),
+    reportingNetwork: () => esbuild.build(reportingNetworkOptions),
+    reportingDestinations: () => esbuild.build(reportingDestinationsOptions),
+    reportingPanel: () => esbuild.build(reportingPanelOptions),
+    reference: () => esbuild.build(referenceOptions),
+    schedules: () => esbuild.build(schedulesOptions),
+    reviewer: () => esbuild.build(reviewerOptions),
+    team: () => esbuild.build(teamOptions),
+    teamRunners: () => esbuild.build(teamRunnersOptions),
+    teamScheduler: () => esbuild.build(teamSchedulerOptions),
+    foreignHooks: () => esbuild.build(foreignHooksOptions),
+    modelApiHooks: () =>
+      esbuild.build({
+        ...modelApiOptions,
+        entryPoints: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
+        outfile: 'dist/modelApiHooks.js',
+      }),
+    modelApiMcp: () =>
+      esbuild.build({
+        ...modelApiOptions,
+        entryPoints: ['src/core/backends/modelapi/modelApiMcpEntry.ts'],
+        outfile: 'dist/modelApiMcp.js',
+      }),
+    runtimeAccounting: () =>
+      esbuild.build({
+        ...modelApiOptions,
+        entryPoints: ['src/runtime/runtimeAccountingEntry.ts'],
+        outfile: 'dist/runtimeAccounting.js',
+      }),
+    providerPolicy: () =>
+      esbuild.build({
+        ...modelApiOptions,
+        entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
+        outfile: 'dist/providerPolicy.js',
+      }),
+    runtimeEngine: () =>
+      esbuild.build({
+        ...acpOptions,
+        entryPoints: ['src/runtime/runtimeEngineEntry.ts'],
+        outfile: 'dist/runtimeEngine.js',
+      }),
+    hookRuntime: () => esbuild.build(hookRuntimeOptions),
+    pluginHooks: () => esbuild.build(pluginHooksOptions),
+    modelApiTools: () => esbuild.build(modelApiToolsOptions),
+    planMarkdown: () => esbuild.build(planMarkdownOptions),
+    checkpointStore: () => esbuild.build(checkpointStoreOptions),
+    media: () => esbuild.build(mediaOptions),
+    screenRecord: () => esbuild.build(screenRecordOptions),
+    agentImport: () => esbuild.build(agentImportOptions),
+    conversationGit: () => esbuild.build(conversationGitOptions),
+    modelApiSessions: () => esbuild.build(modelApiSessionsOptions),
+    rulesFile: () => esbuild.build(rulesFileOptions),
+    bundledSkills: () => esbuild.build(bundledSkillsOptions),
+    legalScan: () => esbuild.build(legalScanOptions),
+    codeIntel: () => esbuild.build(codeIntelOptions),
+    voice: () => esbuild.build(voiceOptions),
+    webFetch: () => esbuild.build(webFetchOptions),
+    mcpVault: () => esbuild.build(mcpVaultOptions),
+    museCodeReviewer: () => esbuild.build(museCodeReviewerOptions),
+    modelsPanel: () => esbuild.build(modelsPanelOptions),
+    modelsSubscriptions: () => esbuild.build(modelsSubscriptionsOptions),
+    usageService: () => esbuild.build(usageServiceOptions),
+    usageCompanion: () => esbuild.build(usageCompanionOptions),
+    usagePanel: () => esbuild.build(usagePanelOptions),
+    extensionHooks: () => esbuild.build(extensionHooksOptions),
+    vault: () => esbuild.build(vaultOptions),
+    report: () => esbuild.build(reportOptions),
+    estimator: () => esbuild.build(estimatorOptions),
+    recorder: () => esbuild.build(recorderOptions),
+    whatsNew: () => esbuild.build(whatsNewOptions),
+    judge: () => esbuild.build(judgeOptions),
+    scheduleBackground: () => esbuild.build(scheduleBackgroundOptions),
+    uiText: () => esbuild.build(uiTextOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
         path.basename(region.output, '.js'),
-        esbuild.build(uiTextRegionOptions[index]),
+        () => esbuild.build(uiTextRegionOptions[index]),
       ]),
     ),
-    validation: esbuild.build(validationOptions),
-    wire: esbuild.build(wireOptions),
-    estimateContracts: esbuild.build(estimateContractsOptions),
-    vaultBoundaries: esbuild.build(vaultBoundariesOptions),
-    modelApiBoundaries: esbuild.build(modelApiBoundariesOptions),
-    browserCheck: esbuild.build(browserCheckOptions),
-    browserRuntime: esbuild.build(browserRuntimeOptions),
-    searchWorker: esbuild.build(searchWorkerOptions),
-    pageWorker: esbuild.build(pageWorkerOptions),
-    imageResizeWorker: esbuild.build(imageResizeWorkerOptions),
-    webview: esbuild.build(webviewOptions),
+    validation: () => esbuild.build(validationOptions),
+    wire: () => esbuild.build(wireOptions),
+    estimateContracts: () => esbuild.build(estimateContractsOptions),
+    vaultBoundaries: () => esbuild.build(vaultBoundariesOptions),
+    modelApiBoundaries: () => esbuild.build(modelApiBoundariesOptions),
+    browserCheck: () => esbuild.build(browserCheckOptions),
+    browserRuntime: () => esbuild.build(browserRuntimeOptions),
+    searchWorker: () => esbuild.build(searchWorkerOptions),
+    pageWorker: () => esbuild.build(pageWorkerOptions),
+    imageResizeWorker: () => esbuild.build(imageResizeWorkerOptions),
+    webview: () => esbuild.build(webviewOptions),
   }
-  const acp = esbuild.build(acpOptions)
-  const headless = esbuild.build(headlessOptions)
-  const acpQuestions = esbuild.build(acpQuestionsOptions)
-  const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
-  const fontInstall = esbuild.build(fontInstallOptions)
-  const playbook = esbuild.build(playbookOptions)
-  const exec = esbuild.build(execOptions)
-  const runtimeAccounts = esbuild.build(runtimeAccountsOptions)
-  const builds = [
-    ...Object.values(shipped),
-    acp,
-    exec,
-    headless,
-    acpQuestions,
-    runtimeQuestions,
-    fontInstall,
-    playbook,
-    runtimeAccounts,
+  const extraSpecs = [
+    ['acp', () => esbuild.build(acpOptions)],
+    ['exec', () => esbuild.build(execOptions)],
+    ['headless', () => esbuild.build(headlessOptions)],
+    ['acpQuestions', () => esbuild.build(acpQuestionsOptions)],
+    ['runtimeQuestions', () => esbuild.build(runtimeQuestionsOptions)],
+    ['fontInstall', () => esbuild.build(fontInstallOptions)],
+    ['playbook', () => esbuild.build(playbookOptions)],
+    ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
   ]
   if (!isProduction) {
-    builds.push(esbuild.build(integrationTestOptions))
+    extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
   }
-  await Promise.all(builds)
+  let shipped
+  let acp
+  let exec
+  let headless
+  let acpQuestions
+  let runtimeQuestions
+  let fontInstall
+  let playbook
+  let runtimeAccounts
+  try {
+    shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
+    ;({
+      acp,
+      exec,
+      headless,
+      acpQuestions,
+      runtimeQuestions,
+      fontInstall,
+      playbook,
+      runtimeAccounts,
+    } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
+  } catch (error) {
+    await esbuild.stop()
+    throw error
+  }
   if (isProduction) {
     rmSync(METAFILE_DIR, { recursive: true, force: true })
     const ACP_METAFILE_DIR = 'dist/meta-acp'
