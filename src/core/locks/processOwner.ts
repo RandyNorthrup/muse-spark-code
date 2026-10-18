@@ -204,8 +204,11 @@ interface BirthReader {
 
 /**
  * Removes the readers of processes that have ended (named by their process
- * id). One whose id is in use stays, a reused id's until that process ends
- * too, and so does one Windows will not delete because it is running.
+ * id), and those named with this process's own id: this process builds
+ * after this sweep, so each of those is an earlier process's whose id
+ * Windows gave to this one, or one this process refused. One whose id
+ * another live process holds stays (a reused id's until that process ends
+ * too), and so does one Windows will not delete because it is running.
  */
 async function removeEndedBirthReaders(folder: string): Promise<void> {
   let names: string[]
@@ -216,7 +219,11 @@ async function removeEndedBirthReaders(folder: string): Promise<void> {
   }
   for (const name of names) {
     const owner = WINDOWS_BIRTH_READER_NAME.exec(name)?.[1]
-    if (owner !== undefined && !isProcessAlive(Number(owner))) {
+    if (owner === undefined) {
+      continue
+    }
+    const pid = Number(owner)
+    if (pid === process.pid || !isProcessAlive(pid)) {
       await removeQuietly(path.win32.join(folder, name))
     }
   }

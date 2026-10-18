@@ -7,6 +7,7 @@
 // call where an interleaving matters.
 
 import { execFileSync, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { copyFile, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { homedir, hostname, tmpdir } from 'node:os'
@@ -114,26 +115,70 @@ function liveProcess(): { readonly pid: number; readonly stop: () => Promise<voi
   }
 }
 
-// A parent that starts a child ending with exit code 259 and then blocks
-// inside the child's 'exit' listener, before Node closes the child's handle,
-// so the ended child's process object stays while the test reads it.
-const HOLDER_OF_ENDED_259 = String.raw`
-const { spawn } = require('node:child_process')
-const { writeSync } = require('node:fs')
-const child = spawn(process.execPath, ['-e', 'process.exit(259)'], { stdio: 'ignore', windowsHide: true })
-child.on('exit', (code) => {
-  writeSync(1, String(child.pid) + ' ' + String(code) + '\n')
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 30000)
-})
+/** Windows: `source` built by Windows' own C# compiler into `folder` as `name`.exe. */
+async function windowsProgram(folder: string, name: string, source: string): Promise<string> {
+  const file = path.join(folder, `${name}.cs`)
+  const program = path.join(folder, `${name}.exe`)
+  await writeFile(file, source)
+  const framework = path.win32.join(
+    process.env['SystemRoot'] ?? '',
+    WINDOWS_FRAMEWORK_RELATIVE_PATH,
+  )
+  // csc writes its diagnostics to stdout: a failed build shows them.
+  execFileSync(
+    path.win32.join(framework, 'csc.exe'),
+    [
+      '/nologo',
+      '/noconfig',
+      `/reference:${path.win32.join(framework, 'System.dll')}`,
+      `/out:${program}`,
+      file,
+    ],
+    { encoding: 'utf8', windowsHide: true },
+  )
+  return program
+}
+
+// Starts itself again to end with exit code 259, waits for that child to
+// end, prints its id and exit code, and keeps its own handle to it (the
+// `Process` object) open until it is ended: the ended child's process object
+// stays, held independently of Node and libuv, while the test reads it.
+const HOLDER_OF_ENDED_259 = `using System;
+using System.Diagnostics;
+using System.Threading;
+
+static class Holder
+{
+    static int Main(string[] args)
+    {
+        if (args.Length == 1 && args[0] == "end") return 259;
+        ProcessStartInfo start = new ProcessStartInfo(typeof(Holder).Assembly.Location, "end");
+        start.UseShellExecute = false;
+        start.CreateNoWindow = true;
+        Process child = Process.Start(start);
+        child.WaitForExit();
+        Console.Out.WriteLine(child.Id + " " + child.ExitCode);
+        Console.Out.Flush();
+        Thread.Sleep(30000);
+        GC.KeepAlive(child);
+        return 0;
+    }
+}
 `
 
 /** Windows: a child that ended with exit code 259 while its parent still holds its handle. */
 async function endedWith259(): Promise<{
   readonly pid: number
   readonly code: number
-  readonly stop: () => void
+  readonly stop: () => Promise<void>
 }> {
-  const holder = spawn(process.execPath, ['-e', HOLDER_OF_ENDED_259], { windowsHide: true })
+  const scratch = await mkdtemp(path.join(tmpdir(), 'm123p-holder-'))
+  const holder = spawn(await windowsProgram(scratch, 'Holder', HOLDER_OF_ENDED_259), [], {
+    windowsHide: true,
+  })
+  const exited = new Promise((resolve) => {
+    holder.once('exit', resolve)
+  })
   const line = await new Promise<string>((resolve, reject) => {
     let text = ''
     holder.stdout.on('data', (bytes: Buffer) => {
@@ -151,8 +196,10 @@ async function endedWith259(): Promise<{
   return {
     pid,
     code,
-    stop: () => {
+    stop: async () => {
       holder.kill('SIGKILL')
+      await exited
+      await rm(scratch, { recursive: true, force: true })
     },
   }
 }
@@ -163,20 +210,19 @@ function birthReaderFolder(): string {
   return path.join(localAppData, ACP_DATA_FOLDER.win32, WINDOWS_BIRTH_READER_FOLDER)
 }
 
-/** Windows: a program that prints 42 whatever it is asked, built by Windows' own C# compiler. */
+/** Windows: the birth readers in `folder` named with process `pid`'s id. */
+async function readersNamedFor(folder: string, pid: number): Promise<string[]> {
+  const names = await readdir(folder)
+  return names.filter((name) => name.startsWith(`MuseSparkBirth-${String(pid)}-`))
+}
+
+/** Windows: a program that prints 42 whatever it is asked. */
 async function impostorProgram(folder: string): Promise<string> {
-  const source = path.join(folder, 'Impostor.cs')
-  const program = path.join(folder, 'Impostor.exe')
-  await writeFile(
-    source,
+  return await windowsProgram(
+    folder,
+    'Impostor',
     'static class Impostor { static void Main() { System.Console.Out.Write("42"); } }',
   )
-  execFileSync(
-    path.win32.join(process.env['SystemRoot'] ?? '', WINDOWS_FRAMEWORK_RELATIVE_PATH, 'csc.exe'),
-    ['/nologo', '/noconfig', `/out:${program}`, source],
-    { stdio: 'ignore', windowsHide: true },
-  )
-  return program
 }
 
 async function lockFolder(): Promise<{ readonly folder: string; readonly lockPath: string }> {
@@ -327,7 +373,7 @@ describe('process owners (M123 lane P)', () => {
         expect(ended.code).toBe(259)
         expect(await processStartTime(ended.pid)).toBeUndefined()
       } finally {
-        ended.stop()
+        await ended.stop()
       }
     },
   )
@@ -338,18 +384,28 @@ describe('process owners (M123 lane P)', () => {
       const born = await processStartTime(process.pid)
       expect(born).toBeDefined()
       const folder = birthReaderFolder()
-      const names = await readdir(folder)
-      const mine = names.filter((name) => name.startsWith(`MuseSparkBirth-${String(process.pid)}-`))
+      // This process's build swept any reader an earlier process with this id
+      // left, so the one reader named with this id is this process's own.
+      const mine = await readersNamedFor(folder, process.pid)
       expect(mine).toHaveLength(1)
       const reader = path.join(folder, mine[0] ?? '')
       const scratch = await mkdtemp(path.join(tmpdir(), 'm123p-impostor-'))
       try {
-        await copyFile(await impostorProgram(scratch), reader)
+        const impostor = await impostorProgram(scratch)
+        // What an earlier process with this id leaves when Windows reuses it.
+        const leftover = path.join(
+          folder,
+          `MuseSparkBirth-${String(process.pid)}-${randomUUID()}.exe`,
+        )
+        await copyFile(impostor, leftover)
+        await copyFile(impostor, reader)
         // Refused and removed, never run (it would answer 42); the next read
-        // builds a new reader.
+        // builds a new reader, and its sweep removes the leftover.
         expect(await processStartTime(process.pid)).toBeUndefined()
         expect(existsSync(reader)).toBe(false)
         expect(await processStartTime(process.pid)).toBe(born)
+        expect(existsSync(leftover)).toBe(false)
+        expect(await readersNamedFor(folder, process.pid)).toHaveLength(1)
       } finally {
         await rm(scratch, { recursive: true, force: true })
       }
