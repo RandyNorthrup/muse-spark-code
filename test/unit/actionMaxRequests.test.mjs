@@ -5,7 +5,7 @@ import { InputError, parseActionInputs } from '../../action/lib/tools.mjs'
 
 // No default request limit (NOLIMITS5B): without a max-requests input the
 // Action sets no request limit, like the CLI after NOLIMITS5. A set value is
-// still bounded to 1–500 and is the only case forwarded to exec.
+// any positive safe integer and is the only case forwarded to exec.
 
 const baseEnv = () => ({ MUSE_INPUT_MAX_BUDGET_USD: '2.00' })
 
@@ -34,14 +34,16 @@ it('treats a missing or empty max-requests input as no request limit', () => {
   expect(parseActionInputs(withMaxRequests('')).maxRequests).toBe(null)
 })
 
-it('keeps a set max-requests input within 1–500', () => {
+it('accepts any positive max-requests input with no maximum', () => {
   expect(parseActionInputs(withMaxRequests('1')).maxRequests).toBe(1)
   expect(parseActionInputs(withMaxRequests('30')).maxRequests).toBe(30)
   expect(parseActionInputs(withMaxRequests('500')).maxRequests).toBe(500)
+  expect(parseActionInputs(withMaxRequests('501')).maxRequests).toBe(501)
+  expect(parseActionInputs(withMaxRequests('1000000')).maxRequests).toBe(1_000_000)
 })
 
-it('refuses an out-of-range max-requests input without naming a value', () => {
-  for (const value of ['0', '501', 'abc', '30.5']) {
+it('refuses a non-count max-requests input without naming a value', () => {
+  for (const value of ['0', '-1', 'abc', '30.5']) {
     expect(() => parseActionInputs(withMaxRequests(value))).toThrow(InputError)
   }
 })

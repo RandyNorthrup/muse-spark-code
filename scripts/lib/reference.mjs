@@ -1026,13 +1026,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     ])
   if (exec([]).options?.maxRequests !== undefined)
     errors.push('CLI request limit mismatch: --max-requests unset must leave no limit')
-  if (
-    exec(['--max-requests', String(source.EXEC_MAX_REQUESTS)]).options?.maxRequests !==
-    source.EXEC_MAX_REQUESTS
-  )
+  if (exec(['--max-requests', '501']).options?.maxRequests !== 501)
     errors.push('CLI request limit mismatch')
-  if (exec(['--max-requests', String(source.EXEC_MAX_REQUESTS + 1)]).command !== 'invalid')
-    errors.push('CLI request bound mismatch')
+  if (exec(['--max-requests', '1000000']).options?.maxRequests !== 1_000_000)
+    errors.push('CLI request limit mismatch: a set count has no maximum')
+  for (const refused of ['0', '-1', 'abc'])
+    if (exec(['--max-requests', refused]).command !== 'invalid')
+      errors.push('CLI request bound mismatch')
   for (const value of [source.EXEC_MIN_TIMEOUT_SECONDS, source.EXEC_MAX_TIMEOUT_SECONDS])
     if (
       exec(['--timeout', String(value)]).options?.timeoutMs !==

@@ -29,7 +29,7 @@ inputs:
     required: false
     default: 'false'
   max-requests:
-    description: Billable HTTP attempts allowed, retries included (1-500); empty sets no request limit.
+    description: Billable HTTP attempts allowed, retries included (any positive integer); empty sets no request limit.
     required: false
     default: ''
   timeout-minutes:

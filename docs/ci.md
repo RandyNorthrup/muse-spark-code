@@ -48,7 +48,7 @@ muse-spark-code-acp scan-secrets fix.patch
 | --allow-contributor-models          | off                    | Explicit permission to select a contributor model; docs name training eligibility (`apidocs/pricing-rate-limits.md:21–29`).                    |
 | --output text\|json\|jsonl          | text                   | Exact enum.                                                                                                                                    |
 | --max-budget-usd <usd>              | required for Model API | Finite positive USD decimal (grammar below, no upper bound); must cover the model minimum below before billable dispatch. Refuse on Muse Code. |
-| --max-requests <n>                  | none (no limit)        | Integer 1–500 when set; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.                    |
+| --max-requests <n>                  | none (no limit)        | Any positive safe integer when set; all admitted billable HTTP attempts, including retries, compaction and images. Refuse on Muse Code.        |
 | --timeout <seconds>                 | 1800                   | Integer 10–21,600; deadline counts from process start.                                                                                         |
 | --image-generation                  | off                    | Model API plus acceptEdits plus budget.                                                                                                        |
 | --web-search                        | refused                | Exit 2; no hosted-tool allowance.                                                                                                              |
@@ -318,7 +318,7 @@ Main Action is `action/`; apply sub-action is `action/apply/`. Frozen contract:
 | max-budget-usd                          | required            | Same CLI budget grammar above (positive, no upper bound); includes text and images.                                |
 | mode                                    | review              | review→plan, fix→acceptEdits.                                                                                      |
 | image-generation                        | false               | Exact boolean; true only in fix.                                                                                   |
-| max-requests                            | empty (no limit)    | Empty sets no request limit; a set value follows the CLI request-count bounds above (1–500).                       |
+| max-requests                            | empty (no limit)    | Empty sets no request limit; a set value follows the CLI request-count rule above (any positive safe integer).     |
 | timeout-minutes                         | 20                  | Integer; converted into allowed exec seconds.                                                                      |
 | model, effort, allow-contributor-models | empty, empty, false | Selected model validation; contributor explicitly opted in.                                                        |
 | max-diff-bytes                          | 262144              | Integer 1–1,048,576; truncation reported.                                                                          |
