@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Terminal schedule management is merged with the no-hold money model: a
+  schedule fire admits against the schedule's own caps and the person's
+  daily limit as one claim, and the reservation journal is gone. Management
+  (`add`, `list`, `timeline`, `pause`, `resume`, `remove`) passes from the
+  packed CLI; execution refuses while delivery is uncertified (record:
+  `docs/real-life/pr207-2026-10-18.md`).
+
 - A new schedule draft no longer starts with a $1 spending cap: it starts at
   zero and never spends until the person sets a cap and completes paid
   consent for it, on both backends.
