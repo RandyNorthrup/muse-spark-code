@@ -10,7 +10,7 @@ import { fleetSnapshotSchema } from '../../src/shared/estimate'
 import { safePolicyUrl } from '../../src/shared/hostApi/accounts'
 import { EN } from '../../src/shared/l10n/en'
 import { USAGE_EN } from '../../src/shared/l10n/usageEn'
-import { loadUsageTable } from '../../src/shared/l10n/usageTable'
+import { loadUsageTable, type UsageTable } from '../../src/shared/l10n/usageTable'
 import { providerOutputMinimum } from '../../src/shared/providerRouting'
 import { createReference } from '../../src/shared/reference/referenceEntry'
 import { parseReviewBlock } from '../../src/shared/reviewFindings'
@@ -141,17 +141,21 @@ describe('URL refinements', () => {
   })
 })
 
+function loadFrom(root: string, warnings: string[]): Promise<UsageTable> {
+  return loadUsageTable({
+    language: 'de',
+    readTableFile: (segments) => readFile(path.join(root, ...segments), 'utf8'),
+    warn: (message) => {
+      warnings.push(message)
+    },
+  })
+}
+
 describe('usage table reads', () => {
   it('falls back to English with a warning when the table file is missing', async () => {
     const root = await scratchRoot()
     const warnings: string[] = []
-    const loaded = await loadUsageTable({
-      language: 'de',
-      readTableFile: (segments) => readFile(path.join(root, ...segments), 'utf8'),
-      warn: (message) => {
-        warnings.push(message)
-      },
-    })
+    const loaded = await loadFrom(root, warnings)
     expect(loaded.locale).toBe('en')
     expect(loaded.table).toBe(USAGE_EN)
     expect(warnings).toHaveLength(1)
@@ -163,13 +167,7 @@ describe('usage table reads', () => {
     await mkdir(path.join(root, 'l10n'), { recursive: true })
     await writeFile(path.join(root, 'l10n', 'usage.de.json'), '{oops', 'utf8')
     const warnings: string[] = []
-    const loaded = await loadUsageTable({
-      language: 'de',
-      readTableFile: (segments) => readFile(path.join(root, ...segments), 'utf8'),
-      warn: (message) => {
-        warnings.push(message)
-      },
-    })
+    const loaded = await loadFrom(root, warnings)
     expect(loaded.table).toBe(USAGE_EN)
     expect(warnings).toHaveLength(1)
   })
