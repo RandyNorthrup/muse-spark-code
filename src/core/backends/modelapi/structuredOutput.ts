@@ -145,7 +145,8 @@ function decoded(text: string): unknown {
   try {
     const value: unknown = JSON.parse(text)
     return value
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
