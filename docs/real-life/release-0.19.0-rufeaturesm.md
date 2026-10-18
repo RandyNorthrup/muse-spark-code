@@ -171,6 +171,185 @@ muse-spark-1.3-contributor --allow-contributor-models --cwd <scratch>
 - `07a29194c` contributor-tier attempt (+ CHANGELOG).
 - This commit: this record + playback doc fix (+ CHANGELOG).
 
+---
+
+# Round 2 (2026-10-18, rig `macmini`, lane RUFEATURESM2)
+
+Branch `realuse/0190-features-m2` (Intel Mac, x86_64: this platform's
+target is `darwin-x64`). Model on every packed-product request:
+`muse-spark-1.3-contributor` (`exec --model`, ACP `session/set_config_option`;
+the 4-model serve catalogue still defaults to `muse-wonder-1.0`, never let
+through). Provider-line audit: this lane's CLI journal for its own ACP
+session (`01a150e2-…`, `~/.local/share/muse/sessions/.msp-view-g6/`) holds
+4 model lines, all `muse-spark-1.3-contributor`, zero for any other model;
+the packed exec turn's session (`01a1512d-…`) holds 2, both contributor.
+(A neighbouring lane's `acp-r2-*` sessions share the same store; none of
+its lines are counted here.) Model calls through the product: **3 / 40** —
+2 ACP turns + 1 packed-`exec` turn, every product ledger line
+`settled $0.000000` (Muse Code backend turns are unmetered). A fourth
+`exec` spawned behind `| head` was SIGPIPE-cut before dispatch (its
+session holds 0 model lines) and is disclosed, not counted. No API key
+needed or read; HOME and all sign-in variables untouched.
+
+## ACP two-turn conversation + every keyless error path, in-session
+
+Packed agent over stdio (`node dist/acp.js --allow-contributor-models`,
+fresh `temp/r2scratch`, session `01a150e2-…`; driver `temp/acp-drive.mjs`):
+
+- `session/set_config_option` model → `muse-spark-1.3-contributor`:
+  accepted (`currentValue` contributor; round 1's agent.ts allowance live).
+- Turn 1 (`Reply with exactly this word: quince`) → `quince`, `end_turn`.
+- Turn 2 (create `r2marker.txt`, exact line + newline) → `end_turn`;
+  bytes on disk byte-exact (`MARKER-r2-bytes-0123456789\n`).
+- `/playback` → `Invalid request: A playback needs the Model API
+backend: Muse Code offers no turn without tools, so no playback can
+start there.` (zero requests).
+- `/playback with extra words here` → usage (`playback takes no
+arguments: send it bare`), `end_turn`, no model turn.
+- `/uploads` → `Invalid params: No uploaded files.`
+
+First-attempt `session/new` failed `ENOENT native/darwin/muse-dictate`
+(the helper is a git-ignored build artifact, absent in a fresh worktree):
+built with `bash native/darwin/build.sh` (exit 0; universal binary +
+`dist/native/darwin/muse-vault`), then green. A worktree without the
+helper cannot open any session — worth one line in Setup docs (lead's
+call; not changed here).
+
+## Per-platform packaging ported so darwin packs (fix, commit `c547954f7`)
+
+#246 is not on this branch and the brief lists no merge, so the
+mechanism is ported, not merged: vsix side follows the platform join
+(`isVsixTargetFile`, targeted artifact names, multi-artifact size gate),
+minus the vault lane's `check-packaged-bundles` assert and `VaultPipe.cs`
+(absent here; win32 requires only `dictate.ps1`, each noted in code).
+The join dropped #246's ACP half without mention, so it is restored and
+adapted (`acpNativeFiles`, `--target` through `package-acp.mjs`, targeted
+`.tgz` names; win32 keeps this branch's `VOICE_WINDOWS_HELPERS`).
+`test/unit/vsixTargets.test.mjs` (8 tests) and
+`test/unit/acpNativeFiles.test.mjs` (3 tests) kept with the port; each
+was seen to fail on a planted break and pass reverted. CHANGELOG
+`[Unreleased]` Packaging, README rows, `docs/RELEASING.md` note included.
+
+- `node scripts/package-vsix.mjs --target darwin-x64` (direct script run;
+  `npm run package` still stops at the two build budgets below):
+  `muse-spark-code-darwin-x64-0.19.0.vsix`, 3,852,534 bytes,
+  `TargetPlatform="darwin-x64"`, zero `native/linux/` or
+  `native/windows/` entries (only `native/dictation-linux/*LICENSE.txt`
+  match a naive `linux/` grep).
+- `node scripts/package-acp.mjs --target darwin-x64`: exit 0,
+  `dist/muse-spark-code-acp-0.19.0-darwin-x64.tgz`, 3,206,136 bytes (help
+  checks + module-exports gate inside); zero linux/windows entries;
+  darwin helper + screen app + vault + runner present.
+- FAIL (recorded, not raised): the darwin-x64 `.vsix` is 63,734 bytes
+  over the unchanged 3,788,800-byte budget. First real darwin
+  measurement anywhere (upstream's table leaves darwin to CI): the
+  required darwin binaries (~432 KB compressed: two 506 KB dictate
+  copies + 292 KB vault) were never in the universal baseline the
+  budget was measured from. No legitimate cut exists (both dictate
+  copies and the vault helper ship by design); the budget call stays
+  with the lead (PLAN.md D6).
+- Still red from round 1: `dist/conversation.js` 254.9/250 KiB (diet
+  lane) and now `dist/headless.js` 102,415/102,400 bytes (15 bytes;
+  plausibly round 1's own exec allowance — no golfing; needs the same
+  diet/remeasure lane). `npm run build` otherwise runs clean; split
+  gate green.
+
+## Packed panel drive over CDP (text reads, no screenshots)
+
+Isolated profile/extensions in `temp/vscode`, packed darwin-x64 `.vsix`
+installed (`code --install-extension`, success), second editor instance
+launched from its own binary with `--remote-debugging-port=9333`
+(`open -a` and the `code` shim both reuse the running instance; direct
+binary launch is what works). Renderer lessons: default flags crash the
+renderer (`CodeWindow: renderer process gone, code 6`, sandbox/GPU
+errors); `--no-sandbox` (+ or - `--disable-gpu`) keeps it up and CDP
+answers. Driver: `temp/cdp-drive.mjs` (+ `cdp-webview.mjs`,
+`cdp-probe2.mjs`, `cdp-panel.mjs`).
+
+- Palette lists the packed commands (`Add Model Provider`, `MCP
+Servers`, `Models & Agents`, `New Conversation`, …). PASS.
+- `Muse Spark: Open in Sidebar` creates viewlet
+  `workbench.view.extension.museSpark` and a webview iframe. The chat
+  React app never boots here: 8 nodes, no `#root`, empty text, zero
+  resource loads — under default, no-sandbox, and trusted-folder runs
+  alike, with zero errors in exthost/renderer logs and the extension
+  activated. Same wall as the limits and platform lanes (their
+  bootstrap-only finding reproduced exactly). Consequence: no panel
+  turn, no model picker, no retry words, no `/playback` panel path on
+  this rig — all recorded below, none stood in for.
+- `Muse Spark: Models & Agents` opens the editor surface; its webview
+  is bootstrap-only too.
+- `Muse Spark: Attach Latest Screen Recording` → toast, word for word:
+  `No recent screen recording was found.` PASS.
+- `Muse Spark: Report a Problem` runs silent: with no live surface it
+  takes the pending path (`isReportPending`, opens a conversation that
+  cannot go live here) by design — no toast, no dialog. The CLI
+  `report problem` from the packed tarball prints a real report
+  (0.19.0, darwin, node 24.21.0, `cli: found`). PASS each side.
+- `Muse Spark: Diagnostics` renders the support report in the Output
+  panel (network posture, `muse config status` generation + sha). PASS.
+- Editor and port verified down afterwards; all processes stopped.
+
+## Packed-tarball behaviour (extracted `…-darwin-x64.tgz`, no model named twice)
+
+- `exec … --model muse-spark-1.3-contributor … "Reply with exactly this
+word: quince"` → `completed`, exit 0, model
+  `muse-spark-1.3-contributor`, `quince`, settled `$0.000000`. PASS.
+- `exec … --attach flag.png` (inside the workspace) → exit 3,
+  `backend_unavailable`: `This session has no file upload service, so
+video and audio cannot be sent. Use the Model API backend with a Meta
+key.` (envelope only; human text still withholds it — round 1's
+  observation stands). PASS, $0.
+- `--attach` of a file outside `--cwd` → `This private file cannot be
+attached.` (workspace confinement, M105, by design). Noted from my
+  own misplaced probe, not a FAIL.
+- `--model muse-spark-9-contributor` (typo) → the CLI's own refusal,
+  zero dispatch. `--model bogus-model-zzz` → local `usage_error`,
+  exit 2, `This model is not available for this run.` PASS both.
+
+## Gates on the final tree
+
+- `prettier --check` (all changed files): clean.
+- `eslint --max-warnings=0` (7 changed script/test files): clean (one
+  `no-nested-ternary` vs `prefer-ternary` + prettier tug resolved by
+  restructuring, not suppression).
+- `npm run typecheck` (all projects): exit 0.
+- `npx vitest run` (repo timeout, `--maxWorkers=3`): `vsixTargets` 8/8
+  - `acpNativeFiles` 3/3 (plus the deliberate-break red seen mid-work).
+- `npm run build`: red only on the two budgets above (conversation
+  diet + headless 15 B); everything else green incl. split gate.
+- `node scripts/check-bundle-size.mjs`: the two OVERs above, unchanged.
+- Coverage gates, final tree: `check:l10n` 0 problems; `check:reference`
+  current (76 features, 65 commands, 93 settings, 30 slash, 259 CLI);
+  `check:host-api` 0 problems; `check:plan` FAILS pre-existing (PLAN.md
+  3,588,891 bytes over 85% of the reader bound; untouched by this lane);
+  `deadcode` exit 0; `cycles` none; duplication 0 clones;
+  `security:audit` exit 0 (2 advisories, 1 exception);
+  `security:sast` exit 2 environmental (semgrep binary dies at startup:
+  `Failure: ca-certs: empty trust anchors`, macOS sandbox cert store;
+  exact log kept in `temp/sast.log`, gitignored).
+- `npx vitest related --run` (5 changed script files): 2 files, 11/11
+  pass. The packagers' own gates ran inside the packs (vsix l10n +
+  badges + 89 moduleExports; ACP help checks + moduleExports).
+
+## Commits (this round)
+
+- `c547954f7` packaging port + tests + docs (+ CHANGELOG).
+- This commit: this Round 2 section (docs only).
+
+## Still open (for the lead / join)
+
+1. Conversation diet + headless 15 B (build budgets; lead's item 1).
+2. darwin-x64 `.vsix` 63,734 B over the universal-measured budget
+   (first real darwin number; budget call is the lead's).
+3. Panel turn, model picker (+ rate-limit headers), panel retry words,
+   panel `/playback`, media/transcription/voice turns: need a key, a
+   GUI host whose webviews boot, or both.
+4. `providers usage` / `auth status` silent-1 with unreachable store;
+   attach reason withheld from human output (both round-1 items,
+   unchanged by this round).
+5. `check:catches` left red per the brief (join + catch lanes).
+
 ## Open for the lead / join
 
 1. Conversation diet (+4.9 KiB over 250; attribution above).
