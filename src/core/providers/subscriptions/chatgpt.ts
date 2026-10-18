@@ -301,6 +301,14 @@ function jwtPart(value: string): unknown {
   }
 }
 
+/**
+ * The stored account identity: the product's SHA-256 over the verified
+ * issuer and subject. Raw identity claims never leave this derivation.
+ */
+export function chatGptAccountIdHash(issuer: string, subject: string): string {
+  return createHash('sha256').update(`${issuer}\0${subject}`).digest('hex')
+}
+
 /** Return only a hash after verification; raw identity claims stay in this function. */
 export function verifyChatGptIdToken(options: {
   readonly token: string
@@ -361,9 +369,7 @@ export function verifyChatGptIdToken(options: {
   } catch {
     throw new ChatGptSignInError('invalid-id-token')
   }
-  return claims.sub === undefined
-    ? undefined
-    : createHash('sha256').update(`${claims.iss}\0${claims.sub}`).digest('hex')
+  return claims.sub === undefined ? undefined : chatGptAccountIdHash(claims.iss, claims.sub)
 }
 
 export interface ChatGptHostPort {

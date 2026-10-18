@@ -354,7 +354,13 @@ function withStreamedOutput(
   if (response.output.length > 0 && response.output.length !== streamed.length) {
     throw new ResponsesDecodeError('terminal output differs from the streamed items', frameLength)
   }
-  const output = streamed.toSorted((a, b) => a.index - b.index).map((entry) => entry.item)
+  const sorted = streamed.toSorted((a, b) => a.index - b.index)
+  // A gap (items 0 and 2, say) must refuse, never compact: the missing item
+  // may be the call the later ones depend on.
+  if (sorted.some((entry, index) => entry.index !== index)) {
+    throw new ResponsesDecodeError('streamed output indices are not contiguous', frameLength)
+  }
+  const output = sorted.map((entry) => entry.item)
   return { ...response, output }
 }
 const settledCostSchema = z.object({
