@@ -25,6 +25,8 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
+import { ChatGptSignInError } from '../core/providers/subscriptions/chatgpt'
+import { StoreUnavailableError } from './keyStore'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
 import type { CliSignIn } from '../core/backends/musecode/credentialFile'
@@ -654,19 +656,25 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     } catch (error: unknown) {
       // A refused providers file is not a keyring outage: the runtime is
       // already on the account service, so its own refusal stands as read
-      // through the runtime's wrapped metadata port.
+      // through the runtime's wrapped metadata port. A store failure reads
+      // as the store's refusal; anything else is not this read's answer.
       if (isInvalidProvidersFileError(error))
         return { state: 'unavailable', message: accountErrorText(error) }
-      return {
-        state: 'unavailable',
-        message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
-      }
+      if (error instanceof StoreUnavailableError)
+        return {
+          state: 'unavailable',
+          message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+        }
+      throw error
     }
     if (deps.exec === undefined && (key === undefined || key === '')) {
       try {
         if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
           return { state: 'ready' }
-      } catch {
+      } catch (error: unknown) {
+        // A store failure reads as the store's refusal; anything else is
+        // not this read's answer to give.
+        if (!(error instanceof StoreUnavailableError)) throw error
         return { state: 'unavailable', message: UI_TEXT.acpChatGpt.storeUnavailable }
       }
       const configFile = path.join(
@@ -689,15 +697,23 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         } catch (error: unknown) {
           // The providers file, a stored ChatGPT grant or the store: each in
           // its own words, never all of them as the store. The file's refusal
-          // carries its own sentence (unparseable or invalid).
+          // carries its own sentence (unparseable or invalid); anything else
+          // is not this account read's answer to give.
           if (isInvalidProvidersFileError(error))
             return { state: 'unavailable', message: error.message }
-          return {
-            state: 'unavailable',
-            message:
-              entry.chatGptFailureOf(error) ??
-              fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
-          }
+          if (error instanceof ChatGptSignInError)
+            return {
+              state: 'unavailable',
+              message:
+                entry.chatGptFailureOf(error) ??
+                fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+            }
+          if (error instanceof StoreUnavailableError)
+            return {
+              state: 'unavailable',
+              message: fill(UI_TEXT.acpStoreUnavailable, { reason: describe(error) }),
+            }
+          throw error
         }
       }
     }
