@@ -14396,15 +14396,16 @@ and thats it." A thousand-test suite kept shipping broken code as
 
 ### D122 — CI capacity from a second account; the project stays here (owner, 2026-10-16; redesigned 2026-10-17)
 
-**D122 — The capacity repository runs the Windows and macOS unit shards; the
-project, its pull requests and main stay on the owner's account.** While
+**D122 — The capacity repository runs the unit shards (eight on Ubuntu,
+sixteen each on Windows and macOS); the project, its pull requests and main
+stay on the owner's account.** While
 `ORG_CI` is `on` and the organization GitHub App's key
 (`ORG_CI_APP_PRIVATE_KEY`, which GitHub never gives a fork's or Dependabot's
 run) reaches a same-repository pull request's full-tier run, that run is part
 `home`: build.yml's `org` job pushes the merge commit to
 `scnetsolutions/muse-spark-code-ci` as `ci/pr-<number>` with a one-hour token
 for that repository alone (contents and workflows write), the same `ci.yml`
-runs the sixteen Windows and macOS unit shards there (part `org`), and `org`
+runs the forty unit shards there (part `org`), and `org`
 succeeds only if that run did. The seven required names fold in its result, so
 the ruleset is unchanged; every other run keeps every job here (part `all`).
 The capacity repository stays public and holds no secret. Owner setup:

@@ -2,11 +2,11 @@
 # once the merge queue is on) runs the Ubuntu static gates, the production
 # build and every unit test with no coverage gate; the full tier (merge
 # groups, manual runs, release.yml) runs every gate on three platforms, unit
-# shards (four on Ubuntu, eight on Windows and macOS), the integration runs,
-# the macOS helper and the universal packages. Accessibility left the
-# pull-request path: it runs on merge groups, manual runs and releases, never
-# on a pull_request event. The required check names come from the `required`
-# aggregate below on both tiers.
+# shards (eight on Ubuntu, sixteen each on Windows and macOS), the
+# integration runs, the macOS helper and the universal packages.
+# Accessibility left the pull-request path: it runs on merge groups, manual
+# runs and releases, never on a pull_request event. The required check names
+# come from the `required` aggregate below on both tiers.
 # Releases can reuse these exact-tree packages after verifying the CI receipt.
 #
 # Every job has a timeout and every checkout leaves no token in the git
@@ -24,11 +24,11 @@ on:
         type: boolean
         default: false
       # Where this run's jobs belong (D122). `all` runs every job of the tier
-      # here. `home` runs the Ubuntu unit shards here and the Windows and
-      # macOS ones in the capacity repository scnetsolutions/muse-spark-code-ci
-      # through the `org` job; `org` (the capacity repository's own run) runs
-      # only those shards. Release builds and every caller that passes nothing
-      # get `all`.
+      # here. `home` runs every job here except the unit shards, and its `org`
+      # job runs those shards (eight on Ubuntu, sixteen each on Windows and
+      # macOS) in the capacity repository scnetsolutions/muse-spark-code-ci;
+      # `org` (the capacity repository's own run) runs only those shards.
+      # Release builds and every caller that passes nothing get `all`.
       part:
         description: all, home or org (D122)
         type: string
@@ -146,6 +146,9 @@ jobs:
 
   unit:
     name: tests (${{ matrix.os }}, shard ${{ matrix.shard }})
+    # D122: a `home` run keeps no unit shard here; all forty run in the
+    # capacity repository (part `org`), and part `all` runs them here.
+    if: ${{ inputs.part != 'home' }}
     runs-on: ${{ matrix.os }}
     # The warm limit stays 20 minutes (the shard history is in the matrix
     # comment below). An `org` run starts cold: a cache restores only from
@@ -159,22 +162,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # D122: `home` keeps Ubuntu here and `org` runs Windows and macOS in
-        # the capacity repository (macOS jobs queue first: five at a time per
-        # account, twelve per full run, eight of them these shards).
-        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || inputs.part == 'home' && '["ubuntu-latest"]' || inputs.part == 'org' && '["windows-latest","macos-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
-        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8]') }}
-        # Windows splits its slower serial run eight ways: with six, shard 1 ran
+        os: ${{ fromJSON(inputs.fast && '["ubuntu-latest"]' || '["ubuntu-latest","windows-latest","macos-latest"]') }}
+        shard: ${{ fromJSON(inputs.fast && '[1]' || '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]') }}
+        # Windows splits its slower serial run sixteen ways: with six, shard 1 ran
         # 16-17 min (952 s of tests; modelApiHost alone 207 s) and crossed the
         # 20-minute limit in run 38027675949, as hosted Windows varies ~60%
         # between runs (PLAN.md §8). macOS also runs files one at a time
-        # (vitest.config.ts) and takes eight too: over six it had no margin
+        # (vitest.config.ts) and takes sixteen too: over six it had no margin
         # even green (run 38225260540: shard 4 took 19 of the 20 minutes,
         # shard 1 took 16), and run 38270466443 lost shard 1 to the limit
-        # while it was still running normally. The warm limit stays 20 minutes;
-        # Ubuntu keeps four. Part `org` gets 25 (the job's timeout): a new
-        # capacity branch starts with a cold npm cache.
-        exclude: ${{ fromJSON((inputs.fast || inputs.part == 'org') && '[]' || '[{"os":"ubuntu-latest","shard":5},{"os":"ubuntu-latest","shard":6},{"os":"ubuntu-latest","shard":7},{"os":"ubuntu-latest","shard":8}]') }}
+        # while it was still running normally. After the stand-in tests went
+        # (PR #183) the suite is 311 files and eight shards ran 1-3 min, but
+        # the slowest Windows shard (2.9 min, run 39070870774) times that
+        # ~60% swing lands at 4.6: sixteen halves it to ~1.1 min of tests
+        # plus setup, ~2.9 min at the swing, cold-start ~4.5 min — under the
+        # ~5-minute ceiling either way (CISHARDS, docs/certification/ciflow.md).
+        # Ubuntu runs files in parallel and takes eight. The warm limit stays
+        # 20 minutes; part `org` gets 25 (the job's timeout): a new capacity
+        # branch starts with a cold npm cache.
+        exclude: ${{ fromJSON(inputs.fast && '[]' || '[{"os":"ubuntu-latest","shard":9},{"os":"ubuntu-latest","shard":10},{"os":"ubuntu-latest","shard":11},{"os":"ubuntu-latest","shard":12},{"os":"ubuntu-latest","shard":13},{"os":"ubuntu-latest","shard":14},{"os":"ubuntu-latest","shard":15},{"os":"ubuntu-latest","shard":16}]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -190,7 +196,7 @@ jobs:
         env:
           FAST: ${{ inputs.fast }}
           SHARD: ${{ matrix.shard }}
-          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 4 || 8 }}
+          SHARDS: ${{ matrix.os == 'ubuntu-latest' && 8 || 16 }}
         run: |
           if [ "$FAST" = true ]; then
             npx vitest run
@@ -263,8 +269,8 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run test:integration
 
-  # D122: in a `home` run this job stands for the Windows and macOS unit
-  # shards. It pushes the pull request's merge commit to the capacity
+  # D122: in a `home` run this job stands for the unit shards on all three
+  # platforms. It pushes the pull request's merge commit to the capacity
   # repository as ci/pr-<number>, where ci.yml runs part `org` on the
   # organization's runners (a newer commit replaces the branch, and ci.yml's
   # concurrency cancels the older run there), then waits for that run and
@@ -273,14 +279,12 @@ jobs:
   # revoked when the job ends. The wait reads the public run with this job's
   # own read-only token.
   org:
-    name: tests (windows-latest, macos-latest) in scnetsolutions/muse-spark-code-ci
+    name: tests (ubuntu-latest, windows-latest, macos-latest) in scnetsolutions/muse-spark-code-ci
     if: ${{ inputs.part == 'home' }}
     runs-on: ubuntu-latest
-    # The capacity run is a route job, then sixteen shards of at most 25
-    # minutes, macOS five at a time per account. With four pull requests
-    # queued ahead, their 32 macOS shards take eight waves plus two more for
-    # this run's eight: ten waves of full-length shards is 200 minutes before
-    # route and setup overhead. 360 is GitHub's own job ceiling on hosted
+    # The capacity run is a route job, then forty shards of at most 25
+    # minutes each (eight on Ubuntu, sixteen each on Windows and macOS), each
+    # measured at 1-3 minutes. 360 is GitHub's own job ceiling on hosted
     # runners (actions/reference/limits: "Job execution time ... 6 hours"),
     # not our figure: the wait outlives any supported backlog, and anything
     # longer fails at the platform's limit instead of ours. The wait step
@@ -357,7 +361,7 @@ jobs:
             sleep 60
           done
           {
-            echo "### Windows and macOS unit shards: $conclusion"
+            echo "### Unit shards (Ubuntu, Windows, macOS): $conclusion"
             echo
             echo "[$CAPACITY run $id]($url)"
             echo
@@ -371,9 +375,10 @@ jobs:
           test "$conclusion" = success
 
   # The matrix emits the five existing non-security required names on BOTH
-  # events. Every name rejects a failed/cancelled/missing selected-tier job;
-  # in a `home` run that includes `org`, so `quality (windows-latest)` and
-  # `quality (macos-latest)` still mean that those shards passed (D122).
+  # events. Every name rejects a failed/cancelled/missing selected-tier job.
+  # A `home` run keeps no unit shard here (`unit` is skipped) and requires
+  # `org` instead, so `quality (ubuntu-latest)`, `quality (windows-latest)`
+  # and `quality (macos-latest)` still mean those shards passed (D122).
   required:
     name: ${{ matrix.check }}
     if: ${{ always() && inputs.part != 'org' }}
@@ -420,13 +425,16 @@ jobs:
           SAST: ${{ needs.sast.result }}
         run: |
           test "$CHECKS" = success
-          test "$UNIT" = success
           test "$SECRETS" = success
           test "$SAST" = success
-          # D122: a `home` run's Windows and macOS unit shards ran in the
-          # capacity repository, and `org` succeeded only if that run did.
+          # D122: a `home` run's forty unit shards ran in the capacity
+          # repository, and `org` succeeded only if that run did; its own
+          # `unit` is skipped, so requiring it would fail every home run.
+          # Every other run's shards ran here and `org` is skipped.
           if [ "$PART" = home ]; then
             test "$ORG" = success
+          else
+            test "$UNIT" = success
           fi
           if [ "$FAST" != true ]; then
             test "$INTEGRATION" = success

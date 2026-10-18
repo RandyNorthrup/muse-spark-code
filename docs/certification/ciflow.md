@@ -609,6 +609,68 @@ split pull request runs zero shard jobs on the personal account (was four
 Ubuntu), so queued runs stop waiting behind its shards. Part-`all` runs
 (forks, Dependabot, merge groups) keep everything here with forty smaller
 shards instead of twenty: more setup minutes in total, a shorter slowest
-tail. Timeouts stay 20 warm / 25 org: ceilings, not targets. The hosted run
-on the lead's push is the proof (acceptance list at the end of this
-section).
+tail. Timeouts stay 20 warm / 25 org: ceilings, not targets.
+
+### What changed (this lane)
+
+`build.yml`: the `unit` matrix runs 8 Ubuntu + 16 Windows + 16 macOS shards
+(`SHARDS` 8/16/16; Ubuntu excludes 9–16), and runs none of them in a `home`
+run (`if: inputs.part != 'home'`), so part `org` carries all forty. The
+`org` job stands for the shards on all three platforms and its summary
+header reads `Unit shards (Ubuntu, Windows, macOS)`. The `required`
+aggregate requires `org` (not `unit`) when `PART=home` and `unit` (not
+`org`) otherwise; the seven required names are unchanged. `ci.yml` keeps
+its route: same-repo PRs with the key go `home`, everything else stays
+`all`. PLAN.md D122 and CONTRIBUTING.md's capacity section name the forty
+shards.
+
+### Local proof (this rig, 2026-10-17)
+
+- Both workflows parse as YAML. The `fromJSON` matrix expressions,
+  simulated for every (`part`, `fast`) combination, give 40 combos
+  (8 Ubuntu + 16 Windows + 16 macOS) on `all` and `org`, none built on
+  `home` (`unit` is skipped by its `if`), 1 unsharded Ubuntu combo on
+  `fast`, and every shard index within its `SHARDS` (8/16/16). The
+  simulation caught one real bug before it shipped: the first edit left
+  `part == 'org'` in the exclude's empty branch, which would have run
+  `--shard=9/8` … `--shard=16/8` on Ubuntu in the capacity run; the empty
+  branch is now `fast` only.
+- The `required` step, read out of `build.yml` and run under GitHub's
+  `bash --noprofile --norc -eo pipefail`, 7/7: `home` passes only on `org`
+  success (failure, cancelled and skipped all exit 1); `all` passes only on
+  `unit` success. Break drill on a copy: `= success` → `!= failure` on the
+  org check lets a skipped `org` through (exit 0); the file as committed
+  exits 1.
+- The `route` step, read out of `ci.yml`, 9/9 with the 2026-10-17
+  expectations (capacity push → `org`, bad branch → exit 1, own PR with key
+  → `home`, everything else → `all`).
+- `actionlint` 1.7.12 (latest release; shellcheck present, so `run:`
+  scripts were checked): exit 0 on both workflows. `zizmor` 1.31.1
+  `--offline`: the two known low findings, both on untouched lines
+  (`build.yml`'s install of the just-built agent tarball, `ci.yml`'s
+  `./.github/workflows/build.yml` self path); `--persona=pedantic` adds the
+  known `matrix.part.gates` template finding, also untouched. Nothing on a
+  changed line.
+- `prettier --check` on all six changed files, `npm run check:plan`
+  (plan-format-v1, 218 milestones, 0 drift) and `npm run build`: exit 0.
+  No JS/TS file changed, so ESLint and typecheck have no files in scope;
+  no unit-test file names the shard matrix, and workflow steps are proved
+  by driving the extracted steps above, not by a new test file (no-fakes
+  rule: a unit test would feed the steps invented event values).
+
+### Hosted proof (lead's push; the real gate)
+
+The push of this branch opens a same-repository PR run here and a
+`ci/pr-<n>` run there. It must show all of this, recorded on the PR:
+
+- Here: `route` picks `home`; `unit` is skipped; `org` pushes `GITHUB_SHA`
+  as `ci/pr-<n>` (and `ci/base` at its first parent) and succeeds with a
+  summary reading `Unit shards (Ubuntu, Windows, macOS): success` followed
+  by forty linked shard rows.
+- There: a push-triggered run on `ci/pr-<n>` at that same SHA; `route`
+  picks `org`; all forty `tests (<os>, shard N)` succeed, none over
+  ~5 minutes.
+- The required `quality (ubuntu-latest)`, `quality (windows-latest)` and
+  `quality (macos-latest)` are green here with the ruleset unchanged, and
+  both walls plus every shard time go into this record against the baseline
+  above.
