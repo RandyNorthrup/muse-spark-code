@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- On VS Code 1.101 to 1.111 with `http.proxy` set, Muse Voice recorded audio
+  and then failed, because those versions do not route an extension's
+  WebSocket through the proxy. The microphone now stays unavailable with the
+  reason while a proxy is set there, instead of recording audio that cannot
+  be sent.
 - The production build no longer starts every bundle at once through one
   esbuild service, which could fail under machine load with an error that
   named no bundle and then hang. Bundles now run through a bounded pool

@@ -3844,6 +3844,7 @@
   "museVoiceRateLimited": "此金鑰在 Muse Voice 上受到速率限制；請稍候再試一次。",
   "museVoiceClosed": "Muse Voice 已關閉連線（代碼 {code}）",
   "museVoiceNoWebSocket": "Muse Voice 需要 VS Code 延伸主機支援 WebSocket，但此版本不支援。",
+  "museVoiceNoProxy": "Muse Voice 在此 VS Code 版本中無法使用設定的 Proxy；在 Proxy 環境下需要 VS Code 1.112 或更新版本。",
   "museVoiceNoRecorder": "Linux 上的 Muse Voice 使用 arecord（ALSA）或 parec（PulseAudio）錄音；但在 PATH 中都找不到。",
   "networkUntrustedCertificate": "伺服器的憑證不受信任。如果您的網路會檢查 HTTPS 流量，請將其根憑證安裝到作業系統的憑證存放區中（http.systemCertificates 開啟時 VS Code 會讀取它），或者關閉 http.systemCertificates，並在啟動 VS Code 之前以 NODE_EXTRA_CA_CERTS 指定根憑證檔案。",
   "networkProxyCredentials": "Proxy 要求提供認證，但不接受收到的認證。請檢查 http.proxy 和 http.proxyAuthorization，或 VS Code 向您詢問的認證。",

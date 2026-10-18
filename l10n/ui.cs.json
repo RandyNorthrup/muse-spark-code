@@ -4129,6 +4129,7 @@
   "museVoiceRateLimited": "Muse Voice má pro tento klíč omezený počet požadavků; chvíli počkejte a zkuste to znovu.",
   "museVoiceClosed": "Muse Voice ukončil připojení (kód {code})",
   "museVoiceNoWebSocket": "Muse Voice potřebuje podporu WebSocket v hostiteli rozšíření VS Code, kterou tato verze nemá.",
+  "museVoiceNoProxy": "Muse Voice nemůže v této verzi VS Code používat nakonfigurovanou proxy; za proxy vyžaduje VS Code 1.112 nebo novější.",
   "museVoiceNoRecorder": "Muse Voice v Linuxu nahrává pomocí arecord (ALSA) nebo parec (PulseAudio); ani jeden nebyl v PATH nalezen.",
   "networkUntrustedCertificate": "Certifikátu serveru se nedůvěřuje. Pokud vaše síť kontroluje HTTPS, nainstalujte její kořenový certifikát do úložiště certifikátů operačního systému (VS Code ho čte, když je zapnuté http.systemCertificates), nebo vypněte http.systemCertificates a před spuštěním VS Code uveďte soubor kořenového certifikátu v NODE_EXTRA_CA_CERTS.",
   "networkProxyCredentials": "Proxy server požádal o přihlašovací údaje a ty, které dostal, nepřijal. Zkontrolujte http.proxy a http.proxyAuthorization nebo údaje, o které vás požádal VS Code.",

@@ -15,6 +15,8 @@ import {
   locateCaptureHelper,
   locateDictationHelper,
 } from '../../core/voice/helperLocation'
+import { voiceNetworkRefusal } from '../../core/voice/voiceNetwork'
+import { hostRouting } from '../networkPosture'
 import { EXTENSION_QUALIFIED_ID, UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { deferredDriver, type VoiceBundle } from './voiceBundle'
@@ -71,7 +73,8 @@ export interface MuseVoiceSetupDeps {
  * Muse Voice (M35, PLAN.md D30): the paid engine's recorder for this
  * platform and the stream to Meta, or why it cannot run here. Whether it is
  * the microphone's engine (the setting, the accepted price, the Model API
- * backend) is the caller's to decide.
+ * backend) is the caller's to decide. `isProxySet` is whether VS Code's
+ * `http.proxy` names a proxy (validated, never raw; M56, PLAN.md D43).
  */
 export function createMuseVoiceSetup(
   probe: Omit<
@@ -79,18 +82,23 @@ export function createMuseVoiceSetup(
     'fileExists' | 'programFiles' | 'remoteName' | 'appName' | 'pathVariable'
   >,
   deps: MuseVoiceSetupDeps,
+  isProxySet: boolean,
 ): DictationSetup {
-  if (typeof globalThis.WebSocket !== 'function') {
-    return { isAvailable: false, reason: UI_TEXT.museVoiceNoWebSocket }
-  }
-  const location = locateCaptureHelper({
-    ...probe,
-    fileExists: existsSync,
-    programFiles: process.env['ProgramFiles'],
-    remoteName: remoteHostName(),
-    appName: env.appName,
-    pathVariable: process.env['PATH'],
-  })
+  const refusal = voiceNetworkRefusal(hostRouting(globalThis, 'webSocket'), isProxySet)
+  const location =
+    refusal === undefined
+      ? locateCaptureHelper({
+          ...probe,
+          fileExists: existsSync,
+          programFiles: process.env['ProgramFiles'],
+          remoteName: remoteHostName(),
+          appName: env.appName,
+          pathVariable: process.env['PATH'],
+        })
+      : {
+          isAvailable: false as const,
+          reason: refusal === 'proxy' ? UI_TEXT.museVoiceNoProxy : UI_TEXT.museVoiceNoWebSocket,
+        }
   if (!location.isAvailable) {
     deps.log.info(`Muse Voice unavailable: ${location.reason}`)
     return location

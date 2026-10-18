@@ -3939,6 +3939,7 @@
   "museVoiceRateLimited": "Muse Voice bu anahtar için hız sınırına ulaştı; biraz bekleyip yeniden deneyin.",
   "museVoiceClosed": "Muse Voice bağlantıyı kapattı (kod {code})",
   "museVoiceNoWebSocket": "Muse Voice, VS Code'un uzantı konağında WebSocket desteği gerektirir; bu sürümde bu destek yok.",
+  "museVoiceNoProxy": "Muse Voice, bu VS Code sürümünde yapılandırılan proxy'yi kullanamaz; proxy arkasında VS Code 1.112 veya daha yenisi gerekir.",
   "museVoiceNoRecorder": "Muse Voice, Linux'ta arecord (ALSA) veya parec (PulseAudio) ile kayıt yapar; PATH üzerinde ikisi de bulunamadı.",
   "networkUntrustedCertificate": "Sunucunun sertifikasına güvenilmiyor. Ağınız HTTPS trafiğini denetliyorsa, kök sertifikasını işletim sisteminin sertifika deposuna yükleyin (http.systemCertificates açıkken VS Code onu okur) ya da http.systemCertificates'i kapatıp VS Code'u başlatmadan önce kök sertifika dosyasını NODE_EXTRA_CA_CERTS ile belirtin.",
   "networkProxyCredentials": "Ara sunucu kimlik bilgileri istedi ve aldıklarını kabul etmedi. http.proxy ve http.proxyAuthorization ayarlarını veya VS Code'un sizden istediği kimlik bilgilerini denetleyin.",
