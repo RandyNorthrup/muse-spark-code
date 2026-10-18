@@ -1,9 +1,9 @@
 # Catch burn-down list (D119)
 
 Every site the corrected catch classifier accepts lives in
-`scripts/catch-baseline.json` (1,347 identities after PR161FIN: 1,163 from
-the original reader plus the corrected reader's pre-existing finds, minus
-the sites PR161FIN fixed). New sites still fail `npm run check:catches`.
+`scripts/catch-baseline.json` (1,555 identities after the 0.19.0
+runtime/panel/exec burn-down: the corrected reader's finds, minus the
+sites the lane fixed). New sites still fail `npm run check:catches`.
 Fix an area by fixing its handlers (the failure reaches the person in
 words or the caller as an error with its cause), proving the test fires,
 then regenerating the lowered baseline with
@@ -143,6 +143,13 @@ Designed baselines with reasons (accepted, not forgotten):
   unanswered name refuses as unreachable with nothing sent, carrying
   its cause where the gate cannot see positional causes. Proved
   (`providerExec.test.ts`).
+- `src/runtime/backends.ts` readiness read (1 GENERIC): a refused
+  providers file keeps its own words, a stored-grant failure keeps
+  its words through the lazily loaded provider port (a value import
+  would drag provider code into the engine bundle, failing the
+  split gate), a store failure reads as the store's refusal, and
+  anything else propagates. Proved over the real backend with a
+  denying store on both arms (`backendsReadiness.test.ts`).
 
 | Folder                 | GENERIC | SWALLOW |
 | ---------------------- | ------- | ------- |
@@ -213,13 +220,13 @@ Designed baselines with reasons (accepted, not forgotten):
 | src/host/voice         | 3       | 0       |
 | src/host/web           | 4       | 0       |
 | src/host/whatsNew      | 3       | 0       |
-| src/runtime            | 42      | 6       |
+| src/runtime            | 30      | 7       |
 | src/runtime/companion  | 2       | 5       |
 | src/runtime/estimator  | 1       | 0       |
-| src/runtime/exec       | 19      | 4       |
+| src/runtime/exec       | 5       | 1       |
 | src/runtime/fonts      | 2       | 0       |
 | src/runtime/legal      | 8       | 1       |
-| src/runtime/panel      | 49      | 12      |
+| src/runtime/panel      | 16      | 6       |
 | src/runtime/playbook   | 2       | 0       |
 | src/runtime/providers  | 4       | 2       |
 | src/runtime/questions  | 2       | 0       |
