@@ -51,6 +51,7 @@ function privateStore<T>(
       } catch (error: unknown) {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return empty()
         // JSON parser errors can quote question text. Never propagate the raw exception.
+        if (!(error instanceof SyntaxError)) throw error
         raw = undefined
       }
       const parsed = parse(raw, sessionId)
