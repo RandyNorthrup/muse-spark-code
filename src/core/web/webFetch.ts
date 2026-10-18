@@ -46,6 +46,7 @@ import {
   WEB_FETCH_CONVERT_MAX_CHARS,
   WEB_FETCH_DETAIL_MAX_CHARS,
   WEB_FETCH_HTML_TYPES,
+  WEB_FETCH_MAX_BODY_BYTES,
   WEB_FETCH_MAX_CONTENT_CHARS,
   WEB_FETCH_MODEL_TEXT,
   WEB_FETCH_NOT_TLS_CODE,
@@ -699,7 +700,16 @@ async function readPage(
     refuse('contentType', { type: shownToken(type) })
   }
   if (isHtml && deps.rawTextLimit !== undefined) refuse('contentType', { type })
-  const bytes = await readCapped(response, headers, signal, deps.rawTextLimit)
+  // The trusted policy's post-decompression bound (SECURITY.md) holds on
+  // every product call: a caller that named no smaller ingress cap still
+  // buffers at most WEB_FETCH_MAX_BODY_BYTES, so a gzip/Brotli bomb or a
+  // fast text stream cannot exhaust the host before the 30-second timeout.
+  const bytes = await readCapped(
+    response,
+    headers,
+    signal,
+    deps.rawTextLimit ?? WEB_FETCH_MAX_BODY_BYTES,
+  )
   if (deps.rawTextLimit !== undefined)
     return {
       kind: 'page',
