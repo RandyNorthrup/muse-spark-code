@@ -103,6 +103,20 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'commands.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/host/cliFeatures.ts', symbol: 'createCliFeatures', side: ['vscode'] },
+      { importer: 'src/host/memoryFeatures.ts', symbol: 'createMemoryFeatures', side: ['vscode'] },
+      { importer: 'src/host/planFeatures.ts', symbol: 'createPlanFiles', side: ['vscode'] },
+      {
+        importer: 'src/host/worktreeFeatures.ts',
+        symbol: 'createWorktreeFeatures',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
     file: 'configuredProviders.js',
     side: 'both',
     requestedBy: [
@@ -483,6 +497,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'report.js',
     side: 'vscode',
     requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
       {
         importer: 'src/host/conversation/conversationController.ts',
         symbol: 'ConversationController.reportProblemHandler',

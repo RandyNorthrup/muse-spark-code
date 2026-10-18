@@ -85,34 +85,58 @@ Remaining ~212 inputs are each under ~2.1 KiB (next: `shared/l10n/check.ts`,
 per-turn path by the same reader rule; none is honestly movable without
 changing when its reader runs, item by item as above.
 
-## The moves (target set, ~19.7 KiB gross)
+## The moves (landed)
 
-1. New first-use bundle `dist/commands.js` from
+1. New first-use bundle `dist/commands.js` (29,962 B; new 50 KiB budget:
+   29,962 × 1.15 = 34,456 B, rounded up to the next 25 KiB multiple) from
    `src/host/commands/commandsEntry.ts`: `museConfigCommands.ts` (6,911),
    `skillsCommands.ts` (3,021), `worktreeCommands.ts` (3,606),
-   `memoryCommands.ts` (2,192), `planCommands.ts` (523) — 16,253 B gross.
-   Readers (`cliFeatures`, `worktreeFeatures`, `memoryFeatures`,
-   `planFeatures`) require it on the first command through a
-   `commandsBundle.ts` loader (`lazyBundleLoader`, cached). None of the five
-   imports `vscode` (verified: only core/shared/node imports plus
-   type-only editor types), so the bundle stays host-safe like
-   `dist/rulesFile.js`.
-2. `src/core/support/report.ts` (3,476) into the existing `dist/report.js`:
-   activation's Diagnostics command loads the report bundle on first use
-   instead of carrying the builder. `dist/report.js` is 19,904 B against a
-   75 KiB budget — fits with room.
+   `memoryCommands.ts` (2,192), `planCommands.ts` (523). Readers
+   (`cliFeatures`, `worktreeFeatures`, `memoryFeatures`, `planFeatures`)
+   take it through a dynamic `import('./commands/commandsEntry')` inside
+   each command method (redirected to `./commands.js` by the
+   `deferredCohort` plugin, as `conversationController` does for
+   `reportEntry`); each entry factory installs the caller's table before
+   delegating (the `rulesFileEntry` shape). None of the five imports
+   `vscode` (verified: only core/shared/node imports plus type-only editor
+   types), and the build fails a stray import there.
+2. `src/core/support/report.ts` (3,476) into the existing `dist/report.js`
+   (19,904 → 23,539 B, budget unchanged at 75 KiB): activation's
+   Diagnostics command takes the report bundle on first use (new
+   `renderSupportReport` export on `reportEntry.ts`, same table-installing
+   shape), instead of carrying the builder.
 
-Net target after loader shims (one loader per facade, entry re-exports):
-about **19 KiB freed**, growth about **−16 KiB**, headroom about **19 KiB**.
+Measured production `npm run build` after:
+
+- `dist/extension.js` **564,253 → 539,818 B** (−24,435 B).
+- Budget test: baseline 561,352 B, current 539,818 B, growth **−21,534 B**;
+  headroom **24,606 B (≈ 24.0 KiB)** — twice the 12 KiB aim.
+- No existing cap moved; the only new budget line is `dist/commands.js`
+  at 50 KiB per D6's rule.
 
 ## Proof per moved unit
 
-- Repository gates: `check-bundle-split` (moved files in the lazy bundle,
-  never in activation), `check-bundle-size` (new budget + existing report
-  budget), `gen-lazy-registry --check`, `packagedBundles` suite,
-  `modelsActivationBudget` suite, suites of the moved files' readers.
-- First-use drill per moved unit through the built `dist/`: require the
-  lazy bundle from `dist/` and exercise one real call path per reader
-  facade (MCP-servers/hook pickers via a headless command shim,
-  skills manage/import planning, worktree command planning, memory command,
-  plan command, diagnostics report render), recorded below when run.
+- Repository gates, all green on the final tree: `check-bundle-split`
+  (prints `ok dist/commands.js: loads only on the first CLI-backed or
+workspace command` and the updated report line), `check-bundle-size`
+  (extension 527.2/600, commands 29.3/50, report 23.0/75 KiB),
+  `gen-lazy-registry --check` (100 bundles, `commands.js` requested by the
+  four facades, `report.js` additionally by activation),
+  `check-host-globals` (commands 0 `navigator` refs), `packagedBundles`
+  (8/8: the real VSIX carries the new bundle and every lazy load
+  resolves), `modelsActivationBudget` (growth −21,534 B), and the moved
+  files' suites: `museConfigCommands` + `supportReport` + `reportProblem`
+  (79), `skillsCli` + `worktrees` + `worktreeConversations` (32),
+  `modelsSubscriptionsBundle` + `modelsPanelBundle` + `memoryIo` (17),
+  `lazyBundleFiles` (13) + `rulesFileBundle` (6).
+- First-use drill through the built `dist/` (`temp/drill-activation-room.mjs`,
+  gitignored): both bundles require with every moved export; the
+  Diagnostics text renders (`Muse Spark diagnostics`, `extension: …`);
+  the Plans picker dismisses and opens; MCP/Hooks pickers reach their
+  first pick; skills flows refuse without a CLI; worktree flows exit
+  cleanly without git; memory reaches its empty pick with no error.
+  Result: `DRILL PASS: every moved unit loads and works on first use`.
+- Typechecks (host, webview, unit, e2e, integration), eslint zero
+  warnings, prettier, knip, cycles, duplication, `check:plan`,
+  `check:l10n`, `check:reference`, `check:host-api`, SAST and audit: exit
+  0 (SAST/audit lines below).

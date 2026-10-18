@@ -23,7 +23,8 @@ import {
 import { entriesByKind } from './backend/memoryIo'
 import { readPickedFile } from './backend/toolIo'
 import { canonicalPath } from './canonicalPath'
-import { choosePlan } from './commands/planCommands'
+import { uiLocale } from '../shared/l10n/text'
+import type * as CommandsBundle from './commands/commandsEntry'
 import type { PickOne } from './commands/pickItem'
 import type { PlanFiles } from './conversation/conversationController'
 import { createFileExclusively, isNameTaken, isOwnedFile } from './fsAtomic'
@@ -176,6 +177,10 @@ export function createPlanFiles(deps: PlanFeatureDeps): PlanFiles {
     list: () => store.list(),
     confirmSave: () =>
       deps.confirm(UI_TEXT.planSaveConfirm, UI_TEXT.planSaveConfirmDetail, UI_TEXT.savePlan),
-    choose: (plans) => choosePlan(plans, deps.pick),
+    // The Plans… picker loads on first use (PLAN.md D6): dist/commands.js.
+    choose: async (plans) => {
+      const commands: typeof CommandsBundle = await import('./commands/commandsEntry')
+      return await commands.choosePlan(plans, deps.pick, UI_TEXT, uiLocale())
+    },
   }
 }

@@ -12,6 +12,7 @@ import {
   createReportProblemHandler as createHandler,
   type ReportProblemHandlerDeps,
 } from '../conversation/reportProblemHandler'
+import { renderSupportReport as renderFacts, type SupportFacts } from '../../core/support/report'
 
 /** The dialog's handler for one surface, in the caller's display language. */
 export function createReportProblemHandler(
@@ -21,4 +22,10 @@ export function createReportProblemHandler(
 ): ReturnType<typeof createHandler> {
   setUiText(table, locale)
   return createHandler(deps)
+}
+
+/** The Diagnostics report text, in the caller's display language. */
+export function renderSupportReport(facts: SupportFacts, table: UiText, locale: string): string {
+  setUiText(table, locale)
+  return renderFacts(facts)
 }
