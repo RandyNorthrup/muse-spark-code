@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- The panel's deferred English is back within its unchanged 25 KiB budget:
+  the orchestrator playbook's English loads in its own lazily fetched chunk
+  beside the playbook's deferred surfaces instead of riding the shared
+  surface-English closure. No sentence changed in any language.
+
 ## [0.19.0] - 2026-10-17
 
 ### Highlights
