@@ -61,7 +61,8 @@ export async function handleDeveloperRequest(
 }
 
 /** The visible machine setting uses the same confirmations and owner. The
- * host must restore its checkbox from the returned snapshot, even on denial. */
+ * host must restore its checkbox from the returned snapshot, even on denial.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export async function setDeveloperMachineSetting(
   owner: DeveloperOptions,
   isEnabled: boolean,
@@ -71,7 +72,8 @@ export async function setDeveloperMachineSetting(
 }
 
 /** Metadata read after localization installation; W copies this into its
- * manifest/catalogue, H into /help and terminal help, U into settings. */
+ * manifest/catalogue, H into /help and terminal help, U into settings.
+ * @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function developerHelpRows() {
   return [
     {
@@ -92,6 +94,7 @@ export function developerHelpRows() {
   ]
 }
 
+/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export function developerBadge(snapshot: DeveloperSnapshot): string | undefined {
   return snapshot.isUnlocked ? UI_TEXT.developer.badge : undefined
 }
