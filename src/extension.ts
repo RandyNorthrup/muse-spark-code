@@ -1680,6 +1680,7 @@ async function activateWindow(
     // and count for the session that was live when the import began.
     agentImport: {
       isActive: () => !nativeStarts.signal.aborted,
+      signal: nativeStarts.signal,
       isProjectTrusted,
       isProjectHeld: () => windowHold.isHeld,
       currentRoot: firstFolderPath,
