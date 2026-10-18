@@ -152,7 +152,7 @@ function untrustedCheckoutArgs(platform: NodeJS.Platform): readonly string[] {
   ]
 }
 
-function checkoutRefusal(cause: unknown): Error {
+function checkoutRefusal(cause?: unknown): Error {
   return new PullRequestServiceError(UI_TEXT.openPullRequestFiltersUnavailable, { cause })
 }
 

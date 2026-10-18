@@ -28,8 +28,10 @@ describe('sealOf failure marks', () => {
       symlinkSync(path.join(root, 'no-target.txt'), link)
       const seal = sealOf([link])
       expect(seal.marks).toHaveLength(1)
-      expect(seal.marks[0]).not.toBe('absent')
-      const pair: unknown = JSON.parse(seal.marks[0])
+      const [first] = seal.marks
+      if (first === undefined) throw new Error('the seal has no mark')
+      expect(first).not.toBe('absent')
+      const pair: unknown = JSON.parse(first)
       expect(Array.isArray(pair)).toBe(true)
       if (!Array.isArray(pair)) throw new Error('unreachable')
       expect(pair[1]).toBe('absent')
