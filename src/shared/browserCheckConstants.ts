@@ -203,9 +203,8 @@ export const BROWSER_NETWORK_SERVICE_TYPE = 'network.mojom.NetworkService'
 // The browser launches that service after its own process already answers
 // on the pipe; on Windows it was missing from the first answer in 8 of 200
 // checks and appeared up to 1.2 s later under load
-// (docs/certification/bcstart.md). The contract read asks again this often,
-// for at most this long, before the check ends `unrecognized`.
-export const BROWSER_NETWORK_SERVICE_START_MS = 5000
+// (docs/certification/bcstart.md). The contract read asks again this often
+// until it is listed; only the check's own lifetime ends that wait.
 export const BROWSER_NETWORK_SERVICE_POLL_MS = 50
 // The page's error text that crosses the boundary (browserRun.ts).
 export const BROWSER_NET_ERROR = /^net::ERR_[A-Z0-9_]+$/
