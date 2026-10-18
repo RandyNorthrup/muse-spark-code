@@ -227,18 +227,21 @@ describe('SPDX template matching', () => {
     },
   )
 
+  // One read per case: ten glued holders over a long template measured
+  // past 2 s in one case, flaking the 5 s timeout under shard load.
   it.each(
     PINNED_TEMPLATE_IDS.filter((id) =>
       HOLDER_PLACEHOLDERS.some((entry) => canonicalText(id).includes(entry)),
-    ),
-  )('never reads %s with glued restriction vocabulary in its holder as exact (property)', (id) => {
-    const base = canonicalText(id)
-    const placeholder = HOLDER_PLACEHOLDERS.find((entry) => base.includes(entry)) ?? ''
-    for (const holder of GLUED_RESTRICTIONS) {
+    ).flatMap((id) => GLUED_RESTRICTIONS.map((holder) => ({ id, holder }))),
+  )(
+    'never reads $id with glued restriction vocabulary in its holder as exact (property)',
+    ({ id, holder }) => {
+      const base = canonicalText(id)
+      const placeholder = HOLDER_PLACEHOLDERS.find((entry) => base.includes(entry)) ?? ''
       const reading = readLicenseText(base.replace(placeholder, () => holder))
       if (reading?.exact === true) throw new Error(`${id} read as exact with holder "${holder}"`)
-    }
-  })
+    },
+  )
 
   it('covers the holder placeholders of the pinned templates, plain holders staying exact', () => {
     const covered = PINNED_TEMPLATE_IDS.filter((id) =>
@@ -279,31 +282,38 @@ describe('SPDX template matching', () => {
     }
   })
 
+  // One read per case: ten inserted sentences over a long template
+  // measured past 2 s in one case, flaking the 5 s timeout under load.
+  // The (offset, restriction) pairs replay the same seeded stream, so each
+  // case reads exactly the text the loop read before.
   it.each(
     PINNED_TEMPLATE_IDS.flatMap((id, index) =>
-      [true, false].map((isKept) => ({ id, index, isKept })),
+      [true, false].flatMap((isKept) => {
+        const next = random(97 + index)
+        const base = canonicalText(id, isKept)
+        const boundaries = sentenceBoundaries(base)
+        const pick = (): number => boundaries[Math.floor(next() * boundaries.length)] ?? 0
+        const offsets = [
+          0,
+          base.length,
+          ...Array.from({ length: 4 }, pick),
+          ...Array.from({ length: 4 }, () => Math.floor(next() * base.length)),
+        ]
+        return offsets.map((offset) => {
+          const at = base.lastIndexOf(' ', offset - 1) + 1 || offset
+          const restriction = RESTRICTIONS[Math.floor(next() * RESTRICTIONS.length)] ?? ''
+          return { id, isKept, at, restriction }
+        })
+      }),
     ),
   )(
     'never reads $id with an inserted restriction sentence as exact (optionals $isKept)',
-    ({ id, index, isKept }) => {
-      const next = random(97 + index)
+    ({ id, isKept, at, restriction }) => {
       const base = canonicalText(id, isKept)
-      const boundaries = sentenceBoundaries(base)
-      const pick = (): number => boundaries[Math.floor(next() * boundaries.length)] ?? 0
-      const offsets = [
-        0,
-        base.length,
-        ...Array.from({ length: 4 }, pick),
-        ...Array.from({ length: 4 }, () => Math.floor(next() * base.length)),
-      ]
-      for (const offset of offsets) {
-        const at = base.lastIndexOf(' ', offset - 1) + 1 || offset
-        const restriction = RESTRICTIONS[Math.floor(next() * RESTRICTIONS.length)] ?? ''
-        const text = `${base.slice(0, at)}${restriction} ${base.slice(at)}`
-        const reading = readLicenseText(text)
-        if (reading?.exact === true)
-          throw new Error(`${id} read as exact with "${restriction}" at ${String(at)}`)
-      }
+      const text = `${base.slice(0, at)}${restriction} ${base.slice(at)}`
+      const reading = readLicenseText(text)
+      if (reading?.exact === true)
+        throw new Error(`${id} read as exact with "${restriction}" at ${String(at)}`)
     },
   )
 
