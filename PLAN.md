@@ -38986,6 +38986,21 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 
 ## 10. Definition of done and release records
 
+**0.19.0 preparation (2026-10-17).** `release/0.19.0` cut from `main-now` at
+`81dacaf5a7`, merging in order PR #185 (`fix/sandbox-say`: the Linux sandbox
+cannot-start notice), PR #189 (`ms/msm112`: the production build runs through
+a bounded pool of 8), PR #190 (`ms/msm56`: Muse Voice stays unavailable with
+its reason past an unrouted proxy), PR #199 (`ms/msm58m69`: the consent audit
+and the dead `htmlToMarkdown` removal), and PR #203 (`ms/msm82`: turn and
+background notices). `package.json` and `package-lock.json` at 0.19.0;
+CHANGELOG's `[Unreleased]` promoted to `[0.19.0] - 2026-10-17` with a
+five-bullet Highlights list; the roadmap regenerated. Gates on the final
+tree: format, eslint zero warnings, typecheck, check:plan, check:roadmap,
+check:l10n, check:reference, knip, build with bundle budgets, and the unit
+suites of every merged change, all green; the full .vsix is packed by hosted
+CI. The `0.19.0 released (…)` line is written by the lead after the tag's
+release run.
+
 **0.18.2 released (2026-10-12, tag `v0.18.2` on main's release merge `898a26c5e`, PR #153, release run 38329786779).**
 Pull request 153 (`release/0.18.2`, head `d243e0771`, cut from
 `int/train-0182` at `5bc38fbe0` and merged with main at `e763f4938`) merged at
