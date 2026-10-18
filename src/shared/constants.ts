@@ -8185,6 +8185,5 @@ export const MCP_OAUTH_LIMITS = {
 // U's independent lazy surfaces; W registers these new caps without changing existing caps.
 export const VAULT_PANEL_BUDGET_KIB = 75
 export const VAULT_HOST_BUDGET_KIB = 50
-export const VAULT_UI_TICK_MS = 1000
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30
