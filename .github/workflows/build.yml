@@ -182,10 +182,13 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          # The evaluation children need `--permission` (unflagged from
-          # 22.13.0, review RVCM1012H): pin the floor that has it instead of
-          # tracking 22, whose earlier patches lack the flag.
-          node-version: 22.13.0
+          # Track 22 (latest 22.x), as main does: the evaluation children
+          # need `--permission` (unflagged from 22.13.0, review RVCM1012H),
+          # which every 22.13+ keeps, and `@asamuzakjp/css-color@7.0.1`
+          # requires ^22.22.2, which 22.13.0 does not satisfy (EBADENGINE
+          # in train run 39099729902). `22` resolves to the newest 22.x,
+          # never an earlier patch, so both needs stay met.
+          node-version: 22
           cache: npm
       - run: npm ci
       - name: unit tests
