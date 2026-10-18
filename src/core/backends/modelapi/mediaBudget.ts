@@ -175,8 +175,14 @@ export class MediaBudget {
     input: readonly InputItem[],
     record?: ModelCapabilityRecord,
     required: readonly InputContentPart[] = [],
+    provider?: string,
   ): readonly InputItem[] {
-    this.assertMessageFits(required, undefined, record?.identity.provider)
+    // The send path holds the resolved model's provider identity even
+    // where it holds no capability record: Meta's slot budget must not
+    // meet a configured provider's media on the strength of the missing
+    // record alone (RVPROVM95).
+    const providerId = record?.identity.provider ?? provider
+    this.assertMessageFits(required, undefined, providerId)
     const reserved = this.usage(required)
     const protectedParts = new Set(required)
     let left = MODEL_API_MEDIA_PER_REQUEST - reserved.slots
@@ -224,6 +230,13 @@ export class MediaBudget {
         }
         if (encodedChars > encodedLeft) return 'budget'
         if (isImage) imageCount++
+        encodedLeft -= encodedChars
+        return undefined
+      }
+      if (providerId !== undefined && providerId !== 'meta') {
+        // No record, but a configured provider: it answers for its own
+        // counts and sizes, so only the pipeline's byte bound elides.
+        if (encodedChars > encodedLeft) return 'budget'
         encodedLeft -= encodedChars
         return undefined
       }

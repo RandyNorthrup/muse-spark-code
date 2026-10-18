@@ -280,6 +280,24 @@ describe('Model API replay media budget', () => {
     }).toThrow()
   })
 
+  it('never meets Meta’s 50-slot budget in fit() when only the provider identity is known', () => {
+    // RVPROVM95: the send path (ModelApiHost.body) holds the resolved
+    // model's provider identity but no capability record, so fit() must
+    // honor the identity alone: 51 fresh images neither throw Meta's
+    // number nor elide replay by Meta's slot count. Only the pipeline's
+    // aggregate byte bound still applies.
+    const required = requiredImages(51)
+    const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
+    const budget = new MediaBudget()
+    expect(budget.fit(input, undefined, required, 'openai')).toEqual(input)
+    expect(budget.omitted).toBe(false)
+    const replay: readonly InputItem[] = [
+      { type: 'message', role: 'user', content: requiredImages(51) },
+    ]
+    expect(budget.fit(replay, undefined, [], 'openai')).toEqual(replay)
+    expect(budget.omitted).toBe(false)
+  })
+
   it('counts MCP output image bytes against a newer PDF request cap', () => {
     const pdfData = `data:application/pdf;base64,${Buffer.from(pdfFixture(1)).toString('base64')}`
     const input: readonly InputItem[] = [
