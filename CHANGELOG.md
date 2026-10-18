@@ -83,6 +83,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The empty composer again invites a message with only this machine's
+  focus key (`Ask Muse… (Ctrl+Esc to focus)` on Linux, `Cmd+Esc` on
+  macOS, `Ctrl+Alt+Esc` on Windows) instead of the three-platform
+  shortcut tip; the full tip stays in Getting Started.
 - The PATHGUARD spawn inventory now lists the Linux sandbox probe
   (`src/core/backends/musecode/sandbox.ts`): it resolves `bwrap` off
   absolute PATH entries only and refuses a binary inside the workspace

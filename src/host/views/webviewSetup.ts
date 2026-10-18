@@ -15,6 +15,7 @@ import {
   isEstimatorWebviewMessage,
   type SettingsSnapshot,
 } from '../../shared/protocol'
+import { composerPlaceholderFor } from './composerPlaceholder'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
 import type { Logger } from '../logger'
@@ -69,7 +70,7 @@ function buildInitMessage(context: WebviewHostContext, isSideChat: boolean): Hos
   return {
     type: 'init',
     emptyStateHint: UI_TEXT.emptyStateHint,
-    composerPlaceholder: UI_TEXT.composerPlaceholder,
+    composerPlaceholder: composerPlaceholderFor(process.platform),
     settings: isSideChat
       ? { ...context.getSettings(), initialPermissionMode: 'plan' }
       : context.getSettings(),
