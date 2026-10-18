@@ -63,6 +63,7 @@
 !dist/pageWorker.js
 !dist/imageResizeWorker.js
 !dist/report.js
+!dist/commands.js
 !dist/recorder.js
 !dist/media.js
 !dist/screenRecord.js
